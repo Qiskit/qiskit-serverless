@@ -270,7 +270,7 @@ SWAGGER_SETTINGS = {
 }
 
 SITE_ID = 1
-SITE_HOST = os.environ.get("SITE_HOST", "http://localhost:8000")
+SITE_HOST = os.environ.get("SITE_HOST", "http://localhost:8001" if IS_SCHEDULER else "http://localhost:8000")
 
 # custom token auth
 QUANTUM_PLATFORM_API_BASE_URL = os.environ.get("QUANTUM_PLATFORM_API_BASE_URL", None)

@@ -1,7 +1,7 @@
 """Health check endpoints for Kubernetes readiness and liveness probes."""
 
 from django.db import OperationalError, connection
-from django.http import HttpRequest, JsonResponse
+from django.http import HttpRequest, JsonResponse, HttpResponse
 from api.apps import ApiConfig
 
 
@@ -23,3 +23,8 @@ def readiness(request: HttpRequest) -> JsonResponse:
 def liveness(request: HttpRequest) -> JsonResponse:
     """Service is alive and running."""
     return JsonResponse({"status": "alive"})
+
+
+def not_found(request: HttpRequest) -> HttpResponse:
+    """Route not found."""
+    return HttpResponse("Not found", status=404)

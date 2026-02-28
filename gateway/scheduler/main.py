@@ -3,6 +3,8 @@
 import logging
 import time
 
+from django.conf import settings
+
 from core.models import Config
 from scheduler.http_server import SchedulerHttpServer
 from scheduler.views.probes import liveness, readiness
@@ -32,16 +34,20 @@ class Main:
         Config.add_defaults()
         logger.info("Scheduler loop started.")
 
-    def start_server(self, port: int):
-        """Start internal HTTP server for probes and metrics if configured."""
-
-        self.http_server = SchedulerHttpServer(port=port)
-        self.http_server.add_json_handler("/readiness", readiness)
-        self.http_server.add_json_handler("/liveness", liveness)
+    def start_http_server(self):
+        """Start internal HTTP server for probes and metrics."""
+        self.http_server = SchedulerHttpServer(site_host=settings.SITE_HOST)
+        self.http_server.add_path_handler("/readiness", readiness)
+        self.http_server.add_path_handler("/liveness", liveness)
         self.http_server.start()
 
+    def stop_http_server(self):
+        """Stop internal HTTP server"""
+        if self.http_server:
+            self.http_server.stop()
+
     def run(self):
-        """Run the scheduler loop."""
+        """Run the scheduler loop until kill signal is received."""
         try:
             while not self.kill_signal.received:
                 start_time = time.time()
@@ -54,6 +60,7 @@ class Main:
                     except Exception as ex:  # pylint: disable=broad-exception-caught
                         logger.exception("Error in %s: %s", task.name, ex)
 
+                # don't delay more than 1s if the loop was busy
                 elapsed = time.time() - start_time
                 if not self.kill_signal.received and elapsed < 1:
                     time.sleep(1 - elapsed)
