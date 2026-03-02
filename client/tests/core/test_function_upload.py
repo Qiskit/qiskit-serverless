@@ -33,7 +33,9 @@ def _make_mock_response(title="my-function", provider=None):
     """Return a mock requests.Response that looks like a successful upload."""
     mock_response = MagicMock()
     mock_response.ok = True
-    mock_response.json.return_value = {"title": title, "provider": provider, "id": "abc-123"}
+    payload = {"title": title, "provider": provider, "id": "abc-123"}
+    mock_response.text = json.dumps(payload)
+    mock_response.json.return_value = payload
     return mock_response
 
 
