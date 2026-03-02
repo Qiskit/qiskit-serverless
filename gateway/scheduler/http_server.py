@@ -16,16 +16,6 @@ from scheduler.views.probes import not_found
 logger = logging.getLogger("main")
 
 
-class _QuietHandler(WSGIRequestHandler):
-    """WSGI handler that only logs errors (5xx status codes)."""
-
-    def log_message(self, format, *args):  # pylint: disable=redefined-builtin
-        pass
-
-    def log_error(self, format, *args):  # pylint: disable=redefined-builtin
-        logger.error("HTTP %s", format % args if args else format)
-
-
 class SchedulerHttpServer:
     """Expose scheduler probes and Prometheus metrics via WSGI."""
 
@@ -34,7 +24,7 @@ class SchedulerHttpServer:
         self._host = parsed.hostname or "0.0.0.0"
         self._port = parsed.port or 8001
         self._routes: dict = {}
-        self._not_found_handler = self._create_handler(not_found)
+        self._not_found_handler = create_handler(not_found)
         self._httpd: WSGIServer | None = None
         self._thread: threading.Thread | None = None
         self._running = False
@@ -42,24 +32,11 @@ class SchedulerHttpServer:
     def add_path_handler(self, path: str, func):
         """Register a handler for the given path."""
         logger.info("Adding %s", path)
-        self._routes[path] = self._create_handler(func)
+        self._routes[path] = create_handler(func)
 
     def set_not_found_handler(self, func):
         """Set the handler for unmatched paths."""
-        self._not_found_handler = self._create_handler(func)
-
-    def _create_handler(self, func):
-        def handler(environ, start_response):
-            response = func(WSGIRequest(environ))
-            if not isinstance(response, HttpResponse):
-                raise TypeError(f"Handler must return HttpResponse, got {type(response).__name__}")
-            start_response(
-                f"{response.status_code} {HTTPStatus(response.status_code).phrase}",
-                list(response.items()),
-            )
-            return [response.content]
-
-        return handler
+        self._not_found_handler = create_handler(func)
 
     def _app(self, environ, start_response):
         path = environ.get("PATH_INFO", "").rstrip("/") or "/"
@@ -109,3 +86,27 @@ class SchedulerHttpServer:
         self._httpd = None
         self._running = False
         logger.info("Scheduler HTTP server stopped")
+
+
+class _QuietHandler(WSGIRequestHandler):
+    """WSGI handler that only logs errors (5xx status codes)."""
+
+    def log_message(self, format, *args):  # pylint: disable=redefined-builtin
+        pass
+
+    def log_error(self, format, *args):  # pylint: disable=redefined-builtin
+        logger.error("HTTP %s", format % args if args else format)
+
+
+def create_handler(func):
+    def handler(environ, start_response):
+        response = func(WSGIRequest(environ))
+        if not isinstance(response, HttpResponse):
+            raise TypeError(f"Handler must return HttpResponse, got {type(response).__name__}")
+        start_response(
+            f"{response.status_code} {HTTPStatus(response.status_code).phrase}",
+            list(response.items()),
+        )
+        return [response.content]
+
+    return handler
