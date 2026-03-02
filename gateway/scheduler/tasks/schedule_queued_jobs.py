@@ -21,6 +21,7 @@ from scheduler.schedule import (
 
 from scheduler.kill_signal import KillSignal
 from .task import SchedulerTask
+from ..metrics import SchedulerMetrics
 
 logger = logging.getLogger("commands")
 
@@ -28,8 +29,9 @@ logger = logging.getLogger("commands")
 class ScheduleQueuedJobs(SchedulerTask):
     """Schedule jobs service."""
 
-    def __init__(self, kill_signal: KillSignal = None):
+    def __init__(self, kill_signal: KillSignal = None, metrics: SchedulerMetrics = None):
         self.kill_signal = kill_signal or KillSignal()
+        self.metrics = metrics or SchedulerMetrics()
 
     def run(self):
         """Schedule queued jobs to available cluster slots."""

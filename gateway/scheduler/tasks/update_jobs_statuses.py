@@ -23,11 +23,49 @@ from scheduler.schedule import (
 
 from scheduler.kill_signal import KillSignal
 from .task import SchedulerTask
+from ..metrics import SchedulerMetrics
 
 logger = logging.getLogger("commands")
 
 
 # pylint: disable=too-many-statements
+class UpdateJobsStatuses(SchedulerTask):
+    """Update status of jobs."""
+
+    def __init__(self, kill_signal: KillSignal = None, metrics: SchedulerMetrics = None):
+        self.kill_signal = kill_signal or KillSignal()
+        self.metrics = metrics or SchedulerMetrics()
+
+    def run(self):
+        """Update statuses of all running jobs."""
+        max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
+        max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
+        update_classical_jobs = max_ray_clusters_possible > 0
+        update_gpu_jobs = max_gpu_clusters_possible > 0
+
+        if update_classical_jobs:
+            updated_jobs_counter = 0
+            jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, gpu=False)
+            for job in jobs:
+                if self.kill_signal.received:
+                    return
+                if update_job_status(job):
+                    updated_jobs_counter += 1
+
+            logger.info("Updated %s classical jobs.", updated_jobs_counter)
+
+        if update_gpu_jobs:
+            updated_jobs_counter = 0
+            jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, gpu=True)
+            for job in jobs:
+                if self.kill_signal.received:
+                    return
+                if update_job_status(job):
+                    updated_jobs_counter += 1
+
+            logger.info("Updated %s GPU jobs.", updated_jobs_counter)
+
+
 def update_job_status(job: Job):
     """Update status of one job."""
     if not job.compute_resource:
@@ -149,39 +187,3 @@ def save_logs_to_storage(job: Job, logs: str):
         logs_storage.save_public_logs(filtered_logs)
 
     logger.info("Logs saved to storage for job [%s]", job.id)
-
-
-class UpdateJobsStatuses(SchedulerTask):
-    """Update status of jobs."""
-
-    def __init__(self, kill_signal: KillSignal = None):
-        self.kill_signal = kill_signal or KillSignal()
-
-    def run(self):
-        """Update statuses of all running jobs."""
-        max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
-        max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
-        update_classical_jobs = max_ray_clusters_possible > 0
-        update_gpu_jobs = max_gpu_clusters_possible > 0
-
-        if update_classical_jobs:
-            updated_jobs_counter = 0
-            jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, gpu=False)
-            for job in jobs:
-                if self.kill_signal.received:
-                    return
-                if update_job_status(job):
-                    updated_jobs_counter += 1
-
-            logger.info("Updated %s classical jobs.", updated_jobs_counter)
-
-        if update_gpu_jobs:
-            updated_jobs_counter = 0
-            jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, gpu=True)
-            for job in jobs:
-                if self.kill_signal.received:
-                    return
-                if update_job_status(job):
-                    updated_jobs_counter += 1
-
-            logger.info("Updated %s GPU jobs.", updated_jobs_counter)

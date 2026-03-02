@@ -7,6 +7,7 @@ from django.conf import settings
 
 from core.models import Config
 from scheduler.http_server import SchedulerHttpServer
+from scheduler.metrics import SchedulerMetrics
 from scheduler.views.probes import liveness, readiness
 from scheduler.kill_signal import KillSignal
 from scheduler.tasks.free_resources import FreeResources
@@ -21,10 +22,11 @@ class Main:
 
     def __init__(self):
         self.kill_signal = KillSignal()
+        self.metrics = SchedulerMetrics()
         self.tasks = [
-            ScheduleQueuedJobs(self.kill_signal),
-            UpdateJobsStatuses(self.kill_signal),
-            FreeResources(self.kill_signal),
+            ScheduleQueuedJobs(self.kill_signal, self.metrics),
+            UpdateJobsStatuses(self.kill_signal, self.metrics),
+            FreeResources(self.kill_signal, self.metrics),
         ]
         self.http_server: SchedulerHttpServer = None
 
@@ -39,6 +41,8 @@ class Main:
         self.http_server = SchedulerHttpServer(site_host=settings.SITE_HOST)
         self.http_server.add_path_handler("/readiness", readiness)
         self.http_server.add_path_handler("/liveness", liveness)
+        self.http_server.add_path_handler("/metrics", self.metrics.metrics_app)
+
         self.http_server.start()
 
     def stop_http_server(self):
@@ -59,10 +63,13 @@ class Main:
                     try:
                         task.run()
                     except Exception as ex:  # pylint: disable=broad-exception-caught
+                        self.metrics.increase_task_failure(task.name)
                         logger.exception("Error in %s: %s", task.name, ex)
 
-                # don't delay more than 1s if the loop was busy
                 elapsed = time.time() - start_time
+                self.metrics.observe_scheduler_iteration(elapsed, time.time())
+
+                # don't delay more than 1s if the loop was busy
                 if not self.kill_signal.received and elapsed < 1:
                     time.sleep(1 - elapsed)
         finally:
