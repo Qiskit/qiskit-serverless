@@ -139,11 +139,13 @@ class ScheduleQueuedJobs(SchedulerTask):
         logger.info("%s are scheduled for execution.", len(jobs))
 
     def set_queue_size_metric(self, gpu_job):
+        """Add queue size metric."""
         queue_count = Job.objects.filter(status=Job.QUEUED, gpu=gpu_job).count()
         compute_type = "gpu" if gpu_job else "cpu"
         self.metrics.set_queue_size(queue_count, compute_type)
 
     def add_queue_wait_time_metric(self, job: Job):
+        """Add queue wait time metric."""
         # Wait time can be get from db -> wait_time = RUNNING event.timestamp - QUEUED event.timestamp
         # Jobs are created in QUEUED state, so "created" field should have the same timestamp as QUEUED event
         now = datetime.now(timezone.utc)
