@@ -25,9 +25,9 @@ class TestConfig(TestCase):
         with self.assertRaises(Exception):
             Config.objects.create(name="key", value="2")
 
-    def test_register_all_creates_configs(self):
-        """Test that register_all creates all configs from ConfigKey enum."""
-        Config.register_all()
+    def test_add_defaults_creates_configs(self):
+        """Test that add_defaults creates all configs from ConfigKey enum."""
+        Config.add_defaults()
 
         for config_key in ConfigKey:
             config = Config.objects.get(name=config_key.value)
@@ -50,7 +50,7 @@ class TestConfig(TestCase):
 
     def test_set_updates_db_and_cache(self):
         """Test that set() updates both DB and cache."""
-        Config.register_all()
+        Config.add_defaults()
 
         # cache the default value
         result = Config.get(ConfigKey.MAINTENANCE)

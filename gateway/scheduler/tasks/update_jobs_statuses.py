@@ -1,32 +1,33 @@
-"""Cleanup resources command."""
+"""Update jobs statuses service."""
 
 import logging
 
 from concurrency.exceptions import RecordModifiedError
 from django.conf import settings
-from django.core.management.base import BaseCommand
 
-from api.domain.function.filter_logs import (
+from core.domain.filter_logs import (
     filter_logs_with_non_public_tags,
     filter_logs_with_public_tags,
     remove_prefix_tags_in_logs,
 )
+from core.services.storage.logs_storage import LogsStorage
 from core.utils import check_logs, ray_job_status_to_model_job_status
-from core.models import Job
 from core.models import Job, JobEvent
 from core.services.ray import get_job_handler
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.utils import check_logs, ray_job_status_to_model_job_status
 from scheduler.schedule import (
     check_job_timeout,
     handle_job_status_not_available,
     fail_job_insufficient_resources,
 )
-from api.services.storage.logs_storage import LogsStorage
+
+from scheduler.kill_signal import KillSignal
+from .task import SchedulerTask
 
 logger = logging.getLogger("commands")
 
 
+# pylint: disable=too-many-statements
 def update_job_status(job: Job):
     """Update status of one job."""
     if not job.compute_resource:
@@ -150,14 +151,14 @@ def save_logs_to_storage(job: Job, logs: str):
     logger.info("Logs saved to storage for job [%s]", job.id)
 
 
-class Command(BaseCommand):
+class UpdateJobsStatuses(SchedulerTask):
     """Update status of jobs."""
 
-    help = "Update running job statuses and logs."
+    def __init__(self, kill_signal: KillSignal = None):
+        self.kill_signal = kill_signal or KillSignal()
 
-    def handle(self, *args, **options):
-        # update job statuses
-        # pylint: disable=too-many-branches
+    def run(self):
+        """Update statuses of all running jobs."""
         max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
         max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
         update_classical_jobs = max_ray_clusters_possible > 0
@@ -167,6 +168,8 @@ class Command(BaseCommand):
             updated_jobs_counter = 0
             jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, gpu=False)
             for job in jobs:
+                if self.kill_signal.received:
+                    return
                 if update_job_status(job):
                     updated_jobs_counter += 1
 
@@ -176,6 +179,8 @@ class Command(BaseCommand):
             updated_jobs_counter = 0
             jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, gpu=True)
             for job in jobs:
+                if self.kill_signal.received:
+                    return
                 if update_job_status(job):
                     updated_jobs_counter += 1
 
