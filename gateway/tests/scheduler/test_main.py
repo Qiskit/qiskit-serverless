@@ -10,7 +10,7 @@ from scheduler.main import Main
 # with different environment variables. In testing, SITE_HOST is defined once in the 8000 port. So we need to override
 #
 
-SCHEDULER_PORT = 8000
+SCHEDULER_PORT = 8200
 SITE_HOST = f"http://127.0.0.1:{SCHEDULER_PORT}"
 
 
@@ -49,4 +49,4 @@ class TestMain(TestCase):
         self.scheduler_main.kill_signal.received = True
         self.scheduler_main.tasks = []
         self.scheduler_main.run()
-        assert self.scheduler_main.http_server._httpd is None
+        assert self.scheduler_main.http_server.is_running() == False

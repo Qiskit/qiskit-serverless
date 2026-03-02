@@ -1,7 +1,9 @@
 """Scheduler HTTP server primitives."""
 
 import logging
+import socket
 import threading
+import time
 from http import HTTPStatus
 from urllib.parse import urlparse
 from wsgiref.simple_server import WSGIRequestHandler, WSGIServer, make_server
@@ -14,28 +16,36 @@ from scheduler.views.probes import not_found
 logger = logging.getLogger("main")
 
 
-class _SilentHandler(WSGIRequestHandler):
-    """WSGI handler that does not log requests."""
+class _QuietHandler(WSGIRequestHandler):
+    """WSGI handler that only logs errors (5xx status codes)."""
 
-    def log_message(self, *args):
+    def log_message(self, format, *args):  # pylint: disable=redefined-builtin
         pass
+
+    def log_error(self, format, *args):  # pylint: disable=redefined-builtin
+        logger.error("HTTP %s", format % args if args else format)
 
 
 class SchedulerHttpServer:
     """Expose scheduler probes and Prometheus metrics via WSGI."""
 
     def __init__(self, site_host: str):
-        self._site_host = site_host
+        parsed = urlparse(site_host)
+        self._host = parsed.hostname or "0.0.0.0"
+        self._port = parsed.port or 8001
         self._routes: dict = {}
         self._not_found_handler = self._create_handler(not_found)
         self._httpd: WSGIServer | None = None
         self._thread: threading.Thread | None = None
+        self._running = False
 
     def add_path_handler(self, path: str, func):
-        logger.info(f"Adding {path}")
+        """Register a handler for the given path."""
+        logger.info("Adding %s", path)
         self._routes[path] = self._create_handler(func)
 
-    def add_not_found_handler(self, func):
+    def set_not_found_handler(self, func):
+        """Set the handler for unmatched paths."""
         self._not_found_handler = self._create_handler(func)
 
     def _create_handler(self, func):
@@ -57,34 +67,39 @@ class SchedulerHttpServer:
         return handler(environ, start_response)
 
     def start(self) -> None:
-        if self._httpd:
+        """Start the HTTP server in a background thread."""
+        if self._running:
             raise RuntimeError("Scheduler HTTP server already running!")
         if not self._not_found_handler:
             raise RuntimeError("Not found handler not configured. Call add_not_found_handler first.")
 
-        parsed = urlparse(self._site_host)
-        host = parsed.hostname or "0.0.0.0"
-        port = parsed.port or 8001
-
-        self._httpd = make_server(host, port, self._app, handler_class=_SilentHandler)
-
-        ready_event = threading.Event()
-
-        def func():
-            ready_event.set()
-            self._httpd.serve_forever()
-
-        self._thread = threading.Thread(target=func, daemon=True)
+        self._httpd = make_server(self._host, self._port, self._app, handler_class=_QuietHandler)
+        self._thread = threading.Thread(target=self._httpd.serve_forever, daemon=True)
         self._thread.start()
-        ready_event.wait()
+        if not self._wait_for_server():
+            self.stop()
+            raise RuntimeError(f"HTTP server failed to start on {self._host}:{self._port}")
+        self._running = True
+        logger.info("Scheduler HTTP server started on %s:%s", self._host, self._port)
 
-        logger.info("Scheduler HTTP server started on %s", self._site_host)
+    def _wait_for_server(self, timeout: float = 1.0) -> bool:
+        """Wait until the server is accepting connections."""
+        start = time.time()
+        while time.time() - start < timeout:
+            try:
+                with socket.create_connection((self._host, self._port), timeout=0.1):
+                    return True
+            except (ConnectionRefusedError, OSError):
+                time.sleep(0.01)
+        return False
 
     def is_running(self) -> bool:
-        return self._httpd is not None
+        """Return True if the server is currently running."""
+        return self._running
 
     def stop(self) -> None:
-        if not self._httpd:
+        """Stop the HTTP server and clean up resources."""
+        if not self._running:
             return
         self._httpd.shutdown()
         self._httpd.server_close()
@@ -92,4 +107,5 @@ class SchedulerHttpServer:
             self._thread.join(timeout=2)
         self._thread = None
         self._httpd = None
-        logger.info("Scheduler HTTP server stopped.")
+        self._running = False
+        logger.info("Scheduler HTTP server stopped")

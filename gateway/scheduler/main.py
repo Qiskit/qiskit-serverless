@@ -48,6 +48,7 @@ class Main:
 
     def run(self):
         """Run the scheduler loop until kill signal is received."""
+        logger.info("Scheduler loop started")
         try:
             while not self.kill_signal.received:
                 start_time = time.time()
@@ -65,6 +66,6 @@ class Main:
                 if not self.kill_signal.received and elapsed < 1:
                     time.sleep(1 - elapsed)
         finally:
-            if self.http_server:
-                self.http_server.stop()
-            logger.info("Scheduler loop stopped.")
+            self.stop_http_server()
+
+        logger.info("Scheduler loop finished")

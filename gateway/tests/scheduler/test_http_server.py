@@ -9,7 +9,7 @@ from django.test import TestCase
 from scheduler.http_server import SchedulerHttpServer
 from scheduler.views.probes import liveness, readiness
 
-SCHEDULER_PORT = 8000
+SCHEDULER_PORT = 8100
 SITE_HOST = f"http://127.0.0.1:{SCHEDULER_PORT}"
 
 
@@ -23,6 +23,19 @@ class TestSchedulerHttpServer(TestCase):
 
     def tearDown(self):
         self.http_server.stop()
+
+    def test_start_tops(self):
+        """HTTP server start stop flow"""
+
+        self.http_server.start()
+        assert self.http_server._thread is not None
+        assert self.http_server._httpd is not None
+        assert self.http_server.is_running() == True
+
+        self.http_server.stop()
+        assert self.http_server._thread is None
+        assert self.http_server._httpd is None
+        assert self.http_server.is_running() == False
 
     def test_readiness(self):
         """HTTP server responds to /readiness"""
