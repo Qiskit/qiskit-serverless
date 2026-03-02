@@ -1,0 +1,241 @@
+# This code is a Qiskit project.
+#
+# (C) Copyright IBM 2025.
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE.txt file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
+"""Tests for _upload_with_docker_image and _upload_with_artifact request payloads."""
+
+import json
+import os
+import tempfile
+import unittest
+from unittest.mock import MagicMock, patch
+
+from qiskit_serverless.core.clients.serverless_client import (
+    _upload_with_docker_image,
+    _upload_with_artifact,
+)
+from qiskit_serverless.core.function import QiskitFunction
+from qiskit_serverless.exception import QiskitServerlessException
+
+_UPLOAD_URL = "http://gateway/api/v1/programs/"
+_TOKEN = "test-token"
+
+
+def _make_mock_response(title="my-function", provider=None):
+    """Return a mock requests.Response that looks like a successful upload."""
+    mock_response = MagicMock()
+    mock_response.ok = True
+    mock_response.json.return_value = {"title": title, "provider": provider, "id": "abc-123"}
+    return mock_response
+
+
+class TestUploadWithDockerImagePayload(unittest.TestCase):
+    """Tests that _upload_with_docker_image sends the correct POST payload."""
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_payload_contains_all_fields(self, mock_post):
+        """All fields from QiskitFunction are serialized correctly in the POST data."""
+        mock_post.return_value = _make_mock_response(title="my-function", provider="my-provider")
+
+        program = QiskitFunction(
+            title="my-function",
+            provider="my-provider",
+            image="my-image:1.0",
+            dependencies=["numpy", "scipy"],
+            env_vars={"KEY": "VALUE"},
+            description="A test function",
+            version="1.2.3",
+        )
+
+        _upload_with_docker_image(
+            program=program,
+            url=_UPLOAD_URL,
+            token=_TOKEN,
+            span=MagicMock(),
+            client=MagicMock(),
+            instance=None,
+            channel=None,
+        )
+
+        mock_post.assert_called_once()
+        _, kwargs = mock_post.call_args
+        data = kwargs["data"]
+
+        self.assertEqual(data["title"], "my-function")
+        self.assertEqual(data["provider"], "my-provider")
+        self.assertEqual(data["image"], "my-image:1.0")
+        self.assertEqual(data["arguments"], json.dumps({}))
+        self.assertEqual(data["dependencies"], json.dumps(["numpy", "scipy"]))
+        self.assertEqual(data["env_vars"], json.dumps({"KEY": "VALUE"}))
+        self.assertEqual(data["description"], "A test function")
+        self.assertEqual(data["version"], "1.2.3")
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_optional_fields_default_correctly(self, mock_post):
+        """Optional fields default to None / empty collections when not set."""
+        mock_post.return_value = _make_mock_response()
+
+        program = QiskitFunction(title="my-function", image="img:latest")
+
+        _upload_with_docker_image(
+            program=program,
+            url=_UPLOAD_URL,
+            token=_TOKEN,
+            span=MagicMock(),
+            client=MagicMock(),
+            instance=None,
+            channel=None,
+        )
+
+        _, kwargs = mock_post.call_args
+        data = kwargs["data"]
+
+        self.assertIsNone(data["provider"])
+        self.assertEqual(data["dependencies"], json.dumps([]))
+        self.assertEqual(data["env_vars"], json.dumps({}))
+        self.assertIsNone(data["description"])
+        self.assertIsNone(data["version"])
+
+
+class TestUploadWithArtifactPayload(unittest.TestCase):
+    """Tests that _upload_with_artifact sends the correct POST payload."""
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_payload_contains_all_fields(self, mock_post):
+        """All fields from QiskitFunction are serialized correctly in the POST data."""
+        mock_post.return_value = _make_mock_response(title="my-function", provider="my-provider")
+
+        with tempfile.TemporaryDirectory() as working_dir:
+            entrypoint = "main.py"
+            with open(os.path.join(working_dir, entrypoint), "w", encoding="utf-8") as f:
+                f.write("print('hello')\n")
+
+            program = QiskitFunction(
+                title="my-function",
+                provider="my-provider",
+                entrypoint=entrypoint,
+                working_dir=working_dir,
+                dependencies=["numpy", "scipy"],
+                env_vars={"KEY": "VALUE"},
+                description="A test function",
+                version="2.0.0",
+            )
+
+            _upload_with_artifact(
+                program=program,
+                url=_UPLOAD_URL,
+                token=_TOKEN,
+                span=MagicMock(),
+                client=MagicMock(),
+                instance=None,
+                channel=None,
+            )
+
+        mock_post.assert_called_once()
+        _, kwargs = mock_post.call_args
+        data = kwargs["data"]
+
+        self.assertEqual(data["title"], "my-function")
+        self.assertEqual(data["provider"], "my-provider")
+        self.assertEqual(data["entrypoint"], entrypoint)
+        self.assertEqual(data["arguments"], json.dumps({}))
+        self.assertEqual(data["dependencies"], json.dumps(["numpy", "scipy"]))
+        self.assertEqual(data["env_vars"], json.dumps({"KEY": "VALUE"}))
+        self.assertEqual(data["description"], "A test function")
+        self.assertEqual(data["version"], "2.0.0")
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_optional_fields_default_correctly(self, mock_post):
+        """Optional fields default to None / empty collections when not set."""
+        mock_post.return_value = _make_mock_response()
+
+        with tempfile.TemporaryDirectory() as working_dir:
+            entrypoint = "main.py"
+            with open(os.path.join(working_dir, entrypoint), "w", encoding="utf-8") as f:
+                f.write("print('hello')\n")
+
+            program = QiskitFunction(
+                title="my-function",
+                entrypoint=entrypoint,
+                working_dir=working_dir,
+            )
+
+            _upload_with_artifact(
+                program=program,
+                url=_UPLOAD_URL,
+                token=_TOKEN,
+                span=MagicMock(),
+                client=MagicMock(),
+                instance=None,
+                channel=None,
+            )
+
+        _, kwargs = mock_post.call_args
+        data = kwargs["data"]
+
+        self.assertIsNone(data["provider"])
+        self.assertEqual(data["dependencies"], json.dumps([]))
+        self.assertEqual(data["env_vars"], json.dumps({}))
+        self.assertIsNone(data["description"])
+        self.assertIsNone(data["version"])
+
+    def test_raises_when_entrypoint_does_not_exist(self):
+        """QiskitServerlessException is raised when the entrypoint file is missing."""
+        with tempfile.TemporaryDirectory() as working_dir:
+            program = QiskitFunction(
+                title="my-function",
+                entrypoint="nonexistent.py",
+                working_dir=working_dir,
+            )
+            with self.assertRaises(QiskitServerlessException):
+                _upload_with_artifact(
+                    program=program,
+                    url=_UPLOAD_URL,
+                    token=_TOKEN,
+                    span=MagicMock(),
+                    client=MagicMock(),
+                    instance=None,
+                    channel=None,
+                )
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_artifact_tar_is_cleaned_up_after_upload(self, mock_post):
+        """The temporary artifact.tar file is removed after a successful upload."""
+        mock_post.return_value = _make_mock_response()
+
+        with tempfile.TemporaryDirectory() as working_dir:
+            entrypoint = "main.py"
+            with open(os.path.join(working_dir, entrypoint), "w", encoding="utf-8") as f:
+                f.write("print('hello')\n")
+
+            program = QiskitFunction(
+                title="my-function",
+                entrypoint=entrypoint,
+                working_dir=working_dir,
+            )
+
+            _upload_with_artifact(
+                program=program,
+                url=_UPLOAD_URL,
+                token=_TOKEN,
+                span=MagicMock(),
+                client=MagicMock(),
+                instance=None,
+                channel=None,
+            )
+
+            self.assertFalse(os.path.exists(os.path.join(working_dir, "artifact.tar")))
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+# Made with Bob
