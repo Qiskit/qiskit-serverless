@@ -9,8 +9,11 @@ from django.test import TestCase
 from scheduler.http_server import SchedulerHttpServer
 from scheduler.views.probes import liveness, readiness
 
-SCHEDULER_PORT = 8100
-SITE_HOST = f"http://127.0.0.1:{SCHEDULER_PORT}"
+
+# Scheduler and Gateway share the same settings and the same SITE_HOST value. We need to override it
+# during tests to avoid collisions
+
+SITE_HOST = f"http://127.0.0.1:8100"
 
 
 class TestSchedulerHttpServer(TestCase):

@@ -6,12 +6,10 @@ from django.test import TestCase, override_settings
 
 from scheduler.main import Main
 
-# Scheduler and Gateway share the same settings and the same SITE_HOST value. In production, both services start
-# with different environment variables. In testing, SITE_HOST is defined once in the 8000 port. So we need to override
-#
+# Scheduler and Gateway share the same settings and the same SITE_HOST value. We need to override it
+# during tests to avoid collisions
 
-SCHEDULER_PORT = 8200
-SITE_HOST = f"http://127.0.0.1:{SCHEDULER_PORT}"
+SITE_HOST = "http://127.0.0.1:8200"
 
 
 @override_settings(SITE_HOST=SITE_HOST)
