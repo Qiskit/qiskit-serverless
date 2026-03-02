@@ -24,7 +24,7 @@ class SchedulerHttpServer:
         self._host = parsed.hostname or "0.0.0.0"
         self._port = parsed.port or 8001
         self._routes: dict = {}
-        self._not_found_handler = create_handler(not_found)
+        self._not_found_handler = create_request_handler(not_found)
         self._httpd: WSGIServer | None = None
         self._thread: threading.Thread | None = None
         self._running = False
@@ -32,11 +32,11 @@ class SchedulerHttpServer:
     def add_path_handler(self, path: str, func):
         """Register a handler for the given path."""
         logger.info("Adding %s", path)
-        self._routes[path] = create_handler(func)
+        self._routes[path] = create_request_handler(func)
 
     def set_not_found_handler(self, func):
         """Set the handler for unmatched paths."""
-        self._not_found_handler = create_handler(func)
+        self._not_found_handler = create_request_handler(func)
 
     def _app(self, environ, start_response):
         path = environ.get("PATH_INFO", "").rstrip("/") or "/"
@@ -98,9 +98,12 @@ class _QuietHandler(WSGIRequestHandler):
         logger.error("HTTP %s", format % args if args else format)
 
 
-def create_handler(func):
+def create_request_handler(func):
+    """Create a handler for a WSGI server to process a http request."""
+
     def handler(environ, start_response):
-        response = func(WSGIRequest(environ))
+        request = WSGIRequest(environ)
+        response = func(request)
         if not isinstance(response, HttpResponse):
             raise TypeError(f"Handler must return HttpResponse, got {type(response).__name__}")
         start_response(
