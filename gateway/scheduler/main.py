@@ -22,9 +22,9 @@ class Main:
     def __init__(self):
         self.kill_signal = KillSignal()
         self.tasks = [
+            ScheduleQueuedJobs(self.kill_signal),
             UpdateJobsStatuses(self.kill_signal),
             FreeResources(self.kill_signal),
-            ScheduleQueuedJobs(self.kill_signal),
         ]
         self.http_server: SchedulerHttpServer = None
 

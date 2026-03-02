@@ -67,6 +67,7 @@ class SchedulerHttpServer:
         port = parsed.port or 8001
 
         self._httpd = make_server(host, port, self._app, handler_class=_SilentHandler)
+
         ready_event = threading.Event()
 
         def func():
@@ -76,7 +77,11 @@ class SchedulerHttpServer:
         self._thread = threading.Thread(target=func, daemon=True)
         self._thread.start()
         ready_event.wait()
+
         logger.info("Scheduler HTTP server started on %s", self._site_host)
+
+    def is_running(self) -> bool:
+        return self._httpd is not None
 
     def stop(self) -> None:
         if not self._httpd:
@@ -85,5 +90,6 @@ class SchedulerHttpServer:
         self._httpd.server_close()
         if self._thread:
             self._thread.join(timeout=2)
-        self._httpd = self._thread = None
+        self._thread = None
+        self._httpd = None
         logger.info("Scheduler HTTP server stopped.")
