@@ -34,7 +34,7 @@ class TestFilesApi(APITestCase):
     def setUp(self):
         super().setUp()
         cache.clear()
-        Config.register_all()
+        Config.add_defaults()
         self._temp_directory = tempfile.TemporaryDirectory()
         self.MEDIA_ROOT = self._temp_directory.name
 
