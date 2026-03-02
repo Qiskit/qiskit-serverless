@@ -9,7 +9,6 @@ from django.test import TestCase
 from scheduler.http_server import SchedulerHttpServer
 from scheduler.views.probes import liveness, readiness
 
-
 # Scheduler and Gateway share the same settings and the same SITE_HOST value. We need to override it
 # during tests to avoid collisions
 
