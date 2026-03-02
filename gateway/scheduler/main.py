@@ -28,7 +28,7 @@ class Main:
             UpdateJobsStatuses(self.kill_signal, self.metrics),
             FreeResources(self.kill_signal, self.metrics),
         ]
-        self.http_server: SchedulerHttpServer = None
+        self.http_server: SchedulerHttpServer = SchedulerHttpServer(site_host=settings.SITE_HOST)
 
     def configure(self):
         """Configure the scheduler."""
@@ -37,8 +37,10 @@ class Main:
         logger.info("Scheduler loop started.")
 
     def start_http_server(self):
-        """Start internal HTTP server for probes and metrics."""
-        self.http_server = SchedulerHttpServer(site_host=settings.SITE_HOST)
+        """Start the internal HTTP server for probes and metrics."""
+        if self.http_server.is_running():
+            raise RuntimeError("Scheduler HTTP server already running!")
+
         self.http_server.add_path_handler("/readiness", readiness)
         self.http_server.add_path_handler("/liveness", liveness)
         self.http_server.add_path_handler("/metrics", self.metrics.metrics_app)
@@ -47,8 +49,7 @@ class Main:
 
     def stop_http_server(self):
         """Stop internal HTTP server"""
-        if self.http_server:
-            self.http_server.stop()
+        self.http_server.stop()
 
     def run(self):
         """Run the scheduler loop until kill signal is received."""

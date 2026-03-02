@@ -28,13 +28,109 @@ from ..metrics import SchedulerMetrics
 logger = logging.getLogger("commands")
 
 
-# pylint: disable=too-many-statements
 class UpdateJobsStatuses(SchedulerTask):
     """Update status of jobs."""
 
     def __init__(self, kill_signal: KillSignal = None, metrics: SchedulerMetrics = None):
         self.kill_signal = kill_signal or KillSignal()
         self.metrics = metrics or SchedulerMetrics()
+
+    # pylint: disable=too-many-statements
+    def update_job_status(self, job: Job):
+        """Update status of one job."""
+        if not job.compute_resource:
+            logger.warning(
+                "Job [%s] does not have compute resource associated with it. Skipping.",
+                job.id,
+            )
+            return False
+
+        status_has_changed = False
+        job_new_status = Job.PENDING
+        success = False
+        job_handler = get_job_handler(job.compute_resource.host)
+
+        try:
+            ray_job_status = job_handler.status(job.ray_job_id) if job_handler else None
+        except RuntimeError as ex:
+            logger.warning("Job [%s] marked as FAILED because Ray get_job_status: %s", job.id, str(ex))
+            job.status = Job.FAILED
+            job.sub_status = None
+            job.env_vars = "{}"
+            try:
+                job.save()
+                JobEvent.objects.add_status_event(
+                    job_id=job.id,
+                    origin=JobEventOrigin.SCHEDULER,
+                    context=JobEventContext.UPDATE_JOB_STATUS,
+                    status=job.status,
+                )
+            except RecordModifiedError:
+                logger.warning("Job [%s] record has not been updated due to lock.", job.id)
+
+            return True
+
+        if ray_job_status:
+            job_new_status = ray_job_status_to_model_job_status(ray_job_status)
+            success = True
+
+        if check_job_timeout(job):
+            job_new_status = Job.STOPPED
+
+        if not success:
+            job_new_status = handle_job_status_not_available(job, job_new_status)
+
+        if job_new_status != job.status:
+            logger.info(
+                "Job [%s] of [%s] changed from [%s] to [%s]",
+                job.id,
+                job.author,
+                job.status,
+                job_new_status,
+            )
+            status_has_changed = True
+            job.status = job_new_status
+            # cleanup env vars and save logs when job reaches terminal state
+            if job.in_terminal_state():
+                job.sub_status = None
+                job.env_vars = "{}"
+                logs = job_handler.logs(job.ray_job_id) if job_handler else ""
+                save_logs_to_storage(job, logs)
+                job.logs = ""
+
+        if job_handler:
+            logs = job_handler.logs(job.ray_job_id)
+            # check if job is resource constrained
+            no_resources_log = "No available node types can fulfill resource request"
+            if no_resources_log in logs:
+                job_new_status = fail_job_insufficient_resources(job)
+                logs = (
+                    "Insufficient resources available to the run job in this "
+                    "configuration.\nMax resources allowed are "
+                    f"{settings.LIMITS_CPU_PER_TASK} CPUs and "
+                    f"{settings.LIMITS_MEMORY_PER_TASK} GB of RAM per job."
+                )
+                job.status = job_new_status
+                # cleanup env vars
+                job.env_vars = "{}"
+                status_has_changed = True
+                save_logs_to_storage(job, logs)
+                job.logs = ""
+
+        try:
+            job.save()
+
+            if status_has_changed:
+                JobEvent.objects.add_status_event(
+                    job_id=job.id,
+                    origin=JobEventOrigin.SCHEDULER,
+                    context=JobEventContext.UPDATE_JOB_STATUS,
+                    status=job.status,
+                )
+        except RecordModifiedError:
+            logger.warning("Job [%s] record has not been updated due to lock.", job.id)
+
+        return status_has_changed
 
     def run(self):
         """Update statuses of all running jobs."""
@@ -49,7 +145,7 @@ class UpdateJobsStatuses(SchedulerTask):
             for job in jobs:
                 if self.kill_signal.received:
                     return
-                if update_job_status(job):
+                if self.update_job_status(job):
                     updated_jobs_counter += 1
 
             logger.info("Updated %s classical jobs.", updated_jobs_counter)
@@ -60,107 +156,10 @@ class UpdateJobsStatuses(SchedulerTask):
             for job in jobs:
                 if self.kill_signal.received:
                     return
-                if update_job_status(job):
+                if self.update_job_status(job):
                     updated_jobs_counter += 1
 
             logger.info("Updated %s GPU jobs.", updated_jobs_counter)
-
-
-def update_job_status(job: Job):
-    """Update status of one job."""
-    if not job.compute_resource:
-        logger.warning(
-            "Job [%s] does not have compute resource associated with it. Skipping.",
-            job.id,
-        )
-        return False
-
-    status_has_changed = False
-    job_new_status = Job.PENDING
-    success = False
-    job_handler = get_job_handler(job.compute_resource.host)
-
-    try:
-        ray_job_status = job_handler.status(job.ray_job_id) if job_handler else None
-    except RuntimeError as ex:
-        logger.warning("Job [%s] marked as FAILED because Ray get_job_status: %s", job.id, str(ex))
-        job.status = Job.FAILED
-        job.sub_status = None
-        job.env_vars = "{}"
-        try:
-            job.save()
-            JobEvent.objects.add_status_event(
-                job_id=job.id,
-                origin=JobEventOrigin.SCHEDULER,
-                context=JobEventContext.UPDATE_JOB_STATUS,
-                status=job.status,
-            )
-        except RecordModifiedError:
-            logger.warning("Job [%s] record has not been updated due to lock.", job.id)
-
-        return True
-
-    if ray_job_status:
-        job_new_status = ray_job_status_to_model_job_status(ray_job_status)
-        success = True
-
-    if check_job_timeout(job):
-        job_new_status = Job.STOPPED
-
-    if not success:
-        job_new_status = handle_job_status_not_available(job, job_new_status)
-
-    if job_new_status != job.status:
-        logger.info(
-            "Job [%s] of [%s] changed from [%s] to [%s]",
-            job.id,
-            job.author,
-            job.status,
-            job_new_status,
-        )
-        status_has_changed = True
-        job.status = job_new_status
-        # cleanup env vars and save logs when job reaches terminal state
-        if job.in_terminal_state():
-            job.sub_status = None
-            job.env_vars = "{}"
-            logs = job_handler.logs(job.ray_job_id) if job_handler else ""
-            save_logs_to_storage(job, logs)
-            job.logs = ""
-
-    if job_handler:
-        logs = job_handler.logs(job.ray_job_id)
-        # check if job is resource constrained
-        no_resources_log = "No available node types can fulfill resource request"
-        if no_resources_log in logs:
-            job_new_status = fail_job_insufficient_resources(job)
-            logs = (
-                "Insufficient resources available to the run job in this "
-                "configuration.\nMax resources allowed are "
-                f"{settings.LIMITS_CPU_PER_TASK} CPUs and "
-                f"{settings.LIMITS_MEMORY_PER_TASK} GB of RAM per job."
-            )
-            job.status = job_new_status
-            # cleanup env vars
-            job.env_vars = "{}"
-            status_has_changed = True
-            save_logs_to_storage(job, logs)
-            job.logs = ""
-
-    try:
-        job.save()
-
-        if status_has_changed:
-            JobEvent.objects.add_status_event(
-                job_id=job.id,
-                origin=JobEventOrigin.SCHEDULER,
-                context=JobEventContext.UPDATE_JOB_STATUS,
-                status=job.status,
-            )
-    except RecordModifiedError:
-        logger.warning("Job [%s] record has not been updated due to lock.", job.id)
-
-    return status_has_changed
 
 
 def save_logs_to_storage(job: Job, logs: str):
