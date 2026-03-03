@@ -111,11 +111,12 @@ def execute_job(job: Job) -> Job:
     return job
 
 
-def get_jobs_to_schedule_fair_share(slots: int) -> List[Job]:
+def get_jobs_to_schedule_fair_share(slots: int, gpu: bool) -> List[Job]:
     """Returns jobs for execution based on fair share distribution of resources.
 
     Args:
         slots: max number of users to query
+        gpu: filter jobs by GPU requirement
 
     Returns:
         list of jobs for execution
@@ -135,7 +136,7 @@ def get_jobs_to_schedule_fair_share(slots: int) -> List[Job]:
 
     max_limit = 100  # not to kill db in case we will have a lot of jobs
     author_date_pull = (
-        Job.objects.filter(status=Job.QUEUED)
+        Job.objects.filter(status=Job.QUEUED, gpu=gpu)
         .exclude(author__in=users_at_max_capacity)
         .values("author")
         .annotate(job_date=Min("created"))[:max_limit]
