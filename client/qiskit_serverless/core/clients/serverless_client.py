@@ -93,6 +93,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         >>>    name="<NAME>",
         >>>    host="<HOST>",
         >>>    token="<TOKEN>",
+        >>>    instance="<CRN>",
         >>> )
     """
 
@@ -103,7 +104,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         version: Optional[str] = None,
         token: Optional[str] = None,
         instance: Optional[str] = None,
-        channel: str = Channel.IBM_QUANTUM_PLATFORM.value,
+        channel: Optional[str] = Channel.IBM_QUANTUM_PLATFORM.value,
     ):
         """
         Initializes the ServerlessClient instance.
@@ -113,7 +114,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             host: host of gateway. If None, it uses the ENV_GATEWAY_PROVIDER_HOST env var
             version: version of gateway
             token: authorization token
-            instance: IBM Cloud CRN or IQP h/g/p
+            instance: IBM Cloud CRN
             channel: identifies the method to use to authenticate the user
         """
         name = name or "gateway-client"
@@ -600,7 +601,7 @@ class IBMServerlessClient(ServerlessClient):
     Credentials can be saved to disk by calling the `save_account()` method::
 
         from qiskit_serverless import IBMServerlessClient
-        IBMServerlessClient.save_account(token=<INSERT_IBM_QUANTUM_TOKEN>)
+        IBMServerlessClient.save_account(token=<INSERT_IBM_QUANTUM_TOKEN>, instance=<INSERT_CRN>)
 
     Once the credentials are saved, you can simply instantiate the client with no
     constructor args, as shown below.
@@ -618,7 +619,7 @@ class IBMServerlessClient(ServerlessClient):
     provider with the API token::
 
         from qiskit_serverless import IBMServerlessClient
-        client = IBMServerlessClient(token=<INSERT_IBM_QUANTUM_TOKEN>)
+        client = IBMServerlessClient(token=<INSERT_IBM_QUANTUM_TOKEN>, instance=<INSERT_CRN>)
     """
 
     def __init__(
@@ -626,7 +627,7 @@ class IBMServerlessClient(ServerlessClient):
         token: Optional[str] = None,
         name: Optional[str] = None,
         instance: Optional[str] = None,
-        channel: str = Channel.IBM_QUANTUM_PLATFORM.value,
+        channel: Optional[str] = Channel.IBM_QUANTUM_PLATFORM.value,
         *,
         host: Optional[str] = None,
     ):
