@@ -673,20 +673,20 @@ class IBMServerlessClient(ServerlessClient):
         channel: Optional[str] = None,
         name: Optional[str] = None,
     ) -> Account:
-        """Discover account for ibm_quantum, ibm_cloud and ibm_quantum_platform channels.
+        """Discover account for ibm_cloud and ibm_quantum_platform channels.
 
         Args:
             token: IBM Quantum API token
             name: Name of the account to load
-            instance: IBM Cloud CRN for ibm_quantum_platform and ibm_cloud
-                channels or hub/group/project for ibm_quantum channel
+            instance: IBM Cloud CRN
             channel: Identifies the method to use to authenticate the user
         """
 
         account = None
         if name:
             account = AccountManager.get(name=name)
-        elif channel:
+        else:
+            channel = channel or Channel.IBM_QUANTUM_PLATFORM.value
             try:
                 Channel(channel)
             except ValueError as error:
@@ -704,9 +704,6 @@ class IBMServerlessClient(ServerlessClient):
                 )
             else:
                 account = AccountManager.get(channel=channel)
-        elif any([token]):
-            # Let's not infer based on these attributes as they may change in the future.
-            raise ValueError("'channel' is required if 'token' is specified but 'name' is not.")
 
         # channel is not defined yet, get it from the AccountManager
         if account is None:
