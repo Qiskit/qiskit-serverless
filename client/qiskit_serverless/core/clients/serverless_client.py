@@ -104,7 +104,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         version: Optional[str] = None,
         token: Optional[str] = None,
         instance: Optional[str] = None,
-        channel: Optional[str] = Channel.IBM_QUANTUM_PLATFORM.value,
+        channel: Optional[str] = None,
     ):
         """
         Initializes the ServerlessClient instance.
@@ -130,6 +130,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         if token is None:
             raise QiskitServerlessException("Authentication credentials must be provided in form of `token`.")
 
+        channel = channel or Channel.IBM_QUANTUM_PLATFORM.value
         try:
             channel_enum = Channel(channel)
         except ValueError as error:
@@ -627,7 +628,7 @@ class IBMServerlessClient(ServerlessClient):
         token: Optional[str] = None,
         name: Optional[str] = None,
         instance: Optional[str] = None,
-        channel: Optional[str] = Channel.IBM_QUANTUM_PLATFORM.value,
+        channel: Optional[str] = None,
         *,
         host: Optional[str] = None,
     ):
