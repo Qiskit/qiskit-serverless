@@ -1,0 +1,6 @@
+---
+features:
+  - |
+    Four new exception classes have been added to the API to better differentiate between different failure
+    scenarios: :class:`.JobNotFoundException`, :class:`.ProviderNotFoundException`, :class:`.FunctionNotFoundException`
+    and :class:`.FileNotFoundException` that inherit from an abstract :class:`.NotFoundError` base class.

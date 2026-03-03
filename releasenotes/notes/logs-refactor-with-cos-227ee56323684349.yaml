@@ -1,18 +1,19 @@
 ---
 prelude: >
-    Major refactor in logs to be able to differentiate between Provider logs
-    and user logs. Also the logs now are stored in COS keeping backward
+    Major refactor in logs to differentiate between provider logs
+    and user logs and optimize storage. The logs are now stored in COS while keeping backward
     compatibility.
+
 features:
   - |
-    The Qiskit-Serverless python library added two new functions :func:`get_logger()`
-    and :func:`get_provider_logger()`.
-    The functions developers should use this functions discriminate the relevant
-    information for users (:func:`get_logger()`) or providers
+    The ``qiskit-serverless`` Python library added two new utilities, :func:`get_logger()`
+    and :func:`get_provider_logger()`, available to Qiskit Function developers.
+    Developers should use these functions within their source code to distinguish which
+    logging information is relevant for users (:func:`get_logger()`) or providers
     (:func:`get_provider_logger()`) respectively.
-    This will create `[PUBLIC]` and `[PRIVATE]` prefixes under the hood to
-    so that the service can filter the information appropriately.
-    In order to keep intelectual property safe only function users can access user logs
+    These functions create ``[PUBLIC]`` and ``[PRIVATE]`` prefixes under the hood to
+    allow the service to filter the information appropriately.
+    To keep intellectual property safe, only function users can access user logs,
     and only providers can access provider logs.
     For example::
 
@@ -32,27 +33,30 @@ features:
       provider_logger.error("Provider log")
 
   - |
-    The :class:`ServerlessClient` and :class:`Job` classes :meth:`logs` method will
-    from now on only return user logs. To access provider logs we have added a new
+    The :class:`ServerlessClient` and :class:`Job` classes' :meth:`logs` method will
+    from now on only return user logs. To access provider logs, we have added a new
     :meth:`provider_logs` method.
     For example::
 
         runnable_function = serverless_client.function("my_function")
         job = runnable_function.run()
 
-        print(job.logs()) # only users
-        print(job.provider_logs()) # only providers
+        print(job.logs())  # only users
+        print(job.provider_logs())  # only providers
 
   - |
-    The Scheduler is modified to upload logs to COS when job transition from running to
-    a terminal state. In this moment the logs will be filtered taking into account the
-    prefixes and it will save the information in its corresponding folder inside the COS.
+    The Scheduler is modified to upload logs to COS when a job transitions from running to
+    a terminal state. At that moment, the logs will be filtered based on the prefixes,
+    and the information will be saved in the corresponding folder inside COS.
+
   - |
-    The Gateway has new a endpoint `/provider_logs` and `/logs` is modified.
+    The Gateway endpoint ``/logs`` has been modified to only target user logs,
+    and a new `/provider_logs`` has been added for provider logs.
     Both should return:
-    1. The COS log for finished jobs if exist. This was previously filtered in the Scheduler
-    2. The Ray console if job is running. This is filtered live.
-    3. As a fallback, return the logs from the db.
+    1. The COS log for finished jobs, if it exists. This was previously filtered in the Scheduler.
+    2. The Ray console logs if the job is running. This is filtered live.
+    3. As a fallback, logs from the database.
+
 upgrade:
   - |
     Added several quality of life improvements in testing.
