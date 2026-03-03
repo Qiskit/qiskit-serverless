@@ -1,6 +1,5 @@
 """Models."""
 
-import json
 import logging
 import uuid
 
@@ -434,4 +433,4 @@ class Config(models.Model):
     def get_list(cls, key: ConfigKey) -> list[str]:
         """Get configuration value as string list."""
         value = cls.get(key)
-        return json.loads(value)
+        return [v.strip() for v in value.split(",")]
