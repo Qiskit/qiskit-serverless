@@ -304,7 +304,7 @@
 <span id="release-notes-upcoming-qiskit-serverless-release"></span><h2>Upcoming Qiskit Serverless release<a class="headerlink" href="#upcoming-qiskit-serverless-release" title="Permalink to this heading">¶</a></h2>
 <section id="prelude">
 <span id="release-notes-upcoming-qiskit-serverless-release-prelude"></span><h3>Prelude<a class="headerlink" href="#prelude" title="Permalink to this heading">¶</a></h3>
-<p>Major refactor in logs to be able to differentiate between Provider logs and user logs. Also the logs now are stored in COS keeping backward compatibility.</p>
+<p>Major refactor in logs to differentiate between provider logs and user logs and optimize storage. The logs are now stored in COS while keeping backward compatibility.</p>
 </section>
 <section id="new-features">
 <span id="release-notes-upcoming-qiskit-serverless-release-new-features"></span><h3>New Features<a class="headerlink" href="#new-features" title="Permalink to this heading">¶</a></h3>
@@ -312,14 +312,31 @@
 <li><p>Added a new <code class="docutils literal notranslate"><span class="pre">version</span></code> field to the <code class="docutils literal notranslate"><span class="pre">Program</span></code> Django model. This field is used to track the version of the program (function).</p></li>
 </ul>
 <ul>
-<li><p>The Qiskit-Serverless python library added two new functions <code class="xref py py-func docutils literal notranslate"><span class="pre">get_logger()</span></code>
-and <code class="xref py py-func docutils literal notranslate"><span class="pre">get_provider_logger()</span></code>.
-The functions developers should use this functions discriminate the relevant
-information for users (<code class="xref py py-func docutils literal notranslate"><span class="pre">get_logger()</span></code>) or providers
+<li><p>Added a new <code class="docutils literal notranslate"><span class="pre">JobEvents</span></code> table to our database to improve metrics and provide a more flexible
+foundation for future event-tracking features. Each time a job changes state,
+a new event is now recorded in the database.</p>
+<dl class="simple">
+<dt>The new <code class="docutils literal notranslate"><span class="pre">JobEvents</span></code> table includes:</dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">id</span></code>: auto-generated UUID</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">job</span></code>: foreign key referencing the jobs table</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">created</span></code>: timestamp automatically set at event creation</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">event_type</span></code>: string describing the event type (currently <code class="docutils literal notranslate"><span class="pre">&quot;Status</span> <span class="pre">change&quot;</span></code>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">context</span></code>: string indicating where the change originated (e.g., Scheduler, API)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">data</span></code>: JSON payload containing event‑specific details</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+<ul>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">qiskit-serverless</span></code> Python library added two new utilities, <code class="xref py py-func docutils literal notranslate"><span class="pre">get_logger()</span></code>
+and <code class="xref py py-func docutils literal notranslate"><span class="pre">get_provider_logger()</span></code>, available to Qiskit Function developers.
+Developers should use these functions within their source code to distinguish which
+logging information is relevant for users (<code class="xref py py-func docutils literal notranslate"><span class="pre">get_logger()</span></code>) or providers
 (<code class="xref py py-func docutils literal notranslate"><span class="pre">get_provider_logger()</span></code>) respectively.
-This will create <cite>[PUBLIC]</cite> and <cite>[PRIVATE]</cite> prefixes under the hood to
-so that the service can filter the information appropriately.
-In order to keep intelectual property safe only function users can access user logs
+These functions create <code class="docutils literal notranslate"><span class="pre">[PUBLIC]</span></code> and <code class="docutils literal notranslate"><span class="pre">[PRIVATE]</span></code> prefixes under the hood to
+allow the service to filter the information appropriately.
+To keep intellectual property safe, only function users can access user logs,
 and only providers can access provider logs.
 For example:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_logger</span><span class="p">,</span> <span class="n">get_provider_logger</span>
@@ -341,30 +358,36 @@ For example:</p>
 </li>
 </ul>
 <ul>
-<li><p>The <code class="xref py py-class docutils literal notranslate"><span class="pre">ServerlessClient</span></code> and <code class="xref py py-class docutils literal notranslate"><span class="pre">Job</span></code> classes <code class="xref py py-meth docutils literal notranslate"><span class="pre">logs()</span></code> method will
-from now on only return user logs. To access provider logs we have added a new
+<li><p>The <code class="xref py py-class docutils literal notranslate"><span class="pre">ServerlessClient</span></code> and <code class="xref py py-class docutils literal notranslate"><span class="pre">Job</span></code> classes’ <code class="xref py py-meth docutils literal notranslate"><span class="pre">logs()</span></code> method will
+from now on only return user logs. To access provider logs, we have added a new
 <code class="xref py py-meth docutils literal notranslate"><span class="pre">provider_logs()</span></code> method.
 For example:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">runnable_function</span> <span class="o">=</span> <span class="n">serverless_client</span><span class="o">.</span><span class="n">function</span><span class="p">(</span><span class="s2">&quot;my_function&quot;</span><span class="p">)</span>
 <span class="n">job</span> <span class="o">=</span> <span class="n">runnable_function</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">logs</span><span class="p">())</span> <span class="c1"># only users</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">provider_logs</span><span class="p">())</span> <span class="c1"># only providers</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">logs</span><span class="p">())</span>  <span class="c1"># only users</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">provider_logs</span><span class="p">())</span>  <span class="c1"># only providers</span>
 </pre></div>
 </div>
 </li>
 </ul>
 <ul class="simple">
-<li><p>The Scheduler is modified to upload logs to COS when job transition from running to
-a terminal state. In this moment the logs will be filtered taking into account the
-prefixes and it will save the information in its corresponding folder inside the COS.</p></li>
+<li><p>The Scheduler is modified to upload logs to COS when a job transitions from running to
+a terminal state. At that moment, the logs will be filtered based on the prefixes,
+and the information will be saved in the corresponding folder inside COS.</p></li>
 </ul>
 <ul class="simple">
-<li><p>The Gateway has new a endpoint <cite>/provider_logs</cite> and <cite>/logs</cite> is modified.
+<li><p>The Gateway endpoint <code class="docutils literal notranslate"><span class="pre">/logs</span></code> has been modified to only target user logs,
+and a new <cite>/provider_logs`</cite> has been added for provider logs.
 Both should return:
-1. The COS log for finished jobs if exist. This was previously filtered in the Scheduler
-2. The Ray console if job is running. This is filtered live.
-3. As a fallback, return the logs from the db.</p></li>
+1. The COS log for finished jobs, if it exists. This was previously filtered in the Scheduler.
+2. The Ray console logs if the job is running. This is filtered live.
+3. As a fallback, logs from the database.</p></li>
+</ul>
+<ul class="simple">
+<li><p>Four new exception classes have been added to the API to better differentiate between different failure
+scenarios: <code class="xref py py-class docutils literal notranslate"><span class="pre">JobNotFoundException</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ProviderNotFoundException</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">FunctionNotFoundException</span></code>
+and <code class="xref py py-class docutils literal notranslate"><span class="pre">FileNotFoundException</span></code> that inherit from an abstract <code class="xref py py-class docutils literal notranslate"><span class="pre">NotFoundError</span></code> base class.</p></li>
 </ul>
 <ul class="simple">
 <li><p>Added a new gateway setting to limit the number of active jobs per user.
@@ -381,6 +404,12 @@ restrict the total number of jobs a user can have across <code class="docutils l
 <ul class="simple">
 <li><p>Requests to run programs will now return an <code class="docutils literal notranslate"><span class="pre">HTTP</span> <span class="pre">429</span> <span class="pre">Too</span> <span class="pre">Many</span> <span class="pre">Requests</span></code> response
 if a user attempts to start a new job while they are at their active job limit.</p></li>
+</ul>
+<ul class="simple">
+<li><p>The Scheduler and API code have been refactored to improve their maintainability and scalability.
+Most changes are internal and do not affect the user experience, but some additions have
+been made, for example, the scheduler can now respond to <code class="docutils literal notranslate"><span class="pre">SIGINT</span></code> and <code class="docutils literal notranslate"><span class="pre">SIGTERM</span></code> signals, and the
+API now accepts a dynamic configuration system that allows changing application settings at runtime.</p></li>
 </ul>
 </section>
 <section id="deprecation-notes">
@@ -417,6 +446,19 @@ After the fix, the function version can be tracked through the whole life cycle.
 <span class="nb">print</span><span class="p">(</span><span class="n">my</span><span class="o">-</span><span class="n">func</span><span class="o">-</span><span class="n">load</span><span class="o">.</span><span class="n">version</span><span class="p">)</span>
 </pre></div>
 </div>
+</li>
+</ul>
+<ul>
+<li><p>Fixed an issue that affected local testing when using custom functions packaged as Docker images.
+These custom functions are registered as “provider” functions, however, their data path was resolved
+to a “custom” function data path, resulting in a “File not found” error when trying to fetch function
+arguments. After the fix, the data paths are resolved correctly, and no error is raised:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>For user functions: <code class="docutils literal notranslate"><span class="pre">DATA_PATH</span> <span class="pre">=</span> <span class="pre">\data\username</span></code></p></li>
+<li><p>For provider functions: <code class="docutils literal notranslate"><span class="pre">DATA_PATH</span> <span class="pre">=</span> <span class="pre">\data\username\providername\imagename</span></code></p></li>
+</ul>
+</div></blockquote>
 </li>
 </ul>
 </section>
