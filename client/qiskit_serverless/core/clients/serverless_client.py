@@ -649,7 +649,7 @@ class IBMServerlessClient(ServerlessClient):
             host: host of gateway. Optional. It uses IBM_SERVERLESS_HOST_URL env var or IBM host
             token: IBM quantum token
             name: Name of the account to load
-            instance: IBM Cloud CRN or IQP h/g/p
+            instance: IBM Cloud CRN
             channel: identifies the method to use to authenticate the user
         """
         self.account = self._discover_account(
