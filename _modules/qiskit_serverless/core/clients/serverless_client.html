@@ -388,6 +388,7 @@
 <span class="sd">        &gt;&gt;&gt;    name=&quot;&lt;NAME&gt;&quot;,</span>
 <span class="sd">        &gt;&gt;&gt;    host=&quot;&lt;HOST&gt;&quot;,</span>
 <span class="sd">        &gt;&gt;&gt;    token=&quot;&lt;TOKEN&gt;&quot;,</span>
+<span class="sd">        &gt;&gt;&gt;    instance=&quot;&lt;CRN&gt;&quot;,</span>
 <span class="sd">        &gt;&gt;&gt; )</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
@@ -398,7 +399,7 @@
         <span class="n">version</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">token</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">instance</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">channel</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">Channel</span><span class="o">.</span><span class="n">IBM_QUANTUM_PLATFORM</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+        <span class="n">channel</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initializes the ServerlessClient instance.</span>
@@ -408,7 +409,7 @@
 <span class="sd">            host: host of gateway. If None, it uses the ENV_GATEWAY_PROVIDER_HOST env var</span>
 <span class="sd">            version: version of gateway</span>
 <span class="sd">            token: authorization token</span>
-<span class="sd">            instance: IBM Cloud CRN or IQP h/g/p</span>
+<span class="sd">            instance: IBM Cloud CRN</span>
 <span class="sd">            channel: identifies the method to use to authenticate the user</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">name</span> <span class="o">=</span> <span class="n">name</span> <span class="ow">or</span> <span class="s2">&quot;gateway-client&quot;</span>
@@ -424,6 +425,7 @@
         <span class="k">if</span> <span class="n">token</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="s2">&quot;Authentication credentials must be provided in form of `token`.&quot;</span><span class="p">)</span>
 
+        <span class="n">channel</span> <span class="o">=</span> <span class="n">channel</span> <span class="ow">or</span> <span class="n">Channel</span><span class="o">.</span><span class="n">IBM_QUANTUM_PLATFORM</span><span class="o">.</span><span class="n">value</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">channel_enum</span> <span class="o">=</span> <span class="n">Channel</span><span class="p">(</span><span class="n">channel</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
@@ -895,7 +897,7 @@
 <span class="sd">    Credentials can be saved to disk by calling the `save_account()` method::</span>
 
 <span class="sd">        from qiskit_serverless import IBMServerlessClient</span>
-<span class="sd">        IBMServerlessClient.save_account(token=&lt;INSERT_IBM_QUANTUM_TOKEN&gt;)</span>
+<span class="sd">        IBMServerlessClient.save_account(token=&lt;INSERT_IBM_QUANTUM_TOKEN&gt;, instance=&lt;INSERT_CRN&gt;)</span>
 
 <span class="sd">    Once the credentials are saved, you can simply instantiate the client with no</span>
 <span class="sd">    constructor args, as shown below.</span>
@@ -913,7 +915,7 @@
 <span class="sd">    provider with the API token::</span>
 
 <span class="sd">        from qiskit_serverless import IBMServerlessClient</span>
-<span class="sd">        client = IBMServerlessClient(token=&lt;INSERT_IBM_QUANTUM_TOKEN&gt;)</span>
+<span class="sd">        client = IBMServerlessClient(token=&lt;INSERT_IBM_QUANTUM_TOKEN&gt;, instance=&lt;INSERT_CRN&gt;)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
 <div class="viewcode-block" id="IBMServerlessClient.__init__"><a class="viewcode-back" href="../../../../stubs/qiskit_serverless.core.IBMServerlessClient.html#qiskit_serverless.core.IBMServerlessClient.__init__">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -921,7 +923,7 @@
         <span class="n">token</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">instance</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">channel</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">Channel</span><span class="o">.</span><span class="n">IBM_QUANTUM_PLATFORM</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+        <span class="n">channel</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">host</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
@@ -942,7 +944,7 @@
 <span class="sd">            host: host of gateway. Optional. It uses IBM_SERVERLESS_HOST_URL env var or IBM host</span>
 <span class="sd">            token: IBM quantum token</span>
 <span class="sd">            name: Name of the account to load</span>
-<span class="sd">            instance: IBM Cloud CRN or IQP h/g/p</span>
+<span class="sd">            instance: IBM Cloud CRN</span>
 <span class="sd">            channel: identifies the method to use to authenticate the user</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">account</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_discover_account</span><span class="p">(</span>
@@ -966,20 +968,20 @@
         <span class="n">channel</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Account</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Discover account for ibm_quantum, ibm_cloud and ibm_quantum_platform channels.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Discover account for ibm_cloud and ibm_quantum_platform channels.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            token: IBM Quantum API token</span>
 <span class="sd">            name: Name of the account to load</span>
-<span class="sd">            instance: IBM Cloud CRN for ibm_quantum_platform and ibm_cloud</span>
-<span class="sd">                channels or hub/group/project for ibm_quantum channel</span>
+<span class="sd">            instance: IBM Cloud CRN</span>
 <span class="sd">            channel: Identifies the method to use to authenticate the user</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="n">account</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">if</span> <span class="n">name</span><span class="p">:</span>
             <span class="n">account</span> <span class="o">=</span> <span class="n">AccountManager</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">channel</span><span class="p">:</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">channel</span> <span class="o">=</span> <span class="n">channel</span> <span class="ow">or</span> <span class="n">Channel</span><span class="o">.</span><span class="n">IBM_QUANTUM_PLATFORM</span><span class="o">.</span><span class="n">value</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">Channel</span><span class="p">(</span><span class="n">channel</span><span class="p">)</span>
             <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
@@ -997,9 +999,6 @@
                 <span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">account</span> <span class="o">=</span> <span class="n">AccountManager</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="nb">any</span><span class="p">([</span><span class="n">token</span><span class="p">]):</span>
-            <span class="c1"># Let&#39;s not infer based on these attributes as they may change in the future.</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;&#39;channel&#39; is required if &#39;token&#39; is specified but &#39;name&#39; is not.&quot;</span><span class="p">)</span>
 
         <span class="c1"># channel is not defined yet, get it from the AccountManager</span>
         <span class="k">if</span> <span class="n">account</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -1021,7 +1020,7 @@
         <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">overwrite</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">instance</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">channel</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">Channel</span><span class="o">.</span><span class="n">IBM_QUANTUM_PLATFORM</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+        <span class="n">channel</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Save the account to disk for future use.</span>
