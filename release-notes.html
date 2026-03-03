@@ -308,6 +308,9 @@
 </section>
 <section id="new-features">
 <span id="release-notes-upcoming-qiskit-serverless-release-new-features"></span><h3>New Features<a class="headerlink" href="#new-features" title="Permalink to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Added a new <code class="docutils literal notranslate"><span class="pre">version</span></code> field to the <code class="docutils literal notranslate"><span class="pre">Program</span></code> Django model. This field is used to track the version of the program (function).</p></li>
+</ul>
 <ul>
 <li><p>The Qiskit-Serverless python library added two new functions <code class="xref py py-func docutils literal notranslate"><span class="pre">get_logger()</span></code>
 and <code class="xref py py-func docutils literal notranslate"><span class="pre">get_provider_logger()</span></code>.
@@ -389,6 +392,34 @@ program execution, a functionality that is now provided through the different
 serverless clients through the <code class="docutils literal notranslate"><span class="pre">upload</span></code> method.</p></li>
 </ul>
 </section>
+<section id="bug-fixes">
+<span id="release-notes-upcoming-qiskit-serverless-release-bug-fixes"></span><h3>Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permalink to this heading">¶</a></h3>
+<ul>
+<li><p>Fixed a bug in the function versioning workflow where the version set upon function creation
+couldn’t be uploaded to the platform, stored in the database, or retrieved upon function retrieval.
+After the fix, the function version can be tracked through the whole life cycle. For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitFunction</span>
+
+<span class="n">my</span><span class="o">-</span><span class="n">func</span> <span class="o">=</span> <span class="n">QiskitFunction</span><span class="p">(</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;my_func_title&quot;</span><span class="p">,</span>
+    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;my_func_entrypoint.py&quot;</span><span class="p">,</span>
+    <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span><span class="p">,</span>
+    <span class="n">version</span><span class="o">=</span><span class="s2">&quot;2.0.0&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># this print outputs 2.0.0</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">my</span><span class="o">-</span><span class="n">func</span><span class="o">.</span><span class="n">version</span><span class="p">)</span>
+
+<span class="n">serverless</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">my</span><span class="o">-</span><span class="n">func</span><span class="p">)</span>
+<span class="n">my</span><span class="o">-</span><span class="n">func</span><span class="o">-</span><span class="n">load</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">function</span><span class="p">(</span><span class="s2">&quot;my_func_title&quot;</span><span class="p">)</span>
+
+<span class="c1"># this print now also outputs 2.0.0 (previously empty)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">my</span><span class="o">-</span><span class="n">func</span><span class="o">-</span><span class="n">load</span><span class="o">.</span><span class="n">version</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</section>
 </section>
 <section id="v0-29-0">
 <span id="release-notes-v0-29-0"></span><h2>v0.29.0<a class="headerlink" href="#v0-29-0" title="Permalink to this heading">¶</a></h2>
@@ -423,8 +454,8 @@ and a CRN is present, the system defaults to <code class="docutils literal notra
 <li><p>Qiskit Serverless now supports the latest version of  the <code class="docutils literal notranslate"><span class="pre">qiskit-ibm-runtime</span></code> package:<code class="docutils literal notranslate"><span class="pre">qiskit-ibm-runtime==0.45</span></code>.</p></li>
 </ul>
 </section>
-<section id="bug-fixes">
-<span id="release-notes-v0-29-0-bug-fixes"></span><h3>Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permalink to this heading">¶</a></h3>
+<section id="release-notes-v0-29-0-bug-fixes">
+<span id="id3"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-29-0-bug-fixes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Fixed a bug in the json decoder that would crop the response details to the first character when
 gateway errors were raised. This utility now forwards the full error message to the raised
@@ -454,7 +485,7 @@ storage path resolution when users have multiple functions with the same title.<
 <section id="v0-28-0">
 <span id="release-notes-v0-28-0"></span><h2>v0.28.0<a class="headerlink" href="#v0-28-0" title="Permalink to this heading">¶</a></h2>
 <section id="release-notes-v0-28-0-new-features">
-<span id="id3"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-28-0-new-features" title="Permalink to this heading">¶</a></h3>
+<span id="id4"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-28-0-new-features" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference internal" href="stubs/qiskit_serverless.core.IBMServerlessClient.html#qiskit_serverless.core.IBMServerlessClient" title="qiskit_serverless.core.IBMServerlessClient"><code class="xref py py-class docutils literal notranslate"><span class="pre">IBMServerlessClient</span></code></a>  now supports custom gateway host URLs through the <code class="docutils literal notranslate"><span class="pre">host</span></code> parameter.
 This allows for a more streamlined testing of the client connecting to non-production gateways.</p></li>
@@ -467,7 +498,7 @@ This allows for a more streamlined testing of the client connecting to non-produ
 <section id="v0-27-1">
 <span id="release-notes-v0-27-1"></span><h2>v0.27.1<a class="headerlink" href="#v0-27-1" title="Permalink to this heading">¶</a></h2>
 <section id="release-notes-v0-27-1-upgrade-notes">
-<span id="id4"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-27-1-upgrade-notes" title="Permalink to this heading">¶</a></h3>
+<span id="id5"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-27-1-upgrade-notes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>The scheduling logic that was managing non GPU and GPU jobs was improved.
 Now the scheduler manages both type of jobs independently so
@@ -478,7 +509,7 @@ you can adjust separately where each of these jobs are run.</p></li>
 </ul>
 </section>
 <section id="release-notes-v0-27-1-bug-fixes">
-<span id="id5"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-27-1-bug-fixes" title="Permalink to this heading">¶</a></h3>
+<span id="id6"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-27-1-bug-fixes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Fixed a bug in the scheduler that was preventing it from
 stopping jobs automatically after the timeout threshold specified
@@ -489,7 +520,7 @@ with the environment variable <code class="docutils literal notranslate"><span c
 <section id="v0-27-0">
 <span id="release-notes-v0-27-0"></span><h2>v0.27.0<a class="headerlink" href="#v0-27-0" title="Permalink to this heading">¶</a></h2>
 <section id="release-notes-v0-27-0-new-features">
-<span id="id6"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-27-0-new-features" title="Permalink to this heading">¶</a></h3>
+<span id="id7"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-27-0-new-features" title="Permalink to this heading">¶</a></h3>
 <ul>
 <li><p>A new utility <code class="docutils literal notranslate"><span class="pre">get_runtime_service()</span></code> is now available to simplify the instantiation of
 a <code class="docutils literal notranslate"><span class="pre">QiskitRuntimeService</span></code> within a function. It automatically pulls credentials from environment
@@ -554,7 +585,7 @@ For example:</p>
 </ul>
 </section>
 <section id="release-notes-v0-27-0-upgrade-notes">
-<span id="id7"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-27-0-upgrade-notes" title="Permalink to this heading">¶</a></h3>
+<span id="id8"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-27-0-upgrade-notes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Added a new AccessPolicy for User model to be able to allow or
 not the access to the service by the <code class="docutils literal notranslate"><span class="pre">is_active</span></code> parameter.</p></li>
@@ -675,11 +706,12 @@ specific jobs. For example:</p>
 <li><a class="reference internal" href="#new-features">New Features</a></li>
 <li><a class="reference internal" href="#upgrade-notes">Upgrade Notes</a></li>
 <li><a class="reference internal" href="#deprecation-notes">Deprecation Notes</a></li>
+<li><a class="reference internal" href="#bug-fixes">Bug Fixes</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#v0-29-0">v0.29.0</a><ul>
 <li><a class="reference internal" href="#release-notes-v0-29-0-upgrade-notes">Upgrade Notes</a></li>
-<li><a class="reference internal" href="#bug-fixes">Bug Fixes</a></li>
+<li><a class="reference internal" href="#release-notes-v0-29-0-bug-fixes">Bug Fixes</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#v0-28-0">v0.28.0</a><ul>
