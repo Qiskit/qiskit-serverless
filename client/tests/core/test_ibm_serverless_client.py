@@ -93,8 +93,70 @@ class TestIBMServerlessClient(unittest.TestCase):
         use_token = "save_token"
 
         with self.assertRaisesRegex(ValueError, r"Your channel value is not correct"):
-
             IBMServerlessClient(channel=use_channel, instance=use_instance, token=use_token)
+
+    @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
+    @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
+    def test_channel_defaults_to_ibm_quantum_platform_when_none(self, mock_file_path, mock_verify):
+        """Test that channel defaults to IBM_QUANTUM_PLATFORM when None is provided."""
+        mock_verify.return_value = None
+
+        with tempfile.NamedTemporaryFile() as temp_file:
+            mock_file_path.return_value = temp_file.name
+
+            client = IBMServerlessClient(
+                token="test_token", instance="test_instance", channel=None  # Explicitly pass None
+            )
+
+            self.assertEqual(client.channel, Channel.IBM_QUANTUM_PLATFORM.value)
+            self.assertEqual(client.account.channel, Channel.IBM_QUANTUM_PLATFORM.value)
+
+    @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
+    @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
+    def test_channel_defaults_to_ibm_quantum_platform_when_omitted(self, mock_file_path, mock_verify):
+        """Test that channel defaults to IBM_QUANTUM_PLATFORM when omitted."""
+        mock_verify.return_value = None
+
+        with tempfile.NamedTemporaryFile() as temp_file:
+            mock_file_path.return_value = temp_file.name
+
+            client = IBMServerlessClient(
+                token="test_token",
+                instance="test_instance",
+                # channel parameter omitted
+            )
+
+            self.assertEqual(client.channel, Channel.IBM_QUANTUM_PLATFORM.value)
+            self.assertEqual(client.account.channel, Channel.IBM_QUANTUM_PLATFORM.value)
+
+    @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
+    @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
+    def test_channel_respects_explicit_ibm_cloud_value(self, mock_file_path, mock_verify):
+        """Test that explicitly provided IBM_CLOUD channel is preserved."""
+        mock_verify.return_value = None
+
+        with tempfile.NamedTemporaryFile() as temp_file:
+            mock_file_path.return_value = temp_file.name
+
+            client = IBMServerlessClient(token="test_token", instance="test_instance", channel="ibm_cloud")
+
+            self.assertEqual(client.channel, Channel.IBM_CLOUD.value)
+            self.assertEqual(client.account.channel, Channel.IBM_CLOUD.value)
+
+    @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
+    @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
+    def test_backward_compatibility_with_explicit_ibm_quantum_platform(self, mock_file_path, mock_verify):
+        """Test backward compatibility when IBM_QUANTUM_PLATFORM is explicitly provided."""
+        mock_verify.return_value = None
+
+        with tempfile.NamedTemporaryFile() as temp_file:
+            mock_file_path.return_value = temp_file.name
+
+            # This is how users might have been calling it before
+            client = IBMServerlessClient(token="test_token", instance="test_instance", channel="ibm_quantum_platform")
+
+            self.assertEqual(client.channel, Channel.IBM_QUANTUM_PLATFORM.value)
+            self.assertEqual(client.account.channel, Channel.IBM_QUANTUM_PLATFORM.value)
 
 
 if __name__ == "__main__":
