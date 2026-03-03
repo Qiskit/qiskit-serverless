@@ -3,6 +3,7 @@
 import os
 import json
 import tempfile
+from unittest.mock import patch
 
 from django.contrib.auth import models
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -17,6 +18,7 @@ from api.v1.serializers import (
     RunJobSerializer,
 )
 from core.models import JobConfig, Program
+from tests.utils import TestUtils
 
 
 @override_settings(GATEWAY_DYNAMIC_DEPENDENCIES="../ray-node/requirements-test-dynamic-dependencies.txt")
@@ -260,8 +262,31 @@ class SerializerTest(APITestCase):
             self.assertIsNotNone(job.arguments)
             self.assertIsNotNone(job.config)
             self.assertIsNotNone(job.author)
+            self.assertFalse(job.gpu)
             self.assertTrue(env_vars["PROGRAM_ENV1"] == "VALUE1")
             self.assertTrue(env_vars["PROGRAM_ENV2"] == "VALUE2")
+
+    @patch("api.serializers.create_gpujob_allowlist")
+    def test_run_job_serializer_sets_gpu_flag_for_gpu_provider(self, mock_gpujob_allowlist):
+        """Tests that gpu flag is True when program's provider is in GPU allowlist."""
+        mock_gpujob_allowlist.return_value = {"gpu-functions": {"gpu_provider": []}}
+
+        user = models.User.objects.get(username="test_user")
+        program = TestUtils.create_program(author=user, provider_admin="gpu_provider")
+
+        job_data = {"program": program.id}
+        job_serializer = RunJobSerializer(data=job_data)
+        job_serializer.is_valid()
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            job = job_serializer.save(
+                channel=Channel.IBM_QUANTUM_PLATFORM,
+                author=user,
+                carrier={},
+                token="my_token",
+            )
+
+            self.assertTrue(job.gpu)
 
     def test_upload_program_serializer_with_only_title(self):
         """Tests upload serializer with only title."""

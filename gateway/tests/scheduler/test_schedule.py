@@ -26,7 +26,7 @@ class TestScheduleApi(APITestCase):
 
     def test_get_fair_share_jobs(self):
         """Tests fair share jobs getter function."""
-        jobs = get_jobs_to_schedule_fair_share(5)
+        jobs = get_jobs_to_schedule_fair_share(5, False)
 
         for job in jobs:
             self.assertIsInstance(job, Job)
