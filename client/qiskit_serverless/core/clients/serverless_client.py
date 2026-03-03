@@ -728,7 +728,7 @@ class IBMServerlessClient(ServerlessClient):
         name: Optional[str] = None,
         overwrite: Optional[bool] = False,
         instance: Optional[str] = None,
-        channel: str = Channel.IBM_QUANTUM_PLATFORM.value,
+        channel: Optional[str] = None,
     ) -> None:
         """
         Save the account to disk for future use.
