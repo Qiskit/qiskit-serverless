@@ -68,6 +68,8 @@ class Main:
                         logger.exception("Error in %s: %s", task.name, ex)
 
                 elapsed = time.time() - start_time
+
+                # Store the elapsed time and the last time check
                 self.metrics.observe_scheduler_iteration(elapsed, time.time())
 
                 # don't delay more than 1s if the loop was busy

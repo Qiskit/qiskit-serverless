@@ -59,6 +59,7 @@ class ScheduleQueuedJobs(SchedulerTask):
         """Schedule jobs depending on free cluster slots."""
         free_clusters_slots = max_ray_clusters_possible - number_of_clusters_running
 
+        # Store the queue size in the metrics
         self.set_queue_size_metric(gpu_job)
 
         if gpu_job:
@@ -120,7 +121,10 @@ class ScheduleQueuedJobs(SchedulerTask):
                             context=JobEventContext.SCHEDULE_JOBS,
                             status=job.status,
                         )
+
+                        # Store the wait time (from QUEUED to PENDING) in the metrics
                         self.add_queue_wait_time_metric(job)
+
                     except RecordModifiedError:
                         logger.warning(
                             "Schedule: Job [%s] record has not been updated due to lock.",
