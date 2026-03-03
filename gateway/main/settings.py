@@ -389,6 +389,12 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "type": "boolean",  # not used yet, but maybe the backoffice can use this in the future to improve the edit page
         "description": "Enable maintenance mode: the scheduler will not execute new jobs",
     },
+    "gateway.upload_file.valid_mime_types": {
+        "default": "application/x-tar, application/gzip, application/json, "
+        "application/octet-stream, application/zip, text/plain, text/csv",
+        "type": "list",
+        "description": "Specify the permitted mime types to upload files.",
+    },
 }
 
 logging.getLogger("main").info("[BOOT] Settings.py: %s", "gunicorn" if IS_UNICORN else COMMAND)
