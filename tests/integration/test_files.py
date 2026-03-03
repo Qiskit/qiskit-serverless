@@ -80,9 +80,7 @@ class TestFiles:
             entrypoint="hello_world.py",
             working_dir=resources_path,
         )
-        serverless_client.upload(function)
-
-        function = serverless_client.function("hello-world")
+        function = serverless_client.upload(function)
 
         print(serverless_client.file_upload(filename_path, function))
         files = serverless_client.files(function)
