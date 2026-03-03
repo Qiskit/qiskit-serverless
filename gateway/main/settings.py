@@ -390,7 +390,8 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "Enable maintenance mode: the scheduler will not execute new jobs",
     },
     "gateway.upload_file.valid_mime_types": {
-        "default": "application/x-tar, application/gzip, application/json, application/octet-stream, application/zip, text/plain, text/csv",
+        "default": "application/x-tar, application/gzip, application/json, "
+        "application/octet-stream, application/zip, text/plain, text/csv",
         "type": "list",
         "description": "Specify the permitted mime types to upload files.",
     },
