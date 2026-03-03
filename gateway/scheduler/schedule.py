@@ -15,7 +15,7 @@ from opentelemetry import trace
 
 from core.models import Job, ComputeResource
 from core.services.ray import submit_job, create_compute_resource, kill_ray_cluster
-from core.utils import generate_cluster_name, create_gpujob_allowlist
+from core.utils import generate_cluster_name
 
 User: Model = get_user_model()
 logger = logging.getLogger("commands")
@@ -42,26 +42,6 @@ def _create_ray_cluster_compute_resource(job: Job, span) -> ComputeResource | No
         span.set_attribute("job.status", job.status)
 
     return compute_resource
-
-
-def configure_job_to_use_gpu(job: Job):
-    """
-    Configures the Job if its allowed to use
-    GPU or not.
-
-    Args:
-        job (Job): Job instance
-
-    Returns:
-        Job: the instance with gpu parameter configured
-    """
-
-    gpujobs = create_gpujob_allowlist()
-    if job.program and job.program.provider and job.program.provider.name in gpujobs["gpu-functions"].keys():
-        logger.debug("Job [%s] will be run on GPU nodes", job.id)
-        job.gpu = True
-
-    return job
 
 
 def execute_job(job: Job) -> Job:
