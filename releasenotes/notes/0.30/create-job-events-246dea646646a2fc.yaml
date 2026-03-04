@@ -1,5 +1,5 @@
 ---
-features:
+upgrade:
   - |
     Added a new ``JobEvents`` table to our database to improve metrics and provide a more flexible
     foundation for future event-tracking features. Each time a job changes state,
