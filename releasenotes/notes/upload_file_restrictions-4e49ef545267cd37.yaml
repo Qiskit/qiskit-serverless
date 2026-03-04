@@ -1,0 +1,13 @@
+---
+features:
+  - |
+    Uploaded files now should have a valid file type in order to be accepted
+    by the platform.
+    The available default types are: 
+     - application/x-tar
+     - application/gzip
+     - application/json
+     - application/octet-stream
+     - application/zip
+     - text/plain
+     - text/csv
