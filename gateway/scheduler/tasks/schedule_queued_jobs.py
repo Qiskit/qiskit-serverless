@@ -15,7 +15,6 @@ from core.config_key import ConfigKey
 from core.models import ComputeResource, Job, JobEvent, Config
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from scheduler.schedule import (
-    configure_job_to_use_gpu,
     get_jobs_to_schedule_fair_share,
     execute_job,
 )
@@ -76,15 +75,7 @@ class ScheduleQueuedJobs(SchedulerTask):
             )
             return
 
-        # we have available resources
-        jobs = get_jobs_to_schedule_fair_share(slots=free_clusters_slots)
-
-        # probably this piece of code should go in the logic for job creation
-        # in the run end-point
-        jobs = [configure_job_to_use_gpu(job) for job in jobs]
-
-        # only process jobs of the appropriate compute type
-        jobs = [job for job in jobs if job.gpu is gpu_job]
+        jobs = get_jobs_to_schedule_fair_share(slots=free_clusters_slots, gpu=gpu_job)
 
         for job in jobs:
             if self.kill_signal.received:

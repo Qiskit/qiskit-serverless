@@ -18,6 +18,7 @@ from core.utils import check_logs
 from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
 from scheduler.tasks.free_resources import FreeResources
 from scheduler.tasks.schedule_queued_jobs import ScheduleQueuedJobs
+from scheduler.schedule import get_jobs_to_schedule_fair_share
 
 
 class TestCommands(APITestCase):
@@ -115,6 +116,19 @@ class TestCommands(APITestCase):
         self.assertEqual(job_events[1].data["status"], JobStatus.SUCCEEDED)
         self.assertEqual(job_events[1].origin, JobEventOrigin.SCHEDULER)
         self.assertEqual(job_events[1].context, JobEventContext.SCHEDULE_JOBS)
+
+    def test_schedule_queued_jobs_separates_gpu_and_cpu_queues(self):
+        """Tests that GPU and CPU jobs are scheduled from separate queues."""
+        cpu_job = self._create_test_job(author="cpu_user", status=Job.QUEUED, gpu=False)
+        gpu_job = self._create_test_job(author="gpu_user", status=Job.QUEUED, gpu=True)
+
+        cpu_jobs = get_jobs_to_schedule_fair_share(slots=10, gpu=False)
+        gpu_jobs = get_jobs_to_schedule_fair_share(slots=10, gpu=True)
+
+        self.assertIn(cpu_job, cpu_jobs)
+        self.assertNotIn(gpu_job, cpu_jobs)
+        self.assertIn(gpu_job, gpu_jobs)
+        self.assertNotIn(cpu_job, gpu_jobs)
 
     def test_check_empty_logs(self):
         """Test error notification for failed and empty logs."""

@@ -24,3 +24,4 @@ whitenoise>=6.7.0, <7
 objsize>=0.7.1, <1
 psutil>=5.9.0, <7
 ibm-platform-services>=0.59.1, <1
+python-magic>=0.4.27, <1
