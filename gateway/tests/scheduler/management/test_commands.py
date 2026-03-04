@@ -2,6 +2,7 @@
 
 import os
 import tempfile
+from datetime import datetime, timezone
 from typing import Optional
 
 from django.contrib.auth.models import User, Group
@@ -93,6 +94,8 @@ class TestCommands(APITestCase):
         fake_job.sub_status = None
         fake_job.program.artifact.path = "non_existing_file.tar"
         fake_job.save.return_value = None
+        fake_job.created = datetime.now(timezone.utc)
+        fake_job.gpu = False
 
         execute_job.return_value = fake_job
         ScheduleQueuedJobs().run()

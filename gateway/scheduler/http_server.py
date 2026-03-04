@@ -21,8 +21,9 @@ class SchedulerHttpServer:
 
     def __init__(self, site_host: str):
         parsed = urlparse(site_host)
-        self._host = parsed.hostname or "0.0.0.0"
-        self._port = parsed.port or 8001
+        self._site_host = site_host
+        self._host = parsed.hostname
+        self._port = parsed.port
         self._routes: dict = {}
         self._not_found_handler = create_request_handler(not_found)
         self._httpd: WSGIServer | None = None
@@ -55,9 +56,9 @@ class SchedulerHttpServer:
         self._thread.start()
         if not self._wait_for_server():
             self.stop()
-            raise RuntimeError(f"HTTP server failed to start on {self._host}:{self._port}")
+            raise RuntimeError(f"HTTP server failed to start on {self._site_host}")
         self._running = True
-        logger.info("Scheduler HTTP server started on %s:%s", self._host, self._port)
+        logger.info("Scheduler HTTP server started on %s", self._site_host)
 
     def _wait_for_server(self, timeout: float = 1.0) -> bool:
         """Wait until the server is accepting connections."""

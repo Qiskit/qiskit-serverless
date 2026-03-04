@@ -23,7 +23,7 @@ from scheduler.schedule import (
 
 from scheduler.kill_signal import KillSignal
 from .task import SchedulerTask
-from ..metrics import SchedulerMetrics
+from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 
 logger = logging.getLogger("commands")
 

@@ -4,10 +4,12 @@ import logging
 import time
 
 from django.conf import settings
+from prometheus_client import CollectorRegistry, PlatformCollector, GCCollector, ProcessCollector
 
 from core.models import Config
 from scheduler.http_server import SchedulerHttpServer
-from scheduler.metrics import SchedulerMetrics
+from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
+from scheduler.metrics.system_metrics_collector import SystemMetricsCollector
 from scheduler.views.probes import liveness, readiness
 from scheduler.kill_signal import KillSignal
 from scheduler.tasks.free_resources import FreeResources
@@ -22,19 +24,25 @@ class Main:
 
     def __init__(self):
         self.kill_signal = KillSignal()
-        self.metrics = SchedulerMetrics()
+        self.kill_signal.register()  # start listening to SIGTERM and SIGINT signals
+        self.http_server: SchedulerHttpServer = SchedulerHttpServer(site_host=settings.SITE_HOST)
+
+        # Configure metrics
+        self.registry = CollectorRegistry()
+        self.metrics = SchedulerMetrics(registry=self.registry)
+        ProcessCollector(registry=self.registry)
+        GCCollector(registry=self.registry)
+        PlatformCollector(registry=self.registry)
+        SystemMetricsCollector(registry=self.registry)
+
+        # Write new defaults that this version might have (this is also done in the Gateway, first come, first write)
+        Config.add_defaults()
+
         self.tasks = [
             ScheduleQueuedJobs(self.kill_signal, self.metrics),
             UpdateJobsStatuses(self.kill_signal, self.metrics),
             FreeResources(self.kill_signal, self.metrics),
         ]
-        self.http_server: SchedulerHttpServer = SchedulerHttpServer(site_host=settings.SITE_HOST)
-
-    def configure(self):
-        """Configure the scheduler."""
-        self.kill_signal.register()
-        Config.add_defaults()
-        logger.info("Scheduler loop started.")
 
     def start_http_server(self):
         """Start the internal HTTP server for probes and metrics."""

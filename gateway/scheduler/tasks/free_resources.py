@@ -8,7 +8,7 @@ from core.models import ComputeResource, Job
 from core.services.ray import kill_ray_cluster
 
 from scheduler.kill_signal import KillSignal
-from scheduler.metrics import SchedulerMetrics
+from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.task import SchedulerTask
 
 logger = logging.getLogger("commands")

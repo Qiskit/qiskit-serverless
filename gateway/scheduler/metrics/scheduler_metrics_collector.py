@@ -1,30 +1,14 @@
-"""Scheduler Prometheus metrics primitives."""
-
-from prometheus_client import (
-    CollectorRegistry,
-    Counter,
-    GCCollector,
-    Gauge,
-    Histogram,
-    PlatformCollector,
-    ProcessCollector,
-    make_wsgi_app,
-)
-
-
-def _build_scheduler_registry() -> CollectorRegistry:
-    registry = CollectorRegistry()
-    ProcessCollector(registry=registry)
-    GCCollector(registry=registry)
-    PlatformCollector(registry=registry)
-    return registry
+from prometheus_client import CollectorRegistry, Histogram, Counter, Gauge, make_wsgi_app
 
 
 class SchedulerMetrics:
-    """Container for scheduler Prometheus metrics and exposition app."""
+    """Metrics related with the scheduler life cycle like wait time per job or tasks failure.
+    For system metrics (like CPU or Memory) go to the SystemMetricsCollector
+    """
 
-    def __init__(self, registry: CollectorRegistry | None = None):
-        self.registry: CollectorRegistry = registry or _build_scheduler_registry()
+    def __init__(self, registry: CollectorRegistry = None):
+        self.registry: CollectorRegistry = registry or CollectorRegistry()
+
         self.loop_duration = Histogram(
             "scheduler_loop_duration_seconds",
             "Duration of one scheduler loop iteration.",
