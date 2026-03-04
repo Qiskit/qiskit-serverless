@@ -3,11 +3,13 @@ features:
   - |
     Uploaded files now should have a valid file type in order to be accepted
     by the platform.
-    The available default types are: 
-     - application/x-tar
-     - application/gzip
-     - application/json
-     - application/octet-stream
-     - application/zip
-     - text/plain
-     - text/csv
+    
+    The accepted MIME types for uploaded files are:
+
+    - application/x-tar        (.tar)
+    - application/gzip         (.gz, .tgz)
+    - application/json         (.json)
+    - application/octet-stream (generic binary; may include .bin, .dat, .exe)
+    - application/zip          (.zip)
+    - text/plain               (.txt, .log)
+    - text/csv                 (.csv)
