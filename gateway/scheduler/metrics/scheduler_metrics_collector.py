@@ -1,4 +1,15 @@
-from prometheus_client import CollectorRegistry, Histogram, Counter, Gauge, make_wsgi_app
+from prometheus_client import (
+    CollectorRegistry,
+    Histogram,
+    Counter,
+    Gauge,
+    make_wsgi_app,
+    ProcessCollector,
+    GCCollector,
+    PlatformCollector,
+)
+
+from scheduler.metrics.system_metrics_collector import SystemMetricsCollector
 
 
 class SchedulerMetrics:
@@ -38,7 +49,16 @@ class SchedulerMetrics:
             registry=self.registry,
             buckets=(1, 5, 10, 30, 60, 120, 300, 600, 1800, 3600, float("inf")),
         )
-        self.metrics_app = make_wsgi_app(self.registry)
+
+        # from the Prometheus client library
+        ProcessCollector(registry=self.registry)
+        GCCollector(registry=self.registry)
+        PlatformCollector(registry=self.registry)
+
+        # This is our personal system metrics, reading from psutil
+        SystemMetricsCollector(registry=self.registry)
+
+        self.wsgi_app = make_wsgi_app(self.registry)
 
     def increase_task_failure(self, task_name: str) -> None:
         """Register one scheduler task failure."""

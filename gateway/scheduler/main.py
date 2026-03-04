@@ -4,13 +4,10 @@ import logging
 import time
 
 from django.conf import settings
-from prometheus_client import CollectorRegistry, PlatformCollector, GCCollector, ProcessCollector
 
 from core.models import Config
 from scheduler.http_server import SchedulerHttpServer
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.metrics.system_metrics_collector import SystemMetricsCollector
-from scheduler.views.probes import liveness, readiness
 from scheduler.kill_signal import KillSignal
 from scheduler.tasks.free_resources import FreeResources
 from scheduler.tasks.schedule_queued_jobs import ScheduleQueuedJobs
@@ -25,15 +22,10 @@ class Main:
     def __init__(self):
         self.kill_signal = KillSignal()
         self.kill_signal.register()  # start listening to SIGTERM and SIGINT signals
-        self.http_server: SchedulerHttpServer = SchedulerHttpServer(site_host=settings.SITE_HOST)
 
-        # Configure metrics
-        self.registry = CollectorRegistry()
-        self.metrics = SchedulerMetrics(registry=self.registry)
-        ProcessCollector(registry=self.registry)
-        GCCollector(registry=self.registry)
-        PlatformCollector(registry=self.registry)
-        SystemMetricsCollector(registry=self.registry)
+        self.metrics = SchedulerMetrics()
+        self.http_server: SchedulerHttpServer = SchedulerHttpServer(site_host=settings.SITE_HOST)
+        self.http_server.configure_routes(self.metrics)
 
         # Write new defaults that this version might have (this is also done in the Gateway, first come, first write)
         Config.add_defaults()
@@ -48,11 +40,6 @@ class Main:
         """Start the internal HTTP server for probes and metrics."""
         if self.http_server.is_running():
             raise RuntimeError("Scheduler HTTP server already running!")
-
-        self.http_server.add_path_handler("/readiness", readiness)
-        self.http_server.add_path_handler("/liveness", liveness)
-        self.http_server.add_path_handler("/metrics", self.metrics.metrics_app)
-
         self.http_server.start()
 
     def stop_http_server(self):
