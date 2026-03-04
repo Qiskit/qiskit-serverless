@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="Qiskit Serverless API References" href="apidocs/index.html" /><link rel="prev" title="Example custom image function" href="deployment/example_custom_image_function.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2024.08.06 -->
-        <title>Release Notes - Qiskit Serverless 0.29.0</title>
+        <title>Release Notes - Qiskit Serverless 0.30.0</title>
       <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=354aac6f" />
     <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=3ee1c6c6" />
     <link rel="stylesheet" type="text/css" href="_static/styles/qiskit-sphinx-theme.css?v=8ff9dcb6" />
@@ -161,7 +161,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="index.html"><div class="brand">Qiskit Serverless 0.29.0</div></a>
+      <a href="index.html"><div class="brand">Qiskit Serverless 0.30.0</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -189,7 +189,7 @@
     <img class="sidebar-logo only-dark" src="_static/images/qiskit-dark-logo.svg" alt="Dark Logo"/>
   </div>
   
-  <span class="sidebar-brand-text">Qiskit Serverless 0.29.0</span>
+  <span class="sidebar-brand-text">Qiskit Serverless 0.30.0</span>
   
 </a>
 <form class="sidebar-search-container" method="get" action="search.html" role="search">
@@ -304,30 +304,10 @@
 <span id="release-notes-upcoming-qiskit-serverless-release"></span><h2>Upcoming Qiskit Serverless release<a class="headerlink" href="#upcoming-qiskit-serverless-release" title="Permalink to this heading">¶</a></h2>
 <section id="prelude">
 <span id="release-notes-upcoming-qiskit-serverless-release-prelude"></span><h3>Prelude<a class="headerlink" href="#prelude" title="Permalink to this heading">¶</a></h3>
-<p>Major refactor in logs to differentiate between provider logs and user logs and optimize storage. The logs are now stored in COS while keeping backward compatibility.</p>
+<p>The main feature in this release is the major refactor in logs to differentiate between provider logs and user logs and optimize storage. The logs are now stored in COS while keeping backward compatibility.</p>
 </section>
 <section id="new-features">
 <span id="release-notes-upcoming-qiskit-serverless-release-new-features"></span><h3>New Features<a class="headerlink" href="#new-features" title="Permalink to this heading">¶</a></h3>
-<ul class="simple">
-<li><p>Added a new <code class="docutils literal notranslate"><span class="pre">version</span></code> field to the <code class="docutils literal notranslate"><span class="pre">Program</span></code> Django model. This field is used to track the version of the program (function).</p></li>
-</ul>
-<ul>
-<li><p>Added a new <code class="docutils literal notranslate"><span class="pre">JobEvents</span></code> table to our database to improve metrics and provide a more flexible
-foundation for future event-tracking features. Each time a job changes state,
-a new event is now recorded in the database.</p>
-<dl class="simple">
-<dt>The new <code class="docutils literal notranslate"><span class="pre">JobEvents</span></code> table includes:</dt><dd><ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">id</span></code>: auto-generated UUID</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">job</span></code>: foreign key referencing the jobs table</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">created</span></code>: timestamp automatically set at event creation</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">event_type</span></code>: string describing the event type (currently <code class="docutils literal notranslate"><span class="pre">&quot;Status</span> <span class="pre">change&quot;</span></code>)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">context</span></code>: string indicating where the change originated (e.g., Scheduler, API)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">data</span></code>: JSON payload containing event‑specific details</p></li>
-</ul>
-</dd>
-</dl>
-</li>
-</ul>
 <ul>
 <li><p>The <code class="docutils literal notranslate"><span class="pre">qiskit-serverless</span></code> Python library added two new utilities, <code class="xref py py-func docutils literal notranslate"><span class="pre">get_logger()</span></code>
 and <code class="xref py py-func docutils literal notranslate"><span class="pre">get_provider_logger()</span></code>, available to Qiskit Function developers.
@@ -371,30 +351,6 @@ For example:</p>
 </div>
 </li>
 </ul>
-<ul class="simple">
-<li><p>The Scheduler is modified to upload logs to COS when a job transitions from running to
-a terminal state. At that moment, the logs will be filtered based on the prefixes,
-and the information will be saved in the corresponding folder inside COS.</p></li>
-</ul>
-<ul class="simple">
-<li><p>The Gateway endpoint <code class="docutils literal notranslate"><span class="pre">/logs</span></code> has been modified to only target user logs,
-and a new <cite>/provider_logs`</cite> has been added for provider logs.
-Both should return:
-1. The COS log for finished jobs, if it exists. This was previously filtered in the Scheduler.
-2. The Ray console logs if the job is running. This is filtered live.
-3. As a fallback, logs from the database.</p></li>
-</ul>
-<ul class="simple">
-<li><p>Four new exception classes have been added to the API to better differentiate between different failure
-scenarios: <code class="xref py py-class docutils literal notranslate"><span class="pre">JobNotFoundException</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ProviderNotFoundException</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">FunctionNotFoundException</span></code>
-and <code class="xref py py-class docutils literal notranslate"><span class="pre">FileNotFoundException</span></code> that inherit from an abstract <code class="xref py py-class docutils literal notranslate"><span class="pre">NotFoundError</span></code> base class.</p></li>
-</ul>
-<ul class="simple">
-<li><p>Added a new gateway setting to limit the number of active jobs per user.
-By setting the environment variable <code class="docutils literal notranslate"><span class="pre">LIMITS_ACTIVE_JOBS_PER_USER</span></code>, you can
-restrict the total number of jobs a user can have across <code class="docutils literal notranslate"><span class="pre">QUEUED</span></code>,
-<code class="docutils literal notranslate"><span class="pre">PENDING</span></code>, and <code class="docutils literal notranslate"><span class="pre">RUNNING</span></code> states. The default limit is <code class="docutils literal notranslate"><span class="pre">50</span></code>.</p></li>
-</ul>
 <ul>
 <li><p>Uploaded files now should have a valid file type in order to be accepted
 by the platform.</p>
@@ -414,7 +370,51 @@ by the platform.</p>
 <section id="upgrade-notes">
 <span id="release-notes-upcoming-qiskit-serverless-release-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
+<li><p>Added a new <code class="docutils literal notranslate"><span class="pre">version</span></code> field to the <code class="docutils literal notranslate"><span class="pre">Program</span></code> Django model. This field is used to track the version of the program (function).</p></li>
+</ul>
+<ul>
+<li><p>Added a new <code class="docutils literal notranslate"><span class="pre">JobEvents</span></code> table to our database to improve metrics and provide a more flexible
+foundation for future event-tracking features. Each time a job changes state,
+a new event is now recorded in the database.</p>
+<dl class="simple">
+<dt>The new <code class="docutils literal notranslate"><span class="pre">JobEvents</span></code> table includes:</dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">id</span></code>: auto-generated UUID</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">job</span></code>: foreign key referencing the jobs table</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">created</span></code>: timestamp automatically set at event creation</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">event_type</span></code>: string describing the event type (currently <code class="docutils literal notranslate"><span class="pre">&quot;Status</span> <span class="pre">change&quot;</span></code>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">context</span></code>: string indicating where the change originated (e.g., Scheduler, API)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">data</span></code>: JSON payload containing event‑specific details</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+<ul class="simple">
 <li><p>Added several quality of life improvements in testing.</p></li>
+</ul>
+<ul class="simple">
+<li><p>The Scheduler is modified to upload logs to COS when a job transitions from running to
+a terminal state. At that moment, the logs will be filtered based on the prefixes,
+and the information will be saved in the corresponding folder inside COS.</p></li>
+</ul>
+<ul class="simple">
+<li><p>The Gateway endpoint <code class="docutils literal notranslate"><span class="pre">/logs</span></code> has been modified to only target user logs,
+and a new <cite>/provider_logs`</cite> has been added for provider logs.
+Both should return:
+1. The COS log for finished jobs, if it exists. This was previously filtered in the Scheduler.
+2. The Ray console logs if the job is running. This is filtered live.
+3. As a fallback, logs from the database.</p></li>
+</ul>
+<ul class="simple">
+<li><p>Four new exception classes have been added to the gateway API to better differentiate between different failure
+scenarios: <code class="xref py py-class docutils literal notranslate"><span class="pre">JobNotFoundException</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ProviderNotFoundException</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">FunctionNotFoundException</span></code>
+and <code class="xref py py-class docutils literal notranslate"><span class="pre">FileNotFoundException</span></code> that inherit from an abstract <code class="xref py py-class docutils literal notranslate"><span class="pre">NotFoundError</span></code> base class.</p></li>
+</ul>
+<ul class="simple">
+<li><p>Added a new gateway setting to limit the number of active jobs per user.
+By setting the environment variable <code class="docutils literal notranslate"><span class="pre">LIMITS_ACTIVE_JOBS_PER_USER</span></code>, you can
+restrict the total number of jobs a user can have across <code class="docutils literal notranslate"><span class="pre">QUEUED</span></code>,
+<code class="docutils literal notranslate"><span class="pre">PENDING</span></code>, and <code class="docutils literal notranslate"><span class="pre">RUNNING</span></code> states. The default limit is <code class="docutils literal notranslate"><span class="pre">50</span></code>.</p></li>
 </ul>
 <ul class="simple">
 <li><p>Requests to run programs will now return an <code class="docutils literal notranslate"><span class="pre">HTTP</span> <span class="pre">429</span> <span class="pre">Too</span> <span class="pre">Many</span> <span class="pre">Requests</span></code> response
@@ -796,7 +796,7 @@ specific jobs. For example:</p>
       
     </aside>
   </div>
-</div><script data-url_root="./" id="documentation_options" src="_static/documentation_options.js?v=8494c60a"></script>
+</div><script data-url_root="./" id="documentation_options" src="_static/documentation_options.js?v=dfcfee03"></script>
     <script src="_static/doctools.js?v=888ff710"></script>
     <script src="_static/sphinx_highlight.js?v=4825356b"></script>
     <script src="_static/scripts/furo.js?v=5fa4622c"></script>
