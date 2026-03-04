@@ -169,6 +169,8 @@ resources:
     cpu: "500m"
     memory: "700Mi"
 scheduler:
+  siteHost: "http://0.0.0.0:8001"
+  port: 8001
   resources:
     limits:
       cpu: "1500m"

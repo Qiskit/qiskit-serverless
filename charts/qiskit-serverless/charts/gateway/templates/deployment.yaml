@@ -315,6 +315,26 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["./scripts/scheduler.sh"]
+          ports:
+            - name: http
+              containerPort: {{ .Values.scheduler.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /liveness
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 5
           volumeMounts:
             - mountPath: "/usr/src/app/media/"
               name: gateway-pv-storage
@@ -325,6 +345,8 @@ spec:
           resources:
             {{- toYaml .Values.scheduler.resources | nindent 12 }}
           env:
+            - name: SITE_HOST
+              value: {{ .Values.scheduler.siteHost | quote }}
             - name: DEBUG
               value: {{ .Values.application.debug | quote }}
             - name: DJANGO_SECRET_KEY
