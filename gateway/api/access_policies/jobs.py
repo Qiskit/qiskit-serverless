@@ -161,3 +161,25 @@ class JobAccessPolicies:
                 job.id,
             )
         return has_access
+
+    @staticmethod
+    def can_create_events(user: AbstractUser, job: Job) -> bool:
+        """
+        Checks if the user has permissions to create events for a job:
+
+        Args:
+            user: Django user from the request
+            job: Job instance against to check the permission
+
+        Returns:
+            bool: True or False in case the user has permissions
+        """
+
+        has_access = user.id == job.author.id
+        if not has_access:
+            logger.warning(
+                "User [%s] has no access create events for the job [%s].",
+                user.username,
+                job.id,
+            )
+        return has_access
