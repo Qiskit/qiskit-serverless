@@ -4,7 +4,11 @@ repos:
     rev: v5.0.0
     hooks:
      - id: trailing-whitespace
-       exclude: \.py$
+       exclude: |
+          (?x)^(
+            .*\.py|
+            releasenotes/.*
+          )$
      - id: check-case-conflict
      - id: check-json
      - id: check-yaml

@@ -303,7 +303,7 @@ LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
 RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
 RAY_CLUSTER_MODE_LOCAL = os.environ.get("RAY_CLUSTER_MODE_LOCAL", "false").lower() == "true"
 RAY_LOCAL_HOST = os.environ.get("RAY_LOCAL_HOST", "http://localhost:8265")
-RAY_NODE_IMAGE = os.environ.get("RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.29.0")
+RAY_NODE_IMAGE = os.environ.get("RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.30.0")
 RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "1"))
 RAY_CLUSTER_WORKER_REPLICAS_MAX = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS_MAX", "5"))
 RAY_CLUSTER_WORKER_MIN_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS", "1"))
@@ -388,6 +388,12 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "default": "false",
         "type": "boolean",  # not used yet, but maybe the backoffice can use this in the future to improve the edit page
         "description": "Enable maintenance mode: the scheduler will not execute new jobs",
+    },
+    "gateway.upload_file.valid_mime_types": {
+        "default": "application/x-tar, application/gzip, application/json, "
+        "application/octet-stream, application/zip, text/plain, text/csv",
+        "type": "list",
+        "description": "Specify the permitted mime types to upload files.",
     },
 }
 

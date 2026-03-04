@@ -1,6 +1,6 @@
 ---
 prelude: >
-    Major refactor in logs to differentiate between provider logs
+    The main feature in this release is the major refactor in logs to differentiate between provider logs
     and user logs and optimize storage. The logs are now stored in COS while keeping backward
     compatibility.
 
@@ -44,6 +44,9 @@ features:
         print(job.logs())  # only users
         print(job.provider_logs())  # only providers
 
+upgrade:
+  - |
+    Added several quality of life improvements in testing.
   - |
     The Scheduler is modified to upload logs to COS when a job transitions from running to
     a terminal state. At that moment, the logs will be filtered based on the prefixes,
@@ -56,8 +59,3 @@ features:
     1. The COS log for finished jobs, if it exists. This was previously filtered in the Scheduler.
     2. The Ray console logs if the job is running. This is filtered live.
     3. As a fallback, logs from the database.
-
-upgrade:
-  - |
-    Added several quality of life improvements in testing.
-

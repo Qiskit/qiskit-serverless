@@ -9,7 +9,7 @@ from qiskit_serverless import ServerlessClient, QiskitFunction
 
 resources_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../source_files")
 
-filename = "data.tar"
+filename = "test.txt"
 filename_path = os.path.join(resources_path, filename)
 
 
@@ -80,9 +80,7 @@ class TestFiles:
             entrypoint="hello_world.py",
             working_dir=resources_path,
         )
-        serverless_client.upload(function)
-
-        function = serverless_client.function("hello-world")
+        function = serverless_client.upload(function)
 
         print(serverless_client.file_upload(filename_path, function))
         files = serverless_client.files(function)
