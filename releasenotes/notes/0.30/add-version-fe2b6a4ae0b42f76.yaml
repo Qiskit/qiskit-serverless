@@ -23,7 +23,7 @@ fixes:
       # this print now also outputs 2.0.0 (previously empty)
       print(my-func-load.version)
 
-features:
+upgrade:
   - |
     Added a new ``version`` field to the ``Program`` Django model. This field is used to track the version of the program (function).
 
