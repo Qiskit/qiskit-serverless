@@ -1,134 +1,133 @@
-==================================
-Building custom image for function
-==================================
+============================
+Deploy a Custom Function Image
+============================
 
-In this tutorial we will describe how you can build your custom docker image and execute it as
-a Qiskit Function.
+This guide explains how to build and deploy a custom Docker image as a
+``QiskitFunction``.
 
-You will be following 3 steps to deploy it:
+Anyone can deploy and run a custom image on a **local** Qiskit Serverless
+cluster by setting ``provider="mockprovider"`` when initializing the
+function. However, to deploy a custom image in a remote Qiskit Serverless
+environment, you must be registered as a ``provider`` in that environment.
 
-* implement function template
-* define dockerfile, build it
-* upload
+Both local and remote workflows follow four steps:
 
-You can find the example in `docs/deployment/custom_function`, which will have 2 files: `Sample-Dockerfile` and `runner.py`.
+1. Implement the function entrypoint and Dockerfile
+2. Build the image
+3. Upload the image
+4. Run the function
+
+1. Implement function entrypoint and define Dockerfile
+------------------------------------------------------
+
+An example is available in ``docs/deployment/custom_function`` containing
+``Sample-Dockerfile`` and ``runner.py``:
 
 .. code-block::
-   :caption: Custom image folder source files for the example
+   :caption: Custom image folder structure
 
    /custom_function
-     /runner.py
-     /Sample-Dockerfile
+     runner.py
+     Sample-Dockerfile
 
-First, you will implement your function entrypoint following the template. All functions with custom docker images must follow same template structure.
+A custom function image must provide a ``Runner`` class with a ``run``
+method, which is invoked during function execution. Its return value
+becomes the function result.
 
-We need to create class `Runner` and implement `run` method that will be called during invocation of the function and the results of the run method will be returned as result of the function.
-
-Let's create `runner.py` file with the following content:
-
-.. code-block::
-   :caption: `runner.py` - Runner class implementation. This is an entrypoint to you custom image function.
-
-    class Runner:
-        def run(self, arguments: dict) -> dict:
-            # this is just an example
-            # your function can call for other modules, function, etc.
-            return {
-                **arguments,
-                **{
-                    "answer": 42
-                }
-            }
-
-
-As a next step let's define and build our custom docker image.
-
-Dockerfile will be extending base serverless node image and adding required packages and structure to it.
-
-In our simple case it will look something like this:
+Create ``runner.py``:
 
 .. code-block::
-   :caption: Dockerfile for custom image function.
+   :caption: ``runner.py`` - Runner class entrypoint
 
-    FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.29.0
+   class Runner:
+       def run(self, arguments: dict) -> dict:
+           # Example implementation
+           return {
+               **arguments,
+               "answer": 42
+           }
 
-    # install all necessary dependencies for your custom image
+Next, define a Dockerfile extending the base Qiskit Serverless ray node
+image and adding your implementation:
 
-    # copy our function implementation in `/runner/runner.py` of the docker image
-    USER 0
+.. code-block::
+   :caption: Dockerfile for custom function image
 
-    WORKDIR /runner
-    COPY ./runner.py /runner
-    WORKDIR /
+   FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.30.0
 
-    USER 1000
+   USER 0
+   WORKDIR /runner
+   COPY ./runner.py /runner
+   WORKDIR /
+   USER 1000
 
-and after that we need to build it:
+2. Build the Docker image
+-------------------------
 
 .. code-block::
    :caption: Build image
 
-    docker build -t test-local-provider-function -f Sample-Dockerfile .
+   docker build -t test-local-provider-function -f Sample-Dockerfile .
 
-We got to our final step of function development - uploading to serverless.
+3. Upload the image
+-------------------
 
-For a local development you can modify `docker-compose.yaml` ray image with the image that it was generated in the previous step:
+For **local development using Docker**, update your ``docker-compose.yaml`` to use
+the newly built image:
 
 .. code-block::
-   :caption: Modify docker compose definition
+   :caption: Modify Docker Compose
 
-    services:
-        ray-head:
-            container_name: ray-head
-            image: test-local-provider-function:latest
+   services:
+     ray-head:
+       container_name: ray-head
+       image: test-local-provider-function:latest
 
 Run it:
 
 .. code-block::
-   :caption: Run docker compose
+   :caption: Start Docker Compose
 
-    docker-compose up
+   docker-compose up
 
-Or if you are using kubernetes you will need to create the cluster and load the image in Kind:
-
-.. code-block::
-   :caption: Run your local cluster
-
-    tox -e cluster-deploy
-    kind load docker-image test-local-provider-function:latest
-
-And that's everything you need to take into account if you are using the k8s approach.
-
-Once time the local environment is running, it only remains to run the code! For that you just need to define `QiskitFunction`
-
-with the image that you just built, give it a name and upload it:
+If using **Kubernetes in local development**, create the cluster and load the image:
 
 .. code-block::
-   :caption: Uploading and using function with custom image.
+   :caption: Deploy and load image into Kind
 
-    import os
-    from qiskit_serverless import QiskitFunction, ServerlessClient
+   tox -e cluster-deploy
+   kind load docker-image test-local-provider-function:latest
 
-    serverless = ServerlessClient(
-        token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
-        host=os.environ.get("GATEWAY_HOST", "http://localhost:8000"),
-        # If you are using the kubernetes approach the URL must be http://localhost
-    )
-    serverless
+For **remote environments**, you must be a registered provider and
+follow the provider upload workflow.
 
-    function = QiskitFunction(
-        title="custom-image-function",
-        image="test-local-provider-function:latest",
-        provider="mockprovider"
-    )
-    function
+4. Run the function
+-------------------
 
-    serverless.upload(function)
+With the environment running, you just need to intantiate a service client,
+define a ``QiskitFunction`` that will use the custom image, upload it, and invoke it:
 
-    my_function = serverless.get("custom-image-function")
-    my_function
+.. code-block::
+   :caption: Uploading and running a function with a custom image
 
-    job = my_function.run(test_argument_one=1, test_argument_two="two")
-    job
+   import os
+   from qiskit_serverless import QiskitFunction, ServerlessClient
 
-    job.result()
+   serverless = ServerlessClient(
+       token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
+       image=os.environ.get("GATEWAY_INSTANCE", "awesome_crn"),
+       host=os.environ.get("GATEWAY_HOST", "http://localhost:8000"),
+       # Use http://localhost when using Kubernetes
+   )
+
+   function = QiskitFunction(
+       title="custom-image-function",
+       image="test-local-provider-function:latest",
+       provider="mockprovider"
+   )
+
+   serverless.upload(function)
+   my_function = serverless.get("custom-image-function")
+
+   job = my_function.run(test_argument_one=1, test_argument_two="two")
+   job.result()
