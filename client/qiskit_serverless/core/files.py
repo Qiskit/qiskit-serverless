@@ -42,8 +42,7 @@ from qiskit_serverless.core.decorators import trace_decorator_factory
 from qiskit_serverless.core.function import QiskitFunction
 from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.utils.http import get_headers
-from qiskit_serverless.utils.json import safe_json_request_as_dict
-from qiskit_serverless.utils.errors import format_err_msg
+from qiskit_serverless.utils.json import format_err_msg, safe_json_request_as_dict
 
 _trace = trace_decorator_factory("files")
 
@@ -144,10 +143,12 @@ class GatewayFilesClient:
             target_name,
         )
 
-    def _upload_to_url(self, file: str, function: QiskitFunction, url: str) -> Optional[str]:
+    @_trace
+    def upload(self, file: str, function: QiskitFunction) -> Optional[str]:
+        """Uploads a file in the specific user's Qiskit Function folder."""
         with open(file, "rb") as f:
             with requests.post(
-                url,
+                url_path_join(self._files_url, "upload/"),
                 files={"file": f},
                 params={"provider": function.provider, "function": function.title},
                 stream=True,
@@ -156,14 +157,12 @@ class GatewayFilesClient:
             ) as req:
                 if req.ok:
                     return req.text
-                raise QiskitServerlessException(f"Upload failed: \n{format_err_msg(req.status_code, req.content)}")
+                print(req)
+                print(req.text)
+                print(req.reason)
+                print(req.content)
+                raise QiskitServerlessException(f"Upload failed: \n{format_err_msg(req.status_code, req.text)}")
         raise QiskitServerlessException("Can not open file")
-
-    @_trace
-    def upload(self, file: str, function: QiskitFunction) -> Optional[str]:
-        """Uploads a file in the specific user's Qiskit Function folder."""
-        url = url_path_join(self._files_url, "upload/")
-        self._upload_to_url(file, function, url)
 
     @_trace
     def provider_upload(self, file: str, function: QiskitFunction) -> Optional[str]:
@@ -171,8 +170,19 @@ class GatewayFilesClient:
         if not function.provider:
             raise QiskitServerlessException("`function` doesn't have a provider.")
 
-        url = (url_path_join(self._files_url, "provider", "upload/"),)
-        self._upload_to_url(file, function, url)
+        with open(file, "rb") as f:
+            with requests.post(
+                url_path_join(self._files_url, "provider", "upload/"),
+                files={"file": f},
+                params={"provider": function.provider, "function": function.title},
+                stream=True,
+                headers=get_headers(token=self._token, instance=self._instance, channel=self._channel),
+                timeout=REQUESTS_STREAMING_TIMEOUT,
+            ) as req:
+                if req.ok:
+                    return req.text
+                raise QiskitServerlessException(f"Upload failed: \n{format_err_msg(req.status_code, req.text)}")
+        raise QiskitServerlessException("Can not open file")
 
     @_trace
     def list(self, function: QiskitFunction) -> List[str]:
