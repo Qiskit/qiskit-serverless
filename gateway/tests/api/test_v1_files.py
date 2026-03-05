@@ -406,7 +406,7 @@ class TestFilesApi(APITestCase):
                 )
 
                 assert response.status_code == status.HTTP_200_OK
-                self.assertTrue(os.path.exists(os.path.join(self.MEDIA_ROOT, "default", "Program", "artifact.tar")))
+                assert os.path.exists(os.path.join(self.MEDIA_ROOT, "default", "Program", "artifact.tar"))
 
     def test_file_upload_wrong_type(self):
         """Tests uploading existing file."""
