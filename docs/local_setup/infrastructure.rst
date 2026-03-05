@@ -5,6 +5,7 @@ Local infrastructure setup
 ==========================
 
 Step 1: Create a Python environment and clone the repository
+------------------------------------------------------------
 
 The ``qiskit-serverless`` repository contains some Dockerfiles which make spinning up a test cluster
 on your local machine straightforward. The first thing we will do is clone the repository.
@@ -31,9 +32,11 @@ on your local machine straightforward. The first thing we will do is clone the r
       cd /path/to/workspace/
       git clone git@github.com:Qiskit/qiskit-serverless.git
 
-Step 2: Setup Docker
 
-To setup Qiskit Serverless on your local machine, you will need to use docker compose. As we mentioned in the `README <https://github.com/Qiskit/qiskit-serverless/blob/main/README.md>`_
+Step 2 (A): Set up Docker
+-------------------------
+
+To set up Qiskit Serverless on your local machine, you will need to use docker compose. As we mentioned in the `README <https://github.com/Qiskit/qiskit-serverless/blob/main/README.md>`_
 you can use any runtime that you prefer to run Docker on your machine: Docker Desktop, podman...
 If you are using a MacOS with ARM processors we highly recommend to use `Colima <https://github.com/abiosoft/colima>`_
 as your container runtime to avoid problems with that architecture.
@@ -58,7 +61,8 @@ Additionally, you can include the profile `full`.
 With the full profile installs all core services, including logging and
 monitorying systems.
 
-Step 3: Setup Kind
+Step 2 (B): Set up Kind
+-------------------------
 
 Additionally we provide you a way to deploy a k8s cluster on your local machine. This has some benefits as this is a more similar environment
 to production than the docker-compose approach.
@@ -78,7 +82,7 @@ using the terminal just running the next command:
 Step 4: Run a program in the test environment
 
 Once the containers are running, you can simulate a remote cluster with the resources on your
-local machine. Feel free to go to our tutorials in the `Getting started section <https://qiskit.github.io/qiskit-serverless/getting_started/index.html>`_
+local machine. Feel free to go to our tutorials in the :ref:`function_features` section
 and run some of them.
 
 

@@ -1,6 +1,8 @@
-============================
+.. _deploy_image:
+
+===============================
 Deploy a Custom Function Image
-============================
+===============================
 
 This guide explains how to build and deploy a custom Docker image as a
 ``QiskitFunction``.
@@ -20,7 +22,7 @@ Both local and remote workflows follow four steps:
 1. Implement function entrypoint and define Dockerfile
 ------------------------------------------------------
 
-An example is available in ``docs/deployment/custom_function`` containing
+The source code from this section is available in ``docs/deployment/custom_function`` containing
 ``Sample-Dockerfile`` and ``runner.py``:
 
 .. code-block::
@@ -60,6 +62,8 @@ image and adding your implementation:
    COPY ./runner.py /runner
    WORKDIR /
    USER 1000
+
+For more complete examples, visit the :ref:`image_examples` section.
 
 2. Build the Docker image
 -------------------------
@@ -104,7 +108,7 @@ follow the provider upload workflow.
 4. Run the function
 -------------------
 
-With the environment running, you just need to intantiate a service client,
+With the environment running, you just need to intantiate a service client (see :ref:`client_configuration`),
 define a ``QiskitFunction`` that will use the custom image, upload it, and invoke it:
 
 .. code-block::
