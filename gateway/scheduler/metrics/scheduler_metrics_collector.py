@@ -1,3 +1,5 @@
+"""Prometheus metrics registry and helpers for scheduler lifecycle metrics."""
+
 from prometheus_client import (
     CollectorRegistry,
     Histogram,

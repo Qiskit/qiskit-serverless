@@ -1,3 +1,5 @@
+"""Prometheus collector for system-level scheduler metrics."""
+
 import psutil
 from prometheus_client import CollectorRegistry
 from prometheus_client.metrics_core import GaugeMetricFamily
