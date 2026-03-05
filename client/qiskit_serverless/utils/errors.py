@@ -61,7 +61,8 @@ def format_err_msg(code: ErrorCodeType, details: Optional[str] = None):
         if details_json and isinstance(details_json, Dict):
             for key in details_json:
                 if len(details_json[key]) > 0:
-                    result += f"\n|   - {key}: {details_json[key][0]}"
+                    value = details_json[key][0] if isinstance(details_json[key], list) else details_json[key]
+                    result += f"\n|   - {key}: {value}"
         else:
             result += f" {details}"
 
