@@ -157,10 +157,6 @@ class GatewayFilesClient:
             ) as req:
                 if req.ok:
                     return req.text
-                print(req)
-                print(req.text)
-                print(req.reason)
-                print(req.content)
                 raise QiskitServerlessException(f"Upload failed: \n{format_err_msg(req.status_code, req.text)}")
         raise QiskitServerlessException("Can not open file")
 
