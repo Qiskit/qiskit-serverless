@@ -405,7 +405,7 @@ class TestFilesApi(APITestCase):
                     format="multipart",
                 )
 
-                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                assert response.status_code == status.HTTP_200_OK
                 self.assertTrue(os.path.exists(os.path.join(self.MEDIA_ROOT, "default", "Program", "artifact.tar")))
 
     def test_file_upload_wrong_type(self):
