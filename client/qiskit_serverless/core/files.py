@@ -43,6 +43,7 @@ from qiskit_serverless.core.function import QiskitFunction
 from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.utils.http import get_headers
 from qiskit_serverless.utils.json import safe_json_request_as_dict
+from qiskit_serverless.utils.errors import format_err_msg
 
 _trace = trace_decorator_factory("files")
 
@@ -143,12 +144,10 @@ class GatewayFilesClient:
             target_name,
         )
 
-    @_trace
-    def upload(self, file: str, function: QiskitFunction) -> Optional[str]:
-        """Uploads a file in the specific user's Qiskit Function folder."""
+    def _upload_to_url(self, file: str, function: QiskitFunction, url: str) -> Optional[str]:
         with open(file, "rb") as f:
             with requests.post(
-                url_path_join(self._files_url, "upload/"),
+                url,
                 files={"file": f},
                 params={"provider": function.provider, "function": function.title},
                 stream=True,
@@ -157,8 +156,14 @@ class GatewayFilesClient:
             ) as req:
                 if req.ok:
                     return req.text
-                return "Upload failed"
-        return "Can not open file"
+                raise QiskitServerlessException(f"Upload failed: \n{format_err_msg(req.status_code, req.content)}")
+        raise QiskitServerlessException("Can not open file")
+
+    @_trace
+    def upload(self, file: str, function: QiskitFunction) -> Optional[str]:
+        """Uploads a file in the specific user's Qiskit Function folder."""
+        url = url_path_join(self._files_url, "upload/")
+        self._upload_to_url(file, function, url)
 
     @_trace
     def provider_upload(self, file: str, function: QiskitFunction) -> Optional[str]:
@@ -166,19 +171,8 @@ class GatewayFilesClient:
         if not function.provider:
             raise QiskitServerlessException("`function` doesn't have a provider.")
 
-        with open(file, "rb") as f:
-            with requests.post(
-                url_path_join(self._files_url, "provider", "upload/"),
-                files={"file": f},
-                params={"provider": function.provider, "function": function.title},
-                stream=True,
-                headers=get_headers(token=self._token, instance=self._instance, channel=self._channel),
-                timeout=REQUESTS_STREAMING_TIMEOUT,
-            ) as req:
-                if req.ok:
-                    return req.text
-                return "Upload failed"
-        return "Can not open file"
+        url = (url_path_join(self._files_url, "provider", "upload/"),)
+        self._upload_to_url(file, function, url)
 
     @_trace
     def list(self, function: QiskitFunction) -> List[str]:
