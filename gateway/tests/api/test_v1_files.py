@@ -451,7 +451,7 @@ class TestFilesApi(APITestCase):
                     format="multipart",
                 )
 
-                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                assert response.status_code == status.HTTP_400_BAD_REQUEST
                 self.assertTrue(not os.path.exists(os.path.join(self.MEDIA_ROOT, "test_user_2", "test-png.png")))
 
     def test_provider_file_upload(self):
