@@ -315,8 +315,6 @@ RAY_CLUSTER_MAX_READINESS_TIME = int(os.environ.get("RAY_CLUSTER_MAX_READINESS_T
 
 RAY_SETUP_MAX_RETRIES = int(os.environ.get("RAY_SETUP_MAX_RETRIES", 30))
 
-RAY_CLUSTER_NO_DELETE_ON_COMPLETE = bool(os.environ.get("RAY_CLUSTER_NO_DELETE_ON_COMPLETE", False))
-
 RAY_CLUSTER_CPU_NODE_SELECTOR_LABEL = os.environ.get(
     "RAY_CLUSTER_CPU_NODE_SELECTOR_LABEL",
     "ibm-cloud.kubernetes.io/worker-pool-name: default",

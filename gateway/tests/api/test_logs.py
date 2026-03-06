@@ -7,12 +7,11 @@ from unittest.mock import Mock, patch
 import pytest
 from django.contrib.auth.models import User, Group
 from django.urls import reverse
-from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.status import HTTP_200_OK, HTTP_403_FORBIDDEN
 from rest_framework.test import APITestCase, APIClient
 
 from core.models import ComputeResource, Job, Program, Provider
-from core.services.ray import JobHandler
+from core.services.runners import RunnerError
 from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
 
 
@@ -118,25 +117,25 @@ class TestJobLogsCoverage(BaseJobLogsTest):
     (**) /logs always returns 403 for providers.
     """
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_job_handler")
-    def test_job_logs_in_storage_user_job(self, get_job_handler_mock):
+    @patch("scheduler.tasks.update_jobs_statuses.get_runner_client")
+    def test_job_logs_in_storage_user_job(self, get_runner_client_mock):
         """Tests /logs with user job from COS.
 
         For user jobs, all logs are shown with prefixes removed.
         """
         job = create_job(author="author")  # User job (no provider)
 
-        # Mock Ray to return logs with all types
+        # Mock RunnerClient to return logs with all types
         full_logs = """
 [PUBLIC] Public message
 [PRIVATE] Private message
 
 Unprefixed message
 """
-        ray_client = Mock()
-        ray_client.get_job_status.return_value = JobStatus.SUCCEEDED
-        ray_client.get_job_logs.return_value = full_logs
-        get_job_handler_mock.return_value = JobHandler(ray_client)
+        runner_mock = Mock()
+        runner_mock.status.return_value = Job.SUCCEEDED
+        runner_mock.logs.return_value = full_logs
+        get_runner_client_mock.return_value = runner_mock
 
         # Execute update_jobs_statuses to detect terminal state and save logs
         UpdateJobsStatuses().run()
@@ -158,14 +157,14 @@ Unprefixed message
 """
         self.assertEqual(jobs_response.data.get("logs"), expected_logs)
 
-    @patch("api.use_cases.jobs.get_logs.get_job_handler")
+    @patch("api.use_cases.jobs.get_logs.get_runner_client")
     @patch("core.services.storage.logs_storage.LogsStorage.get_public_logs")
-    def test_job_logs_in_ray(self, logs_storage_get_mock, get_job_handler_mock):
+    def test_job_logs_in_ray(self, logs_storage_get_mock, get_runner_client_mock):
         """Tests /logs with user job from Ray."""
         logs_storage_get_mock.return_value = None
 
-        job_handler_mock = Mock()
-        job_handler_mock.logs.return_value = """
+        runner_mock = Mock()
+        runner_mock.logs.return_value = """
 [PUBLIC] INFO: Public log for user
 
 [PRIVATE] INFO: Private log for provider only
@@ -183,7 +182,7 @@ Internal system log
 WARNING: Private warning
 INFO: Final public log
 """
-        get_job_handler_mock.return_value = job_handler_mock
+        get_runner_client_mock.return_value = runner_mock
 
         job = create_job(author="author")
 
@@ -217,12 +216,14 @@ INFO: Final public log
         self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), "log from db")
 
-    @patch("api.use_cases.jobs.get_logs.get_job_handler")
+    @patch("api.use_cases.jobs.get_logs.get_runner_client")
     @patch("core.services.storage.logs_storage.LogsStorage.get_public_logs")
-    def test_job_logs_error(self, logs_storage_get_mock, get_job_handler_mock):
+    def test_job_logs_error(self, logs_storage_get_mock, get_runner_client_mock):
         """Tests /logs with user job, Ray error."""
         logs_storage_get_mock.return_value = None
-        get_job_handler_mock.side_effect = ConnectionError("Cannot connect to Ray")
+        runner_mock = Mock()
+        runner_mock.logs.side_effect = RunnerError("Cannot connect to Ray")
+        get_runner_client_mock.return_value = runner_mock
 
         job = create_job(author="author")
 
@@ -238,8 +239,8 @@ INFO: Final public log
             "Logs not available for this job during execution.",
         )
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_job_handler")
-    def test_job_provider_logs_in_storage(self, get_job_handler_mock):
+    @patch("scheduler.tasks.update_jobs_statuses.get_runner_client")
+    def test_job_provider_logs_in_storage(self, get_runner_client_mock):
         """Tests /provider-logs with provider job from COS.
 
         For provider jobs, /provider-logs shows all logs unfiltered (with prefixes).
@@ -258,11 +259,11 @@ Unprefixed message
 
         job = create_job(author="author", provider_admin="provider_admin")
 
-        # Mock Ray to return logs (all logs saved for provider private logs)
-        ray_client = Mock()
-        ray_client.get_job_status.return_value = JobStatus.SUCCEEDED
-        ray_client.get_job_logs.return_value = full_logs
-        get_job_handler_mock.return_value = JobHandler(ray_client)
+        # Mock RunnerClient to return logs (all logs saved for provider private logs)
+        runner_mock = Mock()
+        runner_mock.status.return_value = Job.SUCCEEDED
+        runner_mock.logs.return_value = full_logs
+        get_runner_client_mock.return_value = runner_mock
 
         # Execute update_jobs_statuses to detect terminal state and save logs
         UpdateJobsStatuses().run()
@@ -278,9 +279,9 @@ Unprefixed message
         # /provider-logs returns all logs unfiltered (with prefixes)
         self.assertEqual(jobs_response.data.get("logs"), expected_provider_logs)
 
-    @patch("api.use_cases.jobs.provider_logs.get_job_handler")
+    @patch("api.use_cases.jobs.provider_logs.get_runner_client")
     @patch("core.services.storage.logs_storage.LogsStorage.get_private_logs")
-    def test_job_provider_logs_in_ray(self, logs_storage_get_mock, get_job_handler_mock):
+    def test_job_provider_logs_in_ray(self, logs_storage_get_mock, get_runner_client_mock):
         """Tests /provider-logs with provider job from Ray."""
         logs_storage_get_mock.return_value = None
 
@@ -300,9 +301,9 @@ Internal system log
 WARNING: Private warning
 """
 
-        job_handler_mock = Mock()
-        job_handler_mock.logs.return_value = full_logs
-        get_job_handler_mock.return_value = job_handler_mock
+        runner_mock = Mock()
+        runner_mock.logs.return_value = full_logs
+        get_runner_client_mock.return_value = runner_mock
 
         job = create_job(author="author", provider_admin="provider_admin")
 
@@ -351,12 +352,14 @@ WARNING: Private warning
         self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), "No logs yet.")
 
-    @patch("api.use_cases.jobs.provider_logs.get_job_handler")
+    @patch("api.use_cases.jobs.provider_logs.get_runner_client")
     @patch("core.services.storage.logs_storage.LogsStorage.get_private_logs")
-    def test_job_provider_logs_error(self, logs_storage_get_mock, get_job_handler_mock):
+    def test_job_provider_logs_error(self, logs_storage_get_mock, get_runner_client_mock):
         """Tests /provider-logs with provider job, Ray error."""
         logs_storage_get_mock.return_value = None
-        get_job_handler_mock.side_effect = ConnectionError("Cannot connect to Ray")
+        runner_mock = Mock()
+        runner_mock.logs.side_effect = RunnerError("Cannot connect to Ray")
+        get_runner_client_mock.return_value = runner_mock
 
         job = create_job(author="author", provider_admin="provider_admin")
 

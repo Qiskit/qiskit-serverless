@@ -1,10 +1,10 @@
-"""Tests for ray util functions."""
+"""Tests for ray runner client functions."""
 
 import json
 import os
 import shutil
 import tempfile
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import requests_mock
 from django.conf import settings
@@ -14,11 +14,7 @@ from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 
 from core.models import ComputeResource, Job
-from core.services.ray import (
-    create_compute_resource,
-    kill_ray_cluster,
-    JobHandler,
-)
+from core.services.runners import get_runner_client
 from core.utils import encrypt_string
 
 
@@ -37,14 +33,13 @@ class mock_delete(MagicMock):
         return response()
 
 
-class TestRayUtils(APITestCase):
-    """Tests for ray utils."""
+class TestRayClient(APITestCase):
+    """Tests for RayClient."""
 
     fixtures = ["tests/fixtures/schedule_fixtures.json"]
 
     def test_create_cluster(self):
         """Tests for cluster creation."""
-        namespace = settings.RAY_KUBERAY_NAMESPACE
         config.load_incluster_config = MagicMock()
         client.api_client.ApiClient = MagicMock()
         DynamicClient.__init__ = lambda x, y: None
@@ -53,15 +48,20 @@ class TestRayUtils(APITestCase):
         DynamicClient.resources.get = MagicMock(return_value=mock)
         head_node_url = "http://test_user-head-svc:8265/"
         job = Job.objects.first()
-        with requests_mock.Mocker() as mocker:
+        runner = get_runner_client(job)
+        with (
+            patch("core.services.runners.ray_client._generate_resource_name", return_value="test_user"),
+            patch("core.services.runners.ray_client._create_cluster_data", return_value="dummy yaml file contents"),
+            requests_mock.Mocker() as mocker,
+        ):
             mocker.get(head_node_url, status_code=200)
-            compute_resource = create_compute_resource(job, "test_user", "dummy yaml file contents")
+            compute_resource = runner.create_compute_resource()
             self.assertIsInstance(compute_resource, ComputeResource)
-            self.assertEqual(job.author.username, compute_resource.title)
+            self.assertEqual("test_user", compute_resource.title)
             self.assertEqual(compute_resource.host, head_node_url)
             DynamicClient.resources.get.assert_called_once_with(api_version="v1", kind="RayCluster")
 
-    def test_kill_cluster(self):
+    def test_cleanup_cluster(self):
         """Tests cluster deletion."""
         namespace = settings.RAY_KUBERAY_NAMESPACE
 
@@ -73,15 +73,22 @@ class TestRayUtils(APITestCase):
         DynamicClient.resources.get = MagicMock(return_value=mock)
         client.CoreV1Api = MagicMock()
 
-        success = kill_ray_cluster("some_cluster")
+        job = Job.objects.first()
+        job.compute_resource = ComputeResource.objects.create(
+            title="some_cluster", host="http://some_cluster:8265/", owner=job.author
+        )
+        job.save()
+
+        runner = get_runner_client(job)
+        success = runner.free_resources()
         self.assertTrue(success)
         DynamicClient.resources.get.assert_any_call(api_version="v1", kind="RayCluster")
         DynamicClient.resources.get.assert_any_call(api_version="v1", kind="Certificate")
         client.CoreV1Api.assert_called()
 
 
-class TestJobHandler(APITestCase):
-    """Tests job handler."""
+class TestRayClientOperations(APITestCase):
+    """Tests RayClient job operations (status, logs, stop, submit)."""
 
     fixtures = ["tests/fixtures/schedule_fixtures.json"]
 
@@ -89,13 +96,6 @@ class TestJobHandler(APITestCase):
         super().setUp()
         self._temp_directory = tempfile.TemporaryDirectory()
         self.MEDIA_ROOT = self._temp_directory.name
-
-        ray_client = MagicMock()
-        ray_client.get_job_status.return_value = JobStatus.PENDING
-        ray_client.get_job_logs.return_value = "No logs yet."
-        ray_client.stop_job.return_value = True
-        ray_client.submit_job.return_value = "AwesomeJobId"
-        self.handler = JobHandler(ray_client)
 
         # prepare artifact file
         path_to_resource_artifact = os.path.join(
@@ -113,23 +113,81 @@ class TestJobHandler(APITestCase):
 
     def test_job_status(self):
         """Tests job status."""
-        job_status = self.handler.status("AwesomeJobId")
-        self.assertTrue(job_status in JobStatus)
+        job = Job.objects.first()
+        job.ray_job_id = "AwesomeJobId"
+        job.compute_resource = ComputeResource.objects.create(
+            title="test_cluster", host="http://test:8265/", owner=job.author
+        )
+        job.save()
+
+        mock_client = MagicMock()
+        mock_client.get_job_status.return_value = JobStatus.PENDING
+
+        runner = get_runner_client(job)
+        runner._client = mock_client
+        runner._connected = True
+
+        job_status = runner.status()
+        self.assertEqual(job_status, Job.PENDING)
+        mock_client.get_job_status.assert_called_once_with("AwesomeJobId")
 
     def test_job_logs(self):
         """Tests job logs."""
-        job_logs = self.handler.logs("AwesomeJobId")
+        job = Job.objects.first()
+        job.ray_job_id = "AwesomeJobId"
+        job.compute_resource = ComputeResource.objects.create(
+            title="test_cluster", host="http://test:8265/", owner=job.author
+        )
+        job.save()
+
+        mock_client = MagicMock()
+        mock_client.get_job_logs.return_value = "No logs yet."
+
+        runner = get_runner_client(job)
+        runner._client = mock_client
+        runner._connected = True
+
+        job_logs = runner.logs()
         self.assertEqual(job_logs, "No logs yet.")
+        mock_client.get_job_logs.assert_called_once_with("AwesomeJobId")
 
     def test_job_stop(self):
         """Tests stopping of job."""
-        is_job_stopped = self.handler.stop("AwesomeJobId")
+        job = Job.objects.first()
+        job.ray_job_id = "AwesomeJobId"
+        job.compute_resource = ComputeResource.objects.create(
+            title="test_cluster", host="http://test:8265/", owner=job.author
+        )
+        job.save()
+
+        mock_client = MagicMock()
+        mock_client.stop_job.return_value = True
+
+        runner = get_runner_client(job)
+        runner._client = mock_client
+        runner._connected = True
+
+        is_job_stopped = runner.stop()
         self.assertTrue(is_job_stopped)
+        mock_client.stop_job.assert_called_once_with("AwesomeJobId")
 
     def test_job_submit(self):
         """Tests job submission."""
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             job = Job.objects.first()
             job.env_vars = json.dumps({"ENV_JOB_GATEWAY_TOKEN": encrypt_string("awesome_token")})
-            job_id = self.handler.submit(job)
-            self.assertEqual(job_id, "AwesomeJobId")
+            job.compute_resource = ComputeResource.objects.create(
+                title="test_cluster", host="http://test:8265/", owner=job.author
+            )
+            job.save()
+
+            mock_client = MagicMock()
+            mock_client.submit_job.return_value = "AwesomeJobId"
+
+            runner = get_runner_client(job)
+            runner._client = mock_client
+            runner._connected = True
+
+            ray_job_id = runner.submit()
+            self.assertEqual(ray_job_id, "AwesomeJobId")
+            mock_client.submit_job.assert_called_once()
