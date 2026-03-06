@@ -67,7 +67,7 @@ class RunnerClient(ABC):
         Raises:
             RunnerError: If unable to connect to the backend
         """
-        pass
+        raise NotImplementedError
 
     def _ensure_connected(self) -> None:
         """Connect if not connected. Called internally by methods that require connection."""
@@ -88,7 +88,7 @@ class RunnerClient(ABC):
         Raises:
             RunnerError: If job submission fails
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def create_compute_resource(self) -> ComputeResource:
@@ -102,7 +102,7 @@ class RunnerClient(ABC):
         Raises:
             RunnerError: If unable to create compute resource
         """
-        pass
+        raise NotImplementedError
 
     # --- Methods that DO require connection (lazy connect) ---
 
@@ -118,7 +118,7 @@ class RunnerClient(ABC):
         Raises:
             RunnerError: If unable to get job status
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def logs(self) -> Optional[str]:
@@ -132,7 +132,7 @@ class RunnerClient(ABC):
         Raises:
             RunnerError: If unable to get job logs
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def stop(self) -> bool:
@@ -146,7 +146,7 @@ class RunnerClient(ABC):
         Raises:
             RunnerError: If unable to stop the job
         """
-        pass
+        raise NotImplementedError
 
     # --- Resource cleanup ---
 
@@ -158,9 +158,9 @@ class RunnerClient(ABC):
         Returns:
             True if cleaned up correctly
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def disconnect(self) -> None:
         """Close connection to backend if open."""
-        pass
+        raise NotImplementedError

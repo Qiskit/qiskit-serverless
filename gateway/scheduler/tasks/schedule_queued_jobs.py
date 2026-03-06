@@ -8,10 +8,8 @@ import random
 from dataclasses import dataclass
 from typing import List
 
-from core.services.runners.runner_client import RunnerClient
-
 from django.conf import settings
-from django.db import transaction
+from django.db import DatabaseError, transaction
 from django.db.models import Q, Min, Count
 
 from opentelemetry import trace
@@ -21,6 +19,7 @@ from core.config_key import ConfigKey
 from core.models import ComputeResource, Job, JobEvent, Config
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.services.runners import RunnerError, get_runner_client
+from core.services.runners.runner_client import RunnerClient
 
 from scheduler.kill_signal import KillSignal
 from .task import SchedulerTask
@@ -170,12 +169,12 @@ def _cleanup_resources(job: Job, result: JobExecutionResult):
     """Clean up resources when job status changed during scheduling."""
     try:
         result.runner.free_resources()
-    except Exception as ex:
+    except RunnerError as ex:
         logger.error("Job [%s]: Failed to free runner resources: %s", job.id, ex)
 
     try:
         result.compute_resource.delete()
-    except Exception as ex:
+    except (AttributeError, DatabaseError) as ex:
         logger.error("Job [%s]: Failed to delete compute resource: %s", job.id, ex)
 
 
@@ -222,7 +221,7 @@ def execute_job(job: Job) -> JobExecutionResult | None:
             )
         except RunnerError as ex:
             logger.error(
-                "Job [%s]: Failed to submit to resource [%s]. " "Cleaning up and setting status to FAILED. Error: %s",
+                "Job [%s]: Failed to submit to resource [%s]. Cleaning up and setting status to FAILED. Error: %s",
                 job.id,
                 compute_resource.title,
                 ex,
@@ -231,8 +230,8 @@ def execute_job(job: Job) -> JobExecutionResult | None:
 
             try:
                 runner.free_resources()
-            except Exception as ex:
-                logger.warning("Job [%s]: Failed to free runner resources: %s", job.id, ex)
+            except RunnerError as free_resource_error:
+                logger.warning("Job [%s]: Failed to free runner resources: %s", job.id, free_resource_error)
 
             return None
 

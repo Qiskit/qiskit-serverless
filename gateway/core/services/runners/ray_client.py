@@ -300,7 +300,7 @@ class RayClient(RunnerClient):
         try:
             if created_cluster_name != cluster_name:
                 logger.warning("Wrong name after cluster creation: %s", response.text)
-                raise RuntimeError("Wrong name after cluster creation: %s", response.text)
+                raise RuntimeError(f"Wrong name after cluster creation: {response.text}")
 
             host, cluster_is_ready = _wait_for_cluster_ready(cluster_name)
             if not cluster_is_ready:

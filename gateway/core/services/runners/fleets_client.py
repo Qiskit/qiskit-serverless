@@ -9,15 +9,6 @@ from core.services.runners.runner_client import RunnerClient
 class FleetsClient(RunnerClient):
     """Client for executing jobs on Fleets (placeholder for future implementation)."""
 
-    def __init__(self, job: Job):
-        """
-        Initialize Fleets client with a job.
-
-        Args:
-            job: Job instance to be executed
-        """
-        super().__init__(job)
-
     def connect(self) -> None:
         """Connect to Fleets backend."""
         raise NotImplementedError("FleetsClient not yet implemented")

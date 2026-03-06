@@ -15,10 +15,11 @@ def get_runner_client(job):
     Returns:
         RunnerClient appropriate for the job's runner type
     """
-    # Import here to avoid circular imports
+    # pylint: disable=import-outside-toplevel
+    # Imported here to avoid circular imports.
     from core.services.runners.ray_client import RayClient
 
-    # TODO: When job.runner is available:
+    # Future extension when job.runner is available:
     # from core.services.runners.fleets_client import FleetsClient
     # if job.runner == Runner.FLEETS:
     #     return FleetsClient(job)

@@ -29,7 +29,7 @@ class UpdateJobsStatuses(SchedulerTask):
     def __init__(self, kill_signal: KillSignal = None):
         self.kill_signal = kill_signal or KillSignal()
 
-    # pylint: disable=too-many-statements
+    # pylint: disable=too-many-statements,too-many-branches
     def update_job_status(self, job: Job):
         """Update status of one job.
         Input Job in RUNNING_STATUSES (PENDING, RUNNING)
