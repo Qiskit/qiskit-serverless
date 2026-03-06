@@ -34,6 +34,7 @@ class UpdateJobsStatuses(SchedulerTask):
         self.kill_signal = kill_signal or KillSignal()
 
     # pylint: disable=too-many-statements
+    # pylint: disable=too-many-branches
     def update_job_status(self, job: Job):
         """Update status of one job."""
         if not job.compute_resource:
