@@ -14,29 +14,28 @@ from django.db.models.aggregates import Count, Min
 from opentelemetry import trace
 
 from core.models import Job, ComputeResource
-from core.services.ray import submit_job, create_compute_resource, kill_ray_cluster
-from core.utils import generate_cluster_name
+from core.services.runners import get_runner_client, RunnerError
 
 User: Model = get_user_model()
 logger = logging.getLogger("commands")
 
 
-def _create_ray_cluster_compute_resource(job: Job, span) -> ComputeResource | None:
-    cluster_name = generate_cluster_name(job.author.username)
-    span.set_attribute("job.clustername", cluster_name)
-
+def _create_ray_cluster_compute_resource(job: Job, runner, span) -> ComputeResource | None:
     compute_resource: ComputeResource | None = None
     try:
-        compute_resource = create_compute_resource(job, cluster_name=cluster_name)
-    except Exception:  # pylint: disable=broad-exception-caught
+        compute_resource = runner.create_compute_resource()
+        span.set_attribute("job.clustername", compute_resource.title)
+    except RunnerError:
         # if something went wrong
         #   try to kill resource if it was allocated
         logger.warning(
-            "Compute resource [%s] was not created properly.\nSetting job [%s] status to [FAILED].",
-            cluster_name,
+            "Compute resource was not created properly.\nSetting job [%s] status to [FAILED].",
             job,
         )
-        kill_ray_cluster(cluster_name)
+        try:
+            runner.free_resources()
+        except RunnerError:
+            pass
         job.status = Job.FAILED
         job.logs += "\nCompute resource was not created properly."
         span.set_attribute("job.status", job.status)
@@ -63,16 +62,19 @@ def execute_job(job: Job) -> Job:
 
     tracer = trace.get_tracer("scheduler.tracer")
     with tracer.start_as_current_span("execute.job") as span:
-        compute_resource = _create_ray_cluster_compute_resource(job, span)
+        runner = get_runner_client(job)
+        compute_resource = _create_ray_cluster_compute_resource(job, runner, span)
         if not compute_resource:
             return job
 
+        compute_resource.save()
         job.compute_resource = compute_resource
 
         try:
-            job = submit_job(job)
+            ray_job_id = runner.submit()
+            job.ray_job_id = ray_job_id
             job.status = Job.PENDING
-        except Exception:  # pylint: disable=broad-exception-caught:
+        except RunnerError:
             logger.error(
                 "Exception was caught during scheduling job on user [%s] resource.\n"
                 "Resource [%s] was in DB records, but address is not reachable.\n"
@@ -81,7 +83,10 @@ def execute_job(job: Job) -> Job:
                 compute_resource.title,
                 job.id,
             )
-            kill_ray_cluster(compute_resource.title)
+            try:
+                runner.free_resources()
+            except RunnerError:
+                pass
             compute_resource.delete()
             job.status = Job.FAILED
             job.compute_resource = None
@@ -162,7 +167,11 @@ def handle_job_status_not_available(job: Job, job_status):
             job.compute_resource.title,
         )
     else:
-        kill_ray_cluster(job.compute_resource.title)
+        runner = get_runner_client(job)
+        try:
+            runner.free_resources()
+        except RunnerError:
+            pass
         job.compute_resource.delete()
         job.compute_resource = None
         job_status = Job.FAILED
@@ -178,7 +187,11 @@ def fail_job_insufficient_resources(job: Job):
             job.compute_resource.title,
         )
     else:
-        kill_ray_cluster(job.compute_resource.title)
+        runner = get_runner_client(job)
+        try:
+            runner.free_resources()
+        except RunnerError:
+            pass
         job.compute_resource.delete()
         job.compute_resource = None
 

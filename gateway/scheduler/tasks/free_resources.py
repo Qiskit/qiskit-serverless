@@ -5,7 +5,7 @@ import logging
 from django.conf import settings
 
 from core.models import ComputeResource, Job
-from core.services.ray import kill_ray_cluster
+from core.services.runners import get_runner_client
 
 from scheduler.kill_signal import KillSignal
 from scheduler.tasks.task import SchedulerTask
@@ -68,7 +68,8 @@ class FreeResources(SchedulerTask):
         should_remove_as_classical = remove_classical_jobs and not is_gpu
         should_remove_as_gpu = remove_gpu_jobs and is_gpu
         if should_remove_as_classical or should_remove_as_gpu:
-            success = kill_ray_cluster(compute_resource.title)
+            runner_client = get_runner_client(terminated_job)
+            success = runner_client.free_resources()
             if success:
                 compute_resource.active = False
                 compute_resource.save()

@@ -39,9 +39,18 @@ class TestScheduleApi(APITestCase):
         self.assertTrue("1a7947f9-6ae8-4e3d-ac1e-e7d608deec90" in job_ids)
         self.assertTrue("1a7947f9-6ae8-4e3d-ac1e-e7d608deec82" in job_ids)
 
-    @patch("core.services.ray.get_job_handler")
-    def test_create_different_compute_resources(self, mock_handler):
+    @patch("scheduler.schedule.get_runner_client")
+    def test_create_different_compute_resources(self, mock_runner_client):
         """Tests should create new resource."""
+        compute_resource_1 = MagicMock()
+        compute_resource_1.id = "resource-1"
+        compute_resource_2 = MagicMock()
+        compute_resource_2.id = "resource-2"
+        mock_runner_client.return_value.create_compute_resource.side_effect = [
+            compute_resource_1,
+            compute_resource_2,
+        ]
+
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             user = get_user_model().objects.filter(username="test3_user").first()
 
