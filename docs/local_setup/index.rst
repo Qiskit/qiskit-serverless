@@ -16,5 +16,5 @@ A local setup allows you to:
 .. toctree::
    :maxdepth: 1
 
-   local_infrastructure
-   client_config
+   ../deployment/local
+   ../deployment/client

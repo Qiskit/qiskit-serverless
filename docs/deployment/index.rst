@@ -11,6 +11,7 @@ For local development and testing, see the :ref:`local_setup` section.
 .. toctree::
    :maxdepth: 1
 
+   local
    client
    cloud
 
