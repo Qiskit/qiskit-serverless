@@ -1,6 +1,7 @@
 """Update jobs statuses service."""
 
 import logging
+from datetime import timedelta, datetime
 
 from concurrency.exceptions import RecordModifiedError
 from django.conf import settings
@@ -15,11 +16,6 @@ from core.utils import check_logs
 from core.models import Job, JobEvent
 from core.services.runners import get_runner_client, RunnerError
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from scheduler.schedule import (
-    check_job_timeout,
-    handle_job_status_not_available,
-    fail_job_insufficient_resources,
-)
 
 from scheduler.kill_signal import KillSignal
 from .task import SchedulerTask
@@ -33,10 +29,12 @@ class UpdateJobsStatuses(SchedulerTask):
     def __init__(self, kill_signal: KillSignal = None):
         self.kill_signal = kill_signal or KillSignal()
 
-    # pylint: disable=too-many-statements
-    # pylint: disable=too-many-branches
+    # pylint: disable=too-many-statements,too-many-branches
     def update_job_status(self, job: Job):
-        """Update status of one job."""
+        """Update status of one job.
+        Input Job in RUNNING_STATUSES (PENDING, RUNNING)
+        Output Job in RUNNING_STATUSES or TERMINAL_STATUSES. In terminal, ComputeResource is still active=True
+        """
         if not job.compute_resource:
             logger.warning(
                 "Job [%s] does not have compute resource associated with it. Skipping.",
@@ -52,7 +50,7 @@ class UpdateJobsStatuses(SchedulerTask):
         try:
             job_status = runner.status()
         except RunnerError as ex:
-            logger.warning("Job [%s] marked as FAILED because runner status failed: %s", job.id, str(ex))
+            logger.warning("Job [%s] marked as FAILED because status: %s", job.id, str(ex))
             job.status = Job.FAILED
             job.sub_status = None
             job.env_vars = "{}"
@@ -77,7 +75,11 @@ class UpdateJobsStatuses(SchedulerTask):
             job_new_status = Job.STOPPED
 
         if not success:
-            job_new_status = handle_job_status_not_available(job, job_new_status)
+            runner.free_resources()
+            job.compute_resource.delete()
+            job.compute_resource = None
+            job.status = Job.FAILED
+            job.logs += "\nSomething went wrong during updating job status."
 
         if job_new_status != job.status:
             logger.info(
@@ -95,28 +97,31 @@ class UpdateJobsStatuses(SchedulerTask):
                 job.env_vars = "{}"
                 try:
                     logs = runner.logs() or ""
-                except RunnerError:
+                except RunnerError as ex:
+                    logger.warning("Job [%s] logs fetch failed: %s", job.id, str(ex))
                     logs = ""
                 save_logs_to_storage(job, logs)
                 job.logs = ""
 
         try:
             logs = runner.logs()
-        except RunnerError:
+        except RunnerError as ex:
+            logger.warning("Job [%s] logs fetch failed: %s", job.id, str(ex))
             logs = None
-
         if logs:
             # check if job is resource constrained
             no_resources_log = "No available node types can fulfill resource request"
             if no_resources_log in logs:
-                job_new_status = fail_job_insufficient_resources(job)
+                runner.free_resources()
+                job.compute_resource.delete()
+                job.compute_resource = None
+                job.status = Job.FAILED
                 logs = (
                     "Insufficient resources available to the run job in this "
                     "configuration.\nMax resources allowed are "
                     f"{settings.LIMITS_CPU_PER_TASK} CPUs and "
                     f"{settings.LIMITS_MEMORY_PER_TASK} GB of RAM per job."
                 )
-                job.status = job_new_status
                 # cleanup env vars
                 job.env_vars = "{}"
                 status_has_changed = True
@@ -154,7 +159,8 @@ class UpdateJobsStatuses(SchedulerTask):
                 if self.update_job_status(job):
                     updated_jobs_counter += 1
 
-            logger.info("Updated %s classical jobs.", updated_jobs_counter)
+            if updated_jobs_counter > 0:
+                logger.info("Updated %s classical jobs.", updated_jobs_counter)
 
         if update_gpu_jobs:
             updated_jobs_counter = 0
@@ -165,7 +171,8 @@ class UpdateJobsStatuses(SchedulerTask):
                 if self.update_job_status(job):
                     updated_jobs_counter += 1
 
-            logger.info("Updated %s GPU jobs.", updated_jobs_counter)
+            if updated_jobs_counter > 0:
+                logger.info("Updated %s GPU jobs.", updated_jobs_counter)
 
 
 def save_logs_to_storage(job: Job, logs: str):
@@ -192,3 +199,20 @@ def save_logs_to_storage(job: Job, logs: str):
         logs_storage.save_public_logs(filtered_logs)
 
     logger.info("Logs saved to storage for job [%s]", job.id)
+
+
+def check_job_timeout(job: Job):
+    """Check job timeout and update job status."""
+
+    timeout = settings.PROGRAM_TIMEOUT
+    endtime = job.created + timedelta(days=timeout)
+    now = datetime.now(tz=endtime.tzinfo)
+    if endtime < now:
+        job.logs += "\nMaximum job runtime reached. Stopping the job."
+        logger.warning(
+            "Job [%s] reached maximum runtime [%s] days and stopped.",
+            job.id,
+            timeout,
+        )
+        return True
+    return False

@@ -4,6 +4,9 @@ import os
 import tempfile
 from typing import Optional
 
+# Sentinel value to indicate "create a new compute resource"
+_CREATE_NEW_COMPUTE_RESOURCE = object()
+
 from django.contrib.auth.models import User, Group
 from rest_framework.test import APITestCase
 from unittest.mock import patch, MagicMock
@@ -15,7 +18,7 @@ from core.utils import check_logs
 from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
 from scheduler.tasks.free_resources import FreeResources
 from scheduler.tasks.schedule_queued_jobs import ScheduleQueuedJobs
-from scheduler.schedule import get_jobs_to_schedule_fair_share
+from scheduler.tasks.schedule_queued_jobs import get_jobs_to_schedule_fair_share
 
 
 class TestCommands(APITestCase):
@@ -75,35 +78,59 @@ class TestCommands(APITestCase):
         self.assertEqual(job_events[1].origin, JobEventOrigin.SCHEDULER)
         self.assertEqual(job_events[1].context, JobEventContext.UPDATE_JOB_STATUS)
 
+    @patch("core.services.runners.ray_client.RayClient._submit_to_ray")
+    @patch("core.services.runners.ray_client.JobSubmissionClient")
+    def test_schedule_job(self, mock_job_submission_client, mock_submit_to_ray):
+        """Tests scheduling a single job."""
+        from scheduler.tasks.schedule_queued_jobs import schedule_job
+
+        expected_ray_job_id = "raysubmit_abc123xyz"
+        mock_job_submission_client.return_value = MagicMock()
+        mock_submit_to_ray.return_value = expected_ray_job_id
+
+        job = self._create_test_job(
+            author="test_schedule_job",
+            status=Job.QUEUED,
+            compute_resource=None,
+            ray_job_id=None,
+        )
+
+        with self.settings(RAY_CLUSTER_MODE_LOCAL=True, RAY_LOCAL_HOST="http://localhost:8265"):
+            result = schedule_job(job)
+
+            self.assertTrue(result)
+            mock_submit_to_ray.assert_called_once()
+
+            job.refresh_from_db()
+            self.assertEqual(job.status, Job.RUNNING)
+            self.assertEqual(job.ray_job_id, expected_ray_job_id)
+            self.assertEqual(job.compute_resource.title, "Local compute resource")
+
     @patch("scheduler.tasks.schedule_queued_jobs.execute_job")
     def test_schedule_queued_jobs(self, execute_job):
         """Tests schedule of queued jobs command."""
-        fake_job = MagicMock()
-        fake_job.id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
-        fake_job.logs = ""
-        fake_job.status = "SUCCEEDED"
-        fake_job.sub_status = None
-        fake_job.program.artifact.path = "non_existing_file.tar"
-        fake_job.save.return_value = None
+        from scheduler.tasks.schedule_queued_jobs import JobExecutionResult
 
-        execute_job.return_value = fake_job
+        compute_resource = ComputeResource.objects.create(title="test-cluster-schedule", active=True)
+        runner_mock = MagicMock()
+        fake_result = JobExecutionResult(
+            runner=runner_mock,
+            compute_resource=compute_resource,
+            ray_job_id="test-ray-job-id",
+        )
+
+        execute_job.return_value = fake_result
         ScheduleQueuedJobs().run()
         # TODO: mock execute job to change status of job and query for QUEUED jobs  # pylint: disable=fixme
         job_count = Job.objects.count()
         self.assertEqual(job_count, 7)
 
-        job_events = JobEvent.objects.filter(job_id=fake_job.id)
-        # There is one Job in the fixtures in QUEUED state. It call execute_job twice
-        # and add 2 equal events. If we remove fixtures we can fix this test properly
-        self.assertEqual(len(job_events), 2)
+        job_events = JobEvent.objects.filter(job_id="1a7947f9-6ae8-4e3d-ac1e-e7d608deec82")
+        self.assertEqual(len(job_events), 1)
         self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
-        self.assertEqual(job_events[0].data["status"], "SUCCEEDED")
+        self.assertEqual(job_events[0].data["status"], Job.RUNNING)
         self.assertEqual(job_events[0].origin, JobEventOrigin.SCHEDULER)
         self.assertEqual(job_events[0].context, JobEventContext.SCHEDULE_JOBS)
-        self.assertEqual(job_events[1].event_type, JobEventType.STATUS_CHANGE)
-        self.assertEqual(job_events[1].data["status"], "SUCCEEDED")
-        self.assertEqual(job_events[1].origin, JobEventOrigin.SCHEDULER)
-        self.assertEqual(job_events[1].context, JobEventContext.SCHEDULE_JOBS)
 
     def test_schedule_queued_jobs_separates_gpu_and_cpu_queues(self):
         """Tests that GPU and CPU jobs are scheduled from separate queues."""
@@ -233,7 +260,7 @@ INFO: Final public log
 
         with tempfile.TemporaryDirectory() as temp_dir:
             with self.settings(MEDIA_ROOT=temp_dir, RAY_CLUSTER_MODE={"local": True}):
-                # Mock RunnerClient to return unfiltered logs
+                # Mock Ray to return unfiltered logs
                 full_logs = """
 [PUBLIC] INFO: Public log for user
 
@@ -321,8 +348,8 @@ WARNING: Private warning
         author: str = "test_author",
         provider_admin: Optional[str] = None,
         status: str = Job.PENDING,
-        compute_resource: Optional[ComputeResource] = None,
-        ray_job_id: str = "test-job-id",
+        compute_resource: Optional[ComputeResource] = _CREATE_NEW_COMPUTE_RESOURCE,
+        ray_job_id: Optional[str] = "test-job-id",
         gpu: bool = False,
     ) -> Job:
         """Helper method to create a test job.
@@ -331,11 +358,12 @@ WARNING: Private warning
             author: Username for the job author
             provider_admin: If set, creates a provider and assigns admin rights
             status: Job status (default: PENDING)
-            compute_resource: ComputeResource to use (creates new one if None)
+            compute_resource: ComputeResource to use. Pass None for no resource,
+                omit or pass _CREATE_NEW_COMPUTE_RESOURCE to create a new one.
             ray_job_id: Ray job ID
             gpu: Whether this is a GPU job
         """
-        if compute_resource is None:
+        if compute_resource is _CREATE_NEW_COMPUTE_RESOURCE:
             compute_resource = ComputeResource.objects.create(title=f"test-cluster-{ray_job_id}", active=True)
 
         author_user, _ = User.objects.get_or_create(username=author)

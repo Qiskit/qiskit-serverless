@@ -2,9 +2,7 @@
 
 import logging
 
-from django.conf import settings
-
-from core.models import ComputeResource, Job
+from core.models import Job
 from core.services.runners import get_runner_client
 
 from scheduler.kill_signal import KillSignal
@@ -20,63 +18,31 @@ class FreeResources(SchedulerTask):
         self.kill_signal = kill_signal or KillSignal()
 
     def run(self):
-        """Free unused compute resources."""
-        if settings.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
-            logger.debug(
-                "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, so compute resources will not be removed.",
-            )
-            return
+        """Free unused compute resources.
+        Input = TERMINAL JOB with ComputeResource.active = True
+        Output = TERMINAL JOB with ComputeResource.active = False
+        """
+        jobs_to_free = Job.objects.filter(
+            status__in=Job.TERMINAL_STATUSES, compute_resource__active=True
+        ).select_related("compute_resource")
 
-        compute_resources = ComputeResource.objects.filter(active=True)
-        for compute_resource in compute_resources:
+        for job in jobs_to_free:
             if self.kill_signal.received:
                 return
+            free_compute_resource(job)
 
-            # I think this logic could be reviewed because now each job
-            # would have its own compute resource but let's do that
-            # in an additional iteration
-            there_are_alive_jobs = Job.objects.filter(
-                status__in=Job.RUNNING_STATUSES, compute_resource=compute_resource
-            ).exists()
 
-            # only kill cluster if not in local mode and no jobs are running there
-            if not there_are_alive_jobs:
-                self.remove_compute_resource(compute_resource)
-
-    def remove_compute_resource(self, compute_resource: ComputeResource):
-        """
-        This method removes a Compute Resource if it's
-        available in the cluster.
-
-        Args:
-            compute_resource: ComputeResource
-        """
-        max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
-        max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
-        remove_classical_jobs = max_ray_clusters_possible > 0
-        remove_gpu_jobs = max_gpu_clusters_possible > 0
-
-        terminated_job = Job.objects.filter(status__in=Job.TERMINAL_STATUSES, compute_resource=compute_resource).first()
-        if terminated_job is None:
-            logger.error(
-                "There is no job finished for [%s] compute resource:",
-                compute_resource.title,
-            )
-            return
-
-        is_gpu = terminated_job.gpu
-        should_remove_as_classical = remove_classical_jobs and not is_gpu
-        should_remove_as_gpu = remove_gpu_jobs and is_gpu
-        if should_remove_as_classical or should_remove_as_gpu:
-            runner_client = get_runner_client(terminated_job)
-            success = runner_client.free_resources()
-            if success:
-                compute_resource.active = False
-                compute_resource.save()
-                logger.info(
-                    "[%s] Cluster [%s] is free after usage from [%s]. JobID [%s]",
-                    "GPU" if is_gpu else "Classical",
-                    compute_resource.title,
-                    compute_resource.owner,
-                    terminated_job.id,
-                )
+def free_compute_resource(job: Job):
+    """Free the compute resource associated with a terminal job."""
+    compute_resource = job.compute_resource
+    runner_client = get_runner_client(job)
+    success = runner_client.free_resources()
+    if success:
+        compute_resource.active = False
+        compute_resource.save()
+        logger.info(
+            "Cluster [%s] is free after usage from [%s]. JobID [%s]",
+            compute_resource.title,
+            compute_resource.owner,
+            job.id,
+        )

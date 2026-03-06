@@ -7,7 +7,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 
 from core.models import Job
-from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_job
+from scheduler.tasks.schedule_queued_jobs import get_jobs_to_schedule_fair_share, execute_job
 
 
 class TestScheduleApi(APITestCase):
@@ -39,7 +39,7 @@ class TestScheduleApi(APITestCase):
         self.assertTrue("1a7947f9-6ae8-4e3d-ac1e-e7d608deec90" in job_ids)
         self.assertTrue("1a7947f9-6ae8-4e3d-ac1e-e7d608deec82" in job_ids)
 
-    @patch("scheduler.schedule.get_runner_client")
+    @patch("scheduler.tasks.schedule_queued_jobs.get_runner_client")
     def test_create_different_compute_resources(self, mock_runner_client):
         """Tests should create new resource."""
         compute_resource_1 = MagicMock()
