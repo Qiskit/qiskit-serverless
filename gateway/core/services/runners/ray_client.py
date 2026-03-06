@@ -1,0 +1,502 @@
+"""Ray client for executing jobs on Ray clusters."""
+
+import json
+import logging
+import os
+import re
+import shutil
+import tarfile
+import time
+import uuid
+from typing import Optional
+
+import requests
+import yaml
+from django.conf import settings
+from django.template.loader import get_template
+from kubernetes import client as kubernetes_client, config
+from kubernetes.client.exceptions import ApiException
+from kubernetes.dynamic.client import DynamicClient
+from kubernetes.dynamic.exceptions import ResourceNotFoundError, NotFoundError
+from ray.dashboard.modules.job.common import JobStatus
+from ray.dashboard.modules.job.sdk import JobSubmissionClient
+
+from opentelemetry import trace
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+from core.models import ComputeResource, Job, JobConfig, DEFAULT_PROGRAM_ENTRYPOINT
+from core.services.runners.runner_client import RunnerClient, RunnerError
+from core.services.storage.file_storage import FileStorage, WorkingDir
+from core.utils import retry_function, decrypt_env_vars, sanitize_file_path
+
+logger = logging.getLogger("commands")
+
+
+class RayClient(RunnerClient):
+    """Client for executing jobs on Ray/KubeRay clusters."""
+
+    def __init__(self, job: Job):
+        """
+        Initialize Ray client with a job.
+
+        Args:
+            job: Job instance to be executed
+        """
+        super().__init__(job)
+        self._client: Optional[JobSubmissionClient] = None
+        self._compute_resource: Optional[ComputeResource] = None
+
+    def connect(self) -> None:
+        """
+        Connect to the Ray cluster via JobSubmissionClient.
+
+        Raises:
+            RunnerError: If unable to connect to Ray cluster
+        """
+        if self._connected:
+            return
+
+        compute_resource = self._compute_resource or self._job.compute_resource
+        if not compute_resource:
+            raise RunnerError("Job has no compute resource associated")
+
+        host = compute_resource.host
+        try:
+            client = retry_function(
+                callback=lambda: JobSubmissionClient(host),
+                num_retries=settings.RAY_SETUP_MAX_RETRIES,
+                error_message=f"Ray JobClientSubmission setup failed for host [{host}].",
+            )
+        except Exception as ex:
+            raise RunnerError(f"Unable to connect to Ray cluster at [{host}]", ex) from ex
+
+        self._client = client
+        self._connected = True
+
+    def disconnect(self) -> None:
+        """Close connection to Ray cluster."""
+        self._client = None
+        self._connected = False
+
+    def create_compute_resource(self) -> ComputeResource:
+        """
+        Create compute resource for the job.
+
+        Returns:
+            ComputeResource instance
+
+        Raises:
+            RunnerError: If unable to create compute resource
+        """
+        try:
+            if settings.RAY_CLUSTER_MODE_LOCAL:
+                host = settings.RAY_LOCAL_HOST
+                title = "Local compute resource"
+            else:
+                host, title = self._create_k8s_cluster()
+
+            compute_resource = ComputeResource(
+                title=title,
+                host=host,
+                owner=self._job.author,
+                gpu=self._job.gpu,
+            )
+            self._compute_resource = compute_resource
+            return compute_resource
+
+        except RuntimeError as ex:
+            raise RunnerError(f"Unable to create compute resource for job [{self._job.id}]", ex) from ex
+
+    def submit(self) -> str:
+        """
+        Submit the job to the Ray cluster.
+
+        Returns:
+            ray_job_id assigned by Ray
+
+        Raises:
+            RunnerError: If unable to connect or submit
+        """
+        self._ensure_connected()
+
+        try:
+            ray_job_id = self._submit_to_ray()
+        except Exception as ex:
+            logger.error("Unable to submit ray job [%s]: %s", self._job.id, ex)
+            raise RunnerError(f"Unable to submit ray job [{self._job.id}]", ex) from ex
+
+        return ray_job_id
+
+    def status(self) -> Optional[str]:
+        """
+        Get job status mapped to Job.STATUS.
+
+        Returns:
+            Job status string or None
+
+        Raises:
+            RunnerError: If unable to get job status
+        """
+        self._ensure_connected()
+
+        try:
+            ray_job_status = retry_function(
+                callback=lambda: self._client.get_job_status(self._job.ray_job_id),
+                error_message=f"Runtime error during status fetching from ray job [{self._job.ray_job_id}]",
+            )
+        except RuntimeError as ex:
+            raise RunnerError(f"Unable to get status for job [{self._job.ray_job_id}]", ex) from ex
+
+        if ray_job_status is None:
+            return None
+
+        return _map_status(ray_job_status)
+
+    def logs(self) -> Optional[str]:
+        """
+        Get job logs.
+
+        Returns:
+            Job logs or None
+
+        Raises:
+            RunnerError: If unable to get job logs
+        """
+        self._ensure_connected()
+
+        try:
+            return retry_function(
+                callback=lambda: self._client.get_job_logs(self._job.ray_job_id),
+                error_message=f"Runtime error during logs fetching from ray job [{self._job.ray_job_id}]",
+            )
+        except RuntimeError as ex:
+            raise RunnerError(f"Unable to get logs for job [{self._job.ray_job_id}]", ex) from ex
+
+    def stop(self) -> bool:
+        """
+        Stop the job.
+
+        Returns:
+            True if job was running and stopped
+
+        Raises:
+            RunnerError: If unable to stop the job
+        """
+        self._ensure_connected()
+
+        try:
+            return retry_function(
+                callback=lambda: self._client.stop_job(self._job.ray_job_id),
+                error_message=f"Runtime error during stopping of ray job [{self._job.ray_job_id}]",
+            )
+        except RuntimeError as ex:
+            raise RunnerError(f"Unable to stop job [{self._job.ray_job_id}]", ex) from ex
+
+    def free_resources(self) -> bool:
+        """
+        Clean up/delete the Ray cluster associated with the job.
+
+        Returns:
+            True if cleaned up correctly
+        """
+        if not self._job.compute_resource:
+            return False
+
+        return _kill_ray_cluster(self._job.compute_resource.title)
+
+    def _submit_to_ray(self) -> Optional[str]:
+        """
+        Submit job to Ray cluster.
+
+        Returns:
+            ray job id
+        """
+        tracer = trace.get_tracer("scheduler.tracer")
+        with tracer.start_as_current_span("submit.job") as span:
+            # get program
+            program = self._job.program
+
+            # get artifact
+            working_directory_for_upload = os.path.join(
+                sanitize_file_path(str(settings.MEDIA_ROOT)),
+                "tmp",
+                str(uuid.uuid4()),
+            )
+            if program.image is not None:
+                # load default artifact
+                os.makedirs(working_directory_for_upload, exist_ok=True)
+                default_entrypoint_template = get_template("main.tmpl")
+                default_entrypoint_content = default_entrypoint_template.render(
+                    {
+                        "mount_path": settings.CUSTOM_IMAGE_PACKAGE_PATH,
+                        "package_name": settings.CUSTOM_IMAGE_PACKAGE_NAME,
+                    }
+                )
+                with open(
+                    os.path.join(working_directory_for_upload, DEFAULT_PROGRAM_ENTRYPOINT),
+                    "w",
+                    encoding="utf-8",
+                ) as entrypoint_file:
+                    entrypoint_file.write(default_entrypoint_content)
+            elif bool(program.artifact):
+                with tarfile.open(program.artifact.path) as file:
+                    file.extractall(working_directory_for_upload)
+            else:
+                raise ResourceNotFoundError(f"Program [{program.title}] has no image or artifact associated.")
+
+            # set tracing
+            carrier: dict[str, str] = {}
+            TraceContextTextMapPropagator().inject(carrier)
+            env_w_span = json.loads(self._job.env_vars)
+            try:
+                env_w_span["OT_TRACEPARENT_ID_KEY"] = carrier["traceparent"]
+            except KeyError:
+                pass
+
+            env = decrypt_env_vars(env_w_span)
+            token = env["ENV_JOB_GATEWAY_TOKEN"]
+            env["QISKIT_IBM_RUNTIME_CUSTOM_CLIENT_APP_HEADER"] = (
+                "middleware_job_id/" + str(self._job.id) + "," + token + "/"
+            )
+            ray_job_id = retry_function(
+                callback=lambda: self._client.submit_job(
+                    entrypoint=f"python {program.entrypoint}",
+                    runtime_env={
+                        "working_dir": working_directory_for_upload,
+                        "env_vars": env,
+                    },
+                ),
+                num_retries=settings.RAY_SETUP_MAX_RETRIES,
+                error_message=f"Ray job [{self._job.id}] submission failed.",
+            )
+
+            if os.path.exists(working_directory_for_upload):
+                shutil.rmtree(working_directory_for_upload)
+            span.set_attribute("job.rayjobid", self._job.ray_job_id)
+
+        return ray_job_id
+
+    def _create_k8s_cluster(self) -> tuple[str, str]:
+        """
+        Create Ray cluster on Kubernetes.
+
+        Returns:
+            Tuple of (host, cluster_name) for compute resource creation
+
+        Raises:
+            RuntimeError: If cluster creation fails
+        """
+        namespace = settings.RAY_KUBERAY_NAMESPACE
+        cluster_name = _generate_resource_name(self._job.author.username)
+        cluster_data = _create_cluster_data(cluster_name, self._job)
+
+        config.load_incluster_config()
+        k8s_client = kubernetes_client.api_client.ApiClient()
+        dyn_client = DynamicClient(k8s_client)
+        raycluster_client = dyn_client.resources.get(api_version="v1", kind="RayCluster")
+        response = raycluster_client.create(body=cluster_data, namespace=namespace)
+        created_cluster_name = response.metadata.name
+
+        try:
+            if created_cluster_name != cluster_name:
+                logger.warning("Wrong name after cluster creation: %s", response.text)
+                raise RuntimeError(f"Wrong name after cluster creation: {response.text}")
+
+            host, cluster_is_ready = _wait_for_cluster_ready(cluster_name)
+            if not cluster_is_ready:
+                raise RuntimeError("Something went wrong during cluster creation: Timeout")
+        except Exception:
+            _kill_ray_cluster(created_cluster_name)
+            raise
+
+        return host, cluster_name
+
+
+def _create_cluster_data(cluster_name: str, job: Job):
+    """Create cluster configuration data."""
+    user = job.author
+    job_config = job.config
+
+    job_config = job_config or JobConfig()
+
+    job_config.workers = job_config.workers or settings.RAY_CLUSTER_WORKER_REPLICAS
+    job_config.min_workers = job_config.min_workers or settings.RAY_CLUSTER_WORKER_MIN_REPLICAS
+    job_config.max_workers = job_config.max_workers or settings.RAY_CLUSTER_WORKER_MAX_REPLICAS
+    job_config.auto_scaling = job_config.auto_scaling or settings.RAY_CLUSTER_WORKER_AUTO_SCALING
+
+    # cpu job settings
+    node_selector_label = settings.RAY_CLUSTER_CPU_NODE_SELECTOR_LABEL
+
+    # if gpu job, use gpu nodes and resources
+    gpu_request = 0
+    if job.gpu:
+        node_selector_label = settings.RAY_CLUSTER_GPU_NODE_SELECTOR_LABEL
+        gpu_request = settings.LIMITS_GPU_PER_TASK
+
+    # configure provider configuration if needed
+    node_image = settings.RAY_NODE_IMAGE
+    if job.program.provider is not None:
+        node_image = job.program.image
+
+    user_file_storage = FileStorage(
+        username=user.username,
+        working_dir=WorkingDir.USER_STORAGE,
+        function=job.program,
+    )
+    provider_file_storage = user_file_storage
+    if job.program.provider is not None:
+        provider_file_storage = FileStorage(
+            username=user.username,
+            working_dir=WorkingDir.PROVIDER_STORAGE,
+            function=job.program,
+        )
+
+    cluster = get_template("rayclustertemplate.yaml")
+    manifest = cluster.render(
+        {
+            "cluster_name": cluster_name,
+            "user_data_folder": user_file_storage.sub_path,
+            "provider_data_folder": provider_file_storage.sub_path,
+            "node_image": node_image,
+            "workers": job_config.workers,
+            "min_workers": job_config.min_workers,
+            "max_workers": job_config.max_workers,
+            "auto_scaling": job_config.auto_scaling,
+            "user": user.username,
+            "node_selector_label": node_selector_label,
+            "gpu_request": gpu_request,
+        }
+    )
+    cluster_data = yaml.safe_load(manifest)
+    return cluster_data
+
+
+def _wait_for_cluster_ready(cluster_name: str) -> tuple[str, bool]:
+    """Wait for cluster to become available."""
+    url = f"http://{cluster_name}-head-svc:8265/"
+    success = False
+    attempts = 0
+    max_attempts = settings.RAY_CLUSTER_MAX_READINESS_TIME
+    while not success:
+        attempts += 1
+
+        if attempts <= max_attempts:
+            try:
+                response = requests.get(url, timeout=5)
+                if response.ok:
+                    success = True
+            except Exception:  # pylint: disable=broad-exception-caught
+                logger.debug("Head node %s is not ready yet.", url)
+            time.sleep(1)
+        else:
+            logger.warning("Waiting too long for cluster [%s] creation", cluster_name)
+            break
+    return url, success
+
+
+def _generate_resource_name(username: str) -> str:
+    """Generate unique cluster name based on username."""
+    lowercase_username = username.lower()[:20]
+    pattern = re.compile("[^a-z0-9-]")
+    return f"c-{re.sub(pattern, '-', lowercase_username)}-{str(uuid.uuid4())[:8]}"
+
+
+def _map_status(ray_job_status) -> str:
+    """
+    Map Ray job status to Job model status.
+
+    Args:
+        ray_job_status: Ray JobStatus enum value
+
+    Returns:
+        Job status string
+    """
+    mapping = {
+        JobStatus.PENDING: Job.PENDING,
+        JobStatus.RUNNING: Job.RUNNING,
+        JobStatus.STOPPED: Job.STOPPED,
+        JobStatus.SUCCEEDED: Job.SUCCEEDED,
+        JobStatus.FAILED: Job.FAILED,
+    }
+    return mapping.get(ray_job_status, Job.FAILED)
+
+
+def _kill_ray_cluster(cluster_name: str) -> bool:
+    """
+    Kill Ray cluster by calling kuberay API.
+
+    Args:
+        cluster_name: Cluster name
+
+    Returns:
+        True if cluster was killed successfully
+    """
+    if settings.RAY_CLUSTER_MODE_LOCAL:
+        # in local, there's only one ComputeResource shared across all jobs, and it can'be killed...
+        return False
+
+    success = False
+    namespace = settings.RAY_KUBERAY_NAMESPACE
+
+    config.load_incluster_config()
+    k8s_client = kubernetes_client.api_client.ApiClient()
+    dyn_client = DynamicClient(k8s_client)
+    raycluster_client = dyn_client.resources.get(api_version="v1", kind="RayCluster")
+    try:
+        delete_response = raycluster_client.delete(name=cluster_name, namespace=namespace)
+    except NotFoundError as resource_not_found:
+        sanitized = repr(resource_not_found).replace("\n", "").replace("\r", "")
+        logger.error(
+            "Something went wrong during ray cluster deletion request: %s",
+            sanitized,
+        )
+        return success
+
+    if delete_response.status == "Success":
+        success = True
+    else:
+        sanitized = delete_response.text.replace("\n", "").replace("\r", "")
+        logger.error(
+            "Something went wrong during ray cluster deletion request: %s",
+            sanitized,
+        )
+    try:
+        cert_client = dyn_client.resources.get(api_version="v1", kind="Certificate")
+    except ResourceNotFoundError:
+        return success
+
+    try:
+        cert_client.delete(name=cluster_name, namespace=namespace)
+        success = True
+    except NotFoundError:
+        logger.error(
+            "Something went wrong during ray certification deletion request: %s",
+            cluster_name,
+        )
+    try:
+        cert_client.delete(name=f"{cluster_name}-worker", namespace=namespace)
+        success = True
+    except NotFoundError:
+        logger.error(
+            "Something went wrong during ray certification deletion request: %s",
+            f"{cluster_name}-worker",
+        )
+
+    corev1 = kubernetes_client.CoreV1Api()
+    try:
+        corev1.delete_namespaced_secret(name=cluster_name, namespace=namespace)
+        success = True
+    except ApiException:
+        logger.error(
+            "Something went wrong during ray secret deletion request: %s",
+            cluster_name,
+        )
+    try:
+        corev1.delete_namespaced_secret(name=f"{cluster_name}-worker", namespace=namespace)
+        success = True
+    except ApiException:
+        logger.error(
+            "Something went wrong during ray secret deletion request: %s",
+            f"{cluster_name}-worker",
+        )
+    return success
