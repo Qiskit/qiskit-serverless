@@ -44,7 +44,6 @@ class RayClient(RunnerClient):
         """
         super().__init__(job)
         self._client: Optional[JobSubmissionClient] = None
-        self._compute_resource: Optional[ComputeResource] = None
 
     def connect(self) -> None:
         """
@@ -56,76 +55,69 @@ class RayClient(RunnerClient):
         if self._connected:
             return
 
-        compute_resource = self._compute_resource or self._job.compute_resource
-        if not compute_resource:
-            raise RunnerError("Job has no compute resource associated")
-
-        host = compute_resource.host
+        host = self._job.compute_resource.host
         try:
-            client = retry_function(
+            self._client = retry_function(
                 callback=lambda: JobSubmissionClient(host),
                 num_retries=settings.RAY_SETUP_MAX_RETRIES,
                 error_message=f"Ray JobClientSubmission setup failed for host [{host}].",
             )
+            self._connected = True
         except Exception as ex:
             raise RunnerError(f"Unable to connect to Ray cluster at [{host}]", ex) from ex
-
-        self._client = client
-        self._connected = True
 
     def disconnect(self) -> None:
         """Close connection to Ray cluster."""
         self._client = None
         self._connected = False
 
-    def create_compute_resource(self) -> ComputeResource:
-        """
-        Create compute resource for the job.
-
-        Returns:
-            ComputeResource instance
-
-        Raises:
-            RunnerError: If unable to create compute resource
-        """
-        try:
-            if settings.RAY_CLUSTER_MODE_LOCAL:
-                host = settings.RAY_LOCAL_HOST
-                title = "Local compute resource"
-            else:
-                host, title = self._create_k8s_cluster()
-
-            compute_resource = ComputeResource(
-                title=title,
-                host=host,
-                owner=self._job.author,
-                gpu=self._job.gpu,
-            )
-            self._compute_resource = compute_resource
-            return compute_resource
-
-        except RuntimeError as ex:
-            raise RunnerError(f"Unable to create compute resource for job [{self._job.id}]", ex) from ex
-
-    def submit(self) -> str:
+    def submit(self) -> tuple[ComputeResource, str]:
         """
         Submit the job to the Ray cluster.
 
+        Creates the compute resource (K8s cluster or local) and submits the job.
+        On failure, cleans up any created resources.
+
         Returns:
-            ray_job_id assigned by Ray
+            Tuple of (ComputeResource, ray_job_id)
 
         Raises:
-            RunnerError: If unable to connect or submit
+            RunnerError: If submission fails (resources are cleaned up before raising)
+
+        Note:
+            The caller is responsible for saving the ComputeResource to DB
+            and assigning it to the job.
         """
-        self._ensure_connected()
+        tracer = trace.get_tracer("scheduler.tracer")
+        with tracer.start_as_current_span("submit.job") as span:
+            # 1. Create compute resource
+            cluster_name = None
+            try:
+                if settings.RAY_CLUSTER_MODE_LOCAL:
+                    host = settings.RAY_LOCAL_HOST
+                    title = "Local compute resource"
+                else:
+                    host, title = self._create_k8s_cluster()
+                    cluster_name = title
 
-        try:
-            ray_job_id = self._submit_to_ray()
-        except Exception as ex:
-            logger.error("Unable to submit ray job [%s]: %s", self._job.id, ex)
-            raise RunnerError(f"Unable to submit ray job [{self._job.id}]", ex) from ex
+                compute_resource = ComputeResource(
+                    title=title,
+                    host=host,
+                    owner=self._job.author,
+                    gpu=self._job.gpu,
+                    active=True,
+                )
+                span.set_attribute("job.clustername", title)
+                ray_job_id = self._submit_to_ray(compute_resource)
+                span.set_attribute("job.id", self._job.id)
+                span.set_attribute("job.rayjobid", ray_job_id)
+                return compute_resource, ray_job_id
 
-        return ray_job_id
+            except Exception as ex:
+                logger.error("Failed to submit job [%s]: %s", self._job.id, ex)
+                if cluster_name:
+                    _kill_ray_cluster(cluster_name)
+                raise RunnerError(f"Failed to submit job [{self._job.id}]", ex) from ex
 
     def status(self) -> Optional[str]:
         """
@@ -204,75 +196,84 @@ class RayClient(RunnerClient):
 
         return _kill_ray_cluster(self._job.compute_resource.title)
 
-    def _submit_to_ray(self) -> Optional[str]:
+    def _submit_to_ray(self, compute_resource: ComputeResource) -> str:
         """
-        Submit job to Ray cluster.
+        Submit job to Ray cluster (internal method).
+
+        Args:
+            compute_resource: The compute resource to submit to
 
         Returns:
             ray job id
         """
-        tracer = trace.get_tracer("scheduler.tracer")
-        with tracer.start_as_current_span("submit.job") as span:
-            # get program
-            program = self._job.program
+        # get program
+        program = self._job.program
 
-            # get artifact
-            working_directory_for_upload = os.path.join(
-                sanitize_file_path(str(settings.MEDIA_ROOT)),
-                "tmp",
-                str(uuid.uuid4()),
+        # get artifact
+        working_directory_for_upload = os.path.join(
+            sanitize_file_path(str(settings.MEDIA_ROOT)),
+            "tmp",
+            str(uuid.uuid4()),
+        )
+        if program.image is not None:
+            # load default artifact
+            os.makedirs(working_directory_for_upload, exist_ok=True)
+            default_entrypoint_template = get_template("main.tmpl")
+            default_entrypoint_content = default_entrypoint_template.render(
+                {
+                    "mount_path": settings.CUSTOM_IMAGE_PACKAGE_PATH,
+                    "package_name": settings.CUSTOM_IMAGE_PACKAGE_NAME,
+                }
             )
-            if program.image is not None:
-                # load default artifact
-                os.makedirs(working_directory_for_upload, exist_ok=True)
-                default_entrypoint_template = get_template("main.tmpl")
-                default_entrypoint_content = default_entrypoint_template.render(
-                    {
-                        "mount_path": settings.CUSTOM_IMAGE_PACKAGE_PATH,
-                        "package_name": settings.CUSTOM_IMAGE_PACKAGE_NAME,
-                    }
-                )
-                with open(
-                    os.path.join(working_directory_for_upload, DEFAULT_PROGRAM_ENTRYPOINT),
-                    "w",
-                    encoding="utf-8",
-                ) as entrypoint_file:
-                    entrypoint_file.write(default_entrypoint_content)
-            elif bool(program.artifact):
-                with tarfile.open(program.artifact.path) as file:
-                    file.extractall(working_directory_for_upload)
-            else:
-                raise ResourceNotFoundError(f"Program [{program.title}] has no image or artifact associated.")
+            with open(
+                os.path.join(working_directory_for_upload, DEFAULT_PROGRAM_ENTRYPOINT),
+                "w",
+                encoding="utf-8",
+            ) as entrypoint_file:
+                entrypoint_file.write(default_entrypoint_content)
+        elif bool(program.artifact):
+            with tarfile.open(program.artifact.path) as file:
+                file.extractall(working_directory_for_upload)
+        else:
+            raise ResourceNotFoundError(f"Program [{program.title}] has no image or artifact associated.")
 
-            # set tracing
-            carrier: dict[str, str] = {}
-            TraceContextTextMapPropagator().inject(carrier)
-            env_w_span = json.loads(self._job.env_vars)
-            try:
-                env_w_span["OT_TRACEPARENT_ID_KEY"] = carrier["traceparent"]
-            except KeyError:
-                pass
+        # set tracing
+        carrier: dict[str, str] = {}
+        TraceContextTextMapPropagator().inject(carrier)
+        env_w_span = json.loads(self._job.env_vars)
+        try:
+            env_w_span["OT_TRACEPARENT_ID_KEY"] = carrier["traceparent"]
+        except KeyError:
+            pass
 
-            env = decrypt_env_vars(env_w_span)
-            token = env["ENV_JOB_GATEWAY_TOKEN"]
-            env["QISKIT_IBM_RUNTIME_CUSTOM_CLIENT_APP_HEADER"] = (
-                "middleware_job_id/" + str(self._job.id) + "," + token + "/"
-            )
-            ray_job_id = retry_function(
-                callback=lambda: self._client.submit_job(
-                    entrypoint=f"python {program.entrypoint}",
-                    runtime_env={
-                        "working_dir": working_directory_for_upload,
-                        "env_vars": env,
-                    },
-                ),
-                num_retries=settings.RAY_SETUP_MAX_RETRIES,
-                error_message=f"Ray job [{self._job.id}] submission failed.",
-            )
+        env = decrypt_env_vars(env_w_span)
+        token = env["ENV_JOB_GATEWAY_TOKEN"]
+        env["QISKIT_IBM_RUNTIME_CUSTOM_CLIENT_APP_HEADER"] = (
+            "middleware_job_id/" + str(self._job.id) + "," + token + "/"
+        )
 
-            if os.path.exists(working_directory_for_upload):
-                shutil.rmtree(working_directory_for_upload)
-            span.set_attribute("job.rayjobid", self._job.ray_job_id)
+        # Connect to Ray cluster using compute_resource host
+        host = compute_resource.host
+        ray_client = retry_function(
+            callback=lambda: JobSubmissionClient(host),
+            num_retries=settings.RAY_SETUP_MAX_RETRIES,
+            error_message=f"Ray JobClientSubmission setup failed for host [{host}].",
+        )
+
+        ray_job_id = retry_function(
+            callback=lambda: ray_client.submit_job(
+                entrypoint=f"python {program.entrypoint}",
+                runtime_env={
+                    "working_dir": working_directory_for_upload,
+                    "env_vars": env,
+                },
+            ),
+            num_retries=settings.RAY_SETUP_MAX_RETRIES,
+            error_message=f"Ray job [{self._job.id}] submission failed.",
+        )
+
+        if os.path.exists(working_directory_for_upload):
+            shutil.rmtree(working_directory_for_upload)
 
         return ray_job_id
 
@@ -432,8 +433,7 @@ def _kill_ray_cluster(cluster_name: str) -> bool:
         True if cluster was killed successfully
     """
     if settings.RAY_CLUSTER_MODE_LOCAL:
-        # in local, there's only one ComputeResource shared across all jobs, and it can'be killed...
-        return False
+        return True
 
     success = False
     namespace = settings.RAY_KUBERAY_NAMESPACE

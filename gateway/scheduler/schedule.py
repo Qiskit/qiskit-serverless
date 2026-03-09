@@ -13,45 +13,18 @@ from django.db.models.aggregates import Count, Min
 
 from opentelemetry import trace
 
-from core.models import Job, ComputeResource
+from core.models import Job
 from core.services.runners import get_runner_client, RunnerError
 
 User: Model = get_user_model()
 logger = logging.getLogger("commands")
 
 
-def _create_ray_cluster_compute_resource(job: Job, runner, span) -> ComputeResource | None:
-    compute_resource: ComputeResource | None = None
-    try:
-        compute_resource = runner.create_compute_resource()
-        span.set_attribute("job.clustername", compute_resource.title)
-    except RunnerError:
-        # if something went wrong
-        #   try to kill resource if it was allocated
-        logger.warning(
-            "Compute resource was not created properly.\nSetting job [%s] status to [FAILED].",
-            job,
-        )
-        try:
-            runner.free_resources()
-        except RunnerError:
-            pass
-        job.status = Job.FAILED
-        job.logs += "\nCompute resource was not created properly."
-        span.set_attribute("job.status", job.status)
-
-    return compute_resource
-
-
 def execute_job(job: Job) -> Job:
     """Executes program.
 
-    0. configure compute resource type
-    1. check if cluster exists
-       1.1 if not: create cluster
-    2. connect to cluster
-    3. run a job
-    4. set status to pending
+    Creates compute resource, connects to cluster, and submits the job.
+    Resource cleanup on failure is handled by runner.submit().
 
     Args:
         job: job to execute
@@ -59,38 +32,20 @@ def execute_job(job: Job) -> Job:
     Returns:
         job of program execution
     """
-
     tracer = trace.get_tracer("scheduler.tracer")
     with tracer.start_as_current_span("execute.job") as span:
         runner = get_runner_client(job)
-        compute_resource = _create_ray_cluster_compute_resource(job, runner, span)
-        if not compute_resource:
-            return job
-
-        compute_resource.save()
-        job.compute_resource = compute_resource
 
         try:
-            ray_job_id = runner.submit()
+            compute_resource, ray_job_id = runner.submit()
+            compute_resource.save()
+            job.compute_resource = compute_resource
             job.ray_job_id = ray_job_id
             job.status = Job.PENDING
+            span.set_attribute("job.clustername", compute_resource.title)
         except RunnerError:
-            logger.error(
-                "Exception was caught during scheduling job on user [%s] resource.\n"
-                "Resource [%s] was in DB records, but address is not reachable.\n"
-                "Cleaning up db record and setting job [%s] to failed",
-                job.author,
-                compute_resource.title,
-                job.id,
-            )
-            try:
-                runner.free_resources()
-            except RunnerError:
-                pass
-            compute_resource.delete()
             job.status = Job.FAILED
-            job.compute_resource = None
-            job.logs += "\nCompute resource was not found."
+            job.logs += "\nCompute resource creation or job submission failed."
 
         span.set_attribute("job.status", job.status)
     return job

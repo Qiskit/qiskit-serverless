@@ -154,7 +154,8 @@ class UpdateJobsStatuses(SchedulerTask):
                 if self.update_job_status(job):
                     updated_jobs_counter += 1
 
-            logger.info("Updated %s classical jobs.", updated_jobs_counter)
+            if updated_jobs_counter:
+                logger.info("Updated %s classical jobs.", updated_jobs_counter)
 
         if update_gpu_jobs:
             updated_jobs_counter = 0
@@ -165,7 +166,8 @@ class UpdateJobsStatuses(SchedulerTask):
                 if self.update_job_status(job):
                     updated_jobs_counter += 1
 
-            logger.info("Updated %s GPU jobs.", updated_jobs_counter)
+            if updated_jobs_counter:
+                logger.info("Updated %s GPU jobs.", updated_jobs_counter)
 
 
 def save_logs_to_storage(job: Job, logs: str):

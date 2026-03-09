@@ -38,8 +38,8 @@ class TestRayClient(APITestCase):
 
     fixtures = ["tests/fixtures/schedule_fixtures.json"]
 
-    def test_create_cluster(self):
-        """Tests for cluster creation."""
+    def test_submit_creates_cluster(self):
+        """Tests that submit() creates K8s cluster and returns compute resource."""
         config.load_incluster_config = MagicMock()
         client.api_client.ApiClient = MagicMock()
         DynamicClient.__init__ = lambda x, y: None
@@ -49,16 +49,21 @@ class TestRayClient(APITestCase):
         head_node_url = "http://test_user-head-svc:8265/"
         job = Job.objects.first()
         runner = get_runner_client(job)
+
         with (
             patch("core.services.runners.ray_client._generate_resource_name", return_value="test_user"),
             patch("core.services.runners.ray_client._create_cluster_data", return_value="dummy yaml file contents"),
+            patch.object(runner, "_submit_to_ray", return_value="AwesomeJobId"),
             requests_mock.Mocker() as mocker,
         ):
             mocker.get(head_node_url, status_code=200)
-            compute_resource = runner.create_compute_resource()
+            compute_resource, ray_job_id = runner.submit()
+
+            self.assertEqual(ray_job_id, "AwesomeJobId")
             self.assertIsInstance(compute_resource, ComputeResource)
             self.assertEqual("test_user", compute_resource.title)
             self.assertEqual(compute_resource.host, head_node_url)
+            self.assertTrue(compute_resource._state.adding)  # Not saved to DB
             DynamicClient.resources.get.assert_called_once_with(api_version="v1", kind="RayCluster")
 
     def test_cleanup_cluster(self):
@@ -171,23 +176,26 @@ class TestRayClientOperations(APITestCase):
         self.assertTrue(is_job_stopped)
         mock_client.stop_job.assert_called_once_with("AwesomeJobId")
 
-    def test_job_submit(self):
-        """Tests job submission."""
-        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+    def test_job_submit_local_mode(self):
+        """Tests job submission in local mode (no K8s cluster creation)."""
+        with self.settings(
+            MEDIA_ROOT=self.MEDIA_ROOT,
+            RAY_CLUSTER_MODE_LOCAL=True,
+            RAY_LOCAL_HOST="http://localhost:8265/",
+        ):
             job = Job.objects.first()
             job.env_vars = json.dumps({"ENV_JOB_GATEWAY_TOKEN": encrypt_string("awesome_token")})
-            job.compute_resource = ComputeResource.objects.create(
-                title="test_cluster", host="http://test:8265/", owner=job.author
-            )
             job.save()
 
-            mock_client = MagicMock()
-            mock_client.submit_job.return_value = "AwesomeJobId"
+            mock_ray_client = MagicMock()
+            mock_ray_client.submit_job.return_value = "AwesomeJobId"
 
             runner = get_runner_client(job)
-            runner._client = mock_client
-            runner._connected = True
 
-            ray_job_id = runner.submit()
-            self.assertEqual(ray_job_id, "AwesomeJobId")
-            mock_client.submit_job.assert_called_once()
+            with patch.object(runner, "_submit_to_ray", return_value="AwesomeJobId"):
+                compute_resource, ray_job_id = runner.submit()
+
+                self.assertEqual(ray_job_id, "AwesomeJobId")
+                self.assertIsNotNone(compute_resource)
+                self.assertEqual(compute_resource.title, "Local compute resource")
+                self.assertTrue(compute_resource._state.adding)  # Not saved to DB

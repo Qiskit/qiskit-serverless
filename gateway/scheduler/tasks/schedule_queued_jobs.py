@@ -120,4 +120,5 @@ class ScheduleQueuedJobs(SchedulerTask):
                         job.ray_job_id = backup_ray_job_id
 
                 logger.info("Executing %s of %s", job, job.author)
-        logger.info("%s are scheduled for execution.", len(jobs))
+        if jobs:
+            logger.info("%s jobs are scheduled for execution.", len(jobs))

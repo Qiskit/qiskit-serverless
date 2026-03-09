@@ -1,7 +1,7 @@
-"""Abstract runner client for job execution backends."""
+"""Abstract runner client for job execution in any engine (Ray, Fleets)."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Optional
 
 from core.models import Job, ComputeResource
 
@@ -10,7 +10,7 @@ class RunnerError(Exception):
     """Base exception for runner operations.
 
     This exception is raised when a runner operation fails (status, logs, stop, submit).
-    It wraps the underlying backend-specific exceptions (e.g., Ray's RuntimeError)
+    It wraps the underlying engine-specific exceptions (e.g., Ray's RuntimeError)
     to provide a consistent interface for error handling.
 
     Attributes:
@@ -30,7 +30,7 @@ class RunnerError(Exception):
 
 
 class RunnerClient(ABC):
-    """Abstract client for executing jobs on different backends."""
+    """Abstract client for executing jobs on different engines."""
 
     def __init__(self, job: Job):
         """
@@ -42,6 +42,10 @@ class RunnerClient(ABC):
         it can throw a connection error if Ray node is down or an IO problem, which is quite annoying.
         By making it lazy, we ensure that the client creation never fails and that only actual operations
         (such as logs(), status(), etc.) are the ones that can fail when connecting.
+
+        Note: job.compute_resource may be None when creating the client for job submission.
+        The submit() method will create the compute_resource but the caller is responsible
+        for saving it to DB and assigning it to the job.
 
         Args:
             job: Job instance to be executed
@@ -56,7 +60,7 @@ class RunnerClient(ABC):
 
     @property
     def is_connected(self) -> bool:
-        """True if there's an active connection to the backend."""
+        """True if there's an active connection to the engine."""
         return self._connected
 
     @abstractmethod
@@ -65,7 +69,7 @@ class RunnerClient(ABC):
         Establish explicit connection to the Ray or Fleet, if it's really needed.
 
         Raises:
-            RunnerError: If unable to connect to the backend
+            RunnerError: If unable to connect to the engine
         """
         raise NotImplementedError
 
@@ -77,30 +81,20 @@ class RunnerClient(ABC):
     # --- Methods that do NOT require connection ---
 
     @abstractmethod
-    def submit(self) -> Any:
+    def submit(self) -> tuple[ComputeResource, str]:
         """
         Submit the job to the runner.
-        Does NOT require connection because the cluster may not exist.
+
+        Creates the compute resource and submits the job.
+        On failure, cleans up any created resources (e.g., K8s cluster).
 
         Returns:
-            Backend-specific job identifier (e.g., ray_job_id for Ray)
+            Tuple of (ComputeResource, engine_job_id)
+            - ComputeResource: not saved to DB, caller must save and assign to job
+            - engine_job_id: engine-specific job identifier (e.g., ray_job_id)
 
         Raises:
-            RunnerError: If job submission fails
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def create_compute_resource(self) -> ComputeResource:
-        """
-        Create compute resource for the job.
-        Does NOT require connection (it's creating the resource).
-
-        Returns:
-            ComputeResource instance
-
-        Raises:
-            RunnerError: If unable to create compute resource
+            RunnerError: If submission fails (resources are cleaned up before raising)
         """
         raise NotImplementedError
 
@@ -162,5 +156,5 @@ class RunnerClient(ABC):
 
     @abstractmethod
     def disconnect(self) -> None:
-        """Close connection to backend if open."""
+        """Close connection to engine if open."""
         raise NotImplementedError

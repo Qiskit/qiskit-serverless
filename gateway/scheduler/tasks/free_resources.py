@@ -32,16 +32,7 @@ class FreeResources(SchedulerTask):
             if self.kill_signal.received:
                 return
 
-            # I think this logic could be reviewed because now each job
-            # would have its own compute resource but let's do that
-            # in an additional iteration
-            there_are_alive_jobs = Job.objects.filter(
-                status__in=Job.RUNNING_STATUSES, compute_resource=compute_resource
-            ).exists()
-
-            # only kill cluster if not in local mode and no jobs are running there
-            if not there_are_alive_jobs:
-                self.remove_compute_resource(compute_resource)
+            self.remove_compute_resource(compute_resource)
 
     def remove_compute_resource(self, compute_resource: ComputeResource):
         """
