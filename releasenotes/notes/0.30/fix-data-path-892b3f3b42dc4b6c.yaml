@@ -1,0 +1,10 @@
+---
+fixes:
+  - |
+    Fixed an issue that affected local testing when using custom functions packaged as Docker images.
+    These custom functions are registered as "provider" functions, however, their data path was resolved
+    to a "custom" function data path, resulting in a "File not found" error when trying to fetch function
+    arguments. After the fix, the data paths are resolved correctly, and no error is raised:
+
+      - For user functions: ``DATA_PATH = \data\username``
+      - For provider functions: ``DATA_PATH = \data\username\providername\imagename``

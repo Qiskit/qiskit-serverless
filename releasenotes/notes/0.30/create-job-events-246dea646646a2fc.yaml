@@ -1,0 +1,15 @@
+---
+upgrade:
+  - |
+    Added a new ``JobEvents`` table to our database to improve metrics and provide a more flexible
+    foundation for future event-tracking features. Each time a job changes state,
+    a new event is now recorded in the database.
+
+    The new ``JobEvents`` table includes:
+      - ``id``: auto-generated UUID
+      - ``job``: foreign key referencing the jobs table
+      - ``created``: timestamp automatically set at event creation
+      - ``event_type``: string describing the event type (currently ``"Status change"``)
+      - ``context``: string indicating where the change originated (e.g., Scheduler, API)
+      - ``data``: JSON payload containing event‑specific details
+

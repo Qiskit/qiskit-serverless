@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
+import logging
 import os
 import os.path
 import sys
@@ -17,6 +18,15 @@ from pathlib import Path
 from core.utils import sanitize_file_path
 
 RELEASE_VERSION = os.environ.get("VERSION", "UNKNOWN")
+
+
+COMMAND = sys.argv[1] if len(sys.argv) > 1 else None
+IS_UNICORN = "gunicorn" in sys.argv[0]
+
+IS_TEST = COMMAND == "test"
+IS_RUNSERVER = COMMAND == "runserver"
+IS_SCHEDULER = COMMAND == "run_scheduler"
+IS_GATEWAY = IS_UNICORN or IS_RUNSERVER
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -119,7 +129,7 @@ LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "simple": {"format": "%(levelname)s %(asctime)s %(filename)s:%(lineno)s : %(message)s"},
+        "simple": {"format": "%(levelname)s %(asctime)s [%(name)s] %(filename)s:(%(lineno)s) %(message)s"},
     },
     "handlers": {
         "console": {
@@ -173,7 +183,7 @@ DATABASES = {
     },
 }
 
-if "test" in sys.argv:
+if IS_TEST:
     DATABASES["default"] = DATABASES["test"]
 
 # Password validation
@@ -260,7 +270,7 @@ SWAGGER_SETTINGS = {
 }
 
 SITE_ID = 1
-SITE_HOST = os.environ.get("SITE_HOST", "http://localhost:8000")
+SITE_HOST = os.environ.get("SITE_HOST", "http://localhost:8001" if IS_SCHEDULER else "http://localhost:8000")
 
 # custom token auth
 QUANTUM_PLATFORM_API_BASE_URL = os.environ.get("QUANTUM_PLATFORM_API_BASE_URL", None)
@@ -293,7 +303,7 @@ LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
 RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
 RAY_CLUSTER_MODE_LOCAL = os.environ.get("RAY_CLUSTER_MODE_LOCAL", "false").lower() == "true"
 RAY_LOCAL_HOST = os.environ.get("RAY_LOCAL_HOST", "http://localhost:8265")
-RAY_NODE_IMAGE = os.environ.get("RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.29.0")
+RAY_NODE_IMAGE = os.environ.get("RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.30.0")
 RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "1"))
 RAY_CLUSTER_WORKER_REPLICAS_MAX = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS_MAX", "5"))
 RAY_CLUSTER_WORKER_MIN_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS", "1"))
@@ -379,4 +389,12 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "type": "boolean",  # not used yet, but maybe the backoffice can use this in the future to improve the edit page
         "description": "Enable maintenance mode: the scheduler will not execute new jobs",
     },
+    "gateway.upload_file.valid_mime_types": {
+        "default": "application/x-tar, application/gzip, application/json, "
+        "application/octet-stream, application/zip, text/plain, text/csv",
+        "type": "list",
+        "description": "Specify the permitted mime types to upload files.",
+    },
 }
+
+logging.getLogger("main").info("[BOOT] Settings.py: %s", "gunicorn" if IS_UNICORN else COMMAND)
