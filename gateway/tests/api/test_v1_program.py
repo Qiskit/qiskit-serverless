@@ -121,7 +121,6 @@ class TestProgramApi(APITestCase):
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             user = models.User.objects.get(username="test_user_3")
             self.client.force_authenticate(user=user)
-
             arguments = json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"})
             programs_response = self.client.post(
                 "/api/v1/programs/run/",
@@ -748,3 +747,48 @@ class TestProgramApi(APITestCase):
             # Verify the storage path is for user function (no provider in path)
             expected_arguments_path = os.path.join(self.MEDIA_ROOT, user.username, "arguments")
             self.assertEqual(arguments_storage.absolute_path, expected_arguments_path)
+
+    def test_program_version_field_returned(self):
+        """Tests that the Program `version` field is returned by the API."""
+
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+
+        # Update fixture program to have a version string
+        program = Program.objects.get(title="Docker-Image-Program", author=user)
+        program.version = "1.2.3"
+        program.save()
+
+        response = self.client.get(
+            "/api/v1/programs/get_by_title/Docker-Image-Program/",
+            {"provider": "default"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data.get("version"), "1.2.3")
+
+    def test_upload_invalid_version_returns_error(self):
+        """Tests upload returns 400 when version is invalid."""
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            user = models.User.objects.get(username="test_user_2")
+            self.client.force_authenticate(user=user)
+            env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
+            version = "not_a_version"
+
+            response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "Private function",
+                    "entrypoint": "test_user_2_program.py",
+                    "dependencies": "[]",
+                    "env_vars": env_vars,
+                    "version": version,
+                },
+            )
+
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            # Error message should mention invalid version
+            errors = json.dumps(response.data)
+            self.assertIn("Invalid version", errors)

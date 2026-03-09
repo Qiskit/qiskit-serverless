@@ -42,7 +42,7 @@ from qiskit_serverless.core.decorators import trace_decorator_factory
 from qiskit_serverless.core.function import QiskitFunction
 from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.utils.http import get_headers
-from qiskit_serverless.utils.json import safe_json_request_as_dict
+from qiskit_serverless.utils.json import format_err_msg, safe_json_request_as_dict
 
 _trace = trace_decorator_factory("files")
 
@@ -157,8 +157,8 @@ class GatewayFilesClient:
             ) as req:
                 if req.ok:
                     return req.text
-                return "Upload failed"
-        return "Can not open file"
+                raise QiskitServerlessException(f"Upload failed: \n{format_err_msg(req.status_code, req.text)}")
+        raise QiskitServerlessException("Can not open file")
 
     @_trace
     def provider_upload(self, file: str, function: QiskitFunction) -> Optional[str]:
@@ -177,8 +177,8 @@ class GatewayFilesClient:
             ) as req:
                 if req.ok:
                     return req.text
-                return "Upload failed"
-        return "Can not open file"
+                raise QiskitServerlessException(f"Upload failed: \n{format_err_msg(req.status_code, req.text)}")
+        raise QiskitServerlessException("Can not open file")
 
     @_trace
     def list(self, function: QiskitFunction) -> List[str]:

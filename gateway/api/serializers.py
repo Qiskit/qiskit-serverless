@@ -19,7 +19,7 @@ from api.repositories.users import UserRepository
 from api.utils import build_env_variables, sanitize_name
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.services.storage.arguments_storage import ArgumentsStorage
-from core.utils import encrypt_env_vars
+from core.utils import encrypt_env_vars, create_gpujob_allowlist
 
 from core.models import (
     JobEvent,
@@ -147,6 +147,10 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         if description is not None:
             instance.description = description
 
+        version = validated_data.get("version")
+        if version is not None:
+            instance.version = version
+
         instance.save()
         return instance
 
@@ -251,6 +255,16 @@ class RunJobSerializer(serializers.ModelSerializer):
 
         return any(group in trial_groups for group in user_run_groups)
 
+    def _should_use_gpu(self, program: Program) -> bool:
+        """
+        Determines if the job should use GPU based on the program's provider.
+        """
+        gpujobs = create_gpujob_allowlist()
+        if program.provider and program.provider.name in gpujobs["gpu-functions"].keys():
+            logger.debug("Program [%s] will be run on GPU nodes", program.title)
+            return True
+        return False
+
     def create(self, validated_data):
         logger.info("Creating Job with RunExistingJobSerializer")
         status = Job.QUEUED
@@ -265,12 +279,14 @@ class RunJobSerializer(serializers.ModelSerializer):
         carrier = validated_data.pop("carrier")
 
         trial = self.is_trial(program, author)
+        gpu = self._should_use_gpu(program)
         job = Job(
             trial=trial,
             status=status,
             program=program,
             author=author,
             config=config,
+            gpu=gpu,
         )
 
         env = encrypt_env_vars(
