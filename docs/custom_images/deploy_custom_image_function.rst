@@ -114,20 +114,18 @@ define a ``QiskitFunction`` that will use the custom image, upload it, and invok
 .. code-block::
    :caption: Uploading and running a function with a custom image
 
-   import os
    from qiskit_serverless import QiskitFunction, ServerlessClient
 
    serverless = ServerlessClient(
-       token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
-       image=os.environ.get("GATEWAY_INSTANCE", "awesome_crn"),
-       host=os.environ.get("GATEWAY_HOST", "http://localhost:8000"),
-       # Use http://localhost when using Kubernetes
+       token="awesome_token",
+       image="awesome_crn",
+       host="http://localhost:8000", # Use http://localhost when using Kubernetes
    )
 
    function = QiskitFunction(
        title="custom-image-function",
        image="test-local-provider-function:latest",
-       provider="mockprovider"
+       provider="mockprovider",
    )
 
    serverless.upload(function)

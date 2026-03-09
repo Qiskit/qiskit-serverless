@@ -40,7 +40,7 @@ Once you have your credentials, configure the client:
 
     client = ServerlessClient(
         token="awesome_token",
-		instance="awesome_crn",
+        instance="awesome_crn",
         host="http://localhost:8000", # or "http://localhost"
     )
 
@@ -54,5 +54,5 @@ which you can find in https://quantum.cloud.ibm.com.
 
     client = IBMServerlessClient(
         token="MY_IQP_API_KEY",
-		instance="MY_IQP_CRN",
+        instance="MY_IQP_CRN",
     )
