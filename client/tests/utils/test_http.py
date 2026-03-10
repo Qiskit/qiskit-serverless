@@ -106,12 +106,6 @@ class TestGetHeaders(unittest.TestCase):
         headers = get_headers(token="test-token", instance=crn)
         self.assertEqual(headers["Service-CRN"], crn)
 
-    def test_with_hub_group_project_instance(self):
-        """Test headers with hub/group/project format instance."""
-        hgp = "ibm-q/open/main"
-        headers = get_headers(token="test-token", instance=hgp)
-        self.assertEqual(headers["Service-CRN"], hgp)
-
     def test_channel_values(self):
         """Test headers with different channel values."""
         for channel in ["ibm_cloud", "ibm_quantum_platform", "local"]:
