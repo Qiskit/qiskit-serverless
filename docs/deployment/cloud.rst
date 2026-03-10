@@ -2,7 +2,6 @@
 Cloud infrastructure setup
 ==========================
 
-
 ``Qiskit Serverless`` is a project that contains different resources. One of the most important ones is the ``client``
 that you can use to connect with local and non-local resources.
 
@@ -32,11 +31,11 @@ Once you have these tools installed, you can check the installation by running t
 
 .. code-block::
 
-        $ docker --version
-        $ > Docker version X, build Y
-        $
-        $ helm version
-        $ > version.BuildInfo{Version:"X", GitCommit:"Y", GitTreeState:"Z", GoVersion:"T"}
+        docker --version
+        > Docker version X, build Y
+
+        helm version
+        > version.BuildInfo{Version:"X", GitCommit:"Y", GitTreeState:"Z", GoVersion:"T"}
 
 
 If all the commands return the correct versions, then congratulations, you have the tools installed!
@@ -53,7 +52,7 @@ If you have ``docker compose`` available you can run the next command in your te
 .. code-block::
    :caption: run the command from the root of the project
 
-        $ docker compose up
+        docker compose up
 
 Once the execution of the command has finished, if everything went well you should be able to open the browser
 and have access to the Ray dashboard at: http://localhost:8265
@@ -63,7 +62,7 @@ In case you want to use the ``main`` branch you can use the configuration for de
 .. code-block::
    :caption: run the command from the root of the project
 
-        $ docker compose -f docker-compose-dev.yaml up
+        docker compose -f docker-compose-dev.yaml up
 
 .. _helm-deployment:
 
@@ -86,7 +85,7 @@ and run the next commands:
 .. code-block::
    :caption: run this commands with the release version like 0.30.0 in x.y.z (2 places)
 
-        $ helm -n <INSERT_YOUR_NAMESPACE> install qiskit-serverless --create-namespace https://github.com/Qiskit/qiskit-serverless/releases/download/vx.y.z/qiskit-serverless-x.y.z.tgz
+        helm -n <INSERT_YOUR_NAMESPACE> install qiskit-serverless --create-namespace https://github.com/Qiskit/qiskit-serverless/releases/download/vx.y.z/qiskit-serverless-x.y.z.tgz
 
 This will deploy the required components to your cluster.
 
@@ -96,17 +95,17 @@ approach is to use the ``port-forward`` command:
 .. code-block::
    :caption: get gateway pod
 
-        $ kubectl get service
-        $ > ...
-        $ > gateway ClusterIP 10.43.86.146 <none> 8000/TCP
-        $ > ...
+        kubectl get service
+        > ...
+        > gateway ClusterIP 10.43.86.146 <none> 8000/TCP
+        > ...
 
 Now that we have the desired services, we can expose their ports:
 
 .. code-block::
    :caption: ports 8265 and 8888 are the the default ports for each service
 
-        $  kubectl port-forward service/gateway  3333:8000
+        kubectl port-forward service/gateway  3333:8000
 
 Now you may access your cluster services from localhost.
 
@@ -121,4 +120,4 @@ Optionally, you can install an observability package to handle logging and monit
 .. code-block::
    :caption: run this commands with the release version like 0.30.0 in x.y.z (2 places) using the same namespace as in the previous helm command
 
-        $ helm -n <INSERT_YOUR_NAMESPACE> install qs-observability  https://github.com/Qiskit/qiskit-serverless/releases/download/vx.y.z/qs-observability-x.y.z.tgz
+        helm -n <INSERT_YOUR_NAMESPACE> install qs-observability  https://github.com/Qiskit/qiskit-serverless/releases/download/vx.y.z/qs-observability-x.y.z.tgz
