@@ -35,7 +35,7 @@ import logging
 import os
 import time
 import warnings
-from typing import ClassVar, Dict, Any, Literal, Optional, Tuple, Union
+from typing import ClassVar, Dict, Any, List, Literal, Optional, Tuple, Union
 from dataclasses import dataclass
 
 import ray.runtime_env
@@ -121,6 +121,13 @@ class JobService(ABC):
             job_id: The job's logs
             include: rex expression finds match in the log line to be included
             exclude: rex expression finds match in the log line to be excluded
+        """
+
+    @abstractmethod
+    def events(self, job_id: str, **kwargs) -> str:
+        """Returns events of the job.
+        Args:
+            job_id: The job id
         """
 
 
@@ -262,6 +269,10 @@ class Job:
 
         return results
 
+    def events(self) -> List:
+        """Returns events of the job."""
+        return self._job_service.events(self.job_id)
+
     def in_terminal_state(self) -> bool:
         """Checks if job is in terminal state"""
         terminal_status = ["CANCELED", "DONE", "ERROR"]
@@ -269,6 +280,52 @@ class Job:
 
     def __repr__(self):
         return f"<Job | {self.job_id}>"
+
+
+def send_error(code: str, message: str, args: Any):
+    """Send an error message to store it in the gateway.
+
+    Args:
+        code: The error code.
+        message: A human readable text describing the error.
+        args: Additional arguments to give further information. Should json format or empty.
+    """
+
+    version = os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
+    if version is None:
+        version = GATEWAY_PROVIDER_VERSION_DEFAULT
+
+    token = os.environ.get(ENV_JOB_GATEWAY_TOKEN)
+    if token is None:
+        logging.warning(
+            "The Error will be logged since there is no information about the "
+            "authorization token in the environment."
+        )
+        logging.error("Error %s: %s\n%s", code, message, args)
+        return False
+
+    instance = os.environ.get(ENV_JOB_GATEWAY_INSTANCE, None)
+    channel = os.environ.get(QISKIT_IBM_CHANNEL, None)
+    url = f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/" f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/event/"
+
+    response = requests.post(
+        url,
+        data={
+            "type": "ERROR",
+            "code": code,
+            "message": message,
+            "args": args,
+        },
+        headers=get_headers(token=token, instance=instance, channel=channel),
+        timeout=REQUESTS_TIMEOUT,
+    )
+    if not response.ok:
+        sanitized = response.text.replace("\n", "").replace("\r", "")
+        logging.warning("Something went wrong sending error: %s", sanitized)
+        logging.warning("The Error will be logged since there was an error sending the error.")
+        logging.error("Error %s: %s\n%s", code, message, args)
+
+    return response.ok
 
 
 def save_result(result: Dict[str, Any]):

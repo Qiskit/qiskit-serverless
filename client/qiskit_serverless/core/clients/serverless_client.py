@@ -474,6 +474,21 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             excluded = included
         return excluded
 
+    def events(self, job_id: str, **kwargs) -> str:
+        """Returns events of the job.
+        Args:
+            job_id: The job id
+        """
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/jobs/{job_id}/events/",
+                headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
+                timeout=REQUESTS_TIMEOUT,
+            )
+        )
+
+        return response_data
+
     #########################
     ####### Functions #######
     #########################

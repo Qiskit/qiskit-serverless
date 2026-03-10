@@ -92,3 +92,18 @@ class JobEventQuerySet(QuerySet):
             event_type=event_type,
             data={"code": code, "message": message, "args": args},
         )
+
+    def get_job_events(  # pylint:  disable=too-many-positional-arguments
+        self,
+        job_id: uuid.UUID,
+        event_type: str | None,
+    ):
+        """Sub Status change event for jobs."""
+
+        events = self.filter(
+            job_id=job_id,
+        )
+        if event_type:
+            events.filter(event_type=event_type)
+
+        return events

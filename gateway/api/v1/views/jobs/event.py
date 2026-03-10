@@ -37,7 +37,7 @@ class InputSerializer(serializers.Serializer):
     class Meta:
         """Meta class to define input serializer name"""
 
-        ref_name = "JobsEventInputSerializer"
+        ref_name = "JobEventInputSerializer"
 
     def validate_type(self, value: str):
         """
@@ -89,6 +89,9 @@ def event(request: Request, job_id: UUID) -> Response:
 
     data = serializer.create(serializer.validated_data)
     user = cast(AbstractUser, request.user)
+    print("+++++++++++++++")
+    print(data.args)
+    print(request.data)
 
     JobEventUseCase().execute(job_id, user, data)
 
