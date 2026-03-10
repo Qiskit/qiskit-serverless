@@ -14,7 +14,7 @@
 
 import json
 import unittest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 from json import JSONEncoder
 
 import requests
@@ -93,10 +93,12 @@ class TestIsJsonable(unittest.TestCase):
     def test_with_custom_encoder(self):
         """Test with custom JSON encoder."""
 
-        class CustomObject:
-            pass
+        class CustomObject:  # pylint: disable=too-few-public-methods
+            """Custom object for testing JSON encoding."""
 
         class CustomEncoder(JSONEncoder):
+            """Custom JSON encoder for testing."""
+
             def default(self, o):
                 if isinstance(o, CustomObject):
                     return "custom"
