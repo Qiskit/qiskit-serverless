@@ -3,14 +3,16 @@
 
 import os
 
-from pytest import mark
+from pytest import mark, raises
 
-from qiskit_serverless import ServerlessClient, QiskitFunction
+from qiskit_serverless import QiskitServerlessException, ServerlessClient, QiskitFunction
 
 resources_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../source_files")
 
 filename = "test.txt"
 filename_path = os.path.join(resources_path, filename)
+filename_not_valid = "test-img.png"
+filename_not_valid_path = os.path.join(resources_path, filename_not_valid)
 
 
 class TestFiles:
@@ -154,3 +156,39 @@ class TestFiles:
         print(files)
 
         assert filename not in files
+
+    def test_provider_upload_failed(self, serverless_client: ServerlessClient):
+        """Integration test for upload files."""
+        function = QiskitFunction(
+            title="provider-function",
+            provider="mockprovider",
+            image="test-local-provider-function:latest",
+        )
+        function = serverless_client.upload(function)
+
+        with raises(QiskitServerlessException) as exc_info:
+            serverless_client.provider_file_upload(filename_not_valid_path, function)
+
+        expected_message = (
+            "Upload failed: \n\n| Message: Http bad request.\n| Code: 400\n| "
+            "Details:\n|   - message: Uploaded file is not a valid type."
+        )
+        assert expected_message in str(exc_info.value)
+
+    def test_upload_failed(self, serverless_client: ServerlessClient):
+        """Integration test for upload files."""
+        function = QiskitFunction(
+            title="hello-world",
+            entrypoint="hello_world.py",
+            working_dir=resources_path,
+        )
+        function = serverless_client.upload(function)
+
+        with raises(QiskitServerlessException) as exc_info:
+            serverless_client.file_upload(filename_not_valid_path, function)
+
+        expected_message = (
+            "Upload failed: \n\n| Message: Http bad request.\n| Code: 400\n| "
+            "Details:\n|   - message: Uploaded file is not a valid type."
+        )
+        assert expected_message in str(exc_info.value)

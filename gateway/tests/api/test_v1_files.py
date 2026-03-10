@@ -381,6 +381,33 @@ class TestFilesApi(APITestCase):
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
                 self.assertTrue(os.path.exists(os.path.join(self.MEDIA_ROOT, "default", "Program", "README.md")))
 
+    def test_provider_file_upload_default_values(self):
+        """Tests uploading existing file."""
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            provider = "default"
+            function = "Program"
+            user = models.User.objects.get(username="test_user_2")
+            self.client.force_authenticate(user=user)
+            url = reverse("v1:files-provider-upload")
+
+            path_to_resource_artifact = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "..",
+                "resources",
+                "artifact.tar",
+            )
+
+            with open(path_to_resource_artifact, "rb") as f:
+                query_params = {"function": function, "provider": provider}
+                response = self.client.post(
+                    f"{url}?{urlencode(query_params)}",
+                    {"file": f},
+                    format="multipart",
+                )
+
+                assert response.status_code == status.HTTP_200_OK
+                assert os.path.exists(os.path.join(self.MEDIA_ROOT, "default", "Program", "artifact.tar"))
+
     def test_file_upload_wrong_type(self):
         """Tests uploading existing file."""
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
@@ -400,6 +427,32 @@ class TestFilesApi(APITestCase):
 
                 self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
                 self.assertTrue(not os.path.exists(os.path.join(self.MEDIA_ROOT, "test_user_2", "README.md")))
+
+    def test_file_upload_wrong_type_default_values(self):
+        """Tests uploading existing file."""
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            function = "personal-program"
+            user = models.User.objects.get(username="test_user_2")
+            self.client.force_authenticate(user=user)
+            url = reverse("v1:files-upload")
+
+            path_to_resource_artifact = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "..",
+                "resources",
+                "test-img.png",
+            )
+
+            with open(path_to_resource_artifact, "rb") as f:
+                query_params = {"function": function}
+                response = self.client.post(
+                    f"{url}?{urlencode(query_params)}",
+                    {"file": f},
+                    format="multipart",
+                )
+
+                assert response.status_code == status.HTTP_400_BAD_REQUEST
+                assert not os.path.exists(os.path.join(self.MEDIA_ROOT, "test_user_2", "test-png.png"))
 
     def test_provider_file_upload(self):
         """Tests uploading existing file."""
