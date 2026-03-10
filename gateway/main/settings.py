@@ -353,16 +353,20 @@ RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL = os.environ.get(
 )
 RESOURCE_PLANS_ID_ALLOWED = os.environ.get("RESOURCE_PLANS_ID_ALLOWED", "").split(",")
 
-# Content Security Policy
-CSP_DEFAULT_SRC = "'none'"
-CSP_SCRIPT_SRC = "'none'"
-CSP_FRAME_ANCESTORS = "'self'"
-CSP_OBJECT_SRC = "'self'"
-CSP_IMG_SRC = ("'self'", "data:")
-CSP_STYLE_SRC_ELEM = "'self'"
-CSP_SCRIPT_SRC_ELEM = "'self'"
-CSP_CONNECT_SRC = "'self'"
-CSP_WORKER_SRC = ("'self'", "blob:")
+# Content Security Policy (django-csp >= 4.0 format)
+CONTENT_SECURITY_POLICY = {
+    "DIRECTIVES": {
+        "default-src": "'none'",
+        "script-src": "'none'",
+        "frame-ancestors": "'self'",
+        "object-src": "'self'",
+        "img-src": ("'self'", "data:"),
+        "style-src-elem": "'self'",
+        "script-src-elem": "'self'",
+        "connect-src": "'self'",
+        "worker-src": ("'self'", "blob:"),
+    }
+}
 
 # Custom image for programs settings
 CUSTOM_IMAGE_PACKAGE_NAME = os.environ.get("CUSTOM_IMAGE_PACKAGE_NAME", "runner")
