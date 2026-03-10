@@ -3,10 +3,10 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Cloud infrastructure setup" href="cloud.html" /><link rel="prev" title="Deployment" href="index.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Client Configuration" href="client.html" /><link rel="prev" title="Local Setup" href="../local_setup/index.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2024.08.06 -->
-        <title>Local infrastructure setup - Qiskit Serverless 0.30.0</title>
+        <title>Local Infrastructure Setup - Qiskit Serverless 0.30.0</title>
       <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=354aac6f" />
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=3ee1c6c6" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/qiskit-sphinx-theme.css?v=8ff9dcb6" />
@@ -173,7 +173,7 @@
           <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
         </button>
       </div>
-      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
         <div class="visually-hidden">Toggle table of contents sidebar</div>
         <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
       </label>
@@ -201,29 +201,37 @@
   <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../index.html">About Qiskit Serverless</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../installation/index.html">Installation</a></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../getting_started/index.html">Getting started</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of Getting started</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/01_running_program.html">Running a Qiskit Function as a function</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/02_arguments_and_results.html">Passing input arguments to your QiskitFunction</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/03_distributed_workloads.html">Parallel workflows with QiskitFunction</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/04_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/experimental/file_download.html">File download (Experimental)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/experimental/manage_data_directory.html">Shared data directory (Experimental)</a></li>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="../local_setup/index.html">Local Setup</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of Local Setup</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Local Infrastructure Setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="client.html">Client Configuration</a></li>
 </ul>
 </li>
-<li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">Deployment</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Deployment</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
-<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Local infrastructure setup</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../function_features/index.html">Function Features</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Function Features</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../function_features/basic/01_custom_upload_run.html">Running a custom Qiskit Function</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../function_features/basic/02_arguments_and_results.html">Passing input arguments to your Qiskit Function</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../function_features/basic/03_distributed_workloads.html">Parallel workflows with QiskitFunction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../function_features/basic/04_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../function_features/experimental/file_download.html">File download (Experimental)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../function_features/experimental/manage_data_directory.html">Shared data directory (Experimental)</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../custom_images/index.html">Custom Images</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle navigation of Custom Images</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../custom_images/deploy_custom_image_function.html">Deploy a Custom Function Image</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../custom_images/custom_image_examples.html">Example entrypoint and Dockerfile</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">Deployment</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><div class="visually-hidden">Toggle navigation of Deployment</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Local Infrastructure Setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="client.html">Client Configuration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="cloud.html">Cloud infrastructure setup</a></li>
-<li class="toctree-l2"><a class="reference internal" href="client_configuration.html">Client configuration</a></li>
-<li class="toctree-l2"><a class="reference internal" href="deploying_custom_image_function.html">Building custom image for function</a></li>
-<li class="toctree-l2"><a class="reference internal" href="example_custom_image_function.html">Example custom image function</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../release-notes.html">Release Notes</a></li>
 </ul>
 <ul>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../apidocs/index.html">API References</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle navigation of API References</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../apidocs/index.html">API References</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle navigation of API References</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="../stubs/qiskit_serverless.QiskitServerlessException.html">qiskit_serverless.QiskitServerlessException</a></li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../apidocs/core.html">Core module (<code class="xref py py-mod docutils literal notranslate"><span class="pre">qiskit_serverless.core</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><div class="visually-hidden">Toggle navigation of Core module (qiskit_serverless.core)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../apidocs/core.html">Core module (<code class="xref py py-mod docutils literal notranslate"><span class="pre">qiskit_serverless.core</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle navigation of Core module (qiskit_serverless.core)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.core.ServerlessClient.html">qiskit_serverless.core.ServerlessClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.core.IBMServerlessClient.html">qiskit_serverless.core.IBMServerlessClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.core.BaseClient.html">qiskit_serverless.core.BaseClient</a></li>
@@ -243,7 +251,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.core.get_runtime_service.html">qiskit_serverless.core.get_runtime_service</a></li>
 </ul>
 </li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../apidocs/serializers.html">Serializers (<code class="xref py py-mod docutils literal notranslate"><span class="pre">qiskit_serverless.serializers</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle navigation of Serializers (qiskit_serverless.serializers)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../apidocs/serializers.html">Serializers (<code class="xref py py-mod docutils literal notranslate"><span class="pre">qiskit_serverless.serializers</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle navigation of Serializers (qiskit_serverless.serializers)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.serializers.register_all_serializers.html">qiskit_serverless.serializers.register_all_serializers</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.serializers.circuit_serializer.html">qiskit_serverless.serializers.circuit_serializer</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.serializers.circuit_deserializer.html">qiskit_serverless.serializers.circuit_deserializer</a></li>
@@ -252,7 +260,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.serializers.get_arguments.html">qiskit_serverless.serializers.get_arguments</a></li>
 </ul>
 </li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../apidocs/utils.html">Utilities (<code class="xref py py-mod docutils literal notranslate"><span class="pre">qiskit_serverless.utils</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle navigation of Utilities (qiskit_serverless.utils)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../apidocs/utils.html">Utilities (<code class="xref py py-mod docutils literal notranslate"><span class="pre">qiskit_serverless.utils</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle navigation of Utilities (qiskit_serverless.utils)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.utils.ErrorCodes.html">qiskit_serverless.utils.ErrorCodes</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.utils.JsonSerializable.html">qiskit_serverless.utils.JsonSerializable</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.utils.format_provider_name_and_title.html">qiskit_serverless.utils.format_provider_name_and_title</a></li>
@@ -292,77 +300,228 @@
               <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
             </button>
           </div>
-          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
             <div class="visually-hidden">Toggle table of contents sidebar</div>
             <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
           </label>
         </div>
         <article role="main" id="furo-main-content">
           <section id="local-infrastructure-setup">
-<span id="local-infrastructure"></span><h1>Local infrastructure setup<a class="headerlink" href="#local-infrastructure-setup" title="Permalink to this heading">¶</a></h1>
-<p>Step 1: Create a Python environment and clone the repository</p>
-<p>The <code class="docutils literal notranslate"><span class="pre">qiskit-serverless</span></code> repository contains some Dockerfiles which make spinning up a test cluster
-on your local machine straightforward. The first thing we will do is clone the repository.</p>
-<div class="literal-block-wrapper docutils container" id="id1">
-<div class="code-block-caption"><span class="caption-text">Create a minimal environment with only Python installed in it. We recommend using <a class="reference external" href="https://docs.python.org/3.10/tutorial/venv.html">Python virtual environments</a>.</span><a class="headerlink" href="#id1" title="Permalink to this code">¶</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">python3</span> <span class="o">-</span><span class="n">m</span> <span class="n">venv</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">virtual</span><span class="o">/</span><span class="n">environment</span>
+<span id="local-infrastructure"></span><h1>Local Infrastructure Setup<a class="headerlink" href="#local-infrastructure-setup" title="Permalink to this heading">¶</a></h1>
+<p>This guide walks you through setting up Qiskit Serverless on your local machine for development and testing.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this heading">¶</a></h2>
+<p>You can choose between two deployment approaches:</p>
+<ul class="simple">
+<li><p><strong>Docker Compose</strong> (Recommended for beginners)</p>
+<ul>
+<li><p>Fastest and simplest setup</p></li>
+<li><p>Spins up containers for all services (gateway, scheduler, Ray)</p></li>
+<li><p>Ideal for quick testing and development</p></li>
+</ul>
+</li>
+<li><p><strong>Kind (Kubernetes-in-Docker)</strong> (Advanced)</p>
+<ul>
+<li><p>More closely resembles production environments</p></li>
+<li><p>Useful for testing Kubernetes-specific behaviors</p></li>
+<li><p>Requires more setup but provides better production parity</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="prerequisites">
+<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this heading">¶</a></h2>
+<p>Before you begin, ensure you have:</p>
+<ul class="simple">
+<li><p><strong>Python 3.10 or later</strong></p></li>
+<li><p><strong>Git</strong></p></li>
+<li><p><strong>Docker runtime</strong> (required for both approaches)</p>
+<ul>
+<li><p><a class="reference external" href="https://github.com/abiosoft/colima">Colima</a> (recommended, especially for macOS with ARM processors)</p></li>
+<li><p><a class="reference external" href="https://www.docker.com/products/docker-desktop/">Docker Desktop</a></p></li>
+<li><p><a class="reference external" href="https://podman.io/">Podman</a></p></li>
+</ul>
+</li>
+<li><p><strong>Docker Compose</strong> (for Docker Compose approach)</p></li>
+<li><p><strong>Kind and kubectl</strong> (for Kubernetes approach - Kind runs Kubernetes in Docker)</p></li>
+</ul>
+</section>
+<section id="step-1-prepare-your-environment">
+<h2>Step 1: Prepare Your Environment<a class="headerlink" href="#step-1-prepare-your-environment" title="Permalink to this heading">¶</a></h2>
+<section id="create-a-python-virtual-environment">
+<h3>1.1 Create a Python Virtual Environment<a class="headerlink" href="#create-a-python-virtual-environment" title="Permalink to this heading">¶</a></h3>
+<p>We recommend using Python virtual environments to isolate dependencies.</p>
+<p><strong>On Linux/macOS:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>/path/to/virtual/environment
+<span class="nb">source</span><span class="w"> </span>/path/to/virtual/environment/bin/activate
 </pre></div>
 </div>
-</div>
-<div class="literal-block-wrapper docutils container" id="id2">
-<div class="code-block-caption"><span class="caption-text">Activate your new environment.</span><a class="headerlink" href="#id2" title="Permalink to this code">¶</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">source</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">virtual</span><span class="o">/</span><span class="n">environment</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">activate</span>
+<p><strong>On Windows (PowerShell):</strong></p>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="n">python3</span> <span class="n">-m</span> <span class="n">venv</span> <span class="n">c</span><span class="p">:\</span><span class="n">path</span><span class="p">\</span><span class="n">to</span><span class="p">\</span><span class="n">virtual</span><span class="p">\</span><span class="n">environment</span>
+<span class="n">c</span><span class="p">:\</span><span class="n">path</span><span class="p">\</span><span class="n">to</span><span class="p">\</span><span class="n">virtual</span><span class="p">\</span><span class="n">environment</span><span class="p">\</span><span class="n">Scripts</span><span class="p">\</span><span class="n">Activate</span><span class="p">.</span><span class="n">ps1</span>
 </pre></div>
 </div>
-</div>
-<div class="literal-block-wrapper docutils container" id="id3">
-<div class="code-block-caption"><span class="caption-text">Note: If you are using Windows, use the following commands in PowerShell.</span><a class="headerlink" href="#id3" title="Permalink to this code">¶</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">python3</span> <span class="o">-</span><span class="n">m</span> <span class="n">venv</span> <span class="n">c</span><span class="p">:</span>\<span class="n">path</span>\<span class="n">to</span>\<span class="n">virtual</span>\<span class="n">environment</span>
-   <span class="n">c</span><span class="p">:</span>\<span class="n">path</span>\<span class="n">to</span>\<span class="n">virtual</span>\<span class="n">environment</span>\<span class="n">Scripts</span>\<span class="n">Activate</span><span class="o">.</span><span class="n">ps1</span>
+<p>For more information, see the <a class="reference external" href="https://docs.python.org/3.10/tutorial/venv.html">Python virtual environments documentation</a>.</p>
+</section>
+<section id="clone-the-repository">
+<h3>1.2 Clone the Repository<a class="headerlink" href="#clone-the-repository" title="Permalink to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>/path/to/workspace/
+git<span class="w"> </span>clone<span class="w"> </span>git@github.com:Qiskit/qiskit-serverless.git
+<span class="nb">cd</span><span class="w"> </span>qiskit-serverless
 </pre></div>
 </div>
-</div>
-<div class="literal-block-wrapper docutils container" id="id4">
-<div class="code-block-caption"><span class="caption-text">Clone the Qiskit Serverless repository.</span><a class="headerlink" href="#id4" title="Permalink to this code">¶</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">cd</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">workspace</span><span class="o">/</span>
-   <span class="n">git</span> <span class="n">clone</span> <span class="n">git</span><span class="nd">@github</span><span class="o">.</span><span class="n">com</span><span class="p">:</span><span class="n">Qiskit</span><span class="o">/</span><span class="n">qiskit</span><span class="o">-</span><span class="n">serverless</span><span class="o">.</span><span class="n">git</span>
+</section>
+</section>
+<section id="step-2-install-and-configure-docker-runtime">
+<h2>Step 2: Install and Configure Docker Runtime<a class="headerlink" href="#step-2-install-and-configure-docker-runtime" title="Permalink to this heading">¶</a></h2>
+<p>Both deployment methods (Docker Compose and Kind) require a Docker runtime. We recommend <strong>Colima</strong>, especially for macOS with ARM processors, as it provides better performance and avoids architecture-related issues.</p>
+<section id="install-docker-runtime">
+<h3>2.1: Install Docker Runtime<a class="headerlink" href="#install-docker-runtime" title="Permalink to this heading">¶</a></h3>
+<p><strong>Recommended: Colima</strong></p>
+<p>Install Colima following the <a class="reference external" href="https://github.com/abiosoft/colima">installation guide</a>.</p>
+<p><strong>Alternative Options:</strong></p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://www.docker.com/products/docker-desktop/">Docker Desktop</a></p></li>
+<li><p><a class="reference external" href="https://podman.io/">Podman</a></p></li>
+</ul>
+<p>For more details, see the <a class="reference external" href="https://github.com/Qiskit/qiskit-serverless/blob/main/README.md">project README</a>.</p>
+</section>
+<section id="start-docker-with-adequate-resources">
+<h3>2.2: Start Docker with Adequate Resources<a class="headerlink" href="#start-docker-with-adequate-resources" title="Permalink to this heading">¶</a></h3>
+<p>Qiskit Serverless uses distributed computing and requires adequate resources:</p>
+<ul class="simple">
+<li><p><strong>CPU:</strong> 4+ cores (minimum)</p></li>
+<li><p><strong>Memory:</strong> 8+ GB (minimum)</p></li>
+<li><p><strong>Disk:</strong> 100+ GB (minimum)</p></li>
+</ul>
+<p><strong>For Colima:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>colima<span class="w"> </span>start<span class="w"> </span>--cpu<span class="w"> </span><span class="m">4</span><span class="w"> </span>--memory<span class="w"> </span><span class="m">8</span><span class="w"> </span>--disk<span class="w"> </span><span class="m">100</span>
 </pre></div>
 </div>
-</div>
-<p>Step 2: Setup Docker</p>
-<p>To setup Qiskit Serverless on your local machine, you will need to use docker compose. As we mentioned in the <a class="reference external" href="https://github.com/Qiskit/qiskit-serverless/blob/main/README.md">README</a>
-you can use any runtime that you prefer to run Docker on your machine: Docker Desktop, podman…
-If you are using a MacOS with ARM processors we highly recommend to use <a class="reference external" href="https://github.com/abiosoft/colima">Colima</a>
-as your container runtime to avoid problems with that architecture.</p>
-<p>This is a project that takes advantage of distributed computing, so it places a high demand on resources. We recommend increasing the assigned resources to these runtimes.
-In case of Colima for example we typically use:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ colima start --cpu 4 --memory 8 --disk 100
+<p>Adjust these values based on your workload. For intensive computations, consider allocating more resources.</p>
+</section>
+</section>
+<section id="step-3-choose-your-deployment-method">
+<h2>Step 3: Choose Your Deployment Method<a class="headerlink" href="#step-3-choose-your-deployment-method" title="Permalink to this heading">¶</a></h2>
+<p>Now that Docker is running, choose how you want to deploy Qiskit Serverless:</p>
+<section id="option-a-docker-compose-setup-recommended">
+<h3>Option A: Docker Compose Setup (Recommended)<a class="headerlink" href="#option-a-docker-compose-setup-recommended" title="Permalink to this heading">¶</a></h3>
+<p>This is the fastest way to get started with Qiskit Serverless locally.</p>
+<p><strong>3A.1: Start the Services</strong></p>
+<p>From the repository root, run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>compose<span class="w"> </span>up
 </pre></div>
 </div>
-<p>Step 2.1: Initiate the test environment</p>
-<p>Once you have Docker and docker compose installed, you can run the following command from the root of the
-<code class="docutils literal notranslate"><span class="pre">qiskit-serverless</span></code> repository to set up the infrastructure:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ docker compose [--profile &lt;PROFILE&gt;] up
+<p>This starts the core services. For additional services (logging, monitoring), use:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>compose<span class="w"> </span>--profile<span class="w"> </span>full<span class="w"> </span>up
 </pre></div>
 </div>
-<p>Additionally, you can include the profile <cite>full</cite>.
-With the full profile installs all core services, including logging and
-monitorying systems.</p>
-<p>Step 3: Setup Kind</p>
-<p>Additionally we provide you a way to deploy a k8s cluster on your local machine. This has some benefits as this is a more similar environment
-to production than the docker-compose approach.</p>
-<p>To simplify the process to deploy a k8s cluster locally we use <a class="reference external" href="https://kind.sigs.k8s.io/docs/user/quick-start#installation">Kind</a>
-as the main tool to create a cluster.</p>
-<p>Step 3.1: Initiate the test cluster</p>
-<p>To setup the cluster for testing we prepare a little script that will initialize for you all the needed resources. You can execute it
-using the terminal just running the next command:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ tox -e cluster-deploy
+<p>The services will be available at:</p>
+<ul class="simple">
+<li><p>Gateway API: <a class="reference external" href="http://localhost:8000">http://localhost:8000</a></p></li>
+<li><p>Ray Dashboard: <a class="reference external" href="http://localhost:8265">http://localhost:8265</a> (if using local Ray)</p></li>
+</ul>
+</section>
+<section id="option-b-kind-kubernetes-setup-advanced">
+<h3>Option B: Kind (Kubernetes) Setup (Advanced)<a class="headerlink" href="#option-b-kind-kubernetes-setup-advanced" title="Permalink to this heading">¶</a></h3>
+<p>This approach deploys a local Kubernetes cluster, providing an environment closer to production.</p>
+<p><strong>3B.1: Install Kind</strong></p>
+<p>Follow the <a class="reference external" href="https://kind.sigs.k8s.io/docs/user/quick-start#installation">Kind installation guide</a>.</p>
+<p><strong>3B.2: Deploy the Cluster</strong></p>
+<p>We provide a script that initializes all required resources:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>tox<span class="w"> </span>-e<span class="w"> </span>cluster-deploy
 </pre></div>
 </div>
-<p>Step 4: Run a program in the test environment</p>
-<p>Once the containers are running, you can simulate a remote cluster with the resources on your
-local machine. Feel free to go to our tutorials in the <a class="reference external" href="https://qiskit.github.io/qiskit-serverless/getting_started/index.html">Getting started section</a>
-and run some of them.</p>
+<p>This command:</p>
+<ul class="simple">
+<li><p>Creates a Kind cluster (running in Docker)</p></li>
+<li><p>Deploys the Qiskit Serverless gateway</p></li>
+<li><p>Sets up Ray operator and clusters</p></li>
+<li><p>Configures networking</p></li>
+</ul>
+<p>The services will be available at:</p>
+<ul class="simple">
+<li><p>Gateway API: <a class="reference external" href="http://localhost">http://localhost</a></p></li>
+</ul>
+</section>
+</section>
+<section id="step-4-verify-your-setup">
+<h2>Step 4: Verify Your Setup<a class="headerlink" href="#step-4-verify-your-setup" title="Permalink to this heading">¶</a></h2>
+<p>Once your infrastructure is running, verify it’s working correctly:</p>
+<ol class="arabic">
+<li><p>Check that all containers/pods are running:</p>
+<p><strong>Docker Compose:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>compose<span class="w"> </span>ps
+</pre></div>
+</div>
+<p><strong>Kind:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>kubectl<span class="w"> </span>get<span class="w"> </span>pods<span class="w"> </span>-A
+</pre></div>
+</div>
+</li>
+<li><p>Test the gateway API:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>http://localhost:8000/health<span class="w">  </span><span class="c1"># Docker Compose</span>
+curl<span class="w"> </span>http://localhost/health<span class="w">        </span><span class="c1"># Kind</span>
+</pre></div>
+</div>
+</li>
+</ol>
+</section>
+<section id="step-5-configure-the-client">
+<h2>Step 5: Configure the Client<a class="headerlink" href="#step-5-configure-the-client" title="Permalink to this heading">¶</a></h2>
+<p>Now that your infrastructure is running, configure the Qiskit Serverless client to connect to it.</p>
+<p>See the <a class="reference internal" href="client.html#client-configuration"><span class="std std-ref">Client Configuration</span></a> guide for detailed instructions.</p>
+<p>Quick example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">ServerlessClient</span>
+
+<span class="n">client</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
+    <span class="n">token</span><span class="o">=</span><span class="s2">&quot;awesome_token&quot;</span><span class="p">,</span>
+    <span class="n">instance</span><span class="o">=</span><span class="s2">&quot;awesome_crn&quot;</span><span class="p">,</span>
+    <span class="n">host</span><span class="o">=</span><span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">,</span>  <span class="c1"># or &quot;http://localhost&quot; for Kind</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="step-6-run-your-first-function">
+<h2>Step 6: Run Your First Function<a class="headerlink" href="#step-6-run-your-first-function" title="Permalink to this heading">¶</a></h2>
+<p>With everything set up, you’re ready to run quantum functions!</p>
+<p>Explore the <a class="reference internal" href="../function_features/index.html#function-features"><span class="std std-ref">Function Features</span></a> tutorials to learn how to:</p>
+<ul class="simple">
+<li><p>Create and upload functions</p></li>
+<li><p>Run distributed workloads</p></li>
+<li><p>Retrieve results</p></li>
+<li><p>And more</p></li>
+</ul>
+</section>
+<section id="next-steps">
+<h2>Next Steps<a class="headerlink" href="#next-steps" title="Permalink to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="../function_features/index.html#function-features"><span class="std std-ref">Function Features</span></a> - Learn how to build and run Qiskit Functions</p></li>
+<li><p><a class="reference internal" href="client.html#client-configuration"><span class="std std-ref">Client Configuration</span></a> - Detailed client configuration options</p></li>
+<li><p><a class="reference internal" href="index.html#deployment"><span class="std std-ref">Deployment</span></a> - Deploy to production environments (advanced)</p></li>
+</ul>
+</section>
+<section id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permalink to this heading">¶</a></h2>
+<p><strong>Services won’t start:</strong></p>
+<ul class="simple">
+<li><p>Ensure Docker/Kind is running</p></li>
+<li><p>Check resource allocation (CPU, memory, disk)</p></li>
+<li><p>Review logs: <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">logs</span></code> or <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">logs</span> <span class="pre">&lt;pod-name&gt;</span></code></p></li>
+</ul>
+<p><strong>Connection refused:</strong></p>
+<ul class="simple">
+<li><p>Verify the correct host URL (localhost:8000 for Docker Compose, localhost for Kind)</p></li>
+<li><p>Check firewall settings</p></li>
+<li><p>Ensure services are fully started (may take 1-2 minutes)</p></li>
+</ul>
+<p><strong>Performance issues:</strong></p>
+<ul class="simple">
+<li><p>Increase allocated resources</p></li>
+<li><p>Close unnecessary applications</p></li>
+<li><p>Consider using the Docker Compose approach for lighter resource usage</p></li>
+</ul>
+</section>
 </section>
 
         </article>
@@ -370,23 +529,23 @@ and run some of them.</p>
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="cloud.html">
+          <a class="next-page" href="client.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Cloud infrastructure setup</div>
+                <div class="title">Client Configuration</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="index.html">
+          <a class="prev-page" href="../local_setup/index.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Deployment</div>
+                <div class="title">Local Setup</div>
                 
               </div>
             </a>
@@ -408,8 +567,48 @@ and run some of them.</p>
         
       </footer>
     </div>
-    <aside class="toc-drawer no-toc">
+    <aside class="toc-drawer">
       
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Local Infrastructure Setup</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li><a class="reference internal" href="#step-1-prepare-your-environment">Step 1: Prepare Your Environment</a><ul>
+<li><a class="reference internal" href="#create-a-python-virtual-environment">1.1 Create a Python Virtual Environment</a></li>
+<li><a class="reference internal" href="#clone-the-repository">1.2 Clone the Repository</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#step-2-install-and-configure-docker-runtime">Step 2: Install and Configure Docker Runtime</a><ul>
+<li><a class="reference internal" href="#install-docker-runtime">2.1: Install Docker Runtime</a></li>
+<li><a class="reference internal" href="#start-docker-with-adequate-resources">2.2: Start Docker with Adequate Resources</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#step-3-choose-your-deployment-method">Step 3: Choose Your Deployment Method</a><ul>
+<li><a class="reference internal" href="#option-a-docker-compose-setup-recommended">Option A: Docker Compose Setup (Recommended)</a></li>
+<li><a class="reference internal" href="#option-b-kind-kubernetes-setup-advanced">Option B: Kind (Kubernetes) Setup (Advanced)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#step-4-verify-your-setup">Step 4: Verify Your Setup</a></li>
+<li><a class="reference internal" href="#step-5-configure-the-client">Step 5: Configure the Client</a></li>
+<li><a class="reference internal" href="#step-6-run-your-first-function">Step 6: Run Your First Function</a></li>
+<li><a class="reference internal" href="#next-steps">Next Steps</a></li>
+<li><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
       
       
     </aside>
