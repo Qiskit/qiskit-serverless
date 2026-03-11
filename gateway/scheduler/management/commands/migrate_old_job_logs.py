@@ -35,7 +35,6 @@ class Command(BaseCommand):
     """Cleanup resources."""
 
     def handle(self, *args, **options):
-        jobs = list()
         while True:
             jobs = list(
                 Job.objects.order_by("id")
