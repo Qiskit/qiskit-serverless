@@ -17,9 +17,9 @@ class TestArgumentsStorage(TestCase):
             with self.settings(MEDIA_ROOT=temp_dir):
                 storage = ArgumentsStorage(username="user1", function_title="myfun")
 
-        self.assertEqual(storage.sub_path, "user1/arguments")
-        self.assertEqual(storage.absolute_path, f"{temp_dir}/user1/arguments")
-        self.assertTrue(os.path.exists(storage.absolute_path))
+                self.assertEqual(storage.sub_path, "user1/arguments")
+                self.assertEqual(storage.absolute_path, f"{temp_dir}/user1/arguments")
+                self.assertTrue(os.path.exists(storage.absolute_path))
 
     def test_path_with_provider(self):
         """Provider job: path is {username}/{provider}/{function}/arguments/"""

@@ -37,9 +37,9 @@ class TestFileStorage(TestCase):
                     function=mock_function,
                 )
 
-        self.assertEqual(storage.sub_path, "user1")
-        self.assertEqual(storage.absolute_path, f"{temp_dir}/user1")
-        self.assertTrue(os.path.exists(storage.absolute_path))
+                self.assertEqual(storage.sub_path, "user1")
+                self.assertEqual(storage.absolute_path, f"{temp_dir}/user1")
+                self.assertTrue(os.path.exists(storage.absolute_path))
 
     def test_user_storage_with_provider(self):
         """Provider job (user view): path is {username}/{provider}/{function}/"""
@@ -53,9 +53,9 @@ class TestFileStorage(TestCase):
                     function=mock_function,
                 )
 
-        self.assertEqual(storage.sub_path, "user1/provider1/myfun")
-        self.assertEqual(storage.absolute_path, f"{temp_dir}/user1/provider1/myfun")
-        self.assertTrue(os.path.exists(storage.absolute_path))
+                self.assertEqual(storage.sub_path, "user1/provider1/myfun")
+                self.assertEqual(storage.absolute_path, f"{temp_dir}/user1/provider1/myfun")
+                self.assertTrue(os.path.exists(storage.absolute_path))
 
     def test_provider_storage(self):
         """Provider job (provider view): path is {provider}/{function}/"""
@@ -69,31 +69,31 @@ class TestFileStorage(TestCase):
                     function=mock_function,
                 )
 
-        self.assertEqual(storage.sub_path, "provider1/myfun")
-        self.assertEqual(storage.absolute_path, f"{temp_dir}/provider1/myfun")
-        self.assertTrue(os.path.exists(storage.absolute_path))
+                self.assertEqual(storage.sub_path, "provider1/myfun")
+                self.assertEqual(storage.absolute_path, f"{temp_dir}/provider1/myfun")
+                self.assertTrue(os.path.exists(storage.absolute_path))
 
-        # Upload a file
-        file_content = b"functions are cool"
-        uploaded_file = SimpleUploadedFile("test.txt", file_content)
-        path = storage.upload_file(uploaded_file)
-        self.assertTrue(os.path.exists(path))
+                # Upload a file
+                file_content = b"functions are cool"
+                uploaded_file = SimpleUploadedFile("test.txt", file_content)
+                path = storage.upload_file(uploaded_file)
+                self.assertTrue(os.path.exists(path))
 
-        # Get the file
-        result = storage.get_file("test.txt")
-        self.assertIsNotNone(result)
-        file_wrapper, file_type, size = result
-        print("File Type" + file_type)
-        self.assertEqual(file_type, "text/plain")
-        self.assertEqual(size, len(file_content))
+                # Get the file
+                result = storage.get_file("test.txt")
+                self.assertIsNotNone(result)
+                file_wrapper, file_type, size = result
+                print("File Type" + file_type)
+                self.assertEqual(file_type, "text/plain")
+                self.assertEqual(size, len(file_content))
 
-        # List one file
-        self.assertEqual(storage.get_files(), ["test.txt"])
+                # List one file
+                self.assertEqual(storage.get_files(), ["test.txt"])
 
-        # Remove the file
-        removed = storage.remove_file("test.txt")
-        self.assertTrue(removed)
-        self.assertFalse(os.path.exists(path))
+                # Remove the file
+                removed = storage.remove_file("test.txt")
+                self.assertTrue(removed)
+                self.assertFalse(os.path.exists(path))
 
-        # Now the list has no files
-        self.assertEqual(storage.get_files(), [])
+                # Now the list has no files
+                self.assertEqual(storage.get_files(), [])
