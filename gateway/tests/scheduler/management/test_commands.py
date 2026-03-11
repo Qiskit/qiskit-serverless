@@ -2,10 +2,10 @@
 
 import os
 import tempfile
+from datetime import datetime, timezone
 from typing import Optional
 
 from django.contrib.auth.models import User, Group
-from django.core.cache import cache
 from django.core.management import call_command
 from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
@@ -15,7 +15,10 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobE
 from core.models import ComputeResource, Job, JobEvent, Program, Provider, Config
 from core.services.ray import JobHandler
 from core.utils import check_logs
-from scheduler.management.commands import update_jobs_statuses
+from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
+from scheduler.tasks.free_resources import FreeResources
+from scheduler.tasks.schedule_queued_jobs import ScheduleQueuedJobs
+from scheduler.schedule import get_jobs_to_schedule_fair_share
 
 
 class TestCommands(APITestCase):
@@ -24,7 +27,7 @@ class TestCommands(APITestCase):
     fixtures = ["tests/fixtures/schedule_fixtures.json"]
 
     def setUp(self):
-        Config.register_all()
+        Config.add_defaults()
 
     def test_create_compute_resource(self):
         """Tests compute resource creation command."""
@@ -34,11 +37,11 @@ class TestCommands(APITestCase):
 
     def test_free_resources(self):
         """Tests free resources command."""
-        call_command("free_resources")
+        FreeResources().run()
         num_resources = ComputeResource.objects.count()
         self.assertEqual(num_resources, 1)
 
-    @patch("scheduler.management.commands.update_jobs_statuses.get_job_handler")
+    @patch("scheduler.tasks.update_jobs_statuses.get_job_handler")
     def test_update_jobs_statuses(self, get_job_handler):
         """Tests update of job statuses."""
         # Test status change from PENDING to RUNNING
@@ -51,7 +54,7 @@ class TestCommands(APITestCase):
 
         job = self._create_test_job(ray_job_id="test_update_jobs_statuses")
 
-        call_command("update_jobs_statuses")
+        UpdateJobsStatuses().run()
 
         job.refresh_from_db()
         self.assertEqual(job.status, "RUNNING")
@@ -68,7 +71,7 @@ class TestCommands(APITestCase):
         ray_client.get_job_status.return_value = JobStatus.FAILED
         ray_client.get_job_logs.return_value = ""
 
-        call_command("update_jobs_statuses")
+        UpdateJobsStatuses().run()
 
         job.refresh_from_db()
         self.assertEqual(job.status, "FAILED")
@@ -82,7 +85,7 @@ class TestCommands(APITestCase):
         self.assertEqual(job_events[1].origin, JobEventOrigin.SCHEDULER)
         self.assertEqual(job_events[1].context, JobEventContext.UPDATE_JOB_STATUS)
 
-    @patch("scheduler.management.commands.schedule_queued_jobs.execute_job")
+    @patch("scheduler.tasks.schedule_queued_jobs.execute_job")
     def test_schedule_queued_jobs(self, execute_job):
         """Tests schedule of queued jobs command."""
         fake_job = MagicMock()
@@ -92,9 +95,11 @@ class TestCommands(APITestCase):
         fake_job.sub_status = None
         fake_job.program.artifact.path = "non_existing_file.tar"
         fake_job.save.return_value = None
+        fake_job.created = datetime.now(timezone.utc)
+        fake_job.gpu = False
 
         execute_job.return_value = fake_job
-        call_command("schedule_queued_jobs")
+        ScheduleQueuedJobs().run()
         # TODO: mock execute job to change status of job and query for QUEUED jobs  # pylint: disable=fixme
         job_count = Job.objects.count()
         self.assertEqual(job_count, 7)
@@ -111,6 +116,19 @@ class TestCommands(APITestCase):
         self.assertEqual(job_events[1].data["status"], JobStatus.SUCCEEDED)
         self.assertEqual(job_events[1].origin, JobEventOrigin.SCHEDULER)
         self.assertEqual(job_events[1].context, JobEventContext.SCHEDULE_JOBS)
+
+    def test_schedule_queued_jobs_separates_gpu_and_cpu_queues(self):
+        """Tests that GPU and CPU jobs are scheduled from separate queues."""
+        cpu_job = self._create_test_job(author="cpu_user", status=Job.QUEUED, gpu=False)
+        gpu_job = self._create_test_job(author="gpu_user", status=Job.QUEUED, gpu=True)
+
+        cpu_jobs = get_jobs_to_schedule_fair_share(slots=10, gpu=False)
+        gpu_jobs = get_jobs_to_schedule_fair_share(slots=10, gpu=True)
+
+        self.assertIn(cpu_job, cpu_jobs)
+        self.assertNotIn(gpu_job, cpu_jobs)
+        self.assertIn(gpu_job, gpu_jobs)
+        self.assertNotIn(cpu_job, gpu_jobs)
 
     def test_check_empty_logs(self):
         """Test error notification for failed and empty logs."""
@@ -148,7 +166,7 @@ class TestCommands(APITestCase):
                 logs,
             )
 
-    @patch("scheduler.management.commands.update_jobs_statuses.get_job_handler")
+    @patch("scheduler.tasks.update_jobs_statuses.get_job_handler")
     def test_update_jobs_statuses_filters_logs_user_function(self, get_job_handler):
         """Tests that logs are filtered when saving for function without provider."""
         compute_resource = ComputeResource.objects.create(title="test-cluster-user-logs", active=True)
@@ -177,7 +195,7 @@ Ray internal log without marker
                 ray_client.get_job_logs.return_value = full_logs
                 get_job_handler.return_value = JobHandler(ray_client)
 
-                call_command("update_jobs_statuses")
+                UpdateJobsStatuses().run()
 
                 # User logs are located in username/logs/
                 # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
@@ -213,7 +231,7 @@ INFO: Final public log
                 job.refresh_from_db()
                 self.assertTrue(job.logs == "")
 
-    @patch("scheduler.management.commands.update_jobs_statuses.get_job_handler")
+    @patch("scheduler.tasks.update_jobs_statuses.get_job_handler")
     def test_update_jobs_statuses_filters_logs_provider_function(self, get_job_handler):
         """Tests that logs are filtered when saving for function with provider."""
         compute_resource = ComputeResource.objects.create(title="test-cluster-provider-logs", active=True)
@@ -243,7 +261,7 @@ Internal system log
                 ray_client.get_job_logs.return_value = full_logs
                 get_job_handler.return_value = JobHandler(ray_client)
 
-                call_command("update_jobs_statuses")
+                UpdateJobsStatuses().run()
 
                 # User logs are located in username/provider/function/logs/ for provider jobs
                 # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
@@ -283,7 +301,7 @@ WARNING: Private warning
                     saved_provider_logs = log_file.read()
                 self.assertEqual(saved_provider_logs, expected_provider_logs)
 
-    @patch("scheduler.management.commands.update_jobs_statuses.get_job_handler")
+    @patch("scheduler.tasks.update_jobs_statuses.get_job_handler")
     def test_update_jobs_statuses_job_handler_status_error_status_event(self, get_job_handler):
         """Tests that the job_event is stored when job_handler.status() raises exception."""
         compute_resource = ComputeResource.objects.create(title="test-cluster-provider-logs", active=True)
@@ -301,7 +319,7 @@ WARNING: Private warning
                 job_handler.status.side_effect = RuntimeError("Error")
                 get_job_handler.return_value = job_handler
 
-                call_command("update_jobs_statuses")
+                UpdateJobsStatuses().run()
 
                 job_events = JobEvent.objects.filter(job=job.id)
                 self.assertEqual(len(job_events), 1)

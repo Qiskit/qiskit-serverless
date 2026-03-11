@@ -1,0 +1,7 @@
+---
+upgrade:
+  - |
+    The Scheduler and API code have been refactored to improve their maintainability and scalability.
+    Most changes are internal and do not affect the user experience, but some additions have
+    been made, for example, the scheduler can now respond to ``SIGINT`` and ``SIGTERM`` signals, and the
+    API now accepts a dynamic configuration system that allows changing application settings at runtime.
