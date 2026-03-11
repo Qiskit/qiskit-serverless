@@ -35,7 +35,7 @@ import logging
 import os
 import time
 import warnings
-from typing import ClassVar, Dict, Any, List, Literal, Optional, Tuple, Union
+from typing import ClassVar, Dict, Any, Literal, Optional, Tuple, Union
 from dataclasses import dataclass
 
 import ray.runtime_env
@@ -124,7 +124,7 @@ class JobService(ABC):
         """
 
     @abstractmethod
-    def events(self, job_id: str, **kwargs) -> str:
+    def events(self, job_id: str, **kwargs) -> list:
         """Returns events of the job.
         Args:
             job_id: The job id
@@ -269,9 +269,9 @@ class Job:
 
         return results
 
-    def events(self) -> List:
+    def events(self, **kwargs) -> list:
         """Returns events of the job."""
-        return self._job_service.events(self.job_id)
+        return self._job_service.events(self.job_id, **kwargs)
 
     def in_terminal_state(self) -> bool:
         """Checks if job is in terminal state"""
@@ -310,7 +310,7 @@ def send_error(code: str, message: str, args: Any):
 
     response = requests.post(
         url,
-        data={
+        json={
             "type": "ERROR",
             "code": code,
             "message": message,
@@ -319,6 +319,7 @@ def send_error(code: str, message: str, args: Any):
         headers=get_headers(token=token, instance=instance, channel=channel),
         timeout=REQUESTS_TIMEOUT,
     )
+
     if not response.ok:
         sanitized = response.text.replace("\n", "").replace("\r", "")
         logging.warning("Something went wrong sending error: %s", sanitized)

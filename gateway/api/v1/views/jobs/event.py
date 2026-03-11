@@ -89,9 +89,6 @@ def event(request: Request, job_id: UUID) -> Response:
 
     data = serializer.create(serializer.validated_data)
     user = cast(AbstractUser, request.user)
-    print("+++++++++++++++")
-    print(data.args)
-    print(request.data)
 
     JobEventUseCase().execute(job_id, user, data)
 

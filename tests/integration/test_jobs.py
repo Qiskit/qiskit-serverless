@@ -373,22 +373,43 @@ ERROR: Provider log
     def test_event(self, serverless_client: ServerlessClient):
         """Integration test for retrieving a function that isn't accessible."""
 
-        arguments_function = QiskitFunction(
-            title="pattern-with-arguments",
-            entrypoint="pattern_with_arguments.py",
+        events_function = QiskitFunction(
+            title="event_error_producer",
+            entrypoint="event_error_producer.py",
             working_dir=resources_path,
         )
 
-        expected_message = (
-            "\n| Message: Http bad request.\n"
-            "| Code: 404\n"
-            "| Details: User program 'wrong-title' was not found or you do not "
-            "have permission to view it."
+        events_function = serverless_client.upload(events_function)
+
+        job = events_function.run()
+
+        job.result()
+
+        events = job.events(type="ERROR")
+        assert len(events) == 1
+
+        event_data = events[0]["data"]
+        assert event_data["code"] == "1000"
+        assert event_data["message"] == "My error message"
+        assert event_data["args"]["my-arg-1"] == 123
+        assert event_data["args"]["my-arg-2"] == "hi"
+
+    def test_event_wrong_type(self, serverless_client: ServerlessClient):
+        """Integration test for retrieving a function that isn't accessible."""
+
+        events_function = QiskitFunction(
+            title="event_error_producer",
+            entrypoint="event_error_producer.py",
+            working_dir=resources_path,
         )
 
-        serverless_client.upload(arguments_function)
+        events_function = serverless_client.upload(events_function)
+
+        job = events_function.run()
+
+        job.result()
 
         with raises(QiskitServerlessException) as exc_info:
-            serverless_client.function("wrong-title")
+            job.events(type="NotValidJobEventType")
 
-        assert str(exc_info.value) == expected_message
+        assert "Type is not valid. Valid types: ['ERROR']" in str(exc_info.value)

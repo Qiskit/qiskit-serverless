@@ -78,7 +78,6 @@ class JobEventQuerySet(QuerySet):
         job_id: uuid.UUID,
         origin: JobEventOrigin,
         context: JobEventContext,
-        event_type: str,
         code: str,
         message: str,
         args: Any,
@@ -89,7 +88,7 @@ class JobEventQuerySet(QuerySet):
             job_id=job_id,
             origin=origin,
             context=context,
-            event_type=event_type,
+            event_type=JobEventType.ERROR,
             data={"code": code, "message": message, "args": args},
         )
 
@@ -104,6 +103,6 @@ class JobEventQuerySet(QuerySet):
             job_id=job_id,
         )
         if event_type:
-            events.filter(event_type=event_type)
+            events = events.filter(event_type=event_type)
 
         return events

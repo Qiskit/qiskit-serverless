@@ -10,7 +10,7 @@ from django.contrib.auth.models import AbstractUser
 from api.repositories.jobs import JobsRepository
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.access_policies.jobs import JobAccessPolicies
-from core.model_managers.job_events import JobEventContext, JobEventOrigin
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.services.storage.result_storage import ResultStorage
 from core.models import Job, JobEvent
 
@@ -58,6 +58,7 @@ class JobEventUseCase:
         if not can_create_events:
             raise JobNotFoundException(job_id)
 
-        JobEvent.objects.add_error_event(
-            job_id, JobEventOrigin.API, JobEventContext.SEND_ERROR, data.event_type, data.code, data.message, data.args
-        )
+        if data.event_type == JobEventType.ERROR:
+            JobEvent.objects.add_error_event(
+                job_id, JobEventOrigin.API, JobEventContext.SEND_ERROR, data.code, data.message, data.args
+            )

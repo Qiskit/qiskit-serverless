@@ -885,11 +885,12 @@ class TestJobApi(APITestCase):
         message_2 = "My test message 2"
         args = {"ultimate": 42}
         args_2 = {"ultimate": 422}
+        JobEvent.objects.add_error_event(job_id, JobEventOrigin.API, JobEventContext.SEND_ERROR, code, message, args)
         JobEvent.objects.add_error_event(
-            job_id, JobEventOrigin.API, JobEventContext.SEND_ERROR, JobEventType.ERROR, code, message, args
+            job_id, JobEventOrigin.API, JobEventContext.SEND_ERROR, code_2, message_2, args_2
         )
-        JobEvent.objects.add_error_event(
-            job_id, JobEventOrigin.API, JobEventContext.SEND_ERROR, JobEventType.ERROR, code_2, message_2, args_2
+        JobEvent.objects.add_status_event(
+            job_id, JobEventOrigin.SCHEDULER, JobEventContext.SCHEDULE_JOBS, Job.SUCCEEDED
         )
 
         job_event_response = self.client.get(
