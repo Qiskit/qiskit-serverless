@@ -248,7 +248,8 @@ class TestProgramApi(APITestCase):
                 format="json",
             )
 
-        with self.settings(LIMITS_ACTIVE_JOBS_PER_USER=self.LIMITS_ACTIVE_JOBS_PER_USER):
+        temp_dir = tempfile.mkdtemp()
+        with self.settings(LIMITS_ACTIVE_JOBS_PER_USER=self.LIMITS_ACTIVE_JOBS_PER_USER, MEDIA_ROOT=temp_dir):
             user = TestUtils.authorize_client(username="test_limit_user", client=self.client)
 
             # our user will have 2 Jobs, one with `QUEUED` status and other in `SUCCEEDED` status.
