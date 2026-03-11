@@ -231,11 +231,12 @@ class TestJobResult:
         mock_service.status.return_value = Job.RUNNING
 
         # After 2 iterations, change to SUCCEEDED
-        call_count = [0]
+        call_count = 0
 
         def status_side_effect(_job_id):
-            call_count[0] += 1
-            if call_count[0] <= 4:  # First 4 calls return RUNNING
+            nonlocal call_count
+            call_count += 1
+            if call_count <= 4:  # First 4 calls return RUNNING
                 return Job.RUNNING
             return Job.SUCCEEDED
 
