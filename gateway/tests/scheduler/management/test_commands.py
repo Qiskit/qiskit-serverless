@@ -336,6 +336,7 @@ WARNING: Private warning
         compute_resource: Optional[ComputeResource] = None,
         ray_job_id: str = "test-job-id",
         gpu: bool = False,
+        logs: str = "No logs yet.",
     ) -> Job:
         """Helper method to create a test job.
 
@@ -373,4 +374,5 @@ WARNING: Private warning
             compute_resource=compute_resource,
             ray_job_id=ray_job_id,
             gpu=gpu,
+            logs=logs,
         )
