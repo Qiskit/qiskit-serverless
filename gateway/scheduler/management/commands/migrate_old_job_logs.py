@@ -52,3 +52,4 @@ class Command(BaseCommand):
 
                 job.logs = ""
                 job.save(update_fields=["logs"])
+                return
