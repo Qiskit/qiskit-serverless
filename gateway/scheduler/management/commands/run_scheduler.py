@@ -10,5 +10,5 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         main = Main()
-        main.configure()
+        main.start_http_server()
         main.run()

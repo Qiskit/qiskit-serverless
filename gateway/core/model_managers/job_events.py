@@ -19,11 +19,22 @@ class JobEventOrigin(StrEnum):
 class JobEventContext(StrEnum):
     """Job events context enum."""
 
-    SET_SUB_STATUS = "SET_SUB_STATUS"
-    STOP_JOB = "STOP_JOB"
+    # Gateway: new job is created in the db only (status QUEUED)
     RUN_PROGRAM = "RUN_PROGRAM"
-    UPDATE_JOB_STATUS = "UPDATE_JOB_STATUS"
+
+    # Scheduler: Job is launched (status PENDING)
     SCHEDULE_JOBS = "SCHEDULE_JOBS"
+
+    # Gateway: job status STOPPED
+    STOP_JOB = "STOP_JOB"
+
+    # Scheduler: PENDING to RUNNING, and RUNNING to FAILED/STOPPED/SUCCEEDED
+    UPDATE_JOB_STATUS = "UPDATE_JOB_STATUS"
+
+    # Gateway: status RUNNING, substatus change
+    SET_SUB_STATUS = "SET_SUB_STATUS"
+
+    # Admin: any state to any state
     SAVE_MODEL = "SAVE_MODEL"
     SEND_ERROR = "SEND_ERROR"
 

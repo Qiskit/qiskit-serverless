@@ -270,7 +270,7 @@ SWAGGER_SETTINGS = {
 }
 
 SITE_ID = 1
-SITE_HOST = os.environ.get("SITE_HOST", "http://localhost:8000")
+SITE_HOST = os.environ.get("SITE_HOST", "http://localhost:8001" if IS_SCHEDULER else "http://localhost:8000")
 
 # custom token auth
 QUANTUM_PLATFORM_API_BASE_URL = os.environ.get("QUANTUM_PLATFORM_API_BASE_URL", None)
@@ -303,7 +303,7 @@ LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
 RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
 RAY_CLUSTER_MODE_LOCAL = os.environ.get("RAY_CLUSTER_MODE_LOCAL", "false").lower() == "true"
 RAY_LOCAL_HOST = os.environ.get("RAY_LOCAL_HOST", "http://localhost:8265")
-RAY_NODE_IMAGE = os.environ.get("RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.29.0")
+RAY_NODE_IMAGE = os.environ.get("RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.30.0")
 RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "1"))
 RAY_CLUSTER_WORKER_REPLICAS_MAX = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS_MAX", "5"))
 RAY_CLUSTER_WORKER_MIN_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS", "1"))
@@ -353,16 +353,20 @@ RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL = os.environ.get(
 )
 RESOURCE_PLANS_ID_ALLOWED = os.environ.get("RESOURCE_PLANS_ID_ALLOWED", "").split(",")
 
-# Content Security Policy
-CSP_DEFAULT_SRC = "'none'"
-CSP_SCRIPT_SRC = "'none'"
-CSP_FRAME_ANCESTORS = "'self'"
-CSP_OBJECT_SRC = "'self'"
-CSP_IMG_SRC = ("'self'", "data:")
-CSP_STYLE_SRC_ELEM = "'self'"
-CSP_SCRIPT_SRC_ELEM = "'self'"
-CSP_CONNECT_SRC = "'self'"
-CSP_WORKER_SRC = ("'self'", "blob:")
+# Content Security Policy (django-csp >= 4.0 format)
+CONTENT_SECURITY_POLICY = {
+    "DIRECTIVES": {
+        "default-src": "'none'",
+        "script-src": "'none'",
+        "frame-ancestors": "'self'",
+        "object-src": "'self'",
+        "img-src": ("'self'", "data:"),
+        "style-src-elem": "'self'",
+        "script-src-elem": "'self'",
+        "connect-src": "'self'",
+        "worker-src": ("'self'", "blob:"),
+    }
+}
 
 # Custom image for programs settings
 CUSTOM_IMAGE_PACKAGE_NAME = os.environ.get("CUSTOM_IMAGE_PACKAGE_NAME", "runner")
