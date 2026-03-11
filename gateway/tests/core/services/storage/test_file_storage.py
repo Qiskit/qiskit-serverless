@@ -29,13 +29,13 @@ class TestFileStorage(TestCase):
         """User job: path is {username}/"""
         mock_function = create_function("x")
 
-        temp_dir = tempfile.mkdtemp()
-        with self.settings(MEDIA_ROOT=temp_dir):
-            storage = FileStorage(
-                username="user1",
-                working_dir=WorkingDir.USER_STORAGE,
-                function=mock_function,
-            )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with self.settings(MEDIA_ROOT=temp_dir):
+                storage = FileStorage(
+                    username="user1",
+                    working_dir=WorkingDir.USER_STORAGE,
+                    function=mock_function,
+                )
 
         self.assertEqual(storage.sub_path, "user1")
         self.assertEqual(storage.absolute_path, f"{temp_dir}/user1")
@@ -45,13 +45,13 @@ class TestFileStorage(TestCase):
         """Provider job (user view): path is {username}/{provider}/{function}/"""
         mock_function = create_function("myfun", "provider1")
 
-        temp_dir = tempfile.mkdtemp()
-        with self.settings(MEDIA_ROOT=temp_dir):
-            storage = FileStorage(
-                username="user1",
-                working_dir=WorkingDir.USER_STORAGE,
-                function=mock_function,
-            )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with self.settings(MEDIA_ROOT=temp_dir):
+                storage = FileStorage(
+                    username="user1",
+                    working_dir=WorkingDir.USER_STORAGE,
+                    function=mock_function,
+                )
 
         self.assertEqual(storage.sub_path, "user1/provider1/myfun")
         self.assertEqual(storage.absolute_path, f"{temp_dir}/user1/provider1/myfun")
@@ -59,15 +59,15 @@ class TestFileStorage(TestCase):
 
     def test_provider_storage(self):
         """Provider job (provider view): path is {provider}/{function}/"""
-        temp_dir = tempfile.mkdtemp()
         mock_function = create_function("myfun", "provider1")
 
-        with self.settings(MEDIA_ROOT=temp_dir):
-            storage = FileStorage(
-                username="user1",
-                working_dir=WorkingDir.PROVIDER_STORAGE,
-                function=mock_function,
-            )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with self.settings(MEDIA_ROOT=temp_dir):
+                storage = FileStorage(
+                    username="user1",
+                    working_dir=WorkingDir.PROVIDER_STORAGE,
+                    function=mock_function,
+                )
 
         self.assertEqual(storage.sub_path, "provider1/myfun")
         self.assertEqual(storage.absolute_path, f"{temp_dir}/provider1/myfun")
