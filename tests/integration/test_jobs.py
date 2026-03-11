@@ -369,3 +369,47 @@ ERROR: Provider log
             serverless_client.function("wrong-title")
 
         assert str(exc_info.value) == expected_message
+
+    def test_event(self, serverless_client: ServerlessClient):
+        """Integration test for retrieving a function that isn't accessible."""
+
+        events_function = QiskitFunction(
+            title="event_error_producer",
+            entrypoint="event_error_producer.py",
+            working_dir=resources_path,
+        )
+
+        events_function = serverless_client.upload(events_function)
+
+        job = events_function.run()
+
+        job.result()
+
+        events = job.events(type="ERROR")
+        assert len(events) == 1
+
+        event_data = events[0]["data"]
+        assert event_data["code"] == "1000"
+        assert event_data["message"] == "My error message"
+        assert event_data["args"]["my-arg-1"] == 123
+        assert event_data["args"]["my-arg-2"] == "hi"
+
+    def test_event_wrong_type(self, serverless_client: ServerlessClient):
+        """Integration test for retrieving a function that isn't accessible."""
+
+        events_function = QiskitFunction(
+            title="event_error_producer",
+            entrypoint="event_error_producer.py",
+            working_dir=resources_path,
+        )
+
+        events_function = serverless_client.upload(events_function)
+
+        job = events_function.run()
+
+        job.result()
+
+        with raises(QiskitServerlessException) as exc_info:
+            job.events(type="NotValidJobEventType")
+
+        assert "Type is not valid. Valid types: ['ERROR']" in str(exc_info.value)

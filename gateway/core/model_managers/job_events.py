@@ -1,5 +1,6 @@
 """Job events model manager."""
 
+from typing import Any
 import uuid
 
 from enum import StrEnum
@@ -35,11 +36,13 @@ class JobEventContext(StrEnum):
 
     # Admin: any state to any state
     SAVE_MODEL = "SAVE_MODEL"
+    SEND_ERROR = "SEND_ERROR"
 
 
 class JobEventType(StrEnum):
     """Job events type enum."""
 
+    ERROR = "ERROR"
     STATUS_CHANGE = "STATUS_CHANGE"
     SUB_STATUS_CHANGE = "SUB_STATUS_CHANGE"
 
@@ -80,3 +83,37 @@ class JobEventQuerySet(QuerySet):
             event_type=JobEventType.SUB_STATUS_CHANGE,
             data={"sub_status": sub_status},
         )
+
+    def add_error_event(  # pylint:  disable=too-many-positional-arguments
+        self,
+        job_id: uuid.UUID,
+        origin: JobEventOrigin,
+        context: JobEventContext,
+        code: str,
+        message: str,
+        args: Any,
+    ):
+        """Sub Status change event for jobs."""
+
+        return self.create(
+            job_id=job_id,
+            origin=origin,
+            context=context,
+            event_type=JobEventType.ERROR,
+            data={"code": code, "message": message, "args": args},
+        )
+
+    def get_job_events(  # pylint:  disable=too-many-positional-arguments
+        self,
+        job_id: uuid.UUID,
+        event_type: str | None,
+    ):
+        """Sub Status change event for jobs."""
+
+        events = self.filter(
+            job_id=job_id,
+        )
+        if event_type:
+            events = events.filter(event_type=event_type)
+
+        return events
