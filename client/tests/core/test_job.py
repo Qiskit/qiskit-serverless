@@ -549,8 +549,8 @@ class TestStatusMapping:
         assert sub_status == expected_sub_status
 
 
-class TestJobErrorHandling:
-    """Test error handling in Job operations."""
+class TestJobMethods:
+    """Test Job class methods for canceling, logging, and runtime operations."""
 
     def test_job_cancel_method(self):
         """Test Job.cancel() method."""
