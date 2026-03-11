@@ -419,7 +419,7 @@ class TestGetRuntimeService:
     @patch.dict(
         os.environ,
         {
-            "QISKIT_IBM_CHANNEL": "ibm_quantum",
+            "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
             "QISKIT_IBM_INSTANCE": "test-crn",
             "QISKIT_IBM_TOKEN": "test-token",
         },
@@ -433,7 +433,7 @@ class TestGetRuntimeService:
 
         assert service is not None
         mock_service_class.assert_called_once_with(
-            channel="ibm_quantum",
+            channel="ibm_quantum_platform",
             instance="test-crn",
             token="test-token",
             url=None,
@@ -443,7 +443,7 @@ class TestGetRuntimeService:
     @patch.dict(
         os.environ,
         {
-            "QISKIT_IBM_CHANNEL": "ibm_quantum",
+            "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
             "QISKIT_IBM_INSTANCE": "test-crn",
             "QISKIT_IBM_TOKEN": "test-token",
         },
@@ -472,7 +472,7 @@ class TestGetRuntimeService:
     @patch.dict(
         os.environ,
         {
-            "QISKIT_IBM_CHANNEL": "ibm_quantum",
+            "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
             "QISKIT_IBM_INSTANCE": "test-crn",
             "QISKIT_IBM_TOKEN": "test-token",
             "QISKIT_IBM_URL": "https://env.url",
@@ -487,7 +487,7 @@ class TestGetRuntimeService:
 
         assert service is not None
         mock_service_class.assert_called_once_with(
-            channel="ibm_quantum",
+            channel="ibm_quantum_platform",
             instance="test-crn",
             token="test-token",
             url="https://env.url",
@@ -500,130 +500,52 @@ class TestGetRuntimeService:
                 get_runtime_service()
 
 
-class TestStatusMapping:  # pylint: disable=too-many-public-methods
+class TestStatusMapping:
     """Test status mapping functions."""
 
-    def test_map_status_from_serverless_pending(self):
-        """Test mapping PENDING status from serverless."""
-        assert _map_status_from_serveless(Job.PENDING) == "INITIALIZING"
+    @pytest.mark.parametrize(
+        "serverless_status,expected_output",
+        [
+            (Job.PENDING, "INITIALIZING"),
+            (Job.RUNNING, "RUNNING"),
+            (Job.STOPPED, "CANCELED"),
+            (Job.SUCCEEDED, "DONE"),
+            (Job.FAILED, "ERROR"),
+            (Job.QUEUED, "QUEUED"),
+            (Job.MAPPING, "RUNNING: MAPPING"),
+            (Job.OPTIMIZING_HARDWARE, "RUNNING: OPTIMIZING_FOR_HARDWARE"),
+            (Job.WAITING_QPU, "RUNNING: WAITING_FOR_QPU"),
+            (Job.EXECUTING_QPU, "RUNNING: EXECUTING_QPU"),
+            (Job.POST_PROCESSING, "RUNNING: POST_PROCESSING"),
+            ("UNKNOWN_STATUS", "UNKNOWN_STATUS"),
+        ],
+    )
+    def test_map_status_from_serverless(self, serverless_status, expected_output):
+        """Test mapping status from serverless to external format."""
+        assert _map_status_from_serveless(serverless_status) == expected_output
 
-    def test_map_status_from_serverless_running(self):
-        """Test mapping RUNNING status from serverless."""
-        assert _map_status_from_serveless(Job.RUNNING) == "RUNNING"
-
-    def test_map_status_from_serverless_stopped(self):
-        """Test mapping STOPPED status from serverless."""
-        assert _map_status_from_serveless(Job.STOPPED) == "CANCELED"
-
-    def test_map_status_from_serverless_succeeded(self):
-        """Test mapping SUCCEEDED status from serverless."""
-        assert _map_status_from_serveless(Job.SUCCEEDED) == "DONE"
-
-    def test_map_status_from_serverless_failed(self):
-        """Test mapping FAILED status from serverless."""
-        assert _map_status_from_serveless(Job.FAILED) == "ERROR"
-
-    def test_map_status_from_serverless_queued(self):
-        """Test mapping QUEUED status from serverless."""
-        assert _map_status_from_serveless(Job.QUEUED) == "QUEUED"
-
-    def test_map_status_from_serverless_mapping(self):
-        """Test mapping MAPPING sub-status from serverless."""
-        assert _map_status_from_serveless(Job.MAPPING) == "RUNNING: MAPPING"
-
-    def test_map_status_from_serverless_optimizing_hardware(self):
-        """Test mapping OPTIMIZING_HARDWARE sub-status from serverless."""
-        assert _map_status_from_serveless(Job.OPTIMIZING_HARDWARE) == "RUNNING: OPTIMIZING_FOR_HARDWARE"
-
-    def test_map_status_from_serverless_waiting_qpu(self):
-        """Test mapping WAITING_QPU sub-status from serverless."""
-        assert _map_status_from_serveless(Job.WAITING_QPU) == "RUNNING: WAITING_FOR_QPU"
-
-    def test_map_status_from_serverless_executing_qpu(self):
-        """Test mapping EXECUTING_QPU sub-status from serverless."""
-        assert _map_status_from_serveless(Job.EXECUTING_QPU) == "RUNNING: EXECUTING_QPU"
-
-    def test_map_status_from_serverless_post_processing(self):
-        """Test mapping POST_PROCESSING sub-status from serverless."""
-        assert _map_status_from_serveless(Job.POST_PROCESSING) == "RUNNING: POST_PROCESSING"
-
-    def test_map_status_from_serverless_unknown(self):
-        """Test mapping unknown status returns original."""
-        unknown_status = "UNKNOWN_STATUS"
-        assert _map_status_from_serveless(unknown_status) == unknown_status
-
-    def test_map_status_to_serverless_initializing(self):
-        """Test mapping INITIALIZING to serverless."""
-        status, sub_status = _map_status_to_serverless("INITIALIZING")
-        assert status == Job.PENDING
-        assert sub_status is None
-
-    def test_map_status_to_serverless_running(self):
-        """Test mapping RUNNING to serverless."""
-        status, sub_status = _map_status_to_serverless("RUNNING")
-        assert status == Job.RUNNING
-        assert sub_status is None
-
-    def test_map_status_to_serverless_canceled(self):
-        """Test mapping CANCELED to serverless."""
-        status, sub_status = _map_status_to_serverless("CANCELED")
-        assert status == Job.STOPPED
-        assert sub_status is None
-
-    def test_map_status_to_serverless_done(self):
-        """Test mapping DONE to serverless."""
-        status, sub_status = _map_status_to_serverless("DONE")
-        assert status == Job.SUCCEEDED
-        assert sub_status is None
-
-    def test_map_status_to_serverless_error(self):
-        """Test mapping ERROR to serverless."""
-        status, sub_status = _map_status_to_serverless("ERROR")
-        assert status == Job.FAILED
-        assert sub_status is None
-
-    def test_map_status_to_serverless_queued(self):
-        """Test mapping QUEUED to serverless."""
-        status, sub_status = _map_status_to_serverless("QUEUED")
-        assert status == Job.QUEUED
-        assert sub_status is None
-
-    def test_map_status_to_serverless_running_mapping(self):
-        """Test mapping RUNNING: MAPPING to serverless."""
-        status, sub_status = _map_status_to_serverless("RUNNING: MAPPING")
-        assert status == Job.RUNNING
-        assert sub_status == Job.MAPPING
-
-    def test_map_status_to_serverless_running_optimizing(self):
-        """Test mapping RUNNING: OPTIMIZING_FOR_HARDWARE to serverless."""
-        status, sub_status = _map_status_to_serverless("RUNNING: OPTIMIZING_FOR_HARDWARE")
-        assert status == Job.RUNNING
-        assert sub_status == Job.OPTIMIZING_HARDWARE
-
-    def test_map_status_to_serverless_running_waiting_qpu(self):
-        """Test mapping RUNNING: WAITING_FOR_QPU to serverless."""
-        status, sub_status = _map_status_to_serverless("RUNNING: WAITING_FOR_QPU")
-        assert status == Job.RUNNING
-        assert sub_status == Job.WAITING_QPU
-
-    def test_map_status_to_serverless_running_executing_qpu(self):
-        """Test mapping RUNNING: EXECUTING_QPU to serverless."""
-        status, sub_status = _map_status_to_serverless("RUNNING: EXECUTING_QPU")
-        assert status == Job.RUNNING
-        assert sub_status == Job.EXECUTING_QPU
-
-    def test_map_status_to_serverless_running_post_processing(self):
-        """Test mapping RUNNING: POST_PROCESSING to serverless."""
-        status, sub_status = _map_status_to_serverless("RUNNING: POST_PROCESSING")
-        assert status == Job.RUNNING
-        assert sub_status == Job.POST_PROCESSING
-
-    def test_map_status_to_serverless_unknown(self):
-        """Test mapping unknown status returns original."""
-        unknown_status = "UNKNOWN_STATUS"
-        status, sub_status = _map_status_to_serverless(unknown_status)
-        assert status == unknown_status
-        assert sub_status is None
+    @pytest.mark.parametrize(
+        "external_status,expected_status,expected_sub_status",
+        [
+            ("INITIALIZING", Job.PENDING, None),
+            ("RUNNING", Job.RUNNING, None),
+            ("CANCELED", Job.STOPPED, None),
+            ("DONE", Job.SUCCEEDED, None),
+            ("ERROR", Job.FAILED, None),
+            ("QUEUED", Job.QUEUED, None),
+            ("RUNNING: MAPPING", Job.RUNNING, Job.MAPPING),
+            ("RUNNING: OPTIMIZING_FOR_HARDWARE", Job.RUNNING, Job.OPTIMIZING_HARDWARE),
+            ("RUNNING: WAITING_FOR_QPU", Job.RUNNING, Job.WAITING_QPU),
+            ("RUNNING: EXECUTING_QPU", Job.RUNNING, Job.EXECUTING_QPU),
+            ("RUNNING: POST_PROCESSING", Job.RUNNING, Job.POST_PROCESSING),
+            ("UNKNOWN_STATUS", "UNKNOWN_STATUS", None),
+        ],
+    )
+    def test_map_status_to_serverless(self, external_status, expected_status, expected_sub_status):
+        """Test mapping status from external format to serverless."""
+        status, sub_status = _map_status_to_serverless(external_status)
+        assert status == expected_status
+        assert sub_status == expected_sub_status
 
 
 class TestJobErrorHandling:
