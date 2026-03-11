@@ -26,7 +26,9 @@ system and receive the results when they are ready.
 
   About Qiskit Serverless <self>
   Installation <installation/index>
-  Getting started <getting_started/index>
+  Local Setup <local_setup/index>
+  Function Features <function_features/index>
+  Custom Images <custom_images/index>
   Deployment <deployment/index>
   Release Notes <release-notes>
 
