@@ -7,6 +7,7 @@ from typing import Any
 from uuid import UUID
 import logging
 from django.contrib.auth.models import AbstractUser
+from api.domain.exceptions.invalid_access_exception import InvalidAccessException
 from api.repositories.jobs import JobsRepository
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.access_policies.jobs import JobAccessPolicies
@@ -57,6 +58,9 @@ class JobEventUseCase:
         can_create_events = JobAccessPolicies.can_create_events(user, job)
         if not can_create_events:
             raise JobNotFoundException(job_id)
+
+        if job.status != Job.RUNNING:
+            raise InvalidAccessException("You can create events on RUNNING jobs only")
 
         if data.event_type == JobEventType.ERROR:
             JobEvent.objects.add_error_event(

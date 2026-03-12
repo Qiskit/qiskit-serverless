@@ -770,6 +770,8 @@ class TestJobApi(APITestCase):
 
         self._authorize("test_user")
         user_job = self._create_job(author="test_user")
+        user_job.status = Job.RUNNING
+        user_job.save()
 
         job_id = user_job.pk
         code = "1111"
@@ -795,11 +797,37 @@ class TestJobApi(APITestCase):
         self.assertEqual(job_events[0].data["message"], message)
         self.assertEqual(job_events[0].data["args"], args)
 
+    def test_job_event_creation_non_running(self):
+        """Tests create event on a non running job."""
+
+        self._authorize("test_user")
+        user_job = self._create_job(author="test_user")
+
+        job_id = user_job.pk
+        code = "1111"
+        message = "My test message"
+        args = json.dumps({"ultimate": 42})
+        job_event_response = self.client.post(
+            reverse(
+                "v1:jobs-event",
+                args=[job_id],
+            ),
+            format="json",
+            data={"type": JobEventType.ERROR, "code": code, "message": message, "args": args},
+        )
+
+        self.assertEqual(job_event_response.status_code, status.HTTP_403_FORBIDDEN)
+        job_events = JobEvent.objects.filter(job_id=job_id)
+
+        self.assertEqual(len(job_events), 0)
+
     def test_job_event_without_args(self):
         """Tests create event without args field."""
 
         self._authorize("test_user")
         user_job = self._create_job(author="test_user")
+        user_job.status = Job.RUNNING
+        user_job.save()
 
         job_id = user_job.pk
         code = "1111"
@@ -828,6 +856,8 @@ class TestJobApi(APITestCase):
         """Tests create event with a not authorized user."""
 
         user_job = self._create_job(author="test_user")
+        user_job.status = Job.RUNNING
+        user_job.save()
         self._authorize("test_user_2")
 
         job_id = user_job.pk
@@ -853,6 +883,8 @@ class TestJobApi(APITestCase):
 
         self._authorize("test_user")
         user_job = self._create_job(author="test_user")
+        user_job.status = Job.RUNNING
+        user_job.save()
 
         job_id = user_job.pk
         code = "1111"
@@ -877,6 +909,8 @@ class TestJobApi(APITestCase):
 
         self._authorize("test_user")
         user_job = self._create_job(author="test_user")
+        user_job.status = Job.RUNNING
+        user_job.save()
 
         job_id = user_job.pk
         code = "1111"
@@ -925,6 +959,8 @@ class TestJobApi(APITestCase):
 
         self._authorize("test_user")
         user_job = self._create_job(author="test_user")
+        user_job.status = Job.RUNNING
+        user_job.save()
 
         job_id = user_job.pk
         job_event_response = self.client.get(
@@ -943,6 +979,8 @@ class TestJobApi(APITestCase):
 
         self._authorize("test_user_2")
         user_job = self._create_job(author="test_user")
+        user_job.status = Job.RUNNING
+        user_job.save()
 
         job_id = user_job.pk
         job_event_response = self.client.get(
