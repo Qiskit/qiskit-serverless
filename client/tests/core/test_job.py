@@ -364,50 +364,34 @@ class TestJobResult:
 class TestJobInTerminalState:
     """Test Job.in_terminal_state() method."""
 
-    def test_in_terminal_state_canceled(self):
-        """Test in_terminal_state() returns True for CANCELED status."""
+    @pytest.mark.parametrize(
+        "status",
+        [
+            "CANCELED",
+            "DONE",
+            "ERROR",
+        ],
+    )
+    def test_in_terminal_state(self, status):
+        """Test in_terminal_state() returns True for terminal statuses."""
         mock_service = Mock()
-        mock_service.status.return_value = "CANCELED"
+        mock_service.status.return_value = status
 
         job = Job(job_id="test-job", job_service=mock_service)
         assert job.in_terminal_state() is True
 
-    def test_in_terminal_state_done(self):
-        """Test in_terminal_state() returns True for DONE status."""
+    @pytest.mark.parametrize(
+        "status",
+        [
+            "RUNNING",
+            "INITIALIZING",
+            "QUEUED",
+        ],
+    )
+    def test_not_in_terminal_state(self, status):
+        """Test in_terminal_state() returns False for non-terminal statuses."""
         mock_service = Mock()
-        mock_service.status.return_value = "DONE"
-
-        job = Job(job_id="test-job", job_service=mock_service)
-        assert job.in_terminal_state() is True
-
-    def test_in_terminal_state_error(self):
-        """Test in_terminal_state() returns True for ERROR status."""
-        mock_service = Mock()
-        mock_service.status.return_value = "ERROR"
-
-        job = Job(job_id="test-job", job_service=mock_service)
-        assert job.in_terminal_state() is True
-
-    def test_not_in_terminal_state_running(self):
-        """Test in_terminal_state() returns False for RUNNING status."""
-        mock_service = Mock()
-        mock_service.status.return_value = "RUNNING"
-
-        job = Job(job_id="test-job", job_service=mock_service)
-        assert job.in_terminal_state() is False
-
-    def test_not_in_terminal_state_pending(self):
-        """Test in_terminal_state() returns False for PENDING status."""
-        mock_service = Mock()
-        mock_service.status.return_value = "INITIALIZING"
-
-        job = Job(job_id="test-job", job_service=mock_service)
-        assert job.in_terminal_state() is False
-
-    def test_not_in_terminal_state_queued(self):
-        """Test in_terminal_state() returns False for QUEUED status."""
-        mock_service = Mock()
-        mock_service.status.return_value = "QUEUED"
+        mock_service.status.return_value = status
 
         job = Job(job_id="test-job", job_service=mock_service)
         assert job.in_terminal_state() is False
