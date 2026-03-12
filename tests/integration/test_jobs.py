@@ -395,7 +395,7 @@ ERROR: Provider log
         assert event_data["args"]["my-arg-2"] == "hi"
 
     def test_event_wrong_type(self, serverless_client: ServerlessClient):
-        """Integration test for retrieving a function that isn't accessible."""
+        """Integration test for submitting an error event within the function and failing to retrieve client-side because of wrong type specified."""
 
         events_function = QiskitFunction(
             title="event_error_producer",
