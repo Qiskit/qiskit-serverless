@@ -75,7 +75,7 @@ class InputSerializer(serializers.Serializer):
 @endpoint_handle_exceptions
 def event(request: Request, job_id: UUID) -> Response:
     """
-    Creates an error event for the selected job
+    Creates an event for the selected job
 
     Args:
         request: The HTTP request.

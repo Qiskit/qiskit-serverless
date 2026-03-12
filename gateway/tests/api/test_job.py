@@ -825,7 +825,7 @@ class TestJobApi(APITestCase):
         self.assertEqual(job_events[0].data["args"], None)
 
     def test_job_event_unauthorized(self):
-        """Tests create event."""
+        """Tests create event with a not authorized user."""
 
         user_job = self._create_job(author="test_user")
         self._authorize("test_user_2")
@@ -849,7 +849,7 @@ class TestJobApi(APITestCase):
         self.assertEqual(len(job_events), 0)
 
     def test_job_event_type_wrong(self):
-        """Tests create event."""
+        """Tests create event using a not valid type."""
 
         self._authorize("test_user")
         user_job = self._create_job(author="test_user")
@@ -873,7 +873,7 @@ class TestJobApi(APITestCase):
         self.assertEqual(len(job_events), 0)
 
     def test_job_events(self):
-        """Tests list events."""
+        """Tests list error events."""
 
         self._authorize("test_user")
         user_job = self._create_job(author="test_user")
@@ -921,7 +921,7 @@ class TestJobApi(APITestCase):
         assert event_1["data"]["args"] == args_2
 
     def test_job_events_wrong_type(self):
-        """Tests list events."""
+        """Tests try to access job events using a wrong type to filter."""
 
         self._authorize("test_user")
         user_job = self._create_job(author="test_user")
@@ -939,7 +939,7 @@ class TestJobApi(APITestCase):
         self.assertEqual(job_event_response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_job_events_wrong_user(self):
-        """Tests list events."""
+        """Tests try to access job events from a not authorized user."""
 
         self._authorize("test_user_2")
         user_job = self._create_job(author="test_user")
