@@ -766,7 +766,7 @@ class TestJobApi(APITestCase):
             self.assertEqual(response.data.get("message"), "Internal server error")
 
     def test_job_event_creation(self):
-        """Tests create event."""
+        """Tests create event with all fields."""
 
         self._authorize("test_user")
         user_job = self._create_job(author="test_user")
