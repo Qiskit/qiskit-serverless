@@ -65,8 +65,18 @@ class TestJobLogsPermissions:
             ("v1:jobs-provider-logs", "other_user", "provider", HTTP_403_FORBIDDEN),
         ],
     )
-    def test_endpoint_permissions(self, endpoint, caller, provider_admin, expected_status):
+    @patch("api.use_cases.jobs.get_logs.get_job_handler")
+    @patch("api.use_cases.jobs.provider_logs.get_job_handler")
+    def test_endpoint_permissions(
+        self, mock_provider_logs_handler, mock_get_logs_handler, endpoint, caller, provider_admin, expected_status
+    ):
         """Test permissions for /logs and /provider-logs endpoints."""
+        # Mock the job handlers to prevent hanging on Ray connection
+        mock_handler = Mock()
+        mock_handler.logs.return_value = "Test logs"
+        mock_get_logs_handler.return_value = mock_handler
+        mock_provider_logs_handler.return_value = mock_handler
+
         user_caller, _ = User.objects.get_or_create(username=caller)
         job = create_job(author="author", provider_admin=provider_admin)
 

@@ -23,7 +23,7 @@ RELEASE_VERSION = os.environ.get("VERSION", "UNKNOWN")
 COMMAND = sys.argv[1] if len(sys.argv) > 1 else None
 IS_UNICORN = "gunicorn" in sys.argv[0]
 
-IS_TEST = COMMAND == "test"
+IS_TEST = COMMAND == "test" or "pytest" in sys.modules
 IS_RUNSERVER = COMMAND == "runserver"
 IS_SCHEDULER = COMMAND == "run_scheduler"
 IS_GATEWAY = IS_UNICORN or IS_RUNSERVER
