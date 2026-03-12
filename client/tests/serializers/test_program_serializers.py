@@ -40,14 +40,14 @@ class TestProgramSerializers(TestCase):
         circuit = random_circuit(4, 2)
         encoded_arguments = json.dumps({"circuit": circuit}, cls=QiskitObjectsEncoder)
         decoded_arguments = json.loads(encoded_arguments, cls=QiskitObjectsDecoder)
-        self.assertEqual(circuit, decoded_arguments.get("circuit"))
+        assert circuit == decoded_arguments.get("circuit")
 
     def test_ndarray_serialization(self):
         """Tests ndarray serialization."""
         array = np.array([[42.0], [0.0]])
         encoded_arguments = json.dumps({"array": array}, cls=QiskitObjectsEncoder)
         decoded_arguments = json.loads(encoded_arguments, cls=QiskitObjectsDecoder)
-        self.assertTrue(all(np.equal(array, decoded_arguments.get("array"))))
+        assert all(np.equal(array, decoded_arguments.get("array")))
 
     @skip("External service call.")
     def test_runtime_service_serialization(self):
@@ -55,7 +55,7 @@ class TestProgramSerializers(TestCase):
         service = QiskitRuntimeService()
         encoded_arguments = json.dumps({"service": service}, cls=QiskitObjectsEncoder)
         decoded_arguments = json.loads(encoded_arguments, cls=QiskitObjectsDecoder)
-        self.assertIsInstance(decoded_arguments.get("service"), QiskitRuntimeService)
+        assert isinstance(decoded_arguments.get("service"), QiskitRuntimeService)
 
 
 class TestArgParsing(TestCase):
@@ -90,4 +90,4 @@ class TestArgParsing(TestCase):
             json.dump({"circuit": circuit, "array": array}, f, cls=QiskitObjectsEncoder)
 
         parsed_arguments = get_arguments()
-        self.assertEqual(list(parsed_arguments.keys()), ["circuit", "array"])
+        assert list(parsed_arguments.keys()) == ["circuit", "array"]

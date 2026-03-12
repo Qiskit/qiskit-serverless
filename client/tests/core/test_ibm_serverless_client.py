@@ -43,10 +43,10 @@ class TestIBMServerlessClient(unittest.TestCase):
 
         client = IBMServerlessClient(token=use_token, instance=use_instance, channel=use_channel, host=use_host)
 
-        self.assertEqual(client.host, use_host)
-        self.assertEqual(client.channel, use_channel)
-        self.assertEqual(client.instance, use_instance)
-        self.assertEqual(client.token, use_token)
+        assert client.host == use_host
+        assert client.channel == use_channel
+        assert client.instance == use_instance
+        assert client.token == use_token
 
     @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
     @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
@@ -81,18 +81,19 @@ class TestIBMServerlessClient(unittest.TestCase):
                     channel=use_channel,
                 )
                 client = IBMServerlessClient(name=use_name)
-                self.assertEqual(client.account.channel, use_channel)
-                self.assertEqual(client.account.token, use_token)
-                self.assertEqual(client.account.instance, use_instance)
+                assert client.account.channel == use_channel
+                assert client.account.token == use_token
+                assert client.account.instance == use_instance
 
     def test_ibm_quantum_channel(self):
         """Test error raised when initializing account with `ibm_quantum` channel."""
+        import pytest
 
         use_channel = "ibm_quantum"
         use_instance = "h/g/p"
         use_token = "save_token"
 
-        with self.assertRaisesRegex(ValueError, r"Your channel value is not correct"):
+        with pytest.raises(ValueError, match=r"Your channel value is not correct"):
             IBMServerlessClient(channel=use_channel, instance=use_instance, token=use_token)
 
     @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
@@ -108,8 +109,8 @@ class TestIBMServerlessClient(unittest.TestCase):
                 token="test_token", instance="test_instance", channel=None  # Explicitly pass None
             )
 
-            self.assertEqual(client.channel, Channel.IBM_QUANTUM_PLATFORM.value)
-            self.assertEqual(client.account.channel, Channel.IBM_QUANTUM_PLATFORM.value)
+            assert client.channel == Channel.IBM_QUANTUM_PLATFORM.value
+            assert client.account.channel == Channel.IBM_QUANTUM_PLATFORM.value
 
     @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
     @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
@@ -126,8 +127,8 @@ class TestIBMServerlessClient(unittest.TestCase):
                 # channel parameter omitted
             )
 
-            self.assertEqual(client.channel, Channel.IBM_QUANTUM_PLATFORM.value)
-            self.assertEqual(client.account.channel, Channel.IBM_QUANTUM_PLATFORM.value)
+            assert client.channel == Channel.IBM_QUANTUM_PLATFORM.value
+            assert client.account.channel == Channel.IBM_QUANTUM_PLATFORM.value
 
     @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
     @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
@@ -140,8 +141,8 @@ class TestIBMServerlessClient(unittest.TestCase):
 
             client = IBMServerlessClient(token="test_token", instance="test_instance", channel="ibm_cloud")
 
-            self.assertEqual(client.channel, Channel.IBM_CLOUD.value)
-            self.assertEqual(client.account.channel, Channel.IBM_CLOUD.value)
+            assert client.channel == Channel.IBM_CLOUD.value
+            assert client.account.channel == Channel.IBM_CLOUD.value
 
     @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
     @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
@@ -155,8 +156,8 @@ class TestIBMServerlessClient(unittest.TestCase):
             # This is how users might have been calling it before
             client = IBMServerlessClient(token="test_token", instance="test_instance", channel="ibm_quantum_platform")
 
-            self.assertEqual(client.channel, Channel.IBM_QUANTUM_PLATFORM.value)
-            self.assertEqual(client.account.channel, Channel.IBM_QUANTUM_PLATFORM.value)
+            assert client.channel == Channel.IBM_QUANTUM_PLATFORM.value
+            assert client.account.channel == Channel.IBM_QUANTUM_PLATFORM.value
 
 
 if __name__ == "__main__":
