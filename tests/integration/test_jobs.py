@@ -371,7 +371,7 @@ ERROR: Provider log
         assert str(exc_info.value) == expected_message
 
     def test_event(self, serverless_client: ServerlessClient):
-        """Integration test for retrieving a function that isn't accessible."""
+        """Integration test for submitting an error event within the function and retrieving it client-side."""
 
         events_function = QiskitFunction(
             title="event_error_producer",
