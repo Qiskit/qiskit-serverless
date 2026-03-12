@@ -61,6 +61,7 @@ from .job import (
     get_runtime_service,
 )
 from .function import QiskitPattern, QiskitFunction
+from .serverless_error import ServerlessError
 from .decorators import (
     remote,
     get,

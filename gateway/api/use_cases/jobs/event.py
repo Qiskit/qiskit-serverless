@@ -12,6 +12,7 @@ from api.repositories.jobs import JobsRepository
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.access_policies.jobs import JobAccessPolicies
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
+from core.services.job_status import update_job_status
 from core.services.storage.result_storage import ResultStorage
 from core.models import Job, JobEvent
 
@@ -58,6 +59,8 @@ class JobEventUseCase:
         can_create_events = JobAccessPolicies.can_create_events(user, job)
         if not can_create_events:
             raise JobNotFoundException(job_id)
+
+        update_job_status(job)
 
         if job.status != Job.RUNNING:
             raise InvalidAccessException("You can create events on RUNNING jobs only")

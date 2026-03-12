@@ -61,6 +61,8 @@ from qiskit_serverless.core.job import (
     Configuration,
     _map_status_to_serverless,
 )
+from qiskit_serverless.core.job_event import JobEvent
+
 from qiskit_serverless.core.function import (
     QiskitFunction,
     RunService,
@@ -474,7 +476,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             excluded = included
         return excluded
 
-    def events(self, job_id: str, **kwargs) -> list:
+    def events(self, job_id: str, **kwargs) -> list[JobEvent]:
         """Returns events of the job.
         Args:
             job_id: The job id

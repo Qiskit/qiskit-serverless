@@ -59,6 +59,7 @@ from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
     QiskitObjectsDecoder,
 )
+from qiskit_serverless.utils.errors import format_err_event
 from qiskit_serverless.utils.http import get_headers
 from qiskit_serverless.utils.json import is_jsonable
 from qiskit_serverless.utils import ServerlessRuntimeService
@@ -256,6 +257,10 @@ class Job:
         results = self._job_service.result(self.job_id)
 
         if self.status() == "ERROR":
+            error_events = self.events(type="ERROR")
+            if len(error_events) > 0:
+                error_msg = [format_err_event(evt) for evt in error_events]
+                raise QiskitServerlessException(error_msg.join("\n\n"))
             if results:
                 raise QiskitServerlessException(results)
 
