@@ -1,5 +1,5 @@
 """
-API endpoint for retrieving job logs.
+API endpoint for retrieving job events.
 """
 
 # pylint: disable=duplicate-code, abstract-method
@@ -27,7 +27,7 @@ VALID_TYPES = [JobEventType.ERROR]
 
 class InputSerializer(serializers.Serializer):
     """
-    Validates query parameters for job retrieval.
+    Validates query parameters for event retrieval.
     """
 
     type = serializers.CharField(required=False)
@@ -51,7 +51,7 @@ class InputSerializer(serializers.Serializer):
 
 class JobEventOutputSerializer(serializers.ModelSerializer):
     """
-    Serializer for job logs response.
+    Serializer for job events response.
     """
 
     class Meta:
@@ -92,14 +92,14 @@ def serialize_output(events: JobEvent) -> dict[str, Any]:
 @endpoint_handle_exceptions
 def get_logs(request: Request, job_id: UUID) -> Response:
     """
-    Retrieve logs for a specific job.
+    Retrieve events for a specific job.
 
     Args:
         request: The HTTP request object.
         job_id: The UUID of the job (path parameter).
 
     Returns:
-        Response containing the serialized job logs.
+        Response containing the serialized job events.
     """
     serializer = InputSerializer(data=request.query_params)
     serializer.is_valid(raise_exception=True)

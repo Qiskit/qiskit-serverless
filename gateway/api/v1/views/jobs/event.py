@@ -1,5 +1,5 @@
 """
-Save result for a job API endpoint
+Creates a job event.
 """
 
 # pylint: disable=duplicate-code, abstract-method
@@ -60,7 +60,7 @@ class InputSerializer(serializers.Serializer):
 
 @swagger_auto_schema(
     method="post",
-    operation_description="Save the result for a job.",
+    operation_description="Creates an event for a job.",
     request_body=InputSerializer,
     responses={
         status.HTTP_200_OK: None,

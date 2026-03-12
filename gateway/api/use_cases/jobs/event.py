@@ -1,5 +1,5 @@
 """
-Use case for saving job results.
+Use case for creating job events.
 """
 
 from dataclasses import dataclass

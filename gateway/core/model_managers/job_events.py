@@ -93,7 +93,17 @@ class JobEventQuerySet(QuerySet):
         message: str,
         args: Any,
     ):
-        """Sub Status change event for jobs."""
+        """
+        Creates an error event for jobs.
+
+        Args:
+            job_id (str): Unique identifier of the job.
+            origin (JobEventOrigin): The creation major context (API, SCHEDULER...),
+            context (JobEventContext): The creation minor context such as an specific endpoint or method,
+            code (str): The error code to uniquely identify the reason,
+            message (str): A human readable reason for the error,
+            args (Any): Additional information that can be useful to understand the error,
+        """
 
         return self.create(
             job_id=job_id,
@@ -108,7 +118,13 @@ class JobEventQuerySet(QuerySet):
         job_id: uuid.UUID,
         event_type: str | None,
     ):
-        """Sub Status change event for jobs."""
+        """
+        Get all events of the type `event_type` for jobs.
+
+        Args:
+            job_id (str): Unique identifier of the job.
+            event_type (str): The event type to filter.
+        """
 
         events = self.filter(
             job_id=job_id,

@@ -1,4 +1,6 @@
-"""This module contains the usecase get_jos"""
+"""
+Use case for retrieving job events.
+"""
 
 from typing import List
 from uuid import UUID
@@ -15,24 +17,29 @@ from api.repositories.jobs import JobFilters, JobsRepository
 
 
 class JobsEventsUseCase:
-    """Use case for retrieving user jobs with optional filtering and pagination."""
+    """Use case for retrieving user jobs events."""
 
     function_repository = FunctionRepository()
     jobs_repository = JobsRepository()
 
-    def execute(self, job_id: UUID, user: AbstractUser, event_type: str) -> tuple[List[Job], int]:
+    def execute(self, job_id: UUID, user: AbstractUser, event_type: str) -> List[Job]:
         """
-        Retrieve user jobs with optional filters and pagination.
+        Retrieve user jobs events
+
+        Args:
+            job_id (str): Unique identifier of the job.
+            user (AbstractUser): The user attempting to retrieve the event.
+            event_type (str): The event type to filter.
 
         Returns:
-            tuple[list[Job], int]: (jobs, total_count)
+            list[Job]: (jobs, total_count)
         """
         job = self.jobs_repository.get_job_by_id(job_id)
         if job is None:
             raise JobNotFoundException(str(job_id))
 
         if not JobAccessPolicies.can_read_events(user, job):
-            raise InvalidAccessException(f"You don't have access to read user logs of the job [{job_id}]")
+            raise InvalidAccessException(f"You don't have access to read events of the job [{job_id}]")
 
         queryset = JobEvent.objects.get_job_events(job_id, event_type)
 
