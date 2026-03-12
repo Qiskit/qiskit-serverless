@@ -796,7 +796,7 @@ class TestJobApi(APITestCase):
         self.assertEqual(job_events[0].data["args"], args)
 
     def test_job_event_without_args(self):
-        """Tests create event."""
+        """Tests create event without args field."""
 
         self._authorize("test_user")
         user_job = self._create_job(author="test_user")
