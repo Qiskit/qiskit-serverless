@@ -22,7 +22,7 @@ features:
 
     **API**
     
-    Added two new endpoints: GET ``jobs/{job_id}/events`` and 
-    POST ``jobs/{job_id}/event``. This will be the serverside 
+    Added two new endpoints: ``GET jobs/{job_id}/events`` and 
+    ``POST jobs/{job_id}/event``. This will be the serverside 
     part of the job method :func:`events` and the :func:`send_error`
     
