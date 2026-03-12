@@ -41,7 +41,7 @@ class InputSerializer(serializers.Serializer):
 
     def validate_type(self, value: str):
         """
-        Validates the function title
+        Validates the job event type
         """
         value_upper = value.upper()
         if value_upper not in VALID_TYPES:
