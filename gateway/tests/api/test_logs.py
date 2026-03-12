@@ -139,14 +139,16 @@ Unprefixed message
         get_job_handler_mock.return_value = JobHandler(ray_client)
 
         # Execute update_jobs_statuses to detect terminal state and save logs
-        UpdateJobsStatuses().run()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with self.settings(MEDIA_ROOT=temp_dir):
+                UpdateJobsStatuses().run()
 
-        # Call endpoint and verify logs are retrieved from storage
-        self._authorize("author")
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=[str(job.id)]),
-            format="json",
-        )
+                # Call endpoint and verify logs are retrieved from storage
+                self._authorize("author")
+                jobs_response = self.client.get(
+                    reverse("v1:jobs-logs", args=[str(job.id)]),
+                    format="json",
+                )
 
         self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         # User jobs: all logs shown, prefixes removed
@@ -264,15 +266,17 @@ Unprefixed message
         ray_client.get_job_logs.return_value = full_logs
         get_job_handler_mock.return_value = JobHandler(ray_client)
 
-        # Execute update_jobs_statuses to detect terminal state and save logs
-        UpdateJobsStatuses().run()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with self.settings(MEDIA_ROOT=temp_dir):
+                # Execute update_jobs_statuses to detect terminal state and save logs
+                UpdateJobsStatuses().run()
 
-        # Call endpoint and verify logs are retrieved from storage
-        self._authorize("provider_admin")
-        jobs_response = self.client.get(
-            reverse("v1:jobs-provider-logs", args=[str(job.id)]),
-            format="json",
-        )
+                # Call endpoint and verify logs are retrieved from storage
+                self._authorize("provider_admin")
+                jobs_response = self.client.get(
+                    reverse("v1:jobs-provider-logs", args=[str(job.id)]),
+                    format="json",
+                )
 
         self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         # /provider-logs returns all logs unfiltered (with prefixes)
