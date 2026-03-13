@@ -14,6 +14,7 @@ from unittest.mock import patch, MagicMock
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import ComputeResource, Job, JobEvent, Program, Provider, Config
 from core.services.ray import JobHandler
+from core.services.storage.logs_storage import LogsStorage
 from core.utils import check_logs
 from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
 from scheduler.tasks.free_resources import FreeResources
@@ -40,6 +41,363 @@ class TestCommands(APITestCase):
         FreeResources().run()
         num_resources = ComputeResource.objects.count()
         self.assertEqual(num_resources, 1)
+
+    def test_migrate_jobs_logs_to_storage_active(self):
+        """Tests that logs are not migrated with an active compute resource."""
+
+        with self.settings(JOB_LOGS_MIGRATION_BATCH_SIZE=10):
+            compute_resource_active = ComputeResource.objects.create(title=f"test-cluster-migrate-logs", active=True)
+            test_logs = "This is a log for testing pourposes"
+
+            job_succeeded_active = self._create_test_job(
+                status=Job.SUCCEEDED,
+                compute_resource=compute_resource_active,
+                logs=test_logs,
+            )
+            job_failed_active = self._create_test_job(
+                status=Job.FAILED,
+                compute_resource=compute_resource_active,
+                logs=test_logs,
+            )
+            job_stopped_active = self._create_test_job(
+                status=Job.STOPPED,
+                compute_resource=compute_resource_active,
+                logs=test_logs,
+            )
+            job_queued_active = self._create_test_job(
+                status=Job.QUEUED,
+                compute_resource=compute_resource_active,
+                logs=test_logs,
+            )
+            job_running_active = self._create_test_job(
+                status=Job.RUNNING,
+                compute_resource=compute_resource_active,
+                logs=test_logs,
+            )
+
+            call_command("migrate_old_job_logs")
+
+            job_succeeded_active.refresh_from_db()
+            job_succeeded_active_storage = LogsStorage(job_succeeded_active)
+            job_failed_active.refresh_from_db()
+            job_failed_active_storage = LogsStorage(job_failed_active)
+            job_stopped_active.refresh_from_db()
+            job_stopped_active_storage = LogsStorage(job_stopped_active)
+            job_queued_active.refresh_from_db()
+            job_queued_active_storage = LogsStorage(job_queued_active)
+            job_running_active.refresh_from_db()
+            job_running_active_storage = LogsStorage(job_running_active)
+
+            self.assertEqual(job_succeeded_active.logs, test_logs)
+            self.assertEqual(job_succeeded_active_storage.get_public_logs(), None)
+
+            self.assertEqual(job_failed_active.logs, test_logs)
+            self.assertEqual(job_failed_active_storage.get_public_logs(), None)
+
+            self.assertEqual(job_stopped_active.logs, test_logs)
+            self.assertEqual(job_stopped_active_storage.get_public_logs(), None)
+
+            self.assertEqual(job_queued_active.logs, test_logs)
+            self.assertEqual(job_queued_active_storage.get_public_logs(), None)
+
+            self.assertEqual(job_running_active.logs, test_logs)
+            self.assertEqual(job_running_active_storage.get_public_logs(), None)
+
+    def test_migrate_jobs_logs_to_storage_active_with_provider(self):
+        """Tests that logs are not migrated with an active compute resource belonging a provider function."""
+
+        with self.settings(JOB_LOGS_MIGRATION_BATCH_SIZE=10):
+            compute_resource_active = ComputeResource.objects.create(title=f"test-cluster-migrate-logs", active=True)
+            test_logs = "This is a log for testing pourposes"
+
+            job_succeeded_active = self._create_test_job(
+                status=Job.SUCCEEDED,
+                compute_resource=compute_resource_active,
+                logs=test_logs,
+                provider_admin="test_provider_1",
+            )
+            job_failed_active = self._create_test_job(
+                status=Job.FAILED,
+                compute_resource=compute_resource_active,
+                logs=test_logs,
+                provider_admin="test_provider_2",
+            )
+            job_stopped_active = self._create_test_job(
+                status=Job.STOPPED,
+                compute_resource=compute_resource_active,
+                logs=test_logs,
+                provider_admin="test_provider_3",
+            )
+            job_queued_active = self._create_test_job(
+                status=Job.QUEUED,
+                compute_resource=compute_resource_active,
+                logs=test_logs,
+                provider_admin="test_provider_4",
+            )
+            job_running_active = self._create_test_job(
+                status=Job.RUNNING,
+                compute_resource=compute_resource_active,
+                logs=test_logs,
+                provider_admin="test_provider_5",
+            )
+
+            call_command("migrate_old_job_logs")
+
+            job_succeeded_active.refresh_from_db()
+            job_succeeded_active_storage = LogsStorage(job_succeeded_active)
+            job_failed_active.refresh_from_db()
+            job_failed_active_storage = LogsStorage(job_failed_active)
+            job_stopped_active.refresh_from_db()
+            job_stopped_active_storage = LogsStorage(job_stopped_active)
+            job_queued_active.refresh_from_db()
+            job_queued_active_storage = LogsStorage(job_queued_active)
+            job_running_active.refresh_from_db()
+            job_running_active_storage = LogsStorage(job_running_active)
+
+            self.assertEqual(job_succeeded_active.logs, test_logs)
+            self.assertEqual(job_succeeded_active_storage.get_public_logs(), None)
+            self.assertEqual(job_succeeded_active_storage.get_private_logs(), None)
+
+            self.assertEqual(job_failed_active.logs, test_logs)
+            self.assertEqual(job_failed_active_storage.get_public_logs(), None)
+            self.assertEqual(job_failed_active_storage.get_private_logs(), None)
+
+            self.assertEqual(job_stopped_active.logs, test_logs)
+            self.assertEqual(job_stopped_active_storage.get_public_logs(), None)
+            self.assertEqual(job_stopped_active_storage.get_private_logs(), None)
+
+            self.assertEqual(job_queued_active.logs, test_logs)
+            self.assertEqual(job_queued_active_storage.get_public_logs(), None)
+            self.assertEqual(job_queued_active_storage.get_private_logs(), None)
+
+            self.assertEqual(job_running_active.logs, test_logs)
+            self.assertEqual(job_running_active_storage.get_public_logs(), None)
+            self.assertEqual(job_running_active_storage.get_private_logs(), None)
+
+    def test_migrate_jobs_logs_to_storage_not_active(self):
+        """Tests that logs are properly migrated with a not active compute resource."""
+
+        with self.settings(JOB_LOGS_MIGRATION_BATCH_SIZE=10):
+            compute_resource_not_active = ComputeResource.objects.create(
+                title=f"test-cluster-migrate-logs", active=False
+            )
+            test_logs = "This is a log for testing pourposes"
+
+            job_succeeded_not_active = self._create_test_job(
+                status=Job.SUCCEEDED,
+                compute_resource=compute_resource_not_active,
+                logs=test_logs,
+            )
+            job_failed_not_active = self._create_test_job(
+                status=Job.FAILED,
+                compute_resource=compute_resource_not_active,
+                logs=test_logs,
+            )
+            job_stopped_not_active = self._create_test_job(
+                status=Job.STOPPED,
+                compute_resource=compute_resource_not_active,
+                logs=test_logs,
+            )
+            job_queued_not_active = self._create_test_job(
+                status=Job.QUEUED,
+                compute_resource=compute_resource_not_active,
+                logs=test_logs,
+            )
+            job_running_not_active = self._create_test_job(
+                status=Job.RUNNING,
+                compute_resource=compute_resource_not_active,
+                logs=test_logs,
+            )
+
+            call_command("migrate_old_job_logs")
+
+            job_succeeded_not_active.refresh_from_db()
+            job_succeeded_not_active_storage = LogsStorage(job_succeeded_not_active)
+            job_failed_not_active.refresh_from_db()
+            job_failed_not_active_storage = LogsStorage(job_failed_not_active)
+            job_stopped_not_active.refresh_from_db()
+            job_stopped_not_active_storage = LogsStorage(job_stopped_not_active)
+            job_queued_not_active.refresh_from_db()
+            job_queued_not_active_storage = LogsStorage(job_queued_not_active)
+            job_running_not_active.refresh_from_db()
+            job_running_not_active_storage = LogsStorage(job_running_not_active)
+
+            self.assertEqual(job_succeeded_not_active.logs, "")
+            self.assertEqual(job_succeeded_not_active_storage.get_public_logs(), test_logs)
+
+            self.assertEqual(job_failed_not_active.logs, "")
+            self.assertEqual(job_failed_not_active_storage.get_public_logs(), test_logs)
+
+            self.assertEqual(job_stopped_not_active.logs, "")
+            self.assertEqual(job_stopped_not_active_storage.get_public_logs(), test_logs)
+
+            self.assertEqual(job_queued_not_active.logs, test_logs)
+            self.assertEqual(job_queued_not_active_storage.get_public_logs(), None)
+
+            self.assertEqual(job_running_not_active.logs, test_logs)
+            self.assertEqual(job_running_not_active_storage.get_public_logs(), None)
+
+    def test_migrate_jobs_logs_to_storage_not_active_with_provider(self):
+        """Tests that logs are properly migrated with a not active compute resource belonging a provider function."""
+
+        with self.settings(JOB_LOGS_MIGRATION_BATCH_SIZE=10):
+            compute_resource_not_active = ComputeResource.objects.create(
+                title=f"test-cluster-migrate-logs", active=False
+            )
+            test_logs = "This is a log for testing pourposes"
+
+            job_succeeded_not_active = self._create_test_job(
+                status=Job.SUCCEEDED,
+                compute_resource=compute_resource_not_active,
+                logs=test_logs,
+                provider_admin="test_provider_1",
+            )
+            job_failed_not_active = self._create_test_job(
+                status=Job.FAILED,
+                compute_resource=compute_resource_not_active,
+                logs=test_logs,
+                provider_admin="test_provider_2",
+            )
+            job_stopped_not_active = self._create_test_job(
+                status=Job.STOPPED,
+                compute_resource=compute_resource_not_active,
+                logs=test_logs,
+                provider_admin="test_provider_3",
+            )
+            job_queued_not_active = self._create_test_job(
+                status=Job.QUEUED,
+                compute_resource=compute_resource_not_active,
+                logs=test_logs,
+                provider_admin="test_provider_4",
+            )
+            job_running_not_active = self._create_test_job(
+                status=Job.RUNNING,
+                compute_resource=compute_resource_not_active,
+                logs=test_logs,
+                provider_admin="test_provider_5",
+            )
+
+            call_command("migrate_old_job_logs")
+
+            job_succeeded_not_active.refresh_from_db()
+            job_succeeded_not_active_storage = LogsStorage(job_succeeded_not_active)
+            job_failed_not_active.refresh_from_db()
+            job_failed_not_active_storage = LogsStorage(job_failed_not_active)
+            job_stopped_not_active.refresh_from_db()
+            job_stopped_not_active_storage = LogsStorage(job_stopped_not_active)
+            job_queued_not_active.refresh_from_db()
+            job_queued_not_active_storage = LogsStorage(job_queued_not_active)
+            job_running_not_active.refresh_from_db()
+            job_running_not_active_storage = LogsStorage(job_running_not_active)
+
+            self.assertEqual(job_succeeded_not_active.logs, "")
+            self.assertEqual(job_succeeded_not_active_storage.get_public_logs(), None)
+            self.assertEqual(job_succeeded_not_active_storage.get_private_logs(), test_logs)
+
+            self.assertEqual(job_failed_not_active.logs, "")
+            self.assertEqual(job_failed_not_active_storage.get_public_logs(), None)
+            self.assertEqual(job_failed_not_active_storage.get_private_logs(), test_logs)
+
+            self.assertEqual(job_stopped_not_active.logs, "")
+            self.assertEqual(job_stopped_not_active_storage.get_public_logs(), None)
+            self.assertEqual(job_stopped_not_active_storage.get_private_logs(), test_logs)
+
+            self.assertEqual(job_queued_not_active.logs, test_logs)
+            self.assertEqual(job_queued_not_active_storage.get_public_logs(), None)
+            self.assertEqual(job_queued_not_active_storage.get_private_logs(), None)
+
+            self.assertEqual(job_running_not_active.logs, test_logs)
+            self.assertEqual(job_running_not_active_storage.get_public_logs(), None)
+            self.assertEqual(job_running_not_active_storage.get_private_logs(), None)
+
+    def test_migrate_jobs_logs_to_storage_active(self):
+        """Tests that logs are not migrated with an active compute resource."""
+
+        with self.settings(JOB_LOGS_MIGRATION_BATCH_SIZE=10):
+            compute_resource_active = ComputeResource.objects.create(title=f"test-cluster-migrate-logs", active=True)
+            test_logs = "This is a log for testing pourposes"
+
+            job_succeeded_active = self._create_test_job(
+                status=Job.SUCCEEDED,
+                compute_resource=compute_resource_active,
+                logs=test_logs,
+            )
+            job_failed_active = self._create_test_job(
+                status=Job.FAILED,
+                compute_resource=compute_resource_active,
+                logs=test_logs,
+            )
+            job_stopped_active = self._create_test_job(
+                status=Job.STOPPED,
+                compute_resource=compute_resource_active,
+                logs=test_logs,
+            )
+            job_queued_active = self._create_test_job(
+                status=Job.QUEUED,
+                compute_resource=compute_resource_active,
+                logs=test_logs,
+            )
+            job_running_active = self._create_test_job(
+                status=Job.RUNNING,
+                compute_resource=compute_resource_active,
+                logs=test_logs,
+            )
+
+            call_command("migrate_old_job_logs")
+
+            job_succeeded_active.refresh_from_db()
+            job_succeeded_active_storage = LogsStorage(job_succeeded_active)
+            job_failed_active.refresh_from_db()
+            job_failed_active_storage = LogsStorage(job_failed_active)
+            job_stopped_active.refresh_from_db()
+            job_stopped_active_storage = LogsStorage(job_stopped_active)
+            job_queued_active.refresh_from_db()
+            job_queued_active_storage = LogsStorage(job_queued_active)
+            job_running_active.refresh_from_db()
+            job_running_active_storage = LogsStorage(job_running_active)
+
+            self.assertEqual(job_succeeded_active.logs, test_logs)
+            self.assertEqual(job_succeeded_active_storage.get_public_logs(), None)
+
+            self.assertEqual(job_failed_active.logs, test_logs)
+            self.assertEqual(job_failed_active_storage.get_public_logs(), None)
+
+            self.assertEqual(job_stopped_active.logs, test_logs)
+            self.assertEqual(job_stopped_active_storage.get_public_logs(), None)
+
+            self.assertEqual(job_queued_active.logs, test_logs)
+            self.assertEqual(job_queued_active_storage.get_public_logs(), None)
+
+            self.assertEqual(job_running_active.logs, test_logs)
+            self.assertEqual(job_running_active_storage.get_public_logs(), None)
+
+    def test_migrate_jobs_logs_to_storage_too_much_elements(self):
+        """Tests that logs are properly migrated in batches of JOB_LOGS_MIGRATION_BATCH_SIZE."""
+
+        with self.settings(JOB_LOGS_MIGRATION_BATCH_SIZE=10):
+            compute_resource_not_active = ComputeResource.objects.create(
+                title=f"test-cluster-migrate-logs", active=False
+            )
+            test_logs = "This is a log for testing pourposes"
+
+            job_list = [
+                self._create_test_job(
+                    status=Job.SUCCEEDED,
+                    compute_resource=compute_resource_not_active,
+                    logs=test_logs,
+                )
+                for _ in range(15)
+            ]
+
+            call_command("migrate_old_job_logs")
+
+            empty_logs_count = 0
+            for job in job_list:
+                job.refresh_from_db()
+                if job.logs == "":
+                    empty_logs_count += 1
+
+            self.assertEqual(empty_logs_count, 15)
 
     @patch("scheduler.tasks.update_jobs_statuses.get_job_handler")
     def test_update_jobs_statuses(self, get_job_handler):

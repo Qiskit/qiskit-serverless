@@ -4,9 +4,9 @@ import logging
 
 from django.core.management.base import BaseCommand
 
-from api.domain.function import check_logs
-from api.models import Job
-from api.services.storage.logs_storage import LogsStorage
+from core.models import Job
+from core.services.storage.logs_storage import LogsStorage
+from core.utils import check_logs
 from main import settings
 
 logger = logging.getLogger("commands")
@@ -52,4 +52,3 @@ class Command(BaseCommand):
 
                 job.logs = ""
                 job.save(update_fields=["logs"])
-                return
