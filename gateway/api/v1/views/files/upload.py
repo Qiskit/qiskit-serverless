@@ -3,6 +3,7 @@ API V1: Upload file end-point.
 """
 
 # pylint: disable=duplicate-code
+import logging
 from typing import cast
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -13,11 +14,14 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework import serializers
 
+
 from api.use_cases.files.upload import FilesUploadUseCase
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_name
 from api.v1.views.utils import validate_uploaded_file
+
+logger = logging.getLogger("gateway")
 
 # pylint: disable=abstract-method
 
@@ -105,5 +109,5 @@ def files_upload(request: Request) -> Response:
     user = cast(AbstractUser, request.user)
 
     result = FilesUploadUseCase().execute(user, provider, function, uploaded_file)
-
+    logger.info("[files-upload] user=%s function=%s provider=%s", user.id, function, provider)
     return Response({"message": result})

@@ -133,7 +133,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
             )
 
         serializer = self.get_serializer(functions, many=True)
-
+        logger.info("[programs-list] user=%s username=%s filter=%s", author.id, author.username, type_filter)
         return Response(serializer.data)
 
     @_trace
@@ -177,7 +177,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
         serializer.save(author=author, title=title, provider=provider_name)
 
-        logger.info("Return response with Program [%s]", title)
+        logger.info("[programs-upload] user=%s program=%s provider=%s", author.id, title, provider_name)
         return Response(serializer.data)
 
     @_trace
@@ -263,11 +263,9 @@ class ProgramViewSet(viewsets.GenericViewSet):
             config=jobconfig,
             instance=instance,
         )
-        logger.info("Returning Job [%s] created.", job.id)
-
+        logger.info("[programs-run] user=%s job_id=%s program=%s", author.id, job.id, function_title)
         return Response(job_serializer.data)
 
-    # is this intentionally not traced?
     @action(methods=["GET"], detail=False, url_path="get_by_title/(?P<title>[^/.]+)")
     def get_by_title(self, request, title):
         """Returns programs by title."""
@@ -308,6 +306,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
+        logger.info("[programs-get-by-title] user=%s program=%s provider=%s", author.id, function_title, provider_name)
         return Response(self.get_serializer(function).data)
 
     # This end-point is deprecated and we need to confirm if we can remove it
@@ -333,4 +332,5 @@ class ProgramViewSet(viewsets.GenericViewSet):
         else:
             jobs = Job.objects.filter(program=program, author=request.user)
         serializer = self.get_serializer_job(jobs, many=True)
+        logger.info("[programs-get-jobs] user=%s program_id=%s program=%s", request.user.id, pk, program.title)
         return Response(serializer.data)

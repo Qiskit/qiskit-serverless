@@ -3,6 +3,7 @@ API V1: List provider files end-point.
 """
 
 # pylint: disable=duplicate-code
+import logging
 from typing import cast
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -13,10 +14,13 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework import serializers
 
+
 from api.use_cases.files.provider_list import FilesProviderListUseCase
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_name
+
+logger = logging.getLogger("gateway")
 
 # pylint: disable=abstract-method
 
@@ -98,5 +102,5 @@ def files_provider_list(request: Request) -> Response:
     user = cast(AbstractUser, request.user)
 
     files = FilesProviderListUseCase().execute(user, provider, function)
-
+    logger.info("[files-provider-list] user=%s function=%s provider=%s", user.id, function, provider)
     return Response({"results": files})
