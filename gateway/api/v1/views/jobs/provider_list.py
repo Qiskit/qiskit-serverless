@@ -14,6 +14,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+import logging
+
 from core.models import Job, Program
 from api.repositories.jobs import JobFilters
 from api.use_cases.jobs.provider_list import JobsProviderListUseCase
@@ -23,6 +25,8 @@ from api.v1.views.utils import create_paginated_response
 from api.v1.views.swagger_utils import standard_error_responses
 from api.v1.views.serializer_utils import SanitizedCharField
 from api.views.enums.type_filter import TypeFilter
+
+logger = logging.getLogger("gateway")
 
 
 class TypeFilterField(serializers.ChoiceField):
@@ -187,4 +191,5 @@ def get_provider_jobs(request: Request) -> Response:
     user = cast(AbstractUser, request.user)
 
     jobs, total = JobsProviderListUseCase().execute(user=user, filters=filters)
+    logger.info("[jobs-provider-list] provider=%s function=%s", filters.provider, filters.function)
     return Response(serialize_output(jobs, total, request, filters.limit, filters.offset))

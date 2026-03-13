@@ -13,10 +13,14 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework import serializers
 
+import logging
+
 from api.use_cases.files.list import FilesListUseCase
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_name
+
+logger = logging.getLogger("gateway")
 
 # pylint: disable=abstract-method
 
@@ -98,5 +102,5 @@ def files_list(request: Request) -> Response:
     user = cast(AbstractUser, request.user)
 
     files = FilesListUseCase().execute(user, provider, function)
-
+    logger.info("[files-list] function=%s provider=%s", function, provider)
     return Response({"results": files})
