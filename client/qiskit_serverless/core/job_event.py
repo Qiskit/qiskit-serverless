@@ -19,13 +19,15 @@ from dataclasses import dataclass
 
 @dataclass
 class JobEvent:  # pylint: disable=too-many-instance-attributes
-    """Job Event data.
+    """
+    Job Event data.
 
     Args:
-        workers: number of worker pod when auto scaling is NOT enabled
-        auto_scaling: set True to enable auto scaling of the workers
-        min_workers: minimum number of workers when auto scaling is enabled
-        max_workers: maximum number of workers when auto scaling is enabled
+        event_type: Type of the event ("ERROR", "STATUS_CHANGE"...)
+        origin: Where the event is raised ("API", "SCHEDULER"...)
+        context: Where the event is raised ("SEND_ERROR", "SET_SUB_STATUS"...)
+        created: The date of creation
+        data: Additional data for the event type, usually a dict
     """
 
     event_type: str
