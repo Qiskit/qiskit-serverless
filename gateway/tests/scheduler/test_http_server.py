@@ -7,7 +7,7 @@ import urllib.request
 from django.test import TestCase
 
 from scheduler.http_server import SchedulerHttpServer
-from scheduler.views.probes import liveness, readiness
+from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 
 # Scheduler and Gateway share the same settings and the same SITE_HOST value. We need to override it
 # during tests to avoid collisions
@@ -20,8 +20,7 @@ class TestSchedulerHttpServer(TestCase):
 
     def setUp(self):
         self.http_server = SchedulerHttpServer(site_host=SITE_HOST)
-        self.http_server.add_path_handler("/readiness", readiness)
-        self.http_server.add_path_handler("/liveness", liveness)
+        self.http_server.configure_routes(SchedulerMetrics())
 
     def tearDown(self):
         self.http_server.stop()
@@ -73,3 +72,12 @@ class TestSchedulerHttpServer(TestCase):
         assert error.code == 404
         body = error.read().decode()
         assert body == "Not found"
+
+    def test_metrics(self):
+        """test the /metrics endpoint works"""
+        self.http_server.start()
+
+        url = f"{SITE_HOST}/metrics"
+        with urllib.request.urlopen(url) as response:
+            assert response.status == 200
+            assert "text/plain" in response.headers["Content-Type"]
