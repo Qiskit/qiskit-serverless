@@ -102,5 +102,5 @@ def files_provider_list(request: Request) -> Response:
     user = cast(AbstractUser, request.user)
 
     files = FilesProviderListUseCase().execute(user, provider, function)
-    logger.info("[files-provider-list] function=%s provider=%s", function, provider)
+    logger.info("[files-provider-list] user=%s function=%s provider=%s", user.id, function, provider)
     return Response({"results": files})

@@ -51,5 +51,5 @@ def dependencies_versions(request):
     Available dependencies versions end-point
     """
     dependencies = AvailableDependenciesVersionsUseCase().execute()
-    logger.info("[dependencies-versions] user=%s", request.user)
+    logger.info("[dependencies-versions] user=%s", request.user.id)
     return Response(serialize_output(dependencies))

@@ -115,5 +115,5 @@ def files_provider_delete(request: Request) -> Response:
     user = cast(AbstractUser, request.user)
 
     FilesProviderDeleteUseCase().execute(user, provider, function, file)
-    logger.info("[files-provider-delete] function=%s provider=%s file=%s", function, provider, file)
+    logger.info("[files-provider-delete] user=%s function=%s provider=%s file=%s", user.id, function, provider, file)
     return Response({"message": "Requested file was deleted."}, status=status.HTTP_200_OK)

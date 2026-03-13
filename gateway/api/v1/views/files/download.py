@@ -117,7 +117,7 @@ def files_download(request: Request) -> Response:
     user = cast(AbstractUser, request.user)
 
     result = FilesDownloadUseCase().execute(user, provider, function, file)
-    logger.info("[files-download] function=%s provider=%s file=%s", function, provider, file)
+    logger.info("[files-download] user=%s function=%s provider=%s file=%s", user.id, function, provider, file)
     file_wrapper, file_type, file_size = result
     response = StreamingHttpResponse(file_wrapper, content_type=file_type)
     response["Content-Length"] = file_size

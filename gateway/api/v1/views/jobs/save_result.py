@@ -117,5 +117,10 @@ def save_result(request: Request, job_id: UUID) -> Response:
     user = cast(AbstractUser, request.user)
 
     job = JobSaveResultUseCase().execute(job_id, user, result)
-    logger.info("[jobs-save-result] job_id=%s program=%s", job_id, job.program.title if job.program else "")
+    logger.info(
+        "[jobs-save-result] user=%s job_id=%s program=%s",
+        user.id,
+        job_id,
+        job.program.title if job.program else "",
+    )
     return Response(serialize_output(job))

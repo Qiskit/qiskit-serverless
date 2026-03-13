@@ -109,5 +109,5 @@ def files_upload(request: Request) -> Response:
     user = cast(AbstractUser, request.user)
 
     result = FilesUploadUseCase().execute(user, provider, function, uploaded_file)
-    logger.info("[files-upload] function=%s provider=%s", function, provider)
+    logger.info("[files-upload] user=%s function=%s provider=%s", user.id, function, provider)
     return Response({"message": result})

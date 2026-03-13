@@ -118,7 +118,8 @@ def set_sub_status(request: Request, job_id: UUID) -> Response:
 
     job = SetJobSubStatusUseCase().execute(job_id, user, sub_status)
     logger.info(
-        "[jobs-set-sub-status] job_id=%s sub_status=%s program=%s",
+        "[jobs-set-sub-status] user=%s job_id=%s sub_status=%s program=%s",
+        user.id,
         job_id,
         sub_status,
         job.program.title if job.program else "",

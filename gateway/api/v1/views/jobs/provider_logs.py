@@ -70,5 +70,5 @@ def provider_logs(request: Request, job_id: UUID) -> Response:
     """
     user = cast(AbstractUser, request.user)
     logs = GetProviderJobLogsUseCase().execute(job_id, user)
-    logger.info("[jobs-provider-logs] job_id=%s", job_id)
+    logger.info("[jobs-provider-logs] user=%s job_id=%s", user.id, job_id)
     return Response(serialize_output(logs))

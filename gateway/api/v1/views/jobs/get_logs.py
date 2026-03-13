@@ -69,5 +69,5 @@ def get_logs(request: Request, job_id: UUID) -> Response:
     """
     user = cast(AbstractUser, request.user)
     logs = GetJobLogsUseCase().execute(job_id, user)
-    logger.info("[jobs-logs] job_id=%s", job_id)
+    logger.info("[jobs-logs] user=%s job_id=%s", user.id, job_id)
     return Response(serialize_output(logs))

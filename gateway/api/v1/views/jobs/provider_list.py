@@ -191,5 +191,10 @@ def get_provider_jobs(request: Request) -> Response:
     user = cast(AbstractUser, request.user)
 
     jobs, total = JobsProviderListUseCase().execute(user=user, filters=filters)
-    logger.info("[jobs-provider-list] provider=%s function=%s", filters.provider, filters.function)
+    logger.info(
+        "[jobs-provider-list] user=%s provider=%s function=%s",
+        user.id,
+        filters.provider,
+        filters.function,
+    )
     return Response(serialize_output(jobs, total, request, filters.limit, filters.offset))

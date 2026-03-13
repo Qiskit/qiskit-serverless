@@ -150,5 +150,10 @@ def retrieve(request: Request, job_id: UUID) -> Response:
 
     user = cast(AbstractUser, request.user)
     job = JobRetrieveUseCase().execute(job_id, user, with_result)
-    logger.info("[jobs-retrieve] job_id=%s program=%s", job_id, job.program.title if job.program else "")
+    logger.info(
+        "[jobs-retrieve] user=%s job_id=%s program=%s",
+        user.id,
+        job_id,
+        job.program.title if job.program else "",
+    )
     return Response(serialize_output(job, with_result))
