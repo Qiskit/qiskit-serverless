@@ -13,7 +13,6 @@
 """Test IBMServerlessClient."""
 
 import uuid
-import unittest
 import tempfile
 from unittest.mock import patch
 
@@ -21,7 +20,7 @@ from qiskit_serverless import IBMServerlessClient
 from qiskit_serverless.core.enums import Channel
 
 
-class TestIBMServerlessClient(unittest.TestCase):
+class TestIBMServerlessClient:
     """Unit tests for IBMServerlessClient."""
 
     @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
@@ -73,17 +72,16 @@ class TestIBMServerlessClient(unittest.TestCase):
         for use_channel, use_instance in zip(channels_to_test, instances_to_test):
             use_token = "save_token"
             use_name = f"test_save_account_{uuid.uuid4().hex}"
-            with self.subTest(use_channel=use_channel):
-                IBMServerlessClient.save_account(
-                    token=use_token,
-                    name=use_name,
-                    instance=use_instance,
-                    channel=use_channel,
-                )
-                client = IBMServerlessClient(name=use_name)
-                assert client.account.channel == use_channel
-                assert client.account.token == use_token
-                assert client.account.instance == use_instance
+            IBMServerlessClient.save_account(
+                token=use_token,
+                name=use_name,
+                instance=use_instance,
+                channel=use_channel,
+            )
+            client = IBMServerlessClient(name=use_name)
+            assert client.account.channel == use_channel
+            assert client.account.token == use_token
+            assert client.account.instance == use_instance
 
     def test_ibm_quantum_channel(self):
         """Test error raised when initializing account with `ibm_quantum` channel."""
@@ -158,7 +156,3 @@ class TestIBMServerlessClient(unittest.TestCase):
 
             assert client.channel == Channel.IBM_QUANTUM_PLATFORM.value
             assert client.account.channel == Channel.IBM_QUANTUM_PLATFORM.value
-
-
-if __name__ == "__main__":
-    unittest.main()

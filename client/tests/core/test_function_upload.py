@@ -15,7 +15,6 @@
 import json
 import os
 import tempfile
-import unittest
 from unittest.mock import MagicMock, patch
 
 from qiskit_serverless.core.clients.serverless_client import (
@@ -39,7 +38,7 @@ def _make_mock_response(title="my-function", provider=None):
     return mock_response
 
 
-class TestUploadWithDockerImagePayload(unittest.TestCase):
+class TestUploadWithDockerImagePayload:
     """Tests that _upload_with_docker_image sends the correct POST payload."""
 
     @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
@@ -107,7 +106,7 @@ class TestUploadWithDockerImagePayload(unittest.TestCase):
         assert data["version"] is None
 
 
-class TestUploadWithArtifactPayload(unittest.TestCase):
+class TestUploadWithArtifactPayload:
     """Tests that _upload_with_artifact sends the correct POST payload."""
 
     @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
@@ -237,7 +236,3 @@ class TestUploadWithArtifactPayload(unittest.TestCase):
             )
 
             assert not os.path.exists(os.path.join(working_dir, "artifact.tar"))
-
-
-if __name__ == "__main__":
-    unittest.main()

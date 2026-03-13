@@ -13,7 +13,6 @@
 """Test decorators."""
 
 from typing import List
-from unittest import TestCase
 
 from qiskit import QuantumCircuit
 from qiskit.circuit.random import random_circuit
@@ -27,7 +26,7 @@ from qiskit_serverless.core.decorators import (
 )
 
 
-class TestDecorators(TestCase):
+class TestDecorators:
     """Test decorators."""
 
     def test_distribute_task(self):

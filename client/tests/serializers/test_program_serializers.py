@@ -14,13 +14,13 @@
 
 import json
 import os
-from unittest import TestCase, skip
 from unittest.mock import patch
 from uuid import uuid4
 
 import shutil
 import tempfile
 import numpy as np
+import pytest
 from qiskit.circuit.random import random_circuit
 from qiskit_ibm_runtime import QiskitRuntimeService
 
@@ -32,7 +32,7 @@ from qiskit_serverless.serializers.program_serializers import (
 )
 
 
-class TestProgramSerializers(TestCase):
+class TestProgramSerializers:
     """Tests for program serializers."""
 
     def test_circuit_serialization(self):
@@ -49,7 +49,7 @@ class TestProgramSerializers(TestCase):
         decoded_arguments = json.loads(encoded_arguments, cls=QiskitObjectsDecoder)
         assert all(np.equal(array, decoded_arguments.get("array")))
 
-    @skip("External service call.")
+    @pytest.mark.skip(reason="External service call.")
     def test_runtime_service_serialization(self):
         """Tests runtime service serialization."""
         service = QiskitRuntimeService()
@@ -58,10 +58,10 @@ class TestProgramSerializers(TestCase):
         assert isinstance(decoded_arguments.get("service"), QiskitRuntimeService)
 
 
-class TestArgParsing(TestCase):
+class TestArgParsing:
     """Tests argument parsing,"""
 
-    def setUp(self):
+    def setup_method(self):
         self.test_data_dir = tempfile.mkdtemp()
         self.arguments_dir = os.path.join(self.test_data_dir, "arguments")
         os.makedirs(self.arguments_dir, exist_ok=True)
@@ -69,7 +69,7 @@ class TestArgParsing(TestCase):
         self.original_data_path = os.environ.get(DATA_PATH)
         os.environ[DATA_PATH] = self.test_data_dir
 
-    def tearDown(self):
+    def teardown_method(self):
         if self.original_data_path is not None:
             os.environ[DATA_PATH] = self.original_data_path
         elif DATA_PATH in os.environ:
