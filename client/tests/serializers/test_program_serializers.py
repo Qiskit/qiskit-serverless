@@ -62,14 +62,18 @@ class TestArgParsing:
     """Tests argument parsing,"""
 
     def setup_method(self):
-        self.test_data_dir = tempfile.mkdtemp()
-        self.arguments_dir = os.path.join(self.test_data_dir, "arguments")
+        """Set up test fixtures before each test method."""
+        self.test_data_dir = tempfile.mkdtemp()  # pylint: disable=attribute-defined-outside-init
+        self.arguments_dir = os.path.join(  # pylint: disable=attribute-defined-outside-init
+            self.test_data_dir, "arguments"
+        )
         os.makedirs(self.arguments_dir, exist_ok=True)
 
-        self.original_data_path = os.environ.get(DATA_PATH)
+        self.original_data_path = os.environ.get(DATA_PATH)  # pylint: disable=attribute-defined-outside-init
         os.environ[DATA_PATH] = self.test_data_dir
 
     def teardown_method(self):
+        """Clean up test fixtures after each test method."""
         if self.original_data_path is not None:
             os.environ[DATA_PATH] = self.original_data_path
         elif DATA_PATH in os.environ:
