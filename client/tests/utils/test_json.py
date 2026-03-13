@@ -13,7 +13,6 @@
 """Tests for JSON utilities."""
 
 import json
-import unittest
 from unittest.mock import Mock
 from json import JSONEncoder
 
@@ -44,7 +43,7 @@ class ConcreteJsonSerializable(JsonSerializable):
         return cls(dictionary.get("data"))
 
 
-class TestJsonSerializable(unittest.TestCase):
+class TestJsonSerializable:
     """Tests for JsonSerializable abstract class."""
 
     def test_to_dict(self):
@@ -66,7 +65,7 @@ class TestJsonSerializable(unittest.TestCase):
         assert original.data == restored.data
 
 
-class TestIsJsonable(unittest.TestCase):
+class TestIsJsonable:
     """Tests for is_jsonable function."""
 
     def test_with_simple_types(self):
@@ -116,7 +115,7 @@ class TestIsJsonable(unittest.TestCase):
         assert is_jsonable("")
 
 
-class TestSafeJsonRequestAsList(unittest.TestCase):
+class TestSafeJsonRequestAsList:
     """Tests for safe_json_request_as_list function."""
 
     def test_successful_list_response(self):
@@ -150,7 +149,7 @@ class TestSafeJsonRequestAsList(unittest.TestCase):
             safe_json_request_as_list(lambda: mock_response)
 
 
-class TestSafeJsonRequestAsDict(unittest.TestCase):
+class TestSafeJsonRequestAsDict:
     """Tests for safe_json_request_as_dict function."""
 
     def test_successful_dict_response(self):
@@ -184,7 +183,7 @@ class TestSafeJsonRequestAsDict(unittest.TestCase):
             safe_json_request_as_dict(lambda: mock_response)
 
 
-class TestSafeJsonRequest(unittest.TestCase):
+class TestSafeJsonRequest:
     """Tests for safe_json_request function."""
 
     def test_successful_request(self):
@@ -276,7 +275,3 @@ class TestSafeJsonRequest(unittest.TestCase):
 
         exception_str = str(context.value)
         assert "422" in exception_str
-
-
-if __name__ == "__main__":
-    unittest.main()

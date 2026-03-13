@@ -13,7 +13,6 @@
 """Tests for error utilities."""
 
 import json
-import unittest
 
 from qiskit_serverless.utils.errors import (
     is_http_standard_error,
@@ -22,7 +21,7 @@ from qiskit_serverless.utils.errors import (
 )
 
 
-class TestIsHttpStandardError(unittest.TestCase):
+class TestIsHttpStandardError:
     """Tests for is_http_standard_error function."""
 
     def test_valid_http_error_codes(self):
@@ -56,7 +55,7 @@ class TestIsHttpStandardError(unittest.TestCase):
         assert not is_http_standard_error("")
 
 
-class TestErrorCodes(unittest.TestCase):
+class TestErrorCodes:
     """Tests for ErrorCodes class."""
 
     def test_error_codes_exist(self):
@@ -66,7 +65,7 @@ class TestErrorCodes(unittest.TestCase):
         assert ErrorCodes.HTTP_STD_ERROR == "HTTP_STD_ERROR"
 
 
-class TestFormatErrMsg(unittest.TestCase):
+class TestFormatErrMsg:
     """Tests for format_err_msg function."""
 
     def test_format_with_known_error_code(self):
@@ -152,7 +151,3 @@ class TestFormatErrMsg(unittest.TestCase):
         assert any("Message:" in line for line in lines)
         assert any("Code:" in line for line in lines)
         assert any("Details:" in line for line in lines)
-
-
-if __name__ == "__main__":
-    unittest.main()

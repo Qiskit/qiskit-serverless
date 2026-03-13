@@ -12,12 +12,10 @@
 
 """Tests for HTTP utilities."""
 
-import unittest
-
 from qiskit_serverless.utils.http import get_headers
 
 
-class TestGetHeaders(unittest.TestCase):
+class TestGetHeaders:
     """Tests for get_headers function."""
 
     def test_with_token_only(self):
@@ -119,7 +117,3 @@ class TestGetHeaders(unittest.TestCase):
 
         headers2 = get_headers(token="token2")
         assert "Custom" not in headers2
-
-
-if __name__ == "__main__":
-    unittest.main()
