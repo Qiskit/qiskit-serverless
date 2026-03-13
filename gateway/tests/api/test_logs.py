@@ -65,8 +65,18 @@ class TestJobLogsPermissions:
             ("v1:jobs-provider-logs", "other_user", "provider", HTTP_403_FORBIDDEN),
         ],
     )
-    def test_endpoint_permissions(self, endpoint, caller, provider_admin, expected_status):
+    @patch("api.use_cases.jobs.get_logs.get_job_handler")
+    @patch("api.use_cases.jobs.provider_logs.get_job_handler")
+    def test_endpoint_permissions(
+        self, mock_provider_logs_handler, mock_get_logs_handler, endpoint, caller, provider_admin, expected_status
+    ):
         """Test permissions for /logs and /provider-logs endpoints."""
+        # Mock the job handlers to prevent hanging on Ray connection
+        mock_handler = Mock()
+        mock_handler.logs.return_value = "Test logs"
+        mock_get_logs_handler.return_value = mock_handler
+        mock_provider_logs_handler.return_value = mock_handler
+
         user_caller, _ = User.objects.get_or_create(username=caller)
         job = create_job(author="author", provider_admin=provider_admin)
 
@@ -139,14 +149,16 @@ Unprefixed message
         get_job_handler_mock.return_value = JobHandler(ray_client)
 
         # Execute update_jobs_statuses to detect terminal state and save logs
-        UpdateJobsStatuses().run()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with self.settings(MEDIA_ROOT=temp_dir):
+                UpdateJobsStatuses().run()
 
-        # Call endpoint and verify logs are retrieved from storage
-        self._authorize("author")
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=[str(job.id)]),
-            format="json",
-        )
+                # Call endpoint and verify logs are retrieved from storage
+                self._authorize("author")
+                jobs_response = self.client.get(
+                    reverse("v1:jobs-logs", args=[str(job.id)]),
+                    format="json",
+                )
 
         self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         # User jobs: all logs shown, prefixes removed
@@ -264,15 +276,17 @@ Unprefixed message
         ray_client.get_job_logs.return_value = full_logs
         get_job_handler_mock.return_value = JobHandler(ray_client)
 
-        # Execute update_jobs_statuses to detect terminal state and save logs
-        UpdateJobsStatuses().run()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with self.settings(MEDIA_ROOT=temp_dir):
+                # Execute update_jobs_statuses to detect terminal state and save logs
+                UpdateJobsStatuses().run()
 
-        # Call endpoint and verify logs are retrieved from storage
-        self._authorize("provider_admin")
-        jobs_response = self.client.get(
-            reverse("v1:jobs-provider-logs", args=[str(job.id)]),
-            format="json",
-        )
+                # Call endpoint and verify logs are retrieved from storage
+                self._authorize("provider_admin")
+                jobs_response = self.client.get(
+                    reverse("v1:jobs-provider-logs", args=[str(job.id)]),
+                    format="json",
+                )
 
         self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         # /provider-logs returns all logs unfiltered (with prefixes)
