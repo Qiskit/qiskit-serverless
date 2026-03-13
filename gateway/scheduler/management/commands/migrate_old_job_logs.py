@@ -34,7 +34,18 @@ def save_job_logs_to_storage(job: Job):
 class Command(BaseCommand):
     """Cleanup resources."""
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--max-jobs",
+            type=int,
+            default=0,
+            help="Maximum number of jobs to process. Default 0 (means unlimited)",
+        )
+
     def handle(self, *args, **options):
+        max_jobs = options["max_jobs"]
+        count = 0
+
         while True:
             jobs = list(
                 Job.objects.order_by("id")
@@ -52,3 +63,8 @@ class Command(BaseCommand):
 
                 job.logs = ""
                 job.save(update_fields=["logs"])
+
+                count += 1
+                if max_jobs > 0 and count >= max_jobs:
+                    logger.info("Reached max-jobs limit of [%s]", max_jobs)
+                    return
