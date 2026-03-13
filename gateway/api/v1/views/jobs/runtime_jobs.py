@@ -4,6 +4,7 @@ API endpoint to handle runtime jobs.
 
 # pylint: disable=abstract-method
 
+import logging
 from typing import Any
 from uuid import UUID
 
@@ -14,7 +15,6 @@ from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-import logging
 
 from api import serializers as api_serializers
 from api.use_cases.jobs.associate_runtime_jobs import (

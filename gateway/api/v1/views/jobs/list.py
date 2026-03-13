@@ -4,6 +4,7 @@ API endpoint for listing jobs with optional filters and pagination.
 
 # pylint: disable=duplicate-code, abstract-method
 
+import logging
 from typing import cast
 
 from django.conf import settings
@@ -15,7 +16,6 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-import logging
 
 from core.models import Job, Program
 from api.repositories.jobs import JobFilters

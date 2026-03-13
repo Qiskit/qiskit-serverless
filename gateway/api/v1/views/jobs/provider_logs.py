@@ -4,6 +4,7 @@ API endpoint for retrieving job logs.
 
 # pylint: disable=duplicate-code, abstract-method
 
+import logging
 from typing import Any, cast
 from uuid import UUID
 
@@ -14,7 +15,6 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-import logging
 
 from api.use_cases.jobs.provider_logs import GetProviderJobLogsUseCase
 from api.v1.endpoint_decorator import endpoint

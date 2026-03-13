@@ -4,6 +4,7 @@ API endpoint for retrieving a job by ID.
 
 # pylint: disable=duplicate-code, abstract-method
 
+import logging
 from typing import cast
 from uuid import UUID
 
@@ -15,7 +16,6 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-import logging
 
 from api import serializers as api_serializers
 from api.use_cases.jobs.retrieve import JobRetrieveUseCase

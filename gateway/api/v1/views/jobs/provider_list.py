@@ -3,6 +3,7 @@ API V1: list jobs endpoint
 """
 
 # pylint: disable=duplicate-code, disable=abstract-method
+import logging
 from typing import cast, List, Optional
 
 from django.conf import settings
@@ -14,7 +15,6 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-import logging
 
 from core.models import Job, Program
 from api.repositories.jobs import JobFilters

@@ -3,6 +3,7 @@ API V1: Download file end-point.
 """
 
 # pylint: disable=duplicate-code
+import logging
 from typing import cast
 from django.http import StreamingHttpResponse
 from django.contrib.auth.models import AbstractUser
@@ -14,7 +15,6 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework import serializers
 
-import logging
 
 from api.use_cases.files.download import FilesDownloadUseCase
 from api.v1.exception_handler import endpoint_handle_exceptions

@@ -3,6 +3,7 @@ API V1: Delete provider file end-point.
 """
 
 # pylint: disable=duplicate-code
+import logging
 from typing import cast
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -13,7 +14,6 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework import serializers
 
-import logging
 
 from api.use_cases.files.provider_delete import FilesProviderDeleteUseCase
 from api.v1.exception_handler import endpoint_handle_exceptions
