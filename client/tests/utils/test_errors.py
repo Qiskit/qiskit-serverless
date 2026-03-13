@@ -55,7 +55,7 @@ class TestIsHttpStandardError:
         assert not is_http_standard_error("")
 
 
-class TestErrorCodes:
+class TestErrorCodes:  # pylint: disable=too-few-public-methods
     """Tests for ErrorCodes class."""
 
     def test_error_codes_exist(self):
