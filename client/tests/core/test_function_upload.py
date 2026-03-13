@@ -15,7 +15,6 @@
 import json
 import os
 import tempfile
-import unittest
 from unittest.mock import MagicMock, patch
 
 from qiskit_serverless.core.clients.serverless_client import (
@@ -39,7 +38,7 @@ def _make_mock_response(title="my-function", provider=None):
     return mock_response
 
 
-class TestUploadWithDockerImagePayload(unittest.TestCase):
+class TestUploadWithDockerImagePayload:
     """Tests that _upload_with_docker_image sends the correct POST payload."""
 
     @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
@@ -71,14 +70,14 @@ class TestUploadWithDockerImagePayload(unittest.TestCase):
         _, kwargs = mock_post.call_args
         data = kwargs["data"]
 
-        self.assertEqual(data["title"], "my-function")
-        self.assertEqual(data["provider"], "my-provider")
-        self.assertEqual(data["image"], "my-image:1.0")
-        self.assertEqual(data["arguments"], json.dumps({}))
-        self.assertEqual(data["dependencies"], json.dumps(["numpy", "scipy"]))
-        self.assertEqual(data["env_vars"], json.dumps({"KEY": "VALUE"}))
-        self.assertEqual(data["description"], "A test function")
-        self.assertEqual(data["version"], "1.2.3")
+        assert data["title"] == "my-function"
+        assert data["provider"] == "my-provider"
+        assert data["image"] == "my-image:1.0"
+        assert data["arguments"] == json.dumps({})
+        assert data["dependencies"] == json.dumps(["numpy", "scipy"])
+        assert data["env_vars"] == json.dumps({"KEY": "VALUE"})
+        assert data["description"] == "A test function"
+        assert data["version"] == "1.2.3"
 
     @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
     def test_optional_fields_default_correctly(self, mock_post):
@@ -100,14 +99,14 @@ class TestUploadWithDockerImagePayload(unittest.TestCase):
         _, kwargs = mock_post.call_args
         data = kwargs["data"]
 
-        self.assertIsNone(data["provider"])
-        self.assertEqual(data["dependencies"], json.dumps([]))
-        self.assertEqual(data["env_vars"], json.dumps({}))
-        self.assertIsNone(data["description"])
-        self.assertIsNone(data["version"])
+        assert data["provider"] is None
+        assert data["dependencies"] == json.dumps([])
+        assert data["env_vars"] == json.dumps({})
+        assert data["description"] is None
+        assert data["version"] is None
 
 
-class TestUploadWithArtifactPayload(unittest.TestCase):
+class TestUploadWithArtifactPayload:
     """Tests that _upload_with_artifact sends the correct POST payload."""
 
     @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
@@ -145,14 +144,14 @@ class TestUploadWithArtifactPayload(unittest.TestCase):
         _, kwargs = mock_post.call_args
         data = kwargs["data"]
 
-        self.assertEqual(data["title"], "my-function")
-        self.assertEqual(data["provider"], "my-provider")
-        self.assertEqual(data["entrypoint"], entrypoint)
-        self.assertEqual(data["arguments"], json.dumps({}))
-        self.assertEqual(data["dependencies"], json.dumps(["numpy", "scipy"]))
-        self.assertEqual(data["env_vars"], json.dumps({"KEY": "VALUE"}))
-        self.assertEqual(data["description"], "A test function")
-        self.assertEqual(data["version"], "2.0.0")
+        assert data["title"] == "my-function"
+        assert data["provider"] == "my-provider"
+        assert data["entrypoint"] == entrypoint
+        assert data["arguments"] == json.dumps({})
+        assert data["dependencies"] == json.dumps(["numpy", "scipy"])
+        assert data["env_vars"] == json.dumps({"KEY": "VALUE"})
+        assert data["description"] == "A test function"
+        assert data["version"] == "2.0.0"
 
     @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
     def test_optional_fields_default_correctly(self, mock_post):
@@ -183,21 +182,23 @@ class TestUploadWithArtifactPayload(unittest.TestCase):
         _, kwargs = mock_post.call_args
         data = kwargs["data"]
 
-        self.assertIsNone(data["provider"])
-        self.assertEqual(data["dependencies"], json.dumps([]))
-        self.assertEqual(data["env_vars"], json.dumps({}))
-        self.assertIsNone(data["description"])
-        self.assertIsNone(data["version"])
+        assert data["provider"] is None
+        assert data["dependencies"] == json.dumps([])
+        assert data["env_vars"] == json.dumps({})
+        assert data["description"] is None
+        assert data["version"] is None
 
     def test_raises_when_entrypoint_does_not_exist(self):
         """QiskitServerlessException is raised when the entrypoint file is missing."""
+        import pytest
+
         with tempfile.TemporaryDirectory() as working_dir:
             program = QiskitFunction(
                 title="my-function",
                 entrypoint="nonexistent.py",
                 working_dir=working_dir,
             )
-            with self.assertRaises(QiskitServerlessException):
+            with pytest.raises(QiskitServerlessException):
                 _upload_with_artifact(
                     program=program,
                     url=_UPLOAD_URL,
@@ -234,8 +235,4 @@ class TestUploadWithArtifactPayload(unittest.TestCase):
                 channel=None,
             )
 
-            self.assertFalse(os.path.exists(os.path.join(working_dir, "artifact.tar")))
-
-
-if __name__ == "__main__":
-    unittest.main()
+            assert not os.path.exists(os.path.join(working_dir, "artifact.tar"))
