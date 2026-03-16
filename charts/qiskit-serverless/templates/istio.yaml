@@ -37,7 +37,6 @@ spec:
             host: {{ .Values.gateway.fullnameOverride }}
             port:
               number: {{ .Values.gateway.application.service.port  }}
-{{ end }}
 ---
 apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
@@ -47,3 +46,4 @@ metadata:
 spec:
   mtls:
     mode: STRICT
+{{ end }}
