@@ -2,6 +2,7 @@
 
 import os
 import tempfile
+from datetime import datetime, timezone
 from typing import Optional
 
 from django.contrib.auth.models import User, Group
@@ -34,46 +35,48 @@ class TestCommands(APITestCase):
 
     @patch("scheduler.tasks.update_jobs_statuses.get_runner_client")
     def test_update_jobs_statuses(self, get_runner_client):
-        """Tests update of job statuses."""
-        # Test status change from PENDING to RUNNING
-        runner_mock = MagicMock()
-        runner_mock.status.return_value = Job.RUNNING
-        runner_mock.logs.return_value = "No logs yet."
-        runner_mock.stop.return_value = True
-        get_runner_client.return_value = runner_mock
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with self.settings(MEDIA_ROOT=temp_dir):
+                """Tests update of job statuses."""
+                # Test status change from PENDING to RUNNING
+                runner_mock = MagicMock()
+                runner_mock.status.return_value = Job.RUNNING
+                runner_mock.logs.return_value = "No logs yet."
+                runner_mock.stop.return_value = True
+                get_runner_client.return_value = runner_mock
 
-        job = self._create_test_job(ray_job_id="test_update_jobs_statuses")
+                job = self._create_test_job(ray_job_id="test_update_jobs_statuses")
 
-        UpdateJobsStatuses().run()
+                UpdateJobsStatuses().run()
 
-        job.refresh_from_db()
-        self.assertEqual(job.status, "RUNNING")
-        self.assertIsNotNone(job.env_vars)
+                job.refresh_from_db()
+                self.assertEqual(job.status, "RUNNING")
+                self.assertIsNotNone(job.env_vars)
 
-        job_events = JobEvent.objects.filter(job=job)
-        self.assertEqual(len(job_events), 1)
-        self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
-        self.assertEqual(job_events[0].data["status"], Job.RUNNING)
-        self.assertEqual(job_events[0].origin, JobEventOrigin.SCHEDULER)
-        self.assertEqual(job_events[0].context, JobEventContext.UPDATE_JOB_STATUS)
+                job_events = JobEvent.objects.filter(job=job)
+                self.assertEqual(len(job_events), 1)
+                self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
+                self.assertEqual(job_events[0].data["status"], Job.RUNNING)
+                self.assertEqual(job_events[0].origin, JobEventOrigin.SCHEDULER)
+                self.assertEqual(job_events[0].context, JobEventContext.UPDATE_JOB_STATUS)
 
-        # Test job logs for FAILED job with empty logs
-        runner_mock.status.return_value = Job.FAILED
-        runner_mock.logs.return_value = ""
+                # Test job logs for FAILED job with empty logs
+                runner_mock.status.return_value = Job.FAILED
+                runner_mock.logs.return_value = ""
 
-        UpdateJobsStatuses().run()
+                UpdateJobsStatuses().run()
 
-        job.refresh_from_db()
-        self.assertEqual(job.status, "FAILED")
-        self.assertEqual(job.env_vars, "{}")
-        self.assertIsNone(job.sub_status)
+                job.refresh_from_db()
+                self.assertEqual(job.status, "FAILED")
+                self.assertEqual(job.env_vars, "{}")
+                self.assertIsNone(job.sub_status)
 
-        job_events = JobEvent.objects.filter(job=job).order_by("created")
-        self.assertEqual(len(job_events), 2)
-        self.assertEqual(job_events[1].event_type, JobEventType.STATUS_CHANGE)
-        self.assertEqual(job_events[1].data["status"], Job.FAILED)
-        self.assertEqual(job_events[1].origin, JobEventOrigin.SCHEDULER)
-        self.assertEqual(job_events[1].context, JobEventContext.UPDATE_JOB_STATUS)
+                job_events = JobEvent.objects.filter(job=job).order_by("created")
+                self.assertEqual(len(job_events), 2)
+                self.assertEqual(job_events[1].event_type, JobEventType.STATUS_CHANGE)
+                self.assertEqual(job_events[1].data["status"], Job.FAILED)
+                self.assertEqual(job_events[1].origin, JobEventOrigin.SCHEDULER)
+                self.assertEqual(job_events[1].context, JobEventContext.UPDATE_JOB_STATUS)
 
     @patch("scheduler.tasks.schedule_queued_jobs.execute_job")
     def test_schedule_queued_jobs(self, execute_job):
@@ -85,6 +88,8 @@ class TestCommands(APITestCase):
         fake_job.sub_status = None
         fake_job.program.artifact.path = "non_existing_file.tar"
         fake_job.save.return_value = None
+        fake_job.created = datetime.now(timezone.utc)
+        fake_job.gpu = False
 
         execute_job.return_value = fake_job
         ScheduleQueuedJobs().run()
@@ -324,6 +329,7 @@ WARNING: Private warning
         compute_resource: Optional[ComputeResource] = None,
         ray_job_id: str = "test-job-id",
         gpu: bool = False,
+        logs: str = "No logs yet.",
     ) -> Job:
         """Helper method to create a test job.
 
@@ -361,4 +367,5 @@ WARNING: Private warning
             compute_resource=compute_resource,
             ray_job_id=ray_job_id,
             gpu=gpu,
+            logs=logs,
         )

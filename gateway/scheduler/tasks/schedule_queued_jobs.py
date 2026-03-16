@@ -3,6 +3,7 @@
 import json
 import logging
 import time
+from datetime import datetime, timezone
 
 from concurrency.exceptions import RecordModifiedError
 from django.conf import settings
@@ -19,6 +20,7 @@ from scheduler.schedule import (
 )
 
 from scheduler.kill_signal import KillSignal
+from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
 
 logger = logging.getLogger("commands")
@@ -27,8 +29,9 @@ logger = logging.getLogger("commands")
 class ScheduleQueuedJobs(SchedulerTask):
     """Schedule jobs service."""
 
-    def __init__(self, kill_signal: KillSignal = None):
+    def __init__(self, kill_signal: KillSignal = None, metrics: SchedulerMetrics = None):
         self.kill_signal = kill_signal or KillSignal()
+        self.metrics = metrics or SchedulerMetrics()
 
     def run(self):
         """Schedule queued jobs to available cluster slots."""
@@ -54,6 +57,10 @@ class ScheduleQueuedJobs(SchedulerTask):
     def _schedule_jobs_if_slots_available(self, max_ray_clusters_possible, number_of_clusters_running, gpu_job):
         """Schedule jobs depending on free cluster slots."""
         free_clusters_slots = max_ray_clusters_possible - number_of_clusters_running
+
+        # Store the queue size in the metrics
+        self.set_queue_size_metric(gpu_job)
+
         if gpu_job:
             logger.info("%s free GPU cluster slots.", free_clusters_slots)
         else:
@@ -79,7 +86,7 @@ class ScheduleQueuedJobs(SchedulerTask):
 
             tracer = trace.get_tracer("scheduler.tracer")
             with tracer.start_as_current_span("scheduler.handle", context=ctx):
-                job = execute_job(job)
+                job = execute_job(job)  # from QUEUED to PENDING
                 job_id = job.id
                 backup_status = job.status
                 backup_logs = job.logs
@@ -105,6 +112,10 @@ class ScheduleQueuedJobs(SchedulerTask):
                             context=JobEventContext.SCHEDULE_JOBS,
                             status=job.status,
                         )
+
+                        # Store the wait time (from QUEUED to PENDING) in the metrics
+                        self.add_queue_wait_time_metric(job)
+
                     except RecordModifiedError:
                         logger.warning(
                             "Schedule: Job [%s] record has not been updated due to lock.",
@@ -122,3 +133,18 @@ class ScheduleQueuedJobs(SchedulerTask):
                 logger.info("Executing %s of %s", job, job.author)
         if jobs:
             logger.info("%s jobs are scheduled for execution.", len(jobs))
+
+    def set_queue_size_metric(self, gpu_job):
+        """Add queue size metric."""
+        queue_count = Job.objects.filter(status=Job.QUEUED, gpu=gpu_job).count()
+        compute_type = "gpu" if gpu_job else "cpu"
+        self.metrics.set_queue_size(queue_count, compute_type)
+
+    def add_queue_wait_time_metric(self, job: Job):
+        """Add queue wait time metric."""
+        # Wait time can be get from db -> wait_time = RUNNING event.timestamp - QUEUED event.timestamp
+        # Jobs are created in QUEUED state, so "created" field should have the same timestamp as QUEUED event
+        now = datetime.now(timezone.utc)
+        wait_seconds = (now - job.created).total_seconds()
+        job_compute_type = "gpu" if job.gpu else "cpu"
+        self.metrics.observe_queue_wait_time(wait_seconds, job_compute_type)

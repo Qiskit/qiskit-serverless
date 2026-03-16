@@ -13,7 +13,6 @@
 """Test decorators."""
 
 from typing import List
-from unittest import TestCase
 
 from qiskit import QuantumCircuit
 from qiskit.circuit.random import random_circuit
@@ -27,7 +26,7 @@ from qiskit_serverless.core.decorators import (
 )
 
 
-class TestDecorators(TestCase):
+class TestDecorators:
     """Test decorators."""
 
     def test_distribute_task(self):
@@ -48,13 +47,13 @@ class TestDecorators(TestCase):
         with ray.init():
             reference = ultimate_function(1)
             result = get(reference)
-            self.assertEqual(result, 4)
+            assert result == 4
 
     def test_target(self):
         """Test for target."""
         target_expected = Target(pip=["requests", "qiskit==0.39.2"])
         target = Target.from_dict({"pip": ["requests", "qiskit==0.39.2"]})
-        self.assertEqual(target.pip, target_expected.pip)
+        assert target.pip == target_expected.pip
 
     def test_execution_meta(self):
         """Tests execution meta fetching."""
@@ -71,4 +70,4 @@ class TestDecorators(TestCase):
             "qs.kwargs.some_kwarg": [3, 1],
             "qs.kwargs.some_kwargs.0": [3, 1],
         }
-        self.assertEqual(expecting, meta)
+        assert expecting == meta

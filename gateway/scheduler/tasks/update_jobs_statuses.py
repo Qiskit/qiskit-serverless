@@ -22,6 +22,7 @@ from scheduler.schedule import (
 )
 
 from scheduler.kill_signal import KillSignal
+from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
 
 logger = logging.getLogger("commands")
@@ -30,8 +31,9 @@ logger = logging.getLogger("commands")
 class UpdateJobsStatuses(SchedulerTask):
     """Update status of jobs."""
 
-    def __init__(self, kill_signal: KillSignal = None):
+    def __init__(self, kill_signal: KillSignal = None, metrics: SchedulerMetrics = None):
         self.kill_signal = kill_signal or KillSignal()
+        self.metrics = metrics or SchedulerMetrics()
 
     # pylint: disable=too-many-statements
     # pylint: disable=too-many-branches
