@@ -90,17 +90,11 @@ def format_err_event(error_event: JobEvent) -> str:
 
     if details:
         result += "\n| Details:"
-        details_json = None
-        try:
-            details_json = json.loads(details)
-        except json.JSONDecodeError:
-            pass
 
-        if details_json and isinstance(details_json, Dict):
-            for key in details_json:
-                if len(details_json[key]) > 0:
-                    value = details_json[key][0] if isinstance(details_json[key], list) else details_json[key]
-                    result += f"\n|   - {key}: {value}"
+        if details and isinstance(details, Dict):
+            for key in details:
+                value = details[key][0] if isinstance(details[key], list) else details[key]
+                result += f"\n|   - {key}: {value}"
         else:
             result += f" {details}"
 

@@ -10,7 +10,6 @@ sys.path.append("{{mount_path}}")
 
 from {{package_name}} import Runner
 
-print("GET_ARGUMENTS")
 try:
     arguments = get_arguments()
 except Exception:
@@ -18,21 +17,15 @@ except Exception:
     raise
 
 try:
-    print("RUN")
     runner = Runner()
     result = runner.run(arguments)
 
-    print("RUN FINISHED")
     if result is not None:
         save_result(result)
 except ServerlessError as e:
-    print("SERVERLESS_ERROR CAPTURED")
-    print(e)
     send_error(e.code, e.message, e.details)
     raise
 except Exception as e:
-    print("GENERIC EXCEPTION CAPTURED")
-    print(e)
     send_error(1, traceback.format_exception_only(e))
     save_result(traceback.format_exception_only(e))
     raise

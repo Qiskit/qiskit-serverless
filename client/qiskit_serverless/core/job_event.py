@@ -14,7 +14,7 @@
 Job Event data class
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 
 
 @dataclass
@@ -35,3 +35,9 @@ class JobEvent:  # pylint: disable=too-many-instance-attributes
     context: str
     created: str
     data: dict
+
+    @classmethod
+    def from_json(cls, data: dict):
+        """Reconstructs JobEvent from dictionary."""
+        field_names = set(f.name for f in fields(JobEvent))
+        return JobEvent(**{k: v for k, v in data.items() if k in field_names})

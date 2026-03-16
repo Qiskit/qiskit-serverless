@@ -3,6 +3,7 @@
 
 from datetime import datetime, timezone
 import os
+import tempfile
 from time import sleep
 from uuid import uuid4
 
@@ -420,32 +421,40 @@ ERROR: Provider log
     def test_serverless_error_raise(self, serverless_client: ServerlessClient):
         """Integration test for submitting an error event within the function and retrieving it client-side."""
 
-        events_function = QiskitFunction(
-            title="exception_producer",
-            entrypoint="exception_producer.py",
-            working_dir=resources_path,
-        )
+        with tempfile.NamedTemporaryFile(
+            mode="w+", encoding="utf-8", delete=True, dir=resources_path, suffix=".py"
+        ) as tmp:
 
-        events_function = serverless_client.upload(events_function)
+            with open(
+                "../gateway/templates/main.tmpl",
+                "r",
+                encoding="utf-8",
+            ) as template:
+                template_content = template.read()
+                template_content = template_content.replace("{{mount_path}}", "/runner")
+                template_content = template_content.replace("{{package_name}}", "exception_producer")
+                tmp.write(template_content)
+                tmp.flush()
+
+            events_function = QiskitFunction(
+                title="exception_producer",
+                entrypoint=os.path.basename(tmp.name),
+                working_dir=resources_path,
+            )
+
+            events_function = serverless_client.upload(events_function)
 
         job = events_function.run()
 
         with raises(QiskitServerlessException) as exc_info:
             job.result()
 
-        print("")
-        print("")
-        print(job.logs())
-        print("")
-        print("")
-        print(exc_info)
-
         events = job.events(type="ERROR")
         assert len(events) == 1
 
-        assert exc_info.value == "[A123] My error message\n('My error message',)\n')"
+        assert exc_info.value.args[0] == "\n| Message: My error message\n| Code: A123\n| Details:\n|   - my-args: 123"
 
-        event_data = events[0]["data"]
+        event_data = events[0].data
         assert event_data["code"] == "A123"
         assert event_data["message"] == "My error message"
-        assert event_data["args"]["my-arg"] == 123
+        assert event_data["args"]["my-args"] == 123

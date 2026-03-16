@@ -490,7 +490,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             )
         )
 
-        return response_data
+        return [JobEvent.from_json(event) for event in response_data]
 
     #########################
     ####### Functions #######
@@ -502,7 +502,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             span.set_attribute("function", program.title)
             url = f"{self.host}/api/{self.version}/programs/upload/"
 
-            if program.image is not None:
+            if program.image:
                 # upload function with custom image
                 function_uploaded = _upload_with_docker_image(
                     program=program,
@@ -513,7 +513,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                     instance=self.instance,
                     channel=self.channel,
                 )
-            elif program.entrypoint is not None:
+            elif program.entrypoint:
                 # upload function with artifact
                 function_uploaded = _upload_with_artifact(
                     program=program,

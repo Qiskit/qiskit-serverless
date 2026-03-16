@@ -59,7 +59,7 @@ from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
     QiskitObjectsDecoder,
 )
-from qiskit_serverless.utils.errors import format_err_event
+from qiskit_serverless.utils.errors import JobEvent, format_err_event
 from qiskit_serverless.utils.http import get_headers
 from qiskit_serverless.utils.json import is_jsonable
 from qiskit_serverless.utils import ServerlessRuntimeService
@@ -125,7 +125,7 @@ class JobService(ABC):
         """
 
     @abstractmethod
-    def events(self, job_id: str, **kwargs) -> list:
+    def events(self, job_id: str, **kwargs) -> list[JobEvent]:
         """Returns events of the job.
         Args:
             job_id: The job id
@@ -260,7 +260,7 @@ class Job:
             error_events = self.events(type="ERROR")
             if len(error_events) > 0:
                 error_msg = [format_err_event(evt) for evt in error_events]
-                raise QiskitServerlessException(error_msg.join("\n\n"))
+                raise QiskitServerlessException("\n\n".join(error_msg))
             if results:
                 raise QiskitServerlessException(results)
 
@@ -274,7 +274,7 @@ class Job:
 
         return results
 
-    def events(self, **kwargs) -> list:
+    def events(self, **kwargs) -> list[JobEvent]:
         """Returns events of the job."""
         return self._job_service.events(self.job_id, **kwargs)
 
