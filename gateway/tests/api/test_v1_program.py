@@ -19,7 +19,7 @@ from tests.utils import TestUtils
 class TestProgramApi(APITestCase):
     """TestProgramApi."""
 
-    fixtures = ["tests/fixtures/fixtures.json"]
+    # fixtures = ["tests/fixtures/fixtures.json"]
 
     def setUp(self):
         # pylint: disable=invalid-name
@@ -42,8 +42,15 @@ class TestProgramApi(APITestCase):
     def test_programs_list(self):
         """Tests programs list authorized."""
 
-        user = models.User.objects.get(username="test_user")
-        self.client.force_authenticate(user=user)
+        user = TestUtils.authorize_client(username="test_user", client=self.client)
+
+        # Create 3 programs for test_user
+        TestUtils.create_program(author=user, program_title="ProgramLocked", disabled=True)
+        TestUtils.create_program(author=user, program_title="Program")
+        TestUtils.create_program(author=user, program_title="ProgramLocked2", disabled=True)
+        
+        # Create program for another user (not accessible to test_user)
+        TestUtils.create_program(author="test_user_2", program_title="OtherUserProgram")
 
         programs_response = self.client.get(reverse("v1:programs-list"), format="json")
 
@@ -55,10 +62,23 @@ class TestProgramApi(APITestCase):
         )
 
     def test_provider_programs_list(self):
-        """Tests programs list authorized."""
+        """Tests programs list returns only programs user has VIEW permission for."""
 
-        user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        user = TestUtils.authorize_client(username="test_user_2", client=self.client)
+
+        # Create provider program accessible to test_user_2
+        TestUtils.create_program(
+            author=user,
+            provider_admin="default",
+            program_title="Docker-Image-Program",
+        )
+        
+        # Create program by different author (not accessible)
+        TestUtils.create_program(
+            author="other_user",
+            provider_admin="other_provider",
+            program_title="Other-Program",
+        )
 
         programs_response = self.client.get(reverse("v1:programs-list"), format="json")
 
@@ -74,10 +94,33 @@ class TestProgramApi(APITestCase):
         )
 
     def test_provider_programs_catalog_list(self):
-        """Tests programs list authorized."""
+        """Tests catalog filter returns only provider programs user has RUN permission for."""
 
-        user = models.User.objects.get(username="test_user_4")
-        self.client.force_authenticate(user=user)
+        user = TestUtils.authorize_client(username="test_user_4", client=self.client)
+        
+        # Add user to runner group for RUN_PROGRAM_PERMISSION
+        TestUtils.add_user_to_group(user, "runner")
+
+        # Create 2 provider programs with ibm provider that user has access to
+        TestUtils.create_program(
+            author="test_user_3",
+            provider_admin="ibm",
+            program_title="Docker-Image-Program-2",
+            instances=["runner"],
+        )
+        TestUtils.create_program(
+            author="test_user_3",
+            provider_admin="ibm",
+            program_title="Docker-Image-Program-3",
+            instances=["runner", "viewer"],
+        )
+        
+        # Create serverless program (no provider) - should not appear in catalog
+        TestUtils.create_program(
+            author="test_user_3",
+            program_title="Other-Program",
+            instances=["runner"],
+        )
 
         programs_response = self.client.get(reverse("v1:programs-list"), {"filter": "catalog"}, format="json")
 
@@ -103,8 +146,22 @@ class TestProgramApi(APITestCase):
     def test_provider_programs_serverless_list(self):
         """Tests programs list authorized."""
 
-        user = models.User.objects.get(username="test_user_3")
-        self.client.force_authenticate(user=user)
+        user = TestUtils.authorize_client(username="test_user_3", client=self.client)
+
+        # Create serverless program (author=user, no provider)
+        TestUtils.create_program(
+            author=user,
+            program_title="Program",
+            entrypoint="program.py",
+            artifact="path",
+        )
+        
+        # Create provider program by same user (should not appear in serverless filter)
+        TestUtils.create_program(
+            author=user,
+            provider_admin="default",
+            program_title="Provider-Program",
+        )
 
         programs_response = self.client.get(reverse("v1:programs-list"), {"filter": "serverless"}, format="json")
 
@@ -119,8 +176,20 @@ class TestProgramApi(APITestCase):
         """Tests run existing authorized."""
 
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            user = models.User.objects.get(username="test_user_3")
-            self.client.force_authenticate(user=user)
+            user = TestUtils.authorize_client(username="test_user_3", client=self.client)
+            
+            # Create program with trial_instances
+            TestUtils.create_program(
+                author=user,
+                program_title="Program",
+                entrypoint="program.py",
+                artifact="path",
+                trial_instances=["runner"],
+            )
+            
+            # Add user to runner group for trial access
+            TestUtils.add_user_to_group(user, "runner")
+            
             arguments = json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"})
             programs_response = self.client.post(
                 "/api/v1/programs/run/",
@@ -169,8 +238,16 @@ class TestProgramApi(APITestCase):
         """Tests run existing authorized."""
 
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            user = models.User.objects.get(username="test_user_2")
-            self.client.force_authenticate(user=user)
+            user = TestUtils.authorize_client(username="test_user_2", client=self.client)
+
+            # Create program with provider and env_vars
+            program = TestUtils.create_program(
+                author=user,
+                provider_admin="default",
+                program_title="Docker-Image-Program",
+                image="icr.io/awesome-namespace/awesome-title",
+                env_vars=json.dumps({"PROGRAM_ENV1": "VALUE1", "PROGRAM_ENV2": "VALUE2"}),
+            )
 
             arguments = json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"})
             programs_response = self.client.post(
@@ -298,8 +375,15 @@ class TestProgramApi(APITestCase):
     def test_run_locked(self):
         """Tests run disabled program."""
 
-        user = models.User.objects.get(username="test_user")
-        self.client.force_authenticate(user=user)
+        user = TestUtils.authorize_client(username="test_user", client=self.client)
+        
+        # Create disabled program with custom message
+        TestUtils.create_program(
+            author=user,
+            program_title="ProgramLocked",
+            disabled=True,
+            disabled_message="Program is locked",
+        )
 
         arguments = json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"})
         programs_response = self.client.post(
@@ -326,8 +410,14 @@ class TestProgramApi(APITestCase):
     def test_run_locked_default_msg(self):
         """Tests run disabled program."""
 
-        user = models.User.objects.get(username="test_user")
-        self.client.force_authenticate(user=user)
+        user = TestUtils.authorize_client(username="test_user", client=self.client)
+        
+        # Create disabled program without custom message (uses default)
+        TestUtils.create_program(
+            author=user,
+            program_title="ProgramLocked2",
+            disabled=True,
+        )
 
         arguments = json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"})
         programs_response = self.client.post(
@@ -357,8 +447,7 @@ class TestProgramApi(APITestCase):
         fake_file = ContentFile(b"print('Hello World')")
         fake_file.name = "test_run.tar"
 
-        user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        user = TestUtils.authorize_client(username="test_user_2", client=self.client)
 
         env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
 
@@ -379,8 +468,7 @@ class TestProgramApi(APITestCase):
     def test_upload_custom_image_without_provider(self):
         """Tests upload end-point authorized."""
 
-        user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        user = TestUtils.authorize_client(username="test_user_2", client=self.client)
 
         env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
         programs_response = self.client.post(
@@ -397,8 +485,10 @@ class TestProgramApi(APITestCase):
     def test_upload_custom_image_without_access_to_the_provider(self):
         """Tests upload end-point authorized."""
 
-        user = models.User.objects.get(username="test_user")
-        self.client.force_authenticate(user=user)
+        user = TestUtils.authorize_client(username="test_user", client=self.client)
+        
+        # Create ibm provider (user doesn't have access)
+        TestUtils.get_or_create_provider("ibm")
 
         env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
         programs_response = self.client.post(
@@ -430,8 +520,11 @@ class TestProgramApi(APITestCase):
         fake_file = ContentFile(b"print('Hello World')")
         fake_file.name = "test_run.tar"
 
-        user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        user = TestUtils.authorize_client(username="test_user_2", client=self.client)
+        
+        # Create default provider and add user as admin
+        provider = TestUtils.get_or_create_provider("default")
+        TestUtils.add_user_to_group(user, "default")
 
         env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
 
@@ -456,8 +549,11 @@ class TestProgramApi(APITestCase):
         fake_file = ContentFile(b"print('Hello World')")
         fake_file.name = "test_run.tar"
 
-        user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        user = TestUtils.authorize_client(username="test_user_2", client=self.client)
+        
+        # Create default provider and add user as admin
+        provider = TestUtils.get_or_create_provider("default")
+        TestUtils.add_user_to_group(user, "default")
 
         env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
 
@@ -488,8 +584,10 @@ class TestProgramApi(APITestCase):
         fake_file = ContentFile(b"print('Hello World')")
         fake_file.name = "test_run.tar"
 
-        user = models.User.objects.get(username="test_user")
-        self.client.force_authenticate(user=user)
+        user = TestUtils.authorize_client(username="test_user", client=self.client)
+        
+        # Create default provider (user doesn't have admin access)
+        TestUtils.get_or_create_provider("default")
 
         env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
         programs_response = self.client.post(
@@ -511,8 +609,18 @@ class TestProgramApi(APITestCase):
         fake_file = ContentFile(b"print('Hello World')")
         fake_file.name = "test_run.tar"
 
-        user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        user = TestUtils.authorize_client(username="test_user_2", client=self.client)
+        
+        # Create default provider and add user as admin
+        TestUtils.get_or_create_provider("default")
+        TestUtils.add_user_to_group(user, "default")
+        
+        # Create another program to make total count 2
+        TestUtils.create_program(
+            author=user,
+            provider_admin="default",
+            program_title="Existing Program",
+        )
 
         env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
         description = "sample function implemented in a custom image"
@@ -548,8 +656,14 @@ class TestProgramApi(APITestCase):
             self.assertTrue(found)
 
     def test_get_by_title(self):
-        user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        user = TestUtils.authorize_client(username="test_user_2", client=self.client)
+        
+        # Create provider program
+        TestUtils.create_program(
+            author=user,
+            provider_admin="default",
+            program_title="Docker-Image-Program",
+        )
 
         # Trying to get a provider function WITHOUT specifying provider should return 404
         # because get_user_function() correctly filters by provider=None
@@ -585,31 +699,47 @@ class TestProgramApi(APITestCase):
     def test_get_jobs(self):
         """Tests run existing authorized."""
 
-        user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        user_2 = TestUtils.authorize_client(username="test_user_2", client=self.client)
+        user_1 = TestUtils.authorize_client(username="test_user", client=self.client)
+        
+        # Create program w/o provider with 1 job by test_user_2
+        program_no_provider = TestUtils.create_program(
+            author=user_1,
+            program_title="Program-No-Provider",
+        )
+        TestUtils.create_job(author=user_2, program=program_no_provider)  # add job with status QUEUE
+        
+        # Create program w/ provider with 2 jobs (1 by test_user_2, 1 by test_user)
+        program_with_provider = TestUtils.create_program(
+            author=user_2,
+            provider_admin="default",
+            program_title="Program-With-Provider",
+        )
+        TestUtils.add_user_to_group(user_2, "default")
+        TestUtils.create_job(author=user_2, program=program_with_provider)
+        TestUtils.create_job(author=user_1, program=program_with_provider)
 
         # program w/o provider
         response = self.client.get(
-            "/api/v1/programs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec82/get_jobs/",
+            f"/api/v1/programs/{program_no_provider.id}/get_jobs/",
             format="json",
         )
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        # program w/ provider by not author
+        # program w/ provider by not author (sees all jobs as program admin)
         response = self.client.get(
-            "/api/v1/programs/6160a2ff-e482-443d-af23-15110b646ae2/get_jobs/",
+            f"/api/v1/programs/{program_with_provider.id}/get_jobs/",
             format="json",
         )
         self.assertEqual(len(response.data), 2)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        # program w/ provider by author
-        user = models.User.objects.get(username="test_user")
-        self.client.force_authenticate(user=user)
+        # program w/ provider by author (sees only own job)
+        self.client.force_authenticate(user=user_1)
 
         response = self.client.get(
-            "/api/v1/programs/6160a2ff-e482-443d-af23-15110b646ae2/get_jobs/",
+            f"/api/v1/programs/{program_with_provider.id}/get_jobs/",
             format="json",
         )
         self.assertEqual(len(response.data), 1)
@@ -621,8 +751,14 @@ class TestProgramApi(APITestCase):
         fake_file = ContentFile(b"print('Hello World')")
         fake_file.name = "test_run.tar"
 
-        user = models.User.objects.get(username="test_user")
-        self.client.force_authenticate(user=user)
+        user = TestUtils.authorize_client(username="test_user", client=self.client)
+        
+        # Create existing program with description
+        TestUtils.create_program(
+            author=user,
+            program_title="Program",
+            description="Program description test",
+        )
 
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             programs_response = self.client.post(

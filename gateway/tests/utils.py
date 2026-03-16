@@ -25,8 +25,14 @@ class TestUtils:
         return user, author
 
     @staticmethod
-    def _get_or_create_provider(provider_admin: str) -> Provider:
-        """Helper to setup a provider and its admin group/user safely."""
+    def get_or_create_provider(provider_admin: str) -> Provider:
+        """
+        Setup a provider and its admin group/user safely.
+        Args:
+            provider_admin: Name for the provider, admin group, and admin user
+        Returns:
+            Provider object
+        """
         provider, _ = Provider.objects.get_or_create(name=provider_admin)  # provider name is unique
         # Setup Groups and Admin User if needed
         admin_group, _ = Group.objects.get_or_create(name=provider_admin)
@@ -46,6 +52,8 @@ class TestUtils:
         author: Union[User, str] = "default_user",
         provider_admin: str = None,
         program_title: str = None,
+        instances: list[str] = None,
+        trial_instances: list[str] = None,
         **kwargs,
     ) -> Program:
         """
@@ -54,6 +62,8 @@ class TestUtils:
             author: The author or username for the Job (and Program).
             provider_admin: Optional username for the provider admin.
             program_title: Optional title. Defaults to author-provider format.
+            instances: List of group names to add as instances.
+            trial_instances: List of group names to add as trial_instances.
             **kwargs: Additional fields to set on the Program model
         """
 
@@ -61,12 +71,25 @@ class TestUtils:
         provider = None
 
         if provider_admin:
-            provider = TestUtils._get_or_create_provider(provider_admin)
+            provider = TestUtils.get_or_create_provider(provider_admin)
 
         if not program_title:
             program_title = f"{author_username}-{provider_admin or 'custom'}"
 
         program = Program.objects.create(title=program_title, author=author_obj, provider=provider, **kwargs)
+        
+        # Add instances (groups) if provided
+        if instances:
+            for group_name in instances:
+                group, _ = Group.objects.get_or_create(name=group_name)
+                program.instances.add(group)
+        
+        # Add trial_instances if provided
+        if trial_instances:
+            for group_name in trial_instances:
+                group, _ = Group.objects.get_or_create(name=group_name)
+                program.trial_instances.add(group)
+        
         program.save()
         return program
 
@@ -132,6 +155,22 @@ class TestUtils:
         job = Job.objects.create(author=author_obj, program=program, status=status, config=config, **kwargs)
         job.save()
         return job
+
+    @staticmethod
+    def add_user_to_group(user: Union[User, str], group_name: str) -> User:
+        """
+        Add a user to a group. Creates the group if it doesn't exist.
+        Args:
+            user: User object or username string
+            group_name: Name of the group to add the user to
+        Returns:
+            User object
+        """
+        user_obj, _ = TestUtils._get_user_and_username(user)
+        group, _ = Group.objects.get_or_create(name=group_name)
+        if not user_obj.groups.filter(id=group.id).exists():
+            user_obj.groups.add(group)
+        return user_obj
 
     @staticmethod
     def authorize_client(username: str, client: APIClient) -> User:
