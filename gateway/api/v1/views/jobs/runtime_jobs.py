@@ -4,6 +4,7 @@ API endpoint to handle runtime jobs.
 
 # pylint: disable=abstract-method
 
+import logging
 from typing import Any
 from uuid import UUID
 
@@ -14,6 +15,7 @@ from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+
 from api import serializers as api_serializers
 from api.use_cases.jobs.associate_runtime_jobs import (
     AssociateRuntimeJobsUseCase,
@@ -22,6 +24,8 @@ from api.use_cases.jobs.get_runtime_jobs import GetRuntimeJobsUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
+
+logger = logging.getLogger("gateway")
 
 
 class InputSerializer(serializers.Serializer):
@@ -101,10 +105,12 @@ def runtime_jobs(request: Request, job_id: UUID) -> Response:
         runtime_job = serializer.validated_data.get("runtime_job")
         runtime_session = serializer.validated_data.get("runtime_session")
         message = AssociateRuntimeJobsUseCase().execute(job_id, runtime_job, runtime_session)
+        logger.info("[jobs-runtime-jobs:post] user=%s job_id=%s runtime_job=%s", request.user.id, job_id, runtime_job)
         return Response({"message": message})
 
     if request.method == "GET":
         out_runtime_jobs = GetRuntimeJobsUseCase().execute(job_id)
+        logger.info("[jobs-runtime-jobs:get] user=%s job_id=%s", request.user.id, job_id)
         return Response(serialize_output(out_runtime_jobs))
 
     raise MethodNotAllowed(request.method)
