@@ -14,13 +14,13 @@
 
 import json
 import os
-from unittest import TestCase, skip
 from unittest.mock import patch
 from uuid import uuid4
 
 import shutil
 import tempfile
 import numpy as np
+import pytest
 from qiskit.circuit.random import random_circuit
 from qiskit_ibm_runtime import QiskitRuntimeService
 
@@ -32,7 +32,7 @@ from qiskit_serverless.serializers.program_serializers import (
 )
 
 
-class TestProgramSerializers(TestCase):
+class TestProgramSerializers:
     """Tests for program serializers."""
 
     def test_circuit_serialization(self):
@@ -40,36 +40,40 @@ class TestProgramSerializers(TestCase):
         circuit = random_circuit(4, 2)
         encoded_arguments = json.dumps({"circuit": circuit}, cls=QiskitObjectsEncoder)
         decoded_arguments = json.loads(encoded_arguments, cls=QiskitObjectsDecoder)
-        self.assertEqual(circuit, decoded_arguments.get("circuit"))
+        assert circuit == decoded_arguments.get("circuit")
 
     def test_ndarray_serialization(self):
         """Tests ndarray serialization."""
         array = np.array([[42.0], [0.0]])
         encoded_arguments = json.dumps({"array": array}, cls=QiskitObjectsEncoder)
         decoded_arguments = json.loads(encoded_arguments, cls=QiskitObjectsDecoder)
-        self.assertTrue(all(np.equal(array, decoded_arguments.get("array"))))
+        assert all(np.equal(array, decoded_arguments.get("array")))
 
-    @skip("External service call.")
+    @pytest.mark.skip(reason="External service call.")
     def test_runtime_service_serialization(self):
         """Tests runtime service serialization."""
         service = QiskitRuntimeService()
         encoded_arguments = json.dumps({"service": service}, cls=QiskitObjectsEncoder)
         decoded_arguments = json.loads(encoded_arguments, cls=QiskitObjectsDecoder)
-        self.assertIsInstance(decoded_arguments.get("service"), QiskitRuntimeService)
+        assert isinstance(decoded_arguments.get("service"), QiskitRuntimeService)
 
 
-class TestArgParsing(TestCase):
+class TestArgParsing:
     """Tests argument parsing,"""
 
-    def setUp(self):
-        self.test_data_dir = tempfile.mkdtemp()
-        self.arguments_dir = os.path.join(self.test_data_dir, "arguments")
+    def setup_method(self):
+        """Set up test fixtures before each test method."""
+        self.test_data_dir = tempfile.mkdtemp()  # pylint: disable=attribute-defined-outside-init
+        self.arguments_dir = os.path.join(  # pylint: disable=attribute-defined-outside-init
+            self.test_data_dir, "arguments"
+        )
         os.makedirs(self.arguments_dir, exist_ok=True)
 
-        self.original_data_path = os.environ.get(DATA_PATH)
+        self.original_data_path = os.environ.get(DATA_PATH)  # pylint: disable=attribute-defined-outside-init
         os.environ[DATA_PATH] = self.test_data_dir
 
-    def tearDown(self):
+    def teardown_method(self):
+        """Clean up test fixtures after each test method."""
         if self.original_data_path is not None:
             os.environ[DATA_PATH] = self.original_data_path
         elif DATA_PATH in os.environ:
@@ -90,4 +94,4 @@ class TestArgParsing(TestCase):
             json.dump({"circuit": circuit, "array": array}, f, cls=QiskitObjectsEncoder)
 
         parsed_arguments = get_arguments()
-        self.assertEqual(list(parsed_arguments.keys()), ["circuit", "array"])
+        assert list(parsed_arguments.keys()) == ["circuit", "array"]
