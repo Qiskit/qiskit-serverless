@@ -389,7 +389,7 @@ ERROR: Provider log
         events = job.events(type="ERROR")
         assert len(events) == 1
 
-        event_data = events[0]["data"]
+        event_data = events[0].data
         assert event_data["code"] == "1000"
         assert event_data["message"] == "My error message"
         assert event_data["args"]["my-arg-1"] == 123
