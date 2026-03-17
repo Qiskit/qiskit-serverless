@@ -1,0 +1,5 @@
+---
+issues:
+  - |
+    Gateway out of memory when downloading a big file. Now, the download uses a 64Kb stream buffer 
+    that prevents it from crashing.
