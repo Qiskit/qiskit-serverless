@@ -40,7 +40,10 @@ class TestProgramApi(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_programs_list(self):
-        """Tests programs list authorized."""
+        """
+            Tests programs list returns only programs user has access to.
+            Since user doesn't belong to any group, it will only be self-authored programs.
+        """
 
         user = TestUtils.authorize_client(username="test_user", client=self.client)
 
@@ -52,6 +55,7 @@ class TestProgramApi(APITestCase):
         # Create program for another user (not accessible to test_user)
         TestUtils.create_program(author="test_user_2", program_title="OtherUserProgram")
 
+        # no filter applied - all program `test_user` has view permission (owned program in this case) are returned.
         programs_response = self.client.get(reverse("v1:programs-list"), format="json")
 
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
@@ -62,11 +66,11 @@ class TestProgramApi(APITestCase):
         )
 
     def test_provider_programs_list(self):
-        """Tests programs list returns only programs user has VIEW permission for."""
+        """Tests programs list returns only programs user has access permission for."""
 
         user = TestUtils.authorize_client(username="test_user_2", client=self.client)
 
-        # Create provider program accessible to test_user_2
+        # Create provider program accessible to test_user_2 as author
         TestUtils.create_program(
             author=user,
             provider_admin="default",
@@ -94,7 +98,8 @@ class TestProgramApi(APITestCase):
         )
 
     def test_provider_programs_catalog_list(self):
-        """Tests catalog filter returns only provider programs user has RUN permission for."""
+        """Tests catalog filter programs list. Catalog filter only returns providers functions that user has access:
+            author has permissions for it (by group\instance) and the function has a provider assigned."""
 
         user = TestUtils.authorize_client(username="test_user_4", client=self.client)
         
@@ -114,7 +119,7 @@ class TestProgramApi(APITestCase):
             program_title="Docker-Image-Program-3",
             instances=["runner", "viewer"],
         )
-        
+
         # Create serverless program (no provider) - should not appear in catalog
         TestUtils.create_program(
             author="test_user_3",
@@ -144,11 +149,12 @@ class TestProgramApi(APITestCase):
         )
 
     def test_provider_programs_serverless_list(self):
-        """Tests programs list authorized."""
+        """Tests programs list for serverless list. The return criteria is the user is the author of the function and
+        there is no provider"""
 
         user = TestUtils.authorize_client(username="test_user_3", client=self.client)
 
-        # Create serverless program (author=user, no provider)
+        # Create serverless program (author=user, no provider) - have permission to run
         TestUtils.create_program(
             author=user,
             program_title="Program",
