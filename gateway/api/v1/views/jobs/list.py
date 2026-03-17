@@ -4,6 +4,7 @@ API endpoint for listing jobs with optional filters and pagination.
 
 # pylint: disable=duplicate-code, abstract-method
 
+import logging
 from typing import cast
 
 from django.conf import settings
@@ -14,6 +15,7 @@ from rest_framework import permissions, serializers, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
+
 
 from core.models import Job, Program
 from api.repositories.jobs import JobFilters
@@ -27,6 +29,8 @@ from api.v1.views.utils import (
 from api.v1.views.swagger_utils import standard_error_responses
 from api.v1.views.serializer_utils import SanitizedCharField
 from api.views.enums.type_filter import TypeFilter
+
+logger = logging.getLogger("gateway")
 
 
 class InputSerializer(serializers.Serializer):
@@ -207,4 +211,11 @@ def get_jobs(request: Request) -> Response:
     user = cast(AbstractUser, request.user)
 
     jobs, total = JobsListUseCase().execute(user=user, filters=filters)
+    logger.info(
+        "[jobs-list] user=%s provider=%s function=%s status=%s",
+        user.id,
+        filters.provider,
+        filters.function,
+        filters.status,
+    )
     return Response(serialize_output(jobs, total, request, filters.limit, filters.offset))

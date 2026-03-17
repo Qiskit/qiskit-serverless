@@ -4,6 +4,7 @@ API endpoint for retrieving job logs.
 
 # pylint: disable=duplicate-code, abstract-method
 
+import logging
 from typing import Any, cast
 from uuid import UUID
 
@@ -18,6 +19,8 @@ from api.use_cases.jobs.get_logs import GetJobLogsUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
+
+logger = logging.getLogger("gateway")
 
 
 class JobLogsOutputSerializer(serializers.Serializer):
@@ -66,4 +69,5 @@ def get_logs(request: Request, job_id: UUID) -> Response:
     """
     user = cast(AbstractUser, request.user)
     logs = GetJobLogsUseCase().execute(job_id, user)
+    logger.info("[jobs-logs] user=%s job_id=%s", user.id, job_id)
     return Response(serialize_output(logs))

@@ -43,47 +43,49 @@ class TestCommands(APITestCase):
 
     @patch("scheduler.tasks.update_jobs_statuses.get_job_handler")
     def test_update_jobs_statuses(self, get_job_handler):
-        """Tests update of job statuses."""
-        # Test status change from PENDING to RUNNING
-        ray_client = MagicMock()
-        ray_client.get_job_status.return_value = JobStatus.RUNNING
-        ray_client.get_job_logs.return_value = "No logs yet."
-        ray_client.stop_job.return_value = True
-        ray_client.submit_job.return_value = "AwesomeJobId"
-        get_job_handler.return_value = JobHandler(ray_client)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with self.settings(MEDIA_ROOT=temp_dir):
+                """Tests update of job statuses."""
+                # Test status change from PENDING to RUNNING
+                ray_client = MagicMock()
+                ray_client.get_job_status.return_value = JobStatus.RUNNING
+                ray_client.get_job_logs.return_value = "No logs yet."
+                ray_client.stop_job.return_value = True
+                ray_client.submit_job.return_value = "AwesomeJobId"
+                get_job_handler.return_value = JobHandler(ray_client)
 
-        job = self._create_test_job(ray_job_id="test_update_jobs_statuses")
+                job = self._create_test_job(ray_job_id="test_update_jobs_statuses")
 
-        UpdateJobsStatuses().run()
+                UpdateJobsStatuses().run()
 
-        job.refresh_from_db()
-        self.assertEqual(job.status, "RUNNING")
-        self.assertIsNotNone(job.env_vars)
+                job.refresh_from_db()
+                self.assertEqual(job.status, "RUNNING")
+                self.assertIsNotNone(job.env_vars)
 
-        job_events = JobEvent.objects.filter(job=job)
-        self.assertEqual(len(job_events), 1)
-        self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
-        self.assertEqual(job_events[0].data["status"], JobStatus.RUNNING)
-        self.assertEqual(job_events[0].origin, JobEventOrigin.SCHEDULER)
-        self.assertEqual(job_events[0].context, JobEventContext.UPDATE_JOB_STATUS)
+                job_events = JobEvent.objects.filter(job=job)
+                self.assertEqual(len(job_events), 1)
+                self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
+                self.assertEqual(job_events[0].data["status"], JobStatus.RUNNING)
+                self.assertEqual(job_events[0].origin, JobEventOrigin.SCHEDULER)
+                self.assertEqual(job_events[0].context, JobEventContext.UPDATE_JOB_STATUS)
 
-        # Test job logs for FAILED job with empty logs
-        ray_client.get_job_status.return_value = JobStatus.FAILED
-        ray_client.get_job_logs.return_value = ""
+                # Test job logs for FAILED job with empty logs
+                ray_client.get_job_status.return_value = JobStatus.FAILED
+                ray_client.get_job_logs.return_value = ""
 
-        UpdateJobsStatuses().run()
+                UpdateJobsStatuses().run()
 
-        job.refresh_from_db()
-        self.assertEqual(job.status, "FAILED")
-        self.assertEqual(job.env_vars, "{}")
-        self.assertIsNone(job.sub_status)
+                job.refresh_from_db()
+                self.assertEqual(job.status, "FAILED")
+                self.assertEqual(job.env_vars, "{}")
+                self.assertIsNone(job.sub_status)
 
-        job_events = JobEvent.objects.filter(job=job).order_by("created")
-        self.assertEqual(len(job_events), 2)
-        self.assertEqual(job_events[1].event_type, JobEventType.STATUS_CHANGE)
-        self.assertEqual(job_events[1].data["status"], JobStatus.FAILED)
-        self.assertEqual(job_events[1].origin, JobEventOrigin.SCHEDULER)
-        self.assertEqual(job_events[1].context, JobEventContext.UPDATE_JOB_STATUS)
+                job_events = JobEvent.objects.filter(job=job).order_by("created")
+                self.assertEqual(len(job_events), 2)
+                self.assertEqual(job_events[1].event_type, JobEventType.STATUS_CHANGE)
+                self.assertEqual(job_events[1].data["status"], JobStatus.FAILED)
+                self.assertEqual(job_events[1].origin, JobEventOrigin.SCHEDULER)
+                self.assertEqual(job_events[1].context, JobEventContext.UPDATE_JOB_STATUS)
 
     @patch("scheduler.tasks.schedule_queued_jobs.execute_job")
     def test_schedule_queued_jobs(self, execute_job):
@@ -336,6 +338,7 @@ WARNING: Private warning
         compute_resource: Optional[ComputeResource] = None,
         ray_job_id: str = "test-job-id",
         gpu: bool = False,
+        logs: str = "No logs yet.",
     ) -> Job:
         """Helper method to create a test job.
 
@@ -373,4 +376,5 @@ WARNING: Private warning
             compute_resource=compute_resource,
             ray_job_id=ray_job_id,
             gpu=gpu,
+            logs=logs,
         )
