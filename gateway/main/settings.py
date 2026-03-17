@@ -176,6 +176,11 @@ DATABASES = {
         "PASSWORD": os.environ.get("DATABASE_PASSWORD", "serverlesspassword"),
         "HOST": os.environ.get("DATABASE_HOST", "localhost"),
         "PORT": os.environ.get("DATABASE_PORT", "5432"),
+        # Ping the connection before reuse. If it died (Postgres restart, network blip),
+        # Django silently reconnects instead of raising InterfaceError.
+        "CONN_HEALTH_CHECKS": True,
+        # Fail fast if Postgres is unreachable instead of hanging for minutes timeout.
+        "OPTIONS": {"connect_timeout": 5},
     },
     "test": {
         "ENGINE": "django_prometheus.db.backends.sqlite3",
