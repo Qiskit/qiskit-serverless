@@ -45,12 +45,25 @@ class TestScheduleApi(APITestCase):
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             user = get_user_model().objects.filter(username="test3_user").first()
 
-            job_1 = MagicMock()
-            job_1.author = user
-            ret_job_1 = execute_job(job_1)
+            def create_resource_side_effect(job, cluster_name):
+                return Job.compute_resource.field.related_model.objects.create(
+                    title=cluster_name,
+                    host="http://example",
+                    owner=job.author,
+                )
 
-            job_2 = MagicMock()
-            job_2.author = user
-            ret_job_2 = execute_job(job_2)
+            def submit_job_side_effect(job):
+                job.status = Job.PENDING
+                return job
 
-            self.assertNotEqual(str(ret_job_1.compute_resource.id), str(ret_job_2.compute_resource.id))
+            with patch("scheduler.schedule.create_compute_resource", side_effect=create_resource_side_effect):
+                with patch("scheduler.schedule.submit_job", side_effect=submit_job_side_effect):
+                    job_1 = MagicMock()
+                    job_1.author = user
+                    ret_job_1 = execute_job(job_1)
+
+                    job_2 = MagicMock()
+                    job_2.author = user
+                    ret_job_2 = execute_job(job_2)
+
+                    self.assertNotEqual(str(ret_job_1.compute_resource.id), str(ret_job_2.compute_resource.id))
