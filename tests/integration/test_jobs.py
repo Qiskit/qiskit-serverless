@@ -458,6 +458,7 @@ ERROR: Provider log
         assert event_data["code"] == "A123"
         assert event_data["message"] == "My error message"
         assert event_data["args"]["my-args"] == 123
+
     def test_provider_logs(self, serverless_client: ServerlessClient):
         """Integration test for logs."""
 
