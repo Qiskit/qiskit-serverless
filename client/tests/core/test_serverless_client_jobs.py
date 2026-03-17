@@ -186,6 +186,40 @@ class TestJobsMethod:
             assert jobs[0].raw_data["created"] == "2024-01-01T00:00:00Z"
             assert jobs[0].raw_data["result"] == "test-result"
 
+    def test_jobs_rejects_invalid_kwargs(self, mock_client):
+        """Test jobs() validates kwargs and rejects invalid ones."""
+        with pytest.raises(
+            QiskitServerlessException,
+            match=r"Invalid keyword argument\(s\): invalid_param",
+        ):
+            mock_client.jobs(invalid_param="value")
+
+    def test_jobs_rejects_multiple_invalid_kwargs(self, mock_client):
+        """Test jobs() rejects multiple invalid kwargs with sorted error message."""
+        with pytest.raises(
+            QiskitServerlessException,
+            match=r"Invalid keyword argument\(s\): bad_param, invalid_param",
+        ):
+            mock_client.jobs(invalid_param="value", bad_param="another")
+
+    def test_jobs_valid_kwargs_documented(self, mock_client):
+        """Test that all documented valid kwargs are accepted."""
+        mock_response = {"results": []}
+
+        with requests_mock.Mocker() as mocker:
+            mocker.get(
+                "https://test-host.com/api/v1/jobs/",
+                json=mock_response,
+            )
+
+            # All documented kwargs should be accepted without error
+            mock_client.jobs(
+                limit=10,
+                offset=5,
+                status="RUNNING",
+                created_after="2024-01-01T00:00:00Z",
+            )
+
 
 class TestProviderJobsMethod:
     """Test ServerlessClient.provider_jobs() method."""
@@ -240,6 +274,25 @@ class TestProviderJobsMethod:
             assert mock_request.last_request.qs["offset"] == ["10"]
             assert mock_request.last_request.qs["function"] == ["test-function"]
             assert mock_request.last_request.qs["provider"] == ["test-provider"]
+
+    def test_provider_jobs_accepts_same_kwargs_as_jobs(self, mock_client, mock_function):
+        """Test provider_jobs() accepts the same documented kwargs as jobs()."""
+        mock_response = {"results": []}
+
+        with requests_mock.Mocker() as mocker:
+            mocker.get(
+                "https://test-host.com/api/v1/jobs/provider/",
+                json=mock_response,
+            )
+
+            # All documented kwargs should be accepted without error
+            mock_client.provider_jobs(
+                function=mock_function,
+                limit=10,
+                offset=5,
+                status="RUNNING",
+                created_after="2024-01-01T00:00:00Z",
+            )
 
 
 class TestJobMethod:
