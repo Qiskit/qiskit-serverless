@@ -3,6 +3,7 @@ API V1: Download provider file end-point.
 """
 
 # pylint: disable=duplicate-code
+import logging
 from typing import cast
 from django.http import StreamingHttpResponse
 from django.contrib.auth.models import AbstractUser
@@ -14,10 +15,13 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework import serializers
 
+
 from api.use_cases.files.provider_download import FilesProviderDownloadUseCase
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_file_name, sanitize_name
+
+logger = logging.getLogger("gateway")
 
 # pylint: disable=abstract-method
 
@@ -113,7 +117,13 @@ def files_provider_download(request: Request) -> Response:
     user = cast(AbstractUser, request.user)
 
     result = FilesProviderDownloadUseCase().execute(user, provider, function, file)
-
+    logger.info(
+        "[files-provider-download] user=%s function=%s provider=%s file=%s",
+        user.id,
+        function,
+        provider,
+        file,
+    )
     file_wrapper, file_type, file_size = result
     response = StreamingHttpResponse(file_wrapper, content_type=file_type)
     response["Content-Length"] = file_size
