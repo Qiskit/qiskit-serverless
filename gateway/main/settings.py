@@ -179,8 +179,19 @@ DATABASES = {
         # Ping the connection before reuse. If it died (Postgres restart, network blip),
         # Django silently reconnects instead of raising InterfaceError.
         "CONN_HEALTH_CHECKS": True,
-        # Fail fast if Postgres is unreachable instead of hanging for minutes timeout.
-        "OPTIONS": {"connect_timeout": 5},
+        "OPTIONS": {
+            # Fail fast on new connections instead of hanging for minutes.
+            "connect_timeout": 5,
+            # TCP keepalives: detect dead connections when Postgres is unreachable
+            # (network partition, pod killed) so the socket doesn't block forever.
+            # OS will probe after 30s idle, retry every 5s, give up after 3 failures (~45s total).
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 5,
+            "keepalives_count": 3,
+            # Hard limit per query: prevents a single hung query from blocking the scheduler/Gateway forever.
+            "options": "-c statement_timeout=60000",
+        },
     },
     "test": {
         "ENGINE": "django_prometheus.db.backends.sqlite3",
