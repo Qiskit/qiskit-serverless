@@ -78,12 +78,13 @@ def test_provider_storage(tmp_path, settings, function_with_provider):
     path = storage.upload_file(uploaded_file)
     assert os.path.exists(path)
 
-    # Get the file
-    result = storage.get_file("test.txt")
-    assert result is not None
-    file_wrapper, file_type, size = result
-    assert file_type == "text/plain"
-    assert size == len(file_content)
+    file_wrapper, file_type, size = storage.get_file("test.txt")
+    assert file_type == "text/plain" and size == len(file_content)
+    assert b"".join(file_wrapper) == file_content
+
+    generator, file_type, size = storage.get_file_stream("test.txt", 2)
+    assert file_type == "text/plain" and size == len(file_content)
+    assert b"".join(generator) == file_content
 
     # List one file
     assert storage.get_files() == ["test.txt"]
@@ -106,10 +107,10 @@ def test_get_file_stream_yields_correct_content(tmp_path, settings, function_wit
     )
 
     file_content = b"hello serverless team"
-    uploaded_file = SimpleUploadedFile("data.bin", file_content)
+    uploaded_file = SimpleUploadedFile("data.txt", file_content)
     storage.upload_file(uploaded_file)
 
-    generator, file_type, file_size = storage.get_file_stream("data.bin", 2)
+    generator, file_type, file_size = storage.get_file_stream("data.txt", 2)
     assert file_type == "text/plain"
     assert file_size == len(file_content)
     received = b"".join(generator)

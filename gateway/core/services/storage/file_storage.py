@@ -73,6 +73,7 @@ class FileStorage:
         This method returns a file from file_name:
             - Only files with supported extensions are available to download
             - It returns only a file from a user or a provider file storage
+            - FileWrapper is iterable only from the file system. From mounted COS volumes, use get_file_stream instead
 
         Args:
             file_name (str): the name of the file to download
