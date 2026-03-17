@@ -28,6 +28,8 @@ class TestProgramApi(APITestCase):
         self._temp_directory = tempfile.TemporaryDirectory()
         self.MEDIA_ROOT = self._temp_directory.name
         self.LIMITS_ACTIVE_JOBS_PER_USER = 2
+        self.runner_permission = ["run_program", "api", "program"]
+        self.viewer_permission = ["view_program", "api", "program"]
 
     def tearDown(self):
         self._temp_directory.cleanup()
@@ -61,14 +63,6 @@ class TestProgramApi(APITestCase):
 
         # no filter applied - all program `test_user` has view permission (owned program in this case) are returned.
         programs_response = self.client.get(reverse("v1:programs-list"), format="json")
-
-        # print("\n\n\n")
-        # print("\nTest Name: 'test_programs_list'")
-        # print("\nprograms_response: ", programs_response)
-        # print("\nprograms_response data length: ", len(programs_response.data))
-        # print("\nprograms_response data: ", programs_response.data)
-        # print("\nprograms_response data[0]: ", programs_response.data[0])
-        # print("\n\n\n")
 
         assert programs_response.status_code == status.HTTP_200_OK
         assert len(programs_response.data) == 3
@@ -107,7 +101,7 @@ class TestProgramApi(APITestCase):
             provider assigned."""
 
         user = TestUtils.authorize_client(username="test_user_4", client=self.client)
-        
+        TestUtils.get_or_create_group(group="runner", permissions=[self.runner_permission])
         # Add user to runner group for RUN_PROGRAM_PERMISSION
         TestUtils.add_user_to_group(user=user, group="runner")
 
@@ -142,20 +136,12 @@ class TestProgramApi(APITestCase):
 
         programs_response = self.client.get(reverse("v1:programs-list"), {"filter": "catalog"}, format="json")
 
-        print("\n\n\n")
-        print("\nTest Name: 'test_provider_programs_catalog_list'")
-        print("\nprograms_response: ", programs_response)
-        print("\nprograms_response data length: ", len(programs_response.data))
-        print("\nprograms_response data: ", programs_response.data)
-        print("\nprograms_response data[0]: ", programs_response.data[0])
-        print("\n\n\n")
-
         assert programs_response.status_code == status.HTTP_200_OK
         assert len(programs_response.data) == 2
-        assert programs_response.data[0].get("provider") == "ibm"
-        assert programs_response.data[0].get("title") == "Docker-Image-Program-2"
-        assert programs_response.data[1].get("provider") == "ibm"
-        assert programs_response.data[1].get("title") == "Docker-Image-Program-3"
+        for data in programs_response.data:
+            assert data.get("title") in ["Docker-Image-Program-2", "Docker-Image-Program-3"]
+            assert data.get("provider") == "ibm"
+        assert programs_response.data[0].get("title") != programs_response.data[1].get("title")
 
     def test_provider_programs_serverless_list(self):
         """Tests programs list for serverless list. The return criteria is the user is the author of the function and
@@ -188,11 +174,14 @@ class TestProgramApi(APITestCase):
         """Tests run existing authorized."""
 
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            # user = TestUtils.authorize_client(username="test_user_3", client=self.client)
+            user = TestUtils.authorize_client(username="test_user_3", client=self.client)
             # user = models.User.objects.get_or_create(username="test_user_3")
-            user = models.User.objects.get(username="test_user_3")
-            self.client.force_authenticate(user=user)
-            # TestUtils.add_user_to_group(user, "runner")
+            # user = models.User.objects.get(username="test_user_3")
+            # self.client.force_authenticate(user=user)
+            TestUtils.get_or_create_group(group="runner", permissions=[self.runner_permission])
+            # Add user to runner group for trial access
+            TestUtils.add_user_to_group(user, "runner")
+
             # Create program with trial_instances
             TestUtils.create_program(
                 program_title="Program",
@@ -202,9 +191,6 @@ class TestProgramApi(APITestCase):
                 # instances=["runner"],
                 trial_instances=["runner"],
             )
-            
-            # Add user to runner group for trial access
-            TestUtils.add_user_to_group(user, "runner")
             
             arguments = json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"})
             programs_response = self.client.post(
@@ -224,10 +210,6 @@ class TestProgramApi(APITestCase):
             job_id = programs_response.data.get("id")
             job = Job.objects.get(id=job_id)
             env_vars = json.loads(job.env_vars)
-            print("\n\n\n")
-            print("\nTest Name: 'test_provider_programs_run'")
-            print("\njob.trial: ", job.trial)
-            print("\njob.env_vars: ", job.env_vars)
 
             assert job.status == Job.QUEUED
             assert job.trial == True
@@ -269,7 +251,7 @@ class TestProgramApi(APITestCase):
                 # image="icr.io/awesome-namespace/awesome-title",
                 env_vars=json.dumps({"PROGRAM_ENV1": "VALUE1", "PROGRAM_ENV2": "VALUE2"}),
             )
-            print("\n The program is:", program)
+
             arguments = json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"})
             programs_response = self.client.post(
                 "/api/v1/programs/run/",
@@ -286,10 +268,7 @@ class TestProgramApi(APITestCase):
                 },
                 format="json",
             )
-            print("\n \n \n")
-            print("The response status code is: ", programs_response.status_code)
-            print("The response is as following: ", programs_response.data)
-            print("\n \n \n")
+
             job_id = programs_response.data.get("id")
             job = Job.objects.get(id=job_id)
             env_vars = json.loads(job.env_vars)
@@ -547,10 +526,13 @@ class TestProgramApi(APITestCase):
         fake_file.name = "test_run.tar"
 
         user = TestUtils.authorize_client(username="test_user_2", client=self.client)
+        # create admin group
+        TestUtils.get_or_create_group(group="default-group")
+        TestUtils.add_user_to_group(user=user, group="default-group")
         
         # Create default provider and add user as admin
-        provider = TestUtils.get_or_create_provider("default")
-        TestUtils.add_user_to_group(user, "default")
+        provider = TestUtils.get_or_create_provider(provider="default", admin_group="default-group")
+        # TestUtils.add_user_to_group(user, "default")
 
         env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
 
@@ -638,7 +620,7 @@ class TestProgramApi(APITestCase):
         fake_file.name = "test_run.tar"
 
         user = TestUtils.authorize_client(username="test_user_2", client=self.client)
-        
+        TestUtils.get_or_create_group(group="default-group")
         # Create default provider and add user as admin
         TestUtils.get_or_create_provider(provider="default", admin_group="default-group")
         TestUtils.add_user_to_group(user, "default-group")
@@ -672,6 +654,11 @@ class TestProgramApi(APITestCase):
             programs_response = self.client.get(reverse("v1:programs-list"), format="json")
 
             assert programs_response.status_code == status.HTTP_200_OK
+            print("\n\n")
+            for data in programs_response.data:
+                print(data)
+            # print(programs_response.data)
+            print("\n\n")
             assert len(programs_response.data) == 2
             found = False
             for resp_data in programs_response.data:
@@ -733,7 +720,8 @@ class TestProgramApi(APITestCase):
         user_1 = TestUtils.authorize_client(username="test_user", client=self.client)
         user_2 = TestUtils.authorize_client(username="test_user_2", client=self.client)
 
-        # current activated client is user_2 with username "test_user_2"
+        # create admin group
+        TestUtils.get_or_create_group(group="default-group")
 
         # Create default provider and add `test_user_2` as admin
         TestUtils.get_or_create_provider(provider="default", admin_group="default-group")
@@ -855,6 +843,12 @@ class TestProgramApi(APITestCase):
 
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             user = TestUtils.authorize_client(username="test_user_2", client=self.client)
+            # create admin group
+            TestUtils.get_or_create_group(group="default-group")
+            TestUtils.add_user_to_group(user=user, group="default-group")
+            # TestUtils.get_or_create_group(group="runner", permissions=[self.runner_permission])
+            # Add user to runner group for RUN_PROGRAM_PERMISSION
+            # TestUtils.add_user_to_group(user=user, group="runner")
 
             # Create user function (without provider)
             fake_file_user = ContentFile(b"print('User Function')")
@@ -873,7 +867,7 @@ class TestProgramApi(APITestCase):
             assert upload_response_user.data.get("provider") is None
 
             # Create provider function (with provider) - same title, same author
-            TestUtils.get_or_create_provider(provider="default")
+            TestUtils.get_or_create_provider(provider="default", admin_group="default-group")
             fake_file_provider = ContentFile(b"print('Provider Function')")
             fake_file_provider.name = "provider_func.tar"
 
@@ -935,6 +929,9 @@ class TestProgramApi(APITestCase):
         """Tests that the Program `version` field is returned by the API."""
         user = TestUtils.authorize_client(username="test_user_2", client=self.client)
 
+        # create admin group
+        TestUtils.get_or_create_group(group="default-group")
+
         # Create default provider and add `test_user_2` as admin
         TestUtils.get_or_create_provider(provider="default", admin_group="default-group")
         TestUtils.add_user_to_group(user, "default-group")
@@ -948,11 +945,9 @@ class TestProgramApi(APITestCase):
             program_title="Docker-Image-Program",
             author=user,
             provider="default",
-            version="1.2.3",
         )
-        # program = Program.objects.get(title="Docker-Image-Program", author=user)
-        # program.version = "1.2.3"
-        # program.save()
+        program.version = "1.2.3"
+        program.save()
 
         response = self.client.get(
             "/api/v1/programs/get_by_title/Docker-Image-Program/",
