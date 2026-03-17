@@ -41,7 +41,7 @@ class TestProgramApi(APITestCase):
 
     def test_programs_list(self):
         """
-            Tests programs list returns only programs user has access to.
+            Tests programs list returns only programs user has access to (as an author).
             Since user doesn't belong to any group, it will only be self-authored programs.
         """
 
@@ -98,8 +98,9 @@ class TestProgramApi(APITestCase):
         )
 
     def test_provider_programs_catalog_list(self):
-        """Tests catalog filter programs list. Catalog filter only returns providers functions that user has access:
-            author has permissions for it (by group\instance) and the function has a provider assigned."""
+        """Tests catalog filter programs list for group access programs. Catalog filter only returns providers
+            functions that user has access: author has permissions for it (by group\instance) and the function has a
+            provider assigned."""
 
         user = TestUtils.authorize_client(username="test_user_4", client=self.client)
         
@@ -118,6 +119,14 @@ class TestProgramApi(APITestCase):
             provider_admin="ibm",
             program_title="Docker-Image-Program-3",
             instances=["runner", "viewer"],
+        )
+
+        # Create a provider programs with ibm provider that user has no access to - should not appear in catalog
+        TestUtils.create_program(
+            author="test_user_3",
+            provider_admin="ibm",
+            program_title="Other-Program",
+            instances=["premium"],
         )
 
         # Create serverless program (no provider) - should not appear in catalog
