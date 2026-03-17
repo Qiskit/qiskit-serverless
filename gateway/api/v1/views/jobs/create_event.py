@@ -15,7 +15,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from api.use_cases.jobs.event import EventData, JobEventUseCase
+from api.use_cases.jobs.create_event import EventData, CreateJobEventUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
@@ -69,11 +69,11 @@ class InputSerializer(serializers.Serializer):
         ),
     },
 )
-@endpoint("jobs/<uuid:job_id>/event")
+@endpoint("jobs/<uuid:job_id>/create_event")
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
-def event(request: Request, job_id: UUID) -> Response:
+def create_event(request: Request, job_id: UUID) -> Response:
     """
     Creates an event for the selected job
 
@@ -90,6 +90,6 @@ def event(request: Request, job_id: UUID) -> Response:
     data = serializer.create(serializer.validated_data)
     user = cast(AbstractUser, request.user)
 
-    JobEventUseCase().execute(job_id, user, data)
+    CreateJobEventUseCase().execute(job_id, user, data)
 
     return Response(None)

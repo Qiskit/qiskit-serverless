@@ -8,19 +8,13 @@ from uuid import UUID
 from django.contrib.auth.models import AbstractUser
 
 from api.access_policies.jobs import JobAccessPolicies
-from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.domain.exceptions.invalid_access_exception import InvalidAccessException
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from core.models import Job, JobEvent
-from api.repositories.functions import FunctionRepository
-from api.repositories.jobs import JobFilters, JobsRepository
 
 
-class JobsEventsUseCase:
+class ListJobsEventsUseCase:
     """Use case for retrieving user jobs events."""
-
-    function_repository = FunctionRepository()
-    jobs_repository = JobsRepository()
 
     def execute(self, job_id: UUID, user: AbstractUser, event_type: str) -> List[Job]:
         """
@@ -34,7 +28,7 @@ class JobsEventsUseCase:
         Returns:
             list[Job]: (jobs, total_count)
         """
-        job = self.jobs_repository.get_job_by_id(job_id)
+        job = Job.objects.get(id=job_id)
         if job is None:
             raise JobNotFoundException(str(job_id))
 

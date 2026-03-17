@@ -483,7 +483,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         """
         response_data = safe_json_request_as_list(
             request=lambda: requests.get(
-                f"{self.host}/api/{self.version}/jobs/{job_id}/events/",
+                f"{self.host}/api/{self.version}/jobs/{job_id}/get-events/",
                 params=kwargs,
                 headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
                 timeout=REQUESTS_TIMEOUT,

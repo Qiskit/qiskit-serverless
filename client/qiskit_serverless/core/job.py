@@ -311,7 +311,10 @@ def send_error(code: str, message: str, args: Any):
 
     instance = os.environ.get(ENV_JOB_GATEWAY_INSTANCE, None)
     channel = os.environ.get(QISKIT_IBM_CHANNEL, None)
-    url = f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/" f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/event/"
+    url = (
+        f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
+        f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/create-event/"
+    )
 
     response = requests.post(
         url,

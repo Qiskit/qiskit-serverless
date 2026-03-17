@@ -15,7 +15,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from api.use_cases.jobs.events import JobsEventsUseCase
+from api.use_cases.jobs.list_events import ListJobsEventsUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
@@ -86,11 +86,11 @@ def serialize_output(events: JobEvent) -> dict[str, Any]:
         **standard_error_responses(not_found_example="Job [XXXX] not found"),
     },
 )
-@endpoint("jobs/<uuid:job_id>/events", name="jobs-events")
+@endpoint("jobs/<uuid:job_id>/getevents")
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
-def get_logs(request: Request, job_id: UUID) -> Response:
+def get_events(request: Request, job_id: UUID) -> Response:
     """
     Retrieve events for a specific job.
 
@@ -107,5 +107,5 @@ def get_logs(request: Request, job_id: UUID) -> Response:
     event_type = serializer.validated_data.get("type")
 
     user = cast(AbstractUser, request.user)
-    events = JobsEventsUseCase().execute(job_id, user, event_type)
+    events = ListJobsEventsUseCase().execute(job_id, user, event_type)
     return Response(serialize_output(events))

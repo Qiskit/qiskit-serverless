@@ -779,7 +779,7 @@ class TestJobApi(APITestCase):
         args = json.dumps({"ultimate": 42})
         job_event_response = self.client.post(
             reverse(
-                "v1:jobs-event",
+                "v1:jobs-create-event",
                 args=[job_id],
             ),
             format="json",
@@ -809,7 +809,7 @@ class TestJobApi(APITestCase):
         args = json.dumps({"ultimate": 42})
         job_event_response = self.client.post(
             reverse(
-                "v1:jobs-event",
+                "v1:jobs-create-event",
                 args=[job_id],
             ),
             format="json",
@@ -834,7 +834,7 @@ class TestJobApi(APITestCase):
         message = "My test message"
         job_event_response = self.client.post(
             reverse(
-                "v1:jobs-event",
+                "v1:jobs-create-event",
                 args=[job_id],
             ),
             format="json",
@@ -866,7 +866,7 @@ class TestJobApi(APITestCase):
         args = json.dumps({"ultimate": 42})
         job_event_response = self.client.post(
             reverse(
-                "v1:jobs-event",
+                "v1:jobs-create-event",
                 args=[job_id],
             ),
             format="json",
@@ -892,7 +892,7 @@ class TestJobApi(APITestCase):
         args = json.dumps({"ultimate": 42})
         job_event_response = self.client.post(
             reverse(
-                "v1:jobs-event",
+                "v1:jobs-create-event",
                 args=[job_id],
             ),
             format="json",
@@ -929,7 +929,7 @@ class TestJobApi(APITestCase):
 
         job_event_response = self.client.get(
             reverse(
-                "v1:jobs-events",
+                "v1:jobs-get-events",
                 args=[job_id],
             ),
             {"type": JobEventType.ERROR},
@@ -965,7 +965,7 @@ class TestJobApi(APITestCase):
         job_id = user_job.pk
         job_event_response = self.client.get(
             reverse(
-                "v1:jobs-events",
+                "v1:jobs-get-events",
                 args=[job_id],
             ),
             {"type": "NonExistingJobEventType"},
@@ -985,7 +985,7 @@ class TestJobApi(APITestCase):
         job_id = user_job.pk
         job_event_response = self.client.get(
             reverse(
-                "v1:jobs-events",
+                "v1:jobs-get-events",
                 args=[job_id],
             ),
             {"type": JobEventType.ERROR},
