@@ -195,11 +195,22 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             offset (int, optional): Number of jobs to skip. Defaults to 0.
             status (str, optional): Filter by job status.
             created_after (str, optional): Filter jobs created after this timestamp.
-            **kwargs: Additional query parameters.
 
         Returns:
             List[Job]: List of Job objects matching the criteria.
+
+        Raises:
+            QiskitServerlessException: If invalid keyword arguments are provided.
         """
+        # Validate kwargs
+        valid_kwargs = {"limit", "offset", "status", "created_after"}
+        invalid_kwargs = set(kwargs.keys()) - valid_kwargs
+        if invalid_kwargs:
+            raise QiskitServerlessException(
+                f"Invalid keyword argument(s): {', '.join(sorted(invalid_kwargs))}. "
+                f"Valid arguments are: {', '.join(sorted(valid_kwargs))}"
+            )
+
         limit = kwargs.get("limit", 10)
         kwargs["limit"] = limit
         offset = kwargs.get("offset", 0)
