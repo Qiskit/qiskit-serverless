@@ -4,8 +4,6 @@ API V1: Download provider file end-point.
 
 # pylint: disable=duplicate-code
 import logging
-from typing import cast
-import logging
 from typing import Iterator, Tuple, cast
 from django.http import StreamingHttpResponse
 from django.contrib.auth.models import AbstractUser
