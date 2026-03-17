@@ -6,7 +6,7 @@ import glob
 import logging
 import mimetypes
 import os
-from typing import Optional, Tuple
+from typing import Iterator, Optional, Tuple
 from wsgiref.util import FileWrapper
 
 from django.core.files import File
@@ -102,6 +102,41 @@ class FileStorage:
         file_size = os.path.getsize(path_to_file)
 
         return file_wrapper, file_type, file_size
+
+    def get_file_stream(self, file_name: str, chunk_size: int = 65536) -> Optional[Tuple[Iterator[bytes], str, int]]:
+        """
+        This method returns a streaming generator for a file that we can use for large files
+
+        Args:
+            file_name (str): the name of the file to download
+            chunk_size (int): bytes per chunk (default 64 KB)
+
+        Returns:
+            Iterator[bytes]: generator that yields file chunks
+            str: with the type of the file
+            int: with the size of the file
+        """
+
+        file_name_path = os.path.basename(file_name)
+        path_to_file = sanitize_file_path(os.path.join(self.absolute_path, file_name_path))
+
+        if not os.path.exists(path_to_file):
+            logger.warning(
+                "File %s not found in %s.",
+                file_name_path,
+                path_to_file,
+            )
+            return None
+
+        def _stream_chunks():
+            with open(path_to_file, "rb") as file_handle:
+                while chunk := file_handle.read(chunk_size):
+                    yield chunk
+
+        file_type = mimetypes.guess_type(path_to_file)[0]
+        file_size = os.path.getsize(path_to_file)
+
+        return _stream_chunks(), file_type, file_size
 
     def upload_file(self, file: File) -> str:
         """
