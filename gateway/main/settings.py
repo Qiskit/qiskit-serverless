@@ -27,7 +27,7 @@ IS_TEST = COMMAND == "test" or "pytest" in sys.modules
 IS_RUNSERVER = COMMAND == "runserver"
 IS_SCHEDULER = COMMAND == "run_scheduler"
 IS_GATEWAY = IS_UNICORN or IS_RUNSERVER
-
+IS_MIGRATION = COMMAND in ["migrate_with_lock", "migrate"]
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -166,7 +166,20 @@ LOGGING = {
 }
 
 # Database
-# https://docs.djangoproject.com/en/4.1/ref/settings/#databases
+# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+# https://docs.djangoproject.com/en/5.2/ref/databases/#postgresql-notes
+#
+# Query timeouts per application.
+# A query will raise QueryCanceledError if it takes more than the expected time
+if IS_MIGRATION:
+    # Migrations: 5min. Per-query timeout that allows long schema changes to complete
+    POSTGRES_STATEMENT_TIMEOUT_SECONDS = 5 * 60
+elif IS_SCHEDULER:
+    # Scheduler: 30s. Scheduler tasks are executed in a sequential loop, so any delay will slow down the whole process
+    POSTGRES_STATEMENT_TIMEOUT_SECONDS = 30
+else:
+    # Gateway, tests or any other command: 1min. Enough for normal API operations
+    POSTGRES_STATEMENT_TIMEOUT_SECONDS = 60
 
 DATABASES = {
     "default": {
@@ -176,6 +189,24 @@ DATABASES = {
         "PASSWORD": os.environ.get("DATABASE_PASSWORD", "serverlesspassword"),
         "HOST": os.environ.get("DATABASE_HOST", "localhost"),
         "PORT": os.environ.get("DATABASE_PORT", "5432"),
+        # Ping the connection before reuse. If it died (Postgres restart, network blip),
+        # Django silently reconnects instead of raising InterfaceError.
+        "CONN_HEALTH_CHECKS": True,
+        "OPTIONS": {
+            # ------------------------------------------------------------------------------
+            # https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-PARAMKEYWORDS
+            # ------------------------------------------------------------------------------
+            # Fail fast on new connections instead of hanging for minutes.
+            "connect_timeout": 5,
+            # TCP keepalives: detect dead connections when Postgres is unreachable
+            # (network partition, pod killed) so the socket doesn't block forever.
+            # OS will probe after 30s idle, retry every 5s, give up after 3 failures (~45s total).
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 5,
+            "keepalives_count": 3,
+            "options": "-c statement_timeout=" + (str(POSTGRES_STATEMENT_TIMEOUT_SECONDS * 1000)),
+        },
     },
     "test": {
         "ENGINE": "django_prometheus.db.backends.sqlite3",
