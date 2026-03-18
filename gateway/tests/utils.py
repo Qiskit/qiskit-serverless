@@ -143,9 +143,9 @@ class TestUtils:
         """
         Creates a Program instance along with its dependencies (User, Provider).
         Args:
+            program_title: Optional title. Defaults to author-provider format.
             author: The author or username for the Job (and Program).
             provider: Optional provider or provider name for this program.
-            program_title: Optional title. Defaults to author-provider format.
             instances: List of group names to add as instances.
             trial_instances: List of group names to add as trial_instances.
             **kwargs: Additional fields to set on the Program model
