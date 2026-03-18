@@ -13,9 +13,7 @@ from rest_framework.test import APIClient
 from core.models import Job, JobConfig, Program, Provider
 
 # literal for job status
-JobStatusType = Literal[
-    Job.PENDING, Job.RUNNING, Job.STOPPED, Job.SUCCEEDED, Job.FAILED, Job.QUEUED
-]
+JobStatusType = Literal[Job.PENDING, Job.RUNNING, Job.STOPPED, Job.SUCCEEDED, Job.FAILED, Job.QUEUED]
 
 
 class TestUtils:
@@ -30,9 +28,7 @@ class TestUtils:
             return author, author.username
 
         # If it's a string, get or create the user
-        user, _ = User.objects.get_or_create(
-            username=author, defaults={"is_staff": is_staff, "is_active": is_active}
-        )
+        user, _ = User.objects.get_or_create(username=author, defaults={"is_staff": is_staff, "is_active": is_active})
         return user, author
 
     @staticmethod
@@ -45,9 +41,7 @@ class TestUtils:
             provider.admin_groups.add(admin_group)
 
     @staticmethod
-    def get_or_create_provider(
-        provider: Union[Provider, str], admin_group: Union[Group, str] = None
-    ) -> Provider:
+    def get_or_create_provider(provider: Union[Provider, str], admin_group: Union[Group, str] = None) -> Provider:
         """
         Setup a provider and its admin group/user safely.
         Args:
@@ -58,9 +52,7 @@ class TestUtils:
         """
         if isinstance(provider, Provider):
             return provider
-        provider, _ = Provider.objects.get_or_create(
-            name=provider
-        )  # provider name is unique
+        provider, _ = Provider.objects.get_or_create(name=provider)  # provider name is unique
         # Setup Admin Groups if needed
         if admin_group:
             TestUtils.add_admin_group_to_provider(admin_group, provider)
@@ -168,30 +160,18 @@ class TestUtils:
 
         if provider:
             provider = TestUtils.get_or_create_provider(provider)
-            if Program.objects.filter(
-                title=program_title, author=author_obj, provider=provider
-            ).exists():
-                program = Program.objects.get(
-                    title=program_title, author=author_obj, provider=provider
-                )
+            if Program.objects.filter(title=program_title, author=author_obj, provider=provider).exists():
+                program = Program.objects.get(title=program_title, author=author_obj, provider=provider)
             else:
-                program = Program.objects.create(
-                    title=program_title, author=author_obj, provider=provider, **kwargs
-                )
+                program = Program.objects.create(title=program_title, author=author_obj, provider=provider, **kwargs)
         else:
-            if Program.objects.filter(
-                title=program_title, author=author_obj, provider=None
-            ).exists():
+            if Program.objects.filter(title=program_title, author=author_obj, provider=None).exists():
                 program = Program.objects.get(title=program_title, author=author_obj)
             else:
-                program = Program.objects.create(
-                    title=program_title, author=author_obj, **kwargs
-                )
+                program = Program.objects.create(title=program_title, author=author_obj, **kwargs)
 
         if instances or trial_instances:
-            TestUtils.add_instance_to_program(
-                program, instances=instances, trial_instances=trial_instances
-            )
+            TestUtils.add_instance_to_program(program, instances=instances, trial_instances=trial_instances)
 
         return program
 
@@ -241,9 +221,7 @@ class TestUtils:
         if isinstance(program, str):
             program = TestUtils.create_program(author=author, program_title=program)
 
-        job = Job.objects.create(
-            author=author_obj, program=program, status=status, **kwargs
-        )
+        job = Job.objects.create(author=author_obj, program=program, status=status, **kwargs)
         if config:
             TestUtils.add_config_to_job(job, config)
 
@@ -307,14 +285,10 @@ class TestUtils:
         return user_obj
 
     @staticmethod
-    def authorize_client(
-        username: str, client: APIClient, is_active: bool = True, is_staff: bool = False
-    ) -> User:
+    def authorize_client(username: str, client: APIClient, is_active: bool = True, is_staff: bool = False) -> User:
         """
         Helper to authenticate a DRF test client.
         """
-        user, _ = TestUtils.get_user_and_username(
-            author=username, is_active=is_active, is_staff=is_staff
-        )
+        user, _ = TestUtils.get_user_and_username(author=username, is_active=is_active, is_staff=is_staff)
         client.force_authenticate(user=user)
         return user
