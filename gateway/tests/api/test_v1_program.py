@@ -4,7 +4,6 @@ import json
 import os
 import tempfile
 
-from django.contrib.auth import models
 from django.core.files.base import ContentFile
 from django.urls import reverse
 from rest_framework import status
@@ -98,9 +97,11 @@ class TestProgramApi(APITestCase):
         assert programs_response.data[0].get("title") == "Docker-Image-Program"
 
     def test_provider_programs_catalog_list(self):
-        """Tests catalog filter programs list for group access programs. Catalog filter only returns providers
-        functions that user has access: author has permissions for it (by group\instance) and the function has a
-        provider assigned."""
+        """
+        Tests catalog filter programs list for group access programs. Catalog filter only returns providers
+        functions that user has access: author has permissions for it (by group/instance) and the function has a
+        provider assigned.
+        """
 
         user = TestUtils.authorize_client(username="test_user_4", client=self.client)
         TestUtils.get_or_create_group(
@@ -123,7 +124,8 @@ class TestProgramApi(APITestCase):
             instances=["runner", "viewer"],
         )
 
-        # Create a provider programs with ibm provider that `test_user_4` has no access to - should not appear in catalog
+        # Create a provider programs with ibm provider that `test_user_4` has no access to
+        # - should not appear in catalog
         TestUtils.create_program(
             program_title="Other-Program",
             author="test_user_3",
@@ -225,12 +227,12 @@ class TestProgramApi(APITestCase):
             env_vars = json.loads(job.env_vars)
 
             assert job.status == Job.QUEUED
-            assert job.trial == True
+            assert job.trial is True
             assert env_vars["ENV_ACCESS_TRIAL"] == "True"
             assert job.config.min_workers == 1
             assert job.config.max_workers == 5
-            assert job.config.workers == None
-            assert job.config.auto_scaling == True
+            assert job.config.workers is None
+            assert job.config.auto_scaling is True
 
             program = Program.objects.get(title="Program", author=user)
             arguments_storage = ArgumentsStorage(user.username, program.title, None)
@@ -292,13 +294,13 @@ class TestProgramApi(APITestCase):
             env_vars = json.loads(job.env_vars)
 
             assert job.status == Job.QUEUED
-            assert job.trial == False
+            assert job.trial is False
             assert env_vars["PROGRAM_ENV1"] == "VALUE1"
             assert env_vars["PROGRAM_ENV2"] == "VALUE2"
             assert job.config.min_workers == 1
             assert job.config.max_workers == 5
-            assert job.config.workers == None
-            assert job.config.auto_scaling == True
+            assert job.config.workers is None
+            assert job.config.auto_scaling is True
 
             program = Program.objects.get(title="Docker-Image-Program", author=user)
             provider_name = program.provider.name if program.provider else None
@@ -497,7 +499,7 @@ class TestProgramApi(APITestCase):
         fake_file = ContentFile(b"print('Hello World')")
         fake_file.name = "test_run.tar"
 
-        user = TestUtils.authorize_client(username="test_user_2", client=self.client)
+        TestUtils.authorize_client(username="test_user_2", client=self.client)
 
         env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
 
@@ -513,12 +515,12 @@ class TestProgramApi(APITestCase):
                 },
             )
             assert programs_response.status_code == status.HTTP_200_OK
-            assert programs_response.data.get("provider") == None
+            assert programs_response.data.get("provider") is None
 
     def test_upload_custom_image_without_provider(self):
         """Tests upload end-point authorized."""
 
-        user = TestUtils.authorize_client(username="test_user_2", client=self.client)
+        TestUtils.authorize_client(username="test_user_2", client=self.client)
 
         env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
         programs_response = self.client.post(
@@ -535,7 +537,7 @@ class TestProgramApi(APITestCase):
     def test_upload_custom_image_without_access_to_the_provider(self):
         """Tests upload end-point authorized."""
 
-        user = TestUtils.authorize_client(username="test_user", client=self.client)
+        TestUtils.authorize_client(username="test_user", client=self.client)
 
         # Create ibm provider (user doesn't have access)
         TestUtils.get_or_create_provider("ibm")
@@ -576,10 +578,9 @@ class TestProgramApi(APITestCase):
         TestUtils.add_user_to_group(user=user, group="default-group")
 
         # Create default provider and add user as admin
-        provider = TestUtils.get_or_create_provider(
+        TestUtils.get_or_create_provider(
             provider="default", admin_group="default-group"
         )
-        # TestUtils.add_user_to_group(user, "default")
 
         env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
 
@@ -607,7 +608,7 @@ class TestProgramApi(APITestCase):
         user = TestUtils.authorize_client(username="test_user_2", client=self.client)
 
         # Create default provider and add user as admin
-        provider = TestUtils.get_or_create_provider(
+        TestUtils.get_or_create_provider(
             provider="default", admin_group="default-group"
         )
         TestUtils.add_user_to_group(user, "default-group")
@@ -643,7 +644,7 @@ class TestProgramApi(APITestCase):
         fake_file = ContentFile(b"print('Hello World')")
         fake_file.name = "test_run.tar"
 
-        user = TestUtils.authorize_client(username="test_user", client=self.client)
+        TestUtils.authorize_client(username="test_user", client=self.client)
 
         # Create default provider (user doesn't have admin access)
         TestUtils.get_or_create_provider("default")
@@ -716,6 +717,7 @@ class TestProgramApi(APITestCase):
             assert found
 
     def test_get_by_title(self):
+        """Tests get program by title."""
         user = TestUtils.authorize_client(username="test_user_2", client=self.client)
 
         # Create provider program
@@ -753,14 +755,22 @@ class TestProgramApi(APITestCase):
             {"provider": "non-existing"},
             format="json",
         )
-        assert programs_response_non_existing_provider.status_code == 404
+        # assert programs_response_non_existing_provider.status_code == 404
+        assert (
+            programs_response_non_existing_provider.status_code
+            == status.HTTP_404_NOT_FOUND
+        )
 
         programs_response_do_not_have_access = self.client.get(
             "/api/v1/programs/get_by_title/Program/",
             {"provider": "non-existing"},
             format="json",
         )
-        assert programs_response_do_not_have_access.status_code == 404
+        # assert programs_response_do_not_have_access.status_code == 404
+        assert (
+            programs_response_do_not_have_access.status_code
+            == status.HTTP_404_NOT_FOUND
+        )
 
     def test_get_jobs(self):
         """Tests run existing authorized."""
@@ -1008,9 +1018,6 @@ class TestProgramApi(APITestCase):
         )
         TestUtils.add_user_to_group(user, "default-group")
 
-        # user = models.User.objects.get(username="test_user_2")
-        # self.client.force_authenticate(user=user)
-
         # Update fixture program to have a version string
         # Create program w/o provider with authored by test_user
         program = TestUtils.create_program(
@@ -1034,16 +1041,8 @@ class TestProgramApi(APITestCase):
         """Tests upload returns 400 when version is invalid."""
 
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            user = TestUtils.authorize_client(
-                username="test_user_2", client=self.client
-            )
+            TestUtils.authorize_client(username="test_user_2", client=self.client)
 
-            # Create default provider and add `test_user_2` as admin
-            # TestUtils.get_or_create_provider(provider="default", admin_group="default-group")
-            # TestUtils.add_user_to_group(user, "default-group")
-
-            # user = models.User.objects.get(username="test_user_2")
-            # self.client.force_authenticate(user=user)
             env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
             version = "not_a_version"
 
