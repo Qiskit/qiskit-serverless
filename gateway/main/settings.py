@@ -27,7 +27,7 @@ IS_TEST = COMMAND == "test" or "pytest" in sys.modules
 IS_RUNSERVER = COMMAND == "runserver"
 IS_SCHEDULER = COMMAND == "run_scheduler"
 IS_GATEWAY = IS_UNICORN or IS_RUNSERVER
-
+IS_MIGRATION = COMMAND in ["migrate_with_lock", "migrate"]
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -168,11 +168,19 @@ LOGGING = {
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 # https://docs.djangoproject.com/en/5.2/ref/databases/#postgresql-notes
+#
+# Query timeouts per application.
+# A query will raise QueryCanceledError if it takes more than the expected time
+if IS_MIGRATION:
+    # Migrations: 5min. Per-query timeout that allows long schema changes to complete
+    POSTGRES_STATEMENT_TIMEOUT_SECONDS = 5 * 60
+elif IS_SCHEDULER:
+    # Scheduler: 30s. Scheduler tasks are executed in a sequential loop, so any delay will slow down the whole process
+    POSTGRES_STATEMENT_TIMEOUT_SECONDS = 30
+else:
+    # Gateway, tests or any other command: 1min. Enough for normal API operations
+    POSTGRES_STATEMENT_TIMEOUT_SECONDS = 60
 
-# Query timeouts
-# Scheduler: 30s. A query will raise QueryCanceledError if it takes more than 30 seconds
-# Gateway: 5min. This should be enough to run the migrations (timeout is per query, not for the entire migration)
-POSTGRES_STATEMENT_TIMEOUT_SECONDS = 30 if IS_SCHEDULER else 5 * 60
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
