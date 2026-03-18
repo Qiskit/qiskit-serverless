@@ -166,8 +166,13 @@ LOGGING = {
 }
 
 # Database
-# https://docs.djangoproject.com/en/4.1/ref/settings/#databases
+# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+# https://docs.djangoproject.com/en/5.2/ref/databases/#postgresql-notes
 
+# Query timeouts
+# Scheduler: 30s. A query will raise QueryCanceledError if it takes more than 30 seconds
+# Gateway: 5min. This should be enough to run the migrations (timeout is per query, not for the entire migration)
+POSTGRES_STATEMENT_TIMEOUT_SECONDS = 30 if IS_SCHEDULER else 5 * 60
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -180,6 +185,9 @@ DATABASES = {
         # Django silently reconnects instead of raising InterfaceError.
         "CONN_HEALTH_CHECKS": True,
         "OPTIONS": {
+            # ------------------------------------------------------------------------------
+            # https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-PARAMKEYWORDS
+            # ------------------------------------------------------------------------------
             # Fail fast on new connections instead of hanging for minutes.
             "connect_timeout": 5,
             # TCP keepalives: detect dead connections when Postgres is unreachable
@@ -189,8 +197,7 @@ DATABASES = {
             "keepalives_idle": 30,
             "keepalives_interval": 5,
             "keepalives_count": 3,
-            # Hard limit per query: prevents a single hung query from blocking the scheduler/Gateway forever.
-            "options": "-c statement_timeout=60000",
+            "options": "-c statement_timeout=" + (str(POSTGRES_STATEMENT_TIMEOUT_SECONDS * 1000)),
         },
     },
     "test": {
