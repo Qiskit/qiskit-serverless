@@ -1,5 +1,5 @@
 ---
-issues:
+fixes:
   - |
-    Gateway out of memory when downloading a big file. Now, the download uses a 64Kb stream buffer 
+    Fixed gateway triggering out of memory errors when downloading a big file. Now, the download uses a 64Kb stream buffer 
     that prevents it from crashing.
