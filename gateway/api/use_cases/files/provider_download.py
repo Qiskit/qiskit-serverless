@@ -2,6 +2,7 @@
 
 # pylint: disable=duplicate-code
 import logging
+from typing import Iterator, Tuple
 
 from django.contrib.auth.models import AbstractUser
 
@@ -32,7 +33,7 @@ class FilesProviderDownloadUseCase:
         provider_name: str,
         function_title: str,
         requested_file_name: str,
-    ):
+    ) -> Tuple[Iterator[bytes], str, int]:
         """
         Download a file from provider storage.
         """
@@ -56,7 +57,7 @@ class FilesProviderDownloadUseCase:
             working_dir=self.working_dir,
             function=function,
         )
-        result = file_storage.get_file(file_name=requested_file_name)
+        result = file_storage.get_file_stream(file_name=requested_file_name)
 
         if result is None:
             raise FileNotFoundException()
