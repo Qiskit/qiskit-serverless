@@ -13,13 +13,13 @@
 """
 ServerlessError exception for function developers
 """
-from typing import Any
+from typing import Any, Optional
 
 
 class ServerlessError(Exception):
     """Base exception that can be used by function developers."""
 
-    def __init__(self, code: str, message: str, details: Any | None):
+    def __init__(self, code: str, message: str, details: Optional[Any]):
         self.code = code
         self.message = message
         self.details = details

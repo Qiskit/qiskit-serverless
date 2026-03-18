@@ -23,9 +23,11 @@ try:
     if result is not None:
         save_result(result)
 except ServerlessError as e:
-    send_error(e.code, e.message, e.details)
+    error_type = type(e).__name__
+    send_error(e.code, e.message, error_type, e.details)
     raise
 except Exception as e:
-    send_error(1, traceback.format_exception_only(e))
+    error_type = type(e).__name__
+    send_error(1, traceback.format_exception_only(e), error_type)
     save_result(traceback.format_exception_only(e))
     raise

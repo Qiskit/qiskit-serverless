@@ -91,6 +91,7 @@ class JobEventQuerySet(QuerySet):
         context: JobEventContext,
         code: str,
         message: str,
+        error_type: str,
         args: Any,
     ):
         """
@@ -110,7 +111,7 @@ class JobEventQuerySet(QuerySet):
             origin=origin,
             context=context,
             event_type=JobEventType.ERROR,
-            data={"code": code, "message": message, "args": args},
+            data={"code": code, "message": message, "error_type": error_type, "args": args},
         )
 
     def get_job_events(  # pylint:  disable=too-many-positional-arguments

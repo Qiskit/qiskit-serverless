@@ -24,6 +24,7 @@ class EventData:
     """
 
     event_type: str
+    error_type: str
     code: str
     message: str
     args: Any
@@ -63,5 +64,11 @@ class CreateJobEventUseCase:
 
         if data.event_type == JobEventType.ERROR:
             JobEvent.objects.add_error_event(
-                job_id, JobEventOrigin.API, JobEventContext.SEND_ERROR, data.code, data.message, data.args
+                job_id,
+                JobEventOrigin.API,
+                JobEventContext.SEND_ERROR,
+                data.code,
+                data.message,
+                data.error_type,
+                data.args,
             )

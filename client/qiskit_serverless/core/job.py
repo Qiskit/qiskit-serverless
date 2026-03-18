@@ -287,7 +287,7 @@ class Job:
         return f"<Job | {self.job_id}>"
 
 
-def send_error(code: str, message: str, args: Any):
+def send_error(code: str, message: str, error_type: str, args: Any):
     """Send an error message to store it in the gateway.
 
     Args:
@@ -322,6 +322,7 @@ def send_error(code: str, message: str, args: Any):
             "type": "ERROR",
             "code": code,
             "message": message,
+            "error_type": error_type,
             "args": args,
         },
         headers=get_headers(token=token, instance=instance, channel=channel),

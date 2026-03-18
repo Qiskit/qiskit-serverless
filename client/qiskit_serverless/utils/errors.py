@@ -83,10 +83,12 @@ def format_err_event(error_event: JobEvent) -> str:
 
     message = error_event.data["message"]
     code = error_event.data["code"]
+    error_type = error_event.data["error_type"]
     details = error_event.data.get("args")
 
     result = f"\n| Message: {message}"
     result += f"\n| Code: {code}"
+    result += f"\n| Type: {error_type}"
 
     if details:
         result += "\n| Details:"
