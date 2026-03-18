@@ -2,29 +2,37 @@
 
 from typing import Union, Literal, Iterable, Tuple
 
-from django.contrib.auth.models import User, Group, Permission  # pylint: disable=imported-auth-user
+from django.contrib.auth.models import (
+    User,
+    Group,
+    Permission,
+)  # pylint: disable=imported-auth-user
 from django.contrib.contenttypes.models import ContentType
 from rest_framework.test import APIClient
 
-from api.context import impersonate
 from core.models import Job, JobConfig, Program, Provider
 
 # literal for job status
-JobStatusType = Literal[Job.PENDING, Job.RUNNING, Job.STOPPED, Job.SUCCEEDED, Job.FAILED, Job.QUEUED]
+JobStatusType = Literal[
+    Job.PENDING, Job.RUNNING, Job.STOPPED, Job.SUCCEEDED, Job.FAILED, Job.QUEUED
+]
 
-# Triple = Tuple[str, str, str]  # (codename, app_label, model)
 
 class TestUtils:
     """Utility class to provide helper methods for gateway testing."""
 
     @staticmethod
-    def get_user_and_username(author: Union[User, str], is_active:bool = True, is_staff: bool = False) -> tuple[User, str]:
+    def get_user_and_username(
+        author: Union[User, str], is_active: bool = True, is_staff: bool = False
+    ) -> tuple[User, str]:
         """Helper to normalize author input into (User object, username string)."""
         if isinstance(author, User):
             return author, author.username
 
         # If it's a string, get or create the user
-        user, _ = User.objects.get_or_create(username=author, defaults={'is_staff': is_staff})
+        user, _ = User.objects.get_or_create(
+            username=author, defaults={"is_staff": is_staff, "is_active": is_active}
+        )
         return user, author
 
     @staticmethod
@@ -37,7 +45,9 @@ class TestUtils:
             provider.admin_groups.add(admin_group)
 
     @staticmethod
-    def get_or_create_provider(provider: Union[Provider, str], admin_group: Union[Group, str] = None) -> Provider:
+    def get_or_create_provider(
+        provider: Union[Provider, str], admin_group: Union[Group, str] = None
+    ) -> Provider:
         """
         Setup a provider and its admin group/user safely.
         Args:
@@ -48,15 +58,12 @@ class TestUtils:
         """
         if isinstance(provider, Provider):
             return provider
-
-        provider, _ = Provider.objects.get_or_create(name=provider)  # provider name is unique
-
+        provider, _ = Provider.objects.get_or_create(
+            name=provider
+        )  # provider name is unique
         # Setup Admin Groups if needed
         if admin_group:
             TestUtils.add_admin_group_to_provider(admin_group, provider)
-            # admin_user = TestUtils.get_user_and_username(author="admin_user", is_staff=True)
-            # with impersonate(admin_user):
-
         return provider
 
     @staticmethod
@@ -65,8 +72,8 @@ class TestUtils:
         Best-effort human-readable name for a permission when we create it ad hoc in tests.
         Example: ('run_program', 'program') -> 'Can run program on program'
         """
-        codename_pretty = codename.replace('_', ' ').strip()
-        model_pretty = model.replace('_', ' ').strip().title()
+        codename_pretty = codename.replace("_", " ").strip()
+        model_pretty = model.replace("_", " ").strip().title()
         # Django default style is like "Can add program", "Can change program".
         # We'll keep something readable but not overthink it for tests:
         return f"{codename_pretty.title()} ({model_pretty})"
@@ -87,10 +94,12 @@ class TestUtils:
         return perm
 
     @staticmethod
-    def get_or_create_group(group: Union[Group, str], permissions: Iterable[Union[Permission, Tuple[str, str, str]]] = None,
-                            *,
-                            replace_permissions: bool = False
-                            ) -> Group:
+    def get_or_create_group(
+        group: Union[Group, str],
+        permissions: Iterable[Union[Permission, Tuple[str, str, str]]] = None,
+        *,
+        replace_permissions: bool = False,
+    ) -> Group:
         """
         Create or fetch a Group and attach the given permissions.
 
@@ -150,11 +159,7 @@ class TestUtils:
             **kwargs: Additional fields to set on the Program model
         """
 
-        author_obj, author_username = TestUtils.get_user_and_username(author)
-        # provider = None
-
-        if provider:
-            provider = TestUtils.get_or_create_provider(provider)
+        author_obj, _ = TestUtils.get_user_and_username(author)
 
         if not instances:
             instances = []
@@ -162,19 +167,31 @@ class TestUtils:
             trial_instances = []
 
         if provider:
-            if Program.objects.filter(title=program_title, author=author_obj, provider=provider).exists():
-                program = Program.objects.get(title=program_title, author=author_obj, provider=provider)
+            provider = TestUtils.get_or_create_provider(provider)
+            if Program.objects.filter(
+                title=program_title, author=author_obj, provider=provider
+            ).exists():
+                program = Program.objects.get(
+                    title=program_title, author=author_obj, provider=provider
+                )
             else:
-                program = Program.objects.create(title=program_title, author=author_obj, provider=provider, **kwargs)
+                program = Program.objects.create(
+                    title=program_title, author=author_obj, provider=provider, **kwargs
+                )
         else:
-            if Program.objects.filter(title=program_title, author=author_obj, provider=None).exists():
+            if Program.objects.filter(
+                title=program_title, author=author_obj, provider=None
+            ).exists():
                 program = Program.objects.get(title=program_title, author=author_obj)
             else:
-                program = Program.objects.create(title=program_title, author=author_obj, **kwargs)
-
+                program = Program.objects.create(
+                    title=program_title, author=author_obj, **kwargs
+                )
 
         if instances or trial_instances:
-            TestUtils.add_instance_to_program(program, instances=instances, trial_instances=trial_instances)
+            TestUtils.add_instance_to_program(
+                program, instances=instances, trial_instances=trial_instances
+            )
 
         return program
 
@@ -209,9 +226,7 @@ class TestUtils:
         Args:
             author: The author or username for the Job.
             program: The job's program. If program is a string, create a program with this title.
-            result: The job's result. Should be in string format. e.g. "{\"somekey\": 2}".
             status: Job status. Defaults to Job.PENDING.
-            logs: Optional list of logs.
             config: Optional JobConfig instance or a dict to create a JobConfig instance.
             **kwargs: Fields for the Job (like result and logs).
         """
@@ -224,9 +239,11 @@ class TestUtils:
                 config = JobConfig.objects.create(**config)
 
         if isinstance(program, str):
-            program = TestUtils.create_program(author=author, program=program)
+            program = TestUtils.create_program(author=author, program_title=program)
 
-        job = Job.objects.create(author=author_obj, program=program, status=status, **kwargs)
+        job = Job.objects.create(
+            author=author_obj, program=program, status=status, **kwargs
+        )
         if config:
             TestUtils.add_config_to_job(job, config)
 
@@ -245,35 +262,35 @@ class TestUtils:
         job.config = config
         job.save(update_fields=["config"])
 
-
     @staticmethod
-    def add_instance_to_program(program: Program, instances: list[Union[Group, str]] = None, trial_instances: list[Union[Group, str]] = None):
+    def add_instance_to_program(
+        program: Program,
+        instances: list[Union[Group, str]] = None,
+        trial_instances: list[Union[Group, str]] = None,
+    ):
         """
         Adds instances to a Program (making it have a group access). Creates the group if it doesn't exist.
         """
-        # admin_user = TestUtils.get_user_and_username(author="admin_user", is_staff=True)
-
         # Add instances (groups) if provided
         if instances is not None:
             for group in instances:
                 if isinstance(group, str):
                     group = TestUtils.get_or_create_group(group=group)
                 program.instances.add(group)
-                # with impersonate(admin_user):
-                #     program.instances.add(group)
 
         # Add trial_instances if provided
         if trial_instances is not None:
-            for group in instances:
+            for group in trial_instances:
                 if isinstance(group, str):
                     group = TestUtils.get_or_create_group(group=group)
-                program.instances.add(group)
-                # with impersonate(admin_user):
-                #     program.trial_instances.add(group)
-
+                program.trial_instances.add(group)
 
     @staticmethod
-    def add_user_to_group(user: Union[User, str], group: Union[Group, str], permissions: Iterable[Union[Permission, Tuple[str, str, str]]] = None) -> User:
+    def add_user_to_group(
+        user: Union[User, str],
+        group: Union[Group, str],
+        permissions: Iterable[Union[Permission, Tuple[str, str, str]]] = None,
+    ) -> User:
         """
         Add a user to a group. Creates the group if it doesn't exist.
         Args:
@@ -286,16 +303,18 @@ class TestUtils:
         if isinstance(group, str):
             group = TestUtils.get_or_create_group(group=group, permissions=permissions)
         if not user_obj.groups.filter(id=group.id).exists():
-            # admin_user = TestUtils.get_user_and_username(author="admin_user", is_staff=True)
-            # with impersonate(admin_user):
             user_obj.groups.add(group)
         return user_obj
 
     @staticmethod
-    def authorize_client(username: str, client: APIClient, is_active: bool = True, is_staff: bool = False) -> User:
+    def authorize_client(
+        username: str, client: APIClient, is_active: bool = True, is_staff: bool = False
+    ) -> User:
         """
         Helper to authenticate a DRF test client.
         """
-        user, _ = TestUtils.get_user_and_username(author=username, is_active=is_active, is_staff=is_staff)
+        user, _ = TestUtils.get_user_and_username(
+            author=username, is_active=is_active, is_staff=is_staff
+        )
         client.force_authenticate(user=user)
         return user
