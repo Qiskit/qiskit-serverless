@@ -30,6 +30,7 @@ system and receive the results when they are ready.
   Function Features <function_features/index>
   Custom Images <custom_images/index>
   Deployment <deployment/index>
+  Gateway REST API <gateway_api/index>
   Release Notes <release-notes>
 
 .. toctree::
