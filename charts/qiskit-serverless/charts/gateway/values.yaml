@@ -124,9 +124,11 @@ serviceAccount:
   # If not set and create is true, a name is generated using the fullname template
   name: ""
 
-podAnnotations:
-  prometheus.io/scrape: "true"
-
+gateway:
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: "/metrics"
+    prometheus.io/port: "8000"
 
 podSecurityContext:
   fsGroup: 1000
@@ -169,6 +171,10 @@ resources:
     cpu: "500m"
     memory: "700Mi"
 scheduler:
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: "/metrics"
+    prometheus.io/port: "8001"
   siteHost: "http://0.0.0.0:8001"
   port: 8001
   resources:
