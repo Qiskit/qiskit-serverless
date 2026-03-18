@@ -3,6 +3,7 @@
 
 from datetime import datetime, timezone
 import os
+import tempfile
 from time import sleep
 from uuid import uuid4
 
@@ -369,6 +370,97 @@ ERROR: Provider log
             serverless_client.function("wrong-title")
 
         assert str(exc_info.value) == expected_message
+
+    def test_event(self, serverless_client: ServerlessClient):
+        """Integration test for submitting an error event within the function and retrieving it client-side."""
+
+        events_function = QiskitFunction(
+            title="event_error_producer",
+            entrypoint="event_error_producer.py",
+            working_dir=resources_path,
+        )
+
+        events_function = serverless_client.upload(events_function)
+
+        job = events_function.run()
+
+        job.result()
+
+        events = job.events(type="ERROR")
+        assert len(events) == 1
+
+        event_data = events[0].data
+        assert event_data["code"] == "1000"
+        assert event_data["message"] == "My error message"
+        assert event_data["args"]["my-arg-1"] == 123
+        assert event_data["args"]["my-arg-2"] == "hi"
+
+    def test_event_wrong_type(self, serverless_client: ServerlessClient):
+        """
+        Integration test for submitting an error event within the function
+        and failing to retrieve client-side because of wrong type specified.
+        """
+
+        events_function = QiskitFunction(
+            title="event_error_producer",
+            entrypoint="event_error_producer.py",
+            working_dir=resources_path,
+        )
+
+        events_function = serverless_client.upload(events_function)
+
+        job = events_function.run()
+
+        job.result()
+
+        with raises(QiskitServerlessException) as exc_info:
+            job.events(type="NotValidJobEventType")
+
+        assert "Type is not valid. Valid types: ['ERROR']" in str(exc_info.value)
+
+    def test_serverless_error_raise(self, serverless_client: ServerlessClient):
+        """Integration test for submitting an error event within the function and retrieving it client-side."""
+
+        with tempfile.NamedTemporaryFile(
+            mode="w+", encoding="utf-8", delete=True, dir=resources_path, suffix=".py"
+        ) as tmp:
+
+            with open(
+                "../gateway/templates/main.tmpl",
+                "r",
+                encoding="utf-8",
+            ) as template:
+                template_content = template.read()
+                template_content = template_content.replace("{{mount_path}}", "/runner")
+                template_content = template_content.replace("{{package_name}}", "exception_producer")
+                tmp.write(template_content)
+                tmp.flush()
+
+            events_function = QiskitFunction(
+                title="exception_producer",
+                entrypoint=os.path.basename(tmp.name),
+                working_dir=resources_path,
+            )
+
+            events_function = serverless_client.upload(events_function)
+
+        job = events_function.run()
+
+        with raises(QiskitServerlessException) as exc_info:
+            job.result()
+
+        events = job.events(type="ERROR")
+        assert len(events) == 1
+
+        assert (
+            exc_info.value.args[0]
+            == "\n| Message: My error message\n| Code: A123\n| Type: ServerlessError\n| Details:\n|   - my-args: 123"
+        )
+
+        event_data = events[0].data
+        assert event_data["code"] == "A123"
+        assert event_data["message"] == "My error message"
+        assert event_data["args"]["my-args"] == 123
 
     def test_provider_logs(self, serverless_client: ServerlessClient):
         """Integration test for logs."""

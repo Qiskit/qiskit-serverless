@@ -764,3 +764,245 @@ class TestJobApi(APITestCase):
 
             self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
             self.assertEqual(response.data.get("message"), "Internal server error")
+
+    def test_job_event_creation(self):
+        """Tests create event with all fields."""
+
+        self._authorize("test_user")
+        user_job = self._create_job(author="test_user")
+        user_job.status = Job.RUNNING
+        user_job.save()
+
+        job_id = user_job.pk
+        code = "1111"
+        message = "My test message"
+        error_type = "ServerlessException"
+        args = json.dumps({"ultimate": 42})
+        job_event_response = self.client.post(
+            reverse(
+                "v1:jobs-create-event",
+                args=[job_id],
+            ),
+            format="json",
+            data={"type": JobEventType.ERROR, "error_type": error_type, "code": code, "message": message, "args": args},
+        )
+
+        self.assertEqual(job_event_response.status_code, status.HTTP_200_OK)
+        job_events = JobEvent.objects.filter(job_id=job_id)
+
+        self.assertEqual(len(job_events), 1)
+        self.assertEqual(job_events[0].event_type, JobEventType.ERROR)
+        self.assertEqual(job_events[0].origin, JobEventOrigin.API)
+        self.assertEqual(job_events[0].context, JobEventContext.SEND_ERROR)
+        self.assertEqual(job_events[0].data["code"], code)
+        self.assertEqual(job_events[0].data["message"], message)
+        self.assertEqual(job_events[0].data["error_type"], error_type)
+        self.assertEqual(job_events[0].data["args"], args)
+
+    def test_job_event_creation_non_running(self):
+        """Tests create event on a non running job."""
+
+        self._authorize("test_user")
+        user_job = self._create_job(author="test_user")
+
+        job_id = user_job.pk
+        code = "1111"
+        message = "My test message"
+        error_type = "ServerlessException"
+        args = json.dumps({"ultimate": 42})
+        job_event_response = self.client.post(
+            reverse(
+                "v1:jobs-create-event",
+                args=[job_id],
+            ),
+            format="json",
+            data={"type": JobEventType.ERROR, "error_type": error_type, "code": code, "message": message, "args": args},
+        )
+
+        self.assertEqual(job_event_response.status_code, status.HTTP_403_FORBIDDEN)
+        job_events = JobEvent.objects.filter(job_id=job_id)
+
+        self.assertEqual(len(job_events), 0)
+
+    def test_job_event_without_args(self):
+        """Tests create event without args field."""
+
+        self._authorize("test_user")
+        user_job = self._create_job(author="test_user")
+        user_job.status = Job.RUNNING
+        user_job.save()
+
+        job_id = user_job.pk
+        code = "1111"
+        message = "My test message"
+        error_type = "ServerlessException"
+        job_event_response = self.client.post(
+            reverse(
+                "v1:jobs-create-event",
+                args=[job_id],
+            ),
+            format="json",
+            data={"type": JobEventType.ERROR, "error_type": error_type, "code": code, "message": message},
+        )
+
+        self.assertEqual(job_event_response.status_code, status.HTTP_200_OK)
+        job_events = JobEvent.objects.filter(job_id=job_id)
+
+        self.assertEqual(len(job_events), 1)
+        self.assertEqual(job_events[0].event_type, JobEventType.ERROR)
+        self.assertEqual(job_events[0].origin, JobEventOrigin.API)
+        self.assertEqual(job_events[0].context, JobEventContext.SEND_ERROR)
+        self.assertEqual(job_events[0].data["code"], code)
+        self.assertEqual(job_events[0].data["message"], message)
+        self.assertEqual(job_events[0].data["error_type"], error_type)
+        self.assertEqual(job_events[0].data["args"], None)
+
+    def test_job_event_unauthorized(self):
+        """Tests create event with a not authorized user."""
+
+        user_job = self._create_job(author="test_user")
+        user_job.status = Job.RUNNING
+        user_job.save()
+        self._authorize("test_user_2")
+
+        job_id = user_job.pk
+        code = "1111"
+        message = "My test message"
+        error_type = "ServerlessException"
+        args = json.dumps({"ultimate": 42})
+        job_event_response = self.client.post(
+            reverse(
+                "v1:jobs-create-event",
+                args=[job_id],
+            ),
+            format="json",
+            data={"type": JobEventType.ERROR, "error_type": error_type, "code": code, "message": message, "args": args},
+        )
+
+        self.assertEqual(job_event_response.status_code, status.HTTP_404_NOT_FOUND)
+        job_events = JobEvent.objects.filter(job_id=job_id)
+
+        self.assertEqual(len(job_events), 0)
+
+    def test_job_event_type_wrong(self):
+        """Tests create event using a not valid type."""
+
+        self._authorize("test_user")
+        user_job = self._create_job(author="test_user")
+        user_job.status = Job.RUNNING
+        user_job.save()
+
+        job_id = user_job.pk
+        code = "1111"
+        message = "My test message"
+        args = json.dumps({"ultimate": 42})
+        job_event_response = self.client.post(
+            reverse(
+                "v1:jobs-create-event",
+                args=[job_id],
+            ),
+            format="json",
+            data={"type": JobEventType.STATUS_CHANGE, "code": code, "message": message, "args": args},
+        )
+
+        self.assertEqual(job_event_response.status_code, status.HTTP_400_BAD_REQUEST)
+        job_events = JobEvent.objects.filter(job_id=job_id)
+
+        self.assertEqual(len(job_events), 0)
+
+    def test_job_events(self):
+        """Tests list error events."""
+
+        self._authorize("test_user")
+        user_job = self._create_job(author="test_user")
+        user_job.status = Job.RUNNING
+        user_job.save()
+
+        job_id = user_job.pk
+        code = "1111"
+        code_2 = "1112"
+        message = "My test message"
+        message_2 = "My test message 2"
+        error_type = "ServerlessError"
+        error_type_2 = "CustomError"
+        args = {"ultimate": 42}
+        args_2 = {"ultimate": 422}
+        JobEvent.objects.add_error_event(
+            job_id, JobEventOrigin.API, JobEventContext.SEND_ERROR, code, message, error_type, args
+        )
+        JobEvent.objects.add_error_event(
+            job_id, JobEventOrigin.API, JobEventContext.SEND_ERROR, code_2, message_2, error_type_2, args_2
+        )
+        JobEvent.objects.add_status_event(
+            job_id, JobEventOrigin.SCHEDULER, JobEventContext.SCHEDULE_JOBS, Job.SUCCEEDED
+        )
+
+        job_event_response = self.client.get(
+            reverse(
+                "v1:jobs-get-events",
+                args=[job_id],
+            ),
+            {"type": JobEventType.ERROR},
+            format="json",
+        )
+
+        self.assertEqual(job_event_response.status_code, status.HTTP_200_OK)
+
+        assert len(job_event_response.data) == 2
+        event_0 = job_event_response.data[1]
+        event_1 = job_event_response.data[0]
+
+        assert event_0["event_type"] == JobEventType.ERROR
+        assert event_1["event_type"] == JobEventType.ERROR
+
+        assert event_0["data"]["code"] == code
+        assert event_1["data"]["code"] == code_2
+
+        assert event_0["data"]["message"] == message
+        assert event_1["data"]["message"] == message_2
+
+        assert event_0["data"]["error_type"] == error_type
+        assert event_1["data"]["error_type"] == error_type_2
+
+        assert event_0["data"]["args"] == args
+        assert event_1["data"]["args"] == args_2
+
+    def test_job_events_wrong_type(self):
+        """Tests try to access job events using a wrong type to filter."""
+
+        self._authorize("test_user")
+        user_job = self._create_job(author="test_user")
+        user_job.status = Job.RUNNING
+        user_job.save()
+
+        job_id = user_job.pk
+        job_event_response = self.client.get(
+            reverse(
+                "v1:jobs-get-events",
+                args=[job_id],
+            ),
+            {"type": "NonExistingJobEventType"},
+            format="json",
+        )
+
+        self.assertEqual(job_event_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_job_events_wrong_user(self):
+        """Tests try to access job events from a not authorized user."""
+
+        self._authorize("test_user_2")
+        user_job = self._create_job(author="test_user")
+        user_job.status = Job.RUNNING
+        user_job.save()
+
+        job_id = user_job.pk
+        job_event_response = self.client.get(
+            reverse(
+                "v1:jobs-get-events",
+                args=[job_id],
+            ),
+            {"type": JobEventType.ERROR},
+            format="json",
+        )
+
+        self.assertEqual(job_event_response.status_code, status.HTTP_403_FORBIDDEN)

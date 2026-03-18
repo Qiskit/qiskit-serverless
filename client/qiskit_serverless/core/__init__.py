@@ -53,6 +53,7 @@ from .clients.serverless_client import ServerlessClient, IBMServerlessClient
 from .job import (
     Job,
     save_result,
+    send_error,
     update_status,
     Configuration,
     is_running_in_serverless,
@@ -60,6 +61,7 @@ from .job import (
     get_runtime_service,
 )
 from .function import QiskitPattern, QiskitFunction
+from .serverless_error import ServerlessError
 from .decorators import (
     remote,
     get,

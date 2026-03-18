@@ -41,6 +41,7 @@ from qiskit_serverless.core.job import (
     _map_status_from_serveless,
     _map_status_to_serverless,
 )
+from qiskit_serverless.core.job_event import JobEvent
 from qiskit_serverless.exception import QiskitServerlessException
 
 
@@ -349,6 +350,7 @@ class TestJobResult:
         mock_service = Mock()
         mock_service.status.return_value = "ERROR"
         mock_service.result.return_value = "Job execution failed"
+        mock_service.events.return_value = []
 
         job = Job(job_id="test-job", job_service=mock_service)
 
@@ -363,6 +365,7 @@ class TestJobResult:
         mock_service.status.return_value = "ERROR"
         mock_service.result.return_value = None
         mock_service.filtered_logs.return_value = "Error: Something went wrong"
+        mock_service.events.return_value = []
 
         job = Job(job_id="test-job", job_service=mock_service)
 
@@ -371,6 +374,36 @@ class TestJobResult:
 
         assert "Error: Something went wrong" in str(exc_info.value)
         mock_service.filtered_logs.assert_called_once()
+
+    def test_result_raises_exception_on_error_status_with_error_event(self):
+        """Test result() raises exception when job status is ERROR."""
+        mock_service = Mock()
+        mock_service.status.return_value = "ERROR"
+        mock_service.result.return_value = "Job execution failed"
+        mock_service.events.return_value = [
+            JobEvent(
+                event_type="ERROR",
+                origin="MOCK",
+                context="Mock",
+                created="",
+                data={
+                    "message": "Job execution failed",
+                    "error_type": "ServerlessError",
+                    "code": "M123",
+                    "args": {"my-args": 123},
+                },
+            )
+        ]
+
+        job = Job(job_id="test-job", job_service=mock_service)
+
+        with pytest.raises(QiskitServerlessException) as exc_info:
+            job.result(wait=False)
+
+        assert (
+            "\n| Message: Job execution failed\n| Code: M123\n| Type: ServerlessError\n| Details:\n|   - my-args: 123"
+            == str(exc_info.value)
+        )
 
 
 class TestJobInTerminalState:
