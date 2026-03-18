@@ -452,7 +452,10 @@ ERROR: Provider log
         events = job.events(type="ERROR")
         assert len(events) == 1
 
-        assert exc_info.value.args[0] == "\n| Message: My error message\n| Code: A123\n| Details:\n|   - my-args: 123"
+        assert (
+            exc_info.value.args[0]
+            == "\n| Message: My error message\n| Code: A123\n| Type: ServerlessError\n| Details:\n|   - my-args: 123"
+        )
 
         event_data = events[0].data
         assert event_data["code"] == "A123"
