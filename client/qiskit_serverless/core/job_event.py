@@ -34,7 +34,6 @@ class JobEvent:  # pylint: disable=too-many-instance-attributes
     origin: str
     context: str
     created: str
-    error_type: str
     data: dict
 
     @classmethod

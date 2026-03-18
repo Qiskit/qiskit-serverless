@@ -374,7 +374,12 @@ class TestJobResult:
                 origin="MOCK",
                 context="Mock",
                 created="",
-                data={"message": "Job execution failed", "code": "M123", "args": {"my-args": 123}},
+                data={
+                    "message": "Job execution failed",
+                    "error_type": "ServerlessError",
+                    "code": "M123",
+                    "args": {"my-args": 123},
+                },
             )
         ]
 
@@ -383,7 +388,10 @@ class TestJobResult:
         with pytest.raises(QiskitServerlessException) as exc_info:
             job.result(wait=False)
 
-        assert "\n| Message: Job execution failed\n| Code: M123\n| Details:\n|   - my-args: 123" == str(exc_info.value)
+        assert (
+            "\n| Message: Job execution failed\n| Code: M123\n| Type: ServerlessError\n| Details:\n|   - my-args: 123"
+            == str(exc_info.value)
+        )
 
 
 class TestJobInTerminalState:
