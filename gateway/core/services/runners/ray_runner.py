@@ -254,14 +254,14 @@ class RayRunner(AbstractRunner):
 
         # Connect to Ray cluster using compute_resource host
         host = compute_resource.host
-        ray_client = retry_function(
+        job_submission_client = retry_function(
             callback=lambda: JobSubmissionClient(host),
             num_retries=settings.RAY_SETUP_MAX_RETRIES,
             error_message=f"Ray JobClientSubmission setup failed for host [{host}].",
         )
 
         ray_job_id = retry_function(
-            callback=lambda: ray_runner.submit_job(
+            callback=lambda: job_submission_client.submit_job(
                 entrypoint=f"python {program.entrypoint}",
                 runtime_env={
                     "working_dir": working_directory_for_upload,
