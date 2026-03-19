@@ -1,6 +1,7 @@
 """Health check endpoints for Kubernetes readiness and liveness probes."""
 
-from django.db import OperationalError, connection
+from django.db import connection
+from django.db.utils import InterfaceError, OperationalError
 from django.http import HttpRequest, JsonResponse, HttpResponse
 
 
@@ -10,7 +11,7 @@ def readiness(request: HttpRequest) -> JsonResponse:
     try:
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
-    except OperationalError:
+    except (OperationalError, InterfaceError):  # InterfaceError: connection already closed
         return JsonResponse({"status": "database_unavailable"}, status=503)
 
     return JsonResponse({"status": "ready"})
