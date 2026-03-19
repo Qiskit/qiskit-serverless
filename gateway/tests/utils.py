@@ -68,15 +68,16 @@ class TestUtils:
         model_pretty = model.replace("_", " ").strip().title()
         # Django default style is like "Can add program", "Can change program".
         # We'll keep something readable but not overthink it for tests:
-        return f"{codename_pretty.title()} ({model_pretty})"
+        return f"Can {codename_pretty.title()} (Model: {model_pretty})"
 
     @staticmethod
-    def _resolve_permission(triple: Tuple[str, str, str]) -> Permission:
+    def resolve_permission(triple: Tuple[str, str, str]) -> Permission:
         """
         Given (codename, app_label, model), return a Permission.
         Creates the Permission if it doesn't exist (useful for tests).
         """
         codename, app_label, model = triple
+        # use ContentType to support all models.
         ct, _ = ContentType.objects.get_or_create(app_label=app_label, model=model)
         perm, _ = Permission.objects.get_or_create(
             content_type=ct,
@@ -122,7 +123,7 @@ class TestUtils:
                             "Each permission must be either a Permission instance "
                             "or a (codename, app_label, model) triple."
                         )
-                    resolved_perms.append(TestUtils._resolve_permission(tuple(p)))  # type: ignore
+                    resolved_perms.append(TestUtils.resolve_permission(tuple(p)))  # type: ignore
 
             if replace_permissions:
                 group.permissions.set(resolved_perms)
