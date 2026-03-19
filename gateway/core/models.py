@@ -207,6 +207,48 @@ class ComputeResource(models.Model):
         return self.title
 
 
+class CodeEngineProject(models.Model):
+    """
+    Code Engine Project configuration.
+
+    Represents an IBM Code Engine project with all its associated resources:
+    - Region and resource group
+    - VPC networking (subnet pool)
+    - Persistent Data Stores (PDS)
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    # Code Engine identifiers (we could save one or both)
+    project_id = models.CharField(max_length=255, unique=True, help_text="IBM Code Engine project UUID")
+    project_name = models.CharField(max_length=255, help_text="Code Engine project name in IBM Cloud")
+
+    # Location and ownership
+    region = models.CharField(max_length=50, help_text="IBM Cloud region (e.g., us-east, eu-de)")
+    resource_group_id = models.CharField(max_length=255, help_text="IBM Cloud resource group ID")
+
+    # Networking
+    subnet_pool_id = models.CharField(max_length=255, help_text="Subnet pool ID for fleet networking")
+
+    # Storage and state management
+    pds_name_state = models.CharField(max_length=255, help_text="Persistent Data Store name for task state")
+
+    pds_name_users = models.CharField(max_length=255, help_text="Persistent Data Store name for users")
+
+    pds_name_providers = models.CharField(max_length=255, help_text="Persistent Data Store name for providers")
+
+    # Status and ownership
+    active = models.BooleanField(default=True, help_text="Whether this project is available for job execution")
+
+    class Meta:
+        app_label = "api"
+
+    def __str__(self):
+        return f"{self.project_name} ({self.region})"
+
+
 class Job(models.Model):
     """Job model."""
 

@@ -6,7 +6,7 @@ from django.urls import reverse
 from rest_framework.test import APITestCase
 from api.context import impersonate
 
-from core.models import Job, JobEvent, Program, ProgramHistory
+from core.models import Job, JobEvent, Program, ProgramHistory, CodeEngineProject
 
 
 class TestModels(APITestCase):
@@ -238,3 +238,213 @@ class TestJobAdmin(APITestCase):
 
         job_events = JobEvent.objects.filter(job_id=job.id)
         self.assertEqual(job_events.count(), 0)
+
+
+class TestCodeEngineProject(APITestCase):
+    """Tests for CodeEngineProject model."""
+
+    def test_code_engine_project_creation(self):
+        """Tests creating a CodeEngineProject with all required fields."""
+        project = CodeEngineProject.objects.create(
+            project_id="ce-project-123-456",
+            project_name="test-project",
+            region="us-east",
+            resource_group_id="rg-123456",
+            subnet_pool_id="subnet-pool-789",
+            pds_name_state="pds-state-store",
+            pds_name_users="pds-users-store",
+            pds_name_providers="pds-providers-store",
+            active=True,
+        )
+
+        self.assertIsNotNone(project.id)
+        self.assertEqual(project.project_id, "ce-project-123-456")
+        self.assertEqual(project.project_name, "test-project")
+        self.assertEqual(project.region, "us-east")
+        self.assertEqual(project.resource_group_id, "rg-123456")
+        self.assertEqual(project.subnet_pool_id, "subnet-pool-789")
+        self.assertEqual(project.pds_name_state, "pds-state-store")
+        self.assertEqual(project.pds_name_users, "pds-users-store")
+        self.assertEqual(project.pds_name_providers, "pds-providers-store")
+        self.assertTrue(project.active)
+        self.assertIsNotNone(project.created)
+        self.assertIsNotNone(project.updated)
+
+    def test_code_engine_project_default_active(self):
+        """Tests that active field defaults to True."""
+        project = CodeEngineProject.objects.create(
+            project_id="ce-project-default",
+            project_name="default-project",
+            region="eu-de",
+            resource_group_id="rg-default",
+            subnet_pool_id="subnet-default",
+            pds_name_state="pds-state",
+            pds_name_users="pds-users",
+            pds_name_providers="pds-providers",
+        )
+
+        self.assertTrue(project.active)
+
+    def test_code_engine_project_unique_project_id(self):
+        """Tests that project_id must be unique."""
+        CodeEngineProject.objects.create(
+            project_id="ce-unique-123",
+            project_name="project-1",
+            region="us-south",
+            resource_group_id="rg-1",
+            subnet_pool_id="subnet-1",
+            pds_name_state="pds-state-1",
+            pds_name_users="pds-users-1",
+            pds_name_providers="pds-providers-1",
+        )
+
+        # Attempting to create another project with the same project_id should fail
+        from django.db import IntegrityError
+
+        with self.assertRaises(IntegrityError):
+            CodeEngineProject.objects.create(
+                project_id="ce-unique-123",  # Duplicate project_id
+                project_name="project-2",
+                region="us-east",
+                resource_group_id="rg-2",
+                subnet_pool_id="subnet-2",
+                pds_name_state="pds-state-2",
+                pds_name_users="pds-users-2",
+                pds_name_providers="pds-providers-2",
+            )
+
+    def test_code_engine_project_str_representation(self):
+        """Tests the string representation of CodeEngineProject."""
+        project = CodeEngineProject.objects.create(
+            project_id="ce-str-test",
+            project_name="my-test-project",
+            region="eu-gb",
+            resource_group_id="rg-str",
+            subnet_pool_id="subnet-str",
+            pds_name_state="pds-state-str",
+            pds_name_users="pds-users-str",
+            pds_name_providers="pds-providers-str",
+        )
+
+        self.assertEqual(str(project), "my-test-project (eu-gb)")
+
+    def test_code_engine_project_update_timestamp(self):
+        """Tests that updated timestamp changes on save."""
+        project = CodeEngineProject.objects.create(
+            project_id="ce-update-test",
+            project_name="update-project",
+            region="us-east",
+            resource_group_id="rg-update",
+            subnet_pool_id="subnet-update",
+            pds_name_state="pds-state-update",
+            pds_name_users="pds-users-update",
+            pds_name_providers="pds-providers-update",
+        )
+
+        original_updated = project.updated
+
+        # Update a field and save
+        project.active = False
+        project.save()
+
+        # Refresh from database
+        project.refresh_from_db()
+
+        self.assertNotEqual(project.updated, original_updated)
+        self.assertFalse(project.active)
+
+    def test_code_engine_project_inactive_status(self):
+        """Tests setting a project as inactive."""
+        project = CodeEngineProject.objects.create(
+            project_id="ce-inactive-test",
+            project_name="inactive-project",
+            region="jp-tok",
+            resource_group_id="rg-inactive",
+            subnet_pool_id="subnet-inactive",
+            pds_name_state="pds-state-inactive",
+            pds_name_users="pds-users-inactive",
+            pds_name_providers="pds-providers-inactive",
+            active=False,
+        )
+
+        self.assertFalse(project.active)
+
+    def test_code_engine_project_query_active(self):
+        """Tests querying for active projects."""
+        # Create active project
+        CodeEngineProject.objects.create(
+            project_id="ce-active-1",
+            project_name="active-project-1",
+            region="us-east",
+            resource_group_id="rg-active-1",
+            subnet_pool_id="subnet-active-1",
+            pds_name_state="pds-state-active-1",
+            pds_name_users="pds-users-active-1",
+            pds_name_providers="pds-providers-active-1",
+            active=True,
+        )
+
+        # Create inactive project
+        CodeEngineProject.objects.create(
+            project_id="ce-inactive-1",
+            project_name="inactive-project-1",
+            region="us-east",
+            resource_group_id="rg-inactive-1",
+            subnet_pool_id="subnet-inactive-1",
+            pds_name_state="pds-state-inactive-1",
+            pds_name_users="pds-users-inactive-1",
+            pds_name_providers="pds-providers-inactive-1",
+            active=False,
+        )
+
+        active_projects = CodeEngineProject.objects.filter(active=True)
+        self.assertEqual(active_projects.count(), 1)
+        self.assertEqual(active_projects.first().project_id, "ce-active-1")
+
+    def test_code_engine_project_query_by_region(self):
+        """Tests querying projects by region."""
+        CodeEngineProject.objects.create(
+            project_id="ce-us-east-1",
+            project_name="us-project",
+            region="us-east",
+            resource_group_id="rg-us",
+            subnet_pool_id="subnet-us",
+            pds_name_state="pds-state-us",
+            pds_name_users="pds-users-us",
+            pds_name_providers="pds-providers-us",
+        )
+
+        CodeEngineProject.objects.create(
+            project_id="ce-eu-de-1",
+            project_name="eu-project",
+            region="eu-de",
+            resource_group_id="rg-eu",
+            subnet_pool_id="subnet-eu",
+            pds_name_state="pds-state-eu",
+            pds_name_users="pds-users-eu",
+            pds_name_providers="pds-providers-eu",
+        )
+
+        us_projects = CodeEngineProject.objects.filter(region="us-east")
+        self.assertEqual(us_projects.count(), 1)
+        self.assertEqual(us_projects.first().project_name, "us-project")
+
+    def test_code_engine_project_all_pds_fields(self):
+        """Tests that all three PDS fields are properly stored."""
+        project = CodeEngineProject.objects.create(
+            project_id="ce-pds-test",
+            project_name="pds-project",
+            region="us-south",
+            resource_group_id="rg-pds",
+            subnet_pool_id="subnet-pds",
+            pds_name_state="state-pds-name",
+            pds_name_users="users-pds-name",
+            pds_name_providers="providers-pds-name",
+        )
+
+        # Verify all three PDS fields are distinct and properly stored
+        self.assertEqual(project.pds_name_state, "state-pds-name")
+        self.assertEqual(project.pds_name_users, "users-pds-name")
+        self.assertEqual(project.pds_name_providers, "providers-pds-name")
+        self.assertNotEqual(project.pds_name_state, project.pds_name_users)
+        self.assertNotEqual(project.pds_name_users, project.pds_name_providers)
