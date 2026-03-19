@@ -11,7 +11,7 @@ from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.domain.exceptions.invalid_access_exception import InvalidAccessException
 from core.domain.filter_logs import remove_prefix_tags_in_logs, filter_logs_with_public_tags
-from core.services.runners import get_runner_client, RunnerError
+from core.services.runners import get_runner, RunnerError
 from core.utils import check_logs
 from api.repositories.jobs import JobsRepository
 from core.services.storage.logs_storage import LogsStorage
@@ -53,7 +53,7 @@ class GetJobLogsUseCase:
         # Get from Ray if it is already running. Then filter
         if job.compute_resource and job.compute_resource.active:
             try:
-                logs = get_runner_client(job).logs()
+                logs = get_runner(job).logs()
             except RunnerError:
                 return "Logs not available for this job during execution."
 

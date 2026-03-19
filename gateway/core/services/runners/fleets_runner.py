@@ -1,19 +1,19 @@
-"""Fleets client placeholder for future implementation."""
+"""Fleets runner placeholder for future implementation."""
 
 from typing import Optional
 
 from core.models import ComputeResource
-from core.services.runners.runner_client import RunnerClient
+from core.services.runners.abstract_runner import AbstractRunner
 
 
-class FleetsClient(RunnerClient):
-    """Client for executing jobs on Fleets."""
+class FleetsRunner(AbstractRunner):
+    """Runner for executing jobs on Fleets."""
 
     def connect(self) -> None:
-        """Lazy call to connect to CodeEngine (create the client)"""
+        """Lazy call to connect to CodeEngine (create the SDK)"""
 
     def disconnect(self) -> None:
-        """Disconnect from CodeEngine?? (remove the client)"""
+        """Disconnect from CodeEngine?? (remove the SDK)"""
 
     def submit(self) -> tuple[ComputeResource, str]:
         """
@@ -24,20 +24,20 @@ class FleetsClient(RunnerClient):
             - ComputeResource: not saved to DB, caller must save and assign to job
             - job_id: CodeEngine job identifier
         """
-        raise NotImplementedError("FleetsClient not yet implemented")
+        raise NotImplementedError("FleetsRunner not yet implemented")
 
     def status(self) -> Optional[str]:
         """Get job status."""
-        raise NotImplementedError("FleetsClient not yet implemented")
+        raise NotImplementedError("FleetsRunner not yet implemented")
 
     def logs(self) -> Optional[str]:
         """Get job logs."""
-        raise NotImplementedError("FleetsClient not yet implemented")
+        raise NotImplementedError("FleetsRunner not yet implemented")
 
     def stop(self) -> bool:
         """Stop the job."""
-        raise NotImplementedError("FleetsClient not yet implemented")
+        raise NotImplementedError("FleetsRunner not yet implemented")
 
     def free_resources(self) -> bool:
         """Clean up resources."""
-        raise NotImplementedError("FleetsClient not yet implemented")
+        raise NotImplementedError("FleetsRunner not yet implemented")

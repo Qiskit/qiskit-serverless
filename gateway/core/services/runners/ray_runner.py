@@ -25,14 +25,14 @@ from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from core.models import ComputeResource, Job, JobConfig, DEFAULT_PROGRAM_ENTRYPOINT
-from core.services.runners.runner_client import RunnerClient, RunnerError
+from core.services.runners.abstract_runner import AbstractRunner, RunnerError
 from core.services.storage.file_storage import FileStorage, WorkingDir
 from core.utils import retry_function, decrypt_env_vars, sanitize_file_path
 
 logger = logging.getLogger("commands")
 
 
-class RayClient(RunnerClient):
+class RayRunner(AbstractRunner):
     """Client for executing jobs on Ray/KubeRay clusters."""
 
     def __init__(self, job: Job):
@@ -261,7 +261,7 @@ class RayClient(RunnerClient):
         )
 
         ray_job_id = retry_function(
-            callback=lambda: ray_client.submit_job(
+            callback=lambda: ray_runner.submit_job(
                 entrypoint=f"python {program.entrypoint}",
                 runtime_env={
                     "working_dir": working_directory_for_upload,

@@ -33,8 +33,8 @@ class TestCommands(APITestCase):
         num_resources = ComputeResource.objects.count()
         self.assertEqual(num_resources, 1)
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner_client")
-    def test_update_jobs_statuses(self, get_runner_client):
+    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    def test_update_jobs_statuses(self, get_runner):
         with tempfile.TemporaryDirectory() as temp_dir:
             with self.settings(MEDIA_ROOT=temp_dir):
                 """Tests update of job statuses."""
@@ -43,7 +43,7 @@ class TestCommands(APITestCase):
                 runner_mock.status.return_value = Job.RUNNING
                 runner_mock.logs.return_value = "No logs yet."
                 runner_mock.stop.return_value = True
-                get_runner_client.return_value = runner_mock
+                get_runner.return_value = runner_mock
 
                 job = self._create_test_job(ray_job_id="test_update_jobs_statuses")
 
@@ -159,8 +159,8 @@ class TestCommands(APITestCase):
                 logs,
             )
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner_client")
-    def test_update_jobs_statuses_filters_logs_user_function(self, get_runner_client):
+    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    def test_update_jobs_statuses_filters_logs_user_function(self, get_runner):
         """Tests that logs are filtered when saving for function without provider."""
         compute_resource = ComputeResource.objects.create(title="test-cluster-user-logs", active=True)
         job = self._create_test_job(
@@ -186,7 +186,7 @@ Ray internal log without marker
                 runner_mock = MagicMock()
                 runner_mock.status.return_value = Job.SUCCEEDED
                 runner_mock.logs.return_value = full_logs
-                get_runner_client.return_value = runner_mock
+                get_runner.return_value = runner_mock
 
                 UpdateJobsStatuses().run()
 
@@ -224,8 +224,8 @@ INFO: Final public log
                 job.refresh_from_db()
                 self.assertTrue(job.logs == "")
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner_client")
-    def test_update_jobs_statuses_filters_logs_provider_function(self, get_runner_client):
+    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    def test_update_jobs_statuses_filters_logs_provider_function(self, get_runner):
         """Tests that logs are filtered when saving for function with provider."""
         compute_resource = ComputeResource.objects.create(title="test-cluster-provider-logs", active=True)
         job = self._create_test_job(
@@ -252,7 +252,7 @@ Internal system log
                 runner_mock = MagicMock()
                 runner_mock.status.return_value = Job.SUCCEEDED
                 runner_mock.logs.return_value = full_logs
-                get_runner_client.return_value = runner_mock
+                get_runner.return_value = runner_mock
 
                 UpdateJobsStatuses().run()
 
@@ -294,8 +294,8 @@ WARNING: Private warning
                     saved_provider_logs = log_file.read()
                 self.assertEqual(saved_provider_logs, expected_provider_logs)
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner_client")
-    def test_update_jobs_statuses_job_handler_status_error_status_event(self, get_runner_client):
+    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    def test_update_jobs_statuses_job_handler_status_error_status_event(self, get_runner):
         """Tests that the job_event is stored when runner.status() raises exception."""
         compute_resource = ComputeResource.objects.create(title="test-cluster-provider-logs", active=True)
         job = self._create_test_job(
@@ -310,7 +310,7 @@ WARNING: Private warning
             with self.settings(MEDIA_ROOT=temp_dir, RAY_CLUSTER_MODE={"local": True}):
                 runner_mock = MagicMock()
                 runner_mock.status.side_effect = RunnerError("Error")
-                get_runner_client.return_value = runner_mock
+                get_runner.return_value = runner_mock
 
                 UpdateJobsStatuses().run()
 

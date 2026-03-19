@@ -39,7 +39,7 @@ class TestScheduleApi(APITestCase):
         self.assertTrue("1a7947f9-6ae8-4e3d-ac1e-e7d608deec90" in job_ids)
         self.assertTrue("1a7947f9-6ae8-4e3d-ac1e-e7d608deec82" in job_ids)
 
-    @patch("scheduler.schedule.get_runner_client")
+    @patch("scheduler.schedule.get_runner")
     def test_execute_job_success(self, mock_get_runner_client):
         """Tests successful job execution via runner.submit()."""
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
@@ -62,7 +62,7 @@ class TestScheduleApi(APITestCase):
             self.assertEqual(ret_job.ray_job_id, "ray-job-123")
             self.assertEqual(ret_job.status, Job.PENDING)
 
-    @patch("scheduler.schedule.get_runner_client")
+    @patch("scheduler.schedule.get_runner")
     def test_execute_job_failure(self, mock_get_runner_client):
         """Tests job execution failure handling."""
         from core.services.runners import RunnerError

@@ -2,7 +2,7 @@
 
 from unittest import TestCase
 
-from core.services.runners.ray_client import _generate_resource_name
+from core.services.runners.ray_runner import _generate_resource_name
 
 
 class TestClusterNameGenerator(TestCase):

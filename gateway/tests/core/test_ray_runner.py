@@ -14,7 +14,7 @@ from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 
 from core.models import ComputeResource, Job
-from core.services.runners import get_runner_client
+from core.services.runners import get_runner
 from core.utils import encrypt_string
 
 
@@ -33,7 +33,7 @@ class mock_delete(MagicMock):
         return response()
 
 
-class TestRayClient(APITestCase):
+class TestRayRunner(APITestCase):
     """Tests for RayClient."""
 
     fixtures = ["tests/fixtures/schedule_fixtures.json"]
@@ -48,11 +48,11 @@ class TestRayClient(APITestCase):
         DynamicClient.resources.get = MagicMock(return_value=mock)
         head_node_url = "http://test_user-head-svc:8265/"
         job = Job.objects.first()
-        runner = get_runner_client(job)
+        runner = get_runner(job)
 
         with (
-            patch("core.services.runners.ray_client._generate_resource_name", return_value="test_user"),
-            patch("core.services.runners.ray_client._create_cluster_data", return_value="dummy yaml file contents"),
+            patch("core.services.runners.ray_runner._generate_resource_name", return_value="test_user"),
+            patch("core.services.runners.ray_runner._create_cluster_data", return_value="dummy yaml file contents"),
             patch.object(runner, "_submit_to_ray", return_value="AwesomeJobId"),
             requests_mock.Mocker() as mocker,
         ):
@@ -84,7 +84,7 @@ class TestRayClient(APITestCase):
         )
         job.save()
 
-        runner = get_runner_client(job)
+        runner = get_runner(job)
         success = runner.free_resources()
         self.assertTrue(success)
         DynamicClient.resources.get.assert_any_call(api_version="v1", kind="RayCluster")
@@ -128,7 +128,7 @@ class TestRayClientOperations(APITestCase):
         mock_client = MagicMock()
         mock_client.get_job_status.return_value = JobStatus.PENDING
 
-        runner = get_runner_client(job)
+        runner = get_runner(job)
         runner._client = mock_client
         runner._connected = True
 
@@ -148,7 +148,7 @@ class TestRayClientOperations(APITestCase):
         mock_client = MagicMock()
         mock_client.get_job_logs.return_value = "No logs yet."
 
-        runner = get_runner_client(job)
+        runner = get_runner(job)
         runner._client = mock_client
         runner._connected = True
 
@@ -168,7 +168,7 @@ class TestRayClientOperations(APITestCase):
         mock_client = MagicMock()
         mock_client.stop_job.return_value = True
 
-        runner = get_runner_client(job)
+        runner = get_runner(job)
         runner._client = mock_client
         runner._connected = True
 
@@ -187,10 +187,10 @@ class TestRayClientOperations(APITestCase):
             job.env_vars = json.dumps({"ENV_JOB_GATEWAY_TOKEN": encrypt_string("awesome_token")})
             job.save()
 
-            mock_ray_client = MagicMock()
-            mock_ray_client.submit_job.return_value = "AwesomeJobId"
+            mock_ray_runner = MagicMock()
+            mock_ray_runner.submit_job.return_value = "AwesomeJobId"
 
-            runner = get_runner_client(job)
+            runner = get_runner(job)
 
             with patch.object(runner, "_submit_to_ray", return_value="AwesomeJobId"):
                 compute_resource, ray_job_id = runner.submit()

@@ -5,7 +5,7 @@ import logging
 from concurrency.exceptions import RecordModifiedError
 from core.models import JobEvent
 
-from core.services.runners import get_runner_client, RunnerError
+from core.services.runners import get_runner, RunnerError
 from core.utils import check_logs
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
@@ -34,7 +34,7 @@ def update_job_status(job):
         return False
 
     status_has_changed = False
-    runner = get_runner_client(job)
+    runner = get_runner(job)
 
     try:
         job_new_status = runner.status()

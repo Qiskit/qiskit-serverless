@@ -14,7 +14,7 @@ from django.db.models.aggregates import Count, Min
 from opentelemetry import trace
 
 from core.models import Job
-from core.services.runners import get_runner_client, RunnerError
+from core.services.runners import get_runner, RunnerError
 
 User: Model = get_user_model()
 logger = logging.getLogger("commands")
@@ -34,7 +34,7 @@ def execute_job(job: Job) -> Job:
     """
     tracer = trace.get_tracer("scheduler.tracer")
     with tracer.start_as_current_span("execute.job") as span:
-        runner = get_runner_client(job)
+        runner = get_runner(job)
 
         try:
             compute_resource, ray_job_id = runner.submit()
@@ -122,7 +122,7 @@ def handle_job_status_not_available(job: Job, job_status):
             job.compute_resource.title,
         )
     else:
-        runner = get_runner_client(job)
+        runner = get_runner(job)
         try:
             runner.free_resources()
         except RunnerError:
@@ -142,7 +142,7 @@ def fail_job_insufficient_resources(job: Job):
             job.compute_resource.title,
         )
     else:
-        runner = get_runner_client(job)
+        runner = get_runner(job)
         try:
             runner.free_resources()
         except RunnerError:

@@ -1,4 +1,4 @@
-"""Abstract runner client for job execution in any engine (Ray, Fleets)."""
+"""Abstract runner for job execution in any engine (Ray, Fleets)."""
 
 from abc import ABC, abstractmethod
 from typing import Optional
@@ -29,21 +29,21 @@ class RunnerError(Exception):
         return self.message
 
 
-class RunnerClient(ABC):
-    """Abstract client for executing jobs on different engines."""
+class AbstractRunner(ABC):
+    """Abstract runner for executing jobs on different engines."""
 
     def __init__(self, job: Job):
         """
-        Initialize the client with a Job.
+        Initialize the runner with a Job.
 
         Connection to Ray/Fleets is lazy: established via connect() or automatically when calling methods that
-        require it. This approach was taken because creation of the Ray client always makes a first connection
-        to the server just to check if the version matches. That means that just by creating the client class,
+        require it. This approach was taken because creation of the Ray runner always makes a first connection
+        to the server just to check if the version matches. That means that just by creating the runner class,
         it can throw a connection error if Ray node is down or an IO problem, which is quite annoying.
-        By making it lazy, we ensure that the client creation never fails and that only actual operations
+        By making it lazy, we ensure that the runner creation never fails and that only actual operations
         (such as logs(), status(), etc.) are the ones that can fail when connecting.
 
-        Note: job.compute_resource may be None when creating the client for job submission.
+        Note: job.compute_resource may be None when creating the runner for job submission.
         The submit() method will create the compute_resource but the caller is responsible
         for saving it to DB and assigning it to the job.
 
@@ -55,7 +55,7 @@ class RunnerClient(ABC):
 
     @property
     def job(self) -> Job:
-        """Job associated with this client."""
+        """Job associated with this runner."""
         return self._job
 
     @property
