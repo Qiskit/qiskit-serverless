@@ -8,7 +8,6 @@ from api.context import impersonate
 
 from core.models import Job, JobEvent, Program, ProgramHistory
 
-
 class TestModels(APITestCase):
     """TestModels."""
 
@@ -225,4 +224,4 @@ class TestJobAdmin(APITestCase):
         self.client.post(url, data, follow=True)
 
         job_events = JobEvent.objects.filter(job_id=job.id)
-        assert job_events.count() == 0
+        self.assertEqual(job_events.count(), 0)
