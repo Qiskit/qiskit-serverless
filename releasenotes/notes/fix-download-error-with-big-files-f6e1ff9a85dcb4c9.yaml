@@ -1,0 +1,5 @@
+---
+fixes:
+  - |
+    Fixed gateway triggering out of memory errors when downloading a big file. Now, the download uses a 64Kb stream buffer 
+    that prevents it from crashing.

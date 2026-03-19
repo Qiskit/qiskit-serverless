@@ -30,9 +30,45 @@ logging.getLogger("main").info("[BOOT] Reading urls.py...")
 
 schema = get_schema_view(  # pylint: disable=invalid-name
     openapi.Info(
-        title="Gateway API",
+        title="Qiskit Serverless Gateway API",
         default_version="v1",
-        description="List of available API endpoint for gateway.",
+        description="""
+REST API for managing quantum programs and jobs.
+
+## Authentication
+
+Include your token in the Authorization header:
+
+```
+Authorization: Bearer <your-token>
+```
+
+## Base URL
+
+`/api/v1/`
+
+## Key Features
+
+- Upload and run quantum programs
+- Monitor job execution and retrieve results
+- Manage files associated with programs
+- Multi-tenant provider support
+
+## Response Codes
+
+- `200` - Success
+- `400` - Bad request
+- `401` - Unauthorized
+- `403` - Forbidden
+- `404` - Not found
+
+## Pagination
+
+List endpoints support `limit` and `offset` parameters (default: limit=10, offset=0).
+        """,
+        terms_of_service="https://qiskit.org/",
+        contact=openapi.Contact(email="qiskit@qiskit.org"),
+        license=openapi.License(name="Apache 2.0"),
     ),
     public=True,
     permission_classes=[permissions.AllowAny],
