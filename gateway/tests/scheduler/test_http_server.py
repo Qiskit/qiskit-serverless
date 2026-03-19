@@ -4,6 +4,7 @@ import json
 import urllib.error
 import urllib.request
 
+import pytest
 from django.test import TestCase
 
 from scheduler.http_server import SchedulerHttpServer
@@ -65,10 +66,10 @@ class TestSchedulerHttpServer(TestCase):
         self.http_server.start()
 
         url = f"{SITE_HOST}/this_path_does_not_exist"
-        with self.assertRaises(urllib.error.HTTPError) as context:
+        with pytest.raises(urllib.error.HTTPError) as exc_info:
             urllib.request.urlopen(url)
 
-        error = context.exception
+        error = exc_info.value
         assert error.code == 404
         body = error.read().decode()
         assert body == "Not found"
