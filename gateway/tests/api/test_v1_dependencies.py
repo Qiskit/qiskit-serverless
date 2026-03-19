@@ -20,5 +20,5 @@ class TestAvailableDependenciesVersion(APITestCase):
 
         url = reverse("v1:dependencies-versions")
         response = self.client.get(url, format="json")
-        assert response.status_code == status.HTTP_200_OK
-        assert response.json() == ["pendulum>=3.0.0", "wheel>=0.45.1"]
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json(), ["pendulum>=3.0.0", "wheel>=0.45.1"])
