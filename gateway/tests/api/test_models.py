@@ -6,7 +6,7 @@ from django.urls import reverse
 from rest_framework.test import APITestCase
 from api.context import impersonate
 
-from core.models import Job, JobEvent, Program, ProgramHistory, CodeEngineProject
+from core.models import Job, JobEvent, Program, ProgramHistory, CodeEngineProject, ComputeResource
 
 
 class TestModels(APITestCase):
@@ -448,3 +448,174 @@ class TestCodeEngineProject(APITestCase):
         self.assertEqual(project.pds_name_providers, "providers-pds-name")
         self.assertNotEqual(project.pds_name_state, project.pds_name_users)
         self.assertNotEqual(project.pds_name_users, project.pds_name_providers)
+
+
+class TestJobCodeEngineFields(APITestCase):
+    """Tests for Job model Code Engine related fields."""
+
+    def test_job_with_code_engine_project(self):
+        """Tests creating a Job with a Code Engine project."""
+        user = User.objects.create_user(username="test_user")
+        program = Program.objects.create(title="Test Program", author=user)
+
+        ce_project = CodeEngineProject.objects.create(
+            project_id="ce-test-123",
+            project_name="test-project",
+            region="us-east",
+            resource_group_id="rg-123",
+            subnet_pool_id="subnet-123",
+            pds_name_state="pds-state",
+            pds_name_users="pds-users",
+            pds_name_providers="pds-providers",
+        )
+
+        job = Job.objects.create(
+            author=user,
+            program=program,
+            code_engine_project=ce_project,
+            fleet_id="fleet-abc-123",
+        )
+
+        self.assertIsNotNone(job.code_engine_project)
+        self.assertEqual(job.code_engine_project.project_id, "ce-test-123")
+        self.assertEqual(job.fleet_id, "fleet-abc-123")
+        self.assertIsNone(job.compute_resource)
+        self.assertIsNone(job.ray_job_id)
+
+    def test_job_with_ray_compute_resource(self):
+        """Tests creating a Job with Ray compute resource (existing behavior)."""
+        user = User.objects.create_user(username="test_user")
+        program = Program.objects.create(title="Test Program", author=user)
+
+        compute_resource = ComputeResource.objects.create(
+            title="test-ray-cluster",
+            host="ray://localhost:10001",
+        )
+
+        job = Job.objects.create(
+            author=user,
+            program=program,
+            compute_resource=compute_resource,
+            ray_job_id="ray-job-456",
+        )
+
+        self.assertIsNotNone(job.compute_resource)
+        self.assertEqual(job.compute_resource.title, "test-ray-cluster")
+        self.assertEqual(job.ray_job_id, "ray-job-456")
+        self.assertIsNone(job.code_engine_project)
+        self.assertIsNone(job.fleet_id)
+
+    def test_job_without_runner_resources(self):
+        """Tests creating a Job without any runner resources (queued state)."""
+        user = User.objects.create_user(username="test_user")
+        program = Program.objects.create(title="Test Program", author=user)
+
+        job = Job.objects.create(
+            author=user,
+            program=program,
+            status=Job.QUEUED,
+        )
+
+        self.assertIsNone(job.compute_resource)
+        self.assertIsNone(job.code_engine_project)
+        self.assertIsNone(job.ray_job_id)
+        self.assertIsNone(job.fleet_id)
+        self.assertEqual(job.status, Job.QUEUED)
+
+    def test_job_code_engine_project_cascade_on_delete(self):
+        """Tests that Job.code_engine_project is set to NULL when CodeEngineProject is deleted."""
+        user = User.objects.create_user(username="test_user")
+        program = Program.objects.create(title="Test Program", author=user)
+
+        ce_project = CodeEngineProject.objects.create(
+            project_id="ce-cascade-test",
+            project_name="cascade-project",
+            region="us-south",
+            resource_group_id="rg-cascade",
+            subnet_pool_id="subnet-cascade",
+            pds_name_state="pds-state-cascade",
+            pds_name_users="pds-users-cascade",
+            pds_name_providers="pds-providers-cascade",
+        )
+
+        job = Job.objects.create(
+            author=user,
+            program=program,
+            code_engine_project=ce_project,
+            fleet_id="fleet-cascade-123",
+        )
+
+        # Delete the Code Engine project
+        ce_project.delete()
+
+        # Refresh job from database
+        job.refresh_from_db()
+
+        # Job should still exist but code_engine_project should be NULL
+        self.assertIsNone(job.code_engine_project)
+        self.assertEqual(job.fleet_id, "fleet-cascade-123")  # fleet_id remains
+
+    def test_job_fleet_id_optional(self):
+        """Tests that fleet_id is optional even when code_engine_project is set."""
+        user = User.objects.create_user(username="test_user")
+        program = Program.objects.create(title="Test Program", author=user)
+
+        ce_project = CodeEngineProject.objects.create(
+            project_id="ce-optional-fleet",
+            project_name="optional-fleet-project",
+            region="eu-de",
+            resource_group_id="rg-optional",
+            subnet_pool_id="subnet-optional",
+            pds_name_state="pds-state-optional",
+            pds_name_users="pds-users-optional",
+            pds_name_providers="pds-providers-optional",
+        )
+
+        job = Job.objects.create(
+            author=user,
+            program=program,
+            code_engine_project=ce_project,
+            # fleet_id not provided
+        )
+
+        self.assertIsNotNone(job.code_engine_project)
+        self.assertIsNone(job.fleet_id)
+
+    def test_job_query_by_code_engine_project(self):
+        """Tests querying jobs by Code Engine project."""
+        user = User.objects.create_user(username="test_user")
+        program = Program.objects.create(title="Test Program", author=user)
+
+        ce_project1 = CodeEngineProject.objects.create(
+            project_id="ce-query-1",
+            project_name="query-project-1",
+            region="us-east",
+            resource_group_id="rg-query-1",
+            subnet_pool_id="subnet-query-1",
+            pds_name_state="pds-state-1",
+            pds_name_users="pds-users-1",
+            pds_name_providers="pds-providers-1",
+        )
+
+        ce_project2 = CodeEngineProject.objects.create(
+            project_id="ce-query-2",
+            project_name="query-project-2",
+            region="eu-de",
+            resource_group_id="rg-query-2",
+            subnet_pool_id="subnet-query-2",
+            pds_name_state="pds-state-2",
+            pds_name_users="pds-users-2",
+            pds_name_providers="pds-providers-2",
+        )
+
+        # Create jobs with different projects
+        Job.objects.create(author=user, program=program, code_engine_project=ce_project1)
+        Job.objects.create(author=user, program=program, code_engine_project=ce_project1)
+        Job.objects.create(author=user, program=program, code_engine_project=ce_project2)
+
+        # Query jobs by project
+        jobs_project1 = Job.objects.filter(code_engine_project=ce_project1)
+        jobs_project2 = Job.objects.filter(code_engine_project=ce_project2)
+
+        self.assertEqual(jobs_project1.count(), 2)
+        self.assertEqual(jobs_project2.count(), 1)

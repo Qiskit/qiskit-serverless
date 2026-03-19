@@ -303,6 +303,7 @@ class Job(models.Model):
     gpu = models.BooleanField(default=False, null=False)
     logs = models.TextField(default="No logs yet.")
     ray_job_id = models.CharField(max_length=255, null=True, blank=True)
+    fleet_id = models.CharField(max_length=255, null=True, blank=True, help_text="Code Engine fleet ID")
     result = models.TextField(null=True, blank=True)
     status = models.CharField(
         max_length=10,
@@ -317,7 +318,16 @@ class Job(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
     )
-    compute_resource = models.ForeignKey(ComputeResource, on_delete=models.SET_NULL, null=True, blank=True)
+    compute_resource = models.ForeignKey(
+        ComputeResource, on_delete=models.SET_NULL, null=True, blank=True, help_text="Ray cluster (for Ray runner)"
+    )
+    code_engine_project = models.ForeignKey(
+        CodeEngineProject,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Code Engine project (for Fleets runner)",
+    )
     config = models.ForeignKey(
         to=JobConfig,
         on_delete=models.CASCADE,
