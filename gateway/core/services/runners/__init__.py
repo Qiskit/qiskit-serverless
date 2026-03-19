@@ -1,4 +1,4 @@
-"""Runner clients for job execution."""
+"""Abstract runner for job execution."""
 
 from core.models import Job
 from core.services.runners.abstract_runner import RunnerError, AbstractRunner
@@ -18,8 +18,6 @@ def get_runner(job: Job) -> AbstractRunner:
         AbstractRunner appropriate for the job's runner type
     """
 
-    # Future extension when job.runner is available:
-    # from core.services.runners.fleets_client import FleetsRunner
-    # if job.runner == Runner.FLEETS:
+    # if job.fleets:
     #     return FleetsRunner(job)
     return RayRunner(job)

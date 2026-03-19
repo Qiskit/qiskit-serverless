@@ -2,27 +2,38 @@
 
 from typing import Optional
 
-from core.models import ComputeResource
+from core.models import ComputeResource, Job
 from core.services.runners.abstract_runner import AbstractRunner
 
 
 class FleetsRunner(AbstractRunner):
     """Runner for executing jobs on Fleets."""
 
+    def __init__(self, job: Job):
+        """
+        Initialize Fleets runner with a job.
+
+        Args:
+            job: Job instance to be executed
+        """
+        super().__init__(job)
+
     def connect(self) -> None:
         """Lazy call to connect to CodeEngine (create the SDK)"""
+        pass
 
     def disconnect(self) -> None:
         """Disconnect from CodeEngine?? (remove the SDK)"""
+        pass
 
     def submit(self) -> tuple[ComputeResource, str]:
         """
         Submit the job to Fleets.
 
         Returns:
-            Tuple of (ComputeResource, job_id)
+            Tuple of (ComputeResource, fleets_id)
             - ComputeResource: not saved to DB, caller must save and assign to job
-            - job_id: CodeEngine job identifier
+            - fleets_id: CodeEngine job identifier
         """
         raise NotImplementedError("FleetsRunner not yet implemented")
 
