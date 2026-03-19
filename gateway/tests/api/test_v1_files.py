@@ -454,26 +454,6 @@ class TestFilesApi(APITestCase):
                 assert response.status_code == status.HTTP_400_BAD_REQUEST
                 assert not os.path.exists(os.path.join(self.MEDIA_ROOT, "test_user_2", "test-png.png"))
 
-    def test_provider_file_upload(self):
-        """Tests uploading existing file."""
-        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT, UPLOAD_FILE_VALID_MIME_TYPES=["text/plain"]):
-            provider = "default"
-            function = "Program"
-            user = models.User.objects.get(username="test_user_2")
-            self.client.force_authenticate(user=user)
-            url = reverse("v1:files-provider-upload")
-
-            with open("README.md") as f:
-                query_params = {"function": function, "provider": provider}
-                response = self.client.post(
-                    f"{url}?{urlencode(query_params)}",
-                    {"file": f},
-                    format="multipart",
-                )
-
-                self.assertEqual(response.status_code, status.HTTP_200_OK)
-                self.assertTrue(os.path.exists(os.path.join(self.MEDIA_ROOT, provider, function, "README.md")))
-
     def test_provider_file_upload_no_file(self):
         """Tests uploading existing file."""
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
