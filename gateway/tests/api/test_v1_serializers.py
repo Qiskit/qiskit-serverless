@@ -272,7 +272,7 @@ class SerializerTest(APITestCase):
         mock_gpujob_allowlist.return_value = {"gpu-functions": {"gpu_provider": []}}
 
         user = models.User.objects.get(username="test_user")
-        program = TestUtils.create_program(author=user, provider_admin="gpu_provider")
+        program = TestUtils.create_program(program_title="Default-Program", author=user, provider="gpu_provider")
 
         job_data = {"program": program.id}
         job_serializer = RunJobSerializer(data=job_data)
