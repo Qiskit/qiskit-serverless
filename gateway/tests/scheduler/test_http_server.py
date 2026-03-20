@@ -5,7 +5,6 @@ import urllib.error
 import urllib.request
 
 import pytest
-from django.test import TestCase
 
 from scheduler.http_server import SchedulerHttpServer
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
@@ -16,14 +15,14 @@ from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 SITE_HOST = "http://127.0.0.1:8100"
 
 
-class TestSchedulerHttpServer(TestCase):
+class TestSchedulerHttpServer:
     """Tests for SchedulerHttpServer."""
 
-    def setUp(self):
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.http_server = SchedulerHttpServer(site_host=SITE_HOST)
         self.http_server.configure_routes(SchedulerMetrics())
-
-    def tearDown(self):
+        yield
         self.http_server.stop()
 
     def test_start_tops(self):
