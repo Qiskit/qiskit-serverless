@@ -15,7 +15,7 @@ class TestMain:
     """Tests for scheduler Main service."""
 
     @pytest.fixture(autouse=True)
-    def _setup(self, settings):
+    def _setup(self, settings, db):
         settings.SITE_HOST = SITE_HOST
         self.scheduler_main = Main()
         yield

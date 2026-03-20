@@ -19,7 +19,7 @@ class TestSchedulerHttpServer:
     """Tests for SchedulerHttpServer."""
 
     @pytest.fixture(autouse=True)
-    def _setup(self):
+    def _setup(self, db):
         self.http_server = SchedulerHttpServer(site_host=SITE_HOST)
         self.http_server.configure_routes(SchedulerMetrics())
         yield

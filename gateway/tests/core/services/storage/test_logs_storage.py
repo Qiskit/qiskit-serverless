@@ -78,11 +78,10 @@ class TestLogsStorage:
         assert logs == "test log content"
         assert os.path.exists(expected_path)
 
-    def test_save_and_get_public_logs_provider_job(self, tmp_path, settings):
+    def test_save_and_get_public_logs_provider_job(self):
         """Test saving and retrieving public logs for a provider job."""
-        settings.MEDIA_ROOT = str(tmp_path)
         job = self._create_job("auth1", provider="prov1", job_id="id")
-        path = os.path.join(str(tmp_path), "auth1", "prov1", "func1", "logs", "id.log")
+        path = os.path.join(str(self.tmp_path), "auth1", "prov1", "func1", "logs", "id.log")
         storage = LogsStorage(job)
         storage.save_public_logs("public log content")
         logs = storage.get_public_logs()
@@ -90,11 +89,10 @@ class TestLogsStorage:
         assert logs == "public log content"
         assert os.path.exists(path)
 
-    def test_save_and_get_private_logs_provider_job(self, tmp_path, settings):
+    def test_save_and_get_private_logs_provider_job(self):
         """Test saving and retrieving private logs for a provider job."""
-        settings.MEDIA_ROOT = str(tmp_path)
         job = self._create_job("auth1", provider="prov1", job_id="id")
-        expected_path = os.path.join(str(tmp_path), "prov1", "func1", "logs", "id.log")
+        expected_path = os.path.join(str(self.tmp_path), "prov1", "func1", "logs", "id.log")
         storage = LogsStorage(job)
         storage.save_private_logs("private log content")
         logs = storage.get_private_logs()
