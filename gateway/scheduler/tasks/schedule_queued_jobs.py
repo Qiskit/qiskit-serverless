@@ -131,7 +131,8 @@ class ScheduleQueuedJobs(SchedulerTask):
                         job.ray_job_id = backup_ray_job_id
 
                 logger.info("Executing %s of %s", job, job.author)
-        logger.info("%s are scheduled for execution.", len(jobs))
+        if jobs:
+            logger.info("%s jobs are scheduled for execution.", len(jobs))
 
     def set_queue_size_metric(self, gpu_job):
         """Add queue size metric."""
