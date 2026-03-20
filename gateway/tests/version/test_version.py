@@ -8,10 +8,6 @@ from rest_framework import status
 class TestProbes:
     """TestVersion."""
 
-    @pytest.fixture(autouse=True)
-    def _setup(self, db):
-        pass
-
     def test_version(self, client):
         """Tests version."""
         jobs_response = client.get(reverse("version"))
