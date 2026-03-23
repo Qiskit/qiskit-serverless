@@ -1,8 +1,7 @@
 """Unit tests for scheduler main loop."""
 
+import pytest
 from unittest.mock import MagicMock
-
-from django.test import TestCase, override_settings
 
 from scheduler.main import Main
 
@@ -12,14 +11,14 @@ from scheduler.main import Main
 SITE_HOST = "http://127.0.0.1:8200"
 
 
-@override_settings(SITE_HOST=SITE_HOST)
-class TestMain(TestCase):
+class TestMain:
     """Tests for scheduler Main service."""
 
-    def setUp(self):
+    @pytest.fixture(autouse=True)
+    def _setup(self, settings, db):
+        settings.SITE_HOST = SITE_HOST
         self.scheduler_main = Main()
-
-    def tearDown(self):
+        yield
         self.scheduler_main.stop_http_server()
 
     def test_run_executes_tasks(self):

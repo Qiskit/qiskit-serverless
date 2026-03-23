@@ -16,22 +16,22 @@ class TestModels(APITestCase):
         """Tests job terminal state function."""
         job = Job()
         job.status = Job.PENDING
-        self.assertFalse(job.in_terminal_state())
+        assert not job.in_terminal_state()
 
         job.status = Job.RUNNING
-        self.assertFalse(job.in_terminal_state())
+        assert not job.in_terminal_state()
 
         job.status = Job.STOPPED
-        self.assertTrue(job.in_terminal_state())
+        assert job.in_terminal_state()
 
         job.status = Job.QUEUED
-        self.assertFalse(job.in_terminal_state())
+        assert not job.in_terminal_state()
 
         job.status = Job.FAILED
-        self.assertTrue(job.in_terminal_state())
+        assert job.in_terminal_state()
 
         job.status = Job.SUCCEEDED
-        self.assertTrue(job.in_terminal_state())
+        assert job.in_terminal_state()
 
 
 class TestProgramSignals(TransactionTestCase):
@@ -48,49 +48,43 @@ class TestProgramSignals(TransactionTestCase):
         with impersonate(admin_user):
             program.instances.add(group1)
 
-        self.assertEqual(ProgramHistory.objects.count(), 1)
-        self.assertTrue(
-            ProgramHistory.objects.get(
-                program=program,
-                user=admin_user,
-                field_name=ProgramHistory.PROGRAM_FIELD_INSTANCES,
-                action=ProgramHistory.ADD,
-                entity="Group",
-                entity_id=str(group1.id),
-                description="Group 1",
-            )
+        assert ProgramHistory.objects.count() == 1
+        assert ProgramHistory.objects.get(
+            program=program,
+            user=admin_user,
+            field_name=ProgramHistory.PROGRAM_FIELD_INSTANCES,
+            action=ProgramHistory.ADD,
+            entity="Group",
+            entity_id=str(group1.id),
+            description="Group 1",
         )
 
         with impersonate(admin_user):
             program.instances.add(group2)
 
-        self.assertEqual(ProgramHistory.objects.count(), 2)
-        self.assertTrue(
-            ProgramHistory.objects.get(
-                program=program,
-                user=admin_user,
-                field_name=ProgramHistory.PROGRAM_FIELD_INSTANCES,
-                action=ProgramHistory.ADD,
-                entity="Group",
-                entity_id=str(group2.id),
-                description="Group 2",
-            )
+        assert ProgramHistory.objects.count() == 2
+        assert ProgramHistory.objects.get(
+            program=program,
+            user=admin_user,
+            field_name=ProgramHistory.PROGRAM_FIELD_INSTANCES,
+            action=ProgramHistory.ADD,
+            entity="Group",
+            entity_id=str(group2.id),
+            description="Group 2",
         )
 
         with impersonate(user):
             program.instances.remove(group1)
 
-        self.assertEqual(ProgramHistory.objects.count(), 3)
-        self.assertTrue(
-            ProgramHistory.objects.get(
-                program=program,
-                user=user,
-                field_name=ProgramHistory.PROGRAM_FIELD_INSTANCES,
-                action=ProgramHistory.REMOVE,
-                entity="Group",
-                entity_id=str(group1.id),
-                description="Group 1",
-            )
+        assert ProgramHistory.objects.count() == 3
+        assert ProgramHistory.objects.get(
+            program=program,
+            user=user,
+            field_name=ProgramHistory.PROGRAM_FIELD_INSTANCES,
+            action=ProgramHistory.REMOVE,
+            entity="Group",
+            entity_id=str(group1.id),
+            description="Group 1",
         )
 
     def test_program_trial_instances_signal(self):
@@ -105,49 +99,43 @@ class TestProgramSignals(TransactionTestCase):
         with impersonate(admin_user):
             program.trial_instances.add(group1)
 
-        self.assertEqual(ProgramHistory.objects.count(), 1)
-        self.assertTrue(
-            ProgramHistory.objects.get(
-                program=program,
-                user=admin_user,
-                field_name=ProgramHistory.PROGRAM_FIELD_TRIAL_INSTANCES,
-                action=ProgramHistory.ADD,
-                entity="Group",
-                entity_id=str(group1.id),
-                description="Group 1",
-            )
+        assert ProgramHistory.objects.count() == 1
+        assert ProgramHistory.objects.get(
+            program=program,
+            user=admin_user,
+            field_name=ProgramHistory.PROGRAM_FIELD_TRIAL_INSTANCES,
+            action=ProgramHistory.ADD,
+            entity="Group",
+            entity_id=str(group1.id),
+            description="Group 1",
         )
 
         with impersonate(admin_user):
             program.trial_instances.add(group2)
 
-        self.assertEqual(ProgramHistory.objects.count(), 2)
-        self.assertTrue(
-            ProgramHistory.objects.get(
-                program=program,
-                user=admin_user,
-                field_name=ProgramHistory.PROGRAM_FIELD_TRIAL_INSTANCES,
-                action=ProgramHistory.ADD,
-                entity="Group",
-                entity_id=str(group2.id),
-                description="Group 2",
-            )
+        assert ProgramHistory.objects.count() == 2
+        assert ProgramHistory.objects.get(
+            program=program,
+            user=admin_user,
+            field_name=ProgramHistory.PROGRAM_FIELD_TRIAL_INSTANCES,
+            action=ProgramHistory.ADD,
+            entity="Group",
+            entity_id=str(group2.id),
+            description="Group 2",
         )
 
         with impersonate(user):
             program.trial_instances.remove(group1)
 
-        self.assertEqual(ProgramHistory.objects.count(), 3)
-        self.assertTrue(
-            ProgramHistory.objects.get(
-                program=program,
-                user=user,
-                field_name=ProgramHistory.PROGRAM_FIELD_TRIAL_INSTANCES,
-                action=ProgramHistory.REMOVE,
-                entity="Group",
-                entity_id=str(group1.id),
-                description="Group 1",
-            )
+        assert ProgramHistory.objects.count() == 3
+        assert ProgramHistory.objects.get(
+            program=program,
+            user=user,
+            field_name=ProgramHistory.PROGRAM_FIELD_TRIAL_INSTANCES,
+            action=ProgramHistory.REMOVE,
+            entity="Group",
+            entity_id=str(group1.id),
+            description="Group 1",
         )
 
 
@@ -193,10 +181,10 @@ class TestJobAdmin(APITestCase):
         self.client.post(url, data, follow=True)
 
         job_events = JobEvent.objects.filter(job_id=job.id)
-        self.assertEqual(job_events.count(), 2)
+        assert job_events.count() == 2
 
-        self.assertEquals(job_events[0].data["sub_status"], Job.MAPPING)
-        self.assertEquals(job_events[1].data["status"], Job.RUNNING)
+        assert job_events[0].data["sub_status"] == Job.MAPPING
+        assert job_events[1].data["status"] == Job.RUNNING
 
     def test_job_not_status_change_not_creates_event(self):
         """This test simulates an admin access to the data base changing the gpu value"""
@@ -237,4 +225,4 @@ class TestJobAdmin(APITestCase):
         self.client.post(url, data, follow=True)
 
         job_events = JobEvent.objects.filter(job_id=job.id)
-        self.assertEqual(job_events.count(), 0)
+        assert job_events.count() == 0

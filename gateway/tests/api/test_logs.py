@@ -1,6 +1,5 @@
 """Tests for job logs APIs."""
 
-import tempfile
 from typing import Optional
 from unittest.mock import Mock, patch
 
@@ -9,7 +8,7 @@ from django.contrib.auth.models import User, Group
 from django.urls import reverse
 from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.status import HTTP_200_OK, HTTP_403_FORBIDDEN
-from rest_framework.test import APITestCase, APIClient
+from rest_framework.test import APIClient
 
 from core.models import ComputeResource, Job, Program, Provider
 from core.services.ray import JobHandler
@@ -87,28 +86,8 @@ class TestJobLogsPermissions:
         assert response.status_code == expected_status
 
 
-class BaseJobLogsTest(APITestCase):
-    """Base class for job logs tests with shared fixtures and helpers."""
-
-    fixtures = ["tests/fixtures/fixtures.json"]
-
-    def setUp(self):
-        super().setUp()
-        self._temp_directory = tempfile.TemporaryDirectory()
-        self.MEDIA_ROOT = self._temp_directory.name
-
-    def tearDown(self):
-        self._temp_directory.cleanup()
-        super().tearDown()
-
-    def _authorize(self, username):
-        """Authorize client and return the user."""
-        user, _ = User.objects.get_or_create(username=username)
-        self.client.force_authenticate(user=user)
-        return user
-
-
-class TestJobLogsCoverage(BaseJobLogsTest):
+@pytest.mark.django_db
+class TestJobLogsCoverage:
     """Coverage tests for job logs endpoints
 
     Verify that logs are correctly retrieved from each source
@@ -127,6 +106,17 @@ class TestJobLogsCoverage(BaseJobLogsTest):
     (*) /provider-logs always returns 403 for user jobs (no provider)
     (**) /logs always returns 403 for providers.
     """
+
+    @pytest.fixture(autouse=True)
+    def _setup(self, tmp_path, settings):
+        settings.MEDIA_ROOT = str(tmp_path)
+        self.client = APIClient()
+
+    def _authorize(self, username):
+        """Authorize client and return the user."""
+        user, _ = User.objects.get_or_create(username=username)
+        self.client.force_authenticate(user=user)
+        return user
 
     @patch("scheduler.tasks.update_jobs_statuses.get_job_handler")
     def test_job_logs_in_storage_user_job(self, get_job_handler_mock):
@@ -149,18 +139,16 @@ Unprefixed message
         get_job_handler_mock.return_value = JobHandler(ray_client)
 
         # Execute update_jobs_statuses to detect terminal state and save logs
-        with tempfile.TemporaryDirectory() as temp_dir:
-            with self.settings(MEDIA_ROOT=temp_dir):
-                UpdateJobsStatuses().run()
+        UpdateJobsStatuses().run()
 
-                # Call endpoint and verify logs are retrieved from storage
-                self._authorize("author")
-                jobs_response = self.client.get(
-                    reverse("v1:jobs-logs", args=[str(job.id)]),
-                    format="json",
-                )
+        # Call endpoint and verify logs are retrieved from storage
+        self._authorize("author")
+        jobs_response = self.client.get(
+            reverse("v1:jobs-logs", args=[str(job.id)]),
+            format="json",
+        )
 
-        self.assertEqual(jobs_response.status_code, HTTP_200_OK)
+        assert jobs_response.status_code == HTTP_200_OK
         # User jobs: all logs shown, prefixes removed
         expected_logs = """
 Public message
@@ -168,7 +156,7 @@ Private message
 
 Unprefixed message
 """
-        self.assertEqual(jobs_response.data.get("logs"), expected_logs)
+        assert jobs_response.data.get("logs") == expected_logs
 
     @patch("api.use_cases.jobs.get_logs.get_job_handler")
     @patch("core.services.storage.logs_storage.LogsStorage.get_public_logs")
@@ -206,8 +194,8 @@ INFO: Final public log
             format="json",
         )
 
-        self.assertEqual(jobs_response.status_code, HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), expected_user_logs)
+        assert jobs_response.status_code == HTTP_200_OK
+        assert jobs_response.data.get("logs") == expected_user_logs
 
     @patch("core.services.storage.logs_storage.LogsStorage.get_public_logs")
     def test_job_logs_in_db(self, logs_storage_get_mock):
@@ -226,8 +214,8 @@ INFO: Final public log
             format="json",
         )
 
-        self.assertEqual(jobs_response.status_code, HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), "log from db")
+        assert jobs_response.status_code == HTTP_200_OK
+        assert jobs_response.data.get("logs") == "log from db"
 
     @patch("api.use_cases.jobs.get_logs.get_job_handler")
     @patch("core.services.storage.logs_storage.LogsStorage.get_public_logs")
@@ -244,11 +232,8 @@ INFO: Final public log
             format="json",
         )
 
-        self.assertEqual(jobs_response.status_code, HTTP_200_OK)
-        self.assertEqual(
-            jobs_response.data.get("logs"),
-            "Logs not available for this job during execution.",
-        )
+        assert jobs_response.status_code == HTTP_200_OK
+        assert jobs_response.data.get("logs") == "Logs not available for this job during execution."
 
     @patch("scheduler.tasks.update_jobs_statuses.get_job_handler")
     def test_job_provider_logs_in_storage(self, get_job_handler_mock):
@@ -276,21 +261,19 @@ Unprefixed message
         ray_client.get_job_logs.return_value = full_logs
         get_job_handler_mock.return_value = JobHandler(ray_client)
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            with self.settings(MEDIA_ROOT=temp_dir):
-                # Execute update_jobs_statuses to detect terminal state and save logs
-                UpdateJobsStatuses().run()
+        # Execute update_jobs_statuses to detect terminal state and save logs
+        UpdateJobsStatuses().run()
 
-                # Call endpoint and verify logs are retrieved from storage
-                self._authorize("provider_admin")
-                jobs_response = self.client.get(
-                    reverse("v1:jobs-provider-logs", args=[str(job.id)]),
-                    format="json",
-                )
+        # Call endpoint and verify logs are retrieved from storage
+        self._authorize("provider_admin")
+        jobs_response = self.client.get(
+            reverse("v1:jobs-provider-logs", args=[str(job.id)]),
+            format="json",
+        )
 
-        self.assertEqual(jobs_response.status_code, HTTP_200_OK)
+        assert jobs_response.status_code == HTTP_200_OK
         # /provider-logs returns all logs unfiltered (with prefixes)
-        self.assertEqual(jobs_response.data.get("logs"), expected_provider_logs)
+        assert jobs_response.data.get("logs") == expected_provider_logs
 
     @patch("api.use_cases.jobs.provider_logs.get_job_handler")
     @patch("core.services.storage.logs_storage.LogsStorage.get_private_logs")
@@ -327,8 +310,8 @@ WARNING: Private warning
             format="json",
         )
 
-        self.assertEqual(jobs_response.status_code, HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), expected_provider_logs)
+        assert jobs_response.status_code == HTTP_200_OK
+        assert jobs_response.data.get("logs") == expected_provider_logs
 
     @patch("core.services.storage.logs_storage.LogsStorage.get_private_logs")
     def test_job_provider_logs_in_db(self, logs_storage_get_mock):
@@ -346,8 +329,8 @@ WARNING: Private warning
             format="json",
         )
 
-        self.assertEqual(jobs_response.status_code, HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), "log entry 1")
+        assert jobs_response.status_code == HTTP_200_OK
+        assert jobs_response.data.get("logs") == "log entry 1"
 
     def test_job_provider_logs_not_found_empty(self):
         """Tests /provider-logs with provider job, no logs available."""
@@ -362,8 +345,8 @@ WARNING: Private warning
             format="json",
         )
 
-        self.assertEqual(jobs_response.status_code, HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), "No logs yet.")
+        assert jobs_response.status_code == HTTP_200_OK
+        assert jobs_response.data.get("logs") == "No logs yet."
 
     @patch("api.use_cases.jobs.provider_logs.get_job_handler")
     @patch("core.services.storage.logs_storage.LogsStorage.get_private_logs")
@@ -380,8 +363,5 @@ WARNING: Private warning
             format="json",
         )
 
-        self.assertEqual(jobs_response.status_code, HTTP_200_OK)
-        self.assertEqual(
-            jobs_response.data.get("logs"),
-            "Logs not available for this job during execution.",
-        )
+        assert jobs_response.status_code == HTTP_200_OK
+        assert jobs_response.data.get("logs") == "Logs not available for this job during execution."

@@ -4,7 +4,7 @@ import json
 import urllib.error
 import urllib.request
 
-from django.test import TestCase
+import pytest
 
 from scheduler.http_server import SchedulerHttpServer
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
@@ -15,14 +15,14 @@ from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 SITE_HOST = "http://127.0.0.1:8100"
 
 
-class TestSchedulerHttpServer(TestCase):
+class TestSchedulerHttpServer:
     """Tests for SchedulerHttpServer."""
 
-    def setUp(self):
+    @pytest.fixture(autouse=True)
+    def _setup(self, db):
         self.http_server = SchedulerHttpServer(site_host=SITE_HOST)
         self.http_server.configure_routes(SchedulerMetrics())
-
-    def tearDown(self):
+        yield
         self.http_server.stop()
 
     def test_start_tops(self):
@@ -65,10 +65,10 @@ class TestSchedulerHttpServer(TestCase):
         self.http_server.start()
 
         url = f"{SITE_HOST}/this_path_does_not_exist"
-        with self.assertRaises(urllib.error.HTTPError) as context:
+        with pytest.raises(urllib.error.HTTPError) as exc_info:
             urllib.request.urlopen(url)
 
-        error = context.exception
+        error = exc_info.value
         assert error.code == 404
         body = error.read().decode()
         assert body == "Not found"
