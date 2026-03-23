@@ -24,7 +24,7 @@ from api.domain.authentication.channel import Channel
 from api.domain.exceptions.active_job_limit_exceeded_exception import (
     ActiveJobLimitExceeded,
 )
-from api.repositories.functions import FunctionRepository
+
 from api.serializers import (
     JobConfigSerializer,
     RunJobSerializer,
@@ -35,7 +35,8 @@ from api.serializers import (
 from api.utils import active_jobs_limit_reached, sanitize_name
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.views.enums.type_filter import TypeFilter
-from core.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Program, Job
+from core.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Job
+from core.models import Program as Function
 
 # pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
@@ -60,8 +61,6 @@ class ProgramViewSet(viewsets.GenericViewSet):
     """
 
     BASE_NAME = "programs"
-
-    function_repository = FunctionRepository()
 
     @staticmethod
     def get_serializer_job_config(*args, **kwargs):
@@ -119,20 +118,18 @@ class ProgramViewSet(viewsets.GenericViewSet):
             # Serverless filter only returns functions created by the author
             # with the next criterias:
             # - user is the author of the function and there is no provider
-            functions = self.function_repository.get_user_functions(author)
+            functions = Function.objects.user_functions(author)
         elif type_filter == TypeFilter.CATALOG:
             # Catalog filter only returns providers functions that user has access:
             # author has view permissions and the function has a provider assigned
-            functions = self.function_repository.get_provider_functions_by_permission(
+            functions = Function.objects.provider_functions().with_permission(
                 author, permission_name=RUN_PROGRAM_PERMISSION
             )
         else:
             # If filter is not applied we return author and providers functions together
-            functions = self.function_repository.get_functions_by_permission(
-                author, permission_name=VIEW_PROGRAM_PERMISSION
-            )
+            functions = Function.objects.with_permission(author, permission_name=VIEW_PROGRAM_PERMISSION)
 
-        serializer = self.get_serializer(functions, many=True)
+        serializer = self.get_serializer(list(functions), many=True)
         logger.info("[programs-list] user=%s username=%s filter=%s", author.id, author.username, type_filter)
         return Response(serializer.data)
 
@@ -197,7 +194,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
         # but it's here until we can refactor the /run end-point
         provider_name = sanitize_name(serializer.data.get("provider"))
         function_title = sanitize_name(serializer.data.get("title"))
-        function = self.function_repository.get_function_by_permission(
+        function = Function.objects.get_function_by_permission(
             user=author,
             permission_name=RUN_PROGRAM_PERMISSION,
             function_title=function_title,
@@ -211,7 +208,9 @@ class ProgramViewSet(viewsets.GenericViewSet):
             )
 
         if function.disabled:
-            error_message = function.disabled_message if function.disabled_message else Program.DEFAULT_DISABLED_MESSAGE
+            error_message = (
+                function.disabled_message if function.disabled_message else Function.DEFAULT_DISABLED_MESSAGE
+            )
             return Response(
                 {"message": error_message},
                 status=status.HTTP_423_LOCKED,
@@ -277,11 +276,14 @@ class ProgramViewSet(viewsets.GenericViewSet):
         provider_name, function_title = serializer.get_provider_name_and_title(provider_name, function_title)
 
         if provider_name:
-            function = self.function_repository.get_provider_function_by_permission(
-                author=author,
-                permission_name=VIEW_PROGRAM_PERMISSION,
-                title=function_title,
-                provider_name=provider_name,
+            function = (
+                Function.objects.filter(title=function_title)
+                .provider_functions(provider_name)
+                .with_permission(
+                    author=author,
+                    permission_name=VIEW_PROGRAM_PERMISSION,
+                )
+                .first()
             )
             if function is None:
                 return Response(
@@ -294,7 +296,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
                     status=status.HTTP_404_NOT_FOUND,
                 )
         else:
-            function = self.function_repository.get_user_function(author=author, title=function_title)
+            function = Function.objects.user_functions(author).filter(title=function_title).first()
             if function is None:
                 return Response(
                     {
@@ -314,7 +316,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
     @action(methods=["GET"], detail=True)
     def get_jobs(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument
         """Returns jobs of the program."""
-        program = Program.objects.filter(id=pk).first()
+        program = Function.objects.filter(id=pk).first()
         if not program:
             return Response(
                 {"message": f"program [{pk}] was not found."},

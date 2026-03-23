@@ -8,9 +8,10 @@ from django.contrib.auth.models import AbstractUser
 from api.access_policies.providers import ProviderAccessPolicy
 from api.domain.exceptions.provider_not_found_exception import ProviderNotFoundException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
-from api.repositories.functions import FunctionRepository
+
 from api.repositories.providers import ProviderRepository
 from core.models import RUN_PROGRAM_PERMISSION
+from core.models import Program as Function
 from core.services.storage.file_storage import FileStorage, WorkingDir
 
 logger = logging.getLogger("gateway.use_cases.files")
@@ -21,7 +22,6 @@ class FilesProviderListUseCase:
     List all files on the provider storage use case.
     """
 
-    function_repository = FunctionRepository()
     provider_repository = ProviderRepository()
     working_dir = WorkingDir.PROVIDER_STORAGE
 
@@ -34,7 +34,7 @@ class FilesProviderListUseCase:
         if provider is None or not ProviderAccessPolicy.can_access(user=user, provider=provider):
             raise ProviderNotFoundException(provider_name)
 
-        function = self.function_repository.get_function_by_permission(
+        function = Function.objects.get_function_by_permission(
             user=user,
             permission_name=RUN_PROGRAM_PERMISSION,
             function_title=function_title,
