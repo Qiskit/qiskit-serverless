@@ -11,9 +11,9 @@ from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.domain.exceptions.invalid_access_exception import InvalidAccessException
 from core.domain.filter_logs import remove_prefix_tags_in_logs, filter_logs_with_public_tags
+from core.models import Job
 from core.services.ray import get_job_handler
 from core.utils import check_logs
-from api.repositories.jobs import JobsRepository
 from core.services.storage.logs_storage import LogsStorage
 
 logger = logging.getLogger("gateway")
@@ -21,8 +21,6 @@ logger = logging.getLogger("gateway")
 
 class GetJobLogsUseCase:
     """Use case for retrieving job logs."""
-
-    jobs_repository = JobsRepository()
 
     def execute(self, job_id: UUID, user: AbstractUser) -> str:
         """Return the logs of a job if the user has access.
@@ -37,7 +35,7 @@ class GetJobLogsUseCase:
         Returns:
             str: Job logs if accessible, otherwise a message indicating no logs are available.
         """
-        job = self.jobs_repository.get_job_by_id(job_id)
+        job = Job.objects.get(id=job_id)
         if job is None:
             raise JobNotFoundException(str(job_id))
 

@@ -4,8 +4,7 @@ import logging
 from uuid import UUID
 
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
-from core.models import RuntimeJob
-from api.repositories.jobs import JobsRepository
+from core.models import Job, RuntimeJob
 from api.repositories.runtime_job import RuntimeJobRepository
 
 logger = logging.getLogger("gateway.use_cases.jobs")
@@ -14,7 +13,6 @@ logger = logging.getLogger("gateway.use_cases.jobs")
 class GetRuntimeJobsUseCase:
     """Retrieve all RuntimeJob objects associated to a given Job."""
 
-    jobs_repository = JobsRepository()
     runtime_job_repository = RuntimeJobRepository()
 
     def execute(self, job_id: UUID) -> list[RuntimeJob]:
@@ -30,7 +28,7 @@ class GetRuntimeJobsUseCase:
         Raises:
             NotFoundError: If the job does not exist or access is denied.
         """
-        job = self.jobs_repository.get_job_by_id(job_id)
+        job = Job.objects.get(id=job_id)
 
         if job is None:
             raise JobNotFoundException(job_id)

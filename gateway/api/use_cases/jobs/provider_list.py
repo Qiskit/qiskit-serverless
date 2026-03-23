@@ -6,9 +6,9 @@ from typing import List, Tuple
 from api.access_policies.providers import ProviderAccessPolicy
 from api.domain.exceptions.provider_not_found_exception import ProviderNotFoundException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
+from core.model_managers.jobs import JobFilters
 from core.models import Job
 from api.repositories.functions import FunctionRepository
-from api.repositories.jobs import JobFilters, JobsRepository
 from api.repositories.providers import ProviderRepository
 
 
@@ -17,7 +17,6 @@ class JobsProviderListUseCase:
 
     provider_repository = ProviderRepository()
     function_repository = FunctionRepository()
-    jobs_repository = JobsRepository()
 
     def execute(
         self,
@@ -47,5 +46,5 @@ class JobsProviderListUseCase:
             if not function:
                 raise FunctionNotFoundException(function=filters.function, provider=filters.provider)
 
-        queryset, total = self.jobs_repository.get_user_jobs(user=None, filters=filters)
+        queryset, total = Job.objects.user_jobs_page(user=None, filters=filters)
         return list(queryset), total
