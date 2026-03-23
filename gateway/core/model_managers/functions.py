@@ -98,6 +98,21 @@ class FunctionsQuerySet(QuerySet):
 
         return self.filter(provider__name=provider_name)
 
+    def get_user_function(self, author: AbstractUser, function_title: str) -> Optional[Function]:
+        """
+        This method returns the specified function without a provider.
+
+        Args:
+            author: Django author from who retrieve the functions
+            function_title (str): title of the function
+
+        Returns:
+            Program | None: returns the function if it exists
+        """
+
+        queryset = self.user_functions(author).filter(title=function_title)
+        return queryset.first()
+
     def get_function(
         self,
         function_title: str,

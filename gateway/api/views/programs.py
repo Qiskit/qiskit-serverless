@@ -276,14 +276,11 @@ class ProgramViewSet(viewsets.GenericViewSet):
         provider_name, function_title = serializer.get_provider_name_and_title(provider_name, function_title)
 
         if provider_name:
-            function = (
-                Function.objects.filter(title=function_title)
-                .provider_functions(provider_name)
-                .with_permission(
-                    author=author,
-                    permission_name=VIEW_PROGRAM_PERMISSION,
-                )
-                .first()
+            function = Function.objects.get_function_by_permission(
+                user=author,
+                permission_name=VIEW_PROGRAM_PERMISSION,
+                function_title=function_title,
+                provider_name=provider_name,
             )
             if function is None:
                 return Response(
@@ -296,7 +293,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
                     status=status.HTTP_404_NOT_FOUND,
                 )
         else:
-            function = Function.objects.user_functions(author).filter(title=function_title).first()
+            function = Function.objects.get_user_function(author, function_title)
             if function is None:
                 return Response(
                     {
