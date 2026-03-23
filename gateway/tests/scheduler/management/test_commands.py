@@ -1,17 +1,19 @@
 """Tests for commands."""
 
 import os
-import tempfile
 from datetime import datetime, timezone
 from typing import Optional
 
+import pytest
+from django.conf import settings as dj_settings
 from django.contrib.auth.models import User, Group
-from rest_framework.test import APITestCase
+from django.core.management import call_command
+from ray.dashboard.modules.job.common import JobStatus
 from unittest.mock import patch, MagicMock
 
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import ComputeResource, Job, JobEvent, Program, Provider, Config
-from core.services.runners import RunnerError
+from core.services.ray import JobHandler
 from core.utils import check_logs
 from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
 from scheduler.tasks.free_resources import FreeResources
@@ -19,64 +21,70 @@ from scheduler.tasks.schedule_queued_jobs import ScheduleQueuedJobs
 from scheduler.schedule import get_jobs_to_schedule_fair_share
 
 
-class TestCommands(APITestCase):
+class TestCommands:
     """Tests for commands."""
 
-    fixtures = ["tests/fixtures/schedule_fixtures.json"]
-
-    def setUp(self):
+    @pytest.fixture(autouse=True)
+    def _setup(self, tmp_path, settings, db):
+        call_command("loaddata", "tests/fixtures/schedule_fixtures.json")
+        settings.MEDIA_ROOT = str(tmp_path)
         Config.add_defaults()
+
+    def test_create_compute_resource(self):
+        """Tests compute resource creation command."""
+        call_command("create_compute_resource", "test_host")
+        resources = ComputeResource.objects.all()
+        assert "Ray cluster default" in [resource.title for resource in resources]
 
     def test_free_resources(self):
         """Tests free resources command."""
         FreeResources().run()
         num_resources = ComputeResource.objects.count()
-        self.assertEqual(num_resources, 1)
+        assert num_resources == 1
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
-    def test_update_jobs_statuses(self, get_runner):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            with self.settings(MEDIA_ROOT=temp_dir):
-                """Tests update of job statuses."""
-                # Test status change from PENDING to RUNNING
-                runner_mock = MagicMock()
-                runner_mock.status.return_value = Job.RUNNING
-                runner_mock.logs.return_value = "No logs yet."
-                runner_mock.stop.return_value = True
-                get_runner.return_value = runner_mock
+    @patch("scheduler.tasks.update_jobs_statuses.get_job_handler")
+    def test_update_jobs_statuses(self, get_job_handler):
+        """Tests update of job statuses."""
+        # Test status change from PENDING to RUNNING
+        ray_client = MagicMock()
+        ray_client.get_job_status.return_value = JobStatus.RUNNING
+        ray_client.get_job_logs.return_value = "No logs yet."
+        ray_client.stop_job.return_value = True
+        ray_client.submit_job.return_value = "AwesomeJobId"
+        get_job_handler.return_value = JobHandler(ray_client)
 
-                job = self._create_test_job(ray_job_id="test_update_jobs_statuses")
+        job = self._create_test_job(ray_job_id="test_update_jobs_statuses")
 
-                UpdateJobsStatuses().run()
+        UpdateJobsStatuses().run()
 
-                job.refresh_from_db()
-                self.assertEqual(job.status, "RUNNING")
-                self.assertIsNotNone(job.env_vars)
+        job.refresh_from_db()
+        assert job.status == "RUNNING"
+        assert job.env_vars is not None
 
-                job_events = JobEvent.objects.filter(job=job)
-                self.assertEqual(len(job_events), 1)
-                self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
-                self.assertEqual(job_events[0].data["status"], Job.RUNNING)
-                self.assertEqual(job_events[0].origin, JobEventOrigin.SCHEDULER)
-                self.assertEqual(job_events[0].context, JobEventContext.UPDATE_JOB_STATUS)
+        job_events = JobEvent.objects.filter(job=job)
+        assert len(job_events) == 1
+        assert job_events[0].event_type == JobEventType.STATUS_CHANGE
+        assert job_events[0].data["status"] == JobStatus.RUNNING
+        assert job_events[0].origin == JobEventOrigin.SCHEDULER
+        assert job_events[0].context == JobEventContext.UPDATE_JOB_STATUS
 
-                # Test job logs for FAILED job with empty logs
-                runner_mock.status.return_value = Job.FAILED
-                runner_mock.logs.return_value = ""
+        # Test job logs for FAILED job with empty logs
+        ray_client.get_job_status.return_value = JobStatus.FAILED
+        ray_client.get_job_logs.return_value = ""
 
-                UpdateJobsStatuses().run()
+        UpdateJobsStatuses().run()
 
-                job.refresh_from_db()
-                self.assertEqual(job.status, "FAILED")
-                self.assertEqual(job.env_vars, "{}")
-                self.assertIsNone(job.sub_status)
+        job.refresh_from_db()
+        assert job.status == "FAILED"
+        assert job.env_vars == "{}"
+        assert job.sub_status is None
 
-                job_events = JobEvent.objects.filter(job=job).order_by("created")
-                self.assertEqual(len(job_events), 2)
-                self.assertEqual(job_events[1].event_type, JobEventType.STATUS_CHANGE)
-                self.assertEqual(job_events[1].data["status"], Job.FAILED)
-                self.assertEqual(job_events[1].origin, JobEventOrigin.SCHEDULER)
-                self.assertEqual(job_events[1].context, JobEventContext.UPDATE_JOB_STATUS)
+        job_events = JobEvent.objects.filter(job=job).order_by("created")
+        assert len(job_events) == 2
+        assert job_events[1].event_type == JobEventType.STATUS_CHANGE
+        assert job_events[1].data["status"] == JobStatus.FAILED
+        assert job_events[1].origin == JobEventOrigin.SCHEDULER
+        assert job_events[1].context == JobEventContext.UPDATE_JOB_STATUS
 
     @patch("scheduler.tasks.schedule_queued_jobs.execute_job")
     def test_schedule_queued_jobs(self, execute_job):
@@ -95,20 +103,20 @@ class TestCommands(APITestCase):
         ScheduleQueuedJobs().run()
         # TODO: mock execute job to change status of job and query for QUEUED jobs  # pylint: disable=fixme
         job_count = Job.objects.count()
-        self.assertEqual(job_count, 7)
+        assert job_count == 7
 
         job_events = JobEvent.objects.filter(job_id=fake_job.id)
         # There is one Job in the fixtures in QUEUED state. It call execute_job twice
         # and add 2 equal events. If we remove fixtures we can fix this test properly
-        self.assertEqual(len(job_events), 2)
-        self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
-        self.assertEqual(job_events[0].data["status"], "SUCCEEDED")
-        self.assertEqual(job_events[0].origin, JobEventOrigin.SCHEDULER)
-        self.assertEqual(job_events[0].context, JobEventContext.SCHEDULE_JOBS)
-        self.assertEqual(job_events[1].event_type, JobEventType.STATUS_CHANGE)
-        self.assertEqual(job_events[1].data["status"], "SUCCEEDED")
-        self.assertEqual(job_events[1].origin, JobEventOrigin.SCHEDULER)
-        self.assertEqual(job_events[1].context, JobEventContext.SCHEDULE_JOBS)
+        assert len(job_events) == 2
+        assert job_events[0].event_type == JobEventType.STATUS_CHANGE
+        assert job_events[0].data["status"] == JobStatus.SUCCEEDED
+        assert job_events[0].origin == JobEventOrigin.SCHEDULER
+        assert job_events[0].context == JobEventContext.SCHEDULE_JOBS
+        assert job_events[1].event_type == JobEventType.STATUS_CHANGE
+        assert job_events[1].data["status"] == JobStatus.SUCCEEDED
+        assert job_events[1].origin == JobEventOrigin.SCHEDULER
+        assert job_events[1].context == JobEventContext.SCHEDULE_JOBS
 
     def test_schedule_queued_jobs_separates_gpu_and_cpu_queues(self):
         """Tests that GPU and CPU jobs are scheduled from separate queues."""
@@ -118,10 +126,10 @@ class TestCommands(APITestCase):
         cpu_jobs = get_jobs_to_schedule_fair_share(slots=10, gpu=False)
         gpu_jobs = get_jobs_to_schedule_fair_share(slots=10, gpu=True)
 
-        self.assertIn(cpu_job, cpu_jobs)
-        self.assertNotIn(gpu_job, cpu_jobs)
-        self.assertIn(gpu_job, gpu_jobs)
-        self.assertNotIn(cpu_job, gpu_jobs)
+        assert cpu_job in cpu_jobs
+        assert gpu_job not in cpu_jobs
+        assert gpu_job in gpu_jobs
+        assert cpu_job not in gpu_jobs
 
     def test_check_empty_logs(self):
         """Test error notification for failed and empty logs."""
@@ -129,7 +137,7 @@ class TestCommands(APITestCase):
         job.id = "42"
         job.status = "FAILED"
         logs = check_logs(logs="", job=job)
-        self.assertEqual(logs, "Job 42 failed due to an internal error.")
+        assert logs == "Job 42 failed due to an internal error."
 
     def test_check_non_empty_logs(self):
         """Test logs checker for non empty logs."""
@@ -137,30 +145,24 @@ class TestCommands(APITestCase):
         job.id = "42"
         job.status = "FAILED"
         logs = check_logs(logs="awsome logs", job=job)
-        self.assertEqual(logs, "awsome logs")
+        assert logs == "awsome logs"
 
-    def test_check_long_logs(self):
+    def test_check_long_logs(self, settings):
         """Test logs checker for very long logs in this case more than 1MB."""
+        settings.FUNCTIONS_LOGS_SIZE_LIMIT = 100
+        job = MagicMock()
+        job.id = "42"
+        job.status = "RUNNING"
+        log_to_test = "A" * 120 + "B"
+        logs = check_logs(logs=log_to_test, job=job)
+        assert (
+            "[Logs exceeded maximum allowed size (9.5367431640625e-05 MB). Logs have been truncated, discarding the oldest entries first.]"
+            in logs
+        )
+        assert "AAAAAAAAAAB" in logs
 
-        with self.settings(
-            FUNCTIONS_LOGS_SIZE_LIMIT=100,
-        ):
-            job = MagicMock()
-            job.id = "42"
-            job.status = "RUNNING"
-            log_to_test = "A" * 120 + "B"
-            logs = check_logs(logs=log_to_test, job=job)
-            self.assertIn(
-                "[Logs exceeded maximum allowed size (9.5367431640625e-05 MB). Logs have been truncated, discarding the oldest entries first.]",
-                logs,
-            )
-            self.assertIn(
-                "AAAAAAAAAAB",
-                logs,
-            )
-
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
-    def test_update_jobs_statuses_filters_logs_user_function(self, get_runner):
+    @patch("scheduler.tasks.update_jobs_statuses.get_job_handler")
+    def test_update_jobs_statuses_filters_logs_user_function(self, get_job_handler, settings):
         """Tests that logs are filtered when saving for function without provider."""
         compute_resource = ComputeResource.objects.create(title="test-cluster-user-logs", active=True)
         job = self._create_test_job(
@@ -170,10 +172,9 @@ class TestCommands(APITestCase):
             ray_job_id="test-ray-job-id",
         )
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            with self.settings(MEDIA_ROOT=temp_dir, RAY_CLUSTER_MODE={"local": True}):
-                # Mock RunnerClient to return unfiltered logs with PUBLIC and PRIVATE markers
-                full_logs = """
+        settings.RAY_CLUSTER_MODE = {"local": True}
+        # Mock Ray to return unfiltered logs with PUBLIC and PRIVATE markers
+        full_logs = """
 2026-01-06 10:00:00,000 INFO job_manager.py:568 -- Runtime env is setting up.
 
 [PUBLIC] INFO: Public user log
@@ -183,22 +184,22 @@ Ray internal log without marker
 [PUBLIC] INFO: Final public log
 """
 
-                runner_mock = MagicMock()
-                runner_mock.status.return_value = Job.SUCCEEDED
-                runner_mock.logs.return_value = full_logs
-                get_runner.return_value = runner_mock
+        ray_client = MagicMock()
+        ray_client.get_job_status.return_value = JobStatus.SUCCEEDED
+        ray_client.get_job_logs.return_value = full_logs
+        get_job_handler.return_value = JobHandler(ray_client)
 
-                UpdateJobsStatuses().run()
+        UpdateJobsStatuses().run()
 
-                # User logs are located in username/logs/
-                # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
-                user_log_file_path = os.path.join(
-                    temp_dir,
-                    "test_author",
-                    "logs",
-                    f"{job.id}.log",
-                )
-                expected_user_logs = """
+        # User logs are located in username/logs/
+        # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
+        user_log_file_path = os.path.join(
+            dj_settings.MEDIA_ROOT,
+            "test_author",
+            "logs",
+            f"{job.id}.log",
+        )
+        expected_user_logs = """
 2026-01-06 10:00:00,000 INFO job_manager.py:568 -- Runtime env is setting up.
 
 INFO: Public user log
@@ -208,24 +209,24 @@ Ray internal log without marker
 INFO: Final public log
 """
 
-                with open(user_log_file_path, "r", encoding="utf-8") as log_file:
-                    saved_user_logs = log_file.read()
-                self.assertEqual(saved_user_logs, expected_user_logs)
+        with open(user_log_file_path, "r", encoding="utf-8") as log_file:
+            saved_user_logs = log_file.read()
+        assert saved_user_logs == expected_user_logs
 
-                private_log_file_path = os.path.join(
-                    temp_dir,
-                    "program-test_author-custom",
-                    "logs",
-                    f"{job.id}.log",
-                )
-                # private log shouldn't exist
-                self.assertFalse(os.path.exists(private_log_file_path))
+        private_log_file_path = os.path.join(
+            dj_settings.MEDIA_ROOT,
+            "program-test_author-custom",
+            "logs",
+            f"{job.id}.log",
+        )
+        # private log shouldn't exist
+        assert not os.path.exists(private_log_file_path)
 
-                job.refresh_from_db()
-                self.assertTrue(job.logs == "")
+        job.refresh_from_db()
+        assert job.logs == ""
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
-    def test_update_jobs_statuses_filters_logs_provider_function(self, get_runner):
+    @patch("scheduler.tasks.update_jobs_statuses.get_job_handler")
+    def test_update_jobs_statuses_filters_logs_provider_function(self, get_job_handler, settings):
         """Tests that logs are filtered when saving for function with provider."""
         compute_resource = ComputeResource.objects.create(title="test-cluster-provider-logs", active=True)
         job = self._create_test_job(
@@ -236,10 +237,9 @@ INFO: Final public log
             ray_job_id="test-ray-job-id-with-provider",
         )
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            with self.settings(MEDIA_ROOT=temp_dir, RAY_CLUSTER_MODE={"local": True}):
-                # Mock RunnerClient to return unfiltered logs
-                full_logs = """
+        settings.RAY_CLUSTER_MODE = {"local": True}
+        # Mock Ray to return unfiltered logs
+        full_logs = """
 [PUBLIC] INFO: Public log for user
 
 [PRIVATE] INFO: Private log for provider only
@@ -249,54 +249,54 @@ Internal system log
 [PUBLIC] INFO: Final public log
 """
 
-                runner_mock = MagicMock()
-                runner_mock.status.return_value = Job.SUCCEEDED
-                runner_mock.logs.return_value = full_logs
-                get_runner.return_value = runner_mock
+        ray_client = MagicMock()
+        ray_client.get_job_status.return_value = JobStatus.SUCCEEDED
+        ray_client.get_job_logs.return_value = full_logs
+        get_job_handler.return_value = JobHandler(ray_client)
 
-                UpdateJobsStatuses().run()
+        UpdateJobsStatuses().run()
 
-                # User logs are located in username/provider/function/logs/ for provider jobs
-                # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
-                user_log_file_path = os.path.join(
-                    temp_dir,
-                    "test_author",
-                    "test_provider",
-                    "program-test_author-test_provider",
-                    "logs",
-                    f"{job.id}.log",
-                )
-                expected_user_logs = """INFO: Public log for user
+        # User logs are located in username/provider/function/logs/ for provider jobs
+        # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
+        user_log_file_path = os.path.join(
+            dj_settings.MEDIA_ROOT,
+            "test_author",
+            "test_provider",
+            "program-test_author-test_provider",
+            "logs",
+            f"{job.id}.log",
+        )
+        expected_user_logs = """INFO: Public log for user
 INFO: Another public log
 INFO: Final public log
 """
-                expected_provider_logs = """
+        expected_provider_logs = """
 
 INFO: Private log for provider only
 Internal system log
 WARNING: Private warning
 """
 
-                with open(user_log_file_path, "r", encoding="utf-8") as log_file:
-                    saved_user_logs = log_file.read()
-                self.assertEqual(saved_user_logs, expected_user_logs)
+        with open(user_log_file_path, "r", encoding="utf-8") as log_file:
+            saved_user_logs = log_file.read()
+        assert saved_user_logs == expected_user_logs
 
-                # Verify provider logs contain everything: [PUBLIC], [PRIVATE] and internal logs...
-                provider_log_file_path = os.path.join(
-                    temp_dir,
-                    "test_provider",
-                    "program-test_author-test_provider",
-                    "logs",
-                    f"{job.id}.log",
-                )
+        # Verify provider logs contain everything: [PUBLIC], [PRIVATE] and internal logs...
+        provider_log_file_path = os.path.join(
+            dj_settings.MEDIA_ROOT,
+            "test_provider",
+            "program-test_author-test_provider",
+            "logs",
+            f"{job.id}.log",
+        )
 
-                with open(provider_log_file_path, "r", encoding="utf-8") as log_file:
-                    saved_provider_logs = log_file.read()
-                self.assertEqual(saved_provider_logs, expected_provider_logs)
+        with open(provider_log_file_path, "r", encoding="utf-8") as log_file:
+            saved_provider_logs = log_file.read()
+        assert saved_provider_logs == expected_provider_logs
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
-    def test_update_jobs_statuses_job_handler_status_error_status_event(self, get_runner):
-        """Tests that the job_event is stored when runner.status() raises exception."""
+    @patch("scheduler.tasks.update_jobs_statuses.get_job_handler")
+    def test_update_jobs_statuses_job_handler_status_error_status_event(self, get_job_handler, settings):
+        """Tests that the job_event is stored when job_handler.status() raises exception."""
         compute_resource = ComputeResource.objects.create(title="test-cluster-provider-logs", active=True)
         job = self._create_test_job(
             author="test_author",
@@ -306,20 +306,19 @@ WARNING: Private warning
             ray_job_id="test-ray-job-id-with-provider",
         )
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            with self.settings(MEDIA_ROOT=temp_dir, RAY_CLUSTER_MODE={"local": True}):
-                runner_mock = MagicMock()
-                runner_mock.status.side_effect = RunnerError("Error")
-                get_runner.return_value = runner_mock
+        settings.RAY_CLUSTER_MODE = {"local": True}
+        job_handler = MagicMock()
+        job_handler.status.side_effect = RuntimeError("Error")
+        get_job_handler.return_value = job_handler
 
-                UpdateJobsStatuses().run()
+        UpdateJobsStatuses().run()
 
-                job_events = JobEvent.objects.filter(job=job.id)
-                self.assertEqual(len(job_events), 1)
-                self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
-                self.assertEqual(job_events[0].data["status"], Job.FAILED)
-                self.assertEqual(job_events[0].origin, JobEventOrigin.SCHEDULER)
-                self.assertEqual(job_events[0].context, JobEventContext.UPDATE_JOB_STATUS)
+        job_events = JobEvent.objects.filter(job=job.id)
+        assert len(job_events) == 1
+        assert job_events[0].event_type == JobEventType.STATUS_CHANGE
+        assert job_events[0].data["status"] == Job.FAILED
+        assert job_events[0].origin == JobEventOrigin.SCHEDULER
+        assert job_events[0].context == JobEventContext.UPDATE_JOB_STATUS
 
     def _create_test_job(
         self,

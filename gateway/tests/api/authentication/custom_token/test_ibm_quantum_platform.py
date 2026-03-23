@@ -4,11 +4,12 @@ import base64
 import json
 import time
 from unittest.mock import MagicMock, patch
+import pytest
 import responses
 from django.conf import settings
 from django.core.cache import cache
+from django.core.management import call_command
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework.test import APITestCase
 from ibm_platform_services import IamAccessGroupsV2, ResourceControllerV2
 from ibm_cloud_sdk_core import DetailedResponse
 
@@ -89,19 +90,19 @@ def _create_request(token: str = "any_token", crn: str = "any:crn:123"):
     return request
 
 
-class TestIBMQuantumPlatformAuthentication(APITestCase):
+class TestIBMQuantumPlatformAuthentication:
     """E2E tests for IBM Quantum Platform authentication."""
 
-    fixtures = ["tests/fixtures/authentication_fixtures.json"]
-
-    def setUp(self):
+    @pytest.fixture(autouse=True)
+    def _setup(self, db):
+        call_command("loaddata", "tests/fixtures/authentication_fixtures.json")
         cache.clear()
 
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")
     @responses.activate
     def test_default_authentication_workflow(
-        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock
+        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
     ):
         """Verifies the entire flow of the custom token authentication."""
         _mock_iam_services(
@@ -111,44 +112,40 @@ class TestIBMQuantumPlatformAuthentication(APITestCase):
         )
         _add_mock_response("IBMid-0000000ABC", "abc18abcd41546508b35dfe0627109c4")
 
-        with self.settings(RESOURCE_PLANS_ID_ALLOWED=[RESOURCE_PLAN_ID]):
-            user, auth = CustomTokenBackend().authenticate(_create_request())
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        user, auth = CustomTokenBackend().authenticate(_create_request())
 
-            self.assertEqual(user.username, "IBMid-0000000ABC")
-            self.assertIsInstance(auth, CustomAuthentication)
-            self.assertEqual(auth.channel, "ibm_quantum_platform")
+        assert user.username == "IBMid-0000000ABC"
+        assert isinstance(auth, CustomAuthentication)
+        assert auth.channel == "ibm_quantum_platform"
 
-            group_names = list(user.groups.values_list("name", flat=True))
-            self.assertEqual(group_names, ["AccessGroupId-23afbcd24-00a0-00ab-ab0c-1a23b4c567de"])
+        group_names = list(user.groups.values_list("name", flat=True))
+        assert group_names == ["AccessGroupId-23afbcd24-00a0-00ab-ab0c-1a23b4c567de"]
 
-            for group in user.groups.all():
-                self.assertEqual(group.metadata.account, "abc18abcd41546508b35dfe0627109c4")
-                permissions = list(group.permissions.values_list("codename", flat=True))
-                self.assertEqual(permissions, [VIEW_PROGRAM_PERMISSION])
+        for group in user.groups.all():
+            assert group.metadata.account == "abc18abcd41546508b35dfe0627109c4"
+            permissions = list(group.permissions.values_list("codename", flat=True))
+            assert permissions == [VIEW_PROGRAM_PERMISSION]
 
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")
     @responses.activate
     def test_inactive_account_raises_error(
-        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock
+        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
     ):
         """Deactivated users should receive an authentication error."""
         _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
         _add_mock_response("IBMid-1000000XYZ", "abc18abcd41546508b35dfe0627109c4")
 
-        with self.settings(RESOURCE_PLANS_ID_ALLOWED=[RESOURCE_PLAN_ID]):
-            self.assertRaisesMessage(
-                AuthenticationFailed,
-                "Your user was deactivated. Please contact to IBM support for reactivaton.",
-                CustomTokenBackend().authenticate,
-                _create_request(),
-            )
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        with pytest.raises(AuthenticationFailed, match="Your user was deactivated"):
+            CustomTokenBackend().authenticate(_create_request())
 
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")
     @responses.activate
     def test_cache_prevents_duplicate_api_calls(
-        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock
+        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
     ):
         """Second authentication call should use cache, not API."""
         _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
@@ -157,18 +154,18 @@ class TestIBMQuantumPlatformAuthentication(APITestCase):
         auth = CustomTokenBackend()
         request = _create_request()
 
-        with self.settings(RESOURCE_PLANS_ID_ALLOWED=[RESOURCE_PLAN_ID]):
-            auth.authenticate(request)
-            auth.authenticate(request)
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        auth.authenticate(request)
+        auth.authenticate(request)
 
-            self.assertEqual(mock_get_resource_instance.call_count, 1)
-            self.assertEqual(mock_list_access_groups.call_count, 1)
+        assert mock_get_resource_instance.call_count == 1
+        assert mock_list_access_groups.call_count == 1
 
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")
     @responses.activate
     def test_different_tokens_use_separate_cache(
-        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock
+        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
     ):
         """Different API keys should have separate cache entries."""
         _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
@@ -177,11 +174,11 @@ class TestIBMQuantumPlatformAuthentication(APITestCase):
 
         auth = CustomTokenBackend()
 
-        with self.settings(RESOURCE_PLANS_ID_ALLOWED=[RESOURCE_PLAN_ID]):
-            user_a, _ = auth.authenticate(_create_request(token="TOKEN_A"))
-            user_b, _ = auth.authenticate(_create_request(token="TOKEN_B"))
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        user_a, _ = auth.authenticate(_create_request(token="TOKEN_A"))
+        user_b, _ = auth.authenticate(_create_request(token="TOKEN_B"))
 
-            self.assertEqual(user_a.username, "IBMid-USER-A")
-            self.assertEqual(user_b.username, "IBMid-USER-B")
-            self.assertEqual(mock_get_resource_instance.call_count, 2)
-            self.assertEqual(mock_list_access_groups.call_count, 2)
+        assert user_a.username == "IBMid-USER-A"
+        assert user_b.username == "IBMid-USER-B"
+        assert mock_get_resource_instance.call_count == 2
+        assert mock_list_access_groups.call_count == 2
