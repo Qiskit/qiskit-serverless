@@ -150,15 +150,3 @@ class FunctionsQuerySet(QuerySet):
             ).get_function(function_title, provider_name)
 
         return self.user_functions(author=user).get_function(function_title)
-
-    # def user_provider_functions(self, author: AbstractUser) -> Self:
-    #     """
-    #     Returns the provider functions available for the user. This means:
-    #       - author of the function is de provided user.
-    #       - Provider is NOT None.
-
-    #     Returns:
-    #         QuerySet: providers functions that the user is the author.
-    #     """
-
-    #     return self.filter(author=author).exclude(provider=None)
