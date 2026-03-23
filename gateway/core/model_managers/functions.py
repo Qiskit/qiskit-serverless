@@ -61,29 +61,6 @@ class FunctionsQuerySet(QuerySet):
 
         return result_queryset
 
-    def provider_functions_by_permission(self, author, permission_name: str) -> Self:
-        """
-        Returns the provider functions available to the user. This means:
-          - Provider functions where the user has run permissions
-          - Provider functions where the user is the author
-          - Provider is NOT None
-
-        Args:
-            author: Django author from who retrieve the functions
-            permission_name (str): name of the permission. Values accepted
-            RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
-
-        Returns:
-            List[Program]: providers functions available to the user
-        """
-
-        result_queryset = self.provider_functions().by_permission(author=author, permission_name=permission_name)
-
-        count = result_queryset.count()
-        logger.info("[%d] provider Functions found for author [%s]", count, author.id)
-
-        return result_queryset
-
     def provider_functions(self, provider_name: Optional[str] = None) -> Self:
         """
         Returns the provider functions. This means:
