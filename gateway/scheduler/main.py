@@ -4,7 +4,7 @@ import logging
 import time
 
 from django.conf import settings
-from django.db import close_old_connections
+from django.db import connection
 
 from core.models import Config
 from scheduler.health import DB_EXCEPTIONS, SchedulerHealth
@@ -55,10 +55,10 @@ class Main:
         try:
             while not self.kill_signal.received:
                 start_time = time.time()
-                # Django closes stale DB connections automatically at the end of each HTTP request.
-                # The scheduler never handles HTTP requests, so we call this manually to avoid
-                # holding a broken connection after a db connection problem.
-                close_old_connections()
+                # The scheduler is single-threaded and reuses the same DB connection indefinitely.
+                # Closing it unconditionally at the start of each iteration ensures the next DB
+                # access always creates a fresh connection, avoiding stale/dropped connections.
+                connection.close()
 
                 for task in self.tasks:
                     if self.kill_signal.received:
@@ -70,6 +70,10 @@ class Main:
                         first_error = self.health.set_db_error()
                         self.metrics.increase_task_failure(task.name)
                         self.metrics.increase_db_error(ex)
+
+                        # Force-close the connection so the next task in this iteration
+                        # gets a fresh one rather than retrying on the same broken connection.
+                        connection.close()
                         if first_error:
                             logger.exception("Error in %s: %s", task.name, ex)
                         else:
