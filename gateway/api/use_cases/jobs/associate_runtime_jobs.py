@@ -3,6 +3,8 @@
 import logging
 from uuid import UUID
 
+from django.core.exceptions import ObjectDoesNotExist
+
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.repositories.runtime_job import RuntimeJobRepository
 from core.models import Job
@@ -30,8 +32,9 @@ class AssociateRuntimeJobsUseCase:
         Raises:
             NotFoundError: If the job does not exist or access is denied.
         """
-        job = Job.objects.get(id=job_id)
-        if job is None:
+        try:
+            job = Job.objects.get(id=job_id)
+        except ObjectDoesNotExist:
             raise JobNotFoundException(job_id)
 
         try:

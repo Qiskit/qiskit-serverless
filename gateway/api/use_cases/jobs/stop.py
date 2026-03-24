@@ -4,6 +4,8 @@ from uuid import UUID
 
 from qiskit_ibm_runtime import QiskitRuntimeService, RuntimeInvalidStateError
 
+from django.core.exceptions import ObjectDoesNotExist
+
 from core.models import Job, JobEvent
 from core.services.ray import get_job_handler
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
@@ -25,9 +27,10 @@ class StopJobUseCase:
         self.stopped_sessions = []
 
     def execute(self, job_id: UUID, service_str: str) -> str:
-        job = Job.objects.get(id=job_id)
-        if job is None:
-            raise JobNotFoundException(str(job_id))
+        try:
+            job = Job.objects.get(id=job_id)
+        except ObjectDoesNotExist:
+            raise JobNotFoundException(job_id)
 
         # reset stopped sessions and status messages
         self.status_messages = []

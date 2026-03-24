@@ -6,6 +6,7 @@ import logging
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ObjectDoesNotExist
 
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
@@ -35,9 +36,10 @@ class GetJobLogsUseCase:
         Returns:
             str: Job logs if accessible, otherwise a message indicating no logs are available.
         """
-        job = Job.objects.get(id=job_id)
-        if job is None:
-            raise JobNotFoundException(str(job_id))
+        try:
+            job = Job.objects.get(id=job_id)
+        except ObjectDoesNotExist:
+            raise JobNotFoundException(job_id)
 
         if not JobAccessPolicies.can_read_user_logs(user, job):
             raise InvalidAccessException(f"You don't have access to read user logs of the job [{job_id}]")

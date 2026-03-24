@@ -3,6 +3,7 @@
 import logging
 from uuid import UUID
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ObjectDoesNotExist
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from core.models import Job
 from api.access_policies.jobs import JobAccessPolicies

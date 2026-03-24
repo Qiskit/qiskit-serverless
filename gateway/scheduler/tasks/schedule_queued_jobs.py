@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 
 from concurrency.exceptions import RecordModifiedError
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
 
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
@@ -124,7 +125,7 @@ class ScheduleQueuedJobs(SchedulerTask):
 
                         time.sleep(1)
 
-                        job = Job.objects.get(id=job_id)
+                        job.refresh_from_db()
                         job.status = backup_status
                         job.logs = backup_logs
                         job.compute_resource = backup_resource
