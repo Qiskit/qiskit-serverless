@@ -324,17 +324,9 @@ spec:
               path: /liveness
               port: http
             initialDelaySeconds: 60
-            periodSeconds: 20
+            periodSeconds: 10
             timeoutSeconds: 5
-            failureThreshold: 5
-          readinessProbe:
-            httpGet:
-              path: /readiness
-              port: http
-            initialDelaySeconds: 60
-            periodSeconds: 20
-            timeoutSeconds: 5
-            failureThreshold: 5
+            failureThreshold: 3
           volumeMounts:
             - mountPath: "/usr/src/app/media/"
               name: gateway-pv-storage

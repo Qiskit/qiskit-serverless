@@ -4,8 +4,10 @@ import logging
 import time
 
 from django.conf import settings
+from django.db import close_old_connections
 
 from core.models import Config
+from scheduler.health import DB_EXCEPTIONS, SchedulerHealth
 from scheduler.http_server import SchedulerHttpServer
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.kill_signal import KillSignal
@@ -24,8 +26,9 @@ class Main:
         self.kill_signal.register()  # start listening to SIGTERM and SIGINT signals
 
         self.metrics = SchedulerMetrics()
+        self.health = SchedulerHealth()
         self.http_server: SchedulerHttpServer = SchedulerHttpServer(site_host=settings.SITE_HOST)
-        self.http_server.configure_routes(self.metrics)
+        self.http_server.configure_routes(self.metrics, self.health)
 
         # Write new defaults that this version might have (this is also done in the Gateway, first come, first write)
         Config.add_defaults()
@@ -52,12 +55,25 @@ class Main:
         try:
             while not self.kill_signal.received:
                 start_time = time.time()
+                # Django closes stale DB connections automatically at the end of each HTTP request.
+                # The scheduler never handles HTTP requests, so we call this manually to avoid
+                # holding a broken connection after a db connection problem.
+                close_old_connections()
 
                 for task in self.tasks:
                     if self.kill_signal.received:
                         break
                     try:
                         task.run()
+                        self.health.clear_db_error()
+                    except DB_EXCEPTIONS as ex:
+                        first_error = self.health.set_db_error()
+                        self.metrics.increase_task_failure(task.name)
+                        self.metrics.increase_db_error(ex)
+                        if first_error:
+                            logger.exception("Error in %s: %s", task.name, ex)
+                        else:
+                            logger.error("DB still unavailable in %s: %s", task.name, ex)
                     except Exception as ex:  # pylint: disable=broad-exception-caught
                         self.metrics.increase_task_failure(task.name)
                         logger.exception("Error in %s: %s", task.name, ex)
