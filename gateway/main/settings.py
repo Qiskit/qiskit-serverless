@@ -183,7 +183,7 @@ else:
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
+        "ENGINE": "django_prometheus.db.backends.postgresql",
         "NAME": os.environ.get("DATABASE_NAME", "serverlessdb"),
         "USER": os.environ.get("DATABASE_USER", "serverlessuser"),
         "PASSWORD": os.environ.get("DATABASE_PASSWORD", "serverlesspassword"),
