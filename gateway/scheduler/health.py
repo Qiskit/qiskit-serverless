@@ -13,6 +13,8 @@ UNHEALTHY_THRESHOLD = 5
 
 
 class SchedulerHealth:
+    """Tracks consecutive DB errors to determine scheduler liveness."""
+
     def __init__(self):
         self._consecutive_errors: int = 0
         # Not strictly necessary in CPython because the GIL makes simple integer
@@ -26,10 +28,12 @@ class SchedulerHealth:
             return self._consecutive_errors == 1
 
     def clear_db_error(self) -> None:
+        """Reset the consecutive-error counter after a successful task run."""
         with self._lock:
             self._consecutive_errors = 0
 
     @property
     def is_unhealthy(self) -> bool:
+        """Return True if consecutive DB errors have reached the unhealthy threshold."""
         with self._lock:
             return self._consecutive_errors >= UNHEALTHY_THRESHOLD
