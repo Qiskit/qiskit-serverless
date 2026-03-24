@@ -2,8 +2,11 @@
 
 import pytest
 from unittest.mock import MagicMock
+from django.db.utils import OperationalError
 
+from scheduler.health import UNHEALTHY_THRESHOLD
 from scheduler.main import Main
+from scheduler.views.probes import make_liveness
 
 # Scheduler and Gateway share the same settings and the same SITE_HOST value. We need to override it
 # during tests to avoid collisions
@@ -85,3 +88,30 @@ class TestMain:
         elapsed, timestamp = args
         assert elapsed >= 0
         assert timestamp > 0
+
+    def test_liveness_unhealthy_after_db_errors(self):
+        """After UNHEALTHY_THRESHOLD consecutive DB errors, liveness should return 503."""
+        call_count = 0
+
+        def db_error_then_stop():
+            nonlocal call_count
+            call_count += 1
+            if call_count >= UNHEALTHY_THRESHOLD:
+                self.scheduler_main.kill_signal.received = True
+            raise OperationalError("connection lost")
+
+        failing_task = MagicMock()
+        failing_task.name = "db_failing_task"
+        failing_task.run.side_effect = db_error_then_stop
+
+        self.scheduler_main.tasks = [failing_task]
+        self.scheduler_main.metrics = MagicMock()
+        self.scheduler_main.run()
+
+        assert self.scheduler_main.metrics.increase_task_failure.call_count == UNHEALTHY_THRESHOLD
+        self.scheduler_main.metrics.increase_task_failure.assert_called_with("db_failing_task")
+        assert self.scheduler_main.metrics.increase_db_error.call_count == UNHEALTHY_THRESHOLD
+
+        liveness = make_liveness(self.scheduler_main.health)
+        response = liveness(MagicMock())
+        assert response.status_code == 503
