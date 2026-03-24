@@ -8,3 +8,4 @@ class ConfigKey(Enum):
 
     MAINTENANCE = "scheduler.maintenance"
     UPLOAD_FILE_VALID_MIME_TYPES = "gateway.upload_file.valid_mime_types"
+    PAGE_LIMIT = "20"

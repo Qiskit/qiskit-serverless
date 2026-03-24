@@ -433,6 +433,11 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "type": "list",
         "description": "Specify the permitted mime types to upload files.",
     },
+    "gateway.page_limit": {
+        "default": "20",
+        "type": "int",
+        "description": "Number of elements per page if not provided",
+    },
 }
 
 logging.getLogger("main").info("[BOOT] Settings.py: %s", "gunicorn" if IS_UNICORN else COMMAND)

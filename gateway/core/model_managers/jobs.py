@@ -8,7 +8,9 @@ from typing import Optional, Tuple, Self
 from django.db.models import QuerySet
 from django.contrib.auth.models import AbstractUser
 
+from core.config_key import ConfigKey
 from core.enums.type_filter import TypeFilter
+from core.models import Config
 
 logger = logging.getLogger("gateway")
 
@@ -64,10 +66,14 @@ class JobQuerySet(QuerySet):
         if user:
             queryset = queryset.filter(author=user)
 
+        limit = Config.get_int(ConfigKey.PAGE_LIMIT)
+        offset = 0
         if filters:
             queryset = queryset._apply_filters(filters)  # pylint: disable=protected-access
+            limit = filters.limit
+            offset = filters.offset
 
-        return queryset._paginate_queryset(filters.limit, filters.offset)  # pylint: disable=protected-access
+        return queryset._paginate_queryset(limit, offset)  # pylint: disable=protected-access
 
     def _apply_filters(
         self,
