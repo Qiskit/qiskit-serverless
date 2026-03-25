@@ -11,9 +11,9 @@ from core.domain.filter_logs import (
     remove_prefix_tags_in_logs,
 )
 from core.services.storage.logs_storage import LogsStorage
-from core.utils import check_logs, ray_job_status_to_model_job_status
+from core.utils import check_logs
 from core.models import Job, JobEvent
-from core.services.ray import get_job_handler
+from core.services.runners import get_runner, RunnerError
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from scheduler.schedule import (
     check_job_timeout,
@@ -36,6 +36,7 @@ class UpdateJobsStatuses(SchedulerTask):
         self.metrics = metrics or SchedulerMetrics()
 
     # pylint: disable=too-many-statements
+    # pylint: disable=too-many-branches
     def update_job_status(self, job: Job):
         """Update status of one job."""
         if not job.compute_resource:
@@ -48,11 +49,11 @@ class UpdateJobsStatuses(SchedulerTask):
         status_has_changed = False
         job_new_status = Job.PENDING
         success = False
-        job_handler = get_job_handler(job.compute_resource.host)
+        runner = get_runner(job)
 
         try:
-            ray_job_status = job_handler.status(job.ray_job_id) if job_handler else None
-        except RuntimeError as ex:
+            job_status = runner.status()
+        except RunnerError as ex:
             logger.warning(
                 "[scheduler-update-status] job_id=%s status=%s reason=ray_error error=%s",
                 job.id,
@@ -75,8 +76,8 @@ class UpdateJobsStatuses(SchedulerTask):
 
             return True
 
-        if ray_job_status:
-            job_new_status = ray_job_status_to_model_job_status(ray_job_status)
+        if job_status:
+            job_new_status = job_status
             success = True
 
         if check_job_timeout(job):
@@ -99,12 +100,19 @@ class UpdateJobsStatuses(SchedulerTask):
             if job.in_terminal_state():
                 job.sub_status = None
                 job.env_vars = "{}"
-                logs = job_handler.logs(job.ray_job_id) if job_handler else ""
+                try:
+                    logs = runner.logs() or ""
+                except RunnerError:
+                    logs = ""
                 save_logs_to_storage(job, logs)
                 job.logs = ""
 
-        if job_handler:
-            logs = job_handler.logs(job.ray_job_id)
+        try:
+            logs = runner.logs()
+        except RunnerError:
+            logs = None
+
+        if logs:
             # check if job is resource constrained
             no_resources_log = "No available node types can fulfill resource request"
             if no_resources_log in logs:
@@ -156,7 +164,8 @@ class UpdateJobsStatuses(SchedulerTask):
                 if self.update_job_status(job):
                     updated_jobs_counter += 1
 
-            logger.info("Updated %s classical jobs.", updated_jobs_counter)
+            if updated_jobs_counter:
+                logger.info("Updated %s classical jobs.", updated_jobs_counter)
 
         if update_gpu_jobs:
             updated_jobs_counter = 0
@@ -167,7 +176,8 @@ class UpdateJobsStatuses(SchedulerTask):
                 if self.update_job_status(job):
                     updated_jobs_counter += 1
 
-            logger.info("Updated %s GPU jobs.", updated_jobs_counter)
+            if updated_jobs_counter:
+                logger.info("Updated %s GPU jobs.", updated_jobs_counter)
 
 
 def save_logs_to_storage(job: Job, logs: str):

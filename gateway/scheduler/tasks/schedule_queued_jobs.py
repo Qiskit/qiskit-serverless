@@ -118,7 +118,7 @@ class ScheduleQueuedJobs(SchedulerTask):
 
                     except RecordModifiedError:
                         logger.warning(
-                            "[scheduler-schedule-jobs] job_id=%s status=lock_retry",
+                            "[scheduler-schedule-jobs] job_id=%s RecordModifiedError",
                             job.id,
                         )
 
@@ -136,7 +136,8 @@ class ScheduleQueuedJobs(SchedulerTask):
                     job.author,
                     job.status,
                 )
-        logger.info("%s are scheduled for execution.", len(jobs))
+        if jobs:
+            logger.info("%s jobs are scheduled for execution.", len(jobs))
 
     def set_queue_size_metric(self, gpu_job):
         """Add queue size metric."""
