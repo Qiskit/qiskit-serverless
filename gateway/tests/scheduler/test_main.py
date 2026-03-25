@@ -43,7 +43,7 @@ class TestMain:
         assert task.run.call_count == 1
 
     def test_task_fails(self):
-        """When a task raises, metrics.increase_task_failure should be called."""
+        """When a task raises, metrics.increase_task_error should be called."""
         failing_task = MagicMock()
         failing_task.name = "failing_task"
         failing_task.run.side_effect = Exception("boom")
@@ -58,7 +58,11 @@ class TestMain:
         self.scheduler_main.metrics = MagicMock()
 
         self.scheduler_main.run()
-        self.scheduler_main.metrics.increase_task_failure.assert_called_once_with("failing_task")
+        self.scheduler_main.metrics.increase_task_error.assert_called_once()
+        task_name, error = self.scheduler_main.metrics.increase_task_error.call_args[0]
+        assert task_name == "failing_task"
+        assert isinstance(error, Exception)
+        assert str(error) == "boom"
 
     def test_http_server_starts_and_stops(self):
         """HTTP server should start and stop after loop ends."""
@@ -85,9 +89,8 @@ class TestMain:
 
         self.scheduler_main.metrics.observe_scheduler_iteration.assert_called_once()
         args = self.scheduler_main.metrics.observe_scheduler_iteration.call_args[0]
-        elapsed, timestamp = args
+        (elapsed,) = args
         assert elapsed >= 0
-        assert timestamp > 0
 
     def test_liveness_unhealthy_after_db_errors(self):
         """After UNHEALTHY_THRESHOLD consecutive DB errors, liveness should return 503."""
@@ -108,9 +111,8 @@ class TestMain:
         self.scheduler_main.metrics = MagicMock()
         self.scheduler_main.run()
 
-        assert self.scheduler_main.metrics.increase_task_failure.call_count == UNHEALTHY_THRESHOLD
-        self.scheduler_main.metrics.increase_task_failure.assert_called_with("db_failing_task")
-        assert self.scheduler_main.metrics.increase_db_error.call_count == UNHEALTHY_THRESHOLD
+        assert self.scheduler_main.metrics.increase_task_error.call_count == UNHEALTHY_THRESHOLD
+        assert self.scheduler_main.metrics.increase_task_error.call_args[0][0] == "db_failing_task"
 
         liveness = make_liveness(self.scheduler_main.health)
         response = liveness(MagicMock())
