@@ -5,7 +5,7 @@ from uuid import UUID
 from qiskit_ibm_runtime import QiskitRuntimeService, RuntimeInvalidStateError
 
 from core.models import Job, JobEvent
-from core.services.ray import get_job_handler
+from core.services.runners import get_runner, RunnerError
 from api.repositories.jobs import JobsRepository
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.repositories.runtime_job import RuntimeJobRepository
@@ -110,13 +110,12 @@ class StopJobUseCase:
 
     def _stop_ray_job_if_active(self, job):
         if job.compute_resource and job.compute_resource.active:
-            job_handler = get_job_handler(job.compute_resource.host)
-            if job_handler is not None:
-                was_running = job_handler.stop(job.ray_job_id)
+            try:
+                was_running = get_runner(job).stop()
                 if was_running:
                     self.status_messages.append("Serverless job was running and has been stopped.")
                 else:
                     self.status_messages.append("Serverless job was already not running.")
-            else:
+            except RunnerError:
                 logger.warning("Serverless job was not accessible from: %s", job.compute_resource)
                 self.status_messages.append("Serverless job was not accessible.")
