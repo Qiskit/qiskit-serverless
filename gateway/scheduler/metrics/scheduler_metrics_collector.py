@@ -33,6 +33,12 @@ class SchedulerMetrics:
             labelnames=("task_name",),
             registry=self.registry,
         )
+        self.db_errors = Counter(
+            "scheduler_db_errors_total",
+            "Scheduler failures caused by a database connectivity error.",
+            labelnames=("error_type",),
+            registry=self.registry,
+        )
         self.last_tick = Gauge(
             "scheduler_last_tick_timestamp_seconds",
             "Unix timestamp of latest completed scheduler loop iteration.",
@@ -65,6 +71,10 @@ class SchedulerMetrics:
     def increase_task_failure(self, task_name: str) -> None:
         """Register one scheduler task failure."""
         self.task_failures.labels(task_name=task_name).inc()
+
+    def increase_db_error(self, error: Exception) -> None:
+        """Register one scheduler failure caused by a database connectivity error."""
+        self.db_errors.labels(error_type=type(error).__name__).inc()
 
     def observe_scheduler_iteration(self, elapsed_seconds: float, timestamp_seconds: float) -> None:
         """Register scheduler loop metrics for one full iteration."""
