@@ -11,8 +11,9 @@ from wsgiref.simple_server import WSGIRequestHandler, WSGIServer, make_server
 from django.core.handlers.wsgi import WSGIRequest
 from django.http import HttpResponse
 
+from scheduler.health import SchedulerHealth
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.views.probes import liveness, not_found, readiness
+from scheduler.views.probes import make_liveness, not_found
 
 logger = logging.getLogger("main")
 
@@ -31,10 +32,9 @@ class SchedulerHttpServer:
         self._thread: threading.Thread | None = None
         self._running = False
 
-    def configure_routes(self, scheduler_metrics: SchedulerMetrics) -> None:
+    def configure_routes(self, scheduler_metrics: SchedulerMetrics, health: SchedulerHealth) -> None:
         """Configure standard routes (probes and optionally metrics)."""
-        self.add_path_handler("/readiness", readiness)
-        self.add_path_handler("/liveness", liveness)
+        self.add_path_handler("/liveness", make_liveness(health))
         self.add_wsgi_handler("/metrics", scheduler_metrics.wsgi_app)
 
     def add_path_handler(self, path: str, func):

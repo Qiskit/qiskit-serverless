@@ -5,8 +5,8 @@ import urllib.error
 import urllib.request
 
 import pytest
-from django.test import TestCase
 
+from scheduler.health import SchedulerHealth
 from scheduler.http_server import SchedulerHttpServer
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 
@@ -16,14 +16,14 @@ from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 SITE_HOST = "http://127.0.0.1:8100"
 
 
-class TestSchedulerHttpServer(TestCase):
+class TestSchedulerHttpServer:
     """Tests for SchedulerHttpServer."""
 
-    def setUp(self):
+    @pytest.fixture(autouse=True)
+    def _setup(self, db):
         self.http_server = SchedulerHttpServer(site_host=SITE_HOST)
-        self.http_server.configure_routes(SchedulerMetrics())
-
-    def tearDown(self):
+        self.http_server.configure_routes(SchedulerMetrics(), SchedulerHealth())
+        yield
         self.http_server.stop()
 
     def test_start_tops(self):
@@ -38,17 +38,6 @@ class TestSchedulerHttpServer(TestCase):
         assert self.http_server._thread is None
         assert self.http_server._httpd is None
         assert self.http_server.is_running() == False
-
-    def test_readiness(self):
-        """HTTP server responds to /readiness"""
-        self.http_server.start()
-
-        url = f"{SITE_HOST}/readiness"
-        with urllib.request.urlopen(url) as response:
-            assert response.status == 200
-            assert response.headers["Content-Type"] == "application/json"
-            data = json.loads(response.read().decode())
-            assert data["status"] == "ready"
 
     def test_liveness(self):
         """HTTP server responds to /liveness"""

@@ -1,28 +1,29 @@
 """Tests for Config model."""
 
+import pytest
 from unittest.mock import patch
 
 from django.conf import settings
 from django.core.cache import cache
-from django.test import TestCase
 
 from core.config_key import ConfigKey
 from core.models import Config
 
 
-class TestConfig(TestCase):
+class TestConfig:
     """Tests for Config model."""
 
-    def setUp(self):
+    @pytest.fixture(autouse=True)
+    def _setup(self, db, tmp_path):
+        settings.MEDIA_ROOT = str(tmp_path)
         cache.clear()
-
-    def tearDown(self):
+        yield
         cache.clear()
 
     def test_unique_name_constraint(self):
         """Test that name field is unique."""
         Config.objects.create(name="key", value="1")
-        with self.assertRaises(Exception):
+        with pytest.raises(Exception):
             Config.objects.create(name="key", value="2")
 
     def test_add_defaults_creates_configs(self):
