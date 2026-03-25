@@ -63,13 +63,13 @@ class Main:
                 for task in self.tasks:
                     if self.kill_signal.received:
                         break
+                    task_start = time.time()
                     try:
                         task.run()
                         self.health.clear_db_error()
                     except DB_EXCEPTIONS as ex:
                         first_error = self.health.set_db_error()
-                        self.metrics.increase_task_failure(task.name)
-                        self.metrics.increase_db_error(ex)
+                        self.metrics.increase_task_error(task.name, ex)
 
                         # Force-close the connection so the next task in this iteration
                         # gets a fresh one rather than retrying on the same broken connection.
@@ -79,13 +79,15 @@ class Main:
                         else:
                             logger.error("DB still unavailable in %s: %s", task.name, ex)
                     except Exception as ex:  # pylint: disable=broad-exception-caught
-                        self.metrics.increase_task_failure(task.name)
+                        self.metrics.increase_task_error(task.name, ex)
                         logger.exception("Error in %s: %s", task.name, ex)
+                    finally:
+                        self.metrics.observe_task_duration(task.name, time.time() - task_start)
 
                 elapsed = time.time() - start_time
 
                 # Store the elapsed time and the last time check
-                self.metrics.observe_scheduler_iteration(elapsed, time.time())
+                self.metrics.observe_scheduler_iteration(elapsed)
 
                 # don't delay more than 1s if the loop was busy
                 if not self.kill_signal.received and elapsed < 1:
