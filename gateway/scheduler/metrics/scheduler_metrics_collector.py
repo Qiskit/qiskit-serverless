@@ -14,7 +14,7 @@ from prometheus_client import (
 from scheduler.metrics.system_metrics_collector import SystemMetricsCollector
 
 
-class SchedulerMetrics:
+class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes
     """Metrics related with the scheduler life cycle like wait time per job or tasks failure.
     For system metrics (like CPU or Memory) go to the SystemMetricsCollector
     """
