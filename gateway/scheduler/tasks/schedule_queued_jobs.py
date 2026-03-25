@@ -118,7 +118,7 @@ class ScheduleQueuedJobs(SchedulerTask):
 
                     except RecordModifiedError:
                         logger.warning(
-                            "Schedule: Job [%s] record has not been updated due to lock.",
+                            "[scheduler-schedule-jobs] job_id=%s status=lock_retry",
                             job.id,
                         )
 
@@ -130,7 +130,12 @@ class ScheduleQueuedJobs(SchedulerTask):
                         job.compute_resource = backup_resource
                         job.ray_job_id = backup_ray_job_id
 
-                logger.info("Executing %s of %s", job, job.author)
+                logger.info(
+                    "[scheduler-schedule-jobs] job_id=%s author=%s status=%s",
+                    job.id,
+                    job.author,
+                    job.status,
+                )
         logger.info("%s are scheduled for execution.", len(jobs))
 
     def set_queue_size_metric(self, gpu_job):

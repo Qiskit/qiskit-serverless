@@ -53,7 +53,12 @@ class UpdateJobsStatuses(SchedulerTask):
         try:
             ray_job_status = job_handler.status(job.ray_job_id) if job_handler else None
         except RuntimeError as ex:
-            logger.warning("Job [%s] marked as FAILED because Ray get_job_status: %s", job.id, str(ex))
+            logger.warning(
+                "[scheduler-update-status] job_id=%s status=%s reason=ray_error error=%s",
+                job.id,
+                Job.FAILED,
+                str(ex),
+            )
             job.status = Job.FAILED
             job.sub_status = None
             job.env_vars = "{}"
@@ -82,7 +87,7 @@ class UpdateJobsStatuses(SchedulerTask):
 
         if job_new_status != job.status:
             logger.info(
-                "Job [%s] of [%s] changed from [%s] to [%s]",
+                "[scheduler-update-status] job_id=%s author=%s status_from=%s status_to=%s",
                 job.id,
                 job.author,
                 job.status,
@@ -128,7 +133,10 @@ class UpdateJobsStatuses(SchedulerTask):
                     status=job.status,
                 )
         except RecordModifiedError:
-            logger.warning("Job [%s] record has not been updated due to lock.", job.id)
+            logger.warning(
+                "[scheduler-update-status] job_id=%s status=lock_retry",
+                job.id,
+            )
 
         return status_has_changed
 

@@ -61,7 +61,7 @@ class FreeResources(SchedulerTask):
         terminated_job = Job.objects.filter(status__in=Job.TERMINAL_STATUSES, compute_resource=compute_resource).first()
         if terminated_job is None:
             logger.error(
-                "There is no job finished for [%s] compute resource:",
+                "[scheduler-free-resources] compute_resource=%s error=no_terminated_job",
                 compute_resource.title,
             )
             return
@@ -75,9 +75,17 @@ class FreeResources(SchedulerTask):
                 compute_resource.active = False
                 compute_resource.save()
                 logger.info(
-                    "[%s] Cluster [%s] is free after usage from [%s]. JobID [%s]",
-                    "GPU" if is_gpu else "Classical",
-                    compute_resource.title,
-                    compute_resource.owner,
+                    "[scheduler-free-resources] job_id=%s author=%s compute_resource=%s type=%s cluster removed ok",
                     terminated_job.id,
+                    compute_resource.owner,
+                    compute_resource.title,
+                    "gpu" if is_gpu else "classical",
+                )
+            else:
+                logger.warning(
+                    "[scheduler-free-resources] job_id=%s author=%s compute_resource=%s type=%s error removing cluster",
+                    terminated_job.id,
+                    compute_resource.owner,
+                    compute_resource.title,
+                    "gpu" if is_gpu else "classical",
                 )
