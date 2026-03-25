@@ -27,18 +27,25 @@ class SchedulerMetrics:
             "Duration of one scheduler loop iteration.",
             registry=self.registry,
         )
-        self.task_failures = Counter(
-            "scheduler_task_failures_total",
-            "Scheduler task failures.",
+        self.task_errors = Counter(
+            "scheduler_task_errors_total",
+            "Scheduler task errors.",
+            labelnames=("task_name", "error_type"),
+            registry=self.registry,
+        )
+        self.task_duration = Histogram(
+            "scheduler_task_duration_seconds",
+            "Duration of one scheduler task execution.",
             labelnames=("task_name",),
             registry=self.registry,
         )
-        self.db_errors = Counter(
-            "scheduler_db_errors_total",
-            "Scheduler failures caused by a database connectivity error.",
-            labelnames=("error_type",),
+        self.start_time = Gauge(
+            "scheduler_start_timestamp_seconds",
+            "Unix timestamp when the scheduler process started.",
             registry=self.registry,
         )
+        self.start_time.set_to_current_time()
+
         self.last_tick = Gauge(
             "scheduler_last_tick_timestamp_seconds",
             "Unix timestamp of latest completed scheduler loop iteration.",
@@ -68,18 +75,18 @@ class SchedulerMetrics:
 
         self.wsgi_app = make_wsgi_app(self.registry)
 
-    def increase_task_failure(self, task_name: str) -> None:
-        """Register one scheduler task failure."""
-        self.task_failures.labels(task_name=task_name).inc()
+    def increase_task_error(self, task_name: str, error: Exception) -> None:
+        """Register one scheduler task error."""
+        self.task_errors.labels(task_name=task_name, error_type=type(error).__name__).inc()
 
-    def increase_db_error(self, error: Exception) -> None:
-        """Register one scheduler failure caused by a database connectivity error."""
-        self.db_errors.labels(error_type=type(error).__name__).inc()
+    def observe_task_duration(self, task_name: str, elapsed_seconds: float) -> None:
+        """Record execution time for one task."""
+        self.task_duration.labels(task_name=task_name).observe(elapsed_seconds)
 
-    def observe_scheduler_iteration(self, elapsed_seconds: float, timestamp_seconds: float) -> None:
+    def observe_scheduler_iteration(self, elapsed_seconds: float) -> None:
         """Register scheduler loop metrics for one full iteration."""
         self.loop_duration.observe(elapsed_seconds)
-        self.last_tick.set(timestamp_seconds)
+        self.last_tick.set_to_current_time()
 
     def set_queue_size(self, size: int, compute_type: str) -> None:
         """Set current queue size for a compute type."""
