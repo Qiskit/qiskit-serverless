@@ -46,7 +46,7 @@ class InputSerializer(serializers.Serializer):
         """
         value_upper = value.upper()
         if value_upper not in VALID_TYPES:
-            raise ValidationError("Type is not valid. Valid types: {VALID_TYPES}")
+            raise ValidationError(f"Type is not valid. Valid types: {VALID_TYPES}")
 
         return value_upper
 
