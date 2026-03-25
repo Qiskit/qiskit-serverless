@@ -433,12 +433,6 @@ class Config(models.Model):
         return value.lower() == "true"
 
     @classmethod
-    def get_int(cls, key: ConfigKey) -> int:
-        """Get configuration value as boolean."""
-        value = cls.get(key)
-        return int(value)
-
-    @classmethod
     def get_list(cls, key: ConfigKey) -> list[str]:
         """Get configuration value as string list."""
         value = cls.get(key)
