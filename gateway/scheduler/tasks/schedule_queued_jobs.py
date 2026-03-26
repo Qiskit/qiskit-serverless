@@ -128,7 +128,7 @@ class ScheduleQueuedJobs(SchedulerTask):
 
                         time.sleep(1)
 
-                        job = Job.objects.get(id=job_id)
+                        job.refresh_from_db()
                         job.status = backup_status
                         job.logs = backup_logs
                         job.compute_resource = backup_resource
