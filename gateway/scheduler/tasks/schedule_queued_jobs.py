@@ -86,7 +86,15 @@ class ScheduleQueuedJobs(SchedulerTask):
 
             tracer = trace.get_tracer("scheduler.tracer")
             with tracer.start_as_current_span("scheduler.handle", context=ctx):
+                t0 = time.monotonic()
                 job = execute_job(job)  # from QUEUED to PENDING
+                logger.info(
+                    "job_id=%s Execute job (%.2fs)",
+                    job.id,
+                    time.monotonic() - t0,
+                    job.status,
+                )
+
                 job_id = job.id
                 backup_status = job.status
                 backup_logs = job.logs
@@ -95,7 +103,9 @@ class ScheduleQueuedJobs(SchedulerTask):
 
                 succeed = False
                 attempts = settings.RAY_SETUP_MAX_RETRIES
+                retry_count = 0
 
+                t1 = time.monotonic()
                 while not succeed and attempts > 0:
                     attempts -= 1
 
@@ -117,6 +127,7 @@ class ScheduleQueuedJobs(SchedulerTask):
                         self.add_queue_wait_time_metric(job)
 
                     except RecordModifiedError:
+                        retry_count += 1
                         logger.warning("job_id=%s RecordModifiedError sleep 1", job.id)
 
                         time.sleep(1)
@@ -127,7 +138,12 @@ class ScheduleQueuedJobs(SchedulerTask):
                         job.compute_resource = backup_resource
                         job.ray_job_id = backup_ray_job_id
 
-                logger.info("job_id=%s author=%s status=%s Job submitted and updated", job.id, job.author)
+                logger.info(
+                    "job_id=%s Job updated set to PENDING (%.2fs) retries=%s",
+                    job.id,
+                    time.monotonic() - t1,
+                    retry_count,
+                )
         if jobs:
             logger.info("%s jobs are scheduled for execution.", len(jobs))
 

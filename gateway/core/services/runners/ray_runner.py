@@ -508,18 +508,22 @@ def _kill_ray_cluster(cluster_name: str) -> bool:
     except NotFoundError as resource_not_found:
         sanitized = repr(resource_not_found).replace("\n", "").replace("\r", "")
         logger.error(
-            "[_kill_ray_cluster] cluster=%s error=%s RayCluster not found",
+            "[_kill_ray_cluster] cluster=%s Error deleting, RayCluster not found: %s",
             cluster_name,
             sanitized,
         )
         return success
 
     if delete_response.status == "Success":
+        logger.info(
+            "[_kill_ray_cluster] cluster=%s RayCluster deletion success",
+            cluster_name,
+        )
         success = True
     else:
         sanitized = delete_response.text.replace("\n", "").replace("\r", "")
         logger.error(
-            "[_kill_ray_cluster] cluster=%s error=%s RayCluster deletion failed",
+            "[_kill_ray_cluster] cluster=%s RayCluster deletion failed: %s",
             cluster_name,
             sanitized,
         )
@@ -533,7 +537,7 @@ def _kill_ray_cluster(cluster_name: str) -> bool:
         success = True
     except NotFoundError:
         logger.error(
-            "[_kill_ray_cluster] cluster=%s error=not_found Certificate deletion failed",
+            "[_kill_ray_cluster] cluster=%s Certificate deletion failed: NotFoundError",
             cluster_name,
         )
     try:
@@ -541,7 +545,7 @@ def _kill_ray_cluster(cluster_name: str) -> bool:
         success = True
     except NotFoundError:
         logger.error(
-            "[_kill_ray_cluster] cluster=%s error=not_found Certificate-worker deletion failed",
+            "[_kill_ray_cluster] cluster=%s Certificate-worker deletion failed: NotFoundError",
             cluster_name,
         )
 
@@ -551,7 +555,7 @@ def _kill_ray_cluster(cluster_name: str) -> bool:
         success = True
     except ApiException:
         logger.error(
-            "[_kill_ray_cluster] cluster=%s error=api_exception Secret deletion failed",
+            "[_kill_ray_cluster] cluster=%s Secret deletion failed: ApiException",
             cluster_name,
         )
     try:
@@ -559,7 +563,7 @@ def _kill_ray_cluster(cluster_name: str) -> bool:
         success = True
     except ApiException:
         logger.error(
-            "[_kill_ray_cluster] cluster=%s error=api_exception Secret-worker deletion failed",
+            "[_kill_ray_cluster] cluster=%s Secret-worker deletion failed: ApiException",
             cluster_name,
         )
     return success

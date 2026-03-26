@@ -41,7 +41,7 @@ class UpdateJobsStatuses(SchedulerTask):
         """Update status of one job."""
         if not job.compute_resource:
             logger.warning(
-                "[job_id=%s Job doesn't have ComputeResource. Return false",
+                "job_id=%s Job doesn't have ComputeResource. Return false",
                 job.id,
             )
             return False
