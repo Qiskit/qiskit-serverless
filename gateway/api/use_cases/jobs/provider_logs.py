@@ -57,7 +57,12 @@ class GetProviderJobLogsUseCase:
             except RunnerError:
                 return "Logs not available for this job during execution."
 
-            logger.info("Getting provider logs from ray job [%s] job_id=%s", job.ray_job_id, job.id)
+            logger.info(
+                "[get-provider-logs] job_id=%s user_id=%s ray_job_id=%s | Getting provider logs from ray",
+                job.id,
+                user.id,
+                job.ray_job_id,
+            )
 
             logs = check_logs(logs, job)
             return filter_logs_with_non_public_tags(logs)
