@@ -89,7 +89,7 @@ class FileStorage:
 
         if not os.path.exists(path_to_file):
             logger.warning(
-                "File %s not found in %s.",
+                "[file-storage] file=%s path=%s | File not found",
                 file_name_path,
                 path_to_file,
             )
@@ -123,7 +123,7 @@ class FileStorage:
 
         if not os.path.exists(path_to_file):
             logger.warning(
-                "File %s not found in %s.",
+                "[file-storage] file=%s path=%s | File not found",
                 file_name_path,
                 path_to_file,
             )
@@ -181,13 +181,13 @@ class FileStorage:
             os.remove(path_to_file)
         except FileNotFoundError:
             logger.warning(
-                "File %s not found in %s.",
+                "[file-storage] file=%s path=%s | File not found",
                 file_name_path,
                 path_to_file,
             )
             return False
         except OSError as ex:
-            logger.warning("OSError: %s.", ex.strerror)
+            logger.warning("[file-storage] file=%s path=%s | OSError: %s", file_name_path, path_to_file, ex.strerror)
             return False
 
         return True

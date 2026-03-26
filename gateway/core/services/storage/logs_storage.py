@@ -28,6 +28,7 @@ class LogsStorage:
 
     def __init__(self, job: Job) -> None:
         self._job_id = str(job.id)
+        self._user_id = job.author_id
         self._username = job.author.username
         self._function_title = job.program.title
         self._provider_name = job.program.provider.name if job.program.provider else None
@@ -82,24 +83,34 @@ class LogsStorage:
 
     def _read_logs(self, base_path: str) -> Optional[str]:
         """Read logs from the given path."""
+        log_path = self._get_file_path(base_path)
         try:
-            log_path = self._get_file_path(base_path)
             # listdir refreshes the COS volume.
             # The log file is written in the Scheduler and read from the Gateway, and there is 15m TTL.
             os.listdir(base_path)
             with open(log_path, "r", encoding=self.ENCODING) as log_file:
-                return log_file.read()
+                content = log_file.read()
+                logger.info(
+                    "[logs-storage] job_id=%s user_id=%s | Log written %s",
+                    self._job_id,
+                    self._user_id,
+                    log_path,
+                )
+                return content
         except FileNotFoundError:
             logger.info(
-                "Log file for job ID '%s' not found at '%s'.",
+                "[logs-storage] job_id=%s user_id=%s | Log file not found at %s",
                 self._job_id,
+                self._user_id,
                 log_path,
             )
             return None
         except (UnicodeDecodeError, IOError) as e:
             logger.error(
-                "Failed to read log file for job ID '%s': %s",
+                "[logs-storage] job_id=%s user_id=%s | Failed to read log file %s: %s",
                 self._job_id,
+                self._user_id,
+                log_path,
                 str(e),
             )
             return None
@@ -113,7 +124,9 @@ class LogsStorage:
                 log_file.flush()
         except (UnicodeDecodeError, IOError) as e:
             logger.error(
-                "Failed to write log file for job ID '%s': %s",
+                "[logs-storage] job_id=%s user_id=%s | Failed to write log file %s: %s",
                 self._job_id,
+                self._user_id,
+                log_path,
                 str(e),
             )
