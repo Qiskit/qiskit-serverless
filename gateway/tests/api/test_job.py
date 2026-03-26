@@ -974,4 +974,4 @@ class TestJobApi:
             format="json",
         )
 
-        assert job_event_response.status_code == status.HTTP_403_FORBIDDEN
+        assert job_event_response.status_code == status.HTTP_404_NOT_FOUND

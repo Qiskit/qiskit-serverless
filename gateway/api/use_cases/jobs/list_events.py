@@ -5,6 +5,7 @@ Use case for retrieving job events.
 from typing import List
 from uuid import UUID
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.models import AbstractUser
 
 from api.access_policies.jobs import JobAccessPolicies
@@ -28,12 +29,13 @@ class ListJobsEventsUseCase:
         Returns:
             list[Job]: (jobs, total_count)
         """
-        job = Job.objects.get(id=job_id)
-        if job is None:
+        try:
+            job = Job.objects.get(id=job_id)
+        except ObjectDoesNotExist:
             raise JobNotFoundException(str(job_id))
 
         if not JobAccessPolicies.can_read_events(user, job):
-            raise InvalidAccessException(f"You don't have access to read events of the job [{job_id}]")
+            raise JobNotFoundException(str(job_id))
 
         queryset = JobEvent.objects.get_job_events(job_id, event_type)
 
