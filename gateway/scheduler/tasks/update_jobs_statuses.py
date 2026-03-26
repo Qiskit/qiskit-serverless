@@ -91,9 +91,9 @@ class UpdateJobsStatuses(SchedulerTask):
 
         if job_new_status != job.status:
             logger.info(
-                "job_id=%s author=%s Changing status from %s to %s",
+                "job_id=%s user_id=%s Changing status from %s to %s",
                 job.id,
-                job.author,
+                job.author.id,
                 job.status,
                 job_new_status,
             )
@@ -121,9 +121,9 @@ class UpdateJobsStatuses(SchedulerTask):
             if no_resources_log in logs:
                 job_new_status = fail_job_insufficient_resources(job)
                 logger.info(
-                    "job_id=%s author=%s Changing status from %s to %s because Ray error: insufficient resources",
+                    "job_id=%s user_id=%s Changing status from %s to %s because Ray error: insufficient resources",
                     job.id,
-                    job.author,
+                    job.author.id,
                     job.status,
                     job_new_status,
                 )
