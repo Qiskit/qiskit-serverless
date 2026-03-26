@@ -15,7 +15,7 @@ from scheduler.tasks.free_resources import FreeResources
 from scheduler.tasks.schedule_queued_jobs import ScheduleQueuedJobs
 from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
 
-logger = logging.getLogger("main")
+logger = logging.getLogger("scheduler.main")
 
 
 class Main:

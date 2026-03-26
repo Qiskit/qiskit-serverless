@@ -23,7 +23,7 @@ from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
 
-logger = logging.getLogger("ScheduleQueuedJobs")
+logger = logging.getLogger("scheduler.ScheduleQueuedJobs")
 
 
 class ScheduleQueuedJobs(SchedulerTask):

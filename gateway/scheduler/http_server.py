@@ -15,7 +15,7 @@ from scheduler.health import SchedulerHealth
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.views.probes import make_liveness, not_found
 
-logger = logging.getLogger("main")
+logger = logging.getLogger("scheduler.http_server")
 
 
 class SchedulerHttpServer:

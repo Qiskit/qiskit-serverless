@@ -11,7 +11,7 @@ from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.task import SchedulerTask
 
-logger = logging.getLogger("FreeResources")
+logger = logging.getLogger("scheduler.FreeResources")
 
 
 class FreeResources(SchedulerTask):

@@ -17,7 +17,7 @@ from core.models import Job
 from core.services.runners import get_runner, RunnerError
 
 User: Model = get_user_model()
-logger = logging.getLogger("schedule")
+logger = logging.getLogger("scheduler.schedule")
 
 
 def execute_job(job: Job) -> Job:
