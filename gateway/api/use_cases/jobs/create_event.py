@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 import logging
+from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.models import AbstractUser
 from api.domain.exceptions.invalid_access_exception import InvalidAccessException
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
@@ -49,8 +50,9 @@ class CreateJobEventUseCase:
         Returns:
             Job: The updated job object with the stored result.
         """
-        job = Job.objects.get(id=job_id)
-        if job is None:
+        try:
+            job = Job.objects.get(id=job_id)
+        except ObjectDoesNotExist:
             raise JobNotFoundException(job_id)
 
         can_create_events = JobAccessPolicies.can_create_events(user, job)
