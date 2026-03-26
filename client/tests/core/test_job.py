@@ -401,7 +401,7 @@ class TestJobResult:
             job.result(wait=False)
 
         assert (
-            "\n| Message: Job execution failed\n| Code: M123\n| Type: ServerlessError\n| Details:\n|   - my-args: 123"
+            "\n| Message: Job execution failed\n| Code: M123\n| Exception: ServerlessError\n| Details:\n|   - my-args: 123"
             == str(exc_info.value)
         )
 

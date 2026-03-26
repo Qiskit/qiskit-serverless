@@ -455,10 +455,15 @@ ERROR: Provider log
         events = job.events(type="ERROR")
         assert len(events) == 1
 
-        assert (
-            exc_info.value.args[0]
-            == "\n| Message: My error message\n| Code: A123\n| Type: ServerlessError\n| Details:\n|   - my-args: 123"
-        )
+        expected_message = """
+| Message: My error message
+| Code: A123
+| Exception: ServerlessError
+| Details:
+|   - my-args: 123
+""".strip()
+
+        assert exc_info.value.args[0] == expected_message
 
         event_data = events[0].data
         assert event_data["code"] == "A123"
@@ -480,7 +485,7 @@ ERROR: Provider log
 
         assert (
             exc_info.value.args[0]
-            == "\n| Message: ValueError: This is not a ServerlessError\n| Code: 1\n| Type: ValueError"
+            == "\n| Message: ValueError: This is not a ServerlessError\n| Code: 1\n| Exception: ValueError"
         )
 
         event_data = events[0].data
