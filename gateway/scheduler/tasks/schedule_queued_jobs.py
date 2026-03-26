@@ -23,7 +23,7 @@ from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
 
-logger = logging.getLogger("commands")
+logger = logging.getLogger("ScheduleQueuedJobs")
 
 
 class ScheduleQueuedJobs(SchedulerTask):
@@ -117,10 +117,7 @@ class ScheduleQueuedJobs(SchedulerTask):
                         self.add_queue_wait_time_metric(job)
 
                     except RecordModifiedError:
-                        logger.warning(
-                            "[scheduler-schedule-jobs] job_id=%s RecordModifiedError",
-                            job.id,
-                        )
+                        logger.warning("job_id=%s RecordModifiedError sleep 1", job.id)
 
                         time.sleep(1)
 
@@ -130,12 +127,7 @@ class ScheduleQueuedJobs(SchedulerTask):
                         job.compute_resource = backup_resource
                         job.ray_job_id = backup_ray_job_id
 
-                logger.info(
-                    "[scheduler-schedule-jobs] job_id=%s author=%s status=%s",
-                    job.id,
-                    job.author,
-                    job.status,
-                )
+                logger.info("job_id=%s author=%s status=%s Job submitted and updated", job.id, job.author)
         if jobs:
             logger.info("%s jobs are scheduled for execution.", len(jobs))
 

@@ -25,7 +25,7 @@ from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
 
-logger = logging.getLogger("commands")
+logger = logging.getLogger("UpdateJobsStatuses")
 
 
 class UpdateJobsStatuses(SchedulerTask):
@@ -41,7 +41,7 @@ class UpdateJobsStatuses(SchedulerTask):
         """Update status of one job."""
         if not job.compute_resource:
             logger.warning(
-                "Job [%s] does not have compute resource associated with it. Skipping.",
+                "[job_id=%s Job doesn't have ComputeResource. Return false",
                 job.id,
             )
             return False
@@ -54,12 +54,6 @@ class UpdateJobsStatuses(SchedulerTask):
         try:
             job_status = runner.status()
         except RunnerError as ex:
-            logger.warning(
-                "[scheduler-update-status] job_id=%s status=%s reason=ray_error error=%s",
-                job.id,
-                Job.FAILED,
-                str(ex),
-            )
             job.status = Job.FAILED
             job.sub_status = None
             job.env_vars = "{}"
@@ -71,8 +65,17 @@ class UpdateJobsStatuses(SchedulerTask):
                     context=JobEventContext.UPDATE_JOB_STATUS,
                     status=job.status,
                 )
+                logger.warning(
+                    "job_id=%s error=%s Error getting status, set job as FAILED",
+                    job.id,
+                    str(ex),
+                )
             except RecordModifiedError:
-                logger.warning("Job [%s] record has not been updated due to lock.", job.id)
+                logger.warning(
+                    "job_id=%s error=%s Error getting status + RecordModifiedError setting job as FAILED",
+                    job.id,
+                    str(ex),
+                )
 
             return True
 
@@ -88,7 +91,7 @@ class UpdateJobsStatuses(SchedulerTask):
 
         if job_new_status != job.status:
             logger.info(
-                "[scheduler-update-status] job_id=%s author=%s status_from=%s status_to=%s",
+                "job_id=%s author=%s Changing status from %s to %s",
                 job.id,
                 job.author,
                 job.status,
@@ -117,6 +120,13 @@ class UpdateJobsStatuses(SchedulerTask):
             no_resources_log = "No available node types can fulfill resource request"
             if no_resources_log in logs:
                 job_new_status = fail_job_insufficient_resources(job)
+                logger.info(
+                    "job_id=%s author=%s Changing status from %s to %s because Ray error: insufficient resources",
+                    job.id,
+                    job.author,
+                    job.status,
+                    job_new_status,
+                )
                 logs = (
                     "Insufficient resources available to the run job in this "
                     "configuration.\nMax resources allowed are "
@@ -141,10 +151,8 @@ class UpdateJobsStatuses(SchedulerTask):
                     status=job.status,
                 )
         except RecordModifiedError:
-            logger.warning(
-                "[scheduler-update-status] job_id=%s status=lock_retry",
-                job.id,
-            )
+            status_has_changed = False
+            logger.warning("job_id=%s RecordModifiedError on save", job.id)
 
         return status_has_changed
 
@@ -197,10 +205,11 @@ def save_logs_to_storage(job: Job, logs: str):
     if job.program.provider:
         public_logs = filter_logs_with_public_tags(logs)
         logs_storage.save_public_logs(public_logs)
+        logger.info("job_id=%s Provider function. Public logs saved to storage", job.id)
         private_logs = filter_logs_with_non_public_tags(logs)
         logs_storage.save_private_logs(private_logs)
+        logger.info("job_id=%s Provider function. Private logs saved to storage", job.id)
     else:
         filtered_logs = remove_prefix_tags_in_logs(logs)
         logs_storage.save_public_logs(filtered_logs)
-
-    logger.info("Logs saved to storage for job [%s]", job.id)
+        logger.info("job_id=%s Custom function. Public logs saved to storage", job.id)
