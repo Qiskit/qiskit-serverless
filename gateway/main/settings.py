@@ -46,7 +46,7 @@ DEBUG = int(os.environ.get("DEBUG", 1))
 
 # SECURITY WARNING: don't run with debug turned on in production!
 LOG_LEVEL = "DEBUG" if int(os.environ.get("DEBUG", 1)) else "INFO"
-LOG_FORMAT = os.environ.get("LOG_FORMAT", "simple")
+LOG_FORMAT = "json" if os.environ.get("LOG_FORMAT", "simple") == "json" else "simple"
 
 # It must be a full url without protocol: mydomain.com
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
