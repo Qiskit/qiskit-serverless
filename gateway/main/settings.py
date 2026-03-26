@@ -46,6 +46,7 @@ DEBUG = int(os.environ.get("DEBUG", 1))
 
 # SECURITY WARNING: don't run with debug turned on in production!
 LOG_LEVEL = "DEBUG" if int(os.environ.get("DEBUG", 1)) else "INFO"
+LOG_FORMAT = os.environ.get("LOG_FORMAT", "simple")
 
 # It must be a full url without protocol: mydomain.com
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
@@ -130,39 +131,22 @@ LOGGING = {
     "disable_existing_loggers": False,
     "formatters": {
         "simple": {"format": "%(levelname)s %(asctime)s [%(name)s] %(filename)s:(%(lineno)s) %(message)s"},
+        "json": {
+            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "format": "%(asctime)s %(levelname)s %(name)s %(filename)s %(lineno)s %(message)s",
+        },
     },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "formatter": "simple",
+            "formatter": LOG_FORMAT,
         },
     },
     "root": {
         "handlers": ["console"],
         "level": LOG_LEVEL,
     },
-    "loggers": {
-        "commands": {
-            "handlers": ["console"],
-            "level": LOG_LEVEL,
-            "propagate": False,
-        },
-        "gateway": {
-            "handlers": ["console"],
-            "level": LOG_LEVEL,
-            "propagate": False,
-        },
-        "gateway.serializers": {
-            "handlers": ["console"],
-            "level": LOG_LEVEL,
-            "propagate": False,
-        },
-        "gateway.authentication": {
-            "handlers": ["console"],
-            "level": LOG_LEVEL,
-            "propagate": False,
-        },
-    },
+    "loggers": {},
 }
 
 # Database
