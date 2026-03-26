@@ -12,6 +12,7 @@ from django.db import models
 from django_prometheus.models import ExportModelOperationsMixin
 
 from core.config_key import ConfigKey
+from core.model_managers.functions import FunctionsQuerySet
 from core.model_managers.job_events import JobEventQuerySet
 from core.model_managers.jobs import JobQuerySet
 
@@ -130,6 +131,8 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         null=True,
         blank=True,
     )
+
+    objects: FunctionsQuerySet = FunctionsQuerySet.as_manager()
 
     class Meta:
         app_label = "api"

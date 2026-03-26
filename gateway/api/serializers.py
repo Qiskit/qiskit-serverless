@@ -11,11 +11,9 @@ import logging
 from typing import Tuple, Union
 
 from django.conf import settings
+from django.contrib.auth.models import Group
 from rest_framework import serializers
 
-
-from api.repositories.functions import FunctionRepository
-from api.repositories.users import UserRepository
 from api.utils import build_env_variables, sanitize_name
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.services.storage.arguments_storage import ArgumentsStorage
@@ -247,11 +245,8 @@ class RunJobSerializer(serializers.ModelSerializer):
             is assigned to a trial instance in a function
         """
 
-        function_repository = FunctionRepository()
-        user_repository = UserRepository()
-
-        trial_groups = function_repository.get_trial_instances(function=function)
-        user_run_groups = user_repository.get_groups_by_permissions(user=author, permission_name=RUN_PROGRAM_PERMISSION)
+        trial_groups = function.trial_instances.all()
+        user_run_groups = Group.objects.filter(user=author, permissions__codename=RUN_PROGRAM_PERMISSION)
 
         return any(group in trial_groups for group in user_run_groups)
 

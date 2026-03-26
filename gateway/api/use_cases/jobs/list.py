@@ -6,14 +6,11 @@ from django.contrib.auth.models import AbstractUser
 
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from core.model_managers.jobs import JobFilters
-from core.models import Job
-from api.repositories.functions import FunctionRepository
+from core.models import Job, Program as Function
 
 
 class JobsListUseCase:
     """Use case for retrieving user jobs with optional filtering and pagination."""
-
-    function_repository = FunctionRepository()
 
     def execute(self, user: AbstractUser, filters: JobFilters) -> tuple[List[Job], int]:
         """
@@ -24,7 +21,7 @@ class JobsListUseCase:
         """
         # ensure function exists if filtered
         if filters.function:
-            function = self.function_repository.get_function(
+            function = Function.objects.get_function(
                 function_title=filters.function,
                 provider_name=filters.provider,
             )
