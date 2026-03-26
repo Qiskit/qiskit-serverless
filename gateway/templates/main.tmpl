@@ -28,6 +28,6 @@ except ServerlessError as e:
     raise
 except Exception as e:
     error_type = type(e).__name__
-    send_error(1, traceback.format_exception_only(e), error_type)
+    send_error(1, '\n'.join(traceback.format_exception_only(e)), error_type)
     save_result(traceback.format_exception_only(e))
     raise
