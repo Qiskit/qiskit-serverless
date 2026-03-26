@@ -120,7 +120,7 @@ class FileStorage:
         path_to_file = sanitize_file_path(os.path.join(self.absolute_path, file_name_path))
 
         if not os.path.exists(path_to_file):
-            logger.warning("[get_file_stream] File not found: ", path_to_file)
+            logger.warning("[get_file_stream] File not found: %s", path_to_file)
             return None
 
         def _stream_chunks():
@@ -177,7 +177,7 @@ class FileStorage:
         try:
             os.remove(path_to_file)
         except FileNotFoundError:
-            logger.warning("[remove_file] File not found: ", path_to_file)
+            logger.warning("[remove_file] File not found: %s", path_to_file)
             return False
         except OSError as ex:
             logger.warning("[remove_file] Error deleting %s | OSError: %s", path_to_file, ex.strerror)
