@@ -1,5 +1,5 @@
 """
-This class defines TypeFilter enum for views:
+This class defines TypeFilter enum:
 """
 
 from enum import Enum
