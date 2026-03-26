@@ -5,7 +5,7 @@ Use case for saving job results.
 from uuid import UUID
 import logging
 from django.contrib.auth.models import AbstractUser
-from api.repositories.jobs import JobsRepository
+from django.core.exceptions import ObjectDoesNotExist
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.access_policies.jobs import JobAccessPolicies
 from core.services.storage.result_storage import ResultStorage
@@ -18,8 +18,6 @@ class JobSaveResultUseCase:
     """
     Use case for saving the result of a Job.
     """
-
-    jobs_repository = JobsRepository()
 
     def execute(self, job_id: UUID, user: AbstractUser, result: str) -> Job:
         """Save a result for a given job.
@@ -35,8 +33,9 @@ class JobSaveResultUseCase:
         Returns:
             Job: The updated job object with the stored result.
         """
-        job = self.jobs_repository.get_job_by_id(job_id)
-        if job is None:
+        try:
+            job = Job.objects.get(id=job_id)
+        except ObjectDoesNotExist:
             raise JobNotFoundException(job_id)
 
         can_save_result = JobAccessPolicies.can_save_result(user, job)

@@ -4,23 +4,21 @@ import logging
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ObjectDoesNotExist
 
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.invalid_access_exception import InvalidAccessException
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from core.models import Job, JobEvent
-from api.repositories.jobs import JobsRepository
 from core.utils import retry_function
 from core.services.job_status import update_job_status
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
-logger = logging.getLogger("api.SetJobSubStatusUseCase")
+logger = logging.getLogger("gateway.use_cases.jobs")
 
 
 class SetJobSubStatusUseCase:
     """Set a job's sub_status if the user can and the job is RUNNING."""
-
-    jobs_repository = JobsRepository()
 
     def execute(self, job_id: UUID, user: AbstractUser, sub_status: str) -> Job:
         """
@@ -38,17 +36,21 @@ class SetJobSubStatusUseCase:
             JobNotFoundException: If the job does not exist or access is denied.
             ForbiddenError: If the job is not in RUNNING status.
         """
-        job = self.jobs_repository.get_job_by_id(job_id)
-        if job is None:
-            raise JobNotFoundException(str(job_id))
+        try:
+            job = Job.objects.get(id=job_id)
+        except ObjectDoesNotExist:
+            raise JobNotFoundException(job_id)
 
         can_update_sub_status = JobAccessPolicies.can_update_sub_status(user, job)
         if not can_update_sub_status:
             raise JobNotFoundException(str(job_id))
 
         update_job_status(job)
+        old_sub_status = job.sub_status
 
-        if job.status != Job.RUNNING:
+        updated = Job.objects.filter(id=job.id, status=Job.RUNNING).update(sub_status=sub_status)
+
+        if not updated:
             logger.warning(
                 "[set-sub-status] job_id=%s user_id=%s status=%s | Sub-status update rejected (not RUNNING)",
                 job.id,
@@ -59,24 +61,12 @@ class SetJobSubStatusUseCase:
                 "Cannot update 'sub_status' when is not" f" in RUNNING status. (Currently {job.status})"
             )
 
-        def set_sub_status():
-            self.jobs_repository.update_job_sub_status(job, sub_status)
-            job.refresh_from_db()
-
-        old_sub_status = job.sub_status
-
-        retry_function(
-            callback=set_sub_status,
-            error_message=f"Job[{job_id}] record has not been updated due to lock.",
-            error_message_level=logging.WARNING,
-        )
-
-        if old_sub_status != job.sub_status:
+        if old_sub_status != sub_status:
             JobEvent.objects.add_sub_status_event(
                 job_id=job.id,
                 origin=JobEventOrigin.API,
                 context=JobEventContext.SET_SUB_STATUS,
-                sub_status=job.sub_status,
+                sub_status=sub_status,
             )
             logger.info(
                 "[set-sub-status] job_id=%s user_id=%s sub_status=%s | Sub-status updated ok",
@@ -84,5 +74,7 @@ class SetJobSubStatusUseCase:
                 user.id,
                 job.sub_status,
             )
+
+        job.refresh_from_db()
 
         return job
