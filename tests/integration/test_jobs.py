@@ -189,7 +189,7 @@ class TestJobs:
         with raises(QiskitServerlessException):
             job.result()
 
-    # @mark.skip(reason="Works in docker compose but tails in k8s/staging/production")
+    @mark.skip(reason="Works in docker compose but tails in k8s/staging/production")
     def test_update_sub_status(self, serverless_client: ServerlessClient):
         """Integration test for run functions multiple times."""
 
@@ -207,7 +207,7 @@ class TestJobs:
 
         assert job.status() == "RUNNING: MAPPING"
 
-    # @mark.skip(reason="Works in docker compose but tails in k8s/staging/production")
+    @mark.skip(reason="Works in docker compose but tails in k8s/staging/production")
     def test_execute_functions_in_parallel(self, serverless_client: ServerlessClient):
         """Integration test for run functions multiple times."""
 

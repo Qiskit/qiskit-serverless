@@ -39,7 +39,7 @@ class FreeResources(SchedulerTask):
 def free_compute_resource(job: Job):
     """Free the compute resource associated with a terminal job."""
     compute_resource = job.compute_resource
-    runner_client = get_runner_client(job)
+    runner_client = get_runner(job)
     success = runner_client.free_resources()
     if success:
         compute_resource.active = False
