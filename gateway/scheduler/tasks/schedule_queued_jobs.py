@@ -133,13 +133,22 @@ class ScheduleQueuedJobs(SchedulerTask):
                         job.compute_resource = backup_resource
                         job.ray_job_id = backup_ray_job_id
 
-                retries = settings.RAY_SETUP_MAX_RETRIES - attempts - (1 if succeed else 0)
-                logger.info(
-                    "job_id=%s Job updated set to PENDING (%.2fs) retries=%s",
-                    job.id,
-                    time.monotonic() - t1,
-                    retries,
-                )
+                tries = settings.RAY_SETUP_MAX_RETRIES - attempts
+                if succeed:
+                  logger.info(
+                      "job_id=%s Job updated set to PENDING (%.2fs) tries=%s",
+                      job.id,
+                      time.monotonic() - t1,
+                      retries,
+                  )
+                else:
+                  # or even error
+                  logger.warning(
+                      "job_id=%s Job is not correctly updated to PENDING (%.2fs) tries=%s",
+                      job.id,
+                      time.monotonic() - t1,
+                      retries,
+                  )
         if jobs:
             logger.info("%s jobs are scheduled for execution.", len(jobs))
 
