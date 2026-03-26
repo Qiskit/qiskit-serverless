@@ -1,0 +1,5 @@
+---
+prelude: >
+    ``qiskit_serverless v0.30.1`` is a small patch release that fixes a minor client issue, introduces
+    a series of API/Gateway/Scheduler improvements that increase the health of the deployed service, and
+    updates the base image with the newest dependency versions.

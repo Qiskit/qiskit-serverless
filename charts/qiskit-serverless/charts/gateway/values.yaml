@@ -28,7 +28,7 @@ application:
     enable: true
   maintenance: false
   ray:
-    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.30.0"
+    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.30.1"
     cpu: 2
     memory: 2
     gpu: 1
@@ -36,7 +36,7 @@ application:
     minReplicas: 1
     maxReplicas: 4
     opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-9
-    kubectlImage: alpine/k8s:1.35.0
+    kubectlImage: alpine/k8s:1.35.2
     scrapeWithPrometheus: true
     openTelemetry: false
     openTelemetryCollector:
@@ -124,9 +124,11 @@ serviceAccount:
   # If not set and create is true, a name is generated using the fullname template
   name: ""
 
-podAnnotations:
-  prometheus.io/scrape: "true"
-
+gateway:
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: "/metrics"
+    prometheus.io/port: "8000"
 
 podSecurityContext:
   fsGroup: 1000
@@ -169,6 +171,10 @@ resources:
     cpu: "500m"
     memory: "700Mi"
 scheduler:
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: "/metrics"
+    prometheus.io/port: "8001"
   siteHost: "http://0.0.0.0:8001"
   port: 8001
   resources:

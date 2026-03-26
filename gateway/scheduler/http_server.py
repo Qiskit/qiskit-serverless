@@ -11,7 +11,9 @@ from wsgiref.simple_server import WSGIRequestHandler, WSGIServer, make_server
 from django.core.handlers.wsgi import WSGIRequest
 from django.http import HttpResponse
 
-from scheduler.views.probes import not_found
+from scheduler.health import SchedulerHealth
+from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
+from scheduler.views.probes import make_liveness, not_found
 
 logger = logging.getLogger("main")
 
@@ -21,18 +23,28 @@ class SchedulerHttpServer:
 
     def __init__(self, site_host: str):
         parsed = urlparse(site_host)
-        self._host = parsed.hostname or "0.0.0.0"
-        self._port = parsed.port or 8001
+        self._site_host = site_host
+        self._host = parsed.hostname
+        self._port = parsed.port
         self._routes: dict = {}
         self._not_found_handler = create_request_handler(not_found)
         self._httpd: WSGIServer | None = None
         self._thread: threading.Thread | None = None
         self._running = False
 
+    def configure_routes(self, scheduler_metrics: SchedulerMetrics, health: SchedulerHealth) -> None:
+        """Configure standard routes (probes and optionally metrics)."""
+        self.add_path_handler("/liveness", make_liveness(health))
+        self.add_wsgi_handler("/metrics", scheduler_metrics.wsgi_app)
+
     def add_path_handler(self, path: str, func):
         """Register a handler for the given path."""
+        self.add_wsgi_handler(path, create_request_handler(func))
+
+    def add_wsgi_handler(self, path: str, wsgi_handler):
+        """Register a raw WSGI application for the given path (no Django wrapper)."""
         logger.info("Adding %s", path)
-        self._routes[path] = create_request_handler(func)
+        self._routes[path] = wsgi_handler
 
     def set_not_found_handler(self, func):
         """Set the handler for unmatched paths."""
@@ -55,9 +67,9 @@ class SchedulerHttpServer:
         self._thread.start()
         if not self._wait_for_server():
             self.stop()
-            raise RuntimeError(f"HTTP server failed to start on {self._host}:{self._port}")
+            raise RuntimeError(f"HTTP server failed to start on {self._site_host}")
         self._running = True
-        logger.info("Scheduler HTTP server started on %s:%s", self._host, self._port)
+        logger.info("Scheduler HTTP server started on %s", self._site_host)
 
     def _wait_for_server(self, timeout: float = 1.0) -> bool:
         """Wait until the server is accepting connections."""

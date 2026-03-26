@@ -2,14 +2,14 @@
 
 import os
 import json
-import tempfile
+import pytest
 from unittest.mock import patch
 
 from django.contrib.auth import models
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.files import File
-from django.test import override_settings
-from rest_framework.test import APITestCase
+from django.core.management import call_command
+
 from api.domain.authentication.channel import Channel
 from api.v1.serializers import (
     JobConfigSerializer,
@@ -21,20 +21,14 @@ from core.models import JobConfig, Program
 from tests.utils import TestUtils
 
 
-@override_settings(GATEWAY_DYNAMIC_DEPENDENCIES="../ray-node/requirements-test-dynamic-dependencies.txt")
-class SerializerTest(APITestCase):
+class TestSerializers:
     """Tests for serializer."""
 
-    fixtures = ["tests/fixtures/fixtures.json"]
-
-    def setUp(self):
-        super().setUp()
-        self._temp_directory = tempfile.TemporaryDirectory()
-        self.MEDIA_ROOT = self._temp_directory.name
-
-    def tearDown(self):
-        self._temp_directory.cleanup()
-        super().tearDown()
+    @pytest.fixture(autouse=True)
+    def _setup(self, tmp_path, settings, db):
+        call_command("loaddata", "tests/fixtures/fixtures.json")
+        settings.MEDIA_ROOT = str(tmp_path)
+        settings.GATEWAY_DYNAMIC_DEPENDENCIES = "../ray-node/requirements-test-dynamic-dependencies.txt"
 
     def test_JobConfigSerializer(self):
         data = '{"workers": null, "min_workers": 1, "max_workers": 5, "auto_scaling": true}'
@@ -85,23 +79,22 @@ class SerializerTest(APITestCase):
         data["dependencies"] = dependencies
         data["artifact"] = upload_file
 
-        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            serializer = UploadProgramSerializer(data=data)
-            self.assertTrue(serializer.is_valid())
+        serializer = UploadProgramSerializer(data=data)
+        assert serializer.is_valid()
 
-            program: Program = serializer.save(author=user)
-            self.assertEqual(title, program.title)
-            self.assertEqual(type, program.type)
-            self.assertEqual(entrypoint, program.entrypoint)
-            self.assertEqual(dependencies, program.dependencies)
+        program: Program = serializer.save(author=user)
+        assert title == program.title
+        assert type == program.type
+        assert entrypoint == program.entrypoint
+        assert dependencies == program.dependencies
 
     def test_upload_program_serializer_check_empty_data(self):
         data = {}
 
         serializer = UploadProgramSerializer(data=data)
-        self.assertFalse(serializer.is_valid())
+        assert not serializer.is_valid()
         errors = serializer.errors
-        self.assertListEqual(["title"], list(errors.keys()))
+        assert ["title"] == list(errors.keys())
 
     def test_upload_program_serializer_fails_at_validation(self):
         path_to_resource_artifact = os.path.join(
@@ -126,9 +119,9 @@ class SerializerTest(APITestCase):
         data["dependencies"] = dependencies
 
         serializer = UploadProgramSerializer(data=data)
-        self.assertFalse(serializer.is_valid())
+        assert not serializer.is_valid()
         errors = serializer.errors
-        self.assertListEqual(["dependencies"], list(errors.keys()))
+        assert ["dependencies"] == list(errors.keys())
 
     def test_upload_program_with_custom_image_and_provider(self):
         """Tests image upload serializer."""
@@ -148,8 +141,8 @@ class SerializerTest(APITestCase):
         data["provider"] = provider
 
         serializer = UploadProgramSerializer(data=data)
-        self.assertTrue(serializer.is_valid())
-        self.assertTrue("image" in list(serializer.validated_data.keys()))
+        assert serializer.is_valid()
+        assert "image" in list(serializer.validated_data.keys())
 
     def test_upload_program_with_custom_image_and_title_provider(self):
         """Tests image upload serializer."""
@@ -167,8 +160,8 @@ class SerializerTest(APITestCase):
         data["image"] = image
 
         serializer = UploadProgramSerializer(data=data)
-        self.assertTrue(serializer.is_valid())
-        self.assertTrue("image" in list(serializer.validated_data.keys()))
+        assert serializer.is_valid()
+        assert "image" in list(serializer.validated_data.keys())
 
     def test_custom_image_without_provider(self):
         """Tests image upload serializer."""
@@ -186,15 +179,15 @@ class SerializerTest(APITestCase):
         data["image"] = image
 
         serializer = UploadProgramSerializer(data=data)
-        self.assertFalse(serializer.is_valid())
+        assert not serializer.is_valid()
 
     def test_run_program_serializer_check_emtpy_data(self):
         data = {}
 
         serializer = RunProgramSerializer(data=data)
-        self.assertFalse(serializer.is_valid())
+        assert not serializer.is_valid()
         errors = serializer.errors
-        self.assertListEqual(["title", "arguments", "config"], list(errors.keys()))
+        assert ["title", "arguments", "config"] == list(errors.keys())
 
     def test_run_program_serializer_fails_at_validation(self):
         data = {
@@ -204,9 +197,9 @@ class SerializerTest(APITestCase):
         }
 
         serializer = RunProgramSerializer(data=data)
-        self.assertFalse(serializer.is_valid())
+        assert not serializer.is_valid()
         errors = serializer.errors
-        self.assertListEqual(["arguments"], list(errors.keys()))
+        assert ["arguments"] == list(errors.keys())
 
     def test_run_program_serializer_config_json(self):
         assert_json = {
@@ -222,11 +215,11 @@ class SerializerTest(APITestCase):
         }
 
         serializer = RunProgramSerializer(data=data)
-        self.assertTrue(serializer.is_valid())
+        assert serializer.is_valid()
 
         config = serializer.data.get("config")
-        self.assertEqual(type(assert_json), type(config))
-        self.assertDictEqual(assert_json, config)
+        assert type(assert_json) == type(config)
+        assert assert_json == config
 
     def test_run_job_serializer_creates_job(self):
         user = models.User.objects.get(username="test_user")
@@ -247,24 +240,23 @@ class SerializerTest(APITestCase):
         job_serializer = RunJobSerializer(data=job_data)
         job_serializer.is_valid()
 
-        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            job = job_serializer.save(
-                channel=Channel.IBM_QUANTUM_PLATFORM,
-                author=user,
-                carrier={},
-                token="my_token",
-                config=jobconfig,
-            )
-            env_vars = json.loads(job.env_vars)
+        job = job_serializer.save(
+            channel=Channel.IBM_QUANTUM_PLATFORM,
+            author=user,
+            carrier={},
+            token="my_token",
+            config=jobconfig,
+        )
+        env_vars = json.loads(job.env_vars)
 
-            self.assertIsNotNone(job)
-            self.assertIsNotNone(job.program)
-            self.assertIsNotNone(job.arguments)
-            self.assertIsNotNone(job.config)
-            self.assertIsNotNone(job.author)
-            self.assertFalse(job.gpu)
-            self.assertTrue(env_vars["PROGRAM_ENV1"] == "VALUE1")
-            self.assertTrue(env_vars["PROGRAM_ENV2"] == "VALUE2")
+        assert job is not None
+        assert job.program is not None
+        assert job.arguments is not None
+        assert job.config is not None
+        assert job.author is not None
+        assert not job.gpu
+        assert env_vars["PROGRAM_ENV1"] == "VALUE1"
+        assert env_vars["PROGRAM_ENV2"] == "VALUE2"
 
     @patch("api.serializers.create_gpujob_allowlist")
     def test_run_job_serializer_sets_gpu_flag_for_gpu_provider(self, mock_gpujob_allowlist):
@@ -272,34 +264,32 @@ class SerializerTest(APITestCase):
         mock_gpujob_allowlist.return_value = {"gpu-functions": {"gpu_provider": []}}
 
         user = models.User.objects.get(username="test_user")
-        program = TestUtils.create_program(author=user, provider_admin="gpu_provider")
+        program = TestUtils.create_program(program_title="Default-Program", author=user, provider="gpu_provider")
 
         job_data = {"program": program.id}
         job_serializer = RunJobSerializer(data=job_data)
         job_serializer.is_valid()
 
-        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            job = job_serializer.save(
-                channel=Channel.IBM_QUANTUM_PLATFORM,
-                author=user,
-                carrier={},
-                token="my_token",
-            )
+        job = job_serializer.save(
+            channel=Channel.IBM_QUANTUM_PLATFORM,
+            author=user,
+            carrier={},
+            token="my_token",
+        )
 
-            self.assertTrue(job.gpu)
+        assert job.gpu
 
     def test_upload_program_serializer_with_only_title(self):
         """Tests upload serializer with only title."""
         data = {"title": "awesome"}
 
         serializer = UploadProgramSerializer(data=data)
-        self.assertFalse(serializer.is_valid())
+        assert not serializer.is_valid()
         errors = serializer.errors
-        self.assertListEqual(["non_field_errors"], list(errors.keys()))
-        self.assertListEqual(
-            ["At least one of attributes (entrypoint, image) is required."],
-            [value[0] for value in errors.values()],
-        )
+        assert ["non_field_errors"] == list(errors.keys())
+        assert ["At least one of attributes (entrypoint, image) is required."] == [
+            value[0] for value in errors.values()
+        ]
 
     def test_upload_program_serializer_allowed_dependencies_basic(self):
         data = {}
@@ -308,7 +298,7 @@ class SerializerTest(APITestCase):
         data["dependencies"] = '["pendulum"]'
 
         serializer = UploadProgramSerializer(data=data)
-        self.assertTrue(serializer.is_valid(), serializer.errors)
+        assert serializer.is_valid(), serializer.errors
 
     def test_upload_program_serializer_allowed_dependencies_multi(self):
         data = {}
@@ -317,7 +307,7 @@ class SerializerTest(APITestCase):
         data["dependencies"] = '["pendulum", "wheel"]'
 
         serializer = UploadProgramSerializer(data=data)
-        self.assertTrue(serializer.is_valid(), serializer.errors)
+        assert serializer.is_valid(), serializer.errors
 
     def test_upload_program_serializer_allowed_dependencies_versions(self):
         data = {}
@@ -326,7 +316,7 @@ class SerializerTest(APITestCase):
         data["dependencies"] = '["wheel==3.0.0","pendulum==3.0.0"]'
 
         serializer = UploadProgramSerializer(data=data)
-        self.assertTrue(serializer.is_valid(), serializer.errors)
+        assert serializer.is_valid(), serializer.errors
 
     def test_upload_program_serializer_allowed_dependencies_objects(self):
         data = {}
@@ -335,7 +325,7 @@ class SerializerTest(APITestCase):
         data["dependencies"] = '[{"wheel":"3.0.0"},{"pendulum":"==3.0.0"}]'
 
         serializer = UploadProgramSerializer(data=data)
-        self.assertTrue(serializer.is_valid(), serializer.errors)
+        assert serializer.is_valid(), serializer.errors
 
     def test_upload_program_serializer_allowed_dependencies_mixed(self):
         data = {}
@@ -344,7 +334,7 @@ class SerializerTest(APITestCase):
         data["dependencies"] = '[{"wheel":"3.0.0"},"pendulum==3.0.0"]'
 
         serializer = UploadProgramSerializer(data=data)
-        self.assertTrue(serializer.is_valid(), serializer.errors)
+        assert serializer.is_valid(), serializer.errors
 
     def test_upload_program_serializer_blocked_dependency(self):
         data = {}
@@ -353,7 +343,7 @@ class SerializerTest(APITestCase):
         data["dependencies"] = '["notavailableone"]'
 
         serializer = UploadProgramSerializer(data=data)
-        self.assertFalse(serializer.is_valid(), serializer.errors)
+        assert not serializer.is_valid(), serializer.errors
 
     def test_upload_program_serializer_blocked_dependency_version(self):
         data = {}
@@ -362,7 +352,7 @@ class SerializerTest(APITestCase):
         data["dependencies"] = '["pendulum==2.0.0"]'
 
         serializer = UploadProgramSerializer(data=data)
-        self.assertFalse(serializer.is_valid(), serializer.errors)
+        assert not serializer.is_valid(), serializer.errors
 
     def test_upload_program_serializer_blocked_dependency_object_version(self):
         data = {}
@@ -371,7 +361,7 @@ class SerializerTest(APITestCase):
         data["dependencies"] = '[{"wheel":"0.1.0"},{"pendulum":"==1.0.0"}]'
 
         serializer = UploadProgramSerializer(data=data)
-        self.assertFalse(serializer.is_valid(), serializer.errors)
+        assert not serializer.is_valid(), serializer.errors
 
     def test_upload_program_serializer_blocked_dependency_operator(self):
         data = {}
@@ -380,7 +370,7 @@ class SerializerTest(APITestCase):
         data["dependencies"] = '["pendulum>=3.0.0"]'
 
         serializer = UploadProgramSerializer(data=data)
-        self.assertFalse(serializer.is_valid(), serializer.errors)
+        assert not serializer.is_valid(), serializer.errors
 
     def test_upload_program_serializer_malformed_dependency(self):
         data = {}
@@ -389,7 +379,7 @@ class SerializerTest(APITestCase):
         data["dependencies"] = '{"pendulum": ">=3.0.0"}'
 
         serializer = UploadProgramSerializer(data=data)
-        self.assertFalse(serializer.is_valid(), serializer.errors)
+        assert not serializer.is_valid(), serializer.errors
 
     def test_upload_program_serializer_updates_program_without_description(self):
         path_to_resource_artifact = os.path.join(
@@ -417,20 +407,19 @@ class SerializerTest(APITestCase):
         data["description"] = description
         data["artifact"] = upload_file
 
-        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            serializer = UploadProgramSerializer(data=data)
-            serializer.is_valid()
-            program: Program = serializer.save(author=user)
-            self.assertEqual(description, program.description)
+        serializer = UploadProgramSerializer(data=data)
+        serializer.is_valid()
+        program: Program = serializer.save(author=user)
+        assert description == program.description
 
-            data_without_description = {}
-            data_without_description["title"] = title
-            data_without_description["entrypoint"] = entrypoint
-            data_without_description["arguments"] = arguments
-            data_without_description["dependencies"] = dependencies
-            data_without_description["artifact"] = upload_file
+        data_without_description = {}
+        data_without_description["title"] = title
+        data_without_description["entrypoint"] = entrypoint
+        data_without_description["arguments"] = arguments
+        data_without_description["dependencies"] = dependencies
+        data_without_description["artifact"] = upload_file
 
-            serializer_2 = UploadProgramSerializer(program, data=data_without_description)
-            serializer_2.is_valid()
-            program_2: Program = serializer_2.save(author=user)
-            self.assertEqual(description, program_2.description)
+        serializer_2 = UploadProgramSerializer(program, data=data_without_description)
+        serializer_2.is_valid()
+        program_2: Program = serializer_2.save(author=user)
+        assert description == program_2.description

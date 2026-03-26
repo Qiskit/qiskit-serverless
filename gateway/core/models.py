@@ -12,7 +12,9 @@ from django.db import models
 from django_prometheus.models import ExportModelOperationsMixin
 
 from core.config_key import ConfigKey
+from core.model_managers.functions import FunctionsQuerySet
 from core.model_managers.job_events import JobEventQuerySet
+from core.model_managers.jobs import JobQuerySet
 
 logger = logging.getLogger("gateway")
 
@@ -129,6 +131,8 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         null=True,
         blank=True,
     )
+
+    objects: FunctionsQuerySet = FunctionsQuerySet.as_manager()
 
     class Meta:
         app_label = "api"
@@ -284,6 +288,8 @@ class Job(models.Model):
         blank=True,
     )
     program = models.ForeignKey(to=Program, on_delete=models.SET_NULL, null=True)
+
+    objects: JobQuerySet = JobQuerySet.as_manager()
 
     class Meta:
         app_label = "api"

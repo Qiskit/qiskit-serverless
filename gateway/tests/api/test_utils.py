@@ -1,8 +1,7 @@
 """Tests for utilities."""
 
+import pytest
 from unittest.mock import MagicMock
-
-from rest_framework.test import APITestCase
 
 from api.domain.authentication.channel import Channel
 from api.utils import (
@@ -17,269 +16,249 @@ from core.utils import (
 )
 
 
-class TestUtils(APITestCase):
+class TestUtils:
     """TestUtils."""
 
-    def test_ibm_cloud_env_var_build(self):
+    def test_ibm_cloud_env_var_build(self, settings):
         """This test is to test the env_vars for an IBM Cloud authentication process."""
+        settings.SETTINGS_AUTH_MECHANISM = "custom_token"
+        channel = Channel.IBM_QUANTUM_PLATFORM
+        token = "an_awesome_api_key"
+        job = MagicMock()
+        job.id = "42"
+        trial = False
+        arguments = "{}"
+        instance = "an_awesome_crn"
 
-        with self.settings(SETTINGS_AUTH_MECHANISM="custom_token"):
-            channel = Channel.IBM_QUANTUM_PLATFORM
-            token = "an_awesome_api_key"
-            job = MagicMock()
-            job.id = "42"
-            trial = False
-            arguments = "{}"
-            instance = "an_awesome_crn"
+        env_vars = build_env_variables(
+            channel=channel,
+            token=token,
+            job=job,
+            trial_mode=trial,
+            args=arguments,
+            instance=instance,
+        )
 
-            env_vars = build_env_variables(
-                channel=channel,
-                token=token,
-                job=job,
-                trial_mode=trial,
-                args=arguments,
-                instance=instance,
-            )
+        assert env_vars == {
+            "ENV_JOB_GATEWAY_TOKEN": "an_awesome_api_key",
+            "ENV_JOB_GATEWAY_INSTANCE": "an_awesome_crn",
+            "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
+            "ENV_JOB_ID_GATEWAY": "42",
+            "ENV_JOB_ARGUMENTS": "{}",
+            "ENV_ACCESS_TRIAL": "False",
+            "DATA_PATH": "/data",
+            "QISKIT_IBM_TOKEN": "an_awesome_api_key",
+            "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
+            "QISKIT_IBM_INSTANCE": "an_awesome_crn",
+            "QISKIT_IBM_URL": "https://cloud.ibm.com",
+        }
 
-            self.assertEqual(
-                env_vars,
-                {
-                    "ENV_JOB_GATEWAY_TOKEN": "an_awesome_api_key",
-                    "ENV_JOB_GATEWAY_INSTANCE": "an_awesome_crn",
-                    "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
-                    "ENV_JOB_ID_GATEWAY": "42",
-                    "ENV_JOB_ARGUMENTS": "{}",
-                    "ENV_ACCESS_TRIAL": "False",
-                    "DATA_PATH": "/data",
-                    "QISKIT_IBM_TOKEN": "an_awesome_api_key",
-                    "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
-                    "QISKIT_IBM_INSTANCE": "an_awesome_crn",
-                    "QISKIT_IBM_URL": "https://cloud.ibm.com",
-                },
-            )
-
-    def test_ibm_cloud_local_env_var_build(self):
+    def test_ibm_cloud_local_env_var_build(self, settings):
         """This test is to test the env_vars for an IBM Cloud authentication process."""
+        settings.SETTINGS_AUTH_MECHANISM = "custom_token"
+        settings.RAY_CLUSTER_MODE_LOCAL = True
+        channel = Channel.IBM_QUANTUM_PLATFORM
+        token = "an_awesome_api_key"
+        job = MagicMock()
+        job.author.username = "IBMid-691000IC75"
+        job.program.provider = None
+        job.id = "42"
+        trial = False
+        arguments = "{}"
+        instance = "an_awesome_crn"
 
-        with self.settings(SETTINGS_AUTH_MECHANISM="custom_token", RAY_CLUSTER_MODE_LOCAL=True):
-            channel = Channel.IBM_QUANTUM_PLATFORM
-            token = "an_awesome_api_key"
-            job = MagicMock()
-            job.author.username = "IBMid-691000IC75"
-            job.program.provider = None
-            job.id = "42"
-            trial = False
-            arguments = "{}"
-            instance = "an_awesome_crn"
+        env_vars = build_env_variables(
+            channel=channel,
+            token=token,
+            job=job,
+            trial_mode=trial,
+            args=arguments,
+            instance=instance,
+        )
 
-            env_vars = build_env_variables(
-                channel=channel,
-                token=token,
-                job=job,
-                trial_mode=trial,
-                args=arguments,
-                instance=instance,
-            )
+        assert env_vars == {
+            "ENV_JOB_GATEWAY_TOKEN": "an_awesome_api_key",
+            "ENV_JOB_GATEWAY_INSTANCE": "an_awesome_crn",
+            "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
+            "ENV_JOB_ID_GATEWAY": "42",
+            "ENV_JOB_ARGUMENTS": "{}",
+            "ENV_ACCESS_TRIAL": "False",
+            "DATA_PATH": "/data/IBMid-691000IC75",
+            "QISKIT_IBM_TOKEN": "an_awesome_api_key",
+            "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
+            "QISKIT_IBM_INSTANCE": "an_awesome_crn",
+            "QISKIT_IBM_URL": "https://cloud.ibm.com",
+        }
 
-            self.assertEqual(
-                env_vars,
-                {
-                    "ENV_JOB_GATEWAY_TOKEN": "an_awesome_api_key",
-                    "ENV_JOB_GATEWAY_INSTANCE": "an_awesome_crn",
-                    "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
-                    "ENV_JOB_ID_GATEWAY": "42",
-                    "ENV_JOB_ARGUMENTS": "{}",
-                    "ENV_ACCESS_TRIAL": "False",
-                    "DATA_PATH": "/data/IBMid-691000IC75",
-                    "QISKIT_IBM_TOKEN": "an_awesome_api_key",
-                    "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
-                    "QISKIT_IBM_INSTANCE": "an_awesome_crn",
-                    "QISKIT_IBM_URL": "https://cloud.ibm.com",
-                },
-            )
-
-    def test_local_env_var_build(self):
+    def test_local_env_var_build(self, settings):
         """This test is to test the env_vars for a local authentication process."""
+        settings.SETTINGS_AUTH_MECHANISM = "mock_token"
+        settings.RAY_CLUSTER_MODE_LOCAL = True
+        channel = Channel.LOCAL
+        token = "mock_token"
+        job = MagicMock()
+        job.author.username = "IBMid-691000IC75"
+        job.program.provider = None
+        job.id = "42"
+        trial = False
+        arguments = "{}"
+        instance = None
 
-        with self.settings(SETTINGS_AUTH_MECHANISM="mock_token", RAY_CLUSTER_MODE_LOCAL=True):
-            channel = Channel.LOCAL
-            token = "mock_token"
-            job = MagicMock()
-            job.author.username = "IBMid-691000IC75"
-            job.program.provider = None
-            job.id = "42"
-            trial = False
-            arguments = "{}"
-            instance = None
+        env_vars = build_env_variables(
+            channel=channel,
+            token=token,
+            job=job,
+            trial_mode=trial,
+            args=arguments,
+            instance=instance,
+        )
 
-            env_vars = build_env_variables(
-                channel=channel,
-                token=token,
-                job=job,
-                trial_mode=trial,
-                args=arguments,
-                instance=instance,
-            )
+        assert env_vars == {
+            "ENV_JOB_GATEWAY_TOKEN": "mock_token",
+            "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
+            "ENV_JOB_ID_GATEWAY": "42",
+            "ENV_JOB_ARGUMENTS": "{}",
+            "ENV_ACCESS_TRIAL": "False",
+            "DATA_PATH": "/data/IBMid-691000IC75",
+            "QISKIT_IBM_TOKEN": "mock_token",
+            "QISKIT_IBM_CHANNEL": "local",
+            "QISKIT_IBM_URL": "https://cloud.ibm.com",
+        }
 
-            self.assertEqual(
-                env_vars,
-                {
-                    "ENV_JOB_GATEWAY_TOKEN": "mock_token",
-                    "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
-                    "ENV_JOB_ID_GATEWAY": "42",
-                    "ENV_JOB_ARGUMENTS": "{}",
-                    "ENV_ACCESS_TRIAL": "False",
-                    "DATA_PATH": "/data/IBMid-691000IC75",
-                    "QISKIT_IBM_TOKEN": "mock_token",
-                    "QISKIT_IBM_CHANNEL": "local",
-                    "QISKIT_IBM_URL": "https://cloud.ibm.com",
-                },
-            )
-
-    def test_ibm_cloud_local_provider_env_var_build(self):
+    def test_ibm_cloud_local_provider_env_var_build(self, settings):
         """Test env_vars for IBM Cloud authentication with provider function in local mode."""
+        settings.SETTINGS_AUTH_MECHANISM = "custom_token"
+        settings.RAY_CLUSTER_MODE_LOCAL = True
+        channel = Channel.IBM_QUANTUM_PLATFORM
+        token = "an_awesome_api_key"
+        job = MagicMock()
+        job.author.username = "IBMid-691000IC75"
+        job.program.title = "my-function"
+        job.program.provider = MagicMock()
+        job.program.provider.name = "mockprovider"
+        job.id = "42"
+        trial = False
+        arguments = "{}"
+        instance = "an_awesome_crn"
 
-        with self.settings(SETTINGS_AUTH_MECHANISM="custom_token", RAY_CLUSTER_MODE_LOCAL=True):
-            channel = Channel.IBM_QUANTUM_PLATFORM
-            token = "an_awesome_api_key"
-            job = MagicMock()
-            job.author.username = "IBMid-691000IC75"
-            job.program.title = "my-function"
-            job.program.provider = MagicMock()
-            job.program.provider.name = "mockprovider"
-            job.id = "42"
-            trial = False
-            arguments = "{}"
-            instance = "an_awesome_crn"
+        env_vars = build_env_variables(
+            channel=channel,
+            token=token,
+            job=job,
+            trial_mode=trial,
+            args=arguments,
+            instance=instance,
+        )
 
-            env_vars = build_env_variables(
-                channel=channel,
-                token=token,
-                job=job,
-                trial_mode=trial,
-                args=arguments,
-                instance=instance,
-            )
+        assert env_vars == {
+            "ENV_JOB_GATEWAY_TOKEN": "an_awesome_api_key",
+            "ENV_JOB_GATEWAY_INSTANCE": "an_awesome_crn",
+            "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
+            "ENV_JOB_ID_GATEWAY": "42",
+            "ENV_JOB_ARGUMENTS": "{}",
+            "ENV_ACCESS_TRIAL": "False",
+            "DATA_PATH": "/data/IBMid-691000IC75/mockprovider/my-function",
+            "QISKIT_IBM_TOKEN": "an_awesome_api_key",
+            "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
+            "QISKIT_IBM_INSTANCE": "an_awesome_crn",
+            "QISKIT_IBM_URL": "https://cloud.ibm.com",
+        }
 
-            self.assertEqual(
-                env_vars,
-                {
-                    "ENV_JOB_GATEWAY_TOKEN": "an_awesome_api_key",
-                    "ENV_JOB_GATEWAY_INSTANCE": "an_awesome_crn",
-                    "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
-                    "ENV_JOB_ID_GATEWAY": "42",
-                    "ENV_JOB_ARGUMENTS": "{}",
-                    "ENV_ACCESS_TRIAL": "False",
-                    "DATA_PATH": "/data/IBMid-691000IC75/mockprovider/my-function",
-                    "QISKIT_IBM_TOKEN": "an_awesome_api_key",
-                    "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
-                    "QISKIT_IBM_INSTANCE": "an_awesome_crn",
-                    "QISKIT_IBM_URL": "https://cloud.ibm.com",
-                },
-            )
-
-    def test_local_provider_env_var_build(self):
+    def test_local_provider_env_var_build(self, settings):
         """Test env_vars for local authentication with provider function in local mode."""
+        settings.SETTINGS_AUTH_MECHANISM = "mock_token"
+        settings.RAY_CLUSTER_MODE_LOCAL = True
+        channel = Channel.LOCAL
+        token = "mock_token"
+        job = MagicMock()
+        job.author.username = "IBMid-691000IC75"
+        job.program.title = "my-function"
+        job.program.provider = MagicMock()
+        job.program.provider.name = "mockprovider"
+        job.id = "42"
+        trial = False
+        arguments = "{}"
+        instance = None
 
-        with self.settings(SETTINGS_AUTH_MECHANISM="mock_token", RAY_CLUSTER_MODE_LOCAL=True):
-            channel = Channel.LOCAL
-            token = "mock_token"
-            job = MagicMock()
-            job.author.username = "IBMid-691000IC75"
-            job.program.title = "my-function"
-            job.program.provider = MagicMock()
-            job.program.provider.name = "mockprovider"
-            job.id = "42"
-            trial = False
-            arguments = "{}"
-            instance = None
+        env_vars = build_env_variables(
+            channel=channel,
+            token=token,
+            job=job,
+            trial_mode=trial,
+            args=arguments,
+            instance=instance,
+        )
 
-            env_vars = build_env_variables(
-                channel=channel,
-                token=token,
-                job=job,
-                trial_mode=trial,
-                args=arguments,
-                instance=instance,
-            )
+        assert env_vars == {
+            "ENV_JOB_GATEWAY_TOKEN": "mock_token",
+            "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
+            "ENV_JOB_ID_GATEWAY": "42",
+            "ENV_JOB_ARGUMENTS": "{}",
+            "ENV_ACCESS_TRIAL": "False",
+            "DATA_PATH": "/data/IBMid-691000IC75/mockprovider/my-function",
+            "QISKIT_IBM_TOKEN": "mock_token",
+            "QISKIT_IBM_CHANNEL": "local",
+            "QISKIT_IBM_URL": "https://cloud.ibm.com",
+        }
 
-            self.assertEqual(
-                env_vars,
-                {
-                    "ENV_JOB_GATEWAY_TOKEN": "mock_token",
-                    "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
-                    "ENV_JOB_ID_GATEWAY": "42",
-                    "ENV_JOB_ARGUMENTS": "{}",
-                    "ENV_ACCESS_TRIAL": "False",
-                    "DATA_PATH": "/data/IBMid-691000IC75/mockprovider/my-function",
-                    "QISKIT_IBM_TOKEN": "mock_token",
-                    "QISKIT_IBM_CHANNEL": "local",
-                    "QISKIT_IBM_URL": "https://cloud.ibm.com",
-                },
-            )
-
-    def test_trial_mode_env_var_build(self):
+    def test_trial_mode_env_var_build(self, settings):
         """This test will verify that the environment variables are correct with trial mode activated."""
+        settings.SETTINGS_AUTH_MECHANISM = "mock_token"
+        channel = Channel.LOCAL
+        token = "mock_token"
+        job = MagicMock()
+        job.id = "42"
+        trial = True
+        arguments = "{}"
+        instance = None
 
-        with self.settings(SETTINGS_AUTH_MECHANISM="mock_token"):
-            channel = Channel.LOCAL
-            token = "mock_token"
-            job = MagicMock()
-            job.id = "42"
-            trial = True
-            arguments = "{}"
-            instance = None
+        env_vars = build_env_variables(
+            channel=channel,
+            token=token,
+            job=job,
+            trial_mode=trial,
+            args=arguments,
+            instance=instance,
+        )
 
-            env_vars = build_env_variables(
-                channel=channel,
-                token=token,
-                job=job,
-                trial_mode=trial,
-                args=arguments,
-                instance=instance,
-            )
+        assert env_vars == {
+            "ENV_JOB_GATEWAY_TOKEN": "mock_token",
+            "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
+            "ENV_JOB_ID_GATEWAY": "42",
+            "ENV_JOB_ARGUMENTS": "{}",
+            "ENV_ACCESS_TRIAL": "True",
+            "DATA_PATH": "/data",
+            "QISKIT_IBM_TOKEN": "mock_token",
+            "QISKIT_IBM_CHANNEL": "local",
+            "QISKIT_IBM_URL": "https://cloud.ibm.com",
+        }
 
-            self.assertEqual(
-                env_vars,
-                {
-                    "ENV_JOB_GATEWAY_TOKEN": "mock_token",
-                    "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
-                    "ENV_JOB_ID_GATEWAY": "42",
-                    "ENV_JOB_ARGUMENTS": "{}",
-                    "ENV_ACCESS_TRIAL": "True",
-                    "DATA_PATH": "/data",
-                    "QISKIT_IBM_TOKEN": "mock_token",
-                    "QISKIT_IBM_CHANNEL": "local",
-                    "QISKIT_IBM_URL": "https://cloud.ibm.com",
-                },
-            )
-
-    def test_encryption(self):
+    def test_encryption(self, settings):
         """Tests encryption utils."""
         string = "awesome string"
-        with self.settings(SECRET_KEY="django-super-secret"):
-            encrypted_string = encrypt_string(string)
-            decrypted_string = decrypt_string(encrypted_string)
-            self.assertEqual(string, decrypted_string)
+        settings.SECRET_KEY = "django-super-secret"
+        encrypted_string = encrypt_string(string)
+        decrypted_string = decrypt_string(encrypted_string)
+        assert string == decrypted_string
 
-    def test_env_vars_encryption(self):
+    def test_env_vars_encryption(self, settings):
         """Tests env vars encryption."""
-        with self.settings(SECRET_KEY="super-secret"):
-            env_vars_with_qiskit_runtime = {
-                "ENV_JOB_GATEWAY_TOKEN": "42",
-                "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
-                "ENV_JOB_ID_GATEWAY": "42",
-                "ENV_JOB_ARGUMENTS": {"answer": 42},
-                "QISKIT_IBM_TOKEN": "42",
-                "QISKIT_IBM_CHANNEL": "ibm_quantum",
-                "QISKIT_IBM_URL": "https://cloud.ibm.com",
-            }
-            encrypted_env_vars = encrypt_env_vars(env_vars_with_qiskit_runtime)
-            self.assertFalse(encrypted_env_vars["QISKIT_IBM_TOKEN"] == "42")
-            self.assertFalse(encrypted_env_vars["ENV_JOB_GATEWAY_TOKEN"] == "42")
-            self.assertEqual(env_vars_with_qiskit_runtime, decrypt_env_vars(encrypted_env_vars))
+        settings.SECRET_KEY = "super-secret"
+        env_vars_with_qiskit_runtime = {
+            "ENV_JOB_GATEWAY_TOKEN": "42",
+            "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
+            "ENV_JOB_ID_GATEWAY": "42",
+            "ENV_JOB_ARGUMENTS": {"answer": 42},
+            "QISKIT_IBM_TOKEN": "42",
+            "QISKIT_IBM_CHANNEL": "ibm_quantum",
+            "QISKIT_IBM_URL": "https://cloud.ibm.com",
+        }
+        encrypted_env_vars = encrypt_env_vars(env_vars_with_qiskit_runtime)
+        assert not encrypted_env_vars["QISKIT_IBM_TOKEN"] == "42"
+        assert not encrypted_env_vars["ENV_JOB_GATEWAY_TOKEN"] == "42"
+        assert env_vars_with_qiskit_runtime == decrypt_env_vars(encrypted_env_vars)
 
     def test_remove_duplicates_from_list(self):
         list_with_duplicates = ["value_two", "value_one", "value_two"]
         test_list = ["value_two", "value_one"]
-        self.assertListEqual(test_list, remove_duplicates_from_list(list_with_duplicates))
+        assert test_list == remove_duplicates_from_list(list_with_duplicates)

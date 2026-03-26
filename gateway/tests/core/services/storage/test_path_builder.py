@@ -1,12 +1,12 @@
 """Tests for PathBuilder path generation."""
 
-from django.test import TestCase
+import pytest
 
 from core.services.storage.enums.working_dir import WorkingDir
 from core.services.storage.path_builder import PathBuilder
 
 
-class TestPathBuilder(TestCase):
+class TestPathBuilder:
     """Tests for PathBuilder path generation."""
 
     def test_user_storage_without_provider(self):
@@ -18,7 +18,7 @@ class TestPathBuilder(TestCase):
             provider_name=None,
             extra_sub_path="logs",
         )
-        self.assertEqual(path, "user1/logs")
+        assert path == "user1/logs"
 
     def test_user_storage_with_provider(self):
         """Provider job (user view): path is {username}/{provider}/{function}/logs/"""
@@ -29,7 +29,7 @@ class TestPathBuilder(TestCase):
             provider_name="provider1",
             extra_sub_path="logs",
         )
-        self.assertEqual(path, "user1/provider1/my_function/logs")
+        assert path == "user1/provider1/my_function/logs"
 
     def test_provider_storage(self):
         """Provider job (provider view): path is {provider}/{function}/logs/"""
@@ -40,7 +40,7 @@ class TestPathBuilder(TestCase):
             provider_name="provider1",
             extra_sub_path="logs",
         )
-        self.assertEqual(path, "provider1/my_function/logs")
+        assert path == "provider1/my_function/logs"
 
     def test_user_storage_without_extra_sub_path(self):
         """User storage without extra sub path."""
@@ -51,7 +51,7 @@ class TestPathBuilder(TestCase):
             provider_name=None,
             extra_sub_path=None,
         )
-        self.assertEqual(path, "user1")
+        assert path == "user1"
 
     def test_provider_storage_without_extra_sub_path(self):
         """Provider storage without extra sub path."""
@@ -62,4 +62,4 @@ class TestPathBuilder(TestCase):
             provider_name="provider1",
             extra_sub_path=None,
         )
-        self.assertEqual(path, "provider1/my_function")
+        assert path == "provider1/my_function"

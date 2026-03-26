@@ -4,9 +4,10 @@ from uuid import UUID
 
 from qiskit_ibm_runtime import QiskitRuntimeService, RuntimeInvalidStateError
 
+from django.core.exceptions import ObjectDoesNotExist
+
 from core.models import Job, JobEvent
-from core.services.runners import get_runner_client, RunnerError
-from api.repositories.jobs import JobsRepository
+from core.services.runners import get_runner, RunnerError
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.repositories.runtime_job import RuntimeJobRepository
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
@@ -19,7 +20,6 @@ class StopJobUseCase:
     Use case for stopping a single job.
     """
 
-    jobs_repository = JobsRepository()
     runtime_jobs_repository = RuntimeJobRepository()
 
     def __init__(self) -> None:
@@ -27,9 +27,10 @@ class StopJobUseCase:
         self.stopped_sessions = []
 
     def execute(self, job_id: UUID, service_str: str) -> str:
-        job = self.jobs_repository.get_job_by_id(job_id)
-        if job is None:
-            raise JobNotFoundException(str(job_id))
+        try:
+            job = Job.objects.get(id=job_id)
+        except ObjectDoesNotExist:
+            raise JobNotFoundException(job_id)
 
         # reset stopped sessions and status messages
         self.status_messages = []
@@ -111,7 +112,7 @@ class StopJobUseCase:
     def _stop_ray_job_if_active(self, job):
         if job.compute_resource and job.compute_resource.active:
             try:
-                was_running = get_runner_client(job).stop()
+                was_running = get_runner(job).stop()
                 if was_running:
                     self.status_messages.append("Serverless job was running and has been stopped.")
                 else:
