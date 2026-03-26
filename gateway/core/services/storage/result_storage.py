@@ -37,7 +37,7 @@ class ResultStorage:
         result_path = self.__get_result_path(job_id)
         if not os.path.exists(result_path):
             logger.info(
-                "[result-storage] job_id=%s | Result file not found %s",
+                "[get] job_id=%s | Result file not found %s",
                 job_id,
                 result_path,
             )
@@ -47,14 +47,14 @@ class ResultStorage:
             with open(result_path, "r", encoding="utf-8") as result_file:
                 content = result_file.read()
                 logger.info(
-                    "[result-storage] job_id=%s | Result file read %s",
+                    "[get] job_id=%s | Result file read %s",
                     job_id,
                     result_path,
                 )
                 return content
         except (UnicodeDecodeError, IOError) as e:
             logger.error(
-                "[result-storage] job_id=%s | Failed to read result file: %s",
+                "[get] job_id=%s | Failed to read result file: %s",
                 job_id,
                 str(e),
             )
@@ -75,8 +75,9 @@ class ResultStorage:
 
         with open(result_path, "w", encoding=self.ENCODING) as result_file:
             result_file.write(result)
-            logger.info(
-                "[result-storage] job_id=%s | Result saved ok %s",
-                job_id,
-                result_path,
-            )
+
+        logger.info(
+            "[save] job_id=%s | Result saved ok %s",
+            job_id,
+            result_path,
+        )

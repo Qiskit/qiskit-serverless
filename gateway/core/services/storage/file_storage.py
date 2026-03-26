@@ -88,11 +88,7 @@ class FileStorage:
         path_to_file = sanitize_file_path(os.path.join(self.absolute_path, file_name_path))
 
         if not os.path.exists(path_to_file):
-            logger.warning(
-                "[file-storage] file=%s path=%s | File not found",
-                file_name_path,
-                path_to_file,
-            )
+            logger.warning("[get_file] File not found: %s", path_to_file)
             return None
 
         # We can not use context manager here. Django close the file automatically:
@@ -101,6 +97,8 @@ class FileStorage:
 
         file_type = mimetypes.guess_type(path_to_file)[0]
         file_size = os.path.getsize(path_to_file)
+
+        logger.info("[get_file] Reading file: %s", path_to_file)
 
         return file_wrapper, file_type, file_size
 
@@ -122,11 +120,7 @@ class FileStorage:
         path_to_file = sanitize_file_path(os.path.join(self.absolute_path, file_name_path))
 
         if not os.path.exists(path_to_file):
-            logger.warning(
-                "[file-storage] file=%s path=%s | File not found",
-                file_name_path,
-                path_to_file,
-            )
+            logger.warning("[get_file_stream] File not found: ", path_to_file)
             return None
 
         def _stream_chunks():
@@ -136,6 +130,8 @@ class FileStorage:
 
         file_type = mimetypes.guess_type(path_to_file)[0]
         file_size = os.path.getsize(path_to_file)
+
+        logger.info("[get_file_stream] Streaming file: %s", path_to_file)
 
         return _stream_chunks(), file_type, file_size
 
@@ -160,11 +156,12 @@ class FileStorage:
             for chunk in file.chunks():
                 destination.write(chunk)
 
+        logger.info("[upload_file] File written: %s", path_to_file)
         return path_to_file
 
     def remove_file(self, file_name: str) -> bool:
         """
-        This method remove a file in the path of file_name
+        This method removes a file in the path of file_name
 
         Args:
             file_name (str): the name of the file to remove
@@ -180,14 +177,11 @@ class FileStorage:
         try:
             os.remove(path_to_file)
         except FileNotFoundError:
-            logger.warning(
-                "[file-storage] file=%s path=%s | File not found",
-                file_name_path,
-                path_to_file,
-            )
+            logger.warning("[remove_file] File not found: ", path_to_file)
             return False
         except OSError as ex:
-            logger.warning("[file-storage] file=%s path=%s | OSError: %s", file_name_path, path_to_file, ex.strerror)
+            logger.warning("[remove_file] Error deleting %s | OSError: %s", path_to_file, ex.strerror)
             return False
 
+        logger.info("[remove_file] File removed: %s", path_to_file)
         return True
