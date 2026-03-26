@@ -6,14 +6,15 @@ import logging
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ObjectDoesNotExist
 
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.domain.exceptions.invalid_access_exception import InvalidAccessException
 from core.domain.filter_logs import filter_logs_with_non_public_tags
+from core.models import Job
 from core.utils import check_logs
-from core.services.ray import get_job_handler
-from api.repositories.jobs import JobsRepository
+from core.services.runners import get_runner, RunnerError
 from core.services.storage.logs_storage import LogsStorage
 
 logger = logging.getLogger("gateway")
@@ -21,8 +22,6 @@ logger = logging.getLogger("gateway")
 
 class GetProviderJobLogsUseCase:
     """Use case for retrieving job logs."""
-
-    jobs_repository = JobsRepository()
 
     def execute(self, job_id: UUID, user: AbstractUser) -> str:
         """Return the logs of a job if the user has access.
@@ -37,9 +36,10 @@ class GetProviderJobLogsUseCase:
         Returns:
             str: Job logs if accessible, otherwise a message indicating no logs are available.
         """
-        job = self.jobs_repository.get_job_by_id(job_id)
-        if job is None:
-            raise JobNotFoundException(str(job_id))
+        try:
+            job = Job.objects.get(id=job_id)
+        except ObjectDoesNotExist:
+            raise JobNotFoundException(job_id)
 
         if not JobAccessPolicies.can_read_provider_logs(user, job):
             raise InvalidAccessException(f"You don't have access to job [{job_id}]")
@@ -53,11 +53,10 @@ class GetProviderJobLogsUseCase:
         # Get from Ray if it is already running. Then filter
         if job.compute_resource and job.compute_resource.active:
             try:
-                job_handler = get_job_handler(job.compute_resource.host)
-            except ConnectionError:
+                logs = get_runner(job).logs()
+            except RunnerError:
                 return "Logs not available for this job during execution."
 
-            logs = job_handler.logs(job.ray_job_id)
             logger.info("Getting provider logs from ray job [%s]", job.ray_job_id)
 
             logs = check_logs(logs, job)

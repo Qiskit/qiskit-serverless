@@ -87,7 +87,6 @@ class ScheduleQueuedJobs(SchedulerTask):
             tracer = trace.get_tracer("scheduler.tracer")
             with tracer.start_as_current_span("scheduler.handle", context=ctx):
                 job = execute_job(job)  # from QUEUED to PENDING
-                job_id = job.id
                 backup_status = job.status
                 backup_logs = job.logs
                 backup_resource = job.compute_resource
@@ -124,14 +123,15 @@ class ScheduleQueuedJobs(SchedulerTask):
 
                         time.sleep(1)
 
-                        job = Job.objects.get(id=job_id)
+                        job.refresh_from_db()
                         job.status = backup_status
                         job.logs = backup_logs
                         job.compute_resource = backup_resource
                         job.ray_job_id = backup_ray_job_id
 
                 logger.info("Executing %s of %s", job, job.author)
-        logger.info("%s are scheduled for execution.", len(jobs))
+        if jobs:
+            logger.info("%s jobs are scheduled for execution.", len(jobs))
 
     def set_queue_size_metric(self, gpu_job):
         """Add queue size metric."""

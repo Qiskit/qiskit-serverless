@@ -13,46 +13,18 @@ from django.db.models.aggregates import Count, Min
 
 from opentelemetry import trace
 
-from core.models import Job, ComputeResource
-from core.services.ray import submit_job, create_compute_resource, kill_ray_cluster
-from core.utils import generate_cluster_name
+from core.models import Job
+from core.services.runners import get_runner, RunnerError
 
 User: Model = get_user_model()
 logger = logging.getLogger("commands")
 
 
-def _create_ray_cluster_compute_resource(job: Job, span) -> ComputeResource | None:
-    cluster_name = generate_cluster_name(job.author.username)
-    span.set_attribute("job.clustername", cluster_name)
-
-    compute_resource: ComputeResource | None = None
-    try:
-        compute_resource = create_compute_resource(job, cluster_name=cluster_name)
-    except Exception:  # pylint: disable=broad-exception-caught
-        # if something went wrong
-        #   try to kill resource if it was allocated
-        logger.warning(
-            "Compute resource [%s] was not created properly.\nSetting job [%s] status to [FAILED].",
-            cluster_name,
-            job,
-        )
-        kill_ray_cluster(cluster_name)
-        job.status = Job.FAILED
-        job.logs += "\nCompute resource was not created properly."
-        span.set_attribute("job.status", job.status)
-
-    return compute_resource
-
-
 def execute_job(job: Job) -> Job:
     """Executes program.
 
-    0. configure compute resource type
-    1. check if cluster exists
-       1.1 if not: create cluster
-    2. connect to cluster
-    3. run a job
-    4. set status to pending
+    Creates compute resource, connects to cluster, and submits the job.
+    Resource cleanup on failure is handled by runner.submit().
 
     Args:
         job: job to execute
@@ -60,32 +32,20 @@ def execute_job(job: Job) -> Job:
     Returns:
         job of program execution
     """
-
     tracer = trace.get_tracer("scheduler.tracer")
     with tracer.start_as_current_span("execute.job") as span:
-        compute_resource = _create_ray_cluster_compute_resource(job, span)
-        if not compute_resource:
-            return job
-
-        job.compute_resource = compute_resource
+        runner = get_runner(job)
 
         try:
-            job = submit_job(job)
+            compute_resource, ray_job_id = runner.submit()
+            compute_resource.save()
+            job.compute_resource = compute_resource
+            job.ray_job_id = ray_job_id
             job.status = Job.PENDING
-        except Exception:  # pylint: disable=broad-exception-caught:
-            logger.error(
-                "Exception was caught during scheduling job on user [%s] resource.\n"
-                "Resource [%s] was in DB records, but address is not reachable.\n"
-                "Cleaning up db record and setting job [%s] to failed",
-                job.author,
-                compute_resource.title,
-                job.id,
-            )
-            kill_ray_cluster(compute_resource.title)
-            compute_resource.delete()
+            span.set_attribute("job.clustername", compute_resource.title)
+        except RunnerError:
             job.status = Job.FAILED
-            job.compute_resource = None
-            job.logs += "\nCompute resource was not found."
+            job.logs += "\nCompute resource creation or job submission failed."
 
         span.set_attribute("job.status", job.status)
     return job
@@ -162,7 +122,11 @@ def handle_job_status_not_available(job: Job, job_status):
             job.compute_resource.title,
         )
     else:
-        kill_ray_cluster(job.compute_resource.title)
+        runner = get_runner(job)
+        try:
+            runner.free_resources()
+        except RunnerError:
+            pass
         job.compute_resource.delete()
         job.compute_resource = None
         job_status = Job.FAILED
@@ -178,7 +142,11 @@ def fail_job_insufficient_resources(job: Job):
             job.compute_resource.title,
         )
     else:
-        kill_ray_cluster(job.compute_resource.title)
+        runner = get_runner(job)
+        try:
+            runner.free_resources()
+        except RunnerError:
+            pass
         job.compute_resource.delete()
         job.compute_resource = None
 
