@@ -34,7 +34,7 @@ from api.serializers import (
 )
 from api.utils import active_jobs_limit_reached, sanitize_name
 from api.v1.exception_handler import endpoint_handle_exceptions
-from api.views.enums.type_filter import TypeFilter
+from core.enums.type_filter import TypeFilter
 from core.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Job
 from core.models import Program as Function
 
