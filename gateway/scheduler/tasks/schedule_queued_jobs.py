@@ -92,7 +92,6 @@ class ScheduleQueuedJobs(SchedulerTask):
                     "job_id=%s Execute job (%.2fs)",
                     job.id,
                     time.monotonic() - t0,
-                    job.status,
                 )
 
                 job_id = job.id

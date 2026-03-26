@@ -346,7 +346,7 @@ class RayRunner(AbstractRunner):
         try:
             if created_cluster_name != cluster_name:
                 logger.error(
-                    "[_create_k8s_cluster] job_id=%s cluster=%s created_cluster=%s Cluster name mismatch after creation",
+                    "[_create_k8s_cluster] job_id=%s cluster=%s created_cluster=%s Cluster name mismatch",
                     self._job.id,
                     cluster_name,
                     created_cluster_name,
