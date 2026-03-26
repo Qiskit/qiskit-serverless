@@ -160,7 +160,7 @@ class RayRunner(AbstractRunner):
             )
         except RuntimeError as ex:
             logger.error(
-                "[status] job_id=%s ray_job_id=%s error=%s job status failed",
+                "[status] job_id=%s ray_job_id=%s error=%s Job status failed",
                 self._job.id,
                 self._job.ray_job_id,
                 ex,
@@ -508,7 +508,8 @@ def _kill_ray_cluster(cluster_name: str) -> bool:
     except NotFoundError as resource_not_found:
         sanitized = repr(resource_not_found).replace("\n", "").replace("\r", "")
         logger.error(
-            "Something went wrong during ray cluster deletion request: %s",
+            "[_kill_ray_cluster] cluster=%s error=%s RayCluster not found",
+            cluster_name,
             sanitized,
         )
         return success
@@ -518,7 +519,8 @@ def _kill_ray_cluster(cluster_name: str) -> bool:
     else:
         sanitized = delete_response.text.replace("\n", "").replace("\r", "")
         logger.error(
-            "Something went wrong during ray cluster deletion request: %s",
+            "[_kill_ray_cluster] cluster=%s error=%s RayCluster deletion failed",
+            cluster_name,
             sanitized,
         )
     try:
@@ -531,7 +533,7 @@ def _kill_ray_cluster(cluster_name: str) -> bool:
         success = True
     except NotFoundError:
         logger.error(
-            "Something went wrong during ray certification deletion request: %s",
+            "[_kill_ray_cluster] cluster=%s error=not_found Certificate deletion failed",
             cluster_name,
         )
     try:
@@ -539,8 +541,8 @@ def _kill_ray_cluster(cluster_name: str) -> bool:
         success = True
     except NotFoundError:
         logger.error(
-            "Something went wrong during ray certification deletion request: %s",
-            f"{cluster_name}-worker",
+            "[_kill_ray_cluster] cluster=%s error=not_found Certificate-worker deletion failed",
+            cluster_name,
         )
 
     corev1 = kubernetes_client.CoreV1Api()
@@ -549,7 +551,7 @@ def _kill_ray_cluster(cluster_name: str) -> bool:
         success = True
     except ApiException:
         logger.error(
-            "Something went wrong during ray secret deletion request: %s",
+            "[_kill_ray_cluster] cluster=%s error=api_exception Secret deletion failed",
             cluster_name,
         )
     try:
@@ -557,7 +559,7 @@ def _kill_ray_cluster(cluster_name: str) -> bool:
         success = True
     except ApiException:
         logger.error(
-            "Something went wrong during ray secret deletion request: %s",
-            f"{cluster_name}-worker",
+            "[_kill_ray_cluster] cluster=%s error=api_exception Secret-worker deletion failed",
+            cluster_name,
         )
     return success
