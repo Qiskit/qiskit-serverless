@@ -25,7 +25,7 @@ class EventData:
     """
 
     event_type: str
-    error_type: str
+    exception: str
     code: str
     message: str
     args: Any
@@ -71,6 +71,6 @@ class CreateJobEventUseCase:
                 JobEventContext.SEND_ERROR,
                 data.code,
                 data.message,
-                data.error_type,
+                data.exception,
                 data.args,
             )

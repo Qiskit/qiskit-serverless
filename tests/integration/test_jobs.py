@@ -486,7 +486,7 @@ ERROR: Provider log
         event_data = events[0].data
         assert event_data["code"] == "1"
         assert event_data["message"] == "ValueError: This is not a ServerlessError"
-        assert event_data["error_type"] == "ValueError"
+        assert event_data["exception"] == "ValueError"
 
     def test_provider_logs(self, serverless_client: ServerlessClient):
         """Integration test for logs."""

@@ -388,7 +388,7 @@ class TestJobResult:
                 created="",
                 data={
                     "message": "Job execution failed",
-                    "error_type": "ServerlessError",
+                    "exception": "ServerlessError",
                     "code": "M123",
                     "args": {"my-args": 123},
                 },

@@ -30,7 +30,7 @@ class InputSerializer(serializers.Serializer):
     """
 
     type = serializers.CharField(required=True)
-    error_type = serializers.CharField(required=True)
+    exception = serializers.CharField(required=True)
     code = serializers.CharField(required=True)
     message = serializers.CharField(required=True)
     args = serializers.JSONField(required=False)
@@ -52,12 +52,12 @@ class InputSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         event_type = validated_data.get("type")
-        error_type = validated_data.get("error_type")
+        exception = validated_data.get("exception")
         code = validated_data.get("code")
         message = validated_data.get("message")
         args = validated_data.get("args")
 
-        return EventData(event_type=event_type, error_type=error_type, code=code, message=message, args=args)
+        return EventData(event_type=event_type, exception=exception, code=code, message=message, args=args)
 
 
 @swagger_auto_schema(

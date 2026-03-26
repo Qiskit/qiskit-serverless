@@ -745,7 +745,7 @@ class TestJobApi:
         job_id = user_job.pk
         code = "1111"
         message = "My test message"
-        error_type = "ServerlessException"
+        exception = "ServerlessException"
         args = json.dumps({"ultimate": 42})
         job_event_response = self.client.post(
             reverse(
@@ -753,7 +753,7 @@ class TestJobApi:
                 args=[job_id],
             ),
             format="json",
-            data={"type": JobEventType.ERROR, "error_type": error_type, "code": code, "message": message, "args": args},
+            data={"type": JobEventType.ERROR, "exception": exception, "code": code, "message": message, "args": args},
         )
 
         assert job_event_response.status_code == status.HTTP_200_OK
@@ -765,7 +765,7 @@ class TestJobApi:
         assert job_events[0].context == JobEventContext.SEND_ERROR
         assert job_events[0].data["code"] == code
         assert job_events[0].data["message"] == message
-        assert job_events[0].data["error_type"] == error_type
+        assert job_events[0].data["exception"] == exception
         assert job_events[0].data["args"] == args
 
     def test_job_event_creation_non_running(self):
@@ -777,7 +777,7 @@ class TestJobApi:
         job_id = user_job.pk
         code = "1111"
         message = "My test message"
-        error_type = "ServerlessException"
+        exception = "ServerlessException"
         args = json.dumps({"ultimate": 42})
         job_event_response = self.client.post(
             reverse(
@@ -785,7 +785,7 @@ class TestJobApi:
                 args=[job_id],
             ),
             format="json",
-            data={"type": JobEventType.ERROR, "error_type": error_type, "code": code, "message": message, "args": args},
+            data={"type": JobEventType.ERROR, "exception": exception, "code": code, "message": message, "args": args},
         )
 
         assert job_event_response.status_code == status.HTTP_403_FORBIDDEN
@@ -804,14 +804,14 @@ class TestJobApi:
         job_id = user_job.pk
         code = "1111"
         message = "My test message"
-        error_type = "ServerlessException"
+        exception = "ServerlessException"
         job_event_response = self.client.post(
             reverse(
                 "v1:jobs-create-event",
                 args=[job_id],
             ),
             format="json",
-            data={"type": JobEventType.ERROR, "error_type": error_type, "code": code, "message": message},
+            data={"type": JobEventType.ERROR, "exception": exception, "code": code, "message": message},
         )
 
         assert job_event_response.status_code == status.HTTP_200_OK
@@ -823,7 +823,7 @@ class TestJobApi:
         assert job_events[0].context == JobEventContext.SEND_ERROR
         assert job_events[0].data["code"] == code
         assert job_events[0].data["message"] == message
-        assert job_events[0].data["error_type"] == error_type
+        assert job_events[0].data["exception"] == exception
         assert job_events[0].data["args"] == None
 
     def test_job_event_unauthorized(self):
@@ -837,7 +837,7 @@ class TestJobApi:
         job_id = user_job.pk
         code = "1111"
         message = "My test message"
-        error_type = "ServerlessException"
+        exception = "ServerlessException"
         args = json.dumps({"ultimate": 42})
         job_event_response = self.client.post(
             reverse(
@@ -845,7 +845,7 @@ class TestJobApi:
                 args=[job_id],
             ),
             format="json",
-            data={"type": JobEventType.ERROR, "error_type": error_type, "code": code, "message": message, "args": args},
+            data={"type": JobEventType.ERROR, "exception": exception, "code": code, "message": message, "args": args},
         )
 
         assert job_event_response.status_code == status.HTTP_404_NOT_FOUND
@@ -892,15 +892,15 @@ class TestJobApi:
         code_2 = "1112"
         message = "My test message"
         message_2 = "My test message 2"
-        error_type = "ServerlessError"
-        error_type_2 = "CustomError"
+        exception = "ServerlessError"
+        exception_2 = "CustomError"
         args = {"ultimate": 42}
         args_2 = {"ultimate": 422}
         JobEvent.objects.add_error_event(
-            job_id, JobEventOrigin.API, JobEventContext.SEND_ERROR, code, message, error_type, args
+            job_id, JobEventOrigin.API, JobEventContext.SEND_ERROR, code, message, exception, args
         )
         JobEvent.objects.add_error_event(
-            job_id, JobEventOrigin.API, JobEventContext.SEND_ERROR, code_2, message_2, error_type_2, args_2
+            job_id, JobEventOrigin.API, JobEventContext.SEND_ERROR, code_2, message_2, exception_2, args_2
         )
         JobEvent.objects.add_status_event(
             job_id, JobEventOrigin.SCHEDULER, JobEventContext.SCHEDULE_JOBS, Job.SUCCEEDED
@@ -930,8 +930,8 @@ class TestJobApi:
         assert event_0["data"]["message"] == message
         assert event_1["data"]["message"] == message_2
 
-        assert event_0["data"]["error_type"] == error_type
-        assert event_1["data"]["error_type"] == error_type_2
+        assert event_0["data"]["exception"] == exception
+        assert event_1["data"]["exception"] == exception_2
 
         assert event_0["data"]["args"] == args
         assert event_1["data"]["args"] == args_2

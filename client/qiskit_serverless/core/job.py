@@ -287,7 +287,7 @@ class Job:
         return f"<Job | {self.job_id}>"
 
 
-def send_error(code: str, message: str, error_type: str, args: Optional[Any] = None):
+def send_error(code: str, message: str, exception: str, args: Optional[Any] = None):
     """Send an error message to store it in the gateway.
 
     Args:
@@ -316,7 +316,7 @@ def send_error(code: str, message: str, error_type: str, args: Optional[Any] = N
         f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/create-event/"
     )
 
-    request_json = {"type": "ERROR", "code": code, "message": message, "error_type": error_type}
+    request_json = {"type": "ERROR", "code": code, "message": message, "exception": exception}
     if args:
         request_json["args"] = args
 
