@@ -11,7 +11,7 @@ from django.conf import settings
 from core.services.storage.enums.working_dir import WorkingDir
 from core.utils import sanitize_file_path
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("core.PathBuilder")
 
 
 class PathBuilder:
@@ -163,6 +163,6 @@ class PathBuilder:
         # Create directory if it doesn't exist
         if not os.path.exists(sanitized_path):
             os.makedirs(sanitized_path, exist_ok=True)
-            logger.debug("Path %s was created.", sanitized_path)
+            logger.debug("Path created: %s", sanitized_path)
 
         return sanitized_path

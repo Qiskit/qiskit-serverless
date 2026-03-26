@@ -14,7 +14,7 @@ from core.utils import retry_function
 from core.services.job_status import update_job_status
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
-logger = logging.getLogger("gateway.use_cases.jobs")
+logger = logging.getLogger("api.SetJobSubStatusUseCase")
 
 
 class SetJobSubStatusUseCase:
@@ -49,12 +49,7 @@ class SetJobSubStatusUseCase:
         update_job_status(job)
 
         if job.status != Job.RUNNING:
-            warning_msg = (
-                "'sub_status' cannot change because the job" " [%s] current status is not Running",
-                job.id,
-            )
-
-            logger.warning(warning_msg)
+            logger.warning("'sub_status' cannot change because the job [%s] current status is not Running", job.id)
             raise InvalidAccessException(
                 "Cannot update 'sub_status' when is not" f" in RUNNING status. (Currently {job.status})"
             )

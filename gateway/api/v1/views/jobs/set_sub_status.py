@@ -23,7 +23,7 @@ from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
 from core.models import Job
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("api.api.v1.views.jobs.set_sub_status")
 
 
 class InputSerializer(serializers.Serializer):
@@ -118,7 +118,7 @@ def set_sub_status(request: Request, job_id: UUID) -> Response:
 
     job = SetJobSubStatusUseCase().execute(job_id, user, sub_status)
     logger.info(
-        "[jobs-set-sub-status] user=%s job_id=%s sub_status=%s program=%s",
+        "[jobs-set-sub-status] user_id=%s job_id=%s sub_status=%s program=%s | Sub-status updated ok",
         user.id,
         job_id,
         sub_status,

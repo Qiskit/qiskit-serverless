@@ -15,7 +15,7 @@ from core.config_key import ConfigKey
 from core.model_managers.functions import FunctionsQuerySet
 from core.model_managers.job_events import JobEventQuerySet
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("core.models")
 
 VIEW_PROGRAM_PERMISSION = "view_program"
 RUN_PROGRAM_PERMISSION = "run_program"
@@ -402,7 +402,7 @@ class Config(models.Model):
                 defaults={"value": default, "description": description},
             )
             if created:
-                logger.info("Registered new Config: %s = %s", value, default)
+                logger.info("[add_defaults] Registered new Config: %s = %s", value, default)
 
     @classmethod
     def set(cls, key: ConfigKey, value: str):

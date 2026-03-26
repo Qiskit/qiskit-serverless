@@ -7,7 +7,7 @@ from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.repositories.jobs import JobsRepository
 from api.repositories.runtime_job import RuntimeJobRepository
 
-logger = logging.getLogger("gateway.use_cases.jobs")
+logger = logging.getLogger("api.AssociateRuntimeJobsUseCase")
 
 
 class AssociateRuntimeJobsUseCase:

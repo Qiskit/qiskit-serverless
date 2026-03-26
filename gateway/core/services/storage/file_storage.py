@@ -16,7 +16,7 @@ from core.services.storage.enums.working_dir import WorkingDir
 from core.services.storage.path_builder import PathBuilder
 from core.utils import sanitize_file_path
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("core.FileStorage")
 
 
 class FileStorage:

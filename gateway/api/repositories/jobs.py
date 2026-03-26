@@ -15,7 +15,7 @@ from core.models import Job
 from core.models import Program as Function
 from api.views.enums.type_filter import TypeFilter
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("api.JobsRepository")
 
 
 @dataclass(slots=True)
@@ -60,9 +60,6 @@ class JobsRepository:
         """
 
         result_queryset = Job.objects.filter(id=job_id).first()
-
-        if result_queryset is None:
-            logger.info("Job [%s] was not found", job_id)
 
         return result_queryset
 

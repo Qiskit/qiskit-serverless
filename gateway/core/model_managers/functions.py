@@ -7,7 +7,7 @@ from typing import Optional, Self, TYPE_CHECKING
 from django.db.models import Q, QuerySet
 from django.contrib.auth.models import AbstractUser, Group
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("core.FunctionsQuerySet")
 
 if TYPE_CHECKING:
     from core.models import Program as Function
@@ -35,10 +35,6 @@ class FunctionsQuerySet(QuerySet):
         author_criteria = Q(author=author)
 
         result_queryset = self.filter(author_criteria | author_groups_with_permissions_criteria).distinct()
-
-        count = result_queryset.count()
-        logger.info("[%d] Functions found for author [%s]", count, author.id)
-
         return result_queryset
 
     def user_functions(self, author: AbstractUser) -> Self:
@@ -55,10 +51,6 @@ class FunctionsQuerySet(QuerySet):
         """
 
         result_queryset = self.filter(author=author, provider=None)
-
-        count = result_queryset.count()
-        logger.info("[%d] user Functions found for author [%s]", count, author.id)
-
         return result_queryset
 
     def provider_functions(self, provider_name: Optional[str] = None) -> Self:

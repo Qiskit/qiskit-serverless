@@ -16,7 +16,7 @@ from core.services.runners import get_runner, RunnerError
 from api.repositories.jobs import JobsRepository
 from core.services.storage.logs_storage import LogsStorage
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("api.GetProviderJobLogsUseCase")
 
 
 class GetProviderJobLogsUseCase:
@@ -57,7 +57,7 @@ class GetProviderJobLogsUseCase:
             except RunnerError:
                 return "Logs not available for this job during execution."
 
-            logger.info("Getting provider logs from ray job [%s]", job.ray_job_id)
+            logger.info("Getting provider logs from ray job [%s] job_id=%s", job.ray_job_id, job.id)
 
             logs = check_logs(logs, job)
             return filter_logs_with_non_public_tags(logs)

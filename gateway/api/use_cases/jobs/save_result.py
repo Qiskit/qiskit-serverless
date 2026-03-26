@@ -11,7 +11,7 @@ from api.access_policies.jobs import JobAccessPolicies
 from core.services.storage.result_storage import ResultStorage
 from core.models import Job
 
-logger = logging.getLogger("gateway.use_cases.jobs")
+logger = logging.getLogger("api.JobSaveResultUseCase")
 
 
 class JobSaveResultUseCase:

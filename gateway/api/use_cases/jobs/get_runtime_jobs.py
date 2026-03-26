@@ -8,7 +8,7 @@ from core.models import RuntimeJob
 from api.repositories.jobs import JobsRepository
 from api.repositories.runtime_job import RuntimeJobRepository
 
-logger = logging.getLogger("gateway.use_cases.jobs")
+logger = logging.getLogger("api.GetRuntimeJobsUseCase")
 
 
 class GetRuntimeJobsUseCase:

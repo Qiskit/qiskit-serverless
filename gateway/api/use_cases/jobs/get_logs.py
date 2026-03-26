@@ -16,7 +16,7 @@ from core.utils import check_logs
 from api.repositories.jobs import JobsRepository
 from core.services.storage.logs_storage import LogsStorage
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("api.GetJobLogsUseCase")
 
 
 class GetJobLogsUseCase:
@@ -59,7 +59,7 @@ class GetJobLogsUseCase:
 
             logs = check_logs(logs, job)
 
-            logger.info("Getting logs from ray job [%s]", job.ray_job_id)
+            logger.info("Getting logs from ray job [%s] job_id=%s", job.ray_job_id, job.id)
 
             if job.program.provider:
                 # Public logs from a provider job
