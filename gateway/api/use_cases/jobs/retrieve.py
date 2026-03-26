@@ -3,9 +3,9 @@
 import logging
 from uuid import UUID
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ObjectDoesNotExist
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from core.models import Job
-from api.repositories.jobs import JobsRepository
 from api.access_policies.jobs import JobAccessPolicies
 from core.services.storage.result_storage import ResultStorage
 
@@ -14,8 +14,6 @@ logger = logging.getLogger("gateway.use_cases.jobs")
 
 class JobRetrieveUseCase:
     """Use case for retrieving a single job."""
-
-    jobs_repository = JobsRepository()
 
     def execute(self, job_id: UUID, user: AbstractUser, with_result: bool) -> Job:
         """
@@ -29,7 +27,7 @@ class JobRetrieveUseCase:
         Returns:
             Job: job found
         """
-        job = self.jobs_repository.get_job_by_id(job_id)
+        job = Job.objects.get(id=job_id)
         if job is None:
             raise JobNotFoundException(str(job_id))
 

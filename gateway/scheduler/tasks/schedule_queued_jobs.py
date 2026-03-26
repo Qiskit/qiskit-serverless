@@ -87,7 +87,6 @@ class ScheduleQueuedJobs(SchedulerTask):
             tracer = trace.get_tracer("scheduler.tracer")
             with tracer.start_as_current_span("scheduler.handle", context=ctx):
                 job = execute_job(job)  # from QUEUED to PENDING
-                job_id = job.id
                 backup_status = job.status
                 backup_logs = job.logs
                 backup_resource = job.compute_resource
@@ -124,7 +123,7 @@ class ScheduleQueuedJobs(SchedulerTask):
 
                         time.sleep(1)
 
-                        job = Job.objects.get(id=job_id)
+                        job.refresh_from_db()
                         job.status = backup_status
                         job.logs = backup_logs
                         job.compute_resource = backup_resource
