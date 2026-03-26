@@ -94,7 +94,6 @@ class ScheduleQueuedJobs(SchedulerTask):
                     time.monotonic() - t0,
                 )
 
-                job_id = job.id
                 backup_status = job.status
                 backup_logs = job.logs
                 backup_resource = job.compute_resource
