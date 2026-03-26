@@ -69,6 +69,7 @@ def test_code_engine_project_str_representation(ce_project):
 
 # Job with Code Engine Tests
 
+
 def test_job_with_code_engine_project(user, program, ce_project):
     """Test creating a Job with Code Engine project."""
     job = Job.objects.create(
@@ -117,4 +118,4 @@ def test_job_code_engine_project_set_null_on_delete(user, program, ce_project):
     job.refresh_from_db()
 
     assert job.code_engine_project is None
-    assert job.fleet_id == "fleet-cascade-123" #fleet_id is not set to None
+    assert job.fleet_id == "fleet-cascade-123"  # fleet_id is not set to None
