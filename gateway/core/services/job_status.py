@@ -3,10 +3,10 @@
 import logging
 
 from concurrency.exceptions import RecordModifiedError
-from core.models import Job, JobEvent
+from core.models import JobEvent
 
-from core.services.ray import get_job_handler
-from core.utils import check_logs, ray_job_status_to_model_job_status
+from core.services.runners import get_runner, RunnerError
+from core.utils import check_logs
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
 logger = logging.getLogger("core.services.job_status")
@@ -34,12 +34,14 @@ def update_job_status(job):
         return False
 
     status_has_changed = False
-    job_new_status = Job.PENDING
-    job_handler = get_job_handler(job.compute_resource.host)
-    ray_job_status = job_handler.status(job.ray_job_id) if job_handler else None
+    runner = get_runner(job)
 
-    if ray_job_status:
-        job_new_status = ray_job_status_to_model_job_status(ray_job_status)
+    try:
+        job_new_status = runner.status()
+        logs = runner.logs()
+    except RunnerError as ex:
+        logger.warning("Job [%s] status update failed: %s", job.id, ex)
+        return False
 
     if job_new_status != job.status:
         logger.info(
@@ -56,8 +58,7 @@ def update_job_status(job):
             job.sub_status = None
             job.env_vars = "{}"
 
-    if job_handler:
-        logs = job_handler.logs(job.ray_job_id)
+    if logs:
         job.logs = check_logs(logs, job)
 
     try:

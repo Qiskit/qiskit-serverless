@@ -5,7 +5,7 @@ import logging
 from django.conf import settings
 
 from core.models import ComputeResource, Job
-from core.services.ray import kill_ray_cluster
+from core.services.runners import get_runner
 
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
@@ -34,16 +34,7 @@ class FreeResources(SchedulerTask):
             if self.kill_signal.received:
                 return
 
-            # I think this logic could be reviewed because now each job
-            # would have its own compute resource but let's do that
-            # in an additional iteration
-            there_are_alive_jobs = Job.objects.filter(
-                status__in=Job.RUNNING_STATUSES, compute_resource=compute_resource
-            ).exists()
-
-            # only kill cluster if not in local mode and no jobs are running there
-            if not there_are_alive_jobs:
-                self.remove_compute_resource(compute_resource)
+            self.remove_compute_resource(compute_resource)
 
     def remove_compute_resource(self, compute_resource: ComputeResource):
         """
@@ -70,7 +61,8 @@ class FreeResources(SchedulerTask):
         should_remove_as_classical = remove_classical_jobs and not is_gpu
         should_remove_as_gpu = remove_gpu_jobs and is_gpu
         if should_remove_as_classical or should_remove_as_gpu:
-            success = kill_ray_cluster(compute_resource.title)
+            runner_client = get_runner(terminated_job)
+            success = runner_client.free_resources()
             if success:
                 compute_resource.active = False
                 compute_resource.save()
