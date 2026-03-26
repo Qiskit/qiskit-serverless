@@ -276,9 +276,10 @@ class RayRunner(AbstractRunner):
                 file.extractall(working_directory_for_upload)
         else:
             logger.error(
-                "[_submit_to_ray] job_id=%s program=%s No image or artifact associated",
+                "[_submit_to_ray] job_id=%s program=%s provider=%s No image or artifact associated",
                 self._job.id,
                 program.title,
+                program.provider,
             )
             raise ResourceNotFoundError(f"Program [{program.title}] has no image or artifact associated.")
 
