@@ -5,9 +5,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 from django.core.management import call_command
 
-from core.models import Job, ComputeResource
+from core.models import Job
 from core.services.runners import RunnerError
-from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_job
+from core.services.runners.abstract_runner import SubmitResult
+from scheduler.tasks.schedule_queued_jobs import get_jobs_to_schedule_fair_share, execute_job
 
 
 class TestScheduleApi:
@@ -33,29 +34,29 @@ class TestScheduleApi:
         assert "1a7947f9-6ae8-4e3d-ac1e-e7d608deec90" in job_ids
         assert "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82" in job_ids
 
-    @patch("scheduler.schedule.get_runner")
+    @patch("scheduler.tasks.schedule_queued_jobs.get_runner")
     def test_execute_job_success(self, mock_get_runner_client):
         """Tests successful job execution via runner.submit()."""
-        mock_compute_resource = MagicMock(spec=ComputeResource)
-        mock_compute_resource.title = "test-cluster"
-
         mock_runner = MagicMock()
-        mock_runner.submit.return_value = (mock_compute_resource, "ray-job-123")
+        mock_runner.submit.return_value = SubmitResult(
+            ray_job_id="ray-job-123",
+            title="test-cluster",
+            host="http://test:8265/",
+        )
         mock_get_runner_client.return_value = mock_runner
 
-        job = MagicMock()
-        job.status = Job.QUEUED
-        job.logs = ""
+        job = Job.objects.filter(status=Job.QUEUED).first()
 
-        ret_job = execute_job(job)
+        result = execute_job(job)
 
         mock_runner.submit.assert_called_once()
-        mock_compute_resource.save.assert_called_once()
-        assert ret_job.compute_resource == mock_compute_resource
-        assert ret_job.ray_job_id == "ray-job-123"
-        assert ret_job.status == Job.PENDING
+        assert result is not None
+        assert result.ray_job_id == "ray-job-123"
+        assert result.compute_resource.title == "test-cluster"
+        assert result.compute_resource.host == "http://test:8265/"
+        assert result.runner is mock_runner
 
-    @patch("scheduler.schedule.get_runner")
+    @patch("scheduler.tasks.schedule_queued_jobs.get_runner")
     def test_execute_job_failure(self, mock_get_runner_client):
         """Tests job execution failure handling."""
         mock_runner = MagicMock()
@@ -64,10 +65,8 @@ class TestScheduleApi:
 
         job = MagicMock()
         job.status = Job.QUEUED
-        job.logs = ""
 
-        ret_job = execute_job(job)
+        result = execute_job(job)
 
         mock_runner.submit.assert_called_once()
-        assert ret_job.status == Job.FAILED
-        assert "Compute resource creation or job submission failed" in ret_job.logs
+        assert result is None

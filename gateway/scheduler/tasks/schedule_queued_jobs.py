@@ -20,6 +20,7 @@ from core.config_key import ConfigKey
 from core.models import ComputeResource, Job, JobEvent, Config
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.services.runners import RunnerError, get_runner, AbstractRunner
+from core.services.runners.abstract_runner import SubmitResult
 
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
@@ -138,10 +139,6 @@ def schedule_job(job: Job) -> bool:
         updated = _mark_job_as_running(job, execution_result)
 
         if not updated:
-            logger.warning(
-                "Job [%s]: Status changed while scheduling. Cleaning up resources.",
-                job.id,
-            )
             _cleanup_resources(job, execution_result)
             return False
 
@@ -151,14 +148,14 @@ def schedule_job(job: Job) -> bool:
             context=JobEventContext.SCHEDULE_JOBS,
             status=Job.RUNNING,
         )
-        logger.info("Job [%s]: Scheduled for execution. Author: %s", job.id, job.author.id)
+        logger.info("[schedule_job] job_id=%s | Scheduled for execution. Author: %s", job.id, job.author.id)
         return True
 
 
 @transaction.atomic
 def _mark_job_as_failed(job: Job):
     """Mark a job as failed when compute resource creation fails."""
-    Job.objects.filter(id=job.id, status=Job.QUEUED).update(
+    Job.objects.filter(id=job.id).update(
         status=Job.FAILED,
     )
     JobEvent.objects.add_status_event(
@@ -167,7 +164,7 @@ def _mark_job_as_failed(job: Job):
         context=JobEventContext.SCHEDULE_JOBS,
         status=Job.FAILED,
     )
-    logger.info("Job [%s]: Marked as FAILED.", job.id)
+    logger.info("[_mark_job_as_failed] job_id=%s | Marked as FAILED.", job.id)
 
 
 @transaction.atomic
@@ -183,7 +180,54 @@ def _mark_job_as_running(job: Job, result: JobExecutionResult) -> bool:
         compute_resource=result.compute_resource,
         ray_job_id=result.ray_job_id,
     )
+    if updated == 0:
+        # Fetch real status for diagnostics. Probably the user STOPPED the job
+        actual_status = Job.objects.values_list("status", flat=True).get(id=job.id)
+        logger.warning(
+            "[_mark_job_as_running] job_id=%s | Can't set RUNNING status. Expected QUEUED, but was %s",
+            job.id,
+            actual_status,
+        )
+
     return updated > 0
+
+
+def execute_job(job: Job) -> JobExecutionResult | None:
+    """Executes a program. It doesn't persist anything in the database
+
+    Returns:
+        JobExecutionResult with the compute_resource, ray_job_id, and runner
+        None if failed
+    """
+
+    tracer = trace.get_tracer("scheduler.tracer")
+    with tracer.start_as_current_span("execute.job") as span:
+
+        runner = get_runner(job)
+
+        try:
+            submit_result: SubmitResult = runner.submit()
+            span.set_attribute("job.clustername", submit_result.title)
+            span.set_attribute("job.rayjobid", submit_result.ray_job_id)
+            return JobExecutionResult(
+                compute_resource=ComputeResource(
+                    title=submit_result.title,
+                    host=submit_result.host,
+                    owner=job.author,
+                    gpu=job.gpu,
+                    active=True,
+                ),
+                ray_job_id=submit_result.ray_job_id,
+                runner=runner,
+            )
+        except RunnerError as ex:
+            logger.error(
+                "[execute_job] job_id=%s | Failed to submit job. Setting status to FAILED. Error: %s",
+                job.id,
+                ex,
+            )
+            span.set_attribute("job.status", Job.FAILED)
+            return None
 
 
 def _cleanup_resources(job: Job, result: JobExecutionResult):
@@ -191,48 +235,12 @@ def _cleanup_resources(job: Job, result: JobExecutionResult):
     try:
         result.runner.free_resources()
     except RunnerError as ex:
-        logger.error("Job [%s]: Failed to free runner resources: %s", job.id, ex)
+        logger.error("[_cleanup_resources] job_id=%s | Failed to free runner resources: %s", job.id, ex)
 
     try:
         result.compute_resource.delete()
     except (AttributeError, DatabaseError) as ex:
-        logger.error("Job [%s]: Failed to delete compute resource: %s", job.id, ex)
-
-
-def execute_job(job: Job) -> JobExecutionResult | None:
-    """Executes program.
-
-    1. Submit job to runner (which handles compute resource creation internally)
-    2. Return result (or None on failure)
-
-    Args:
-        job: job to execute
-
-    Returns:
-        JobExecutionResult with compute_resource, ray_job_id, and runner
-    """
-
-    tracer = trace.get_tracer("scheduler.tracer")
-    with tracer.start_as_current_span("execute.job") as span:
-        runner = get_runner(job)
-
-        try:
-            compute_resource, runner_job_id = runner.submit()
-            span.set_attribute("job.clustername", compute_resource.title)
-            span.set_attribute("job.rayjobid", runner_job_id)
-            return JobExecutionResult(
-                compute_resource=compute_resource,
-                ray_job_id=runner_job_id,
-                runner=runner,
-            )
-        except RunnerError as ex:
-            logger.error(
-                "Job [%s]: Failed to submit job. Setting status to FAILED. Error: %s",
-                job.id,
-                ex,
-            )
-            span.set_attribute("job.status", Job.FAILED)
-            return None
+        logger.error("[_cleanup_resources] job_id=%s | Failed to delete compute resource: %s", job.id, ex)
 
 
 def get_jobs_to_schedule_fair_share(slots: int, gpu: bool) -> List[Job]:

@@ -1,9 +1,19 @@
 """Abstract runner for job execution in any engine (Ray, Fleets)."""
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Optional
 
-from core.models import Job, ComputeResource
+from core.models import Job
+
+
+@dataclass
+class SubmitResult:
+    """Result of submitting a job to the runner engine."""
+
+    ray_job_id: str
+    title: str
+    host: str
 
 
 class RunnerError(Exception):
@@ -81,20 +91,12 @@ class AbstractRunner(ABC):
     # --- Methods that do NOT require connection ---
 
     @abstractmethod
-    def submit(self) -> tuple[ComputeResource, str]:
+    def submit(self) -> any:
         """
         Submit the job to the runner.
 
-        Creates the compute resource and submits the job.
-        On failure, cleans up any created resources (e.g., K8s cluster).
-
-        Returns:
-            Tuple of (ComputeResource, engine_job_id)
-            - ComputeResource: not saved to DB, caller must save and assign to job
-            - engine_job_id: engine-specific job identifier (e.g., ray_job_id)
-
         Raises:
-            RunnerError: If submission fails (resources are cleaned up before raising)
+            RunnerError: If submission fails
         """
         raise NotImplementedError
 

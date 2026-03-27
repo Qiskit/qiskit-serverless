@@ -12,8 +12,9 @@ from kubernetes import client, config
 from kubernetes.dynamic.client import DynamicClient
 from ray.dashboard.modules.job.common import JobStatus
 
-from core.models import ComputeResource, Job
+from core.models import Job
 from core.utils import encrypt_string
+from core.services.runners.abstract_runner import SubmitResult
 from core.services.runners.ray_runner import RayRunner, _kill_ray_cluster
 
 
@@ -134,6 +135,6 @@ class TestRayRunner:
         job.env_vars = json.dumps({"ENV_JOB_GATEWAY_TOKEN": encrypt_string("awesome_token")})
         with patch("core.services.runners.ray_runner.JobSubmissionClient") as mock_client_cls:
             mock_client_cls.return_value = self.ray_client
-            compute_resource, job_id = self.handler.submit()
-        assert isinstance(compute_resource, ComputeResource)
-        assert job_id == "AwesomeJobId"
+            result = self.handler.submit()
+        assert isinstance(result, SubmitResult)
+        assert result.ray_job_id == "AwesomeJobId"

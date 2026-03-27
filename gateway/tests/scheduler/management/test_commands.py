@@ -16,8 +16,7 @@ from core.services.runners import RunnerError
 from core.utils import check_logs
 from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
 from scheduler.tasks.free_resources import FreeResources
-from scheduler.tasks.schedule_queued_jobs import ScheduleQueuedJobs, JobExecutionResult
-from scheduler.schedule import get_jobs_to_schedule_fair_share
+from scheduler.tasks.schedule_queued_jobs import ScheduleQueuedJobs, JobExecutionResult, get_jobs_to_schedule_fair_share
 
 
 class TestCommands:

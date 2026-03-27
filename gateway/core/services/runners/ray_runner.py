@@ -24,8 +24,8 @@ from ray.dashboard.modules.job.sdk import JobSubmissionClient
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from core.models import ComputeResource, Job, JobConfig, DEFAULT_PROGRAM_ENTRYPOINT
-from core.services.runners.abstract_runner import AbstractRunner, RunnerError
+from core.models import Job, JobConfig, DEFAULT_PROGRAM_ENTRYPOINT
+from core.services.runners.abstract_runner import AbstractRunner, RunnerError, SubmitResult
 from core.services.storage.file_storage import FileStorage, WorkingDir
 from core.utils import retry_function, decrypt_env_vars, sanitize_file_path
 
@@ -71,7 +71,7 @@ class RayRunner(AbstractRunner):
         self._client = None
         self._connected = False
 
-    def submit(self) -> tuple[ComputeResource, str]:
+    def submit(self) -> any:
         """
         Submit the job to the Ray cluster.
 
@@ -79,18 +79,14 @@ class RayRunner(AbstractRunner):
         On failure, cleans up any created resources.
 
         Returns:
-            Tuple of (ComputeResource, ray_job_id)
+            SubmitResult with ray_job_id, title, and host.
+            The caller is responsible for creating and saving a ComputeResource.
 
         Raises:
             RunnerError: If submission fails (resources are cleaned up before raising)
-
-        Note:
-            The caller is responsible for saving the ComputeResource to DB
-            and assigning it to the job.
         """
         tracer = trace.get_tracer("scheduler.tracer")
         with tracer.start_as_current_span("submit.job") as span:
-            # 1. Create compute resource
             cluster_name = None
             try:
                 if settings.RAY_CLUSTER_MODE_LOCAL:
@@ -100,18 +96,11 @@ class RayRunner(AbstractRunner):
                     host, title = self._create_k8s_cluster()
                     cluster_name = title
 
-                compute_resource = ComputeResource(
-                    title=title,
-                    host=host,
-                    owner=self._job.author,
-                    gpu=self._job.gpu,
-                    active=True,
-                )
                 span.set_attribute("job.clustername", title)
-                ray_job_id = self._submit_to_ray(compute_resource)
+                ray_job_id = self._submit_to_ray(host)
                 span.set_attribute("job.id", self._job.id)
                 span.set_attribute("job.rayjobid", ray_job_id)
-                return compute_resource, ray_job_id
+                return SubmitResult(ray_job_id=ray_job_id, title=title, host=host)
 
             except Exception as ex:
                 logger.error("Failed to submit job [%s]: %s", self._job.id, ex)
@@ -196,12 +185,12 @@ class RayRunner(AbstractRunner):
 
         return _kill_ray_cluster(self._job.compute_resource.title)
 
-    def _submit_to_ray(self, compute_resource: ComputeResource) -> str:
+    def _submit_to_ray(self, host: str) -> str:
         """
         Submit job to Ray cluster (internal method).
 
         Args:
-            compute_resource: The compute resource to submit to
+            host: The Ray cluster host URL to submit to
 
         Returns:
             ray job id
@@ -252,8 +241,7 @@ class RayRunner(AbstractRunner):
             "middleware_job_id/" + str(self._job.id) + "," + token + "/"
         )
 
-        # Connect to Ray cluster using compute_resource host
-        host = compute_resource.host
+        # Connect to Ray cluster using host
         job_submission_client = retry_function(
             callback=lambda: JobSubmissionClient(host),
             num_retries=settings.RAY_SETUP_MAX_RETRIES,
