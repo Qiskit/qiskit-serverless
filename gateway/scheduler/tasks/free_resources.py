@@ -11,7 +11,7 @@ from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.task import SchedulerTask
 
-logger = logging.getLogger("commands")
+logger = logging.getLogger("scheduler.FreeResources")
 
 
 class FreeResources(SchedulerTask):
@@ -52,7 +52,7 @@ class FreeResources(SchedulerTask):
         terminated_job = Job.objects.filter(status__in=Job.TERMINAL_STATUSES, compute_resource=compute_resource).first()
         if terminated_job is None:
             logger.error(
-                "There is no job finished for [%s] compute resource:",
+                "compute_resource=%s doesn't have a terminated job linked",
                 compute_resource.title,
             )
             return
@@ -67,9 +67,15 @@ class FreeResources(SchedulerTask):
                 compute_resource.active = False
                 compute_resource.save()
                 logger.info(
-                    "[%s] Cluster [%s] is free after usage from [%s]. JobID [%s]",
-                    "GPU" if is_gpu else "Classical",
-                    compute_resource.title,
-                    compute_resource.owner,
+                    "job_id=%s compute_resource=%s type=%s Cluster removed ok",
                     terminated_job.id,
+                    compute_resource.title,
+                    "gpu" if is_gpu else "classical",
+                )
+            else:
+                logger.warning(
+                    "job_id=%s compute_resource=%s type=%s Error removing cluster",
+                    terminated_job.id,
+                    compute_resource.title,
+                    "gpu" if is_gpu else "classical",
                 )

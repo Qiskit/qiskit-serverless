@@ -29,7 +29,7 @@ from core.services.runners.abstract_runner import AbstractRunner, RunnerError
 from core.services.storage.file_storage import FileStorage, WorkingDir
 from core.utils import retry_function, decrypt_env_vars, sanitize_file_path
 
-logger = logging.getLogger("commands")
+logger = logging.getLogger("RayRunner")
 
 
 class RayRunner(AbstractRunner):
@@ -63,7 +63,18 @@ class RayRunner(AbstractRunner):
                 error_message=f"Ray JobClientSubmission setup failed for host [{host}].",
             )
             self._connected = True
+            logger.info(
+                "[connect] job_id=%s host=%s Connected to Ray cluster",
+                self._job.id,
+                host,
+            )
         except Exception as ex:
+            logger.error(
+                "[connect] job_id=%s host=%s error=%s Unable to connect to Ray cluster",
+                self._job.id,
+                host,
+                ex,
+            )
             raise RunnerError(f"Unable to connect to Ray cluster at [{host}]", ex) from ex
 
     def disconnect(self) -> None:
@@ -111,10 +122,21 @@ class RayRunner(AbstractRunner):
                 ray_job_id = self._submit_to_ray(compute_resource)
                 span.set_attribute("job.id", self._job.id)
                 span.set_attribute("job.rayjobid", ray_job_id)
+                logger.info(
+                    "[submit] job_id=%s ray_job_id=%s cluster=%s Job submitted ok",
+                    self._job.id,
+                    ray_job_id,
+                    title,
+                )
                 return compute_resource, ray_job_id
 
             except Exception as ex:
-                logger.error("Failed to submit job [%s]: %s", self._job.id, ex)
+                logger.error(
+                    "[submit] job_id=%s cluster=%s error=%s Job submit failed",
+                    self._job.id,
+                    cluster_name,
+                    ex,
+                )
                 if cluster_name:
                     _kill_ray_cluster(cluster_name)
                 raise RunnerError(f"Failed to submit job [{self._job.id}]", ex) from ex
@@ -137,6 +159,12 @@ class RayRunner(AbstractRunner):
                 error_message=f"Runtime error during status fetching from ray job [{self._job.ray_job_id}]",
             )
         except RuntimeError as ex:
+            logger.error(
+                "[status] job_id=%s ray_job_id=%s error=%s Job status failed",
+                self._job.id,
+                self._job.ray_job_id,
+                ex,
+            )
             raise RunnerError(f"Unable to get status for job [{self._job.ray_job_id}]", ex) from ex
 
         if ray_job_status is None:
@@ -162,6 +190,12 @@ class RayRunner(AbstractRunner):
                 error_message=f"Runtime error during logs fetching from ray job [{self._job.ray_job_id}]",
             )
         except RuntimeError as ex:
+            logger.error(
+                "[logs] job_id=%s ray_job_id=%s error=%s Get logs failed",
+                self._job.id,
+                self._job.ray_job_id,
+                ex,
+            )
             raise RunnerError(f"Unable to get logs for job [{self._job.ray_job_id}]", ex) from ex
 
     def stop(self) -> bool:
@@ -182,6 +216,12 @@ class RayRunner(AbstractRunner):
                 error_message=f"Runtime error during stopping of ray job [{self._job.ray_job_id}]",
             )
         except RuntimeError as ex:
+            logger.error(
+                "[stop] job_id=%s ray_job_id=%s error=%s Stop failed",
+                self._job.id,
+                self._job.ray_job_id,
+                ex,
+            )
             raise RunnerError(f"Unable to stop job [{self._job.ray_job_id}]", ex) from ex
 
     def free_resources(self) -> bool:
@@ -235,6 +275,12 @@ class RayRunner(AbstractRunner):
             with tarfile.open(program.artifact.path) as file:
                 file.extractall(working_directory_for_upload)
         else:
+            logger.error(
+                "[_submit_to_ray] job_id=%s program=%s provider=%s No image or artifact associated",
+                self._job.id,
+                program.title,
+                program.provider,
+            )
             raise ResourceNotFoundError(f"Program [{program.title}] has no image or artifact associated.")
 
         # set tracing
@@ -300,12 +346,28 @@ class RayRunner(AbstractRunner):
 
         try:
             if created_cluster_name != cluster_name:
-                logger.warning("Wrong name after cluster creation: %s", response.text)
+                logger.error(
+                    "[_create_k8s_cluster] job_id=%s cluster=%s created_cluster=%s Cluster name mismatch",
+                    self._job.id,
+                    cluster_name,
+                    created_cluster_name,
+                )
                 raise RuntimeError(f"Wrong name after cluster creation: {response.text}")
 
             host, cluster_is_ready = _wait_for_cluster_ready(cluster_name)
             if not cluster_is_ready:
+                logger.error(
+                    "[_create_k8s_cluster] job_id=%s cluster=%s Cluster creation timed out",
+                    self._job.id,
+                    cluster_name,
+                )
                 raise RuntimeError("Something went wrong during cluster creation: Timeout")
+            logger.info(
+                "[_create_k8s_cluster] job_id=%s cluster=%s host=%s Cluster ready",
+                self._job.id,
+                cluster_name,
+                host,
+            )
         except Exception:
             _kill_ray_cluster(created_cluster_name)
             raise
@@ -447,17 +509,23 @@ def _kill_ray_cluster(cluster_name: str) -> bool:
     except NotFoundError as resource_not_found:
         sanitized = repr(resource_not_found).replace("\n", "").replace("\r", "")
         logger.error(
-            "Something went wrong during ray cluster deletion request: %s",
+            "[_kill_ray_cluster] cluster=%s Error deleting, RayCluster not found: %s",
+            cluster_name,
             sanitized,
         )
         return success
 
     if delete_response.status == "Success":
+        logger.info(
+            "[_kill_ray_cluster] cluster=%s RayCluster deletion success",
+            cluster_name,
+        )
         success = True
     else:
         sanitized = delete_response.text.replace("\n", "").replace("\r", "")
         logger.error(
-            "Something went wrong during ray cluster deletion request: %s",
+            "[_kill_ray_cluster] cluster=%s RayCluster deletion failed: %s",
+            cluster_name,
             sanitized,
         )
     try:
@@ -470,7 +538,7 @@ def _kill_ray_cluster(cluster_name: str) -> bool:
         success = True
     except NotFoundError:
         logger.error(
-            "Something went wrong during ray certification deletion request: %s",
+            "[_kill_ray_cluster] cluster=%s Certificate deletion failed: NotFoundError",
             cluster_name,
         )
     try:
@@ -478,8 +546,8 @@ def _kill_ray_cluster(cluster_name: str) -> bool:
         success = True
     except NotFoundError:
         logger.error(
-            "Something went wrong during ray certification deletion request: %s",
-            f"{cluster_name}-worker",
+            "[_kill_ray_cluster] cluster=%s Certificate-worker deletion failed: NotFoundError",
+            cluster_name,
         )
 
     corev1 = kubernetes_client.CoreV1Api()
@@ -488,7 +556,7 @@ def _kill_ray_cluster(cluster_name: str) -> bool:
         success = True
     except ApiException:
         logger.error(
-            "Something went wrong during ray secret deletion request: %s",
+            "[_kill_ray_cluster] cluster=%s Secret deletion failed: ApiException",
             cluster_name,
         )
     try:
@@ -496,7 +564,7 @@ def _kill_ray_cluster(cluster_name: str) -> bool:
         success = True
     except ApiException:
         logger.error(
-            "Something went wrong during ray secret deletion request: %s",
-            f"{cluster_name}-worker",
+            "[_kill_ray_cluster] cluster=%s Secret-worker deletion failed: ApiException",
+            cluster_name,
         )
     return success
