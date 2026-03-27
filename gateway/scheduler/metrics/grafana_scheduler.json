@@ -21,48 +21,49 @@
       }
     ]
   },
-  "description": "Gateay Django metrics dashboard using django-prometheus metrics exporter",
+  "description": "",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "links": [],
-  "liveNow": true,
   "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 103,
+      "panels": [],
+      "title": "Health",
+      "type": "row"
+    },
     {
       "datasource": {
         "type": "prometheus",
         "uid": "$datasource"
       },
+      "description": "Time elapsed since the scheduler process started.",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "fixedColor": "green",
+            "mode": "fixed"
           },
-          "mappings": [
-            {
-              "options": {
-                "match": "null",
-                "result": {
-                  "text": "N/A"
-                }
-              },
-              "type": "special"
-            }
-          ],
+          "mappings": [],
+          "noValue": "N/A",
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
                 "color": "green",
                 "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           },
-          "unit": "reqps"
+          "unit": "dtdurations"
         },
         "overrides": []
       },
@@ -70,405 +71,9 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 0
+        "y": 1
       },
-      "id": 13,
-      "maxDataPoints": 100,
-      "options": {
-        "colorMode": "none",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "horizontal",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "mean"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "text": {
-          "valueSize": 40
-        },
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.4.2",
-      "targets": [
-        {
-          "datasource": {
-            "uid": "$datasource"
-          },
-          "editorMode": "code",
-          "expr": "sum(irate(django_http_requests_total_by_transport_total{kube_deployment_name=~\"^$application$\"}[$__rate_interval]))",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Requests",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 2,
-          "mappings": [
-            {
-              "options": {
-                "match": "null",
-                "result": {
-                  "text": "N/A"
-                }
-              },
-              "type": "special"
-            }
-          ],
-          "noValue": "0",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "reqps"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 2,
-        "w": 3,
-        "x": 6,
-        "y": 0
-      },
-      "id": 15,
-      "maxDataPoints": 100,
-      "options": {
-        "colorMode": "none",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "horizontal",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "mean"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "text": {
-          "valueSize": 20
-        },
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.4.2",
-      "targets": [
-        {
-          "datasource": {
-            "uid": "$datasource"
-          },
-          "editorMode": "code",
-          "expr": "sum(irate(django_http_responses_total_by_status_total{status=~\"2.+\",kube_deployment_name=~\"^$application$\"}[$__rate_interval]))",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "legendFormat": "",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "2XX Responses",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 2,
-          "mappings": [
-            {
-              "options": {
-                "match": "null",
-                "result": {
-                  "text": "N/A"
-                }
-              },
-              "type": "special"
-            }
-          ],
-          "noValue": "0",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "reqps"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 2,
-        "w": 3,
-        "x": 9,
-        "y": 0
-      },
-      "id": 16,
-      "maxDataPoints": 100,
-      "options": {
-        "colorMode": "none",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "horizontal",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "mean"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "text": {
-          "valueSize": 20
-        },
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.4.2",
-      "targets": [
-        {
-          "datasource": {
-            "uid": "$datasource"
-          },
-          "editorMode": "code",
-          "expr": "sum(irate(django_http_responses_total_by_status_total{status=~\"4.+\",kube_deployment_name=~\"^$application$\"}[$__rate_interval]))",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "legendFormat": "",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "4XX Responses",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P0D5AB5803FB3A643"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "min": 0,
-          "noValue": "0",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "#EAB839",
-                "value": 1
-              },
-              {
-                "color": "red",
-                "value": 10
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 3,
-        "x": 12,
-        "y": 0
-      },
-      "id": 37,
-      "options": {
-        "minVizHeight": 75,
-        "minVizWidth": 75,
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "sizing": "auto"
-      },
-      "pluginVersion": "12.4.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P0D5AB5803FB3A643"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "sum(max_over_time(django_db_errors_total{kube_deployment_name=~\"^$application$\"}[$__range]))",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "DB Query Errors",
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P0D5AB5803FB3A643"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "min": 0,
-          "noValue": "0",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "#EAB839",
-                "value": 1
-              },
-              {
-                "color": "red",
-                "value": 5
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 3,
-        "x": 15,
-        "y": 0
-      },
-      "id": 38,
-      "options": {
-        "minVizHeight": 75,
-        "minVizWidth": 75,
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "sizing": "auto"
-      },
-      "pluginVersion": "12.4.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P0D5AB5803FB3A643"
-          },
-          "editorMode": "code",
-          "expr": "sum(max_over_time(django_db_new_connection_errors_total{kube_deployment_name=~\"^$application$\"}[$__range]))",
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "DB Connection Errors",
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P0D5AB5803FB3A643"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "yellow",
-                "value": 10
-              },
-              {
-                "color": "red",
-                "value": 25
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 18,
-        "y": 0
-      },
-      "id": 43,
+      "id": 21,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
@@ -491,16 +96,17 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P0D5AB5803FB3A643"
+            "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "rate(django_db_execute_total{kube_deployment_name=~\"^$application$\"}[5m]) / rate(django_http_requests_total_by_transport_total{kube_deployment_name=~\"^$application$\"}[5m])",
-          "legendFormat": "DB queries / request",
-          "range": true,
+          "expr": "time() - scalar(scheduler_start_timestamp_seconds)",
+          "instant": true,
+          "legendFormat": "Uptime",
+          "range": false,
           "refId": "A"
         }
       ],
-      "title": "DB Queries per HTTP Request",
+      "title": "Uptime",
       "type": "stat"
     },
     {
@@ -508,24 +114,14 @@
         "type": "prometheus",
         "uid": "$datasource"
       },
+      "description": "Seconds since the latest completed scheduler loop iteration. Shows N/A if the scheduler has not ticked yet.",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "thresholds"
           },
-          "decimals": 2,
-          "mappings": [
-            {
-              "options": {
-                "match": "null",
-                "result": {
-                  "text": "N/A"
-                }
-              },
-              "type": "special"
-            }
-          ],
-          "noValue": "0",
+          "mappings": [],
+          "noValue": "N/A",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -534,40 +130,40 @@
                 "value": 0
               },
               {
+                "color": "yellow",
+                "value": 30
+              },
+              {
                 "color": "red",
-                "value": 80
+                "value": 60
               }
             ]
           },
-          "unit": "reqps"
+          "unit": "s"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 2,
-        "w": 3,
+        "h": 4,
+        "w": 6,
         "x": 6,
-        "y": 2
+        "y": 1
       },
-      "id": 23,
-      "maxDataPoints": 100,
+      "id": 2,
       "options": {
-        "colorMode": "none",
+        "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "auto",
-        "orientation": "horizontal",
+        "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
-            "mean"
+            "lastNotNull"
           ],
           "fields": "",
           "values": false
         },
         "showPercentChange": false,
-        "text": {
-          "valueSize": 20
-        },
         "textMode": "auto",
         "wideLayout": true
       },
@@ -575,18 +171,18 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "sum(irate(django_http_responses_total_by_status_total{status=~\"3.+\",kube_deployment_name=~\"^$application$\"}[$__rate_interval]))",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "legendFormat": "",
-          "range": true,
+          "expr": "clamp_min(time() - (scheduler_last_tick_timestamp_seconds > 0), 0)",
+          "instant": true,
+          "legendFormat": "Last tick",
+          "range": false,
           "refId": "A"
         }
       ],
-      "title": "3XX Responses",
+      "title": "Last Tick",
       "type": "stat"
     },
     {
@@ -594,23 +190,81 @@
         "type": "prometheus",
         "uid": "$datasource"
       },
+      "description": "Cumulative number of completed scheduler loop iterations. A growing value means the scheduler is alive. A reset to 0 indicates a restart.",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "thresholds"
           },
-          "decimals": 2,
-          "mappings": [
-            {
-              "options": {
-                "match": "null",
-                "result": {
-                  "text": "N/A"
-                }
-              },
-              "type": "special"
-            }
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
+      "id": 19,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
           ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "editorMode": "code",
+          "expr": "sum(scheduler_loop_duration_seconds_count)",
+          "instant": true,
+          "legendFormat": "Ticks",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Total Ticks",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Cumulative count of scheduler task errors.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
           "noValue": "0",
           "thresholds": {
             "mode": "absolute",
@@ -620,40 +274,40 @@
                 "value": 0
               },
               {
+                "color": "yellow",
+                "value": 5
+              },
+              {
                 "color": "red",
-                "value": 80
+                "value": 20
               }
             ]
           },
-          "unit": "reqps"
+          "unit": "short"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 2,
-        "w": 3,
-        "x": 9,
-        "y": 2
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 1
       },
-      "id": 17,
-      "maxDataPoints": 100,
+      "id": 1,
       "options": {
-        "colorMode": "none",
-        "graphMode": "none",
+        "colorMode": "value",
+        "graphMode": "area",
         "justifyMode": "auto",
-        "orientation": "horizontal",
+        "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
-            "mean"
+            "lastNotNull"
           ],
           "fields": "",
           "values": false
         },
         "showPercentChange": false,
-        "text": {
-          "valueSize": 20
-        },
         "textMode": "auto",
         "wideLayout": true
       },
@@ -661,85 +315,109 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "sum(irate(django_http_responses_total_by_status_total{status=~\"5.+\",kube_deployment_name=~\"^$application$\"}[$__rate_interval]))",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "legendFormat": "",
+          "expr": "sum(scheduler_task_errors_total)",
+          "legendFormat": "Total errors",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "5XX Responses",
+      "title": "Task Errors (total)",
       "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "id": 100,
+      "panels": [],
+      "title": "Tasks",
+      "type": "row"
     },
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P0D5AB5803FB3A643"
+        "uid": "$datasource"
       },
+      "description": "Average execution time per task, stacked. Stack height = total loop duration.",
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
             }
-          }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "s"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 7,
         "w": 12,
         "x": 0,
-        "y": 4
+        "y": 6
       },
-      "id": 20,
+      "id": 3,
       "options": {
-        "calculate": false,
-        "cellGap": 1,
-        "cellValues": {
-          "unit": "reqps"
-        },
-        "color": {
-          "exponent": 0.5,
-          "fill": "dark-orange",
-          "mode": "scheme",
-          "reverse": false,
-          "scale": "exponential",
-          "scheme": "Spectral",
-          "steps": 64
-        },
-        "exemplars": {
-          "color": "rgba(255,0,255,0.7)"
-        },
-        "filterValues": {
-          "le": 1e-9
-        },
         "legend": {
-          "show": true
-        },
-        "rowsFrame": {
-          "layout": "auto",
-          "value": "Responses"
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
-          "mode": "single",
-          "showColorScale": false,
-          "yHistogram": true
-        },
-        "yAxis": {
-          "axisPlacement": "left",
-          "decimals": 0,
-          "reverse": false,
-          "unit": "s"
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
         }
       },
       "pluginVersion": "12.4.2",
@@ -747,113 +425,24 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P0D5AB5803FB3A643"
+            "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "sum(rate(django_http_requests_latency_including_middlewares_seconds_bucket{kube_deployment_name=~\"^$application$\"}[$__rate_interval])) by (le)",
-          "format": "heatmap",
-          "interval": "",
-          "legendFormat": "{{le}}",
+          "expr": "sum by (task_name) (rate(scheduler_task_duration_seconds_sum[$__rate_interval])) / sum by (task_name) (rate(scheduler_task_duration_seconds_count[$__rate_interval]))",
+          "legendFormat": "{{task_name}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Number of Requests by Processing Time",
-      "type": "heatmap"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P0D5AB5803FB3A643"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "scaleDistribution": {
-              "type": "linear"
-            }
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 4
-      },
-      "id": 22,
-      "options": {
-        "calculate": false,
-        "cellGap": 1,
-        "cellValues": {
-          "unit": "reqps"
-        },
-        "color": {
-          "exponent": 0.5,
-          "fill": "dark-orange",
-          "mode": "scheme",
-          "reverse": false,
-          "scale": "exponential",
-          "scheme": "Spectral",
-          "steps": 64
-        },
-        "exemplars": {
-          "color": "rgba(255,0,255,0.7)"
-        },
-        "filterValues": {
-          "le": 1e-9
-        },
-        "legend": {
-          "show": true
-        },
-        "rowsFrame": {
-          "layout": "auto",
-          "value": "Responses"
-        },
-        "tooltip": {
-          "mode": "single",
-          "showColorScale": false,
-          "yHistogram": true
-        },
-        "yAxis": {
-          "axisPlacement": "left",
-          "decimals": 0,
-          "reverse": false,
-          "unit": "bytes"
-        }
-      },
-      "pluginVersion": "12.4.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P0D5AB5803FB3A643"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "sum(rate(django_http_responses_body_total_bytes_bucket{kube_deployment_name=~\"^$application$\"}[$__rate_interval])) by (le)",
-          "format": "heatmap",
-          "instant": false,
-          "interval": "",
-          "legendFormat": "{{le}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Number of Responses by Size",
-      "type": "heatmap"
+      "title": "Task Duration (avg, stacked)",
+      "type": "timeseries"
     },
     {
       "datasource": {
         "type": "prometheus",
         "uid": "$datasource"
       },
+      "description": "Rate of task errors broken down by task_name and error_type.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -880,9 +469,7 @@
             "lineWidth": 1,
             "pointSize": 5,
             "scaleDistribution": {
-              "linearThreshold": 1,
-              "log": 2,
-              "type": "log"
+              "type": "linear"
             },
             "showPoints": "never",
             "showValues": false,
@@ -892,7 +479,7 @@
               "mode": "none"
             },
             "thresholdsStyle": {
-              "mode": "dashed"
+              "mode": "off"
             }
           },
           "mappings": [],
@@ -905,22 +492,21 @@
               },
               {
                 "color": "red",
-                "value": 1
+                "value": 80
               }
             ]
           },
-          "unit": "s"
+          "unit": "cps"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 7,
         "w": 12,
-        "x": 0,
-        "y": 12
+        "x": 12,
+        "y": 6
       },
       "id": 4,
-      "interval": "30s",
       "options": {
         "legend": {
           "calcs": [],
@@ -938,350 +524,252 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum(irate(django_http_requests_latency_seconds_by_view_method_bucket{kube_deployment_name=~\"^$application$\"}[$__rate_interval])) by (le))",
-          "format": "time_series",
-          "interval": "",
-          "intervalFactor": 1,
-          "legendFormat": "50 quantile",
+          "expr": "rate(scheduler_task_errors_total[$__rate_interval])",
+          "legendFormat": "{{task_name}} / {{error_type}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Task Error Rate by task / error_type",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 13
+      },
+      "id": 101,
+      "panels": [],
+      "title": "Queue",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Number of jobs currently in the queue waiting to be scheduled.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 14
+      },
+      "id": 6,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "editorMode": "code",
+          "expr": "sum by (compute_type) (scheduler_queue_size)",
+          "legendFormat": "{{compute_type}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Queue Size by compute_type",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Time jobs spend waiting in queue before being scheduled.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 14
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.50, rate(scheduler_queue_wait_seconds_bucket[$__rate_interval]))",
+          "legendFormat": "p50 {{compute_type}}",
           "range": true,
           "refId": "A"
         },
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(irate(django_http_requests_latency_seconds_by_view_method_bucket{kube_deployment_name=~\"^$application$\"}[$__rate_interval])) by (le))",
-          "format": "time_series",
-          "interval": "",
-          "intervalFactor": 1,
-          "legendFormat": "95 quantile",
+          "expr": "histogram_quantile(0.90, rate(scheduler_queue_wait_seconds_bucket[$__rate_interval]))",
+          "legendFormat": "p90 {{compute_type}}",
           "range": true,
           "refId": "B"
         },
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum(irate(django_http_requests_latency_seconds_by_view_method_bucket{kube_deployment_name=~\"^$application$\"}[$__rate_interval])) by (le))",
-          "format": "time_series",
-          "interval": "",
-          "intervalFactor": 1,
-          "legendFormat": "99 quantile",
+          "expr": "histogram_quantile(0.99, rate(scheduler_queue_wait_seconds_bucket[$__rate_interval]))",
+          "legendFormat": "p99 {{compute_type}}",
           "range": true,
           "refId": "C"
         }
       ],
-      "title": "Request Latency",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "decimals": 2,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "reqps"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 12
-      },
-      "id": 11,
-      "interval": "30s",
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "12.4.2",
-      "targets": [
-        {
-          "datasource": {
-            "uid": "$datasource"
-          },
-          "editorMode": "code",
-          "expr": "sum(irate(django_http_responses_total_by_status_total{kube_deployment_name=~\"^$application$\"}[$__rate_interval])) by(status)",
-          "format": "time_series",
-          "interval": "",
-          "intervalFactor": 1,
-          "legendFormat": "{{status}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Response Status",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P0D5AB5803FB3A643"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 0,
-          "mappings": [],
-          "max": 1,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "#EAB839",
-                "value": 0.3
-              },
-              {
-                "color": "red",
-                "value": 0.6
-              }
-            ]
-          },
-          "unit": "percentunit"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 20
-      },
-      "id": 25,
-      "options": {
-        "displayMode": "gradient",
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "maxVizHeight": 300,
-        "minVizHeight": 10,
-        "minVizWidth": 0,
-        "namePlacement": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "sum"
-          ],
-          "fields": "",
-          "limit": 20,
-          "values": true
-        },
-        "showUnfilled": true,
-        "sizing": "auto",
-        "text": {},
-        "valueMode": "color"
-      },
-      "pluginVersion": "12.4.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P0D5AB5803FB3A643"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "topk(20, (1 - (sum(max_over_time(django_http_requests_latency_seconds_by_view_method_bucket{kube_deployment_name=~\"^$application$\",le=\"$threshold\"}[$__range]) / ignoring(le) max_over_time(django_http_requests_latency_seconds_by_view_method_count{kube_deployment_name=~\"^$application$\"}[$__range])) by (method, view) / count(present_over_time(django_http_requests_latency_seconds_by_view_method_count{kube_deployment_name=~\"^$application$\"}[$__range])) by (method, view))) > 0.0099 and on(view)(django_http_requests_latency_seconds_by_view_method_count{view=~\"v1:.*\"}))",
-          "format": "table",
-          "instant": true,
-          "interval": "",
-          "legendFormat": "{{method}} {{view}}",
-          "range": false,
-          "refId": "A"
-        }
-      ],
-      "title": "Top 20 Views by Response Time (> $threshold)",
-      "type": "bargauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "decimals": 2,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "reqps"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 20
-      },
-      "id": 2,
-      "interval": "30s",
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "sortBy": "Mean",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "12.4.2",
-      "targets": [
-        {
-          "datasource": {
-            "uid": "$datasource"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "topk(10, sum(irate(django_http_requests_total_by_view_transport_method_total{kube_deployment_name=~\"^$application$\",view!~\"prometheus-django-metrics|healthcheck|liveness|readiness\"}[$__rate_interval])) by(method, view) > 0)",
-          "format": "time_series",
-          "instant": false,
-          "interval": "",
-          "intervalFactor": 1,
-          "legendFormat": "{{method}} /{{view}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Top Requests",
+      "title": "Queue Wait Time (p50 / p90 / p99)",
       "type": "timeseries"
     },
     {
@@ -1290,16 +778,16 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 28
+        "y": 22
       },
-      "id": 103,
+      "id": 102,
       "panels": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P0D5AB5803FB3A643"
+            "uid": "$datasource"
           },
-          "description": "Rate of database statements executed per second, by database alias.",
+          "description": "Rate of database queries executed per second, broken down by database alias.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1314,7 +802,7 @@
                 "barAlignment": 0,
                 "barWidthFactor": 0.6,
                 "drawStyle": "line",
-                "fillOpacity": 0,
+                "fillOpacity": 10,
                 "gradientMode": "none",
                 "hideFrom": {
                   "legend": false,
@@ -1328,7 +816,7 @@
                 "scaleDistribution": {
                   "type": "linear"
                 },
-                "showPoints": "auto",
+                "showPoints": "never",
                 "showValues": false,
                 "spanNulls": false,
                 "stacking": {
@@ -1357,9 +845,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 29
+            "y": 49
           },
-          "id": 35,
+          "id": 8,
           "options": {
             "legend": {
               "calcs": [],
@@ -1378,10 +866,10 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P0D5AB5803FB3A643"
+                "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum by (alias) (irate(django_db_execute_total{kube_deployment_name=~\"^$application$\"}[$__rate_interval]))",
+              "expr": "sum by (alias) (rate(django_db_execute_total[$__rate_interval]))",
               "legendFormat": "{{alias}}",
               "range": true,
               "refId": "A"
@@ -1389,10 +877,10 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P0D5AB5803FB3A643"
+                "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum by (alias) (irate(django_db_execute_many_total{kube_deployment_name=~\"^$application$\"}[$__rate_interval]))",
+              "expr": "sum by (alias) (rate(django_db_execute_many_total[$__rate_interval]))",
               "legendFormat": "{{alias}} (executemany)",
               "range": true,
               "refId": "B"
@@ -1404,8 +892,9 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P0D5AB5803FB3A643"
+            "uid": "$datasource"
           },
+          "description": "Heatmap of database query durations.",
           "fieldConfig": {
             "defaults": {
               "custom": {
@@ -1425,9 +914,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 29
+            "y": 49
           },
-          "id": 33,
+          "id": 11,
           "options": {
             "calculate": false,
             "cellGap": 1,
@@ -1472,10 +961,10 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P0D5AB5803FB3A643"
+                "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum(rate(django_db_query_duration_seconds_bucket{kube_deployment_name=~\"^$application$\"}[$__rate_interval])) by (le)",
+              "expr": "sum by (le) (rate(django_db_query_duration_seconds_bucket[$__rate_interval]))",
               "format": "heatmap",
               "legendFormat": "{{le}}",
               "range": true,
@@ -1488,8 +977,9 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P0D5AB5803FB3A643"
+            "uid": "$datasource"
           },
+          "description": "Database query latency percentiles (p50 / p95 / p99) by database alias.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1536,10 +1026,6 @@
                   {
                     "color": "green",
                     "value": 0
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
                   }
                 ]
               },
@@ -1551,9 +1037,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 37
+            "y": 57
           },
-          "id": 39,
+          "id": 9,
           "options": {
             "legend": {
               "calcs": [],
@@ -1572,10 +1058,10 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P0D5AB5803FB3A643"
+                "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.50, sum by (alias, le) (rate(django_db_query_duration_seconds_bucket{kube_deployment_name=~\"^$application$\"}[$__rate_interval])))",
+              "expr": "histogram_quantile(0.50, sum by (alias, le) (rate(django_db_query_duration_seconds_bucket[$__rate_interval])))",
               "legendFormat": "p50 {{alias}}",
               "range": true,
               "refId": "A"
@@ -1583,10 +1069,10 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P0D5AB5803FB3A643"
+                "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.95, sum by (alias, le) (rate(django_db_query_duration_seconds_bucket{kube_deployment_name=~\"^$application$\"}[$__rate_interval])))",
+              "expr": "histogram_quantile(0.95, sum by (alias, le) (rate(django_db_query_duration_seconds_bucket[$__rate_interval])))",
               "legendFormat": "p95 {{alias}}",
               "range": true,
               "refId": "B"
@@ -1594,10 +1080,10 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P0D5AB5803FB3A643"
+                "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.99, sum by (alias, le) (rate(django_db_query_duration_seconds_bucket{kube_deployment_name=~\"^$application$\"}[$__rate_interval])))",
+              "expr": "histogram_quantile(0.99, sum by (alias, le) (rate(django_db_query_duration_seconds_bucket[$__rate_interval])))",
               "legendFormat": "p99 {{alias}}",
               "range": true,
               "refId": "C"
@@ -1609,8 +1095,9 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P0D5AB5803FB3A643"
+            "uid": "$datasource"
           },
+          "description": "Rate of new database connections opened per second, by alias.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1657,10 +1144,6 @@
                   {
                     "color": "green",
                     "value": 0
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
                   }
                 ]
               },
@@ -1672,9 +1155,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 37
+            "y": 57
           },
-          "id": 40,
+          "id": 12,
           "options": {
             "legend": {
               "calcs": [],
@@ -1693,10 +1176,10 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P0D5AB5803FB3A643"
+                "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum by (alias) (irate(django_db_new_connections_total{kube_deployment_name=~\"^$application$\"}[$__rate_interval]))",
+              "expr": "sum by (alias) (rate(django_db_new_connections_total[$__rate_interval]))",
               "legendFormat": "new connections {{alias}}",
               "range": true,
               "refId": "A"
@@ -1708,8 +1191,9 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P0D5AB5803FB3A643"
+            "uid": "$datasource"
           },
+          "description": "Rate of database errors (query errors and connection errors) by alias.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1759,7 +1243,7 @@
                   },
                   {
                     "color": "red",
-                    "value": 80
+                    "value": 1
                   }
                 ]
               },
@@ -1771,9 +1255,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 45
+            "y": 65
           },
-          "id": 41,
+          "id": 10,
           "options": {
             "legend": {
               "calcs": [],
@@ -1792,10 +1276,10 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P0D5AB5803FB3A643"
+                "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum by (alias) (irate(django_db_errors_total{kube_deployment_name=~\"^$application$\"}[$__rate_interval]))",
+              "expr": "sum by (alias) (rate(django_db_errors_total[$__rate_interval]))",
               "legendFormat": "query errors {{alias}}",
               "range": true,
               "refId": "A"
@@ -1803,10 +1287,10 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P0D5AB5803FB3A643"
+                "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum by (alias) (irate(django_db_new_connection_errors_total{kube_deployment_name=~\"^$application$\"}[$__rate_interval]))",
+              "expr": "sum by (alias) (rate(django_db_new_connection_errors_total[$__rate_interval]))",
               "legendFormat": "connection errors {{alias}}",
               "range": true,
               "refId": "B"
@@ -1818,8 +1302,9 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P0D5AB5803FB3A643"
+            "uid": "$datasource"
           },
+          "description": "Rate of Django ORM operations (inserts, updates, deletes) by model.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1866,10 +1351,6 @@
                   {
                     "color": "green",
                     "value": 0
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
                   }
                 ]
               },
@@ -1881,9 +1362,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 45
+            "y": 65
           },
-          "id": 42,
+          "id": 13,
           "options": {
             "legend": {
               "calcs": [],
@@ -1902,10 +1383,10 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P0D5AB5803FB3A643"
+                "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum(irate(django_model_inserts_total{kube_deployment_name=~\"^$application$\"}[$__rate_interval])) by (model)",
+              "expr": "sum by (model) (rate(django_model_inserts_total[$__rate_interval]))",
               "legendFormat": "inserts {{model}}",
               "range": true,
               "refId": "A"
@@ -1913,10 +1394,10 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P0D5AB5803FB3A643"
+                "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum(irate(django_model_updates_total{kube_deployment_name=~\"^$application$\"}[$__rate_interval])) by (model)",
+              "expr": "sum by (model) (rate(django_model_updates_total[$__rate_interval]))",
               "legendFormat": "updates {{model}}",
               "range": true,
               "refId": "B"
@@ -1924,10 +1405,10 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P0D5AB5803FB3A643"
+                "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum(irate(django_model_deletes_total{kube_deployment_name=~\"^$application$\"}[$__rate_interval])) by (model)",
+              "expr": "sum by (model) (rate(django_model_deletes_total[$__rate_interval]))",
               "legendFormat": "deletes {{model}}",
               "range": true,
               "refId": "C"
@@ -1962,41 +1443,26 @@
       },
       {
         "current": {
-          "text": "gateway",
-          "value": "gateway"
+          "text": "scheduler",
+          "value": "scheduler"
         },
         "datasource": {
           "type": "prometheus",
-          "uid": "$datasource"
+          "uid": "P0D5AB5803FB3A643"
         },
-        "definition": "label_values(django_http_requests_total_by_transport_total,kube_deployment_name)",
-        "includeAll": true,
+        "definition": "label_values(scheduler_last_tick_timestamp_seconds,kube_deployment_name)",
         "label": "application",
         "name": "application",
         "options": [],
         "query": {
           "qryType": 1,
-          "query": "label_values(django_http_requests_total_by_transport_total,kube_deployment_name)",
+          "query": "label_values(scheduler_last_tick_timestamp_seconds,kube_deployment_name)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
         "regex": "",
         "regexApplyTo": "value",
         "type": "query"
-      },
-      {
-        "current": {
-          "text": "2.5",
-          "value": "2.5"
-        },
-        "description": "Request duration threshold",
-        "includeAll": false,
-        "label": "threshold",
-        "name": "threshold",
-        "options": [],
-        "query": "100ms : 0.1, 250ms : 0.25, 500ms : 0.5, 750ms : 0.75, 1s : 1.0, 2.5s : 2.5, 5s : 5.0, 7.5s : 7.5, 10s : 10.0, 25s : 25.0",
-        "type": "custom",
-        "valuesFormat": "csv"
       }
     ]
   },
@@ -2006,8 +1472,8 @@
   },
   "timepicker": {},
   "timezone": "UTC",
-  "title": "Gateway",
-  "uid": "O6v4rMpizda",
-  "version": 10,
+  "title": "Scheduler Metrics",
+  "uid": "qiskit-scheduler-metrics",
+  "version": 26,
   "weekStart": ""
 }
