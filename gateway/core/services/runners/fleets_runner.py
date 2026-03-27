@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from core.services.runners.abstract_runner import AbstractRunner, SubmitResult
+from core.services.runners.abstract_runner import AbstractRunner
 
 
 class FleetsRunner(AbstractRunner):
