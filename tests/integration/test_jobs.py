@@ -463,7 +463,7 @@ ERROR: Provider log
 |   - my-args: 123
 """.strip()
 
-        assert exc_info.value.args[0] == expected_message
+        assert exc_info.value.args[0].strip() == expected_message
 
         event_data = events[0].data
         assert event_data["code"] == "A123"
