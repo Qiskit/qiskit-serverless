@@ -1,0 +1,28 @@
+---
+features:
+  - |
+    **Function development**
+    
+    Added a new method :func:`send_error` that can be used in functions.
+    This will register an event associated with the job of the type 'error' 
+    in the database so you can retrieve it at any moment.
+
+    It can be used like this:
+
+    .. code-block:: python
+    
+      from qiskit_serverless import send_error
+
+      send_error(code=1000, message="My error message", args={"my-arg-1": 123, "my-arg-2": "hi"})
+    
+    **Client side**
+    
+    Added a new method for jobs and clients :func:`events(type)`. It retrieves the 
+    job events based on the type or all if no type is passed.
+
+    **API**
+    
+    Added two new endpoints: ``GET jobs/{job_id}/events`` and 
+    ``POST jobs/{job_id}/event``. This will be the serverside 
+    part of the job method :func:`events` and the :func:`send_error`
+    

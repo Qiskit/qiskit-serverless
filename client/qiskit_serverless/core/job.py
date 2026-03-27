@@ -59,6 +59,7 @@ from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
     QiskitObjectsDecoder,
 )
+from qiskit_serverless.utils.errors import JobEvent, format_err_event
 from qiskit_serverless.utils.http import get_headers
 from qiskit_serverless.utils.json import is_jsonable
 from qiskit_serverless.utils import ServerlessRuntimeService
@@ -121,6 +122,13 @@ class JobService(ABC):
             job_id: The job's logs
             include: rex expression finds match in the log line to be included
             exclude: rex expression finds match in the log line to be excluded
+        """
+
+    @abstractmethod
+    def events(self, job_id: str, **kwargs) -> list[JobEvent]:
+        """Returns events of the job.
+        Args:
+            job_id: The job id
         """
 
 
@@ -249,6 +257,10 @@ class Job:
         results = self._job_service.result(self.job_id)
 
         if self.status() == "ERROR":
+            error_events = self.events(type="ERROR")
+            if len(error_events) > 0:
+                error_msg = [format_err_event(evt) for evt in error_events]
+                raise QiskitServerlessException("\n\n".join(error_msg))
             if results:
                 raise QiskitServerlessException(results)
 
@@ -262,6 +274,10 @@ class Job:
 
         return results
 
+    def events(self, **kwargs) -> list[JobEvent]:
+        """Returns events of the job."""
+        return self._job_service.events(self.job_id, **kwargs)
+
     def in_terminal_state(self) -> bool:
         """Checks if job is in terminal state"""
         terminal_status = ["CANCELED", "DONE", "ERROR"]
@@ -269,6 +285,52 @@ class Job:
 
     def __repr__(self):
         return f"<Job | {self.job_id}>"
+
+
+def send_error(code: str, message: str, exception: str, args: Optional[Any] = None):
+    """Send an error message to store it in the gateway.
+
+    Args:
+        code: The error code.
+        message: A human readable text describing the error.
+        args: Additional arguments to give further information. Should json format or empty.
+    """
+
+    version = os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
+    if version is None:
+        version = GATEWAY_PROVIDER_VERSION_DEFAULT
+
+    token = os.environ.get(ENV_JOB_GATEWAY_TOKEN)
+    if token is None:
+        logging.warning(
+            "The Error will be logged since there is no information about the "
+            "authorization token in the environment."
+        )
+        logging.error("Error %s: %s\n%s", code, message, args)
+        return False
+
+    instance = os.environ.get(ENV_JOB_GATEWAY_INSTANCE, None)
+    channel = os.environ.get(QISKIT_IBM_CHANNEL, None)
+    url = f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/" f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/event/"
+
+    request_json = {"type": "ERROR", "code": code, "message": message, "exception": exception}
+    if args:
+        request_json["args"] = args
+
+    response = requests.post(
+        url,
+        json=request_json,
+        headers=get_headers(token=token, instance=instance, channel=channel),
+        timeout=REQUESTS_TIMEOUT,
+    )
+
+    if not response.ok:
+        sanitized = response.text.replace("\n", "").replace("\r", "")
+        logging.warning("Something went wrong sending error: %s", sanitized)
+        logging.warning("The Error will be logged since there was an error sending the error.")
+        logging.error("Error %s: %s\n%s", code, message, args)
+
+    return response.ok
 
 
 def save_result(result: Dict[str, Any]):

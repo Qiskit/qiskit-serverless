@@ -3,6 +3,7 @@
 
 from datetime import datetime, timezone
 import os
+import tempfile
 from time import sleep
 from uuid import uuid4
 
@@ -23,6 +24,30 @@ resources_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../so
 
 class TestJobs:
     """Test class for integration testing with docker."""
+
+    def _upload_with_template(self, serverless_client: ServerlessClient, file: str) -> str:
+        with tempfile.NamedTemporaryFile(
+            mode="w+", encoding="utf-8", delete=True, dir=resources_path, suffix=".py"
+        ) as tmp:
+
+            with open(
+                "../gateway/templates/main.tmpl",
+                "r",
+                encoding="utf-8",
+            ) as template:
+                template_content = template.read()
+                template_content = template_content.replace("{{mount_path}}", "/runner")
+                template_content = template_content.replace("{{package_name}}", file)
+                tmp.write(template_content)
+                tmp.flush()
+
+            uploaded_function = QiskitFunction(
+                title="exception_producer",
+                entrypoint=os.path.basename(tmp.name),
+                working_dir=resources_path,
+            )
+
+            return serverless_client.upload(uploaded_function)
 
     @mark.order(1)
     def test_simple_function(self, serverless_client: ServerlessClient):
@@ -369,6 +394,104 @@ ERROR: Provider log
             serverless_client.function("wrong-title")
 
         assert str(exc_info.value) == expected_message
+
+    def test_event_send_error(self, serverless_client: ServerlessClient):
+        """Integration test for submitting an error event within the function and retrieving it client-side."""
+
+        events_function = QiskitFunction(
+            title="event_error_producer",
+            entrypoint="event_error_producer.py",
+            working_dir=resources_path,
+        )
+
+        events_function = serverless_client.upload(events_function)
+
+        job = events_function.run()
+
+        job.result()
+
+        events = job.events(type="ERROR")
+        assert len(events) == 1
+
+        event_data = events[0].data
+        assert event_data["code"] == "1000"
+        assert event_data["message"] == "My error message"
+        assert event_data["args"]["my-arg-1"] == 123
+        assert event_data["args"]["my-arg-2"] == "hi"
+
+    def test_event_wrong_type(self, serverless_client: ServerlessClient):
+        """
+        Integration test for submitting an error event within the function
+        and failing to retrieve client-side because of wrong type specified.
+        """
+
+        events_function = QiskitFunction(
+            title="event_error_producer",
+            entrypoint="event_error_producer.py",
+            working_dir=resources_path,
+        )
+
+        events_function = serverless_client.upload(events_function)
+
+        job = events_function.run()
+
+        job.result()
+
+        with raises(QiskitServerlessException) as exc_info:
+            job.events(type="NotValidJobEventType")
+
+        assert "Type is not valid. Valid types: ['ERROR']" in str(exc_info.value)
+
+    def test_serverless_error_raise(self, serverless_client: ServerlessClient):
+        """Integration test for submitting an error event within the function and retrieving it client-side."""
+
+        events_function = self._upload_with_template(serverless_client, "exception_producer_serverless_error")
+
+        job = events_function.run()
+
+        with raises(QiskitServerlessException) as exc_info:
+            job.result()
+
+        events = job.events(type="ERROR")
+        assert len(events) == 1
+
+        expected_message = """
+| Message: My error message
+| Code: A123
+| Exception: ServerlessError
+| Details:
+|   - my-args: 123
+""".strip()
+
+        assert exc_info.value.args[0].strip() == expected_message
+
+        event_data = events[0].data
+        assert event_data["code"] == "A123"
+        assert event_data["message"] == "My error message"
+        assert event_data["args"]["my-args"] == 123
+
+    def test_other_error_raise(self, serverless_client: ServerlessClient):
+        """Integration test for submitting an error event within the function and retrieving it client-side."""
+
+        events_function = self._upload_with_template(serverless_client, "exception_producer_other_error")
+
+        job = events_function.run()
+
+        with raises(QiskitServerlessException) as exc_info:
+            job.result()
+
+        events = job.events(type="ERROR")
+        assert len(events) == 1
+
+        assert (
+            exc_info.value.args[0]
+            == "\n| Message: ValueError: This is not a ServerlessError\n| Code: 1\n| Exception: ValueError"
+        )
+
+        event_data = events[0].data
+        assert event_data["code"] == "1"
+        assert event_data["message"] == "ValueError: This is not a ServerlessError"
+        assert event_data["exception"] == "ValueError"
 
     def test_provider_logs(self, serverless_client: ServerlessClient):
         """Integration test for logs."""
