@@ -163,6 +163,6 @@ class PathBuilder:
         # Create directory if it doesn't exist
         if not os.path.exists(sanitized_path):
             os.makedirs(sanitized_path, exist_ok=True)
-            logger.debug("Path created: %s", sanitized_path)
+            logger.debug("[path-builder] path=%s | Path created", sanitized_path)
 
         return sanitized_path

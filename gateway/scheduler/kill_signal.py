@@ -4,7 +4,7 @@ import signal
 
 import logging
 
-logger = logging.getLogger("kill_signal")
+logger = logging.getLogger("scheduler.kill_signal")
 
 
 class KillSignal:
