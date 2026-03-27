@@ -86,7 +86,7 @@ def serialize_output(events: JobEvent) -> dict[str, Any]:
         **standard_error_responses(not_found_example="Job [XXXX] not found"),
     },
 )
-@endpoint("jobs/<uuid:job_id>/get-events")
+@endpoint("jobs/<uuid:job_id>/events")
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions

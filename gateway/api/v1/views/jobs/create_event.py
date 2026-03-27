@@ -71,7 +71,7 @@ class InputSerializer(serializers.Serializer):
         ),
     },
 )
-@endpoint("jobs/<uuid:job_id>/create-event")
+@endpoint("jobs/<uuid:job_id>/event")
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions

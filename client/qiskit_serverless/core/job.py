@@ -311,10 +311,7 @@ def send_error(code: str, message: str, exception: str, args: Optional[Any] = No
 
     instance = os.environ.get(ENV_JOB_GATEWAY_INSTANCE, None)
     channel = os.environ.get(QISKIT_IBM_CHANNEL, None)
-    url = (
-        f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
-        f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/create-event/"
-    )
+    url = f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/" f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/event/"
 
     request_json = {"type": "ERROR", "code": code, "message": message, "exception": exception}
     if args:
