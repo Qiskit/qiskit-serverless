@@ -2,9 +2,7 @@
 
 import logging
 
-from django.conf import settings
-
-from core.models import ComputeResource, Job
+from core.models import Job
 from core.services.runners import get_runner
 
 from scheduler.kill_signal import KillSignal

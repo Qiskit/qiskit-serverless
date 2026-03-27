@@ -6,6 +6,7 @@ import json
 import logging
 import random
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import List
 
 from django.conf import settings
@@ -18,8 +19,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from core.config_key import ConfigKey
 from core.models import ComputeResource, Job, JobEvent, Config
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.services.runners import RunnerError, get_runner_client
-from core.services.runners.runner_client import RunnerClient
+from core.services.runners import RunnerError, get_runner, AbstractRunner
 
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
@@ -32,7 +32,7 @@ logger = logging.getLogger("commands")
 class JobExecutionResult:
     """Result of executing a job."""
 
-    runner: RunnerClient | None
+    runner: AbstractRunner | None
     compute_resource: ComputeResource | None
     ray_job_id: str | None
 
@@ -97,6 +97,21 @@ class ScheduleQueuedJobs(SchedulerTask):
 
         if scheduled_count > 0:
             logger.info("%s jobs scheduled for execution.", scheduled_count)
+
+    def set_queue_size_metric(self, gpu_job):
+        """Add queue size metric."""
+        queue_count = Job.objects.filter(status=Job.QUEUED, gpu=gpu_job).count()
+        compute_type = "gpu" if gpu_job else "cpu"
+        self.metrics.set_queue_size(queue_count, compute_type)
+
+    def add_queue_wait_time_metric(self, job: Job):
+        """Add queue wait time metric."""
+        # Wait time can be get from db -> wait_time = RUNNING event.timestamp - QUEUED event.timestamp
+        # Jobs are created in QUEUED state, so "created" field should have the same timestamp as QUEUED event
+        now = datetime.now(timezone.utc)
+        wait_seconds = (now - job.created).total_seconds()
+        job_compute_type = "gpu" if job.gpu else "cpu"
+        self.metrics.observe_queue_wait_time(wait_seconds, job_compute_type)
 
 
 def schedule_job(job: Job) -> bool:
@@ -187,38 +202,23 @@ def _cleanup_resources(job: Job, result: JobExecutionResult):
 def execute_job(job: Job) -> JobExecutionResult | None:
     """Executes program.
 
-    1. Create compute resource
-    2. Submit job to runner
-    3. Return result (or clean up on failure)
+    1. Submit job to runner (which handles compute resource creation internally)
+    2. Return result (or None on failure)
 
     Args:
         job: job to execute
 
     Returns:
-        JobExecutionResult with status, compute_resource, ray_job_id, and runner
+        JobExecutionResult with compute_resource, ray_job_id, and runner
     """
 
     tracer = trace.get_tracer("scheduler.tracer")
     with tracer.start_as_current_span("execute.job") as span:
-        runner = get_runner_client(job)
+        runner = get_runner(job)
 
-        # 1: Create compute resource
         try:
-            # This ComputResource is not saved in the db yet...
-            compute_resource = runner.create_compute_resource()
+            compute_resource, runner_job_id = runner.submit()
             span.set_attribute("job.clustername", compute_resource.title)
-        except RunnerError as ex:
-            logger.warning(
-                "Job [%s]: Compute resource was not created properly. Setting status to FAILED. Error: %s",
-                job.id,
-                ex,
-            )
-            span.set_attribute("job.status", Job.FAILED)
-            return None
-
-        # 2: Submit the job to Ray/Fleets
-        try:
-            runner_job_id = runner.submit()
             span.set_attribute("job.rayjobid", runner_job_id)
             return JobExecutionResult(
                 compute_resource=compute_resource,
@@ -227,34 +227,12 @@ def execute_job(job: Job) -> JobExecutionResult | None:
             )
         except RunnerError as ex:
             logger.error(
-                "Job [%s]: Failed to submit to resource [%s]. Cleaning up and setting status to FAILED. Error: %s",
+                "Job [%s]: Failed to submit job. Setting status to FAILED. Error: %s",
                 job.id,
-                compute_resource.title,
                 ex,
             )
             span.set_attribute("job.status", Job.FAILED)
-
-            try:
-                runner.free_resources()
-            except RunnerError as free_resource_error:
-                logger.warning("Job [%s]: Failed to free runner resources: %s", job.id, free_resource_error)
-
             return None
-
-    def set_queue_size_metric(self, gpu_job):
-        """Add queue size metric."""
-        queue_count = Job.objects.filter(status=Job.QUEUED, gpu=gpu_job).count()
-        compute_type = "gpu" if gpu_job else "cpu"
-        self.metrics.set_queue_size(queue_count, compute_type)
-
-    def add_queue_wait_time_metric(self, job: Job):
-        """Add queue wait time metric."""
-        # Wait time can be get from db -> wait_time = RUNNING event.timestamp - QUEUED event.timestamp
-        # Jobs are created in QUEUED state, so "created" field should have the same timestamp as QUEUED event
-        now = datetime.now(timezone.utc)
-        wait_seconds = (now - job.created).total_seconds()
-        job_compute_type = "gpu" if job.gpu else "cpu"
-        self.metrics.observe_queue_wait_time(wait_seconds, job_compute_type)
 
 
 def get_jobs_to_schedule_fair_share(slots: int, gpu: bool) -> List[Job]:

@@ -1,7 +1,6 @@
 """Tests for commands."""
 
 import os
-from datetime import datetime, timezone
 from typing import Optional
 
 import pytest
@@ -17,7 +16,7 @@ from core.services.runners import RunnerError
 from core.utils import check_logs
 from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
 from scheduler.tasks.free_resources import FreeResources
-from scheduler.tasks.schedule_queued_jobs import ScheduleQueuedJobs
+from scheduler.tasks.schedule_queued_jobs import ScheduleQueuedJobs, JobExecutionResult
 from scheduler.schedule import get_jobs_to_schedule_fair_share
 
 
@@ -81,34 +80,28 @@ class TestCommands:
     @patch("scheduler.tasks.schedule_queued_jobs.execute_job")
     def test_schedule_queued_jobs(self, execute_job):
         """Tests schedule of queued jobs command."""
-        fake_job = MagicMock()
-        fake_job.id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
-        fake_job.logs = ""
-        fake_job.status = "SUCCEEDED"
-        fake_job.sub_status = None
-        fake_job.program.artifact.path = "non_existing_file.tar"
-        fake_job.save.return_value = None
-        fake_job.created = datetime.now(timezone.utc)
-        fake_job.gpu = False
+        compute_resource = ComputeResource.objects.create(title="test-scheduled-cluster", active=True)
+        execute_job.return_value = JobExecutionResult(
+            compute_resource=compute_resource,
+            ray_job_id="test-ray-job-id",
+            runner=MagicMock(),
+        )
 
-        execute_job.return_value = fake_job
         ScheduleQueuedJobs().run()
-        # TODO: mock execute job to change status of job and query for QUEUED jobs  # pylint: disable=fixme
+
         job_count = Job.objects.count()
         assert job_count == 7
 
-        job_events = JobEvent.objects.filter(job_id=fake_job.id)
-        # There is one Job in the fixtures in QUEUED state. It call execute_job twice
-        # and add 2 equal events. If we remove fixtures we can fix this test properly
-        assert len(job_events) == 2
+        scheduled_job_id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
+        scheduled_job = Job.objects.get(pk=scheduled_job_id)
+        assert scheduled_job.status == Job.RUNNING
+
+        job_events = JobEvent.objects.filter(job_id=scheduled_job_id)
+        assert len(job_events) == 1
         assert job_events[0].event_type == JobEventType.STATUS_CHANGE
-        assert job_events[0].data["status"] == JobStatus.SUCCEEDED
+        assert job_events[0].data["status"] == Job.RUNNING
         assert job_events[0].origin == JobEventOrigin.SCHEDULER
         assert job_events[0].context == JobEventContext.SCHEDULE_JOBS
-        assert job_events[1].event_type == JobEventType.STATUS_CHANGE
-        assert job_events[1].data["status"] == JobStatus.SUCCEEDED
-        assert job_events[1].origin == JobEventOrigin.SCHEDULER
-        assert job_events[1].context == JobEventContext.SCHEDULE_JOBS
 
     def test_schedule_queued_jobs_separates_gpu_and_cpu_queues(self):
         """Tests that GPU and CPU jobs are scheduled from separate queues."""

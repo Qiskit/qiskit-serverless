@@ -35,7 +35,7 @@ class Main:
 
         self.tasks = [
             ScheduleQueuedJobs(self.kill_signal, self.metrics),
-            UpdateJobsStatuses(self.kill_signal, self.metrics),
+            UpdateJobsStatuses(self.kill_signal),
             FreeResources(self.kill_signal, self.metrics),
         ]
 
