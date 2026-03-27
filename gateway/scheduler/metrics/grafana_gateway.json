@@ -68,7 +68,7 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
+        "w": 3,
         "x": 0,
         "y": 0
       },
@@ -153,8 +153,8 @@
       },
       "gridPos": {
         "h": 2,
-        "w": 3,
-        "x": 6,
+        "w": 4,
+        "x": 3,
         "y": 0
       },
       "id": 15,
@@ -239,8 +239,8 @@
       },
       "gridPos": {
         "h": 2,
-        "w": 3,
-        "x": 9,
+        "w": 4,
+        "x": 7,
         "y": 0
       },
       "id": 16,
@@ -318,15 +318,17 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 3,
-        "x": 12,
+        "w": 4,
+        "x": 11,
         "y": 0
       },
       "id": 37,
       "options": {
-        "minVizHeight": 75,
-        "minVizWidth": 75,
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -334,9 +336,9 @@
           "fields": "",
           "values": false
         },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "sizing": "auto"
+        "showPercentChange": false,
+        "textMode": "value_and_name",
+        "wideLayout": false
       },
       "pluginVersion": "12.4.2",
       "targets": [
@@ -356,7 +358,7 @@
         }
       ],
       "title": "DB Query Errors",
-      "type": "gauge"
+      "type": "stat"
     },
     {
       "datasource": {
@@ -393,15 +395,17 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 3,
+        "w": 4,
         "x": 15,
         "y": 0
       },
       "id": 38,
       "options": {
-        "minVizHeight": 75,
-        "minVizWidth": 75,
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -409,9 +413,9 @@
           "fields": "",
           "values": false
         },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "sizing": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
       "pluginVersion": "12.4.2",
       "targets": [
@@ -428,13 +432,14 @@
         }
       ],
       "title": "DB Connection Errors",
-      "type": "gauge"
+      "type": "stat"
     },
     {
       "datasource": {
         "type": "prometheus",
         "uid": "P0D5AB5803FB3A643"
       },
+      "description": "Average number of database executions triggered by each incoming HTTP request",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -464,8 +469,8 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 18,
+        "w": 5,
+        "x": 19,
         "y": 0
       },
       "id": 43,
@@ -494,7 +499,7 @@
             "uid": "P0D5AB5803FB3A643"
           },
           "editorMode": "code",
-          "expr": "rate(django_db_execute_total{kube_deployment_name=~\"^$application$\"}[5m]) / rate(django_http_requests_total_by_transport_total{kube_deployment_name=~\"^$application$\"}[5m])",
+          "expr": "sum(rate(django_db_execute_total{kube_deployment_name=~\"^$application$\"}[$__rate_interval])) by (kube_deployment_name)\n/\nsum(rate(django_http_requests_total_by_transport_total{kube_deployment_name=~\"^$application$\"}[$__rate_interval])) by (kube_deployment_name)",
           "legendFormat": "DB queries / request",
           "range": true,
           "refId": "A"
@@ -545,8 +550,8 @@
       },
       "gridPos": {
         "h": 2,
-        "w": 3,
-        "x": 6,
+        "w": 4,
+        "x": 3,
         "y": 2
       },
       "id": 23,
@@ -631,8 +636,8 @@
       },
       "gridPos": {
         "h": 2,
-        "w": 3,
-        "x": 9,
+        "w": 4,
+        "x": 7,
         "y": 2
       },
       "id": 17,
@@ -2008,6 +2013,6 @@
   "timezone": "UTC",
   "title": "Gateway",
   "uid": "O6v4rMpizda",
-  "version": 10,
+  "version": 15,
   "weekStart": ""
 }

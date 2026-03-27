@@ -869,7 +869,7 @@
                 "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum by (alias) (rate(django_db_execute_total[$__rate_interval]))",
+              "expr": "sum by (alias) (rate(django_db_execute_total{kube_deployment_name=~\"^$application$\"}[$__rate_interval]))",
               "legendFormat": "{{alias}}",
               "range": true,
               "refId": "A"
@@ -880,7 +880,7 @@
                 "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum by (alias) (rate(django_db_execute_many_total[$__rate_interval]))",
+              "expr": "sum by (alias) (rate(django_db_execute_many_total{kube_deployment_name=~\"^$application$\"}[$__rate_interval]))",
               "legendFormat": "{{alias}} (executemany)",
               "range": true,
               "refId": "B"
@@ -964,7 +964,7 @@
                 "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum by (le) (rate(django_db_query_duration_seconds_bucket[$__rate_interval]))",
+              "expr": "sum by (le) (rate(django_db_query_duration_seconds_bucket{kube_deployment_name=~\"^$application$\"}[$__rate_interval]))",
               "format": "heatmap",
               "legendFormat": "{{le}}",
               "range": true,
@@ -1061,7 +1061,7 @@
                 "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.50, sum by (alias, le) (rate(django_db_query_duration_seconds_bucket[$__rate_interval])))",
+              "expr": "histogram_quantile(0.50, sum by (alias, le) (rate(django_db_query_duration_seconds_bucket{kube_deployment_name=~\"^$application$\"}[$__rate_interval])))",
               "legendFormat": "p50 {{alias}}",
               "range": true,
               "refId": "A"
@@ -1072,7 +1072,7 @@
                 "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.95, sum by (alias, le) (rate(django_db_query_duration_seconds_bucket[$__rate_interval])))",
+              "expr": "histogram_quantile(0.95, sum by (alias, le) (rate(django_db_query_duration_seconds_bucket{kube_deployment_name=~\"^$application$\"}[$__rate_interval])))",
               "legendFormat": "p95 {{alias}}",
               "range": true,
               "refId": "B"
@@ -1083,7 +1083,7 @@
                 "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.99, sum by (alias, le) (rate(django_db_query_duration_seconds_bucket[$__rate_interval])))",
+              "expr": "histogram_quantile(0.99, sum by (alias, le) (rate(django_db_query_duration_seconds_bucket{kube_deployment_name=~\"^$application$\"}[$__rate_interval])))",
               "legendFormat": "p99 {{alias}}",
               "range": true,
               "refId": "C"
@@ -1179,7 +1179,7 @@
                 "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum by (alias) (rate(django_db_new_connections_total[$__rate_interval]))",
+              "expr": "sum by (alias) (rate(django_db_new_connections_total{kube_deployment_name=~\"^$application$\"}[$__rate_interval]))",
               "legendFormat": "new connections {{alias}}",
               "range": true,
               "refId": "A"
@@ -1279,7 +1279,7 @@
                 "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum by (alias) (rate(django_db_errors_total[$__rate_interval]))",
+              "expr": "sum by (alias) (rate(django_db_errors_total{kube_deployment_name=~\"^$application$\"}[$__rate_interval]))",
               "legendFormat": "query errors {{alias}}",
               "range": true,
               "refId": "A"
@@ -1290,7 +1290,7 @@
                 "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum by (alias) (rate(django_db_new_connection_errors_total[$__rate_interval]))",
+              "expr": "sum by (alias) (rate(django_db_new_connection_errors_total{kube_deployment_name=~\"^$application$\"}[$__rate_interval]))",
               "legendFormat": "connection errors {{alias}}",
               "range": true,
               "refId": "B"
@@ -1386,7 +1386,7 @@
                 "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum by (model) (rate(django_model_inserts_total[$__rate_interval]))",
+              "expr": "sum by (model) (rate(django_model_inserts_total{kube_deployment_name=~\"^$application$\"}[$__rate_interval]))",
               "legendFormat": "inserts {{model}}",
               "range": true,
               "refId": "A"
@@ -1397,7 +1397,7 @@
                 "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum by (model) (rate(django_model_updates_total[$__rate_interval]))",
+              "expr": "sum by (model) (rate(django_model_updates_total{kube_deployment_name=~\"^$application$\"}[$__rate_interval]))",
               "legendFormat": "updates {{model}}",
               "range": true,
               "refId": "B"
@@ -1408,7 +1408,7 @@
                 "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum by (model) (rate(django_model_deletes_total[$__rate_interval]))",
+              "expr": "sum by (model) (rate(django_model_deletes_total{kube_deployment_name=~\"^$application$\"}[$__rate_interval]))",
               "legendFormat": "deletes {{model}}",
               "range": true,
               "refId": "C"
