@@ -15,7 +15,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from api.use_cases.jobs.list_events import ListJobsEventsUseCase
+from api.use_cases.jobs.list_events import ListJobEventsUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
@@ -107,5 +107,5 @@ def get_events(request: Request, job_id: UUID) -> Response:
     event_type = serializer.validated_data.get("type")
 
     user = cast(AbstractUser, request.user)
-    events = ListJobsEventsUseCase().execute(job_id, user, event_type)
+    events = ListJobEventsUseCase().execute(job_id, user, event_type)
     return Response(serialize_output(events))
