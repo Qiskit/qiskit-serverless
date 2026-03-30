@@ -5,10 +5,10 @@ import logging
 import time
 from datetime import datetime, timezone
 
+from django.conf import settings
 from django.db.models import Count
 
 from concurrency.exceptions import RecordModifiedError
-from django.conf import settings
 
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
