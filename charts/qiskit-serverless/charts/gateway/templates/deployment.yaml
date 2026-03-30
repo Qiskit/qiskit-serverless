@@ -20,6 +20,7 @@ spec:
       {{- end }}
       labels:
         {{- include "gateway.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: gateway
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -272,6 +273,7 @@ spec:
       {{- end }}
       labels:
         {{- include "scheduler.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: scheduler
     spec:
       volumes:
         - name: gateway-pv-storage
