@@ -9,7 +9,7 @@ from typing import Optional
 from core.services.storage.path_builder import PathBuilder
 from core.services.storage.enums.working_dir import WorkingDir
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("core.ArgumentsStorage")
 
 
 class ArgumentsStorage:

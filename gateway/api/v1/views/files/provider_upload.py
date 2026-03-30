@@ -21,7 +21,7 @@ from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_name
 from api.v1.views.utils import validate_uploaded_file
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("api.api.v1.views.files.provider_upload")
 
 # pylint: disable=abstract-method
 
@@ -109,5 +109,10 @@ def files_provider_upload(request: Request) -> Response:
     user = cast(AbstractUser, request.user)
 
     result = FilesProviderUploadUseCase().execute(user, provider, function, uploaded_file)
-    logger.info("[files-provider-upload] user=%s function=%s provider=%s", user.id, function, provider)
+    logger.info(
+        "[files-provider-upload] user_id=%s function=%s provider=%s | Provider file uploaded ok",
+        user.id,
+        function,
+        provider,
+    )
     return Response({"message": result})

@@ -57,7 +57,7 @@ def sanitize_file_path(path: str):
     return re.sub(pattern, "_", path)
 
 
-logger = logging.getLogger("utils")
+logger = logging.getLogger("core.utils")
 
 
 def retry_function(  # pylint:  disable=too-many-positional-arguments
@@ -97,7 +97,7 @@ def retry_function(  # pylint:  disable=too-many-positional-arguments
             # Log and wait before next attempt.
             logger.log(
                 error_message_level,
-                "[%s] attempt %d/%d failed%s%s",
+                "[retry_function] [%s] attempt %d/%d failed%s%s",
                 name,
                 attempt,
                 num_retries,

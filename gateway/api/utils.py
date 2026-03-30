@@ -15,7 +15,7 @@ from core.services.storage.path_builder import PathBuilder
 from core.models import Job
 from core.services.storage.enums.working_dir import WorkingDir
 
-logger = logging.getLogger("utils")
+logger = logging.getLogger("api.api.utils")
 
 
 def try_json_loads(data: str) -> Tuple[bool, Optional[dict]]:
@@ -54,11 +54,10 @@ def build_env_variables(  # pylint: disable=too-many-positional-arguments
     arguments = "{}"
     if args:
         if objsize.get_deep_size(args) < 100000:
-            logger.debug("passing arguments as env_var for job [%s]", job.id)
             arguments = args
         else:
             logger.warning(
-                "arguments for job [%s] are too large and will not be written to env_var",
+                "[build_env_variables] job_id=%s | Arguments ignored: too large",
                 job.id,
             )
 
