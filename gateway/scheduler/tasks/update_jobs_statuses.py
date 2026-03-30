@@ -1,6 +1,7 @@
 """Update jobs statuses service."""
 
 import logging
+from datetime import datetime, timezone
 
 from concurrency.exceptions import RecordModifiedError
 from django.conf import settings
@@ -65,6 +66,7 @@ class UpdateJobsStatuses(SchedulerTask):
                     context=JobEventContext.UPDATE_JOB_STATUS,
                     status=job.status,
                 )
+                self._increment_terminal_counter(job)
                 logger.warning(
                     "job_id=%s error=%s Error getting status, set job as FAILED",
                     job.id,
@@ -109,6 +111,8 @@ class UpdateJobsStatuses(SchedulerTask):
                     logs = ""
                 save_logs_to_storage(job, logs)
                 job.logs = ""
+                if job.status == Job.SUCCEEDED:
+                    self._record_execution_duration(job)
 
         try:
             logs = runner.logs()
@@ -150,11 +154,27 @@ class UpdateJobsStatuses(SchedulerTask):
                     context=JobEventContext.UPDATE_JOB_STATUS,
                     status=job.status,
                 )
+                if job.in_terminal_state():
+                    self._increment_terminal_counter(job)
         except RecordModifiedError:
             status_has_changed = False
             logger.warning("job_id=%s RecordModifiedError on save", job.id)
 
         return status_has_changed
+
+    def _increment_terminal_counter(self, job: Job) -> None:
+        """Increment terminal jobs counter."""
+        provider = job.program.provider.name if job.program_id and job.program.provider_id else "custom"
+        self.metrics.increment_jobs_terminal(provider=provider, final_status=job.status)
+
+    def _record_execution_duration(self, job: Job) -> None:
+        """Record execution duration for a successfully completed job."""
+        running_event = JobEvent.objects.filter(job=job, data__status=Job.RUNNING).order_by("-created").first()
+        if running_event is None:
+            return
+        duration = (datetime.now(timezone.utc) - running_event.created).total_seconds()
+        provider = job.program.provider.name if job.program_id and job.program.provider_id else "custom"
+        self.metrics.observe_job_execution_duration(duration, provider)
 
     def run(self):
         """Update statuses of all running jobs."""

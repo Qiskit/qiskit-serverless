@@ -5,8 +5,10 @@ import logging
 import time
 from datetime import datetime, timezone
 
-from concurrency.exceptions import RecordModifiedError
 from django.conf import settings
+from django.db.models import Count
+
+from concurrency.exceptions import RecordModifiedError
 
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
@@ -39,6 +41,7 @@ class ScheduleQueuedJobs(SchedulerTask):
             logger.warning("System in maintenance mode. Skipping new jobs schedule.")
             return
 
+        self._update_job_status_counts_metric()
         self._schedule_cpu_jobs()
         self._schedule_gpu_jobs()
 
@@ -57,9 +60,6 @@ class ScheduleQueuedJobs(SchedulerTask):
     def _schedule_jobs_if_slots_available(self, max_ray_clusters_possible, number_of_clusters_running, gpu_job):
         """Schedule jobs depending on free cluster slots."""
         free_clusters_slots = max_ray_clusters_possible - number_of_clusters_running
-
-        # Store the queue size in the metrics
-        self.set_queue_size_metric(gpu_job)
 
         if gpu_job:
             logger.info("%s free GPU cluster slots.", free_clusters_slots)
@@ -152,11 +152,21 @@ class ScheduleQueuedJobs(SchedulerTask):
         if jobs:
             logger.info("%s jobs are scheduled for execution.", len(jobs))
 
-    def set_queue_size_metric(self, gpu_job):
-        """Add queue size metric."""
-        queue_count = Job.objects.filter(status=Job.QUEUED, gpu=gpu_job).count()
-        compute_type = "gpu" if gpu_job else "cpu"
-        self.metrics.set_queue_size(queue_count, compute_type)
+    def _update_job_status_counts_metric(self):
+        """Update job counts per status and provider (active states only)."""
+        statuses = [Job.QUEUED, Job.PENDING, Job.RUNNING]
+        rows = (
+            Job.objects.filter(status__in=statuses)
+            .values("status", "program__provider__name")
+            .annotate(count=Count("id"))
+        )
+        counts = {}
+        for row in rows:
+            status = row["status"]
+            provider = row["program__provider__name"] or "custom"
+            counts[(status, provider)] = row["count"]
+        for (status, provider), count in counts.items():
+            self.metrics.set_job_status_count(count, status, provider)
 
     def add_queue_wait_time_metric(self, job: Job):
         """Add queue wait time metric."""
