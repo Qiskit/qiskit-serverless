@@ -226,6 +226,8 @@ spec:
               value: {{ .Values.application.security.hstsPreload | quote }}
             - name: LIMITS_ACTIVE_JOBS_PER_USER
               value: {{ .Values.application.limits.maxActiveJobsPerUser | quote }}
+            - name: LOG_FORMAT
+              value: {{ .Values.application.logFormat | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -409,6 +411,8 @@ spec:
               value: {{ .Values.application.limits.programTimeoutDays | quote }}
             - name: FUNCTIONS_LOGS_SIZE_LIMIT
               value: {{ .Values.application.logsMaximumSize | quote }}
+            - name: LOG_FORMAT
+              value: {{ .Values.application.logFormat | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
