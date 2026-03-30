@@ -14,7 +14,7 @@ from api import serializers
 from api.utils import check_whitelisted
 from core.models import Provider
 
-logger = logging.getLogger("gateway.serializers")
+logger = logging.getLogger("api.api.v1.serializers")
 
 
 class ProgramSerializer(serializers.ProgramSerializer):

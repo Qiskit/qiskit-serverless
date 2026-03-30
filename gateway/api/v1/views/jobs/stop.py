@@ -15,7 +15,7 @@ from api.v1.exception_handler import endpoint_handle_exceptions
 from api.use_cases.jobs.stop import StopJobUseCase
 from api.v1.views.swagger_utils import standard_error_responses
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("api.api.v1.views.jobs.stop")
 
 
 class InputSerializer(serializers.Serializer):
@@ -72,5 +72,5 @@ def stop(request, job_id: UUID):
     service = validated_data["service"]
 
     message = StopJobUseCase().execute(job_id, service)
-    logger.info("[jobs-stop] user=%s job_id=%s", request.user.id, job_id)
+    logger.info("[jobs-stop] user_id=%s job_id=%s | Job stopped ok", request.user.id, job_id)
     return Response(serialize_output(message))

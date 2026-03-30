@@ -11,7 +11,7 @@ from api.domain.authentication.authentication_group import AuthenticationGroup
 from core.models import GroupMetadata
 
 User = get_user_model()
-logger = logging.getLogger("gateway.repositories.user")
+logger = logging.getLogger("api.UserRepository")
 
 
 class UserRepository:
@@ -60,10 +60,8 @@ class UserRepository:
         for permission_name in permission_names:
             permissions.append(Permission.objects.get(codename=permission_name))
 
-        logger.debug("Clean user groups before update them")
         user.groups.clear()
 
-        logger.debug("Update [%s] groups", len(authentication_groups))
         for authentication_group in authentication_groups:
             group, created = Group.objects.get_or_create(name=authentication_group.group_name)
             if created:

@@ -12,7 +12,7 @@ from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.repositories.runtime_job import RuntimeJobRepository
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
-logger = logging.getLogger("gateway.use_cases.jobs")
+logger = logging.getLogger("api.StopJobUseCase")
 
 
 class StopJobUseCase:

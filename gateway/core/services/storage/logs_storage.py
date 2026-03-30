@@ -10,7 +10,7 @@ from core.models import Job
 from core.services.storage.enums.working_dir import WorkingDir
 from core.services.storage.path_builder import PathBuilder
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("core.LogsStorage")
 
 
 class LogsStorage:

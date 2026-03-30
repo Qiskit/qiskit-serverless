@@ -51,12 +51,12 @@ class SetJobSubStatusUseCase:
         updated = Job.objects.filter(id=job.id, status=Job.RUNNING).update(sub_status=sub_status)
 
         if not updated:
-            warning_msg = (
-                "'sub_status' cannot change because the job" " [%s] current status is not Running",
+            logger.warning(
+                "[set-sub-status] job_id=%s user_id=%s status=%s | Sub-status update rejected (not RUNNING)",
                 job.id,
+                user.id,
+                job.status,
             )
-
-            logger.warning(warning_msg)
             raise InvalidAccessException(
                 "Cannot update 'sub_status' when is not" f" in RUNNING status. (Currently {job.status})"
             )
@@ -67,6 +67,12 @@ class SetJobSubStatusUseCase:
                 origin=JobEventOrigin.API,
                 context=JobEventContext.SET_SUB_STATUS,
                 sub_status=sub_status,
+            )
+            logger.info(
+                "[set-sub-status] job_id=%s user_id=%s sub_status=%s | Sub-status updated ok",
+                job.id,
+                user.id,
+                job.sub_status,
             )
 
         job.refresh_from_db()
