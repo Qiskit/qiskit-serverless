@@ -7,7 +7,7 @@ import logging
 from typing import Optional
 from django.conf import settings
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("core.ResultStorage")
 
 
 class ResultStorage:

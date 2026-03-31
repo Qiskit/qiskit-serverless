@@ -9,7 +9,7 @@ from core.models import Job
 from api.access_policies.jobs import JobAccessPolicies
 from core.services.storage.result_storage import ResultStorage
 
-logger = logging.getLogger("gateway.use_cases.jobs")
+logger = logging.getLogger("api.JobRetrieveUseCase")
 
 
 class JobRetrieveUseCase:

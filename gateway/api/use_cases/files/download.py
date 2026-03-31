@@ -13,7 +13,7 @@ from core.models import RUN_PROGRAM_PERMISSION
 from core.services.storage.file_storage import FileStorage, WorkingDir
 from core.models import Program as Function
 
-logger = logging.getLogger("gateway.use_cases.files")
+logger = logging.getLogger("api.FilesDownloadUseCase")
 
 
 class FilesDownloadUseCase:

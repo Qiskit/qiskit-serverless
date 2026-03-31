@@ -16,7 +16,7 @@ from api.domain.exceptions.active_job_limit_exceeded_exception import (
     ActiveJobLimitExceeded,
 )
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("api.api.v1.exception_handler")
 
 
 def _first_error_message(detail) -> str:

@@ -7,7 +7,7 @@ from api.domain.authentication.custom_authentication import CustomAuthentication
 from api.use_cases.authentication import AuthenticationUseCase
 from api.domain.authentication.channel import Channel
 
-logger = logging.getLogger("gateway.authentication")
+logger = logging.getLogger("api.authentication")
 PUBLIC_ENDPOINTS = ["swagger"]
 
 
@@ -40,7 +40,6 @@ class CustomTokenBackend(authentication.BaseAuthentication):
         try:
             channel = Channel(channel_header)
         except ValueError as error:
-            logger.warning("Channel value [%s] is not valid.", channel_header)
             raise exceptions.AuthenticationFailed(
                 "The value of the channel is not correct. Verify that you are using one of these: "
                 f"{Channel.IBM_CLOUD.value}, {Channel.IBM_QUANTUM_PLATFORM.value}"

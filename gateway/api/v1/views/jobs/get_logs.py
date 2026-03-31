@@ -20,7 +20,7 @@ from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("api.api.v1.views.jobs.get_logs")
 
 
 class JobLogsOutputSerializer(serializers.Serializer):
@@ -69,5 +69,5 @@ def get_logs(request: Request, job_id: UUID) -> Response:
     """
     user = cast(AbstractUser, request.user)
     logs = GetJobLogsUseCase().execute(job_id, user)
-    logger.info("[jobs-logs] user=%s job_id=%s", user.id, job_id)
+    logger.info("[jobs-logs] user_id=%s job_id=%s | Logs retrieved ok", user.id, job_id)
     return Response(serialize_output(logs))
