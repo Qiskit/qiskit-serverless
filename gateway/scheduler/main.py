@@ -21,7 +21,7 @@ logger = logging.getLogger("scheduler.main")
 class Main:
     """Main scheduler loop that runs all scheduler tasks."""
 
-    def __init__(self):
+    def __init__(self, metrics: SchedulerMetrics):
         self.kill_signal = KillSignal()
         self.kill_signal.register()  # start listening to SIGTERM and SIGINT signals
 

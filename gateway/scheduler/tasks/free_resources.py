@@ -17,9 +17,9 @@ logger = logging.getLogger("scheduler.FreeResources")
 class FreeResources(SchedulerTask):
     """Cleanup resources."""
 
-    def __init__(self, kill_signal: KillSignal = None, metrics: SchedulerMetrics = None):
-        self.kill_signal = kill_signal or KillSignal()
-        self.metrics = metrics or SchedulerMetrics()
+    def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
+        self.kill_signal = kill_signal
+        self.metrics = metrics
 
     def run(self):
         """Free unused compute resources."""

@@ -11,10 +11,14 @@ from django.core.management import call_command
 from ray.dashboard.modules.job.common import JobStatus
 from unittest.mock import patch, MagicMock
 
+from prometheus_client import CollectorRegistry
+
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import ComputeResource, Job, JobEvent, Program, Provider, Config
 from core.services.runners import RunnerError
 from core.utils import check_logs
+from scheduler.kill_signal import KillSignal
+from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
 from scheduler.tasks.free_resources import FreeResources
 from scheduler.tasks.schedule_queued_jobs import ScheduleQueuedJobs
@@ -29,10 +33,11 @@ class TestCommands:
         call_command("loaddata", "tests/fixtures/schedule_fixtures.json")
         settings.MEDIA_ROOT = str(tmp_path)
         Config.add_defaults()
+        self.metrics = SchedulerMetrics(CollectorRegistry())
 
     def test_free_resources(self):
         """Tests free resources command."""
-        FreeResources().run()
+        FreeResources(kill_signal=KillSignal(), metrics=self.metrics).run()
         num_resources = ComputeResource.objects.count()
         assert num_resources == 1
 
@@ -47,7 +52,7 @@ class TestCommands:
 
         job = self._create_test_job(ray_job_id="test_update_jobs_statuses")
 
-        UpdateJobsStatuses().run()
+        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         job.refresh_from_db()
         assert job.status == "RUNNING"
@@ -64,7 +69,7 @@ class TestCommands:
         runner.status.return_value = JobStatus.FAILED
         runner.logs.return_value = ""
 
-        UpdateJobsStatuses().run()
+        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         job.refresh_from_db()
         assert job.status == "FAILED"
@@ -92,7 +97,7 @@ class TestCommands:
         fake_job.gpu = False
 
         execute_job.return_value = fake_job
-        ScheduleQueuedJobs().run()
+        ScheduleQueuedJobs(metrics=self.metrics).run()
         # TODO: mock execute job to change status of job and query for QUEUED jobs  # pylint: disable=fixme
         job_count = Job.objects.count()
         assert job_count == 7
@@ -180,7 +185,7 @@ Ray internal log without marker
         runner.logs.return_value = full_logs
         get_runner.return_value = runner
 
-        UpdateJobsStatuses().run()
+        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         # User logs are located in username/logs/
         # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
@@ -244,7 +249,7 @@ Internal system log
         runner.logs.return_value = full_logs
         get_runner.return_value = runner
 
-        UpdateJobsStatuses().run()
+        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         # User logs are located in username/provider/function/logs/ for provider jobs
         # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
@@ -300,7 +305,7 @@ WARNING: Private warning
         runner.status.side_effect = RunnerError("Error")
         get_runner.return_value = runner
 
-        UpdateJobsStatuses().run()
+        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         job_events = JobEvent.objects.filter(job=job.id)
         assert len(job_events) == 1
