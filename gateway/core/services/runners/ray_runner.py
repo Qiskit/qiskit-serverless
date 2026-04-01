@@ -577,6 +577,15 @@ def _kill_ray_cluster(cluster_name: str, job_id=None) -> bool:
     raycluster_client = dyn_client.resources.get(api_version="v1", kind="RayCluster")
     try:
         delete_response = raycluster_client.delete(name=cluster_name, namespace=namespace)
+    except NotFoundError as resource_not_found:
+        sanitized = repr(resource_not_found).replace("\n", "").replace("\r", "")
+        logger.warning(
+            "[_kill_ray_cluster] cluster=%s Error deleting, RayCluster not found: %s",
+            cluster_name,
+            sanitized,
+        )
+        # Returns true because the intention of killing the cluster was achieved
+        return True
     except Exception as ex:  # pylint: disable=broad-exception-caught
         logger.error(
             "[_kill_ray_cluster] job_id=%s cluster=%s RayCluster deletion failed: %s",
