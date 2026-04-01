@@ -541,13 +541,12 @@ def _map_status(ray_job_status) -> str:
     return mapping.get(ray_job_status, Job.FAILED)
 
 
-def _kill_ray_cluster(cluster_name: str, job_id=None) -> bool:
+def _kill_ray_cluster(cluster_name: str) -> bool:
     """
     Kill Ray cluster by calling kuberay API.
 
     Args:
         cluster_name: Cluster name
-        job_id: Optional job id for log context
 
     Returns:
         True if cluster was killed successfully
@@ -555,6 +554,7 @@ def _kill_ray_cluster(cluster_name: str, job_id=None) -> bool:
     if settings.RAY_CLUSTER_MODE_LOCAL:
         return True
 
+    success = False
     namespace = settings.RAY_KUBERAY_NAMESPACE
 
     config.load_incluster_config()
@@ -565,91 +565,63 @@ def _kill_ray_cluster(cluster_name: str, job_id=None) -> bool:
         delete_response = raycluster_client.delete(name=cluster_name, namespace=namespace)
     except NotFoundError as resource_not_found:
         sanitized = repr(resource_not_found).replace("\n", "").replace("\r", "")
-        logger.warning(
+        logger.error(
             "[_kill_ray_cluster] cluster=%s Error deleting, RayCluster not found: %s",
             cluster_name,
             sanitized,
         )
-        # Returns true because the intention of killing the cluster was achieved
-        return True
-    except Exception as ex:  # pylint: disable=broad-exception-caught
-        logger.error(
-            "[_kill_ray_cluster] job_id=%s cluster=%s RayCluster deletion failed: %s",
-            job_id,
-            cluster_name,
-            str(ex),
-        )
-        return False
+        return success
 
-    success = delete_response.status == "Success"
-    if success:
+    if delete_response.status == "Success":
         logger.info(
-            "[_kill_ray_cluster] job_id=%s cluster=%s RayCluster deletion success",
-            job_id,
+            "[_kill_ray_cluster] cluster=%s RayCluster deletion success",
             cluster_name,
         )
+        success = True
     else:
         sanitized = delete_response.text.replace("\n", "").replace("\r", "")
         logger.error(
-            "[_kill_ray_cluster] job_id=%s cluster=%s RayCluster deletion failed: %s",
-            job_id,
+            "[_kill_ray_cluster] cluster=%s RayCluster deletion failed: %s",
             cluster_name,
             sanitized,
         )
-
     try:
         cert_client = dyn_client.resources.get(api_version="v1", kind="Certificate")
-        try:
-            cert_client.delete(name=cluster_name, namespace=namespace)
-        except Exception as ex:  # pylint: disable=broad-exception-caught
-            logger.warning(
-                "[_kill_ray_cluster] job_id=%s cluster=%s Certificate deletion skipped: %s",
-                job_id,
-                cluster_name,
-                ex,
-            )
-        try:
-            cert_client.delete(name=f"{cluster_name}-worker", namespace=namespace)
-        except Exception as ex:  # pylint: disable=broad-exception-caught
-            logger.warning(
-                "[_kill_ray_cluster] job_id=%s cluster=%s Certificate-worker deletion skipped: %s",
-                job_id,
-                cluster_name,
-                ex,
-            )
-    except Exception as ex:  # pylint: disable=broad-exception-caught
-        logger.warning(
-            "[_kill_ray_cluster] job_id=%s cluster=%s Certificate client unavailable, skipping cert deletion: %s",
-            job_id,
-            cluster_name,
-            ex,
-        )
+    except ResourceNotFoundError:
+        return success
 
     try:
-        corev1 = kubernetes_client.CoreV1Api()
-        try:
-            corev1.delete_namespaced_secret(name=cluster_name, namespace=namespace)
-        except Exception as ex:  # pylint: disable=broad-exception-caught
-            logger.warning(
-                "[_kill_ray_cluster] job_id=%s cluster=%s Secret deletion skipped: %s",
-                job_id,
-                cluster_name,
-                ex,
-            )
-        try:
-            corev1.delete_namespaced_secret(name=f"{cluster_name}-worker", namespace=namespace)
-        except Exception as ex:  # pylint: disable=broad-exception-caught
-            logger.warning(
-                "[_kill_ray_cluster] job_id=%s cluster=%s Secret-worker deletion skipped: %s",
-                job_id,
-                cluster_name,
-                ex,
-            )
-    except Exception as ex:  # pylint: disable=broad-exception-caught
-        logger.warning(
-            "[_kill_ray_cluster] job_id=%s cluster=%s CoreV1Api unavailable, skipping secret deletion: %s",
-            job_id,
+        cert_client.delete(name=cluster_name, namespace=namespace)
+        success = True
+    except NotFoundError:
+        logger.error(
+            "[_kill_ray_cluster] cluster=%s Certificate deletion failed: NotFoundError",
             cluster_name,
-            ex,
+        )
+    try:
+        cert_client.delete(name=f"{cluster_name}-worker", namespace=namespace)
+        success = True
+    except NotFoundError:
+        logger.error(
+            "[_kill_ray_cluster] cluster=%s Certificate-worker deletion failed: NotFoundError",
+            cluster_name,
+        )
+
+    corev1 = kubernetes_client.CoreV1Api()
+    try:
+        corev1.delete_namespaced_secret(name=cluster_name, namespace=namespace)
+        success = True
+    except ApiException:
+        logger.error(
+            "[_kill_ray_cluster] cluster=%s Secret deletion failed: ApiException",
+            cluster_name,
+        )
+    try:
+        corev1.delete_namespaced_secret(name=f"{cluster_name}-worker", namespace=namespace)
+        success = True
+    except ApiException:
+        logger.error(
+            "[_kill_ray_cluster] cluster=%s Secret-worker deletion failed: ApiException",
+            cluster_name,
         )
     return success
