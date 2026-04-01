@@ -406,7 +406,7 @@ class RayRunner(AbstractRunner):
                 )
                 raise RuntimeError(f"Wrong name after cluster creation: {response.text}")
 
-            host, cluster_is_ready = _wait_for_cluster_ready(cluster_name, self.job.id)
+            host, cluster_is_ready = _wait_for_cluster_ready(cluster_name)
             if not cluster_is_ready:
                 logger.error(
                     "[_create_k8s_cluster] job_id=%s cluster=%s Cluster creation timed out",
@@ -491,41 +491,27 @@ def _create_cluster_data(cluster_name: str, job: Job):
     return cluster_data
 
 
-def _wait_for_cluster_ready(cluster_name: str, job_id: str) -> tuple[str, bool]:
+def _wait_for_cluster_ready(cluster_name: str) -> tuple[str, bool]:
     """Wait for cluster to become available."""
     url = f"http://{cluster_name}-head-svc:8265/"
-    max_time = settings.RAY_CLUSTER_MAX_READINESS_TIME
-    start_time = time.time()
-    while time.time() - start_time < max_time:
-        try:
-            response = requests.get(url, timeout=5)
-            if response.ok:
-                logger.info(
-                    "[_wait_for_cluster_ready] job_id=%s cluster=%s elapsed=%.1fs Cluster ready",
-                    job_id,
-                    cluster_name,
-                    time.time() - start_time,
-                )
-                return url, True
+    success = False
+    attempts = 0
+    max_attempts = settings.RAY_CLUSTER_MAX_READINESS_TIME
+    while not success:
+        attempts += 1
 
-        except Exception as ex:  # pylint: disable=broad-exception-caught
-            logger.debug(
-                "[_wait_for_cluster_ready] job_id=%s cluster=%s Head node not ready yet: %s",
-                job_id,
-                cluster_name,
-                str(ex),
-            )
-        time.sleep(0.5)
-
-    elapsed = time.time() - start_time
-    logger.warning(
-        "[_wait_for_cluster_ready] job_id=%s cluster=%s elapsed=%.1fs Cluster not ready after %s timeout",
-        job_id,
-        cluster_name,
-        elapsed,
-        max_time,
-    )
-    return url, False
+        if attempts <= max_attempts:
+            try:
+                response = requests.get(url, timeout=5)
+                if response.ok:
+                    success = True
+            except Exception:  # pylint: disable=broad-exception-caught
+                logger.debug("Head node %s is not ready yet.", url)
+            time.sleep(1)
+        else:
+            logger.warning("Waiting too long for cluster [%s] creation", cluster_name)
+            break
+    return url, success
 
 
 def _generate_resource_name(username: str) -> str:
