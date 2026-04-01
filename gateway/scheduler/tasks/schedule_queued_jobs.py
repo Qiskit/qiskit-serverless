@@ -57,7 +57,12 @@ class ScheduleQueuedJobs(SchedulerTask):
         running_clusters = ComputeResource.objects.filter(active=True, gpu=True).count()
         self._schedule_jobs_if_slots_available(max_clusters, running_clusters, gpu_job=True)
 
-    def _schedule_jobs_if_slots_available(self, max_ray_clusters_possible, number_of_clusters_running, gpu_job):
+    def _schedule_jobs_if_slots_available(  # pylint: disable=too-many-branches
+        self,
+        max_ray_clusters_possible,
+        number_of_clusters_running,
+        gpu_job,
+    ):
         """Schedule jobs depending on free cluster slots."""
         free_clusters_slots = max_ray_clusters_possible - number_of_clusters_running
 
