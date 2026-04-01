@@ -15,6 +15,7 @@ import yaml
 from django.conf import settings
 from django.template.loader import get_template
 from kubernetes import client as kubernetes_client, config
+from kubernetes.client import ApiException
 from kubernetes.dynamic.client import DynamicClient
 from kubernetes.dynamic.exceptions import ResourceNotFoundError, NotFoundError
 from ray.dashboard.modules.job.common import JobStatus
@@ -262,7 +263,7 @@ class RayRunner(AbstractRunner):
             self._job.id,
             cluster,
         )
-        success = self._kill_ray_cluster(cluster)
+        success = _kill_ray_cluster(cluster)
         if not success:
             logger.error(
                 "[free_resources] job_id=%s cluster=%s Failed to free cluster",
@@ -270,10 +271,6 @@ class RayRunner(AbstractRunner):
                 cluster,
             )
         return success
-
-    def _kill_ray_cluster(self, cluster_name: str) -> bool:
-        """Kill Ray cluster, including job context in logs."""
-        return _kill_ray_cluster(cluster_name, job_id=self._job.id)
 
     def _submit_to_ray(self, compute_resource: ComputeResource) -> str:
         """
