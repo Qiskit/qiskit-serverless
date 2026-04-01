@@ -141,21 +141,13 @@ class ScheduleQueuedJobs(SchedulerTask):
 
                 retries = settings.RAY_SETUP_MAX_RETRIES - attempts
                 if succeed:
-                    if job.status == Job.PENDING:
-                        logger.info(
-                            "job_id=%s Job updated set to PENDING (%.2fs) tries=%s",
-                            job.id,
-                            time.monotonic() - t1,
-                            retries,
-                        )
-                    else:
-                        logger.warning(
-                            "job_id=%s Job saved with status=%s (%.2fs) tries=%s",
-                            job.id,
-                            job.status,
-                            time.monotonic() - t1,
-                            retries,
-                        )
+                    logger.warning(
+                        "job_id=%s Job saved with status=%s (%.2fs) tries=%s",
+                        job.id,
+                        job.status,
+                        time.monotonic() - t1,
+                        retries,
+                    )
                 else:
                     logger.warning(
                         "job_id=%s Job save failed after %s tries (%.2fs)",
