@@ -141,7 +141,7 @@ class RayRunner(AbstractRunner):
                     ex,
                 )
                 if cluster_name:
-                    self._kill_ray_cluster(cluster_name)
+                    _kill_ray_cluster(cluster_name)
                 raise RunnerError(f"Failed to submit job [{self._job.id}]", ex) from ex
 
     def status(self) -> Optional[str]:
