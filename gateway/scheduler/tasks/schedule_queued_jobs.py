@@ -120,7 +120,8 @@ class ScheduleQueuedJobs(SchedulerTask):
                         )
 
                         # Store the wait time (from QUEUED to PENDING) in the metrics
-                        self.add_queue_wait_time_metric(job)
+                        if job.status == Job.PENDING:
+                            self.add_queue_wait_time_metric(job)
 
                     except RecordModifiedError:
                         logger.warning("job_id=%s RecordModifiedError sleep 1", job.id)
@@ -135,19 +136,27 @@ class ScheduleQueuedJobs(SchedulerTask):
 
                 retries = settings.RAY_SETUP_MAX_RETRIES - attempts
                 if succeed:
-                    logger.info(
-                        "job_id=%s Job updated set to PENDING (%.2fs) tries=%s",
-                        job.id,
-                        time.monotonic() - t1,
-                        retries,
-                    )
+                    if job.status == Job.PENDING:
+                        logger.info(
+                            "job_id=%s Job updated set to PENDING (%.2fs) tries=%s",
+                            job.id,
+                            time.monotonic() - t1,
+                            retries,
+                        )
+                    else:
+                        logger.warning(
+                            "job_id=%s Job saved with status=%s (%.2fs) tries=%s",
+                            job.id,
+                            job.status,
+                            time.monotonic() - t1,
+                            retries,
+                        )
                 else:
-                    # or even error
                     logger.warning(
-                        "job_id=%s Job is not correctly updated to PENDING (%.2fs) tries=%s",
+                        "job_id=%s Job save failed after %s tries (%.2fs)",
                         job.id,
-                        time.monotonic() - t1,
                         retries,
+                        time.monotonic() - t1,
                     )
         if jobs:
             logger.info("%s jobs are scheduled for execution.", len(jobs))

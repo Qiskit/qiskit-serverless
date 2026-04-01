@@ -119,7 +119,7 @@ def handle_job_status_not_available(job: Job, job_status):
 
     if settings.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
         logger.debug(
-            "job_id=%s compute_resource=%s RAY_CLUSTER_NO_DELETE_ON_COMPLETE enabled, cluster not removed",
+            "job_id=%s cluster=%s RAY_CLUSTER_NO_DELETE_ON_COMPLETE enabled, cluster not removed",
             job.id,
             job.compute_resource.title,
         )
@@ -140,7 +140,7 @@ def fail_job_insufficient_resources(job: Job):
     """Fail job if insufficient resources are available."""
     if settings.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
         logger.debug(
-            "job_id=%s compute_resource=%s RAY_CLUSTER_NO_DELETE_ON_COMPLETE enabled, cluster not removed",
+            "job_id=%s cluster=%s RAY_CLUSTER_NO_DELETE_ON_COMPLETE enabled, cluster not removed",
             job.id,
             job.compute_resource.title,
         )
