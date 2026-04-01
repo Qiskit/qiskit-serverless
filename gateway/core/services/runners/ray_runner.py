@@ -16,7 +16,7 @@ from django.conf import settings
 from django.template.loader import get_template
 from kubernetes import client as kubernetes_client, config
 from kubernetes.dynamic.client import DynamicClient
-from kubernetes.dynamic.exceptions import ResourceNotFoundError
+from kubernetes.dynamic.exceptions import ResourceNotFoundError, NotFoundError
 from ray.dashboard.modules.job.common import JobStatus
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
