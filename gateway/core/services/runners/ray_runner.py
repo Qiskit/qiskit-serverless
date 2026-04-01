@@ -497,7 +497,6 @@ def _kill_ray_cluster(cluster_name: str) -> bool:
     if settings.RAY_CLUSTER_MODE_LOCAL:
         return True
 
-    success = False
     namespace = settings.RAY_KUBERAY_NAMESPACE
 
     config.load_incluster_config()
@@ -513,8 +512,9 @@ def _kill_ray_cluster(cluster_name: str) -> bool:
             cluster_name,
             sanitized,
         )
-        return success
+        return True
 
+    success = False
     if delete_response.status == "Success":
         logger.info(
             "[_kill_ray_cluster] cluster=%s RayCluster deletion success",
