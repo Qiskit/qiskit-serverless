@@ -295,7 +295,7 @@ class TestSerializers:
         data = {}
         data["title"] = "Hello world"
         data["entrypoint"] = "pattern.py"
-        data["dependencies"] = '["pendulum"]'
+        data["dependencies"] = '["mergedeep"]'
 
         serializer = UploadProgramSerializer(data=data)
         assert serializer.is_valid(), serializer.errors
@@ -304,7 +304,7 @@ class TestSerializers:
         data = {}
         data["title"] = "Hello world"
         data["entrypoint"] = "pattern.py"
-        data["dependencies"] = '["pendulum", "wheel"]'
+        data["dependencies"] = '["mergedeep", "ffsim"]'
 
         serializer = UploadProgramSerializer(data=data)
         assert serializer.is_valid(), serializer.errors
@@ -313,7 +313,7 @@ class TestSerializers:
         data = {}
         data["title"] = "Hello world"
         data["entrypoint"] = "pattern.py"
-        data["dependencies"] = '["wheel==3.0.0","pendulum==3.0.0"]'
+        data["dependencies"] = '["ffsim==0.0.60","mergedeep==1.3.4"]'
 
         serializer = UploadProgramSerializer(data=data)
         assert serializer.is_valid(), serializer.errors
@@ -322,7 +322,7 @@ class TestSerializers:
         data = {}
         data["title"] = "Hello world"
         data["entrypoint"] = "pattern.py"
-        data["dependencies"] = '[{"wheel":"3.0.0"},{"pendulum":"==3.0.0"}]'
+        data["dependencies"] = '[{"ffsim":"0.0.60"},{"mergedeep":"==1.3.4"}]'
 
         serializer = UploadProgramSerializer(data=data)
         assert serializer.is_valid(), serializer.errors
@@ -331,7 +331,7 @@ class TestSerializers:
         data = {}
         data["title"] = "Hello world"
         data["entrypoint"] = "pattern.py"
-        data["dependencies"] = '[{"wheel":"3.0.0"},"pendulum==3.0.0"]'
+        data["dependencies"] = '[{"ffsim":"0.0.60"},"mergedeep==1.3.4"]'
 
         serializer = UploadProgramSerializer(data=data)
         assert serializer.is_valid(), serializer.errors
@@ -349,7 +349,7 @@ class TestSerializers:
         data = {}
         data["title"] = "Hello world"
         data["entrypoint"] = "pattern.py"
-        data["dependencies"] = '["pendulum==2.0.0"]'
+        data["dependencies"] = '["mergedeep==2.0.0"]'
 
         serializer = UploadProgramSerializer(data=data)
         assert not serializer.is_valid(), serializer.errors
@@ -358,7 +358,7 @@ class TestSerializers:
         data = {}
         data["title"] = "Hello world"
         data["entrypoint"] = "pattern.py"
-        data["dependencies"] = '[{"wheel":"0.1.0"},{"pendulum":"==1.0.0"}]'
+        data["dependencies"] = '[{"ffsim":"0.1.0"},{"mergedeep":"==1.0.0"}]'
 
         serializer = UploadProgramSerializer(data=data)
         assert not serializer.is_valid(), serializer.errors
@@ -367,7 +367,7 @@ class TestSerializers:
         data = {}
         data["title"] = "Hello world"
         data["entrypoint"] = "pattern.py"
-        data["dependencies"] = '["pendulum>=3.0.0"]'
+        data["dependencies"] = '["mergedeep>=3.0.0"]'
 
         serializer = UploadProgramSerializer(data=data)
         assert not serializer.is_valid(), serializer.errors
@@ -376,7 +376,7 @@ class TestSerializers:
         data = {}
         data["title"] = "Hello world"
         data["entrypoint"] = "pattern.py"
-        data["dependencies"] = '{"pendulum": ">=3.0.0"}'
+        data["dependencies"] = '{"mergedeep": ">=3.0.0"}'
 
         serializer = UploadProgramSerializer(data=data)
         assert not serializer.is_valid(), serializer.errors
