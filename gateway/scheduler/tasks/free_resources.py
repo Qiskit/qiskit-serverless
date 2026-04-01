@@ -29,8 +29,8 @@ class FreeResources(SchedulerTask):
         Output = TERMINAL JOB with ComputeResource.active = False
         """
         self._free_active_compute_resources()
-        self._free_orphan_clusters()
         self._log_compute_resources_without_job()
+        self._log_orphan_clusters()
 
     def _free_active_compute_resources(self):
         """Free unused compute resources (ComputeResource active with terminal jobs)."""
@@ -57,6 +57,12 @@ class FreeResources(SchedulerTask):
                 job.id,
                 compute_resource.title,
             )
+        else:
+            logger.error(
+                "[_free_job] job_id=%s cluster=%s Failed to kill cluster",
+                job.id,
+                compute_resource.title,
+            )
 
     @staticmethod
     def _log_compute_resources_without_job():
@@ -67,12 +73,12 @@ class FreeResources(SchedulerTask):
             "title", flat=True
         )
         if orphan_db_resources:
-            logger.error(
-                "[_free_orphan_clusters] Orphaned ComputeResources without no job: %s",
+            logger.warning(
+                "[_log_compute_resources_without_job] Orphaned ComputeResources with no job: %s",
                 sorted(orphan_db_resources),
             )
 
-    def _free_orphan_clusters(self):
+    def _log_orphan_clusters(self):
         """Log Ray clusters without a ComputeResource."""
         if settings.RAY_CLUSTER_MODE_LOCAL:
             return
