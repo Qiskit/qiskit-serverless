@@ -418,7 +418,7 @@ class RayRunner(AbstractRunner):
                 host,
             )
         except Exception:
-            if not self._kill_ray_cluster(created_cluster_name):
+            if not _kill_ray_cluster(created_cluster_name):
                 logger.error(
                     "[_create_k8s_cluster] job_id=%s cluster=%s ORPHAN CLUSTER: failed to delete timed-out cluster",
                     self._job.id,
