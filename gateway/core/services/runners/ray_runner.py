@@ -354,7 +354,7 @@ class RayRunner(AbstractRunner):
                 )
                 raise RuntimeError(f"Wrong name after cluster creation: {response.text}")
 
-            host, cluster_is_ready = _wait_for_cluster_ready(cluster_name)
+            host, cluster_is_ready = _wait_for_cluster_ready(cluster_name, str(self._job.id))
             if not cluster_is_ready:
                 logger.error(
                     "[_create_k8s_cluster] job_id=%s cluster=%s Cluster creation timed out",
