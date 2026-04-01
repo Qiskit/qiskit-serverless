@@ -28,7 +28,7 @@ class TestSerializers:
     def _setup(self, tmp_path, settings, db):
         call_command("loaddata", "tests/fixtures/fixtures.json")
         settings.MEDIA_ROOT = str(tmp_path)
-        settings.GATEWAY_DYNAMIC_DEPENDENCIES = "../ray-node/requirements-test-dynamic-dependencies.txt"
+        settings.GATEWAY_DYNAMIC_DEPENDENCIES = "../ray-node/requirements-dynamic-dependencies.txt"
 
     def test_JobConfigSerializer(self):
         data = '{"workers": null, "min_workers": 1, "max_workers": 5, "auto_scaling": true}'

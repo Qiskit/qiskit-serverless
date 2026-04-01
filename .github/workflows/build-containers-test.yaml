@@ -21,7 +21,6 @@ jobs:
         dockerfile:
           - ray-node/Dockerfile
           - gateway/Dockerfile
-          - "ray-node/Dockerfile with dynamic dependencies"
         python:
           - "3.11"
     steps:
@@ -30,23 +29,12 @@ jobs:
       - name: Setup buildx
         uses: docker/setup-buildx-action@v4
       - name: Build ${{ matrix.dockerfile }}
-        if: ${{ matrix.dockerfile != 'ray-node/Dockerfile with dynamic dependencies' }}
         uses: docker/build-push-action@v7
         with:
           context: .
           file: ./${{ matrix.dockerfile }}
           load: true
           tags: image:test
-      - name: Build ${{ matrix.dockerfile }}
-        if: ${{ matrix.dockerfile == 'ray-node/Dockerfile with dynamic dependencies' }}
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: ./ray-node/Dockerfile
-          load: true
-          tags: image:test
-          build-args: |
-            DYNAMIC_DEPENDENCIES_FILE=requirements-dynamic-dependencies.txt
       - name: Inspect
         run: |
           docker image inspect image:test
