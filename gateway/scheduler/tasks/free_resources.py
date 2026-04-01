@@ -44,8 +44,7 @@ class FreeResources(SchedulerTask):
                 return
             self._free_job(job)
 
-    @staticmethod
-    def _free_job(job):
+    def _free_job(self, job):
         compute_resource = job.compute_resource
         runner_client = get_runner(job)
         success = runner_client.free_resources()
@@ -64,8 +63,7 @@ class FreeResources(SchedulerTask):
                 compute_resource.title,
             )
 
-    @staticmethod
-    def _log_compute_resources_without_job():
+    def _log_compute_resources_without_job(self):
         """Log compute resources without job."""
 
         # Active ComputeResources with no job at all
@@ -105,8 +103,7 @@ class FreeResources(SchedulerTask):
                 sorted(compute_resources_in_k8s_inactive),
             )
 
-    @staticmethod
-    def _get_k8s_cluster_names(namespace) -> set | None:
+    def _get_k8s_cluster_names(self, namespace) -> set | None:
         """Get RayCluster names from K8s. Returns None if K8s is unavailable."""
         try:
             config.load_incluster_config()
