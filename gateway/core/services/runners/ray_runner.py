@@ -15,7 +15,7 @@ import yaml
 from django.conf import settings
 from django.template.loader import get_template
 from kubernetes import client as kubernetes_client, config
-from kubernetes.client.exceptions import ApiException
+from kubernetes.client import ApiException
 from kubernetes.dynamic.client import DynamicClient
 from kubernetes.dynamic.exceptions import ResourceNotFoundError, NotFoundError
 from ray.dashboard.modules.job.common import JobStatus
@@ -55,7 +55,8 @@ class RayRunner(AbstractRunner):
         if self._connected:
             return
 
-        host = self._job.compute_resource.host
+        compute_resource = self._job.compute_resource
+        host = compute_resource.host
         try:
             self._client = retry_function(
                 callback=lambda: JobSubmissionClient(host),
@@ -64,14 +65,16 @@ class RayRunner(AbstractRunner):
             )
             self._connected = True
             logger.info(
-                "[connect] job_id=%s host=%s Connected to Ray cluster",
+                "[connect] job_id=%s cluster=%s host=%s Connected to Ray cluster",
                 self._job.id,
+                compute_resource,
                 host,
             )
         except Exception as ex:
             logger.error(
-                "[connect] job_id=%s host=%s error=%s Unable to connect to Ray cluster",
+                "[connect] job_id=%s cluster=%s host=%s error=%s Unable to connect to Ray cluster",
                 self._job.id,
+                compute_resource,
                 host,
                 ex,
             )
@@ -160,17 +163,33 @@ class RayRunner(AbstractRunner):
             )
         except RuntimeError as ex:
             logger.error(
-                "[status] job_id=%s ray_job_id=%s error=%s Job status failed",
+                "[status] job_id=%s ray_job_id=%s cluster=%s error=%s Job status failed",
                 self._job.id,
                 self._job.ray_job_id,
+                self._job.compute_resource,
                 ex,
             )
             raise RunnerError(f"Unable to get status for job [{self._job.ray_job_id}]", ex) from ex
 
         if ray_job_status is None:
+            logger.warning(
+                "[status] job_id=%s ray_job_id=%s cluster=%s Ray returned None status",
+                self._job.id,
+                self._job.ray_job_id,
+                self._job.compute_resource,
+            )
             return None
 
-        return _map_status(ray_job_status)
+        status = _map_status(ray_job_status)
+        logger.info(
+            "[status] job_id=%s ray_job_id=%s cluster=%s Ray returned %s status (%s)",
+            self._job.id,
+            self._job.ray_job_id,
+            self._job.compute_resource,
+            ray_job_status,
+            status,
+        )
+        return status
 
     def logs(self) -> Optional[str]:
         """
@@ -232,9 +251,26 @@ class RayRunner(AbstractRunner):
             True if cleaned up correctly
         """
         if not self._job.compute_resource:
+            logger.warning(
+                "[free_resources] job_id=%s No compute_resource to free",
+                self._job.id,
+            )
             return False
 
-        return _kill_ray_cluster(self._job.compute_resource.title)
+        cluster = self._job.compute_resource.title
+        logger.info(
+            "[free_resources] job_id=%s cluster=%s Freeing cluster",
+            self._job.id,
+            cluster,
+        )
+        success = _kill_ray_cluster(cluster)
+        if not success:
+            logger.error(
+                "[free_resources] job_id=%s cluster=%s Failed to free cluster",
+                self._job.id,
+                cluster,
+            )
+        return success
 
     def _submit_to_ray(self, compute_resource: ComputeResource) -> str:
         """
@@ -300,6 +336,12 @@ class RayRunner(AbstractRunner):
 
         # Connect to Ray cluster using compute_resource host
         host = compute_resource.host
+        logger.info(
+            "[_submit_to_ray] job_id=%s cluster=%s host=%s Connecting to Ray cluster",
+            self._job.id,
+            compute_resource.title,
+            host,
+        )
         job_submission_client = retry_function(
             callback=lambda: JobSubmissionClient(host),
             num_retries=settings.RAY_SETUP_MAX_RETRIES,
@@ -316,6 +358,13 @@ class RayRunner(AbstractRunner):
             ),
             num_retries=settings.RAY_SETUP_MAX_RETRIES,
             error_message=f"Ray job [{self._job.id}] submission failed.",
+        )
+        logger.info(
+            "[_submit_to_ray] job_id=%s cluster=%s host=%s ray_job_id=%s Job submitted to Ray",
+            self._job.id,
+            compute_resource.title,
+            host,
+            ray_job_id,
         )
 
         if os.path.exists(working_directory_for_upload):
@@ -369,7 +418,12 @@ class RayRunner(AbstractRunner):
                 host,
             )
         except Exception:
-            _kill_ray_cluster(created_cluster_name)
+            if not _kill_ray_cluster(created_cluster_name):
+                logger.error(
+                    "[_create_k8s_cluster] job_id=%s cluster=%s ORPHAN CLUSTER: failed to delete timed-out cluster",
+                    self._job.id,
+                    created_cluster_name,
+                )
             raise
 
         return host, cluster_name
