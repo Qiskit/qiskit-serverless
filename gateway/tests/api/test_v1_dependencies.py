@@ -2,7 +2,6 @@
 
 from django.urls import reverse
 from django.contrib.auth import models
-from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -12,7 +11,6 @@ class TestAvailableDependenciesVersion(APITestCase):
 
     fixtures = ["tests/fixtures/fixtures.json"]
 
-    @override_settings(GATEWAY_DYNAMIC_DEPENDENCIES="../ray-node/requirements-dynamic-dependencies.txt")
     def test_available_dependencies_version(self):
         """Tests available dependencies version."""
         user = models.User.objects.get(username="test_user")

@@ -28,7 +28,6 @@ class TestSerializers:
     def _setup(self, tmp_path, settings, db):
         call_command("loaddata", "tests/fixtures/fixtures.json")
         settings.MEDIA_ROOT = str(tmp_path)
-        settings.GATEWAY_DYNAMIC_DEPENDENCIES = "../ray-node/requirements-dynamic-dependencies.txt"
 
     def test_JobConfigSerializer(self):
         data = '{"workers": null, "min_workers": 1, "max_workers": 5, "auto_scaling": true}'
@@ -290,6 +289,11 @@ class TestSerializers:
         assert ["At least one of attributes (entrypoint, image) is required."] == [
             value[0] for value in errors.values()
         ]
+
+    # Dependency validation tests use 'mergedeep' and 'ffsim' as representative examples
+    # from requirements-dynamic-dependencies.txt. These tests validate the dependency
+    # checking mechanism itself, not every individual production dependency.
+    # Previously used 'pendulum' and 'wheel' from the now-deleted requirements-test-dynamic-dependencies.txt
 
     def test_upload_program_serializer_allowed_dependencies_basic(self):
         data = {}
