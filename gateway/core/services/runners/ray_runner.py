@@ -142,7 +142,8 @@ class RayRunner(AbstractRunner):
                 if cluster_name:
                     if not _kill_ray_cluster(cluster_name, self._job.id):
                         logger.error(
-                            "[submit] job_id=%s cluster=%s ORPHAN CLUSTER: failed to delete cluster when job submit failed",
+                            "[submit] job_id=%s cluster=%s ORPHAN CLUSTER: "
+                            "failed to delete cluster when job submit failed",
                             self._job.id,
                             cluster_name,
                         )
@@ -583,7 +584,8 @@ def _kill_ray_cluster(cluster_name: str, job_id=None) -> bool:
     except NotFoundError as resource_not_found:
         sanitized = repr(resource_not_found).replace("\n", "").replace("\r", "")
         logger.info(
-            "[_kill_ray_cluster] job_id=%s cluster=%s elapsed=%.1fs RayCluster NotFoundError when deleting (return true): %s",
+            "[_kill_ray_cluster] job_id=%s cluster=%s elapsed=%.1fs "
+            "RayCluster NotFoundError when deleting (return true): %s",
             job_id,
             cluster_name,
             time.time() - start_time,
@@ -593,7 +595,7 @@ def _kill_ray_cluster(cluster_name: str, job_id=None) -> bool:
         return True
     except Exception as ex:  # pylint: disable=broad-exception-caught
         logger.error(
-            "[_kill_ray_cluster] job_id=%s cluster=%s elapsed=%.1fs RayCluster deletion failed: %s. Return false",
+            "[_kill_ray_cluster] job_id=%s cluster=%s elapsed=%.1fs " "RayCluster deletion failed: %s. Return false",
             job_id,
             cluster_name,
             time.time() - start_time,
