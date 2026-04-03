@@ -15,7 +15,6 @@ import yaml
 from django.conf import settings
 from django.template.loader import get_template
 from kubernetes import client as kubernetes_client, config
-from kubernetes.client import ApiException
 from kubernetes.dynamic.client import DynamicClient
 from kubernetes.dynamic.exceptions import ResourceNotFoundError, NotFoundError
 from ray.dashboard.modules.job.common import JobStatus
@@ -141,7 +140,13 @@ class RayRunner(AbstractRunner):
                     ex,
                 )
                 if cluster_name:
-                    _kill_ray_cluster(cluster_name, self._job.id)
+                    if not _kill_ray_cluster(cluster_name, self._job.id):
+                        logger.error(
+                            "[submit] job_id=%s cluster=%s ORPHAN CLUSTER: failed to delete cluster when job submit failed",
+                            self._job.id,
+                            cluster_name,
+                        )
+
                 raise RunnerError(f"Failed to submit job [{self._job.id}]", ex) from ex
 
     def status(self) -> Optional[str]:
@@ -552,6 +557,7 @@ def _kill_ray_cluster(cluster_name: str, job_id=None) -> bool:
     if settings.RAY_CLUSTER_MODE_LOCAL:
         return True
 
+    start_time = time.time()
     namespace = settings.RAY_KUBERAY_NAMESPACE
 
     config.load_incluster_config()
@@ -562,18 +568,21 @@ def _kill_ray_cluster(cluster_name: str, job_id=None) -> bool:
         delete_response = raycluster_client.delete(name=cluster_name, namespace=namespace)
     except NotFoundError as resource_not_found:
         sanitized = repr(resource_not_found).replace("\n", "").replace("\r", "")
-        logger.warning(
-            "[_kill_ray_cluster] cluster=%s Error deleting, RayCluster not found: %s",
+        logger.info(
+            "[_kill_ray_cluster] job_id=%s cluster=%s elapsed=%.1fs RayCluster NotFoundError when deleting (return true): %s",
+            job_id,
             cluster_name,
+            time.time() - start_time,
             sanitized,
         )
         # Returns true because the intention of killing the cluster was achieved
         return True
     except Exception as ex:  # pylint: disable=broad-exception-caught
         logger.error(
-            "[_kill_ray_cluster] job_id=%s cluster=%s RayCluster deletion failed: %s",
+            "[_kill_ray_cluster] job_id=%s cluster=%s elapsed=%.1fs RayCluster deletion failed: %s. Return false",
             job_id,
             cluster_name,
+            time.time() - start_time,
             str(ex),
         )
         return False
@@ -649,4 +658,10 @@ def _kill_ray_cluster(cluster_name: str, job_id=None) -> bool:
             cluster_name,
             ex,
         )
+    logger.info(
+        "[_kill_ray_cluster] job_id=%s cluster=%s elapsed=%.1fs completed",
+        job_id,
+        cluster_name,
+        time.time() - start_time,
+    )
     return success
