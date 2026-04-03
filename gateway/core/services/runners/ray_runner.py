@@ -583,8 +583,8 @@ def _kill_ray_cluster(cluster_name: str, job_id=None) -> bool:
         delete_response = raycluster_client.delete(name=cluster_name, namespace=namespace)
     except NotFoundError as resource_not_found:
         sanitized = repr(resource_not_found).replace("\n", "").replace("\r", "")
-        logger.info(
-            "[_kill_ray_cluster] job_id=%s cluster=%s elapsed=%.1fs "
+        logger.warning(
+            "[_kill_ray_cluster] [ANOMALY] job_id=%s cluster=%s elapsed=%.1fs "
             + "RayCluster NotFoundError when deleting (return true): %s",
             job_id,
             cluster_name,
@@ -595,7 +595,7 @@ def _kill_ray_cluster(cluster_name: str, job_id=None) -> bool:
         return True
     except Exception as ex:  # pylint: disable=broad-exception-caught
         logger.error(
-            "[_kill_ray_cluster] job_id=%s cluster=%s elapsed=%.1fs " + "RayCluster deletion failed: %s. Return false",
+            "[_kill_ray_cluster] job_id=%s cluster=%s elapsed=%.1fs RayCluster deletion failed: %s. Return false",
             job_id,
             cluster_name,
             time.time() - start_time,
