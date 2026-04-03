@@ -15,7 +15,6 @@ import yaml
 from django.conf import settings
 from django.template.loader import get_template
 from kubernetes import client as kubernetes_client, config
-from kubernetes.client import ApiException
 from kubernetes.dynamic.client import DynamicClient
 from kubernetes.dynamic.exceptions import ResourceNotFoundError, NotFoundError
 from ray.dashboard.modules.job.common import JobStatus
@@ -141,7 +140,14 @@ class RayRunner(AbstractRunner):
                     ex,
                 )
                 if cluster_name:
-                    _kill_ray_cluster(cluster_name)
+                    if not _kill_ray_cluster(cluster_name, self._job.id):
+                        logger.error(
+                            "[submit] job_id=%s cluster=%s ORPHAN CLUSTER: "
+                            "failed to delete cluster when job submit failed",
+                            self._job.id,
+                            cluster_name,
+                        )
+
                 raise RunnerError(f"Failed to submit job [{self._job.id}]", ex) from ex
 
     def status(self) -> Optional[str]:
@@ -263,7 +269,7 @@ class RayRunner(AbstractRunner):
             self._job.id,
             cluster,
         )
-        success = _kill_ray_cluster(cluster)
+        success = _kill_ray_cluster(cluster, self._job.id)
         if not success:
             logger.error(
                 "[free_resources] job_id=%s cluster=%s Failed to free cluster",
@@ -418,7 +424,7 @@ class RayRunner(AbstractRunner):
                 host,
             )
         except Exception:
-            if not _kill_ray_cluster(created_cluster_name):
+            if not _kill_ray_cluster(created_cluster_name, self._job.id):
                 logger.error(
                     "[_create_k8s_cluster] job_id=%s cluster=%s ORPHAN CLUSTER: failed to delete timed-out cluster",
                     self._job.id,
@@ -552,12 +558,13 @@ def _map_status(ray_job_status) -> str:
     return mapping.get(ray_job_status, Job.FAILED)
 
 
-def _kill_ray_cluster(cluster_name: str) -> bool:
+def _kill_ray_cluster(cluster_name: str, job_id=None) -> bool:
     """
     Kill Ray cluster by calling kuberay API.
 
     Args:
         cluster_name: Cluster name
+        job_id: Optional job id for log context
 
     Returns:
         True if cluster was killed successfully
@@ -565,7 +572,7 @@ def _kill_ray_cluster(cluster_name: str) -> bool:
     if settings.RAY_CLUSTER_MODE_LOCAL:
         return True
 
-    success = False
+    start_time = time.time()
     namespace = settings.RAY_KUBERAY_NAMESPACE
 
     config.load_incluster_config()
@@ -576,63 +583,101 @@ def _kill_ray_cluster(cluster_name: str) -> bool:
         delete_response = raycluster_client.delete(name=cluster_name, namespace=namespace)
     except NotFoundError as resource_not_found:
         sanitized = repr(resource_not_found).replace("\n", "").replace("\r", "")
-        logger.error(
-            "[_kill_ray_cluster] cluster=%s Error deleting, RayCluster not found: %s",
+        logger.warning(
+            "[_kill_ray_cluster] [ANOMALY] job_id=%s cluster=%s elapsed=%.1fs "
+            + "RayCluster NotFoundError when deleting (return true): %s",
+            job_id,
             cluster_name,
+            time.time() - start_time,
             sanitized,
         )
-        return success
+        # Returns true because the intention of killing the cluster was achieved
+        return True
+    except Exception as ex:  # pylint: disable=broad-exception-caught
+        logger.error(
+            "[_kill_ray_cluster] job_id=%s cluster=%s elapsed=%.1fs RayCluster deletion failed: %s. Return false",
+            job_id,
+            cluster_name,
+            time.time() - start_time,
+            str(ex),
+        )
+        return False
 
-    if delete_response.status == "Success":
+    success = delete_response.status == "Success"
+    if success:
         logger.info(
-            "[_kill_ray_cluster] cluster=%s RayCluster deletion success",
+            "[_kill_ray_cluster] job_id=%s cluster=%s RayCluster deletion success",
+            job_id,
             cluster_name,
         )
-        success = True
     else:
         sanitized = delete_response.text.replace("\n", "").replace("\r", "")
         logger.error(
-            "[_kill_ray_cluster] cluster=%s RayCluster deletion failed: %s",
+            "[_kill_ray_cluster] job_id=%s cluster=%s RayCluster deletion failed: %s",
+            job_id,
             cluster_name,
             sanitized,
         )
+
     try:
         cert_client = dyn_client.resources.get(api_version="v1", kind="Certificate")
-    except ResourceNotFoundError:
-        return success
+        try:
+            cert_client.delete(name=cluster_name, namespace=namespace)
+        except Exception as ex:  # pylint: disable=broad-exception-caught
+            logger.warning(
+                "[_kill_ray_cluster] job_id=%s cluster=%s Certificate deletion skipped: %s",
+                job_id,
+                cluster_name,
+                ex,
+            )
+        try:
+            cert_client.delete(name=f"{cluster_name}-worker", namespace=namespace)
+        except Exception as ex:  # pylint: disable=broad-exception-caught
+            logger.warning(
+                "[_kill_ray_cluster] job_id=%s cluster=%s Certificate-worker deletion skipped: %s",
+                job_id,
+                cluster_name,
+                ex,
+            )
+    except Exception as ex:  # pylint: disable=broad-exception-caught
+        logger.warning(
+            "[_kill_ray_cluster] job_id=%s cluster=%s Certificate client unavailable, skipping cert deletion: %s",
+            job_id,
+            cluster_name,
+            ex,
+        )
 
     try:
-        cert_client.delete(name=cluster_name, namespace=namespace)
-        success = True
-    except NotFoundError:
-        logger.error(
-            "[_kill_ray_cluster] cluster=%s Certificate deletion failed: NotFoundError",
+        corev1 = kubernetes_client.CoreV1Api()
+        try:
+            corev1.delete_namespaced_secret(name=cluster_name, namespace=namespace)
+        except Exception as ex:  # pylint: disable=broad-exception-caught
+            logger.warning(
+                "[_kill_ray_cluster] job_id=%s cluster=%s Secret deletion skipped: %s",
+                job_id,
+                cluster_name,
+                ex,
+            )
+        try:
+            corev1.delete_namespaced_secret(name=f"{cluster_name}-worker", namespace=namespace)
+        except Exception as ex:  # pylint: disable=broad-exception-caught
+            logger.warning(
+                "[_kill_ray_cluster] job_id=%s cluster=%s Secret-worker deletion skipped: %s",
+                job_id,
+                cluster_name,
+                ex,
+            )
+    except Exception as ex:  # pylint: disable=broad-exception-caught
+        logger.warning(
+            "[_kill_ray_cluster] job_id=%s cluster=%s CoreV1Api unavailable, skipping secret deletion: %s",
+            job_id,
             cluster_name,
+            ex,
         )
-    try:
-        cert_client.delete(name=f"{cluster_name}-worker", namespace=namespace)
-        success = True
-    except NotFoundError:
-        logger.error(
-            "[_kill_ray_cluster] cluster=%s Certificate-worker deletion failed: NotFoundError",
-            cluster_name,
-        )
-
-    corev1 = kubernetes_client.CoreV1Api()
-    try:
-        corev1.delete_namespaced_secret(name=cluster_name, namespace=namespace)
-        success = True
-    except ApiException:
-        logger.error(
-            "[_kill_ray_cluster] cluster=%s Secret deletion failed: ApiException",
-            cluster_name,
-        )
-    try:
-        corev1.delete_namespaced_secret(name=f"{cluster_name}-worker", namespace=namespace)
-        success = True
-    except ApiException:
-        logger.error(
-            "[_kill_ray_cluster] cluster=%s Secret-worker deletion failed: ApiException",
-            cluster_name,
-        )
+    logger.info(
+        "[_kill_ray_cluster] job_id=%s cluster=%s elapsed=%.1fs completed",
+        job_id,
+        cluster_name,
+        time.time() - start_time,
+    )
     return success
