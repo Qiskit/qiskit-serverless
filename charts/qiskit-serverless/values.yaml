@@ -77,9 +77,11 @@ gateway:
 
   secrets:
     secretKey:
+      create: false
       name: gateway-secret-key
       key: django-secret-key
     servicePsql:
+      create: false
       name: service-psql-binding
       key:
         databaseName: database-name
@@ -88,6 +90,7 @@ gateway:
         port: database-port
         userName: user-name
     superuser:
+      create: false
       name: gateway-superuser
       key:
         name: name
