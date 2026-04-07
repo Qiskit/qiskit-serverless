@@ -293,7 +293,6 @@ class TestSerializers:
     # Dependency validation tests use 'mergedeep' and 'ffsim' as representative examples
     # from requirements-dynamic-dependencies.txt. These tests validate the dependency
     # checking mechanism itself, not every individual production dependency.
-    # Previously used 'pendulum' and 'wheel' from the now-deleted requirements-test-dynamic-dependencies.txt
 
     def test_upload_program_serializer_allowed_dependencies_basic(self):
         data = {}
