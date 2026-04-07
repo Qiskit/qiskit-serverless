@@ -12,7 +12,6 @@ from concurrency.exceptions import RecordModifiedError
 
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-
 from core.config_key import ConfigKey
 from core.models import ComputeResource, Job, JobEvent, Config
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
@@ -31,9 +30,9 @@ logger = logging.getLogger("scheduler.ScheduleQueuedJobs")
 class ScheduleQueuedJobs(SchedulerTask):
     """Schedule jobs service."""
 
-    def __init__(self, kill_signal: KillSignal = None, metrics: SchedulerMetrics = None):
-        self.kill_signal = kill_signal or KillSignal()
-        self.metrics = metrics or SchedulerMetrics()
+    def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
+        self.kill_signal = kill_signal
+        self.metrics = metrics
 
     def run(self):
         """Schedule queued jobs to available cluster slots."""
