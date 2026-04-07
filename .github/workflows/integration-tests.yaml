@@ -33,9 +33,17 @@ jobs:
         run: curl --retry 30 --retry-delay 2 --retry-all-errors --fail http://localhost:8000/liveness/
       - name: Test using tox environment
         run: tox -c tests/tox.ini -e py311
+      - name: Print logs on failure
+        if: failure()
+        run: |
+          echo "=== Container status ==="
+          docker compose -f docker-compose-dev.yaml ps -a
+          echo "=== Gateway logs ==="
+          docker compose -f docker-compose-dev.yaml logs --tail=300 gateway
+          echo "=== Scheduler logs ==="
+          docker compose -f docker-compose-dev.yaml logs --tail=100 scheduler
+          echo "=== Postgres logs ==="
+          docker compose -f docker-compose-dev.yaml logs --tail=50 postgres
       - name: Stop services
         if: always()
         run: docker compose -f docker-compose-dev.yaml down
-      - name: Print logs on failure
-        if: failure()
-        run: docker compose -f docker-compose-dev.yaml logs --tail=500
