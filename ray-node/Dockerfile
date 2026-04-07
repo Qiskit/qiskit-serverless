@@ -1,6 +1,5 @@
 # syntax=docker/dockerfile:1.17
 FROM registry.access.redhat.com/ubi9-minimal:9.7-1773204619
-ARG DYNAMIC_DEPENDENCIES_FILE
 # set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -27,12 +26,10 @@ RUN mkdir /data /function_data && \
         "pip>=24.2" \
         "setuptools>=80.0.0"
 
-# Install dynamic dependencies (if specified)
+# Install additional dependencies
 COPY ray-node/requirements-dynamic-dependencies.txt /tmp/
-COPY ray-node/requirements-test-dynamic-dependencies.txt /tmp/
-RUN if [ -n "${DYNAMIC_DEPENDENCIES_FILE}" ]; then \
-        pip install -r /tmp/${DYNAMIC_DEPENDENCIES_FILE} --no-cache-dir; \
-    fi
+RUN pip install -r /tmp/requirements-dynamic-dependencies.txt --no-cache-dir && \
+    rm /tmp/requirements-dynamic-dependencies.txt
 
 # Install latest version of client (at the end for better layer cache usage)
 COPY client /tmp/qs

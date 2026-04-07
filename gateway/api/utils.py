@@ -191,12 +191,19 @@ def create_dynamic_dependencies_whitelist() -> Dict[str, Requirement]:
 
     The format of the readed file should be a requirements.txt file.
     """
+    # Determine path based on environment:
+    # - Tests: ../ray-node/requirements-dynamic-dependencies.txt
+    # - Docker/production: requirements-dynamic-dependencies.txt (copied to /usr/src/app/)
+    if settings.IS_TEST:
+        requirements_path = "../ray-node/requirements-dynamic-dependencies.txt"
+    else:
+        requirements_path = "requirements-dynamic-dependencies.txt"
+
     try:
-        with open(settings.GATEWAY_DYNAMIC_DEPENDENCIES, encoding="utf-8", mode="r") as f:
+        with open(requirements_path, encoding="utf-8", mode="r") as f:
             dependencies = f.readlines()
     except IOError as e:
-        if settings.GATEWAY_DYNAMIC_DEPENDENCIES != "":
-            logger.error("Unable to open dynamic dependencies requirements file: %s", e)
+        logger.error("Unable to open dynamic dependencies requirements file at %s: %s", requirements_path, e)
         return {}
 
     # packaging.requirements.Requirement is a PEP 508-compliant parser. It won’t parse pip
