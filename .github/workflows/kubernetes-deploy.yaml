@@ -39,6 +39,19 @@ jobs:
         run: tox -e kind-deploy
       - name: Wait for pods
         run: tox -e kind-wait
+      - name: Debug gateway pod on failure
+        if: failure()
+        run: |
+          echo "=== Pod status ==="
+          kubectl get pods -o wide
+          echo "=== Gateway pod description ==="
+          kubectl describe pod -l app.kubernetes.io/name=gateway
+          echo "=== Gateway pod logs ==="
+          kubectl logs -l app.kubernetes.io/name=gateway --all-containers=true --tail=200 || true
+          echo "=== Gateway previous container logs ==="
+          kubectl logs -l app.kubernetes.io/name=gateway --all-containers=true --previous --tail=100 || true
+          echo "=== Cluster events (last 50) ==="
+          kubectl get events --sort-by='.lastTimestamp' | tail -50
       - name: setup python
         uses: actions/setup-python@v6
         with:
