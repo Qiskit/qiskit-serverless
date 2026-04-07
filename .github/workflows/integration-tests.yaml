@@ -38,4 +38,12 @@ jobs:
         run: docker compose -f docker-compose-dev.yaml down
       - name: Print logs on failure
         if: failure()
-        run: docker compose -f docker-compose-dev.yaml logs --tail=500
+        run: |
+          echo "=== Container status ==="
+          docker compose -f docker-compose-dev.yaml ps -a
+          echo "=== Gateway logs ==="
+          docker compose -f docker-compose-dev.yaml logs --tail=300 gateway
+          echo "=== Scheduler logs ==="
+          docker compose -f docker-compose-dev.yaml logs --tail=100 scheduler
+          echo "=== Postgres logs ==="
+          docker compose -f docker-compose-dev.yaml logs --tail=50 postgres
