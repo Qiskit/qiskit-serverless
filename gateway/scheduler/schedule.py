@@ -114,33 +114,11 @@ def check_job_timeout(job: Job):
     return False
 
 
-def handle_job_status_not_available(job: Job, job_status):
-    """Process job status not available and update job"""
-
-    if settings.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
-        logger.debug(
-            "job_id=%s compute_resource=%s RAY_CLUSTER_NO_DELETE_ON_COMPLETE enabled, cluster not removed",
-            job.id,
-            job.compute_resource.title,
-        )
-    else:
-        runner = get_runner(job)
-        try:
-            runner.free_resources()
-        except RunnerError:
-            pass
-        job.compute_resource.delete()
-        job.compute_resource = None
-        job_status = Job.FAILED
-        job.logs += "\nSomething went wrong during updating job status."
-    return job_status
-
-
 def fail_job_insufficient_resources(job: Job):
     """Fail job if insufficient resources are available."""
     if settings.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
         logger.debug(
-            "job_id=%s compute_resource=%s RAY_CLUSTER_NO_DELETE_ON_COMPLETE enabled, cluster not removed",
+            "job_id=%s cluster=%s RAY_CLUSTER_NO_DELETE_ON_COMPLETE enabled, cluster not removed",
             job.id,
             job.compute_resource.title,
         )
