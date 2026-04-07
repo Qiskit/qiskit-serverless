@@ -31,7 +31,7 @@ logger = logging.getLogger("scheduler.UpdateJobsStatuses")
 class UpdateJobsStatuses(SchedulerTask):
     """Update status of jobs."""
 
-    def __init__(self, kill_signal, metrics):
+    def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
         self.kill_signal = kill_signal
         self.metrics = metrics
 

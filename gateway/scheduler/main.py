@@ -25,7 +25,7 @@ class Main:
         self.kill_signal = KillSignal()
         self.kill_signal.register()  # start listening to SIGTERM and SIGINT signals
 
-        self.metrics = SchedulerMetrics()
+        self.metrics = metrics
         self.health = SchedulerHealth()
         self.http_server: SchedulerHttpServer = SchedulerHttpServer(site_host=settings.SITE_HOST)
         self.http_server.configure_routes(self.metrics, self.health)

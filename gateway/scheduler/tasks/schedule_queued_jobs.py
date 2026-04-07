@@ -12,7 +12,7 @@ from concurrency.exceptions import RecordModifiedError
 
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-
+from prometheus_client import CollectorRegistry
 from core.config_key import ConfigKey
 from core.models import ComputeResource, Job, JobEvent, Config
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
@@ -33,7 +33,7 @@ class ScheduleQueuedJobs(SchedulerTask):
 
     def __init__(self, kill_signal: KillSignal = None, metrics: SchedulerMetrics = None):
         self.kill_signal = kill_signal or KillSignal()
-        self.metrics = metrics or SchedulerMetrics()
+        self.metrics = metrics or SchedulerMetrics(CollectorRegistry())
 
     def run(self):
         """Schedule queued jobs to available cluster slots."""
