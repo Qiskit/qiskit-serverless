@@ -97,7 +97,7 @@ class TestCommands:
         fake_job.gpu = False
 
         execute_job.return_value = fake_job
-        ScheduleQueuedJobs(metrics=self.metrics).run()
+        ScheduleQueuedJobs(kill_signal=KillSignal(), metrics=self.metrics).run()
         # TODO: mock execute job to change status of job and query for QUEUED jobs  # pylint: disable=fixme
         job_count = Job.objects.count()
         assert job_count == 7
