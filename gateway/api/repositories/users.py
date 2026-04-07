@@ -67,8 +67,8 @@ class UserRepository:
             if created:
                 for permission in permissions:
                     group.permissions.add(permission)
-            if authentication_group.account is not None:
-                GroupMetadata.objects.update_or_create(group=group, defaults={"account": authentication_group.account})
+                if authentication_group.account is not None:
+                    GroupMetadata.objects.create(group=group, account=authentication_group.account)
             group.user_set.add(user)
             new_groups.append(group)
 
