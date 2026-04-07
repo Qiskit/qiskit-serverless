@@ -198,7 +198,7 @@ def create_dynamic_dependencies_whitelist() -> Dict[str, Requirement]:
         requirements_path = "../ray-node/requirements-dynamic-dependencies.txt"
     else:
         requirements_path = "requirements-dynamic-dependencies.txt"
-    
+
     try:
         with open(requirements_path, encoding="utf-8", mode="r") as f:
             dependencies = f.readlines()
