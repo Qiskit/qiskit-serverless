@@ -318,10 +318,6 @@ GATEWAY_ALLOWLIST_CONFIG = str(os.environ.get("GATEWAY_ALLOWLIST_CONFIG", "api/v
 
 GATEWAY_GPU_JOBS_CONFIG = str(os.environ.get("GATEWAY_GPU_JOBS_CONFIG", "api/v1/gpu-jobs.json"))
 
-GATEWAY_DYNAMIC_DEPENDENCIES = str(
-    os.environ.get("GATEWAY_DYNAMIC_DEPENDENCIES", "requirements-dynamic-dependencies.txt")
-)
-
 # authentication base url for qiskit runtime
 QISKIT_IBM_URL = os.environ.get("QISKIT_IBM_URL", "https://cloud.ibm.com")
 
