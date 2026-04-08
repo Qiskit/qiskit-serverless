@@ -9,8 +9,12 @@ from django.urls import reverse
 from rest_framework.status import HTTP_200_OK, HTTP_403_FORBIDDEN
 from rest_framework.test import APIClient
 
+from prometheus_client import CollectorRegistry
+
 from core.models import ComputeResource, Job, Program, Provider
 from core.services.runners import RunnerError
+from scheduler.kill_signal import KillSignal
+from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
 
 
@@ -110,6 +114,7 @@ class TestJobLogsCoverage:
     def _setup(self, tmp_path, settings):
         settings.MEDIA_ROOT = str(tmp_path)
         self.client = APIClient()
+        self.metrics = SchedulerMetrics(CollectorRegistry())
 
     def _authorize(self, username):
         """Authorize client and return the user."""
@@ -138,7 +143,7 @@ Unprefixed message
         get_runner_client_mock.return_value = runner_mock
 
         # Execute update_jobs_statuses to detect terminal state and save logs
-        UpdateJobsStatuses().run()
+        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         # Call endpoint and verify logs are retrieved from storage
         self._authorize("author")
@@ -263,7 +268,7 @@ Unprefixed message
         get_runner_client_mock.return_value = runner_mock
 
         # Execute update_jobs_statuses to detect terminal state and save logs
-        UpdateJobsStatuses().run()
+        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         # Call endpoint and verify logs are retrieved from storage
         self._authorize("provider_admin")
