@@ -37,7 +37,7 @@ jobs:
       - name: Install dependencies (reno)
         run: |
           python -m pip install --upgrade pip
-          pip install reno 
+          pip install reno
 
       - name: Compute version from input tag
         id: version
@@ -67,14 +67,6 @@ jobs:
             sudo apt-get install -y pandoc || true
             pandoc RELEASE_NOTES.rst -f rst -t gfm -o RELEASE_NOTES.md
           fi
-
-      - name: Update GitHub Release body with raw changelog
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          TAG="${{ steps.version.outputs.tag }}"
-          echo "Updating GitHub Release body with changelog."
-          gh release edit "$TAG" --generate-notes
 
       - name: Compose prepended changelog + release notes
         env:

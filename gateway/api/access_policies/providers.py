@@ -4,9 +4,9 @@ Access policies implementation for Provider access
 
 import logging
 
-from api.models import Provider
+from core.models import Provider
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("api.ProviderAccessPolicy")
 
 
 class ProviderAccessPolicy:
@@ -35,6 +35,8 @@ class ProviderAccessPolicy:
         user_is_admin = bool(user_groups.intersection(admin_groups))
         if not user_is_admin:
             logger.warning(
-                "User [%s] has no access to provider [%s].", user.id, provider.name
+                "[can_access] provider=%s user_id=%s | no access",
+                provider.name,
+                user.id,
             )
         return user_is_admin

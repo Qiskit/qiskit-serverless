@@ -25,6 +25,7 @@ Qiskit Serverless files
     :toctree: ../stubs/
 
 """
+
 import os.path
 import uuid
 from typing import List, Optional
@@ -41,8 +42,7 @@ from qiskit_serverless.core.decorators import trace_decorator_factory
 from qiskit_serverless.core.function import QiskitFunction
 from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.utils.http import get_headers
-from qiskit_serverless.utils.json import safe_json_request_as_dict
-
+from qiskit_serverless.utils.json import format_err_msg, safe_json_request_as_dict
 
 _trace = trace_decorator_factory("files")
 
@@ -90,9 +90,7 @@ class GatewayFilesClient:
                 "function": function.title,
             },
             stream=True,
-            headers=get_headers(
-                token=self._token, instance=self._instance, channel=self._channel
-            ),
+            headers=get_headers(token=self._token, instance=self._instance, channel=self._channel),
             timeout=REQUESTS_STREAMING_TIMEOUT,
         ) as req:
             req.raise_for_status()
@@ -154,15 +152,13 @@ class GatewayFilesClient:
                 files={"file": f},
                 params={"provider": function.provider, "function": function.title},
                 stream=True,
-                headers=get_headers(
-                    token=self._token, instance=self._instance, channel=self._channel
-                ),
+                headers=get_headers(token=self._token, instance=self._instance, channel=self._channel),
                 timeout=REQUESTS_STREAMING_TIMEOUT,
             ) as req:
                 if req.ok:
                     return req.text
-                return "Upload failed"
-        return "Can not open file"
+                raise QiskitServerlessException(f"Upload failed: \n{format_err_msg(req.status_code, req.text)}")
+        raise QiskitServerlessException("Can not open file")
 
     @_trace
     def provider_upload(self, file: str, function: QiskitFunction) -> Optional[str]:
@@ -176,15 +172,13 @@ class GatewayFilesClient:
                 files={"file": f},
                 params={"provider": function.provider, "function": function.title},
                 stream=True,
-                headers=get_headers(
-                    token=self._token, instance=self._instance, channel=self._channel
-                ),
+                headers=get_headers(token=self._token, instance=self._instance, channel=self._channel),
                 timeout=REQUESTS_STREAMING_TIMEOUT,
             ) as req:
                 if req.ok:
                     return req.text
-                return "Upload failed"
-        return "Can not open file"
+                raise QiskitServerlessException(f"Upload failed: \n{format_err_msg(req.status_code, req.text)}")
+        raise QiskitServerlessException("Can not open file")
 
     @_trace
     def list(self, function: QiskitFunction) -> List[str]:
@@ -193,9 +187,7 @@ class GatewayFilesClient:
             request=lambda: requests.get(
                 self._files_url,
                 params={"function": function.title, "provider": function.provider},
-                headers=get_headers(
-                    token=self._token, instance=self._instance, channel=self._channel
-                ),
+                headers=get_headers(token=self._token, instance=self._instance, channel=self._channel),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -211,9 +203,7 @@ class GatewayFilesClient:
             request=lambda: requests.get(
                 url_path_join(self._files_url, "provider"),
                 params={"function": function.title, "provider": function.provider},
-                headers=get_headers(
-                    token=self._token, instance=self._instance, channel=self._channel
-                ),
+                headers=get_headers(token=self._token, instance=self._instance, channel=self._channel),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -222,9 +212,7 @@ class GatewayFilesClient:
     @_trace
     def delete(self, file: str, function: QiskitFunction) -> Optional[str]:
         """Deletes a file available to the user for the specific Qiskit Function."""
-        headers = get_headers(
-            token=self._token, instance=self._instance, channel=self._channel
-        )
+        headers = get_headers(token=self._token, instance=self._instance, channel=self._channel)
         headers["format"] = "json"
         response_data = safe_json_request_as_dict(
             request=lambda: requests.delete(
@@ -246,9 +234,7 @@ class GatewayFilesClient:
         if not function.provider:
             raise QiskitServerlessException("`function` doesn't have a provider.")
 
-        headers = get_headers(
-            token=self._token, instance=self._instance, channel=self._channel
-        )
+        headers = get_headers(token=self._token, instance=self._instance, channel=self._channel)
         headers["format"] = "json"
         response_data = safe_json_request_as_dict(
             request=lambda: requests.delete(

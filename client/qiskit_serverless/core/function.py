@@ -26,6 +26,7 @@ Qiskit Serverless function
 
     QiskitFunction
 """
+
 from abc import ABC, abstractmethod
 import dataclasses
 import warnings
@@ -154,9 +155,7 @@ class RunnableQiskitFunction(QiskitFunction):
 
     _run_service: RunService = None
 
-    def __init__(  # pylint:  disable=too-many-positional-arguments
-        self, client: RunService, **kwargs
-    ):
+    def __init__(self, client: RunService, **kwargs):  # pylint:  disable=too-many-positional-arguments
         self._run_service = client
         super().__init__(**kwargs)
 
@@ -165,9 +164,7 @@ class RunnableQiskitFunction(QiskitFunction):
         """Reconstructs QiskitPattern from dictionary."""
         field_names = set(f.name for f in dataclasses.fields(RunnableQiskitFunction))
         client = data["client"]
-        return RunnableQiskitFunction(
-            client, **{k: v for k, v in data.items() if k in field_names}
-        )
+        return RunnableQiskitFunction(client, **{k: v for k, v in data.items() if k in field_names})
 
     def run(self, **kwargs):
         """Run function

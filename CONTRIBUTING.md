@@ -21,6 +21,7 @@ Following these guidelines communicates you value the time and effort of the cor
   - [Assigning yourself](#assigning-yourself)
   - [Working on an issue](#working-on-an-issue)
   - [Adding tests](#adding-tests)
+  - [Release notes](#release-notes)
   - [Pull requests](#pull-requests)
   - [Live previews](#live-previews)
   - [Code review](#code-review)
@@ -153,7 +154,7 @@ This repository contains several projects with different technologies. Depending
 
 #### Setting up pre-commit hooks
 
-We use [pre-commit](https://pre-commit.com/) to automatically run linting checks. If you have already installed `requirements-dev.txt` in a virtual env, pre-commit is already 
+We use [pre-commit](https://pre-commit.com/) to automatically run linting checks. If you have already installed `requirements-dev.txt` in a virtual env, pre-commit is already
 available and you will only would need to register the hooks (required once per `.git` folder clone):
 
 ```bash
@@ -244,6 +245,167 @@ provide ideal, meaningful cases to test.
 
 If you feel that there's a test case that we have not considered, please comment in the
 original issue for the team to see.
+
+
+### Release notes
+
+Qiskit Serverless uses [reno](https://docs.openstack.org/reno/latest/) to manage release notes. When making a user-facing change, you should write a release note to document it. This includes:
+
+- New features or enhancements
+- Deprecations or removals
+- Bug fixes that users should know about
+- API changes in the gateway that affect external users
+- Changes to the client library interface
+- Upgrade notes or breaking changes
+
+**Note:** Qiskit Serverless has differentiated client and gateway modules, but we do not maintain separate release notes for them. Any change that could be public-facing, such as API changes in the gateway or new client features, should be included in the release notes.
+
+#### When to write a release note
+
+You should write a release note if your change:
+
+- Adds a new feature or capability
+- Fixes a bug that users might have encountered
+- Deprecates or removes functionality
+- Changes the API in a way that affects users
+- Requires users to take action (upgrade notes)
+- Changes behavior in a way users should know about
+
+You do **not** need a release note for:
+
+- Internal refactoring that doesn't change behavior
+- Test improvements
+- Documentation fixes (unless they clarify important behavior)
+- Code style changes
+
+#### How to write a release note
+
+Release notes are written as YAML files in the `releasenotes/notes/` directory. To create a new release note:
+
+1. First, ensure you have `reno` installed:
+   ```bash
+   # Install from client or docs requirements
+   pip install -r client/requirements-dev.txt
+   # OR
+   pip install -r docs/requirements-doc.txt
+
+   # Or install reno directly
+   pip install reno>=3.5.0
+   ```
+
+2. Create a new release note file using reno:
+   ```bash
+   reno new short-description-of-change
+   ```
+   This will create a new file in `releasenotes/notes/` with the format `short-description-of-change-<unique-id>.yaml`.
+
+3. Edit the generated file and use one of the following sections:
+   - `features` - New features or capabilities
+   - `upgrade` - Changes that require user action or awareness
+   - `deprecations` - Features marked for future removal
+   - `fixes` - Bug fixes
+   - `issues` - Known issues or limitations
+   - `other` - Other notes that don't fit the above categories
+
+4. Write clear, user-focused content:
+   - Use present tense ("Adds support for..." not "Added support for...")
+   - Be specific about what changed and why it matters
+   - Include code examples if helpful
+   - Reference GitHub issues when relevant (e.g., "Fixes https://github.com/Qiskit/qiskit-serverless/issues/1234")
+
+#### Release note examples
+
+Here are examples based on existing release notes in this project:
+
+**New feature:**
+```yaml
+---
+features:
+  - |
+    Uploaded files now should have a valid file type in order to be accepted
+    by the platform.
+
+    The accepted MIME types for uploaded files are:
+
+    - application/x-tar        (.tar)
+    - application/gzip         (.gz, .tgz)
+    - application/json         (.json)
+    - application/zip          (.zip)
+    - text/plain               (.txt, .log)
+```
+
+**Bug fix:**
+```yaml
+---
+fixes:
+  - |
+    Fixed a bug in the json decoder that would crop the response details to the first character when
+    gateway errors were raised. This utility now forwards the full error message to the raised
+    ``QiskitServerlessException``.
+
+  - |
+    Fixed error handling when a function is not found. Instead of providing a
+    bare 404 error, the ``QiskitServerlessException`` now contains a more meaningful error message::
+
+      QiskitServerlessException:
+      | Message: Http bad request.
+      | Code: 404
+      | Details: User program 'my-program' was not found or you do not have permission to view it.
+
+    Fixes https://github.com/Qiskit/qiskit-serverless/issues/1773.
+```
+
+**Deprecation:**
+```yaml
+---
+deprecations:
+  - |
+    The ``@distribute_qiskit_function`` decorator has been deprecated and will
+    be removed in following releases. The decorator was designed for remote
+    program execution, a functionality that is now provided through the different
+    serverless clients through the ``upload`` method.
+```
+
+**Upgrade note:**
+```yaml
+---
+upgrade:
+  - |
+    Four new exception classes have been added to the gateway API to better differentiate between different failure
+    scenarios: :class:`.JobNotFoundException`, :class:`.ProviderNotFoundException`, :class:`.FunctionNotFoundException`
+    and :class:`.FileNotFoundException` that inherit from an abstract :class:`.NotFoundError` base class.
+```
+
+#### Style guidelines
+
+- Use reStructuredText formatting for code references (e.g., `` ``ClassName`` ``, `` :class:`.ClassName` ``)
+- Keep lines under 100 characters when possible
+- Use bullet points for lists
+- Include code blocks with `::` when showing examples
+- Be concise but complete - users should understand the change without reading the code
+
+For more examples, browse the existing release notes in the `releasenotes/notes/` directory.
+
+#### Viewing the release notes report
+
+To preview how your release note will appear in the final documentation, you can generate the release notes report locally:
+
+```bash
+# Generate the release notes report
+reno report
+
+# Or save it to a file for easier reading
+reno report > release_notes_preview.rst
+```
+
+This will show you how your release note will be formatted in the final release documentation. You can also build the full documentation locally to see the release notes in context:
+
+```bash
+# From the repository root
+tox -edocs
+```
+
+The generated documentation will be available in `.tox/docs/tmp/html/` and you can view the release notes at `release-notes.html`.
 
 
 ### Pull requests

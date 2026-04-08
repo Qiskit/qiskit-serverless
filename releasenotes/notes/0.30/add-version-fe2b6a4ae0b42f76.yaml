@@ -1,0 +1,29 @@
+---
+fixes:
+  - |
+    Fixed a bug in the function versioning workflow where the version set upon function creation
+    couldn't be uploaded to the platform, stored in the database, or retrieved upon function retrieval.
+    After the fix, the function version can be tracked through the whole life cycle. For example::
+
+      from qiskit_serverless import QiskitFunction
+
+      my-func = QiskitFunction(
+          title="my_func_title",
+          entrypoint="my_func_entrypoint.py",
+          working_dir="./source_files/",
+          version="2.0.0",
+      )
+
+      # this print outputs 2.0.0
+      print(my-func.version)
+
+      serverless.upload(my-func)
+      my-func-load = serverless.function("my_func_title")
+
+      # this print now also outputs 2.0.0 (previously empty)
+      print(my-func-load.version)
+
+upgrade:
+  - |
+    Added a new ``version`` field to the ``Program`` Django model. This field is used to track the version of the program (function).
+

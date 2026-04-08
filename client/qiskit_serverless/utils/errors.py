@@ -24,8 +24,7 @@ class ErrorCodes:  # pylint: disable=too-few-public-methods
 
 DEFAULT_ERROR_MESSAGE: str = "Something went wrong."
 error_mapping: Dict[ErrorCodeType, str] = {
-    ErrorCodes.AUTH1001: "Connection error. Make sure configuration "
-    "(host and auth details) is correct.",
+    ErrorCodes.AUTH1001: "Connection error. Make sure configuration " "(host and auth details) is correct.",
     ErrorCodes.HTTP_STD_ERROR: "Http bad request.",
     ErrorCodes.JSON1001: "Error occurred during decoding server json response.",
 }
@@ -62,7 +61,8 @@ def format_err_msg(code: ErrorCodeType, details: Optional[str] = None):
         if details_json and isinstance(details_json, Dict):
             for key in details_json:
                 if len(details_json[key]) > 0:
-                    result += f"\n|   - {key}: {details_json[key][0]}"
+                    value = details_json[key][0] if isinstance(details_json[key], list) else details_json[key]
+                    result += f"\n|   - {key}: {value}"
         else:
             result += f" {details}"
 

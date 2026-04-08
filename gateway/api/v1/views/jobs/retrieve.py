@@ -4,6 +4,7 @@ API endpoint for retrieving a job by ID.
 
 # pylint: disable=duplicate-code, abstract-method
 
+import logging
 from typing import cast
 from uuid import UUID
 
@@ -15,12 +16,15 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+
 from api import serializers as api_serializers
-from api.models import Job
 from api.use_cases.jobs.retrieve import JobRetrieveUseCase
 from api.v1.endpoint_decorator import endpoint
-from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
+from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
+from core.models import Job
+
+logger = logging.getLogger("api.api.v1.views.jobs.retrieve")
 
 
 class InputSerializer(serializers.Serializer):
@@ -146,5 +150,10 @@ def retrieve(request: Request, job_id: UUID) -> Response:
 
     user = cast(AbstractUser, request.user)
     job = JobRetrieveUseCase().execute(job_id, user, with_result)
-
+    logger.info(
+        "[jobs-retrieve] user_id=%s job_id=%s program=%s | Job retrieved ok",
+        user.id,
+        job_id,
+        job.program.title if job.program else "",
+    )
     return Response(serialize_output(job, with_result))

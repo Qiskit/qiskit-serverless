@@ -4,13 +4,15 @@ from uuid import UUID
 
 from qiskit_ibm_runtime import QiskitRuntimeService, RuntimeInvalidStateError
 
-from api.models import Job
-from core.services.ray import get_job_handler
-from api.repositories.jobs import JobsRepository
-from api.domain.exceptions.not_found_error import NotFoundError
-from api.repositories.runtime_job import RuntimeJobRepository
+from django.core.exceptions import ObjectDoesNotExist
 
-logger = logging.getLogger("gateway.use_cases.jobs")
+from core.models import Job, JobEvent
+from core.services.runners import get_runner, RunnerError
+from api.domain.exceptions.job_not_found_exception import JobNotFoundException
+from api.repositories.runtime_job import RuntimeJobRepository
+from core.model_managers.job_events import JobEventContext, JobEventOrigin
+
+logger = logging.getLogger("api.StopJobUseCase")
 
 
 class StopJobUseCase:
@@ -18,7 +20,6 @@ class StopJobUseCase:
     Use case for stopping a single job.
     """
 
-    jobs_repository = JobsRepository()
     runtime_jobs_repository = RuntimeJobRepository()
 
     def __init__(self) -> None:
@@ -26,9 +27,10 @@ class StopJobUseCase:
         self.stopped_sessions = []
 
     def execute(self, job_id: UUID, service_str: str) -> str:
-        job = self.jobs_repository.get_job_by_id(job_id)
-        if job is None:
-            raise NotFoundError(f"Job [{job_id}] not found")
+        try:
+            job = Job.objects.get(id=job_id)
+        except ObjectDoesNotExist:
+            raise JobNotFoundException(job_id)
 
         # reset stopped sessions and status messages
         self.status_messages = []
@@ -37,6 +39,12 @@ class StopJobUseCase:
         if not job.in_terminal_state():
             job.status = Job.STOPPED
             job.save(update_fields=["status"])
+            JobEvent.objects.add_status_event(
+                job_id=job.id,
+                origin=JobEventOrigin.API,
+                context=JobEventContext.STOP_JOB,
+                status=job.status,
+            )
             self.status_messages.append("Job has been stopped.")
         else:
             self.status_messages.append("Job already in terminal state.")
@@ -48,21 +56,15 @@ class StopJobUseCase:
         runtime_jobs = self.runtime_jobs_repository.get_runtime_job(job)
 
         if not service:
-            self.status_messages.append(
-                "QiskitRuntimeService not found, cannot stop runtime jobs."
-            )
+            self.status_messages.append("QiskitRuntimeService not found, cannot stop runtime jobs.")
         elif not runtime_jobs:
-            self.status_messages.append(
-                "No active runtime job ID associated with this serverless job ID."
-            )
+            self.status_messages.append("No active runtime job ID associated with this serverless job ID.")
         else:
             service_config = service["__value__"]
             qiskit_service = QiskitRuntimeService(**service_config)
             qiskit_api_client = qiskit_service._get_api_client()
             for runtime_job_entry in runtime_jobs:
-                self._cancel_runtime_job_entry(
-                    runtime_job_entry, qiskit_service, qiskit_api_client
-                )
+                self._cancel_runtime_job_entry(runtime_job_entry, qiskit_service, qiskit_api_client)
 
         self._stop_ray_job_if_active(job)
 
@@ -95,39 +97,26 @@ class StopJobUseCase:
             return
         try:
             api_client.cancel_session(session_id)
-            self.status_messages.append(
-                f"Canceled runtime session: {session_id} and associated runtime jobs."
-            )
+            self.status_messages.append(f"Canceled runtime session: {session_id} and associated runtime jobs.")
             self.stopped_sessions.append(session_id)
         except Exception as e:
-            self.status_messages.append(
-                f"Runtime session {session_id} could not be canceled. Exception: {e}"
-            )
+            self.status_messages.append(f"Runtime session {session_id} could not be canceled. Exception: {e}")
 
     def _cancel_runtime_job(self, job_instance, job_id_str):
         try:
             job_instance.cancel()
             self.status_messages.append(f"Canceled runtime job [{job_id_str}].")
         except RuntimeInvalidStateError:
-            self.status_messages.append(
-                f"Runtime job {job_id_str} could not be canceled (invalid state)."
-            )
+            self.status_messages.append(f"Runtime job {job_id_str} could not be canceled (invalid state).")
 
     def _stop_ray_job_if_active(self, job):
         if job.compute_resource and job.compute_resource.active:
-            job_handler = get_job_handler(job.compute_resource.host)
-            if job_handler is not None:
-                was_running = job_handler.stop(job.ray_job_id)
+            try:
+                was_running = get_runner(job).stop()
                 if was_running:
-                    self.status_messages.append(
-                        "Serverless job was running and has been stopped."
-                    )
+                    self.status_messages.append("Serverless job was running and has been stopped.")
                 else:
-                    self.status_messages.append(
-                        "Serverless job was already not running."
-                    )
-            else:
-                logger.warning(
-                    "Serverless job was not accessible from: %s", job.compute_resource
-                )
+                    self.status_messages.append("Serverless job was already not running.")
+            except RunnerError:
+                logger.warning("Serverless job was not accessible from: %s", job.compute_resource)
                 self.status_messages.append("Serverless job was not accessible.")

@@ -3,56 +3,72 @@
 import tempfile
 from unittest.mock import MagicMock, patch
 
-from django.contrib.auth import get_user_model
-from rest_framework.test import APITestCase
+import pytest
+from django.core.management import call_command
 
-from api.models import Job
+from core.models import Job, ComputeResource
+from core.services.runners import RunnerError
 from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_job
 
 
-class TestScheduleApi(APITestCase):
-    """TestJobApi."""
+class TestScheduleApi:
+    """TestScheduleApi."""
 
-    fixtures = ["tests/fixtures/schedule_fixtures.json"]
-
-    def setUp(self):
-        super().setUp()
-        self._temp_directory = tempfile.TemporaryDirectory()
-        self.MEDIA_ROOT = self._temp_directory.name
-
-    def tearDown(self):
-        self._temp_directory.cleanup()
-        super().tearDown()
+    @pytest.fixture(autouse=True)
+    def _setup(self, tmp_path, settings, db):
+        call_command("loaddata", "tests/fixtures/schedule_fixtures.json")
+        settings.MEDIA_ROOT = str(tmp_path)
 
     def test_get_fair_share_jobs(self):
         """Tests fair share jobs getter function."""
-        jobs = get_jobs_to_schedule_fair_share(5)
+        jobs = get_jobs_to_schedule_fair_share(5, False)
 
         for job in jobs:
-            self.assertIsInstance(job, Job)
+            assert isinstance(job, Job)
 
         author_ids = [job.author_id for job in jobs]
         job_ids = [str(job.id) for job in jobs]
-        self.assertTrue(1 in author_ids)
-        self.assertTrue(4 in author_ids)
-        self.assertEqual(len(jobs), 2)
-        self.assertTrue("1a7947f9-6ae8-4e3d-ac1e-e7d608deec90" in job_ids)
-        self.assertTrue("1a7947f9-6ae8-4e3d-ac1e-e7d608deec82" in job_ids)
+        assert 1 in author_ids
+        assert 4 in author_ids
+        assert len(jobs) == 2
+        assert "1a7947f9-6ae8-4e3d-ac1e-e7d608deec90" in job_ids
+        assert "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82" in job_ids
 
-    @patch("core.services.ray.get_job_handler")
-    def test_create_different_compute_resources(self, mock_handler):
-        """Tests should create new resource."""
-        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            user = get_user_model().objects.filter(username="test3_user").first()
+    @patch("scheduler.schedule.get_runner")
+    def test_execute_job_success(self, mock_get_runner_client):
+        """Tests successful job execution via runner.submit()."""
+        mock_compute_resource = MagicMock(spec=ComputeResource)
+        mock_compute_resource.title = "test-cluster"
 
-            job_1 = MagicMock()
-            job_1.author = user
-            ret_job_1 = execute_job(job_1)
+        mock_runner = MagicMock()
+        mock_runner.submit.return_value = (mock_compute_resource, "ray-job-123")
+        mock_get_runner_client.return_value = mock_runner
 
-            job_2 = MagicMock()
-            job_2.author = user
-            ret_job_2 = execute_job(job_2)
+        job = MagicMock()
+        job.status = Job.QUEUED
+        job.logs = ""
 
-            self.assertNotEqual(
-                str(ret_job_1.compute_resource.id), str(ret_job_2.compute_resource.id)
-            )
+        ret_job = execute_job(job)
+
+        mock_runner.submit.assert_called_once()
+        mock_compute_resource.save.assert_called_once()
+        assert ret_job.compute_resource == mock_compute_resource
+        assert ret_job.ray_job_id == "ray-job-123"
+        assert ret_job.status == Job.PENDING
+
+    @patch("scheduler.schedule.get_runner")
+    def test_execute_job_failure(self, mock_get_runner_client):
+        """Tests job execution failure handling."""
+        mock_runner = MagicMock()
+        mock_runner.submit.side_effect = RunnerError("Submit failed")
+        mock_get_runner_client.return_value = mock_runner
+
+        job = MagicMock()
+        job.status = Job.QUEUED
+        job.logs = ""
+
+        ret_job = execute_job(job)
+
+        mock_runner.submit.assert_called_once()
+        assert ret_job.status == Job.FAILED
+        assert "Compute resource creation or job submission failed" in ret_job.logs

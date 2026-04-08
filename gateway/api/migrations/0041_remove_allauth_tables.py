@@ -27,9 +27,7 @@ def remove_allauth_tables(apps, schema_editor):
         for table in tables:
             cursor.execute(f"DROP TABLE IF EXISTS {table} CASCADE")
 
-        cursor.execute(
-            "DELETE FROM django_migrations WHERE app IN ('account', 'socialaccount')"
-        )
+        cursor.execute("DELETE FROM django_migrations WHERE app IN ('account', 'socialaccount')")
 
 
 def reverse_noop(apps, schema_editor):

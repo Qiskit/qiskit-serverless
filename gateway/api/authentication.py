@@ -7,7 +7,7 @@ from api.domain.authentication.custom_authentication import CustomAuthentication
 from api.use_cases.authentication import AuthenticationUseCase
 from api.domain.authentication.channel import Channel
 
-logger = logging.getLogger("gateway.authentication")
+logger = logging.getLogger("api.authentication")
 PUBLIC_ENDPOINTS = ["swagger"]
 
 
@@ -31,9 +31,6 @@ class CustomTokenBackend(authentication.BaseAuthentication):
     """Custom token backend for authentication against 3rd party auth service."""
 
     def authenticate(self, request):
-        quantum_user = None
-        authorization_token = None
-
         crn = request.META.get("HTTP_SERVICE_CRN", None)
         channel_header = request.META.get("HTTP_SERVICE_CHANNEL", None)
 
@@ -43,7 +40,6 @@ class CustomTokenBackend(authentication.BaseAuthentication):
         try:
             channel = Channel(channel_header)
         except ValueError as error:
-            logger.warning("Channel value [%s] is not valid.", channel_header)
             raise exceptions.AuthenticationFailed(
                 "The value of the channel is not correct. Verify that you are using one of these: "
                 f"{Channel.IBM_CLOUD.value}, {Channel.IBM_QUANTUM_PLATFORM.value}"
@@ -57,14 +53,10 @@ class CustomTokenBackend(authentication.BaseAuthentication):
         auth_header = request.META.get("HTTP_AUTHORIZATION")
         if auth_header is None:
             if public_access:
-                logger.debug(
-                    "Authorization token was not provided. Only public access allowed."
-                )
+                logger.debug("Authorization token was not provided. Only public access allowed.")
                 return None, None
             logger.warning("Authorization token was not provided.")
-            raise exceptions.AuthenticationFailed(
-                "Authorization token was not provided."
-            )
+            raise exceptions.AuthenticationFailed("Authorization token was not provided.")
         authorization_token = auth_header.split(" ")[-1]
 
         quantum_user = AuthenticationUseCase(
@@ -74,9 +66,7 @@ class CustomTokenBackend(authentication.BaseAuthentication):
             public_access=public_access,
         ).execute()
 
-        return quantum_user, CustomAuthentication(
-            channel=channel, token=authorization_token.encode(), instance=crn
-        )
+        return quantum_user, CustomAuthentication(channel=channel, token=authorization_token.encode(), instance=crn)
 
     def authenticate_header(self, request):
         """
@@ -104,14 +94,10 @@ class MockTokenBackend(authentication.BaseAuthentication):
         auth_header = request.META.get("HTTP_AUTHORIZATION")
         if auth_header is None:
             if public_access:
-                logger.debug(
-                    "Authorization token was not provided. Only public access allowed."
-                )
+                logger.debug("Authorization token was not provided. Only public access allowed.")
                 return None, None
             logger.warning("Authorization token was not provided.")
-            raise exceptions.AuthenticationFailed(
-                "Authorization token was not provided."
-            )
+            raise exceptions.AuthenticationFailed("Authorization token was not provided.")
         authorization_token = auth_header.split(" ")[-1]
 
         quantum_user = AuthenticationUseCase(
@@ -121,9 +107,7 @@ class MockTokenBackend(authentication.BaseAuthentication):
             public_access=public_access,
         ).execute()
 
-        return quantum_user, CustomAuthentication(
-            channel=channel, token=authorization_token.encode(), instance=None
-        )
+        return quantum_user, CustomAuthentication(channel=channel, token=authorization_token.encode(), instance=None)
 
     def authenticate_header(self, request):
         """

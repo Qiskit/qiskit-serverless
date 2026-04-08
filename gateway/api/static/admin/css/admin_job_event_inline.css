@@ -1,0 +1,66 @@
+.event-badge {
+    color: white;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 10px;
+    text-transform: uppercase;
+    display: inline-block;
+    background-color: var(--event-color, #ff00ff);
+}
+
+.event-badge[data-event-status="QUEUED"] { --event-color: #f0ad4e; }
+.event-badge[data-event-status="PENDING"] { --event-color: #f0ad4e; }
+
+.event-badge[data-event-status="RUNNING"],
+.event-badge[data-event-status="MAPPING"],
+.event-badge[data-event-status="OPTIMIZING_HARDWARE"],
+.event-badge[data-event-status="WAITING_QPU"],
+.event-badge[data-event-status="EXECUTING_QPU"],
+.event-badge[data-event-status="POST_PROCESSING"] {
+    --event-color: #5bc0de;
+}
+
+.event-badge[data-event-status="SUCCEEDED"] { --event-color: #00aa00; }
+.event-badge[data-event-status="STOPPED"] { --event-color: #888888; }
+.event-badge[data-event-status="FAILED"] { --event-color: #cc0000; }
+
+.field-render_data_json > p {
+    display: none;
+}
+
+.event-json-block {
+    background: #272822;
+    color: #f8f8f2;
+    padding: 10px;
+    border-radius: 5px;
+    font-family: monospace;
+    font-size: 11px;
+    overflow: auto;
+    max-height: 300px;
+    border: 1px solid #3e3e3e;
+    margin: 0;
+}
+
+#job_events-group .original {
+    display: none;
+}
+#job_events-group .field-created {
+    padding: 2px 0 0 0;
+    width: 0;
+}
+#job_events-group .field-created p {
+    position: absolute;
+    left: 0;
+    height: 1.1em;
+    padding: 2px 9px;
+    overflow: hidden;
+    font-size: 0.65rem;
+    font-weight: bold;
+    color: var(--body-quiet-color);
+}
+#job_events-group .column-created {
+    width: 0px;
+    padding: 0;
+    font-size: 0;
+}

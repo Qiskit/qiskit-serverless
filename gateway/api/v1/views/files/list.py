@@ -3,6 +3,7 @@ API V1: List files end-point.
 """
 
 # pylint: disable=duplicate-code
+import logging
 from typing import cast
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -13,10 +14,13 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework import serializers
 
+
 from api.use_cases.files.list import FilesListUseCase
-from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
+from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_name
+
+logger = logging.getLogger("api.api.v1.views.files.list")
 
 # pylint: disable=abstract-method
 
@@ -69,9 +73,7 @@ class InputSerializer(serializers.Serializer):
     responses={
         status.HTTP_200_OK: openapi.Response(
             description="List of files",
-            schema=openapi.Schema(
-                type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_STRING)
-            ),
+            schema=openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_STRING)),
             examples={
                 "application/json": [
                     "file",
@@ -100,5 +102,5 @@ def files_list(request: Request) -> Response:
     user = cast(AbstractUser, request.user)
 
     files = FilesListUseCase().execute(user, provider, function)
-
+    logger.info("[files-list] user_id=%s function=%s provider=%s | Files listed ok", user.id, function, provider)
     return Response({"results": files})

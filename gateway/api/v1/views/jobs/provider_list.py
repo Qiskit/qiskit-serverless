@@ -3,6 +3,7 @@ API V1: list jobs endpoint
 """
 
 # pylint: disable=duplicate-code, disable=abstract-method
+import logging
 from typing import cast, List, Optional
 
 from django.conf import settings
@@ -14,15 +15,18 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from api.models import Job, Program
-from api.repositories.jobs import JobFilters
+
+from core.enums.type_filter import TypeFilter
+from core.model_managers.jobs import JobFilters
+from core.models import Job, Program
 from api.use_cases.jobs.provider_list import JobsProviderListUseCase
 from api.v1.endpoint_decorator import endpoint
-from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
+from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.utils import create_paginated_response
 from api.v1.views.swagger_utils import standard_error_responses
 from api.v1.views.serializer_utils import SanitizedCharField
-from api.views.enums.type_filter import TypeFilter
+
+logger = logging.getLogger("api.api.v1.views.jobs.provider_list")
 
 
 class TypeFilterField(serializers.ChoiceField):
@@ -43,9 +47,7 @@ class InputSerializer(serializers.Serializer):
         required=True,
         error_messages={"required": "'provider' not provided or is not valid"},
     )
-    limit = serializers.IntegerField(
-        required=False, default=settings.REST_FRAMEWORK["PAGE_SIZE"], min_value=0
-    )
+    limit = serializers.IntegerField(required=False, default=settings.REST_FRAMEWORK["PAGE_SIZE"], min_value=0)
     offset = serializers.IntegerField(required=False, default=0, min_value=0)
     filter = TypeFilterField(
         choices=[TypeFilter.CATALOG, TypeFilter.SERVERLESS],
@@ -189,6 +191,10 @@ def get_provider_jobs(request: Request) -> Response:
     user = cast(AbstractUser, request.user)
 
     jobs, total = JobsProviderListUseCase().execute(user=user, filters=filters)
-    return Response(
-        serialize_output(jobs, total, request, filters.limit, filters.offset)
+    logger.info(
+        "[jobs-provider-list] user_id=%s provider=%s function=%s | Provider jobs listed ok",
+        user.id,
+        filters.provider,
+        filters.function,
     )
+    return Response(serialize_output(jobs, total, request, filters.limit, filters.offset))

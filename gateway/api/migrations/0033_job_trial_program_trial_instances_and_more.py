@@ -19,15 +19,11 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="program",
             name="trial_instances",
-            field=models.ManyToManyField(
-                blank=True, related_name="program_trial_instances", to="auth.group"
-            ),
+            field=models.ManyToManyField(blank=True, related_name="program_trial_instances", to="auth.group"),
         ),
         migrations.AlterField(
             model_name="program",
             name="instances",
-            field=models.ManyToManyField(
-                blank=True, related_name="program_instances", to="auth.group"
-            ),
+            field=models.ManyToManyField(blank=True, related_name="program_instances", to="auth.group"),
         ),
     ]

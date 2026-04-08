@@ -13,71 +13,18 @@ from django.db.models.aggregates import Count, Min
 
 from opentelemetry import trace
 
-from api.models import Job, ComputeResource
-from core.services.ray import submit_job, create_compute_resource, kill_ray_cluster
-from api.utils import generate_cluster_name, create_gpujob_allowlist
+from core.models import Job
+from core.services.runners import get_runner, RunnerError
 
 User: Model = get_user_model()
-logger = logging.getLogger("commands")
-
-
-def _create_ray_cluster_compute_resource(job: Job, span) -> ComputeResource | None:
-    cluster_name = generate_cluster_name(job.author.username)
-    span.set_attribute("job.clustername", cluster_name)
-
-    compute_resource: ComputeResource | None = None
-    try:
-        compute_resource = create_compute_resource(job, cluster_name=cluster_name)
-    except Exception:  # pylint: disable=broad-exception-caught
-        # if something went wrong
-        #   try to kill resource if it was allocated
-        logger.warning(
-            "Compute resource [%s] was not created properly.\n"
-            "Setting job [%s] status to [FAILED].",
-            cluster_name,
-            job,
-        )
-        kill_ray_cluster(cluster_name)
-        job.status = Job.FAILED
-        job.logs += "\nCompute resource was not created properly."
-        span.set_attribute("job.status", job.status)
-
-    return compute_resource
-
-
-def configure_job_to_use_gpu(job: Job):
-    """
-    Configures the Job if its allowed to use
-    GPU or not.
-
-    Args:
-        job (Job): Job instance
-
-    Returns:
-        Job: the instance with gpu parameter configured
-    """
-
-    gpujobs = create_gpujob_allowlist()
-    if (
-        job.program
-        and job.program.provider
-        and job.program.provider.name in gpujobs["gpu-functions"].keys()
-    ):
-        logger.debug("Job [%s] will be run on GPU nodes", job.id)
-        job.gpu = True
-
-    return job
+logger = logging.getLogger("scheduler.schedule")
 
 
 def execute_job(job: Job) -> Job:
     """Executes program.
 
-    0. configure compute resource type
-    1. check if cluster exists
-       1.1 if not: create cluster
-    2. connect to cluster
-    3. run a job
-    4. set status to pending
+    Creates compute resource, connects to cluster, and submits the job.
+    Resource cleanup on failure is handled by runner.submit().
 
     Args:
         job: job to execute
@@ -85,42 +32,32 @@ def execute_job(job: Job) -> Job:
     Returns:
         job of program execution
     """
-
     tracer = trace.get_tracer("scheduler.tracer")
     with tracer.start_as_current_span("execute.job") as span:
-        compute_resource = _create_ray_cluster_compute_resource(job, span)
-        if not compute_resource:
-            return job
-
-        job.compute_resource = compute_resource
+        runner = get_runner(job)
 
         try:
-            job = submit_job(job)
+            compute_resource, ray_job_id = runner.submit()
+            compute_resource.save()
+            job.compute_resource = compute_resource
+            job.ray_job_id = ray_job_id
             job.status = Job.PENDING
-        except Exception:  # pylint: disable=broad-exception-caught:
-            logger.error(
-                "Exception was caught during scheduling job on user [%s] resource.\n"
-                "Resource [%s] was in DB records, but address is not reachable.\n"
-                "Cleaning up db record and setting job [%s] to failed",
-                job.author,
-                compute_resource.title,
-                job.id,
-            )
-            kill_ray_cluster(compute_resource.title)
-            compute_resource.delete()
+            span.set_attribute("job.clustername", compute_resource.title)
+        except RunnerError as ex:
+            logger.error("job_id=%s error=%s Job set as FAILED: compute resource or submission error", job.id, ex)
             job.status = Job.FAILED
-            job.compute_resource = None
-            job.logs += "\nCompute resource was not found."
+            job.logs += "\nCompute resource creation or job submission failed."
 
         span.set_attribute("job.status", job.status)
     return job
 
 
-def get_jobs_to_schedule_fair_share(slots: int) -> List[Job]:
+def get_jobs_to_schedule_fair_share(slots: int, gpu: bool) -> List[Job]:
     """Returns jobs for execution based on fair share distribution of resources.
 
     Args:
         slots: max number of users to query
+        gpu: filter jobs by GPU requirement
 
     Returns:
         list of jobs for execution
@@ -129,9 +66,7 @@ def get_jobs_to_schedule_fair_share(slots: int) -> List[Job]:
     # maybe refactor this using big SQL query :thinking:
 
     running_jobs_per_user = (
-        Job.objects.filter(status__in=Job.RUNNING_STATUSES)
-        .values("author")
-        .annotate(running_jobs_count=Count("id"))
+        Job.objects.filter(status__in=Job.RUNNING_STATUSES).values("author").annotate(running_jobs_count=Count("id"))
     )
 
     users_at_max_capacity = [
@@ -142,7 +77,7 @@ def get_jobs_to_schedule_fair_share(slots: int) -> List[Job]:
 
     max_limit = 100  # not to kill db in case we will have a lot of jobs
     author_date_pull = (
-        Job.objects.filter(status=Job.QUEUED)
+        Job.objects.filter(status=Job.QUEUED, gpu=gpu)
         .exclude(author__in=users_at_max_capacity)
         .values("author")
         .annotate(job_date=Min("created"))[:max_limit]
@@ -171,7 +106,7 @@ def check_job_timeout(job: Job):
     if endtime < now:
         job.logs += "\nMaximum job runtime reached. Stopping the job."
         logger.warning(
-            "Job [%s] reached maximum runtime [%s] days and stopped.",
+            "job_id=%s timeout_days=%s Job reached maximum runtime, stopping",
             job.id,
             timeout,
         )
@@ -179,43 +114,21 @@ def check_job_timeout(job: Job):
     return False
 
 
-def handle_job_status_not_available(job: Job, job_status):
-    """Process job status not available and update job"""
-
-    if settings.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
-        logger.debug(
-            "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, "
-            + "so cluster [%s] will not be removed",
-            job.compute_resource.title,
-        )
-    else:
-        kill_ray_cluster(job.compute_resource.title)
-        job.compute_resource.delete()
-        job.compute_resource = None
-        job_status = Job.FAILED
-        job.logs += "\nSomething went wrong during updating job status."
-    return job_status
-
-
 def fail_job_insufficient_resources(job: Job):
     """Fail job if insufficient resources are available."""
     if settings.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
         logger.debug(
-            "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, "
-            + "so cluster [%s] will not be removed",
+            "job_id=%s cluster=%s RAY_CLUSTER_NO_DELETE_ON_COMPLETE enabled, cluster not removed",
+            job.id,
             job.compute_resource.title,
         )
     else:
-        kill_ray_cluster(job.compute_resource.title)
+        runner = get_runner(job)
+        try:
+            runner.free_resources()
+        except RunnerError:
+            pass
         job.compute_resource.delete()
         job.compute_resource = None
 
-    job_status = Job.FAILED
-    job.logs = (
-        "Insufficient resources available to the run job in this "
-        "configuration.\nMax resources allowed are "
-        f"{settings.LIMITS_CPU_PER_TASK} CPUs and "
-        f"{settings.LIMITS_MEMORY_PER_TASK} GB of RAM per job."
-    )
-
-    return job_status
+    return Job.FAILED

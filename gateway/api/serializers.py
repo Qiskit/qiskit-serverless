@@ -9,14 +9,18 @@ Version serializers inherit from the different serializers.
 import json
 import logging
 from typing import Tuple, Union
-from django.conf import settings
-from rest_framework import serializers
-from api.services.storage.arguments_storage import ArgumentsStorage
 
-from api.repositories.functions import FunctionRepository
-from api.repositories.users import UserRepository
-from api.utils import build_env_variables, encrypt_env_vars, sanitize_name
-from .models import (
+from django.conf import settings
+from django.contrib.auth.models import Group
+from rest_framework import serializers
+
+from api.utils import build_env_variables, sanitize_name
+from core.model_managers.job_events import JobEventContext, JobEventOrigin
+from core.services.storage.arguments_storage import ArgumentsStorage
+from core.utils import encrypt_env_vars, create_gpujob_allowlist
+
+from core.models import (
+    JobEvent,
     Provider,
     Program,
     Job,
@@ -26,7 +30,7 @@ from .models import (
     RUN_PROGRAM_PERMISSION,
 )
 
-logger = logging.getLogger("gateway.serializers")
+logger = logging.getLogger("api.api.serializers")
 
 
 class UploadProgramSerializer(serializers.ModelSerializer):
@@ -62,9 +66,7 @@ class UploadProgramSerializer(serializers.ModelSerializer):
 
         return dependency_name + dependency_version
 
-    def get_provider_name_and_title(
-        self, request_provider, title
-    ) -> Tuple[Union[str, None], str]:
+    def get_provider_name_and_title(self, request_provider, title) -> Tuple[Union[str, None], str]:
         """
         This method returns provider_name and title from a title with / if it contains it
         """
@@ -72,7 +74,6 @@ class UploadProgramSerializer(serializers.ModelSerializer):
             return request_provider, title
 
         # Check if title contains the provider: <provider>/<title>
-        logger.debug("Provider is None, check if it is in the title.")
 
         title_split = title.split("/")
         if len(title_split) == 1:
@@ -93,9 +94,7 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         admin_groups = provider.admin_groups.all()
         has_access = any(group in admin_groups for group in author_groups)
         if not has_access:
-            logger.error(
-                "User [%s] has no access to provider [%s].", author.id, provider_name
-            )
+            logger.error("User [%s] has no access to provider [%s].", author.id, provider_name)
 
         return has_access
 
@@ -113,13 +112,12 @@ class UploadProgramSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         title = sanitize_name(validated_data.get("title"))
-        logger.info("Creating program [%s] with UploadProgramSerializer", title)
+        author = validated_data.get("author")
+        logger.info("user_id=%s program=%s | Creating function", author.id if author else None, title)
 
         provider_name = sanitize_name(validated_data.get("provider", None))
         if provider_name:
-            validated_data["provider"] = Provider.objects.filter(
-                name=provider_name
-            ).first()
+            validated_data["provider"] = Provider.objects.filter(name=provider_name).first()
 
         env_vars = validated_data.get("env_vars")
         if env_vars:
@@ -127,24 +125,16 @@ class UploadProgramSerializer(serializers.ModelSerializer):
             validated_data["env_vars"] = json.dumps(encrypted_env_vars)
 
         raw_dependencies = json.loads(validated_data.get("dependencies", "[]"))
-        normalized_dependencies = [
-            self._normalize_dependency(dep) for dep in raw_dependencies
-        ]
+        normalized_dependencies = [self._normalize_dependency(dep) for dep in raw_dependencies]
         validated_data["dependencies"] = json.dumps(normalized_dependencies)
 
         return Program.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
-        logger.info(
-            "Updating program [%s] with UploadProgramSerializer", instance.title
-        )
-        instance.entrypoint = validated_data.get(
-            "entrypoint", DEFAULT_PROGRAM_ENTRYPOINT
-        )
+        logger.info("user_id=%s program=%s | Updating function", instance.author_id, instance.title)
+        instance.entrypoint = validated_data.get("entrypoint", DEFAULT_PROGRAM_ENTRYPOINT)
         raw_dependencies = json.loads(validated_data.get("dependencies", "[]"))
-        normalized_dependencies = [
-            self._normalize_dependency(dep) for dep in raw_dependencies
-        ]
+        normalized_dependencies = [self._normalize_dependency(dep) for dep in raw_dependencies]
         instance.dependencies = json.dumps(normalized_dependencies)
         instance.env_vars = validated_data.get("env_vars", {})
         instance.artifact = validated_data.get("artifact")
@@ -154,6 +144,10 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         description = validated_data.get("description")
         if description is not None:
             instance.description = description
+
+        version = validated_data.get("version")
+        if version is not None:
+            instance.version = version
 
         instance.save()
         return instance
@@ -182,9 +176,7 @@ class JobConfigSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
-    auto_scaling = serializers.BooleanField(
-        default=False, required=False, allow_null=True
-    )
+    auto_scaling = serializers.BooleanField(default=False, required=False, allow_null=True)
 
 
 class ProgramSerializer(serializers.ModelSerializer):
@@ -230,11 +222,7 @@ class RunProgramSerializer(serializers.Serializer):
         """
         This method returns a Program entry if it finds an entry searching by the title, if not None
         """
-        return (
-            Program.objects.filter(title=title, author=author)
-            .order_by("-created")
-            .first()
-        )
+        return Program.objects.filter(title=title, author=author).order_by("-created").first()
 
     def update(self, instance, validated_data):
         pass
@@ -257,22 +245,31 @@ class RunJobSerializer(serializers.ModelSerializer):
             is assigned to a trial instance in a function
         """
 
-        function_repository = FunctionRepository()
-        user_repository = UserRepository()
-
-        trial_groups = function_repository.get_trial_instances(function=function)
-        user_run_groups = user_repository.get_groups_by_permissions(
-            user=author, permission_name=RUN_PROGRAM_PERMISSION
-        )
+        trial_groups = function.trial_instances.all()
+        user_run_groups = Group.objects.filter(user=author, permissions__codename=RUN_PROGRAM_PERMISSION)
 
         return any(group in trial_groups for group in user_run_groups)
 
+    def _should_use_gpu(self, program: Program) -> bool:
+        """
+        Determines if the job should use GPU based on the program's provider.
+        """
+        gpujobs = create_gpujob_allowlist()
+        if program.provider and program.provider.name in gpujobs["gpu-functions"].keys():
+            logger.debug("Program [%s] will be run on GPU nodes", program.title)
+            return True
+        return False
+
     def create(self, validated_data):
-        logger.info("Creating Job with RunExistingJobSerializer")
         status = Job.QUEUED
         program = validated_data.get("program")
         arguments = validated_data.get("arguments", "{}")
         author = validated_data.get("author")
+        logger.info(
+            "user_id=%s program=%s | Creating job",
+            author.id if author else None,
+            program.title if program else None,
+        )
         config = validated_data.get("config", None)
 
         channel = validated_data.pop("channel")
@@ -281,12 +278,14 @@ class RunJobSerializer(serializers.ModelSerializer):
         carrier = validated_data.pop("carrier")
 
         trial = self.is_trial(program, author)
+        gpu = self._should_use_gpu(program)
         job = Job(
             trial=trial,
             status=status,
             program=program,
             author=author,
             config=config,
+            gpu=gpu,
         )
 
         env = encrypt_env_vars(
@@ -300,9 +299,7 @@ class RunJobSerializer(serializers.ModelSerializer):
         )
 
         provider_name = program.provider.name if program.provider else None
-        arguments_storage = ArgumentsStorage(
-            author.username, program.title, provider_name
-        )
+        arguments_storage = ArgumentsStorage(author.username, program.title, provider_name)
         arguments_storage.save(job.id, arguments)
 
         try:
@@ -315,6 +312,12 @@ class RunJobSerializer(serializers.ModelSerializer):
 
         job.env_vars = json.dumps(env)
         job.save()
+        JobEvent.objects.add_status_event(
+            job_id=job.id,
+            origin=JobEventOrigin.API,
+            context=JobEventContext.RUN_PROGRAM,
+            status=job.status,
+        )
 
         return job
 

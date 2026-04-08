@@ -20,6 +20,7 @@ spec:
       {{- end }}
       labels:
         {{- include "gateway.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: gateway
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -31,6 +32,7 @@ spec:
       initContainers:
         - name: waitpostresql
           image: actions/pg_isready
+          imagePullPolicy: IfNotPresent
           command: ['sh', '-c', 'until pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME} -h ${DATABASE_HOST} -p ${DATABASE_PORT}; do echo waiting for myservice; sleep 2; done']
           volumeMounts:
           - name: gateway-pv-storage
@@ -125,6 +127,8 @@ spec:
               value: {{ .Values.application.auth.token.verificationField | quote }}
             - name: IAM_IBM_CLOUD_BASE_URL
               value: {{ .Values.application.auth.token.iamUrl | quote }}
+            - name: IAM_IBM_CLOUD_CACHE_TTL
+              value: {{ .Values.application.auth.token.iamCacheTtl | default 60 | quote }}
             - name: RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL
               value: {{ .Values.application.auth.token.resourceControllerUrl | quote }}
             - name: RESOURCE_PLANS_ID_ALLOWED
@@ -211,8 +215,6 @@ spec:
               value: {{ .Values.application.trustedOrigins | quote }}
             - name: CORS_ALLOWED_ORIGIN_REGEXES
               value: {{ .Values.application.corsOrigins | quote }}
-            - name: GATEWAY_DYNAMIC_DEPENDENCIES
-              value: {{ .Values.application.dependencies.dynamicDependencies | quote }}
             - name: FUNCTIONS_LOGS_SIZE_LIMIT
               value: {{ .Values.application.logsMaximumSize | quote }}
             - name: SECURE_HSTS_SECONDS
@@ -221,6 +223,10 @@ spec:
               value: {{ .Values.application.security.hstsIncludeSubdomains | quote }}
             - name: SECURE_HSTS_PRELOAD
               value: {{ .Values.application.security.hstsPreload | quote }}
+            - name: LIMITS_ACTIVE_JOBS_PER_USER
+              value: {{ .Values.application.limits.maxActiveJobsPerUser | quote }}
+            - name: LOG_FORMAT
+              value: {{ .Values.application.logFormat | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -265,6 +271,7 @@ spec:
       {{- end }}
       labels:
         {{- include "scheduler.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: scheduler
     spec:
       volumes:
         - name: gateway-pv-storage
@@ -282,6 +289,7 @@ spec:
       initContainers:
         - name: waitpostresql
           image: actions/pg_isready
+          imagePullPolicy: IfNotPresent
           command: ['sh', '-c', 'until pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME} -h ${DATABASE_HOST} -p ${DATABASE_PORT}; do echo waiting for myservice; sleep 2; done']
           env:
             - name: DATABASE_HOST
@@ -309,6 +317,18 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["./scripts/scheduler.sh"]
+          ports:
+            - name: http
+              containerPort: {{ .Values.scheduler.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /liveness
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           volumeMounts:
             - mountPath: "/usr/src/app/media/"
               name: gateway-pv-storage
@@ -319,6 +339,8 @@ spec:
           resources:
             {{- toYaml .Values.scheduler.resources | nindent 12 }}
           env:
+            - name: SITE_HOST
+              value: {{ .Values.scheduler.siteHost | quote }}
             - name: DEBUG
               value: {{ .Values.application.debug | quote }}
             - name: DJANGO_SECRET_KEY
@@ -389,6 +411,8 @@ spec:
               value: {{ .Values.application.limits.programTimeoutDays | quote }}
             - name: FUNCTIONS_LOGS_SIZE_LIMIT
               value: {{ .Values.application.logsMaximumSize | quote }}
+            - name: LOG_FORMAT
+              value: {{ .Values.application.logFormat | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

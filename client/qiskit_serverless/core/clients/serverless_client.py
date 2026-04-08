@@ -25,6 +25,7 @@ Qiskit Serverless provider
 
     ServerlessClient
 """
+
 # pylint: disable=duplicate-code
 import json
 import os.path
@@ -92,6 +93,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         >>>    name="<NAME>",
         >>>    host="<HOST>",
         >>>    token="<TOKEN>",
+        >>>    instance="<CRN>",
         >>> )
     """
 
@@ -102,7 +104,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         version: Optional[str] = None,
         token: Optional[str] = None,
         instance: Optional[str] = None,
-        channel: str = Channel.IBM_QUANTUM_PLATFORM.value,
+        channel: Optional[str] = None,
     ):
         """
         Initializes the ServerlessClient instance.
@@ -112,7 +114,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             host: host of gateway. If None, it uses the ENV_GATEWAY_PROVIDER_HOST env var
             version: version of gateway
             token: authorization token
-            instance: IBM Cloud CRN or IQP h/g/p
+            instance: IBM Cloud CRN
             channel: identifies the method to use to authenticate the user
         """
         name = name or "gateway-client"
@@ -126,10 +128,9 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
 
         token = token or os.environ.get(ENV_GATEWAY_PROVIDER_TOKEN)
         if token is None:
-            raise QiskitServerlessException(
-                "Authentication credentials must be provided in form of `token`."
-            )
+            raise QiskitServerlessException("Authentication credentials must be provided in form of `token`.")
 
+        channel = channel or Channel.IBM_QUANTUM_PLATFORM.value
         try:
             channel_enum = Channel(channel)
         except ValueError as error:
@@ -140,9 +141,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             ) from error
 
         if channel_enum is Channel.IBM_CLOUD and instance is None:
-            raise QiskitServerlessException(
-                "Authentication with IBM Cloud requires to pass the CRN as an instance."
-            )
+            raise QiskitServerlessException("Authentication with IBM Cloud requires to pass the CRN as an instance.")
 
         if channel_enum is Channel.IBM_QUANTUM_PLATFORM and instance is None:
             raise QiskitServerlessException(
@@ -153,9 +152,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         self.version = version
         self._verify_credentials()
 
-        self._files_client = GatewayFilesClient(
-            self.host, self.token, self.version, self.instance, self.channel
-        )
+        self._files_client = GatewayFilesClient(self.host, self.token, self.version, self.instance, self.channel)
 
     @classmethod
     def from_dict(cls, dictionary: dict):
@@ -167,16 +164,12 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             safe_json_request(
                 request=lambda: requests.get(
                     url=f"{self.host}/api/v1/programs/",
-                    headers=get_headers(
-                        token=self.token, instance=self.instance, channel=self.channel
-                    ),
+                    headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
         except QiskitServerlessException as reason:
-            raise QiskitServerlessException(
-                "Credentials couldn't be verified."
-            ) from reason
+            raise QiskitServerlessException("Credentials couldn't be verified.") from reason
 
     def dependencies_versions(self):
         """Get the list of available dependencies and its versions for creating functions"""
@@ -226,17 +219,12 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/",
                 params=kwargs,
-                headers=get_headers(
-                    token=self.token, instance=self.instance, channel=self.channel
-                ),
+                headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
 
-        return [
-            Job(job.get("id"), job_service=self, raw_data=job)
-            for job in response_data.get("results", [])
-        ]
+        return [Job(job.get("id"), job_service=self, raw_data=job) for job in response_data.get("results", [])]
 
     @_trace_job("provider_list")
     def provider_jobs(self, function: Optional[QiskitFunction], **kwargs) -> List[Job]:
@@ -278,17 +266,12 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/provider/",
                 params=kwargs,
-                headers=get_headers(
-                    token=self.token, instance=self.instance, channel=self.channel
-                ),
+                headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
 
-        return [
-            Job(job.get("id"), job_service=self, raw_data=job)
-            for job in response_data.get("results", [])
-        ]
+        return [Job(job.get("id"), job_service=self, raw_data=job) for job in response_data.get("results", [])]
 
     @_trace_job("get")
     def job(self, job_id: str) -> Optional[Job]:
@@ -296,9 +279,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 url,
-                headers=get_headers(
-                    token=self.token, instance=self.instance, channel=self.channel
-                ),
+                headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -348,9 +329,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 request=lambda: requests.post(
                     url=url,
                     json=data,
-                    headers=get_headers(
-                        token=self.token, instance=self.instance, channel=self.channel
-                    ),
+                    headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
@@ -366,9 +345,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/",
                 params={"with_result": "false"},
-                headers=get_headers(
-                    token=self.token, instance=self.instance, channel=self.channel
-                ),
+                headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -385,9 +362,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
 
         if not service:
             try:
-                service = QiskitRuntimeService(
-                    channel=self.channel, instance=self.instance, token=self.token
-                )
+                service = QiskitRuntimeService(channel=self.channel, instance=self.instance, token=self.token)
             except InvalidAccountError:
                 warnings.warn(
                     "No QiskitRuntimeService can be associated to the given token and instance. "
@@ -401,9 +376,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.post(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/stop/",
-                headers=get_headers(
-                    token=self.token, instance=self.instance, channel=self.channel
-                ),
+                headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
                 timeout=REQUESTS_TIMEOUT,
                 json=data,
             )
@@ -416,42 +389,43 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/",
-                headers=get_headers(
-                    token=self.token, instance=self.instance, channel=self.channel
-                ),
+                headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
                 params={"with_result": "true"},
                 timeout=REQUESTS_TIMEOUT,
             )
         )
-        return json.loads(
-            response_data.get("result", "{}") or "{}", cls=QiskitObjectsDecoder
-        )
+        return json.loads(response_data.get("result", "{}") or "{}", cls=QiskitObjectsDecoder)
 
     @_trace_job
     def logs(self, job_id: str):
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/logs/",
-                headers=get_headers(
-                    token=self.token, instance=self.instance, channel=self.channel
-                ),
+                headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
         return response_data.get("logs")
 
     @_trace_job
-    def runtime_jobs(
-        self, job_id: str, runtime_session: Optional[str] = None
-    ) -> list[str]:
+    def provider_logs(self, job_id: str):
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/jobs/{job_id}/provider-logs/",
+                headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
+                timeout=REQUESTS_TIMEOUT,
+            )
+        )
+        return response_data.get("logs")
+
+    @_trace_job
+    def runtime_jobs(self, job_id: str, runtime_session: Optional[str] = None) -> list[str]:
         """Retrieve Qiskit IBM Runtime job ids that correspond to a
         given serverless job_id execution and, optionally, filtered by session id."""
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/runtime_jobs/",
-                headers=get_headers(
-                    token=self.token, instance=self.instance, channel=self.channel
-                ),
+                headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -471,20 +445,12 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/runtime_jobs/",
-                headers=get_headers(
-                    token=self.token, instance=self.instance, channel=self.channel
-                ),
+                headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
         runtime_jobs = response_data.get("runtime_jobs", [])
-        out_sessions = sorted(
-            {
-                job["runtime_session"]
-                for job in runtime_jobs
-                if job.get("runtime_session")
-            }
-        )
+        out_sessions = sorted({job["runtime_session"] for job in runtime_jobs if job.get("runtime_session")})
         return out_sessions
 
     def filtered_logs(self, job_id: str, **kwargs):
@@ -541,9 +507,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                     channel=self.channel,
                 )
             else:
-                raise QiskitServerlessException(
-                    "Function must either have `entrypoint` or `image` specified."
-                )
+                raise QiskitServerlessException("Function must either have `entrypoint` or `image` specified.")
 
         return function_uploaded
 
@@ -553,9 +517,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_list(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/programs",
-                headers=get_headers(
-                    token=self.token, instance=self.instance, channel=self.channel
-                ),
+                headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
                 params=kwargs,
                 timeout=REQUESTS_TIMEOUT,
             )
@@ -564,26 +526,17 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         for program_data in response_data:
             program_data["client"] = self
 
-        return [
-            RunnableQiskitFunction.from_json(program_data)
-            for program_data in response_data
-        ]
+        return [RunnableQiskitFunction.from_json(program_data) for program_data in response_data]
 
     @_trace_functions("get_by_title")
-    def function(
-        self, title: str, provider: Optional[str] = None
-    ) -> Optional[RunnableQiskitFunction]:
+    def function(self, title: str, provider: Optional[str] = None) -> Optional[RunnableQiskitFunction]:
         """Returns program based on parameters."""
-        provider, title = format_provider_name_and_title(
-            request_provider=provider, title=title
-        )
+        provider, title = format_provider_name_and_title(request_provider=provider, title=title)
 
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/programs/get_by_title/{title}",
-                headers=get_headers(
-                    token=self.token, instance=self.instance, channel=self.channel
-                ),
+                headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
                 params={"provider": provider},
                 timeout=REQUESTS_TIMEOUT,
             )
@@ -613,9 +566,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         download_location: str = "./",
     ):
         """Download a file available to the user for the specific Qiskit Function."""
-        return self._files_client.download(
-            file, download_location, function, target_name
-        )
+        return self._files_client.download(file, download_location, function, target_name)
 
     def provider_file_download(
         self,
@@ -625,9 +576,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         download_location: str = "./",
     ):
         """Download a file available to the provider for the specific Qiskit Function."""
-        return self._files_client.provider_download(
-            file, download_location, function, target_name
-        )
+        return self._files_client.provider_download(file, download_location, function, target_name)
 
     def file_delete(self, file: str, function: QiskitFunction):
         """Deletes a file available to the user for the specific Qiskit Function."""
@@ -653,7 +602,7 @@ class IBMServerlessClient(ServerlessClient):
     Credentials can be saved to disk by calling the `save_account()` method::
 
         from qiskit_serverless import IBMServerlessClient
-        IBMServerlessClient.save_account(token=<INSERT_IBM_QUANTUM_TOKEN>)
+        IBMServerlessClient.save_account(token=<INSERT_IBM_QUANTUM_TOKEN>, instance=<INSERT_CRN>)
 
     Once the credentials are saved, you can simply instantiate the client with no
     constructor args, as shown below.
@@ -671,7 +620,7 @@ class IBMServerlessClient(ServerlessClient):
     provider with the API token::
 
         from qiskit_serverless import IBMServerlessClient
-        client = IBMServerlessClient(token=<INSERT_IBM_QUANTUM_TOKEN>)
+        client = IBMServerlessClient(token=<INSERT_IBM_QUANTUM_TOKEN>, instance=<INSERT_CRN>)
     """
 
     def __init__(
@@ -679,7 +628,7 @@ class IBMServerlessClient(ServerlessClient):
         token: Optional[str] = None,
         name: Optional[str] = None,
         instance: Optional[str] = None,
-        channel: str = Channel.IBM_QUANTUM_PLATFORM.value,
+        channel: Optional[str] = None,
         *,
         host: Optional[str] = None,
     ):
@@ -700,7 +649,7 @@ class IBMServerlessClient(ServerlessClient):
             host: host of gateway. Optional. It uses IBM_SERVERLESS_HOST_URL env var or IBM host
             token: IBM quantum token
             name: Name of the account to load
-            instance: IBM Cloud CRN or IQP h/g/p
+            instance: IBM Cloud CRN
             channel: identifies the method to use to authenticate the user
         """
         self.account = self._discover_account(
@@ -724,20 +673,20 @@ class IBMServerlessClient(ServerlessClient):
         channel: Optional[str] = None,
         name: Optional[str] = None,
     ) -> Account:
-        """Discover account for ibm_quantum, ibm_cloud and ibm_quantum_platform channels.
+        """Discover account for ibm_cloud and ibm_quantum_platform channels.
 
         Args:
             token: IBM Quantum API token
             name: Name of the account to load
-            instance: IBM Cloud CRN for ibm_quantum_platform and ibm_cloud
-                channels or hub/group/project for ibm_quantum channel
+            instance: IBM Cloud CRN
             channel: Identifies the method to use to authenticate the user
         """
 
         account = None
         if name:
             account = AccountManager.get(name=name)
-        elif channel:
+        else:
+            channel = channel or Channel.IBM_QUANTUM_PLATFORM.value
             try:
                 Channel(channel)
             except ValueError as error:
@@ -755,11 +704,6 @@ class IBMServerlessClient(ServerlessClient):
                 )
             else:
                 account = AccountManager.get(channel=channel)
-        elif any([token]):
-            # Let's not infer based on these attributes as they may change in the future.
-            raise ValueError(
-                "'channel' is required if 'token' is specified but 'name' is not."
-            )
 
         # channel is not defined yet, get it from the AccountManager
         if account is None:
@@ -771,9 +715,7 @@ class IBMServerlessClient(ServerlessClient):
         try:
             account.validate()
         except InvalidAccountError as ex:
-            raise QiskitServerlessException(
-                f"Invalid format in account inputs - {ex}"
-            ) from ex
+            raise QiskitServerlessException(f"Invalid format in account inputs - {ex}") from ex
 
         return account
 
@@ -783,7 +725,7 @@ class IBMServerlessClient(ServerlessClient):
         name: Optional[str] = None,
         overwrite: Optional[bool] = False,
         instance: Optional[str] = None,
-        channel: str = Channel.IBM_QUANTUM_PLATFORM.value,
+        channel: Optional[str] = None,
     ) -> None:
         """
         Save the account to disk for future use.
@@ -804,9 +746,7 @@ class IBMServerlessClient(ServerlessClient):
                 channel=channel,
             )
         except InvalidAccountError as ex:
-            raise QiskitServerlessException(
-                f"Invalid format in account inputs - {ex}"
-            ) from ex
+            raise QiskitServerlessException(f"Invalid format in account inputs - {ex}") from ex
 
 
 def _upload_with_docker_image(  # pylint: disable=too-many-positional-arguments
@@ -841,6 +781,7 @@ def _upload_with_docker_image(  # pylint: disable=too-many-positional-arguments
                 "dependencies": json.dumps(program.dependencies or []),
                 "env_vars": json.dumps(program.env_vars or {}),
                 "description": program.description,
+                "version": program.version,
             },
             headers=get_headers(token=token, instance=instance, channel=channel),
             timeout=REQUESTS_TIMEOUT,
@@ -881,13 +822,9 @@ def _upload_with_artifact(  # pylint:  disable=too-many-positional-arguments, to
     artifact_file_path = os.path.join(program.working_dir, "artifact.tar")
 
     # check if entrypoint exists
-    if (
-        not os.path.exists(os.path.join(program.working_dir, program.entrypoint))
-        or program.entrypoint[0] == "/"
-    ):
+    if not os.path.exists(os.path.join(program.working_dir, program.entrypoint)) or program.entrypoint[0] == "/":
         raise QiskitServerlessException(
-            f"Entrypoint file [{program.entrypoint}] does not exist "
-            f"in [{program.working_dir}] working directory."
+            f"Entrypoint file [{program.entrypoint}] does not exist " f"in [{program.working_dir}] working directory."
         )
 
     try:
@@ -917,11 +854,10 @@ def _upload_with_artifact(  # pylint:  disable=too-many-positional-arguments, to
                         "dependencies": json.dumps(program.dependencies or []),
                         "env_vars": json.dumps(program.env_vars or {}),
                         "description": program.description,
+                        "version": program.version,
                     },
                     files={"artifact": file},
-                    headers=get_headers(
-                        token=token, instance=instance, channel=channel
-                    ),
+                    headers=get_headers(token=token, instance=instance, channel=channel),
                     timeout=REQUESTS_TIMEOUT,
                 )
             )

@@ -2,23 +2,26 @@
 Use case: retrieve job logs.
 """
 
-from typing import Final
+import logging
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ObjectDoesNotExist
 
-from api.domain.exceptions.not_found_error import NotFoundError
-from api.domain.exceptions.forbidden_error import ForbiddenError
-from api.repositories.jobs import JobsRepository
-from api.access_policies.providers import ProviderAccessPolicy
+from api.access_policies.jobs import JobAccessPolicies
+from api.domain.exceptions.job_not_found_exception import JobNotFoundException
+from api.domain.exceptions.invalid_access_exception import InvalidAccessException
+from core.domain.filter_logs import remove_prefix_tags_in_logs, filter_logs_with_public_tags
+from core.models import Job
+from core.services.runners import get_runner, RunnerError
+from core.utils import check_logs
+from core.services.storage.logs_storage import LogsStorage
 
-NO_LOGS_MSG: Final[str] = "No available logs"
+logger = logging.getLogger("api.GetJobLogsUseCase")
 
 
 class GetJobLogsUseCase:
     """Use case for retrieving job logs."""
-
-    jobs_repository = JobsRepository()
 
     def execute(self, job_id: UUID, user: AbstractUser) -> str:
         """Return the logs of a job if the user has access.
@@ -33,18 +36,42 @@ class GetJobLogsUseCase:
         Returns:
             str: Job logs if accessible, otherwise a message indicating no logs are available.
         """
-        job = self.jobs_repository.get_job_by_id(job_id)
-        if job is None:
-            raise NotFoundError(f"Job [{job_id}] not found")
+        try:
+            job = Job.objects.get(id=job_id)
+        except ObjectDoesNotExist:
+            raise JobNotFoundException(job_id)
 
-        # Case 1: Provider function - check provider access policy
-        if job.program and job.program.provider:
-            if ProviderAccessPolicy.can_access(user, job.program.provider):
-                return job.logs
+        if not JobAccessPolicies.can_read_user_logs(user, job):
+            raise InvalidAccessException(f"You don't have access to read user logs of the job [{job_id}]")
 
-        # Case 2: User is the author of the job
-        elif user == job.author:
-            return job.logs
+        # Logs stored in COS. They are already filtered
+        logs_storage = LogsStorage(job)
+        logs = logs_storage.get_public_logs()
+        if logs:
+            return logs
 
-        # Access denied for all other cases
-        raise ForbiddenError(f"You don't have access to job [{job_id}]")
+        # Get from Ray if it is already running. Then filter
+        if job.compute_resource and job.compute_resource.active:
+            try:
+                logs = get_runner(job).logs()
+            except RunnerError:
+                return "Logs not available for this job during execution."
+
+            logs = check_logs(logs, job)
+
+            logger.info("Getting logs from ray job [%s] job_id=%s", job.ray_job_id, job.id)
+
+            if job.program.provider:
+                # Public logs from a provider job
+                return filter_logs_with_public_tags(logs)
+
+            # Public logs from a user job
+            return remove_prefix_tags_in_logs(logs)
+
+        # Legacy: Get from db.
+        if job.program.provider:
+            # Public logs from a provider job
+            return "No logs available."
+
+        # Public logs from a user job
+        return job.logs

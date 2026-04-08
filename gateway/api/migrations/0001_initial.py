@@ -53,11 +53,7 @@ class Migration(migrations.Migration):
                     "artifact",
                     models.FileField(
                         upload_to="artifacts_%Y_%m_%d",
-                        validators=[
-                            django.core.validators.FileExtensionValidator(
-                                allowed_extensions=["tar"]
-                            )
-                        ],
+                        validators=[django.core.validators.FileExtensionValidator(allowed_extensions=["tar"])],
                     ),
                 ),
                 ("arguments", models.TextField(blank=True, default="{}")),

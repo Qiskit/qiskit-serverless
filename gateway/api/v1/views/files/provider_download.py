@@ -3,21 +3,24 @@ API V1: Download provider file end-point.
 """
 
 # pylint: disable=duplicate-code
-from typing import cast
+import logging
+from typing import Iterator, Tuple, cast
 from django.http import StreamingHttpResponse
 from django.contrib.auth.models import AbstractUser
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, status
-from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework import serializers
 
+
 from api.use_cases.files.provider_download import FilesProviderDownloadUseCase
-from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
+from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_file_name, sanitize_name
+
+logger = logging.getLogger("api.api.v1.views.files.provider_download")
 
 # pylint: disable=abstract-method
 
@@ -99,7 +102,7 @@ class InputSerializer(serializers.Serializer):
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
-def files_provider_download(request: Request) -> Response:
+def files_provider_download(request: Request) -> StreamingHttpResponse:
     """
     Download a file from the provider storage
     """
@@ -112,10 +115,16 @@ def files_provider_download(request: Request) -> Response:
 
     user = cast(AbstractUser, request.user)
 
-    result = FilesProviderDownloadUseCase().execute(user, provider, function, file)
-
-    file_wrapper, file_type, file_size = result
-    response = StreamingHttpResponse(file_wrapper, content_type=file_type)
+    result: Tuple[Iterator[bytes], str, int] = FilesProviderDownloadUseCase().execute(user, provider, function, file)
+    logger.info(
+        "[files-provider-download] user_id=%s function=%s provider=%s file=%s | Provider file downloaded ok",
+        user.id,
+        function,
+        provider,
+        file,
+    )
+    generator, file_type, file_size = result
+    response = StreamingHttpResponse(generator, content_type=file_type)
     response["Content-Length"] = file_size
     response["Content-Disposition"] = f"attachment; filename={file}"
     return response

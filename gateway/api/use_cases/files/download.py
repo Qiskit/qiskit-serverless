@@ -2,14 +2,18 @@
 
 # pylint: disable=duplicate-code
 import logging
+from typing import Iterator, Tuple
+
 from django.contrib.auth.models import AbstractUser
-from api.services.storage.file_storage import FileStorage, WorkingDir
-from api.repositories.functions import FunctionRepository
-from api.domain.exceptions.not_found_error import NotFoundError
 
-from api.models import RUN_PROGRAM_PERMISSION
+from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
+from api.domain.exceptions.file_not_found_exception import FileNotFoundException
 
-logger = logging.getLogger("gateway.use_cases.files")
+from core.models import RUN_PROGRAM_PERMISSION
+from core.services.storage.file_storage import FileStorage, WorkingDir
+from core.models import Program as Function
+
+logger = logging.getLogger("api.FilesDownloadUseCase")
 
 
 class FilesDownloadUseCase:
@@ -17,7 +21,6 @@ class FilesDownloadUseCase:
     Download a file from user storage use case.
     """
 
-    function_repository = FunctionRepository()
     working_dir = WorkingDir.USER_STORAGE
 
     def execute(
@@ -26,11 +29,11 @@ class FilesDownloadUseCase:
         provider_name: str,
         function_title: str,
         requested_file_name: str,
-    ):
+    ) -> Tuple[Iterator[bytes], str, int]:
         """
         Download a file from user storage.
         """
-        function = self.function_repository.get_function_by_permission(
+        function = Function.objects.get_function_by_permission(
             user=user,
             permission_name=RUN_PROGRAM_PERMISSION,
             function_title=function_title,
@@ -38,20 +41,16 @@ class FilesDownloadUseCase:
         )
 
         if not function:
-            if provider_name:
-                error_message = f"Qiskit Function {provider_name}/{function_title} doesn't exist."  # pylint: disable=line-too-long
-            else:
-                error_message = f"Qiskit Function {function_title} doesn't exist."
-            raise NotFoundError(error_message)
+            raise FunctionNotFoundException(function=function_title)
 
         file_storage = FileStorage(
             username=user.username,
             working_dir=self.working_dir,
             function=function,
         )
-        result = file_storage.get_file(file_name=requested_file_name)
+        result = file_storage.get_file_stream(file_name=requested_file_name)
 
         if result is None:
-            raise NotFoundError("Requested file was not found.")
+            raise FileNotFoundException()
 
         return result

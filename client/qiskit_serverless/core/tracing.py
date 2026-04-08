@@ -69,11 +69,7 @@ def get_tracer(
     Returns:
         tracer
     """
-    resource = Resource(
-        attributes={
-            SERVICE_NAME: f"qs.{os.environ.get(OT_PROGRAM_NAME, OT_PROGRAM_NAME_DEFAULT)}"
-        }
-    )
+    resource = Resource(attributes={SERVICE_NAME: f"qs.{os.environ.get(OT_PROGRAM_NAME, OT_PROGRAM_NAME_DEFAULT)}"})
     provider = TracerProvider(resource=resource)
     if agent_host is not None and agent_port is not None:
         otel_exporter = BatchSpanProcessor(
@@ -84,9 +80,7 @@ def get_tracer(
         )
         provider.add_span_processor(otel_exporter)
     if bool(int(os.environ.get(OT_ENABLED, "0"))):
-        trace._set_tracer_provider(  # pylint: disable=protected-access
-            provider, log=False
-        )
+        trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
     return trace.get_tracer(instrumenting_module_name)
 
 
@@ -114,9 +108,7 @@ def _trace_env_vars(env_vars: dict, location: Optional[str] = None):
         env_vars[OT_TRACEPARENT_ID_KEY] = os.environ.get(OT_TRACEPARENT_ID_KEY)
     else:
         carrier: Dict[str, str] = {}
-        with tracer.start_as_current_span(
-            os.environ.get(OT_PROGRAM_NAME, OT_SPAN_DEFAULT_NAME)
-        ) as span:
+        with tracer.start_as_current_span(os.environ.get(OT_PROGRAM_NAME, OT_SPAN_DEFAULT_NAME)) as span:
             if location is not None:
                 span.set_attribute(OT_LABEL_CALL_LOCATION, location)
             TraceContextTextMapPropagator().inject(carrier)
@@ -146,6 +138,4 @@ def setup_tracing() -> None:
     )
     provider.add_span_processor(otel_exporter)
     if bool(int(os.environ.get(OT_ENABLED, "0"))):
-        trace._set_tracer_provider(  # pylint: disable=protected-access
-            provider, log=False
-        )
+        trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access

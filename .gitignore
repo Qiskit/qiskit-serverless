@@ -79,7 +79,6 @@ coverage.xml
 *,cover
 .hypothesis/
 **/MagicMock/
-tests/**/downloaded_*.tar
 
 # pyenv
 .python-version
@@ -103,3 +102,6 @@ docs/_build/
 .jupyter/
 .ipython/
 .virtual_documents/
+
+# any logs
+*.log

@@ -14,9 +14,7 @@ def error_schema(example_msg: str, description: str = "Error response"):
         description=description,
         schema=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            properties={
-                "message": openapi.Schema(type=openapi.TYPE_STRING, example=example_msg)
-            },
+            properties={"message": openapi.Schema(type=openapi.TYPE_STRING, example=example_msg)},
             required=["message"],
         ),
     )
@@ -34,23 +32,13 @@ def standard_error_responses(
     """
     responses = {}
     if bad_request_example:
-        responses[status.HTTP_400_BAD_REQUEST] = error_schema(
-            bad_request_example, "Invalid input."
-        )
+        responses[status.HTTP_400_BAD_REQUEST] = error_schema(bad_request_example, "Invalid input.")
     if unauthorized_example:
-        responses[status.HTTP_401_UNAUTHORIZED] = error_schema(
-            unauthorized_example, "Authentication required."
-        )
+        responses[status.HTTP_401_UNAUTHORIZED] = error_schema(unauthorized_example, "Authentication required.")
     if forbidden_example:
-        responses[status.HTTP_403_FORBIDDEN] = error_schema(
-            forbidden_example, "Not allowed to perform this action."
-        )
+        responses[status.HTTP_403_FORBIDDEN] = error_schema(forbidden_example, "Not allowed to perform this action.")
     if not_found_example:
-        responses[status.HTTP_404_NOT_FOUND] = error_schema(
-            not_found_example, "Resource not found."
-        )
+        responses[status.HTTP_404_NOT_FOUND] = error_schema(not_found_example, "Resource not found.")
     if conflict_example:
-        responses[status.HTTP_409_CONFLICT] = error_schema(
-            conflict_example, "Conflict."
-        )
+        responses[status.HTTP_409_CONFLICT] = error_schema(conflict_example, "Conflict.")
     return responses

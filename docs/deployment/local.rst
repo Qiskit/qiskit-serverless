@@ -1,84 +1,251 @@
 .. _local_infrastructure:
 
 ==========================
-Local infrastructure setup
+Local Infrastructure Setup
 ==========================
 
-Step 1: Create a Python environment and clone the repository
+This guide walks you through setting up Qiskit Serverless on your local machine for development and testing.
 
-The ``qiskit-serverless`` repository contains some Dockerfiles which make spinning up a test cluster
-on your local machine straightforward. The first thing we will do is clone the repository.
+Overview
+--------
 
-.. code-block::
-   :caption: Create a minimal environment with only Python installed in it. We recommend using `Python virtual environments <https://docs.python.org/3.10/tutorial/venv.html>`_.
+You can choose between two deployment approaches:
 
-      python3 -m venv /path/to/virtual/environment
+* **Docker Compose** (Recommended for beginners)
 
-.. code-block::
-   :caption: Activate your new environment.
+  - Fastest and simplest setup
+  - Spins up containers for all services (gateway, scheduler, Ray)
+  - Ideal for quick testing and development
 
-      source /path/to/virtual/environment/bin/activate
+* **Kind (Kubernetes-in-Docker)** (Advanced)
 
-.. code-block::
-   :caption: Note: If you are using Windows, use the following commands in PowerShell.
+  - More closely resembles production environments
+  - Useful for testing Kubernetes-specific behaviors
+  - Requires more setup but provides better production parity
 
-      python3 -m venv c:\path\to\virtual\environment
-      c:\path\to\virtual\environment\Scripts\Activate.ps1
+Prerequisites
+-------------
 
-.. code-block::
-   :caption: Clone the Qiskit Serverless repository.
+Before you begin, ensure you have:
 
-      cd /path/to/workspace/
-      git clone git@github.com:Qiskit/qiskit-serverless.git
+* **Python 3.10 or later**
+* **Git**
+* **Docker runtime** (required for both approaches)
 
-Step 2: Setup Docker
+  - `Colima <https://github.com/abiosoft/colima>`_ (recommended, especially for macOS with ARM processors)
+  - `Docker Desktop <https://www.docker.com/products/docker-desktop/>`_
+  - `Podman <https://podman.io/>`_
 
-To setup Qiskit Serverless on your local machine, you will need to use docker compose. As we mentioned in the `README <https://github.com/Qiskit/qiskit-serverless/blob/main/README.md>`_
-you can use any runtime that you prefer to run Docker on your machine: Docker Desktop, podman... 
-If you are using a MacOS with ARM processors we highly recommend to use `Colima <https://github.com/abiosoft/colima>`_
-as your container runtime to avoid problems with that architecture.
+* **Docker Compose** (for Docker Compose approach)
+* **Kind and kubectl** (for Kubernetes approach - Kind runs Kubernetes in Docker)
 
-This is a project that takes advantage of distributed computing, so it places a high demand on resources. We recommend increasing the assigned resources to these runtimes. 
-In case of Colima for example we typically use:
+Step 1: Prepare Your Environment
+---------------------------------
 
-.. code-block::
+1.1 Create a Python Virtual Environment
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        $ colima start --cpu 4 --memory 8 --disk 100
+We recommend using Python virtual environments to isolate dependencies.
 
-Step 2.1: Initiate the test environment
+**On Linux/macOS:**
 
-Once you have Docker and docker compose installed, you can run the following command from the root of the
-``qiskit-serverless`` repository to set up the infrastructure:
+.. code-block:: bash
 
-.. code-block::
+   python3 -m venv /path/to/virtual/environment
+   source /path/to/virtual/environment/bin/activate
 
-        $ docker compose [--profile <PROFILE>] up
+**On Windows (PowerShell):**
 
-Additionally, you can include the profile `full`.
-With the full profile installs all core services, including logging and
-monitorying systems.
+.. code-block:: powershell
 
-Step 3: Setup Kind
+   python3 -m venv c:\path\to\virtual\environment
+   c:\path\to\virtual\environment\Scripts\Activate.ps1
 
-Additionally we provide you a way to deploy a k8s cluster on your local machine. This has some benefits as this is a more similar environment 
-to production than the docker-compose approach.
+For more information, see the `Python virtual environments documentation <https://docs.python.org/3.10/tutorial/venv.html>`_.
 
-To simplify the process to deploy a k8s cluster locally we use `Kind <https://kind.sigs.k8s.io/docs/user/quick-start#installation>`_ 
-as the main tool to create a cluster.
+1.2 Clone the Repository
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Step 3.1: Initiate the test cluster
+.. code-block:: bash
 
-To setup the cluster for testing we prepare a little script that will initialize for you all the needed resources. You can execute it
-using the terminal just running the next command:
+   cd /path/to/workspace/
+   git clone git@github.com:Qiskit/qiskit-serverless.git
+   cd qiskit-serverless
 
-.. code-block::
+Step 2: Install and Configure Docker Runtime
+---------------------------------------------
 
-        $ tox -e cluster-deploy
+Both deployment methods (Docker Compose and Kind) require a Docker runtime. We recommend **Colima**, especially for macOS with ARM processors, as it provides better performance and avoids architecture-related issues.
 
-Step 4: Run a program in the test environment
+2.1: Install Docker Runtime
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Once the containers are running, you can simulate a remote cluster with the resources on your
-local machine. Feel free to go to our tutorials in the `Getting started section <https://qiskit.github.io/qiskit-serverless/getting_started/index.html>`_
-and run some of them.
+**Recommended: Colima**
 
+Install Colima following the `installation guide <https://github.com/abiosoft/colima>`_.
 
+**Alternative Options:**
+
+* `Docker Desktop <https://www.docker.com/products/docker-desktop/>`_
+* `Podman <https://podman.io/>`_
+
+For more details, see the `project README <https://github.com/Qiskit/qiskit-serverless/blob/main/README.md>`_.
+
+2.2: Start Docker with Adequate Resources
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Qiskit Serverless uses distributed computing and requires adequate resources:
+
+* **CPU:** 4+ cores (minimum)
+* **Memory:** 8+ GB (minimum)
+* **Disk:** 100+ GB (minimum)
+
+**For Colima:**
+
+.. code-block:: bash
+
+   colima start --cpu 4 --memory 8 --disk 100
+
+Adjust these values based on your workload. For intensive computations, consider allocating more resources.
+
+Step 3: Choose Your Deployment Method
+--------------------------------------
+
+Now that Docker is running, choose how you want to deploy Qiskit Serverless:
+
+Option A: Docker Compose Setup (Recommended)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is the fastest way to get started with Qiskit Serverless locally.
+
+**3A.1: Start the Services**
+
+From the repository root, run:
+
+.. code-block:: bash
+
+   docker compose up
+
+This starts the core services. For additional services (logging, monitoring), use:
+
+.. code-block:: bash
+
+   docker compose --profile full up
+
+The services will be available at:
+
+* Gateway API: http://localhost:8000
+* Ray Dashboard: http://localhost:8265 (if using local Ray)
+
+Option B: Kind (Kubernetes) Setup (Advanced)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This approach deploys a local Kubernetes cluster, providing an environment closer to production.
+
+**3B.1: Install Kind**
+
+Follow the `Kind installation guide <https://kind.sigs.k8s.io/docs/user/quick-start#installation>`_.
+
+**3B.2: Deploy the Cluster**
+
+We provide a script that initializes all required resources:
+
+.. code-block:: bash
+
+   tox -e cluster-deploy
+
+This command:
+
+* Creates a Kind cluster (running in Docker)
+* Deploys the Qiskit Serverless gateway
+* Sets up Ray operator and clusters
+* Configures networking
+
+The services will be available at:
+
+* Gateway API: http://localhost
+
+Step 4: Verify Your Setup
+--------------------------
+
+Once your infrastructure is running, verify it's working correctly:
+
+1. Check that all containers/pods are running:
+
+   **Docker Compose:**
+
+   .. code-block:: bash
+
+      docker compose ps
+
+   **Kind:**
+
+   .. code-block:: bash
+
+      kubectl get pods -A
+
+2. Test the gateway API:
+
+   .. code-block:: bash
+
+      curl http://localhost:8000/health  # Docker Compose
+      curl http://localhost/health        # Kind
+
+Step 5: Configure the Client
+-----------------------------
+
+Now that your infrastructure is running, configure the Qiskit Serverless client to connect to it.
+
+See the :ref:`client_configuration` guide for detailed instructions.
+
+Quick example:
+
+.. code-block:: python
+
+   from qiskit_serverless import ServerlessClient
+
+   client = ServerlessClient(
+       token="awesome_token",
+       instance="awesome_crn",
+       host="http://localhost:8000",  # or "http://localhost" for Kind
+   )
+
+Step 6: Run Your First Function
+--------------------------------
+
+With everything set up, you're ready to run quantum functions!
+
+Explore the :ref:`function_features` tutorials to learn how to:
+
+* Create and upload functions
+* Run distributed workloads
+* Retrieve results
+* And more
+
+Next Steps
+----------
+
+* :ref:`function_features` - Learn how to build and run Qiskit Functions
+* :ref:`client_configuration` - Detailed client configuration options
+* :ref:`deployment` - Deploy to production environments (advanced)
+
+Troubleshooting
+---------------
+
+**Services won't start:**
+
+* Ensure Docker/Kind is running
+* Check resource allocation (CPU, memory, disk)
+* Review logs: ``docker compose logs`` or ``kubectl logs <pod-name>``
+
+**Connection refused:**
+
+* Verify the correct host URL (localhost:8000 for Docker Compose, localhost for Kind)
+* Check firewall settings
+* Ensure services are fully started (may take 1-2 minutes)
+
+**Performance issues:**
+
+* Increase allocated resources
+* Close unnecessary applications
+* Consider using the Docker Compose approach for lighter resource usage

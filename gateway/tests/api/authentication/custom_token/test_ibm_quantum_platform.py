@@ -1,182 +1,184 @@
 """This file contains e2e tests for IBM Quantum Platform authentication process."""
 
+import base64
+import json
 import time
 from unittest.mock import MagicMock, patch
-
-import jwt
+import pytest
 import responses
-from cryptography.hazmat.primitives.asymmetric import rsa
-from jwt import PyJWK
+from django.conf import settings
+from django.core.cache import cache
+from django.core.management import call_command
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework.test import APITestCase
 from ibm_platform_services import IamAccessGroupsV2, ResourceControllerV2
 from ibm_cloud_sdk_core import DetailedResponse
 
-from django.contrib.auth import get_user_model
-
 from api.authentication import CustomTokenBackend
 from api.domain.authentication.custom_authentication import CustomAuthentication
-from api.models import VIEW_PROGRAM_PERMISSION
+from core.models import VIEW_PROGRAM_PERMISSION
 
-User = get_user_model()
-
-_test_private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-_test_public_key = _test_private_key.public_key()
+RESOURCE_PLAN_ID = "test-plan-id"
 
 
 def _create_mock_jwt(iam_id: str, account_id: str) -> str:
-    """Create a mock JWT token signed with test RSA key."""
+    """Create a mock JWT token with the given iam_id and account_id."""
     current_time = int(time.time())
-    payload = {
-        "iam_id": iam_id,
-        "account": {"bss": account_id},
-        "iat": current_time,
-        "exp": current_time + 3600,
+    header = base64.urlsafe_b64encode(json.dumps({"alg": "RS256", "typ": "JWT"}).encode()).decode().rstrip("=")
+    payload = (
+        base64.urlsafe_b64encode(
+            json.dumps(
+                {
+                    "iam_id": iam_id,
+                    "account": {"bss": account_id},
+                    "iat": current_time,
+                    "exp": current_time + 3600,
+                }
+            ).encode()
+        )
+        .decode()
+        .rstrip("=")
+    )
+    signature = "mock_signature"
+    return f"{header}.{payload}.{signature}"
+
+
+def _mock_iam_services(
+    mock_get_resource_instance: MagicMock,
+    mock_list_access_groups: MagicMock,
+    group_id="test-group",
+):
+    """Configure mock responses for IAM services."""
+    mock_get_resource_instance.return_value = DetailedResponse(
+        response={"resource_plan_id": RESOURCE_PLAN_ID},
+        headers={},
+        status_code=200,
+    )
+    mock_list_access_groups.return_value = DetailedResponse(
+        response={
+            "groups": [
+                {"id": group_id, "name": "Test Group"},
+                {"id": group_id, "name": "Public Accesss"},
+            ]
+        },
+        headers={},
+        status_code=200,
+    )
+
+
+def _add_mock_response(iam_id: str, account_id: str):
+    """Add a mock token response to responses."""
+    responses.add(
+        responses.POST,
+        f"{settings.IAM_IBM_CLOUD_BASE_URL}/identity/token",
+        json={
+            "access_token": _create_mock_jwt(iam_id, account_id),
+            "token_type": "Bearer",
+            "expires_in": 3600,
+        },
+        status=200,
+    )
+
+
+def _create_request(token: str = "any_token", crn: str = "any:crn:123"):
+    """Create a mock request that can be used in the authenticate() method"""
+    request = MagicMock()
+    request.META = {
+        "HTTP_SERVICE_CHANNEL": "ibm_quantum_platform",
+        "HTTP_AUTHORIZATION": f"Bearer {token}",
+        "HTTP_SERVICE_CRN": crn,
     }
-    return jwt.encode(
-        payload,
-        _test_private_key,
-        algorithm="RS256",
-        headers={"kid": "test-key-id"},
-    )
+    return request
 
 
-def _mock_get_signing_key_from_jwt(self, token: str):
-    """Mock function that returns the test public key for any token."""
-    return PyJWK.from_dict(
-        {
-            "kty": "RSA",
-            "kid": "test-key-id",
-            "use": "sig",
-            "n": jwt.utils.base64url_encode(
-                _test_public_key.public_numbers().n.to_bytes(256, byteorder="big")
-            ).decode(),
-            "e": jwt.utils.base64url_encode(
-                _test_public_key.public_numbers().e.to_bytes(3, byteorder="big")
-            ).decode(),
-        }
-    )
+class TestIBMQuantumPlatformAuthentication:
+    """E2E tests for IBM Quantum Platform authentication."""
 
+    @pytest.fixture(autouse=True)
+    def _setup(self, db):
+        call_command("loaddata", "tests/fixtures/authentication_fixtures.json")
+        cache.clear()
 
-class TestIBMQuantumPlatformAuthentication(APITestCase):
-    """This class contains e2e tests for IBM Quantum Platform authentication process."""
-
-    @patch("jwt.PyJWKClient.get_signing_key_from_jwt", _mock_get_signing_key_from_jwt)
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")
     @responses.activate
     def test_default_authentication_workflow(
-        self,
-        mock_get_resource_instance: MagicMock,
-        mock_list_access_groups: MagicMock,
+        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
     ):
-        """This test verifies the entire flow of the custom token authentication"""
-
-        mock_get_resource_instance.return_value = DetailedResponse(
-            response={"resource_plan_id": "plan-id-123"},
-            headers={},
-            status_code=200,
+        """Verifies the entire flow of the custom token authentication."""
+        _mock_iam_services(
+            mock_get_resource_instance,
+            mock_list_access_groups,
+            group_id="AccessGroupId-23afbcd24-00a0-00ab-ab0c-1a23b4c567de",
         )
+        _add_mock_response("IBMid-0000000ABC", "abc18abcd41546508b35dfe0627109c4")
 
-        mock_list_access_groups.return_value = DetailedResponse(
-            response={"groups": [{"id": "group-id-456", "name": "Private Group"}]},
-            headers={},
-            status_code=200,
-        )
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        user, auth = CustomTokenBackend().authenticate(_create_request())
 
-        mock_jwt = _create_mock_jwt(iam_id="IBMid-abc", account_id="account-id-832")
-        responses.add(
-            responses.POST,
-            "https://base-url-mock/identity/token",
-            json={"access_token": mock_jwt, "token_type": "Bearer", "expires_in": 3600},
-            status=200,
-        )
+        assert user.username == "IBMid-0000000ABC"
+        assert isinstance(auth, CustomAuthentication)
+        assert auth.channel == "ibm_quantum_platform"
 
-        custom_auth = CustomTokenBackend()
-        request = MagicMock()
-        request.META = {
-            "HTTP_SERVICE_CHANNEL": "ibm_quantum_platform",
-            "HTTP_AUTHORIZATION": "Bearer AWESOME_TOKEN",
-            "HTTP_SERVICE_CRN": "AWESOME_CRN",
-        }
+        group_names = list(user.groups.values_list("name", flat=True))
+        assert group_names == ["AccessGroupId-23afbcd24-00a0-00ab-ab0c-1a23b4c567de"]
 
-        with self.settings(
-            IAM_IBM_CLOUD_BASE_URL="https://base-url-mock",
-            RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL="https://resource-controller.mock",
-            RESOURCE_PLANS_ID_ALLOWED=["plan-id-123"],
-        ):
-            user, authentication = custom_auth.authenticate(request)
+        for group in user.groups.all():
+            assert group.metadata.account == "abc18abcd41546508b35dfe0627109c4"
+            permissions = list(group.permissions.values_list("codename", flat=True))
+            assert permissions == [VIEW_PROGRAM_PERMISSION]
 
-            self.assertEqual(user.username, "IBMid-abc")
-            self.assertIsInstance(authentication, CustomAuthentication)
-            self.assertEqual(authentication.channel, "ibm_quantum_platform")
-            self.assertEqual(authentication.token, b"AWESOME_TOKEN")
-            self.assertEqual(authentication.instance, "AWESOME_CRN")
-
-            groups_names = user.groups.values_list("name", flat=True).distinct()
-            groups_names_list = list(groups_names)
-            self.assertListEqual(groups_names_list, ["group-id-456"])
-
-            groups = user.groups.all()
-            for group in groups:
-                self.assertEqual(group.metadata.account, "account-id-832")
-
-            for group in user.groups.all():
-                permissions = list(group.permissions.values_list("codename", flat=True))
-                self.assertEqual(permissions, [VIEW_PROGRAM_PERMISSION])
-
-    @patch("jwt.PyJWKClient.get_signing_key_from_jwt", _mock_get_signing_key_from_jwt)
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")
     @responses.activate
-    def test_default_authentication_workflow_with_inactive_account(
-        self,
-        mock_get_resource_instance: MagicMock,
-        mock_list_access_groups: MagicMock,
+    def test_inactive_account_raises_error(
+        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
     ):
-        """
-        This test verifies the entire flow of the custom token authentication
-        for a deactivated user.
-        """
+        """Deactivated users should receive an authentication error."""
+        _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
+        _add_mock_response("IBMid-1000000XYZ", "abc18abcd41546508b35dfe0627109c4")
 
-        User.objects.create_user(username="no-active", email="a@t.com", is_active=False)
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        with pytest.raises(AuthenticationFailed, match="Your user was deactivated"):
+            CustomTokenBackend().authenticate(_create_request())
 
-        mock_get_resource_instance.return_value = DetailedResponse(
-            response={"resource_plan_id": "plan-id-123"},
-            headers={},
-            status_code=200,
-        )
+    @patch.object(IamAccessGroupsV2, "list_access_groups")
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    @responses.activate
+    def test_cache_prevents_duplicate_api_calls(
+        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
+    ):
+        """Second authentication call should use cache, not API."""
+        _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
+        _add_mock_response("IBMid-CACHE-TEST", "cache_account")
 
-        mock_list_access_groups.return_value = DetailedResponse(
-            response={"groups": [{"id": "group-id-456", "name": "Private Group"}]},
-            headers={},
-            status_code=200,
-        )
+        auth = CustomTokenBackend()
+        request = _create_request()
 
-        mock_jwt = _create_mock_jwt(iam_id="no-active", account_id="account-id-832")
-        responses.add(
-            responses.POST,
-            "https://base-url-mock/identity/token",
-            json={"access_token": mock_jwt, "token_type": "Bearer", "expires_in": 3600},
-            status=200,
-        )
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        auth.authenticate(request)
+        auth.authenticate(request)
 
-        custom_auth = CustomTokenBackend()
-        request = MagicMock()
-        request.META = {
-            "HTTP_SERVICE_CHANNEL": "ibm_quantum_platform",
-            "HTTP_AUTHORIZATION": "Bearer AWESOME_TOKEN",
-            "HTTP_SERVICE_CRN": "AWESOME_CRN",
-        }
+        assert mock_get_resource_instance.call_count == 1
+        assert mock_list_access_groups.call_count == 1
 
-        with self.settings(
-            IAM_IBM_CLOUD_BASE_URL="https://base-url-mock",
-            RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL="https://resource-controller.mock",
-            RESOURCE_PLANS_ID_ALLOWED=["plan-id-123"],
-        ):
-            self.assertRaisesMessage(
-                AuthenticationFailed,
-                "Your user was deactivated. Please contact to IBM support for reactivaton.",
-                custom_auth.authenticate,
-                request,
-            )
+    @patch.object(IamAccessGroupsV2, "list_access_groups")
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    @responses.activate
+    def test_different_tokens_use_separate_cache(
+        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
+    ):
+        """Different API keys should have separate cache entries."""
+        _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
+        _add_mock_response("IBMid-USER-A", "account_a")
+        _add_mock_response("IBMid-USER-B", "account_b")
+
+        auth = CustomTokenBackend()
+
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        user_a, _ = auth.authenticate(_create_request(token="TOKEN_A"))
+        user_b, _ = auth.authenticate(_create_request(token="TOKEN_B"))
+
+        assert user_a.username == "IBMid-USER-A"
+        assert user_b.username == "IBMid-USER-B"
+        assert mock_get_resource_instance.call_count == 2
+        assert mock_list_access_groups.call_count == 2

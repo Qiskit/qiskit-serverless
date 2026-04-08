@@ -27,6 +27,7 @@ Qiskit Serverless job
     RuntimeEnv
     Job
 """
+
 # pylint: disable=duplicate-code
 from abc import ABC, abstractmethod
 import json
@@ -90,9 +91,7 @@ class JobService(ABC):
         """Check status."""
 
     @abstractmethod
-    def stop(
-        self, job_id: str, service: Optional[QiskitRuntimeService] = None
-    ) -> Union[str, bool]:
+    def stop(self, job_id: str, service: Optional[QiskitRuntimeService] = None) -> Union[str, bool]:
         """Stops job/program."""
 
     @abstractmethod
@@ -104,9 +103,11 @@ class JobService(ABC):
         """Return logs."""
 
     @abstractmethod
-    def runtime_jobs(
-        self, job_id: str, runtime_session: Optional[str] = None
-    ) -> list[str]:
+    def provider_logs(self, job_id: str) -> str:
+        """Return provider logs."""
+
+    @abstractmethod
+    def runtime_jobs(self, job_id: str, runtime_session: Optional[str] = None) -> list[str]:
         """Return associated runtime jobs."""
 
     @abstractmethod
@@ -171,7 +172,8 @@ class Job:
 
     def status(self):
         """Returns status of the job."""
-        return _map_status_from_serveless(self._job_service.status(self.job_id))
+        status = _map_status_from_serveless(self._job_service.status(self.job_id))
+        return status
 
     def stop(self, service: Optional[QiskitRuntimeService] = None):
         """Stops the job from running."""
@@ -191,11 +193,13 @@ class Job:
         """Returns logs of the job."""
         return self._job_service.logs(self.job_id)
 
+    def provider_logs(self) -> str:
+        """Returns logs of the job."""
+        return self._job_service.provider_logs(self.job_id)
+
     def runtime_jobs(self, runtime_session: Optional[str] = None) -> list[str]:
         """Returns associated runtime jobs if any."""
-        return self._job_service.runtime_jobs(
-            self.job_id, runtime_session=runtime_session
-        )
+        return self._job_service.runtime_jobs(self.job_id, runtime_session=runtime_session)
 
     def runtime_sessions(self) -> list[str]:
         """Returns associated runtime sessions if any."""
@@ -211,9 +215,7 @@ class Job:
 
     def error_message(self):
         """Returns the execution error message."""
-        error = (
-            self._job_service.result(self.job_id) if self.status() == "ERROR" else ""
-        )
+        error = self._job_service.result(self.job_id) if self.status() == "ERROR" else ""
 
         if isinstance(error, str):
             try:
@@ -250,11 +252,7 @@ class Job:
             if results:
                 raise QiskitServerlessException(results)
 
-            # If no result returned (common with import errors),
-            # try to match on error trace in logs to point to source of error
-            raise QiskitServerlessException(
-                self.filtered_logs(include=r"(?i)error|exception")
-            )
+            raise QiskitServerlessException(self.filtered_logs(include=r"(?i)error|exception"))
 
         if isinstance(results, str):
             try:
@@ -327,10 +325,7 @@ def save_result(result: Dict[str, Any]):
         logging.warning("Object passed is not json serializable.")
         return False
 
-    url = (
-        f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
-        f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/result/"
-    )
+    url = f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/" f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/result/"
     response = requests.post(
         url,
         data={"result": json.dumps(result or {}, cls=QiskitObjectsEncoder)},

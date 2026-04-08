@@ -2,11 +2,11 @@ ARG MICRO_IMAGE_DIR=/ubi-micro-img
 
 # BASE image using UBI 9 micro where the
 # application and requirements will be installed
-FROM registry.access.redhat.com/ubi9-micro:9.7-1766049073 AS base
+FROM registry.access.redhat.com/ubi9-micro:9.7-1771346390 AS base
 
 # BUILD image using UBI 9 where the dependencies that
 # require installing with a package manager will be installed.
-FROM registry.access.redhat.com/ubi9:9.7-1769417801 AS build
+FROM registry.access.redhat.com/ubi9:9.7-1773204657 AS build
 ARG MICRO_IMAGE_DIR
 
 # Copy the BASE image into the BUILD image
@@ -20,7 +20,8 @@ RUN dnf update -y && dnf clean all
 RUN dnf install --installroot ${MICRO_IMAGE_DIR} --nodocs -y \
     python3.11 \
     python3.11-devel \
-    libstdc++ &&\
+    libstdc++ \
+    file-libs && \
     dnf upgrade --installroot ${MICRO_IMAGE_DIR} --nodocs -y && \
     dnf clean all --installroot ${MICRO_IMAGE_DIR}
 
@@ -58,7 +59,6 @@ COPY --chown=1000:100 gateway .
 
 # Copy dynamic dependencies from Ray node image, used by GET /api/v1/dependencies-versions/
 COPY --chown=1000:100 ray-node/requirements-dynamic-dependencies.txt .
-COPY --chown=1000:100 ray-node/requirements-test-dynamic-dependencies.txt .
 
 RUN mkdir /usr/src/app/static && chown 1000:100 /usr/src/app/static && \
     mkdir /usr/src/app/media && chown 1000:100 /usr/src/app/media

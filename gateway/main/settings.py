@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
+import logging
 import os
 import os.path
 import sys
@@ -18,6 +19,15 @@ from core.utils import sanitize_file_path
 
 RELEASE_VERSION = os.environ.get("VERSION", "UNKNOWN")
 
+
+COMMAND = sys.argv[1] if len(sys.argv) > 1 else None
+IS_UNICORN = "gunicorn" in sys.argv[0]
+
+IS_TEST = COMMAND == "test" or "pytest" in sys.modules
+IS_RUNSERVER = COMMAND == "runserver"
+IS_SCHEDULER = COMMAND == "run_scheduler"
+IS_GATEWAY = IS_UNICORN or IS_RUNSERVER
+IS_MIGRATION = COMMAND in ["migrate_with_lock", "migrate"]
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -36,19 +46,16 @@ DEBUG = int(os.environ.get("DEBUG", 1))
 
 # SECURITY WARNING: don't run with debug turned on in production!
 LOG_LEVEL = "DEBUG" if int(os.environ.get("DEBUG", 1)) else "INFO"
+LOG_FORMAT = "json" if os.environ.get("LOG_FORMAT", "simple") == "json" else "simple"
 
 # It must be a full url without protocol: mydomain.com
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
 
 # It must be a full url: https://mydomain.com
-CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", "http://localhost").split(
-    ","
-)
+CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", "http://localhost").split(",")
 
 # It must be a regex compatible: ^https://\w+\.example\.com$
-CORS_ALLOWED_ORIGIN_REGEXES = os.environ.get(
-    "CORS_ALLOWED_ORIGIN_REGEXES", "http://localhost"
-).split(",")
+CORS_ALLOWED_ORIGIN_REGEXES = os.environ.get("CORS_ALLOWED_ORIGIN_REGEXES", "http://localhost").split(",")
 CORS_ALLOWED_ORIGIN_REGEXES = [rf"{pattern}" for pattern in CORS_ALLOWED_ORIGIN_REGEXES]
 
 # allow connections from any kubernetes pod within the cluster
@@ -123,50 +130,32 @@ LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "simple": {
-            "format": "%(levelname)s %(asctime)s %(filename)s:%(lineno)s : %(message)s"
+        "simple": {"format": "%(levelname)s %(asctime)s [%(name)s] %(filename)s:(%(lineno)s) %(message)s"},
+        "json": {
+            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "format": "%(asctime)s %(levelname)s %(name)s %(filename)s %(lineno)s %(message)s",
         },
     },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "formatter": "simple",
+            "formatter": LOG_FORMAT,
         },
     },
     "root": {
         "handlers": ["console"],
         "level": LOG_LEVEL,
     },
-    "loggers": {
-        "commands": {
-            "handlers": ["console"],
-            "level": LOG_LEVEL,
-            "propagate": False,
-        },
-        "gateway": {
-            "handlers": ["console"],
-            "level": LOG_LEVEL,
-            "propagate": False,
-        },
-        "gateway.serializers": {
-            "handlers": ["console"],
-            "level": LOG_LEVEL,
-            "propagate": False,
-        },
-        "gateway.authentication": {
-            "handlers": ["console"],
-            "level": LOG_LEVEL,
-            "propagate": False,
-        },
-    },
+    "loggers": {},
 }
 
 # Database
-# https://docs.djangoproject.com/en/4.1/ref/settings/#databases
+# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+# https://docs.djangoproject.com/en/5.2/ref/databases/#postgresql-notes
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
+        "ENGINE": "django_prometheus.db.backends.postgresql",
         "NAME": os.environ.get("DATABASE_NAME", "serverlessdb"),
         "USER": os.environ.get("DATABASE_USER", "serverlessuser"),
         "PASSWORD": os.environ.get("DATABASE_PASSWORD", "serverlesspassword"),
@@ -179,7 +168,7 @@ DATABASES = {
     },
 }
 
-if "test" in sys.argv:
+if IS_TEST:
     DATABASES["default"] = DATABASES["test"]
 
 # Password validation
@@ -242,17 +231,13 @@ DJR_DEFAULT_AUTHENTICATION_CLASSES = ALL_AUTH_CLASSES_CONFIGURATION.get(
 )
 # mock token value
 SETTINGS_AUTH_MOCK_TOKEN = os.environ.get("SETTINGS_AUTH_MOCK_TOKEN", "awesome_token")
-SETTINGS_AUTH_MOCKPROVIDER_REGISTRY = os.environ.get(
-    "SETTINGS_AUTH_MOCKPROVIDER_REGISTRY", None
-)
+SETTINGS_AUTH_MOCKPROVIDER_REGISTRY = os.environ.get("SETTINGS_AUTH_MOCKPROVIDER_REGISTRY", None)
 # =============
 
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
     # or allow read-only access for unauthenticated users.
-    "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly"
-    ],
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly"],
     "DEFAULT_AUTHENTICATION_CLASSES": DJR_DEFAULT_AUTHENTICATION_CLASSES,
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
     "PAGE_SIZE": 100,
@@ -270,7 +255,7 @@ SWAGGER_SETTINGS = {
 }
 
 SITE_ID = 1
-SITE_HOST = os.environ.get("SITE_HOST", "http://localhost:8000")
+SITE_HOST = os.environ.get("SITE_HOST", "http://localhost:8001" if IS_SCHEDULER else "http://localhost:8000")
 
 # custom token auth
 QUANTUM_PLATFORM_API_BASE_URL = os.environ.get("QUANTUM_PLATFORM_API_BASE_URL", None)
@@ -288,58 +273,34 @@ QUANTUM_PLATFORM_API_BASE_URL = os.environ.get("QUANTUM_PLATFORM_API_BASE_URL", 
 #    }
 #   setting string will be:
 #    "SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD", "is_valid;some,nested,field"
-SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD = os.environ.get(
-    "SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD", None
-)
+SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD = os.environ.get("SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD", None)
 
 # resources limitations
 LIMITS_JOBS_PER_USER = int(os.environ.get("LIMITS_JOBS_PER_USER", "2"))
+LIMITS_ACTIVE_JOBS_PER_USER = int(os.environ.get("LIMITS_ACTIVE_JOBS_PER_USER", "50"))
 LIMITS_MAX_CLUSTERS = int(os.environ.get("LIMITS_MAX_CLUSTERS", "6"))
 LIMITS_GPU_CLUSTERS = int(os.environ.get("LIMITS_MAX_GPU_CLUSTERS", "1"))
 LIMITS_CPU_PER_TASK = int(os.environ.get("LIMITS_CPU_PER_TASK", "4"))
 LIMITS_GPU_PER_TASK = int(os.environ.get("LIMITS_GPU_PER_TASK", "1"))
 LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
-MAINTENANCE = os.environ.get("MAINTENANCE", "false") == "true"
 
 # ray cluster management
 RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
-RAY_CLUSTER_MODE = {
-    "local": int(os.environ.get("RAY_CLUSTER_MODE_LOCAL", 0)),
-    "ray_local_host": os.environ.get(
-        "RAY_CLUSTER_MODE_LOCAL_HOST", "http://localhost:8265"
-    ),
-}
-RAY_NODE_IMAGE = os.environ.get(
-    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.28.0"
-)
+RAY_CLUSTER_MODE_LOCAL = os.environ.get("RAY_CLUSTER_MODE_LOCAL", "false").lower() == "true"
+RAY_LOCAL_HOST = os.environ.get("RAY_LOCAL_HOST", "http://localhost:8265")
+RAY_NODE_IMAGE = os.environ.get("RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.30.1")
 RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "1"))
-RAY_CLUSTER_WORKER_REPLICAS_MAX = int(
-    os.environ.get("RAY_CLUSTER_WORKER_REPLICAS_MAX", "5")
-)
-RAY_CLUSTER_WORKER_MIN_REPLICAS = int(
-    os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS", "1")
-)
-RAY_CLUSTER_WORKER_MIN_REPLICAS_MAX = int(
-    os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS_MAX", "2")
-)
-RAY_CLUSTER_WORKER_MAX_REPLICAS = int(
-    os.environ.get("RAY_CLUSTER_WORKER_MAX_REPLICAS", "4")
-)
-RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX = int(
-    os.environ.get("RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX", "10")
-)
-RAY_CLUSTER_WORKER_AUTO_SCALING = bool(
-    os.environ.get("RAY_CLUSTER_WORKER_AUTO_SCALING", False)
-)
-RAY_CLUSTER_MAX_READINESS_TIME = int(
-    os.environ.get("RAY_CLUSTER_MAX_READINESS_TIME", "120")
-)
+RAY_CLUSTER_WORKER_REPLICAS_MAX = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS_MAX", "5"))
+RAY_CLUSTER_WORKER_MIN_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS", "1"))
+RAY_CLUSTER_WORKER_MIN_REPLICAS_MAX = int(os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS_MAX", "2"))
+RAY_CLUSTER_WORKER_MAX_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_MAX_REPLICAS", "4"))
+RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX = int(os.environ.get("RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX", "10"))
+RAY_CLUSTER_WORKER_AUTO_SCALING = bool(os.environ.get("RAY_CLUSTER_WORKER_AUTO_SCALING", False))
+RAY_CLUSTER_MAX_READINESS_TIME = int(os.environ.get("RAY_CLUSTER_MAX_READINESS_TIME", "480"))
 
 RAY_SETUP_MAX_RETRIES = int(os.environ.get("RAY_SETUP_MAX_RETRIES", 30))
 
-RAY_CLUSTER_NO_DELETE_ON_COMPLETE = bool(
-    os.environ.get("RAY_CLUSTER_NO_DELETE_ON_COMPLETE", False)
-)
+RAY_CLUSTER_NO_DELETE_ON_COMPLETE = bool(os.environ.get("RAY_CLUSTER_NO_DELETE_ON_COMPLETE", False))
 
 RAY_CLUSTER_CPU_NODE_SELECTOR_LABEL = os.environ.get(
     "RAY_CLUSTER_CPU_NODE_SELECTOR_LABEL",
@@ -353,19 +314,9 @@ RAY_CLUSTER_GPU_NODE_SELECTOR_LABEL = os.environ.get(
 
 PROGRAM_TIMEOUT = int(os.environ.get("PROGRAM_TIMEOUT", "14"))
 
-GATEWAY_ALLOWLIST_CONFIG = str(
-    os.environ.get("GATEWAY_ALLOWLIST_CONFIG", "api/v1/allowlist.json")
-)
+GATEWAY_ALLOWLIST_CONFIG = str(os.environ.get("GATEWAY_ALLOWLIST_CONFIG", "api/v1/allowlist.json"))
 
-GATEWAY_GPU_JOBS_CONFIG = str(
-    os.environ.get("GATEWAY_GPU_JOBS_CONFIG", "api/v1/gpu-jobs.json")
-)
-
-GATEWAY_DYNAMIC_DEPENDENCIES = str(
-    os.environ.get(
-        "GATEWAY_DYNAMIC_DEPENDENCIES", "requirements-dynamic-dependencies.txt"
-    )
-)
+GATEWAY_GPU_JOBS_CONFIG = str(os.environ.get("GATEWAY_GPU_JOBS_CONFIG", "api/v1/gpu-jobs.json"))
 
 # authentication base url for qiskit runtime
 QISKIT_IBM_URL = os.environ.get("QISKIT_IBM_URL", "https://cloud.ibm.com")
@@ -375,22 +326,28 @@ IQP_QCON_API_BASE_URL = os.environ.get("IQP_QCON_API_BASE_URL", None)
 
 # IBM Cloud
 
-IAM_IBM_CLOUD_BASE_URL = os.environ.get("IAM_IBM_CLOUD_BASE_URL", None)
+IAM_IBM_CLOUD_BASE_URL = os.environ.get("IAM_IBM_CLOUD_BASE_URL", "https://iam.test.cloud.ibm.com")
+IAM_IBM_CLOUD_CACHE_TTL = int(os.environ.get("IAM_IBM_CLOUD_CACHE_TTL", "60"))
 RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL = os.environ.get(
-    "RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL", None
+    "RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL",
+    "https://resource-controller.test.cloud.ibm.com",
 )
 RESOURCE_PLANS_ID_ALLOWED = os.environ.get("RESOURCE_PLANS_ID_ALLOWED", "").split(",")
 
-# Content Security Policy
-CSP_DEFAULT_SRC = "'none'"
-CSP_SCRIPT_SRC = "'none'"
-CSP_FRAME_ANCESTORS = "'self'"
-CSP_OBJECT_SRC = "'self'"
-CSP_IMG_SRC = ("'self'", "data:")
-CSP_STYLE_SRC_ELEM = "'self'"
-CSP_SCRIPT_SRC_ELEM = "'self'"
-CSP_CONNECT_SRC = "'self'"
-CSP_WORKER_SRC = ("'self'", "blob:")
+# Content Security Policy (django-csp >= 4.0 format)
+CONTENT_SECURITY_POLICY = {
+    "DIRECTIVES": {
+        "default-src": "'none'",
+        "script-src": "'none'",
+        "frame-ancestors": "'self'",
+        "object-src": "'self'",
+        "img-src": ("'self'", "data:"),
+        "style-src-elem": "'self'",
+        "script-src-elem": "'self'",
+        "connect-src": "'self'",
+        "worker-src": ("'self'", "blob:"),
+    }
+}
 
 # Custom image for programs settings
 CUSTOM_IMAGE_PACKAGE_NAME = os.environ.get("CUSTOM_IMAGE_PACKAGE_NAME", "runner")
@@ -401,10 +358,31 @@ SESSION_COOKIE_AGE = 3600
 
 # HSTS Security Settings
 SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "0"))
-SECURE_HSTS_INCLUDE_SUBDOMAINS = (
-    os.environ.get("SECURE_HSTS_INCLUDE_SUBDOMAINS", "false").lower() == "true"
-)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get("SECURE_HSTS_INCLUDE_SUBDOMAINS", "false").lower() == "true"
 SECURE_HSTS_PRELOAD = os.environ.get("SECURE_HSTS_PRELOAD", "false").lower() == "true"
 
 # Functions logs size limite in Bytes
 FUNCTIONS_LOGS_SIZE_LIMIT = int(os.environ.get("FUNCTIONS_LOGS_SIZE_LIMIT", "52428800"))
+
+# Functions logs size limite in Bytes
+JOB_LOGS_MIGRATION_BATCH_SIZE = int(os.environ.get("JOB_LOGS_MIGRATION_BATCH_SIZE", "10"))
+
+# Dynamic configuration cache TTL in seconds
+DYNAMIC_CONFIG_CACHE_TTL = int(os.environ.get("DYNAMIC_CONFIG_CACHE_TTL", "60"))
+
+# Dynamic configuration defaults (used by core.config.ConfigKey)
+DYNAMIC_CONFIG_DEFAULTS = {
+    "scheduler.maintenance": {
+        "default": "false",
+        "type": "boolean",  # not used yet, but maybe the backoffice can use this in the future to improve the edit page
+        "description": "Enable maintenance mode: the scheduler will not execute new jobs",
+    },
+    "gateway.upload_file.valid_mime_types": {
+        "default": "application/x-tar, application/gzip, application/json, "
+        "application/octet-stream, application/zip, text/plain, text/csv",
+        "type": "list",
+        "description": "Specify the permitted mime types to upload files.",
+    },
+}
+
+logging.getLogger("main").info("[BOOT] Settings.py: %s", "gunicorn" if IS_UNICORN else COMMAND)

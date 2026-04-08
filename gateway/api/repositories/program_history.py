@@ -6,9 +6,9 @@ import logging
 from typing import Optional
 
 from django.contrib.auth import get_user_model
-from api.models import ProgramHistory, Program
+from core.models import ProgramHistory, Program
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("api.ProgramHistoryRepository")
 User = get_user_model()
 
 

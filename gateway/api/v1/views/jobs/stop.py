@@ -3,14 +3,19 @@ Stop job endpoint
 """
 
 # pylint: disable=abstract-method
+import logging
+from uuid import UUID
+
 from rest_framework import serializers, permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
 from api.v1.endpoint_decorator import endpoint
-from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
+from api.v1.exception_handler import endpoint_handle_exceptions
 from api.use_cases.jobs.stop import StopJobUseCase
 from api.v1.views.swagger_utils import standard_error_responses
+
+logger = logging.getLogger("api.api.v1.views.jobs.stop")
 
 
 class InputSerializer(serializers.Serializer):
@@ -57,7 +62,7 @@ def serialize_output(message: str) -> StopJobOutputSerializer:
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
-def stop(request, job_id):
+def stop(request, job_id: UUID):
     """
     Stop job
     """
@@ -67,5 +72,5 @@ def stop(request, job_id):
     service = validated_data["service"]
 
     message = StopJobUseCase().execute(job_id, service)
-
+    logger.info("[jobs-stop] user_id=%s job_id=%s | Job stopped ok", request.user.id, job_id)
     return Response(serialize_output(message))

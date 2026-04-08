@@ -3,6 +3,7 @@ API V1: Delete file end-point.
 """
 
 # pylint: disable=duplicate-code
+import logging
 from typing import cast
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -13,10 +14,13 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework import serializers
 
+
 from api.use_cases.files.delete import FilesDeleteUseCase
-from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
+from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_file_name, sanitize_name
+
+logger = logging.getLogger("api.api.v1.views.files.delete")
 
 # pylint: disable=abstract-method
 
@@ -111,7 +115,7 @@ def files_delete(request: Request) -> Response:
     user = cast(AbstractUser, request.user)
 
     FilesDeleteUseCase().execute(user, provider, function, file)
-
-    return Response(
-        {"message": "Requested file was deleted."}, status=status.HTTP_200_OK
+    logger.info(
+        "[files-delete] user_id=%s function=%s provider=%s file=%s | File deleted ok", user.id, function, provider, file
     )
+    return Response({"message": "Requested file was deleted."}, status=status.HTTP_200_OK)
