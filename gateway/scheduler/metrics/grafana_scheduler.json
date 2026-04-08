@@ -590,6 +590,7 @@
         "y": 7
       },
       "id": 120,
+      "interval": "2m",
       "options": {
         "legend": {
           "calcs": [],
@@ -611,13 +612,13 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "sum by (final_status) (increase(scheduler_jobs_terminal_total[$__rate_interval]))",
+          "expr": "sum by (final_status) (scheduler_jobs_terminal_total)",
           "legendFormat": "{{final_status}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Job completion rate per hour",
+      "title": "Job completion",
       "type": "timeseries"
     },
     {
@@ -942,7 +943,7 @@
         "type": "prometheus",
         "uid": "$datasource"
       },
-      "description": "Jobs completados (SUCCEEDED, FAILED, STOPPED) en la ultima hora, como serie temporal.",
+      "description": "Jobs completed (SUCCEEDED, FAILED, STOPPED)",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1002,6 +1003,7 @@
         "y": 21
       },
       "id": 112,
+      "interval": "2m",
       "options": {
         "legend": {
           "calcs": [],
@@ -1023,13 +1025,13 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "increase(scheduler_jobs_terminal_total[$__rate_interval])",
+          "expr": "scheduler_jobs_terminal_total",
           "legendFormat": "{{final_status}} / {{provider}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Job completion rate by provider per hour",
+      "title": "Job completion by provider",
       "type": "timeseries"
     },
     {
@@ -1630,7 +1632,32 @@
           },
           "unit": "s"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "ScheduleQueuedJobs"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": true,
+                  "viz": true
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 7,
@@ -1785,13 +1812,13 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "rate(scheduler_task_errors_total[$__rate_interval])",
+          "expr": "scheduler_task_errors_total",
           "legendFormat": "{{task_name}} / {{error_type}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Task Error Rate by task / error_type",
+      "title": "Task Errors by task / error_type",
       "type": "timeseries"
     },
     {
@@ -2502,6 +2529,6 @@
   "timezone": "UTC",
   "title": "Scheduler",
   "uid": "qiskit-scheduler-metrics",
-  "version": 43,
+  "version": 48,
   "weekStart": ""
 }

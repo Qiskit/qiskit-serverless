@@ -96,6 +96,10 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes
         """Record queue wait time for a scheduled job."""
         self.queue_wait_seconds.labels(compute_type=compute_type).observe(wait_seconds)
 
+    def clear_job_status_counts(self) -> None:
+        """Remove all label combinations from job_status_count to avoid stale values."""
+        self.job_status_count.clear()
+
     def set_job_status_count(self, count: int, status: str, provider: str) -> None:
         """Set job count for a specific status and provider."""
         self.job_status_count.labels(status=status, provider=provider).set(count)
