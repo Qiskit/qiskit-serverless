@@ -6,6 +6,8 @@ import urllib.request
 
 import pytest
 
+from prometheus_client import CollectorRegistry
+
 from scheduler.health import SchedulerHealth
 from scheduler.http_server import SchedulerHttpServer
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
@@ -22,7 +24,7 @@ class TestSchedulerHttpServer:
     @pytest.fixture(autouse=True)
     def _setup(self, db):
         self.http_server = SchedulerHttpServer(site_host=SITE_HOST)
-        self.http_server.configure_routes(SchedulerMetrics(), SchedulerHealth())
+        self.http_server.configure_routes(SchedulerMetrics(CollectorRegistry()), SchedulerHealth())
         yield
         self.http_server.stop()
 

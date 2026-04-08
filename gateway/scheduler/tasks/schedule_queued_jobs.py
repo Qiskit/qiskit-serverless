@@ -12,7 +12,6 @@ from concurrency.exceptions import RecordModifiedError
 
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-
 from core.config_key import ConfigKey
 from core.models import ComputeResource, Job, JobEvent, Config
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
@@ -31,9 +30,9 @@ logger = logging.getLogger("scheduler.ScheduleQueuedJobs")
 class ScheduleQueuedJobs(SchedulerTask):
     """Schedule jobs service."""
 
-    def __init__(self, kill_signal: KillSignal = None, metrics: SchedulerMetrics = None):
-        self.kill_signal = kill_signal or KillSignal()
-        self.metrics = metrics or SchedulerMetrics()
+    def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
+        self.kill_signal = kill_signal
+        self.metrics = metrics
 
     def run(self):
         """Schedule queued jobs to available cluster slots."""
@@ -57,7 +56,12 @@ class ScheduleQueuedJobs(SchedulerTask):
         running_clusters = ComputeResource.objects.filter(active=True, gpu=True).count()
         self._schedule_jobs_if_slots_available(max_clusters, running_clusters, gpu_job=True)
 
-    def _schedule_jobs_if_slots_available(self, max_ray_clusters_possible, number_of_clusters_running, gpu_job):
+    def _schedule_jobs_if_slots_available(  # pylint: disable=too-many-branches
+        self,
+        max_ray_clusters_possible,
+        number_of_clusters_running,
+        gpu_job,
+    ):
         """Schedule jobs depending on free cluster slots."""
         free_clusters_slots = max_ray_clusters_possible - number_of_clusters_running
 
@@ -120,7 +124,8 @@ class ScheduleQueuedJobs(SchedulerTask):
                         )
 
                         # Store the wait time (from QUEUED to PENDING) in the metrics
-                        self.add_queue_wait_time_metric(job)
+                        if job.status == Job.PENDING:
+                            self.add_queue_wait_time_metric(job)
 
                     except RecordModifiedError:
                         logger.warning("job_id=%s RecordModifiedError sleep 1", job.id)
@@ -135,19 +140,19 @@ class ScheduleQueuedJobs(SchedulerTask):
 
                 retries = settings.RAY_SETUP_MAX_RETRIES - attempts
                 if succeed:
-                    logger.info(
-                        "job_id=%s Job updated set to PENDING (%.2fs) tries=%s",
+                    logger.warning(
+                        "job_id=%s Job saved with status=%s (%.2fs) tries=%s",
                         job.id,
+                        job.status,
                         time.monotonic() - t1,
                         retries,
                     )
                 else:
-                    # or even error
                     logger.warning(
-                        "job_id=%s Job is not correctly updated to PENDING (%.2fs) tries=%s",
+                        "job_id=%s Job save failed after %s tries (%.2fs)",
                         job.id,
-                        time.monotonic() - t1,
                         retries,
+                        time.monotonic() - t1,
                     )
         if jobs:
             logger.info("%s jobs are scheduled for execution.", len(jobs))

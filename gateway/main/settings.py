@@ -296,7 +296,7 @@ RAY_CLUSTER_WORKER_MIN_REPLICAS_MAX = int(os.environ.get("RAY_CLUSTER_WORKER_MIN
 RAY_CLUSTER_WORKER_MAX_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_MAX_REPLICAS", "4"))
 RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX = int(os.environ.get("RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX", "10"))
 RAY_CLUSTER_WORKER_AUTO_SCALING = bool(os.environ.get("RAY_CLUSTER_WORKER_AUTO_SCALING", False))
-RAY_CLUSTER_MAX_READINESS_TIME = int(os.environ.get("RAY_CLUSTER_MAX_READINESS_TIME", "120"))
+RAY_CLUSTER_MAX_READINESS_TIME = int(os.environ.get("RAY_CLUSTER_MAX_READINESS_TIME", "480"))
 
 RAY_SETUP_MAX_RETRIES = int(os.environ.get("RAY_SETUP_MAX_RETRIES", 30))
 
@@ -317,10 +317,6 @@ PROGRAM_TIMEOUT = int(os.environ.get("PROGRAM_TIMEOUT", "14"))
 GATEWAY_ALLOWLIST_CONFIG = str(os.environ.get("GATEWAY_ALLOWLIST_CONFIG", "api/v1/allowlist.json"))
 
 GATEWAY_GPU_JOBS_CONFIG = str(os.environ.get("GATEWAY_GPU_JOBS_CONFIG", "api/v1/gpu-jobs.json"))
-
-GATEWAY_DYNAMIC_DEPENDENCIES = str(
-    os.environ.get("GATEWAY_DYNAMIC_DEPENDENCIES", "requirements-dynamic-dependencies.txt")
-)
 
 # authentication base url for qiskit runtime
 QISKIT_IBM_URL = os.environ.get("QISKIT_IBM_URL", "https://cloud.ibm.com")

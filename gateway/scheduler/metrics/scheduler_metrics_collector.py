@@ -6,9 +6,6 @@ from prometheus_client import (
     Counter,
     Gauge,
     make_wsgi_app,
-    ProcessCollector,
-    GCCollector,
-    PlatformCollector,
 )
 
 from scheduler.metrics.system_metrics_collector import SystemMetricsCollector
@@ -19,8 +16,8 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes
     For system metrics (like CPU or Memory) go to the SystemMetricsCollector
     """
 
-    def __init__(self, registry: CollectorRegistry = None):
-        self.registry: CollectorRegistry = registry or CollectorRegistry()
+    def __init__(self, registry: CollectorRegistry):
+        self.registry: CollectorRegistry = registry
 
         self.loop_duration = Histogram(
             "scheduler_loop_duration_seconds",
@@ -78,12 +75,6 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes
             buckets=(1, 5, 10, 30, 60, 120, 300, 600, 1800, 3600, float("inf")),
         )
 
-        # from the Prometheus client library
-        ProcessCollector(registry=self.registry)
-        GCCollector(registry=self.registry)
-        PlatformCollector(registry=self.registry)
-
-        # This is our personal system metrics, reading from psutil
         SystemMetricsCollector(registry=self.registry)
 
         self.wsgi_app = make_wsgi_app(self.registry)

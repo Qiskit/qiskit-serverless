@@ -18,7 +18,6 @@ from core.services.runners import get_runner, RunnerError
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from scheduler.schedule import (
     check_job_timeout,
-    handle_job_status_not_available,
     fail_job_insufficient_resources,
 )
 
@@ -32,9 +31,9 @@ logger = logging.getLogger("scheduler.UpdateJobsStatuses")
 class UpdateJobsStatuses(SchedulerTask):
     """Update status of jobs."""
 
-    def __init__(self, kill_signal: KillSignal = None, metrics: SchedulerMetrics = None):
-        self.kill_signal = kill_signal or KillSignal()
-        self.metrics = metrics or SchedulerMetrics()
+    def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
+        self.kill_signal = kill_signal
+        self.metrics = metrics
 
     # pylint: disable=too-many-statements
     # pylint: disable=too-many-branches
@@ -47,13 +46,10 @@ class UpdateJobsStatuses(SchedulerTask):
             )
             return False
 
-        status_has_changed = False
-        job_new_status = Job.PENDING
-        success = False
         runner = get_runner(job)
 
         try:
-            job_status = runner.status()
+            job_new_status = runner.status()
         except RunnerError as ex:
             job.status = Job.FAILED
             job.sub_status = None
@@ -78,18 +74,11 @@ class UpdateJobsStatuses(SchedulerTask):
                     job.id,
                     str(ex),
                 )
-
             return True
 
-        if job_status:
-            job_new_status = job_status
-            success = True
-
+        status_has_changed = False
         if check_job_timeout(job):
             job_new_status = Job.STOPPED
-
-        if not success:
-            job_new_status = handle_job_status_not_available(job, job_new_status)
 
         if job_new_status != job.status:
             logger.info(

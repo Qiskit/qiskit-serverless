@@ -21,11 +21,11 @@ logger = logging.getLogger("scheduler.main")
 class Main:
     """Main scheduler loop that runs all scheduler tasks."""
 
-    def __init__(self):
+    def __init__(self, metrics: SchedulerMetrics):
         self.kill_signal = KillSignal()
         self.kill_signal.register()  # start listening to SIGTERM and SIGINT signals
 
-        self.metrics = SchedulerMetrics()
+        self.metrics = metrics
         self.health = SchedulerHealth()
         self.http_server: SchedulerHttpServer = SchedulerHttpServer(site_host=settings.SITE_HOST)
         self.http_server.configure_routes(self.metrics, self.health)

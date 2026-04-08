@@ -23,7 +23,7 @@ class TestDependencies:
             title="pattern-with-dependencies-1",
             entrypoint="pattern_with_dependencies.py",
             working_dir=resources_path,
-            dependencies=["pendulum"],
+            dependencies=["mergedeep"],
         )
 
         runnable_function = serverless_client.upload(function)
@@ -32,7 +32,7 @@ class TestDependencies:
 
         assert job is not None
         assert job.result() is not None
-        assert job.result() == {"hours": 3}
+        assert job.result() == {"merged": {"a": 1, "b": {"c": 2, "d": 3}, "e": 4}}
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
@@ -42,7 +42,7 @@ class TestDependencies:
             title="pattern-with-dependencies-2",
             entrypoint="pattern_with_dependencies.py",
             working_dir=resources_path,
-            dependencies=["pendulum==3.0.0"],
+            dependencies=["mergedeep==1.3.4"],
         )
 
         runnable_function = serverless_client.upload(function)
@@ -72,4 +72,14 @@ class TestDependencies:
 
         deps = serverless_client.dependencies_versions()
 
-        assert deps == ["pendulum>=3.0.0", "wheel>=0.45.1"]
+        assert deps == [
+            "ffsim==0.0.60",
+            "mergedeep==1.3.4",
+            "mthree==3.0.0",
+            "pyscf==2.11.0",
+            "qiskit-addon-aqc-tensor[quimb-jax]==0.2.0",
+            "qiskit-addon-obp==0.3.0",
+            "qiskit-addon-sqd==0.12.0",
+            "qiskit-addon-utils==0.2.0",
+            "qiskit-aer==0.17.2",
+        ]
