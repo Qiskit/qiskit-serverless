@@ -4,8 +4,11 @@ import pytest
 from unittest.mock import MagicMock
 from django.db.utils import OperationalError
 
+from prometheus_client import CollectorRegistry
+
 from scheduler.health import UNHEALTHY_THRESHOLD
 from scheduler.main import Main
+from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.views.probes import make_liveness
 
 # Scheduler and Gateway share the same settings and the same SITE_HOST value. We need to override it
@@ -20,7 +23,7 @@ class TestMain:
     @pytest.fixture(autouse=True)
     def _setup(self, settings, db):
         settings.SITE_HOST = SITE_HOST
-        self.scheduler_main = Main()
+        self.scheduler_main = Main(metrics=SchedulerMetrics(CollectorRegistry()))
         yield
         self.scheduler_main.stop_http_server()
 

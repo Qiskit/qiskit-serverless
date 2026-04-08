@@ -70,8 +70,6 @@ gateway:
     nodeSelector:
       cpu: "has-cpu: cpu"
       gpu: "has-gpu: gpu"
-    dependencies:
-      dynamicDependencies: "requirements-dynamic-dependencies.txt"
   cos:
     claimName: gateway-claim
 

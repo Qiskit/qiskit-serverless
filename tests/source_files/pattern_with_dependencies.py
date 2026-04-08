@@ -2,12 +2,13 @@
 
 from qiskit_serverless import save_result
 
-import pendulum
+from mergedeep import merge
 
-dt_toronto = pendulum.datetime(2012, 1, 1, tz="America/Toronto")
-dt_vancouver = pendulum.datetime(2012, 1, 1, tz="America/Vancouver")
+# Test mergedeep functionality
+dict1 = {"a": 1, "b": {"c": 2}}
+dict2 = {"b": {"d": 3}, "e": 4}
 
-diff = dt_vancouver.diff(dt_toronto).in_hours()
+result = merge(dict1, dict2)
 
-print(diff)
-save_result({"hours": diff})
+print(result)
+save_result({"merged": result})
