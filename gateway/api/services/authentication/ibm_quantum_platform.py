@@ -1,7 +1,6 @@
 """This service will manage the access to the 3rd party end-points in IBM Quantum Platform."""
 
-import base64
-import json
+import hashlib
 import logging
 from typing import List, Optional, Any
 
@@ -35,13 +34,7 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
         self.api_key = api_key
         self.api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
         self.crn = crn
-        self.authenticator = IAMAuthenticator(apikey=self.api_key, url=settings.IAM_IBM_CLOUD_BASE_URL)
-        self.access_groups_service = IamAccessGroupsV2(authenticator=self.authenticator)
-        self.access_groups_service.set_service_url(settings.IAM_IBM_CLOUD_BASE_URL)
-
-        self.resource_controller = ResourceControllerV2(self.authenticator)
-        self.resource_controller.set_service_url(settings.RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL)
-
+        self.authenticator = IAMAuthenticator(apikey=self.api_key, url=self.iam_url)
         self.account_id: Optional[str] = None
         self.iam_id: Optional[str] = None
 
@@ -57,20 +50,11 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
             str: the iam_id of the authenticated user
             None: in case the authentication failed
         """
+        if self.iam_url is None:
+            logger.warning("IAM URL environment variable was not correctly configured.")
+            raise exceptions.AuthenticationFailed("You couldn't be authenticated.")
 
-        try:
-            access_token = self.authenticator.token_manager.get_token()
-            signing_key = IBMQuantumPlatform.jwks_client.get_signing_key_from_jwt(access_token)
-            decoded = jwt.decode(
-                access_token,
-                signing_key.key,
-                algorithms=["RS256"],
-                options={"verify_exp": True, "verify_iat": True},
-            )
-
-        except Exception as ex:  # pylint: disable=broad-exception-caught
-            logger.warning("IBM Quantum Platform authentication error: %s.", str(ex))
-            raise exceptions.AuthenticationFailed("You couldn't be authenticated, please review your API Key.")
+        decoded = self._request_or_cache_jwt_data()
 
         self.iam_id = decoded.get("iam_id")
         if self.iam_id is None:
@@ -151,7 +135,13 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
 
         try:
             access_token = self.authenticator.token_manager.get_token()
-            decoded = decode_jwt(access_token)
+            signing_key = IBMQuantumPlatform.jwks_client.get_signing_key_from_jwt(access_token)
+            decoded = jwt.decode(
+                access_token,
+                signing_key.key,
+                algorithms=["RS256"],
+                options={"verify_exp": True, "verify_iat": True},
+            )
             cache.set(cache_key, decoded, timeout=self.cache_ttl)
         except Exception as ex:  # pylint: disable=broad-exception-caught
             logger.warning("IBM Quantum Platform authentication error: %s.", str(ex))
