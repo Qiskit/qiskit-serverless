@@ -78,6 +78,7 @@ You'll need to install these tools on your development environment:
 1. [helm](https://helm.sh/): to install qiskit-serverless on Kubernetes
 1. [tox](https://tox.wiki/en): to run tests and build the documentation
 1. [pre-commit](https://pre-commit.com/): to run linting checks automatically on commit/push
+2. [libmagic](https://github.com/ahupp/python-magic): for file type identification
 
 Note: Installing the `pip` and `venv` python libraries will also be useful
 
