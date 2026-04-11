@@ -1,0 +1,306 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "bf40ywauhskjkd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/.*/"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 15,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 1,
+        "fullHighlight": false,
+        "groupWidth": 0.71,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "orientation": "vertical",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        },
+        "xField": "provider",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "dataset": "ibmclouddb",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "bf40ywauhskjkd"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT                                                                                                                                                                                                                                                                                                 \n      p.name AS provider,                                                                                                                                                                                                                                                                                \n      COALESCE(ROUND(100.0 * COUNT(CASE WHEN j.created >= NOW() - INTERVAL '7 days' AND rj.job_id IS NOT NULL THEN 1 END)                                                                                                                                                                                \n          / NULLIF(COUNT(CASE WHEN j.created >= NOW() - INTERVAL '7 days' THEN 1 END), 0), 1), 0) AS \"last week\",                                                                                                                                                                                        \n      COALESCE(ROUND(100.0 * COUNT(CASE WHEN j.created >= NOW() - INTERVAL '14 days' AND j.created < NOW() - INTERVAL '7 days' AND rj.job_id IS NOT NULL THEN 1 END)                                                                                                                                     \n          / NULLIF(COUNT(CASE WHEN j.created >= NOW() - INTERVAL '14 days' AND j.created < NOW() - INTERVAL '7 days' THEN 1 END), 0), 1), 0) AS \"previous week\",                                                                                                                                         \n      COALESCE(ROUND(100.0 * COUNT(CASE WHEN j.created >= NOW() - INTERVAL '21 days' AND j.created < NOW() - INTERVAL '14 days' AND rj.job_id IS NOT NULL THEN 1 END)                                                                                                                                    \n          / NULLIF(COUNT(CASE WHEN j.created >= NOW() - INTERVAL '21 days' AND j.created < NOW() - INTERVAL '14 days' THEN 1 END), 0), 1), 0) AS \"2 weeks ago\"                                                                                                                                           \n  FROM api_provider p                                                                                                                                                                                                                                                                                    \n  JOIN api_program pg ON pg.provider_id = p.id                                                                                                                                                                                                                                                           \n  JOIN api_job j ON j.program_id = pg.id                                                                                                                                                                                                                                                                 \n      AND j.status = 'SUCCEEDED'                                                                                                                                                                                                                                                                         \n      AND j.created >= NOW() - INTERVAL '21 days'                                                                                                                                                                                                                                                        \n  LEFT JOIN (                                                                                                                                                                                                                                                                                         \n      SELECT DISTINCT job_id FROM api_runtimejob                                                                                                                                                                                                                                                         \n  ) rj ON rj.job_id = j.id                                                                                                                                                                                                                                                                               \n  GROUP BY p.name                                                                                                                                                                                                                                                                                        \n  ORDER BY \"last week\" ASC NULLS FIRST;           ",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Job rate with runtime jobs",
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "bf40ywauhskjkd"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "jobs with runtime"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "jobs without runtime"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 15,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
+      "id": 2,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.7,
+        "fullHighlight": false,
+        "groupWidth": 0.71,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "orientation": "vertical",
+        "showValue": "auto",
+        "stacking": "normal",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "all",
+          "sort": "none"
+        },
+        "xField": "provider",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "dataset": "ibmclouddb",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "bf40ywauhskjkd"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n    p.name AS provider,\n    COUNT(CASE WHEN rj.job_id IS NOT NULL THEN 1 END) AS \"jobs with runtime\",\n    COUNT(CASE WHEN rj.job_id IS NULL THEN 1 END)     AS \"jobs without runtime\"\nFROM api_provider p\nJOIN api_program pg ON pg.provider_id = p.id\nJOIN api_job j ON j.program_id = pg.id\n    AND j.status = 'SUCCEEDED'\n    AND j.created >= NOW() - INTERVAL '7 days'\nLEFT JOIN (\n    SELECT DISTINCT job_id FROM api_runtimejob\n) rj ON rj.job_id = j.id\nGROUP BY p.name\nORDER BY \"jobs with runtime\" ASC;",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Jobs with/without runtime (last week)",
+      "type": "barchart"
+    }
+  ],
+  "preload": false,
+  "schemaVersion": 42,
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "UTC",
+  "title": "Job rate with runtime jobs",
+  "uid": "al99v7k",
+  "version": 2,
+  "weekStart": ""
+}
