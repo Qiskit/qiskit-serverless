@@ -35,122 +35,10 @@
         "x": 0,
         "y": 0
       },
-      "id": 118,
+      "id": 122,
       "panels": [],
-      "title": "Queue",
+      "title": "Jobs executed",
       "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "bf40ywauhskjkd"
-      },
-      "description": "Current state of the queue",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "fixedColor": "#808080",
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "fillOpacity": 80,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineWidth": 1,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "decimals": 0,
-          "mappings": [],
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 7,
-        "x": 0,
-        "y": 1
-      },
-      "id": 115,
-      "options": {
-        "barRadius": 0,
-        "barWidth": 0.97,
-        "fullHighlight": false,
-        "groupWidth": 0.7,
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "orientation": "horizontal",
-        "showValue": "auto",
-        "stacking": "none",
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        },
-        "xTickLabelRotation": 0,
-        "xTickLabelSpacing": 0
-      },
-      "pluginVersion": "12.4.2",
-      "targets": [
-        {
-          "dataset": "ibmclouddb",
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "bf40ywauhskjkd"
-          },
-          "editorMode": "code",
-          "format": "table",
-          "rawQuery": true,
-          "rawSql": "SELECT virtual.status, COUNT(job.id) AS total\nFROM (VALUES \n    ('QUEUED', 1), \n    ('PENDING', 2), \n    ('RUNNING', 3)\n) AS virtual(status, pos)\nLEFT JOIN api_job job ON job.status = virtual.status\nGROUP BY virtual.status, virtual.pos\nORDER BY virtual.pos ASC;",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          }
-        }
-      ],
-      "title": "Global queue state",
-      "type": "barchart"
     },
     {
       "datasource": {
@@ -228,9 +116,9 @@
         ]
       },
       "gridPos": {
-        "h": 6,
+        "h": 9,
         "w": 5,
-        "x": 7,
+        "x": 0,
         "y": 1
       },
       "id": 114,
@@ -373,9 +261,9 @@
         ]
       },
       "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 12,
+        "h": 9,
+        "w": 5,
+        "x": 5,
         "y": 1
       },
       "id": 121,
@@ -428,52 +316,33 @@
           }
         }
       ],
-      "title": "Global jobs executed",
+      "title": "Jobs executed",
       "type": "stat"
     },
     {
       "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
+        "type": "grafana-postgresql-datasource",
+        "uid": "bf40ywauhskjkd"
       },
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
           },
           "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
+            "align": "right",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "footer": {
+              "reducers": []
+            },
             "hideFrom": {
-              "legend": false,
-              "tooltip": false,
               "viz": false
             },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "inspect": false,
+            "wrapHeaderText": false
           },
           "mappings": [],
           "thresholds": {
@@ -482,6 +351,10 @@
               {
                 "color": "green",
                 "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
               }
             ]
           }
@@ -489,51 +362,75 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 0,
-        "y": 7
+        "h": 9,
+        "w": 14,
+        "x": 10,
+        "y": 1
       },
-      "id": 119,
+      "id": 117,
       "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "none"
-        }
+        "cellHeight": "sm",
+        "showHeader": true,
+        "sortBy": []
       },
       "pluginVersion": "12.4.2",
       "targets": [
         {
+          "dataset": "ibmclouddb",
           "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
+            "type": "grafana-postgresql-datasource",
+            "uid": "bf40ywauhskjkd"
           },
           "editorMode": "code",
-          "expr": "sum by (status) (scheduler_job_status_count{status=~\"QUEUED|PENDING|RUNNING\"})",
-          "legendFormat": "{{status}}",
-          "range": true,
-          "refId": "A"
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "-- SELECT \n--     api_program.title, \n--     COUNT(*) AS total_jobs,\n--     SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) AS failed_jobs,\n--     (SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) AS failure_percentage\n-- FROM api_job \n-- INNER JOIN api_program ON program_id = api_program.id\n-- WHERE status IN ('FAILED', 'STOPPED', 'SUCCEEDED') \n--   AND $__timeFilter(updated)\n-- GROUP BY api_program.title;\n\nSELECT \n    api_program.title, \n    COUNT(*) AS total,\n    COUNT(*) FILTER (WHERE status = 'FAILED') AS failed,\n    ROUND((COUNT(*) FILTER (WHERE status = 'FAILED') * 100.0 / COUNT(*)), 1) || '%' AS failure_rate\nFROM api_job \nINNER JOIN api_program ON program_id = api_program.id\nWHERE status IN ('FAILED', 'STOPPED', 'SUCCEEDED') \n  AND $__timeFilter(updated)\nGROUP BY api_program.title;",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
         }
       ],
-      "title": "Active jobs by status",
-      "type": "timeseries"
+      "title": "Jobs executed by Function",
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 10
+      },
+      "id": 118,
+      "panels": [],
+      "title": "Queue",
+      "type": "row"
     },
     {
       "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
+        "type": "grafana-postgresql-datasource",
+        "uid": "bf40ywauhskjkd"
       },
-      "description": "Completed jobs (SUCCEEDED, FAILED, STOPPED) as a time series, all providers combined.",
+      "description": "Current state of the queue",
       "fieldConfig": {
         "defaults": {
           "color": {
+            "fixedColor": "#808080",
             "mode": "palette-classic"
           },
           "custom": {
@@ -542,35 +439,24 @@
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 10,
+            "fillOpacity": 80,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
             "lineWidth": 1,
-            "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
-            },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
             },
             "thresholdsStyle": {
               "mode": "off"
             }
           },
+          "decimals": 0,
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -584,42 +470,68 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 12,
-        "y": 7
+        "h": 6,
+        "w": 10,
+        "x": 0,
+        "y": 11
       },
-      "id": 120,
-      "interval": "2m",
+      "id": 115,
       "options": {
+        "barRadius": 0,
+        "barWidth": 0.97,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
         "legend": {
           "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": true
         },
+        "orientation": "horizontal",
+        "showValue": "auto",
+        "stacking": "none",
         "tooltip": {
           "hideZeros": false,
-          "mode": "multi",
+          "mode": "single",
           "sort": "none"
-        }
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
       },
       "pluginVersion": "12.4.2",
       "targets": [
         {
+          "dataset": "ibmclouddb",
           "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
+            "type": "grafana-postgresql-datasource",
+            "uid": "bf40ywauhskjkd"
           },
           "editorMode": "code",
-          "expr": "sum by (final_status) (scheduler_jobs_terminal_total)",
-          "legendFormat": "{{final_status}}",
-          "range": true,
-          "refId": "A"
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT virtual.status, COUNT(job.id) AS total\nFROM (VALUES \n    ('QUEUED', 1), \n    ('PENDING', 2), \n    ('RUNNING', 3)\n) AS virtual(status, pos)\nLEFT JOIN api_job job ON job.status = virtual.status\nGROUP BY virtual.status, virtual.pos\nORDER BY virtual.pos ASC;",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
         }
       ],
-      "title": "Job completion",
-      "type": "timeseries"
+      "title": "Queue now",
+      "type": "barchart"
     },
     {
       "datasource": {
@@ -660,10 +572,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 0,
-        "y": 14
+        "h": 6,
+        "w": 14,
+        "x": 10,
+        "y": 11
       },
       "id": 116,
       "options": {
@@ -756,28 +668,47 @@
     },
     {
       "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "bf40ywauhskjkd"
+        "type": "prometheus",
+        "uid": "$datasource"
       },
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           },
           "custom": {
-            "align": "right",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "filterable": true,
-            "footer": {
-              "reducers": []
-            },
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
             "hideFrom": {
+              "legend": false,
+              "tooltip": false,
               "viz": false
             },
-            "inspect": false,
-            "wrapHeaderText": false
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
           "thresholds": {
@@ -786,10 +717,6 @@
               {
                 "color": "green",
                 "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           }
@@ -797,51 +724,41 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
+        "h": 8,
         "w": 12,
-        "x": 12,
-        "y": 14
+        "x": 0,
+        "y": 17
       },
-      "id": 117,
+      "id": 119,
       "options": {
-        "cellHeight": "sm",
-        "showHeader": true,
-        "sortBy": []
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
       },
       "pluginVersion": "12.4.2",
       "targets": [
         {
-          "dataset": "ibmclouddb",
           "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "bf40ywauhskjkd"
+            "type": "prometheus",
+            "uid": "$datasource"
           },
           "editorMode": "code",
-          "format": "table",
-          "rawQuery": true,
-          "rawSql": "-- SELECT \n--     api_program.title, \n--     COUNT(*) AS total_jobs,\n--     SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) AS failed_jobs,\n--     (SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) AS failure_percentage\n-- FROM api_job \n-- INNER JOIN api_program ON program_id = api_program.id\n-- WHERE status IN ('FAILED', 'STOPPED', 'SUCCEEDED') \n--   AND $__timeFilter(updated)\n-- GROUP BY api_program.title;\n\nSELECT \n    api_program.title, \n    COUNT(*) AS total,\n    COUNT(*) FILTER (WHERE status = 'FAILED') AS failed,\n    ROUND((COUNT(*) FILTER (WHERE status = 'FAILED') * 100.0 / COUNT(*)), 1) || '%' AS failure_rate\nFROM api_job \nINNER JOIN api_program ON program_id = api_program.id\nWHERE status IN ('FAILED', 'STOPPED', 'SUCCEEDED') \n  AND $__timeFilter(updated)\nGROUP BY api_program.title;",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          }
+          "expr": "sum by (status) (scheduler_job_status_count{status=~\"QUEUED|PENDING|RUNNING\"})",
+          "legendFormat": "{{status}}",
+          "range": true,
+          "refId": "A"
         }
       ],
-      "title": "Jobs executed by Function",
-      "type": "table"
+      "title": "Active jobs by status",
+      "type": "timeseries"
     },
     {
       "datasource": {
@@ -904,8 +821,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
-        "y": 21
+        "x": 12,
+        "y": 17
       },
       "id": 111,
       "options": {
@@ -936,102 +853,6 @@
         }
       ],
       "title": "Active jobs by status and provider",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "description": "Jobs completed (SUCCEEDED, FAILED, STOPPED)",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 21
-      },
-      "id": 112,
-      "interval": "2m",
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "12.4.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "editorMode": "code",
-          "expr": "scheduler_jobs_terminal_total",
-          "legendFormat": "{{final_status}} / {{provider}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Job completion by provider",
       "type": "timeseries"
     },
     {
@@ -1101,7 +922,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 29
+        "y": 25
       },
       "id": 7,
       "options": {
@@ -1154,6 +975,211 @@
         }
       ],
       "title": "Queue Wait Time (p50 / p90 / p99)",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 31
+      },
+      "id": 123,
+      "panels": [],
+      "title": "Job history",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Jobs completed (SUCCEEDED, FAILED, STOPPED)",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 32
+      },
+      "id": 112,
+      "interval": "2m",
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "editorMode": "code",
+          "expr": "scheduler_jobs_terminal_total",
+          "legendFormat": "{{final_status}} / {{provider}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Job completion by provider",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Completed jobs (SUCCEEDED, FAILED, STOPPED) as a time series, all providers combined.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 32
+      },
+      "id": 120,
+      "interval": "2m",
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "editorMode": "code",
+          "expr": "sum by (final_status) (scheduler_jobs_terminal_total)",
+          "legendFormat": "{{final_status}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Job completion",
       "type": "timeseries"
     },
     {
@@ -1219,7 +1245,7 @@
         "h": 7,
         "w": 24,
         "x": 0,
-        "y": 35
+        "y": 40
       },
       "id": 113,
       "options": {
@@ -1280,7 +1306,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 42
+        "y": 47
       },
       "id": 103,
       "panels": [],
@@ -1318,7 +1344,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 43
+        "y": 48
       },
       "id": 21,
       "options": {
@@ -1394,7 +1420,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 43
+        "y": 48
       },
       "id": 2,
       "options": {
@@ -1462,7 +1488,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 43
+        "y": 48
       },
       "id": 19,
       "options": {
@@ -1538,7 +1564,7 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 43
+        "y": 48
       },
       "id": 1,
       "options": {
@@ -1663,7 +1689,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 47
+        "y": 52
       },
       "id": 3,
       "options": {
@@ -1757,38 +1783,13 @@
           },
           "unit": "cps"
         },
-        "overrides": [
-          {
-            "__systemRef": "hideSeriesFrom",
-            "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": [
-                  "UpdateJobsStatuses / ConnectionError"
-                ],
-                "prefix": "All except:",
-                "readOnly": true
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": true,
-                  "viz": true
-                }
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 47
+        "y": 52
       },
       "id": 4,
       "options": {
@@ -1827,7 +1828,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 54
+        "y": 59
       },
       "id": 102,
       "panels": [],
@@ -1897,7 +1898,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 55
+        "y": 60
       },
       "id": 35,
       "options": {
@@ -1965,7 +1966,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 55
+        "y": 60
       },
       "id": 33,
       "options": {
@@ -2091,7 +2092,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 63
+        "y": 68
       },
       "id": 39,
       "options": {
@@ -2212,7 +2213,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 63
+        "y": 68
       },
       "id": 40,
       "options": {
@@ -2311,7 +2312,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 71
+        "y": 76
       },
       "id": 41,
       "options": {
@@ -2421,7 +2422,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 71
+        "y": 76
       },
       "id": 42,
       "options": {
@@ -2499,13 +2500,13 @@
     ]
   },
   "time": {
-    "from": "now-24h",
+    "from": "now-7d",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "UTC",
   "title": "Scheduler",
   "uid": "qiskit-scheduler-metrics",
-  "version": 48,
+  "version": 61,
   "weekStart": ""
 }

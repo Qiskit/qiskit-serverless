@@ -21,10 +21,279 @@
   "links": [],
   "panels": [
     {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 7,
+      "panels": [],
+      "title": "Statistics for the last year",
+      "type": "row"
+    },
+    {
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "bf40ywauhskjkd"
       },
+      "description": "Total number of jobs executed per month over the last year, across all providers.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 76,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 14,
+        "w": 12,
+        "x": 0,
+        "y": 1
+      },
+      "id": 6,
+      "options": {
+        "barRadius": 0.1,
+        "barWidth": 0.92,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        },
+        "xField": "Time",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "dataset": "ibmclouddb",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "bf40ywauhskjkd"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n    DATE_TRUNC('month', j.created) AS time,\n    COUNT(*) AS jobs\nFROM api_job j\nWHERE j.created >= NOW() - INTERVAL '1 year'\nGROUP BY 1\nORDER BY 1 ASC;",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Total jobs per month (last year)",
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "bf40ywauhskjkd"
+      },
+      "description": "Number of jobs executed per provider over the last year, aggregated by month and stacked by provider.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 14,
+        "w": 12,
+        "x": 12,
+        "y": 1
+      },
+      "id": 5,
+      "options": {
+        "barRadius": 0.1,
+        "barWidth": 0.7,
+        "fullHighlight": false,
+        "groupWidth": 0.71,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "orientation": "vertical",
+        "showValue": "auto",
+        "stacking": "normal",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        },
+        "xField": "month",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 100
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "dataset": "ibmclouddb",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "bf40ywauhskjkd"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n    TO_CHAR(DATE_TRUNC('month', j.created), 'YYYY-MM') AS month,\n    p.name AS provider,\n    COUNT(*) AS jobs\nFROM api_provider p\nJOIN api_program pg ON pg.provider_id = p.id\nJOIN api_job j ON j.program_id = pg.id\n    AND j.created >= NOW() - INTERVAL '1 year'\nGROUP BY 1, 2\nORDER BY 1 ASC;",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Jobs per provider (last year)",
+      "transformations": [
+        {
+          "id": "partitionByValues",
+          "options": {
+            "fields": [
+              "provider"
+            ],
+            "keepFields": false
+          }
+        },
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "month",
+            "mode": "outer"
+          }
+        }
+      ],
+      "type": "barchart"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
+      "id": 8,
+      "panels": [],
+      "title": "Partners using Serverless Client to execute runtime jobs",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "bf40ywauhskjkd"
+      },
+      "description": "Percentage of SUCCEEDED jobs that generated at least one RuntimeJob, grouped by provider, comparing the last 3 weeks.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -82,10 +351,10 @@
         ]
       },
       "gridPos": {
-        "h": 15,
-        "w": 24,
+        "h": 10,
+        "w": 12,
         "x": 0,
-        "y": 0
+        "y": 16
       },
       "id": 1,
       "options": {
@@ -151,6 +420,7 @@
         "type": "grafana-postgresql-datasource",
         "uid": "bf40ywauhskjkd"
       },
+      "description": "Absolute count of SUCCEEDED jobs from the last week that have or do not have an associated RuntimeJob, per provider.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -222,10 +492,10 @@
         ]
       },
       "gridPos": {
-        "h": 15,
-        "w": 24,
-        "x": 0,
-        "y": 15
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 16
       },
       "id": 2,
       "options": {
@@ -285,6 +555,287 @@
       ],
       "title": "Jobs with/without runtime (last week)",
       "type": "barchart"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      },
+      "id": 9,
+      "panels": [],
+      "title": "Partners using sub status",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "bf40ywauhskjkd"
+      },
+      "description": "Percentage of SUCCEEDED jobs that emitted at least one sub_status change event, grouped by provider, comparing the last 3 weeks. A high value indicates the provider is actively using the sub_status system to report granular progress.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/.+/"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 27
+      },
+      "id": 3,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 1,
+        "fullHighlight": false,
+        "groupWidth": 0.71,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "orientation": "vertical",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        },
+        "xField": "provider",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "dataset": "ibmclouddb",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "bf40ywauhskjkd"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n    p.name AS provider,\n    COALESCE(ROUND(100.0 * COUNT(CASE WHEN j.created >= NOW() - INTERVAL '7 days' AND je.job_id IS NOT NULL THEN 1 END)\n        / NULLIF(COUNT(CASE WHEN j.created >= NOW() - INTERVAL '7 days' THEN 1 END), 0), 1), 0) AS \"last week\",\n    COALESCE(ROUND(100.0 * COUNT(CASE WHEN j.created >= NOW() - INTERVAL '14 days' AND j.created < NOW() - INTERVAL '7 days' AND je.job_id IS NOT NULL THEN 1 END)\n        / NULLIF(COUNT(CASE WHEN j.created >= NOW() - INTERVAL '14 days' AND j.created < NOW() - INTERVAL '7 days' THEN 1 END), 0), 1), 0) AS \"previous week\",\n    COALESCE(ROUND(100.0 * COUNT(CASE WHEN j.created >= NOW() - INTERVAL '21 days' AND j.created < NOW() - INTERVAL '14 days' AND je.job_id IS NOT NULL THEN 1 END)\n        / NULLIF(COUNT(CASE WHEN j.created >= NOW() - INTERVAL '21 days' AND j.created < NOW() - INTERVAL '14 days' THEN 1 END), 0), 1), 0) AS \"2 weeks ago\"\nFROM api_provider p\nJOIN api_program pg ON pg.provider_id = p.id\nJOIN api_job j ON j.program_id = pg.id\n    AND j.status = 'SUCCEEDED'\n    AND j.created >= NOW() - INTERVAL '21 days'\nLEFT JOIN (\n    SELECT DISTINCT job_id FROM api_jobevent WHERE event_type = 'SUB_STATUS_CHANGE'\n) je ON je.job_id = j.id\nGROUP BY p.name\nORDER BY \"last week\" ASC NULLS FIRST;",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Job rate with sub_status events",
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "bf40ywauhskjkd"
+      },
+      "description": "Absolute count of SUCCEEDED jobs from the last week that have or have not emitted at least one sub_status event, per provider. Useful to identify which partners are actively using the sub_status system.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "jobs with sub_status"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "jobs without sub_status"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 27
+      },
+      "id": 4,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.7,
+        "fullHighlight": false,
+        "groupWidth": 0.71,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "orientation": "vertical",
+        "showValue": "auto",
+        "stacking": "normal",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "all",
+          "sort": "none"
+        },
+        "xField": "provider",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "12.4.2",
+      "targets": [
+        {
+          "dataset": "ibmclouddb",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "bf40ywauhskjkd"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n    p.name AS provider,\n    COUNT(CASE WHEN je.job_id IS NOT NULL THEN 1 END) AS \"jobs with sub_status\",\n    COUNT(CASE WHEN je.job_id IS NULL THEN 1 END)     AS \"jobs without sub_status\"\nFROM api_provider p\nJOIN api_program pg ON pg.provider_id = p.id\nJOIN api_job j ON j.program_id = pg.id\n    AND j.status = 'SUCCEEDED'\n    AND j.created >= NOW() - INTERVAL '7 days'\nLEFT JOIN (\n    SELECT DISTINCT job_id FROM api_jobevent WHERE event_type = 'SUB_STATUS_CHANGE'\n) je ON je.job_id = j.id\nGROUP BY p.name\nORDER BY \"jobs with sub_status\" ASC;",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Jobs with/without sub_status events (last week)",
+      "type": "barchart"
     }
   ],
   "preload": false,
@@ -294,13 +845,15 @@
     "list": []
   },
   "time": {
-    "from": "now-6h",
-    "to": "now"
+    "from": "2026-03-16T00:00:00.000Z",
+    "to": "2026-04-06T00:00:00.000Z"
   },
-  "timepicker": {},
+  "timepicker": {
+    "hidden": true
+  },
   "timezone": "UTC",
-  "title": "Job rate with runtime jobs",
+  "title": "Partners stats",
   "uid": "al99v7k",
-  "version": 2,
+  "version": 21,
   "weekStart": ""
 }
