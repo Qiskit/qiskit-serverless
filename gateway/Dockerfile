@@ -63,10 +63,11 @@ COPY --chown=1000:100 ray-node/requirements-dynamic-dependencies.txt .
 RUN mkdir /usr/src/app/static && chown 1000:100 /usr/src/app/static && \
     mkdir /usr/src/app/media && chown 1000:100 /usr/src/app/media
 
-RUN sed -i 's/\r$//g' /usr/src/app/entrypoint.sh && \
-    chmod +x /usr/src/app/entrypoint.sh
+RUN sed -i 's/\r$//g' /usr/src/app/entrypoint-gateway.sh && \
+    chmod +x /usr/src/app/entrypoint-gateway.sh && \
+    sed -i 's/\r$//g' /usr/src/app/entrypoint-scheduler.sh && \
+    chmod +x /usr/src/app/entrypoint-scheduler.sh
 
 EXPOSE 8000
 USER 1000:100
-# run entrypoint.sh
-ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
+ENTRYPOINT ["/usr/src/app/entrypoint-gateway.sh"]
