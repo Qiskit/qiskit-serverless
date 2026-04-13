@@ -316,7 +316,7 @@ spec:
         - name: gateway-scheduler
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["./scripts/scheduler.sh"]
+          command: ["./entrypoint-scheduler.sh"]
           ports:
             - name: http
               containerPort: {{ .Values.scheduler.port }}

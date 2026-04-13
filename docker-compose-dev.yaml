@@ -75,7 +75,7 @@ services:
     build:
       context: ./
       dockerfile: gateway/Dockerfile
-    entrypoint: "./scripts/scheduler.sh"
+    entrypoint: "./entrypoint-scheduler.sh"
     environment:
       - DEBUG=1
       - DATABASE_HOST=postgres
