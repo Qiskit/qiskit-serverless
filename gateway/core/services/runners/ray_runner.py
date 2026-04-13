@@ -315,7 +315,7 @@ class RayRunner(AbstractRunner):
                 entrypoint_file.write(default_entrypoint_content)
         elif bool(program.artifact):
             with tarfile.open(program.artifact.path) as file:
-                file.extractall(working_directory_for_upload)
+                file.extractall(working_directory_for_upload, filter="data")
         else:
             logger.error(
                 "[_submit_to_ray] job_id=%s program=%s provider=%s No image or artifact associated",
