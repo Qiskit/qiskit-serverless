@@ -87,6 +87,14 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         (CIRCUIT, "Circuit"),
     ]
 
+    # Runner types
+    RAY = "ray"
+    FLEETS = "fleets"
+    RUNNER_CHOICES = [
+        (RAY, "Ray"),
+        (FLEETS, "Fleets"),
+    ]
+
     DEFAULT_DISABLED_MESSAGE = "IBM has temporarily disabled access to this function"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -117,6 +125,12 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     image = models.CharField(max_length=511, null=True, blank=True)
     env_vars = models.TextField(null=False, blank=True, default="{}")
     dependencies = models.TextField(null=False, blank=True, default="[]")
+    runner = models.CharField(
+        max_length=20,
+        choices=RUNNER_CHOICES,
+        default=RAY,
+        help_text="Execution backend for this program",
+    )
 
     instances = models.ManyToManyField(Group, blank=True, related_name="program_instances")
     trial_instances = models.ManyToManyField(Group, blank=True, related_name="program_trial_instances")
@@ -306,6 +320,12 @@ class Job(models.Model):
     env_vars = models.TextField(null=False, blank=True, default="{}")
     gpu = models.BooleanField(default=False, null=False)
     logs = models.TextField(default="No logs yet.")
+    runner = models.CharField(
+        max_length=20,
+        choices=Program.RUNNER_CHOICES,
+        default=Program.RAY,
+        help_text="Execution backend: ray or fleets",
+    )
     ray_job_id = models.CharField(max_length=255, null=True, blank=True)
     fleet_id = models.CharField(max_length=255, null=True, blank=True, help_text="Code Engine fleet ID")
     result = models.TextField(null=True, blank=True)
