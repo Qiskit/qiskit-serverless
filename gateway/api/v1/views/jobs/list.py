@@ -17,8 +17,9 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 
+from core.enums.type_filter import TypeFilter
+from core.model_managers.jobs import JobFilters
 from core.models import Job, Program
-from api.repositories.jobs import JobFilters
 from api.use_cases.jobs.list import JobsListUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
@@ -28,9 +29,8 @@ from api.v1.views.utils import (
 )
 from api.v1.views.swagger_utils import standard_error_responses
 from api.v1.views.serializer_utils import SanitizedCharField
-from api.views.enums.type_filter import TypeFilter
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("api.api.v1.views.jobs.list")
 
 
 class InputSerializer(serializers.Serializer):
@@ -212,7 +212,7 @@ def get_jobs(request: Request) -> Response:
 
     jobs, total = JobsListUseCase().execute(user=user, filters=filters)
     logger.info(
-        "[jobs-list] user=%s provider=%s function=%s status=%s",
+        "[jobs-list] user_id=%s provider=%s function=%s status=%s | Get jobs ok",
         user.id,
         filters.provider,
         filters.function,

@@ -20,6 +20,7 @@ spec:
       {{- end }}
       labels:
         {{- include "gateway.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: gateway
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -214,8 +215,6 @@ spec:
               value: {{ .Values.application.trustedOrigins | quote }}
             - name: CORS_ALLOWED_ORIGIN_REGEXES
               value: {{ .Values.application.corsOrigins | quote }}
-            - name: GATEWAY_DYNAMIC_DEPENDENCIES
-              value: {{ .Values.application.dependencies.dynamicDependencies | quote }}
             - name: FUNCTIONS_LOGS_SIZE_LIMIT
               value: {{ .Values.application.logsMaximumSize | quote }}
             - name: SECURE_HSTS_SECONDS
@@ -226,6 +225,8 @@ spec:
               value: {{ .Values.application.security.hstsPreload | quote }}
             - name: LIMITS_ACTIVE_JOBS_PER_USER
               value: {{ .Values.application.limits.maxActiveJobsPerUser | quote }}
+            - name: LOG_FORMAT
+              value: {{ .Values.application.logFormat | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -270,6 +271,7 @@ spec:
       {{- end }}
       labels:
         {{- include "scheduler.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: scheduler
     spec:
       volumes:
         - name: gateway-pv-storage
@@ -314,7 +316,7 @@ spec:
         - name: gateway-scheduler
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["./scripts/scheduler.sh"]
+          command: ["./entrypoint-scheduler.sh"]
           ports:
             - name: http
               containerPort: {{ .Values.scheduler.port }}
@@ -324,17 +326,9 @@ spec:
               path: /liveness
               port: http
             initialDelaySeconds: 60
-            periodSeconds: 20
+            periodSeconds: 10
             timeoutSeconds: 5
-            failureThreshold: 5
-          readinessProbe:
-            httpGet:
-              path: /readiness
-              port: http
-            initialDelaySeconds: 60
-            periodSeconds: 20
-            timeoutSeconds: 5
-            failureThreshold: 5
+            failureThreshold: 3
           volumeMounts:
             - mountPath: "/usr/src/app/media/"
               name: gateway-pv-storage
@@ -417,6 +411,8 @@ spec:
               value: {{ .Values.application.limits.programTimeoutDays | quote }}
             - name: FUNCTIONS_LOGS_SIZE_LIMIT
               value: {{ .Values.application.logsMaximumSize | quote }}
+            - name: LOG_FORMAT
+              value: {{ .Values.application.logFormat | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

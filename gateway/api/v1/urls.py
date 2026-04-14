@@ -10,7 +10,7 @@ from rest_framework.routers import SimpleRouter
 from api.v1 import views as v1_views
 from api.v1.route_registry import RouteRegistry
 
-logger = logging.getLogger("api.v1.urls")
+logger = logging.getLogger("api.api.v1.urls")
 
 
 ###

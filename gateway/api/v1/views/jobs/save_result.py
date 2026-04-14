@@ -23,7 +23,7 @@ from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
 from core.models import Job
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("api.api.v1.views.jobs.save_result")
 
 
 class InputSerializer(serializers.Serializer):
@@ -118,7 +118,7 @@ def save_result(request: Request, job_id: UUID) -> Response:
 
     job = JobSaveResultUseCase().execute(job_id, user, result)
     logger.info(
-        "[jobs-save-result] user=%s job_id=%s program=%s",
+        "[jobs-save-result] user_id=%s job_id=%s program=%s | Result saved ok",
         user.id,
         job_id,
         job.program.title if job.program else "",

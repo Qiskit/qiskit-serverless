@@ -15,7 +15,7 @@ from api.use_cases.dependencies_versions import (
 )
 from api.v1.endpoint_decorator import endpoint
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("api.api.v1.views.dependencies_versions")
 
 
 def serialize_output(data: Dict[str, Requirement]):
@@ -51,5 +51,5 @@ def dependencies_versions(request):
     Available dependencies versions end-point
     """
     dependencies = AvailableDependenciesVersionsUseCase().execute()
-    logger.info("[dependencies-versions] user=%s", request.user.id)
+    logger.info("[dependencies-versions] user_id=%s | Dependencies versions ok", request.user.id)
     return Response(serialize_output(dependencies))

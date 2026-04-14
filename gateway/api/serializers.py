@@ -11,11 +11,9 @@ import logging
 from typing import Tuple, Union
 
 from django.conf import settings
+from django.contrib.auth.models import Group
 from rest_framework import serializers
 
-
-from api.repositories.functions import FunctionRepository
-from api.repositories.users import UserRepository
 from api.utils import build_env_variables, sanitize_name
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.services.storage.arguments_storage import ArgumentsStorage
@@ -32,7 +30,7 @@ from core.models import (
     RUN_PROGRAM_PERMISSION,
 )
 
-logger = logging.getLogger("gateway.serializers")
+logger = logging.getLogger("api.api.serializers")
 
 
 class UploadProgramSerializer(serializers.ModelSerializer):
@@ -76,7 +74,6 @@ class UploadProgramSerializer(serializers.ModelSerializer):
             return request_provider, title
 
         # Check if title contains the provider: <provider>/<title>
-        logger.debug("Provider is None, check if it is in the title.")
 
         title_split = title.split("/")
         if len(title_split) == 1:
@@ -115,7 +112,8 @@ class UploadProgramSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         title = sanitize_name(validated_data.get("title"))
-        logger.info("Creating program [%s] with UploadProgramSerializer", title)
+        author = validated_data.get("author")
+        logger.info("user_id=%s program=%s | Creating function", author.id if author else None, title)
 
         provider_name = sanitize_name(validated_data.get("provider", None))
         if provider_name:
@@ -133,7 +131,7 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         return Program.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
-        logger.info("Updating program [%s] with UploadProgramSerializer", instance.title)
+        logger.info("user_id=%s program=%s | Updating function", instance.author_id, instance.title)
         instance.entrypoint = validated_data.get("entrypoint", DEFAULT_PROGRAM_ENTRYPOINT)
         raw_dependencies = json.loads(validated_data.get("dependencies", "[]"))
         normalized_dependencies = [self._normalize_dependency(dep) for dep in raw_dependencies]
@@ -247,11 +245,8 @@ class RunJobSerializer(serializers.ModelSerializer):
             is assigned to a trial instance in a function
         """
 
-        function_repository = FunctionRepository()
-        user_repository = UserRepository()
-
-        trial_groups = function_repository.get_trial_instances(function=function)
-        user_run_groups = user_repository.get_groups_by_permissions(user=author, permission_name=RUN_PROGRAM_PERMISSION)
+        trial_groups = function.trial_instances.all()
+        user_run_groups = Group.objects.filter(user=author, permissions__codename=RUN_PROGRAM_PERMISSION)
 
         return any(group in trial_groups for group in user_run_groups)
 
@@ -266,11 +261,15 @@ class RunJobSerializer(serializers.ModelSerializer):
         return False
 
     def create(self, validated_data):
-        logger.info("Creating Job with RunExistingJobSerializer")
         status = Job.QUEUED
         program = validated_data.get("program")
         arguments = validated_data.get("arguments", "{}")
         author = validated_data.get("author")
+        logger.info(
+            "user_id=%s program=%s | Creating job",
+            author.id if author else None,
+            program.title if program else None,
+        )
         config = validated_data.get("config", None)
 
         channel = validated_data.pop("channel")

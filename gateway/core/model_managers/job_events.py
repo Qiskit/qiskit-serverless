@@ -1,10 +1,13 @@
 """Job events model manager."""
 
+import logging
 import uuid
 
 from enum import StrEnum
 
 from django.db.models import QuerySet
+
+logger = logging.getLogger("core.JobEvents")
 
 
 class JobEventOrigin(StrEnum):
@@ -56,6 +59,15 @@ class JobEventQuerySet(QuerySet):
     ):
         """Status change event for jobs."""
 
+        logger.info(
+            "[add_status_event] job_id=%s | Set status to %s | %s %s %s",
+            job_id,
+            status,
+            JobEventType.STATUS_CHANGE,
+            origin,
+            context,
+        )
+
         return self.create(
             job_id=job_id,
             origin=origin,
@@ -72,6 +84,15 @@ class JobEventQuerySet(QuerySet):
         sub_status: str = None,
     ):
         """Sub Status change event for jobs."""
+
+        logger.info(
+            "[add_sub_status_event] job_id=%s | Set sub_status to %s | %s %s %s",
+            job_id,
+            sub_status,
+            JobEventType.SUB_STATUS_CHANGE,
+            origin,
+            context,
+        )
 
         return self.create(
             job_id=job_id,

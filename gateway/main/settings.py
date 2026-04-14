@@ -46,6 +46,7 @@ DEBUG = int(os.environ.get("DEBUG", 1))
 
 # SECURITY WARNING: don't run with debug turned on in production!
 LOG_LEVEL = "DEBUG" if int(os.environ.get("DEBUG", 1)) else "INFO"
+LOG_FORMAT = "json" if os.environ.get("LOG_FORMAT", "simple") == "json" else "simple"
 
 # It must be a full url without protocol: mydomain.com
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
@@ -130,83 +131,36 @@ LOGGING = {
     "disable_existing_loggers": False,
     "formatters": {
         "simple": {"format": "%(levelname)s %(asctime)s [%(name)s] %(filename)s:(%(lineno)s) %(message)s"},
+        "json": {
+            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "format": "%(asctime)s %(levelname)s %(name)s %(filename)s %(lineno)s %(message)s",
+        },
     },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "formatter": "simple",
+            "formatter": LOG_FORMAT,
         },
     },
     "root": {
         "handlers": ["console"],
         "level": LOG_LEVEL,
     },
-    "loggers": {
-        "commands": {
-            "handlers": ["console"],
-            "level": LOG_LEVEL,
-            "propagate": False,
-        },
-        "gateway": {
-            "handlers": ["console"],
-            "level": LOG_LEVEL,
-            "propagate": False,
-        },
-        "gateway.serializers": {
-            "handlers": ["console"],
-            "level": LOG_LEVEL,
-            "propagate": False,
-        },
-        "gateway.authentication": {
-            "handlers": ["console"],
-            "level": LOG_LEVEL,
-            "propagate": False,
-        },
-    },
+    "loggers": {},
 }
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 # https://docs.djangoproject.com/en/5.2/ref/databases/#postgresql-notes
-#
-# Query timeouts per application.
-# A query will raise QueryCanceledError if it takes more than the expected time
-if IS_MIGRATION:
-    # Migrations: 5min. Per-query timeout that allows long schema changes to complete
-    POSTGRES_STATEMENT_TIMEOUT_SECONDS = 5 * 60
-elif IS_SCHEDULER:
-    # Scheduler: 30s. Scheduler tasks are executed in a sequential loop, so any delay will slow down the whole process
-    POSTGRES_STATEMENT_TIMEOUT_SECONDS = 30
-else:
-    # Gateway, tests or any other command: 1min. Enough for normal API operations
-    POSTGRES_STATEMENT_TIMEOUT_SECONDS = 60
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
+        "ENGINE": "django_prometheus.db.backends.postgresql",
         "NAME": os.environ.get("DATABASE_NAME", "serverlessdb"),
         "USER": os.environ.get("DATABASE_USER", "serverlessuser"),
         "PASSWORD": os.environ.get("DATABASE_PASSWORD", "serverlesspassword"),
         "HOST": os.environ.get("DATABASE_HOST", "localhost"),
         "PORT": os.environ.get("DATABASE_PORT", "5432"),
-        # Ping the connection before reuse. If it died (Postgres restart, network blip),
-        # Django silently reconnects instead of raising InterfaceError.
-        "CONN_HEALTH_CHECKS": True,
-        "OPTIONS": {
-            # ------------------------------------------------------------------------------
-            # https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-PARAMKEYWORDS
-            # ------------------------------------------------------------------------------
-            # Fail fast on new connections instead of hanging for minutes.
-            "connect_timeout": 5,
-            # TCP keepalives: detect dead connections when Postgres is unreachable
-            # (network partition, pod killed) so the socket doesn't block forever.
-            # OS will probe after 30s idle, retry every 5s, give up after 3 failures (~45s total).
-            "keepalives": 1,
-            "keepalives_idle": 30,
-            "keepalives_interval": 5,
-            "keepalives_count": 3,
-            "options": "-c statement_timeout=" + (str(POSTGRES_STATEMENT_TIMEOUT_SECONDS * 1000)),
-        },
     },
     "test": {
         "ENGINE": "django_prometheus.db.backends.sqlite3",
@@ -342,7 +296,7 @@ RAY_CLUSTER_WORKER_MIN_REPLICAS_MAX = int(os.environ.get("RAY_CLUSTER_WORKER_MIN
 RAY_CLUSTER_WORKER_MAX_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_MAX_REPLICAS", "4"))
 RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX = int(os.environ.get("RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX", "10"))
 RAY_CLUSTER_WORKER_AUTO_SCALING = bool(os.environ.get("RAY_CLUSTER_WORKER_AUTO_SCALING", False))
-RAY_CLUSTER_MAX_READINESS_TIME = int(os.environ.get("RAY_CLUSTER_MAX_READINESS_TIME", "120"))
+RAY_CLUSTER_MAX_READINESS_TIME = int(os.environ.get("RAY_CLUSTER_MAX_READINESS_TIME", "480"))
 
 RAY_SETUP_MAX_RETRIES = int(os.environ.get("RAY_SETUP_MAX_RETRIES", 30))
 
@@ -363,10 +317,6 @@ PROGRAM_TIMEOUT = int(os.environ.get("PROGRAM_TIMEOUT", "14"))
 GATEWAY_ALLOWLIST_CONFIG = str(os.environ.get("GATEWAY_ALLOWLIST_CONFIG", "api/v1/allowlist.json"))
 
 GATEWAY_GPU_JOBS_CONFIG = str(os.environ.get("GATEWAY_GPU_JOBS_CONFIG", "api/v1/gpu-jobs.json"))
-
-GATEWAY_DYNAMIC_DEPENDENCIES = str(
-    os.environ.get("GATEWAY_DYNAMIC_DEPENDENCIES", "requirements-dynamic-dependencies.txt")
-)
 
 # authentication base url for qiskit runtime
 QISKIT_IBM_URL = os.environ.get("QISKIT_IBM_URL", "https://cloud.ibm.com")

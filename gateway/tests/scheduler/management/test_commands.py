@@ -11,10 +11,14 @@ from django.core.management import call_command
 from ray.dashboard.modules.job.common import JobStatus
 from unittest.mock import patch, MagicMock
 
+from prometheus_client import CollectorRegistry
+
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import ComputeResource, Job, JobEvent, Program, Provider, Config
-from core.services.ray import JobHandler
+from core.services.runners import RunnerError
 from core.utils import check_logs
+from scheduler.kill_signal import KillSignal
+from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
 from scheduler.tasks.free_resources import FreeResources
 from scheduler.tasks.schedule_queued_jobs import ScheduleQueuedJobs
@@ -29,33 +33,26 @@ class TestCommands:
         call_command("loaddata", "tests/fixtures/schedule_fixtures.json")
         settings.MEDIA_ROOT = str(tmp_path)
         Config.add_defaults()
-
-    def test_create_compute_resource(self):
-        """Tests compute resource creation command."""
-        call_command("create_compute_resource", "test_host")
-        resources = ComputeResource.objects.all()
-        assert "Ray cluster default" in [resource.title for resource in resources]
+        self.metrics = SchedulerMetrics(CollectorRegistry())
 
     def test_free_resources(self):
         """Tests free resources command."""
-        FreeResources().run()
+        FreeResources(kill_signal=KillSignal(), metrics=self.metrics).run()
         num_resources = ComputeResource.objects.count()
         assert num_resources == 1
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_job_handler")
-    def test_update_jobs_statuses(self, get_job_handler):
+    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    def test_update_jobs_statuses(self, get_runner):
         """Tests update of job statuses."""
         # Test status change from PENDING to RUNNING
-        ray_client = MagicMock()
-        ray_client.get_job_status.return_value = JobStatus.RUNNING
-        ray_client.get_job_logs.return_value = "No logs yet."
-        ray_client.stop_job.return_value = True
-        ray_client.submit_job.return_value = "AwesomeJobId"
-        get_job_handler.return_value = JobHandler(ray_client)
+        runner = MagicMock()
+        runner.status.return_value = JobStatus.RUNNING
+        runner.logs.return_value = "No logs yet."
+        get_runner.return_value = runner
 
         job = self._create_test_job(ray_job_id="test_update_jobs_statuses")
 
-        UpdateJobsStatuses().run()
+        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         job.refresh_from_db()
         assert job.status == "RUNNING"
@@ -69,10 +66,10 @@ class TestCommands:
         assert job_events[0].context == JobEventContext.UPDATE_JOB_STATUS
 
         # Test job logs for FAILED job with empty logs
-        ray_client.get_job_status.return_value = JobStatus.FAILED
-        ray_client.get_job_logs.return_value = ""
+        runner.status.return_value = JobStatus.FAILED
+        runner.logs.return_value = ""
 
-        UpdateJobsStatuses().run()
+        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         job.refresh_from_db()
         assert job.status == "FAILED"
@@ -100,7 +97,7 @@ class TestCommands:
         fake_job.gpu = False
 
         execute_job.return_value = fake_job
-        ScheduleQueuedJobs().run()
+        ScheduleQueuedJobs(kill_signal=KillSignal(), metrics=self.metrics).run()
         # TODO: mock execute job to change status of job and query for QUEUED jobs  # pylint: disable=fixme
         job_count = Job.objects.count()
         assert job_count == 7
@@ -161,8 +158,8 @@ class TestCommands:
         )
         assert "AAAAAAAAAAB" in logs
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_job_handler")
-    def test_update_jobs_statuses_filters_logs_user_function(self, get_job_handler, settings):
+    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    def test_update_jobs_statuses_filters_logs_user_function(self, get_runner, settings):
         """Tests that logs are filtered when saving for function without provider."""
         compute_resource = ComputeResource.objects.create(title="test-cluster-user-logs", active=True)
         job = self._create_test_job(
@@ -172,7 +169,6 @@ class TestCommands:
             ray_job_id="test-ray-job-id",
         )
 
-        settings.RAY_CLUSTER_MODE = {"local": True}
         # Mock Ray to return unfiltered logs with PUBLIC and PRIVATE markers
         full_logs = """
 2026-01-06 10:00:00,000 INFO job_manager.py:568 -- Runtime env is setting up.
@@ -184,12 +180,12 @@ Ray internal log without marker
 [PUBLIC] INFO: Final public log
 """
 
-        ray_client = MagicMock()
-        ray_client.get_job_status.return_value = JobStatus.SUCCEEDED
-        ray_client.get_job_logs.return_value = full_logs
-        get_job_handler.return_value = JobHandler(ray_client)
+        runner = MagicMock()
+        runner.status.return_value = JobStatus.SUCCEEDED
+        runner.logs.return_value = full_logs
+        get_runner.return_value = runner
 
-        UpdateJobsStatuses().run()
+        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         # User logs are located in username/logs/
         # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
@@ -225,8 +221,8 @@ INFO: Final public log
         job.refresh_from_db()
         assert job.logs == ""
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_job_handler")
-    def test_update_jobs_statuses_filters_logs_provider_function(self, get_job_handler, settings):
+    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    def test_update_jobs_statuses_filters_logs_provider_function(self, get_runner, settings):
         """Tests that logs are filtered when saving for function with provider."""
         compute_resource = ComputeResource.objects.create(title="test-cluster-provider-logs", active=True)
         job = self._create_test_job(
@@ -237,7 +233,6 @@ INFO: Final public log
             ray_job_id="test-ray-job-id-with-provider",
         )
 
-        settings.RAY_CLUSTER_MODE = {"local": True}
         # Mock Ray to return unfiltered logs
         full_logs = """
 [PUBLIC] INFO: Public log for user
@@ -249,12 +244,12 @@ Internal system log
 [PUBLIC] INFO: Final public log
 """
 
-        ray_client = MagicMock()
-        ray_client.get_job_status.return_value = JobStatus.SUCCEEDED
-        ray_client.get_job_logs.return_value = full_logs
-        get_job_handler.return_value = JobHandler(ray_client)
+        runner = MagicMock()
+        runner.status.return_value = JobStatus.SUCCEEDED
+        runner.logs.return_value = full_logs
+        get_runner.return_value = runner
 
-        UpdateJobsStatuses().run()
+        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         # User logs are located in username/provider/function/logs/ for provider jobs
         # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
@@ -294,9 +289,9 @@ WARNING: Private warning
             saved_provider_logs = log_file.read()
         assert saved_provider_logs == expected_provider_logs
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_job_handler")
-    def test_update_jobs_statuses_job_handler_status_error_status_event(self, get_job_handler, settings):
-        """Tests that the job_event is stored when job_handler.status() raises exception."""
+    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    def test_update_jobs_statuses_job_handler_status_error_status_event(self, get_runner, settings):
+        """Tests that the job_event is stored when runner.status() raises exception."""
         compute_resource = ComputeResource.objects.create(title="test-cluster-provider-logs", active=True)
         job = self._create_test_job(
             author="test_author",
@@ -306,12 +301,11 @@ WARNING: Private warning
             ray_job_id="test-ray-job-id-with-provider",
         )
 
-        settings.RAY_CLUSTER_MODE = {"local": True}
-        job_handler = MagicMock()
-        job_handler.status.side_effect = RuntimeError("Error")
-        get_job_handler.return_value = job_handler
+        runner = MagicMock()
+        runner.status.side_effect = RunnerError("Error")
+        get_runner.return_value = runner
 
-        UpdateJobsStatuses().run()
+        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         job_events = JobEvent.objects.filter(job=job.id)
         assert len(job_events) == 1
