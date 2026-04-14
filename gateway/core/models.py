@@ -12,9 +12,11 @@ from django.db import models
 from django_prometheus.models import ExportModelOperationsMixin
 
 from core.config_key import ConfigKey
+from core.model_managers.functions import FunctionsQuerySet
 from core.model_managers.job_events import JobEventQuerySet
+from core.model_managers.jobs import JobQuerySet
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("core.models")
 
 VIEW_PROGRAM_PERMISSION = "view_program"
 RUN_PROGRAM_PERMISSION = "run_program"
@@ -129,6 +131,8 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         null=True,
         blank=True,
     )
+
+    objects: FunctionsQuerySet = FunctionsQuerySet.as_manager()
 
     class Meta:
         app_label = "api"
@@ -337,6 +341,8 @@ class Job(models.Model):
     )
     program = models.ForeignKey(to=Program, on_delete=models.SET_NULL, null=True)
 
+    objects: JobQuerySet = JobQuerySet.as_manager()
+
     class Meta:
         app_label = "api"
 
@@ -451,7 +457,7 @@ class Config(models.Model):
                 defaults={"value": default, "description": description},
             )
             if created:
-                logger.info("Registered new Config: %s = %s", value, default)
+                logger.info("[add_defaults] Registered new Config: %s = %s", value, default)
 
     @classmethod
     def set(cls, key: ConfigKey, value: str):

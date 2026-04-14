@@ -32,12 +32,10 @@ import logging
 import os
 import re
 import time
-import uuid
 from typing import Callable, Dict, List, Optional, Type, Union
 
 from cryptography.fernet import Fernet
 from django.conf import settings
-from ray.dashboard.modules.job.common import JobStatus
 
 
 def sanitize_file_path(path: str):
@@ -59,7 +57,7 @@ def sanitize_file_path(path: str):
     return re.sub(pattern, "_", path)
 
 
-logger = logging.getLogger("utils")
+logger = logging.getLogger("core.utils")
 
 
 def retry_function(  # pylint:  disable=too-many-positional-arguments
@@ -99,7 +97,7 @@ def retry_function(  # pylint:  disable=too-many-positional-arguments
             # Log and wait before next attempt.
             logger.log(
                 error_message_level,
-                "[%s] attempt %d/%d failed%s%s",
+                "[retry_function] [%s] attempt %d/%d failed%s%s",
                 name,
                 attempt,
                 num_retries,
@@ -170,39 +168,6 @@ def decrypt_env_vars(env_vars: Dict[str, str]) -> Dict[str, str]:
             except Exception:  # pylint: disable=broad-exception-caught
                 logger.error("Cannot decrypt %s.", key)
     return env_vars
-
-
-def generate_cluster_name(username: str) -> str:
-    """generate cluster name.
-
-    Args:
-        username: user name for the cluster
-
-    Returns:
-        generated cluster name
-    """
-    # Force capital letters to be lowercase
-    lowercase_username = username.lower()[:20]
-
-    # Substitute any not valid character by "-"
-    pattern = re.compile("[^a-z0-9-]")
-    cluster_name = f"c-{re.sub(pattern, '-', lowercase_username)}-{str(uuid.uuid4())[:8]}"
-    return cluster_name
-
-
-def ray_job_status_to_model_job_status(ray_job_status):
-    """Maps ray job status to model job status."""
-    # pylint: disable=import-outside-toplevel
-    from core.models import Job  # Import here to avoid circular dependency
-
-    mapping = {
-        JobStatus.PENDING: Job.PENDING,
-        JobStatus.RUNNING: Job.RUNNING,
-        JobStatus.STOPPED: Job.STOPPED,
-        JobStatus.SUCCEEDED: Job.SUCCEEDED,
-        JobStatus.FAILED: Job.FAILED,
-    }
-    return mapping.get(ray_job_status, Job.FAILED)
 
 
 def create_gpujob_allowlist():

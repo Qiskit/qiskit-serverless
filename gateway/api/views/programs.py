@@ -24,7 +24,7 @@ from api.domain.authentication.channel import Channel
 from api.domain.exceptions.active_job_limit_exceeded_exception import (
     ActiveJobLimitExceeded,
 )
-from api.repositories.functions import FunctionRepository
+
 from api.serializers import (
     JobConfigSerializer,
     RunJobSerializer,
@@ -34,11 +34,12 @@ from api.serializers import (
 )
 from api.utils import active_jobs_limit_reached, sanitize_name
 from api.v1.exception_handler import endpoint_handle_exceptions
-from api.views.enums.type_filter import TypeFilter
-from core.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Program, Job
+from core.enums.type_filter import TypeFilter
+from core.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Job
+from core.models import Program as Function
 
 # pylint: disable=duplicate-code
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("api.api.views.programs")
 resource = Resource(attributes={SERVICE_NAME: "QiskitServerless-Gateway"})
 provider = TracerProvider(resource=resource)
 otel_exporter = BatchSpanProcessor(
@@ -60,8 +61,6 @@ class ProgramViewSet(viewsets.GenericViewSet):
     """
 
     BASE_NAME = "programs"
-
-    function_repository = FunctionRepository()
 
     @staticmethod
     def get_serializer_job_config(*args, **kwargs):
@@ -119,21 +118,23 @@ class ProgramViewSet(viewsets.GenericViewSet):
             # Serverless filter only returns functions created by the author
             # with the next criterias:
             # - user is the author of the function and there is no provider
-            functions = self.function_repository.get_user_functions(author)
+            functions = Function.objects.user_functions(author)
         elif type_filter == TypeFilter.CATALOG:
             # Catalog filter only returns providers functions that user has access:
             # author has view permissions and the function has a provider assigned
-            functions = self.function_repository.get_provider_functions_by_permission(
+            functions = Function.objects.provider_functions().with_permission(
                 author, permission_name=RUN_PROGRAM_PERMISSION
             )
         else:
             # If filter is not applied we return author and providers functions together
-            functions = self.function_repository.get_functions_by_permission(
-                author, permission_name=VIEW_PROGRAM_PERMISSION
-            )
+            functions = Function.objects.with_permission(author, permission_name=VIEW_PROGRAM_PERMISSION)
 
-        serializer = self.get_serializer(functions, many=True)
-        logger.info("[programs-list] user=%s username=%s filter=%s", author.id, author.username, type_filter)
+        serializer = self.get_serializer(list(functions), many=True)
+        logger.info(
+            "[programs-list] user_id=%s filter=%s | Functions listed ok",
+            author.id,
+            type_filter,
+        )
         return Response(serializer.data)
 
     @_trace
@@ -143,7 +144,8 @@ class ProgramViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer_upload_program(data=request.data)
         if not serializer.is_valid():
             logger.error(
-                "UploadProgramSerializer validation failed:\n %s",
+                "[programs-upload] user_id=%s validation failed: %s",
+                request.user.id,
                 serializer.errors,
             )
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -166,18 +168,23 @@ class ProgramViewSet(viewsets.GenericViewSet):
             program = serializer.retrieve_private_function(title=title, author=author)
 
         if program is not None:
-            logger.info("Program found. [%s] is going to be updated", title)
             serializer = self.get_serializer_upload_program(program, data=request.data)
             if not serializer.is_valid():
                 logger.error(
-                    "UploadProgramSerializer validation failed with program instance:\n %s",
+                    "[programs-upload] user_id=%s validation failed on update: %s",
+                    author.id,
                     serializer.errors,
                 )
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         serializer.save(author=author, title=title, provider=provider_name)
 
-        logger.info("[programs-upload] user=%s program=%s provider=%s", author.id, title, provider_name)
+        logger.info(
+            "[programs-upload] user_id=%s program=%s provider=%s | Function uploaded ok",
+            author.id,
+            title,
+            provider_name,
+        )
         return Response(serializer.data)
 
     @_trace
@@ -188,7 +195,8 @@ class ProgramViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer_run_program(data=request.data)
         if not serializer.is_valid():
             logger.error(
-                "RunProgramSerializer validation failed:\n %s",
+                "[programs-run] user_id=%s RunProgramSerializer validation failed: %s",
+                request.user.id,
                 serializer.errors,
             )
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -197,21 +205,23 @@ class ProgramViewSet(viewsets.GenericViewSet):
         # but it's here until we can refactor the /run end-point
         provider_name = sanitize_name(serializer.data.get("provider"))
         function_title = sanitize_name(serializer.data.get("title"))
-        function = self.function_repository.get_function_by_permission(
+        function = Function.objects.get_function_by_permission(
             user=author,
             permission_name=RUN_PROGRAM_PERMISSION,
             function_title=function_title,
             provider_name=provider_name,
         )
         if function is None:
-            logger.error("Qiskit Pattern [%s] was not found.", function_title)
+            logger.error("[programs-run] user_id=%s function not found: %s", author.id, function_title)
             return Response(
                 {"message": f"Qiskit Pattern [{function_title}] was not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
         if function.disabled:
-            error_message = function.disabled_message if function.disabled_message else Program.DEFAULT_DISABLED_MESSAGE
+            error_message = (
+                function.disabled_message if function.disabled_message else Function.DEFAULT_DISABLED_MESSAGE
+            )
             return Response(
                 {"message": error_message},
                 status=status.HTTP_423_LOCKED,
@@ -220,16 +230,15 @@ class ProgramViewSet(viewsets.GenericViewSet):
         jobconfig = None
         config_json = serializer.data.get("config")
         if config_json:
-            logger.info("Configuration for [%s] was found.", function_title)
             job_config_serializer = self.get_serializer_job_config(data=config_json)
             if not job_config_serializer.is_valid():
                 logger.error(
-                    "JobConfigSerializer validation failed:\n %s",
+                    "[programs-run] user_id=%s JobConfigSerializer validation failed: %s",
+                    author.id,
                     serializer.errors,
                 )
                 return Response(job_config_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             jobconfig = job_config_serializer.save()
-            logger.info("JobConfig [%s] created.", jobconfig.id)
 
         carrier = {}
         TraceContextTextMapPropagator().inject(carrier)
@@ -245,13 +254,15 @@ class ProgramViewSet(viewsets.GenericViewSet):
         job_serializer = self.get_serializer_run_job(data=job_data)
         if not job_serializer.is_valid():
             logger.error(
-                "RunJobSerializer validation failed:\n %s",
+                "[programs-run] user_id=%s RunJobSerializer validation failed: %s",
+                author.id,
                 serializer.errors,
             )
             return Response(job_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         if active_jobs_limit_reached(author):
             logger.error(
-                "The number of active jobs has reached the limit. The set limit is: %s",
+                "[programs-run] user_id=%s active jobs limit reached (%s)",
+                author.id,
                 settings.LIMITS_ACTIVE_JOBS_PER_USER,
             )
             raise ActiveJobLimitExceeded()
@@ -263,7 +274,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
             config=jobconfig,
             instance=instance,
         )
-        logger.info("[programs-run] user=%s job_id=%s program=%s", author.id, job.id, function_title)
+        logger.info("[programs-run] user_id=%s job_id=%s program=%s | Job queued ok", author.id, job.id, function_title)
         return Response(job_serializer.data)
 
     @action(methods=["GET"], detail=False, url_path="get_by_title/(?P<title>[^/.]+)")
@@ -277,10 +288,10 @@ class ProgramViewSet(viewsets.GenericViewSet):
         provider_name, function_title = serializer.get_provider_name_and_title(provider_name, function_title)
 
         if provider_name:
-            function = self.function_repository.get_provider_function_by_permission(
-                author=author,
+            function = Function.objects.get_function_by_permission(
+                user=author,
                 permission_name=VIEW_PROGRAM_PERMISSION,
-                title=function_title,
+                function_title=function_title,
                 provider_name=provider_name,
             )
             if function is None:
@@ -294,7 +305,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
                     status=status.HTTP_404_NOT_FOUND,
                 )
         else:
-            function = self.function_repository.get_user_function(author=author, title=function_title)
+            function = Function.objects.get_user_function(author, function_title)
             if function is None:
                 return Response(
                     {
@@ -306,7 +317,12 @@ class ProgramViewSet(viewsets.GenericViewSet):
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-        logger.info("[programs-get-by-title] user=%s program=%s provider=%s", author.id, function_title, provider_name)
+        logger.info(
+            "[programs-get-by-title] user_id=%s program=%s provider=%s | Function retrieved ok",
+            author.id,
+            function_title,
+            provider_name,
+        )
         return Response(self.get_serializer(function).data)
 
     # This end-point is deprecated and we need to confirm if we can remove it
@@ -314,7 +330,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
     @action(methods=["GET"], detail=True)
     def get_jobs(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument
         """Returns jobs of the program."""
-        program = Program.objects.filter(id=pk).first()
+        program = Function.objects.filter(id=pk).first()
         if not program:
             return Response(
                 {"message": f"program [{pk}] was not found."},
@@ -332,5 +348,10 @@ class ProgramViewSet(viewsets.GenericViewSet):
         else:
             jobs = Job.objects.filter(program=program, author=request.user)
         serializer = self.get_serializer_job(jobs, many=True)
-        logger.info("[programs-get-jobs] user=%s program_id=%s program=%s", request.user.id, pk, program.title)
+        logger.info(
+            "[programs-get-jobs] user_id=%s program_id=%s program=%s | Jobs listed ok",
+            request.user.id,
+            pk,
+            program.title,
+        )
         return Response(serializer.data)

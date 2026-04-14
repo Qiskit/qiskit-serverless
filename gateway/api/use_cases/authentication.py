@@ -16,7 +16,7 @@ from api.services.authentication.ibm_quantum_platform import IBMQuantumPlatform
 from api.services.authentication.local_authentication import LocalAuthenticationService
 from core.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
 
-logger = logging.getLogger("gateway.use_cases.authentication")
+logger = logging.getLogger("api.AuthenticationUseCase")
 
 
 class AuthenticationUseCase:
@@ -41,10 +41,8 @@ class AuthenticationUseCase:
 
     def _get_authentication_service_instance(self) -> AuthenticationBase:
         if self.channel in (Channel.IBM_CLOUD, Channel.IBM_QUANTUM_PLATFORM):
-            logger.debug("Authentication will be executed with IBM Cloud Quantum Platform.")
             return IBMQuantumPlatform(api_key=self.authorization_token, crn=self.crn)
 
-        logger.debug("Authentication will be executed with Local service.")
         return LocalAuthenticationService(authorization_token=self.authorization_token)
 
     def execute(self) -> Optional[type[AbstractUser]]:

@@ -7,7 +7,7 @@ import logging
 from typing import Optional
 from django.conf import settings
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("core.ResultStorage")
 
 
 class ResultStorage:
@@ -37,18 +37,24 @@ class ResultStorage:
         result_path = self.__get_result_path(job_id)
         if not os.path.exists(result_path):
             logger.info(
-                "Result file for job ID '%s' not found in directory '%s'.",
+                "[get] job_id=%s | Result file not found %s",
                 job_id,
-                self.user_results_directory,
+                result_path,
             )
             return None
 
         try:
             with open(result_path, "r", encoding="utf-8") as result_file:
-                return result_file.read()
+                content = result_file.read()
+                logger.info(
+                    "[get] job_id=%s | Result file read %s",
+                    job_id,
+                    result_path,
+                )
+                return content
         except (UnicodeDecodeError, IOError) as e:
             logger.error(
-                "Failed to read result file for job ID '%s': %s",
+                "[get] job_id=%s | Failed to read result file: %s",
                 job_id,
                 str(e),
             )
@@ -69,8 +75,9 @@ class ResultStorage:
 
         with open(result_path, "w", encoding=self.ENCODING) as result_file:
             result_file.write(result)
-            logger.info(
-                "Result for job ID '%s' successfully saved at '%s'.",
-                job_id,
-                result_path,
-            )
+
+        logger.info(
+            "[save] job_id=%s | Result saved ok %s",
+            job_id,
+            result_path,
+        )

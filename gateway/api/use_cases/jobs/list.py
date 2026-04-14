@@ -5,16 +5,12 @@ from typing import List
 from django.contrib.auth.models import AbstractUser
 
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
-from core.models import Job
-from api.repositories.functions import FunctionRepository
-from api.repositories.jobs import JobFilters, JobsRepository
+from core.model_managers.jobs import JobFilters
+from core.models import Job, Program as Function
 
 
 class JobsListUseCase:
     """Use case for retrieving user jobs with optional filtering and pagination."""
-
-    function_repository = FunctionRepository()
-    jobs_repository = JobsRepository()
 
     def execute(self, user: AbstractUser, filters: JobFilters) -> tuple[List[Job], int]:
         """
@@ -25,7 +21,7 @@ class JobsListUseCase:
         """
         # ensure function exists if filtered
         if filters.function:
-            function = self.function_repository.get_function(
+            function = Function.objects.get_function(
                 function_title=filters.function,
                 provider_name=filters.provider,
             )
@@ -33,6 +29,6 @@ class JobsListUseCase:
             if not function:
                 raise FunctionNotFoundException(function=filters.function)
 
-        queryset, total = self.jobs_repository.get_user_jobs(user=user, filters=filters)
+        queryset, total = Job.objects.user_jobs_page(user=user, filters=filters)
 
         return list(queryset), total

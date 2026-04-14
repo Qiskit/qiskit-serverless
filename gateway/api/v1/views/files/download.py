@@ -20,7 +20,7 @@ from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_file_name, sanitize_name
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("api.api.v1.views.files.download")
 
 # pylint: disable=abstract-method
 
@@ -116,7 +116,13 @@ def files_download(request: Request) -> StreamingHttpResponse:
     user = cast(AbstractUser, request.user)
 
     result: Tuple[Iterator[bytes], str, int] = FilesDownloadUseCase().execute(user, provider, function, file)
-    logger.info("[files-download] user=%s function=%s provider=%s file=%s", user.id, function, provider, file)
+    logger.info(
+        "[files-download] user_id=%s function=%s provider=%s file=%s | File downloaded ok",
+        user.id,
+        function,
+        provider,
+        file,
+    )
     generator, file_type, file_size = result
     response = StreamingHttpResponse(generator, content_type=file_type)
     response["Content-Length"] = file_size
