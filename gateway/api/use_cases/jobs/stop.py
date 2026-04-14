@@ -109,8 +109,8 @@ class StopJobUseCase:
         except RuntimeInvalidStateError:
             self.status_messages.append(f"Runtime job {job_id_str} could not be canceled (invalid state).")
 
-    def _stop_ray_job_if_active(self, job):
-        if job.compute_resource and job.compute_resource.active:
+    def _stop_ray_job_if_active(self, job: Job):
+        if job.is_active():
             try:
                 was_running = get_runner(job).stop()
                 if was_running:
