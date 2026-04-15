@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from core.models import Job, ComputeResource
+from core.models import Job
 
 
 class RunnerError(Exception):

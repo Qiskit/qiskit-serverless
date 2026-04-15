@@ -2,7 +2,6 @@
 
 from typing import Optional
 
-from core.models import ComputeResource
 from core.services.runners.abstract_runner import AbstractRunner
 
 
