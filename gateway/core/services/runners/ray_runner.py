@@ -84,22 +84,15 @@ class RayRunner(AbstractRunner):
         self._client = None
         self._connected = False
 
-    def submit(self) -> tuple[ComputeResource, str]:
+    def submit(self) -> None:
         """
         Submit the job to the Ray cluster.
 
         Creates the compute resource (K8s cluster or local) and submits the job.
         On failure, cleans up any created resources.
 
-        Returns:
-            Tuple of (ComputeResource, ray_job_id)
-
         Raises:
             RunnerError: If submission fails (resources are cleaned up before raising)
-
-        Note:
-            The caller is responsible for saving the ComputeResource to DB
-            and assigning it to the job.
         """
         tracer = trace.get_tracer("scheduler.tracer")
         with tracer.start_as_current_span("submit.job") as span:
@@ -130,7 +123,8 @@ class RayRunner(AbstractRunner):
                     ray_job_id,
                     title,
                 )
-                return compute_resource, ray_job_id
+                self._job.compute_resource = compute_resource
+                self._job.ray_job_id = ray_job_id
 
             except Exception as ex:
                 logger.error(

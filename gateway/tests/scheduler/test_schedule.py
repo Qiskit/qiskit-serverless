@@ -41,19 +41,17 @@ class TestScheduleApi:
         mock_compute_resource.title = "test-cluster"
 
         mock_runner = MagicMock()
-        mock_runner.submit.return_value = (mock_compute_resource, "ray-job-123")
         mock_get_runner_client.return_value = mock_runner
 
         job = MagicMock()
         job.status = Job.QUEUED
         job.logs = ""
+        job.compute_resource = mock_compute_resource
 
         ret_job = execute_job(job)
 
         mock_runner.submit.assert_called_once()
         mock_compute_resource.save.assert_called_once()
-        assert ret_job.compute_resource == mock_compute_resource
-        assert ret_job.ray_job_id == "ray-job-123"
         assert ret_job.status == Job.PENDING
 
     @patch("scheduler.schedule.get_runner")

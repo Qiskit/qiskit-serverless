@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from core.models import Job, ComputeResource
+from core.models import Job
 
 
 class RunnerError(Exception):
@@ -44,8 +44,8 @@ class AbstractRunner(ABC):
         (such as logs(), status(), etc.) are the ones that can fail when connecting.
 
         Note: job.compute_resource may be None when creating the runner for job submission.
-        The submit() method will create the compute_resource but the caller is responsible
-        for saving it to DB and assigning it to the job.
+        The submit() method will create and assign it to the job, but the caller is
+        responsible for saving the job to DB afterward.
 
         Args:
             job: Job instance to be executed
@@ -81,17 +81,12 @@ class AbstractRunner(ABC):
     # --- Methods that do NOT require connection ---
 
     @abstractmethod
-    def submit(self) -> tuple[ComputeResource, str]:
+    def submit(self):
         """
         Submit the job to the runner.
 
         Creates the compute resource and submits the job.
         On failure, cleans up any created resources (e.g., K8s cluster).
-
-        Returns:
-            Tuple of (ComputeResource, engine_job_id)
-            - ComputeResource: not saved to DB, caller must save and assign to job
-            - engine_job_id: engine-specific job identifier (e.g., ray_job_id)
 
         Raises:
             RunnerError: If submission fails (resources are cleaned up before raising)
