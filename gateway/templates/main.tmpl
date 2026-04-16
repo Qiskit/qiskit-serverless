@@ -4,7 +4,7 @@ import os
 import sys
 import traceback
 
-from qiskit_serverless import get_arguments, save_result, send_error, ServerlessError
+from qiskit_serverless import get_arguments, save_result, send_error
 
 sys.path.append("{{mount_path}}")
 
@@ -22,12 +22,12 @@ try:
 
     if result is not None:
         save_result(result)
-except ServerlessError as e:
-    exception = type(e).__name__
-    send_error(e.code, e.message, exception, e.details)
-    raise
 except Exception as e:
+    code = getattr(e, 'code', 1)
+    message = getattr(e, 'message', '\n'.join(traceback.format_exception_only(e)))
     exception = type(e).__name__
-    send_error(1, '\n'.join(traceback.format_exception_only(e)), exception)
-    save_result(traceback.format_exception_only(e))
+    details = getattr(e, 'details', None)
+    send_error(code, message, exception, details)
+    if not hasattr(e, 'code'):
+        save_result(traceback.format_exception_only(e))
     raise

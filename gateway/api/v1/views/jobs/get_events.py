@@ -65,7 +65,7 @@ class JobEventOutputSerializer(serializers.ModelSerializer):
         ]
 
 
-def serialize_output(events: JobEvent) -> dict[str, Any]:
+def serialize_output(events: list[JobEvent]) -> list[dict[str, Any]]:
     """
     Serialize events into the standard response format.
 

@@ -287,7 +287,7 @@ class Job:
         return f"<Job | {self.job_id}>"
 
 
-def send_error(code: str, message: str, exception: str, args: Optional[Any] = None):
+def send_error(code: Union[str, int], message: str, exception: str, args: Optional[Any] = None):
     """Send an error message to store it in the gateway.
 
     Args:

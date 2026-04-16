@@ -9,7 +9,6 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.models import AbstractUser
 
 from api.access_policies.jobs import JobAccessPolicies
-from api.domain.exceptions.invalid_access_exception import InvalidAccessException
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from core.models import Job, JobEvent
 
@@ -17,7 +16,7 @@ from core.models import Job, JobEvent
 class ListJobEventsUseCase:
     """Use case for retrieving user jobs events."""
 
-    def execute(self, job_id: UUID, user: AbstractUser, event_type: str) -> List[Job]:
+    def execute(self, job_id: UUID, user: AbstractUser, event_type: str) -> List[JobEvent]:
         """
         Retrieve user jobs events
 

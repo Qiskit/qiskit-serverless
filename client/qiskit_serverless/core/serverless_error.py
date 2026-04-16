@@ -19,7 +19,7 @@ from typing import Any, Optional
 class ServerlessError(Exception):
     """Base exception that can be used by function developers."""
 
-    def __init__(self, code: str, message: str, details: Optional[Any]):
+    def __init__(self, code: str, message: str, details: Optional[Any] = None):
         self.code = code
         self.message = message
         self.details = details

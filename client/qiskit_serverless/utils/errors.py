@@ -95,7 +95,13 @@ def format_err_event(error_event: JobEvent) -> str:
 
         if details and isinstance(details, Dict):
             for key in details:
-                value = details[key][0] if isinstance(details[key], list) else details[key]
+                if isinstance(details[key], list):
+                    if len(details[key]) > 0:
+                        value = details[key][0]
+                    else:
+                        continue
+                else:
+                    value = details[key]
                 result += f"\n|   - {key}: {value}"
         else:
             result += f" {details}"

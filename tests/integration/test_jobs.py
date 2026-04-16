@@ -458,7 +458,7 @@ ERROR: Provider log
         expected_message = """
 | Message: My error message
 | Code: A123
-| Exception: ServerlessError
+| Exception: PartnerError
 | Details:
 |   - my-args: 123
 """.strip()

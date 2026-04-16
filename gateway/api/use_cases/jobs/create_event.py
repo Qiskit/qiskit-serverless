@@ -36,7 +36,7 @@ class CreateJobEventUseCase:
     Use case for creating an event for a Job.
     """
 
-    def execute(self, job_id: UUID, user: AbstractUser, data: EventData) -> Job:
+    def execute(self, job_id: UUID, user: AbstractUser, data: EventData) -> None:
         """Creates an event for a given job.
 
         Args:
@@ -45,10 +45,8 @@ class CreateJobEventUseCase:
             data (EventData): The event data.
 
         Raises:
-            NotFoundError: If the job does not exist or the user is not allowed to save results.
-
-        Returns:
-            Job: The updated job object with the stored result.
+            JobNotFoundException: If the job does not exist or the user is not allowed to create events.
+            InvalidAccessException: If the job is not in RUNNING status.
         """
         try:
             job = Job.objects.get(id=job_id)
