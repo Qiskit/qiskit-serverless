@@ -6,26 +6,36 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0045_codeengineproject_job_fleet_fields'),
+        ("api", "0045_codeengineproject_job_fleet_fields"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='config',
-            options={'ordering': ['name'], 'verbose_name': 'Configuration', 'verbose_name_plural': 'Config values'},
+            name="config",
+            options={"ordering": ["name"], "verbose_name": "Configuration", "verbose_name_plural": "Config values"},
         ),
         migrations.AlterModelOptions(
-            name='jobevent',
-            options={'ordering': ('-created',)},
+            name="jobevent",
+            options={"ordering": ("-created",)},
         ),
         migrations.AddField(
-            model_name='job',
-            name='runner',
-            field=models.CharField(choices=[('ray', 'Ray'), ('fleets', 'Fleets')], default='ray', help_text='Execution backend: ray or fleets', max_length=20),
+            model_name="job",
+            name="runner",
+            field=models.CharField(
+                choices=[("ray", "Ray"), ("fleets", "Fleets")],
+                default="ray",
+                help_text="Execution backend: ray or fleets",
+                max_length=20,
+            ),
         ),
         migrations.AddField(
-            model_name='program',
-            name='runner',
-            field=models.CharField(choices=[('ray', 'Ray'), ('fleets', 'Fleets')], default='ray', help_text='Execution backend for this program', max_length=20),
+            model_name="program",
+            name="runner",
+            field=models.CharField(
+                choices=[("ray", "Ray"), ("fleets", "Fleets")],
+                default="ray",
+                help_text="Execution backend for this program",
+                max_length=20,
+            ),
         ),
     ]

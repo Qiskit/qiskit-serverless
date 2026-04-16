@@ -65,7 +65,7 @@ class ScheduleQueuedJobs(SchedulerTask):
         running_clusters = ComputeResource.objects.filter(active=True, gpu=True).count()
         self._schedule_jobs_if_slots_available(max_clusters, running_clusters, gpu_job=True)
 
-    def _schedule_jobs_if_slots_available(  # pylint: disable=too-many-branches
+    def _schedule_jobs_if_slots_available(  # pylint: disable=too-many-branches, too-many-positional-arguments, too-many-locals
         self,
         max_slots_possible,
         number_of_slots_running,

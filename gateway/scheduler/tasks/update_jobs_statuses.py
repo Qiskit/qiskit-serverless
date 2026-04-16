@@ -185,7 +185,7 @@ class UpdateJobsStatuses(SchedulerTask):
 
         updated_jobs_counter = 0
         fleets_jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=Program.FLEETS)
-        # TODO: with LIMITS_MAX_FLEETS potentially reaching 1000+ concurrent jobs, updating statuses
+        # Note: with LIMITS_MAX_FLEETS potentially reaching 1000+ concurrent jobs, updating statuses
         # sequentially will become a bottleneck. This loop should be parallelized using multiple
         # threads or batched processing for performance reasons.
         for job in fleets_jobs:
