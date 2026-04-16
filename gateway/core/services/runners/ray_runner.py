@@ -66,7 +66,7 @@ class RayRunner(AbstractRunner):
         """Check if the Ray cluster host is alive and reachable.
         True if the Ray dashboard responds, False otherwise.
         """
-        if not self._job or not self._job.compute_resource or self._job.compute_resource.active == False:
+        if not self._job or not self._job.compute_resource or not self._job.compute_resource.active:
             return False
 
         try:
