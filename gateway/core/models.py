@@ -394,7 +394,7 @@ class JobEvent(models.Model):
     created = models.DateTimeField(auto_now_add=True, null=True)
     data = models.JSONField(default=dict, blank=False, null=False)
 
-    objects = JobEventQuerySet.as_manager()
+    objects: JobEventQuerySet = JobEventQuerySet.as_manager()
 
     class Meta:
         app_label = "api"
