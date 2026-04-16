@@ -54,21 +54,48 @@ class RayRunner(AbstractRunner):
         if self._connected:
             return
 
+        self._client = self._create_client()
+        self._connected = True
+
+    def disconnect(self) -> None:
+        """Close connection to Ray cluster."""
+        self._client = None
+        self._connected = False
+
+    def is_active(self) -> bool:
+        """Check if the Ray cluster host is alive and reachable.
+        True if the Ray dashboard responds, False otherwise.
+        """
+        if not self._job or not self._job.compute_resource or not self._job.compute_resource.active:
+            return False
+
+        try:
+            self._create_client()  # the client ray pings the server when it's created
+            return True
+        except Exception:  # pylint: disable=broad-exception-caught
+            return False
+
+    def _create_client(self):
+        if not self._job:
+            raise RunnerError("Unable to connect to Ray cluster at. No job linked to the client")
+
         compute_resource = self._job.compute_resource
+        if not compute_resource:
+            raise RunnerError("Unable to connect to Ray cluster at. No compute resource")
         host = compute_resource.host
         try:
-            self._client = retry_function(
+            client = retry_function(
                 callback=lambda: JobSubmissionClient(host),
                 num_retries=settings.RAY_SETUP_MAX_RETRIES,
                 error_message=f"Ray JobClientSubmission setup failed for host [{host}].",
             )
-            self._connected = True
             logger.info(
                 "[connect] job_id=%s cluster=%s host=%s Connected to Ray cluster",
                 self._job.id,
                 compute_resource,
                 host,
             )
+            return client
         except Exception as ex:
             logger.error(
                 "[connect] job_id=%s cluster=%s host=%s error=%s Unable to connect to Ray cluster",
@@ -78,11 +105,6 @@ class RayRunner(AbstractRunner):
                 ex,
             )
             raise RunnerError(f"Unable to connect to Ray cluster at [{host}]", ex) from ex
-
-    def disconnect(self) -> None:
-        """Close connection to Ray cluster."""
-        self._client = None
-        self._connected = False
 
     def submit(self) -> None:
         """
