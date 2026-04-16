@@ -20,7 +20,7 @@ from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_file_name, sanitize_name
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("api.api.v1.views.files.delete")
 
 # pylint: disable=abstract-method
 
@@ -115,5 +115,7 @@ def files_delete(request: Request) -> Response:
     user = cast(AbstractUser, request.user)
 
     FilesDeleteUseCase().execute(user, provider, function, file)
-    logger.info("[files-delete] user=%s function=%s provider=%s file=%s", user.id, function, provider, file)
+    logger.info(
+        "[files-delete] user_id=%s function=%s provider=%s file=%s | File deleted ok", user.id, function, provider, file
+    )
     return Response({"message": "Requested file was deleted."}, status=status.HTTP_200_OK)

@@ -17,7 +17,7 @@ from core.services.runners import get_runner, RunnerError
 from core.utils import check_logs
 from core.services.storage.logs_storage import LogsStorage
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("api.GetJobLogsUseCase")
 
 
 class GetJobLogsUseCase:
@@ -51,7 +51,7 @@ class GetJobLogsUseCase:
             return logs
 
         # Get from Ray if it is already running. Then filter
-        if job.compute_resource and job.compute_resource.active:
+        if job.is_active():
             try:
                 logs = get_runner(job).logs()
             except RunnerError:
@@ -59,7 +59,7 @@ class GetJobLogsUseCase:
 
             logs = check_logs(logs, job)
 
-            logger.info("Getting logs from ray job [%s]", job.ray_job_id)
+            logger.info("Getting logs from ray job [%s] job_id=%s", job.ray_job_id, job.id)
 
             if job.program.provider:
                 # Public logs from a provider job

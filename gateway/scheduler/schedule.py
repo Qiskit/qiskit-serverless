@@ -17,7 +17,7 @@ from core.models import Job
 from core.services.runners import get_runner, RunnerError
 
 User: Model = get_user_model()
-logger = logging.getLogger("commands")
+logger = logging.getLogger("scheduler.schedule")
 
 
 def execute_job(job: Job) -> Job:
@@ -37,13 +37,12 @@ def execute_job(job: Job) -> Job:
         runner = get_runner(job)
 
         try:
-            compute_resource, ray_job_id = runner.submit()
-            compute_resource.save()
-            job.compute_resource = compute_resource
-            job.ray_job_id = ray_job_id
+            runner.submit()
+            job.compute_resource.save()
             job.status = Job.PENDING
-            span.set_attribute("job.clustername", compute_resource.title)
-        except RunnerError:
+            span.set_attribute("job.clustername", job.compute_resource.title)
+        except RunnerError as ex:
+            logger.error("job_id=%s error=%s Job set as FAILED: compute resource or submission error", job.id, ex)
             job.status = Job.FAILED
             job.logs += "\nCompute resource creation or job submission failed."
 
@@ -105,7 +104,7 @@ def check_job_timeout(job: Job):
     if endtime < now:
         job.logs += "\nMaximum job runtime reached. Stopping the job."
         logger.warning(
-            "Job [%s] reached maximum runtime [%s] days and stopped.",
+            "job_id=%s timeout_days=%s Job reached maximum runtime, stopping",
             job.id,
             timeout,
         )
@@ -113,32 +112,12 @@ def check_job_timeout(job: Job):
     return False
 
 
-def handle_job_status_not_available(job: Job, job_status):
-    """Process job status not available and update job"""
-
-    if settings.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
-        logger.debug(
-            "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, so cluster [%s] will not be removed",
-            job.compute_resource.title,
-        )
-    else:
-        runner = get_runner(job)
-        try:
-            runner.free_resources()
-        except RunnerError:
-            pass
-        job.compute_resource.delete()
-        job.compute_resource = None
-        job_status = Job.FAILED
-        job.logs += "\nSomething went wrong during updating job status."
-    return job_status
-
-
 def fail_job_insufficient_resources(job: Job):
     """Fail job if insufficient resources are available."""
     if settings.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
         logger.debug(
-            "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, so cluster [%s] will not be removed",
+            "job_id=%s cluster=%s RAY_CLUSTER_NO_DELETE_ON_COMPLETE enabled, cluster not removed",
+            job.id,
             job.compute_resource.title,
         )
     else:

@@ -15,7 +15,7 @@ from core.services.storage.path_builder import PathBuilder
 from core.models import Job
 from core.services.storage.enums.working_dir import WorkingDir
 
-logger = logging.getLogger("utils")
+logger = logging.getLogger("api.api.utils")
 
 
 def try_json_loads(data: str) -> Tuple[bool, Optional[dict]]:
@@ -54,11 +54,10 @@ def build_env_variables(  # pylint: disable=too-many-positional-arguments
     arguments = "{}"
     if args:
         if objsize.get_deep_size(args) < 100000:
-            logger.debug("passing arguments as env_var for job [%s]", job.id)
             arguments = args
         else:
             logger.warning(
-                "arguments for job [%s] are too large and will not be written to env_var",
+                "[build_env_variables] job_id=%s | Arguments ignored: too large",
                 job.id,
             )
 
@@ -192,12 +191,19 @@ def create_dynamic_dependencies_whitelist() -> Dict[str, Requirement]:
 
     The format of the readed file should be a requirements.txt file.
     """
+    # Determine path based on environment:
+    # - Tests: ../ray-node/requirements-dynamic-dependencies.txt
+    # - Docker/production: requirements-dynamic-dependencies.txt (copied to /usr/src/app/)
+    if settings.IS_TEST:
+        requirements_path = "../ray-node/requirements-dynamic-dependencies.txt"
+    else:
+        requirements_path = "requirements-dynamic-dependencies.txt"
+
     try:
-        with open(settings.GATEWAY_DYNAMIC_DEPENDENCIES, encoding="utf-8", mode="r") as f:
+        with open(requirements_path, encoding="utf-8", mode="r") as f:
             dependencies = f.readlines()
     except IOError as e:
-        if settings.GATEWAY_DYNAMIC_DEPENDENCIES != "":
-            logger.error("Unable to open dynamic dependencies requirements file: %s", e)
+        logger.error("Unable to open dynamic dependencies requirements file at %s: %s", requirements_path, e)
         return {}
 
     # packaging.requirements.Requirement is a PEP 508-compliant parser. It won’t parse pip

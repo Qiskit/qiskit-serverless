@@ -26,7 +26,7 @@ from api.v1.views.utils import create_paginated_response
 from api.v1.views.swagger_utils import standard_error_responses
 from api.v1.views.serializer_utils import SanitizedCharField
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("api.api.v1.views.jobs.provider_list")
 
 
 class TypeFilterField(serializers.ChoiceField):
@@ -192,7 +192,7 @@ def get_provider_jobs(request: Request) -> Response:
 
     jobs, total = JobsProviderListUseCase().execute(user=user, filters=filters)
     logger.info(
-        "[jobs-provider-list] user=%s provider=%s function=%s",
+        "[jobs-provider-list] user_id=%s provider=%s function=%s | Provider jobs listed ok",
         user.id,
         filters.provider,
         filters.function,

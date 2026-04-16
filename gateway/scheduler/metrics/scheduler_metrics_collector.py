@@ -6,9 +6,6 @@ from prometheus_client import (
     Counter,
     Gauge,
     make_wsgi_app,
-    ProcessCollector,
-    GCCollector,
-    PlatformCollector,
 )
 
 from scheduler.metrics.system_metrics_collector import SystemMetricsCollector
@@ -19,8 +16,8 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes
     For system metrics (like CPU or Memory) go to the SystemMetricsCollector
     """
 
-    def __init__(self, registry: CollectorRegistry = None):
-        self.registry: CollectorRegistry = registry or CollectorRegistry()
+    def __init__(self, registry: CollectorRegistry):
+        self.registry: CollectorRegistry = registry
 
         self.loop_duration = Histogram(
             "scheduler_loop_duration_seconds",
@@ -51,11 +48,24 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes
             "Unix timestamp of latest completed scheduler loop iteration.",
             registry=self.registry,
         )
-        self.queue_size = Gauge(
-            "scheduler_queue_size",
-            "Number of jobs currently in the queue waiting to be scheduled.",
-            labelnames=("compute_type",),
+        self.job_status_count = Gauge(
+            "scheduler_job_status_count",
+            "Number of jobs per status and provider.",
+            labelnames=("status", "provider"),
             registry=self.registry,
+        )
+        self.jobs_terminal_total = Counter(
+            "scheduler_jobs_terminal_total",
+            "Total jobs that reached a terminal state (SUCCEEDED, FAILED, STOPPED).",
+            labelnames=("provider", "final_status"),
+            registry=self.registry,
+        )
+        self.job_execution_duration = Histogram(
+            "scheduler_job_execution_duration_seconds",
+            "Time successful jobs spend executing from RUNNING to SUCCEEDED.",
+            labelnames=("provider",),
+            registry=self.registry,
+            buckets=(30, 60, 300, 600, 1800, 3600, 7200, 14400, float("inf")),
         )
         self.queue_wait_seconds = Histogram(
             "scheduler_queue_wait_seconds",
@@ -65,12 +75,6 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes
             buckets=(1, 5, 10, 30, 60, 120, 300, 600, 1800, 3600, float("inf")),
         )
 
-        # from the Prometheus client library
-        ProcessCollector(registry=self.registry)
-        GCCollector(registry=self.registry)
-        PlatformCollector(registry=self.registry)
-
-        # This is our personal system metrics, reading from psutil
         SystemMetricsCollector(registry=self.registry)
 
         self.wsgi_app = make_wsgi_app(self.registry)
@@ -88,10 +92,22 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes
         self.loop_duration.observe(elapsed_seconds)
         self.last_tick.set_to_current_time()
 
-    def set_queue_size(self, size: int, compute_type: str) -> None:
-        """Set current queue size for a compute type."""
-        self.queue_size.labels(compute_type=compute_type).set(size)
-
     def observe_queue_wait_time(self, wait_seconds: float, compute_type: str) -> None:
         """Record queue wait time for a scheduled job."""
         self.queue_wait_seconds.labels(compute_type=compute_type).observe(wait_seconds)
+
+    def clear_job_status_counts(self) -> None:
+        """Remove all label combinations from job_status_count to avoid stale values."""
+        self.job_status_count.clear()
+
+    def set_job_status_count(self, count: int, status: str, provider: str) -> None:
+        """Set job count for a specific status and provider."""
+        self.job_status_count.labels(status=status, provider=provider).set(count)
+
+    def observe_job_execution_duration(self, duration_seconds: float, provider: str) -> None:
+        """Record execution time from RUNNING to SUCCEEDED."""
+        self.job_execution_duration.labels(provider=provider).observe(duration_seconds)
+
+    def increment_jobs_terminal(self, provider: str, final_status: str) -> None:
+        """Increment counter when a job reaches a terminal state."""
+        self.jobs_terminal_total.labels(provider=provider, final_status=final_status).inc()

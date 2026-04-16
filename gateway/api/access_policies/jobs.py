@@ -8,7 +8,7 @@ from django.contrib.auth.models import AbstractUser
 from core.models import Job
 from api.access_policies.providers import ProviderAccessPolicy
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("api.JobAccessPolicies")
 
 
 class JobAccessPolicies:
@@ -47,7 +47,11 @@ class JobAccessPolicies:
             has_access = ProviderAccessPolicy.can_access(user, job.program.provider)
 
         if not has_access:
-            logger.warning("User [%s] has no access to job [%s].", user.username, job.author)
+            logger.warning(
+                "[can_access] job_id=%s user_id=%s | no access to job",
+                job.id,
+                user.id,
+            )
         return has_access
 
     @staticmethod
@@ -66,9 +70,9 @@ class JobAccessPolicies:
         has_access = user.id == job.author.id
         if not has_access:
             logger.warning(
-                "User [%s] has no access to read the result of the job [%s].",
-                user.username,
-                job.author,
+                "[can_read_result] job_id=%s user_id=%s | no access to read result",
+                job.id,
+                user.id,
             )
         return has_access
 
@@ -89,9 +93,9 @@ class JobAccessPolicies:
             return True
 
         logger.warning(
-            "User [%s] has no access to read the user logs of the job [%s].",
-            user.username,
-            job.author,
+            "[can_read_user_logs] job_id=%s user_id=%s | no access to read user logs",
+            job.id,
+            user.id,
         )
         return False
 
@@ -112,9 +116,9 @@ class JobAccessPolicies:
             return True
 
         logger.warning(
-            "User [%s] has no access to read the provider logs of the job [%s].",
-            user.username,
-            job.author,
+            "[can_read_provider_logs] job_id=%s user_id=%s | no access to read provider logs",
+            job.id,
+            user.id,
         )
         return False
 
@@ -134,9 +138,9 @@ class JobAccessPolicies:
         has_access = user.id == job.author.id
         if not has_access:
             logger.warning(
-                "User [%s] has no access to save the result of the job [%s].",
-                user.username,
-                job.author,
+                "[can_save_result] job_id=%s user_id=%s | no access to save result",
+                job.id,
+                user.id,
             )
         return has_access
 
@@ -156,9 +160,9 @@ class JobAccessPolicies:
         has_access = user.id == job.author.id
         if not has_access:
             logger.warning(
-                "User [%s] has no access to update the sub_status of the job [%s].",
-                user.username,
+                "[can_update_sub_status] job_id=%s user_id=%s | no access to update sub_status",
                 job.id,
+                user.id,
             )
         return has_access
 

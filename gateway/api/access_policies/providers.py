@@ -6,7 +6,7 @@ import logging
 
 from core.models import Provider
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("api.ProviderAccessPolicy")
 
 
 class ProviderAccessPolicy:
@@ -34,5 +34,9 @@ class ProviderAccessPolicy:
         admin_groups = set(provider.admin_groups.all())
         user_is_admin = bool(user_groups.intersection(admin_groups))
         if not user_is_admin:
-            logger.warning("User [%s] has no access to provider [%s].", user.id, provider.name)
+            logger.warning(
+                "[can_access] provider=%s user_id=%s | no access",
+                provider.name,
+                user.id,
+            )
         return user_is_admin

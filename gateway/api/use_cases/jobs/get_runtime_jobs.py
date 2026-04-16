@@ -9,7 +9,7 @@ from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.repositories.runtime_job import RuntimeJobRepository
 from core.models import Job, RuntimeJob
 
-logger = logging.getLogger("gateway.use_cases.jobs")
+logger = logging.getLogger("api.GetRuntimeJobsUseCase")
 
 
 class GetRuntimeJobsUseCase:

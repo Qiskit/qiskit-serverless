@@ -8,7 +8,7 @@ from django.contrib.auth.models import Group
 
 from core.models import Provider
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("api.ProviderRepository")
 
 
 class ProviderRepository:

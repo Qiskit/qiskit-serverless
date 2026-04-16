@@ -1,0 +1,5 @@
+#!/bin/sh
+
+python manage.py migrate_with_lock
+
+exec python manage.py run_scheduler

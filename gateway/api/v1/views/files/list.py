@@ -20,7 +20,7 @@ from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_name
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("api.api.v1.views.files.list")
 
 # pylint: disable=abstract-method
 
@@ -102,5 +102,5 @@ def files_list(request: Request) -> Response:
     user = cast(AbstractUser, request.user)
 
     files = FilesListUseCase().execute(user, provider, function)
-    logger.info("[files-list] user=%s function=%s provider=%s", user.id, function, provider)
+    logger.info("[files-list] user_id=%s function=%s provider=%s | Files listed ok", user.id, function, provider)
     return Response({"results": files})

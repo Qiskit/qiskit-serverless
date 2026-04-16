@@ -5,7 +5,7 @@ Access policies implementation for Users access
 import logging
 from django.contrib.auth.models import AbstractUser
 
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("api.UserAccessPolicies")
 
 
 class UserAccessPolicies:
@@ -33,5 +33,8 @@ class UserAccessPolicies:
         if user.is_active:
             return True
 
-        logger.warning("User [%s] is not active.", user.username)
+        logger.warning(
+            "[can_access] user_id=%s | user inactive",
+            user.id,
+        )
         return False
