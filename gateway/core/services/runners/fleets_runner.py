@@ -14,6 +14,10 @@ class FleetsRunner(AbstractRunner):
     def disconnect(self) -> None:
         """Disconnect from CodeEngine?? (remove the SDK)"""
 
+    def is_alive(self) -> bool:
+        """Check if the Fleets engine is alive."""
+        raise NotImplementedError("FleetsRunner not yet implemented")
+
     def submit(self) -> None:
         """
         Submit the job to Fleets.

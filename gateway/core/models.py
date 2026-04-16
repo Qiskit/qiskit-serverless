@@ -353,10 +353,6 @@ class Job(models.Model):
         """Returns true if job is in terminal state."""
         return self.status in self.TERMINAL_STATUSES
 
-    def is_active(self) -> bool:
-        """Returns true if job has any active pod."""
-        return self.compute_resource and self.compute_resource.active
-
 
 class RuntimeJob(models.Model):
     """Runtime Job model."""
