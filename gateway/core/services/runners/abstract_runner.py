@@ -96,8 +96,8 @@ class AbstractRunner(ABC):
     # --- Methods that DO require connection (lazy connect) ---
 
     @abstractmethod
-    def is_alive(self) -> bool:
-        """Check if the engine host is alive and reachable.
+    def is_active(self) -> bool:
+        """Check if the engine host is active even id the job is finished.
 
         Performs a lightweight HTTP check to the engine host.
         Does NOT require a full SDK connection.

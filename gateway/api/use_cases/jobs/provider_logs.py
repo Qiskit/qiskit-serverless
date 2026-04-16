@@ -51,7 +51,7 @@ class GetProviderJobLogsUseCase:
             return logs
 
         runner = get_runner(job)
-        if runner.is_alive():
+        if runner.is_active():
             try:
                 logs = runner.logs()
             except RunnerError:

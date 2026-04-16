@@ -62,7 +62,7 @@ class RayRunner(AbstractRunner):
         self._client = None
         self._connected = False
 
-    def is_alive(self) -> bool:
+    def is_active(self) -> bool:
         """Check if the Ray cluster host is alive and reachable.
         True if the Ray dashboard responds, False otherwise.
         """

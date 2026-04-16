@@ -111,7 +111,7 @@ class StopJobUseCase:
 
     def _stop_ray_job_if_active(self, job: Job):
         runner = get_runner(job)
-        if runner.is_alive():
+        if runner.is_active():
             try:
                 was_running = runner.stop()
                 if was_running:
