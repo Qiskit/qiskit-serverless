@@ -37,12 +37,10 @@ def execute_job(job: Job) -> Job:
         runner = get_runner(job)
 
         try:
-            compute_resource, ray_job_id = runner.submit()
-            compute_resource.save()
-            job.compute_resource = compute_resource
-            job.ray_job_id = ray_job_id
+            runner.submit()
+            job.compute_resource.save()
             job.status = Job.PENDING
-            span.set_attribute("job.clustername", compute_resource.title)
+            span.set_attribute("job.clustername", job.compute_resource.title)
         except RunnerError as ex:
             logger.error("job_id=%s error=%s Job set as FAILED: compute resource or submission error", job.id, ex)
             job.status = Job.FAILED

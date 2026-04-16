@@ -170,6 +170,7 @@ class ScheduleQueuedJobs(SchedulerTask):
             status = row["status"]
             provider = row["program__provider__name"] or "custom"
             counts[(status, provider)] = row["count"]
+        self.metrics.clear_job_status_counts()
         for (status, provider), count in counts.items():
             self.metrics.set_job_status_count(count, status, provider)
 

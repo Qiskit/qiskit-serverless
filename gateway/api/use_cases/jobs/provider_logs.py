@@ -50,10 +50,10 @@ class GetProviderJobLogsUseCase:
         if logs:
             return logs
 
-        # Get from Ray if it is already running. Then filter
-        if job.compute_resource and job.compute_resource.active:
+        runner = get_runner(job)
+        if runner.is_active():
             try:
-                logs = get_runner(job).logs()
+                logs = runner.logs()
             except RunnerError:
                 return "Logs not available for this job during execution."
 

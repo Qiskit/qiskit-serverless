@@ -57,13 +57,12 @@ class TestRayRunner(APITestCase):
             requests_mock.Mocker() as mocker,
         ):
             mocker.get(head_node_url, status_code=200)
-            compute_resource, ray_job_id = runner.submit()
+            runner.submit()
 
-            self.assertEqual(ray_job_id, "AwesomeJobId")
-            self.assertIsInstance(compute_resource, ComputeResource)
-            self.assertEqual("test_user", compute_resource.title)
-            self.assertEqual(compute_resource.host, head_node_url)
-            self.assertTrue(compute_resource._state.adding)  # Not saved to DB
+            assert job.ray_job_id == "AwesomeJobId"
+            assert "test_user" == job.compute_resource.title
+            assert job.compute_resource.host == head_node_url
+            assert job.compute_resource._state.adding  # Not saved to DB
             DynamicClient.resources.get.assert_called_once_with(api_version="v1", kind="RayCluster")
 
     def test_cleanup_cluster(self):
@@ -193,9 +192,9 @@ class TestRayClientOperations(APITestCase):
             runner = get_runner(job)
 
             with patch.object(runner, "_submit_to_ray", return_value="AwesomeJobId"):
-                compute_resource, ray_job_id = runner.submit()
+                runner.submit()
 
-                self.assertEqual(ray_job_id, "AwesomeJobId")
-                self.assertIsNotNone(compute_resource)
-                self.assertEqual(compute_resource.title, "Local compute resource")
-                self.assertTrue(compute_resource._state.adding)  # Not saved to DB
+                self.assertEqual(job.ray_job_id, "AwesomeJobId")
+                self.assertIsNotNone(job.compute_resource)
+                self.assertEqual(job.compute_resource.title, "Local compute resource")
+                self.assertTrue(job.compute_resource._state.adding)  # Not saved to DB

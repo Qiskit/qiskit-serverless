@@ -2,7 +2,6 @@
 
 from typing import Optional
 
-from core.models import ComputeResource
 from core.services.runners.abstract_runner import AbstractRunner
 
 
@@ -15,14 +14,16 @@ class FleetsRunner(AbstractRunner):
     def disconnect(self) -> None:
         """Disconnect from CodeEngine?? (remove the SDK)"""
 
-    def submit(self) -> tuple[ComputeResource, str]:
+    def is_active(self) -> bool:
+        """Check if the Fleets engine is alive."""
+        raise NotImplementedError("FleetsRunner not yet implemented")
+
+    def submit(self) -> None:
         """
         Submit the job to Fleets.
 
-        Returns:
-            Tuple of (ComputeResource, fleets_id)
-            - ComputeResource: not saved to DB, caller must save and assign to job
-            - fleets_id: CodeEngine job identifier
+        Raises:
+            NotImplementedError: FleetsRunner is not yet implemented
         """
         raise NotImplementedError("FleetsRunner not yet implemented")
 
