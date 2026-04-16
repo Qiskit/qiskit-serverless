@@ -313,6 +313,157 @@
         <article role="main" id="furo-main-content">
           <section id="release-notes">
 <span id="id1"></span><h1>Release Notes<a class="headerlink" href="#release-notes" title="Permalink to this heading">¶</a></h1>
+<section id="upcoming-qiskit-serverless-release">
+<span id="release-notes-upcoming-qiskit-serverless-release"></span><h2>Upcoming Qiskit Serverless release<a class="headerlink" href="#upcoming-qiskit-serverless-release" title="Permalink to this heading">¶</a></h2>
+<section id="new-features">
+<span id="release-notes-upcoming-qiskit-serverless-release-new-features"></span><h3>New Features<a class="headerlink" href="#new-features" title="Permalink to this heading">¶</a></h3>
+<ul>
+<li><p>Added comprehensive error tracking and event management capabilities for Qiskit Functions.
+This feature enables function developers to send custom error events via <code class="xref py py-func docutils literal notranslate"><span class="pre">send_error()</span></code>
+or raise structured exceptions via <code class="xref py py-class docutils literal notranslate"><span class="pre">ServerlessError</span></code>, and allows users to retrieve
+and inspect these events for debugging and monitoring purposes.</p>
+<p><strong>Function development</strong></p>
+<p>Function developers can now use two new capabilities:</p>
+<ul>
+<li><p>A new <code class="xref py py-func docutils literal notranslate"><span class="pre">send_error()</span></code> function to register custom error events
+that will be stored in the gateway and associated with the job. This is particularly
+useful for tracking application-specific errors, validation failures, or custom
+error conditions. Each event is represented by a <code class="xref py py-class docutils literal notranslate"><span class="pre">JobEvent</span></code> object.</p>
+<p>It can be used like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">send_error</span>
+
+<span class="c1"># Send a simple error</span>
+<span class="n">send_error</span><span class="p">(</span>
+    <span class="n">code</span><span class="o">=</span><span class="s2">&quot;ERR001&quot;</span><span class="p">,</span>
+    <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Invalid input parameter&quot;</span><span class="p">,</span>
+    <span class="n">exception</span><span class="o">=</span><span class="s2">&quot;ValueError&quot;</span>
+<span class="p">)</span>
+
+<span class="c1"># Send an error with additional context</span>
+<span class="n">send_error</span><span class="p">(</span>
+    <span class="n">code</span><span class="o">=</span><span class="s2">&quot;ERR002&quot;</span><span class="p">,</span>
+    <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Circuit optimization failed&quot;</span><span class="p">,</span>
+    <span class="n">exception</span><span class="o">=</span><span class="s2">&quot;OptimizationError&quot;</span><span class="p">,</span>
+    <span class="n">args</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">&quot;circuit_depth&quot;</span><span class="p">:</span> <span class="mi">150</span><span class="p">,</span>
+        <span class="s2">&quot;num_qubits&quot;</span><span class="p">:</span> <span class="mi">127</span><span class="p">,</span>
+        <span class="s2">&quot;optimization_level&quot;</span><span class="p">:</span> <span class="mi">3</span>
+    <span class="p">}</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>A new <code class="xref py py-class docutils literal notranslate"><span class="pre">ServerlessError</span></code> exception class to raise structured, trackable errors.
+When a <code class="xref py py-class docutils literal notranslate"><span class="pre">ServerlessError</span></code> is raised in a function, it is automatically caught by the framework,
+logged as an ERROR event, and can be retrieved by users through the events API.</p>
+<p>The <code class="xref py py-class docutils literal notranslate"><span class="pre">ServerlessError</span></code> class provides a structured way to communicate errors with:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">code</span></code>: A unique error code for categorization</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">message</span></code>: Human-readable error description</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">details</span></code>: Additional context (can be any JSON-serializable data)</p></li>
+</ul>
+<p>Example usage:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">ServerlessError</span>
+
+<span class="c1"># Raise a structured error</span>
+<span class="k">raise</span> <span class="n">ServerlessError</span><span class="p">(</span>
+    <span class="n">code</span><span class="o">=</span><span class="s2">&quot;VAL001&quot;</span><span class="p">,</span>
+    <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Invalid circuit depth&quot;</span><span class="p">,</span>
+    <span class="n">details</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;max_depth&quot;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span> <span class="s2">&quot;provided_depth&quot;</span><span class="p">:</span> <span class="mi">150</span><span class="p">}</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ul>
+<p><strong>When to use ServerlessError vs send_error</strong></p>
+<ul class="simple">
+<li><p>Use <code class="xref py py-class docutils literal notranslate"><span class="pre">ServerlessError</span></code> when you want to <strong>stop execution</strong> and signal a fatal error
+that prevents the function from completing successfully. The error will be automatically
+logged and the job will transition to ERROR status.</p></li>
+<li><p>Use <code class="xref py py-func docutils literal notranslate"><span class="pre">send_error()</span></code> when you want to <strong>log an error but continue execution</strong>. This is
+useful for non-fatal errors, warnings, or when you want to track multiple issues without
+stopping the function.</p></li>
+</ul>
+<p>Example combining both approaches:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">ServerlessError</span><span class="p">,</span> <span class="n">send_error</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">process_circuits</span><span class="p">(</span><span class="n">circuits</span><span class="p">):</span>
+    <span class="n">failed</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">circuit</span> <span class="ow">in</span> <span class="n">circuits</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">circuit</span><span class="o">.</span><span class="n">num_qubits</span> <span class="o">&gt;</span> <span class="mi">127</span><span class="p">:</span>
+            <span class="c1"># Log non-fatal error, continue processing</span>
+            <span class="n">send_error</span><span class="p">(</span>
+                <span class="n">code</span><span class="o">=</span><span class="s2">&quot;SKIP001&quot;</span><span class="p">,</span>
+                <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Circuit exceeds qubit limit&quot;</span><span class="p">,</span>
+                <span class="n">exception</span><span class="o">=</span><span class="s2">&quot;ValidationError&quot;</span><span class="p">,</span>
+                <span class="n">args</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;num_qubits&quot;</span><span class="p">:</span> <span class="n">circuit</span><span class="o">.</span><span class="n">num_qubits</span><span class="p">}</span>
+            <span class="p">)</span>
+            <span class="n">failed</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">continue</span>
+        <span class="n">process</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span>
+    
+    <span class="c1"># Raise fatal error if all circuits failed</span>
+    <span class="k">if</span> <span class="n">failed</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">circuits</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">ServerlessError</span><span class="p">(</span>
+            <span class="n">code</span><span class="o">=</span><span class="s2">&quot;FATAL001&quot;</span><span class="p">,</span>
+            <span class="n">message</span><span class="o">=</span><span class="s2">&quot;All circuits failed&quot;</span><span class="p">,</span>
+            <span class="n">details</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;total&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">circuits</span><span class="p">)}</span>
+        <span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Client side</strong></p>
+<p>Users can retrieve job events using the new <code class="xref py py-func docutils literal notranslate"><span class="pre">events()</span></code> method available on both
+class:<cite>.Job</cite> objects and class:<cite>.ServerlessClient</cite> instances. Events can be filtered by type or
+retrieved in bulk for comprehensive debugging. Each event is represented by a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">JobEvent</span></code> object with the following attributes:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">event_type</span></code>: Type of event (e.g., “ERROR”, “STATUS_CHANGE”)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">origin</span></code>: Where the event originated (e.g., “API”, “SCHEDULER”, “FUNCTION”)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">context</span></code>: Context in which event was raised (e.g., “SEND_ERROR”, “SET_SUB_STATUS”)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">created</span></code>: ISO 8601 timestamp of event creation</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">data</span></code>: Dictionary containing event-specific data (for ERROR events: code, message, exception, args)</p></li>
+</ul>
+<p>Retrieve all events for a job:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">ServerlessClient</span>
+
+<span class="n">serverless</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;my-function&quot;</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;param&quot;</span><span class="p">:</span> <span class="s2">&quot;value&quot;</span><span class="p">})</span>
+
+<span class="c1"># Get all events</span>
+<span class="n">all_events</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">events</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">all_events</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Type: </span><span class="si">{</span><span class="n">event</span><span class="o">.</span><span class="n">event_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Created: </span><span class="si">{</span><span class="n">event</span><span class="o">.</span><span class="n">created</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Data: </span><span class="si">{</span><span class="n">event</span><span class="o">.</span><span class="n">data</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>To retrieve error events, users can filter events by type:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get only error events</span>
+<span class="n">error_events</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">events</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;ERROR&quot;</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">error</span> <span class="ow">in</span> <span class="n">error_events</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error Code: </span><span class="si">{</span><span class="n">error</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;code&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Message: </span><span class="si">{</span><span class="n">error</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;message&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Exception: </span><span class="si">{</span><span class="n">error</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;exception&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s1">&#39;args&#39;</span> <span class="ow">in</span> <span class="n">error</span><span class="o">.</span><span class="n">data</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Additional Info: </span><span class="si">{</span><span class="n">error</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;args&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>On top of the <a class="reference internal" href="stubs/qiskit_serverless.core.Job.html#qiskit_serverless.core.Job" title="qiskit_serverless.core.Job"><code class="xref py py-class docutils literal notranslate"><span class="pre">Job</span></code></a> methods, users can retrieve events using the client directly:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Alternative: use client to get events by job_id</span>
+<span class="n">events</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">events</span><span class="p">(</span><span class="n">job_id</span><span class="o">=</span><span class="s2">&quot;my-job-id&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;ERROR&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>API</strong></p>
+<p>Two new REST API endpoints have been added:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/v1/jobs/{job_id}/events/</span></code>: Retrieve job events</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/v1/jobs/{job_id}/event/</span></code>: Create a new job event</p></li>
+</ul>
+</li>
+</ul>
+</section>
+</section>
 <section id="v0-30-1">
 <span id="release-notes-v0-30-1"></span><h2>v0.30.1<a class="headerlink" href="#v0-30-1" title="Permalink to this heading">¶</a></h2>
 <section id="prelude">
@@ -337,8 +488,8 @@ The method now correctly raises a <a class="reference internal" href="stubs/qisk
 <span id="id2"></span><h3>Prelude<a class="headerlink" href="#release-notes-v0-30-0-prelude" title="Permalink to this heading">¶</a></h3>
 <p>The main feature in this release is the major refactor in logs to differentiate between provider logs and user logs and optimize storage. The logs are now stored in COS while keeping backward compatibility.</p>
 </section>
-<section id="new-features">
-<span id="release-notes-v0-30-0-new-features"></span><h3>New Features<a class="headerlink" href="#new-features" title="Permalink to this heading">¶</a></h3>
+<section id="release-notes-v0-30-0-new-features">
+<span id="id3"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-30-0-new-features" title="Permalink to this heading">¶</a></h3>
 <ul>
 <li><p>The <code class="docutils literal notranslate"><span class="pre">qiskit-serverless</span></code> Python library added two new utilities, <code class="xref py py-func docutils literal notranslate"><span class="pre">get_logger()</span></code>
 and <code class="xref py py-func docutils literal notranslate"><span class="pre">get_provider_logger()</span></code>, available to Qiskit Function developers.
@@ -468,7 +619,7 @@ serverless clients through the <code class="docutils literal notranslate"><span 
 </ul>
 </section>
 <section id="release-notes-v0-30-0-bug-fixes">
-<span id="id3"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-30-0-bug-fixes" title="Permalink to this heading">¶</a></h3>
+<span id="id4"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-30-0-bug-fixes" title="Permalink to this heading">¶</a></h3>
 <ul>
 <li><p>Fixed a bug in the function versioning workflow where the version set upon function creation
 couldn’t be uploaded to the platform, stored in the database, or retrieved upon function retrieval.
@@ -512,7 +663,7 @@ arguments. After the fix, the data paths are resolved correctly, and no error is
 <section id="v0-29-0">
 <span id="release-notes-v0-29-0"></span><h2>v0.29.0<a class="headerlink" href="#v0-29-0" title="Permalink to this heading">¶</a></h2>
 <section id="release-notes-v0-29-0-upgrade-notes">
-<span id="id4"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-29-0-upgrade-notes" title="Permalink to this heading">¶</a></h3>
+<span id="id5"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-29-0-upgrade-notes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Refactored storage service initialization to accept <code class="docutils literal notranslate"><span class="pre">Program</span></code> model instances
 instead of individual parameters. The <code class="docutils literal notranslate"><span class="pre">FileStorage</span></code> and <code class="docutils literal notranslate"><span class="pre">ArgumentsStorage</span></code>
@@ -543,7 +694,7 @@ and a CRN is present, the system defaults to <code class="docutils literal notra
 </ul>
 </section>
 <section id="release-notes-v0-29-0-bug-fixes">
-<span id="id5"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-29-0-bug-fixes" title="Permalink to this heading">¶</a></h3>
+<span id="id6"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-29-0-bug-fixes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Fixed a bug in the json decoder that would crop the response details to the first character when
 gateway errors were raised. This utility now forwards the full error message to the raised
@@ -573,7 +724,7 @@ storage path resolution when users have multiple functions with the same title.<
 <section id="v0-28-0">
 <span id="release-notes-v0-28-0"></span><h2>v0.28.0<a class="headerlink" href="#v0-28-0" title="Permalink to this heading">¶</a></h2>
 <section id="release-notes-v0-28-0-new-features">
-<span id="id6"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-28-0-new-features" title="Permalink to this heading">¶</a></h3>
+<span id="id7"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-28-0-new-features" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference internal" href="stubs/qiskit_serverless.core.IBMServerlessClient.html#qiskit_serverless.core.IBMServerlessClient" title="qiskit_serverless.core.IBMServerlessClient"><code class="xref py py-class docutils literal notranslate"><span class="pre">IBMServerlessClient</span></code></a>  now supports custom gateway host URLs through the <code class="docutils literal notranslate"><span class="pre">host</span></code> parameter.
 This allows for a more streamlined testing of the client connecting to non-production gateways.</p></li>
@@ -586,7 +737,7 @@ This allows for a more streamlined testing of the client connecting to non-produ
 <section id="v0-27-1">
 <span id="release-notes-v0-27-1"></span><h2>v0.27.1<a class="headerlink" href="#v0-27-1" title="Permalink to this heading">¶</a></h2>
 <section id="release-notes-v0-27-1-upgrade-notes">
-<span id="id7"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-27-1-upgrade-notes" title="Permalink to this heading">¶</a></h3>
+<span id="id8"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-27-1-upgrade-notes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>The scheduling logic that was managing non GPU and GPU jobs was improved.
 Now the scheduler manages both type of jobs independently so
@@ -597,7 +748,7 @@ you can adjust separately where each of these jobs are run.</p></li>
 </ul>
 </section>
 <section id="release-notes-v0-27-1-bug-fixes">
-<span id="id8"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-27-1-bug-fixes" title="Permalink to this heading">¶</a></h3>
+<span id="id9"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-27-1-bug-fixes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Fixed a bug in the scheduler that was preventing it from
 stopping jobs automatically after the timeout threshold specified
@@ -608,7 +759,7 @@ with the environment variable <code class="docutils literal notranslate"><span c
 <section id="v0-27-0">
 <span id="release-notes-v0-27-0"></span><h2>v0.27.0<a class="headerlink" href="#v0-27-0" title="Permalink to this heading">¶</a></h2>
 <section id="release-notes-v0-27-0-new-features">
-<span id="id9"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-27-0-new-features" title="Permalink to this heading">¶</a></h3>
+<span id="id10"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-27-0-new-features" title="Permalink to this heading">¶</a></h3>
 <ul>
 <li><p>A new utility <code class="docutils literal notranslate"><span class="pre">get_runtime_service()</span></code> is now available to simplify the instantiation of
 a <code class="docutils literal notranslate"><span class="pre">QiskitRuntimeService</span></code> within a function. It automatically pulls credentials from environment
@@ -673,7 +824,7 @@ For example:</p>
 </ul>
 </section>
 <section id="release-notes-v0-27-0-upgrade-notes">
-<span id="id10"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-27-0-upgrade-notes" title="Permalink to this heading">¶</a></h3>
+<span id="id11"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-27-0-upgrade-notes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Added a new AccessPolicy for User model to be able to allow or
 not the access to the service by the <code class="docutils literal notranslate"><span class="pre">is_active</span></code> parameter.</p></li>
@@ -789,6 +940,10 @@ specific jobs. For example:</p>
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">Release Notes</a><ul>
+<li><a class="reference internal" href="#upcoming-qiskit-serverless-release">Upcoming Qiskit Serverless release</a><ul>
+<li><a class="reference internal" href="#new-features">New Features</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#v0-30-1">v0.30.1</a><ul>
 <li><a class="reference internal" href="#prelude">Prelude</a></li>
 <li><a class="reference internal" href="#bug-fixes">Bug Fixes</a></li>
@@ -796,7 +951,7 @@ specific jobs. For example:</p>
 </li>
 <li><a class="reference internal" href="#v0-30-0">v0.30.0</a><ul>
 <li><a class="reference internal" href="#release-notes-v0-30-0-prelude">Prelude</a></li>
-<li><a class="reference internal" href="#new-features">New Features</a></li>
+<li><a class="reference internal" href="#release-notes-v0-30-0-new-features">New Features</a></li>
 <li><a class="reference internal" href="#upgrade-notes">Upgrade Notes</a></li>
 <li><a class="reference internal" href="#deprecation-notes">Deprecation Notes</a></li>
 <li><a class="reference internal" href="#release-notes-v0-30-0-bug-fixes">Bug Fixes</a></li>

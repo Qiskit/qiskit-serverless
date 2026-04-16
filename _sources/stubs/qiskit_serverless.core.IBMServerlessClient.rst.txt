@@ -15,6 +15,7 @@
    
       ~IBMServerlessClient.__init__
       ~IBMServerlessClient.dependencies_versions
+      ~IBMServerlessClient.events
       ~IBMServerlessClient.file_delete
       ~IBMServerlessClient.file_download
       ~IBMServerlessClient.file_upload

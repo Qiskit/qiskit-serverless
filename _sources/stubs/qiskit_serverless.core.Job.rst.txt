@@ -16,6 +16,7 @@
       ~Job.__init__
       ~Job.cancel
       ~Job.error_message
+      ~Job.events
       ~Job.filtered_logs
       ~Job.in_terminal_state
       ~Job.logs
