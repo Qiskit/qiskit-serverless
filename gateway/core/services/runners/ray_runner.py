@@ -66,6 +66,9 @@ class RayRunner(AbstractRunner):
         """Check if the Ray cluster host is alive and reachable.
         True if the Ray dashboard responds, False otherwise.
         """
+        if not self._job or not self._job.compute_resource or self._job.compute_resource.active == False:
+            return False
+
         try:
             self._create_client()  # the client ray pings the server when it's created
             return True
@@ -74,11 +77,11 @@ class RayRunner(AbstractRunner):
 
     def _create_client(self):
         if not self._job:
-            raise RunnerError(f"Unable to connect to Ray cluster at. No job linked to the client")
+            raise RunnerError("Unable to connect to Ray cluster at. No job linked to the client")
 
         compute_resource = self._job.compute_resource
         if not compute_resource:
-            raise RunnerError(f"Unable to connect to Ray cluster at. No compute resource")
+            raise RunnerError("Unable to connect to Ray cluster at. No compute resource")
         host = compute_resource.host
         try:
             client = retry_function(
