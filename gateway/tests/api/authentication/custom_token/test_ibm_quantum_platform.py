@@ -15,6 +15,7 @@ from ibm_cloud_sdk_core import DetailedResponse
 
 from api.authentication import CustomTokenBackend
 from api.domain.authentication.custom_authentication import CustomAuthentication
+from api.services.authentication.ibm_quantum_platform import IBMQuantumPlatform
 from core.models import VIEW_PROGRAM_PERMISSION
 
 RESOURCE_PLAN_ID = "test-plan-id"
@@ -97,6 +98,20 @@ class TestIBMQuantumPlatformAuthentication:
     def _setup(self, db):
         call_command("loaddata", "tests/fixtures/authentication_fixtures.json")
         cache.clear()
+
+    @pytest.fixture(autouse=True)
+    def _mock_jwt_verification(self):
+        """Mock JWT signature verification to avoid real JWKS fetching."""
+        mock_signing_key = MagicMock()
+
+        def _decode_payload(token, *args, **kwargs):
+            payload = token.split(".")[1]
+            padded = payload + "=" * (-len(payload) % 4)
+            return json.loads(base64.urlsafe_b64decode(padded))
+
+        with patch.object(IBMQuantumPlatform.jwks_client, "get_signing_key_from_jwt", return_value=mock_signing_key):
+            with patch("api.services.authentication.ibm_quantum_platform.jwt.decode", side_effect=_decode_payload):
+                yield
 
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")
