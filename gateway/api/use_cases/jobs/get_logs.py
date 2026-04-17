@@ -59,8 +59,7 @@ class GetJobLogsUseCase:
 
             logs = check_logs(logs, job)
 
-            job_id_type = "ray_job_id" if job.ray_job_id else "fleet_id"
-            logger.info("Getting logs from %s [%s] job_id=%s", job_id_type, job.ray_job_id or job.fleet_id, job.id)
+            logger.info("Getting logs from runner=%s job_id=%s", job.program.runner, job.id)
 
             if job.program.provider:
                 # Public logs from a provider job

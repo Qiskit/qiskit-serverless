@@ -49,9 +49,7 @@ class ScheduleQueuedJobs(SchedulerTask):
         """Schedule Fleets jobs (Code Engine). These don't use Ray clusters."""
         max_fleets = settings.LIMITS_MAX_FLEETS
         running_fleets = Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=Program.FLEETS).count()
-        self._schedule_jobs_if_slots_available(
-            max_fleets, running_fleets, gpu_job=False, runner=Program.FLEETS, max_limit=max_fleets
-        )
+        self._schedule_jobs_if_slots_available(max_fleets, running_fleets, gpu_job=False, runner=Program.FLEETS)
 
     def _schedule_cpu_jobs(self):
         """Schedule CPU jobs."""
@@ -65,13 +63,12 @@ class ScheduleQueuedJobs(SchedulerTask):
         running_clusters = ComputeResource.objects.filter(active=True, gpu=True).count()
         self._schedule_jobs_if_slots_available(max_clusters, running_clusters, gpu_job=True)
 
-    def _schedule_jobs_if_slots_available(  # pylint: disable=too-many-branches, too-many-positional-arguments, too-many-locals
+    def _schedule_jobs_if_slots_available(  # pylint: disable=too-many-branches, too-many-locals
         self,
         max_slots_possible,
         number_of_slots_running,
         gpu_job,
         runner=Program.RAY,
-        max_limit=100,
     ):
         """Schedule jobs depending on free slots."""
         free_slots = max_slots_possible - number_of_slots_running
@@ -89,7 +86,7 @@ class ScheduleQueuedJobs(SchedulerTask):
             )
             return
 
-        jobs = get_jobs_to_schedule_fair_share(slots=free_slots, gpu=gpu_job, runner=runner, max_limit=max_limit)
+        jobs = get_jobs_to_schedule_fair_share(slots=free_slots, gpu=gpu_job, runner=runner)
 
         for job in jobs:
             if self.kill_signal.received:

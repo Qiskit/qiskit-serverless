@@ -180,46 +180,37 @@ class UpdateJobsStatuses(SchedulerTask):
         """Update statuses of all running jobs."""
         max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
         max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
-        update_classical_jobs = max_ray_clusters_possible > 0
+        max_fleets_clusters_possible = settings.LIMITS_MAX_FLEETS
+        update_ray_jobs = max_ray_clusters_possible > 0
         update_gpu_jobs = max_gpu_clusters_possible > 0
+        update_fleets_jobs = max_fleets_clusters_possible > 0
 
-        updated_jobs_counter = 0
-        fleets_jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=Program.FLEETS)
+        fleets_counter = 0
+        ray_counter = 0
+        gpu_counter = 0
         # Note: with LIMITS_MAX_FLEETS potentially reaching 1000+ concurrent jobs, updating statuses
         # sequentially will become a bottleneck. This loop should be parallelized using multiple
         # threads or batched processing for performance reasons.
-        for job in fleets_jobs:
+        jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES)
+        for job in jobs:
             if self.kill_signal.received:
                 return
-            if self.update_job_status(job):
-                updated_jobs_counter += 1
-
-        if updated_jobs_counter:
-            logger.info("Updated %s Fleets jobs.", updated_jobs_counter)
-
-        if update_classical_jobs:
-            updated_jobs_counter = 0
-            jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, gpu=False, runner=Program.RAY)
-            for job in jobs:
-                if self.kill_signal.received:
-                    return
+            if job.runner == Program.FLEETS and update_fleets_jobs:
                 if self.update_job_status(job):
-                    updated_jobs_counter += 1
-
-            if updated_jobs_counter:
-                logger.info("Updated %s classical jobs.", updated_jobs_counter)
-
-        if update_gpu_jobs:
-            updated_jobs_counter = 0
-            jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, gpu=True, runner=Program.RAY)
-            for job in jobs:
-                if self.kill_signal.received:
-                    return
+                    fleets_counter += 1
+            elif job.gpu and update_gpu_jobs:
                 if self.update_job_status(job):
-                    updated_jobs_counter += 1
+                    gpu_counter += 1
+            elif not job.gpu and update_ray_jobs:
+                if self.update_job_status(job):
+                    ray_counter += 1
 
-            if updated_jobs_counter:
-                logger.info("Updated %s GPU jobs.", updated_jobs_counter)
+        if fleets_counter:
+            logger.info("Updated %s Fleets jobs.", fleets_counter)
+        if ray_counter:
+            logger.info("Updated %s classical jobs.", ray_counter)
+        if gpu_counter:
+            logger.info("Updated %s GPU jobs.", gpu_counter)
 
 
 def save_logs_to_storage(job: Job, logs: str):

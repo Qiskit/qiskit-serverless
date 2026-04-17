@@ -50,22 +50,21 @@ def execute_job(job: Job) -> Job:
     return job
 
 
-def get_jobs_to_schedule_fair_share(
-    slots: int, gpu: bool, runner: str = Program.RAY, max_limit: int = 100
-) -> List[Job]:
+def get_jobs_to_schedule_fair_share(slots: int, gpu: bool, runner: str = Program.RAY) -> List[Job]:
     """Returns jobs for execution based on fair share distribution of resources.
 
     Args:
         slots: max number of users to query
         gpu: filter jobs by GPU requirement
         runner: filter jobs by runner type
-        max_limit: max number of jobs to query to avoid overloading the db
 
     Returns:
         list of jobs for execution
     """
 
     # maybe refactor this using big SQL query :thinking:
+
+    max_limit = min(slots, settings.LIMITS_MAX_FLEETS)
 
     running_jobs_per_user = (
         Job.objects.filter(status__in=Job.RUNNING_STATUSES).values("author").annotate(running_jobs_count=Count("id"))
