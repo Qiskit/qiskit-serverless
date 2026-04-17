@@ -54,7 +54,6 @@ class TestRayRunner(APITestCase):
             patch("core.services.runners.ray_runner._generate_resource_name", return_value="test_user"),
             patch("core.services.runners.ray_runner._create_cluster_data", return_value="dummy yaml file contents"),
             patch.object(runner, "_submit_to_ray", return_value="AwesomeJobId"),
-            patch.object(runner, "status", return_value=Job.PENDING),
             requests_mock.Mocker() as mocker,
         ):
             mocker.get(head_node_url, status_code=200)
@@ -192,10 +191,7 @@ class TestRayClientOperations(APITestCase):
 
             runner = get_runner(job)
 
-            with (
-                patch.object(runner, "_submit_to_ray", return_value="AwesomeJobId"),
-                patch.object(runner, "status", return_value=Job.PENDING),
-            ):
+            with patch.object(runner, "_submit_to_ray", return_value="AwesomeJobId"):
                 runner.submit()
 
                 self.assertEqual(job.ray_job_id, "AwesomeJobId")

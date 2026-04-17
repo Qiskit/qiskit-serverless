@@ -577,7 +577,7 @@ class TestJobApi:
         assert response_sub_status.status_code == status.HTTP_403_FORBIDDEN
         assert (
             response_sub_status.data.get("message")
-            == "Cannot update 'sub_status' when is not in RUNNING status. (Currently SUCCEEDED)"
+            == "Cannot update 'sub_status' when is not in PENDING/RUNNING status. (Currently SUCCEEDED)"
         )
 
         job_events = JobEvent.objects.filter(job=job_id)

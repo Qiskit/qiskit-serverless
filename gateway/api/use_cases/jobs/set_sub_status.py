@@ -10,8 +10,6 @@ from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.invalid_access_exception import InvalidAccessException
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from core.models import Job, JobEvent
-from core.utils import retry_function
-from core.services.job_status import update_job_status
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
 logger = logging.getLogger("gateway.use_cases.jobs")
@@ -39,29 +37,29 @@ class SetJobSubStatusUseCase:
         try:
             job = Job.objects.get(id=job_id)
         except ObjectDoesNotExist:
-            raise JobNotFoundException(job_id)
+            raise JobNotFoundException(str(job_id))
 
         can_update_sub_status = JobAccessPolicies.can_update_sub_status(user, job)
         if not can_update_sub_status:
             raise JobNotFoundException(str(job_id))
 
-        update_job_status(job)
-        old_sub_status = job.sub_status
-
-        updated = Job.objects.filter(id=job.id, status=Job.RUNNING).update(sub_status=sub_status)
+        # update sub status in PENDING and RUNNING is allowed
+        # we accept that we could have SET_SUB_STATUS events before RUNNING
+        updated = Job.objects.filter(id=job.id, status__in=Job.RUNNING_STATUSES).update(sub_status=sub_status)
 
         if not updated:
             logger.warning(
-                "[set-sub-status] job_id=%s user_id=%s status=%s | Sub-status update rejected (not RUNNING)",
+                "[set-sub-status] job_id=%s user_id=%s status=%s | Sub-status update rejected (not PENDING/RUNNING)",
                 job.id,
                 user.id,
                 job.status,
             )
             raise InvalidAccessException(
-                "Cannot update 'sub_status' when is not" f" in RUNNING status. (Currently {job.status})"
+                "Cannot update 'sub_status' when is not" f" in PENDING/RUNNING status. (Currently {job.status})"
             )
 
-        if old_sub_status != sub_status:
+        if job.sub_status != sub_status:
+            job.sub_status = sub_status
             JobEvent.objects.add_sub_status_event(
                 job_id=job.id,
                 origin=JobEventOrigin.API,
@@ -74,7 +72,5 @@ class SetJobSubStatusUseCase:
                 user.id,
                 job.sub_status,
             )
-
-        job.refresh_from_db()
 
         return job

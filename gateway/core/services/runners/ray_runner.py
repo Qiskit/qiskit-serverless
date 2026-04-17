@@ -127,6 +127,7 @@ class RayRunner(AbstractRunner):
                 else:
                     host, title = self._create_k8s_cluster()
                     cluster_name = title
+                span.set_attribute("job.clustername", title)
 
                 compute_resource = ComputeResource(
                     title=title,
@@ -137,12 +138,12 @@ class RayRunner(AbstractRunner):
                 )
                 compute_resource.save()
 
-                span.set_attribute("job.clustername", title)
                 ray_job_id = self._submit_to_ray(compute_resource)
-                # Save compute resource and ray id asap
+
                 self._job.ray_job_id = ray_job_id
                 self._job.compute_resource = compute_resource
-                self._job.save(update_fields=["compute_resource", "ray_job_id"])
+                self._job.status = Job.PENDING
+                self._job.save(update_fields=["compute_resource", "ray_job_id", "status"])
 
                 span.set_attribute("job.id", self._job.id)
                 span.set_attribute("job.rayjobid", ray_job_id)
@@ -151,15 +152,6 @@ class RayRunner(AbstractRunner):
                     self._job.id,
                     ray_job_id,
                     title,
-                )
-
-
-                logger.info(
-                    "[submit] job_id=%s ray_job_id=%s cluster=%s Job status: %s",
-                    self._job.id,
-                    ray_job_id,
-                    title,
-                    self._job.status,
                 )
 
             except Exception as ex:
