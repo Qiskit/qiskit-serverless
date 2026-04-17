@@ -8,7 +8,6 @@ from datetime import datetime, timezone
 from django.conf import settings
 from django.db.models import Count
 
-from concurrency.exceptions import RecordModifiedError
 
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator

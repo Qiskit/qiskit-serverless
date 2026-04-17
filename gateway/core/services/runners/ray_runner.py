@@ -137,12 +137,15 @@ class RayRunner(AbstractRunner):
                 )
                 compute_resource.save()
 
+                span.set_attribute("job.clustername", title)
                 ray_job_id = self._submit_to_ray(compute_resource)
                 # Save compute resource and ray id asap
                 self._job.ray_job_id = ray_job_id
                 self._job.compute_resource = compute_resource
                 self._job.save(update_fields=["compute_resource", "ray_job_id"])
 
+                span.set_attribute("job.id", self._job.id)
+                span.set_attribute("job.rayjobid", ray_job_id)
                 logger.info(
                     "[submit] job_id=%s ray_job_id=%s cluster=%s Job submitted ok",
                     self._job.id,

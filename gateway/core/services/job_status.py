@@ -6,7 +6,6 @@ from concurrency.exceptions import RecordModifiedError
 from core.models import JobEvent
 
 from core.services.runners import get_runner, RunnerError
-from core.utils import check_logs
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
 logger = logging.getLogger("core.services.job_status")
