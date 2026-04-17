@@ -44,14 +44,12 @@ class TestScheduleApi:
         mock_get_runner_client.return_value = mock_runner
 
         job = MagicMock()
-        job.status = Job.QUEUED
-        job.logs = ""
+        job.status = Job.PENDING
         job.compute_resource = mock_compute_resource
 
         ret_job = execute_job(job)
 
         mock_runner.submit.assert_called_once()
-        mock_compute_resource.save.assert_called_once()
         assert ret_job.status == Job.PENDING
 
     @patch("scheduler.schedule.get_runner")

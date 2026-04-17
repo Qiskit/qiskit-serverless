@@ -135,18 +135,33 @@ class RayRunner(AbstractRunner):
                     gpu=self._job.gpu,
                     active=True,
                 )
-                span.set_attribute("job.clustername", title)
+                compute_resource.save()
+
                 ray_job_id = self._submit_to_ray(compute_resource)
-                span.set_attribute("job.id", self._job.id)
-                span.set_attribute("job.rayjobid", ray_job_id)
+                # Save compute resource and ray id asap
+                self._job.ray_job_id = ray_job_id
+                self._job.compute_resource = compute_resource
+                self._job.save(update_fields=["compute_resource", "ray_job_id"])
+
                 logger.info(
                     "[submit] job_id=%s ray_job_id=%s cluster=%s Job submitted ok",
                     self._job.id,
                     ray_job_id,
                     title,
                 )
-                self._job.compute_resource = compute_resource
-                self._job.ray_job_id = ray_job_id
+
+                # we have some cases where functions executed and try to send error events or update substates,
+                # but the jobs table still doesn't reflect the data, doing this now mitigates the error
+                self._job.status = self.status()
+                self._job.save(update_fields=["status"])
+
+                logger.info(
+                    "[submit] job_id=%s ray_job_id=%s cluster=%s Job status: %s",
+                    self._job.id,
+                    ray_job_id,
+                    title,
+                    self._job.status,
+                )
 
             except Exception as ex:
                 logger.error(

@@ -38,7 +38,6 @@ def update_job_status(job):
 
     try:
         job_new_status = runner.status()
-        logs = runner.logs()
     except RunnerError as ex:
         logger.warning("Job [%s] status update failed: %s", job.id, ex)
         return False
@@ -57,9 +56,6 @@ def update_job_status(job):
         if job.in_terminal_state():
             job.sub_status = None
             job.env_vars = "{}"
-
-    if logs:
-        job.logs = check_logs(logs, job)
 
     try:
         job.save()
