@@ -87,6 +87,14 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         (CIRCUIT, "Circuit"),
     ]
 
+    # Runner types
+    RAY = "ray"
+    FLEETS = "fleets"
+    RUNNER_CHOICES = [
+        (RAY, "Ray"),
+        (FLEETS, "Fleets"),
+    ]
+
     DEFAULT_DISABLED_MESSAGE = "IBM has temporarily disabled access to this function"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -117,6 +125,17 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     image = models.CharField(max_length=511, null=True, blank=True)
     env_vars = models.TextField(null=False, blank=True, default="{}")
     dependencies = models.TextField(null=False, blank=True, default="[]")
+
+    runner = models.CharField(
+        max_length=20, choices=RUNNER_CHOICES, default=RAY, help_text="Execution backend for this program"
+    )
+
+    default_compute_profile = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="Default Code Engine compute profile for Fleets runner (e.g., gx3d-24x120x1a100p)",
+    )
 
     instances = models.ManyToManyField(Group, blank=True, related_name="program_instances")
     trial_instances = models.ManyToManyField(Group, blank=True, related_name="program_trial_instances")
@@ -243,6 +262,36 @@ class CodeEngineProject(models.Model):
 
     pds_name_providers = models.CharField(max_length=255, help_text="Persistent Data Store name for providers")
 
+    # COS (Cloud Object Storage) configuration for logging
+    # Three separate buckets corresponding to the three PDS stores
+    cos_bucket_task_store_name = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="COS bucket name for task store (corresponds to pds_name_state)",
+    )
+    cos_bucket_user_data_name = models.CharField(
+        max_length=255, null=True, blank=True, help_text="COS bucket name for user data (corresponds to pds_name_users)"
+    )
+    cos_bucket_provider_data_name = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="COS bucket name for provider data (corresponds to pds_name_providers)",
+    )
+    cos_instance_name = models.CharField(max_length=255, null=True, blank=True, help_text="COS instance name")
+    cos_key_name = models.CharField(
+        max_length=255, null=True, blank=True, help_text="COS HMAC key name for authentication"
+    )
+
+    # Legacy field - kept for backward compatibility, can be removed in future
+    cos_bucket_name = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="[DEPRECATED] Legacy single bucket field - use cos_bucket_task_store_name instead",
+    )
+
     # Status and ownership
     active = models.BooleanField(default=True, help_text="Whether this project is available for job execution")
 
@@ -305,7 +354,16 @@ class Job(models.Model):
     arguments = models.TextField(null=False, blank=True, default="{}")
     env_vars = models.TextField(null=False, blank=True, default="{}")
     gpu = models.BooleanField(default=False, null=False)
+    compute_profile = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="Code Engine compute profile for Fleets runner (e.g., gx3d-24x120x1a100p)",
+    )
     logs = models.TextField(default="No logs yet.")
+    runner = models.CharField(
+        max_length=20, choices=Program.RUNNER_CHOICES, default=Program.RAY, help_text="Execution backend: ray or fleets"
+    )
     ray_job_id = models.CharField(max_length=255, null=True, blank=True)
     fleet_id = models.CharField(max_length=255, null=True, blank=True, help_text="Code Engine fleet ID")
     result = models.TextField(null=True, blank=True)
