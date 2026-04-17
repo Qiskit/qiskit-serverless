@@ -13,7 +13,7 @@ from concurrency.exceptions import RecordModifiedError
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from core.config_key import ConfigKey
-from core.models import ComputeResource, Job, JobEvent, Config
+from core.models import ComputeResource, Job, JobEvent, Config, Program
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from scheduler.schedule import (
     get_jobs_to_schedule_fair_share,
@@ -41,8 +41,15 @@ class ScheduleQueuedJobs(SchedulerTask):
             return
 
         self._update_job_status_counts_metric()
+        self._schedule_fleets_jobs()
         self._schedule_cpu_jobs()
         self._schedule_gpu_jobs()
+
+    def _schedule_fleets_jobs(self):
+        """Schedule Fleets jobs (Code Engine). These don't use Ray clusters."""
+        max_fleets = settings.LIMITS_MAX_FLEETS
+        running_fleets = Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=Program.FLEETS).count()
+        self._schedule_jobs_if_slots_available(max_fleets, running_fleets, gpu_job=False, runner=Program.FLEETS)
 
     def _schedule_cpu_jobs(self):
         """Schedule CPU jobs."""
@@ -56,30 +63,30 @@ class ScheduleQueuedJobs(SchedulerTask):
         running_clusters = ComputeResource.objects.filter(active=True, gpu=True).count()
         self._schedule_jobs_if_slots_available(max_clusters, running_clusters, gpu_job=True)
 
-    def _schedule_jobs_if_slots_available(  # pylint: disable=too-many-branches
+    def _schedule_jobs_if_slots_available(  # pylint: disable=too-many-branches, too-many-locals
         self,
-        max_ray_clusters_possible,
-        number_of_clusters_running,
+        max_slots_possible,
+        number_of_slots_running,
         gpu_job,
+        runner=Program.RAY,
     ):
-        """Schedule jobs depending on free cluster slots."""
-        free_clusters_slots = max_ray_clusters_possible - number_of_clusters_running
+        """Schedule jobs depending on free slots."""
+        free_slots = max_slots_possible - number_of_slots_running
 
         if gpu_job:
-            logger.info("%s free GPU cluster slots.", free_clusters_slots)
+            logger.info("%s free GPU cluster slots.", free_slots)
         else:
-            logger.info("%s free CPU cluster slots.", free_clusters_slots)
+            logger.info("%s free CPU cluster slots.", free_slots)
 
-        if free_clusters_slots < 1:
-            # no available resources
+        if free_slots < 1:
             logger.info(
-                "No clusters available. Resource consumption: %s / %s",
-                number_of_clusters_running,
-                max_ray_clusters_possible,
+                "No slots available. Resource consumption: %s / %s",
+                number_of_slots_running,
+                max_slots_possible,
             )
             return
 
-        jobs = get_jobs_to_schedule_fair_share(slots=free_clusters_slots, gpu=gpu_job)
+        jobs = get_jobs_to_schedule_fair_share(slots=free_slots, gpu=gpu_job, runner=runner)
 
         for job in jobs:
             if self.kill_signal.received:

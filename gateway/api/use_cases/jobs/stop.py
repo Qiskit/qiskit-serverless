@@ -119,5 +119,8 @@ class StopJobUseCase:
                 else:
                     self.status_messages.append("Serverless job was already not running.")
             except RunnerError:
-                logger.warning("Serverless job was not accessible from: %s", job.compute_resource)
+                if job.compute_resource:
+                    logger.warning("Serverless job was not accessible from: %s", job.compute_resource)
+                else:
+                    logger.warning("Serverless job was not accessible: fleet_id=%s", job.fleet_id)
                 self.status_messages.append("Serverless job was not accessible.")
