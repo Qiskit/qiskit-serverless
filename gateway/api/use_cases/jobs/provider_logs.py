@@ -51,9 +51,10 @@ class GetProviderJobLogsUseCase:
             return logs
 
         # Get from Ray if it is already running. Then filter
+        runner = get_runner(job)
         if job.is_active():
             try:
-                logs = get_runner(job).logs()
+                logs = runner.logs()
             except RunnerError:
                 return "Logs not available for this job during execution."
 
