@@ -1,11 +1,11 @@
 """This service will manage the access to the 3rd party end-points in IBM Quantum Platform."""
 
-import base64
 import hashlib
-import json
 import logging
 from typing import List, Optional, Any
 
+import jwt
+from jwt import PyJWKClient
 from django.conf import settings
 from django.core.cache import cache
 from ibm_cloud_sdk_core import ApiException
@@ -24,6 +24,8 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
     This class will manage the different access to the different
     end-points that we will make use of them in this service.
     """
+
+    jwks_client = PyJWKClient(f"{settings.IAM_IBM_CLOUD_BASE_URL}/identity/keys")
 
     def __init__(self, api_key: str, crn: str):
         self.iam_url = settings.IAM_IBM_CLOUD_BASE_URL
@@ -133,7 +135,13 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
 
         try:
             access_token = self.authenticator.token_manager.get_token()
-            decoded = decode_jwt(access_token)
+            signing_key = IBMQuantumPlatform.jwks_client.get_signing_key_from_jwt(access_token)
+            decoded = jwt.decode(
+                access_token,
+                signing_key.key,
+                algorithms=["RS256"],
+                options={"verify_exp": True, "verify_iat": True},
+            )
             cache.set(cache_key, decoded, timeout=self.cache_ttl)
         except Exception as ex:  # pylint: disable=broad-exception-caught
             logger.warning("IBM Quantum Platform authentication error: %s.", str(ex))
@@ -190,10 +198,3 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
 
         cache.set(cache_key, group_ids, timeout=self.cache_ttl)
         return group_ids
-
-
-def decode_jwt(token: str) -> dict:
-    """Decode a JWT token and return the payload as a dictionary."""
-    payload = token.split(".")[1]
-    padded = payload + "=" * (-len(payload) % 4)
-    return json.loads(base64.urlsafe_b64decode(padded))
