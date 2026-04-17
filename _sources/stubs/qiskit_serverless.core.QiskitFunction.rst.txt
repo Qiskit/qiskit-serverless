@@ -34,6 +34,7 @@
       ~QiskitFunction.image
       ~QiskitFunction.provider
       ~QiskitFunction.raw_data
+      ~QiskitFunction.runner
       ~QiskitFunction.schema
       ~QiskitFunction.tags
       ~QiskitFunction.type
