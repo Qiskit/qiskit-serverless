@@ -153,10 +153,6 @@ class RayRunner(AbstractRunner):
                     title,
                 )
 
-                # we have some cases where functions executed and try to send error events or update substates,
-                # but the jobs table still doesn't reflect the data, doing this now mitigates the error
-                self._job.status = self.status()
-                self._job.save(update_fields=["status"])
 
                 logger.info(
                     "[submit] job_id=%s ray_job_id=%s cluster=%s Job status: %s",
