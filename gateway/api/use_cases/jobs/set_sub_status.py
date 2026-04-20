@@ -43,19 +43,19 @@ class SetJobSubStatusUseCase:
         if not can_update_sub_status:
             raise JobNotFoundException(str(job_id))
 
-        # update sub status in PENDING and RUNNING is allowed
+        # update sub status in QUEUE + PENDING + RUNNING is allowed
         # we accept that we could have SET_SUB_STATUS events before RUNNING
-        updated = Job.objects.filter(id=job.id, status__in=Job.RUNNING_STATUSES).update(sub_status=sub_status)
+        updated = Job.objects.filter(id=job.id, status__in=Job.ACTIVE_STATUSES).update(sub_status=sub_status)
 
         if not updated:
             logger.warning(
-                "[set-sub-status] job_id=%s user_id=%s status=%s | Sub-status update rejected (not PENDING/RUNNING)",
+                "[set-sub-status] job_id=%s user_id=%s status=%s | Sub-status update rejected (not active)",
                 job.id,
                 user.id,
                 job.status,
             )
             raise InvalidAccessException(
-                "Cannot update 'sub_status' when is not" f" in PENDING/RUNNING status. (Currently {job.status})"
+                "Cannot update 'sub_status' when is not" f" in active status. (Currently {job.status})"
             )
 
         if job.sub_status != sub_status:
