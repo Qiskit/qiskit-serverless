@@ -12,7 +12,6 @@ from api.domain.exceptions.invalid_access_exception import InvalidAccessExceptio
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.access_policies.jobs import JobAccessPolicies
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
-from core.services.job_status import update_job_status
 from core.models import Job, JobEvent
 
 logger = logging.getLogger("gateway.use_cases.jobs")
