@@ -41,6 +41,7 @@ class UploadProgramSerializer(serializers.ModelSerializer):
     entrypoint = serializers.CharField(required=False)
     image = serializers.CharField(required=False)
     provider = serializers.CharField(required=False)
+    runner = serializers.CharField(required=False)
 
     class Meta:
         model = Program
@@ -148,6 +149,8 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         version = validated_data.get("version")
         if version is not None:
             instance.version = version
+
+        instance.runner = validated_data.get("runner", Program.RAY)
 
         instance.save()
         return instance
@@ -286,6 +289,7 @@ class RunJobSerializer(serializers.ModelSerializer):
             author=author,
             config=config,
             gpu=gpu,
+            runner=program.runner,
         )
 
         env = encrypt_env_vars(

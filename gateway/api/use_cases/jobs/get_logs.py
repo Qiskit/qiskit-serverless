@@ -59,7 +59,7 @@ class GetJobLogsUseCase:
 
             logs = check_logs(logs, job)
 
-            logger.info("Getting logs from ray job [%s] job_id=%s", job.ray_job_id, job.id)
+            logger.info("Getting logs from runner=%s job_id=%s", job.program.runner, job.id)
 
             if job.program.provider:
                 # Public logs from a provider job

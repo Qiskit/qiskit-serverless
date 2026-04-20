@@ -13,7 +13,7 @@ from django.db.models.aggregates import Count, Min
 
 from opentelemetry import trace
 
-from core.models import Job
+from core.models import Job, Program
 from core.services.runners import get_runner, RunnerError
 
 User: Model = get_user_model()
@@ -48,18 +48,21 @@ def execute_job(job: Job) -> Job:
     return job
 
 
-def get_jobs_to_schedule_fair_share(slots: int, gpu: bool) -> List[Job]:
+def get_jobs_to_schedule_fair_share(slots: int, gpu: bool, runner: str = Program.RAY) -> List[Job]:
     """Returns jobs for execution based on fair share distribution of resources.
 
     Args:
         slots: max number of users to query
         gpu: filter jobs by GPU requirement
+        runner: filter jobs by runner type
 
     Returns:
         list of jobs for execution
     """
 
     # maybe refactor this using big SQL query :thinking:
+
+    max_limit = min(slots, settings.LIMITS_MAX_FLEETS)
 
     running_jobs_per_user = (
         Job.objects.filter(status__in=Job.RUNNING_STATUSES).values("author").annotate(running_jobs_count=Count("id"))
@@ -71,9 +74,8 @@ def get_jobs_to_schedule_fair_share(slots: int, gpu: bool) -> List[Job]:
         if entry["running_jobs_count"] >= settings.LIMITS_JOBS_PER_USER
     ]
 
-    max_limit = 100  # not to kill db in case we will have a lot of jobs
     author_date_pull = (
-        Job.objects.filter(status=Job.QUEUED, gpu=gpu)
+        Job.objects.filter(status=Job.QUEUED, gpu=gpu, runner=runner)
         .exclude(author__in=users_at_max_capacity)
         .values("author")
         .annotate(job_date=Min("created"))[:max_limit]
