@@ -416,6 +416,7 @@ class TestUploadWithDockerImage:
         assert data["title"] == "my-function"
         assert data["provider"] == "my-provider"
         assert data["image"] == "my-image:1.0"
+        assert data["runner"] == "ray"
         assert data["arguments"] == json.dumps({})
         assert data["dependencies"] == json.dumps(["numpy", "scipy"])
         assert data["env_vars"] == json.dumps({"KEY": "VALUE"})
@@ -500,6 +501,7 @@ class TestUploadWithArtifact:
         assert data["title"] == "my-function"
         assert data["provider"] == "my-provider"
         assert data["entrypoint"] == entrypoint
+        assert data["runner"] == "ray"
         assert data["arguments"] == json.dumps({})
         assert data["dependencies"] == json.dumps(["numpy", "scipy"])
         assert data["env_vars"] == json.dumps({"KEY": "VALUE"})
@@ -597,3 +599,17 @@ class TestUploadWithArtifact:
             )
 
             assert not os.path.exists(os.path.join(working_dir, "artifact.tar"))
+
+
+class TestQiskitFunctionDefaults:
+    """Tests for QiskitFunction default field values."""
+
+    def test_default_runner_is_ray(self):
+        """QiskitFunction.runner defaults to 'ray' when not specified."""
+        program = QiskitFunction(title="my-function", image="img:latest")
+        assert program.runner == "ray"
+
+    def test_runner_can_be_overridden(self):
+        """QiskitFunction.runner accepts a custom value."""
+        program = QiskitFunction(title="my-function", image="img:latest", runner="fleets")
+        assert program.runner == "fleets"

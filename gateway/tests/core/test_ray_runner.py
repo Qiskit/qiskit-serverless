@@ -13,8 +13,10 @@ from kubernetes.dynamic.client import DynamicClient
 from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 
-from core.models import ComputeResource, Job
+from core.models import ComputeResource, Job, Program
 from core.services.runners import get_runner
+from core.services.runners.abstract_runner import RunnerError
+from core.services.runners.ray_runner import RayRunner
 from core.utils import encrypt_string
 
 
@@ -198,3 +200,38 @@ class TestRayClientOperations(APITestCase):
                 self.assertIsNotNone(job.compute_resource)
                 self.assertEqual(job.compute_resource.title, "Local compute resource")
                 self.assertTrue(job.compute_resource._state.adding)  # Not saved to DB
+
+
+class TestGetRunner(APITestCase):
+    """Tests runner factory selection."""
+
+    fixtures = ["tests/fixtures/schedule_fixtures.json"]
+
+    def test_get_runner_returns_ray_runner(self):
+        """Tests that get_runner returns a RayRunner for RAY jobs."""
+        job = Job.objects.first()
+        job.runner = Program.RAY
+
+        runner = get_runner(job)
+
+        self.assertIsInstance(runner, RayRunner)
+
+    def test_get_runner_raises_for_fleets_runner(self):
+        """Tests that get_runner raises RunnerError for unsupported FLEETS jobs."""
+        job = Job.objects.first()
+        job.runner = Program.FLEETS
+
+        with self.assertRaises(RunnerError) as ctx:
+            get_runner(job)
+
+        self.assertIn("Fleets runner is not supported yet", str(ctx.exception))
+
+    def test_get_runner_raises_for_unknown_runner(self):
+        """Tests that get_runner raises RunnerError for unknown runner types."""
+        job = Job.objects.first()
+        job.runner = "unknown-runner"
+
+        with self.assertRaises(RunnerError) as ctx:
+            get_runner(job)
+
+        self.assertEqual(str(ctx.exception), "Unknown runner type: unknown-runner")
