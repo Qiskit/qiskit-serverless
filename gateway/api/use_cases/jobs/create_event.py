@@ -51,18 +51,20 @@ class CreateJobEventUseCase:
         try:
             job = Job.objects.get(id=job_id)
         except ObjectDoesNotExist:
-            raise JobNotFoundException(job_id)
+            raise JobNotFoundException(str(job_id))
 
         can_create_events = JobAccessPolicies.can_create_events(user, job)
         if not can_create_events:
-            raise JobNotFoundException(job_id)
+            raise JobNotFoundException(str(job_id))
 
-        update_job_status(job)
+        # add events in QUEUE + PENDING + RUNNING is allowed
+        # so we accept that we might have events before RUNNING
 
-        if job.status != Job.RUNNING:
-            raise InvalidAccessException("You can create events on RUNNING jobs only")
+        if job.status not in Job.ACTIVE_STATUSES:
+            raise InvalidAccessException("You can create events on active jobs only")
 
         if data.event_type == JobEventType.ERROR:
+            # for now we only allow saving ERROR type events
             JobEvent.objects.add_error_event(
                 job_id,
                 JobEventOrigin.API,
