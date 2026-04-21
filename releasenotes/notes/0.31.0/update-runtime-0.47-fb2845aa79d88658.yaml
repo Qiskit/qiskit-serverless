@@ -1,7 +1,7 @@
 ---
 upgrade:
   - |
-    Qiskit Serverless now requires ``qiskit-ibm-runtime>=0.47``. Users should upgrade
+    Qiskit Serverless is now compatible with ``qiskit-ibm-runtime==0.47``. Users can upgrade
     their local installation before using this release::
 
-      pip install "qiskit-ibm-runtime>=0.47"
+      pip install "qiskit-ibm-runtime==0.47"
