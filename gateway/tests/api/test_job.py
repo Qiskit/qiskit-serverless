@@ -702,6 +702,18 @@ class TestJobApi:
         runtime_jobs = response.data["runtime_jobs"]
         assert runtime_jobs == []
 
+    def test_stop_job_non_author_gets_404(self):
+        """Non-author cannot stop another user's job."""
+        self._authorize("test_user_2")
+
+        response = self.client.post(
+            reverse("v1:jobs-stop", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"]),
+            format="json",
+        )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        job = Job.objects.filter(id__exact="8317718f-5c0d-4fb6-9947-72e480b8a348").first()
+        assert job.status != Job.STOPPED
+
     def test_job_list_internal_server_error(self):
         """Tests that unexpected exceptions return 500 with proper message."""
         self._authorize("test_user")

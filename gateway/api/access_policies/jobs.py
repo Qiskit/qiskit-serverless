@@ -210,3 +210,26 @@ class JobAccessPolicies:
             job.author,
         )
         return False
+
+    @staticmethod
+    def can_stop(user: AbstractUser, job: Job) -> bool:
+        """
+        Checks if the user has permissions to stop a job.
+        Only the job author can stop it.
+
+        Args:
+            user: Django user from the request
+            job: Job instance against to check the permission
+
+        Returns:
+            bool: True or False in case the user has permissions
+        """
+
+        has_access = user.id == job.author.id
+        if not has_access:
+            logger.warning(
+                "[can_stop] job_id=%s user_id=%s | no access to stop job",
+                job.id,
+                user.id,
+            )
+        return has_access
