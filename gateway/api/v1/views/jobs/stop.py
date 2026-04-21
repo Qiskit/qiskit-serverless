@@ -71,6 +71,6 @@ def stop(request, job_id: UUID):
     validated_data = serializer.validated_data
     service = validated_data["service"]
 
-    message = StopJobUseCase().execute(job_id, service, user=request.user)
+    message = StopJobUseCase().execute(job_id, service)
     logger.info("[jobs-stop] user_id=%s job_id=%s | Job stopped ok", request.user.id, job_id)
     return Response(serialize_output(message))
