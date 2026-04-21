@@ -315,6 +315,10 @@
 <span id="id1"></span><h1>Release Notes<a class="headerlink" href="#release-notes" title="Permalink to this heading">¶</a></h1>
 <section id="upcoming-qiskit-serverless-release">
 <span id="release-notes-upcoming-qiskit-serverless-release"></span><h2>Upcoming Qiskit Serverless release<a class="headerlink" href="#upcoming-qiskit-serverless-release" title="Permalink to this heading">¶</a></h2>
+<section id="prelude">
+<span id="release-notes-upcoming-qiskit-serverless-release-prelude"></span><h3>Prelude<a class="headerlink" href="#prelude" title="Permalink to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">qiskit_serverless</span> <span class="pre">v0.31.0</span></code> introduces error event tracking for Qiskit Functions, structured JSON logging across all components, and a range of scheduler observability and reliability improvements.</p>
+</section>
 <section id="new-features">
 <span id="release-notes-upcoming-qiskit-serverless-release-new-features"></span><h3>New Features<a class="headerlink" href="#new-features" title="Permalink to this heading">¶</a></h3>
 <ul>
@@ -375,14 +379,76 @@ logged as an ERROR event, and can be retrieved by users through the events API.<
 </div>
 </li>
 </ul>
+<p><strong>Designing custom error classes</strong></p>
+<p>Function developers can subclass <code class="xref py py-class docutils literal notranslate"><span class="pre">ServerlessError</span></code> to build
+domain-specific exception hierarchies. The framework records the name as
+the <code class="docutils literal notranslate"><span class="pre">exception</span></code> field in the event, so subclass names appear directly in the events
+retrieved by users, making errors easier to categorize and filter.</p>
+<p>The simplest form requires no <code class="docutils literal notranslate"><span class="pre">__init__</span></code> override:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">ServerlessError</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">ProviderError</span><span class="p">(</span><span class="n">ServerlessError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base error for all errors raised by this provider.&quot;&quot;&quot;</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">ValidationError</span><span class="p">(</span><span class="n">ProviderError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when input arguments fail validation.&quot;&quot;&quot;</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">ResourceError</span><span class="p">(</span><span class="n">ProviderError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when a required resource is unavailable.&quot;&quot;&quot;</span>
+</pre></div>
+</div>
+<p>Raise them exactly as you would <code class="xref py py-class docutils literal notranslate"><span class="pre">ServerlessError</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">raise</span> <span class="n">ValidationError</span><span class="p">(</span>
+    <span class="n">code</span><span class="o">=</span><span class="s2">&quot;VAL001&quot;</span><span class="p">,</span>
+    <span class="n">message</span><span class="o">=</span><span class="s2">&quot;num_qubits exceeds the maximum allowed value&quot;</span><span class="p">,</span>
+    <span class="n">details</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mi">127</span><span class="p">,</span> <span class="s2">&quot;provided&quot;</span><span class="p">:</span> <span class="mi">256</span><span class="p">}</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>On the client side, the <code class="docutils literal notranslate"><span class="pre">exception</span></code> field of the retrieved event will be
+<code class="docutils literal notranslate"><span class="pre">&quot;ValidationError&quot;</span></code> rather than <code class="docutils literal notranslate"><span class="pre">&quot;ServerlessError&quot;</span></code>, which lets users filter
+precisely:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">error_events</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">events</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;ERROR&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">error_events</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">event</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;exception&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;ValidationError&quot;</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Input problem:&quot;</span><span class="p">,</span> <span class="n">event</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;message&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>You can also override <code class="docutils literal notranslate"><span class="pre">__init__</span></code> to fix a <code class="docutils literal notranslate"><span class="pre">code</span></code> prefix or add mandatory fields,
+so callers only need to provide the varying parts:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">CircuitError</span><span class="p">(</span><span class="n">ProviderError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised for circuit-related failures.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">circuit_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">code</span><span class="o">=</span><span class="s2">&quot;CIR001&quot;</span><span class="p">,</span>
+            <span class="n">message</span><span class="o">=</span><span class="n">message</span><span class="p">,</span>
+            <span class="n">details</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;circuit_id&quot;</span><span class="p">:</span> <span class="n">circuit_id</span><span class="p">},</span>
+        <span class="p">)</span>
+
+<span class="k">raise</span> <span class="n">CircuitError</span><span class="p">(</span><span class="s2">&quot;Circuit depth exceeds limit&quot;</span><span class="p">,</span> <span class="n">circuit_id</span><span class="o">=</span><span class="s2">&quot;circ-42&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
 <p><strong>When to use ServerlessError vs send_error</strong></p>
-<ul class="simple">
+<ul>
 <li><p>Use <code class="xref py py-class docutils literal notranslate"><span class="pre">ServerlessError</span></code> when you want to <strong>stop execution</strong> and signal a fatal error
 that prevents the function from completing successfully. The error will be automatically
-logged and the job will transition to ERROR status.</p></li>
+logged, the job will transition to ERROR status, and the structured error message will be
+raised as a <a class="reference internal" href="stubs/qiskit_serverless.QiskitServerlessException.html#qiskit_serverless.QiskitServerlessException" title="qiskit_serverless.QiskitServerlessException"><code class="xref py py-class docutils literal notranslate"><span class="pre">QiskitServerlessException</span></code></a> when the user calls <code class="docutils literal notranslate"><span class="pre">job.result()</span></code>:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>QiskitServerlessException:
+| Message: num_qubits exceeds the maximum allowed value
+| Code: VAL001
+| Exception: ValidationError
+| Details:
+|   - max: 127
+|   - provided: 256
+</pre></div>
+</div>
+</li>
 <li><p>Use <code class="xref py py-func docutils literal notranslate"><span class="pre">send_error()</span></code> when you want to <strong>log an error but continue execution</strong>. This is
 useful for non-fatal errors, warnings, or when you want to track multiple issues without
-stopping the function.</p></li>
+stopping the function. Events sent this way are still surfaced in <code class="docutils literal notranslate"><span class="pre">job.result()</span></code> if the
+job ultimately ends in ERROR status.</p></li>
 </ul>
 <p>Example combining both approaches:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">ServerlessError</span><span class="p">,</span> <span class="n">send_error</span>
@@ -463,11 +529,34 @@ retrieved in bulk for comprehensive debugging. Each event is represented by a
 </li>
 </ul>
 </section>
+<section id="upgrade-notes">
+<span id="release-notes-upcoming-qiskit-serverless-release-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Permalink to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>The gateway, scheduler, and core components now emit structured JSON logs by default.
+Operators using log aggregation tools (e.g. Elasticsearch, Splunk) will see log lines
+formatted as JSON objects rather than plain text. The log level can still be configured
+via the existing <code class="docutils literal notranslate"><span class="pre">LOG_LEVEL</span></code> environment variable.</p></li>
+</ul>
+<ul class="simple">
+<li><p>The scheduler now tracks metrics broken down per provider, enabling more granular
+observability of job throughput and resource usage when multiple providers are
+configured. No configuration change is required; existing dashboards will see
+new label dimensions on scheduler metrics.</p></li>
+</ul>
+<ul>
+<li><p>Qiskit Serverless is now compatible with <code class="docutils literal notranslate"><span class="pre">qiskit-ibm-runtime==0.47</span></code>. Users can upgrade
+their local installation before using this release:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="s2">&quot;qiskit-ibm-runtime==0.47&quot;</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</section>
 </section>
 <section id="v0-30-1">
 <span id="release-notes-v0-30-1"></span><h2>v0.30.1<a class="headerlink" href="#v0-30-1" title="Permalink to this heading">¶</a></h2>
-<section id="prelude">
-<span id="release-notes-v0-30-1-prelude"></span><h3>Prelude<a class="headerlink" href="#prelude" title="Permalink to this heading">¶</a></h3>
+<section id="release-notes-v0-30-1-prelude">
+<span id="id2"></span><h3>Prelude<a class="headerlink" href="#release-notes-v0-30-1-prelude" title="Permalink to this heading">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">qiskit_serverless</span> <span class="pre">v0.30.1</span></code> is a small patch release that fixes a minor client issue, introduces a series of API/Gateway/Scheduler improvements that increase the health of the deployed service, and updates the base image with the newest dependency versions.</p>
 </section>
 <section id="bug-fixes">
@@ -485,11 +574,11 @@ The method now correctly raises a <a class="reference internal" href="stubs/qisk
 <section id="v0-30-0">
 <span id="release-notes-v0-30-0"></span><h2>v0.30.0<a class="headerlink" href="#v0-30-0" title="Permalink to this heading">¶</a></h2>
 <section id="release-notes-v0-30-0-prelude">
-<span id="id2"></span><h3>Prelude<a class="headerlink" href="#release-notes-v0-30-0-prelude" title="Permalink to this heading">¶</a></h3>
+<span id="id3"></span><h3>Prelude<a class="headerlink" href="#release-notes-v0-30-0-prelude" title="Permalink to this heading">¶</a></h3>
 <p>The main feature in this release is the major refactor in logs to differentiate between provider logs and user logs and optimize storage. The logs are now stored in COS while keeping backward compatibility.</p>
 </section>
 <section id="release-notes-v0-30-0-new-features">
-<span id="id3"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-30-0-new-features" title="Permalink to this heading">¶</a></h3>
+<span id="id4"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-30-0-new-features" title="Permalink to this heading">¶</a></h3>
 <ul>
 <li><p>The <code class="docutils literal notranslate"><span class="pre">qiskit-serverless</span></code> Python library added two new utilities, <code class="xref py py-func docutils literal notranslate"><span class="pre">get_logger()</span></code>
 and <code class="xref py py-func docutils literal notranslate"><span class="pre">get_provider_logger()</span></code>, available to Qiskit Function developers.
@@ -549,8 +638,8 @@ by the platform.</p>
 </li>
 </ul>
 </section>
-<section id="upgrade-notes">
-<span id="release-notes-v0-30-0-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Permalink to this heading">¶</a></h3>
+<section id="release-notes-v0-30-0-upgrade-notes">
+<span id="id5"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-30-0-upgrade-notes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Added a new <code class="docutils literal notranslate"><span class="pre">version</span></code> field to the <code class="docutils literal notranslate"><span class="pre">Program</span></code> Django model. This field is used to track the version of the program (function).</p></li>
 </ul>
@@ -619,7 +708,7 @@ serverless clients through the <code class="docutils literal notranslate"><span 
 </ul>
 </section>
 <section id="release-notes-v0-30-0-bug-fixes">
-<span id="id4"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-30-0-bug-fixes" title="Permalink to this heading">¶</a></h3>
+<span id="id6"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-30-0-bug-fixes" title="Permalink to this heading">¶</a></h3>
 <ul>
 <li><p>Fixed a bug in the function versioning workflow where the version set upon function creation
 couldn’t be uploaded to the platform, stored in the database, or retrieved upon function retrieval.
@@ -663,7 +752,7 @@ arguments. After the fix, the data paths are resolved correctly, and no error is
 <section id="v0-29-0">
 <span id="release-notes-v0-29-0"></span><h2>v0.29.0<a class="headerlink" href="#v0-29-0" title="Permalink to this heading">¶</a></h2>
 <section id="release-notes-v0-29-0-upgrade-notes">
-<span id="id5"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-29-0-upgrade-notes" title="Permalink to this heading">¶</a></h3>
+<span id="id7"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-29-0-upgrade-notes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Refactored storage service initialization to accept <code class="docutils literal notranslate"><span class="pre">Program</span></code> model instances
 instead of individual parameters. The <code class="docutils literal notranslate"><span class="pre">FileStorage</span></code> and <code class="docutils literal notranslate"><span class="pre">ArgumentsStorage</span></code>
@@ -694,7 +783,7 @@ and a CRN is present, the system defaults to <code class="docutils literal notra
 </ul>
 </section>
 <section id="release-notes-v0-29-0-bug-fixes">
-<span id="id6"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-29-0-bug-fixes" title="Permalink to this heading">¶</a></h3>
+<span id="id8"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-29-0-bug-fixes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Fixed a bug in the json decoder that would crop the response details to the first character when
 gateway errors were raised. This utility now forwards the full error message to the raised
@@ -724,7 +813,7 @@ storage path resolution when users have multiple functions with the same title.<
 <section id="v0-28-0">
 <span id="release-notes-v0-28-0"></span><h2>v0.28.0<a class="headerlink" href="#v0-28-0" title="Permalink to this heading">¶</a></h2>
 <section id="release-notes-v0-28-0-new-features">
-<span id="id7"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-28-0-new-features" title="Permalink to this heading">¶</a></h3>
+<span id="id9"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-28-0-new-features" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference internal" href="stubs/qiskit_serverless.core.IBMServerlessClient.html#qiskit_serverless.core.IBMServerlessClient" title="qiskit_serverless.core.IBMServerlessClient"><code class="xref py py-class docutils literal notranslate"><span class="pre">IBMServerlessClient</span></code></a>  now supports custom gateway host URLs through the <code class="docutils literal notranslate"><span class="pre">host</span></code> parameter.
 This allows for a more streamlined testing of the client connecting to non-production gateways.</p></li>
@@ -737,7 +826,7 @@ This allows for a more streamlined testing of the client connecting to non-produ
 <section id="v0-27-1">
 <span id="release-notes-v0-27-1"></span><h2>v0.27.1<a class="headerlink" href="#v0-27-1" title="Permalink to this heading">¶</a></h2>
 <section id="release-notes-v0-27-1-upgrade-notes">
-<span id="id8"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-27-1-upgrade-notes" title="Permalink to this heading">¶</a></h3>
+<span id="id10"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-27-1-upgrade-notes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>The scheduling logic that was managing non GPU and GPU jobs was improved.
 Now the scheduler manages both type of jobs independently so
@@ -748,7 +837,7 @@ you can adjust separately where each of these jobs are run.</p></li>
 </ul>
 </section>
 <section id="release-notes-v0-27-1-bug-fixes">
-<span id="id9"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-27-1-bug-fixes" title="Permalink to this heading">¶</a></h3>
+<span id="id11"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-27-1-bug-fixes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Fixed a bug in the scheduler that was preventing it from
 stopping jobs automatically after the timeout threshold specified
@@ -759,7 +848,7 @@ with the environment variable <code class="docutils literal notranslate"><span c
 <section id="v0-27-0">
 <span id="release-notes-v0-27-0"></span><h2>v0.27.0<a class="headerlink" href="#v0-27-0" title="Permalink to this heading">¶</a></h2>
 <section id="release-notes-v0-27-0-new-features">
-<span id="id10"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-27-0-new-features" title="Permalink to this heading">¶</a></h3>
+<span id="id12"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-27-0-new-features" title="Permalink to this heading">¶</a></h3>
 <ul>
 <li><p>A new utility <code class="docutils literal notranslate"><span class="pre">get_runtime_service()</span></code> is now available to simplify the instantiation of
 a <code class="docutils literal notranslate"><span class="pre">QiskitRuntimeService</span></code> within a function. It automatically pulls credentials from environment
@@ -824,7 +913,7 @@ For example:</p>
 </ul>
 </section>
 <section id="release-notes-v0-27-0-upgrade-notes">
-<span id="id11"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-27-0-upgrade-notes" title="Permalink to this heading">¶</a></h3>
+<span id="id13"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-27-0-upgrade-notes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Added a new AccessPolicy for User model to be able to allow or
 not the access to the service by the <code class="docutils literal notranslate"><span class="pre">is_active</span></code> parameter.</p></li>
@@ -941,18 +1030,20 @@ specific jobs. For example:</p>
             <ul>
 <li><a class="reference internal" href="#">Release Notes</a><ul>
 <li><a class="reference internal" href="#upcoming-qiskit-serverless-release">Upcoming Qiskit Serverless release</a><ul>
+<li><a class="reference internal" href="#prelude">Prelude</a></li>
 <li><a class="reference internal" href="#new-features">New Features</a></li>
+<li><a class="reference internal" href="#upgrade-notes">Upgrade Notes</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#v0-30-1">v0.30.1</a><ul>
-<li><a class="reference internal" href="#prelude">Prelude</a></li>
+<li><a class="reference internal" href="#release-notes-v0-30-1-prelude">Prelude</a></li>
 <li><a class="reference internal" href="#bug-fixes">Bug Fixes</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#v0-30-0">v0.30.0</a><ul>
 <li><a class="reference internal" href="#release-notes-v0-30-0-prelude">Prelude</a></li>
 <li><a class="reference internal" href="#release-notes-v0-30-0-new-features">New Features</a></li>
-<li><a class="reference internal" href="#upgrade-notes">Upgrade Notes</a></li>
+<li><a class="reference internal" href="#release-notes-v0-30-0-upgrade-notes">Upgrade Notes</a></li>
 <li><a class="reference internal" href="#deprecation-notes">Deprecation Notes</a></li>
 <li><a class="reference internal" href="#release-notes-v0-30-0-bug-fixes">Bug Fixes</a></li>
 </ul>
