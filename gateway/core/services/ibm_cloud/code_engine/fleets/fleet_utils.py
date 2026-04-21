@@ -14,12 +14,12 @@
 Pure helper functions for building fleet run configurations.
 
 These functions produce the ``run_volume_mounts``, ``run_env_variables``,
-and ``run_commands`` payloads consumed by :meth:`JobHandler.submit_job`
+and ``run_commands`` payloads consumed by :meth:`FleetHandler.submit_job`
 via its ``extra_fields`` parameter.
 
 Example::
 
-    from qf_fleets_client.api.job.utils import (
+    from core.services.ibm_cloud.code_engine.fleets.fleet_utils import (
         build_run_volume_mounts,
         build_run_env_variables,
         build_run_commands,

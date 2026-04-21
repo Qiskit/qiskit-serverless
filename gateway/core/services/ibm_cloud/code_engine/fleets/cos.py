@@ -19,8 +19,8 @@ listing keys, and retrieving log files.
 
 Access via the parent handler::
 
-    handler = JobHandler(client_provider=provider, project_id=project_id,
-                         cos_config={...})
+    handler = FleetHandler(client_provider=provider, project_id=project_id,
+                           cos_config={...})
     handler.cos.wait_for_object(bucket_name="my-bucket", key="logs/run.log")
     content = handler.cos.logs(bucket_name="my-bucket", log_key="logs/run.log")
 """
@@ -34,35 +34,37 @@ from typing import TYPE_CHECKING
 from core.services.ibm_cloud.cos.cos_client import COSClient, CosHmacCredentials
 
 if TYPE_CHECKING:
-    from core.services.ibm_cloud.code_engine.fleets.job import JobHandler
+    from core.services.ibm_cloud.code_engine.fleets.fleet_handler import FleetHandler
 
 
 class JobCOS:
     """
     Sub-manager for COS operations on fleet job artifacts.
 
-    Instances are created automatically by :class:`JobHandler` and
+    Instances are created automatically by :class:`FleetHandler` and
     should not be instantiated directly.
     """
 
-    def __init__(self, job: JobHandler) -> None:
+    def __init__(self, job: FleetHandler) -> None:
         self._job = job
         self.__cos: COSClient | None = None
 
     @property
     def _cos(self) -> COSClient:
-        """
-        Lazily initialize and return the COSClient.
+        """Lazily initialize and return the COSClient.
+
+        Returns:
+            Initialized :class:`COSClient` bound to the HMAC credentials in ``cos_config``.
 
         Raises:
-            ValueError: If cos_config is missing or incomplete.
+            ValueError: If ``cos_config`` is missing or lacks required HMAC credentials.
         """
         if self.__cos is not None:
             return self.__cos
 
         cos_config = self._job.cos_config
         if not cos_config:
-            raise ValueError("COS not configured. Pass cos_config to JobHandler constructor.")
+            raise ValueError("COS not configured. Pass cos_config to FleetHandler constructor.")
 
         hmac_access_key_id = cos_config.get("hmac_access_key_id")
         hmac_secret_access_key = cos_config.get("hmac_secret_access_key")
