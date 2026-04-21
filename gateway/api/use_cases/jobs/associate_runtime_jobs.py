@@ -5,6 +5,7 @@ from uuid import UUID
 
 from django.core.exceptions import ObjectDoesNotExist
 
+from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.repositories.runtime_job import RuntimeJobRepository
 from core.models import Job
@@ -17,7 +18,7 @@ class AssociateRuntimeJobsUseCase:
 
     runtime_job_repository = RuntimeJobRepository()
 
-    def execute(self, job_id: UUID, runtime_job: str, runtime_session: str | None) -> str:
+    def execute(self, job_id: UUID, runtime_job: str, runtime_session: str | None, user) -> str:
         """
         Associate a RuntimeJob object to a given Job.
 
@@ -25,6 +26,7 @@ class AssociateRuntimeJobsUseCase:
             job_id: Target Job ID.
             runtime_job: Runtime job ID to associate.
             runtime_session: Optional runtime session ID to associate.
+            user: Requesting user (must be the job author).
 
         Returns:
             The updated Job.
@@ -35,6 +37,9 @@ class AssociateRuntimeJobsUseCase:
         try:
             job = Job.objects.get(id=job_id)
         except ObjectDoesNotExist:
+            raise JobNotFoundException(job_id)
+
+        if not JobAccessPolicies.can_manage_runtime_jobs(user, job):
             raise JobNotFoundException(job_id)
 
         try:

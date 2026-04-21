@@ -104,7 +104,7 @@ def runtime_jobs(request: Request, job_id: UUID) -> Response:
         serializer.is_valid(raise_exception=True)
         runtime_job = serializer.validated_data.get("runtime_job")
         runtime_session = serializer.validated_data.get("runtime_session")
-        message = AssociateRuntimeJobsUseCase().execute(job_id, runtime_job, runtime_session)
+        message = AssociateRuntimeJobsUseCase().execute(job_id, runtime_job, runtime_session, user=request.user)
         logger.info(
             "[jobs-runtime-jobs:post] user_id=%s job_id=%s runtime_job=%s | Runtime job linked ok",
             request.user.id,
@@ -114,7 +114,7 @@ def runtime_jobs(request: Request, job_id: UUID) -> Response:
         return Response({"message": message})
 
     if request.method == "GET":
-        out_runtime_jobs = GetRuntimeJobsUseCase().execute(job_id)
+        out_runtime_jobs = GetRuntimeJobsUseCase().execute(job_id, user=request.user)
         logger.info("[jobs-runtime-jobs:get] user_id=%s job_id=%s | Runtime jobs retrieved ok", request.user.id, job_id)
         return Response(serialize_output(out_runtime_jobs))
 
