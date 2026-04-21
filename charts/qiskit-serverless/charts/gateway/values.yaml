@@ -36,7 +36,7 @@ application:
     minReplicas: 1
     maxReplicas: 4
     opensslImage: registry.access.redhat.com/ubi8/openssl:8.9-13
-    kubectlImage: alpine/k8s:1.35.3
+    kubectlImage: alpine/k8s:1.35.4
     scrapeWithPrometheus: true
     openTelemetry: false
     openTelemetryCollector:
