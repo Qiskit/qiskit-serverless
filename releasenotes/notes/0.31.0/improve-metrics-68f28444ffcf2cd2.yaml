@@ -1,0 +1,7 @@
+---
+upgrade:
+  - |
+    The scheduler now tracks metrics broken down per provider, enabling more granular
+    observability of job throughput and resource usage when multiple providers are
+    configured. No configuration change is required; existing dashboards will see
+    new label dimensions on scheduler metrics.

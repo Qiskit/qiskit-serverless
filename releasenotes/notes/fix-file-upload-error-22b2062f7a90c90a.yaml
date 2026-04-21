@@ -1,5 +1,0 @@
----
-fixes:
-  - |
-    Fixed a bug in :meth:`.ServerlessClient.upload` where invalid files would not raise an error and instead fail to upload silently.
-    The method now correctly raises a :class:`.QiskitServerlessException`.
