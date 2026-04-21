@@ -209,6 +209,7 @@ class TestProgramApi(APITestCase):
 
             assert job.status == Job.QUEUED
             assert job.trial is True
+            assert job.business_model == Job.BUSINESS_MODEL_TRIAL
             assert env_vars["ENV_ACCESS_TRIAL"] == "True"
             assert job.config.min_workers == 1
             assert job.config.max_workers == 5
@@ -270,6 +271,7 @@ class TestProgramApi(APITestCase):
 
             assert job.status == Job.QUEUED
             assert job.trial is False
+            assert job.business_model == Job.BUSINESS_MODEL_SUBSIDISED
             assert env_vars["PROGRAM_ENV1"] == "VALUE1"
             assert env_vars["PROGRAM_ENV2"] == "VALUE2"
             assert job.config.min_workers == 1

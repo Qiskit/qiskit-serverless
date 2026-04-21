@@ -282,8 +282,10 @@ class RunJobSerializer(serializers.ModelSerializer):
 
         trial = self.is_trial(program, author)
         gpu = self._should_use_gpu(program)
+        business_model = Job.BUSINESS_MODEL_TRIAL if trial else Job.BUSINESS_MODEL_SUBSIDISED
         job = Job(
             trial=trial,
+            business_model=business_model,
             status=status,
             program=program,
             author=author,

@@ -347,6 +347,13 @@ class Job(models.Model):
         (POST_PROCESSING, "Post-processing"),
     ]
 
+    BUSINESS_MODEL_TRIAL = "trial"
+    BUSINESS_MODEL_SUBSIDISED = "subsidised"
+    BUSINESS_MODELS = [
+        (BUSINESS_MODEL_TRIAL, "Trial"),
+        (BUSINESS_MODEL_SUBSIDISED, "Subsidised"),
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, null=True)
@@ -374,6 +381,7 @@ class Job(models.Model):
     )
     sub_status = models.CharField(max_length=255, choices=SUB_STATUSES, default=None, null=True, blank=True)
     trial = models.BooleanField(default=False, null=False)
+    business_model = models.CharField(max_length=50, choices=BUSINESS_MODELS, default=BUSINESS_MODEL_SUBSIDISED)
     version = IntegerVersionField()
 
     author = models.ForeignKey(

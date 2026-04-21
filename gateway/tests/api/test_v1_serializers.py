@@ -17,7 +17,7 @@ from api.v1.serializers import (
     RunProgramSerializer,
     RunJobSerializer,
 )
-from core.models import JobConfig, Program
+from core.models import Job, JobConfig, Program
 from tests.utils import TestUtils
 
 
@@ -254,6 +254,8 @@ class TestSerializers:
         assert job.config is not None
         assert job.author is not None
         assert not job.gpu
+        assert not job.trial
+        assert job.business_model == Job.BUSINESS_MODEL_SUBSIDISED
         assert env_vars["PROGRAM_ENV1"] == "VALUE1"
         assert env_vars["PROGRAM_ENV2"] == "VALUE2"
 
