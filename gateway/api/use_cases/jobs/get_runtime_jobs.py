@@ -3,6 +3,7 @@
 import logging
 from uuid import UUID
 
+from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ObjectDoesNotExist
 
 from api.access_policies.jobs import JobAccessPolicies
@@ -18,7 +19,7 @@ class GetRuntimeJobsUseCase:
 
     runtime_job_repository = RuntimeJobRepository()
 
-    def execute(self, job_id: UUID, user) -> list[RuntimeJob]:
+    def execute(self, job_id: UUID, user: AbstractUser) -> list[RuntimeJob]:
         """
         Return all RuntimeJob objects associated to a given Job.
 
