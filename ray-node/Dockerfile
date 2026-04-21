@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.17
-FROM registry.access.redhat.com/ubi9-minimal:9.7-1776104705
+FROM registry.access.redhat.com/ubi9-minimal:9.7-1776645941
 # set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1

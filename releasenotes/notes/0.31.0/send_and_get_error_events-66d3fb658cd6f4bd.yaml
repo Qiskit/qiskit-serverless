@@ -63,15 +63,87 @@ features:
             details={"max_depth": 100, "provided_depth": 150}
         )
 
+    **Designing custom error classes**
+
+    Function developers can subclass :class:`.ServerlessError` to build
+    domain-specific exception hierarchies. The framework records the name as
+    the ``exception`` field in the event, so subclass names appear directly in the events
+    retrieved by users, making errors easier to categorize and filter.
+
+    The simplest form requires no ``__init__`` override:
+
+    .. code-block:: python
+
+      from qiskit_serverless import ServerlessError
+
+      class ProviderError(ServerlessError):
+          """Base error for all errors raised by this provider."""
+
+      class ValidationError(ProviderError):
+          """Raised when input arguments fail validation."""
+
+      class ResourceError(ProviderError):
+          """Raised when a required resource is unavailable."""
+
+    Raise them exactly as you would :class:`.ServerlessError`:
+
+    .. code-block:: python
+
+      raise ValidationError(
+          code="VAL001",
+          message="num_qubits exceeds the maximum allowed value",
+          details={"max": 127, "provided": 256}
+      )
+
+    On the client side, the ``exception`` field of the retrieved event will be
+    ``"ValidationError"`` rather than ``"ServerlessError"``, which lets users filter
+    precisely:
+
+    .. code-block:: python
+
+      error_events = job.events(type="ERROR")
+      for event in error_events:
+          if event.data.get("exception") == "ValidationError":
+              print("Input problem:", event.data["message"])
+
+    You can also override ``__init__`` to fix a ``code`` prefix or add mandatory fields,
+    so callers only need to provide the varying parts:
+
+    .. code-block:: python
+
+      class CircuitError(ProviderError):
+          """Raised for circuit-related failures."""
+
+          def __init__(self, message: str, circuit_id: str):
+              super().__init__(
+                  code="CIR001",
+                  message=message,
+                  details={"circuit_id": circuit_id},
+              )
+
+      raise CircuitError("Circuit depth exceeds limit", circuit_id="circ-42")
+
     **When to use ServerlessError vs send_error**
 
     - Use :class:`.ServerlessError` when you want to **stop execution** and signal a fatal error
       that prevents the function from completing successfully. The error will be automatically
-      logged and the job will transition to ERROR status.
+      logged, the job will transition to ERROR status, and the structured error message will be
+      raised as a :class:`.QiskitServerlessException` when the user calls ``job.result()``:
+
+      .. code-block:: text
+
+        QiskitServerlessException:
+        | Message: num_qubits exceeds the maximum allowed value
+        | Code: VAL001
+        | Exception: ValidationError
+        | Details:
+        |   - max: 127
+        |   - provided: 256
 
     - Use :func:`.send_error` when you want to **log an error but continue execution**. This is
       useful for non-fatal errors, warnings, or when you want to track multiple issues without
-      stopping the function.
+      stopping the function. Events sent this way are still surfaced in ``job.result()`` if the
+      job ultimately ends in ERROR status.
 
     Example combining both approaches:
 

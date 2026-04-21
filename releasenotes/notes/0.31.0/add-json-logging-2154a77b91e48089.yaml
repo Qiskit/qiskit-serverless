@@ -1,0 +1,7 @@
+---
+upgrade:
+  - |
+    The gateway, scheduler, and core components now emit structured JSON logs by default.
+    Operators using log aggregation tools (e.g. Elasticsearch, Splunk) will see log lines
+    formatted as JSON objects rather than plain text. The log level can still be configured
+    via the existing ``LOG_LEVEL`` environment variable.
