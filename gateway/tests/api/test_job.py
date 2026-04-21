@@ -746,6 +746,27 @@ class TestJobApi:
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
             assert response.data.get("message") == "Internal server error"
 
+    def test_runtime_jobs_post_non_author_gets_404(self):
+        """Non-author cannot associate runtime jobs to another user's job."""
+        self._authorize("test_user_2")
+
+        response = self.client.post(
+            reverse("v1:jobs-runtime-jobs", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"]),
+            data={"runtime_job": "some_runtime_job"},
+            format="json",
+        )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_runtime_jobs_get_non_author_gets_404(self):
+        """Non-author cannot read runtime jobs of another user's job."""
+        self._authorize("test_user_2")
+
+        response = self.client.get(
+            reverse("v1:jobs-runtime-jobs", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"]),
+            format="json",
+        )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
     def test_job_event_creation(self):
         """Tests create event with all fields."""
 
