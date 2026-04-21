@@ -26,10 +26,13 @@ class StopJobUseCase:
         self.status_messages = []
         self.stopped_sessions = []
 
-    def execute(self, job_id: UUID, service_str: str) -> str:
+    def execute(self, job_id: UUID, service_str: str, user) -> str:
         try:
             job = Job.objects.get(id=job_id)
         except ObjectDoesNotExist:
+            raise JobNotFoundException(job_id)
+
+        if not JobAccessPolicies.can_stop(user, job):
             raise JobNotFoundException(job_id)
 
         # reset stopped sessions and status messages
