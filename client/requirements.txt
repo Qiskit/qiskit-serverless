@@ -8,7 +8,7 @@ cloudpickle==3.1.2
 tqdm>=4.67.3, <5
 # opentelemetry
 opentelemetry-api>=1.18.0, <1.42
-opentelemetry-sdk>=1.18.0, <1.42
+opentelemetry-sdk>=1.41.0, <1.42
 opentelemetry-exporter-otlp-proto-grpc>=1.18.0, <1.42
 opentelemetry-instrumentation-requests>=0.40b0
 ipywidgets>=8.1.6, <9
