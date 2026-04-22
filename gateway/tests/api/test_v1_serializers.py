@@ -255,7 +255,7 @@ class TestSerializers:
         assert job.author is not None
         assert not job.gpu
         assert not job.trial
-        assert job.business_model == Job.BUSINESS_MODEL_SUBSIDISED
+        assert job.business_model == Job.BUSINESS_MODEL_SUBSIDIZED
         assert env_vars["PROGRAM_ENV1"] == "VALUE1"
         assert env_vars["PROGRAM_ENV2"] == "VALUE2"
 

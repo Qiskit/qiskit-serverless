@@ -6,8 +6,8 @@ def backfill_business_model(apps, schema_editor):
     Job = apps.get_model("api", "Job")
     Job.objects.update(
         business_model=Case(
-            When(trial=True, then=Value("trial")),
-            default=Value("subsidised"),
+            When(trial=True, then=Value("TRIAL")),
+            default=Value("SUBSIDIZED"),
         )
     )
 

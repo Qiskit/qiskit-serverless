@@ -11,6 +11,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="job",
             name="business_model",
-            field=models.CharField(default="subsidised", max_length=50),
+            field=models.CharField(default="SUBSIDIZED", max_length=50),
         ),
     ]
