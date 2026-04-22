@@ -82,23 +82,6 @@ class UploadProgramSerializer(serializers.ModelSerializer):
 
         return title_split[0], title_split[1]
 
-    def check_provider_access(self, provider_name, author):
-        """
-        This method check if the author has access to the provider
-        """
-        provider = Provider.objects.filter(name=provider_name).first()
-        if provider is None:
-            logger.error("Provider [%s] does not exist.", provider_name)
-            return False
-
-        author_groups = author.groups.all()
-        admin_groups = provider.admin_groups.all()
-        has_access = any(group in admin_groups for group in author_groups)
-        if not has_access:
-            logger.error("User [%s] has no access to provider [%s].", author.id, provider_name)
-
-        return has_access
-
     def retrieve_private_function(self, title, author):
         """
         This method returns a Program entry searching by the title and author, if not None

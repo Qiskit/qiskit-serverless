@@ -19,6 +19,7 @@ from rest_framework.decorators import action
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 
+from api.access_policies.providers import ProviderAccessPolicy
 from api.decorators.trace_decorator import trace_decorator_factory
 from api.domain.authentication.channel import Channel
 from api.domain.exceptions.active_job_limit_exceeded_exception import (
@@ -35,7 +36,7 @@ from api.serializers import (
 from api.utils import active_jobs_limit_reached, sanitize_name
 from api.v1.exception_handler import endpoint_handle_exceptions
 from core.enums.type_filter import TypeFilter
-from core.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Job
+from core.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Job, Provider
 from core.models import Program as Function
 
 # pylint: disable=duplicate-code
@@ -156,8 +157,8 @@ class ProgramViewSet(viewsets.GenericViewSet):
         provider_name, title = serializer.get_provider_name_and_title(request_provider, title)
 
         if provider_name:
-            user_has_access = serializer.check_provider_access(provider_name=provider_name, author=author)
-            if not user_has_access:
+            provider_obj = Provider.objects.filter(name=provider_name).first()
+            if provider_obj is None or not ProviderAccessPolicy.can_access(user=author, provider=provider_obj):
                 # For security we just return a 404 not a 401
                 return Response(
                     {"message": f"Provider [{provider_name}] was not found."},
@@ -339,9 +340,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
         user_is_provider = False
         if program.provider:
-            admin_groups = program.provider.admin_groups.all()
-            user_groups = request.user.groups.all()
-            user_is_provider = any(group in admin_groups for group in user_groups)
+            user_is_provider = ProviderAccessPolicy.can_access(user=request.user, provider=program.provider)
 
         if user_is_provider:
             jobs = Job.objects.filter(program=program)
