@@ -118,13 +118,9 @@ def _expected_body(
 
 @patch(f"{_HANDLER_MOD}.FleetsApi")
 @patch(f"{_HANDLER_MOD}.ApiClient")
-def test_submit_job_happy_path(
-    mock_api_client_cls, mock_fleets_api_cls, mock_provider, project_id, base_payload
-):
+def test_submit_job_happy_path(mock_api_client_cls, mock_fleets_api_cls, mock_provider, project_id, base_payload):
     """submit_job passes the correct body and project_id to create_fleet and returns its result."""
-    handler, mock_fleets_api = _make_handler(
-        mock_provider, project_id, mock_api_client_cls, mock_fleets_api_cls
-    )
+    handler, mock_fleets_api = _make_handler(mock_provider, project_id, mock_api_client_cls, mock_fleets_api_cls)
     created_resp = {"id": "fleet-id-123", "name": base_payload["name"]}
     mock_fleets_api.create_fleet.return_value = created_resp
 
@@ -143,9 +139,7 @@ def test_submit_job_with_optional_fields(
     mock_api_client_cls, mock_fleets_api_cls, mock_provider, project_id, base_payload
 ):
     """submit_job adds image_secret and merges extra_fields into the request body."""
-    handler, mock_fleets_api = _make_handler(
-        mock_provider, project_id, mock_api_client_cls, mock_fleets_api_cls
-    )
+    handler, mock_fleets_api = _make_handler(mock_provider, project_id, mock_api_client_cls, mock_fleets_api_cls)
     extra = {
         "command": ["/bin/sh", "-lc", "echo hello"],
         "args": ["--foo", "bar"],
@@ -156,9 +150,7 @@ def test_submit_job_with_optional_fields(
     handler.submit_job(**base_payload, image_secret=image_secret, extra_fields=extra)
 
     call_kwargs = mock_fleets_api.create_fleet.call_args.kwargs
-    assert call_kwargs["body"] == _expected_body(
-        base_payload, image_secret=image_secret, extra_fields=extra
-    )
+    assert call_kwargs["body"] == _expected_body(base_payload, image_secret=image_secret, extra_fields=extra)
 
 
 @patch(f"{_HANDLER_MOD}.FleetsApi")
@@ -167,9 +159,7 @@ def test_submit_job_raises_and_logs_api_exception(
     mock_api_client_cls, mock_fleets_api_cls, mock_provider, project_id, base_payload, caplog
 ):
     """submit_job logs an error and re-raises on ApiException."""
-    handler, mock_fleets_api = _make_handler(
-        mock_provider, project_id, mock_api_client_cls, mock_fleets_api_cls
-    )
+    handler, mock_fleets_api = _make_handler(mock_provider, project_id, mock_api_client_cls, mock_fleets_api_cls)
     mock_fleets_api.create_fleet.side_effect = ApiException(status=403, reason="Forbidden")
 
     with caplog.at_level(logging.ERROR, logger="FleetHandler"):
@@ -214,15 +204,11 @@ def test_submit_job_with_builder_extra_fields(
     mock_api_client_cls, mock_fleets_api_cls, mock_provider, project_id, base_payload
 ):
     """submit_job accepts extra_fields built from fleet_utils builder functions."""
-    handler, mock_fleets_api = _make_handler(
-        mock_provider, project_id, mock_api_client_cls, mock_fleets_api_cls
-    )
+    handler, mock_fleets_api = _make_handler(mock_provider, project_id, mock_api_client_cls, mock_fleets_api_cls)
     mock_fleets_api.create_fleet.return_value = {"id": "fleet-id-123"}
 
     extra_fields = {
-        "run_volume_mounts": build_run_volume_mounts(
-            mounts=[("/output", "test-pds", "test_user/fleet-1")]
-        ),
+        "run_volume_mounts": build_run_volume_mounts(mounts=[("/output", "test-pds", "test_user/fleet-1")]),
         "run_env_variables": build_run_env_variables(primary_mount_path="/output"),
         "run_commands": build_run_commands(app_run_commands=["python", "main.py"]),
     }
@@ -529,9 +515,7 @@ def test_cancel_job_status_404_skips_cancel(mock_provider, project_id):
         handler = FleetHandler(client_provider=mock_provider, project_id=project_id)
         with (
             patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid),
-            patch.object(
-                handler, "get_job_status", side_effect=ApiException(status=404, reason="Not Found")
-            ),
+            patch.object(handler, "get_job_status", side_effect=ApiException(status=404, reason="Not Found")),
             patch.object(handler, "_wait_until_terminal_or_canceled") as waiter,
         ):
             handler.cancel_job(fleet_uuid, wait=True, delete=False)
@@ -555,9 +539,7 @@ def test_cancel_job_times_out_raises_assertion(mock_provider, project_id):
         with (
             patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid),
             patch.object(handler, "get_job_status", return_value={"status": "running"}),
-            patch.object(
-                handler, "_wait_until_terminal_or_canceled", side_effect=AssertionError("timeout")
-            ),
+            patch.object(handler, "_wait_until_terminal_or_canceled", side_effect=AssertionError("timeout")),
         ):
             with pytest.raises(AssertionError):
                 handler.cancel_job(fleet_uuid, wait=True, delete=False, timeout_seconds=0)
@@ -623,15 +605,187 @@ def test_delete_job_raises_on_non_404_error(mock_provider, project_id):
     assert exc.value.status == 500
 
 
+def test_delete_job_retries_on_429(mock_provider, project_id):
+    """delete_job retries after sleeping when delete_fleet returns 429, then succeeds."""
+    with (
+        patch(f"{_HANDLER_MOD}.ApiClient") as mock_api_client_cls,
+        patch(f"{_HANDLER_MOD}.FleetsApi") as mock_fleets_api_cls,
+        patch(f"{_HANDLER_MOD}.time") as mock_time,
+    ):
+        mock_api_client_cls.return_value = MagicMock()
+        fleets_api = MagicMock()
+        fleets_api.delete_fleet.side_effect = [
+            ApiException(status=429, reason="Too Many Requests"),
+            None,
+        ]
+        mock_fleets_api_cls.return_value = fleets_api
+        fleet_uuid = "f-00000000-0000-0000-0000-000000000013"
+
+        handler = FleetHandler(client_provider=mock_provider, project_id=project_id)
+        with patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid):
+            handler.delete_job(fleet_uuid)
+
+    assert fleets_api.delete_fleet.call_count == 2
+    mock_time.sleep.assert_called_once_with(60.0)
+
+
+def test_wait_until_state_returns_matched_status(mock_provider, project_id):
+    """_wait_until_state returns the status string when a target state is reached."""
+    with (
+        patch(f"{_HANDLER_MOD}.ApiClient") as mock_api_client_cls,
+        patch(f"{_HANDLER_MOD}.FleetsApi") as mock_fleets_api_cls,
+        patch(f"{_HANDLER_MOD}.time") as mock_time,
+    ):
+        mock_api_client_cls.return_value = MagicMock()
+        mock_fleets_api_cls.return_value = MagicMock()
+        mock_time.time.side_effect = [0, 0, 1]
+
+        handler = FleetHandler(client_provider=mock_provider, project_id=project_id)
+        fleet_uuid = "f-00000000-0000-0000-0000-000000000020"
+
+        with patch.object(handler, "get_job_status", return_value={"status": "running"}):
+            result = handler._wait_until_state(  # pylint: disable=protected-access
+                fleet_uuid,
+                target_states={"running", "succeeded"},
+                timeout_seconds=30,
+                poll_interval_seconds=5,
+            )
+
+    assert result == "running"
+
+
+def test_wait_until_state_returns_gone_on_404(mock_provider, project_id):
+    """_wait_until_state returns 'gone' when the fleet disappears with a 404."""
+    with (
+        patch(f"{_HANDLER_MOD}.ApiClient") as mock_api_client_cls,
+        patch(f"{_HANDLER_MOD}.FleetsApi") as mock_fleets_api_cls,
+    ):
+        mock_api_client_cls.return_value = MagicMock()
+        mock_fleets_api_cls.return_value = MagicMock()
+
+        handler = FleetHandler(client_provider=mock_provider, project_id=project_id)
+        fleet_uuid = "f-00000000-0000-0000-0000-000000000021"
+
+        with patch.object(handler, "get_job_status", side_effect=ApiException(status=404, reason="Not Found")):
+            result = handler._wait_until_state(  # pylint: disable=protected-access
+                fleet_uuid,
+                target_states={"succeeded"},
+                timeout_seconds=30,
+                poll_interval_seconds=5,
+            )
+
+    assert result == "gone"
+
+
+def test_wait_until_state_backs_off_on_429_then_resolves(mock_provider, project_id):
+    """_wait_until_state sleeps poll_interval*6 on 429 then continues polling."""
+    with (
+        patch(f"{_HANDLER_MOD}.ApiClient") as mock_api_client_cls,
+        patch(f"{_HANDLER_MOD}.FleetsApi") as mock_fleets_api_cls,
+        patch(f"{_HANDLER_MOD}.time") as mock_time,
+    ):
+        mock_api_client_cls.return_value = MagicMock()
+        mock_fleets_api_cls.return_value = MagicMock()
+        mock_time.time.side_effect = [0, 0, 1, 2]
+
+        handler = FleetHandler(client_provider=mock_provider, project_id=project_id)
+        fleet_uuid = "f-00000000-0000-0000-0000-000000000022"
+
+        get_status_calls = [
+            ApiException(status=429, reason="Too Many Requests"),
+            {"status": "succeeded"},
+        ]
+        with patch.object(handler, "get_job_status", side_effect=get_status_calls):
+            result = handler._wait_until_state(  # pylint: disable=protected-access
+                fleet_uuid,
+                target_states={"succeeded"},
+                timeout_seconds=30,
+                poll_interval_seconds=5,
+            )
+
+    assert result == "succeeded"
+    mock_time.sleep.assert_called_once_with(30.0)  # 5 * 6
+
+
+def test_wait_until_state_raises_assertion_on_timeout(mock_provider, project_id):
+    """_wait_until_state raises AssertionError when the deadline is exceeded."""
+    with (
+        patch(f"{_HANDLER_MOD}.ApiClient") as mock_api_client_cls,
+        patch(f"{_HANDLER_MOD}.FleetsApi") as mock_fleets_api_cls,
+        patch(f"{_HANDLER_MOD}.time") as mock_time,
+    ):
+        mock_api_client_cls.return_value = MagicMock()
+        mock_fleets_api_cls.return_value = MagicMock()
+        mock_time.time.side_effect = [0, 100]
+
+        handler = FleetHandler(client_provider=mock_provider, project_id=project_id)
+        fleet_uuid = "f-00000000-0000-0000-0000-000000000023"
+
+        with patch.object(handler, "get_job_status", return_value={"status": "pending"}):
+            with pytest.raises(AssertionError, match="Timed out"):
+                handler._wait_until_state(  # pylint: disable=protected-access
+                    fleet_uuid,
+                    target_states={"succeeded"},
+                    timeout_seconds=30,
+                    poll_interval_seconds=5,
+                )
+
+
+def test_wait_until_state_raises_non_404_api_exception(mock_provider, project_id):
+    """_wait_until_state propagates non-404/non-429 ApiException from get_job_status."""
+    with (
+        patch(f"{_HANDLER_MOD}.ApiClient") as mock_api_client_cls,
+        patch(f"{_HANDLER_MOD}.FleetsApi") as mock_fleets_api_cls,
+    ):
+        mock_api_client_cls.return_value = MagicMock()
+        mock_fleets_api_cls.return_value = MagicMock()
+
+        handler = FleetHandler(client_provider=mock_provider, project_id=project_id)
+        fleet_uuid = "f-00000000-0000-0000-0000-000000000024"
+
+        with patch.object(handler, "get_job_status", side_effect=ApiException(status=403, reason="Forbidden")):
+            with pytest.raises(ApiException) as exc:
+                handler._wait_until_state(  # pylint: disable=protected-access
+                    fleet_uuid,
+                    target_states={"succeeded"},
+                    timeout_seconds=30,
+                    poll_interval_seconds=5,
+                )
+    assert exc.value.status == 403
+
+
+def test_wait_until_terminal_delegates_to_wait_until_state(mock_provider, project_id):
+    """_wait_until_terminal_or_canceled calls _wait_until_state with terminal states."""
+    with (
+        patch(f"{_HANDLER_MOD}.ApiClient") as mock_api_client_cls,
+        patch(f"{_HANDLER_MOD}.FleetsApi") as mock_fleets_api_cls,
+    ):
+        mock_api_client_cls.return_value = MagicMock()
+        mock_fleets_api_cls.return_value = MagicMock()
+
+        handler = FleetHandler(client_provider=mock_provider, project_id=project_id)
+        fleet_uuid = "f-00000000-0000-0000-0000-000000000025"
+
+        with patch.object(handler, "_wait_until_state", return_value="succeeded") as mock_wait:
+            handler._wait_until_terminal_or_canceled(  # pylint: disable=protected-access
+                fleet_uuid, timeout_seconds=10, poll_interval_seconds=1
+            )
+
+        mock_wait.assert_called_once_with(
+            fleet_uuid,
+            target_states={"succeeded", "successful", "failed", "canceled"},
+            timeout_seconds=10,
+            poll_interval_seconds=1,
+        )
+
+
 @patch(f"{_HANDLER_MOD}.FleetsApi")
 @patch(f"{_HANDLER_MOD}.ApiClient")
 def test_workers_get_worker_resource_allocation_happy_path(
     mock_api_client_cls, mock_fleets_api_cls, mock_provider, project_id
 ):
     """handler.workers.get_worker_resource_allocation returns correct dict and calculates duration."""
-    handler, mock_fleets_api = _make_handler(
-        mock_provider, project_id, mock_api_client_cls, mock_fleets_api_cls
-    )
+    handler, mock_fleets_api = _make_handler(mock_provider, project_id, mock_api_client_cls, mock_fleets_api_cls)
 
     mock_worker = MagicMock()
     mock_worker.status = "stopped"
@@ -642,9 +796,7 @@ def test_workers_get_worker_resource_allocation_happy_path(
     mock_worker.status_details.address = "10.243.0.10"
     mock_fleets_api.get_fleet_worker.return_value = mock_worker
 
-    result = handler.workers.get_worker_resource_allocation(
-        fleet_id="fleet-123", worker_name="fleet-123-worker-0"
-    )
+    result = handler.workers.get_worker_resource_allocation(fleet_id="fleet-123", worker_name="fleet-123-worker-0")
 
     mock_fleets_api.get_fleet_worker.assert_called_once_with(
         project_id=project_id, fleet_id="fleet-123", name="fleet-123-worker-0"
@@ -662,9 +814,7 @@ def test_workers_get_worker_resource_allocation_running_worker(
     mock_api_client_cls, mock_fleets_api_cls, mock_provider, project_id
 ):
     """handler.workers.get_worker_resource_allocation returns None duration for running workers."""
-    handler, mock_fleets_api = _make_handler(
-        mock_provider, project_id, mock_api_client_cls, mock_fleets_api_cls
-    )
+    handler, mock_fleets_api = _make_handler(mock_provider, project_id, mock_api_client_cls, mock_fleets_api_cls)
 
     mock_worker = MagicMock()
     mock_worker.status = "running"
@@ -673,9 +823,7 @@ def test_workers_get_worker_resource_allocation_running_worker(
     mock_worker.status_details.profile = "cxf-4x8"
     mock_fleets_api.get_fleet_worker.return_value = mock_worker
 
-    result = handler.workers.get_worker_resource_allocation(
-        fleet_id="fleet-456", worker_name="fleet-456-worker-1"
-    )
+    result = handler.workers.get_worker_resource_allocation(fleet_id="fleet-456", worker_name="fleet-456-worker-1")
 
     assert result["status"] == "running"
     assert result["finished_at"] is None
@@ -688,9 +836,7 @@ def test_workers_get_worker_resource_allocation_no_status_details(
     mock_api_client_cls, mock_fleets_api_cls, mock_provider, project_id
 ):
     """handler.workers.get_worker_resource_allocation handles missing status_details gracefully."""
-    handler, mock_fleets_api = _make_handler(
-        mock_provider, project_id, mock_api_client_cls, mock_fleets_api_cls
-    )
+    handler, mock_fleets_api = _make_handler(mock_provider, project_id, mock_api_client_cls, mock_fleets_api_cls)
 
     mock_worker = MagicMock()
     mock_worker.status = "pending"
@@ -699,9 +845,7 @@ def test_workers_get_worker_resource_allocation_no_status_details(
     mock_worker.status_details = None
     mock_fleets_api.get_fleet_worker.return_value = mock_worker
 
-    result = handler.workers.get_worker_resource_allocation(
-        fleet_id="fleet-789", worker_name="fleet-789-worker-0"
-    )
+    result = handler.workers.get_worker_resource_allocation(fleet_id="fleet-789", worker_name="fleet-789-worker-0")
 
     assert result["profile"] is None
     assert result["zone"] is None
@@ -715,16 +859,12 @@ def test_workers_get_worker_resource_allocation_raises_and_logs_api_exception(
     mock_api_client_cls, mock_fleets_api_cls, mock_provider, project_id, caplog
 ):
     """handler.workers.get_worker_resource_allocation logs an error and re-raises on ApiException."""
-    handler, mock_fleets_api = _make_handler(
-        mock_provider, project_id, mock_api_client_cls, mock_fleets_api_cls
-    )
+    handler, mock_fleets_api = _make_handler(mock_provider, project_id, mock_api_client_cls, mock_fleets_api_cls)
     mock_fleets_api.get_fleet_worker.side_effect = ApiException(status=404, reason="Not Found")
 
     with caplog.at_level(logging.ERROR, logger="FleetHandler"):
         with pytest.raises(ApiException):
-            handler.workers.get_worker_resource_allocation(
-                fleet_id="fleet-999", worker_name="nonexistent-worker"
-            )
+            handler.workers.get_worker_resource_allocation(fleet_id="fleet-999", worker_name="nonexistent-worker")
 
     assert "get_fleet_worker failed" in caplog.text
     assert str(project_id) in caplog.text
@@ -736,9 +876,7 @@ def test_workers_get_worker_resource_allocation_raises_and_logs_api_exception(
 
 def test_build_run_volume_mounts_happy_path():
     """build_run_volume_mounts returns correct definitions including optional sub_path."""
-    result = build_run_volume_mounts(
-        mounts=[("/output", "my-pds", "user/job-1"), ("/logs", "log-pds", None)]
-    )
+    result = build_run_volume_mounts(mounts=[("/output", "my-pds", "user/job-1"), ("/logs", "log-pds", None)])
     assert len(result) == 2
     assert result[0]["mount_path"] == "/output"
     assert result[0]["reference"] == "my-pds"
