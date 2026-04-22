@@ -5,7 +5,7 @@ qiskit[qpy-compat]>=1.4, <3
 qiskit-ibm-runtime>=0.40.1, <0.47.0
 # Make sure ray node and notebook node have the same version of cloudpickle
 cloudpickle==3.1.2
-tqdm>=4.66.3, <5
+tqdm>=4.67.3, <5
 # opentelemetry
 opentelemetry-api>=1.18.0, <1.42
 opentelemetry-sdk>=1.18.0, <1.42
