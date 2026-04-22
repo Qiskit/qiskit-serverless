@@ -2,12 +2,13 @@ import json
 import logging
 from uuid import UUID
 
-from qiskit_ibm_runtime import QiskitRuntimeService, RuntimeInvalidStateError
-
+from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ObjectDoesNotExist
+from qiskit_ibm_runtime import QiskitRuntimeService, RuntimeInvalidStateError
 
 from core.models import Job, JobEvent
 from core.services.runners import get_runner, RunnerError
+from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.repositories.runtime_job import RuntimeJobRepository
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
@@ -26,10 +27,13 @@ class StopJobUseCase:
         self.status_messages = []
         self.stopped_sessions = []
 
-    def execute(self, job_id: UUID, service_str: str) -> str:
+    def execute(self, job_id: UUID, service_str: str, user: AbstractUser) -> str:
         try:
             job = Job.objects.get(id=job_id)
         except ObjectDoesNotExist:
+            raise JobNotFoundException(job_id)
+
+        if not JobAccessPolicies.can_stop(user, job):
             raise JobNotFoundException(job_id)
 
         # reset stopped sessions and status messages
