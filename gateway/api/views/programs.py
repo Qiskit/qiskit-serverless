@@ -244,6 +244,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
         carrier = {}
         TraceContextTextMapPropagator().inject(carrier)
         arguments = serializer.data.get("arguments")
+        compute_profile = serializer.validated_data.get("compute_profile")
         channel = Channel.IBM_QUANTUM_PLATFORM
         token = ""
         instance = None
@@ -252,6 +253,8 @@ class ProgramViewSet(viewsets.GenericViewSet):
             token = request.auth.token.decode()
             instance = request.auth.instance
         job_data = {"arguments": arguments, "program": function.id}
+        if compute_profile:
+            job_data["compute_profile"] = compute_profile
         job_serializer = self.get_serializer_run_job(data=job_data)
         if not job_serializer.is_valid():
             logger.error(
@@ -267,14 +270,17 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 settings.LIMITS_ACTIVE_JOBS_PER_USER,
             )
             raise ActiveJobLimitExceeded()
-        job = job_serializer.save(
-            author=author,
-            carrier=carrier,
-            channel=channel,
-            token=token,
-            config=jobconfig,
-            instance=instance,
-        )
+        save_kwargs = {
+            "author": author,
+            "carrier": carrier,
+            "channel": channel,
+            "token": token,
+            "config": jobconfig,
+            "instance": instance,
+        }
+        if compute_profile:
+            save_kwargs["compute_profile"] = compute_profile
+        job = job_serializer.save(**save_kwargs)
         logger.info("[programs-run] user_id=%s job_id=%s program=%s | Job queued ok", author.id, job.id, function_title)
         return Response(job_serializer.data)
 

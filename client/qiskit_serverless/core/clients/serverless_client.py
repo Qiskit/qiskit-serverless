@@ -301,6 +301,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         program: Union[QiskitFunction, str],
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
+        compute_profile: Optional[str] = None,
+        *,
         provider: Optional[str] = None,
     ) -> Job:
         if isinstance(program, QiskitFunction):
@@ -326,6 +328,10 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 data["config"] = asdict(config)
             else:
                 data["config"] = asdict(Configuration())
+
+            # Add compute_profile for Fleets runner (GPU/resource specification)
+            if compute_profile:
+                data["compute_profile"] = compute_profile
 
             response_data = safe_json_request_as_dict(
                 request=lambda: requests.post(

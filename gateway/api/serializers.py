@@ -8,6 +8,7 @@ Version serializers inherit from the different serializers.
 
 import json
 import logging
+import re
 from typing import Tuple, Union
 
 from django.conf import settings
@@ -219,11 +220,25 @@ class RunProgramSerializer(serializers.Serializer):
 
 class RunJobSerializer(serializers.ModelSerializer):
     """
-    Job serializer for the /run and end-point
+    Job serializer for the /run and end-point.
+
+    Supports compute_profile parameter for specifying Code Engine Fleets machine profiles.
+    Only used when runner=Fleets (code_engine_project is set).
     """
+
+    # Explicitly define compute_profile to ensure it's included in validated_data
+    compute_profile = serializers.CharField(required=False, allow_null=True, allow_blank=True, default=None)
 
     class Meta:
         model = Job
+        fields = [
+            "id",
+            "status",
+            "created",
+            "compute_profile",
+            "arguments",
+            "program",
+        ]
 
     def is_trial(self, function: Program, author) -> bool:
         """
@@ -236,9 +251,47 @@ class RunJobSerializer(serializers.ModelSerializer):
 
         return any(group in trial_groups for group in user_run_groups)
 
+    def _get_compute_profile(self, compute_profile_requested: str = None) -> str:
+        """
+        Determine the compute profile for Fleets jobs using simplified 2-tier logic.
+
+        Only used for Fleets runner. Ray runner ignores this.
+
+        Priority (highest to lowest):
+        1. Client-requested compute_profile
+        2. System default (from settings)
+
+        Args:
+            compute_profile_requested: Compute profile requested by client (e.g., "gx3d-24x120x1a100p")
+
+        Returns:
+            Compute profile string
+        """
+        # Priority 1: Client request
+        if compute_profile_requested:
+            # Basic format validation (Code Engine will also validate)
+            if not re.match(r"^[a-z]+\d+[a-z]?-\d+x\d+(?:x\d+[a-z0-9]+)?$", compute_profile_requested.lower()):
+                error_msg = (
+                    f"Invalid compute profile format: '{compute_profile_requested}'. "
+                    f"Expected format: [type]-[cpu]x[memory] or [type]-[cpu]x[memory]x[gpu_count][gpu_type] "
+                    f"(e.g., 'cx3d-4x16' or 'gx3d-24x120x1a100p')"
+                )
+                logger.error(error_msg)
+                raise serializers.ValidationError({"compute_profile": error_msg})
+
+            logger.info("Job will use client-requested compute profile: %s", compute_profile_requested)
+            return compute_profile_requested
+
+        # Priority 2: System default
+        default_compute_profile = getattr(settings, "DEFAULT_COMPUTE_PROFILE", "cx3d-4x16")
+        logger.info("Job will use system default compute profile: %s", default_compute_profile)
+        return default_compute_profile
+
     def _should_use_gpu(self, program: Program) -> bool:
         """
-        Determines if the job should use GPU based on the program's provider.
+        Determines if the job should use GPU based on the program's provider (Ray runner only).
+
+        For Fleets runner, GPU is determined from the compute_profile.
         """
         gpujobs = create_gpujob_allowlist()
         if program.provider and program.provider.name in gpujobs["gpu-functions"].keys():
@@ -262,9 +315,14 @@ class RunJobSerializer(serializers.ModelSerializer):
         token = validated_data.pop("token")
         instance = validated_data.pop("instance", None)
         carrier = validated_data.pop("carrier")
+        compute_profile_requested = validated_data.pop("compute_profile", None)
 
         trial = self.is_trial(program, author)
         gpu = self._should_use_gpu(program)
+
+        # For Fleets runner, get the compute_profile; for Ray runner, use None
+        compute_profile = self._get_compute_profile(compute_profile_requested)
+
         job = Job(
             trial=trial,
             status=status,
@@ -274,6 +332,10 @@ class RunJobSerializer(serializers.ModelSerializer):
             gpu=gpu,
             runner=program.runner,
         )
+
+        # Set compute_profile if model supports it (Fleets jobs)
+        if hasattr(job, "compute_profile"):
+            job.compute_profile = compute_profile
 
         env = encrypt_env_vars(
             build_env_variables(

@@ -1,0 +1,153 @@
+"""Tests for compute_profile functionality."""
+
+import pytest
+from django.test import override_settings
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APIClient
+
+from core.models import Job, Program
+from tests.utils import TestUtils
+
+pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture
+def api_client():
+    """Create an API client."""
+    return APIClient()
+
+
+@pytest.fixture
+def user(api_client):
+    """Create and authenticate a test user."""
+    return TestUtils.authorize_client(username="test_user", client=api_client)
+
+
+@pytest.fixture
+def program(user):
+    """Create a test program."""
+    return TestUtils.create_program(
+        program_title="test-program",
+        author=user,
+    )
+
+
+@override_settings(DEFAULT_COMPUTE_PROFILE="cx3d-4x16")
+def test_create_job_with_compute_profile(api_client, program):
+    """Test creating a job with explicit compute_profile."""
+    url = reverse("v1:programs-run")
+    data = {
+        "program": program.title,
+        "compute_profile": "gx3d-24x120x1a100p",
+    }
+
+    response = api_client.post(url, data, format="json")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["compute_profile"] == "gx3d-24x120x1a100p"
+
+    # Verify job was created with correct compute_profile
+    job = Job.objects.get(id=response.data["id"])
+    assert job.compute_profile == "gx3d-24x120x1a100p"
+
+
+@override_settings(DEFAULT_COMPUTE_PROFILE="cx3d-4x16")
+def test_create_job_without_compute_profile_uses_default(api_client, program):
+    """Test creating a job without compute_profile uses system default."""
+    url = reverse("v1:programs-run")
+    data = {
+        "program": program.title,
+    }
+
+    response = api_client.post(url, data, format="json")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["compute_profile"] == "cx3d-4x16"
+
+    # Verify job was created with default compute_profile
+    job = Job.objects.get(id=response.data["id"])
+    assert job.compute_profile == "cx3d-4x16"
+
+
+@pytest.mark.parametrize(
+    "profile",
+    [
+        "cx3d-4x16",
+        "gx3d-24x120x1a100p",
+        "mx2d-8x64",
+        "bx2d-2x8",
+    ],
+)
+def test_compute_profile_validation_valid_formats(api_client, program, profile):
+    """Test compute_profile validation accepts valid formats."""
+    url = reverse("v1:programs-run")
+    data = {
+        "program": program.title,
+        "compute_profile": profile,
+    }
+
+    response = api_client.post(url, data, format="json")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["compute_profile"] == profile
+
+
+@pytest.mark.parametrize(
+    "profile",
+    [
+        "invalid",
+        "CX3D-4x16",  # uppercase not allowed
+        "cx3d_4x16",  # underscore not allowed
+        "cx3d-4",  # missing memory spec
+        "4x16",  # missing prefix
+        "",  # empty string
+    ],
+)
+def test_compute_profile_validation_invalid_formats(api_client, program, profile):
+    """Test compute_profile validation rejects invalid formats."""
+    url = reverse("v1:programs-run")
+    data = {
+        "program": program.title,
+        "compute_profile": profile,
+    }
+
+    response = api_client.post(url, data, format="json")
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+def test_job_list_includes_compute_profile(api_client, user, program):
+    """Test that job list endpoint includes compute_profile."""
+    # Create a job with compute_profile
+    job = TestUtils.create_job(
+        author=user,
+        program=program,
+        compute_profile="gx3d-24x120x1a100p",
+    )
+
+    url = reverse("v1:jobs-list")
+    response = api_client.get(url, format="json")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.data) > 0
+
+    job_data = next((j for j in response.data if j["id"] == str(job.id)), None)
+    assert job_data is not None
+    assert job_data["compute_profile"] == "gx3d-24x120x1a100p"
+
+
+def test_job_detail_includes_compute_profile(api_client, user, program):
+    """Test that job detail endpoint includes compute_profile."""
+    # Create a job with compute_profile
+    job = TestUtils.create_job(
+        author=user,
+        program=program,
+        compute_profile="gx3d-24x120x1a100p",
+    )
+
+    url = reverse("v1:jobs-detail", kwargs={"pk": job.id})
+    response = api_client.get(url, format="json")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["compute_profile"] == "gx3d-24x120x1a100p"

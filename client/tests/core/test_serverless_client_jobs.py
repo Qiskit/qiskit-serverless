@@ -875,5 +875,60 @@ class TestFilteredLogsMethod:
             )
 
             filtered = mock_client.filtered_logs("test-job", include=r"\d{4}-\d{2}-\d{2} ERROR")
-
             assert filtered == "2024-01-02 ERROR: problem\n"
+
+
+class TestComputeProfile:
+    """Test compute_profile functionality."""
+
+    def test_run_with_compute_profile(self, mock_client):
+        """Test run() passes compute_profile to API and Job property works."""
+        mock_response = {"id": "test-job-id", "status": "QUEUED", "compute_profile": "gx3d-24x120x1a100p"}
+
+        with requests_mock.Mocker() as mocker:
+            mock_request = mocker.post(
+                "https://test-host.com/api/v1/programs/run/",
+                json=mock_response,
+            )
+            mocker.get(
+                "https://test-host.com/api/v1/jobs/test-job-id/",
+                json=mock_response,
+            )
+
+            job = mock_client.run(program="test-program", compute_profile="gx3d-24x120x1a100p")
+
+            # Verify client sent compute_profile to API
+            request_data = json.loads(mock_request.last_request.text)
+            assert "compute_profile" in request_data
+            assert request_data["compute_profile"] == "gx3d-24x120x1a100p"
+
+            # Verify Job.compute_profile property works
+            assert job.compute_profile == "gx3d-24x120x1a100p"
+
+    def test_run_without_compute_profile(self, mock_client):
+        """Test run() without compute_profile - backend applies default."""
+        # Mock response includes default compute_profile applied by backend
+        mock_response = {
+            "id": "test-job-id",
+            "status": "QUEUED",
+            "compute_profile": "cx3d-4x16",  # Default applied by gateway
+        }
+
+        with requests_mock.Mocker() as mocker:
+            mock_request = mocker.post(
+                "https://test-host.com/api/v1/programs/run/",
+                json=mock_response,
+            )
+            mocker.get(
+                "https://test-host.com/api/v1/jobs/test-job-id/",
+                json=mock_response,
+            )
+
+            job = mock_client.run(program="test-program")
+
+            # Verify client didn't send compute_profile (backend will apply default)
+            request_data = json.loads(mock_request.last_request.text)
+            assert "compute_profile" not in request_data
+
+            # Verify backend applied the default
+            assert job.compute_profile == "cx3d-4x16"
