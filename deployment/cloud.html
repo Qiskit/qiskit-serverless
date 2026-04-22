@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Gateway REST API" href="../gateway_api/index.html" /><link rel="prev" title="Deployment" href="index.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2024.08.06 -->
-        <title>Cloud infrastructure setup - Qiskit Serverless 0.30.1</title>
+        <title>Cloud infrastructure setup - Qiskit Serverless 0.31.0</title>
       <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=354aac6f" />
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=3ee1c6c6" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/qiskit-sphinx-theme.css?v=8ff9dcb6" />
@@ -161,7 +161,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../index.html"><div class="brand">Qiskit Serverless 0.30.1</div></a>
+      <a href="../index.html"><div class="brand">Qiskit Serverless 0.31.0</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -189,7 +189,7 @@
     <img class="sidebar-logo only-dark" src="../_static/images/qiskit-dark-logo.svg" alt="Dark Logo"/>
   </div>
   
-  <span class="sidebar-brand-text">Qiskit Serverless 0.30.1</span>
+  <span class="sidebar-brand-text">Qiskit Serverless 0.31.0</span>
   
 </a>
 <form class="sidebar-search-container" method="get" action="../search.html" role="search">
@@ -386,7 +386,7 @@ customizable on a local or cloud <strong>k8s cluster</strong>.</p>
 <p>Once your cluster is ready, the installation is relatively straightforward with Helm. To install a released version, You just need to access to your cluster
 and run the next commands:</p>
 <div class="literal-block-wrapper docutils container" id="id4">
-<div class="code-block-caption"><span class="caption-text">run this commands with the release version like 0.30.1 in x.y.z (2 places)</span><a class="headerlink" href="#id4" title="Permalink to this code">¶</a></div>
+<div class="code-block-caption"><span class="caption-text">run this commands with the release version like 0.31.0 in x.y.z (2 places)</span><a class="headerlink" href="#id4" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     <span class="n">helm</span> <span class="o">-</span><span class="n">n</span> <span class="o">&lt;</span><span class="n">INSERT_YOUR_NAMESPACE</span><span class="o">&gt;</span> <span class="n">install</span> <span class="n">qiskit</span><span class="o">-</span><span class="n">serverless</span> <span class="o">--</span><span class="n">create</span><span class="o">-</span><span class="n">namespace</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">Qiskit</span><span class="o">/</span><span class="n">qiskit</span><span class="o">-</span><span class="n">serverless</span><span class="o">/</span><span class="n">releases</span><span class="o">/</span><span class="n">download</span><span class="o">/</span><span class="n">vx</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">z</span><span class="o">/</span><span class="n">qiskit</span><span class="o">-</span><span class="n">serverless</span><span class="o">-</span><span class="n">x</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">z</span><span class="o">.</span><span class="n">tgz</span>
 </pre></div>
 </div>
@@ -419,7 +419,7 @@ with the configuration of your domain and provider.</p>
 </ul>
 <p>Optionally, you can install an observability package to handle logging and monitoring on your cluster by running the following command:</p>
 <div class="literal-block-wrapper docutils container" id="id7">
-<div class="code-block-caption"><span class="caption-text">run this commands with the release version like 0.30.1 in x.y.z (2 places) using the same namespace as in the previous helm command</span><a class="headerlink" href="#id7" title="Permalink to this code">¶</a></div>
+<div class="code-block-caption"><span class="caption-text">run this commands with the release version like 0.31.0 in x.y.z (2 places) using the same namespace as in the previous helm command</span><a class="headerlink" href="#id7" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     <span class="n">helm</span> <span class="o">-</span><span class="n">n</span> <span class="o">&lt;</span><span class="n">INSERT_YOUR_NAMESPACE</span><span class="o">&gt;</span> <span class="n">install</span> <span class="n">qs</span><span class="o">-</span><span class="n">observability</span>  <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">Qiskit</span><span class="o">/</span><span class="n">qiskit</span><span class="o">-</span><span class="n">serverless</span><span class="o">/</span><span class="n">releases</span><span class="o">/</span><span class="n">download</span><span class="o">/</span><span class="n">vx</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">z</span><span class="o">/</span><span class="n">qs</span><span class="o">-</span><span class="n">observability</span><span class="o">-</span><span class="n">x</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">z</span><span class="o">.</span><span class="n">tgz</span>
 </pre></div>
 </div>
@@ -497,7 +497,7 @@ with the configuration of your domain and provider.</p>
       
     </aside>
   </div>
-</div><script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js?v=7bb76a1a"></script>
+</div><script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js?v=ae1aa45a"></script>
     <script src="../_static/doctools.js?v=888ff710"></script>
     <script src="../_static/sphinx_highlight.js?v=4825356b"></script>
     <script src="../_static/scripts/furo.js?v=5fa4622c"></script>
