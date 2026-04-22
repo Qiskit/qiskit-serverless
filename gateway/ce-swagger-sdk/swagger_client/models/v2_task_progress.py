@@ -45,9 +45,7 @@ class V2TaskProgress(object):
         "successful": "successful",
     }
 
-    def __init__(
-        self, canceled=None, failed=None, pending=None, running=None, successful=None
-    ):  # noqa: E501
+    def __init__(self, canceled=None, failed=None, pending=None, running=None, successful=None):  # noqa: E501
         """V2TaskProgress - a model defined in Swagger"""  # noqa: E501
         self._canceled = None
         self._failed = None
@@ -193,17 +191,13 @@ class V2TaskProgress(object):
         for attr, _ in six.iteritems(self.swagger_types):
             value = getattr(self, attr)
             if isinstance(value, list):
-                result[attr] = list(
-                    map(lambda x: x.to_dict() if hasattr(x, "to_dict") else x, value)
-                )
+                result[attr] = list(map(lambda x: x.to_dict() if hasattr(x, "to_dict") else x, value))
             elif hasattr(value, "to_dict"):
                 result[attr] = value.to_dict()
             elif isinstance(value, dict):
                 result[attr] = dict(
                     map(
-                        lambda item: (
-                            (item[0], item[1].to_dict()) if hasattr(item[1], "to_dict") else item
-                        ),
+                        lambda item: ((item[0], item[1].to_dict()) if hasattr(item[1], "to_dict") else item),
                         value.items(),
                     )
                 )
