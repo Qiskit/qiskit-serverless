@@ -471,6 +471,8 @@ class TestProgramApi(APITestCase):
             )
             assert programs_response.status_code == status.HTTP_200_OK
             assert programs_response.data.get("provider") is None
+            program = Program.objects.get(title="Private function", author__username="test_user_2", provider=None)
+            assert program.platform_id is None
 
     def test_upload_custom_image_without_provider(self):
         """Tests upload end-point authorized."""
@@ -541,7 +543,7 @@ class TestProgramApi(APITestCase):
             programs_response = self.client.post(
                 "/api/v1/programs/upload/",
                 data={
-                    "title": "Provider Function",
+                    "title": "provider-function",
                     "entrypoint": "test_user_2_program.py",
                     "dependencies": "[]",
                     "env_vars": env_vars,
@@ -551,6 +553,8 @@ class TestProgramApi(APITestCase):
             )
             assert programs_response.status_code == status.HTTP_200_OK
             assert programs_response.data.get("provider") == "default"
+            program = Program.objects.get(title="provider-function", provider__name="default")
+            assert program.platform_id == "default.provider-function"
 
     def test_upload_provider_function_with_title(self):
         """Tests upload end-point authorized."""
@@ -570,7 +574,7 @@ class TestProgramApi(APITestCase):
             programs_response = self.client.post(
                 "/api/v1/programs/upload/",
                 data={
-                    "title": "default/Provider Function",
+                    "title": "default/provider-function",
                     "entrypoint": "test_user_3_program.py",
                     "dependencies": "[]",
                     "env_vars": env_vars,
@@ -580,11 +584,13 @@ class TestProgramApi(APITestCase):
             assert programs_response.status_code == status.HTTP_200_OK
             assert programs_response.data.get("provider") == "default"
             assert programs_response.data.get("entrypoint") == "test_user_3_program.py"
-            assert programs_response.data.get("title") == "Provider Function"
+            assert programs_response.data.get("title") == "provider-function"
+            program = Program.objects.get(title="provider-function", provider__name="default")
+            assert program.platform_id == "default.provider-function"
 
             # Verify that program with full title doesn't exist
             try:
-                Program.objects.get(title="default/Provider Function")
+                Program.objects.get(title="default/provider-function")
                 assert False, "Program should not exist with full title"
             except Program.DoesNotExist:
                 pass  # Expected

@@ -112,6 +112,7 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     )
     description = models.TextField(null=True, blank=True)
     version = models.TextField(null=True, blank=True, default=None)
+    platform_id = models.CharField(max_length=511, null=True, blank=True, unique=True)
     documentation_url = models.TextField(null=True, blank=True, default=None)
     additional_info = models.TextField(null=True, blank=True, default="{}")
 
@@ -156,6 +157,13 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     class Meta:
         app_label = "api"
         permissions = ((RUN_PROGRAM_PERMISSION, "Can run function"),)
+
+    def save(self, *args, **kwargs):
+        if self.provider_id is not None:
+            self.platform_id = f"{self.provider.name}.{self.title}"
+        else:
+            self.platform_id = None
+        super().save(*args, **kwargs)
 
     def __str__(self):
         if self.provider:
