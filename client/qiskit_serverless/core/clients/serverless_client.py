@@ -344,7 +344,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             job_id = response_data.get("id")
             span.set_attribute("job.id", job_id)
 
-        return Job(job_id, job_service=self)
+        return Job(job_id, job_service=self, raw_data=response_data)
 
     @_trace_job
     def status(self, job_id: str):

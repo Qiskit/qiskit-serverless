@@ -38,7 +38,9 @@ def test_create_job_with_compute_profile(api_client, program):
     """Test creating a job with explicit compute_profile."""
     url = reverse("v1:programs-run")
     data = {
-        "program": program.title,
+        "title": program.title,
+        "arguments": "{}",
+        "config": {},
         "compute_profile": "gx3d-24x120x1a100p",
     }
 
@@ -57,7 +59,9 @@ def test_create_job_without_compute_profile_uses_default(api_client, program):
     """Test creating a job without compute_profile uses system default."""
     url = reverse("v1:programs-run")
     data = {
-        "program": program.title,
+        "title": program.title,
+        "arguments": "{}",
+        "config": {},
     }
 
     response = api_client.post(url, data, format="json")
@@ -83,7 +87,9 @@ def test_compute_profile_validation_valid_formats(api_client, program, profile):
     """Test compute_profile validation accepts valid formats."""
     url = reverse("v1:programs-run")
     data = {
-        "program": program.title,
+        "title": program.title,
+        "arguments": "{}",
+        "config": {},
         "compute_profile": profile,
     }
 
@@ -108,7 +114,9 @@ def test_compute_profile_validation_invalid_formats(api_client, program, profile
     """Test compute_profile validation rejects invalid formats."""
     url = reverse("v1:programs-run")
     data = {
-        "program": program.title,
+        "title": program.title,
+        "arguments": "{}",
+        "config": {},
         "compute_profile": profile,
     }
 
@@ -132,9 +140,10 @@ def test_job_list_includes_compute_profile(api_client, user, program):
     assert response.status_code == status.HTTP_200_OK
     assert len(response.data) > 0
 
-    job_data = next((j for j in response.data if j["id"] == str(job.id)), None)
+    # Response data is a list of job dicts
+    job_data = next((j for j in response.data if j.get("id") == str(job.id)), None)
     assert job_data is not None
-    assert job_data["compute_profile"] == "gx3d-24x120x1a100p"
+    assert job_data.get("compute_profile") == "gx3d-24x120x1a100p"
 
 
 def test_job_detail_includes_compute_profile(api_client, user, program):
@@ -146,7 +155,7 @@ def test_job_detail_includes_compute_profile(api_client, user, program):
         compute_profile="gx3d-24x120x1a100p",
     )
 
-    url = reverse("v1:jobs-detail", kwargs={"pk": job.id})
+    url = reverse("v1:jobs-retrieve", kwargs={"pk": job.id})
     response = api_client.get(url, format="json")
 
     assert response.status_code == status.HTTP_200_OK

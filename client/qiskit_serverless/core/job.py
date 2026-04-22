@@ -211,6 +211,7 @@ class Job:
 
     def runtime_sessions(self) -> list[str]:
         """Returns associated runtime sessions if any."""
+        return self._job_service.runtime_sessions(self.job_id)
 
     @property
     def compute_profile(self) -> Optional[str]:
