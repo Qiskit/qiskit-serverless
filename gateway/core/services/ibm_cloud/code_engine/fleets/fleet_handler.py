@@ -50,7 +50,7 @@ Example usage::
 from __future__ import annotations
 
 import logging
-import re  # used by _UUID_RE module-level constant
+import re
 import time
 from functools import cached_property
 from typing import Any
@@ -65,18 +65,11 @@ from core.services.ibm_cloud.code_engine.fleets.fleet_workers import JobWorkers
 
 logger = logging.getLogger("FleetHandler")
 
-_UUID_RE = re.compile(
-    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
-)
+_UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
 
 class FleetHandler:
-    """
-    Uses the swagger-generated FleetsAPI to manage jobs (fleets).
-
-    Initialization requires:
-      - IBMCloudClientProvider: initialized IBMCloud client provider class with region specified
-      - project_id: Code Engine project UUID
+    """Uses the swagger-generated FleetsAPI to manage fleet jobs.
 
     Sub-managers:
       - ``handler.workers`` — worker lifecycle operations
@@ -90,18 +83,21 @@ class FleetHandler:
         project_id: str,
         cos_config: dict[str, Any] | None = None,
     ) -> None:
-        """
-        Initialize the class FleetHandler.
+        """Initialize FleetHandler.
 
         Args:
-            client_provider:
-                Initialized :class:`IBMCloudClientProvider`. The provider must contain
-                authenticated state, including a valid account ID and a specified region.
-            project_id:
-                Code Engine project UUID.
-            cos_config:
-                Optional COS configuration for log retrieval. Dictionary with keys:
-                - hmac_access_key_id: HMAC access key ID.
+            client_provider: Initialized :class:`IBMCloudClientProvider` with
+                authenticated state and a specified region.
+            project_id: Code Engine project UUID.
+            cos_config: Optional COS configuration for log retrieval. HMAC
+                credentials are resolved in priority order:
+
+                1. ``hmac_access_key_id`` + ``hmac_secret_access_key`` — used directly.
+                2. ``hmac_secret_name`` — both keys fetched from the named CE secret.
+                3. ``hmac_access_key_id`` alone — secret key auto-discovered from the
+                   CE secret whose name matches the key ID.
+
+                Optional key: ``bucket_region`` (defaults to provider region).
         """
         self.client_provider = client_provider
         self.project_id = project_id
@@ -140,27 +136,26 @@ class FleetHandler:
         image_secret: str | None = None,
         extra_fields: dict[str, Any] | None = None,
     ) -> Any:
-        """
-        Submit a job by creating a Fleet via POST /projects/{project_id}/fleets.
+        """Submit a fleet job via POST /projects/{project_id}/fleets.
 
         Args:
-          - name: name of the fleet
-          - image_reference: fleet image container
-          - network_placements: list of type, reference e.g. [{"type": "subnet_pool", "reference": subnet_pool_id}]
-          - scale_cpu_limit: Number of CPUs set for each task in the fleet
-          - scale_memory_limit: memory for fleet worker (e.g., "2G")
-          - scale_max_instances: number of tasks are processed simultaneously, must be >=1
-          - scale_retry_limit: number of times to rerun an instance of the task, must be >= 0
-          - tasks_specification: input for tasks based on indices e.g. {"indices": "0"}
-          - tasks_state_store: name of the persistent data store created for this Code Engine project
-
-        OPTIONAL:
-          - image_secret: registry access secret, for private images
-          - extra_fields: any additional valid FleetPrototype properties
-                          (e.g., command/args, scale_max_execution_time, etc.)
+            name: Fleet name (lowercase alphanumeric and hyphens).
+            image_reference: Container image reference.
+            network_placements: Network placement list, e.g.
+                ``[{"type": "subnet_pool", "reference": "<id>"}]``.
+            scale_cpu_limit: vCPUs per task, e.g. ``"1"``.
+            scale_memory_limit: Memory per task, e.g. ``"2G"``.
+            scale_max_instances: Tasks processed simultaneously (>= 1).
+            scale_retry_limit: Times to retry a failed task (>= 0).
+            tasks_specification: Task index spec, e.g. ``{"indices": "0"}``.
+            tasks_state_store: Persistent data store, e.g.
+                ``{"persistent_data_store": "<pds-name>"}``.
+            image_secret: Registry pull secret name for private images.
+            extra_fields: Additional valid FleetPrototype fields
+                (e.g. ``run_commands``, ``scale_max_execution_time``).
 
         Returns:
-            The object returned by the swagger client's create_fleet call.
+            The fleet object returned by the swagger client.
         """
         body: dict[str, Any] = {
             "name": name,
@@ -254,7 +249,6 @@ class FleetHandler:
             ValueError: If the identifier is a name that cannot be resolved.
             ApiException: If the list_fleets call fails.
         """
-
         if _UUID_RE.match(identifier):
             return identifier
 
@@ -301,14 +295,16 @@ class FleetHandler:
         """
         fleet_id = self._resolve_fleet_id(identifier)
 
-        # Decide whether we should cancel based on current status.
+        # Decide whether to cancel based on current status.
+        # 404 → already gone, skip cancel. 429 → rate limited, skip cancel
+        # conservatively. Any other error → attempt cancel best-effort.
         should_attempt_cancel = False
         try:
             info = self.get_job_status(fleet_id)
             status = (info.get("status") or "").lower()
             should_attempt_cancel = status in {"pending", "running"}
         except ApiException as exc:
-            if exc.status == 404:
+            if exc.status in {404, 429}:
                 should_attempt_cancel = False
             else:
                 should_attempt_cancel = True
@@ -328,13 +324,9 @@ class FleetHandler:
                 poll_interval_seconds=poll_interval_seconds,
             )
 
-        # Optionally delete; must succeed or be already deleted; raise for non-404 errors.
+        # Optionally delete; fleet_id is already resolved so pass it directly.
         if delete:
-            try:
-                self._fleets_api.delete_fleet(project_id=self.project_id, id=fleet_id)
-            except ApiException as exc:
-                if exc.status != 404:
-                    raise
+            self.delete_job(fleet_id)
 
     def delete_job(self, identifier: str) -> None:
         """
@@ -345,14 +337,79 @@ class FleetHandler:
 
         Raises:
             ValueError: If identifier is a name that cannot be resolved.
-            ApiException: If delete_fleet fails with an error other than 404.
+            ApiException: If delete_fleet fails with an error other than 404 or 429.
         """
         fleet_id = self._resolve_fleet_id(identifier)
-        try:
-            self._fleets_api.delete_fleet(project_id=self.project_id, id=fleet_id)
-        except ApiException as exc:
-            if exc.status != 404:
+        while True:
+            try:
+                self._fleets_api.delete_fleet(project_id=self.project_id, id=fleet_id)
+                return
+            except ApiException as exc:
+                if exc.status == 404:
+                    return
+                if exc.status == 429:
+                    logger.warning("Rate limited deleting fleet %s — backing off 60s", fleet_id)
+                    time.sleep(60.0)
+                    continue
                 raise
+
+    def _wait_until_state(
+        self,
+        fleet_id: str,
+        *,
+        target_states: set[str],
+        timeout_seconds: int,
+        poll_interval_seconds: float,
+    ) -> str:
+        """Poll the fleet until its status is in ``target_states``, it disappears, or timeout.
+
+        On a 429 response the sleep is extended to ``poll_interval_seconds * 6``
+        to let the CE rate limit window recover, then polling resumes normally.
+
+        Known CE fleet statuses::
+
+            pending, running, canceling, canceled, deleting, failed,
+            succeeded, successful
+
+        Args:
+            fleet_id: Fleet UUID to poll.
+            target_states: Set of lowercase status strings that end the poll.
+            timeout_seconds: Maximum seconds to wait before raising.
+            poll_interval_seconds: Seconds between each status check.
+
+        Returns:
+            The status string that satisfied ``target_states``, or ``"gone"``
+            if the fleet disappeared with a 404 before reaching a target state.
+
+        Raises:
+            ApiException: If get_fleet fails with a non-404/non-429 error.
+            AssertionError: If timeout is reached before a target state is observed.
+        """
+        deadline = time.time() + timeout_seconds
+
+        while True:
+            try:
+                info = self.get_job_status(fleet_id)
+                status = (info.get("status") or "").lower()
+                if status in target_states:
+                    return status
+            except ApiException as exc:
+                if exc.status == 404:
+                    return "gone"
+                if exc.status == 429:
+                    backoff = poll_interval_seconds * 6
+                    logger.warning(
+                        "Rate limited polling fleet %s — backing off %.0fs",
+                        fleet_id,
+                        backoff,
+                    )
+                    time.sleep(backoff)
+                    continue
+                raise
+
+            if time.time() >= deadline:
+                raise AssertionError(f"Timed out waiting for fleet {fleet_id} to reach one of {target_states}.")
+            time.sleep(poll_interval_seconds)
 
     def _wait_until_terminal_or_canceled(
         self,
@@ -361,7 +418,10 @@ class FleetHandler:
         timeout_seconds: int,
         poll_interval_seconds: float,
     ) -> None:
-        """Poll the fleet until terminal, disappeared, or timeout.
+        """Poll the fleet until it reaches a terminal state or disappears.
+
+        Delegates to :meth:`_wait_until_state` with the full set of CE terminal
+        statuses: ``succeeded``, ``successful``, ``failed``, ``canceled``.
 
         Args:
             fleet_id: Fleet UUID to poll.
@@ -369,25 +429,12 @@ class FleetHandler:
             poll_interval_seconds: Seconds between each status check.
 
         Raises:
-            ApiException: If get_fleet fails with a non-404 error.
+            ApiException: If get_fleet fails with a non-404/non-429 error.
             AssertionError: If timeout is reached before a terminal state is observed.
         """
-        terminal = {"succeeded", "successful", "failed", "canceled"}
-        deadline = time.time() + timeout_seconds
-
-        while True:
-            try:
-                info = self.get_job_status(fleet_id)
-                status = (info.get("status") or "").lower()
-                if status in terminal:
-                    return
-            except ApiException as exc:
-                if exc.status == 404:
-                    return
-                raise
-
-            if time.time() >= deadline:
-                raise AssertionError(
-                    f"Timed out waiting for fleet {fleet_id} to reach a terminal state."
-                )
-            time.sleep(poll_interval_seconds)
+        self._wait_until_state(
+            fleet_id,
+            target_states={"succeeded", "successful", "failed", "canceled"},
+            timeout_seconds=timeout_seconds,
+            poll_interval_seconds=poll_interval_seconds,
+        )

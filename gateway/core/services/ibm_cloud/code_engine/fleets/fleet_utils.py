@@ -130,9 +130,7 @@ def build_run_env_variables(
 
     if secondary_log_filter_key is not None:
         if not secondary_mount_path:
-            raise ValueError(
-                "secondary_mount_path is required when secondary_log_filter_key is provided."
-            )
+            raise ValueError("secondary_mount_path is required when secondary_log_filter_key is provided.")
 
         run_env_variables.extend(
             [
@@ -215,10 +213,6 @@ def build_run_commands(
             'exit "$STATUS"'
         )
     else:
-        script = (
-            "set -eu; "
-            'mkdir -p "$PRIMARY_LOG_DIR"; '
-            f'exec {app_cmd} >> "$PRIMARY_LOG_PATH" 2>&1'
-        )
+        script = f'set -eu; mkdir -p "$PRIMARY_LOG_DIR"; exec {app_cmd} >> "$PRIMARY_LOG_PATH" 2>&1'
 
     return ["sh", "-c", script]

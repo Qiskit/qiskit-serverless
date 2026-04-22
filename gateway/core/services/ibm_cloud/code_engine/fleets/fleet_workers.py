@@ -83,6 +83,28 @@ def _parse_profile(profile: str) -> tuple[float, float]:
         return (0.0, 0.0)
 
 
+def _empty_allocation(worker_name: str) -> dict[str, Any]:
+    """Return a zeroed allocation dict for a worker not yet observed.
+
+    Args:
+        worker_name: CE worker name.
+
+    Returns:
+        Allocation dict with all numeric fields at zero and status ``"pending"``.
+    """
+    return {
+        "worker_name": worker_name,
+        "profile": None,
+        "zone": None,
+        "created_at": None,
+        "finished_at": None,
+        "last_duration_seconds": 0.0,
+        "status": "pending",
+        "vcpu": 0.0,
+        "memory_gb": 0.0,
+    }
+
+
 class JobWorkers:
     """
     Sub-manager for fleet worker operations.
@@ -94,17 +116,8 @@ class JobWorkers:
     def __init__(self, job: FleetHandler) -> None:
         self._job = job
 
-    @property
-    def _project_id(self) -> str:
-        return self._job.project_id
-
-    @property
-    def _fleets_api(self) -> Any:
-        return self._job._fleets_api  # pylint: disable=protected-access
-
     def list(self, *, fleet_id: str) -> list[Any]:
-        """
-        List all workers for a given fleet.
+        """List all workers for a given fleet.
 
         Args:
             fleet_id: The ID of the fleet.
@@ -116,18 +129,17 @@ class JobWorkers:
             ApiException: If the API call fails.
         """
         try:
-            workers_response = self._fleets_api.list_fleet_workers(
-                project_id=self._project_id, fleet_id=fleet_id
+            workers_response = self._job._fleets_api.list_fleet_workers(  # pylint: disable=protected-access
+                project_id=self._job.project_id, fleet_id=fleet_id
             )
             if workers_response is None or not hasattr(workers_response, "workers"):
                 return []
-
             return workers_response.workers or []
 
         except ApiException as exc:
             logger.error(
                 "list_fleet_workers failed: project_id=%s fleet_id=%s status=%s reason=%s",
-                self._project_id,
+                self._job.project_id,
                 fleet_id,
                 exc.status,
                 exc.reason,
@@ -135,8 +147,7 @@ class JobWorkers:
             raise
 
     def wait(self, *, fleet_id: str, timeout: int = 60, poll_interval: int = 5) -> list[Any]:
-        """
-        Wait for workers to be created for a fleet, with timeout and polling.
+        """Wait for workers to be created for a fleet, with timeout and polling.
 
         Polls the fleet workers API until at least one worker is found,
         or until the timeout is reached.
@@ -157,9 +168,7 @@ class JobWorkers:
 
         while True:
             if time.perf_counter() - start_time >= timeout:
-                raise TimeoutError(
-                    f"No workers were created for fleet {fleet_id} after waiting {timeout} seconds"
-                )
+                raise TimeoutError(f"No workers were created for fleet {fleet_id} after waiting {timeout} seconds")
 
             try:
                 workers = self.list(fleet_id=fleet_id)
@@ -179,8 +188,7 @@ class JobWorkers:
         fleet_id: str,
         worker_name: str,
     ) -> dict[str, Any]:
-        """
-        Get resource allocation details for a specific fleet worker.
+        """Get resource allocation details for a specific fleet worker.
 
         Returns the allocated profile and timing data reported by the CE API.
         This reflects what was *allocated* to the worker (profile, zone,
@@ -199,8 +207,8 @@ class JobWorkers:
             ApiException: If the API call fails.
         """
         try:
-            worker = self._fleets_api.get_fleet_worker(
-                project_id=self._project_id, fleet_id=fleet_id, name=worker_name
+            worker = self._job._fleets_api.get_fleet_worker(  # pylint: disable=protected-access
+                project_id=self._job.project_id, fleet_id=fleet_id, name=worker_name
             )
 
             details = worker.status_details
@@ -222,7 +230,7 @@ class JobWorkers:
         except ApiException as exc:
             logger.error(
                 "get_fleet_worker failed: project_id=%s fleet_id=%s worker_name=%s status=%s reason=%s",
-                self._project_id,
+                self._job.project_id,
                 fleet_id,
                 worker_name,
                 exc.status,
@@ -238,8 +246,7 @@ class JobWorkers:
         timeout: int = 300,
         poll_interval: int = 5,
     ) -> list[dict[str, Any]]:
-        """
-        Collect resource allocation data for all workers in a fleet.
+        """Collect resource allocation data for all workers in a fleet.
 
         Polls the CE API for worker status and profile information. Returns
         allocated profile, parsed vCPU/memory, and timing data per worker.
@@ -262,49 +269,26 @@ class JobWorkers:
             TimeoutError: If workers don't reach terminal state within timeout.
             ApiException: If the API call fails.
         """
-        workers = self.wait(fleet_id=fleet_id, timeout=60, poll_interval=poll_interval)
+        initial_workers = self.wait(fleet_id=fleet_id, timeout=60, poll_interval=poll_interval)
 
-        worker_allocations: dict[str, dict[str, Any]] = {}
-        for worker in workers:
-            worker_allocations[worker.name] = {
-                "worker_name": worker.name,
-                "profile": None,
-                "zone": None,
-                "created_at": None,
-                "finished_at": None,
-                "last_duration_seconds": 0.0,
-                "status": "pending",
-                "vcpu": 0.0,
-                "memory_gb": 0.0,
-            }
+        worker_allocations: dict[str, dict[str, Any]] = {w.name: _empty_allocation(w.name) for w in initial_workers}
 
         if not wait_for_completion:
             for worker_name, tracked in worker_allocations.items():
                 try:
-                    allocation = self.get_worker_resource_allocation(
-                        fleet_id=fleet_id, worker_name=worker_name
-                    )
-                    tracked["status"] = allocation["status"]
-                    tracked["profile"] = allocation["profile"]
-                    tracked["zone"] = allocation["zone"]
-                    tracked["created_at"] = allocation["created_at"]
-                    tracked["finished_at"] = allocation["finished_at"]
-                    tracked["last_duration_seconds"] = allocation["duration_seconds"] or 0.0
-                    if tracked["profile"]:
-                        tracked["vcpu"], tracked["memory_gb"] = _parse_profile(tracked["profile"])
+                    allocation = self.get_worker_resource_allocation(fleet_id=fleet_id, worker_name=worker_name)
+                    _update_tracked(tracked, allocation)
                 except ApiException:
                     pass  # worker may have been deleted between list and get
             return list(worker_allocations.values())
 
-        terminal_statuses = {"succeeded", "successful", "failed", "canceled", "stopped"}
+        terminal_statuses = {"succeeded", "successful", "failed", "canceled"}
         workers_seen: set[str] = set()
         start_time = time.perf_counter()
 
         while True:
             if time.perf_counter() - start_time >= timeout:
-                raise TimeoutError(
-                    f"Workers for fleet {fleet_id} did not complete within {timeout} seconds"
-                )
+                raise TimeoutError(f"Workers for fleet {fleet_id} did not complete within {timeout} seconds")
 
             try:
                 current_workers = self.list(fleet_id=fleet_id)
@@ -314,33 +298,10 @@ class JobWorkers:
 
                     for worker in current_workers:
                         if worker.name not in worker_allocations:
-                            worker_allocations[worker.name] = {
-                                "worker_name": worker.name,
-                                "profile": None,
-                                "zone": None,
-                                "created_at": None,
-                                "finished_at": None,
-                                "last_duration_seconds": 0.0,
-                                "status": "pending",
-                                "vcpu": 0.0,
-                                "memory_gb": 0.0,
-                            }
+                            worker_allocations[worker.name] = _empty_allocation(worker.name)
                         try:
-                            allocation = self.get_worker_resource_allocation(
-                                fleet_id=fleet_id, worker_name=worker.name
-                            )
-                            tracked = worker_allocations[worker.name]
-                            tracked["status"] = allocation["status"]
-                            tracked["profile"] = allocation["profile"] or tracked["profile"]
-                            tracked["zone"] = allocation["zone"] or tracked["zone"]
-                            tracked["created_at"] = allocation["created_at"] or tracked["created_at"]
-                            tracked["finished_at"] = allocation["finished_at"]
-                            if allocation["duration_seconds"] is not None:
-                                tracked["last_duration_seconds"] = allocation["duration_seconds"]
-                            if tracked["profile"] and tracked["vcpu"] == 0.0:
-                                tracked["vcpu"], tracked["memory_gb"] = _parse_profile(
-                                    tracked["profile"]
-                                )
+                            allocation = self.get_worker_resource_allocation(fleet_id=fleet_id, worker_name=worker.name)
+                            _update_tracked(worker_allocations[worker.name], allocation)
                         except ApiException:
                             pass  # worker may have been deleted between list and get
 
@@ -348,13 +309,35 @@ class JobWorkers:
                         break
 
                 elif workers_seen:
-                    # all workers completed and were cleaned up
-                    break
+                    break  # all workers completed and were cleaned up
 
                 time.sleep(poll_interval)
 
-            except ApiException:
+            except ApiException as exc:
+                logger.warning(
+                    "list_fleet_workers transient error for fleet %s: status=%s — retrying",
+                    fleet_id,
+                    exc.status,
+                )
                 time.sleep(poll_interval)
                 continue
 
         return list(worker_allocations.values())
+
+
+def _update_tracked(tracked: dict[str, Any], allocation: dict[str, Any]) -> None:
+    """Merge a fresh allocation snapshot into a tracked worker dict.
+
+    Args:
+        tracked: Mutable worker allocation dict to update in-place.
+        allocation: Fresh result from :meth:`JobWorkers.get_worker_resource_allocation`.
+    """
+    tracked["status"] = allocation["status"]
+    tracked["profile"] = allocation["profile"] or tracked["profile"]
+    tracked["zone"] = allocation["zone"] or tracked["zone"]
+    tracked["created_at"] = allocation["created_at"] or tracked["created_at"]
+    tracked["finished_at"] = allocation["finished_at"]
+    if allocation["duration_seconds"] is not None:
+        tracked["last_duration_seconds"] = allocation["duration_seconds"]
+    if tracked["profile"] and tracked["vcpu"] == 0.0:
+        tracked["vcpu"], tracked["memory_gb"] = _parse_profile(tracked["profile"])
