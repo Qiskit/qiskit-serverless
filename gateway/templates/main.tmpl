@@ -7,7 +7,7 @@ import traceback
 from qiskit_serverless import get_arguments, save_result
 
 # send_error is available from qiskit_serverless >= 0.31.0
-# Not all partners may have upgraded yet, so we fall back to save_result
+# For backwards compatibility, we fall back to save_result
 try:
     from qiskit_serverless import send_error
 except ImportError:
