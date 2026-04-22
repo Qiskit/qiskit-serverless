@@ -37,5 +37,5 @@ except Exception as e:
     if send_error is not None:
         send_error(code, message, exception, details)
     if send_error is None or not hasattr(e, 'code'):
-        save_result( traceback.format_exception_only(e))
+        save_result(traceback.format_exception_only(e))
     raise
