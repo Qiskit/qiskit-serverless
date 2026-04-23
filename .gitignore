@@ -105,3 +105,4 @@ docs/_build/
 
 # any logs
 *.log
+gateway/media/

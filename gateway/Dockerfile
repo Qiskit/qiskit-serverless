@@ -39,8 +39,7 @@ WORKDIR /usr/src/app
 
 # set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/usr/src/app/ce-swagger-sdk
+    PYTHONUNBUFFERED=1
 
 # Add environment variables to set swagger-ui to not send analytics data
 ENV SCARF_ANALYTICS=false \
