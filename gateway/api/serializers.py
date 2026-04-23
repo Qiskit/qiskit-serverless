@@ -204,6 +204,7 @@ class RunProgramSerializer(serializers.Serializer):
     arguments = serializers.CharField()
     config = serializers.JSONField()
     provider = serializers.CharField(required=False, allow_null=True)
+    compute_profile = serializers.CharField(required=False, allow_null=True)
 
     def retrieve_one_by_title(self, title, author):
         """
@@ -240,6 +241,16 @@ class RunJobSerializer(serializers.ModelSerializer):
             "program",
         ]
 
+    def to_representation(self, instance):
+        """
+        Include compute_profile in the response by reading it from the Job instance.
+        This is necessary because compute_profile is set during create() and needs
+        to be explicitly included in the serialized output.
+        """
+        representation = super().to_representation(instance)
+        representation["compute_profile"] = instance.compute_profile
+        return representation
+
     def is_trial(self, function: Program, author) -> bool:
         """
         This method checks if a group with run permissions from the author
@@ -258,7 +269,7 @@ class RunJobSerializer(serializers.ModelSerializer):
         Only used for Fleets runner. Ray runner ignores this.
 
         Priority (highest to lowest):
-        1. Client-requested compute_profile
+        1. Client-requested compute_profile (already validated by validate_compute_profile)
         2. System default (from settings)
 
         Args:
@@ -267,18 +278,8 @@ class RunJobSerializer(serializers.ModelSerializer):
         Returns:
             Compute profile string
         """
-        # Priority 1: Client request
+        # Priority 1: Client request (already validated)
         if compute_profile_requested:
-            # Basic format validation (Code Engine will also validate)
-            if not re.match(r"^[a-z]+\d+[a-z]?-\d+x\d+(?:x\d+[a-z0-9]+)?$", compute_profile_requested.lower()):
-                error_msg = (
-                    f"Invalid compute profile format: '{compute_profile_requested}'. "
-                    f"Expected format: [type]-[cpu]x[memory] or [type]-[cpu]x[memory]x[gpu_count][gpu_type] "
-                    f"(e.g., 'cx3d-4x16' or 'gx3d-24x120x1a100p')"
-                )
-                logger.error(error_msg)
-                raise serializers.ValidationError({"compute_profile": error_msg})
-
             logger.info("Job will use client-requested compute profile: %s", compute_profile_requested)
             return compute_profile_requested
 
@@ -315,7 +316,7 @@ class RunJobSerializer(serializers.ModelSerializer):
         token = validated_data.pop("token")
         instance = validated_data.pop("instance", None)
         carrier = validated_data.pop("carrier")
-        compute_profile_requested = validated_data.pop("compute_profile", None)
+        compute_profile_requested = validated_data.get("compute_profile", None)
 
         trial = self.is_trial(program, author)
         gpu = self._should_use_gpu(program)
@@ -331,11 +332,8 @@ class RunJobSerializer(serializers.ModelSerializer):
             config=config,
             gpu=gpu,
             runner=program.runner,
+            compute_profile=compute_profile,
         )
-
-        # Set compute_profile if model supports it (Fleets jobs)
-        if hasattr(job, "compute_profile"):
-            job.compute_profile = compute_profile
 
         env = encrypt_env_vars(
             build_env_variables(

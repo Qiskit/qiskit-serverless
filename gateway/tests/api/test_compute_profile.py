@@ -138,10 +138,11 @@ def test_job_list_includes_compute_profile(api_client, user, program):
     response = api_client.get(url, format="json")
 
     assert response.status_code == status.HTTP_200_OK
-    assert len(response.data) > 0
+    assert "results" in response.data
+    assert len(response.data["results"]) > 0
 
-    # Response data is a list of job dicts
-    job_data = next((j for j in response.data if j.get("id") == str(job.id)), None)
+    # Response data is paginated with results field containing list of job dicts
+    job_data = next((j for j in response.data["results"] if j.get("id") == str(job.id)), None)
     assert job_data is not None
     assert job_data.get("compute_profile") == "gx3d-24x120x1a100p"
 
@@ -155,7 +156,7 @@ def test_job_detail_includes_compute_profile(api_client, user, program):
         compute_profile="gx3d-24x120x1a100p",
     )
 
-    url = reverse("v1:jobs-retrieve", kwargs={"pk": job.id})
+    url = reverse("v1:retrieve", kwargs={"job_id": job.id})
     response = api_client.get(url, format="json")
 
     assert response.status_code == status.HTTP_200_OK
