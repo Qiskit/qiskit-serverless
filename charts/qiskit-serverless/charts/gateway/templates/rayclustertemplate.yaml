@@ -135,17 +135,17 @@ data:
                   value: "/etc/ca/tls/ca.crt"
 {{- end }}
 {{- if .Values.application.ray.openTelemetry }}
-                - name: OT_RAY_TRACER
+                - name: QS_OT_RAY_TRACER
                   value: "1"
 {{- end }}
 {{- if .Values.application.ray.openTelemetryCollector.local }}
-                - name: OT_JAEGER_HOST_KEY
+                - name: OTEL_EXPORTER_OTLP_HOST
                   value: {{ .Values.application.ray.openTelemetryCollector.host }}
-                - name: OT_JAEGER_PORT_KEY
+                - name: OTEL_EXPORTER_OTLP_PORT
                   value: {{ .Values.application.ray.openTelemetryCollector.port | quote }}
-                - name: OT_INSECURE
+                - name: OTEL_EXPORTER_OTLP_INSECURE
                   value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
-                - name: OT_ENABLED
+                - name: OTEL_ENABLED
                   value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
 {{- end }}
             imagePullSecrets: []
