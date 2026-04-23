@@ -284,12 +284,15 @@ LIMITS_MAX_FLEETS = int(os.environ.get("LIMITS_MAX_FLEETS", "1000"))  # Fleets P
 LIMITS_CPU_PER_TASK = int(os.environ.get("LIMITS_CPU_PER_TASK", "4"))
 LIMITS_GPU_PER_TASK = int(os.environ.get("LIMITS_GPU_PER_TASK", "1"))
 LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
+# Compute profile settings for Fleets runner
+DEFAULT_COMPUTE_PROFILE = os.environ.get("DEFAULT_COMPUTE_PROFILE", "cx3d-4x16")  # 4 CPU, 16GB RAM
+
 
 # ray cluster management
 RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
 RAY_CLUSTER_MODE_LOCAL = os.environ.get("RAY_CLUSTER_MODE_LOCAL", "false").lower() == "true"
 RAY_LOCAL_HOST = os.environ.get("RAY_LOCAL_HOST", "http://localhost:8265")
-RAY_NODE_IMAGE = os.environ.get("RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.30.1")
+RAY_NODE_IMAGE = os.environ.get("RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.31.0")
 RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "1"))
 RAY_CLUSTER_WORKER_REPLICAS_MAX = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS_MAX", "5"))
 RAY_CLUSTER_WORKER_MIN_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS", "1"))
