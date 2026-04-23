@@ -167,6 +167,7 @@ class Job:
         job_id: str,
         job_service: JobService,
         raw_data: Optional[Dict[str, Any]] = None,
+        compute_profile: Optional[str] = None,
     ):
         """Job class for async script execution.
 
@@ -176,6 +177,7 @@ class Job:
         """
         self.job_id = job_id
         self._job_service = job_service
+        self.compute_profile = compute_profile
         self.raw_data = raw_data or {}
 
     def status(self):
@@ -212,11 +214,6 @@ class Job:
     def runtime_sessions(self) -> list[str]:
         """Returns associated runtime sessions if any."""
         return self._job_service.runtime_sessions(self.job_id)
-
-    @property
-    def compute_profile(self) -> Optional[str]:
-        """Returns the compute profile used for this job (Fleets runner only)."""
-        return self.raw_data.get("compute_profile")
 
     def filtered_logs(self, **kwargs) -> str:
         """Returns logs of the job.

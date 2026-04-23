@@ -192,7 +192,7 @@ class RunJobSerializer(serializers.RunJobSerializer):
     """
 
     class Meta(serializers.RunJobSerializer.Meta):
-        fields = ["id", "result", "status", "program", "created", "arguments"]
+        fields = ["id", "result", "status", "program", "created", "arguments", "compute_profile"]
 
 
 class RuntimeJobSerializer(serializers.RuntimeJobSerializer):

@@ -226,9 +226,6 @@ class RunJobSerializer(serializers.ModelSerializer):
     Only used when runner=Fleets (code_engine_project is set).
     """
 
-    # Explicitly define compute_profile to ensure it's included in validated_data
-    compute_profile = serializers.CharField(required=False, allow_null=True, allow_blank=True, default=None)
-
     class Meta:
         model = Job
         fields = [
@@ -239,16 +236,6 @@ class RunJobSerializer(serializers.ModelSerializer):
             "arguments",
             "program",
         ]
-
-    def to_representation(self, instance):
-        """
-        Include compute_profile in the response by reading it from the Job instance.
-        This is necessary because compute_profile is set during create() and needs
-        to be explicitly included in the serialized output.
-        """
-        representation = super().to_representation(instance)
-        representation["compute_profile"] = instance.compute_profile
-        return representation
 
     def is_trial(self, function: Program, author) -> bool:
         """

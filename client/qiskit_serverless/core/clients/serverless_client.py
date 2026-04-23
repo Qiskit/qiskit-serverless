@@ -226,7 +226,10 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             )
         )
 
-        return [Job(job.get("id"), job_service=self, raw_data=job) for job in response_data.get("results", [])]
+        return [
+            Job(job.get("id"), job_service=self, raw_data=job, compute_profile=job.get("compute_profile"))
+            for job in response_data.get("results", [])
+        ]
 
     @_trace_job("provider_list")
     def provider_jobs(self, function: Optional[QiskitFunction], **kwargs) -> List[Job]:
@@ -273,7 +276,10 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             )
         )
 
-        return [Job(job.get("id"), job_service=self, raw_data=job) for job in response_data.get("results", [])]
+        return [
+            Job(job.get("id"), job_service=self, raw_data=job, compute_profile=job.get("compute_profile"))
+            for job in response_data.get("results", [])
+        ]
 
     @_trace_job("get")
     def job(self, job_id: str) -> Optional[Job]:
@@ -292,6 +298,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             job = Job(
                 job_id=job_id,
                 job_service=self,
+                compute_profile=response_data.get("compute_profile"),
             )
 
         return job
@@ -301,9 +308,9 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         program: Union[QiskitFunction, str],
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
-        compute_profile: Optional[str] = None,
-        *,
         provider: Optional[str] = None,
+        *,
+        compute_profile: Optional[str] = None,
     ) -> Job:
         if isinstance(program, QiskitFunction):
             title = program.title
@@ -322,16 +329,13 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             data = {
                 "title": title,
                 "provider": provider,
+                "compute_profile": compute_profile,
                 "arguments": json.dumps(arguments or {}, cls=QiskitObjectsEncoder),
             }  # type: Dict[str, Any]
             if config:
                 data["config"] = asdict(config)
             else:
                 data["config"] = asdict(Configuration())
-
-            # Add compute_profile for Fleets runner (GPU/resource specification)
-            if compute_profile:
-                data["compute_profile"] = compute_profile
 
             response_data = safe_json_request_as_dict(
                 request=lambda: requests.post(
@@ -344,7 +348,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             job_id = response_data.get("id")
             span.set_attribute("job.id", job_id)
 
-        return Job(job_id, job_service=self, raw_data=response_data)
+        return Job(job_id, job_service=self, compute_profile=response_data.get("compute_profile"))
 
     @_trace_job
     def status(self, job_id: str):
