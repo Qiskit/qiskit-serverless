@@ -26,10 +26,11 @@ def user(api_client):
 
 @pytest.fixture
 def program(user):
-    """Create a test program."""
+    """Create a test program with Fleets runner for compute_profile testing."""
     return TestUtils.create_program(
         program_title="test-program",
         author=user,
+        runner=Program.FLEETS,
     )
 
 

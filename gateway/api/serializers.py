@@ -262,15 +262,31 @@ class RunJobSerializer(serializers.ModelSerializer):
 
         return any(group in trial_groups for group in user_run_groups)
 
-    def _get_compute_profile(self, compute_profile_requested: str = None) -> str:
+    def _get_runner_config(self, program: Program, compute_profile_requested: str = None):
         """
-        Determine the compute profile for Fleets jobs using simplified 2-tier logic.
+        Get runner-specific configuration based on program's runner type.
 
-        Only used for Fleets runner. Ray runner ignores this.
+        Returns:
+            tuple: (compute_profile, gpu) where:
+                - For Fleets: (compute_profile_string, False) - GPU determined from profile
+                - For Ray: (None, gpu_boolean) - GPU determined from provider allowlist
+        """
+        if program.runner == Program.FLEETS:
+            # Fleets: Use compute_profile, GPU comes from the profile itself
+            compute_profile = self._get_fleets_compute_profile(compute_profile_requested)
+            return (compute_profile, False)
+        else:
+            # Ray: No compute_profile, GPU from provider allowlist
+            gpu = self._should_ray_use_gpu(program)
+            return (None, gpu)
 
-        Priority (highest to lowest):
-        1. Client-requested compute_profile (already validated by validate_compute_profile)
-        2. System default (from settings)
+    def _get_fleets_compute_profile(self, compute_profile_requested: str = None) -> str:
+        """
+        Determine compute profile for Fleets jobs using 2-tier priority.
+
+        Priority:
+        1. Client-requested compute_profile (already validated)
+        2. System default (DEFAULT_COMPUTE_PROFILE setting)
 
         Args:
             compute_profile_requested: Compute profile requested by client (e.g., "gx3d-24x120x1a100p")
@@ -278,25 +294,23 @@ class RunJobSerializer(serializers.ModelSerializer):
         Returns:
             Compute profile string
         """
-        # Priority 1: Client request (already validated)
         if compute_profile_requested:
-            logger.info("Job will use client-requested compute profile: %s", compute_profile_requested)
+            logger.info("Fleets job will use client-requested compute profile: %s", compute_profile_requested)
             return compute_profile_requested
 
-        # Priority 2: System default
-        default_compute_profile = getattr(settings, "DEFAULT_COMPUTE_PROFILE", "cx3d-4x16")
-        logger.info("Job will use system default compute profile: %s", default_compute_profile)
-        return default_compute_profile
+        default = getattr(settings, "DEFAULT_COMPUTE_PROFILE", "cx3d-4x16")
+        logger.info("Fleets job will use system default compute profile: %s", default)
+        return default
 
-    def _should_use_gpu(self, program: Program) -> bool:
+    def _should_ray_use_gpu(self, program: Program) -> bool:
         """
-        Determines if the job should use GPU based on the program's provider (Ray runner only).
+        Determine if Ray job should use GPU based on provider allowlist.
 
-        For Fleets runner, GPU is determined from the compute_profile.
+        For Fleets jobs, GPU is determined from the compute_profile, not this method.
         """
         gpujobs = create_gpujob_allowlist()
         if program.provider and program.provider.name in gpujobs["gpu-functions"].keys():
-            logger.debug("Program [%s] will be run on GPU nodes", program.title)
+            logger.debug("Ray job [%s] will run on GPU nodes", program.title)
             return True
         return False
 
@@ -321,9 +335,8 @@ class RunJobSerializer(serializers.ModelSerializer):
         trial = self.is_trial(program, author)
         business_model = Job.BUSINESS_MODEL_TRIAL if trial else Job.BUSINESS_MODEL_SUBSIDIZED
 
-        # For Fleets runner, get the compute_profile; for Ray runner, use None
-        compute_profile = self._get_compute_profile(compute_profile_requested)
-        gpu = self._should_use_gpu(program)
+        # Get runner-specific configuration (compute_profile for Fleets, GPU for Ray)
+        compute_profile, gpu = self._get_runner_config(program, compute_profile_requested)
 
         job = Job(
             trial=trial,
