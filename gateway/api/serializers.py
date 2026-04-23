@@ -8,7 +8,6 @@ Version serializers inherit from the different serializers.
 
 import json
 import logging
-import re
 from typing import Tuple, Union
 
 from django.conf import settings
@@ -275,10 +274,10 @@ class RunJobSerializer(serializers.ModelSerializer):
             # Fleets: Use compute_profile, GPU comes from the profile itself
             compute_profile = self._get_fleets_compute_profile(compute_profile_requested)
             return (compute_profile, False)
-        else:
-            # Ray: No compute_profile, GPU from provider allowlist
-            gpu = self._should_ray_use_gpu(program)
-            return (None, gpu)
+
+        # Ray: No compute_profile, GPU from provider allowlist
+        gpu = self._should_ray_use_gpu(program)
+        return (None, gpu)
 
     def _get_fleets_compute_profile(self, compute_profile_requested: str = None) -> str:
         """
@@ -314,7 +313,7 @@ class RunJobSerializer(serializers.ModelSerializer):
             return True
         return False
 
-    def create(self, validated_data):
+    def create(self, validated_data):  # pylint: disable=too-many-locals
         status = Job.QUEUED
         program = validated_data.get("program")
         arguments = validated_data.get("arguments", "{}")
