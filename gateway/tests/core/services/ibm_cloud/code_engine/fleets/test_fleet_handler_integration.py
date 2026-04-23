@@ -47,7 +47,7 @@ import uuid
 
 import pytest
 
-from core.services.ibm_cloud.code_engine.fleets.fleet_utils import (
+from core.ibm_cloud.code_engine.fleets.utils import (
     build_run_commands,
     build_run_env_variables,
     build_run_volume_mounts,
@@ -93,7 +93,7 @@ def client_provider():
     Returns:
         Initialized :class:`IBMCloudClientProvider`.
     """
-    from core.services.ibm_cloud.clients import IBMCloudClientProvider  # pylint: disable=import-outside-toplevel
+    from core.ibm_cloud.clients import IBMCloudClientProvider  # pylint: disable=import-outside-toplevel
 
     api_key = _require_env("IBM_CLOUD_API_KEY")
     region = os.environ.get("CE_REGION", "us-east")
@@ -110,19 +110,17 @@ def handler(client_provider):
     Returns:
         Initialized :class:`FleetHandler` with cos_config set.
     """
-    from core.services.ibm_cloud.code_engine.fleets.fleet_handler import (
+    from core.ibm_cloud.code_engine.fleets.handler import (
         FleetHandler,
     )  # pylint: disable=import-outside-toplevel
 
     project_id = _require_env("CE_PROJECT_ID")
-    hmac_key_id = _require_env("CE_HMAC_SECRET_ACCESS_KEY_ID")
+    hmac_secret_name = _require_env("CE_HMAC_SECRET_NAME")
 
-    cos_config: dict = {"hmac_access_key_id": hmac_key_id, "bucket_region": os.environ.get("CE_REGION", "us-east")}
-
-    # If the secret is available directly, use it; otherwise rely on CE secret auto-discovery.
-    hmac_secret = os.environ.get("CE_HMAC_SECRET_ACCESS_KEY")
-    if hmac_secret:
-        cos_config["hmac_secret_access_key"] = hmac_secret
+    cos_config: dict = {
+        "hmac_secret_name": hmac_secret_name,
+        "bucket_region": os.environ.get("CE_REGION", "us-east"),
+    }
 
     return FleetHandler(
         client_provider=client_provider,
@@ -236,19 +234,6 @@ def test_fleet_pds_cos_logs(handler):
 
         assert log_marker in log_content, f"Expected {log_marker!r} in log but got: {log_content!r}"
         print("[integration] Log verified.")
-
-        print("[integration] Collecting worker resource allocations...")
-        allocations = handler.workers.list_all_allocations(
-            fleet_id=fleet_id,
-            wait_for_completion=False,
-        )
-        for alloc in allocations:
-            print(
-                f"[integration] worker={alloc['worker_name']} "
-                f"profile={alloc['profile']} "
-                f"status={alloc['status']} "
-                f"duration={alloc['last_duration_seconds']:.1f}s"
-            )
 
     finally:
         if fleet_id:

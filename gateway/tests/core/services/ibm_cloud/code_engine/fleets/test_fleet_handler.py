@@ -15,7 +15,6 @@
 Unit tests for FleetHandler and fleet_utils builder functions.
 
 COS sub-manager tests live in test_job_cos_unit.py.
-Worker sub-manager tests are exercised via handler.workers.* below.
 """
 
 # pylint: disable=redefined-outer-name
@@ -25,16 +24,16 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
-from swagger_client.rest import ApiException
+from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
-from core.services.ibm_cloud.code_engine.fleets.fleet_handler import FleetHandler
-from core.services.ibm_cloud.code_engine.fleets.fleet_utils import (
+from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
+from core.ibm_cloud.code_engine.fleets.utils import (
     build_run_commands,
     build_run_env_variables,
     build_run_volume_mounts,
 )
 
-_HANDLER_MOD = "core.services.ibm_cloud.code_engine.fleets.fleet_handler"
+_HANDLER_MOD = "core.ibm_cloud.code_engine.fleets.handler"
 
 
 @pytest.fixture
@@ -777,101 +776,6 @@ def test_wait_until_terminal_delegates_to_wait_until_state(mock_provider, projec
             timeout_seconds=10,
             poll_interval_seconds=1,
         )
-
-
-@patch(f"{_HANDLER_MOD}.FleetsApi")
-@patch(f"{_HANDLER_MOD}.ApiClient")
-def test_workers_get_worker_resource_allocation_happy_path(
-    mock_api_client_cls, mock_fleets_api_cls, mock_provider, project_id
-):
-    """handler.workers.get_worker_resource_allocation returns correct dict and calculates duration."""
-    handler, mock_fleets_api = _make_handler(mock_provider, project_id, mock_api_client_cls, mock_fleets_api_cls)
-
-    mock_worker = MagicMock()
-    mock_worker.status = "stopped"
-    mock_worker.created_at = datetime(2026, 2, 9, 8, 45, 26)
-    mock_worker.finished_at = datetime(2026, 2, 9, 8, 49, 23)
-    mock_worker.status_details.profile = "cxf-2x4"
-    mock_worker.status_details.zone = "eu-de-1"
-    mock_worker.status_details.address = "10.243.0.10"
-    mock_fleets_api.get_fleet_worker.return_value = mock_worker
-
-    result = handler.workers.get_worker_resource_allocation(fleet_id="fleet-123", worker_name="fleet-123-worker-0")
-
-    mock_fleets_api.get_fleet_worker.assert_called_once_with(
-        project_id=project_id, fleet_id="fleet-123", name="fleet-123-worker-0"
-    )
-    assert result["profile"] == "cxf-2x4"
-    assert result["status"] == "stopped"
-    assert result["zone"] == "eu-de-1"
-    assert result["address"] == "10.243.0.10"
-    assert result["duration_seconds"] == 237.0
-
-
-@patch(f"{_HANDLER_MOD}.FleetsApi")
-@patch(f"{_HANDLER_MOD}.ApiClient")
-def test_workers_get_worker_resource_allocation_running_worker(
-    mock_api_client_cls, mock_fleets_api_cls, mock_provider, project_id
-):
-    """handler.workers.get_worker_resource_allocation returns None duration for running workers."""
-    handler, mock_fleets_api = _make_handler(mock_provider, project_id, mock_api_client_cls, mock_fleets_api_cls)
-
-    mock_worker = MagicMock()
-    mock_worker.status = "running"
-    mock_worker.created_at = datetime(2026, 2, 9, 8, 45, 26)
-    mock_worker.finished_at = None
-    mock_worker.status_details.profile = "cxf-4x8"
-    mock_fleets_api.get_fleet_worker.return_value = mock_worker
-
-    result = handler.workers.get_worker_resource_allocation(fleet_id="fleet-456", worker_name="fleet-456-worker-1")
-
-    assert result["status"] == "running"
-    assert result["finished_at"] is None
-    assert result["duration_seconds"] is None
-
-
-@patch(f"{_HANDLER_MOD}.FleetsApi")
-@patch(f"{_HANDLER_MOD}.ApiClient")
-def test_workers_get_worker_resource_allocation_no_status_details(
-    mock_api_client_cls, mock_fleets_api_cls, mock_provider, project_id
-):
-    """handler.workers.get_worker_resource_allocation handles missing status_details gracefully."""
-    handler, mock_fleets_api = _make_handler(mock_provider, project_id, mock_api_client_cls, mock_fleets_api_cls)
-
-    mock_worker = MagicMock()
-    mock_worker.status = "pending"
-    mock_worker.created_at = datetime(2026, 2, 9, 8, 45, 26)
-    mock_worker.finished_at = None
-    mock_worker.status_details = None
-    mock_fleets_api.get_fleet_worker.return_value = mock_worker
-
-    result = handler.workers.get_worker_resource_allocation(fleet_id="fleet-789", worker_name="fleet-789-worker-0")
-
-    assert result["profile"] is None
-    assert result["zone"] is None
-    assert result["address"] is None
-    assert result["duration_seconds"] is None
-
-
-@patch(f"{_HANDLER_MOD}.FleetsApi")
-@patch(f"{_HANDLER_MOD}.ApiClient")
-def test_workers_get_worker_resource_allocation_raises_and_logs_api_exception(
-    mock_api_client_cls, mock_fleets_api_cls, mock_provider, project_id, caplog
-):
-    """handler.workers.get_worker_resource_allocation logs an error and re-raises on ApiException."""
-    handler, mock_fleets_api = _make_handler(mock_provider, project_id, mock_api_client_cls, mock_fleets_api_cls)
-    mock_fleets_api.get_fleet_worker.side_effect = ApiException(status=404, reason="Not Found")
-
-    with caplog.at_level(logging.ERROR, logger="FleetHandler"):
-        with pytest.raises(ApiException):
-            handler.workers.get_worker_resource_allocation(fleet_id="fleet-999", worker_name="nonexistent-worker")
-
-    assert "get_fleet_worker failed" in caplog.text
-    assert str(project_id) in caplog.text
-    assert "fleet-999" in caplog.text
-    assert "nonexistent-worker" in caplog.text
-    assert "404" in caplog.text
-    assert "Not Found" in caplog.text
 
 
 def test_build_run_volume_mounts_happy_path():
