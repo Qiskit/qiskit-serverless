@@ -926,9 +926,9 @@ class TestComputeProfile:
 
             job = mock_client.run(program="test-program")
 
-            # Verify client didn't send compute_profile (backend will apply default)
+            # Verify client sent compute_profile as None (backend will apply default)
             request_data = json.loads(mock_request.last_request.text)
-            assert "compute_profile" not in request_data
+            assert request_data["compute_profile"] is None
 
             # Verify backend applied the default
             assert job.compute_profile == "cx3d-4x16"
