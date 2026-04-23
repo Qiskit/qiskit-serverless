@@ -5,8 +5,6 @@ import logging
 import os
 import sys
 
-from main.tracing import setup_gateway_tracing
-
 logger = logging.getLogger("main")
 
 
@@ -21,7 +19,6 @@ def main():
             "available on your PYTHONPATH environment variable? Did you "
             "forget to activate a virtual environment?"
         ) from exc
-    setup_gateway_tracing()
 
     logger.info(f"[BOOT] Executing command manage.py {sys.argv[1] if len(sys.argv) > 1 else ''}")
     execute_from_command_line(sys.argv)
