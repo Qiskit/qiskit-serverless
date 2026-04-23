@@ -10,6 +10,12 @@ services:
       "env", "RAY_LOG_TO_STDERR=1", "ray", "start", "--head", "--port=6379",
       "--dashboard-host=0.0.0.0", "--block"
     ]
+    environment:
+      - OTEL_ENABLED=1
+      - OTEL_EXPORTER_OTLP_HOST=http://jaeger
+      - OTEL_EXPORTER_OTLP_PORT=4317
+      - OTEL_EXPORTER_OTLP_INSECURE=1
+      - QS_OT_RAY_TRACER=1
     ports:
       - 8265:8265
     volumes:
@@ -57,6 +63,9 @@ services:
       - DATABASE_NAME=serverlessdb
       - DATABASE_USER=serverlessuser
       - DATABASE_PASSWORD=serverlesspassword
+      - OTEL_ENABLED=1
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://jaeger:4317
+      - OTEL_EXPORTER_OTLP_TRACES_INSECURE=1
     networks:
       - safe-tier
     volumes:
@@ -86,6 +95,9 @@ services:
       - RAY_LOCAL_HOST=http://ray-head:8265
       - RAY_CLUSTER_MODE_LOCAL=true
       - SETTINGS_AUTH_MECHANISM=mock_token
+      - OTEL_ENABLED=1
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://jaeger:4317
+      - OTEL_EXPORTER_OTLP_TRACES_INSECURE=1
     networks:
       - safe-tier
     volumes:
@@ -119,6 +131,16 @@ services:
     profiles: [ "full" ]
     ports:
       - 3000:3000
+    networks:
+      - safe-tier
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    profiles: [ "full" ]
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - 16686:16686
+      - 4317:4317
     networks:
       - safe-tier
 networks:
