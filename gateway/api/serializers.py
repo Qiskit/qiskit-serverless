@@ -319,13 +319,15 @@ class RunJobSerializer(serializers.ModelSerializer):
         compute_profile_requested = validated_data.get("compute_profile", None)
 
         trial = self.is_trial(program, author)
-        gpu = self._should_use_gpu(program)
+        business_model = Job.BUSINESS_MODEL_TRIAL if trial else Job.BUSINESS_MODEL_SUBSIDIZED
 
         # For Fleets runner, get the compute_profile; for Ray runner, use None
         compute_profile = self._get_compute_profile(compute_profile_requested)
+        gpu = self._should_use_gpu(program)
 
         job = Job(
             trial=trial,
+            business_model=business_model,
             status=status,
             program=program,
             author=author,
