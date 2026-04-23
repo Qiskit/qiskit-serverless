@@ -5,6 +5,7 @@ import os
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.django import DjangoInstrumentor
+from opentelemetry.instrumentation.psycopg2 import Psycopg2Instrumentor
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -34,3 +35,4 @@ def setup_gateway_tracing(service_name: str = "QiskitServerless-Gateway") -> Non
     if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
         trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
     DjangoInstrumentor().instrument()
+    Psycopg2Instrumentor().instrument()
