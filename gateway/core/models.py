@@ -156,6 +156,18 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     class Meta:
         app_label = "api"
         permissions = ((RUN_PROGRAM_PERMISSION, "Can run function"),)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["provider", "title"],
+                condition=models.Q(provider__isnull=False),
+                name="unique_provider_title",
+            ),
+            models.UniqueConstraint(
+                fields=["author", "title"],
+                condition=models.Q(provider__isnull=True),
+                name="unique_author_title_no_provider",
+            ),
+        ]
 
     def __str__(self):
         if self.provider:
