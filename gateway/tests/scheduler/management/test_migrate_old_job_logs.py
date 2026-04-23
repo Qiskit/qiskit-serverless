@@ -1,5 +1,6 @@
 """Tests for migrate_old_job_logs command."""
 
+import uuid
 from typing import Optional
 
 from django.contrib.auth.models import User, Group
@@ -367,7 +368,7 @@ class TestMigrateOldJobLogs(APITestCase):
             provider.admin_groups.add(admin_group)
 
         program = Program.objects.create(
-            title=f"program-{author_user.username}-{provider_admin or 'custom'}",
+            title=f"program-{author_user.username}-{provider_admin or uuid.uuid4().hex[:8]}",
             author=author_user,
             provider=provider,
         )

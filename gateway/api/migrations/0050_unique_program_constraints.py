@@ -12,6 +12,19 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.AlterField(
+            model_name="job",
+            name="business_model",
+            field=models.CharField(
+                choices=[
+                    ("TRIAL", "Trial"),
+                    ("SUBSIDIZED", "Subsidized"),
+                    ("CONSUMPTION", "Consumption"),
+                ],
+                default="SUBSIDIZED",
+                max_length=50,
+            ),
+        ),
         migrations.AddConstraint(
             model_name="program",
             constraint=models.UniqueConstraint(

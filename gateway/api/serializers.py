@@ -45,6 +45,10 @@ class UploadProgramSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Program
+        # Disable auto-generated UniqueConstraint validators.
+        # Uniqueness is enforced at DB level; the upload view handles
+        # upsert logic (find-or-create) before saving.
+        validators = []
 
     def _normalize_dependency(self, raw_dependency):
         if isinstance(raw_dependency, str):
