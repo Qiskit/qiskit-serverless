@@ -12,8 +12,12 @@ from rest_framework.test import APIClient
 
 from core.models import Job, JobConfig, Program, Provider
 
+from gateway.core.models import JobEvent
+from gateway.core.model_managers.job_events import JobEventOrigin, JobEventContext, JobEventType, JobEventQuerySet
+
 # literal for job status
 JobStatusType = Literal[Job.PENDING, Job.RUNNING, Job.STOPPED, Job.SUCCEEDED, Job.FAILED, Job.QUEUED]
+JobSubStatusType = Literal[Job.MAPPING, Job.OPTIMIZING_HARDWARE, Job.WAITING_QPU, Job.EXECUTING_QPU, Job.POST_PROCESSING]
 
 
 class TestUtils:
@@ -195,6 +199,23 @@ class TestUtils:
         return job_config
 
     @staticmethod
+    def create_job_event(job: Job,
+                         event_type: JobEventType,
+                         origin: JobEventOrigin,
+                         context: JobEventContext,
+                         data: JobStatusType = Job.PENDING,
+                         sub_status: JobSubStatusType = None,
+
+                         ) -> JobEvent:
+        latest_job_event = JobEvent.objects.filter(job=job).first()
+        if latest_job_event is None:
+            JobEvent.objects.create(job=job)
+
+        return JobEvent.objects.create(
+            job=job,
+        )
+
+    @staticmethod
     def create_job(  # pylint: disable=too-many-positional-arguments
         author: Union[User, str],
         program: Union[Program, str],
@@ -226,6 +247,8 @@ class TestUtils:
         if config:
             TestUtils.add_config_to_job(job, config)
 
+        # Creating associate JobEvent for creation of job
+        TestUtils.create_job_event(job)
         return job
 
     @staticmethod
