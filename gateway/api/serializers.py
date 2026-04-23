@@ -13,6 +13,7 @@ from typing import Tuple, Union
 from django.conf import settings
 from django.contrib.auth.models import Group
 from rest_framework import serializers
+from rest_framework import validators as validators_module
 
 from api.utils import build_env_variables, sanitize_name
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
@@ -45,10 +46,12 @@ class UploadProgramSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Program
-        # Disable auto-generated UniqueConstraint validators.
-        # Uniqueness is enforced at DB level; the upload view handles
-        # upsert logic (find-or-create) before saving.
-        validators = []
+
+    def get_validators(self):
+        """Exclude UniqueConstraint validators.
+        Uniqueness is enforced at DB level; the upload view handles
+        upsert logic (find-or-create) before saving."""
+        return [v for v in super().get_validators() if not isinstance(v, validators_module.UniqueTogetherValidator)]
 
     def _normalize_dependency(self, raw_dependency):
         if isinstance(raw_dependency, str):
