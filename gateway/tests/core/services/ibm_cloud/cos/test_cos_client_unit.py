@@ -20,7 +20,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from ibm_botocore.exceptions import ClientError
 
-from core.services.ibm_cloud.cos.cos_client import COSClient, CosHmacCredentials
+from core.ibm_cloud.cos.cos_client import COSClient, CosHmacCredentials
 
 
 def make_client_error(*, code: str, operation_name: str) -> ClientError:

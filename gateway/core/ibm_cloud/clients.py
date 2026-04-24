@@ -24,7 +24,7 @@ layer is included here:
 
 Example::
 
-    from core.services.ibm_cloud.clients import IBMCloudClientProvider
+    from core.ibm_cloud.clients import IBMCloudClientProvider
 
     provider = IBMCloudClientProvider(api_key="YOUR_API_KEY", region="us-south")
 

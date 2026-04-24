@@ -38,7 +38,7 @@ from ibm_boto3.s3.transfer import TransferConfig
 from ibm_botocore.exceptions import ClientError
 
 if TYPE_CHECKING:
-    from core.services.ibm_cloud.clients import IBMCloudClientProvider
+    from core.ibm_cloud.clients import IBMCloudClientProvider
 
 logger = logging.getLogger("gateway.ibm_cloud.cos")
 

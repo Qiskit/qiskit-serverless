@@ -35,9 +35,9 @@ import tempfile
 import six
 from six.moves.urllib.parse import quote
 
-from swagger_client.configuration import Configuration
-import swagger_client.models
-from swagger_client import rest
+from core.ibm_cloud.code_engine.ce_client.configuration import Configuration
+import core.ibm_cloud.code_engine.ce_client.models
+from core.ibm_cloud.code_engine.ce_client import rest
 
 
 class ApiClient(object):
@@ -274,7 +274,7 @@ class ApiClient(object):
             if klass in self.NATIVE_TYPES_MAPPING:
                 klass = self.NATIVE_TYPES_MAPPING[klass]
             else:
-                klass = getattr(swagger_client.models, klass)
+                klass = getattr(core.ibm_cloud.code_engine.ce_client.models, klass)
 
         if klass in self.PRIMITIVE_TYPES:
             return self.__deserialize_primitive(data, klass)

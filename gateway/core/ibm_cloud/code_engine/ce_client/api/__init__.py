@@ -14,5 +14,5 @@ from __future__ import absolute_import
 
 # flake8: noqa
 
-# import apis into api package
-from swagger_client.api.fleets_api import FleetsApi
+from core.ibm_cloud.code_engine.ce_client.api.fleets_api import FleetsApi
+from core.ibm_cloud.code_engine.ce_client.api.secrets_and_configmaps_api import SecretsAndConfigmapsApi
