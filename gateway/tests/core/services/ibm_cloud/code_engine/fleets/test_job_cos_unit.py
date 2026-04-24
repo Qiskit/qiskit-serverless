@@ -107,3 +107,139 @@ def test_cos_delete_object() -> None:
     mock_cos.delete_object.assert_called_once_with(
         bucket="my-bucket", key="some/key", wait=True, timeout_seconds=60, poll_interval=2
     )
+
+
+def test_cos_upload_fileobj() -> None:
+    """upload_fileobj() delegates to COSClient.upload_fileobj."""
+    import io  # pylint: disable=import-outside-toplevel
+
+    job_cos, mock_cos = _make_job_cos()
+    fileobj = io.BytesIO(b"data")
+
+    job_cos.upload_fileobj(fileobj=fileobj, bucket_name="my-bucket", key="some/key")
+
+    mock_cos.upload_fileobj.assert_called_once_with(fileobj=fileobj, bucket="my-bucket", key="some/key")
+
+
+def test_cos_get_object_bytes() -> None:
+    """get_object_bytes() delegates to COSClient.get_object_bytes and returns bytes."""
+    job_cos, mock_cos = _make_job_cos()
+    mock_cos.get_object_bytes.return_value = b"result data"
+
+    result = job_cos.get_object_bytes(bucket_name="my-bucket", key="some/key")
+
+    assert result == b"result data"
+    mock_cos.get_object_bytes.assert_called_once_with(bucket="my-bucket", key="some/key")
+
+
+def test_cos_property_priority2_secret_name() -> None:
+    """_cos fetches credentials from a named CE secret when hmac_secret_name is set."""
+    from unittest.mock import patch as _patch  # pylint: disable=import-outside-toplevel
+    from core.ibm_cloud.cos.cos_client import CosHmacCredentials  # pylint: disable=import-outside-toplevel
+
+    mock_job = MagicMock()
+    mock_job.cos_config = {"hmac_secret_name": "my-secret"}
+    job_cos = JobCOS(mock_job)
+
+    mock_creds = CosHmacCredentials(access_key_id="ak2", secret_access_key="sk2")
+    with _patch.object(job_cos, "_get_hmac_from_ce_secret", return_value=mock_creds) as mock_fetch, _patch(
+        "core.ibm_cloud.code_engine.fleets.cos.COSClient"
+    ) as mock_cos_cls:
+        mock_cos_cls.return_value = MagicMock()
+        _ = job_cos._cos  # pylint: disable=protected-access
+
+    mock_fetch.assert_called_once_with("my-secret")
+
+
+def test_cos_property_raises_when_no_cos_config() -> None:
+    """_cos raises ValueError when cos_config is None."""
+    mock_job = MagicMock()
+    mock_job.cos_config = None
+    job_cos = JobCOS(mock_job)
+
+    with pytest.raises(ValueError, match="COS not configured"):
+        _ = job_cos._cos  # pylint: disable=protected-access
+
+
+def test_cos_wait_for_object_raises_when_missing_args() -> None:
+    """wait_for_object() raises ValueError when bucket_name or key is missing."""
+    job_cos, _ = _make_job_cos()
+
+    with pytest.raises(ValueError, match="bucket_name"):
+        job_cos.wait_for_object(bucket_name="", key="k")
+    with pytest.raises(ValueError, match="key"):
+        job_cos.wait_for_object(bucket_name="b", key="")
+
+
+def test_cos_delete_object_raises_when_missing_args() -> None:
+    """delete_object() raises ValueError when bucket_name or key is missing."""
+    job_cos, _ = _make_job_cos()
+
+    with pytest.raises(ValueError, match="bucket_name"):
+        job_cos.delete_object(bucket_name="", key="k")
+    with pytest.raises(ValueError, match="key"):
+        job_cos.delete_object(bucket_name="b", key="")
+
+
+def test_cos_get_object_bytes_raises_when_missing_args() -> None:
+    """get_object_bytes() raises ValueError when bucket_name or key is missing."""
+    job_cos, _ = _make_job_cos()
+
+    with pytest.raises(ValueError, match="bucket_name"):
+        job_cos.get_object_bytes(bucket_name="", key="k")
+    with pytest.raises(ValueError, match="key"):
+        job_cos.get_object_bytes(bucket_name="b", key="")
+
+
+def test_cos_get_hmac_from_ce_secret_happy_path() -> None:
+    """_get_hmac_from_ce_secret() extracts access_key_id and secret_access_key from secret data."""
+    from unittest.mock import MagicMock, patch  # pylint: disable=import-outside-toplevel
+    from core.ibm_cloud.code_engine.fleets.cos import JobCOS  # pylint: disable=import-outside-toplevel
+
+    mock_job = MagicMock()
+    mock_job.project_id = "proj-id"
+    job_cos = JobCOS(mock_job)
+
+    mock_secret = MagicMock()
+    mock_secret.data = {"access_key_id": "ak123", "secret_access_key": "sk456"}
+
+    with patch("core.ibm_cloud.code_engine.fleets.cos.SecretsAndConfigmapsApi") as mock_api_cls:
+        mock_api_cls.return_value.get_secret.return_value = mock_secret
+        creds = job_cos._get_hmac_from_ce_secret("my-secret")  # pylint: disable=protected-access
+
+    assert creds.access_key_id == "ak123"
+    assert creds.secret_access_key == "sk456"
+
+
+def test_cos_get_hmac_from_ce_secret_not_found() -> None:
+    """_get_hmac_from_ce_secret() raises ValueError on 404."""
+    from unittest.mock import MagicMock, patch  # pylint: disable=import-outside-toplevel
+    from core.ibm_cloud.code_engine.ce_client.rest import ApiException  # pylint: disable=import-outside-toplevel
+    from core.ibm_cloud.code_engine.fleets.cos import JobCOS  # pylint: disable=import-outside-toplevel
+
+    mock_job = MagicMock()
+    mock_job.project_id = "proj-id"
+    job_cos = JobCOS(mock_job)
+
+    with patch("core.ibm_cloud.code_engine.fleets.cos.SecretsAndConfigmapsApi") as mock_api_cls:
+        mock_api_cls.return_value.get_secret.side_effect = ApiException(status=404, reason="Not Found")
+        with pytest.raises(ValueError, match="not found"):
+            job_cos._get_hmac_from_ce_secret("missing-secret")  # pylint: disable=protected-access
+
+
+def test_cos_get_hmac_from_ce_secret_missing_fields() -> None:
+    """_get_hmac_from_ce_secret() raises ValueError when secret data lacks required fields."""
+    from unittest.mock import MagicMock, patch  # pylint: disable=import-outside-toplevel
+    from core.ibm_cloud.code_engine.fleets.cos import JobCOS  # pylint: disable=import-outside-toplevel
+
+    mock_job = MagicMock()
+    mock_job.project_id = "proj-id"
+    job_cos = JobCOS(mock_job)
+
+    mock_secret = MagicMock()
+    mock_secret.data = {"access_key_id": "ak123"}  # missing secret_access_key
+
+    with patch("core.ibm_cloud.code_engine.fleets.cos.SecretsAndConfigmapsApi") as mock_api_cls:
+        mock_api_cls.return_value.get_secret.return_value = mock_secret
+        with pytest.raises(ValueError, match="missing"):
+            job_cos._get_hmac_from_ce_secret("incomplete-secret")  # pylint: disable=protected-access
