@@ -25,7 +25,7 @@ class FunctionAccessResult:
         """Return True if any function of the given provider has the action."""
         return any(e.provider_name == provider_name and action in e.actions for e in self.functions)
 
-    def get_titles_by_provider(self, action: str) -> Dict[str, Set[str]]:
+    def get_functions_by_provider(self, action: str) -> Dict[str, Set[str]]:
         """Return function titles grouped by provider for entries that have the action."""
         by_provider: Dict[str, Set[str]] = defaultdict(set)
         for e in self.functions:

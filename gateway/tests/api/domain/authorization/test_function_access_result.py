@@ -19,34 +19,25 @@ def test_no_response_get_function_returns_none():
     assert result.get_function("p", "f") is None
 
 
-def test_get_function_found():
+def test_get_function():
     entry = _entry("prov", "func", {PLATFORM_ACTION_RUN})
     result = FunctionAccessResult(has_response=True, functions=[entry])
     assert result.get_function("prov", "func") is entry
-
-
-def test_get_function_not_found():
-    entry = _entry("prov", "func", {PLATFORM_ACTION_RUN})
-    result = FunctionAccessResult(has_response=True, functions=[entry])
     assert result.get_function("other-prov", "func") is None
 
 
-def test_has_action_for_provider_true():
+def test_has_action_for_provider():
     entries = [
         _entry("prov", "func1", {PLATFORM_ACTION_PROVIDER_JOBS}),
         _entry("prov", "func2", {PLATFORM_ACTION_VIEW}),
     ]
     result = FunctionAccessResult(has_response=True, functions=entries)
     assert result.has_action_for_provider("prov", PLATFORM_ACTION_PROVIDER_JOBS) is True
+    assert result.has_action_for_provider("prov", PLATFORM_ACTION_PROVIDER_JOBS) is True
+    assert result.has_action_for_provider("prov", PLATFORM_ACTION_RUN) is False
 
 
-def test_has_action_for_provider_false():
-    entries = [_entry("prov", "func1", {PLATFORM_ACTION_VIEW})]
-    result = FunctionAccessResult(has_response=True, functions=entries)
-    assert result.has_action_for_provider("prov", PLATFORM_ACTION_PROVIDER_JOBS) is False
-
-
-def test_get_titles_by_provider():
+def test_get_functions_by_provider():
     entries = [
         _entry("prov-a", "func1", {PLATFORM_ACTION_RUN}),
         _entry("prov-a", "func2", {PLATFORM_ACTION_RUN}),
@@ -54,7 +45,7 @@ def test_get_titles_by_provider():
         _entry("prov-b", "func4", {PLATFORM_ACTION_VIEW}),  # no RUN
     ]
     result = FunctionAccessResult(has_response=True, functions=entries)
-    assert result.get_titles_by_provider(PLATFORM_ACTION_RUN) == {
+    assert result.get_functions_by_provider(PLATFORM_ACTION_RUN) == {
         "prov-a": {"func1", "func2"},
         "prov-b": {"func3"},
     }

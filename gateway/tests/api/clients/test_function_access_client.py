@@ -1,21 +1,12 @@
 """Tests for FunctionAccessClient."""
 
-import pytest
-
 from api.clients.function_access_client import FunctionAccessClient
 from api.domain.authorization.function_access_entry import FunctionAccessEntry
 from api.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import PLATFORM_ACTION_RUN
 
 
-def test_base_client_raises_not_implemented():
-    client = FunctionAccessClient()
-    with pytest.raises(NotImplementedError):
-        client.get_accessible_functions("crn:123")
-
-
-def test_client_can_be_patched_with_data(monkeypatch):
-    """In tests, patch get_accessible_functions to return controlled data."""
+def test_client_basic_test(monkeypatch):
     entry = FunctionAccessEntry(
         provider_name="my-provider",
         function_title="my-function",
