@@ -10,7 +10,19 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Root pytest configuration — registers custom markers."""
+"""Global pytest fixtures for gateway tests."""
+
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def media_root_tmp(tmp_path, settings):
+    """Redirect MEDIA_ROOT to a temp directory for every test.
+
+    Prevents PathBuilder.absolute_path() from creating directories inside
+    the source tree (gateway/media/) during test runs.
+    """
+    settings.MEDIA_ROOT = str(tmp_path)
 
 
 def pytest_configure(config):
@@ -21,5 +33,6 @@ def pytest_configure(config):
     """
     config.addinivalue_line(
         "markers",
-        "integration: marks tests that require live IBM Cloud credentials " "(skipped unless RUN_INTEGRATION_TESTS=1)",
+        "integration: marks tests that require live IBM Cloud credentials "
+        "(skipped unless RUN_INTEGRATION_TESTS=1)",
     )
