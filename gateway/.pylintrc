@@ -24,7 +24,7 @@ ignore=CVS,migrations
 
 # Add files or directories matching the regex patterns to the ignore-list. The
 # regex matches against paths.
-ignore-paths=
+ignore-paths=core/ibm_cloud/code_engine/ce_client
 
 # Files or directories matching the regex patterns are skipped. The regex
 # matches against base names, not paths.
