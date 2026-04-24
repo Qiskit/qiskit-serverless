@@ -114,7 +114,7 @@ class FleetsRunner(AbstractRunner):
             extra_fields: dict = self._get_gpu_config()
 
             if self._is_cos_configured():
-                paths = self._build_cos_paths(fleet_name)
+                paths = self._build_cos_paths()
                 job_id = str(self.job.id)
 
                 run_volume_mounts = build_run_volume_mounts(
@@ -277,7 +277,7 @@ class FleetsRunner(AbstractRunner):
 
         try:
             handler = self._get_handler()
-            paths = self._build_cos_paths(self._get_fleet_name())
+            paths = self._build_cos_paths()
             user_bucket = self._project.cos_bucket_user_data_name
             results_key = f"{paths['user_job_prefix']}/results.json"
 
@@ -413,15 +413,12 @@ class FleetsRunner(AbstractRunner):
 
         return self._handler
 
-    def _build_cos_paths(self, fleet_name: str) -> dict[str, str]:  # pylint: disable=unused-argument
+    def _build_cos_paths(self) -> dict[str, str]:
         """Build COS key prefixes and container mount paths for the job.
 
         Both PDS volumes mount at function level so all jobs sharing the same
         program share function-level files while having isolated job-level
         directories for arguments, logs, and results.
-
-        Args:
-            fleet_name: Unused — kept for API compatibility.
 
         Returns:
             Dict with function/job prefixes, COS log/argument keys, and
@@ -501,23 +498,26 @@ class FleetsRunner(AbstractRunner):
         user_bucket = self._project.cos_bucket_user_data_name
         entrypoint_name = program.entrypoint
 
-        with tarfile.open(program.artifact.path) as tar:
-            for member in tar.getmembers():
-                if not member.isfile():
-                    continue
-                extracted = tar.extractfile(member)
-                if extracted is None:
-                    continue
+        try:
+            with tarfile.open(program.artifact.path) as tar:
+                for member in tar.getmembers():
+                    if not member.isfile():
+                        continue
+                    extracted = tar.extractfile(member)
+                    if extracted is None:
+                        continue
 
-                if member.name == entrypoint_name:
-                    bucket_name = provider_bucket
-                    key = f"{paths['provider_function_prefix']}/{member.name}"
-                else:
-                    bucket_name = user_bucket
-                    key = f"{paths['user_function_prefix']}/{member.name}"
+                    if member.name == entrypoint_name:
+                        bucket_name = provider_bucket
+                        key = f"{paths['provider_function_prefix']}/{member.name}"
+                    else:
+                        bucket_name = user_bucket
+                        key = f"{paths['user_function_prefix']}/{member.name}"
 
-                handler.cos.upload_fileobj(fileobj=extracted, bucket_name=bucket_name, key=key)
-                logger.debug("Uploaded [%s] for job [%s] to %s/%s", member.name, self.job.id, bucket_name, key)
+                    handler.cos.upload_fileobj(fileobj=extracted, bucket_name=bucket_name, key=key)
+                    logger.debug("Uploaded [%s] for job [%s] to %s/%s", member.name, self.job.id, bucket_name, key)
+        except tarfile.TarError as ex:
+            raise RunnerError(f"Failed to read artifact for job [{self.job.id}]", ex) from ex
 
         logger.info("Uploaded artifact for job [%s] (entrypoint→provider, data→user)", self.job.id)
 
@@ -549,7 +549,7 @@ class FleetsRunner(AbstractRunner):
             if not bucket_name:
                 return f"Logs not available ({label} COS bucket not configured)"
 
-            paths = self._build_cos_paths(self._get_fleet_name())
+            paths = self._build_cos_paths()
             log_key = paths[log_key_field]
 
             logger.info(
@@ -627,7 +627,7 @@ class FleetsRunner(AbstractRunner):
         Returns:
             COS config dict or ``None``.
         """
-        if not self._project or not all([self._project.cos_instance_name, self._project.cos_key_name]):
+        if not self._project or not self._is_cos_configured():
             return None
 
         hmac_secret_name = getattr(settings, "CE_HMAC_SECRET_NAME", None) or os.environ.get("CE_HMAC_SECRET_NAME")

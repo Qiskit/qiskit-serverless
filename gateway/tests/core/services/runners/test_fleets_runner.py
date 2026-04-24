@@ -191,7 +191,7 @@ def test_build_cos_paths_structure():
     runner.job.program.title = "my-program"
     runner.job.id = "job-uuid"
 
-    paths = runner._build_cos_paths("unused-fleet-name")  # pylint: disable=protected-access
+    paths = runner._build_cos_paths()  # pylint: disable=protected-access
 
     assert paths["user_function_prefix"] == "users/user-42/provider_functions/default/my-program"
     assert paths["provider_function_prefix"] == "providers/default/my-program"
@@ -261,9 +261,7 @@ def test_get_handler_cos_config_returns_none_when_no_credentials():
     runner._project.cos_key_name = "my-key"  # pylint: disable=protected-access
     runner._project.region = "us-east"  # pylint: disable=protected-access
 
-    with patch(f"{_RUNNER_MOD}.settings") as mock_settings, patch.dict(
-        "os.environ", {}, clear=True
-    ):
+    with patch(f"{_RUNNER_MOD}.settings") as mock_settings, patch.dict("os.environ", {}, clear=True):
         mock_settings.CE_HMAC_SECRET_NAME = None
         config = runner._get_handler_cos_config()  # pylint: disable=protected-access
 
