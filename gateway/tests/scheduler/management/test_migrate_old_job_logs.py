@@ -1,15 +1,18 @@
 """Tests for migrate_old_job_logs command."""
 
+import tempfile
 from typing import Optional
 
 from django.contrib.auth.models import User, Group
 from django.core.management import call_command
+from django.test import override_settings
 from rest_framework.test import APITestCase
 
 from core.models import ComputeResource, Job, Program, Provider, Config
 from core.services.storage.logs_storage import LogsStorage
 
 
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class TestMigrateOldJobLogs(APITestCase):
     """Tests for migrate_old_job_logs command."""
 
