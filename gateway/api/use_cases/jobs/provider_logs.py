@@ -58,7 +58,7 @@ class GetProviderJobLogsUseCase:
                 user.id,
                 job.program.runner,
             )
-            
+
             try:
                 logs = runner.provider_logs()
             except RunnerError:

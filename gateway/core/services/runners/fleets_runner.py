@@ -60,7 +60,6 @@ class FleetsRunner(AbstractRunner):
         self._handler: FleetHandler | None = None
         self._project: CodeEngineProject | None = None
 
-
     def connect(self) -> None:
         """Initialize the FleetHandler and validate IBM Cloud credentials.
 
@@ -351,7 +350,6 @@ class FleetsRunner(AbstractRunner):
         except Exception as ex:  # pylint: disable=broad-exception-caught
             logger.warning("Failed to delete fleet [%s]: %s", self.job.fleet_id, ex)
             return False
-
 
     def _get_or_assign_project(self) -> CodeEngineProject:
         """Return the job's Code Engine project, assigning one if not yet set.
