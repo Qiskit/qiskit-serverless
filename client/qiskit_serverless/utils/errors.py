@@ -3,6 +3,8 @@
 import json
 from typing import Optional, Dict, Union
 
+from qiskit_serverless.core.job_event import JobEvent
+
 ErrorCodeType = Union[int, str]
 
 
@@ -63,6 +65,44 @@ def format_err_msg(code: ErrorCodeType, details: Optional[str] = None):
                 if len(details_json[key]) > 0:
                     value = details_json[key][0] if isinstance(details_json[key], list) else details_json[key]
                     result += f"\n|   - {key}: {value}"
+        else:
+            result += f" {details}"
+
+    return result
+
+
+def format_err_event(error_event: JobEvent) -> str:
+    """Formats error event.
+
+    Args:
+        error_event (JobEvent): error event
+
+    Returns:
+        formatted string
+    """
+
+    message = error_event.data["message"]
+    code = error_event.data["code"]
+    exception = error_event.data["exception"]
+    details = error_event.data.get("args")
+
+    result = f"\n| Message: {message}"
+    result += f"\n| Code: {code}"
+    result += f"\n| Exception: {exception}"
+
+    if details:
+        result += "\n| Details:"
+
+        if details and isinstance(details, Dict):
+            for key in details:
+                if isinstance(details[key], list):
+                    if len(details[key]) > 0:
+                        value = details[key][0]
+                    else:
+                        continue
+                else:
+                    value = details[key]
+                result += f"\n|   - {key}: {value}"
         else:
             result += f" {details}"
 

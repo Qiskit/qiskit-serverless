@@ -1,0 +1,5 @@
+---
+prelude: >
+    ``qiskit_serverless v0.31.0`` introduces error event tracking for Qiskit Functions,
+    structured JSON logging across all components, and a range of scheduler observability
+    and reliability improvements.

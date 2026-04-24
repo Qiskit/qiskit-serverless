@@ -41,6 +41,7 @@ class UploadProgramSerializer(serializers.ModelSerializer):
     entrypoint = serializers.CharField(required=False)
     image = serializers.CharField(required=False)
     provider = serializers.CharField(required=False)
+    runner = serializers.CharField(required=False)
 
     class Meta:
         model = Program
@@ -80,23 +81,6 @@ class UploadProgramSerializer(serializers.ModelSerializer):
             return None, title_split[0]
 
         return title_split[0], title_split[1]
-
-    def check_provider_access(self, provider_name, author):
-        """
-        This method check if the author has access to the provider
-        """
-        provider = Provider.objects.filter(name=provider_name).first()
-        if provider is None:
-            logger.error("Provider [%s] does not exist.", provider_name)
-            return False
-
-        author_groups = author.groups.all()
-        admin_groups = provider.admin_groups.all()
-        has_access = any(group in admin_groups for group in author_groups)
-        if not has_access:
-            logger.error("User [%s] has no access to provider [%s].", author.id, provider_name)
-
-        return has_access
 
     def retrieve_private_function(self, title, author):
         """
@@ -148,6 +132,8 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         version = validated_data.get("version")
         if version is not None:
             instance.version = version
+
+        instance.runner = validated_data.get("runner", Program.RAY)
 
         instance.save()
         return instance
@@ -217,6 +203,7 @@ class RunProgramSerializer(serializers.Serializer):
     arguments = serializers.CharField()
     config = serializers.JSONField()
     provider = serializers.CharField(required=False, allow_null=True)
+    compute_profile = serializers.CharField(required=False, allow_null=True)
 
     def retrieve_one_by_title(self, title, author):
         """
@@ -233,11 +220,22 @@ class RunProgramSerializer(serializers.Serializer):
 
 class RunJobSerializer(serializers.ModelSerializer):
     """
-    Job serializer for the /run and end-point
+    Job serializer for the /run and end-point.
+
+    Supports compute_profile parameter for specifying Code Engine Fleets machine profiles.
+    Only used when runner=Fleets (code_engine_project is set).
     """
 
     class Meta:
         model = Job
+        fields = [
+            "id",
+            "status",
+            "created",
+            "compute_profile",
+            "arguments",
+            "program",
+        ]
 
     def is_trial(self, function: Program, author) -> bool:
         """
@@ -250,17 +248,59 @@ class RunJobSerializer(serializers.ModelSerializer):
 
         return any(group in trial_groups for group in user_run_groups)
 
-    def _should_use_gpu(self, program: Program) -> bool:
+    def _get_runner_config(self, program: Program, compute_profile_requested: str = None):
         """
-        Determines if the job should use GPU based on the program's provider.
+        Get runner-specific configuration based on program's runner type.
+
+        Returns:
+            tuple: (compute_profile, gpu) where:
+                - For Fleets: (compute_profile_string, False) - GPU determined from profile
+                - For Ray: (None, gpu_boolean) - GPU determined from provider allowlist
+        """
+        if program.runner == Program.FLEETS:
+            # Fleets: Use compute_profile, GPU comes from the profile itself
+            compute_profile = self._get_fleets_compute_profile(compute_profile_requested)
+            return (compute_profile, False)
+
+        # Ray: No compute_profile, GPU from provider allowlist
+        gpu = self._should_ray_use_gpu(program)
+        return (None, gpu)
+
+    def _get_fleets_compute_profile(self, compute_profile_requested: str = None) -> str:
+        """
+        Determine compute profile for Fleets jobs using 2-tier priority.
+
+        Priority:
+        1. Client-requested compute_profile (already validated)
+        2. System default (DEFAULT_COMPUTE_PROFILE setting)
+
+        Args:
+            compute_profile_requested: Compute profile requested by client (e.g., "gx3d-24x120x1a100p")
+
+        Returns:
+            Compute profile string
+        """
+        if compute_profile_requested:
+            logger.info("Fleets job will use client-requested compute profile: %s", compute_profile_requested)
+            return compute_profile_requested
+
+        default = getattr(settings, "DEFAULT_COMPUTE_PROFILE", "cx3d-4x16")
+        logger.info("Fleets job will use system default compute profile: %s", default)
+        return default
+
+    def _should_ray_use_gpu(self, program: Program) -> bool:
+        """
+        Determine if Ray job should use GPU based on provider allowlist.
+
+        For Fleets jobs, GPU is determined from the compute_profile, not this method.
         """
         gpujobs = create_gpujob_allowlist()
         if program.provider and program.provider.name in gpujobs["gpu-functions"].keys():
-            logger.debug("Program [%s] will be run on GPU nodes", program.title)
+            logger.debug("Ray job [%s] will run on GPU nodes", program.title)
             return True
         return False
 
-    def create(self, validated_data):
+    def create(self, validated_data):  # pylint: disable=too-many-locals
         status = Job.QUEUED
         program = validated_data.get("program")
         arguments = validated_data.get("arguments", "{}")
@@ -276,16 +316,24 @@ class RunJobSerializer(serializers.ModelSerializer):
         token = validated_data.pop("token")
         instance = validated_data.pop("instance", None)
         carrier = validated_data.pop("carrier")
+        compute_profile_requested = validated_data.get("compute_profile", None)
 
         trial = self.is_trial(program, author)
-        gpu = self._should_use_gpu(program)
+        business_model = Job.BUSINESS_MODEL_TRIAL if trial else Job.BUSINESS_MODEL_SUBSIDIZED
+
+        # Get runner-specific configuration (compute_profile for Fleets, GPU for Ray)
+        compute_profile, gpu = self._get_runner_config(program, compute_profile_requested)
+
         job = Job(
             trial=trial,
+            business_model=business_model,
             status=status,
             program=program,
             author=author,
             config=config,
             gpu=gpu,
+            runner=program.runner,
+            compute_profile=compute_profile,
         )
 
         env = encrypt_env_vars(

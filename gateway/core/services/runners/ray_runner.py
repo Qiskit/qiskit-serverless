@@ -54,21 +54,48 @@ class RayRunner(AbstractRunner):
         if self._connected:
             return
 
+        self._client = self._create_client()
+        self._connected = True
+
+    def disconnect(self) -> None:
+        """Close connection to Ray cluster."""
+        self._client = None
+        self._connected = False
+
+    def is_active(self) -> bool:
+        """Check if the Ray cluster host is alive and reachable.
+        True if the Ray dashboard responds, False otherwise.
+        """
+        if not self._job or not self._job.compute_resource or not self._job.compute_resource.active:
+            return False
+
+        try:
+            self._create_client()  # the client ray pings the server when it's created
+            return True
+        except Exception:  # pylint: disable=broad-exception-caught
+            return False
+
+    def _create_client(self):
+        if not self._job:
+            raise RunnerError("Unable to connect to Ray cluster at. No job linked to the client")
+
         compute_resource = self._job.compute_resource
+        if not compute_resource:
+            raise RunnerError("Unable to connect to Ray cluster at. No compute resource")
         host = compute_resource.host
         try:
-            self._client = retry_function(
+            client = retry_function(
                 callback=lambda: JobSubmissionClient(host),
                 num_retries=settings.RAY_SETUP_MAX_RETRIES,
                 error_message=f"Ray JobClientSubmission setup failed for host [{host}].",
             )
-            self._connected = True
             logger.info(
                 "[connect] job_id=%s cluster=%s host=%s Connected to Ray cluster",
                 self._job.id,
                 compute_resource,
                 host,
             )
+            return client
         except Exception as ex:
             logger.error(
                 "[connect] job_id=%s cluster=%s host=%s error=%s Unable to connect to Ray cluster",
@@ -79,27 +106,15 @@ class RayRunner(AbstractRunner):
             )
             raise RunnerError(f"Unable to connect to Ray cluster at [{host}]", ex) from ex
 
-    def disconnect(self) -> None:
-        """Close connection to Ray cluster."""
-        self._client = None
-        self._connected = False
-
-    def submit(self) -> tuple[ComputeResource, str]:
+    def submit(self) -> None:
         """
         Submit the job to the Ray cluster.
 
         Creates the compute resource (K8s cluster or local) and submits the job.
         On failure, cleans up any created resources.
 
-        Returns:
-            Tuple of (ComputeResource, ray_job_id)
-
         Raises:
             RunnerError: If submission fails (resources are cleaned up before raising)
-
-        Note:
-            The caller is responsible for saving the ComputeResource to DB
-            and assigning it to the job.
         """
         tracer = trace.get_tracer("scheduler.tracer")
         with tracer.start_as_current_span("submit.job") as span:
@@ -130,7 +145,8 @@ class RayRunner(AbstractRunner):
                     ray_job_id,
                     title,
                 )
-                return compute_resource, ray_job_id
+                self._job.compute_resource = compute_resource
+                self._job.ray_job_id = ray_job_id
 
             except Exception as ex:
                 logger.error(
@@ -315,7 +331,7 @@ class RayRunner(AbstractRunner):
                 entrypoint_file.write(default_entrypoint_content)
         elif bool(program.artifact):
             with tarfile.open(program.artifact.path) as file:
-                file.extractall(working_directory_for_upload)
+                file.extractall(working_directory_for_upload, filter="data")
         else:
             logger.error(
                 "[_submit_to_ray] job_id=%s program=%s provider=%s No image or artifact associated",

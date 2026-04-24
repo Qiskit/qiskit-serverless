@@ -145,6 +145,29 @@ class JobAccessPolicies:
         return has_access
 
     @staticmethod
+    def can_manage_runtime_jobs(user: AbstractUser, job: Job) -> bool:
+        """
+        Checks if the user has permissions to read or associate runtime jobs.
+        Only the job author can manage runtime jobs.
+
+        Args:
+            user: Django user from the request
+            job: Job instance against to check the permission
+
+        Returns:
+            bool: True or False in case the user has permissions
+        """
+
+        has_access = user.id == job.author.id
+        if not has_access:
+            logger.warning(
+                "[can_manage_runtime_jobs] job_id=%s user_id=%s | no access to manage runtime jobs",
+                job.id,
+                user.id,
+            )
+        return has_access
+
+    @staticmethod
     def can_update_sub_status(user: AbstractUser, job: Job) -> bool:
         """
         Checks if the user has permissions to update the substatus of a job:
@@ -161,6 +184,74 @@ class JobAccessPolicies:
         if not has_access:
             logger.warning(
                 "[can_update_sub_status] job_id=%s user_id=%s | no access to update sub_status",
+                job.id,
+                user.id,
+            )
+        return has_access
+
+    @staticmethod
+    def can_create_events(user: AbstractUser, job: Job) -> bool:
+        """
+        Checks if the user has permissions to create events for a job:
+
+        Args:
+            user: Django user from the request
+            job: Job instance against to check the permission
+
+        Returns:
+            bool: True or False in case the user has permissions
+        """
+
+        has_access = user.id == job.author.id
+        if not has_access:
+            logger.warning(
+                "User [%s] has no access create events for the job [%s].",
+                user.username,
+                job.id,
+            )
+        return has_access
+
+    @staticmethod
+    def can_read_events(user: AbstractUser, job: Job) -> bool:
+        """
+        Checks if the user has permissions to read the events of a job:
+
+        Args:
+            user: Django user from the request
+            job: Job instance against to check the permission
+
+        Returns:
+            bool: True or False in case the user has permissions
+        """
+
+        if user.id == job.author.id:
+            return True
+
+        logger.warning(
+            "User [%s] has no access to read the events of the job [%s].",
+            user.username,
+            job.author,
+        )
+        return False
+
+    @staticmethod
+    def can_stop(user: AbstractUser, job: Job) -> bool:
+        """
+        Checks if the user has permissions to stop a job.
+        Only the job author can stop it.
+
+        Args:
+            user: Django user from the request
+            job: Job instance against to check the permission
+
+        Returns:
+            bool: True or False in case the user has permissions
+        """
+
+        has_access = user.id == job.author.id
+        if not has_access:
+            logger.warning(
+                "[can_stop] job_id=%s user_id=%s | no access to stop job",
                 job.id,
                 user.id,
             )
