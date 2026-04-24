@@ -167,6 +167,7 @@ class Job:
         job_id: str,
         job_service: JobService,
         raw_data: Optional[Dict[str, Any]] = None,
+        compute_profile: Optional[str] = None,
     ):
         """Job class for async script execution.
 
@@ -176,6 +177,7 @@ class Job:
         """
         self.job_id = job_id
         self._job_service = job_service
+        self.compute_profile = compute_profile
         self.raw_data = raw_data or {}
 
     def status(self):

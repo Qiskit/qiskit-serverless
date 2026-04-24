@@ -6,6 +6,7 @@ Version views inherit from the different views.
 
 import logging
 import os
+import re
 
 # pylint: disable=duplicate-code
 from django.conf import settings
@@ -191,7 +192,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
     @_trace
     @action(methods=["POST"], detail=False)
     @endpoint_handle_exceptions
-    def run(self, request):  # pylint: disable=too-many-locals
+    def run(self, request):  # pylint: disable=too-many-locals,too-many-return-statements
         """Enqueues existing program."""
         serializer = self.get_serializer_run_program(data=request.data)
         if not serializer.is_valid():
@@ -267,14 +268,28 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 settings.LIMITS_ACTIVE_JOBS_PER_USER,
             )
             raise ActiveJobLimitExceeded()
-        job = job_serializer.save(
-            author=author,
-            carrier=carrier,
-            channel=channel,
-            token=token,
-            config=jobconfig,
-            instance=instance,
-        )
+        # Extract and validate compute_profile from request if provided
+        compute_profile = request.data.get("compute_profile")
+        if compute_profile:
+            # Validate compute_profile format (must be lowercase)
+            if not re.match(r"^[a-z]+\d+[a-z]?-\d+x\d+(?:x\d+[a-z0-9]+)?$", compute_profile):
+                error_msg = (
+                    f"Invalid compute profile format: '{compute_profile}'. "
+                    f"Expected format: [type]-[cpu]x[memory] or [type]-[cpu]x[memory]x[gpu_count][gpu_type] "
+                    f"(lowercase only, e.g., 'cx3d-4x16' or 'gx3d-24x120x1a100p')"
+                )
+                return Response({"compute_profile": [error_msg]}, status=status.HTTP_400_BAD_REQUEST)
+
+        save_kwargs = {
+            "author": author,
+            "carrier": carrier,
+            "channel": channel,
+            "token": token,
+            "config": jobconfig,
+            "instance": instance,
+            "compute_profile": compute_profile,
+        }
+        job = job_serializer.save(**save_kwargs)
         logger.info("[programs-run] user_id=%s job_id=%s program=%s | Job queued ok", author.id, job.id, function_title)
         return Response(job_serializer.data)
 
