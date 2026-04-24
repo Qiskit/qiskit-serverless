@@ -21,14 +21,14 @@ class FunctionAccessResult:
                 return entry
         return None
 
-    def has_action_for_provider(self, provider_name: str, action: str) -> bool:
-        """Return True if any function of the given provider has the action."""
-        return any(e.provider_name == provider_name and action in e.actions for e in self.functions)
+    def has_permission_for_provider(self, provider_name: str, permission: str) -> bool:
+        """Return True if any function of the given provider has the permission."""
+        return any(e.provider_name == provider_name and permission in e.permissions for e in self.functions)
 
-    def get_functions_by_provider(self, action: str) -> Dict[str, Set[str]]:
-        """Return function titles grouped by provider for entries that have the action."""
+    def get_functions_by_provider(self, permission: str) -> Dict[str, Set[str]]:
+        """Return function titles grouped by provider for entries that have the permission."""
         by_provider: Dict[str, Set[str]] = defaultdict(set)
         for e in self.functions:
-            if action in e.actions:
+            if permission in e.permissions:
                 by_provider[e.provider_name].add(e.function_title)
         return dict(by_provider)

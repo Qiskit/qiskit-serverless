@@ -17,11 +17,11 @@ VALID_BUSINESS_MODELS = {
 
 @dataclass
 class FunctionAccessEntry:
-    """Represents a single function accessible to an instance, with its allowed actions."""
+    """Represents a single function accessible to an instance, with its allowed permissions."""
 
     provider_name: str
     function_title: str
-    actions: Set[str]
+    permissions: Set[str]
     business_model: str
 
     def __post_init__(self):

@@ -3,19 +3,19 @@
 import pytest
 
 from api.domain.authorization.function_access_entry import FunctionAccessEntry
-from core.models import PLATFORM_ACTION_RUN, PLATFORM_ACTION_VIEW
+from core.models import PLATFORM_PERMISSION_RUN, PLATFORM_PERMISSION_VIEW
 
 
 def test_valid_entry():
     entry = FunctionAccessEntry(
         provider_name="my-provider",
         function_title="my-function",
-        actions={PLATFORM_ACTION_RUN, PLATFORM_ACTION_VIEW},
+        permissions={PLATFORM_PERMISSION_RUN, PLATFORM_PERMISSION_VIEW},
         business_model="TRIAL",
     )
     assert entry.provider_name == "my-provider"
     assert entry.function_title == "my-function"
-    assert PLATFORM_ACTION_RUN in entry.actions
+    assert PLATFORM_PERMISSION_RUN in entry.permissions
     assert entry.business_model == "TRIAL"
 
 
@@ -24,6 +24,6 @@ def test_invalid_business_model_raises():
         FunctionAccessEntry(
             provider_name="p",
             function_title="f",
-            actions={PLATFORM_ACTION_RUN},
+            permissions={PLATFORM_PERMISSION_RUN},
             business_model="INVALID",
         )

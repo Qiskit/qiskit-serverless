@@ -3,14 +3,14 @@
 from api.clients.function_access_client import FunctionAccessClient
 from api.domain.authorization.function_access_entry import FunctionAccessEntry
 from api.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import PLATFORM_ACTION_RUN
+from core.models import PLATFORM_PERMISSION_RUN
 
 
 def test_client_basic_test(monkeypatch):
     entry = FunctionAccessEntry(
         provider_name="my-provider",
         function_title="my-function",
-        actions={PLATFORM_ACTION_RUN},
+        permissions={PLATFORM_PERMISSION_RUN},
         business_model="SUBSIDIZED",
     )
     expected = FunctionAccessResult(has_response=True, functions=[entry])
