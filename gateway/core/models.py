@@ -21,6 +21,16 @@ logger = logging.getLogger("core.models")
 VIEW_PROGRAM_PERMISSION = "view_program"
 RUN_PROGRAM_PERMISSION = "run_program"
 
+# Platform actions (external instance access client)
+PLATFORM_ACTION_VIEW = "view"
+PLATFORM_ACTION_RUN = "run"
+PLATFORM_ACTION_USER_FILES = "user.files"
+PLATFORM_ACTION_PROVIDER_UPLOAD = "provider.upload"
+PLATFORM_ACTION_PROVIDER_JOBS = "provider.jobs"
+PLATFORM_ACTION_JOB_RETRIEVE = "job.retrieve"
+PLATFORM_ACTION_PROVIDER_LOGS = "provider.logs"
+PLATFORM_ACTION_PROVIDER_FILES = "provider.files"
+
 
 def get_upload_path(instance, filename):
     """Returns save path for artifacts."""

@@ -1,0 +1,29 @@
+"""Tests for FunctionAccessEntry."""
+
+import pytest
+
+from api.domain.authorization.function_access_entry import FunctionAccessEntry
+from core.models import PLATFORM_ACTION_RUN, PLATFORM_ACTION_VIEW
+
+
+def test_valid_entry():
+    entry = FunctionAccessEntry(
+        provider_name="my-provider",
+        function_title="my-function",
+        actions={PLATFORM_ACTION_RUN, PLATFORM_ACTION_VIEW},
+        business_model="TRIAL",
+    )
+    assert entry.provider_name == "my-provider"
+    assert entry.function_title == "my-function"
+    assert PLATFORM_ACTION_RUN in entry.actions
+    assert entry.business_model == "TRIAL"
+
+
+def test_invalid_business_model_raises():
+    with pytest.raises(ValueError, match="Invalid business_model"):
+        FunctionAccessEntry(
+            provider_name="p",
+            function_title="f",
+            actions={PLATFORM_ACTION_RUN},
+            business_model="INVALID",
+        )
