@@ -10,12 +10,13 @@ from core.models import Job
 class RunnerError(Exception):
     """Base exception for runner operations.
 
-    Wraps engine-specific exceptions (e.g., Ray's RuntimeError, CE ApiException)
-    to provide a consistent interface for error handling across runners.
+    This exception is raised when a runner operation fails (status, logs, stop, submit).
+    It wraps the underlying engine-specific exceptions (e.g., Ray's RuntimeError)
+    to provide a consistent interface for error handling.
 
     Attributes:
-        message: Human-readable error description.
-        original_exception: The underlying exception that caused this error, if any.
+        message: Human-readable error description
+        original_exception: The underlying exception that caused this error (if any)
     """
 
     def __init__(self, message: str, original_exception: Exception | None = None):
@@ -30,18 +31,25 @@ class RunnerError(Exception):
 
 
 class AbstractRunner(ABC):
-    """Abstract runner for executing jobs on different engines (Ray, Fleets).
-
-    Connection is lazy: established via ``connect()`` or automatically when
-    calling methods that require it. Subclasses implement the engine-specific
-    lifecycle operations.
-    """
+    """Abstract runner for executing jobs on different engines."""
 
     def __init__(self, job: Job) -> None:
-        """Initialize the runner with a Job.
+        """
+        Initialize the runner with a Job.
+
+        Connection to Ray/Fleets is lazy: established via connect() or automatically when calling methods that
+        require it. This approach was taken because creation of the Ray runner always makes a first connection
+        to the server just to check if the version matches. That means that just by creating the runner class,
+        it can throw a connection error if Ray node is down or an IO problem, which is quite annoying.
+        By making it lazy, we ensure that the runner creation never fails and that only actual operations
+        (such as logs(), status(), etc.) are the ones that can fail when connecting.
+
+        Note: job.compute_resource may be None when creating the runner for job submission.
+        The submit() method will create and assign it to the job, but the caller is
+        responsible for saving the job to DB afterward.
 
         Args:
-            job: Job instance to be executed.
+            job: Job instance to be executed
         """
         self._job = job
         self._connected = False
@@ -53,106 +61,125 @@ class AbstractRunner(ABC):
 
     @property
     def is_connected(self) -> bool:
-        """True if there is an active connection to the engine."""
+        """True if there's an active connection to the engine."""
         return self._connected
 
     @abstractmethod
     def connect(self) -> None:
-        """Establish a connection to the engine.
+        """
+        Establish explicit connection to the Ray or Fleet, if it's really needed.
 
         Raises:
-            RunnerError: If unable to connect.
+            RunnerError: If unable to connect to the engine
         """
         raise NotImplementedError
 
     def _ensure_connected(self) -> None:
-        """Connect if not already connected.
-
-        Called internally by methods that require an active connection.
-        """
+        """Connect if not connected. Called internally by methods that require connection."""
         if not self._connected:
             self.connect()
 
+    # --- Methods that do NOT require connection ---
+
     @abstractmethod
     def submit(self) -> None:
-        """Submit the job to the engine.
+        """
+        Submit the job to the runner.
+
+        Creates the compute resource and submits the job.
+        On failure, cleans up any created resources (e.g., K8s cluster).
 
         Raises:
-            RunnerError: If submission fails.
+            RunnerError: If submission fails (resources are cleaned up before raising)
         """
         raise NotImplementedError
 
+    # --- Methods that DO require connection (lazy connect) ---
+
     @abstractmethod
     def is_active(self) -> bool:
-        """Return True if the engine host is reachable, even after the job finishes.
+        """Check if the engine host is active even id the job is finished.
+
+        Performs a lightweight HTTP check to the engine host.
+        Does NOT require a full SDK connection.
 
         Returns:
-            True if the engine host responds.
+            True if the engine host responds, False otherwise.
         """
         raise NotImplementedError
 
     @abstractmethod
     def status(self) -> str | None:
-        """Return the current job status mapped to Job.STATUS.
+        """
+        Get job status (mapped to Job.STATUS).
+        Automatically connects if not connected.
 
         Returns:
-            Job status string or ``None`` if temporarily unavailable.
+            Job status string or None
 
         Raises:
-            RunnerError: If unable to retrieve status.
+            RunnerError: If unable to get job status
         """
         raise NotImplementedError
 
     @abstractmethod
     def logs(self) -> str | None:
-        """Return the user-facing job logs.
+        """
+        Get job logs.
+        Automatically connects if not connected.
 
         Returns:
-            Log content or ``None``.
+            Job logs or None
 
         Raises:
-            RunnerError: If unable to retrieve logs.
+            RunnerError: If unable to get job logs
         """
         raise NotImplementedError
 
     def provider_logs(self) -> str | None:
-        """Return provider (unfiltered) job logs.
+        """
+        Get provider (unfiltered) job logs.
 
         Engines that support dual-log routing (e.g. Fleets with PDS mounts)
         override this to return the full provider log. The default implementation
-        falls back to ``logs()``, which is appropriate for engines that have no
+        falls back to logs(), which is appropriate for engines that have no
         distinction between user and provider logs (e.g. Ray).
 
         Returns:
-            Provider log content or ``None``.
+            Provider log content or None
 
         Raises:
-            RunnerError: If unable to retrieve logs.
+            RunnerError: If unable to get logs
         """
         return self.logs()
 
     @abstractmethod
     def stop(self) -> bool:
-        """Stop the running job.
+        """
+        Stop the job.
+        Automatically connects if not connected.
 
         Returns:
-            True if the job was running and was stopped.
+            True if job was running and stopped
 
         Raises:
-            RunnerError: If unable to stop the job.
+            RunnerError: If unable to stop the job
         """
         raise NotImplementedError
 
+    # --- Resource cleanup ---
+
     @abstractmethod
     def free_resources(self) -> bool:
-        """Clean up compute resources associated with the job.
+        """
+        Clean up/delete the compute resource associated with the job.
 
         Returns:
-            True if resources were cleaned up successfully.
+            True if cleaned up correctly
         """
         raise NotImplementedError
 
     @abstractmethod
     def disconnect(self) -> None:
-        """Close the connection to the engine if open."""
+        """Close connection to engine if open."""
         raise NotImplementedError
