@@ -558,6 +558,12 @@ class TestProgramApi(APITestCase):
             program = Program.objects.get(title="provider-function", provider__name="default")
             assert program.platform_id == "default.provider-function"
 
+            # Verify that renaming the program does not change platform_id
+            program.title = "renamed-function"
+            program.save()
+            program.refresh_from_db()
+            assert program.platform_id == "default.provider-function"
+
     def test_upload_provider_function_with_title(self):
         """Tests upload end-point authorized."""
 

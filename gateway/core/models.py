@@ -159,10 +159,11 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         permissions = ((RUN_PROGRAM_PERMISSION, "Can run function"),)
 
     def save(self, *args, **kwargs):
-        if self.provider_id is not None:
-            self.platform_id = f"{self.provider.name}.{self.title}"
-        else:
-            self.platform_id = None
+        if self._state.adding:
+            if self.provider_id is not None:
+                self.platform_id = f"{self.provider.name}.{self.title}"
+            else:
+                self.platform_id = None
         super().save(*args, **kwargs)
 
     def __str__(self):
