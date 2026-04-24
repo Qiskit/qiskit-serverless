@@ -23,16 +23,3 @@ def media_root_tmp(tmp_path, settings):
     the source tree (gateway/media/) during test runs.
     """
     settings.MEDIA_ROOT = str(tmp_path)
-
-
-def pytest_configure(config):
-    """Register project-wide custom markers.
-
-    Args:
-        config: The pytest configuration object.
-    """
-    config.addinivalue_line(
-        "markers",
-        "integration: marks tests that require live IBM Cloud credentials "
-        "(skipped unless RUN_INTEGRATION_TESTS=1)",
-    )
