@@ -18,15 +18,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.services.ibm_cloud.code_engine.fleets.cos import JobCOS
+from core.ibm_cloud.code_engine.fleets.cos import JobCOS
 
 
 def _make_job_cos(cos_config: dict | None = None) -> tuple[JobCOS, MagicMock]:
     """Return a JobCOS bound to a mock JobHandler with a pre-wired COSClient."""
     mock_job = MagicMock()
     mock_job.cos_config = cos_config or {
-        "hmac_access_key_id": "ak",
-        "hmac_secret_access_key": "sk",
+        "hmac_secret_name": "cos-hmac-credential",
         "bucket_region": "us-south",
     }
     mock_job.client_provider.config.region = "us-south"
