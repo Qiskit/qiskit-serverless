@@ -8,18 +8,18 @@ from core.services.runners.ray_runner import RayRunner
 
 
 def get_runner(job: Job) -> AbstractRunner:
-    """Factory: return the appropriate runner for the job.
-
+    """
+    Factory: create the appropriate runner for the job.
     The runner is created with the job but does NOT connect automatically.
 
     Args:
-        job: Job instance.
+        job: Job instance
 
     Returns:
-        :class:`AbstractRunner` appropriate for the job's runner type.
+        AbstractRunner appropriate for the job's runner type
 
     Raises:
-        RunnerError: If the runner type is unknown.
+        RunnerError: If runner type is invalid or not supported
     """
     if job.runner == Program.FLEETS:
         return FleetsRunner(job)
