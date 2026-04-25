@@ -1,12 +1,12 @@
 """Tests for FunctionsQuerySet model manager."""
 
+# pylint: disable=unused-argument
 import pytest
 from django.contrib.auth.models import User
 
 from api.domain.authorization.function_access_entry import FunctionAccessEntry
 from api.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import Program, Provider, Job, PLATFORM_PERMISSION_VIEW, PLATFORM_PERMISSION_RUN
-
 
 pytestmark = pytest.mark.django_db
 

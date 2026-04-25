@@ -114,7 +114,7 @@ class FunctionsQuerySet(QuerySet):
 
         return queryset.first()
 
-    def get_function_by_permission(
+    def get_function_by_permission(  # pylint: disable=too-many-positional-arguments
         self,
         user,
         legacy_permission_name: str,
