@@ -27,7 +27,7 @@ class FilesListUseCase:
         """
         function = Function.objects.get_function_by_permission(
             user=user,
-            permission_name=RUN_PROGRAM_PERMISSION,
+            legacy_permission_name=RUN_PROGRAM_PERMISSION,
             function_title=function_title,
             provider_name=provider_name,
         )

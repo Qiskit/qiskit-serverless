@@ -11,31 +11,44 @@ logger = logging.getLogger("core.FunctionsQuerySet")
 
 if TYPE_CHECKING:
     from core.models import Program as Function
+    from api.domain.authorization.function_access_result import FunctionAccessResult
 
 
 class FunctionsQuerySet(QuerySet):
     """Functions query set to transform into a manager."""
 
-    def with_permission(self, author: AbstractUser, permission_name: str) -> Self:
+    def with_permission(
+        self,
+        author: AbstractUser,
+        legacy_permission_name: str,
+        accessible_functions: Optional["FunctionAccessResult"] = None,
+        permission: Optional[str] = None,
+    ) -> Self:
         """
-        Returns all the functions available to the user. This means:
-            - User functions where the user is the author
-            - Provider functions with the permission specified
+        Returns all the functions available to the user:
+          - User functions where the user is the author
+          - Provider functions accessible via the external client (if has_response=True)
+          - OR provider functions via Django groups (fallback)
 
         Args:
             author: Django author from who retrieve the functions
-            permission_name (str): name of the permission. Values accepted
-            RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
-
-        Returns:
-            List[Function]: all the functions available to the user
+            legacy_permission_name: Django permission codename (e.g. RUN_PROGRAM_PERMISSION)
+            accessible_functions: Result from FunctionAccessClient; if None or has_response=False,
+                falls back to Django groups
+            permission: Platform permission constant (e.g. PLATFORM_PERMISSION_VIEW)
         """
-        groups = Group.objects.filter(user=author, permissions__codename=permission_name)
+        if accessible_functions is not None and accessible_functions.has_response:
+            by_provider = accessible_functions.get_functions_by_provider(permission)
+            provider_criteria = Q()
+            for pname, titles in by_provider.items():
+                provider_criteria |= Q(provider__name=pname, title__in=titles)
+            return self.filter(Q(author=author) | provider_criteria).distinct()
+
+        # Fallback: Django groups
+        groups = Group.objects.filter(user=author, permissions__codename=legacy_permission_name)
         author_groups_with_permissions_criteria = Q(instances__in=groups)
         author_criteria = Q(author=author)
-
-        result_queryset = self.filter(author_criteria | author_groups_with_permissions_criteria).distinct()
-        return result_queryset
+        return self.filter(author_criteria | author_groups_with_permissions_criteria).distinct()
 
     def user_functions(self, author: AbstractUser) -> Self:
         """
@@ -49,7 +62,6 @@ class FunctionsQuerySet(QuerySet):
         Returns:
             List[Program]: user functions available to the user
         """
-
         result_queryset = self.filter(author=author, provider=None)
         return result_queryset
 
@@ -61,7 +73,6 @@ class FunctionsQuerySet(QuerySet):
         Returns:
             QuerySet: providers functions
         """
-
         if not provider_name:
             return self.exclude(provider=None)
 
@@ -78,7 +89,6 @@ class FunctionsQuerySet(QuerySet):
         Returns:
             Program | None: returns the function if it exists
         """
-
         queryset = self.user_functions(author).filter(title=function_title)
         return queryset.first()
 
@@ -97,7 +107,6 @@ class FunctionsQuerySet(QuerySet):
         Returns:
             Program | None: returns the function if it exists
         """
-
         queryset = self.filter(title=function_title)
 
         if provider_name:
@@ -108,29 +117,43 @@ class FunctionsQuerySet(QuerySet):
     def get_function_by_permission(
         self,
         user,
-        permission_name: str,
+        legacy_permission_name: str,
         function_title: str,
         provider_name: Optional[str],
+        accessible_functions: Optional["FunctionAccessResult"] = None,
+        permission: Optional[str] = None,
     ) -> Optional[Function]:
         """
-        This method returns the specified function if the user is
-        the author of the function or it has a permission.
+        Returns the specified function if the user is the author or has the required permission.
+
+        When provider_name is None, always returns the user's own function (no permission check).
+        When provider_name is set and accessible_functions.has_response=True, checks the external client.
+        Otherwise falls back to Django groups via with_permission().
 
         Args:
-            user: Django user of the function that wants to get it
-            permission_name (str): name of the permission. Values accepted
-            RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
-            function_title (str): title of the function
-            provider_name (str | None): name of the provider owner of the function
+            user: Django user requesting access
+            legacy_permission_name: Django permission codename (e.g. RUN_PROGRAM_PERMISSION)
+            function_title: title of the function
+            provider_name: provider name, or None for user functions
+            accessible_functions: Result from FunctionAccessClient
+            permission: Platform permission constant (e.g. PLATFORM_PERMISSION_VIEW)
 
         Returns:
-            Program | None: returns the function if it exists
+            Program | None: the function if the user has access, else None
         """
+        if not provider_name:
+            return self.user_functions(author=user).get_function(function_title)
 
-        if provider_name:
-            return self.with_permission(
-                author=user,
-                permission_name=permission_name,
-            ).get_function(function_title, provider_name)
+        if accessible_functions is not None and accessible_functions.has_response:
+            entry = accessible_functions.get_function(provider_name, function_title)
+            if entry is None or permission not in entry.permissions:
+                return None
+            return self.get_function(function_title, provider_name)
 
-        return self.user_functions(author=user).get_function(function_title)
+        # Fallback: Django groups
+        return self.with_permission(
+            author=user,
+            legacy_permission_name=legacy_permission_name,
+            accessible_functions=accessible_functions,
+            permission=permission,
+        ).get_function(function_title, provider_name)
