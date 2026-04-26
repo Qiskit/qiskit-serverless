@@ -11,7 +11,7 @@ logger = logging.getLogger("core.FunctionsQuerySet")
 
 if TYPE_CHECKING:
     from core.models import Program as Function
-    from api.domain.authorization.function_access_result import FunctionAccessResult
+    from core.domain.authorization.function_access_result import FunctionAccessResult
 
 
 class FunctionsQuerySet(QuerySet):

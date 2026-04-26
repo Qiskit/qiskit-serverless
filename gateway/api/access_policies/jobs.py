@@ -10,7 +10,7 @@ from core.models import Job, PLATFORM_PERMISSION_JOB_RETRIEVE, PLATFORM_PERMISSI
 from api.access_policies.providers import ProviderAccessPolicy
 
 if TYPE_CHECKING:
-    from api.domain.authorization.function_access_result import FunctionAccessResult
+    from core.domain.authorization.function_access_result import FunctionAccessResult
 
 logger = logging.getLogger("api.JobAccessPolicies")
 

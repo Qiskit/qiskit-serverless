@@ -3,8 +3,8 @@ import pytest
 from django.contrib.auth.models import User, Group
 
 from api.access_policies.jobs import JobAccessPolicies
-from api.domain.authorization.function_access_entry import FunctionAccessEntry
-from api.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.authorization.function_access_entry import FunctionAccessEntry
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import Program, Job, Provider, PLATFORM_PERMISSION_JOB_RETRIEVE, PLATFORM_PERMISSION_PROVIDER_LOGS
 
 pytestmark = pytest.mark.django_db

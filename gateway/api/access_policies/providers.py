@@ -8,7 +8,7 @@ from typing import Optional, TYPE_CHECKING
 from core.models import Provider
 
 if TYPE_CHECKING:
-    from api.domain.authorization.function_access_result import FunctionAccessResult
+    from core.domain.authorization.function_access_result import FunctionAccessResult
 
 logger = logging.getLogger("api.ProviderAccessPolicy")
 

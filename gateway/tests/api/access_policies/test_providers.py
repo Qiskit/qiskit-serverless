@@ -5,8 +5,8 @@ import pytest
 from django.contrib.auth.models import Group, User
 
 from api.access_policies.providers import ProviderAccessPolicy
-from api.domain.authorization.function_access_entry import FunctionAccessEntry
-from api.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.authorization.function_access_entry import FunctionAccessEntry
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import Job, PLATFORM_PERMISSION_PROVIDER_JOBS, PLATFORM_PERMISSION_PROVIDER_UPLOAD, Provider
 
 pytestmark = pytest.mark.django_db
