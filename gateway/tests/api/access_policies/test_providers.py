@@ -5,7 +5,9 @@ import pytest
 from django.contrib.auth.models import Group, User
 
 from api.access_policies.providers import ProviderAccessPolicy
-from core.models import Provider
+from api.domain.authorization.function_access_entry import FunctionAccessEntry
+from api.domain.authorization.function_access_result import FunctionAccessResult
+from core.models import Job, PLATFORM_PERMISSION_PROVIDER_JOBS, PLATFORM_PERMISSION_PROVIDER_UPLOAD, Provider
 
 pytestmark = pytest.mark.django_db
 
@@ -50,11 +52,6 @@ def test_can_access_returns_false_if_user_not_in_admin_groups():
     provider.admin_groups.add(Group.objects.create(name="admin_group2"))
 
     assert ProviderAccessPolicy.can_access(user, provider) is False
-
-
-from api.domain.authorization.function_access_entry import FunctionAccessEntry
-from api.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import Job, PLATFORM_PERMISSION_PROVIDER_UPLOAD, PLATFORM_PERMISSION_PROVIDER_JOBS
 
 
 def _entry(provider_name, permissions):
