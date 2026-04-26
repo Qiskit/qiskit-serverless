@@ -10,10 +10,8 @@ from django.contrib.auth.models import (
 from django.contrib.contenttypes.models import ContentType
 from rest_framework.test import APIClient
 
-from core.models import Job, JobConfig, Program, Provider
-
-from gateway.core.models import JobEvent
-from gateway.core.model_managers.job_events import JobEventOrigin, JobEventContext, JobEventType, JobEventQuerySet
+from core.models import Job, JobConfig, JobEvent, Program, Provider
+from core.model_managers.job_events import JobEventOrigin, JobEventContext, JobEventType
 
 # literal for job status
 JobStatusType = Literal[Job.PENDING, Job.RUNNING, Job.STOPPED, Job.SUCCEEDED, Job.FAILED, Job.QUEUED]
@@ -200,20 +198,17 @@ class TestUtils:
 
     @staticmethod
     def create_job_event(job: Job,
-                         event_type: JobEventType,
-                         origin: JobEventOrigin,
-                         context: JobEventContext,
-                         data: JobStatusType = Job.PENDING,
-                         sub_status: JobSubStatusType = None,
-
+                         event_type: JobEventType = JobEventType.STATUS_CHANGE,
+                         origin: JobEventOrigin = JobEventOrigin.API,
+                         context: JobEventContext = JobEventContext.RUN_PROGRAM,
+                         data: dict = None,
                          ) -> JobEvent:
-        latest_job_event = JobEvent.objects.filter(job=job).first()
-        if latest_job_event is None:
-            JobEvent.objects.create(job=job)
-
-        return JobEvent.objects.create(
-            job=job,
-        )
+        """Create a JobEvent and return it."""
+        if not data:
+            data = {}
+        job_event = JobEvent.objects.create(job=job, event_type=event_type, origin=origin, context=context, data=data)
+        job_event.save()
+        return job_event
 
     @staticmethod
     def create_job(  # pylint: disable=too-many-positional-arguments
@@ -244,11 +239,23 @@ class TestUtils:
             program = TestUtils.create_program(author=author, program_title=program)
 
         job = Job.objects.create(author=author_obj, program=program, status=status, **kwargs)
+
+        # Creating associate JobEvent for creation of job (status will be pending)
+        TestUtils.create_job_event(job)
+
         if config:
             TestUtils.add_config_to_job(job, config)
 
-        # Creating associate JobEvent for creation of job
-        TestUtils.create_job_event(job)
+        # Adding the status change to the JobEvent table.
+        if status != Job.PENDING:
+            job_event = JobEvent.objects.add_status_event(
+                job_id=job.id,
+                origin=JobEventOrigin.API,
+                context=JobEventContext.RUN_PROGRAM,
+                status=status
+            )
+            job_event.save()
+
         return job
 
     @staticmethod
