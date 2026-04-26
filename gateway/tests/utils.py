@@ -200,11 +200,11 @@ class TestUtils:
 
     @staticmethod
     def create_job_event(
-            job: Job,
-            event_type: JobEventType = JobEventType.STATUS_CHANGE,
-            origin: JobEventOrigin = JobEventOrigin.API,
-            context: JobEventContext = JobEventContext.RUN_PROGRAM,
-            data: dict = None,
+        job: Job,
+        event_type: JobEventType = JobEventType.STATUS_CHANGE,
+        origin: JobEventOrigin = JobEventOrigin.API,
+        context: JobEventContext = JobEventContext.RUN_PROGRAM,
+        data: dict = None,
     ) -> JobEvent:
         """Create a JobEvent and return it."""
         if not data:
