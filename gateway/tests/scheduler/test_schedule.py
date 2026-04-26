@@ -127,7 +127,7 @@ class TestScheduleApi(APITestCase):
             # Since the job is in terminal state, its `logs` attribute instance is empty.
             # We need to check the logs in storage
             assert (
-                    "Maximum job runtime reached" in LogsStorage(job).get_public_logs()
+                "Maximum job runtime reached" in LogsStorage(job).get_public_logs()
             ), "Job logs should contain timeout message"
 
             job_events = JobEvent.objects.filter(job=job).order_by("created")
