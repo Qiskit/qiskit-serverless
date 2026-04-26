@@ -21,6 +21,7 @@ from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
 
 from tests.utils import TestUtils
 
+
 class TestScheduleApi(APITestCase):
     """TestScheduleApi."""
 
@@ -125,8 +126,9 @@ class TestScheduleApi(APITestCase):
             assert job_event.data["status"] == Job.STOPPED
             # Since the job is in terminal state, its `logs` attribute instance is empty.
             # We need to check the logs in storage
-            assert ("Maximum job runtime reached" in LogsStorage(job).get_public_logs()
-                    ),"Job logs should contain timeout message"
+            assert (
+                    "Maximum job runtime reached" in LogsStorage(job).get_public_logs()
+            ), "Job logs should contain timeout message"
 
             job_events = JobEvent.objects.filter(job=job).order_by("created")
             # The table was filled as following: Job creation, Job status change to running, job stopping

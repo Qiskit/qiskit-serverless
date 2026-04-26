@@ -15,7 +15,9 @@ from core.model_managers.job_events import JobEventOrigin, JobEventContext, JobE
 
 # literal for job status
 JobStatusType = Literal[Job.PENDING, Job.RUNNING, Job.STOPPED, Job.SUCCEEDED, Job.FAILED, Job.QUEUED]
-JobSubStatusType = Literal[Job.MAPPING, Job.OPTIMIZING_HARDWARE, Job.WAITING_QPU, Job.EXECUTING_QPU, Job.POST_PROCESSING]
+JobSubStatusType = Literal[
+    Job.MAPPING, Job.OPTIMIZING_HARDWARE, Job.WAITING_QPU, Job.EXECUTING_QPU, Job.POST_PROCESSING
+]
 
 
 class TestUtils:
@@ -249,10 +251,7 @@ class TestUtils:
         # Adding the status change to the JobEvent table.
         if status != Job.PENDING:
             job_event = JobEvent.objects.add_status_event(
-                job_id=job.id,
-                origin=JobEventOrigin.API,
-                context=JobEventContext.RUN_PROGRAM,
-                status=status
+                job_id=job.id, origin=JobEventOrigin.API, context=JobEventContext.RUN_PROGRAM, status=status
             )
             job_event.save()
 
