@@ -114,18 +114,7 @@ def check_job_timeout(job: Job):
             )
             # The job has exceeded the maximum duration allowed.
             return True
-    #
-    # timeout = settings.PROGRAM_TIMEOUT
-    # endtime = job.created + timedelta(days=timeout)
-    # now = datetime.now(tz=endtime.tzinfo)
-    # if endtime < now:
-    #     job.logs += "\nMaximum job runtime reached. Stopping the job."
-    #     logger.warning(
-    #         "job_id=%s timeout_days=%s Job reached maximum runtime, stopping",
-    #         job.id,
-    #         timeout,
-    #     )
-    #     return True
+
     return False
 
 
