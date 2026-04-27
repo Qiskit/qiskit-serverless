@@ -21,6 +21,16 @@ logger = logging.getLogger("core.models")
 VIEW_PROGRAM_PERMISSION = "view_program"
 RUN_PROGRAM_PERMISSION = "run_program"
 
+# Platform permissions (external instance access client)
+PLATFORM_PERMISSION_VIEW = "view"
+PLATFORM_PERMISSION_RUN = "run"
+PLATFORM_PERMISSION_USER_FILES = "user.files"
+PLATFORM_PERMISSION_PROVIDER_UPLOAD = "provider.upload"
+PLATFORM_PERMISSION_PROVIDER_JOBS = "provider.jobs"
+PLATFORM_PERMISSION_JOB_RETRIEVE = "job.retrieve"
+PLATFORM_PERMISSION_PROVIDER_LOGS = "provider.logs"
+PLATFORM_PERMISSION_PROVIDER_FILES = "provider.files"
+
 
 def get_upload_path(instance, filename):
     """Returns save path for artifacts."""
@@ -257,7 +267,7 @@ class CodeEngineProject(models.Model):
     updated = models.DateTimeField(auto_now=True)
 
     # Code Engine identifiers (we could save one or both)
-    project_id = models.CharField(max_length=255, unique=True, help_text="IBM Code Engine project UUID")
+    project_id = models.CharField(max_length=255, help_text="IBM Code Engine project UUID")
     project_name = models.CharField(max_length=255, help_text="Code Engine project name in IBM Cloud")
 
     # Location and ownership
@@ -266,6 +276,13 @@ class CodeEngineProject(models.Model):
 
     # Networking
     subnet_pool_id = models.CharField(max_length=255, help_text="Subnet pool ID for fleet networking")
+    zone = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        unique=True,
+        help_text="Availability zone this project is pinned to (e.g. us-east-1)",
+    )
 
     # Storage and state management
     pds_name_state = models.CharField(max_length=255, help_text="Persistent Data Store name for task state")
