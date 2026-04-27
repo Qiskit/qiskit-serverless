@@ -40,7 +40,7 @@ class TestUtils:
         """Add admin group to provider. If admin_group does not exist, create it."""
         if isinstance(admin_group, str):
             admin_group = TestUtils.get_or_create_group(group=admin_group)
-        # Associate group with provider
+        # Associate group with provider (could need admin_user associate with group to work)
         if not provider.admin_groups.filter(id=admin_group.id).exists():
             provider.admin_groups.add(admin_group)
 
@@ -299,7 +299,7 @@ class TestUtils:
         user: Union[User, str],
         group: Union[Group, str],
         permissions: Iterable[Union[Permission, Tuple[str, str, str]]] = None,
-    ) -> User:
+    ) -> (User, Group):
         """
         Add a user to a group. Creates the group if it doesn't exist.
         Args:
@@ -313,7 +313,7 @@ class TestUtils:
             group = TestUtils.get_or_create_group(group=group, permissions=permissions)
         if not user_obj.groups.filter(id=group.id).exists():
             user_obj.groups.add(group)
-        return user_obj
+        return user_obj, group
 
     @staticmethod
     def authorize_client(username: str, client: APIClient, is_active: bool = True, is_staff: bool = False) -> User:
