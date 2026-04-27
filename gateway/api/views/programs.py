@@ -159,7 +159,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
         if provider_name:
             provider_obj = Provider.objects.filter(name=provider_name).first()
-            if provider_obj is None or not ProviderAccessPolicy.can_access(user=author, provider=provider_obj):
+            if provider_obj is None or not ProviderAccessPolicy.can_upload_function(user=author, provider=provider_obj):
                 # For security we just return a 404 not a 401
                 return Response(
                     {"message": f"Provider [{provider_name}] was not found."},
@@ -355,7 +355,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
         user_is_provider = False
         if program.provider:
-            user_is_provider = ProviderAccessPolicy.can_access(user=request.user, provider=program.provider)
+            user_is_provider = ProviderAccessPolicy.can_list_jobs(user=request.user, provider=program.provider)
 
         if user_is_provider:
             jobs = Job.objects.filter(program=program)

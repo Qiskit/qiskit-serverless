@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 import logging
-from typing import Optional, Self
+from typing import Optional, Self, TYPE_CHECKING
 
 from django.db.models import Q, QuerySet
 from django.contrib.auth.models import AbstractUser, Group
-from core.models import Program as Function
-from core.domain.authorization.function_access_result import FunctionAccessResult
+
+if TYPE_CHECKING:
+    from core.models import Program as Function
+    from core.domain.authorization.function_access_result import FunctionAccessResult
 
 logger = logging.getLogger("core.FunctionsQuerySet")
 
@@ -19,13 +21,13 @@ class FunctionsQuerySet(QuerySet):
         self,
         author: AbstractUser,
         legacy_permission_name: str,
-        accessible_functions: Optional["FunctionAccessResult"] = None,
+        accessible_functions: Optional[FunctionAccessResult] = None,
         permission: Optional[str] = None,
     ) -> Self:
         """
         Returns all the functions available to the user:
           - User functions where the user is the author
-          - Provider functions accessible via the external client (if has_response=True)
+          - Provider functions accessible via the Runtime API client (if has_response=True)
           - OR provider functions via Django groups (fallback)
 
         Args:
@@ -60,6 +62,7 @@ class FunctionsQuerySet(QuerySet):
         Returns:
             List[Program]: user functions available to the user
         """
+
         result_queryset = self.filter(author=author, provider=None)
         return result_queryset
 
@@ -71,6 +74,7 @@ class FunctionsQuerySet(QuerySet):
         Returns:
             QuerySet: providers functions
         """
+
         if not provider_name:
             return self.exclude(provider=None)
 
@@ -87,6 +91,7 @@ class FunctionsQuerySet(QuerySet):
         Returns:
             Program | None: returns the function if it exists
         """
+
         queryset = self.user_functions(author).filter(title=function_title)
         return queryset.first()
 
@@ -105,6 +110,7 @@ class FunctionsQuerySet(QuerySet):
         Returns:
             Program | None: returns the function if it exists
         """
+
         queryset = self.filter(title=function_title)
 
         if provider_name:
@@ -118,14 +124,14 @@ class FunctionsQuerySet(QuerySet):
         legacy_permission_name: str,
         function_title: str,
         provider_name: Optional[str],
-        accessible_functions: Optional["FunctionAccessResult"] = None,
+        accessible_functions: Optional[FunctionAccessResult] = None,
         permission: Optional[str] = None,
     ) -> Optional[Function]:
         """
         Returns the specified function if the user is the author or has the required permission.
 
         When provider_name is None, always returns the user's own function (no permission check).
-        When provider_name is set and accessible_functions.has_response=True, checks the external client.
+        When provider_name is set and accessible_functions.has_response=True, checks the Runtime API client.
         Otherwise falls back to Django groups via with_permission().
 
         Args:

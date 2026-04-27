@@ -5,11 +5,35 @@ Access policies implementation for Provider access
 import logging
 from typing import Optional
 
-from core.models import Provider
+from core.models import (
+    Provider,
+    PLATFORM_PERMISSION_JOB_RETRIEVE,
+    PLATFORM_PERMISSION_PROVIDER_FILES,
+    PLATFORM_PERMISSION_PROVIDER_JOBS,
+    PLATFORM_PERMISSION_PROVIDER_LOGS,
+    PLATFORM_PERMISSION_PROVIDER_UPLOAD,
+)
 from core.domain.authorization.function_access_result import FunctionAccessResult
 
 
 logger = logging.getLogger("api.ProviderAccessPolicy")
+
+
+def _check(
+    user,
+    provider: Provider,
+    accessible_functions: Optional[FunctionAccessResult],
+    permission: str,
+) -> bool:
+    """Core provider access logic shared by all named methods."""
+    if provider is None:
+        raise ValueError("provider cannot be None")
+    if accessible_functions is not None and accessible_functions.has_response:
+        # runtime API
+        return accessible_functions.has_permission_for_provider(provider.name, permission)
+    # legacy behaviour
+    user_groups = set(user.groups.all())
+    return bool(user_groups.intersection(set(provider.admin_groups.all())))
 
 
 class ProviderAccessPolicy:
@@ -19,51 +43,61 @@ class ProviderAccessPolicy:
     """
 
     @staticmethod
-    def can_access(
+    def can_retrieve_job(
         user,
         provider: Provider,
-        accessible_functions: Optional["FunctionAccessResult"] = None,
-        permission: Optional[str] = None,
+        accessible_functions: Optional[FunctionAccessResult] = None,
     ) -> bool:
-        """
-        Checks if the user has access to a Provider.
+        """Checks if the user can retrieve a job from this provider (non-author access)."""
+        has_access = _check(user, provider, accessible_functions, PLATFORM_PERMISSION_JOB_RETRIEVE)
+        if not has_access:
+            logger.warning("[can_retrieve_job] provider=%s user_id=%s | no access", provider.name, user.id)
+        return has_access
 
-        When accessible_functions.has_response=True, checks the external client
-        result for the provider without hitting the database.
-        Otherwise falls back to Django admin groups.
+    @staticmethod
+    def can_read_logs(
+        user,
+        provider: Provider,
+        accessible_functions: Optional[FunctionAccessResult] = None,
+    ) -> bool:
+        """Checks if the user can read provider logs for jobs from this provider."""
+        has_access = _check(user, provider, accessible_functions, PLATFORM_PERMISSION_PROVIDER_LOGS)
+        if not has_access:
+            logger.warning("[can_read_logs] provider=%s user_id=%s | no access", provider.name, user.id)
+        return has_access
 
-        Args:
-            user: Django user from the request
-            provider: Provider instance to check access against
-            accessible_functions: Result from FunctionAccessClient; if None or
-                has_response=False, falls back to Django groups
-            permission: Platform permission constant (e.g. PLATFORM_PERMISSION_PROVIDER_JOBS)
+    @staticmethod
+    def can_list_jobs(
+        user,
+        provider: Provider,
+        accessible_functions: Optional[FunctionAccessResult] = None,
+    ) -> bool:
+        """Checks if the user can list provider jobs."""
+        has_access = _check(user, provider, accessible_functions, PLATFORM_PERMISSION_PROVIDER_JOBS)
+        if not has_access:
+            logger.warning("[can_list_jobs] provider=%s user_id=%s | no access", provider.name, user.id)
+        return has_access
 
-        Returns:
-            bool: True if the user has access
-        """
-        if provider is None:
-            raise ValueError("provider cannot be None")
+    @staticmethod
+    def can_manage_files(
+        user,
+        provider: Provider,
+        accessible_functions: Optional[FunctionAccessResult] = None,
+    ) -> bool:
+        """Checks if the user can manage files for this provider."""
+        has_access = _check(user, provider, accessible_functions, PLATFORM_PERMISSION_PROVIDER_FILES)
+        if not has_access:
+            logger.warning("[can_manage_files] provider=%s user_id=%s | no access", provider.name, user.id)
+        return has_access
 
-        if accessible_functions is not None and accessible_functions.has_response:
-            has_access = accessible_functions.has_permission_for_provider(provider.name, permission)
-            if not has_access:
-                logger.warning(
-                    "[can_access] provider=%s user_id=%s permission=%s | no access (external client)",
-                    provider.name,
-                    user.id,
-                    permission,
-                )
-            return has_access
-
-        # Fallback: Django groups
-        user_groups = set(user.groups.all())
-        admin_groups = set(provider.admin_groups.all())
-        user_is_admin = bool(user_groups.intersection(admin_groups))
-        if not user_is_admin:
-            logger.warning(
-                "[can_access] provider=%s user_id=%s | no access",
-                provider.name,
-                user.id,
-            )
-        return user_is_admin
+    @staticmethod
+    def can_upload_function(
+        user,
+        provider: Provider,
+        accessible_functions: Optional[FunctionAccessResult] = None,
+    ) -> bool:
+        """Checks if the user can upload a function to this provider."""
+        has_access = _check(user, provider, accessible_functions, PLATFORM_PERMISSION_PROVIDER_UPLOAD)
+        if not has_access:
+            logger.warning("[can_upload_function] provider=%s user_id=%s | no access", provider.name, user.id)
+        return has_access

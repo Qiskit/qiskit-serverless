@@ -6,7 +6,7 @@ import logging
 from typing import Optional
 from django.contrib.auth.models import AbstractUser
 
-from core.models import Job, PLATFORM_PERMISSION_JOB_RETRIEVE, PLATFORM_PERMISSION_PROVIDER_LOGS
+from core.models import Job
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from api.access_policies.providers import ProviderAccessPolicy
 
@@ -24,7 +24,7 @@ class JobAccessPolicies:
     def can_access(
         user: AbstractUser,
         job: Job,
-        accessible_functions: Optional["FunctionAccessResult"] = None,
+        accessible_functions: Optional[FunctionAccessResult] = None,
     ) -> bool:
         """
         Checks if the user has access to the Job. As an author
@@ -53,12 +53,7 @@ class JobAccessPolicies:
         has_access = False
         is_provider_job = job.program and job.program.provider
         if is_provider_job:
-            has_access = ProviderAccessPolicy.can_access(
-                user,
-                job.program.provider,
-                accessible_functions=accessible_functions,
-                permission=PLATFORM_PERMISSION_JOB_RETRIEVE,
-            )
+            has_access = ProviderAccessPolicy.can_retrieve_job(user, job.program.provider, accessible_functions)
 
         if not has_access:
             logger.warning(
@@ -117,7 +112,7 @@ class JobAccessPolicies:
     def can_read_provider_logs(
         user: AbstractUser,
         job: Job,
-        accessible_functions: Optional["FunctionAccessResult"] = None,
+        accessible_functions: Optional[FunctionAccessResult] = None,
     ) -> bool:
         """
         Checks if the user has permissions to read the provider logs of a job:
@@ -132,11 +127,8 @@ class JobAccessPolicies:
             bool: True or False in case the user has permissions
         """
 
-        if job.program.provider and ProviderAccessPolicy.can_access(
-            user,
-            job.program.provider,
-            accessible_functions=accessible_functions,
-            permission=PLATFORM_PERMISSION_PROVIDER_LOGS,
+        if job.program.provider and ProviderAccessPolicy.can_read_logs(
+            user, job.program.provider, accessible_functions
         ):
             return True
 
