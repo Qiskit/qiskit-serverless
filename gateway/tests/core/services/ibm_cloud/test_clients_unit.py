@@ -29,7 +29,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.services.ibm_cloud.clients import IBMCloudClientProvider, decode_jwt
+from core.ibm_cloud.clients import IBMCloudClientProvider, decode_jwt
 
 
 def b64url_json(payload: dict[str, Any]) -> str:
@@ -78,10 +78,10 @@ def patched_provider(
 
     with (
         patch(
-            "core.services.ibm_cloud.clients.IAMAuthenticator",
+            "core.ibm_cloud.clients.IAMAuthenticator",
             return_value=fake_auth,
         ),
-        patch("core.services.ibm_cloud.clients.ibm_boto3_client") as mock_boto,
+        patch("core.ibm_cloud.clients.ibm_boto3_client") as mock_boto,
     ):
         mock_boto.side_effect = lambda *a, **k: MagicMock()
         yield IBMCloudClientProvider(api_key="dummy-key")

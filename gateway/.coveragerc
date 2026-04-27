@@ -1,0 +1,3 @@
+[run]
+omit =
+    core/ibm_cloud/code_engine/ce_client/*
