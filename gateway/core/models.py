@@ -257,7 +257,7 @@ class CodeEngineProject(models.Model):
     updated = models.DateTimeField(auto_now=True)
 
     # Code Engine identifiers (we could save one or both)
-    project_id = models.CharField(max_length=255, unique=True, help_text="IBM Code Engine project UUID")
+    project_id = models.CharField(max_length=255, help_text="IBM Code Engine project UUID")
     project_name = models.CharField(max_length=255, help_text="Code Engine project name in IBM Cloud")
 
     # Location and ownership
@@ -266,6 +266,13 @@ class CodeEngineProject(models.Model):
 
     # Networking
     subnet_pool_id = models.CharField(max_length=255, help_text="Subnet pool ID for fleet networking")
+    zone = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        unique=True,
+        help_text="Availability zone this project is pinned to (e.g. us-east-1)",
+    )
 
     # Storage and state management
     pds_name_state = models.CharField(max_length=255, help_text="Persistent Data Store name for task state")
