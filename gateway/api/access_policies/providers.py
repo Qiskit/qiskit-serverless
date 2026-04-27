@@ -3,12 +3,11 @@ Access policies implementation for Provider access
 """
 
 import logging
-from typing import Optional, TYPE_CHECKING
+from typing import Optional
 
 from core.models import Provider
+from core.domain.authorization.function_access_result import FunctionAccessResult
 
-if TYPE_CHECKING:
-    from core.domain.authorization.function_access_result import FunctionAccessResult
 
 logger = logging.getLogger("api.ProviderAccessPolicy")
 

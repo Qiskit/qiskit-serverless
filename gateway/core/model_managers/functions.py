@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 import logging
-from typing import Optional, Self, TYPE_CHECKING
+from typing import Optional, Self
 
 from django.db.models import Q, QuerySet
 from django.contrib.auth.models import AbstractUser, Group
+from core.models import Program as Function
+from core.domain.authorization.function_access_result import FunctionAccessResult
 
 logger = logging.getLogger("core.FunctionsQuerySet")
-
-if TYPE_CHECKING:
-    from core.models import Program as Function
-    from core.domain.authorization.function_access_result import FunctionAccessResult
 
 
 class FunctionsQuerySet(QuerySet):

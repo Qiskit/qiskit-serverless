@@ -7,12 +7,11 @@ from typing import Dict, List, Optional, Set
 from core.domain.authorization.function_access_entry import FunctionAccessEntry
 
 
-@dataclass
 class FunctionAccessResult:
     """Result from the external function access client for a given instance CRN."""
 
     has_response: bool
-    functions: List[FunctionAccessEntry] = field(default_factory=list)
+    functions: List[FunctionAccessEntry]
 
     def get_function(self, provider_name: str, function_title: str) -> Optional[FunctionAccessEntry]:
         """Return the entry matching provider_name and function_title, or None."""

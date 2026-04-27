@@ -3,14 +3,13 @@ Access policies implementation for Job access
 """
 
 import logging
-from typing import Optional, TYPE_CHECKING
+from typing import Optional
 from django.contrib.auth.models import AbstractUser
 
 from core.models import Job, PLATFORM_PERMISSION_JOB_RETRIEVE, PLATFORM_PERMISSION_PROVIDER_LOGS
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from api.access_policies.providers import ProviderAccessPolicy
 
-if TYPE_CHECKING:
-    from core.domain.authorization.function_access_result import FunctionAccessResult
 
 logger = logging.getLogger("api.JobAccessPolicies")
 
