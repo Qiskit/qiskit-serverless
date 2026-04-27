@@ -10,7 +10,6 @@ from core.models import Job
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from api.access_policies.providers import ProviderAccessPolicy
 
-
 logger = logging.getLogger("api.JobAccessPolicies")
 
 

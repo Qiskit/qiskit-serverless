@@ -15,7 +15,6 @@ from core.models import (
 )
 from core.domain.authorization.function_access_result import FunctionAccessResult
 
-
 logger = logging.getLogger("api.ProviderAccessPolicy")
 
 
