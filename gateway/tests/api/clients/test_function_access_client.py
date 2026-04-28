@@ -35,8 +35,8 @@ def test_returns_no_response_on_server_error(instances_server):
     assert result.has_response is False
 
 
-def test_returns_no_response_when_url_not_configured(settings):
-    settings.RUNTIME_INSTANCES_API_BASE_URL = ""
+def test_returns_no_response_when_disabled(settings):
+    settings.RUNTIME_INSTANCES_API_ENABLED = False
 
     result = FunctionAccessClient().get_accessible_functions("crn:test:000")
 

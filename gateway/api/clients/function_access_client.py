@@ -16,6 +16,9 @@ class FunctionAccessClient:
 
     def get_accessible_functions(self, instance_crn: str) -> FunctionAccessResult:
         """Return all functions accessible to the given instance CRN with their permissions."""
+        if not settings.RUNTIME_INSTANCES_API_ENABLED:
+            return FunctionAccessResult(has_response=False)
+
         base_url = settings.RUNTIME_INSTANCES_API_BASE_URL
         if not base_url:
             return FunctionAccessResult(has_response=False)

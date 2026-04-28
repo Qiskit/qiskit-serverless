@@ -75,6 +75,7 @@ def instances_server(settings):
     t.daemon = True
     t.start()
     server = InstancesServer(httpd)
+    settings.RUNTIME_INSTANCES_API_ENABLED = True
     settings.RUNTIME_INSTANCES_API_BASE_URL = f"http://127.0.0.1:{httpd.server_address[1]}"
     yield server
     httpd.shutdown()
