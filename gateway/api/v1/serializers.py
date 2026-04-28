@@ -163,6 +163,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             "description",
             "type",
             "version",
+            "runner",
         ]
 
 
