@@ -31,8 +31,8 @@ class JobsProviderListUseCase:
             tuple[list[Job], int]: (jobs, total_count)
 
         Raises:
-            ProviderNotFoundException: If provider doesn't exist or access denied.
-            FunctionNotFoundException: If function doesn't exist.
+            ProviderNotFoundException: If the provider doesn't exist or access is denied.
+            FunctionNotFoundException: If the function doesn't exist.
         """
         provider = self.provider_repository.get_provider_by_name(filters.provider)
         if not provider:
@@ -45,19 +45,17 @@ class JobsProviderListUseCase:
 
     @staticmethod
     def _apply_access_scope(user, provider, filters, accessible_functions):
-        """Validate access and narrow filters to only the jobs the user can see.
+        """Validate access and narrow filters to only the jobs the user can see."""
 
-        When filters.function is set: checks access to that specific function.
-        When filters.function is None:
-          - Client response: restricts to accessible function titles.
-          - Fallback (Django groups): checks provider admin membership.
-        """
         if filters.function:
+            # Filter by one specific function: validate if it has access to the function
             if not ProviderAccessPolicy.can_list_jobs(user, provider, filters.function, accessible_functions):
                 raise ProviderNotFoundException(filters.provider)
             if not Function.objects.get_function(filters.function, filters.provider):
                 raise FunctionNotFoundException(function=filters.function, provider=filters.provider)
         elif accessible_functions.has_response:
+            # Runtime API instantes, granularity per function:
+            # We get the function titles that the user has access to and we use them to filter
             titles = accessible_functions.get_functions_by_provider(PLATFORM_PERMISSION_PROVIDER_JOBS).get(
                 filters.provider, set()
             )
@@ -65,5 +63,6 @@ class JobsProviderListUseCase:
                 raise ProviderNotFoundException(filters.provider)
             filters.function_titles = titles
         else:
+            # Legacy Django groups
             if not ProviderAccessPolicy.is_provider_admin(user, provider):
                 raise ProviderNotFoundException(filters.provider)
