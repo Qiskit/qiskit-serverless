@@ -97,7 +97,7 @@ class TestScheduleApi(APITestCase):
         # Override PROGRAM_TIMEOUT to 0 hours so job immediately exceeds limit
         with self.settings(PROGRAM_TIMEOUT=0):
             # Create test user and authenticate
-            user = TestUtils.authorize_client(username="test_limit_user", client=self.client)
+            user = TestUtils.authorize_client(user="test_limit_user", client=self.client)
 
             # Create a private program for the job. If provider is given, the public logs will be empty.
             program = TestUtils.create_program(
