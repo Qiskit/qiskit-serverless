@@ -149,8 +149,7 @@ class FunctionsQuerySet(QuerySet):
             return self.user_functions(author=user).get_function(function_title)
 
         if accessible_functions is not None and accessible_functions.has_response:
-            entry = accessible_functions.get_function(provider_name, function_title)
-            if entry is None or permission not in entry.permissions:
+            if not accessible_functions.has_permission_for_function(provider_name, function_title, permission):
                 return None
             return self.get_function(function_title, provider_name)
 

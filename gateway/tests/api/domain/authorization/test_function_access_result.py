@@ -26,17 +26,6 @@ def test_get_function():
     assert result.get_function("other-prov", "func") is None
 
 
-def test_has_permission_for_provider():
-    entries = [
-        _entry("prov", "func1", {PLATFORM_PERMISSION_PROVIDER_JOBS}),
-        _entry("prov", "func2", {PLATFORM_PERMISSION_READ}),
-    ]
-    result = FunctionAccessResult(has_response=True, functions=entries)
-    assert result.has_permission_for_provider("prov", PLATFORM_PERMISSION_PROVIDER_JOBS) is True
-    assert result.has_permission_for_provider("prov", PLATFORM_PERMISSION_PROVIDER_JOBS) is True
-    assert result.has_permission_for_provider("prov", PLATFORM_PERMISSION_RUN) is False
-
-
 def test_get_functions_by_provider():
     entries = [
         _entry("prov-a", "func1", {PLATFORM_PERMISSION_RUN}),

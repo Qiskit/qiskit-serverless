@@ -21,9 +21,10 @@ class FunctionAccessResult:
                 return entry
         return None
 
-    def has_permission_for_provider(self, provider_name: str, permission: str) -> bool:
-        """Return True if any function of the given provider has the permission."""
-        return any(e.provider_name == provider_name and permission in e.permissions for e in self.functions)
+    def has_permission_for_function(self, provider_name: str, function_title: str, permission: str) -> bool:
+        """Return True if the specific function has the permission."""
+        entry = self.get_function(provider_name, function_title)
+        return entry is not None and permission in entry.permissions
 
     def get_functions_by_provider(self, permission: str) -> Dict[str, Set[str]]:
         """Return function titles grouped by provider for entries that have the permission."""

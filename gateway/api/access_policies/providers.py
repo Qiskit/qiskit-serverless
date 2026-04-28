@@ -32,8 +32,7 @@ def _check(
     """
     # Runtime instances API has function granularity: user needs to have permission per function
     if accessible_functions is not None and accessible_functions.has_response:
-        entry = accessible_functions.get_function(provider.name, function_title)
-        return entry is not None and permission in entry.permissions
+        return accessible_functions.has_permission_for_function(provider.name, function_title, permission)
     # Legacy Django auth has provider granularity: user needs to be a provider admin
     user_groups = set(user.groups.all())
     return bool(user_groups.intersection(set(provider.admin_groups.all())))
