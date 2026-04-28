@@ -534,16 +534,19 @@ El metodo `is_trial()` no se modifica: sigue siendo el fallback.
 La logica compartida vive en un helper privado `_check`:
 
 ```python
-@staticmethod
-def _check(user, provider, accessible_functions, permission) -> bool:
+def _check(user, provider, accessible_functions, permission, function_title=None) -> bool:
     if accessible_functions is not None and accessible_functions.has_response:
+        if function_title is not None:
+            entry = accessible_functions.get_function(provider.name, function_title)
+            return entry is not None and permission in entry.permissions
         return accessible_functions.has_permission_for_provider(provider.name, permission)
     user_groups = set(user.groups.all())
     return bool(user_groups.intersection(set(provider.admin_groups.all())))
 ```
 
-Los metodos publicos validan `provider is not None`, llaman a `_check` con la constante
-de permiso correcta, y loguean si no hay acceso:
+Los metodos publicos aceptan `function_title: Optional[str] = None`, validan
+`provider is not None`, llaman a `_check` con la constante de permiso correcta,
+y loguean si no hay acceso:
 
 | Metodo                  | Permission interna                    |
 |-------------------------|---------------------------------------|
@@ -553,7 +556,39 @@ de permiso correcta, y loguean si no hay acceso:
 | `can_manage_files`      | `PLATFORM_PERMISSION_PROVIDER_FILES`  |
 | `can_upload_function`   | `PLATFORM_PERMISSION_PROVIDER_UPLOAD` |
 
-Todos aceptan `accessible_functions: Optional[FunctionAccessResult] = None`.
+Todos aceptan `accessible_functions: Optional[FunctionAccessResult] = None`
+y `function_title: Optional[str] = None`.
+
+#### Granularidad por funcion vs. por provider
+
+> **Decision de diseño tomada en PR2**: cuando el cliente externo responde, el check
+> se hace a nivel de **funcion concreta**, no a nivel de provider.
+
+**Razonamiento**: el cliente devuelve entries por funcion (`provider_name + function_title`).
+Si un provider tiene dos funciones A y B, y la instancia solo tiene permiso sobre A,
+el sistema de grupos legacy daria acceso a ambas (porque solo comprueba `admin_groups`).
+El cliente externo puede ser mas preciso, y aprovechar esa granularidad es coherente con
+el principio de minimo privilegio.
+
+```
+# Sistema de grupos (fallback): acceso blanket al provider
+admin_groups intersection → True para todas las funciones del provider
+
+# Cliente externo (nuevo): acceso por funcion
+get_function(provider, "sampler") → tiene provider.jobs → True para "sampler"
+get_function(provider, "estimator") → no tiene provider.jobs → False para "estimator"
+```
+
+**Cuando `function_title` no se pasa** (o es `None`): el check cae en
+`has_permission_for_provider`, que es provider-level. Esto cubre el periodo de
+transicion mientras los PRs 3-5 no hayan propagado `function_title` a todos los callers.
+El fallback a grupos Django nunca usa `function_title` (no existe ese concepto en grupos).
+
+**Operaciones afectadas**: todas. El `function_title` esta siempre disponible en el
+contexto de cada operacion (es parametro del use case, o se extrae de `job.program.title`).
+`JobAccessPolicies` ya pasa `function_title=job.program.title` en esta PR.
+Los use cases de PRs 3-5 lo pasaran al añadir `accessible_functions`.
+
 Cuando es `None` o `has_response=False`, el fallback es identico para todos:
 interseccion de grupos Django con `provider.admin_groups`.
 
@@ -564,7 +599,8 @@ interseccion de grupos Django con `provider.admin_groups`.
 **Fichero a modificar**: `api/access_policies/jobs.py`
 
 `can_access()` y `can_read_provider_logs()` llaman a los nuevos metodos nombrados
-de `ProviderAccessPolicy` (ya no necesitan importar las constantes `PLATFORM_PERMISSION_*`):
+de `ProviderAccessPolicy` pasando ya `function_title` desde el job (ya no necesitan
+importar las constantes `PLATFORM_PERMISSION_*`):
 
 ```python
 @staticmethod
@@ -574,14 +610,16 @@ def can_access(user, job, accessible_functions=None) -> bool:
     has_access = False
     if job.program and job.program.provider:
         has_access = ProviderAccessPolicy.can_retrieve_job(
-            user, job.program.provider, accessible_functions
+            user, job.program.provider, accessible_functions,
+            function_title=job.program.title,
         )
     # ...
 
 @staticmethod
 def can_read_provider_logs(user, job, accessible_functions=None) -> bool:
     if job.program.provider and ProviderAccessPolicy.can_read_logs(
-        user, job.program.provider, accessible_functions
+        user, job.program.provider, accessible_functions,
+        function_title=job.program.title,
     ):
         return True
     # ...
