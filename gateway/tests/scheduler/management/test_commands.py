@@ -6,15 +6,13 @@ from typing import Optional
 
 import pytest
 from django.conf import settings as dj_settings
-from django.contrib.auth.models import User, Group
-from django.core.management import call_command
 from ray.dashboard.modules.job.common import JobStatus
 from unittest.mock import patch, MagicMock
 
 from prometheus_client import CollectorRegistry
 
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
-from core.models import ComputeResource, Job, JobEvent, Program, Provider, Config
+from core.models import ComputeResource, Job, JobEvent, Config
 from core.services.runners import RunnerError
 from core.utils import check_logs
 from scheduler.kill_signal import KillSignal
@@ -23,6 +21,7 @@ from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
 from scheduler.tasks.free_resources import FreeResources
 from scheduler.tasks.schedule_queued_jobs import ScheduleQueuedJobs
 from scheduler.schedule import get_jobs_to_schedule_fair_share
+from tests.utils import TestUtils
 
 
 class TestCommands:
@@ -30,13 +29,21 @@ class TestCommands:
 
     @pytest.fixture(autouse=True)
     def _setup(self, tmp_path, settings, db):
-        call_command("loaddata", "tests/fixtures/schedule_fixtures.json")
+        """Setup test environment."""
         settings.MEDIA_ROOT = str(tmp_path)
         Config.add_defaults()
         self.metrics = SchedulerMetrics(CollectorRegistry())
 
     def test_free_resources(self):
         """Tests free resources command."""
+        # Create compute resource matching fixture data
+        test3_user = TestUtils.get_user_and_username("test3_user")[0]
+        TestUtils.get_or_create_compute_resource(
+            title="compute resource",
+            host="somehost",
+            owner=test3_user
+        )
+
         FreeResources(kill_signal=KillSignal(), metrics=self.metrics).run()
         num_resources = ComputeResource.objects.count()
         assert num_resources == 1
@@ -59,7 +66,7 @@ class TestCommands:
         assert job.env_vars is not None
 
         job_events = JobEvent.objects.filter(job=job)
-        assert len(job_events) == 1
+        assert len(job_events) == 3 # creation (QUEUED) + status change (PENDING) + status change (RUNNING)
         assert job_events[0].event_type == JobEventType.STATUS_CHANGE
         assert job_events[0].data["status"] == JobStatus.RUNNING
         assert job_events[0].origin == JobEventOrigin.SCHEDULER
@@ -77,17 +84,38 @@ class TestCommands:
         assert job.sub_status is None
 
         job_events = JobEvent.objects.filter(job=job).order_by("created")
-        assert len(job_events) == 2
-        assert job_events[1].event_type == JobEventType.STATUS_CHANGE
-        assert job_events[1].data["status"] == JobStatus.FAILED
-        assert job_events[1].origin == JobEventOrigin.SCHEDULER
-        assert job_events[1].context == JobEventContext.UPDATE_JOB_STATUS
+        assert len(job_events) == 4
+        assert job_events[3].event_type == JobEventType.STATUS_CHANGE
+        assert job_events[3].data["status"] == JobStatus.FAILED
+        assert job_events[3].origin == JobEventOrigin.SCHEDULER
+        assert job_events[3].context == JobEventContext.UPDATE_JOB_STATUS
 
     @patch("scheduler.tasks.schedule_queued_jobs.execute_job")
     def test_schedule_queued_jobs(self, execute_job):
         """Tests schedule of queued jobs command."""
+        # Create test data to match fixture expectations (7 jobs total)
+        test_user = TestUtils.get_user_and_username("test_user")[0]
+        test2_user = TestUtils.get_user_and_username("test2_user")[0]
+        test3_user = TestUtils.get_user_and_username("test3_user")[0]
+        test4_user = TestUtils.get_user_and_username("test4_user")[0]
+
+        program = TestUtils.create_program(program_title="Program", author=test_user)
+        compute_resource = TestUtils.get_or_create_compute_resource(
+            title="compute resource", host="somehost", owner=test3_user
+        )
+
+        # Create 7 jobs with various statuses
+        job1 = TestUtils.create_job(author=test_user, program=program, status=Job.QUEUED, result='{"somekey":1}')
+        TestUtils.create_job(author=test_user, program=program, status=Job.QUEUED, result='{"somekey":1}')
+        TestUtils.create_job(author=test2_user, program=program, status=Job.PENDING, result='{"somekey":1}')
+        TestUtils.create_job(author=test3_user, program=program, status=Job.PENDING,
+                           compute_resource=compute_resource, result='{"somekey":1}')
+        TestUtils.create_job(author=test3_user, program=program, status=Job.RUNNING, result='{"somekey":1}')
+        TestUtils.create_job(author=test4_user, program=program, status=Job.QUEUED, result='{"somekey":1}')
+        TestUtils.create_job(author=test4_user, program=program, status=Job.QUEUED, result='{"somekey":1}')
+
         fake_job = MagicMock()
-        fake_job.id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
+        fake_job.id = job1.id
         fake_job.logs = ""
         fake_job.status = "SUCCEEDED"
         fake_job.sub_status = None
@@ -103,9 +131,9 @@ class TestCommands:
         assert job_count == 7
 
         job_events = JobEvent.objects.filter(job_id=fake_job.id)
-        # There is one Job in the fixtures in QUEUED state. It call execute_job twice
-        # and add 2 equal events. If we remove fixtures we can fix this test properly
-        assert len(job_events) == 2
+        # job1 is in QUEUED state and from its creation it has 1 corresponding JobEvent.
+        # It calls `execute_job` twice and add 2 equal events.
+        assert len(job_events) == 3
         assert job_events[0].event_type == JobEventType.STATUS_CHANGE
         assert job_events[0].data["status"] == JobStatus.SUCCEEDED
         assert job_events[0].origin == JobEventOrigin.SCHEDULER
@@ -161,13 +189,18 @@ class TestCommands:
     @patch("scheduler.tasks.update_jobs_statuses.get_runner")
     def test_update_jobs_statuses_filters_logs_user_function(self, get_runner, settings):
         """Tests that logs are filtered when saving for function without provider."""
-        compute_resource = ComputeResource.objects.create(title="test-cluster-user-logs", active=True)
+        compute_resource = TestUtils.get_or_create_compute_resource(title="test-cluster-user-logs", active=True)
         job = self._create_test_job(
             author="test_author",
             status=Job.RUNNING,
             compute_resource=compute_resource,
             ray_job_id="test-ray-job-id",
         )
+
+        job_events = JobEvent.objects.filter(job=job)
+        running_jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES)
+        assert len(job_events) == 2  # the events are: creation (QUEUED), running
+        assert len(running_jobs) == 1
 
         # Mock Ray to return unfiltered logs with PUBLIC and PRIVATE markers
         full_logs = """
@@ -224,7 +257,7 @@ INFO: Final public log
     @patch("scheduler.tasks.update_jobs_statuses.get_runner")
     def test_update_jobs_statuses_filters_logs_provider_function(self, get_runner, settings):
         """Tests that logs are filtered when saving for function with provider."""
-        compute_resource = ComputeResource.objects.create(title="test-cluster-provider-logs", active=True)
+        compute_resource = TestUtils.get_or_create_compute_resource(title="test-cluster-provider-logs", active=True)
         job = self._create_test_job(
             author="test_author",
             provider_admin="test_provider",
@@ -292,7 +325,7 @@ WARNING: Private warning
     @patch("scheduler.tasks.update_jobs_statuses.get_runner")
     def test_update_jobs_statuses_job_handler_status_error_status_event(self, get_runner, settings):
         """Tests that the job_event is stored when runner.status() raises exception."""
-        compute_resource = ComputeResource.objects.create(title="test-cluster-provider-logs", active=True)
+        compute_resource = TestUtils.get_or_create_compute_resource(title="test-cluster-provider-logs", active=True)
         job = self._create_test_job(
             author="test_author",
             provider_admin="test_provider",
@@ -308,13 +341,13 @@ WARNING: Private warning
         UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         job_events = JobEvent.objects.filter(job=job.id)
-        assert len(job_events) == 1
+        assert len(job_events) == 3 # the events are: creation, running, failed
         assert job_events[0].event_type == JobEventType.STATUS_CHANGE
         assert job_events[0].data["status"] == Job.FAILED
         assert job_events[0].origin == JobEventOrigin.SCHEDULER
         assert job_events[0].context == JobEventContext.UPDATE_JOB_STATUS
 
-    def _create_test_job(
+    def _create_test_job( # pylint: disable=too-many-positional-arguments
         self,
         author: str = "test_author",
         provider_admin: Optional[str] = None,
@@ -335,25 +368,22 @@ WARNING: Private warning
             gpu: Whether this is a GPU job
         """
         if compute_resource is None:
-            compute_resource = ComputeResource.objects.create(title=f"test-cluster-{ray_job_id}", active=True)
+            compute_resource = TestUtils.get_or_create_compute_resource(title=f"test-cluster-{ray_job_id}", active=True)
 
-        author_user, _ = User.objects.get_or_create(username=author)
+        author_user, _ = TestUtils.get_user_and_username(author=author)
         provider = None
 
         if provider_admin:
-            provider = Provider.objects.create(name=provider_admin)
-            admin_group, _ = Group.objects.get_or_create(name=provider_admin)
-            admin_user, _ = User.objects.get_or_create(username=provider_admin)
-            admin_user.groups.add(admin_group)
-            provider.admin_groups.add(admin_group)
+            TestUtils.add_user_to_group(provider_admin, provider_admin)
+            provider = TestUtils.get_or_create_provider(provider_admin, provider_admin)
 
-        program = Program.objects.create(
-            title=f"program-{author_user.username}-{provider_admin or 'custom'}",
+        program = TestUtils.create_program(
+            program_title=f"program-{author_user.username}-{provider_admin or 'custom'}",
             author=author_user,
             provider=provider,
         )
 
-        return Job.objects.create(
+        return TestUtils.create_job(
             author=author_user,
             program=program,
             status=status,
