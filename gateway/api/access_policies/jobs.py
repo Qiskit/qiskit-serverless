@@ -52,7 +52,9 @@ class JobAccessPolicies:
         has_access = False
         is_provider_job = job.program and job.program.provider
         if is_provider_job:
-            has_access = ProviderAccessPolicy.can_retrieve_job(user, job.program.provider, accessible_functions)
+            has_access = ProviderAccessPolicy.can_retrieve_job(
+                user, job.program.provider, accessible_functions, function_title=job.program.title
+            )
 
         if not has_access:
             logger.warning(
@@ -127,7 +129,7 @@ class JobAccessPolicies:
         """
 
         if job.program.provider and ProviderAccessPolicy.can_read_logs(
-            user, job.program.provider, accessible_functions
+            user, job.program.provider, accessible_functions, function_title=job.program.title
         ):
             return True
 

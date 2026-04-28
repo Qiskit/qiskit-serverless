@@ -152,37 +152,39 @@ def _entry(provider_name, permissions):
 
 
 def test_can_access_external_client_returns_true_for_provider_admin(job_author):
-    """can_access True when Runtime API client has PLATFORM_PERMISSION_JOB_RETRIEVE for the provider."""
+    """can_access True when Runtime API client has PLATFORM_PERMISSION_JOB_RETRIEVE for the exact function."""
     admin_user = User.objects.create_user(username="admin_ext")
     provider = Provider.objects.create(name="ext-provider")
 
-    entry = _entry("ext-provider", {PLATFORM_PERMISSION_JOB_RETRIEVE})
+    provider_program = Program.objects.create(title="fn", author=job_author, provider=provider)
+    entry = FunctionAccessEntry(
+        provider_name="ext-provider",
+        function_title="fn",
+        permissions={PLATFORM_PERMISSION_JOB_RETRIEVE},
+        business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
+    )
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
 
-    provider_program = Program.objects.create(title="fn", author=job_author, provider=provider)
-    provider_job = Job.objects.create(
-        program=provider_program,
-        author=job_author,
-        status=Job.QUEUED,
-    )
+    provider_job = Job.objects.create(program=provider_program, author=job_author, status=Job.QUEUED)
 
     assert JobAccessPolicies.can_access(admin_user, provider_job, accessible_functions=accessible) is True
 
 
 def test_can_access_external_client_returns_false_when_permission_missing(job_author):
-    """can_access False when Runtime API client has no PLATFORM_PERMISSION_JOB_RETRIEVE."""
+    """can_access False when Runtime API client has no PLATFORM_PERMISSION_JOB_RETRIEVE for the function."""
     admin_user = User.objects.create_user(username="admin_ext2")
     provider = Provider.objects.create(name="ext-provider2")
 
-    entry = _entry("ext-provider2", {PLATFORM_PERMISSION_PROVIDER_LOGS})  # wrong permission
+    provider_program = Program.objects.create(title="fn2", author=job_author, provider=provider)
+    entry = FunctionAccessEntry(
+        provider_name="ext-provider2",
+        function_title="fn2",
+        permissions={PLATFORM_PERMISSION_PROVIDER_LOGS},  # wrong permission
+        business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
+    )
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
 
-    provider_program = Program.objects.create(title="fn2", author=job_author, provider=provider)
-    provider_job = Job.objects.create(
-        program=provider_program,
-        author=job_author,
-        status=Job.QUEUED,
-    )
+    provider_job = Job.objects.create(program=provider_program, author=job_author, status=Job.QUEUED)
 
     assert JobAccessPolicies.can_access(admin_user, provider_job, accessible_functions=accessible) is False
 
@@ -194,36 +196,38 @@ def test_can_access_author_always_true_regardless_of_accessible_functions(job_au
 
 
 def test_can_read_provider_logs_external_client_returns_true(job_author):
-    """can_read_provider_logs True when Runtime API client has PLATFORM_PERMISSION_PROVIDER_LOGS."""
+    """can_read_provider_logs True when Runtime API client has PLATFORM_PERMISSION_PROVIDER_LOGS for the function."""
     admin_user = User.objects.create_user(username="log_admin")
     provider = Provider.objects.create(name="log-provider")
 
-    entry = _entry("log-provider", {PLATFORM_PERMISSION_PROVIDER_LOGS})
+    provider_program = Program.objects.create(title="log-fn", author=job_author, provider=provider)
+    entry = FunctionAccessEntry(
+        provider_name="log-provider",
+        function_title="log-fn",
+        permissions={PLATFORM_PERMISSION_PROVIDER_LOGS},
+        business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
+    )
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
 
-    provider_program = Program.objects.create(title="log-fn", author=job_author, provider=provider)
-    provider_job = Job.objects.create(
-        program=provider_program,
-        author=job_author,
-        status=Job.QUEUED,
-    )
+    provider_job = Job.objects.create(program=provider_program, author=job_author, status=Job.QUEUED)
 
     assert JobAccessPolicies.can_read_provider_logs(admin_user, provider_job, accessible_functions=accessible) is True
 
 
 def test_can_read_provider_logs_external_client_returns_false_when_missing(job_author):
-    """can_read_provider_logs False when Runtime API client has no PLATFORM_PERMISSION_PROVIDER_LOGS."""
+    """can_read_provider_logs False when Runtime API client has no PLATFORM_PERMISSION_PROVIDER_LOGS for the function."""
     admin_user = User.objects.create_user(username="log_admin2")
     provider = Provider.objects.create(name="log-provider2")
 
-    entry = _entry("log-provider2", {PLATFORM_PERMISSION_JOB_RETRIEVE})  # wrong permission
+    provider_program = Program.objects.create(title="log-fn2", author=job_author, provider=provider)
+    entry = FunctionAccessEntry(
+        provider_name="log-provider2",
+        function_title="log-fn2",
+        permissions={PLATFORM_PERMISSION_JOB_RETRIEVE},  # wrong permission
+        business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
+    )
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
 
-    provider_program = Program.objects.create(title="log-fn2", author=job_author, provider=provider)
-    provider_job = Job.objects.create(
-        program=provider_program,
-        author=job_author,
-        status=Job.QUEUED,
-    )
+    provider_job = Job.objects.create(program=provider_program, author=job_author, status=Job.QUEUED)
 
     assert JobAccessPolicies.can_read_provider_logs(admin_user, provider_job, accessible_functions=accessible) is False
