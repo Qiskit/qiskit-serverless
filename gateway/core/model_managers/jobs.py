@@ -20,6 +20,7 @@ class JobFilters:
 
     Attributes:
         function: Function title
+        functions: Function title list
         provider: Provider who owns the function
         limit: Number of results to return per page
         offset: Number of results to skip
@@ -29,7 +30,7 @@ class JobFilters:
     """
 
     function: Optional[str] = None
-    function_titles: Optional[Set[str]] = None
+    functions: Optional[Set[str]] = None
     provider: Optional[str] = None
 
     limit: Optional[int] = None
@@ -99,8 +100,8 @@ class JobQuerySet(QuerySet):
 
         if filters.function:
             queryset = queryset.filter(program__title=filters.function)
-        elif filters.function_titles:
-            queryset = queryset.filter(program__title__in=filters.function_titles)
+        elif filters.functions:
+            queryset = queryset.filter(program__title__in=filters.functions)
 
         return queryset
 

@@ -61,7 +61,7 @@ class JobsProviderListUseCase:
             )
             if not titles:
                 raise ProviderNotFoundException(filters.provider)
-            filters.function_titles = titles
+            filters.functions = titles
         else:
             # Legacy Django groups
             if not ProviderAccessPolicy.is_provider_admin(user, provider):
