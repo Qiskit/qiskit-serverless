@@ -1,7 +1,15 @@
 """Tests for FunctionAccessClient — real HTTP server."""
 
+import pytest
+
 from api.clients.function_access_client import FunctionAccessClient
-from core.models import PLATFORM_PERMISSION_RUN
+from core.config_key import ConfigKey
+from core.models import Config, PLATFORM_PERMISSION_RUN
+
+
+@pytest.fixture(autouse=True)
+def _enable_instances_api():
+    Config.set(ConfigKey.RUNTIME_INSTANCES_API_ENABLED, "true")
 
 
 def test_returns_function_from_200_response(instances_server):
@@ -35,8 +43,8 @@ def test_returns_no_response_on_server_error(instances_server):
     assert result.has_response is False
 
 
-def test_returns_no_response_when_disabled(settings):
-    settings.RUNTIME_INSTANCES_API_ENABLED = False
+def test_returns_no_response_when_disabled():
+    Config.set(ConfigKey.RUNTIME_INSTANCES_API_ENABLED, "false")
 
     result = FunctionAccessClient().get_accessible_functions("crn:test:000")
 

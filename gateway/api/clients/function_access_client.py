@@ -5,8 +5,10 @@ import logging
 import requests
 from django.conf import settings
 
+from core.config_key import ConfigKey
 from core.domain.authorization.function_access_entry import FunctionAccessEntry
 from core.domain.authorization.function_access_result import FunctionAccessResult
+from core.models import Config
 
 logger = logging.getLogger("api.FunctionAccessClient")
 
@@ -16,7 +18,7 @@ class FunctionAccessClient:
 
     def get_accessible_functions(self, instance_crn: str) -> FunctionAccessResult:
         """Return all functions accessible to the given instance CRN with their permissions."""
-        if not settings.RUNTIME_INSTANCES_API_ENABLED:
+        if not Config.get_bool(ConfigKey.RUNTIME_INSTANCES_API_ENABLED):
             return FunctionAccessResult(has_response=False)
 
         base_url = settings.RUNTIME_INSTANCES_API_BASE_URL
