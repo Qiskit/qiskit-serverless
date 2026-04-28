@@ -52,7 +52,7 @@ class ProviderAccessPolicy:
         function_title: str,
         accessible_functions: Optional[FunctionAccessResult] = None,
     ) -> bool:
-        """Checks if the user can retrieve a job from this provider (non-author access)."""
+        """Runtime instances: checks function has job.retrieve permission. Legacy: checks provider admin group."""
         if provider is None:
             raise ValueError("provider cannot be None")
         has_access = _check(user, provider, function_title, accessible_functions, PLATFORM_PERMISSION_JOB_RETRIEVE)
@@ -67,7 +67,7 @@ class ProviderAccessPolicy:
         function_title: str,
         accessible_functions: Optional[FunctionAccessResult] = None,
     ) -> bool:
-        """Checks if the user can read provider logs for jobs from this provider."""
+        """Runtime instances: checks function has provider.logs permission. Legacy: checks provider admin group."""
         if provider is None:
             raise ValueError("provider cannot be None")
         has_access = _check(user, provider, function_title, accessible_functions, PLATFORM_PERMISSION_PROVIDER_LOGS)
@@ -82,7 +82,7 @@ class ProviderAccessPolicy:
         function_title: str,
         accessible_functions: Optional[FunctionAccessResult] = None,
     ) -> bool:
-        """Checks if the user can list provider jobs."""
+        """Runtime instances: checks function has provider.jobs permission. Legacy: checks provider admin group."""
         if provider is None:
             raise ValueError("provider cannot be None")
         has_access = _check(user, provider, function_title, accessible_functions, PLATFORM_PERMISSION_PROVIDER_JOBS)
@@ -97,7 +97,7 @@ class ProviderAccessPolicy:
         function_title: str,
         accessible_functions: Optional[FunctionAccessResult] = None,
     ) -> bool:
-        """Checks if the user can manage provider files for this provider."""
+        """Runtime instances: checks function has provider.files permission. Legacy: checks provider admin group."""
         if provider is None:
             raise ValueError("provider cannot be None")
         has_access = _check(user, provider, function_title, accessible_functions, PLATFORM_PERMISSION_PROVIDER_FILES)
@@ -112,7 +112,7 @@ class ProviderAccessPolicy:
         function_title: str,
         accessible_functions: Optional[FunctionAccessResult] = None,
     ) -> bool:
-        """Checks if the user can upload a function to this provider."""
+        """Runtime instances: checks function has provider.upload permission. Legacy: checks provider admin group."""
         if provider is None:
             raise ValueError("provider cannot be None")
         has_access = _check(user, provider, function_title, accessible_functions, PLATFORM_PERMISSION_PROVIDER_UPLOAD)
