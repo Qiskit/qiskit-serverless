@@ -1,40 +1,13 @@
-# pylint: disable=import-error, invalid-name
-"""Fixtures for tests.
-
-This module provides pytest fixtures for integration tests.
-It assumes the server is pre-started externally (via docker-compose or kubernetes).
-"""
+"""Fixtures for FunctionAccessClient tests."""
 
 import json
-import os
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-from pytest import fixture
-from qiskit_serverless import ServerlessClient
-
-GATEWAY_TOKEN = os.environ.get("GATEWAY_TOKEN", "awesome_token")
-GATEWAY_HOST = os.environ.get("GATEWAY_HOST", "http://localhost:8000")
-GATEWAY_INSTANCE = os.environ.get("GATEWAY_INSTANCE", "an_awesome_crn")
-GATEWAY_CHANNEL = os.environ.get("GATEWAY_CHANNEL", "ibm_quantum_platform")
-
-# Port must match RUNTIME_INSTANCES_API_BASE_URL configured in the gateway Docker container.
-# Default matches docker-compose: http://host.docker.internal:8111
-INSTANCES_SERVER_LOCAL_PORT = int(os.environ.get("INSTANCES_SERVER_LOCAL_PORT", "8111"))
+import pytest
 
 
-@fixture(scope="session")
-def serverless_client():
-    """Fixture for testing files with serverless client."""
-    return ServerlessClient(
-        token=GATEWAY_TOKEN,
-        host=GATEWAY_HOST,
-        instance=GATEWAY_INSTANCE,
-        channel=GATEWAY_CHANNEL,
-    )
-
-
-class InstancesHandler(BaseHTTPRequestHandler):
+class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         cfg = self.server.response_config
         body = json.dumps(cfg["body"]).encode() if "body" in cfg else b""
@@ -54,9 +27,8 @@ class InstancesServer:
     """Wrapper around HTTPServer with a clean API for configuring instances API responses.
 
     Usage:
-        instances_server.grant("my-provider", "my-function", ["function.provider.jobs"])
-        instances_server.reset()    # clears all grants (empty list, has_response=True)
-        instances_server.error(500) # gateway falls back to Django groups
+        instances_server.grant("my-provider", "my-function", ["function.run"])
+        instances_server.reset()   # clears all grants (empty list, has_response=True)
     """
 
     def __init__(self, httpd: HTTPServer):
@@ -95,26 +67,15 @@ class InstancesServer:
         return self
 
 
-@fixture(scope="session", autouse=True)
-def instances_server():
-    """Start a real HTTP server that simulates the external instances API.
-
-    Autouse: always running for all integration tests, so any new endpoint that uses
-    the instances client path will fail if it doesn't call instances_server.grant() first.
-
-    Binds to 0.0.0.0 so the gateway Docker container can reach it via host.docker.internal.
-    """
-    httpd = HTTPServer(("0.0.0.0", INSTANCES_SERVER_LOCAL_PORT), InstancesHandler)
+@pytest.fixture
+def instances_server(settings):
+    """Real HTTP server on a random port simulating the external instances API."""
+    httpd = HTTPServer(("127.0.0.1", 0), Handler)
     t = threading.Thread(target=httpd.serve_forever)
     t.daemon = True
     t.start()
     server = InstancesServer(httpd)
+    settings.RUNTIME_INSTANCES_API_BASE_URL = f"http://127.0.0.1:{httpd.server_address[1]}"
     yield server
     httpd.shutdown()
     t.join()
-
-
-@fixture(autouse=True)
-def _reset_instances_server(instances_server):
-    """Reset the instances server to empty grants before each test."""
-    instances_server.reset()
