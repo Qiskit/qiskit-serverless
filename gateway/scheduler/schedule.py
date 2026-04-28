@@ -102,7 +102,7 @@ def check_job_timeout(job: Job):
 
     if job.status in Job.RUNNING_STATUSES:
         timeout = settings.PROGRAM_TIMEOUT
-        latest_job_event = JobEvent.objects.filter(job=job).order_by('-created').first()
+        latest_job_event = JobEvent.objects.filter(job=job).order_by("-created").first()
         if not latest_job_event:
             # This should never happen since every job should have at least 1 JobEvent (on creation).
             pass
