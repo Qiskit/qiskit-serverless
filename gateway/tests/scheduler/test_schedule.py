@@ -27,11 +27,37 @@ class TestScheduleApi(APITestCase):
 
     @pytest.fixture(autouse=True)
     def _setup(self, tmp_path, settings, db):
-        call_command("loaddata", "tests/fixtures/schedule_fixtures.json")
         settings.MEDIA_ROOT = str(tmp_path)
 
     def test_get_fair_share_jobs(self):
         """Tests fair share jobs getter function."""
+
+        # Create test data to match fixture expectations (7 jobs total)
+        test_user = TestUtils.get_user_and_username("test_user")[0]
+        test2_user = TestUtils.get_user_and_username("test2_user")[0]
+        test3_user = TestUtils.get_user_and_username("test3_user")[0]
+        test4_user = TestUtils.get_user_and_username("test4_user")[0]
+
+        program = TestUtils.create_program(program_title="Program", author=test_user)
+        compute_resource = TestUtils.get_or_create_compute_resource(
+            title="compute resource", host="somehost", owner=test3_user
+        )
+
+        # Create 7 jobs with various statuses
+        job1 = TestUtils.create_job(author=test_user, program=program, status=Job.QUEUED, result='{"somekey":1}')
+        TestUtils.create_job(author=test_user, program=program, status=Job.QUEUED, result='{"somekey":1}')
+        TestUtils.create_job(author=test2_user, program=program, status=Job.PENDING, result='{"somekey":1}')
+        TestUtils.create_job(
+            author=test3_user,
+            program=program,
+            status=Job.PENDING,
+            compute_resource=compute_resource,
+            result='{"somekey":1}',
+        )
+        TestUtils.create_job(author=test3_user, program=program, status=Job.RUNNING, result='{"somekey":1}')
+        job6 = TestUtils.create_job(author=test4_user, program=program, status=Job.QUEUED, result='{"somekey":1}')
+        TestUtils.create_job(author=test4_user, program=program, status=Job.QUEUED, result='{"somekey":1}')
+
         jobs = get_jobs_to_schedule_fair_share(5, False)
 
         for job in jobs:
@@ -42,8 +68,8 @@ class TestScheduleApi(APITestCase):
         assert 1 in author_ids
         assert 4 in author_ids
         assert len(jobs) == 2
-        assert "1a7947f9-6ae8-4e3d-ac1e-e7d608deec90" in job_ids
-        assert "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82" in job_ids
+        assert str(job1.id) in job_ids  # `test4_user` job
+        assert str(job6.id) in job_ids  # `test_user` job
 
     @patch("scheduler.schedule.get_runner")
     def test_execute_job_success(self, mock_get_runner_client):
@@ -108,7 +134,7 @@ class TestScheduleApi(APITestCase):
             compute_resource = ComputeResource.objects.create(title="test-cluster-test-job-id", active=True)
             # Create a job with RUNNING status
             # TestUtils.create_job automatically creates a JobEvent with current timestamp for creation and add a
-            # JobEvent with change STATUS_CHANGE because the status is not Job.PENDING.
+            # JobEvent with change STATUS_CHANGE because the status is not Job.QUEUED.
             job = TestUtils.create_job(
                 author=user, status=Job.RUNNING, program=program, compute_resource=compute_resource
             )

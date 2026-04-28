@@ -27,7 +27,6 @@ def create_job(author: str, provider_admin: Optional[str] = None) -> Job:
     if provider_admin:
         TestUtils.add_user_to_group(provider_admin, provider_admin)
         provider = TestUtils.get_or_create_provider(provider_admin, provider_admin)
-        # provider = TestUtils.get_or_create_provider(provider_admin, provider_admin)
 
     program = TestUtils.create_program(
         program_title=f"{author_user.username}-{provider_admin or 'custom'}",
