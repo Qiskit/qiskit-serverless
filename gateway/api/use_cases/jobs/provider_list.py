@@ -27,11 +27,6 @@ class JobsProviderListUseCase:
         """
         Retrieve provider jobs with access validation.
 
-        When filters.function is set: access is checked for that specific function.
-        When filters.function is None: jobs are filtered to only those from functions
-        accessible to the user (client response), or all provider jobs if the user is
-        a provider admin (Django groups fallback).
-
         Returns:
             tuple[list[Job], int]: (jobs, total_count)
 
@@ -43,27 +38,32 @@ class JobsProviderListUseCase:
         if not provider:
             raise ProviderNotFoundException(filters.provider)
 
-        if filters.function:
-            if not ProviderAccessPolicy.can_list_jobs(user, provider, filters.function, accessible_functions):
-                raise ProviderNotFoundException(filters.provider)
-
-            function = Function.objects.get_function(
-                function_title=filters.function,
-                provider_name=filters.provider,
-            )
-            if not function:
-                raise FunctionNotFoundException(function=filters.function, provider=filters.provider)
-        else:
-            if accessible_functions.has_response:
-                accessible_titles = accessible_functions.get_functions_by_provider(
-                    PLATFORM_PERMISSION_PROVIDER_JOBS
-                ).get(filters.provider, set())
-                if not accessible_titles:
-                    raise ProviderNotFoundException(filters.provider)
-                filters.function_titles = accessible_titles
-            else:
-                if not ProviderAccessPolicy.is_provider_admin(user, provider):
-                    raise ProviderNotFoundException(filters.provider)
+        self._apply_access_scope(user, provider, filters, accessible_functions)
 
         queryset, total = Job.objects.user_jobs_page(user=None, filters=filters)
         return list(queryset), total
+
+    @staticmethod
+    def _apply_access_scope(user, provider, filters, accessible_functions):
+        """Validate access and narrow filters to only the jobs the user can see.
+
+        When filters.function is set: checks access to that specific function.
+        When filters.function is None:
+          - Client response: restricts to accessible function titles.
+          - Fallback (Django groups): checks provider admin membership.
+        """
+        if filters.function:
+            if not ProviderAccessPolicy.can_list_jobs(user, provider, filters.function, accessible_functions):
+                raise ProviderNotFoundException(filters.provider)
+            if not Function.objects.get_function(filters.function, filters.provider):
+                raise FunctionNotFoundException(function=filters.function, provider=filters.provider)
+        elif accessible_functions.has_response:
+            titles = accessible_functions.get_functions_by_provider(PLATFORM_PERMISSION_PROVIDER_JOBS).get(
+                filters.provider, set()
+            )
+            if not titles:
+                raise ProviderNotFoundException(filters.provider)
+            filters.function_titles = titles
+        else:
+            if not ProviderAccessPolicy.is_provider_admin(user, provider):
+                raise ProviderNotFoundException(filters.provider)
