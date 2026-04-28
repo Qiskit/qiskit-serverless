@@ -33,7 +33,7 @@ class JobsProviderListUseCase:
             FunctionNotFoundException: If function doesn't exist or access denied.
         """
         provider = self.provider_repository.get_provider_by_name(filters.provider)
-        if not provider or not ProviderAccessPolicy.can_list_jobs(user, provider):
+        if not provider or not ProviderAccessPolicy.can_list_jobs(user, provider, filters.function):
             raise ProviderNotFoundException(filters.provider)
 
         if filters.function:

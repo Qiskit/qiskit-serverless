@@ -37,7 +37,7 @@ def _entry(provider_name, permissions):
 def test_can_retrieve_job_raises_for_none_provider():
     user = User.objects.create_user(username="rj_none")
     with pytest.raises(ValueError):
-        ProviderAccessPolicy.can_retrieve_job(user, None)
+        ProviderAccessPolicy.can_retrieve_job(user, None, None)
 
 
 def test_can_retrieve_job_true_via_admin_groups():
@@ -46,13 +46,13 @@ def test_can_retrieve_job_true_via_admin_groups():
     g = Group.objects.create(name="rj_group")
     user.groups.add(g)
     provider.admin_groups.add(g)
-    assert ProviderAccessPolicy.can_retrieve_job(user, provider) is True
+    assert ProviderAccessPolicy.can_retrieve_job(user, provider, None) is True
 
 
 def test_can_retrieve_job_false_when_not_admin():
     user = User.objects.create_user(username="rj_noadmin")
     provider = Provider.objects.create(name="rj-provider2")
-    assert ProviderAccessPolicy.can_retrieve_job(user, provider) is False
+    assert ProviderAccessPolicy.can_retrieve_job(user, provider, None) is False
 
 
 def test_can_retrieve_job_false_when_wrong_groups():
@@ -60,7 +60,7 @@ def test_can_retrieve_job_false_when_wrong_groups():
     user.groups.add(Group.objects.create(name="rj_user_group"))
     provider = Provider.objects.create(name="rj-provider3")
     provider.admin_groups.add(Group.objects.create(name="rj_admin_group"))
-    assert ProviderAccessPolicy.can_retrieve_job(user, provider) is False
+    assert ProviderAccessPolicy.can_retrieve_job(user, provider, None) is False
 
 
 def test_can_retrieve_job_true_via_client():
@@ -68,7 +68,7 @@ def test_can_retrieve_job_true_via_client():
     provider = Provider.objects.create(name="rj-provider4")
     entry = _entry("rj-provider4", {PLATFORM_PERMISSION_JOB_RETRIEVE})
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
-    assert ProviderAccessPolicy.can_retrieve_job(user, provider, accessible) is True
+    assert ProviderAccessPolicy.can_retrieve_job(user, provider, None, accessible) is True
 
 
 def test_can_retrieve_job_false_via_client_wrong_permission():
@@ -76,14 +76,14 @@ def test_can_retrieve_job_false_via_client_wrong_permission():
     provider = Provider.objects.create(name="rj-provider5")
     entry = _entry("rj-provider5", {PLATFORM_PERMISSION_PROVIDER_LOGS})
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
-    assert ProviderAccessPolicy.can_retrieve_job(user, provider, accessible) is False
+    assert ProviderAccessPolicy.can_retrieve_job(user, provider, None, accessible) is False
 
 
 def test_can_retrieve_job_false_via_client_no_entries():
     user = User.objects.create_user(username="rj_client3")
     provider = Provider.objects.create(name="rj-provider6")
     accessible = FunctionAccessResult(has_response=True, functions=[])
-    assert ProviderAccessPolicy.can_retrieve_job(user, provider, accessible) is False
+    assert ProviderAccessPolicy.can_retrieve_job(user, provider, None, accessible) is False
 
 
 def test_can_retrieve_job_falls_back_to_groups_when_no_response():
@@ -93,7 +93,7 @@ def test_can_retrieve_job_falls_back_to_groups_when_no_response():
     user.groups.add(g)
     provider.admin_groups.add(g)
     accessible = FunctionAccessResult(has_response=False)
-    assert ProviderAccessPolicy.can_retrieve_job(user, provider, accessible) is True
+    assert ProviderAccessPolicy.can_retrieve_job(user, provider, None, accessible) is True
 
 
 # ---------------------------------------------------------------------------
@@ -106,7 +106,7 @@ def test_can_read_logs_true_via_client():
     provider = Provider.objects.create(name="rl-provider")
     entry = _entry("rl-provider", {PLATFORM_PERMISSION_PROVIDER_LOGS})
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
-    assert ProviderAccessPolicy.can_read_logs(user, provider, accessible) is True
+    assert ProviderAccessPolicy.can_read_logs(user, provider, None, accessible) is True
 
 
 def test_can_read_logs_false_via_client_wrong_permission():
@@ -114,7 +114,7 @@ def test_can_read_logs_false_via_client_wrong_permission():
     provider = Provider.objects.create(name="rl-provider2")
     entry = _entry("rl-provider2", {PLATFORM_PERMISSION_JOB_RETRIEVE})
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
-    assert ProviderAccessPolicy.can_read_logs(user, provider, accessible) is False
+    assert ProviderAccessPolicy.can_read_logs(user, provider, None, accessible) is False
 
 
 # ---------------------------------------------------------------------------
@@ -127,7 +127,7 @@ def test_can_list_jobs_true_via_client():
     provider = Provider.objects.create(name="lj-provider")
     entry = _entry("lj-provider", {PLATFORM_PERMISSION_PROVIDER_JOBS})
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
-    assert ProviderAccessPolicy.can_list_jobs(user, provider, accessible) is True
+    assert ProviderAccessPolicy.can_list_jobs(user, provider, None, accessible) is True
 
 
 def test_can_list_jobs_false_via_client_wrong_permission():
@@ -135,7 +135,7 @@ def test_can_list_jobs_false_via_client_wrong_permission():
     provider = Provider.objects.create(name="lj-provider2")
     entry = _entry("lj-provider2", {PLATFORM_PERMISSION_JOB_RETRIEVE})
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
-    assert ProviderAccessPolicy.can_list_jobs(user, provider, accessible) is False
+    assert ProviderAccessPolicy.can_list_jobs(user, provider, None, accessible) is False
 
 
 # ---------------------------------------------------------------------------
@@ -148,7 +148,7 @@ def test_can_manage_files_true_via_client():
     provider = Provider.objects.create(name="mf-provider")
     entry = _entry("mf-provider", {PLATFORM_PERMISSION_PROVIDER_FILES})
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
-    assert ProviderAccessPolicy.can_manage_files(user, provider, accessible) is True
+    assert ProviderAccessPolicy.can_manage_files(user, provider, None, accessible) is True
 
 
 def test_can_manage_files_false_via_client_wrong_permission():
@@ -156,7 +156,7 @@ def test_can_manage_files_false_via_client_wrong_permission():
     provider = Provider.objects.create(name="mf-provider2")
     entry = _entry("mf-provider2", {PLATFORM_PERMISSION_PROVIDER_JOBS})
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
-    assert ProviderAccessPolicy.can_manage_files(user, provider, accessible) is False
+    assert ProviderAccessPolicy.can_manage_files(user, provider, None, accessible) is False
 
 
 # ---------------------------------------------------------------------------
@@ -169,7 +169,7 @@ def test_can_upload_function_true_via_client():
     provider = Provider.objects.create(name="uf-provider")
     entry = _entry("uf-provider", {PLATFORM_PERMISSION_PROVIDER_UPLOAD})
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
-    assert ProviderAccessPolicy.can_upload_function(user, provider, accessible) is True
+    assert ProviderAccessPolicy.can_upload_function(user, provider, None, accessible) is True
 
 
 def test_can_upload_function_false_via_client_wrong_permission():
@@ -177,7 +177,7 @@ def test_can_upload_function_false_via_client_wrong_permission():
     provider = Provider.objects.create(name="uf-provider2")
     entry = _entry("uf-provider2", {PLATFORM_PERMISSION_PROVIDER_JOBS})
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
-    assert ProviderAccessPolicy.can_upload_function(user, provider, accessible) is False
+    assert ProviderAccessPolicy.can_upload_function(user, provider, None, accessible) is False
 
 
 # ---------------------------------------------------------------------------
@@ -200,7 +200,7 @@ def test_can_retrieve_job_true_for_exact_function():
     provider = Provider.objects.create(name="fg-provider")
     entry = _entry_named("fg-provider", "sampler", {PLATFORM_PERMISSION_JOB_RETRIEVE})
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
-    assert ProviderAccessPolicy.can_retrieve_job(user, provider, accessible, function_title="sampler") is True
+    assert ProviderAccessPolicy.can_retrieve_job(user, provider, "sampler", accessible) is True
 
 
 def test_can_retrieve_job_false_for_different_function():
@@ -209,7 +209,7 @@ def test_can_retrieve_job_false_for_different_function():
     provider = Provider.objects.create(name="fg-provider2")
     entry = _entry_named("fg-provider2", "sampler", {PLATFORM_PERMISSION_JOB_RETRIEVE})
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
-    assert ProviderAccessPolicy.can_retrieve_job(user, provider, accessible, function_title="estimator") is False
+    assert ProviderAccessPolicy.can_retrieve_job(user, provider, "estimator", accessible) is False
 
 
 def test_can_read_logs_false_for_different_function():
@@ -217,7 +217,7 @@ def test_can_read_logs_false_for_different_function():
     provider = Provider.objects.create(name="fg-provider3")
     entry = _entry_named("fg-provider3", "sampler", {PLATFORM_PERMISSION_PROVIDER_LOGS})
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
-    assert ProviderAccessPolicy.can_read_logs(user, provider, accessible, function_title="estimator") is False
+    assert ProviderAccessPolicy.can_read_logs(user, provider, "estimator", accessible) is False
 
 
 def test_can_list_jobs_false_for_different_function():
@@ -225,7 +225,7 @@ def test_can_list_jobs_false_for_different_function():
     provider = Provider.objects.create(name="fg-provider4")
     entry = _entry_named("fg-provider4", "sampler", {PLATFORM_PERMISSION_PROVIDER_JOBS})
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
-    assert ProviderAccessPolicy.can_list_jobs(user, provider, accessible, function_title="estimator") is False
+    assert ProviderAccessPolicy.can_list_jobs(user, provider, "estimator", accessible) is False
 
 
 def test_can_manage_files_false_for_different_function():
@@ -233,7 +233,7 @@ def test_can_manage_files_false_for_different_function():
     provider = Provider.objects.create(name="fg-provider5")
     entry = _entry_named("fg-provider5", "sampler", {PLATFORM_PERMISSION_PROVIDER_FILES})
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
-    assert ProviderAccessPolicy.can_manage_files(user, provider, accessible, function_title="estimator") is False
+    assert ProviderAccessPolicy.can_manage_files(user, provider, "estimator", accessible) is False
 
 
 def test_can_upload_function_false_for_different_function():
@@ -241,7 +241,7 @@ def test_can_upload_function_false_for_different_function():
     provider = Provider.objects.create(name="fg-provider6")
     entry = _entry_named("fg-provider6", "sampler", {PLATFORM_PERMISSION_PROVIDER_UPLOAD})
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
-    assert ProviderAccessPolicy.can_upload_function(user, provider, accessible, function_title="estimator") is False
+    assert ProviderAccessPolicy.can_upload_function(user, provider, "estimator", accessible) is False
 
 
 def test_no_function_title_falls_back_to_provider_level():
@@ -250,5 +250,5 @@ def test_no_function_title_falls_back_to_provider_level():
     provider = Provider.objects.create(name="fg-provider7")
     entry = _entry_named("fg-provider7", "sampler", {PLATFORM_PERMISSION_JOB_RETRIEVE})
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
-    # No function_title → provider-level → True because sampler has the permission
-    assert ProviderAccessPolicy.can_retrieve_job(user, provider, accessible) is True
+    # function_title=None → provider-level → True because sampler has the permission
+    assert ProviderAccessPolicy.can_retrieve_job(user, provider, None, accessible) is True

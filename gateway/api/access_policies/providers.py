@@ -21,9 +21,9 @@ logger = logging.getLogger("api.ProviderAccessPolicy")
 def _check(
     user,
     provider: Provider,
+    function_title: Optional[str],
     accessible_functions: Optional[FunctionAccessResult],
     permission: str,
-    function_title: Optional[str] = None,
 ) -> bool:
     """Core provider access logic shared by all named methods.
 
@@ -51,13 +51,13 @@ class ProviderAccessPolicy:
     def can_retrieve_job(
         user,
         provider: Provider,
+        function_title: Optional[str],
         accessible_functions: Optional[FunctionAccessResult] = None,
-        function_title: Optional[str] = None,
     ) -> bool:
         """Checks if the user can retrieve a job from this provider (non-author access)."""
         if provider is None:
             raise ValueError("provider cannot be None")
-        has_access = _check(user, provider, accessible_functions, PLATFORM_PERMISSION_JOB_RETRIEVE, function_title)
+        has_access = _check(user, provider, function_title, accessible_functions, PLATFORM_PERMISSION_JOB_RETRIEVE)
         if not has_access:
             logger.warning("[can_retrieve_job] provider=%s user_id=%s | no access", provider.name, user.id)
         return has_access
@@ -66,13 +66,13 @@ class ProviderAccessPolicy:
     def can_read_logs(
         user,
         provider: Provider,
+        function_title: Optional[str],
         accessible_functions: Optional[FunctionAccessResult] = None,
-        function_title: Optional[str] = None,
     ) -> bool:
         """Checks if the user can read provider logs for jobs from this provider."""
         if provider is None:
             raise ValueError("provider cannot be None")
-        has_access = _check(user, provider, accessible_functions, PLATFORM_PERMISSION_PROVIDER_LOGS, function_title)
+        has_access = _check(user, provider, function_title, accessible_functions, PLATFORM_PERMISSION_PROVIDER_LOGS)
         if not has_access:
             logger.warning("[can_read_logs] provider=%s user_id=%s | no access", provider.name, user.id)
         return has_access
@@ -81,13 +81,13 @@ class ProviderAccessPolicy:
     def can_list_jobs(
         user,
         provider: Provider,
+        function_title: Optional[str],
         accessible_functions: Optional[FunctionAccessResult] = None,
-        function_title: Optional[str] = None,
     ) -> bool:
         """Checks if the user can list provider jobs."""
         if provider is None:
             raise ValueError("provider cannot be None")
-        has_access = _check(user, provider, accessible_functions, PLATFORM_PERMISSION_PROVIDER_JOBS, function_title)
+        has_access = _check(user, provider, function_title, accessible_functions, PLATFORM_PERMISSION_PROVIDER_JOBS)
         if not has_access:
             logger.warning("[can_list_jobs] provider=%s user_id=%s | no access", provider.name, user.id)
         return has_access
@@ -96,13 +96,13 @@ class ProviderAccessPolicy:
     def can_manage_files(
         user,
         provider: Provider,
+        function_title: Optional[str],
         accessible_functions: Optional[FunctionAccessResult] = None,
-        function_title: Optional[str] = None,
     ) -> bool:
         """Checks if the user can manage files for this provider."""
         if provider is None:
             raise ValueError("provider cannot be None")
-        has_access = _check(user, provider, accessible_functions, PLATFORM_PERMISSION_PROVIDER_FILES, function_title)
+        has_access = _check(user, provider, function_title, accessible_functions, PLATFORM_PERMISSION_PROVIDER_FILES)
         if not has_access:
             logger.warning("[can_manage_files] provider=%s user_id=%s | no access", provider.name, user.id)
         return has_access
@@ -111,13 +111,13 @@ class ProviderAccessPolicy:
     def can_upload_function(
         user,
         provider: Provider,
+        function_title: Optional[str],
         accessible_functions: Optional[FunctionAccessResult] = None,
-        function_title: Optional[str] = None,
     ) -> bool:
         """Checks if the user can upload a function to this provider."""
         if provider is None:
             raise ValueError("provider cannot be None")
-        has_access = _check(user, provider, accessible_functions, PLATFORM_PERMISSION_PROVIDER_UPLOAD, function_title)
+        has_access = _check(user, provider, function_title, accessible_functions, PLATFORM_PERMISSION_PROVIDER_UPLOAD)
         if not has_access:
             logger.warning("[can_upload_function] provider=%s user_id=%s | no access", provider.name, user.id)
         return has_access
