@@ -30,9 +30,11 @@ def _check(
     When accessible_functions.has_response=True: checks the specific function entry (granular).
     Otherwise falls back to Django admin_groups.
     """
+    # Runtime instances API has function granularity: user needs to have permission per function
     if accessible_functions is not None and accessible_functions.has_response:
         entry = accessible_functions.get_function(provider.name, function_title)
         return entry is not None and permission in entry.permissions
+    # Legacy Django auth has provider granularity: user needs to be a provider admin    
     user_groups = set(user.groups.all())
     return bool(user_groups.intersection(set(provider.admin_groups.all())))
 
@@ -95,7 +97,7 @@ class ProviderAccessPolicy:
         function_title: str,
         accessible_functions: Optional[FunctionAccessResult] = None,
     ) -> bool:
-        """Checks if the user can manage files for this provider."""
+        """Checks if the user can manage provider files for this provider."""
         if provider is None:
             raise ValueError("provider cannot be None")
         has_access = _check(user, provider, function_title, accessible_functions, PLATFORM_PERMISSION_PROVIDER_FILES)
