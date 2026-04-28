@@ -21,22 +21,18 @@ logger = logging.getLogger("api.ProviderAccessPolicy")
 def _check(
     user,
     provider: Provider,
-    function_title: Optional[str],
+    function_title: str,
     accessible_functions: Optional[FunctionAccessResult],
     permission: str,
 ) -> bool:
     """Core provider access logic shared by all named methods.
 
-    When accessible_functions.has_response=True:
-      - If function_title is given: checks the specific function entry (granular).
-      - If function_title is None: checks any function of the provider (provider-level).
+    When accessible_functions.has_response=True: checks the specific function entry (granular).
     Otherwise falls back to Django admin_groups.
     """
     if accessible_functions is not None and accessible_functions.has_response:
-        if function_title is not None:
-            entry = accessible_functions.get_function(provider.name, function_title)
-            return entry is not None and permission in entry.permissions
-        return accessible_functions.has_permission_for_provider(provider.name, permission)
+        entry = accessible_functions.get_function(provider.name, function_title)
+        return entry is not None and permission in entry.permissions
     user_groups = set(user.groups.all())
     return bool(user_groups.intersection(set(provider.admin_groups.all())))
 
@@ -51,7 +47,7 @@ class ProviderAccessPolicy:
     def can_retrieve_job(
         user,
         provider: Provider,
-        function_title: Optional[str],
+        function_title: str,
         accessible_functions: Optional[FunctionAccessResult] = None,
     ) -> bool:
         """Checks if the user can retrieve a job from this provider (non-author access)."""
@@ -66,7 +62,7 @@ class ProviderAccessPolicy:
     def can_read_logs(
         user,
         provider: Provider,
-        function_title: Optional[str],
+        function_title: str,
         accessible_functions: Optional[FunctionAccessResult] = None,
     ) -> bool:
         """Checks if the user can read provider logs for jobs from this provider."""
@@ -81,7 +77,7 @@ class ProviderAccessPolicy:
     def can_list_jobs(
         user,
         provider: Provider,
-        function_title: Optional[str],
+        function_title: str,
         accessible_functions: Optional[FunctionAccessResult] = None,
     ) -> bool:
         """Checks if the user can list provider jobs."""
@@ -96,7 +92,7 @@ class ProviderAccessPolicy:
     def can_manage_files(
         user,
         provider: Provider,
-        function_title: Optional[str],
+        function_title: str,
         accessible_functions: Optional[FunctionAccessResult] = None,
     ) -> bool:
         """Checks if the user can manage files for this provider."""
@@ -111,7 +107,7 @@ class ProviderAccessPolicy:
     def can_upload_function(
         user,
         provider: Provider,
-        function_title: Optional[str],
+        function_title: str,
         accessible_functions: Optional[FunctionAccessResult] = None,
     ) -> bool:
         """Checks if the user can upload a function to this provider."""
@@ -121,3 +117,11 @@ class ProviderAccessPolicy:
         if not has_access:
             logger.warning("[can_upload_function] provider=%s user_id=%s | no access", provider.name, user.id)
         return has_access
+
+    @staticmethod
+    def is_provider_admin(user, provider: Provider) -> bool:
+        """True if the user belongs to any of the provider's admin groups (Django groups fallback only)."""
+        if provider is None:
+            raise ValueError("provider cannot be None")
+        user_groups = set(user.groups.all())
+        return bool(user_groups.intersection(set(provider.admin_groups.all())))

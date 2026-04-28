@@ -3,7 +3,7 @@
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, Tuple, Self
+from typing import Optional, Set, Tuple, Self
 
 from django.db.models import QuerySet
 from django.contrib.auth.models import AbstractUser
@@ -29,6 +29,7 @@ class JobFilters:
     """
 
     function: Optional[str] = None
+    function_titles: Optional[Set[str]] = None
     provider: Optional[str] = None
 
     limit: Optional[int] = None
@@ -98,6 +99,8 @@ class JobQuerySet(QuerySet):
 
         if filters.function:
             queryset = queryset.filter(program__title=filters.function)
+        elif filters.function_titles:
+            queryset = queryset.filter(program__title__in=filters.function_titles)
 
         return queryset
 

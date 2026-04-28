@@ -6,8 +6,9 @@ from typing import List, Tuple
 from api.access_policies.providers import ProviderAccessPolicy
 from api.domain.exceptions.provider_not_found_exception import ProviderNotFoundException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.model_managers.jobs import JobFilters
-from core.models import Job
+from core.models import Job, PLATFORM_PERMISSION_PROVIDER_JOBS
 from core.models import Program as Function
 from api.repositories.providers import ProviderRepository
 
@@ -21,29 +22,48 @@ class JobsProviderListUseCase:
         self,
         user,
         filters: JobFilters,
+        accessible_functions: FunctionAccessResult,
     ) -> Tuple[List[Job], int]:
         """
         Retrieve provider jobs with access validation.
+
+        When filters.function is set: access is checked for that specific function.
+        When filters.function is None: jobs are filtered to only those from functions
+        accessible to the user (client response), or all provider jobs if the user is
+        a provider admin (Django groups fallback).
 
         Returns:
             tuple[list[Job], int]: (jobs, total_count)
 
         Raises:
             ProviderNotFoundException: If provider doesn't exist or access denied.
-            FunctionNotFoundException: If function doesn't exist or access denied.
+            FunctionNotFoundException: If function doesn't exist.
         """
         provider = self.provider_repository.get_provider_by_name(filters.provider)
-        if not provider or not ProviderAccessPolicy.can_list_jobs(user, provider, filters.function):
+        if not provider:
             raise ProviderNotFoundException(filters.provider)
 
         if filters.function:
+            if not ProviderAccessPolicy.can_list_jobs(user, provider, filters.function, accessible_functions):
+                raise ProviderNotFoundException(filters.provider)
+
             function = Function.objects.get_function(
                 function_title=filters.function,
                 provider_name=filters.provider,
             )
-
             if not function:
                 raise FunctionNotFoundException(function=filters.function, provider=filters.provider)
+        else:
+            if accessible_functions.has_response:
+                accessible_titles = accessible_functions.get_functions_by_provider(
+                    PLATFORM_PERMISSION_PROVIDER_JOBS
+                ).get(filters.provider, set())
+                if not accessible_titles:
+                    raise ProviderNotFoundException(filters.provider)
+                filters.function_titles = accessible_titles
+            else:
+                if not ProviderAccessPolicy.is_provider_admin(user, provider):
+                    raise ProviderNotFoundException(filters.provider)
 
         queryset, total = Job.objects.user_jobs_page(user=None, filters=filters)
         return list(queryset), total

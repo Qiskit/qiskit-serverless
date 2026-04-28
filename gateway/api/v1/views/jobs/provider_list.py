@@ -16,9 +16,11 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.enums.type_filter import TypeFilter
 from core.model_managers.jobs import JobFilters
 from core.models import Job, Program
+from api.clients.function_access_client import FunctionAccessClient
 from api.use_cases.jobs.provider_list import JobsProviderListUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
@@ -190,7 +192,12 @@ def get_provider_jobs(request: Request) -> Response:
     filters = JobFilters(**serializer.validated_data)
     user = cast(AbstractUser, request.user)
 
-    jobs, total = JobsProviderListUseCase().execute(user=user, filters=filters)
+    crn = getattr(request.auth, "instance", None)
+    accessible = (
+        FunctionAccessClient().get_accessible_functions(crn) if crn else FunctionAccessResult(has_response=False)
+    )
+
+    jobs, total = JobsProviderListUseCase().execute(user=user, filters=filters, accessible_functions=accessible)
     logger.info(
         "[jobs-provider-list] user_id=%s provider=%s function=%s | Provider jobs listed ok",
         user.id,
