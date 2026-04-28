@@ -6,7 +6,7 @@ from django.contrib.auth.models import User
 
 from core.domain.authorization.function_access_entry import FunctionAccessEntry
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import Program, Provider, Job, PLATFORM_PERMISSION_VIEW, PLATFORM_PERMISSION_RUN
+from core.models import Program, Provider, Job, PLATFORM_PERMISSION_READ, PLATFORM_PERMISSION_RUN
 
 pytestmark = pytest.mark.django_db
 
@@ -52,7 +52,7 @@ def test_with_permission_external_returns_own_and_permitted(
     author, other_user, provider, provider_function, user_function
 ):
     """When has_response=True, returns own functions + permitted provider functions."""
-    entry = _entry("my-provider", "my-function", {PLATFORM_PERMISSION_VIEW})
+    entry = _entry("my-provider", "my-function", {PLATFORM_PERMISSION_READ})
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
 
     result = list(
@@ -60,7 +60,7 @@ def test_with_permission_external_returns_own_and_permitted(
             author=other_user,
             legacy_permission_name="view_program",
             accessible_functions=accessible,
-            permission=PLATFORM_PERMISSION_VIEW,
+            permission=PLATFORM_PERMISSION_READ,
         )
     )
 
@@ -77,7 +77,7 @@ def test_with_permission_external_excludes_function_without_permission(author, o
             author=other_user,
             legacy_permission_name="view_program",
             accessible_functions=accessible,
-            permission=PLATFORM_PERMISSION_VIEW,
+            permission=PLATFORM_PERMISSION_READ,
         )
     )
 
@@ -94,7 +94,7 @@ def test_with_permission_external_no_entries_returns_only_own(author, other_user
             author=other_user,
             legacy_permission_name="view_program",
             accessible_functions=accessible,
-            permission=PLATFORM_PERMISSION_VIEW,
+            permission=PLATFORM_PERMISSION_READ,
         )
     )
 
@@ -111,7 +111,7 @@ def test_with_permission_fallback_when_has_response_false(author, provider_funct
             author=author,
             legacy_permission_name="view_program",
             accessible_functions=accessible,
-            permission=PLATFORM_PERMISSION_VIEW,
+            permission=PLATFORM_PERMISSION_READ,
         )
     )
 
@@ -138,7 +138,7 @@ def test_with_permission_none_accessible_functions_uses_fallback(author, provide
 
 def test_get_function_by_permission_external_returns_function(author, other_user, provider, provider_function):
     """When has_response=True and permission present, returns the function."""
-    entry = _entry("my-provider", "my-function", {PLATFORM_PERMISSION_VIEW})
+    entry = _entry("my-provider", "my-function", {PLATFORM_PERMISSION_READ})
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
 
     result = Program.objects.get_function_by_permission(
@@ -147,7 +147,7 @@ def test_get_function_by_permission_external_returns_function(author, other_user
         function_title="my-function",
         provider_name="my-provider",
         accessible_functions=accessible,
-        permission=PLATFORM_PERMISSION_VIEW,
+        permission=PLATFORM_PERMISSION_READ,
     )
 
     assert result == provider_function
@@ -166,7 +166,7 @@ def test_get_function_by_permission_external_returns_none_without_permission(
         function_title="my-function",
         provider_name="my-provider",
         accessible_functions=accessible,
-        permission=PLATFORM_PERMISSION_VIEW,
+        permission=PLATFORM_PERMISSION_READ,
     )
 
     assert result is None
@@ -184,7 +184,7 @@ def test_get_function_by_permission_external_returns_none_when_entry_missing(
         function_title="my-function",
         provider_name="my-provider",
         accessible_functions=accessible,
-        permission=PLATFORM_PERMISSION_VIEW,
+        permission=PLATFORM_PERMISSION_READ,
     )
 
     assert result is None
@@ -201,7 +201,7 @@ def test_get_function_by_permission_no_provider_returns_own_function(author):
         function_title="own-fn",
         provider_name=None,
         accessible_functions=accessible,
-        permission=PLATFORM_PERMISSION_VIEW,
+        permission=PLATFORM_PERMISSION_READ,
     )
 
     assert result == own_fn

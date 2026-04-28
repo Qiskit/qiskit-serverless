@@ -35,7 +35,7 @@ class FunctionsQuerySet(QuerySet):
             legacy_permission_name: Django permission codename (e.g. RUN_PROGRAM_PERMISSION)
             accessible_functions: Result from FunctionAccessClient; if None or has_response=False,
                 falls back to Django groups
-            permission: Platform permission constant (e.g. PLATFORM_PERMISSION_VIEW)
+            permission: Platform permission constant (e.g. PLATFORM_PERMISSION_READ)
         """
         if accessible_functions is not None and accessible_functions.has_response:
             by_provider = accessible_functions.get_functions_by_provider(permission)
@@ -140,7 +140,7 @@ class FunctionsQuerySet(QuerySet):
             function_title: title of the function
             provider_name: provider name, or None for user functions
             accessible_functions: Result from FunctionAccessClient
-            permission: Platform permission constant (e.g. PLATFORM_PERMISSION_VIEW)
+            permission: Platform permission constant (e.g. PLATFORM_PERMISSION_READ)
 
         Returns:
             Program | None: the function if the user has access, else None

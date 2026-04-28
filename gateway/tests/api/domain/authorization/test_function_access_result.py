@@ -2,7 +2,7 @@
 
 from api.domain.authorization.function_access_entry import FunctionAccessEntry
 from api.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import PLATFORM_PERMISSION_RUN, PLATFORM_PERMISSION_VIEW, PLATFORM_PERMISSION_PROVIDER_JOBS
+from core.models import PLATFORM_PERMISSION_RUN, PLATFORM_PERMISSION_READ, PLATFORM_PERMISSION_PROVIDER_JOBS
 
 
 def _entry(provider_name, function_title, permissions, business_model="SUBSIDIZED"):
@@ -29,7 +29,7 @@ def test_get_function():
 def test_has_permission_for_provider():
     entries = [
         _entry("prov", "func1", {PLATFORM_PERMISSION_PROVIDER_JOBS}),
-        _entry("prov", "func2", {PLATFORM_PERMISSION_VIEW}),
+        _entry("prov", "func2", {PLATFORM_PERMISSION_READ}),
     ]
     result = FunctionAccessResult(has_response=True, functions=entries)
     assert result.has_permission_for_provider("prov", PLATFORM_PERMISSION_PROVIDER_JOBS) is True
@@ -42,7 +42,7 @@ def test_get_functions_by_provider():
         _entry("prov-a", "func1", {PLATFORM_PERMISSION_RUN}),
         _entry("prov-a", "func2", {PLATFORM_PERMISSION_RUN}),
         _entry("prov-b", "func3", {PLATFORM_PERMISSION_RUN}),
-        _entry("prov-b", "func4", {PLATFORM_PERMISSION_VIEW}),  # no RUN
+        _entry("prov-b", "func4", {PLATFORM_PERMISSION_READ}),  # no RUN
     ]
     result = FunctionAccessResult(has_response=True, functions=entries)
     assert result.get_functions_by_provider(PLATFORM_PERMISSION_RUN) == {
