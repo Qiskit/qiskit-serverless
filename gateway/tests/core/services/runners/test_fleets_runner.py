@@ -55,16 +55,34 @@ def _make_runner(fleet_id: str | None = None) -> tuple[FleetsRunner, MagicMock]:
 # is_active
 
 
-def test_is_active_true_when_fleet_id_set():
-    """is_active() returns True when job.fleet_id is set."""
-    runner, _ = _make_runner(fleet_id="fleet-123")
+def test_is_active_true_when_fleet_exists():
+    """is_active() returns True when CE API confirms fleet exists."""
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    mock_handler.get_job_status.return_value = {"status": "running"}
     assert runner.is_active() is True
+    mock_handler.get_job_status.assert_called_once_with("fleet-123")
 
 
 def test_is_active_false_when_no_fleet_id():
     """is_active() returns False when job.fleet_id is None."""
     runner, _ = _make_runner(fleet_id=None)
     assert runner.is_active() is False
+
+
+def test_is_active_false_when_fleet_not_found():
+    """is_active() returns False when CE API returns 404."""
+    runner, mock_handler = _make_runner(fleet_id="fleet-gone")
+    mock_handler.get_job_status.side_effect = ApiException(status=404, reason="Not Found")
+    assert runner.is_active() is False
+
+
+def test_is_active_false_on_connection_error():
+    """is_active() returns False when connection to CE fails."""
+    runner, _ = _make_runner(fleet_id="fleet-123")
+    runner._connected = False  # pylint: disable=protected-access
+    runner._handler = None  # pylint: disable=protected-access
+    with patch.object(runner, "connect", side_effect=Exception("connection failed")):
+        assert runner.is_active() is False
 
 
 # status
@@ -261,7 +279,7 @@ def test_get_handler_cos_config_returns_none_when_no_credentials():
     runner._project.cos_key_name = "my-key"  # pylint: disable=protected-access
     runner._project.region = "us-east"  # pylint: disable=protected-access
 
-    with patch(f"{_RUNNER_MOD}.settings") as mock_settings, patch.dict("os.environ", {}, clear=True):
+    with patch(f"{_RUNNER_MOD}.settings") as mock_settings:
         mock_settings.CE_HMAC_SECRET_NAME = None
         config = runner._get_handler_cos_config()  # pylint: disable=protected-access
 
@@ -553,7 +571,7 @@ def test_get_api_key_raises_when_not_configured():
 
     runner, _ = _make_runner()
 
-    with patch(f"{_RUNNER_MOD}.settings") as mock_settings, patch.dict("os.environ", {}, clear=True):
+    with patch(f"{_RUNNER_MOD}.settings") as mock_settings:
         mock_settings.IBM_CLOUD_API_KEY = None
         with pytest.raises(RunnerError, match="IBM_CLOUD_API_KEY"):
             runner._get_api_key()  # pylint: disable=protected-access
@@ -580,19 +598,6 @@ def test_get_image_falls_back_to_settings():
         result = runner._get_image()  # pylint: disable=protected-access
 
     assert result == "default-image:latest"
-
-
-def test_get_image_raises_when_no_image_and_no_default():
-    """_get_image() raises RunnerError when no image and no default are configured."""
-    from core.services.runners.abstract_runner import RunnerError  # pylint: disable=import-outside-toplevel
-
-    runner, _ = _make_runner()
-    runner.job.program.image = None
-
-    with patch(f"{_RUNNER_MOD}.settings") as mock_settings:
-        mock_settings.FLEETS_DEFAULT_IMAGE = None
-        with pytest.raises(RunnerError):
-            runner._get_image()  # pylint: disable=protected-access
 
 
 # _get_max_instances

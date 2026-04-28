@@ -17,7 +17,6 @@ from __future__ import annotations
 import io
 import json
 import logging
-import os
 import tarfile
 import time
 
@@ -80,12 +79,29 @@ class FleetsRunner(AbstractRunner):
         """No-op — FleetHandler is a stateless REST client."""
 
     def is_active(self) -> bool:
-        """Return ``True`` if a fleet was submitted for this job.
+        """Return ``True`` if the fleet exists in Code Engine.
+
+        Verifies via a lightweight ``GET /fleets/{id}`` API call rather
+        than trusting the in-memory ``fleet_id`` flag, which may be stale
+        or never cleared after the job finishes.
 
         Returns:
-            ``True`` when ``job.fleet_id`` is set.
+            ``True`` when the fleet is reachable, ``False`` otherwise.
         """
-        return bool(self.job.fleet_id)
+        if not self.job.fleet_id:
+            return False
+        try:
+            self._ensure_connected()
+            self._get_handler().get_job_status(self.job.fleet_id)
+            return True
+        except ApiException as ex:
+            if ex.status == 404:
+                return False
+            logger.warning("CE API error checking fleet [%s]: status=%s", self.job.fleet_id, ex.status)
+            return False
+        except Exception:  # pylint: disable=broad-exception-caught
+            logger.warning("Unable to verify fleet [%s] existence", self.job.fleet_id)
+            return False
 
     def submit(self) -> None:
         """Submit the job as a Code Engine fleet.
@@ -165,7 +181,7 @@ class FleetsRunner(AbstractRunner):
             fleet = handler.submit_job(
                 name=fleet_name,
                 image_reference=self._get_image(),
-                image_secret=os.environ.get("CE_ICR_PULL_SECRET") or None,
+                image_secret=settings.CE_ICR_PULL_SECRET,
                 network_placements=[{"type": "subnet_pool", "reference": self._project.subnet_pool_id}],
                 scale_cpu_limit=self._get_cpu_limit(),
                 scale_memory_limit=self._get_memory_limit(),
@@ -620,9 +636,8 @@ class FleetsRunner(AbstractRunner):
     def _get_handler_cos_config(self) -> dict | None:
         """Build the ``cos_config`` dict for :class:`FleetHandler`.
 
-        Reads ``CE_HMAC_SECRET_NAME`` from Django settings first, then falls
-        back to the environment variable of the same name.  Returns ``None``
-        when the project fields or the secret name are not configured.
+        Returns ``None`` when the project fields or the secret name are
+        not configured.
 
         Returns:
             COS config dict or ``None``.
@@ -630,7 +645,7 @@ class FleetsRunner(AbstractRunner):
         if not self._project or not self._is_cos_configured():
             return None
 
-        hmac_secret_name = getattr(settings, "CE_HMAC_SECRET_NAME", None) or os.environ.get("CE_HMAC_SECRET_NAME")
+        hmac_secret_name = settings.CE_HMAC_SECRET_NAME
         if not hmac_secret_name:
             logger.debug("No HMAC credentials configured for project [%s]", self._project.project_name)
             return None
@@ -641,7 +656,7 @@ class FleetsRunner(AbstractRunner):
         }
 
     def _get_api_key(self) -> str:
-        """Return the IBM Cloud API key from settings or environment.
+        """Return the IBM Cloud API key from Django settings.
 
         Returns:
             API key string.
@@ -649,9 +664,9 @@ class FleetsRunner(AbstractRunner):
         Raises:
             RunnerError: If not configured.
         """
-        api_key = getattr(settings, "IBM_CLOUD_API_KEY", None) or os.environ.get("IBM_CLOUD_API_KEY")
+        api_key = settings.IBM_CLOUD_API_KEY
         if not api_key:
-            raise RunnerError("IBM_CLOUD_API_KEY not configured in settings or environment")
+            raise RunnerError("IBM_CLOUD_API_KEY not configured in settings")
         return api_key
 
     def _get_image(self) -> str:
@@ -662,18 +677,12 @@ class FleetsRunner(AbstractRunner):
 
         Returns:
             Image reference string.
-
-        Raises:
-            RunnerError: If no image is configured and no default is set.
         """
         if not self.job.program:
             raise RunnerError("Job has no program assigned")
         if self.job.program.image:
             return self.job.program.image
-        default = getattr(settings, "FLEETS_DEFAULT_IMAGE", None)
-        if not default:
-            raise RunnerError("No image on program and FLEETS_DEFAULT_IMAGE not set")
-        return default
+        return settings.FLEETS_DEFAULT_IMAGE
 
     def _get_cpu_limit(self) -> str:
         """Return the CPU limit for fleet workers.

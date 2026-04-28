@@ -286,6 +286,11 @@ LIMITS_GPU_PER_TASK = int(os.environ.get("LIMITS_GPU_PER_TASK", "1"))
 LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
 # Compute profile settings for Fleets runner
 DEFAULT_COMPUTE_PROFILE = os.environ.get("DEFAULT_COMPUTE_PROFILE", "cx3d-4x16")  # 4 CPU, 16GB RAM
+FLEETS_DEFAULT_IMAGE = os.environ.get("FLEETS_DEFAULT_IMAGE", "python:3.11-slim")
+# Fleets / Code Engine credentials
+CE_HMAC_SECRET_NAME = os.environ.get("CE_HMAC_SECRET_NAME")
+IBM_CLOUD_API_KEY = os.environ.get("IBM_CLOUD_API_KEY")
+CE_ICR_PULL_SECRET = os.environ.get("CE_ICR_PULL_SECRET")
 
 
 # ray cluster management

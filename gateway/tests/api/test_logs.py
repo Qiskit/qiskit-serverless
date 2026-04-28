@@ -373,4 +373,4 @@ WARNING: Private warning
         )
 
         assert jobs_response.status_code == HTTP_200_OK
-        assert jobs_response.data.get("logs") == "Logs not available for this job during execution."
+        assert jobs_response.data.get("logs") == f"Logs not available for job [{job.id}] during execution."

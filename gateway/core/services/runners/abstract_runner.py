@@ -136,14 +136,13 @@ class AbstractRunner(ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
     def provider_logs(self) -> str | None:
         """
         Get provider (unfiltered) job logs.
 
         Engines that support dual-log routing (e.g. Fleets with PDS mounts)
-        override this to return the full provider log. The default implementation
-        falls back to logs(), which is appropriate for engines that have no
-        distinction between user and provider logs (e.g. Ray).
+        return the full provider log. Other engines may return the same as logs().
 
         Returns:
             Provider log content or None
@@ -151,7 +150,7 @@ class AbstractRunner(ABC):
         Raises:
             RunnerError: If unable to get logs
         """
-        return self.logs()
+        raise NotImplementedError
 
     @abstractmethod
     def stop(self) -> bool:
