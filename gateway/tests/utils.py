@@ -10,7 +10,7 @@ from django.contrib.auth.models import (
 from django.contrib.contenttypes.models import ContentType
 from rest_framework.test import APIClient
 
-from core.models import Job, JobConfig, JobEvent, Program, Provider
+from core.models import Job, JobConfig, JobEvent, Program, Provider, ComputeResource
 from core.model_managers.job_events import JobEventOrigin, JobEventContext, JobEventType
 
 # literal for job status
@@ -34,9 +34,12 @@ class TestUtils:
     get_user_and_username       | author (User/str)         | is_active (bool),             | User (if str)                    | tuple[User, str]
                                 |                           | is_staff (bool)               |                                  |                    
     ----------------------------|---------------------------|-------------------------------|----------------------------------|--------------------
-    get_or_create_provider      | provider (Provider/str)   | admin_group (Group/str)       | Provider (if str)                | Provider           
+    get_or_create_provider      | provider (Provider/str)   | admin_group (Group/str)       | Provider (if str)                | Provider
     ----------------------------|---------------------------|-------------------------------|----------------------------------|--------------------
-    get_or_create_group         | group (Group/str)         | permissions (list),           | Group (if str)                   | Group              
+    get_or_create_compute_      | title (str)               | host (str), active (bool),    | ComputeResource                  | ComputeResource
+    resource                    |                           | owner (User/str), gpu (bool)  |                                  |
+    ----------------------------|---------------------------|-------------------------------|----------------------------------|--------------------
+    get_or_create_group         | group (Group/str)         | permissions (list),           | Group (if str)                   | Group
                                 |                           | replace_permissions (bool)    |                                  |                    
     ----------------------------|---------------------------|-------------------------------|----------------------------------|--------------------
     create_program              | program_title (str)       | author (User/str),            | Program, User (if author is str) | Program            
@@ -58,7 +61,7 @@ class TestUtils:
     ----------------------------|---------------------------|-------------------------------|----------------------------------|--------------------
     create_job                  | author (User/str),        | status (JobStatusType),       | Job, User (if author is str),    | Job                
                                 | program (Program/str)     | config (JobConfig/dict),      | JobEvent (initial + status       |                    
-                                |                           | **kwargs                      | change if not PENDING)           |                    
+                                |                           | **kwargs                      | change if not QUEUED)           |
     ----------------------------|---------------------------|-------------------------------|----------------------------------|--------------------
     add_config_to_job           | job (Job),                | -                             | JobConfig (if config is dict     | None               
                                 | config (JobConfig/dict)   |                               | without id)                      |                    
@@ -80,9 +83,12 @@ class TestUtils:
     get_user_and_username       |-                                                  
                                 |                                                  
     ----------------------------|---------------------------------------------------
-    get_or_create_provider      | Group (if admin_group is str)                     
+    get_or_create_provider      | Group (if admin_group is str)
     ----------------------------|---------------------------------------------------
-    get_or_create_group         | Permission (if tuple in permissions)              
+    get_or_create_compute_      | User (if owner is str)
+    resource                    |
+    ----------------------------|---------------------------------------------------
+    get_or_create_group         | Permission (if tuple in permissions)
                                 |                                                   
     ----------------------------|---------------------------------------------------
     create_program              | Provider (if str), Groups (if instances/          
@@ -149,14 +155,21 @@ class TestUtils:
     
     ### Provider Methods
     
-    **`get_or_create_provider(provider, admin_group=None)`**
+    **`get_or_create_provider(provider, admin_group=None)`** → Provider
     - Creates or fetches Provider
     - If `provider` is str: creates Provider with name=provider
-    - If `admin_group` provided (str or Group): associates it with provider
+    - If `admin_group` provided (str or Group): associates it with provider via `add_admin_group_to_provider()`
     
-    **`add_admin_group_to_provider(admin_group, provider)`**
+    **`add_admin_group_to_provider(admin_group, provider)`** → None
     - Associates admin group with provider
     - If `admin_group` is str: creates Group via `get_or_create_group()`
+    
+    ### ComputeResource Methods
+    
+    **`get_or_create_compute_resource(title, host='localhost', active=True, owner=None, gpu=False)`** → ComputeResource
+    - Get or create a ComputeResource instance with given title and host
+    - If `owner` is str: creates User via `get_user_and_username()`
+    - If ComputeResource with title exists, returns existing one
     
     ### Program Methods
     
@@ -181,14 +194,14 @@ class TestUtils:
     - Creates JobEvent for a job
     - Defaults: event_type=STATUS_CHANGE, origin=API, context=RUN_PROGRAM
     
-    **`create_job(author, program, status=PENDING, config=None, **kwargs)`**
+    **`create_job(author, program, status=QUEUED, config=None, **kwargs)`**
     - Creates Job with full dependency chain
     - If `author` is str: creates User
     - If `program` is str: creates Program (which may create User, Provider)
     - If `config` is dict without 'id': creates JobConfig
     - If `config` is dict with 'id': fetches existing JobConfig
-    - Always creates initial JobEvent (PENDING status)
-    - If `status != PENDING`: creates additional JobEvent for status change
+    - Always creates initial JobEvent (QUEUED status)
+    - If `status != QUEUED`: creates additional JobEvent for status change
     
     **`add_config_to_job(job, config)`**
     - Associates JobConfig with Job
@@ -280,6 +293,50 @@ class TestUtils:
         if admin_group:
             TestUtils.add_admin_group_to_provider(admin_group, provider)
         return provider
+
+    @staticmethod
+    def get_or_create_compute_resource(
+        title: str,
+        host: str = "localhost",
+        active: bool = True,
+        owner: Union[User, str] = None,
+        gpu: bool = False,
+    ) -> ComputeResource:
+        """Get or create a ComputeResource instance.
+        
+        - **Minimal creates**: ComputeResource
+        - **Optional creates**: User (if owner is str)
+        - Behavior:
+          * Creates ComputeResource with given title and host
+          * If `owner` is str: creates User via `get_user_and_username()`
+          * If ComputeResource with title exists, returns existing one
+        
+        Args:
+            title: Title for the compute resource
+            host: Host address (default: "localhost")
+            active: Whether the resource is active (default: True)
+            owner: Optional owner User object or username string
+            gpu: Whether this is a GPU resource (default: False)
+        
+        Returns:
+            ComputeResource object
+        """
+        # Get or create owner if provided
+        owner_obj = None
+        if owner:
+            owner_obj, _ = TestUtils.get_user_and_username(author=owner)
+
+        # Get or create ComputeResource
+        compute_resource, _ = ComputeResource.objects.get_or_create(
+            title=title,
+            defaults={
+                "host": host,
+                "active": active,
+                "owner": owner_obj,
+                "gpu": gpu,
+            }
+        )
+        return compute_resource
 
     @staticmethod
     def _humanize_permission_name(codename: str, model: str) -> str:
@@ -460,26 +517,26 @@ class TestUtils:
     def create_job(  # pylint: disable=too-many-positional-arguments
         author: Union[User, str],
         program: Union[Program, str],
-        status: JobStatusType = Job.PENDING,
+        status: JobStatusType = Job.QUEUED,
         config: Union[JobConfig, dict[str, str]] = None,
         **kwargs,
     ) -> Job:
         """Creates a Job instance with full dependency chain.
         
-        - **Minimal creates**: Job, User (if author is str), JobEvent (initial + status change if not PENDING)
+        - **Minimal creates**: Job, User (if author is str), JobEvent (initial + status change if not QUEUED)
         - **Optional creates**: Program (if str), JobConfig (if dict), Provider (if program is str with provider)
         - Behavior:
           * If `author` is str: creates User via `get_user_and_username()`
           * If `program` is str: creates Program via `create_program()` (which may create User, Provider)
           * If `config` is dict without 'id': creates JobConfig
           * If `config` is dict with 'id': fetches existing JobConfig
-          * Always creates initial JobEvent (PENDING status)
-          * If `status != PENDING`: creates additional JobEvent for status change
+          * Always creates initial JobEvent (QUEUED status)
+          * If `status != QUEUED`: creates additional JobEvent for status change
         
         Args:
             author: The author or username for the Job.
             program: The job's program. If program is a string, create a program with this title.
-            status: Job status. Defaults to Job.PENDING.
+            status: Job status. Defaults to Job.QUEUED.
             config: Optional JobConfig instance or a dict to create a JobConfig instance.
             **kwargs: Fields for the Job (like result and logs).
         """
@@ -496,14 +553,14 @@ class TestUtils:
 
         job = Job.objects.create(author=author_obj, program=program, status=status, **kwargs)
 
-        # Creating associate JobEvent for creation of job (status will be pending)
+        # Creating associate JobEvent for creation of job (status will be QUEUED)
         TestUtils.create_job_event(job)
 
         if config:
             TestUtils.add_config_to_job(job, config)
 
         # Adding the status change to the JobEvent table.
-        if status != Job.PENDING:
+        if status != Job.QUEUED:
             job_event = JobEvent.objects.add_status_event(
                 job_id=job.id, origin=JobEventOrigin.API, context=JobEventContext.RUN_PROGRAM, status=status
             )
