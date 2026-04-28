@@ -28,7 +28,9 @@ class JobAccessPolicies:
         """
         Checks if the user has access to the Job. As an author
         you always have access. If you are not the author you
-        need to be an admin of the provider.
+        need:
+           - to be an admin of the provider (for legacy Django groups)
+           - to have the right permission for the function (Runtime instances).
 
         Args:
             user: Django user from the request
@@ -116,7 +118,10 @@ class JobAccessPolicies:
         accessible_functions: Optional[FunctionAccessResult] = None,
     ) -> bool:
         """
-        Checks if the user has permissions to read the provider logs of a job:
+        Checks if the user has permissions to read the provider logs of a job.
+        The job must belong to a provider and the user must:
+           - to be an admin of the provider (for legacy Django groups)
+           - to have the right permission for the function (Runtime instances).
 
         Args:
             user: Django user from the request
