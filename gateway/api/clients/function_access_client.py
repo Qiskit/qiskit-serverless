@@ -8,4 +8,4 @@ class FunctionAccessClient:
 
     def get_accessible_functions(self, instance_crn: str) -> FunctionAccessResult:
         """Return all functions accessible to the given instance CRN with their actions."""
-        raise NotImplementedError
+        return FunctionAccessResult(has_response=False)

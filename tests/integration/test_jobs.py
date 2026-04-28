@@ -493,6 +493,21 @@ ERROR: Provider log
         assert event_data["message"] == "ValueError: This is not a ServerlessError"
         assert event_data["exception"] == "ValueError"
 
+    def test_provider_jobs_list(self, serverless_client: ServerlessClient):
+        """Integration test for listing provider jobs via the provider endpoint."""
+        provider_id = os.environ.get("PROVIDER_ID", "mockprovider")
+
+        function = QiskitFunction(
+            title="provider-jobs-list-function",
+            entrypoint="pattern.py",
+            working_dir=resources_path,
+            provider=provider_id,
+        )
+        serverless_client.upload(function)
+
+        jobs = serverless_client.provider_jobs(function)
+        assert isinstance(jobs, list)
+
     def test_provider_logs(self, serverless_client: ServerlessClient):
         """Integration test for logs."""
 
