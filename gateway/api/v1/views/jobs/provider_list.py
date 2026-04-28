@@ -193,6 +193,14 @@ def get_provider_jobs(request: Request) -> Response:
     user = cast(AbstractUser, request.user)
 
     crn = getattr(request.auth, "instance", None)
+    logger.info(
+        "[jobs-provider-list] user_id=%s provider=%s function=%s crn=%s | Accessing to Runtime API Instance",
+        user.id,
+        filters.provider,
+        filters.function,
+        crn,
+    )
+
     accessible = (
         FunctionAccessClient().get_accessible_functions(crn) if crn else FunctionAccessResult(has_response=False)
     )
