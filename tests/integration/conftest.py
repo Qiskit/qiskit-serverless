@@ -35,7 +35,10 @@ def serverless_client():
 
 
 class InstancesHandler(BaseHTTPRequestHandler):
+    """HTTP handler that returns the configured response for any GET request."""
+
     def do_GET(self):
+        """Serve the configured response."""
         cfg = self.server.response_config
         body = json.dumps(cfg["body"]).encode() if "body" in cfg else b""
         self.send_response(cfg["status"])
@@ -47,7 +50,7 @@ class InstancesHandler(BaseHTTPRequestHandler):
             self.wfile.write(body)
 
     def log_message(self, *args):
-        pass
+        """Suppress default request logging."""
 
 
 class InstancesServer:
@@ -115,6 +118,6 @@ def instances_server():
 
 
 @fixture(autouse=True)
-def _reset_instances_server(instances_server):
+def _reset_instances_server(instances_server):  # pylint: disable=redefined-outer-name
     """Reset the instances server to empty grants before each test."""
     instances_server.reset()
