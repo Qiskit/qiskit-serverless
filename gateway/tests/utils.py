@@ -23,16 +23,16 @@ JobSubStatusType = Literal[
 class TestUtils:
     # pylint: disable=line-too-long
     """Utility class to provide helper methods for gateway testing.
-    
+
     This class provides static methods to simplify test setup by creating and managing
     Django models (User, Group, Permission, Provider, Program, Job, JobConfig, JobEvent).
-    
+
     ## Public Methods Summary (With Minimal Input)
-    
-    Method                      | Essential Input           | Optional Input                | Creates (minimal)                | Returns            
+
+    Method                      | Essential Input           | Optional Input                | Creates (minimal)                | Returns
     ----------------------------|---------------------------|-------------------------------|----------------------------------|--------------------
     get_user_and_username       | author (User/str)         | is_active (bool),             | User (if str)                    | tuple[User, str]
-                                |                           | is_staff (bool)               |                                  |                    
+                                |                           | is_staff (bool)               |                                  |
     ----------------------------|---------------------------|-------------------------------|----------------------------------|--------------------
     get_or_create_provider      | provider (Provider/str)   | admin_group (Group/str)       | Provider (if str)                | Provider
     ----------------------------|---------------------------|-------------------------------|----------------------------------|--------------------
@@ -40,48 +40,48 @@ class TestUtils:
     resource                    |                           | owner (User/str), gpu (bool)  |                                  |
     ----------------------------|---------------------------|-------------------------------|----------------------------------|--------------------
     get_or_create_group         | group (Group/str)         | permissions (list),           | Group (if str)                   | Group
-                                |                           | replace_permissions (bool)    |                                  |                    
+                                |                           | replace_permissions (bool)    |                                  |
     ----------------------------|---------------------------|-------------------------------|----------------------------------|--------------------
-    create_program              | program_title (str)       | author (User/str),            | Program, User (if author is str) | Program            
-                                |                           | provider (Provider/str),      |                                  |                    
-                                |                           | instances (list),             |                                  |                    
-                                |                           | trial_instances (list),       |                                  |                    
-                                |                           | **kwargs                      |                                  |                    
+    create_program              | program_title (str)       | author (User/str),            | Program, User (if author is str) | Program
+                                |                           | provider (Provider/str),      |                                  |
+                                |                           | instances (list),             |                                  |
+                                |                           | trial_instances (list),       |                                  |
+                                |                           | **kwargs                      |                                  |
     ----------------------------|---------------------------|-------------------------------|----------------------------------|--------------------
-    create_job_config           | -                         | workers (int),                | JobConfig                        | JobConfig          
-                                |                           | min_workers (int),            |                                  |                    
-                                |                           | max_workers (int),            |                                  |                    
-                                |                           | auto_scaling (bool),          |                                  |                    
-                                |                           | **kwargs                      |                                  |                    
+    create_job_config           | -                         | workers (int),                | JobConfig                        | JobConfig
+                                |                           | min_workers (int),            |                                  |
+                                |                           | max_workers (int),            |                                  |
+                                |                           | auto_scaling (bool),          |                                  |
+                                |                           | **kwargs                      |                                  |
     ----------------------------|---------------------------|-------------------------------|----------------------------------|--------------------
-    create_job_event            | job (Job)                 | event_type (JobEventType),    | JobEvent                         | JobEvent           
-                                |                           | origin (JobEventOrigin),      |                                  |                    
-                                |                           | context (JobEventContext),    |                                  |                    
-                                |                           | data (dict)                   |                                  |                    
+    create_job_event            | job (Job)                 | event_type (JobEventType),    | JobEvent                         | JobEvent
+                                |                           | origin (JobEventOrigin),      |                                  |
+                                |                           | context (JobEventContext),    |                                  |
+                                |                           | data (dict)                   |                                  |
     ----------------------------|---------------------------|-------------------------------|----------------------------------|--------------------
-    create_job                  | author (User/str),        | status (JobStatusType),       | Job, User (if author is str),    | Job                
-                                | program (Program/str)     | config (JobConfig/dict),      | JobEvent (initial + status       |                    
-                                |                           | **kwargs                      | change if not QUEUED)           |
+    create_job                  | author (User/str),        | status (JobStatusType),       | Job, User (if author is str),    | Job
+                                | program (Program/str)     | config (JobConfig/dict),      | JobEvent (initial + status       |
+                                |                           | **kwargs                      | change if not QUEUED)            |
     ----------------------------|---------------------------|-------------------------------|----------------------------------|--------------------
-    add_config_to_job           | job (Job),                | -                             | JobConfig (if config is dict     | None               
-                                | config (JobConfig/dict)   |                               | without id)                      |                    
+    add_config_to_job           | job (Job),                | -                             | JobConfig (if config is dict     | None
+                                | config (JobConfig/dict)   |                               | without id)                      |
     ----------------------------|---------------------------|-------------------------------|----------------------------------|--------------------
-    add_instance_to_program     | program (Program)         | instances (list),             | -                                | None               
-                                |                           | trial_instances (list)        |                                  |                    
+    add_instance_to_program     | program (Program)         | instances (list),             | -                                | None
+                                |                           | trial_instances (list)        |                                  |
     ----------------------------|---------------------------|-------------------------------|----------------------------------|--------------------
-    add_user_to_group           | user (User/str),          | permissions (list)            | User (if str), Group (if str)    | tuple[User, Group] 
-                                | group (Group/str)         |                               |                                  |                    
+    add_user_to_group           | user (User/str),          | permissions (list)            | User (if str), Group (if str)    | tuple[User, Group]
+                                | group (Group/str)         |                               |                                  |
     ----------------------------|---------------------------|-------------------------------|----------------------------------|--------------------
     authorize_client            | user (User/str),          | is_active (bool),             | User (if user is str and doesn't | User
                                 | client (APIClient)        | is_staff (bool)               | exist)                           |
-    
-    
+
+
     ## Public Methods Summary (With Optional Input))
 
-    Method                      |Optional Input Creates                             
+    Method                      |Optional Input Creates
     ----------------------------|---------------------------------------------------
-    get_user_and_username       |-                                                  
-                                |                                                  
+    get_user_and_username       |-
+                                |
     ----------------------------|---------------------------------------------------
     get_or_create_provider      | Group (if admin_group is str)
     ----------------------------|---------------------------------------------------
@@ -89,51 +89,51 @@ class TestUtils:
     resource                    |
     ----------------------------|---------------------------------------------------
     get_or_create_group         | Permission (if tuple in permissions)
-                                |                                                   
+                                |
     ----------------------------|---------------------------------------------------
-    create_program              | Provider (if str), Groups (if instances/          
-                                | trial_instances are str)                          
-                                |                                                   
+    create_program              | Provider (if str), Groups (if instances/
+                                | trial_instances are str)
+                                |
     ----------------------------|---------------------------------------------------
-    create_job_config           |-                                                  
-                                |                                                   
+    create_job_config           |-
+                                |
     ----------------------------|---------------------------------------------------
-    create_job_event            |-                                                  
-                                |                                                   
+    create_job_event            |-
+                                |
     ----------------------------|---------------------------------------------------
-    create_job                  | Program (if str), JobConfig (if dict), Provider   
-                                | (if program is str with provider)                    
-                                |                                                   
+    create_job                  | Program (if str), JobConfig (if dict), Provider
+                                | (if program is str with provider)
+                                |
     ----------------------------|---------------------------------------------------
-    add_config_to_job           |-                                                  
-                                |                                                   
+    add_config_to_job           |-
+                                |
     ----------------------------|---------------------------------------------------
-    add_instance_to_program     | Groups (if str in lists)                          
-                                |                                                   
+    add_instance_to_program     | Groups (if str in lists)
+                                |
     ----------------------------|---------------------------------------------------
-    add_user_to_group           | Permission (if tuple in permissions)              
-                                |                                                   
+    add_user_to_group           | Permission (if tuple in permissions)
+                                |
     ----------------------------|---------------------------------------------------
-    authorize_client            |-                                                  
-                                |                                                        
+    authorize_client            |-
+                                |
 
 
     ## Detailed Method Descriptions
-    
+
     ### User & Authentication Methods
-    
+
     **`get_user_and_username(author, is_active=True, is_staff=False)`**
     - Normalizes author input into (User object, username string)
     - If `author` is User: returns (author, author.username)
     - If `author` is str: gets or creates User with username=author
-    
+
     **`authorize_client(user, client, is_active=True, is_staff=False)`** → User
     - Authenticates a DRF test client with a user
     - If `user` is str: creates User if doesn't exist via `get_user_and_username()`
     - Calls client.force_authenticate(user)
-    
+
     ### Group & Permission Methods
-    
+
     **`get_or_create_group(group, permissions=None, replace_permissions=False)`**
     - Creates or fetches a Group and attaches permissions
     - If `group` is str: creates Group with name=group
@@ -141,38 +141,38 @@ class TestUtils:
     - If `permissions` contains (codename, app_label, model) tuples: resolves to Permission
     - If `replace_permissions=True`: replaces all group permissions
     - If `replace_permissions=False`: adds to existing permissions
-    
+
     **`resolve_permission(triple)`**
     - Given (codename, app_label, model), returns Permission
     - Creates Permission if doesn't exist
     - Creates ContentType if doesn't exist
-    
+
     **`add_user_to_group(user, group, permissions=None)`**
     - Adds user to group (creates both if strings)
     - If `user` is str: creates User
     - If `group` is str: creates Group via `get_or_create_group()`
     - If `permissions` provided: adds them to group
-    
+
     ### Provider Methods
-    
+
     **`get_or_create_provider(provider, admin_group=None)`** → Provider
     - Creates or fetches Provider
     - If `provider` is str: creates Provider with name=provider
     - If `admin_group` provided (str or Group): associates it with provider via `add_admin_group_to_provider()`
-    
+
     **`add_admin_group_to_provider(admin_group, provider)`** → None
     - Associates admin group with provider
     - If `admin_group` is str: creates Group via `get_or_create_group()`
-    
+
     ### ComputeResource Methods
-    
+
     **`get_or_create_compute_resource(title, host='localhost', active=True, owner=None, gpu=False)`** → ComputeResource
     - Get or create a ComputeResource instance with given title and host
     - If `owner` is str: creates User via `get_user_and_username()`
     - If ComputeResource with title exists, returns existing one
-    
+
     ### Program Methods
-    
+
     **`create_program(program_title, author='default_user', provider=None, ...)`**
     - Creates Program with dependencies
     - If `author` is str: creates User
@@ -180,20 +180,20 @@ class TestUtils:
     - If `instances` contains str: creates Groups via `get_or_create_group()`
     - If `trial_instances` contains str: creates Groups
     - Returns existing Program if (title, author, provider) combination exists
-    
+
     **`add_instance_to_program(program, instances=None, trial_instances=None)`**
     - Adds instance/trial_instance groups to Program
     - If group names are str: creates Groups via `get_or_create_group()`
-    
+
     ### Job & JobConfig Methods
-    
+
     **`create_job_config(workers=None, min_workers=1, max_workers=5, ...)`**
     - Creates JobConfig with specified parameters
-    
+
     **`create_job_event(job, event_type=STATUS_CHANGE, origin=API, ...)`**
     - Creates JobEvent for a job
     - Defaults: event_type=STATUS_CHANGE, origin=API, context=RUN_PROGRAM
-    
+
     **`create_job(author, program, status=QUEUED, config=None, **kwargs)`**
     - Creates Job with full dependency chain
     - If `author` is str: creates User
@@ -202,18 +202,18 @@ class TestUtils:
     - If `config` is dict with 'id': fetches existing JobConfig
     - Always creates initial JobEvent (QUEUED status)
     - If `status != QUEUED`: creates additional JobEvent for status change
-    
+
     **`add_config_to_job(job, config)`**
     - Associates JobConfig with Job
     - If `config` is dict without 'id': creates JobConfig
     - If `config` is dict with 'id': fetches existing JobConfig
-    
+
     ## Usage Examples
-    
+
     ```python
     # Minimal job creation (creates User, Program, Job, 2 JobEvents)
     job = TestUtils.create_job(author="testuser", program="testprogram")
-    
+
     # Full job with dependencies
     job = TestUtils.create_job(
         author="testuser",
@@ -221,7 +221,7 @@ class TestUtils:
         status=Job.RUNNING,
         config={"workers": 3}
     )
-    
+
     # Program with provider and access control
     program = TestUtils.create_program(
         program_title="My Program",
@@ -229,7 +229,7 @@ class TestUtils:
         provider="ibm",
         instances=["premium_users"]
     )
-    
+
     # Authenticate test client
     user = TestUtils.authorize_client(user="testuser", client=self.client)
     ```
@@ -241,7 +241,7 @@ class TestUtils:
         author: Union[User, str], is_active: bool = True, is_staff: bool = False
     ) -> tuple[User, str]:
         """Helper to normalize author input into (User object, username string).
-        
+
         - **Minimal creates**: User (if author is str)
         - **Optional creates**: None
         - Behavior:
@@ -258,7 +258,7 @@ class TestUtils:
     @staticmethod
     def add_admin_group_to_provider(admin_group: Group, provider: User) -> None:
         """Add admin group to provider. If admin_group does not exist, create it.
-        
+
         - **Minimal creates**: Group (if admin_group is str)
         - Behavior:
           * If `admin_group` is str: creates Group via `get_or_create_group()`
@@ -273,13 +273,13 @@ class TestUtils:
     @staticmethod
     def get_or_create_provider(provider: Union[Provider, str], admin_group: Union[Group, str] = None) -> Provider:
         """Setup a provider and its admin group/user safely.
-        
+
         - **Minimal creates**: Provider (if str)
         - **Optional creates**: Group (if admin_group is str)
         - Behavior:
           * If `provider` is str: creates Provider with name=provider
           * If `admin_group` provided (str or Group): associates it with provider via `add_admin_group_to_provider()`
-        
+
         Args:
             provider: Name for the provider.
             admin_group: Optional admin group name for the provider.
@@ -303,21 +303,21 @@ class TestUtils:
         gpu: bool = False,
     ) -> ComputeResource:
         """Get or create a ComputeResource instance.
-        
+
         - **Minimal creates**: ComputeResource
         - **Optional creates**: User (if owner is str)
         - Behavior:
           * Creates ComputeResource with given title and host
           * If `owner` is str: creates User via `get_user_and_username()`
           * If ComputeResource with title exists, returns existing one
-        
+
         Args:
             title: Title for the compute resource
             host: Host address (default: "localhost")
             active: Whether the resource is active (default: True)
             owner: Optional owner User object or username string
             gpu: Whether this is a GPU resource (default: False)
-        
+
         Returns:
             ComputeResource object
         """
@@ -334,14 +334,14 @@ class TestUtils:
                 "active": active,
                 "owner": owner_obj,
                 "gpu": gpu,
-            }
+            },
         )
         return compute_resource
 
     @staticmethod
     def _humanize_permission_name(codename: str, model: str) -> str:
         """Best-effort human-readable name for a permission when we create it ad hoc in tests.
-        
+
         Example: ('run_program', 'program') -> 'Can run program on program'
         """
         codename_pretty = codename.replace("_", " ").strip()
@@ -353,7 +353,7 @@ class TestUtils:
     @staticmethod
     def resolve_permission(triple: Tuple[str, str, str]) -> Permission:
         """Given (codename, app_label, model), return a Permission.
-        
+
         - **Minimal creates**: Permission, ContentType (if don't exist)
         - Behavior:
           * Creates Permission if doesn't exist
@@ -377,7 +377,7 @@ class TestUtils:
         replace_permissions: bool = False,
     ) -> Group:
         """Create or fetch a Group and attach the given permissions.
-        
+
         - **Minimal creates**: Group (if group is str)
         - **Optional creates**: Permission (if tuple in permissions list)
         - Behavior:
@@ -430,7 +430,7 @@ class TestUtils:
         **kwargs,
     ) -> Program:
         """Creates a Program instance along with its dependencies (User, Provider).
-        
+
         - **Minimal creates**: Program, User (if author is str)
         - **Optional creates**: Provider (if str), Groups (if instances/trial_instances contain str)
         - Behavior:
@@ -439,7 +439,7 @@ class TestUtils:
           * If `instances` contains str: creates Groups via `get_or_create_group()`
           * If `trial_instances` contains str: creates Groups via `get_or_create_group()`
           * Creates Program if (title, author, provider) combination doesn't exist, otherwise fetches existing Program
-        
+
         Args:
             program_title: Optional title. Defaults to author-provider format.
             author: The author or username for the Job (and Program).
@@ -482,7 +482,7 @@ class TestUtils:
         **kwargs,
     ) -> JobConfig:
         """Create a JobConfig instance, save it and return it.
-        
+
         - **Minimal creates**: JobConfig
         """
         job_config = JobConfig.objects.create(
@@ -503,7 +503,7 @@ class TestUtils:
         data: dict = None,
     ) -> JobEvent:
         """Create a JobEvent and return it.
-        
+
         - **Minimal creates**: JobEvent
         - Defaults: event_type=STATUS_CHANGE, origin=API, context=RUN_PROGRAM
         """
@@ -522,7 +522,7 @@ class TestUtils:
         **kwargs,
     ) -> Job:
         """Creates a Job instance with full dependency chain.
-        
+
         - **Minimal creates**: Job, User (if author is str), JobEvent (initial + status change if not QUEUED)
         - **Optional creates**: Program (if str), JobConfig (if dict), Provider (if program is str with provider)
         - Behavior:
@@ -532,7 +532,7 @@ class TestUtils:
           * If `config` is dict with 'id': fetches existing JobConfig
           * Always creates initial JobEvent (QUEUED status)
           * If `status != QUEUED`: creates additional JobEvent for status change
-        
+
         Args:
             author: The author or username for the Job.
             program: The job's program. If program is a string, create a program with this title.
@@ -571,7 +571,7 @@ class TestUtils:
     @staticmethod
     def add_config_to_job(job: Job, config: Union[JobConfig, dict[str, str]]) -> Job:
         """Add JobConfig to Job instance.
-        
+
         - **Minimal creates**: JobConfig (if config is dict without id)
         - Behavior:
           * If `config` is dict without 'id': creates JobConfig
@@ -594,7 +594,7 @@ class TestUtils:
         trial_instances: list[Union[Group, str]] = None,
     ):
         """Adds instances to a Program (making it have group access). Creates the group if it doesn't exist.
-        
+
         - **Optional creates**: Groups (if str in lists)
         - Behavior:
           * If group names in `instances` are str: creates Groups via `get_or_create_group()`
@@ -621,14 +621,14 @@ class TestUtils:
         permissions: Iterable[Union[Permission, Tuple[str, str, str]]] = None,
     ) -> tuple[User, Group]:
         """Add a user to a group. Creates the group if it doesn't exist.
-        
+
         - **Minimal creates**: User (if str), Group (if str)
         - **Optional creates**: Permission (if tuple in permissions list)
         - Behavior:
           * If `user` is str: creates User via `get_user_and_username()`
           * If `group` is str: creates Group via `get_or_create_group()`
           * If `permissions` provided: adds them to group (may create Permission objects)
-        
+
         Args:
             user: User object or username string
             group: The group or the name of the group to add the user to.
@@ -643,9 +643,11 @@ class TestUtils:
         return user_obj, group
 
     @staticmethod
-    def authorize_client(user: Union[str, User], client: APIClient, is_active: bool = True, is_staff: bool = False) -> User:
+    def authorize_client(
+        user: Union[str, User], client: APIClient, is_active: bool = True, is_staff: bool = False
+    ) -> User:
         """Helper to authenticate a DRF test client.
-        
+
         - **Minimal creates**: User (if user is str and doesn't exist)
         - Behavior:
           * If `user` is str: creates User if doesn't exist via `get_user_and_username()`

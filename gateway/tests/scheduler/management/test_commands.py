@@ -38,11 +38,7 @@ class TestCommands:
         """Tests free resources command."""
         # Create compute resource matching fixture data
         test3_user = TestUtils.get_user_and_username("test3_user")[0]
-        TestUtils.get_or_create_compute_resource(
-            title="compute resource",
-            host="somehost",
-            owner=test3_user
-        )
+        TestUtils.get_or_create_compute_resource(title="compute resource", host="somehost", owner=test3_user)
 
         FreeResources(kill_signal=KillSignal(), metrics=self.metrics).run()
         num_resources = ComputeResource.objects.count()
@@ -66,7 +62,7 @@ class TestCommands:
         assert job.env_vars is not None
 
         job_events = JobEvent.objects.filter(job=job)
-        assert len(job_events) == 3 # creation (QUEUED) + status change (PENDING) + status change (RUNNING)
+        assert len(job_events) == 3  # creation (QUEUED) + status change (PENDING) + status change (RUNNING)
         assert job_events[0].event_type == JobEventType.STATUS_CHANGE
         assert job_events[0].data["status"] == JobStatus.RUNNING
         assert job_events[0].origin == JobEventOrigin.SCHEDULER
@@ -108,8 +104,13 @@ class TestCommands:
         job1 = TestUtils.create_job(author=test_user, program=program, status=Job.QUEUED, result='{"somekey":1}')
         TestUtils.create_job(author=test_user, program=program, status=Job.QUEUED, result='{"somekey":1}')
         TestUtils.create_job(author=test2_user, program=program, status=Job.PENDING, result='{"somekey":1}')
-        TestUtils.create_job(author=test3_user, program=program, status=Job.PENDING,
-                           compute_resource=compute_resource, result='{"somekey":1}')
+        TestUtils.create_job(
+            author=test3_user,
+            program=program,
+            status=Job.PENDING,
+            compute_resource=compute_resource,
+            result='{"somekey":1}',
+        )
         TestUtils.create_job(author=test3_user, program=program, status=Job.RUNNING, result='{"somekey":1}')
         TestUtils.create_job(author=test4_user, program=program, status=Job.QUEUED, result='{"somekey":1}')
         TestUtils.create_job(author=test4_user, program=program, status=Job.QUEUED, result='{"somekey":1}')
@@ -341,13 +342,13 @@ WARNING: Private warning
         UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         job_events = JobEvent.objects.filter(job=job.id)
-        assert len(job_events) == 3 # the events are: creation, running, failed
+        assert len(job_events) == 3  # the events are: creation, running, failed
         assert job_events[0].event_type == JobEventType.STATUS_CHANGE
         assert job_events[0].data["status"] == Job.FAILED
         assert job_events[0].origin == JobEventOrigin.SCHEDULER
         assert job_events[0].context == JobEventContext.UPDATE_JOB_STATUS
 
-    def _create_test_job( # pylint: disable=too-many-positional-arguments
+    def _create_test_job(  # pylint: disable=too-many-positional-arguments
         self,
         author: str = "test_author",
         provider_admin: Optional[str] = None,
