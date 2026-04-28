@@ -133,8 +133,10 @@ class JobAccessPolicies:
             bool: True or False in case the user has permissions
         """
 
-        if job.program.provider and ProviderAccessPolicy.can_read_logs(
-            user, job.program.provider, job.program.title, accessible_functions
+        if (
+            job.program
+            and job.program.provider
+            and ProviderAccessPolicy.can_read_logs(user, job.program.provider, job.program.title, accessible_functions)
         ):
             return True
 

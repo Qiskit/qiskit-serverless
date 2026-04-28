@@ -1,7 +1,7 @@
 """This module contains the usecase get_jobs"""
 
 # pylint: disable=duplicate-code
-from typing import List, Tuple
+from typing import List, Optional, Set, Tuple
 
 from api.access_policies.providers import ProviderAccessPolicy
 from api.domain.exceptions.provider_not_found_exception import ProviderNotFoundException
@@ -38,14 +38,16 @@ class JobsProviderListUseCase:
         if not provider:
             raise ProviderNotFoundException(filters.provider)
 
-        self._apply_access_scope(user, provider, filters, accessible_functions)
+        function_titles = self._apply_access_scope(user, provider, filters, accessible_functions)
+        if function_titles is not None:
+            filters.functions = function_titles
 
         queryset, total = Job.objects.user_jobs_page(user=None, filters=filters)
         return list(queryset), total
 
     @staticmethod
-    def _apply_access_scope(user, provider, filters, accessible_functions):
-        """Validate access and narrow filters to only the jobs the user can see."""
+    def _apply_access_scope(user, provider, filters, accessible_functions) -> Optional[Set[str]]:
+        """Validate access and return function titles to filter by, or None for no function-level filter."""
 
         if filters.function:
             # Filter by one specific function: validate if it has access to the function
@@ -53,16 +55,18 @@ class JobsProviderListUseCase:
                 raise ProviderNotFoundException(filters.provider)
             if not Function.objects.get_function(filters.function, filters.provider):
                 raise FunctionNotFoundException(function=filters.function, provider=filters.provider)
+            return None
         elif accessible_functions.has_response:
-            # Runtime API instantes, granularity per function:
+            # Runtime API instances, granularity per function:
             # We get the function titles that the user has access to and we use them to filter
             titles = accessible_functions.get_functions_by_provider(PLATFORM_PERMISSION_PROVIDER_JOBS).get(
                 filters.provider, set()
             )
             if not titles:
                 raise ProviderNotFoundException(filters.provider)
-            filters.functions = titles
+            return titles
         else:
             # Legacy Django groups
             if not ProviderAccessPolicy.is_provider_admin(user, provider):
                 raise ProviderNotFoundException(filters.provider)
+            return None
