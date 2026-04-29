@@ -30,12 +30,14 @@ FLEETS_PARTNERS_BUCKET = "fleets-partners-test"
 
 @pytest.fixture(scope="session")
 def minio_container():
+    """Container for minio"""
     with MinioContainer() as container:
         yield container
 
 
 @pytest.fixture(scope="session")
 def minio_s3(minio_container):
+    """Coinfiguration for minio"""
     config = minio_container.get_config()
     endpoint = f"http://{config['endpoint']}"
     client = boto3.client(

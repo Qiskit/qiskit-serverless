@@ -15,7 +15,6 @@ from __future__ import annotations
 from io import BytesIO
 from urllib.parse import urlencode
 
-import pytest
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.urls import reverse
 from rest_framework import status
@@ -36,9 +35,12 @@ def _tar_file(name: str, content: bytes = b"hello storage") -> InMemoryUploadedF
 
 
 class TestUserFiles:
+    """tests for user files"""
+
     FUNCTION = "personal-program"
 
     def test_upload_then_list(self, api_client):
+        """test for upload files and list them"""
         upload_url = f"{reverse('v1:files-upload')}?{urlencode({'function': self.FUNCTION})}"
         api_client.post(upload_url, {"file": _tar_file("upload_list.tar")}, format="multipart")
 
@@ -48,6 +50,7 @@ class TestUserFiles:
         assert "upload_list.tar" in response.data["results"]
 
     def test_upload_then_download_content_matches(self, api_client):
+        """test for upload and download files correctly"""
         content = b"unique content for download test"
         upload_url = f"{reverse('v1:files-upload')}?{urlencode({'function': self.FUNCTION})}"
         api_client.post(upload_url, {"file": _tar_file("download_check.tar", content)}, format="multipart")
@@ -61,6 +64,7 @@ class TestUserFiles:
         assert b"".join(response.streaming_content) == content
 
     def test_upload_then_delete_then_list_is_empty(self, api_client):
+        """test for upload and delete files correctly"""
         upload_url = f"{reverse('v1:files-upload')}?{urlencode({'function': self.FUNCTION})}"
         api_client.post(upload_url, {"file": _tar_file("to_delete.tar")}, format="multipart")
 
@@ -73,6 +77,7 @@ class TestUserFiles:
         assert "to_delete.tar" not in response.data["results"]
 
     def test_download_nonexistent_returns_404(self, api_client):
+        """test for download 404"""
         response = api_client.get(
             reverse("v1:files-download"),
             {"function": self.FUNCTION, "file": "ghost.tar"},
@@ -80,6 +85,7 @@ class TestUserFiles:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_delete_nonexistent_returns_404(self, api_client):
+        """test for delete 404"""
         qs = urlencode({"function": self.FUNCTION, "file": "ghost.tar"})
         response = api_client.delete(f"{reverse('v1:files-delete')}?{qs}")
         assert response.status_code == status.HTTP_404_NOT_FOUND
@@ -99,10 +105,13 @@ class TestUserFiles:
 
 
 class TestUserFilesWithProviderFunction:
+    """tests for user files in provider functions"""
+
     FUNCTION = "Program"
     PROVIDER = "default"
 
     def test_upload_then_list(self, api_client):
+        """test for upload files and list them"""
         qs = urlencode({"function": self.FUNCTION, "provider": self.PROVIDER})
         api_client.post(
             f"{reverse('v1:files-upload')}?{qs}",
@@ -119,6 +128,7 @@ class TestUserFilesWithProviderFunction:
         assert "user_provider_list.tar" in response.data["results"]
 
     def test_upload_then_download_content_matches(self, api_client):
+        """test for upload and download files correctly"""
         content = b"provider function user content"
         qs = urlencode({"function": self.FUNCTION, "provider": self.PROVIDER})
         api_client.post(
@@ -136,6 +146,7 @@ class TestUserFilesWithProviderFunction:
         assert b"".join(response.streaming_content) == content
 
     def test_upload_then_delete(self, api_client):
+        """test for upload and delete files correctly"""
         qs = urlencode({"function": self.FUNCTION, "provider": self.PROVIDER})
         api_client.post(
             f"{reverse('v1:files-upload')}?{qs}",
@@ -159,10 +170,13 @@ class TestUserFilesWithProviderFunction:
 
 
 class TestProviderFiles:
+    """tests for provider files"""
+
     FUNCTION = "Program"
     PROVIDER = "default"
 
     def test_upload_then_list(self, api_client):
+        """test for upload files and list them"""
         qs = urlencode({"function": self.FUNCTION, "provider": self.PROVIDER})
         api_client.post(
             f"{reverse('v1:files-provider-upload')}?{qs}",
@@ -179,6 +193,7 @@ class TestProviderFiles:
         assert "provider_list.tar" in response.data["results"]
 
     def test_upload_then_download_content_matches(self, api_client):
+        """test for upload and download files correctly"""
         content = b"provider storage content"
         qs = urlencode({"function": self.FUNCTION, "provider": self.PROVIDER})
         api_client.post(
@@ -196,6 +211,7 @@ class TestProviderFiles:
         assert b"".join(response.streaming_content) == content
 
     def test_upload_then_delete(self, api_client):
+        """test for upload and delete files correctly"""
         qs = urlencode({"function": self.FUNCTION, "provider": self.PROVIDER})
         api_client.post(
             f"{reverse('v1:files-provider-upload')}?{qs}",
@@ -215,6 +231,7 @@ class TestProviderFiles:
         assert "provider_del.tar" not in response.data["results"]
 
     def test_download_nonexistent_returns_404(self, api_client):
+        """test for download 404"""
         response = api_client.get(
             reverse("v1:files-provider-download"),
             {"function": self.FUNCTION, "provider": self.PROVIDER, "file": "ghost.tar"},
@@ -222,6 +239,7 @@ class TestProviderFiles:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_delete_nonexistent_returns_404(self, api_client):
+        """test for delete 404"""
         qs = urlencode({"function": self.FUNCTION, "provider": self.PROVIDER, "file": "ghost.tar"})
         response = api_client.delete(f"{reverse('v1:files-provider-delete')}?{qs}")
         assert response.status_code == status.HTTP_404_NOT_FOUND
