@@ -6,7 +6,7 @@ from typing import List, Optional, Set, Tuple
 from api.access_policies.providers import ProviderAccessPolicy
 from api.domain.exceptions.provider_not_found_exception import ProviderNotFoundException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
-from core.domain.authorization.function_access_result import FunctionAccessResult
+from api.domain.authorization.function_access_result import FunctionAccessResult
 from core.model_managers.jobs import JobFilters
 from core.models import Job, PLATFORM_PERMISSION_PROVIDER_JOBS
 from core.models import Program as Function

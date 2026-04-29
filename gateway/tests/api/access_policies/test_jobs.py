@@ -3,9 +3,9 @@ import pytest
 from django.contrib.auth.models import User, Group
 
 from api.access_policies.jobs import JobAccessPolicies
-from core.domain.authorization.function_access_entry import FunctionAccessEntry
-from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import Program, Job, Provider, PLATFORM_PERMISSION_JOB_RETRIEVE, PLATFORM_PERMISSION_PROVIDER_LOGS
+from api.domain.authorization.function_access_entry import FunctionAccessEntry
+from api.domain.authorization.function_access_result import FunctionAccessResult
+from core.models import Program, Job, Provider, PLATFORM_PERMISSION_JOB_READ, PLATFORM_PERMISSION_PROVIDER_LOGS
 
 pytestmark = pytest.mark.django_db
 
@@ -152,7 +152,7 @@ def _entry(provider_name, permissions):
 
 
 def test_can_access_external_client_returns_true_for_provider_admin(job_author):
-    """can_access True when Runtime API client has PLATFORM_PERMISSION_JOB_RETRIEVE for the exact function."""
+    """can_access True when Runtime API client has PLATFORM_PERMISSION_JOB_READ for the exact function."""
     admin_user = User.objects.create_user(username="admin_ext")
     provider = Provider.objects.create(name="ext-provider")
 
@@ -160,7 +160,7 @@ def test_can_access_external_client_returns_true_for_provider_admin(job_author):
     entry = FunctionAccessEntry(
         provider_name="ext-provider",
         function_title="fn",
-        permissions={PLATFORM_PERMISSION_JOB_RETRIEVE},
+        permissions={PLATFORM_PERMISSION_JOB_READ},
         business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
     )
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
@@ -171,7 +171,7 @@ def test_can_access_external_client_returns_true_for_provider_admin(job_author):
 
 
 def test_can_access_external_client_returns_false_when_permission_missing(job_author):
-    """can_access False when Runtime API client has no PLATFORM_PERMISSION_JOB_RETRIEVE for the function."""
+    """can_access False when Runtime API client has no PLATFORM_PERMISSION_JOB_READ for the function."""
     admin_user = User.objects.create_user(username="admin_ext2")
     provider = Provider.objects.create(name="ext-provider2")
 
@@ -223,7 +223,7 @@ def test_can_read_provider_logs_external_client_returns_false_when_missing(job_a
     entry = FunctionAccessEntry(
         provider_name="log-provider2",
         function_title="log-fn2",
-        permissions={PLATFORM_PERMISSION_JOB_RETRIEVE},  # wrong permission
+        permissions={PLATFORM_PERMISSION_JOB_READ},  # wrong permission
         business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
     )
     accessible = FunctionAccessResult(has_response=True, functions=[entry])

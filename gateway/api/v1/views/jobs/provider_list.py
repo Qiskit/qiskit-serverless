@@ -16,7 +16,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 
-from core.domain.authorization.function_access_result import FunctionAccessResult
+from api.domain.authorization.function_access_result import FunctionAccessResult
 from core.enums.type_filter import TypeFilter
 from core.model_managers.jobs import JobFilters
 from core.models import Job, Program

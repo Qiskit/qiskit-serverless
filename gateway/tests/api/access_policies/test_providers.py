@@ -5,11 +5,11 @@ import pytest
 from django.contrib.auth.models import Group, User
 
 from api.access_policies.providers import ProviderAccessPolicy
-from core.domain.authorization.function_access_entry import FunctionAccessEntry
-from core.domain.authorization.function_access_result import FunctionAccessResult
+from api.domain.authorization.function_access_entry import FunctionAccessEntry
+from api.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import (
     Job,
-    PLATFORM_PERMISSION_JOB_RETRIEVE,
+    PLATFORM_PERMISSION_JOB_READ,
     PLATFORM_PERMISSION_PROVIDER_FILES,
     PLATFORM_PERMISSION_PROVIDER_JOBS,
     PLATFORM_PERMISSION_PROVIDER_LOGS,
@@ -68,7 +68,7 @@ def test_can_retrieve_job_false_when_wrong_groups():
 def test_can_retrieve_job_true_via_client():
     user = User.objects.create_user(username="rj_client")
     provider = Provider.objects.create(name="rj-provider4")
-    entry = _entry("rj-provider4", {PLATFORM_PERMISSION_JOB_RETRIEVE})
+    entry = _entry("rj-provider4", {PLATFORM_PERMISSION_JOB_READ})
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
     assert ProviderAccessPolicy.can_retrieve_job(user, provider, FN, accessible) is True
 
@@ -114,7 +114,7 @@ def test_can_read_logs_true_via_client():
 def test_can_read_logs_false_via_client_wrong_permission():
     user = User.objects.create_user(username="rl_client2")
     provider = Provider.objects.create(name="rl-provider2")
-    entry = _entry("rl-provider2", {PLATFORM_PERMISSION_JOB_RETRIEVE})
+    entry = _entry("rl-provider2", {PLATFORM_PERMISSION_JOB_READ})
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
     assert ProviderAccessPolicy.can_read_logs(user, provider, FN, accessible) is False
 
@@ -135,7 +135,7 @@ def test_can_list_jobs_true_via_client():
 def test_can_list_jobs_false_via_client_wrong_permission():
     user = User.objects.create_user(username="lj_client2")
     provider = Provider.objects.create(name="lj-provider2")
-    entry = _entry("lj-provider2", {PLATFORM_PERMISSION_JOB_RETRIEVE})
+    entry = _entry("lj-provider2", {PLATFORM_PERMISSION_JOB_READ})
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
     assert ProviderAccessPolicy.can_list_jobs(user, provider, FN, accessible) is False
 
@@ -234,7 +234,7 @@ def test_can_retrieve_job_true_for_exact_function():
     """Permission on fn-A grants access when function_title=fn-A."""
     user = User.objects.create_user(username="fg_rj1")
     provider = Provider.objects.create(name="fg-provider")
-    entry = _entry_named("fg-provider", "sampler", {PLATFORM_PERMISSION_JOB_RETRIEVE})
+    entry = _entry_named("fg-provider", "sampler", {PLATFORM_PERMISSION_JOB_READ})
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
     assert ProviderAccessPolicy.can_retrieve_job(user, provider, "sampler", accessible) is True
 
@@ -243,7 +243,7 @@ def test_can_retrieve_job_false_for_different_function():
     """Permission on fn-A does NOT grant access when function_title=fn-B."""
     user = User.objects.create_user(username="fg_rj2")
     provider = Provider.objects.create(name="fg-provider2")
-    entry = _entry_named("fg-provider2", "sampler", {PLATFORM_PERMISSION_JOB_RETRIEVE})
+    entry = _entry_named("fg-provider2", "sampler", {PLATFORM_PERMISSION_JOB_READ})
     accessible = FunctionAccessResult(has_response=True, functions=[entry])
     assert ProviderAccessPolicy.can_retrieve_job(user, provider, "estimator", accessible) is False
 

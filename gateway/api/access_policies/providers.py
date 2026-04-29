@@ -7,13 +7,13 @@ from typing import Optional
 
 from core.models import (
     Provider,
-    PLATFORM_PERMISSION_JOB_RETRIEVE,
+    PLATFORM_PERMISSION_JOB_READ,
     PLATFORM_PERMISSION_PROVIDER_FILES,
     PLATFORM_PERMISSION_PROVIDER_JOBS,
     PLATFORM_PERMISSION_PROVIDER_LOGS,
     PLATFORM_PERMISSION_PROVIDER_UPLOAD,
 )
-from core.domain.authorization.function_access_result import FunctionAccessResult
+from api.domain.authorization.function_access_result import FunctionAccessResult
 
 logger = logging.getLogger("api.ProviderAccessPolicy")
 
@@ -54,7 +54,7 @@ class ProviderAccessPolicy:
         """Runtime instances: checks function has job.retrieve permission. Legacy: checks provider admin group."""
         if provider is None:
             raise ValueError("provider cannot be None")
-        has_access = _check(user, provider, function_title, accessible_functions, PLATFORM_PERMISSION_JOB_RETRIEVE)
+        has_access = _check(user, provider, function_title, accessible_functions, PLATFORM_PERMISSION_JOB_READ)
         if not has_access:
             logger.warning("[can_retrieve_job] provider=%s user_id=%s | no access", provider.name, user.id)
         return has_access

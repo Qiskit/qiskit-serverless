@@ -9,7 +9,7 @@ from django.contrib.auth.models import AbstractUser, Group
 
 if TYPE_CHECKING:
     from core.models import Program as Function
-    from core.domain.authorization.function_access_result import FunctionAccessResult
+    from api.domain.authorization.function_access_result import FunctionAccessResult
 
 logger = logging.getLogger("core.FunctionsQuerySet")
 
