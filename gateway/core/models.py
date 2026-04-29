@@ -22,7 +22,7 @@ VIEW_PROGRAM_PERMISSION = "view_program"
 RUN_PROGRAM_PERMISSION = "run_program"
 
 # Platform permissions (Runtime API instances access client)
-PLATFORM_PERMISSION_READ = "function.view"
+PLATFORM_PERMISSION_READ = "function.read"
 PLATFORM_PERMISSION_RUN = "function.run"
 PLATFORM_PERMISSION_JOB_RETRIEVE = "function.job.retrieve"
 PLATFORM_PERMISSION_USER_FILES = "function.files"
