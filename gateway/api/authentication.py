@@ -107,7 +107,7 @@ class MockTokenBackend(authentication.BaseAuthentication):
             public_access=public_access,
         ).execute()
 
-        return quantum_user, CustomAuthentication(channel=channel, token=authorization_token.encode())
+        return quantum_user, CustomAuthentication(channel=channel, token=authorization_token.encode(), instance=None)
 
     def authenticate_header(self, request):
         """
