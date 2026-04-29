@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 import logging
-from typing import Optional, Self, TYPE_CHECKING
+from typing import Dict, Optional, Self, Set, TYPE_CHECKING
 
 from django.db.models import Q, QuerySet
 from django.contrib.auth.models import AbstractUser, Group
 
 if TYPE_CHECKING:
     from core.models import Program as Function
-    from api.domain.authorization.function_access_result import FunctionAccessResult
 
 logger = logging.getLogger("core.FunctionsQuerySet")
 
@@ -21,26 +20,24 @@ class FunctionsQuerySet(QuerySet):
         self,
         author: AbstractUser,
         legacy_permission_name: str,
-        accessible_functions: Optional[FunctionAccessResult] = None,
-        permission: Optional[str] = None,
+        filter_function_names: Optional[Dict[str, Set[str]]] = None,
     ) -> Self:
         """
         Returns all the functions available to the user:
           - User functions where the user is the author
-          - Provider functions accessible via the Runtime API client (if has_response=True)
+          - Provider functions matching filter_function_names (if provided)
           - OR provider functions via Django groups (fallback)
 
         Args:
             author: Django author from who retrieve the functions
             legacy_permission_name: Django permission codename (e.g. RUN_PROGRAM_PERMISSION)
-            accessible_functions: Result from FunctionAccessClient; if None or has_response=False,
-                falls back to Django groups
-            permission: Platform permission constant (e.g. PLATFORM_PERMISSION_READ)
+            filter_function_names: {provider_name: {function_title, ...}} pre-computed by the
+                caller from the authorization layer. If provided, only these provider functions
+                are included. If None, falls back to Django groups.
         """
-        if accessible_functions is not None and accessible_functions.has_response:
-            by_provider = accessible_functions.get_functions_by_provider(permission)
+        if filter_function_names is not None:
             provider_criteria = Q()
-            for pname, titles in by_provider.items():
+            for pname, titles in filter_function_names.items():
                 provider_criteria |= Q(provider__name=pname, title__in=titles)
             return self.filter(Q(author=author) | provider_criteria).distinct()
 
@@ -124,14 +121,13 @@ class FunctionsQuerySet(QuerySet):
         legacy_permission_name: str,
         function_title: str,
         provider_name: Optional[str],
-        accessible_functions: Optional[FunctionAccessResult] = None,
-        permission: Optional[str] = None,
+        filter_function_names: Optional[Dict[str, Set[str]]] = None,
     ) -> Optional[Function]:
         """
-        Returns the specified function if the user is the author or has the required permission.
+        Returns the specified function if the user is the author or has access.
 
         When provider_name is None, always returns the user's own function (no permission check).
-        When provider_name is set and accessible_functions.has_response=True, checks the Runtime API client.
+        When filter_function_names is provided, checks if function_title is in the allowed set.
         Otherwise falls back to Django groups via with_permission().
 
         Args:
@@ -139,8 +135,9 @@ class FunctionsQuerySet(QuerySet):
             legacy_permission_name: Django permission codename (e.g. RUN_PROGRAM_PERMISSION)
             function_title: title of the function
             provider_name: provider name, or None for user functions
-            accessible_functions: Result from FunctionAccessClient
-            permission: Platform permission constant (e.g. PLATFORM_PERMISSION_READ)
+            filter_function_names: {provider_name: {function_title, ...}} pre-computed by the
+                caller. If provided and function is in the set, returns it. If None, falls back
+                to Django groups.
 
         Returns:
             Program | None: the function if the user has access, else None
@@ -148,8 +145,8 @@ class FunctionsQuerySet(QuerySet):
         if not provider_name:
             return self.user_functions(author=user).get_function(function_title)
 
-        if accessible_functions is not None and accessible_functions.has_response:
-            if not accessible_functions.has_permission_for_function(provider_name, function_title, permission):
+        if filter_function_names is not None:
+            if function_title not in filter_function_names.get(provider_name, set()):
                 return None
             return self.get_function(function_title, provider_name)
 
@@ -157,6 +154,4 @@ class FunctionsQuerySet(QuerySet):
         return self.with_permission(
             author=user,
             legacy_permission_name=legacy_permission_name,
-            accessible_functions=accessible_functions,
-            permission=permission,
         ).get_function(function_title, provider_name)

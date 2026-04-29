@@ -38,7 +38,6 @@ from api.utils import active_jobs_limit_reached, sanitize_name
 from api.v1.exception_handler import endpoint_handle_exceptions
 from core.enums.type_filter import TypeFilter
 from core.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Job, Provider
-from core.models import PLATFORM_PERMISSION_RUN, PLATFORM_PERMISSION_READ
 from core.models import Program as Function
 
 # pylint: disable=duplicate-code
@@ -126,13 +125,11 @@ class ProgramViewSet(viewsets.GenericViewSet):
             # Catalog filter only returns providers functions that user has access:
             # author has view permissions and the function has a provider assigned
             functions = Function.objects.provider_functions().with_permission(
-                author, legacy_permission_name=RUN_PROGRAM_PERMISSION, permission=PLATFORM_PERMISSION_RUN
+                author, legacy_permission_name=RUN_PROGRAM_PERMISSION
             )
         else:
             # If filter is not applied we return author and providers functions together
-            functions = Function.objects.with_permission(
-                author, legacy_permission_name=VIEW_PROGRAM_PERMISSION, permission=PLATFORM_PERMISSION_READ
-            )
+            functions = Function.objects.with_permission(author, legacy_permission_name=VIEW_PROGRAM_PERMISSION)
 
         serializer = self.get_serializer(list(functions), many=True)
         logger.info(

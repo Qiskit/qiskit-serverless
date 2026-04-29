@@ -4,9 +4,7 @@
 import pytest
 from django.contrib.auth.models import User
 
-from api.domain.authorization.function_access_entry import FunctionAccessEntry
-from api.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import Program, Provider, Job, PLATFORM_PERMISSION_READ, PLATFORM_PERMISSION_RUN
+from core.models import Program, Provider
 
 pytestmark = pytest.mark.django_db
 
@@ -36,59 +34,43 @@ def user_function(author):
     return Program.objects.create(title="user-fn", author=author)
 
 
-def _entry(provider_name, function_title, permissions, business_model=Job.BUSINESS_MODEL_SUBSIDIZED):
-    return FunctionAccessEntry(
-        provider_name=provider_name,
-        function_title=function_title,
-        permissions=permissions,
-        business_model=business_model,
-    )
-
-
-class TestWithPermissionRuntimeApiClient:
+class TestWithPermissionFilterFunctionNames:
     def test_returns_own_and_permitted(self, author, other_user, provider, provider_function, user_function):
-        """When has_response=True, returns own functions + permitted provider functions."""
-        entry = _entry("my-provider", "my-function", {PLATFORM_PERMISSION_READ})
-        accessible = FunctionAccessResult(has_response=True, functions=[entry])
+        """When filter_function_names provided, returns own functions + matched provider functions."""
+        filter_fns = {"my-provider": {"my-function"}}
 
         result = list(
             Program.objects.with_permission(
                 author=other_user,
                 legacy_permission_name="view_program",
-                accessible_functions=accessible,
-                permission=PLATFORM_PERMISSION_READ,
+                filter_function_names=filter_fns,
             )
         )
 
         assert provider_function in result
 
-    def test_excludes_function_without_permission(self, author, other_user, provider, provider_function):
-        """When has_response=True and no matching permission, provider function not returned."""
-        entry = _entry("my-provider", "my-function", {PLATFORM_PERMISSION_RUN})
-        accessible = FunctionAccessResult(has_response=True, functions=[entry])
+    def test_excludes_function_not_in_filter(self, author, other_user, provider, provider_function):
+        """When filter_function_names doesn't include the function, it's excluded."""
+        filter_fns = {"my-provider": {"other-function"}}
 
         result = list(
             Program.objects.with_permission(
                 author=other_user,
                 legacy_permission_name="view_program",
-                accessible_functions=accessible,
-                permission=PLATFORM_PERMISSION_READ,
+                filter_function_names=filter_fns,
             )
         )
 
         assert provider_function not in result
 
-    def test_no_entries_returns_only_own(self, author, other_user, user_function):
-        """When has_response=True but no entries, returns only own functions."""
-        accessible = FunctionAccessResult(has_response=True, functions=[])
-
+    def test_empty_dict_returns_only_own(self, author, other_user, user_function):
+        """When filter_function_names is empty dict, returns only own functions."""
         own_function = Program.objects.create(title="my-own", author=other_user)
         result = list(
             Program.objects.with_permission(
                 author=other_user,
                 legacy_permission_name="view_program",
-                accessible_functions=accessible,
-                permission=PLATFORM_PERMISSION_READ,
+                filter_function_names={},
             )
         )
 
@@ -97,25 +79,8 @@ class TestWithPermissionRuntimeApiClient:
 
 
 class TestWithPermissionFallback:
-    def test_has_response_false(self, author, provider_function, user_function):
-        """When has_response=False, falls back to Django groups (no extra functions)."""
-        accessible = FunctionAccessResult(has_response=False)
-
-        result = list(
-            Program.objects.with_permission(
-                author=author,
-                legacy_permission_name="view_program",
-                accessible_functions=accessible,
-                permission=PLATFORM_PERMISSION_READ,
-            )
-        )
-
-        # author owns user_function and provider_function, no group → only own
-        assert user_function in result
-        assert provider_function in result
-
-    def test_none_accessible_functions(self, author, provider_function, user_function):
-        """When accessible_functions=None, falls back to Django groups."""
+    def test_none_filter_uses_django_groups(self, author, provider_function, user_function):
+        """When filter_function_names=None, falls back to Django groups."""
         result = list(
             Program.objects.with_permission(
                 author=author,
@@ -123,78 +88,72 @@ class TestWithPermissionFallback:
             )
         )
 
+        # author owns user_function and provider_function
         assert user_function in result
         assert provider_function in result
 
 
-class TestGetFunctionByPermissionRuntimeApiClient:
-    def test_returns_function(self, author, other_user, provider, provider_function):
-        """When has_response=True and permission present, returns the function."""
-        entry = _entry("my-provider", "my-function", {PLATFORM_PERMISSION_READ})
-        accessible = FunctionAccessResult(has_response=True, functions=[entry])
+class TestGetFunctionByPermissionFilterFunctionNames:
+    def test_returns_function_when_in_filter(self, author, other_user, provider, provider_function):
+        """When function is in filter_function_names, returns it."""
+        filter_fns = {"my-provider": {"my-function"}}
 
         result = Program.objects.get_function_by_permission(
             user=other_user,
             legacy_permission_name="view_program",
             function_title="my-function",
             provider_name="my-provider",
-            accessible_functions=accessible,
-            permission=PLATFORM_PERMISSION_READ,
+            filter_function_names=filter_fns,
         )
 
         assert result == provider_function
 
-    def test_returns_none_without_permission(self, author, other_user, provider, provider_function):
-        """When has_response=True but permission missing from entry, returns None."""
-        entry = _entry("my-provider", "my-function", {PLATFORM_PERMISSION_RUN})
-        accessible = FunctionAccessResult(has_response=True, functions=[entry])
+    def test_returns_none_when_not_in_filter(self, author, other_user, provider, provider_function):
+        """When function is not in filter_function_names, returns None."""
+        filter_fns = {"my-provider": {"other-function"}}
 
         result = Program.objects.get_function_by_permission(
             user=other_user,
             legacy_permission_name="view_program",
             function_title="my-function",
             provider_name="my-provider",
-            accessible_functions=accessible,
-            permission=PLATFORM_PERMISSION_READ,
+            filter_function_names=filter_fns,
         )
 
         assert result is None
 
-    def test_returns_none_when_entry_missing(self, author, other_user, provider, provider_function):
-        """When has_response=True but entry not found, returns None."""
-        accessible = FunctionAccessResult(has_response=True, functions=[])
+    def test_returns_none_when_provider_not_in_filter(self, author, other_user, provider, provider_function):
+        """When provider is not in filter_function_names, returns None."""
+        filter_fns = {"other-provider": {"my-function"}}
 
         result = Program.objects.get_function_by_permission(
             user=other_user,
             legacy_permission_name="view_program",
             function_title="my-function",
             provider_name="my-provider",
-            accessible_functions=accessible,
-            permission=PLATFORM_PERMISSION_READ,
+            filter_function_names=filter_fns,
         )
 
         assert result is None
 
     def test_no_provider_returns_own_function(self, author):
-        """When provider_name is None, returns user's own function regardless of accessible_functions."""
+        """When provider_name is None, returns user's own function."""
         own_fn = Program.objects.create(title="own-fn", author=author)
-        accessible = FunctionAccessResult(has_response=True, functions=[])
 
         result = Program.objects.get_function_by_permission(
             user=author,
             legacy_permission_name="view_program",
             function_title="own-fn",
             provider_name=None,
-            accessible_functions=accessible,
-            permission=PLATFORM_PERMISSION_READ,
+            filter_function_names={"x": {"y"}},
         )
 
         assert result == own_fn
 
 
 class TestGetFunctionByPermissionFallback:
-    def test_none_accessible(self, author, other_user, provider, provider_function):
-        """When accessible_functions=None, falls back to Django groups (no group → None for provider fn)."""
+    def test_none_filter_uses_django_groups(self, author, other_user, provider, provider_function):
+        """When filter_function_names=None, falls back to Django groups (no group → None)."""
         result = Program.objects.get_function_by_permission(
             user=other_user,
             legacy_permission_name="view_program",
