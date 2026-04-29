@@ -16,15 +16,17 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 
-from core.enums.type_filter import TypeFilter
-from core.model_managers.jobs import JobFilters
-from core.models import Job, Program
+from api.clients.function_access_client import FunctionAccessClient
+from api.domain.authorization.function_access_result import FunctionAccessResult
 from api.use_cases.jobs.provider_list import JobsProviderListUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
-from api.v1.views.utils import create_paginated_response
-from api.v1.views.swagger_utils import standard_error_responses
 from api.v1.views.serializer_utils import SanitizedCharField
+from api.v1.views.swagger_utils import standard_error_responses
+from api.v1.views.utils import create_paginated_response
+from core.enums.type_filter import TypeFilter
+from core.model_managers.jobs import JobFilters
+from core.models import Job, Program
 
 logger = logging.getLogger("api.api.v1.views.jobs.provider_list")
 
@@ -190,7 +192,20 @@ def get_provider_jobs(request: Request) -> Response:
     filters = JobFilters(**serializer.validated_data)
     user = cast(AbstractUser, request.user)
 
-    jobs, total = JobsProviderListUseCase().execute(user=user, filters=filters)
+    crn = getattr(request.auth, "instance", None)
+    logger.info(
+        "[jobs-provider-list] user_id=%s provider=%s function=%s crn=%s | Accessing to Runtime API Instance",
+        user.id,
+        filters.provider,
+        filters.function,
+        crn,
+    )
+
+    accessible = (
+        FunctionAccessClient().get_accessible_functions(crn) if crn else FunctionAccessResult(has_response=False)
+    )
+
+    jobs, total = JobsProviderListUseCase().execute(user=user, filters=filters, accessible_functions=accessible)
     logger.info(
         "[jobs-provider-list] user_id=%s provider=%s function=%s | Provider jobs listed ok",
         user.id,
