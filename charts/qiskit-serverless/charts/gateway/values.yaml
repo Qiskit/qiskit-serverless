@@ -64,6 +64,7 @@ application:
   logsMaximumSize: "52428800" # 50Mb in bytes
   logFormat: json
   runtimeInstancesApiEnabled: "0"
+  runtimeInstancesApiBaseUrl: ""
   security:
     hstsSeconds: 0  # 0 means disabled
     hstsIncludeSubdomains: false
