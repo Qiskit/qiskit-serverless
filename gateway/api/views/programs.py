@@ -125,11 +125,11 @@ class ProgramViewSet(viewsets.GenericViewSet):
             # Catalog filter only returns providers functions that user has access:
             # author has view permissions and the function has a provider assigned
             functions = Function.objects.provider_functions().with_permission(
-                author, permission_name=RUN_PROGRAM_PERMISSION
+                author, legacy_permission_name=RUN_PROGRAM_PERMISSION
             )
         else:
             # If filter is not applied we return author and providers functions together
-            functions = Function.objects.with_permission(author, permission_name=VIEW_PROGRAM_PERMISSION)
+            functions = Function.objects.with_permission(author, legacy_permission_name=VIEW_PROGRAM_PERMISSION)
 
         serializer = self.get_serializer(list(functions), many=True)
         logger.info(
@@ -209,7 +209,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
         function_title = sanitize_name(serializer.data.get("title"))
         function = Function.objects.get_function_by_permission(
             user=author,
-            permission_name=RUN_PROGRAM_PERMISSION,
+            legacy_permission_name=RUN_PROGRAM_PERMISSION,
             function_title=function_title,
             provider_name=provider_name,
         )
@@ -306,7 +306,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
         if provider_name:
             function = Function.objects.get_function_by_permission(
                 user=author,
-                permission_name=VIEW_PROGRAM_PERMISSION,
+                legacy_permission_name=VIEW_PROGRAM_PERMISSION,
                 function_title=function_title,
                 provider_name=provider_name,
             )
