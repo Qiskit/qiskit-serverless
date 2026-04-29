@@ -286,11 +286,29 @@ LIMITS_GPU_PER_TASK = int(os.environ.get("LIMITS_GPU_PER_TASK", "1"))
 LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
 # Compute profile settings for Fleets runner
 DEFAULT_COMPUTE_PROFILE = os.environ.get("DEFAULT_COMPUTE_PROFILE", "cx3d-4x16")  # 4 CPU, 16GB RAM
-FLEETS_DEFAULT_IMAGE = os.environ.get("FLEETS_DEFAULT_IMAGE", "python:3.11-slim")
+# Note: Update the default image with the default custom function ICR image
+FLEETS_DEFAULT_IMAGE = os.environ.get(
+    "FLEETS_DEFAULT_IMAGE",
+    "private.icr.io/qc-qiskit-functions-ce-staging/helloworld:latest",
+)
 # Fleets / Code Engine credentials
-CE_HMAC_SECRET_NAME = os.environ.get("CE_HMAC_SECRET_NAME")
 IBM_CLOUD_API_KEY = os.environ.get("IBM_CLOUD_API_KEY")
 CE_ICR_PULL_SECRET = os.environ.get("CE_ICR_PULL_SECRET")
+CE_HMAC_SECRET_NAME = os.environ.get("CE_HMAC_SECRET_NAME")
+# Fleets COS settings
+CE_COS_INSTANCE_NAME = os.environ.get("CE_COS_INSTANCE_NAME")
+CE_COS_KEY_NAME = os.environ.get("CE_COS_KEY_NAME")
+CE_COS_BUCKET_USER_DATA_NAME = os.environ.get("CE_COS_BUCKET_USER_DATA_NAME")
+CE_COS_BUCKET_PROVIDER_DATA_NAME = os.environ.get("CE_COS_BUCKET_PROVIDER_DATA_NAME")
+# Code Engine project (set CE_PROJECT_ID to enable auto-provisioning)
+CE_PROJECT_ID = os.environ.get("CE_PROJECT_ID")
+CE_PROJECT_NAME = os.environ.get("CE_PROJECT_NAME")
+CE_REGION = os.environ.get("CE_REGION")
+CE_RESOURCE_GROUP_ID = os.environ.get("CE_RESOURCE_GROUP_ID")
+CE_SUBNET_POOL_ID = os.environ.get("CE_SUBNET_POOL_ID")
+CE_PDS_NAME_STATE = os.environ.get("CE_PDS_NAME_STATE")
+CE_PDS_NAME_USERS = os.environ.get("CE_PDS_NAME_USERS")
+CE_PDS_NAME_PROVIDERS = os.environ.get("CE_PDS_NAME_PROVIDERS")
 
 
 # ray cluster management
