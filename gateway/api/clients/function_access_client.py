@@ -57,6 +57,6 @@ class FunctionAccessClient:
                 )
             except (KeyError, ValueError) as exc:
                 logger.error("FunctionAccessClient: invalid entry %s — %s", f, exc)
-                return FunctionAccessResult(has_response=False, message=f"Json error")
+                return FunctionAccessResult(has_response=False, message="Json error")
 
         return FunctionAccessResult(has_response=True, functions=functions, message="Success")

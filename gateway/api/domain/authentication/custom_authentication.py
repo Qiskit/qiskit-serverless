@@ -16,4 +16,4 @@ class CustomAuthentication:
     channel: Channel
     token: str
     instance: Optional[str]
-    accessible_functions: FunctionAccessResult = field(default_factory=lambda: FunctionAccessResult(has_response=False))
+    accessible_functions: FunctionAccessResult
