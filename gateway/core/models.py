@@ -21,15 +21,15 @@ logger = logging.getLogger("core.models")
 VIEW_PROGRAM_PERMISSION = "view_program"
 RUN_PROGRAM_PERMISSION = "run_program"
 
-# Platform permissions (external instance access client)
-PLATFORM_PERMISSION_VIEW = "view"
-PLATFORM_PERMISSION_RUN = "run"
-PLATFORM_PERMISSION_USER_FILES = "user.files"
-PLATFORM_PERMISSION_PROVIDER_UPLOAD = "provider.upload"
-PLATFORM_PERMISSION_PROVIDER_JOBS = "provider.jobs"
-PLATFORM_PERMISSION_JOB_RETRIEVE = "job.retrieve"
-PLATFORM_PERMISSION_PROVIDER_LOGS = "provider.logs"
-PLATFORM_PERMISSION_PROVIDER_FILES = "provider.files"
+# Platform permissions (Runtime API instances access client)
+PLATFORM_PERMISSION_READ = "function.view"
+PLATFORM_PERMISSION_RUN = "function.run"
+PLATFORM_PERMISSION_JOB_RETRIEVE = "function.job.retrieve"
+PLATFORM_PERMISSION_USER_FILES = "function.files"
+PLATFORM_PERMISSION_PROVIDER_UPLOAD = "function.provider.upload"
+PLATFORM_PERMISSION_PROVIDER_JOBS = "function.provider.jobs"
+PLATFORM_PERMISSION_PROVIDER_LOGS = "function.provider.logs"
+PLATFORM_PERMISSION_PROVIDER_FILES = "function.provider.files"
 
 
 def get_upload_path(instance, filename):
