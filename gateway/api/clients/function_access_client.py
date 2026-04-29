@@ -1,6 +1,6 @@
 """FunctionAccessClient."""
 
-from api.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.authorization.function_access_result import FunctionAccessResult
 
 
 class FunctionAccessClient:

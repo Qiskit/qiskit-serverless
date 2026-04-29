@@ -1,7 +1,7 @@
 """Tests for FunctionAccessResult."""
 
-from api.domain.authorization.function_access_entry import FunctionAccessEntry
-from api.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.authorization.function_access_entry import FunctionAccessEntry
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import PLATFORM_PERMISSION_RUN, PLATFORM_PERMISSION_VIEW, PLATFORM_PERMISSION_PROVIDER_JOBS
 
 
