@@ -1,4 +1,4 @@
-# pylint: disable=import-error
+# pylint: disable=import-error,redefined-outer-name
 """Fixtures for file storage integration tests.
 
 Uses MinIO as a COS emulator and the full Django stack (via pytest-django)
@@ -37,25 +37,24 @@ def minio_container():
 
 @pytest.fixture(scope="session")
 def minio_s3(minio_container):
-    """Coinfiguration for minio"""
+    """S3 client connected to the MinIO container."""
     config = minio_container.get_config()
     endpoint = f"http://{config['endpoint']}"
-    client = boto3.client(
+    return boto3.client(
         "s3",
         endpoint_url=endpoint,
         aws_access_key_id=config["access_key"],
         aws_secret_access_key=config["secret_key"],
     )
-    for bucket in [RAY_BUCKET, FLEETS_USERS_BUCKET, FLEETS_PARTNERS_BUCKET]:
-        client.create_bucket(Bucket=bucket)
-    return client
 
 
 @pytest.fixture(scope="session", autouse=True)
 def cos_settings(minio_container, minio_s3):
-    """Override COS settings to point at the MinIO container for the full test session."""
+    """Create buckets and override COS settings to point at the MinIO container for the full test session."""
     config = minio_container.get_config()
     endpoint = f"http://{config['endpoint']}"
+    for bucket in [RAY_BUCKET, FLEETS_USERS_BUCKET, FLEETS_PARTNERS_BUCKET]:
+        minio_s3.create_bucket(Bucket=bucket)
     with override_settings(
         RAY_COS_ENDPOINT=endpoint,
         RAY_COS_ACCESS_KEY=config["access_key"],
@@ -74,11 +73,11 @@ def cos_settings(minio_container, minio_s3):
 
 
 @pytest.fixture(autouse=True)
-def _setup(db):
+def _setup(db):  # pylint: disable=unused-argument
     """Load DB fixtures and reset cache before each test."""
     call_command("loaddata", FIXTURES_PATH)
     cache.clear()
-    from core.models import Config  # noqa: PLC0415
+    from core.models import Config  # noqa: PLC0415  # pylint: disable=import-outside-toplevel
 
     Config.add_defaults()
 
@@ -86,7 +85,7 @@ def _setup(db):
 @pytest.fixture
 def api_client():
     """Authenticated APIClient as test_user_2 (has access to all fixture programs)."""
-    from django.contrib.auth.models import User  # noqa: PLC0415
+    from django.contrib.auth.models import User  # noqa: PLC0415  # pylint: disable=import-outside-toplevel
 
     client = APIClient()
     user = User.objects.get(username="test_user_2")
