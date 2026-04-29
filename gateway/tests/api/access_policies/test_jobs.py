@@ -44,130 +44,153 @@ def provider_admin(provider_job):
 
 class TestCanAccess:
     def test_validates_parameters(self, job_author, job):
+        """Raises ValueError if user or job is None."""
         with pytest.raises(ValueError):
             JobAccessPolicies.can_access(None, job)
+
         with pytest.raises(ValueError):
             JobAccessPolicies.can_access(job_author, None)
 
     class TestLegacyGroups:
+        """This tests use the Django groups where a user is a provider admin if there is a group in common"""
+
         def test_true_for_author(self, job_author, job):
+            """Job author can always access their own job."""
             assert JobAccessPolicies.can_access(job_author, job) is True
 
         def test_false_for_non_author(self, other_user, job):
+            """Non-author user cannot access a job they did not create."""
             assert JobAccessPolicies.can_access(other_user, job) is False
 
         def test_true_for_provider_admin(self, provider_admin, provider_job):
+            """Provider admin can access jobs belonging to their provider."""
             assert JobAccessPolicies.can_access(provider_admin, provider_job) is True
 
     class TestRuntimeInstances:
-        def test_true_when_client_has_permission(self, job_author):
+        @pytest.mark.parametrize(
+            "permissions,expected",
+            [
+                ({PLATFORM_PERMISSION_JOB_READ}, True),
+                ({"other-permission"}, False),
+            ],
+        )
+        def test_access_depends_on_job_read_permission(self, job_author, permissions, expected):
+            """Access is granted if the entry includes PLATFORM_PERMISSION_JOB_READ for the function."""
             admin = User.objects.create_user(username="admin_ext")
             provider = Provider.objects.create(name="ext-provider")
             program = Program.objects.create(title="fn", author=job_author, provider=provider)
             entry = FunctionAccessEntry(
                 provider_name="ext-provider",
                 function_title="fn",
-                permissions={PLATFORM_PERMISSION_JOB_READ},
+                permissions=permissions,
                 business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
             )
             accessible = FunctionAccessResult(has_response=True, functions=[entry])
             provider_job = Job.objects.create(program=program, author=job_author, status=Job.QUEUED)
-            assert JobAccessPolicies.can_access(admin, provider_job, accessible_functions=accessible) is True
-
-        def test_false_when_permission_missing(self, job_author):
-            admin = User.objects.create_user(username="admin_ext2")
-            provider = Provider.objects.create(name="ext-provider2")
-            program = Program.objects.create(title="fn2", author=job_author, provider=provider)
-            entry = FunctionAccessEntry(
-                provider_name="ext-provider2",
-                function_title="fn2",
-                permissions={PLATFORM_PERMISSION_PROVIDER_LOGS},
-                business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
-            )
-            accessible = FunctionAccessResult(has_response=True, functions=[entry])
-            provider_job = Job.objects.create(program=program, author=job_author, status=Job.QUEUED)
-            assert JobAccessPolicies.can_access(admin, provider_job, accessible_functions=accessible) is False
+            assert JobAccessPolicies.can_access(admin, provider_job, accessible_functions=accessible) is expected
 
         def test_author_always_true_regardless_of_accessible_functions(self, job_author, job):
+            """Author can access their job even when accessible_functions returns no entries."""
             accessible = FunctionAccessResult(has_response=True, functions=[])
             assert JobAccessPolicies.can_access(job_author, job, accessible_functions=accessible) is True
 
 
 class TestCanReadResult:
-    def test_author_can_access(self, job_author, job):
-        assert JobAccessPolicies.can_read_result(job_author, job) is True
-
-    def test_non_author_cannot_access(self, other_user, job):
-        assert JobAccessPolicies.can_read_result(other_user, job) is False
+    @pytest.mark.parametrize(
+        "user_fixture,expected",
+        [
+            ("job_author", True),
+            ("other_user", False),
+        ],
+    )
+    def test_access(self, request, user_fixture, expected, job):
+        """Only the job author can read the result."""
+        user = request.getfixturevalue(user_fixture)
+        assert JobAccessPolicies.can_read_result(user, job) is expected
 
 
 class TestCanSaveResult:
-    def test_author_can_access(self, job_author, job):
-        assert JobAccessPolicies.can_save_result(job_author, job) is True
-
-    def test_non_author_cannot_access(self, other_user, job):
-        assert JobAccessPolicies.can_save_result(other_user, job) is False
+    @pytest.mark.parametrize(
+        "user_fixture,expected",
+        [
+            ("job_author", True),
+            ("other_user", False),
+        ],
+    )
+    def test_access(self, request, user_fixture, expected, job):
+        """Only the job author can save the result."""
+        user = request.getfixturevalue(user_fixture)
+        assert JobAccessPolicies.can_save_result(user, job) is expected
 
 
 class TestCanUpdateSubStatus:
-    def test_author_can_access(self, job_author, job):
-        assert JobAccessPolicies.can_update_sub_status(job_author, job) is True
-
-    def test_non_author_cannot_access(self, other_user, job):
-        assert JobAccessPolicies.can_update_sub_status(other_user, job) is False
+    @pytest.mark.parametrize(
+        "user_fixture,expected",
+        [
+            ("job_author", True),
+            ("other_user", False),
+        ],
+    )
+    def test_access(self, request, user_fixture, expected, job):
+        """Only the job author can update the sub-status."""
+        user = request.getfixturevalue(user_fixture)
+        assert JobAccessPolicies.can_update_sub_status(user, job) is expected
 
 
 class TestCanReadUserLogs:
-    def test_author_can_read(self, job_author, job):
-        assert JobAccessPolicies.can_read_user_logs(job_author, job) is True
-
-    def test_non_author_cannot_read(self, other_user, job):
-        assert JobAccessPolicies.can_read_user_logs(other_user, job) is False
+    @pytest.mark.parametrize(
+        "user_fixture,expected",
+        [
+            ("job_author", True),
+            ("other_user", False),
+        ],
+    )
+    def test_access(self, request, user_fixture, expected, job):
+        """Only the job author can read user-facing logs."""
+        user = request.getfixturevalue(user_fixture)
+        assert JobAccessPolicies.can_read_user_logs(user, job) is expected
 
     def test_provider_admin_cannot_read(self, provider_admin, provider_job):
+        """Provider admin cannot read user logs even for jobs under their provider."""
         assert JobAccessPolicies.can_read_user_logs(provider_admin, provider_job) is False
 
 
 class TestCanReadProviderLogs:
     class TestLegacyGroups:
         def test_false_for_author(self, job_author, job):
+            """Job author cannot read provider logs for non-provider jobs."""
             assert JobAccessPolicies.can_read_provider_logs(job_author, job) is False
 
         def test_false_for_non_author(self, other_user, job):
+            """Unrelated user cannot read provider logs."""
             assert JobAccessPolicies.can_read_provider_logs(other_user, job) is False
 
         def test_true_for_provider_admin(self, provider_admin, provider_job):
+            """Provider admin can read provider logs for jobs under their provider."""
             assert JobAccessPolicies.can_read_provider_logs(provider_admin, provider_job) is True
 
     class TestRuntimeInstances:
-        def test_true_when_client_has_permission(self, job_author):
+        @pytest.mark.parametrize(
+            "permissions,expected",
+            [
+                ({PLATFORM_PERMISSION_PROVIDER_LOGS}, True),
+                ({"other-permission"}, False),
+            ],
+        )
+        def test_logs_depend_on_provider_logs_permission(self, job_author, permissions, expected):
+            """Provider log access is granted if the entry includes PLATFORM_PERMISSION_PROVIDER_LOGS."""
             admin = User.objects.create_user(username="log_admin")
             provider = Provider.objects.create(name="log-provider")
             program = Program.objects.create(title="log-fn", author=job_author, provider=provider)
             entry = FunctionAccessEntry(
                 provider_name="log-provider",
                 function_title="log-fn",
-                permissions={PLATFORM_PERMISSION_PROVIDER_LOGS},
+                permissions=permissions,
                 business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
             )
             accessible = FunctionAccessResult(has_response=True, functions=[entry])
             provider_job = Job.objects.create(program=program, author=job_author, status=Job.QUEUED)
             assert (
-                JobAccessPolicies.can_read_provider_logs(admin, provider_job, accessible_functions=accessible) is True
-            )
-
-        def test_false_when_client_missing_permission(self, job_author):
-            admin = User.objects.create_user(username="log_admin2")
-            provider = Provider.objects.create(name="log-provider2")
-            program = Program.objects.create(title="log-fn2", author=job_author, provider=provider)
-            entry = FunctionAccessEntry(
-                provider_name="log-provider2",
-                function_title="log-fn2",
-                permissions={PLATFORM_PERMISSION_JOB_READ},
-                business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
-            )
-            accessible = FunctionAccessResult(has_response=True, functions=[entry])
-            provider_job = Job.objects.create(program=program, author=job_author, status=Job.QUEUED)
-            assert (
-                JobAccessPolicies.can_read_provider_logs(admin, provider_job, accessible_functions=accessible) is False
+                JobAccessPolicies.can_read_provider_logs(admin, provider_job, accessible_functions=accessible)
+                is expected
             )
