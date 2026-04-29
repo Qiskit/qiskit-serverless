@@ -3,7 +3,7 @@ pytest>=9.0.3
 pytest-order>=1.4.0
 pytest-randomly>=4.1.0
 # new versions of testcontainers don't support docker compose
-testcontainers>=4.7.2
+testcontainers>=4.14.2
 tox>=4.53.0
 black[jupyter]~=26.3
 requests-mock>=1.11.0
