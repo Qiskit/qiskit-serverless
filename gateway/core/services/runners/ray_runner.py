@@ -25,6 +25,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 
 from core.models import ComputeResource, Job, JobConfig, DEFAULT_PROGRAM_ENTRYPOINT
 from core.services.runners.abstract_runner import AbstractRunner, RunnerError
+from core.services.storage import get_cos
 from core.services.storage.file_storage import FileStorage, WorkingDir
 from core.utils import retry_function, decrypt_env_vars, sanitize_file_path
 
@@ -477,10 +478,12 @@ def _create_cluster_data(cluster_name: str, job: Job):
     if job.program.provider is not None:
         node_image = job.program.image
 
+    cos = get_cos(job)
     user_file_storage = FileStorage(
         username=user.username,
         working_dir=WorkingDir.USER_STORAGE,
         function=job.program,
+        cos=cos,
     )
     provider_file_storage = user_file_storage
     if job.program.provider is not None:
@@ -488,6 +491,7 @@ def _create_cluster_data(cluster_name: str, job: Job):
             username=user.username,
             working_dir=WorkingDir.PROVIDER_STORAGE,
             function=job.program,
+            cos=cos,
         )
 
     cluster = get_template("rayclustertemplate.yaml")

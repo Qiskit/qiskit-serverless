@@ -1,7 +1,6 @@
 """Tests files api."""
 
 import os
-import shutil
 from urllib.parse import urlencode
 
 import pytest
@@ -11,28 +10,18 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from django.contrib.auth import models
 from django.core.cache import cache
-from django.conf import settings as dj_settings
 
 from core.config_key import ConfigKey
 from core.models import Config
+from core.services.storage.enums.working_dir import WorkingDir
 
 
 class TestFilesApi:
     """TestProgramApi."""
 
-    _fake_media_path = os.path.normpath(
-        os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-    )
-
     @pytest.fixture(autouse=True)
-    def _setup(self, tmp_path, settings, db):
+    def _setup(self, db):
         call_command("loaddata", "tests/fixtures/files_fixtures.json")
-        settings.MEDIA_ROOT = str(tmp_path)
         cache.clear()
         Config.add_defaults()
         self.client = APIClient()
@@ -51,11 +40,11 @@ class TestFilesApi:
         response = self.client.get(url, format="json")
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_files_list_from_user_working_dir(self):
+    def test_files_list_from_user_working_dir(self, mock_cos):
         """Tests files list with working dir as user"""
         function = "personal-program"
 
-        shutil.copytree(self._fake_media_path, dj_settings.MEDIA_ROOT, dirs_exist_ok=True)
+        mock_cos.put_object_bytes("test_user_2/artifact_2.tar", b"content", WorkingDir.USER_STORAGE)
 
         user = models.User.objects.get(username="test_user_2")
         self.client.force_authenticate(user=user)
@@ -88,12 +77,14 @@ class TestFilesApi:
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    def test_files_list_from_user_with_access_to_function(self):
+    def test_files_list_from_user_with_access_to_function(self, mock_cos):
         """Tests files list with working dir as user where the user has access to the function"""
         provider = "default"
         function = "Program"
 
-        shutil.copytree(self._fake_media_path, dj_settings.MEDIA_ROOT, dirs_exist_ok=True)
+        mock_cos.put_object_bytes(
+            "test_user_2/default/Program/user_program_artifact.tar", b"content", WorkingDir.USER_STORAGE
+        )
 
         user = models.User.objects.get(username="test_user_2")
         self.client.force_authenticate(user=user)
@@ -127,12 +118,14 @@ class TestFilesApi:
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    def test_files_provider_list_using_provider_working_dir(self):
+    def test_files_provider_list_using_provider_working_dir(self, mock_cos):
         """Tests files provider list with working dir as provider"""
         provider = "default"
         function = "Program"
 
-        shutil.copytree(self._fake_media_path, dj_settings.MEDIA_ROOT, dirs_exist_ok=True)
+        mock_cos.put_object_bytes(
+            "default/Program/provider_program_artifact.tar", b"content", WorkingDir.PROVIDER_STORAGE
+        )
 
         user = models.User.objects.get(username="test_user_2")
         self.client.force_authenticate(user=user)
@@ -184,9 +177,9 @@ class TestFilesApi:
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    def test_file_download(self):
+    def test_file_download(self, mock_cos):
         """Tests downloading an existing file."""
-        shutil.copytree(self._fake_media_path, dj_settings.MEDIA_ROOT, dirs_exist_ok=True)
+        mock_cos.put_object_bytes("test_user_2/artifact_2.tar", b"file content", WorkingDir.USER_STORAGE)
 
         file = "artifact_2.tar"
         function = "personal-program"
@@ -225,9 +218,11 @@ class TestFilesApi:
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    def test_provider_file_download(self):
+    def test_provider_file_download(self, mock_cos):
         """Tests downloading a file from a provider storage."""
-        shutil.copytree(self._fake_media_path, dj_settings.MEDIA_ROOT, dirs_exist_ok=True)
+        mock_cos.put_object_bytes(
+            "default/Program/provider_program_artifact.tar", b"provider content", WorkingDir.PROVIDER_STORAGE
+        )
 
         file = "provider_program_artifact.tar"
         provider = "default"
@@ -248,17 +243,13 @@ class TestFilesApi:
         assert response.status_code == status.HTTP_200_OK
         assert response.streaming
 
-    def test_file_delete(self):
+    def test_file_delete(self, mock_cos):
         """Tests delete file."""
         function = "personal-program"
         file = "artifact_delete.tar"
         username = "test_user_2"
-        function_path = os.path.join(dj_settings.MEDIA_ROOT, username)
 
-        os.makedirs(function_path, exist_ok=True)
-
-        with open(os.path.join(function_path, file), "w+") as fp:
-            fp.write("This is first line")
+        mock_cos.put_object_bytes("test_user_2/artifact_delete.tar", b"content to delete", WorkingDir.USER_STORAGE)
 
         query_params = {"function": function, "file": file}
         user = models.User.objects.get(username=username)
@@ -267,18 +258,16 @@ class TestFilesApi:
         response = self.client.delete(f"{url}?{urlencode(query_params)}")
         assert response.status_code == status.HTTP_200_OK
 
-    def test_provider_file_delete(self):
+    def test_provider_file_delete(self, mock_cos):
         """Tests delete file."""
         provider = "default"
         function = "Program"
         file = "artifact_delete.tar"
         username = "test_user_2"
-        function_path = os.path.join(dj_settings.MEDIA_ROOT, provider, function)
 
-        os.makedirs(function_path, exist_ok=True)
-
-        with open(os.path.join(function_path, file), "w+") as fp:
-            fp.write("This is first line")
+        mock_cos.put_object_bytes(
+            "default/Program/artifact_delete.tar", b"content to delete", WorkingDir.PROVIDER_STORAGE
+        )
 
         query_params = {"function": function, "provider": provider, "file": file}
         user = models.User.objects.get(username=username)
@@ -314,7 +303,7 @@ class TestFilesApi:
         response = self.client.delete(f"{url}?{urlencode(query_params)}")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    def test_file_upload(self, settings):
+    def test_file_upload(self, settings, mock_cos):
         """Tests uploading existing file."""
         settings.UPLOAD_FILE_VALID_MIME_TYPES = ["text/plain"]
         function = "personal-program"
@@ -331,9 +320,9 @@ class TestFilesApi:
             )
 
             assert response.status_code == status.HTTP_200_OK
-            assert os.path.exists(os.path.join(dj_settings.MEDIA_ROOT, "test_user_2", "README.md"))
+            assert mock_cos.get_object_bytes("test_user_2/README.md", WorkingDir.USER_STORAGE) is not None
 
-    def test_provider_file_upload(self, settings):
+    def test_provider_file_upload(self, settings, mock_cos):
         """Tests uploading existing file."""
         settings.UPLOAD_FILE_VALID_MIME_TYPES = ["text/plain"]
         provider = "default"
@@ -351,9 +340,9 @@ class TestFilesApi:
             )
 
             assert response.status_code == status.HTTP_200_OK
-            assert os.path.exists(os.path.join(dj_settings.MEDIA_ROOT, "default", "Program", "README.md"))
+            assert mock_cos.get_object_bytes("default/Program/README.md", WorkingDir.PROVIDER_STORAGE) is not None
 
-    def test_provider_file_upload_default_values(self):
+    def test_provider_file_upload_default_values(self, mock_cos):
         """Tests uploading existing file."""
         provider = "default"
         function = "Program"
@@ -377,9 +366,9 @@ class TestFilesApi:
             )
 
             assert response.status_code == status.HTTP_200_OK
-            assert os.path.exists(os.path.join(dj_settings.MEDIA_ROOT, "default", "Program", "artifact.tar"))
+            assert mock_cos.get_object_bytes("default/Program/artifact.tar", WorkingDir.PROVIDER_STORAGE) is not None
 
-    def test_file_upload_wrong_type(self):
+    def test_file_upload_wrong_type(self, mock_cos):
         """Tests uploading existing file."""
         Config.set(ConfigKey.UPLOAD_FILE_VALID_MIME_TYPES, '["image/jpeg"]')
         function = "personal-program"
@@ -396,9 +385,9 @@ class TestFilesApi:
             )
 
             assert response.status_code == status.HTTP_400_BAD_REQUEST
-            assert not os.path.exists(os.path.join(dj_settings.MEDIA_ROOT, "test_user_2", "README.md"))
+            assert mock_cos.get_object_bytes("test_user_2/README.md", WorkingDir.USER_STORAGE) is None
 
-    def test_file_upload_wrong_type_default_values(self):
+    def test_file_upload_wrong_type_default_values(self, mock_cos):
         """Tests uploading existing file."""
         function = "personal-program"
         user = models.User.objects.get(username="test_user_2")
@@ -421,7 +410,7 @@ class TestFilesApi:
             )
 
             assert response.status_code == status.HTTP_400_BAD_REQUEST
-            assert not os.path.exists(os.path.join(dj_settings.MEDIA_ROOT, "test_user_2", "test-png.png"))
+            assert mock_cos.get_object_bytes("test_user_2/test-img.png", WorkingDir.USER_STORAGE) is None
 
     def test_provider_file_upload_no_file(self):
         """Tests uploading existing file."""

@@ -1,29 +1,33 @@
 """Tests for ResultStorage service."""
 
-import os
-
-import pytest
+from unittest.mock import Mock
 
 from core.services.storage.result_storage import ResultStorage
 
 
+def _mock_job(username):
+    job = Mock()
+    job.author = Mock()
+    job.author.username = username
+    return job
+
+
 class TestResultStorage:
-    """Tests for ResultStorage path generation and file operations."""
+    """Tests for ResultStorage key generation and COS operations."""
 
-    def test_path_generation(self, tmp_path, settings):
-        """Test path is {username}/results/"""
-        settings.MEDIA_ROOT = str(tmp_path)
-        storage = ResultStorage(username="user1")
-        assert storage.user_results_directory == f"{tmp_path}/user1/results"
-        assert os.path.exists(storage.user_results_directory)
+    def test_key_generation(self, mock_cos):
+        """Result key is username/results/job_id.json"""
+        storage = ResultStorage(_mock_job("user1"))
+        assert storage._key("some-id") == "user1/results/some-id.json"
 
-    def test_save_and_get(self, tmp_path, settings):
-        """Test saving and retrieving results."""
-        settings.MEDIA_ROOT = str(tmp_path)
-        storage = ResultStorage(username="user1")
-        # file not found returns None
+    def test_save_and_get(self, mock_cos):
+        """Test saving and retrieving results via COS."""
+        storage = ResultStorage(_mock_job("user1"))
+
         assert storage.get("id") is None
+
         storage.save("id", "foo")
         assert storage.get("id") == "foo"
+
         storage.save("id", "overwrite")
         assert storage.get("id") == "overwrite"

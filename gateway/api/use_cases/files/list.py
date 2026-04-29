@@ -9,6 +9,7 @@ from api.domain.exceptions.function_not_found_exception import FunctionNotFoundE
 
 from core.models import RUN_PROGRAM_PERMISSION
 from core.models import Program as Function
+from core.services.storage import get_cos_for_program
 from core.services.storage.file_storage import FileStorage, WorkingDir
 
 logger = logging.getLogger("api.FilesListUseCase")
@@ -39,6 +40,7 @@ class FilesListUseCase:
             username=user.username,
             working_dir=self.working_dir,
             function=function,
+            cos=get_cos_for_program(function),
         )
 
         return file_storage.get_files()

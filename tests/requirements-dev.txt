@@ -4,6 +4,8 @@ pytest-order>=1.3.0
 pytest-randomly>=4.1.0
 # new versions of testcontainers don't support docker compose
 testcontainers>=4.7.2
+# MinIO Python SDK required by testcontainers.minio at import time
+minio>=7.0.0
 tox>=4.0.0
 black[jupyter]~=26.3
 requests-mock>=1.11.0
@@ -13,3 +15,5 @@ mypy-extensions>=1.1.0
 # dependency from ray and tox requires newer versions from cachetools
 cachetools~=7.0.5
 pre-commit>=4.6.0
+# storage integration test dependencies (py311-storage uses gateway deps directly)
+pytest-django>=4.5.2

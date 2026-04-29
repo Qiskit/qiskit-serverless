@@ -2,82 +2,37 @@
 This module handle the access to the result store
 """
 
-import os
 import logging
 from typing import Optional
-from django.conf import settings
+
+from core.models import Job
+from core.services.storage import get_cos
+from core.services.storage.enums.working_dir import WorkingDir
 
 logger = logging.getLogger("core.ResultStorage")
 
 
 class ResultStorage:
-    """Handles the storage and retrieval of user job results."""
+    """Handles the storage and retrieval of user job results via COS."""
 
     RESULT_FILE_EXTENSION = ".json"
-    ENCODING = "utf-8"
+    PATH = "results"
 
-    def __init__(self, username: str):
-        """Initialize the storage path for a given user."""
-        self.user_results_directory = os.path.join(settings.MEDIA_ROOT, username, "results")
-        os.makedirs(self.user_results_directory, exist_ok=True)
+    def __init__(self, job: Job):
+        self._username = job.author.username
+        self._cos = get_cos(job)
 
-    def __get_result_path(self, job_id: str) -> str:
-        """Construct the full path for a result file."""
-        return os.path.join(self.user_results_directory, f"{job_id}{self.RESULT_FILE_EXTENSION}")
+    def _key(self, job_id: str) -> str:
+        return f"{self._username}/{self.PATH}/{job_id}{self.RESULT_FILE_EXTENSION}"
 
     def get(self, job_id: str) -> Optional[str]:
-        """
-        Retrieve a result file for the given job ID.
-
-        Args:
-            job_id (str): the id for the job to get the result
-        Returns:
-                Optional[str]: content of the file
-        """
-        result_path = self.__get_result_path(job_id)
-        if not os.path.exists(result_path):
-            logger.info(
-                "[get] job_id=%s | Result file not found %s",
-                job_id,
-                result_path,
-            )
-            return None
-
-        try:
-            with open(result_path, "r", encoding="utf-8") as result_file:
-                content = result_file.read()
-                logger.info(
-                    "[get] job_id=%s | Result file read %s",
-                    job_id,
-                    result_path,
-                )
-                return content
-        except (UnicodeDecodeError, IOError) as e:
-            logger.error(
-                "[get] job_id=%s | Failed to read result file: %s",
-                job_id,
-                str(e),
-            )
-            return None
+        """Retrieve a result for the given job ID from COS."""
+        content = self._cos.get_object(self._key(job_id), WorkingDir.USER_STORAGE)
+        if content is None:
+            logger.info("[get] job_id=%s Result not found in COS", job_id)
+        return content
 
     def save(self, job_id: str, result: str) -> None:
-        """
-        Save the result content to a file associated with the given job ID.
-
-        Args:
-            job_id (str): The unique identifier for the job. This will be used as the base
-                        name for the result file.
-            result (str): The job result content to be saved in the file.
-        Returns:
-            None
-        """
-        result_path = self.__get_result_path(job_id)
-
-        with open(result_path, "w", encoding=self.ENCODING) as result_file:
-            result_file.write(result)
-
-        logger.info(
-            "[save] job_id=%s | Result saved ok %s",
-            job_id,
-            result_path,
-        )
+        """Save the result for the given job ID to COS."""
+        self._cos.put_object(self._key(job_id), result, WorkingDir.USER_STORAGE)
+        logger.info("[save] job_id=%s Result saved to COS", job_id)
