@@ -3,14 +3,14 @@
 import pytest
 
 from api.domain.authorization.function_access_entry import FunctionAccessEntry
-from core.models import PLATFORM_PERMISSION_RUN, PLATFORM_PERMISSION_VIEW
+from core.models import PLATFORM_PERMISSION_RUN, PLATFORM_PERMISSION_READ
 
 
 def test_valid_entry():
     entry = FunctionAccessEntry(
         provider_name="my-provider",
         function_title="my-function",
-        permissions={PLATFORM_PERMISSION_RUN, PLATFORM_PERMISSION_VIEW},
+        permissions={PLATFORM_PERMISSION_RUN, PLATFORM_PERMISSION_READ},
         business_model="TRIAL",
     )
     assert entry.provider_name == "my-provider"
