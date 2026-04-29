@@ -68,7 +68,7 @@ class CustomTokenBackend(authentication.BaseAuthentication):
             public_access=public_access,
         ).execute()
 
-        accessible = (
+        accessible_functions = (
             FunctionAccessClient().get_accessible_functions(crn)
             if crn
             else FunctionAccessResult(has_response=False, message="No crn")
@@ -76,8 +76,8 @@ class CustomTokenBackend(authentication.BaseAuthentication):
         return quantum_user, CustomAuthentication(
             channel=channel,
             token=authorization_token.encode(),
+            accessible_functions=accessible_functions,
             instance=crn,
-            accessible_functions=accessible,
         )
 
     def authenticate_header(self, request):
