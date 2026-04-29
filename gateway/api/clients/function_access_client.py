@@ -6,9 +6,9 @@ import os
 import requests
 from django.conf import settings
 
-from core.config_key import ConfigKey
 from api.domain.authorization.function_access_entry import FunctionAccessEntry
 from api.domain.authorization.function_access_result import FunctionAccessResult
+from core.config_key import ConfigKey
 from core.models import Config
 
 logger = logging.getLogger("api.FunctionAccessClient")
