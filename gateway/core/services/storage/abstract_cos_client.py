@@ -1,3 +1,5 @@
+"""Abstract cos module."""
+
 from abc import ABC, abstractmethod
 from typing import Optional
 

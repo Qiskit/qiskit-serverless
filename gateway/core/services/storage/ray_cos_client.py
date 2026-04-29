@@ -9,11 +9,11 @@ import boto3
 from botocore.exceptions import ClientError
 from django.conf import settings
 
-if TYPE_CHECKING:
-    from core.models import Job
-
 from core.services.storage.abstract_cos_client import AbstractCOSClient, COSError
 from core.services.storage.enums.working_dir import WorkingDir
+
+if TYPE_CHECKING:
+    from core.models import Job
 
 logger = logging.getLogger("RayCOSClient")
 

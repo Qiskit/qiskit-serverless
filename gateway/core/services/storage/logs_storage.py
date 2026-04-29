@@ -5,7 +5,6 @@ This module handles the access to the logs store.
 import logging
 from typing import Optional
 
-from api.domain.exceptions.invalid_access_exception import InvalidAccessException
 from core.models import Job
 from core.services.storage import get_cos
 from core.services.storage.enums.working_dir import WorkingDir

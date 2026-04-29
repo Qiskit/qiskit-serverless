@@ -1,3 +1,5 @@
+"""Abstract cos factory."""
+
 from core.models import Job, Program
 from core.services.storage.abstract_cos_client import COSError, AbstractCOSClient
 from core.services.storage.fleets_cos_client import FleetsCOSClient

@@ -9,11 +9,11 @@ import boto3
 from botocore.exceptions import ClientError
 from django.conf import settings
 
-if TYPE_CHECKING:
-    from core.models import Job
-
 from core.services.storage.abstract_cos_client import AbstractCOSClient, COSError
 from core.services.storage.enums.working_dir import WorkingDir
+
+if TYPE_CHECKING:
+    from core.models import Job
 
 logger = logging.getLogger("FleetsCOSClient")
 
@@ -78,8 +78,9 @@ class FleetsCOSClient(AbstractCOSClient):
             raise COSError(f"Failed to get object [{key}]", e) from e
 
     def get_object_for_stream(self, key: str, working_dir: WorkingDir = WorkingDir.USER_STORAGE) -> Optional[bytes]:
+        client, bucket = self._resolve(working_dir)
         try:
-            response = self._boto3_client.get_object(Bucket=settings.RAY_COS_BUCKET, Key=key)
+            response = client.get_object(Bucket=bucket, Key=key)
             return response["Body"]
         except ClientError as e:
             if e.response.get("Error", {}).get("Code") == "NoSuchKey":
