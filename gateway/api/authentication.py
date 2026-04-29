@@ -122,6 +122,7 @@ class MockTokenBackend(authentication.BaseAuthentication):
         return quantum_user, CustomAuthentication(
             channel=channel,
             token=authorization_token.encode(),
+            instance=None,
             accessible_functions=FunctionAccessResult(has_response=False, message="Mock"),
         )
 
