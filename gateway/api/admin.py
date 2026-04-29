@@ -52,6 +52,12 @@ class ProgramAdmin(admin.ModelAdmin):
         "disabled",
     ]
 
+    def get_readonly_fields(self, request, obj=None):
+        readonly_fields = list(super().get_readonly_fields(request, obj))
+        if obj:
+            readonly_fields.append("title")
+        return readonly_fields
+
     def get_urls(self):
         """Add program history url to the available urls."""
         custom_urls = [
