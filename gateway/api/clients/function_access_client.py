@@ -1,6 +1,7 @@
 """FunctionAccessClient."""
 
 import logging
+import os
 
 import requests
 from django.conf import settings
@@ -12,13 +13,21 @@ from core.models import Config
 
 logger = logging.getLogger("api.FunctionAccessClient")
 
+_ENV_OVERRIDE = os.environ.get("RUNTIME_INSTANCES_API_ENABLED")
+
 
 class FunctionAccessClient:
     """Client for retrieving accessible functions for a given instance CRN."""
 
     def get_accessible_functions(self, instance_crn: str) -> FunctionAccessResult:
         """Return all functions accessible to the given instance CRN with their permissions."""
-        if not Config.get_bool(ConfigKey.RUNTIME_INSTANCES_API_ENABLED):
+        # Env var takes precedence (set by docker-compose/k8s for test deployments).
+        # Falls back to DB config so ops can toggle at runtime without a redeploy.
+        if _ENV_OVERRIDE is not None:
+            enabled = _ENV_OVERRIDE == "1"
+        else:
+            enabled = Config.get_bool(ConfigKey.RUNTIME_INSTANCES_API_ENABLED)
+        if not enabled:
             return FunctionAccessResult(has_response=False)
 
         base_url = settings.RUNTIME_INSTANCES_API_BASE_URL

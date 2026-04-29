@@ -3,6 +3,8 @@
 import pytest
 
 from api.clients.function_access_client import FunctionAccessClient
+
+pytestmark = pytest.mark.django_db
 from core.config_key import ConfigKey
 from core.models import Config, PLATFORM_PERMISSION_RUN
 

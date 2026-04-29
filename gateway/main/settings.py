@@ -388,7 +388,7 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "Specify the permitted mime types to upload files.",
     },
     "gateway.runtime_instances_api.enabled": {
-        "default": "true" if os.environ.get("RUNTIME_INSTANCES_API_ENABLED") == "1" else "false",
+        "default": "false",
         "type": "boolean",
         "description": "Enable external Runtime instances API for function-level access control.",
     },
