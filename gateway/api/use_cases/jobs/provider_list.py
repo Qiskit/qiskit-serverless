@@ -29,11 +29,11 @@ class JobsProviderListUseCase:
             tuple[list[Job], int]: (jobs, total_count)
 
         Raises:
-            ProviderNotFoundException: If provider doesn't exist or access denied.
-            FunctionNotFoundException: If function doesn't exist or access denied.
+            ProviderNotFoundException: If the provider doesn't exist or access is denied.
+            FunctionNotFoundException: If the function doesn't exist.
         """
         provider = self.provider_repository.get_provider_by_name(filters.provider)
-        if not provider or not ProviderAccessPolicy.can_access(user, provider):
+        if not provider or not ProviderAccessPolicy.is_provider_admin(user, provider):
             raise ProviderNotFoundException(filters.provider)
 
         if filters.function:
