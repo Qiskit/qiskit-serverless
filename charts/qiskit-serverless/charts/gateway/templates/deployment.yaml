@@ -227,12 +227,6 @@ spec:
               value: {{ .Values.application.limits.maxActiveJobsPerUser | quote }}
             - name: LOG_FORMAT
               value: {{ .Values.application.logFormat | quote }}
-            - name: RUNTIME_INSTANCES_API_ENABLED
-              value: {{ .Values.application.runtimeInstancesApiEnabled | quote }}
-{{- if .Values.application.runtimeInstancesApiBaseUrl }}
-            - name: RUNTIME_INSTANCES_API_BASE_URL
-              value: {{ .Values.application.runtimeInstancesApiBaseUrl | quote }}
-{{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

@@ -48,15 +48,11 @@ services:
       - DJANGO_SUPERUSER_EMAIL=admin@noemail.com
       - SITE_HOST=http://gateway:8000
       - SETTINGS_AUTH_MECHANISM=mock_token
-      - RUNTIME_INSTANCES_API_BASE_URL=${RUNTIME_INSTANCES_API_BASE_URL:-http://host.docker.internal:8111}
-      - RUNTIME_INSTANCES_API_ENABLED=1
       - DATABASE_HOST=postgres
       - DATABASE_PORT=5432
       - DATABASE_NAME=serverlessdb
       - DATABASE_USER=serverlessuser
       - DATABASE_PASSWORD=serverlesspassword
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     networks:
       - safe-tier
     volumes:

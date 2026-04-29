@@ -19,14 +19,14 @@ from rest_framework.response import Response
 from api.clients.function_access_client import FunctionAccessClient
 from api.domain.authorization.function_access_result import FunctionAccessResult
 from api.use_cases.jobs.provider_list import JobsProviderListUseCase
+from api.v1.endpoint_decorator import endpoint
+from api.v1.exception_handler import endpoint_handle_exceptions
+from api.v1.views.serializer_utils import SanitizedCharField
+from api.v1.views.swagger_utils import standard_error_responses
+from api.v1.views.utils import create_paginated_response
 from core.enums.type_filter import TypeFilter
 from core.model_managers.jobs import JobFilters
 from core.models import Job, Program
-from api.v1.endpoint_decorator import endpoint
-from api.v1.exception_handler import endpoint_handle_exceptions
-from api.v1.views.utils import create_paginated_response
-from api.v1.views.swagger_utils import standard_error_responses
-from api.v1.views.serializer_utils import SanitizedCharField
 
 logger = logging.getLogger("api.api.v1.views.jobs.provider_list")
 

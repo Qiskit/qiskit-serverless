@@ -324,7 +324,7 @@ GATEWAY_GPU_JOBS_CONFIG = str(os.environ.get("GATEWAY_GPU_JOBS_CONFIG", "api/v1/
 
 # authentication base url for qiskit runtime
 QISKIT_IBM_URL = os.environ.get("QISKIT_IBM_URL", "https://cloud.ibm.com")
-RUNTIME_INSTANCES_API_BASE_URL = os.environ.get("RUNTIME_INSTANCES_API_BASE_URL", "http://localhost:8111")
+RUNTIME_INSTANCES_API_BASE_URL = os.environ.get("RUNTIME_INSTANCES_API_BASE_URL")
 # quantum api
 IQP_QCON_API_BASE_URL = os.environ.get("IQP_QCON_API_BASE_URL", None)
 
@@ -388,7 +388,7 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "Specify the permitted mime types to upload files.",
     },
     "gateway.runtime_instances_api.enabled": {
-        "default": "false",  # can be overridden at runtime via Django admin or RUNTIME_INSTANCES_API_ENABLED env var
+        "default": "false",
         "type": "boolean",
         "description": "Enable external Runtime instances API for function-level access control.",
     },

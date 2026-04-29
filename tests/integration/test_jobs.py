@@ -493,30 +493,6 @@ ERROR: Provider log
         assert event_data["message"] == "ValueError: This is not a ServerlessError"
         assert event_data["exception"] == "ValueError"
 
-    def test_provider_jobs_list_granted(self, serverless_client: ServerlessClient, instances_server):
-        """Integration test for listing provider jobs via the provider endpoint."""
-        provider_id = os.environ.get("PROVIDER_ID", "mockprovider")
-        title = "provider-jobs-list-function"
-
-        function = QiskitFunction(
-            title=title,
-            entrypoint="pattern.py",
-            working_dir=resources_path,
-            provider=provider_id,
-        )
-        serverless_client.upload(function)
-
-        # no grant in Runtime API, it fails
-        with raises(QiskitServerlessException) as exc_info:
-            serverless_client.provider_jobs(function)
-
-        assert "404" in str(exc_info.value)
-
-        # no grant in Runtime API, it fails
-        instances_server.grant(provider_id, title, ["function.provider.jobs"])
-        jobs = serverless_client.provider_jobs(function)
-        assert isinstance(jobs, list)
-
     def test_provider_logs(self, serverless_client: ServerlessClient):
         """Integration test for logs."""
 

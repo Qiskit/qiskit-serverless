@@ -3,12 +3,16 @@
 import pytest
 
 from api.clients.function_access_client import FunctionAccessClient
+from core.config_key import ConfigKey
 from core.models import PLATFORM_PERMISSION_RUN
 
 
 @pytest.fixture(autouse=True)
 def _enable_instances_api(monkeypatch):
-    monkeypatch.setenv("RUNTIME_INSTANCES_API_ENABLED", "1")
+    monkeypatch.setattr(
+        "core.models.Config.get_bool",
+        classmethod(lambda cls, key: key == ConfigKey.RUNTIME_INSTANCES_API_ENABLED),
+    )
 
 
 def test_returns_function_from_200_response(instances_server):
@@ -43,7 +47,7 @@ def test_returns_no_response_on_server_error(instances_server):
 
 
 def test_returns_no_response_when_disabled(monkeypatch):
-    monkeypatch.setenv("RUNTIME_INSTANCES_API_ENABLED", "0")
+    monkeypatch.setattr("core.models.Config.get_bool", classmethod(lambda cls, key: False))
 
     result = FunctionAccessClient().get_accessible_functions("crn:test:000")
 

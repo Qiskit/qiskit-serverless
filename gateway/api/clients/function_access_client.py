@@ -19,13 +19,7 @@ class FunctionAccessClient:
 
     def get_accessible_functions(self, instance_crn: str) -> FunctionAccessResult:
         """Return all functions accessible to the given instance CRN with their permissions."""
-        # Env var takes precedence (set by docker-compose/k8s for test deployments).
-        # Falls back to DB config so ops can toggle at runtime without a redeploy.
-        env_override = os.environ.get("RUNTIME_INSTANCES_API_ENABLED")
-        if env_override is not None:
-            enabled = env_override == "1"
-        else:
-            enabled = Config.get_bool(ConfigKey.RUNTIME_INSTANCES_API_ENABLED)
+        enabled = Config.get_bool(ConfigKey.RUNTIME_INSTANCES_API_ENABLED)
         if not enabled:
             return FunctionAccessResult(has_response=False)
 
