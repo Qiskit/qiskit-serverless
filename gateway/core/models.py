@@ -22,11 +22,9 @@ VIEW_PROGRAM_PERMISSION = "view_program"
 RUN_PROGRAM_PERMISSION = "run_program"
 
 # Platform permissions (Runtime API instances access client)
-PLATFORM_PERMISSION_READ = "function.view"  # see function in catalog and retrieve its metadata
+PLATFORM_PERMISSION_READ = "function.read"  # see function in catalog and retrieve its metadata
 PLATFORM_PERMISSION_RUN = "function.run"  # execute a new job of this function
-PLATFORM_PERMISSION_JOB_RETRIEVE = (
-    "function.job.retrieve"  # retrieve a specific job from this function (non-author access)
-)
+PLATFORM_PERMISSION_JOB_READ = "function.job.read"  # retrieve a specific job from this function (non-author access)
 PLATFORM_PERMISSION_USER_FILES = "function.files"  # list, download, upload and delete files in user space
 # Provider admin permissions
 PLATFORM_PERMISSION_PROVIDER_UPLOAD = "function.provider.upload"  # create or update this function's code

@@ -1,7 +1,7 @@
 """Tests for FunctionAccessResult."""
 
-from core.domain.authorization.function_access_entry import FunctionAccessEntry
-from core.domain.authorization.function_access_result import FunctionAccessResult
+from api.domain.authorization.function_access_entry import FunctionAccessEntry
+from api.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import PLATFORM_PERMISSION_RUN, PLATFORM_PERMISSION_READ, PLATFORM_PERMISSION_PROVIDER_JOBS
 
 
@@ -24,6 +24,17 @@ def test_get_function():
     result = FunctionAccessResult(has_response=True, functions=[entry])
     assert result.get_function("prov", "func") is entry
     assert result.get_function("other-prov", "func") is None
+
+
+def test_has_permission_for_provider():
+    entries = [
+        _entry("prov", "func1", {PLATFORM_PERMISSION_PROVIDER_JOBS}),
+        _entry("prov", "func2", {PLATFORM_PERMISSION_READ}),
+    ]
+    result = FunctionAccessResult(has_response=True, functions=entries)
+    assert result.has_permission_for_provider("prov", PLATFORM_PERMISSION_PROVIDER_JOBS) is True
+    assert result.has_permission_for_provider("prov", PLATFORM_PERMISSION_PROVIDER_JOBS) is True
+    assert result.has_permission_for_provider("prov", PLATFORM_PERMISSION_RUN) is False
 
 
 def test_get_functions_by_provider():
