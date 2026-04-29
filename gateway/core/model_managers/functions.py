@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 class FunctionsQuerySet(QuerySet):
     """Functions query set to transform into a manager."""
 
-    def with_permission(self, author: AbstractUser, permission_name: str) -> Self:
+    def with_permission(self, author: AbstractUser, legacy_permission_name: str) -> Self:
         """
         Returns all the functions available to the user. This means:
             - User functions where the user is the author
@@ -24,13 +24,13 @@ class FunctionsQuerySet(QuerySet):
 
         Args:
             author: Django author from who retrieve the functions
-            permission_name (str): name of the permission. Values accepted
-            RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
+            legacy_permission_name (str): Django permission codename. Values accepted:
+                RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
 
         Returns:
             List[Function]: all the functions available to the user
         """
-        groups = Group.objects.filter(user=author, permissions__codename=permission_name)
+        groups = Group.objects.filter(user=author, permissions__codename=legacy_permission_name)
         author_groups_with_permissions_criteria = Q(instances__in=groups)
         author_criteria = Q(author=author)
 
@@ -108,7 +108,7 @@ class FunctionsQuerySet(QuerySet):
     def get_function_by_permission(
         self,
         user,
-        permission_name: str,
+        legacy_permission_name: str,
         function_title: str,
         provider_name: Optional[str],
     ) -> Optional[Function]:
@@ -118,8 +118,8 @@ class FunctionsQuerySet(QuerySet):
 
         Args:
             user: Django user of the function that wants to get it
-            permission_name (str): name of the permission. Values accepted
-            RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
+            legacy_permission_name (str): Django permission codename. Values accepted:
+                RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
             function_title (str): title of the function
             provider_name (str | None): name of the provider owner of the function
 
@@ -130,7 +130,7 @@ class FunctionsQuerySet(QuerySet):
         if provider_name:
             return self.with_permission(
                 author=user,
-                permission_name=permission_name,
+                legacy_permission_name=legacy_permission_name,
             ).get_function(function_title, provider_name)
 
         return self.user_functions(author=user).get_function(function_title)
