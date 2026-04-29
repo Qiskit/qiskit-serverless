@@ -16,7 +16,6 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 
-from api.clients.function_access_client import FunctionAccessClient
 from api.domain.authorization.function_access_result import FunctionAccessResult
 from api.use_cases.jobs.provider_list import JobsProviderListUseCase
 from api.v1.endpoint_decorator import endpoint
@@ -192,24 +191,15 @@ def get_provider_jobs(request: Request) -> Response:
     filters = JobFilters(**serializer.validated_data)
     user = cast(AbstractUser, request.user)
 
-    crn = getattr(request.auth, "instance", None)
+    accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
+    jobs, total = JobsProviderListUseCase().execute(
+        user=user, filters=filters, accessible_functions=accessible_functions
+    )
     logger.info(
-        "[jobs-provider-list] user_id=%s provider=%s function=%s crn=%s | Accessing to Runtime API Instance",
+        "[jobs-provider-list] user_id=%s provider=%s function=%s accessible_functions=%s | Provider jobs listed ok",
         user.id,
         filters.provider,
         filters.function,
-        crn,
-    )
-
-    accessible = (
-        FunctionAccessClient().get_accessible_functions(crn) if crn else FunctionAccessResult(has_response=False)
-    )
-
-    jobs, total = JobsProviderListUseCase().execute(user=user, filters=filters, accessible_functions=accessible)
-    logger.info(
-        "[jobs-provider-list] user_id=%s provider=%s function=%s | Provider jobs listed ok",
-        user.id,
-        filters.provider,
-        filters.function,
+        accessible_functions,
     )
     return Response(serialize_output(jobs, total, request, filters.limit, filters.offset))

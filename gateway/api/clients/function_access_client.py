@@ -20,11 +20,11 @@ class FunctionAccessClient:
         """Return all functions accessible to the given instance CRN with their permissions."""
         enabled = Config.get_bool(ConfigKey.RUNTIME_INSTANCES_API_ENABLED)
         if not enabled:
-            return FunctionAccessResult(has_response=False)
+            return FunctionAccessResult(has_response=False, message="Feature flag is disabled")
 
         base_url = settings.RUNTIME_INSTANCES_API_BASE_URL
         if not base_url:
-            return FunctionAccessResult(has_response=False)
+            return FunctionAccessResult(has_response=False, message="Url is not defined")
 
         try:
             response = requests.get(
@@ -32,9 +32,9 @@ class FunctionAccessClient:
                 headers={"Service-CRN": instance_crn},
                 timeout=5,
             )
-        except requests.RequestException:
+        except requests.RequestException as ex:
             logger.exception("FunctionAccessClient: connection error for CRN %s", instance_crn)
-            return FunctionAccessResult(has_response=False)
+            return FunctionAccessResult(has_response=False, message=f"Connection error f{str(ex)}")
 
         if response.status_code != 200:
             logger.warning(
@@ -42,7 +42,7 @@ class FunctionAccessClient:
                 response.status_code,
                 instance_crn,
             )
-            return FunctionAccessResult(has_response=False)
+            return FunctionAccessResult(has_response=False, message=f"Unexpected status {response.status_code}")
 
         functions = []
         for f in response.json().get("functions", []):
@@ -57,5 +57,6 @@ class FunctionAccessClient:
                 )
             except (KeyError, ValueError) as exc:
                 logger.error("FunctionAccessClient: invalid entry %s — %s", f, exc)
+                return FunctionAccessResult(has_response=False, message=f"Json error")
 
-        return FunctionAccessResult(has_response=True, functions=functions)
+        return FunctionAccessResult(has_response=True, functions=functions, message="Success")
