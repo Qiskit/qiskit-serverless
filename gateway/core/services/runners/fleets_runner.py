@@ -19,13 +19,13 @@ import json
 import logging
 import tarfile
 import time
+from collections import OrderedDict
 
 from django.conf import settings
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
 from core.models import Job, CodeEngineProject
 from core.services.runners.abstract_runner import AbstractRunner, RunnerError
-from core.services.compute_profile_parser import ComputeProfileParser
 from core.ibm_cloud.clients import IBMCloudClientProvider
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
 from core.ibm_cloud.code_engine.fleets.utils import (
@@ -41,6 +41,30 @@ LOG_FILTER_KEY = "[public]"
 LOG_FILENAME = "logs.log"
 
 
+class TTLCache:
+    """Fixed-size cache with per-entry TTL, evicting oldest entries when full."""
+
+    def __init__(self, maxsize: int = 1000, ttl: float = 30) -> None:
+        self._store: OrderedDict[str, tuple] = OrderedDict()
+        self._maxsize = maxsize
+        self._ttl = ttl
+
+    def get(self, key: str):
+        """Return cached value if present and not expired, else ``None``."""
+        entry = self._store.get(key)
+        if entry and (time.monotonic() - entry[1]) < self._ttl:
+            return entry[0]
+        self._store.pop(key, None)
+        return None
+
+    def put(self, key: str, value) -> None:
+        """Store a value, evicting the oldest entry if the cache is full."""
+        self._store.pop(key, None)
+        if len(self._store) >= self._maxsize:
+            self._store.popitem(last=False)
+        self._store[key] = (value, time.monotonic())
+
+
 class FleetsRunner(AbstractRunner):
     """Runner that executes jobs on IBM Code Engine Fleets.
 
@@ -48,6 +72,8 @@ class FleetsRunner(AbstractRunner):
     underlying :class:`FleetHandler` is created lazily on first use and
     recreated automatically when the cached IAM token is rotated.
     """
+
+    _is_active_cache = TTLCache(maxsize=1000, ttl=30)
 
     def __init__(self, job: Job) -> None:
         """Initialize the runner.
@@ -81,21 +107,27 @@ class FleetsRunner(AbstractRunner):
     def is_active(self) -> bool:
         """Return ``True`` if the fleet exists in Code Engine.
 
-        Verifies via a lightweight ``GET /fleets/{id}`` API call rather
-        than trusting the in-memory ``fleet_id`` flag, which may be stale
-        or never cleared after the job finishes.
+        Results are cached for 30 seconds (class-level :class:`TTLCache`)
+        to avoid redundant API calls when the scheduler polls frequently.
 
         Returns:
             ``True`` when the fleet is reachable, ``False`` otherwise.
         """
         if not self.job.fleet_id:
             return False
+
+        cached = self._is_active_cache.get(self.job.fleet_id)
+        if cached is not None:
+            return cached
+
         try:
             self._ensure_connected()
             self._get_handler().get_job_status(self.job.fleet_id)
+            self._is_active_cache.put(self.job.fleet_id, True)
             return True
         except ApiException as ex:
             if ex.status == 404:
+                self._is_active_cache.put(self.job.fleet_id, False)
                 return False
             logger.warning("CE API error checking fleet [%s]: status=%s", self.job.fleet_id, ex.status)
             return False
@@ -127,7 +159,15 @@ class FleetsRunner(AbstractRunner):
                 self._project.project_name,
             )
 
-            extra_fields: dict = self._get_gpu_config()
+            extra_fields: dict = {}
+
+            if self.job.compute_profile:
+                extra_fields["scale_preferred_worker_profile"] = self.job.compute_profile
+                logger.info(
+                    "Job [%s] using worker profile [%s]",
+                    self.job.id,
+                    self.job.compute_profile,
+                )
 
             if self._is_cos_configured():
                 paths = self._build_cos_paths()
@@ -330,8 +370,8 @@ class FleetsRunner(AbstractRunner):
             current_status = (status_info.get("status") or "").lower()
 
             if current_status in {"running", "pending"}:
-                handler.delete_job(self.job.fleet_id)
-                logger.info("Stopped fleet [%s]", self.job.fleet_id)
+                handler.cancel_job(self.job.fleet_id, wait=False, delete=False)
+                logger.info("Cancelled fleet [%s]", self.job.fleet_id)
                 return True
 
             logger.info("Fleet [%s] not stoppable (status: %s)", self.job.fleet_id, current_status)
@@ -355,20 +395,26 @@ class FleetsRunner(AbstractRunner):
         Returns:
             ``True`` if cleaned up (or already deleted), ``False`` on error.
         """
-        if not self.job.fleet_id:
-            logger.debug("No fleet_id to clean up for job [%s]", self.job.id)
-            return False
-
-        try:
-            self._get_handler().delete_job(self.job.fleet_id)
-            logger.info("Deleted fleet [%s]", self.job.fleet_id)
-            return True
-        except Exception as ex:  # pylint: disable=broad-exception-caught
-            logger.warning("Failed to delete fleet [%s]: %s", self.job.fleet_id, ex)
-            return False
+        # NOTE: fleet deletion disabled to preserve fleets for post-run inspection.
+        # Re-enable after the demo.
+        # if not self.job.fleet_id:
+        #     logger.debug("No fleet_id to clean up for job [%s]", self.job.id)
+        #     return False
+        #
+        # try:
+        #     self._get_handler().delete_job(self.job.fleet_id)
+        #     logger.info("Deleted fleet [%s]", self.job.fleet_id)
+        #     return True
+        # except Exception as ex:  # pylint: disable=broad-exception-caught
+        #     logger.warning("Failed to delete fleet [%s]: %s", self.job.fleet_id, ex)
+        #     return False
+        return False
 
     def _get_or_assign_project(self) -> CodeEngineProject:
         """Return the job's Code Engine project, assigning one if not yet set.
+
+        NOTE: currently picks the first active project. Replace with more
+        sophisticated assignment logic when multi-project support.
 
         Returns:
             Active :class:`CodeEngineProject`.
@@ -687,16 +733,15 @@ class FleetsRunner(AbstractRunner):
     def _get_cpu_limit(self) -> str:
         """Return the CPU limit for fleet workers.
 
-        Priority: ``compute_profile`` → ``job.config.cpu_limit`` →
-        ``settings.FLEETS_DEFAULT_CPU_LIMIT`` (default ``"1"``).
+        NOTE: default limits (cpu=1, memory=2G, max_instances=1) need to be
+        validated with practical workloads and refined as needed.
+
+        When ``compute_profile`` is set, Code Engine derives CPU from the
+        worker profile. This value is a minimal default.
 
         Returns:
             CPU limit string.
         """
-        if self.job.compute_profile:
-            cpu = ComputeProfileParser.get_cpu(self.job.compute_profile)
-            if cpu:
-                return str(cpu)
         if self.job.config and getattr(self.job.config, "cpu_limit", None):
             return str(self.job.config.cpu_limit)
         return str(getattr(settings, "FLEETS_DEFAULT_CPU_LIMIT", "1"))
@@ -704,16 +749,12 @@ class FleetsRunner(AbstractRunner):
     def _get_memory_limit(self) -> str:
         """Return the memory limit for fleet workers.
 
-        Priority: ``compute_profile`` → ``job.config.memory_limit`` →
-        ``settings.FLEETS_DEFAULT_MEMORY_LIMIT`` (default ``"2G"``).
+        When ``compute_profile`` is set, Code Engine derives memory from the
+        worker profile. This value is a minimal default.
 
         Returns:
             Memory limit string.
         """
-        if self.job.compute_profile:
-            memory = ComputeProfileParser.get_memory(self.job.compute_profile)
-            if memory:
-                return memory
         if self.job.config and getattr(self.job.config, "memory_limit", None):
             return str(self.job.config.memory_limit)
         return str(getattr(settings, "FLEETS_DEFAULT_MEMORY_LIMIT", "2G"))
@@ -730,27 +771,6 @@ class FleetsRunner(AbstractRunner):
         if self.job.config and getattr(self.job.config, "workers", None):
             return int(self.job.config.workers)
         return int(getattr(settings, "FLEETS_DEFAULT_MAX_INSTANCES", 1))
-
-    def _get_gpu_config(self) -> dict:
-        """Return the GPU ``extra_fields`` dict for the fleet submission.
-
-        Parses ``compute_profile`` via :class:`ComputeProfileParser`. Falls
-        back to the legacy ``job.gpu`` boolean flag if no profile is set.
-
-        Returns:
-            Dict with ``scale_gpu`` structure, or empty dict if no GPU.
-        """
-        if self.job.compute_profile:
-            return ComputeProfileParser.get_gpu_config(self.job.compute_profile) or {}
-
-        if not self.job.gpu:
-            return {}
-
-        logger.warning(
-            "Job [%s] uses legacy gpu=True without compute_profile — using default V100 config",
-            self.job.id,
-        )
-        return {"scale_gpu": {"preferences": [{"family": "v100", "allocation": "1"}]}}
 
     def _map_fleet_status(self, fleet_status: str) -> str:
         """Map a CE fleet status string to a :attr:`Job.STATUS` constant.
