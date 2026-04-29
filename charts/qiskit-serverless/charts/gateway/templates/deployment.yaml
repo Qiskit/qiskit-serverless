@@ -227,8 +227,6 @@ spec:
               value: {{ .Values.application.limits.maxActiveJobsPerUser | quote }}
             - name: LOG_FORMAT
               value: {{ .Values.application.logFormat | quote }}
-            - name: RUNTIME_INSTANCES_API_ENABLED
-              value: {{ .Values.application.runtimeInstancesApiEnabled | default 0 | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

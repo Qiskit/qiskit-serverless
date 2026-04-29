@@ -13,8 +13,6 @@ from core.models import Config
 
 logger = logging.getLogger("api.FunctionAccessClient")
 
-_ENV_OVERRIDE = os.environ.get("RUNTIME_INSTANCES_API_ENABLED")
-
 
 class FunctionAccessClient:
     """Client for retrieving accessible functions for a given instance CRN."""
@@ -23,8 +21,9 @@ class FunctionAccessClient:
         """Return all functions accessible to the given instance CRN with their permissions."""
         # Env var takes precedence (set by docker-compose/k8s for test deployments).
         # Falls back to DB config so ops can toggle at runtime without a redeploy.
-        if _ENV_OVERRIDE is not None:
-            enabled = _ENV_OVERRIDE == "1"
+        env_override = os.environ.get("RUNTIME_INSTANCES_API_ENABLED")
+        if env_override is not None:
+            enabled = env_override == "1"
         else:
             enabled = Config.get_bool(ConfigKey.RUNTIME_INSTANCES_API_ENABLED)
         if not enabled:

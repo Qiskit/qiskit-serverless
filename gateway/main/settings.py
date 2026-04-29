@@ -388,7 +388,7 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "Specify the permitted mime types to upload files.",
     },
     "gateway.runtime_instances_api.enabled": {
-        "default": "false",
+        "default": "false",  # toggled at runtime via Django admin or integration test setup
         "type": "boolean",
         "description": "Enable external Runtime instances API for function-level access control.",
     },

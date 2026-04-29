@@ -3,15 +3,12 @@
 import pytest
 
 from api.clients.function_access_client import FunctionAccessClient
-
-pytestmark = pytest.mark.django_db
-from core.config_key import ConfigKey
-from core.models import Config, PLATFORM_PERMISSION_RUN
+from core.models import PLATFORM_PERMISSION_RUN
 
 
 @pytest.fixture(autouse=True)
-def _enable_instances_api():
-    Config.set(ConfigKey.RUNTIME_INSTANCES_API_ENABLED, "true")
+def _enable_instances_api(monkeypatch):
+    monkeypatch.setenv("RUNTIME_INSTANCES_API_ENABLED", "1")
 
 
 def test_returns_function_from_200_response(instances_server):
@@ -45,8 +42,8 @@ def test_returns_no_response_on_server_error(instances_server):
     assert result.has_response is False
 
 
-def test_returns_no_response_when_disabled():
-    Config.set(ConfigKey.RUNTIME_INSTANCES_API_ENABLED, "false")
+def test_returns_no_response_when_disabled(monkeypatch):
+    monkeypatch.setenv("RUNTIME_INSTANCES_API_ENABLED", "0")
 
     result = FunctionAccessClient().get_accessible_functions("crn:test:000")
 
