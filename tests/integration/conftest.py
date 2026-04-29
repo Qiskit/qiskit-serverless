@@ -10,7 +10,6 @@ import os
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-import psycopg2
 from pytest import fixture
 from qiskit_serverless import ServerlessClient
 
@@ -22,37 +21,6 @@ GATEWAY_CHANNEL = os.environ.get("GATEWAY_CHANNEL", "ibm_quantum_platform")
 # Port must match RUNTIME_INSTANCES_API_BASE_URL configured in the gateway Docker container.
 # Default matches docker-compose: http://host.docker.internal:8111
 INSTANCES_SERVER_LOCAL_PORT = int(os.environ.get("INSTANCES_SERVER_LOCAL_PORT", "8111"))
-
-DATABASE_HOST = os.environ.get("DATABASE_HOST", "localhost")
-DATABASE_PORT = int(os.environ.get("DATABASE_PORT", "5432"))
-DATABASE_NAME = os.environ.get("DATABASE_NAME", "serverlessdb")
-DATABASE_USER = os.environ.get("DATABASE_USER", "serverlessuser")
-DATABASE_PASSWORD = os.environ.get("DATABASE_PASSWORD", "serverlesspassword")
-
-
-@fixture(scope="session", autouse=True)
-def _enable_instances_api():
-    """Enable the Runtime instances API feature flag in the gateway DB."""
-    conn = psycopg2.connect(
-        host=DATABASE_HOST,
-        port=DATABASE_PORT,
-        dbname=DATABASE_NAME,
-        user=DATABASE_USER,
-        password=DATABASE_PASSWORD,
-    )
-    try:
-        with conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    INSERT INTO api_config (name, value, description, created, updated)
-                    VALUES (%s, 'true', '', NOW(), NOW())
-                    ON CONFLICT (name) DO UPDATE SET value = 'true'
-                    """,
-                    ["gateway.runtime_instances_api.enabled"],
-                )
-    finally:
-        conn.close()
 
 
 @fixture(scope="session")
