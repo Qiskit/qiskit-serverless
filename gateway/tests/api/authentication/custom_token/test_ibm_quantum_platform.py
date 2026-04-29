@@ -95,9 +95,13 @@ class TestIBMQuantumPlatformAuthentication:
     """E2E tests for IBM Quantum Platform authentication."""
 
     @pytest.fixture(autouse=True)
-    def _setup(self, db):
+    def _setup(self, db, monkeypatch):
         call_command("loaddata", "tests/fixtures/authentication_fixtures.json")
         cache.clear()
+        monkeypatch.setattr(
+            "core.models.Config.get_bool",
+            classmethod(lambda cls, key: False),
+        )
 
     @pytest.fixture(autouse=True)
     def _mock_jwt_verification(self):
