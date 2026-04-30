@@ -9,6 +9,7 @@ import pytest
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
+        self.server.request_count += 1
         cfg = self.server.response_config
         body = json.dumps(cfg["body"]).encode() if "body" in cfg else b""
         self.send_response(cfg["status"])
@@ -34,6 +35,11 @@ class InstancesServer:
     def __init__(self, httpd: HTTPServer):
         self._httpd = httpd
         self.reset()
+
+    @property
+    def request_count(self) -> int:
+        """Number of HTTP requests received by the server."""
+        return self._httpd.request_count
 
     def grant(
         self,
@@ -71,6 +77,7 @@ class InstancesServer:
 def instances_server(settings):
     """Real HTTP server on a random port simulating the external instances API."""
     httpd = HTTPServer(("127.0.0.1", 0), Handler)
+    httpd.request_count = 0
     t = threading.Thread(target=httpd.serve_forever)
     t.daemon = True
     t.start()
@@ -79,3 +86,13 @@ def instances_server(settings):
     yield server
     httpd.shutdown()
     t.join()
+
+
+@pytest.fixture(autouse=True)
+def clear_cache():
+    """Clear Django cache before and after each test to avoid cross-test pollution."""
+    from django.core.cache import cache  # pylint: disable=import-outside-toplevel
+
+    cache.clear()
+    yield
+    cache.clear()

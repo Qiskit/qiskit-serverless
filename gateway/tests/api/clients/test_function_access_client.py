@@ -52,3 +52,23 @@ def test_returns_no_response_when_disabled(monkeypatch):
     result = FunctionAccessClient().get_accessible_functions("crn:test:000")
 
     assert result.has_response is False
+
+
+def test_caches_successful_response(instances_server):
+    instances_server.grant("ibm", "sampler", [PLATFORM_PERMISSION_RUN])
+
+    FunctionAccessClient().get_accessible_functions("crn:cache:hit")
+    result = FunctionAccessClient().get_accessible_functions("crn:cache:hit")
+
+    assert instances_server.request_count == 1
+    assert result.has_response is True
+    assert result.get_function("ibm", "sampler") is not None
+
+
+def test_does_not_cache_error_response(instances_server):
+    instances_server.error(500)
+
+    FunctionAccessClient().get_accessible_functions("crn:cache:err")
+    FunctionAccessClient().get_accessible_functions("crn:cache:err")
+
+    assert instances_server.request_count == 2
