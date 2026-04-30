@@ -49,83 +49,114 @@ def jobs(function, user, admin_user):
     return [j1, j2]
 
 
-def _legacy_no_response():
+def _no_response():
     return FunctionAccessResult(has_response=False)
 
 
-def _runtime_with_access(provider_name, function_title):
+def create_function_access_result(provider_name, function_title, permissions):
     entry = FunctionAccessEntry(
         provider_name=provider_name,
         function_title=function_title,
-        permissions={PLATFORM_PERMISSION_PROVIDER_JOBS},
+        permissions=permissions,
         business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
     )
     return FunctionAccessResult(has_response=True, functions=[entry])
-
-
-def _runtime_no_access():
-    return FunctionAccessResult(has_response=True, functions=[])
 
 
 class TestProviderNotFound:
     def test_raises_when_provider_does_not_exist(self, user):
         filters = JobFilters(provider="nonexistent")
         with pytest.raises(ProviderNotFoundException):
-            JobsProviderListUseCase().execute(user=user, filters=filters, accessible_functions=_legacy_no_response())
+            JobsProviderListUseCase().execute(user=user, filters=filters, accessible_functions=_no_response())
 
 
-class TestLegacyDjangoGroups:
-    def test_admin_can_list_jobs(self, admin_user, provider_with_admin, function, jobs):
-        """User in provider admin_groups can list jobs (legacy path)."""
-        filters = JobFilters(provider="my-provider")
-        result, total = JobsProviderListUseCase().execute(
-            user=admin_user, filters=filters, accessible_functions=_legacy_no_response()
+class TestListJobs:
+    class TestLegacyGroups:
+        def test_admin_can_list_all_jobs(self, admin_user, provider_with_admin, function, jobs):
+            """User in provider admin_groups can list all jobs."""
+            filters = JobFilters(provider="my-provider")
+            _, total = JobsProviderListUseCase().execute(
+                user=admin_user, filters=filters, accessible_functions=_no_response()
+            )
+            assert total == 2
+
+        def test_non_admin_raises_provider_not_found(self, user, provider_with_admin):
+            """User not in admin_groups cannot list jobs."""
+            filters = JobFilters(provider="my-provider")
+            with pytest.raises(ProviderNotFoundException):
+                JobsProviderListUseCase().execute(user=user, filters=filters, accessible_functions=_no_response())
+
+        def test_admin_with_function_filter_returns_jobs(self, admin_user, provider_with_admin, function, jobs):
+            """Admin can filter by a specific function title."""
+            filters = JobFilters(provider="my-provider", function="my-function")
+            _, total = JobsProviderListUseCase().execute(
+                user=admin_user, filters=filters, accessible_functions=_no_response()
+            )
+            assert total == 2
+
+        def test_non_admin_with_function_filter_raises(self, user, provider_with_admin, function):
+            """Non-admin cannot filter by function title."""
+            filters = JobFilters(provider="my-provider", function="my-function")
+            with pytest.raises(ProviderNotFoundException):
+                JobsProviderListUseCase().execute(user=user, filters=filters, accessible_functions=_no_response())
+
+    class TestRuntimeInstances:
+        @pytest.mark.parametrize(
+            "permissions,expected_total",
+            [
+                ({PLATFORM_PERMISSION_PROVIDER_JOBS}, 2),
+                ({"other-permission"}, None),
+            ],
         )
+        def test_access_depends_on_provider_jobs_permission(
+            self, user, provider, function, jobs, permissions, expected_total
+        ):
+            """Jobs returned or ProviderNotFoundException depending on PLATFORM_PERMISSION_PROVIDER_JOBS."""
+            filters = JobFilters(provider="my-provider")
+            accessible = create_function_access_result("my-provider", "my-function", permissions)
+            if expected_total is None:
+                with pytest.raises(ProviderNotFoundException):
+                    JobsProviderListUseCase().execute(user=user, filters=filters, accessible_functions=accessible)
+            else:
+                _, total = JobsProviderListUseCase().execute(
+                    user=user, filters=filters, accessible_functions=accessible
+                )
+                assert total == expected_total
 
-        assert total == 2
+        def test_no_entries_raises_provider_not_found(self, user, provider):
+            """Runtime path with no entries at all → ProviderNotFoundException."""
+            filters = JobFilters(provider="my-provider")
+            with pytest.raises(ProviderNotFoundException):
+                JobsProviderListUseCase().execute(
+                    user=user,
+                    filters=filters,
+                    accessible_functions=FunctionAccessResult(has_response=True, functions=[]),
+                )
 
-    def test_non_admin_raises_provider_not_found(self, user, provider_with_admin):
-        """User not in admin_groups cannot list jobs (legacy path)."""
-        filters = JobFilters(provider="my-provider")
-        with pytest.raises(ProviderNotFoundException):
-            JobsProviderListUseCase().execute(user=user, filters=filters, accessible_functions=_legacy_no_response())
+        def test_function_filter_with_access_returns_jobs(self, user, provider, function, jobs):
+            """Function filter with access → jobs for that function returned."""
+            filters = JobFilters(provider="my-provider", function="my-function")
+            accessible = create_function_access_result(
+                "my-provider", "my-function", {PLATFORM_PERMISSION_PROVIDER_JOBS}
+            )
+            _, total = JobsProviderListUseCase().execute(user=user, filters=filters, accessible_functions=accessible)
+            assert total == 2
 
+        def test_function_filter_denied_raises_provider_not_found(self, user, provider, function):
+            """Function filter denied → ProviderNotFoundException."""
+            filters = JobFilters(provider="my-provider", function="my-function")
+            with pytest.raises(ProviderNotFoundException):
+                JobsProviderListUseCase().execute(
+                    user=user,
+                    filters=filters,
+                    accessible_functions=FunctionAccessResult(has_response=True, functions=[]),
+                )
 
-class TestRuntimeInstances:
-    def test_has_access_returns_jobs_filtered_by_function_set(self, user, provider, function, jobs):
-        """Runtime path: accessible_functions has the provider/function → jobs filtered by that set."""
-        filters = JobFilters(provider="my-provider")
-        accessible = _runtime_with_access("my-provider", "my-function")
-
-        result, total = JobsProviderListUseCase().execute(user=user, filters=filters, accessible_functions=accessible)
-
-        assert total == 2
-
-    def test_no_access_raises_provider_not_found(self, user, provider):
-        """Runtime path: provider not in accessible_functions → ProviderNotFoundException."""
-        filters = JobFilters(provider="my-provider")
-        with pytest.raises(ProviderNotFoundException):
-            JobsProviderListUseCase().execute(user=user, filters=filters, accessible_functions=_runtime_no_access())
-
-    def test_function_filter_with_access_returns_jobs(self, user, provider, function, jobs):
-        """Runtime path + filters.function: can_list_jobs delegated, function exists → jobs returned."""
-        filters = JobFilters(provider="my-provider", function="my-function")
-        accessible = _runtime_with_access("my-provider", "my-function")
-
-        result, total = JobsProviderListUseCase().execute(user=user, filters=filters, accessible_functions=accessible)
-
-        assert total == 2
-
-    def test_function_filter_denied_raises_provider_not_found(self, user, provider, function):
-        """Runtime path + filters.function: can_list_jobs denied → ProviderNotFoundException."""
-        filters = JobFilters(provider="my-provider", function="my-function")
-        with pytest.raises(ProviderNotFoundException):
-            JobsProviderListUseCase().execute(user=user, filters=filters, accessible_functions=_runtime_no_access())
-
-    def test_function_filter_not_in_db_raises_function_not_found(self, user, provider):
-        """Runtime path + filters.function: access OK but function not in DB → FunctionNotFoundException."""
-        filters = JobFilters(provider="my-provider", function="ghost-function")
-        accessible = _runtime_with_access("my-provider", "ghost-function")
-
-        with pytest.raises(FunctionNotFoundException):
-            JobsProviderListUseCase().execute(user=user, filters=filters, accessible_functions=accessible)
+        def test_function_filter_not_in_db_raises_function_not_found(self, user, provider):
+            """Function filter: access OK but function not in DB → FunctionNotFoundException."""
+            filters = JobFilters(provider="my-provider", function="ghost-function")
+            accessible = create_function_access_result(
+                "my-provider", "ghost-function", {PLATFORM_PERMISSION_PROVIDER_JOBS}
+            )
+            with pytest.raises(FunctionNotFoundException):
+                JobsProviderListUseCase().execute(user=user, filters=filters, accessible_functions=accessible)
