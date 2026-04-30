@@ -4,6 +4,7 @@ import logging
 
 import requests
 from django.conf import settings
+from django.core.cache import cache
 
 from api.domain.authorization.function_access_entry import FunctionAccessEntry
 from api.domain.authorization.function_access_result import FunctionAccessResult
@@ -25,6 +26,11 @@ class FunctionAccessClient:
         base_url = settings.RUNTIME_INSTANCES_API_BASE_URL
         if not base_url:
             return FunctionAccessResult(has_response=False)
+
+        cache_key = f"accesible_functions:{instance_crn}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
 
         try:
             response = requests.get(
@@ -58,4 +64,6 @@ class FunctionAccessClient:
             except (KeyError, ValueError) as exc:
                 logger.error("FunctionAccessClient: invalid entry %s — %s", f, exc)
 
-        return FunctionAccessResult(has_response=True, functions=functions)
+        result = FunctionAccessResult(has_response=True, functions=functions)
+        cache.set(cache_key, result, timeout=settings.RUNTIME_INSTANCES_API_CACHE_TTL)
+        return result
