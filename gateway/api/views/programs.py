@@ -106,11 +106,11 @@ class ProgramViewSet(viewsets.GenericViewSet):
             # Catalog filter only returns providers functions that user has access:
             # author has view permissions and the function has a provider assigned
             functions = Function.objects.provider_functions().with_permission(
-                author, permission_name=RUN_PROGRAM_PERMISSION
+                author, legacy_permission_name=RUN_PROGRAM_PERMISSION
             )
         else:
             # If filter is not applied we return author and providers functions together
-            functions = Function.objects.with_permission(author, permission_name=VIEW_PROGRAM_PERMISSION)
+            functions = Function.objects.with_permission(author, legacy_permission_name=VIEW_PROGRAM_PERMISSION)
 
         serializer = self.get_serializer(list(functions), many=True)
         logger.info(
@@ -140,7 +140,9 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
         if provider_name:
             provider_obj = Provider.objects.filter(name=provider_name).first()
-            if provider_obj is None or not ProviderAccessPolicy.can_access(user=author, provider=provider_obj):
+            if provider_obj is None or not ProviderAccessPolicy.can_upload_function(
+                user=author, provider=provider_obj, function_title=title
+            ):
                 # For security we just return a 404 not a 401
                 return Response(
                     {"message": f"Provider [{provider_name}] was not found."},
@@ -190,7 +192,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
         function_title = sanitize_name(serializer.data.get("title"))
         function = Function.objects.get_function_by_permission(
             user=author,
-            permission_name=RUN_PROGRAM_PERMISSION,
+            legacy_permission_name=RUN_PROGRAM_PERMISSION,
             function_title=function_title,
             provider_name=provider_name,
         )
@@ -287,7 +289,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
         if provider_name:
             function = Function.objects.get_function_by_permission(
                 user=author,
-                permission_name=VIEW_PROGRAM_PERMISSION,
+                legacy_permission_name=VIEW_PROGRAM_PERMISSION,
                 function_title=function_title,
                 provider_name=provider_name,
             )
@@ -336,7 +338,9 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
         user_is_provider = False
         if program.provider:
-            user_is_provider = ProviderAccessPolicy.can_access(user=request.user, provider=program.provider)
+            user_is_provider = ProviderAccessPolicy.can_list_jobs(
+                user=request.user, provider=program.provider, function_title=program.title
+            )
 
         if user_is_provider:
             jobs = Job.objects.filter(program=program)
