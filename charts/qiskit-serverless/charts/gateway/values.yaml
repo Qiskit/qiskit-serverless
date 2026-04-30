@@ -56,8 +56,6 @@ application:
     programTimeoutDays: 14
   qiskitRuntime:
     url: "https://cloud.ibm.com"
-  iqpQcon:
-    url: "https://api-qcon.quantum.ibm.com/api"
   runtimeApi:
     url: "https://quantum.cloud.ibm.com"
     cacheTtl: "60"
