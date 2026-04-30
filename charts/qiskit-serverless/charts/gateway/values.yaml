@@ -53,7 +53,7 @@ application:
     maxComputeResources: 4
     maxGpuResources: 1
     keepClusterOnComplete: False
-    programTimeoutDays: 14
+    programTimeoutDays: 1
   qiskitRuntime:
     url: "https://cloud.ibm.com"
   iqpQcon:

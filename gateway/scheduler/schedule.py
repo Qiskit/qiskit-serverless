@@ -13,7 +13,7 @@ from django.db.models.aggregates import Count, Min
 
 from opentelemetry import trace
 
-from core.models import Job, Program
+from core.models import Job, JobEvent, Program
 from core.services.runners import get_runner, RunnerError
 
 User: Model = get_user_model()
@@ -100,17 +100,24 @@ def get_jobs_to_schedule_fair_share(slots: int, gpu: bool, runner: str = Program
 def check_job_timeout(job: Job):
     """Check job timeout and update job status."""
 
-    timeout = settings.PROGRAM_TIMEOUT
-    endtime = job.created + timedelta(days=timeout)
-    now = datetime.now(tz=endtime.tzinfo)
-    if endtime < now:
-        job.logs += "\nMaximum job runtime reached. Stopping the job."
-        logger.warning(
-            "job_id=%s timeout_days=%s Job reached maximum runtime, stopping",
-            job.id,
-            timeout,
-        )
-        return True
+    if job.status in Job.RUNNING_STATUSES:
+        timeout = settings.PROGRAM_TIMEOUT
+        latest_job_event = JobEvent.objects.filter(job=job).order_by("-created").first()
+        if not latest_job_event:
+            # This should never happen since every job should have at least 1 JobEvent (on creation).
+            pass
+        endtime = latest_job_event.created + timedelta(hours=timeout)
+        now = datetime.now(tz=endtime.tzinfo)
+        if endtime < now:
+            job.logs += "\nMaximum job runtime reached. Stopping the job."
+            logger.warning(
+                "Job [%s] reached maximum runtime [%s] days and stopped.",
+                job.id,
+                timeout,
+            )
+            # The job has exceeded the maximum duration allowed.
+            return True
+
     return False
 
 

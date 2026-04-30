@@ -316,7 +316,7 @@ RAY_CLUSTER_GPU_NODE_SELECTOR_LABEL = os.environ.get(
     "ibm-cloud.kubernetes.io/worker-pool-name: gpu-workers",
 )
 
-PROGRAM_TIMEOUT = int(os.environ.get("PROGRAM_TIMEOUT", "14"))
+PROGRAM_TIMEOUT = int(os.environ.get("PROGRAM_TIMEOUT", "1"))  # Time units are days
 
 GATEWAY_ALLOWLIST_CONFIG = str(os.environ.get("GATEWAY_ALLOWLIST_CONFIG", "api/v1/allowlist.json"))
 
