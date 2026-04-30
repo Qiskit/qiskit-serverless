@@ -23,7 +23,7 @@ class FunctionAccessClient:
         if not enabled:
             return FunctionAccessResult(has_response=False)
 
-        base_url = settings.RUNTIME_INSTANCES_API_BASE_URL
+        base_url = settings.RUNTIME_API_BASE_URL
         if not base_url:
             return FunctionAccessResult(has_response=False)
 
@@ -34,7 +34,7 @@ class FunctionAccessClient:
 
         try:
             response = requests.get(
-                f"{base_url}/instances/functions",
+                f"{base_url}/api/v1/functions",
                 headers={"Service-CRN": instance_crn},
                 timeout=5,
             )
@@ -65,5 +65,5 @@ class FunctionAccessClient:
                 logger.error("FunctionAccessClient: invalid entry %s — %s", f, exc)
 
         result = FunctionAccessResult(has_response=True, functions=functions)
-        cache.set(cache_key, result, timeout=settings.RUNTIME_INSTANCES_API_CACHE_TTL)
+        cache.set(cache_key, result, timeout=settings.RUNTIME_API_CACHE_TTL)
         return result
