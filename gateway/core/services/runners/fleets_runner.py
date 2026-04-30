@@ -17,6 +17,7 @@ from __future__ import annotations
 import io
 import json
 import logging
+import re
 import tarfile
 import time
 from collections import OrderedDict
@@ -63,6 +64,29 @@ class TTLCache:
         if len(self._store) >= self._maxsize:
             self._store.popitem(last=False)
         self._store[key] = (value, time.monotonic())
+
+
+def _retry_on_rate_limit(fn, retries=3, delays=(0.5, 1.0, 2.0)):
+    """Call *fn* with retries on HTTP 429 (Too Many Requests).
+
+    Args:
+        fn: Zero-argument callable to execute.
+        retries: Maximum number of retry attempts.
+        delays: Sleep durations between attempts.
+
+    Returns:
+        The return value of *fn*.
+    """
+    for attempt in range(retries + 1):
+        try:
+            return fn()
+        except ApiException as exc:
+            if exc.status != 429 or attempt >= retries:
+                raise
+            delay = delays[min(attempt, len(delays) - 1)]
+            logger.warning("Rate limited (429), retrying in %.1fs (attempt %d/%d)", delay, attempt + 1, retries)
+            time.sleep(delay)
+    return None
 
 
 class FleetsRunner(AbstractRunner):
@@ -161,13 +185,17 @@ class FleetsRunner(AbstractRunner):
 
             extra_fields: dict = {}
 
-            if self.job.compute_profile:
-                extra_fields["scale_preferred_worker_profile"] = self.job.compute_profile
-                logger.info(
-                    "Job [%s] using worker profile [%s]",
-                    self.job.id,
-                    self.job.compute_profile,
-                )
+            cpu_limit, memory_limit, scale_gpu = self._parse_compute_profile()
+            logger.info(
+                "Job [%s] profile [%s] → cpu=%s memory=%s gpu=%s",
+                self.job.id,
+                self.job.compute_profile or "default",
+                cpu_limit,
+                memory_limit,
+                scale_gpu,
+            )
+            if scale_gpu:
+                extra_fields["scale_gpu"] = scale_gpu
 
             if self._is_cos_configured():
                 paths = self._build_cos_paths()
@@ -207,8 +235,8 @@ class FleetsRunner(AbstractRunner):
                         "run_commands": run_commands,
                     }
                 )
-                self._upload_arguments_to_cos(handler, paths)
-                self._upload_artifact_to_cos(handler, paths)
+                _retry_on_rate_limit(lambda: self._upload_arguments_to_cos(handler, paths))
+                _retry_on_rate_limit(lambda: self._upload_artifact_to_cos(handler, paths))
                 logger.info(
                     "COS configured for job [%s]: user_key=[%s] provider_key=[%s]",
                     self.job.id,
@@ -218,18 +246,20 @@ class FleetsRunner(AbstractRunner):
             else:
                 logger.info("COS not available for job [%s]", self.job.id)
 
-            fleet = handler.submit_job(
-                name=fleet_name,
-                image_reference=self._get_image(),
-                image_secret=settings.CE_ICR_PULL_SECRET,
-                network_placements=[{"type": "subnet_pool", "reference": self._project.subnet_pool_id}],
-                scale_cpu_limit=self._get_cpu_limit(),
-                scale_memory_limit=self._get_memory_limit(),
-                scale_max_instances=self._get_max_instances(),
-                scale_retry_limit=0,
-                tasks_specification={"indices": "0"},
-                tasks_state_store={"persistent_data_store": self._project.pds_name_state},
-                extra_fields=extra_fields or None,
+            fleet = _retry_on_rate_limit(
+                lambda: handler.submit_job(
+                    name=fleet_name,
+                    image_reference=self._get_image(),
+                    image_secret=settings.CE_ICR_PULL_SECRET,
+                    network_placements=[{"type": "subnet_pool", "reference": self._project.subnet_pool_id}],
+                    scale_cpu_limit=cpu_limit,
+                    scale_memory_limit=memory_limit,
+                    scale_max_instances=self._get_max_instances(),
+                    scale_retry_limit=0,
+                    tasks_specification={"indices": "0"},
+                    tasks_state_store={"persistent_data_store": self._project.pds_name_state},
+                    extra_fields=extra_fields or None,
+                )
             )
 
             fleet_dict = fleet.to_dict() if hasattr(fleet, "to_dict") else dict(fleet)
@@ -730,34 +760,41 @@ class FleetsRunner(AbstractRunner):
             return self.job.program.image
         return settings.FLEETS_DEFAULT_IMAGE
 
-    def _get_cpu_limit(self) -> str:
-        """Return the CPU limit for fleet workers.
+    def _parse_compute_profile(self) -> tuple[str, str, dict | None]:
+        """Parse compute_profile into (cpu, memory, gpu).
 
-        NOTE: default limits (cpu=1, memory=2G, max_instances=1) need to be
-        validated with practical workloads and refined as needed.
-
-        When ``compute_profile`` is set, Code Engine derives CPU from the
-        worker profile. This value is a minimal default.
+        Supports formats like ``gx3d-24x120x1a100p`` or ``24x120x2a100p``.
+        The resource part is ``{cpu}x{memory}[x{count}{model}]``.
 
         Returns:
-            CPU limit string.
+            Tuple of (cpu_limit, memory_limit, scale_gpu) where scale_gpu
+            is the V2GPUScalePrototype dict or ``None`` when no GPU is
+            specified in the profile.
         """
-        if self.job.config and getattr(self.job.config, "cpu_limit", None):
-            return str(self.job.config.cpu_limit)
-        return str(getattr(settings, "FLEETS_DEFAULT_CPU_LIMIT", "1"))
+        profile = self.job.compute_profile or getattr(settings, "DEFAULT_COMPUTE_PROFILE", "cx3d-4x16")
 
-    def _get_memory_limit(self) -> str:
-        """Return the memory limit for fleet workers.
+        # Strip optional prefix (e.g. "gx3d-" or "cx3d-")
+        match = re.match(r"^[a-z]+\d[a-z\d]*-(.+)$", profile)
+        resources = match.group(1) if match else profile
 
-        When ``compute_profile`` is set, Code Engine derives memory from the
-        worker profile. This value is a minimal default.
+        # Parse: {cpu}x{memory}[x{count}{model}]
+        parts = re.match(r"^(\d+)x(\d+)(?:x(\d+)([a-z]\w*))?$", resources)
+        if not parts:
+            logger.warning("Could not parse compute_profile [%s], using defaults", profile)
+            return (
+                str(getattr(settings, "FLEETS_DEFAULT_CPU_LIMIT", "24")),
+                str(getattr(settings, "FLEETS_DEFAULT_MEMORY_LIMIT", "120G")),
+                None,
+            )
 
-        Returns:
-            Memory limit string.
-        """
-        if self.job.config and getattr(self.job.config, "memory_limit", None):
-            return str(self.job.config.memory_limit)
-        return str(getattr(settings, "FLEETS_DEFAULT_MEMORY_LIMIT", "2G"))
+        cpu = parts.group(1)
+        memory = f"{parts.group(2)}G"
+        scale_gpu = None
+        if parts.group(3) and parts.group(4):
+            # e.g. "1a100p" → {"preferences": [{"family": "a100p", "allocation": "1"}]}
+            scale_gpu = {"preferences": [{"family": parts.group(4), "allocation": parts.group(3)}]}
+
+        return cpu, memory, scale_gpu
 
     def _get_max_instances(self) -> int:
         """Return the maximum number of fleet instances.

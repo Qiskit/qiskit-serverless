@@ -66,6 +66,7 @@ def _patch_settings(**overrides):
         "FLEETS_DEFAULT_CPU_LIMIT": "1",
         "FLEETS_DEFAULT_MEMORY_LIMIT": "2G",
         "FLEETS_DEFAULT_MAX_INSTANCES": 1,
+        "DEFAULT_COMPUTE_PROFILE": "cx3d-4x16",
     }
     defaults.update(overrides)
     with patch(f"{_RUNNER_MOD}.settings") as mock_settings:
@@ -91,7 +92,6 @@ def _make_submit_runner() -> tuple[FleetsRunner, MagicMock]:
     mock_job.RUNNING = "RUNNING"
     mock_job.config = None
     mock_job.compute_profile = None
-    mock_job.gpu = False
     mock_job.program.image = None
     mock_job.program.artifact = None
     mock_job.program.entrypoint = "main.py"
@@ -299,36 +299,58 @@ def test_submit_raises_runner_error_when_no_fleet_id_returned():
             runner.submit()
 
 
-def test_submit_passes_worker_profile_when_compute_profile_set():
-    """submit() passes compute_profile as scale_preferred_worker_profile."""
+def test_submit_parses_compute_profile_with_gpu():
+    """submit() parses compute_profile into cpu, memory, and gpu."""
     runner, mock_handler = _make_submit_runner()
-    runner.job.compute_profile = "gx3-24x120x1l40s"
+    runner.job.compute_profile = "gx3d-24x120x1a100p"
 
     with _patch_settings():
         runner.submit()
 
     call_kwargs = mock_handler.submit_job.call_args.kwargs
-    assert call_kwargs["extra_fields"]["scale_preferred_worker_profile"] == "gx3-24x120x1l40s"
+    assert call_kwargs["scale_cpu_limit"] == "24"
+    assert call_kwargs["scale_memory_limit"] == "120G"
+    assert call_kwargs["extra_fields"]["scale_gpu"] == {"preferences": [{"family": "a100p", "allocation": "1"}]}
 
 
-def test_submit_uses_settings_cpu_limit_when_no_config():
-    """submit() passes FLEETS_DEFAULT_CPU_LIMIT to the handler when job has no config."""
+def test_submit_parses_compute_profile_without_prefix():
+    """submit() parses profiles without a prefix like '24x120x2a100p'."""
     runner, mock_handler = _make_submit_runner()
+    runner.job.compute_profile = "24x120x2a100p"
 
-    with _patch_settings(FLEETS_DEFAULT_CPU_LIMIT="4"):
+    with _patch_settings():
         runner.submit()
 
-    assert mock_handler.submit_job.call_args.kwargs["scale_cpu_limit"] == "4"
+    call_kwargs = mock_handler.submit_job.call_args.kwargs
+    assert call_kwargs["scale_cpu_limit"] == "24"
+    assert call_kwargs["scale_memory_limit"] == "120G"
+    assert call_kwargs["extra_fields"]["scale_gpu"] == {"preferences": [{"family": "a100p", "allocation": "2"}]}
 
 
-def test_submit_uses_settings_memory_limit_when_no_config():
-    """submit() passes FLEETS_DEFAULT_MEMORY_LIMIT to the handler when job has no config."""
+def test_submit_parses_compute_profile_without_gpu():
+    """submit() parses a CPU-only profile correctly."""
     runner, mock_handler = _make_submit_runner()
+    runner.job.compute_profile = "cx3d-4x16"
 
-    with _patch_settings(FLEETS_DEFAULT_MEMORY_LIMIT="8G"):
+    with _patch_settings():
         runner.submit()
 
-    assert mock_handler.submit_job.call_args.kwargs["scale_memory_limit"] == "8G"
+    call_kwargs = mock_handler.submit_job.call_args.kwargs
+    assert call_kwargs["scale_cpu_limit"] == "4"
+    assert call_kwargs["scale_memory_limit"] == "16G"
+    assert call_kwargs.get("extra_fields") is None
+
+
+def test_submit_uses_default_profile_when_no_compute_profile():
+    """submit() uses DEFAULT_COMPUTE_PROFILE when job has no compute_profile."""
+    runner, mock_handler = _make_submit_runner()
+
+    with _patch_settings(DEFAULT_COMPUTE_PROFILE="cx3d-8x32"):
+        runner.submit()
+
+    call_kwargs = mock_handler.submit_job.call_args.kwargs
+    assert call_kwargs["scale_cpu_limit"] == "8"
+    assert call_kwargs["scale_memory_limit"] == "32G"
 
 
 def test_submit_uses_program_image():
@@ -357,8 +379,6 @@ def test_submit_uses_config_workers_as_max_instances():
     runner, mock_handler = _make_submit_runner()
     runner.job.config = MagicMock()
     runner.job.config.workers = 3
-    runner.job.config.cpu_limit = None
-    runner.job.config.memory_limit = None
 
     with _patch_settings():
         runner.submit()
