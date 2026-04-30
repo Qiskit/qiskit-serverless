@@ -21,6 +21,17 @@ logger = logging.getLogger("core.models")
 VIEW_PROGRAM_PERMISSION = "view_program"
 RUN_PROGRAM_PERMISSION = "run_program"
 
+# Platform permissions (Runtime API instances access client)
+PLATFORM_PERMISSION_READ = "function.read"  # see function in catalog and retrieve its metadata
+PLATFORM_PERMISSION_RUN = "function.run"  # execute a new job of this function
+PLATFORM_PERMISSION_JOB_READ = "function.job.read"  # retrieve a specific job from this function (non-author access)
+PLATFORM_PERMISSION_USER_FILES = "function.files"  # list, download, upload and delete files in user space
+# Provider admin permissions
+PLATFORM_PERMISSION_PROVIDER_UPLOAD = "function.provider.upload"  # create or update this function's code
+PLATFORM_PERMISSION_PROVIDER_JOBS = "function.provider.jobs"  # list jobs from all users of this function
+PLATFORM_PERMISSION_PROVIDER_LOGS = "function.provider.logs"  # read provider-side logs of jobs from this function
+PLATFORM_PERMISSION_PROVIDER_FILES = "function.provider.files"  # list, download, upload, delete files in provider space
+
 
 def get_upload_path(instance, filename):
     """Returns save path for artifacts."""
@@ -87,6 +98,14 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         (CIRCUIT, "Circuit"),
     ]
 
+    # Runner types
+    RAY = "ray"
+    FLEETS = "fleets"
+    RUNNER_CHOICES = [
+        (RAY, "Ray"),
+        (FLEETS, "Fleets"),
+    ]
+
     DEFAULT_DISABLED_MESSAGE = "IBM has temporarily disabled access to this function"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -118,6 +137,17 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     env_vars = models.TextField(null=False, blank=True, default="{}")
     dependencies = models.TextField(null=False, blank=True, default="[]")
 
+    runner = models.CharField(
+        max_length=20, choices=RUNNER_CHOICES, default=RAY, help_text="Execution backend for this program"
+    )
+
+    default_compute_profile = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="Default Code Engine compute profile for Fleets runner (e.g., gx3d-24x120x1a100p)",
+    )
+
     instances = models.ManyToManyField(Group, blank=True, related_name="program_instances")
     trial_instances = models.ManyToManyField(Group, blank=True, related_name="program_trial_instances")
     author = models.ForeignKey(
@@ -137,6 +167,18 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     class Meta:
         app_label = "api"
         permissions = ((RUN_PROGRAM_PERMISSION, "Can run function"),)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["provider", "title"],
+                condition=models.Q(provider__isnull=False),
+                name="unique_provider_title",
+            ),
+            models.UniqueConstraint(
+                fields=["author", "title"],
+                condition=models.Q(provider__isnull=True),
+                name="unique_author_title_no_provider",
+            ),
+        ]
 
     def __str__(self):
         if self.provider:
@@ -211,6 +253,85 @@ class ComputeResource(models.Model):
         return self.title
 
 
+class CodeEngineProject(models.Model):
+    """
+    Code Engine Project configuration.
+
+    Represents an IBM Code Engine project with all its associated resources:
+    - Region and resource group
+    - VPC networking (subnet pool)
+    - Persistent Data Stores (PDS)
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    # Code Engine identifiers (we could save one or both)
+    project_id = models.CharField(max_length=255, help_text="IBM Code Engine project UUID")
+    project_name = models.CharField(max_length=255, help_text="Code Engine project name in IBM Cloud")
+
+    # Location and ownership
+    region = models.CharField(max_length=50, help_text="IBM Cloud region (e.g., us-east, eu-de)")
+    resource_group_id = models.CharField(max_length=255, help_text="IBM Cloud resource group ID")
+
+    # Networking
+    subnet_pool_id = models.CharField(max_length=255, help_text="Subnet pool ID for fleet networking")
+    zone = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        unique=True,
+        help_text="Availability zone this project is pinned to (e.g. us-east-1)",
+    )
+
+    # Storage and state management
+    pds_name_state = models.CharField(max_length=255, help_text="Persistent Data Store name for task state")
+
+    pds_name_users = models.CharField(max_length=255, help_text="Persistent Data Store name for users")
+
+    pds_name_providers = models.CharField(max_length=255, help_text="Persistent Data Store name for providers")
+
+    # COS (Cloud Object Storage) configuration for logging
+    # Three separate buckets corresponding to the three PDS stores
+    cos_bucket_task_store_name = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="COS bucket name for task store (corresponds to pds_name_state)",
+    )
+    cos_bucket_user_data_name = models.CharField(
+        max_length=255, null=True, blank=True, help_text="COS bucket name for user data (corresponds to pds_name_users)"
+    )
+    cos_bucket_provider_data_name = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="COS bucket name for provider data (corresponds to pds_name_providers)",
+    )
+    cos_instance_name = models.CharField(max_length=255, null=True, blank=True, help_text="COS instance name")
+    cos_key_name = models.CharField(
+        max_length=255, null=True, blank=True, help_text="COS HMAC key name for authentication"
+    )
+
+    # Legacy field - kept for backward compatibility, can be removed in future
+    cos_bucket_name = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="[DEPRECATED] Legacy single bucket field - use cos_bucket_task_store_name instead",
+    )
+
+    # Status and ownership
+    active = models.BooleanField(default=True, help_text="Whether this project is available for job execution")
+
+    class Meta:
+        app_label = "api"
+
+    def __str__(self):
+        return f"{self.project_name} ({self.region})"
+
+
 class Job(models.Model):
     """Job model."""
 
@@ -256,6 +377,15 @@ class Job(models.Model):
         (POST_PROCESSING, "Post-processing"),
     ]
 
+    BUSINESS_MODEL_TRIAL = "TRIAL"
+    BUSINESS_MODEL_SUBSIDIZED = "SUBSIDIZED"
+    BUSINESS_MODEL_CONSUMPTION = "CONSUMPTION"
+    BUSINESS_MODELS = [
+        (BUSINESS_MODEL_TRIAL, "Trial"),
+        (BUSINESS_MODEL_SUBSIDIZED, "Subsidized"),
+        (BUSINESS_MODEL_CONSUMPTION, "Consumption"),
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, null=True)
@@ -263,8 +393,18 @@ class Job(models.Model):
     arguments = models.TextField(null=False, blank=True, default="{}")
     env_vars = models.TextField(null=False, blank=True, default="{}")
     gpu = models.BooleanField(default=False, null=False)
+    compute_profile = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="Code Engine compute profile for Fleets runner (e.g., gx3d-24x120x1a100p)",
+    )
     logs = models.TextField(default="No logs yet.")
+    runner = models.CharField(
+        max_length=20, choices=Program.RUNNER_CHOICES, default=Program.RAY, help_text="Execution backend: ray or fleets"
+    )
     ray_job_id = models.CharField(max_length=255, null=True, blank=True)
+    fleet_id = models.CharField(max_length=255, null=True, blank=True, help_text="Code Engine fleet ID")
     result = models.TextField(null=True, blank=True)
     status = models.CharField(
         max_length=10,
@@ -273,13 +413,23 @@ class Job(models.Model):
     )
     sub_status = models.CharField(max_length=255, choices=SUB_STATUSES, default=None, null=True, blank=True)
     trial = models.BooleanField(default=False, null=False)
+    business_model = models.CharField(max_length=50, choices=BUSINESS_MODELS, default=BUSINESS_MODEL_SUBSIDIZED)
     version = IntegerVersionField()
 
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
     )
-    compute_resource = models.ForeignKey(ComputeResource, on_delete=models.SET_NULL, null=True, blank=True)
+    compute_resource = models.ForeignKey(
+        ComputeResource, on_delete=models.SET_NULL, null=True, blank=True, help_text="Ray cluster (for Ray runner)"
+    )
+    code_engine_project = models.ForeignKey(
+        CodeEngineProject,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Code Engine project (for Fleets runner)",
+    )
     config = models.ForeignKey(
         to=JobConfig,
         on_delete=models.CASCADE,
@@ -338,7 +488,7 @@ class JobEvent(models.Model):
     created = models.DateTimeField(auto_now_add=True, null=True)
     data = models.JSONField(default=dict, blank=False, null=False)
 
-    objects = JobEventQuerySet.as_manager()
+    objects: JobEventQuerySet = JobEventQuerySet.as_manager()
 
     class Meta:
         app_label = "api"

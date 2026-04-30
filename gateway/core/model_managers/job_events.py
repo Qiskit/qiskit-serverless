@@ -1,6 +1,7 @@
 """Job events model manager."""
 
 import logging
+from typing import Any
 import uuid
 
 from enum import StrEnum
@@ -38,11 +39,13 @@ class JobEventContext(StrEnum):
 
     # Admin: any state to any state
     SAVE_MODEL = "SAVE_MODEL"
+    SEND_ERROR = "SEND_ERROR"
 
 
 class JobEventType(StrEnum):
     """Job events type enum."""
 
+    ERROR = "ERROR"
     STATUS_CHANGE = "STATUS_CHANGE"
     SUB_STATUS_CHANGE = "SUB_STATUS_CHANGE"
 
@@ -101,3 +104,54 @@ class JobEventQuerySet(QuerySet):
             event_type=JobEventType.SUB_STATUS_CHANGE,
             data={"sub_status": sub_status},
         )
+
+    def add_error_event(  # pylint:  disable=too-many-positional-arguments
+        self,
+        job_id: uuid.UUID,
+        origin: JobEventOrigin,
+        context: JobEventContext,
+        code: str,
+        message: str,
+        exception: str,
+        args: Any,
+    ):
+        """
+        Creates an error event for jobs.
+
+        Args:
+            job_id (str): Unique identifier of the job.
+            origin (JobEventOrigin): The creation major context (API, SCHEDULER...),
+            context (JobEventContext): The creation minor context such as an specific endpoint or method,
+            code (str): The error code to uniquely identify the reason,
+            message (str): A human readable reason for the error,
+            args (Any): Additional information that can be useful to understand the error,
+        """
+
+        return self.create(
+            job_id=job_id,
+            origin=origin,
+            context=context,
+            event_type=JobEventType.ERROR,
+            data={"code": code, "message": message, "exception": exception, "args": args},
+        )
+
+    def get_job_events(  # pylint:  disable=too-many-positional-arguments
+        self,
+        job_id: uuid.UUID,
+        event_type: str | None,
+    ):
+        """
+        Get all events of the type `event_type` for jobs.
+
+        Args:
+            job_id (str): Unique identifier of the job.
+            event_type (str): The event type to filter.
+        """
+
+        events = self.filter(
+            job_id=job_id,
+        )
+        if event_type:
+            events = events.filter(event_type=event_type)
+
+        return events

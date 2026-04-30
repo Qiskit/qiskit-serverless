@@ -13,8 +13,10 @@ from kubernetes.dynamic.client import DynamicClient
 from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 
-from core.models import ComputeResource, Job
+from core.models import ComputeResource, Job, Program
 from core.services.runners import get_runner
+from core.services.runners.abstract_runner import RunnerError
+from core.services.runners.ray_runner import RayRunner
 from core.utils import encrypt_string
 
 
@@ -57,13 +59,12 @@ class TestRayRunner(APITestCase):
             requests_mock.Mocker() as mocker,
         ):
             mocker.get(head_node_url, status_code=200)
-            compute_resource, ray_job_id = runner.submit()
+            runner.submit()
 
-            self.assertEqual(ray_job_id, "AwesomeJobId")
-            self.assertIsInstance(compute_resource, ComputeResource)
-            self.assertEqual("test_user", compute_resource.title)
-            self.assertEqual(compute_resource.host, head_node_url)
-            self.assertTrue(compute_resource._state.adding)  # Not saved to DB
+            assert job.ray_job_id == "AwesomeJobId"
+            assert "test_user" == job.compute_resource.title
+            assert job.compute_resource.host == head_node_url
+            assert job.compute_resource._state.adding  # Not saved to DB
             DynamicClient.resources.get.assert_called_once_with(api_version="v1", kind="RayCluster")
 
     def test_cleanup_cluster(self):
@@ -193,9 +194,44 @@ class TestRayClientOperations(APITestCase):
             runner = get_runner(job)
 
             with patch.object(runner, "_submit_to_ray", return_value="AwesomeJobId"):
-                compute_resource, ray_job_id = runner.submit()
+                runner.submit()
 
-                self.assertEqual(ray_job_id, "AwesomeJobId")
-                self.assertIsNotNone(compute_resource)
-                self.assertEqual(compute_resource.title, "Local compute resource")
-                self.assertTrue(compute_resource._state.adding)  # Not saved to DB
+                self.assertEqual(job.ray_job_id, "AwesomeJobId")
+                self.assertIsNotNone(job.compute_resource)
+                self.assertEqual(job.compute_resource.title, "Local compute resource")
+                self.assertTrue(job.compute_resource._state.adding)  # Not saved to DB
+
+
+class TestGetRunner(APITestCase):
+    """Tests runner factory selection."""
+
+    fixtures = ["tests/fixtures/schedule_fixtures.json"]
+
+    def test_get_runner_returns_ray_runner(self):
+        """Tests that get_runner returns a RayRunner for RAY jobs."""
+        job = Job.objects.first()
+        job.runner = Program.RAY
+
+        runner = get_runner(job)
+
+        self.assertIsInstance(runner, RayRunner)
+
+    def test_get_runner_raises_for_fleets_runner(self):
+        """Tests that get_runner raises RunnerError for unsupported FLEETS jobs."""
+        job = Job.objects.first()
+        job.runner = Program.FLEETS
+
+        with self.assertRaises(RunnerError) as ctx:
+            get_runner(job)
+
+        self.assertIn("Fleets runner is not supported yet", str(ctx.exception))
+
+    def test_get_runner_raises_for_unknown_runner(self):
+        """Tests that get_runner raises RunnerError for unknown runner types."""
+        job = Job.objects.first()
+        job.runner = "unknown-runner"
+
+        with self.assertRaises(RunnerError) as ctx:
+            get_runner(job)
+
+        self.assertEqual(str(ctx.exception), "Unknown runner type: unknown-runner")

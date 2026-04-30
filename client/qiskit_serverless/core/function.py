@@ -74,6 +74,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
     tags: Optional[List[str]] = None
     raw_data: Optional[Dict[str, Any]] = None
     image: Optional[str] = None
+    runner: str = "ray"
     validate: bool = True
     schema: Optional[str] = None
     type: Union[GenericType, ApplicationType, CircuitType] = GENERIC
@@ -134,6 +135,9 @@ class RunService(ABC):
         program: Union[QiskitFunction, str],
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
+        provider: Optional[str] = None,
+        *,
+        compute_profile: Optional[str] = None,
     ) -> Job:
         """Run a function and return its job."""
 
@@ -187,10 +191,12 @@ class RunnableQiskitFunction(QiskitFunction):
                 )
 
         config = kwargs.pop("config", None)
+        compute_profile = kwargs.pop("compute_profile", None)
         return self._run_service.run(
             program=self,
             arguments=kwargs,
             config=config,
+            compute_profile=compute_profile,
         )
 
     def get_jobs(self):

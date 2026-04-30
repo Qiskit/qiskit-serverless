@@ -2,7 +2,7 @@
 # Qiskit Serverless Info
 # ===================
 global:
-  version: 0.30.1
+  version: 0.31.0
 
 # ===================
 # Qiskit Serverless configs
@@ -47,7 +47,7 @@ gateway:
   image:
     repository: "icr.io/quantum-public/qiskit-serverless/gateway"
     pullPolicy: IfNotPresent
-    tag: "0.30.1"
+    tag: "0.31.0"
   application:
     siteHost: "http://gateway:8000"
     rayHost: "http://kuberay-head-svc:8265"
@@ -59,9 +59,9 @@ gateway:
       type: ClusterIP
       port: 8000
     ray:
-      nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.30.1"
+      nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.31.0"
       opensslImage: registry.access.redhat.com/ubi8/openssl:8.9-13
-      kubectlImage: alpine/k8s:1.35.2
+      kubectlImage: alpine/k8s:1.35.4
       gpuJobsConfig: "/tmp/gpujobs/gpu-jobs.json"
     limits:
       maxJobsPerUser: 2
@@ -75,37 +75,22 @@ gateway:
 
   secrets:
     secretKey:
-      create: true
       name: gateway-secret-key
       key: django-secret-key
-      value: CHANGE_ME
     servicePsql:
-      create: true
       name: service-psql-binding
       key:
-        adminPassword: admin-password
         databaseName: database-name
         databasePassword: database-password
         host: database-host
         port: database-port
         userName: user-name
-      value:
-        databaseName: serverlessdb
-        databasePassword: serverlesspassword
-        host: "postgresql"
-        port: 5432
-        userName: serverlessuser
     superuser:
-      create: true
       name: gateway-superuser
       key:
         name: name
         password: password
         email: email
-      value:
-        name: admin
-        password: passw0rd
-        email: admin@examplemail.io
 
 # ===================
 # Kuberay Operator

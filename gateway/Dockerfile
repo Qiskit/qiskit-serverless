@@ -2,11 +2,11 @@ ARG MICRO_IMAGE_DIR=/ubi-micro-img
 
 # BASE image using UBI 9 micro where the
 # application and requirements will be installed
-FROM registry.access.redhat.com/ubi9-micro:9.7-1771346390 AS base
+FROM registry.access.redhat.com/ubi9-micro:9.7-1773894938 AS base
 
 # BUILD image using UBI 9 where the dependencies that
 # require installing with a package manager will be installed.
-FROM registry.access.redhat.com/ubi9:9.7-1773204657 AS build
+FROM registry.access.redhat.com/ubi9:9.7-1776645994 AS build
 ARG MICRO_IMAGE_DIR
 
 # Copy the BASE image into the BUILD image
@@ -63,10 +63,11 @@ COPY --chown=1000:100 ray-node/requirements-dynamic-dependencies.txt .
 RUN mkdir /usr/src/app/static && chown 1000:100 /usr/src/app/static && \
     mkdir /usr/src/app/media && chown 1000:100 /usr/src/app/media
 
-RUN sed -i 's/\r$//g' /usr/src/app/entrypoint.sh && \
-    chmod +x /usr/src/app/entrypoint.sh
+RUN sed -i 's/\r$//g' /usr/src/app/entrypoint-gateway.sh && \
+    chmod +x /usr/src/app/entrypoint-gateway.sh && \
+    sed -i 's/\r$//g' /usr/src/app/entrypoint-scheduler.sh && \
+    chmod +x /usr/src/app/entrypoint-scheduler.sh
 
 EXPOSE 8000
 USER 1000:100
-# run entrypoint.sh
-ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
+ENTRYPOINT ["/usr/src/app/entrypoint-gateway.sh"]

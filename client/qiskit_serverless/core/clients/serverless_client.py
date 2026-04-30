@@ -61,6 +61,8 @@ from qiskit_serverless.core.job import (
     Configuration,
     _map_status_to_serverless,
 )
+from qiskit_serverless.core.job_event import JobEvent
+
 from qiskit_serverless.core.function import (
     QiskitFunction,
     RunService,
@@ -224,7 +226,10 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             )
         )
 
-        return [Job(job.get("id"), job_service=self, raw_data=job) for job in response_data.get("results", [])]
+        return [
+            Job(job.get("id"), job_service=self, raw_data=job, compute_profile=job.get("compute_profile"))
+            for job in response_data.get("results", [])
+        ]
 
     @_trace_job("provider_list")
     def provider_jobs(self, function: Optional[QiskitFunction], **kwargs) -> List[Job]:
@@ -271,7 +276,10 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             )
         )
 
-        return [Job(job.get("id"), job_service=self, raw_data=job) for job in response_data.get("results", [])]
+        return [
+            Job(job.get("id"), job_service=self, raw_data=job, compute_profile=job.get("compute_profile"))
+            for job in response_data.get("results", [])
+        ]
 
     @_trace_job("get")
     def job(self, job_id: str) -> Optional[Job]:
@@ -290,6 +298,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             job = Job(
                 job_id=job_id,
                 job_service=self,
+                compute_profile=response_data.get("compute_profile"),
             )
 
         return job
@@ -300,6 +309,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
         provider: Optional[str] = None,
+        *,
+        compute_profile: Optional[str] = None,
     ) -> Job:
         if isinstance(program, QiskitFunction):
             title = program.title
@@ -318,6 +329,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             data = {
                 "title": title,
                 "provider": provider,
+                "compute_profile": compute_profile,
                 "arguments": json.dumps(arguments or {}, cls=QiskitObjectsEncoder),
             }  # type: Dict[str, Any]
             if config:
@@ -336,7 +348,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             job_id = response_data.get("id")
             span.set_attribute("job.id", job_id)
 
-        return Job(job_id, job_service=self)
+        return Job(job_id, job_service=self, compute_profile=response_data.get("compute_profile"))
 
     @_trace_job
     def status(self, job_id: str):
@@ -474,6 +486,22 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             excluded = included
         return excluded
 
+    def events(self, job_id: str, **kwargs) -> list[JobEvent]:
+        """Returns events of the job.
+        Args:
+            job_id: The job id
+        """
+        response_data = safe_json_request_as_list(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/jobs/{job_id}/events/",
+                params=kwargs,
+                headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
+                timeout=REQUESTS_TIMEOUT,
+            )
+        )
+
+        return [JobEvent.from_json(event) for event in response_data]
+
     #########################
     ####### Functions #######
     #########################
@@ -484,7 +512,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             span.set_attribute("function", program.title)
             url = f"{self.host}/api/{self.version}/programs/upload/"
 
-            if program.image is not None:
+            if program.image:
                 # upload function with custom image
                 function_uploaded = _upload_with_docker_image(
                     program=program,
@@ -495,7 +523,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                     instance=self.instance,
                     channel=self.channel,
                 )
-            elif program.entrypoint is not None:
+            elif program.entrypoint:
                 # upload function with artifact
                 function_uploaded = _upload_with_artifact(
                     program=program,
@@ -777,6 +805,7 @@ def _upload_with_docker_image(  # pylint: disable=too-many-positional-arguments
                 "title": program.title,
                 "provider": program.provider,
                 "image": program.image,
+                "runner": program.runner,
                 "arguments": json.dumps({}),
                 "dependencies": json.dumps(program.dependencies or []),
                 "env_vars": json.dumps(program.env_vars or {}),
@@ -850,6 +879,7 @@ def _upload_with_artifact(  # pylint:  disable=too-many-positional-arguments, to
                         "title": program.title,
                         "provider": program.provider,
                         "entrypoint": program.entrypoint,
+                        "runner": program.runner,
                         "arguments": json.dumps({}),
                         "dependencies": json.dumps(program.dependencies or []),
                         "env_vars": json.dumps(program.env_vars or {}),

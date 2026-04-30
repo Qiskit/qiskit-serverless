@@ -38,12 +38,14 @@ class FilesProviderUploadUseCase:
         """
 
         provider = self.provider_repository.get_provider_by_name(name=provider_name)
-        if provider is None or not ProviderAccessPolicy.can_access(user=user, provider=provider):
+        if provider is None or not ProviderAccessPolicy.can_manage_files(
+            user=user, provider=provider, function_title=function_title
+        ):
             raise ProviderNotFoundException(provider_name)
 
         function = Function.objects.get_function_by_permission(
             user=user,
-            permission_name=RUN_PROGRAM_PERMISSION,
+            legacy_permission_name=RUN_PROGRAM_PERMISSION,
             function_title=function_title,
             provider_name=provider_name,
         )

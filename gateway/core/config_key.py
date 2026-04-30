@@ -8,3 +8,4 @@ class ConfigKey(Enum):
 
     MAINTENANCE = "scheduler.maintenance"
     UPLOAD_FILE_VALID_MIME_TYPES = "gateway.upload_file.valid_mime_types"
+    RUNTIME_INSTANCES_API_ENABLED = "gateway.runtime_instances_api.enabled"

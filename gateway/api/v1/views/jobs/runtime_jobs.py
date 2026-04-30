@@ -5,9 +5,10 @@ API endpoint to handle runtime jobs.
 # pylint: disable=abstract-method
 
 import logging
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
+from django.contrib.auth.models import AbstractUser
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, serializers, status
 from rest_framework.decorators import api_view, permission_classes
@@ -99,23 +100,25 @@ def runtime_jobs(request: Request, job_id: UUID) -> Response:
     GET: Retrieve runtime jobs.
     POST: Associate a new runtime job.
     """
+    user = cast(AbstractUser, request.user)
+
     if request.method == "POST":
         serializer = InputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         runtime_job = serializer.validated_data.get("runtime_job")
         runtime_session = serializer.validated_data.get("runtime_session")
-        message = AssociateRuntimeJobsUseCase().execute(job_id, runtime_job, runtime_session)
+        message = AssociateRuntimeJobsUseCase().execute(job_id, runtime_job, runtime_session, user)
         logger.info(
             "[jobs-runtime-jobs:post] user_id=%s job_id=%s runtime_job=%s | Runtime job linked ok",
-            request.user.id,
+            user.id,
             job_id,
             runtime_job,
         )
         return Response({"message": message})
 
     if request.method == "GET":
-        out_runtime_jobs = GetRuntimeJobsUseCase().execute(job_id)
-        logger.info("[jobs-runtime-jobs:get] user_id=%s job_id=%s | Runtime jobs retrieved ok", request.user.id, job_id)
+        out_runtime_jobs = GetRuntimeJobsUseCase().execute(job_id, user)
+        logger.info("[jobs-runtime-jobs:get] user_id=%s job_id=%s | Runtime jobs retrieved ok", user.id, job_id)
         return Response(serialize_output(out_runtime_jobs))
 
     raise MethodNotAllowed(request.method)
