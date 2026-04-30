@@ -5,16 +5,9 @@ Version views inherit from the different views.
 """
 
 import logging
-import os
 import re
 
-# pylint: disable=duplicate-code
 from django.conf import settings
-from opentelemetry import trace
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from rest_framework.decorators import action
 from rest_framework import viewsets, status
@@ -40,19 +33,7 @@ from core.enums.type_filter import TypeFilter
 from core.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Job, Provider
 from core.models import Program as Function
 
-# pylint: disable=duplicate-code
 logger = logging.getLogger("api.api.views.programs")
-resource = Resource(attributes={SERVICE_NAME: "QiskitServerless-Gateway"})
-provider = TracerProvider(resource=resource)
-otel_exporter = BatchSpanProcessor(
-    OTLPSpanExporter(
-        endpoint=os.environ.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://otel-collector:4317"),
-        insecure=bool(int(os.environ.get("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "0"))),
-    )
-)
-provider.add_span_processor(otel_exporter)
-if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
-    trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
 
 _trace = trace_decorator_factory("program")
 

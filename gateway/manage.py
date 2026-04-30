@@ -5,12 +5,6 @@ import logging
 import os
 import sys
 
-from opentelemetry import trace
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-
 logger = logging.getLogger("main")
 
 
@@ -25,17 +19,6 @@ def main():
             "available on your PYTHONPATH environment variable? Did you "
             "forget to activate a virtual environment?"
         ) from exc
-    resource = Resource(attributes={SERVICE_NAME: f"QiskitServerless-Gateway"})
-    provider = TracerProvider(resource=resource)
-    otel_exporter = BatchSpanProcessor(
-        OTLPSpanExporter(
-            endpoint=os.environ.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://otel-collector:4317"),
-            insecure=bool(int(os.environ.get("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "0"))),
-        )
-    )
-    provider.add_span_processor(otel_exporter)
-    if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
-        trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
 
     logger.info(f"[BOOT] Executing command manage.py {sys.argv[1] if len(sys.argv) > 1 else ''}")
     execute_from_command_line(sys.argv)

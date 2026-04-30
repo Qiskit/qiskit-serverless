@@ -49,10 +49,10 @@ from ray.runtime_env import RuntimeEnv
 
 from qiskit_serverless.core.constants import (
     OT_ATTRIBUTE_PREFIX,
-    OT_JAEGER_HOST_KEY,
-    OT_JAEGER_PORT_KEY,
-    OT_TRACEPARENT_ID_KEY,
-    OT_RAY_TRACER,
+    OTEL_EXPORTER_OTLP_HOST,
+    OTEL_EXPORTER_OTLP_PORT,
+    QS_OT_TRACEPARENT_ID_KEY,
+    QS_OT_RAY_TRACER,
 )
 from qiskit_serverless.core.tracing import get_tracer, _trace_env_vars
 from qiskit_serverless.utils import JsonSerializable
@@ -195,13 +195,13 @@ def _tracible_function(name: str, target: Target, trace_id: Optional[str] = None
     def decorator(func: Callable):
         @functools.wraps(func)
         def wraps(*args, **kwargs):
-            if bool(int(os.environ.get(OT_RAY_TRACER, "0"))):
+            if bool(int(os.environ.get(QS_OT_RAY_TRACER, "0"))):
                 tracer = trace.get_tracer(func.__module__)
             else:
                 tracer = get_tracer(
                     func.__module__,
-                    agent_host=os.environ.get(OT_JAEGER_HOST_KEY, None),
-                    agent_port=int(os.environ.get(OT_JAEGER_PORT_KEY, 6831)),
+                    agent_host=os.environ.get(OTEL_EXPORTER_OTLP_HOST, None),
+                    agent_port=int(os.environ.get(OTEL_EXPORTER_OTLP_PORT, 6831)),
                 )
             ctx = TraceContextTextMapPropagator().extract(
                 {TraceContextTextMapPropagator._TRACEPARENT_HEADER_NAME: trace_id}  # pylint:disable=protected-access
@@ -275,7 +275,7 @@ def distribute_task(
             traced_function = _tracible_function(
                 name=function.__name__,
                 target=remote_target,
-                trace_id=traced_env_vars.get(OT_TRACEPARENT_ID_KEY),
+                trace_id=traced_env_vars.get(QS_OT_TRACEPARENT_ID_KEY),
             )(function)
 
             # runtime env
