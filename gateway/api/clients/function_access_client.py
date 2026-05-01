@@ -4,6 +4,7 @@ import logging
 
 import requests
 from django.conf import settings
+from django.core.cache import cache
 
 from api.domain.authorization.function_access_entry import FunctionAccessEntry
 from api.domain.authorization.function_access_result import FunctionAccessResult
@@ -19,21 +20,28 @@ class FunctionAccessClient:
     def get_accessible_functions(self, instance_crn: str) -> FunctionAccessResult:
         """Return all functions accessible to the given instance CRN with their permissions."""
         enabled = Config.get_bool(ConfigKey.RUNTIME_INSTANCES_API_ENABLED)
-        if not enabled:
+        base_url = settings.RUNTIME_API_BASE_URL
+        if not enabled or not base_url:
             return FunctionAccessResult(has_response=False)
 
-        base_url = settings.RUNTIME_INSTANCES_API_BASE_URL
-        if not base_url:
-            return FunctionAccessResult(has_response=False)
+        cache_key = f"accesible_functions:{instance_crn}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
 
         try:
             response = requests.get(
-                f"{base_url}/instances/functions",
+                f"{base_url}/api/v1/functions",
                 headers={"Service-CRN": instance_crn},
                 timeout=5,
             )
         except requests.RequestException:
             logger.exception("FunctionAccessClient: connection error for CRN %s", instance_crn)
+            return FunctionAccessResult(has_response=False)
+
+        if response.status_code == 204:
+            # We agreed with Runtime that 204 response means there is no functions configured
+            # for this instance, so we should fallback to Django
             return FunctionAccessResult(has_response=False)
 
         if response.status_code != 200:
@@ -58,4 +66,6 @@ class FunctionAccessClient:
             except (KeyError, ValueError) as exc:
                 logger.error("FunctionAccessClient: invalid entry %s — %s", f, exc)
 
-        return FunctionAccessResult(has_response=True, functions=functions)
+        result = FunctionAccessResult(has_response=True, functions=functions)
+        cache.set(cache_key, result, timeout=settings.RUNTIME_API_CACHE_TTL)
+        return result
