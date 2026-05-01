@@ -10,11 +10,10 @@ from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from rest_framework import status
 
-from api.domain.exceptions.not_found_exception import NotFoundError
+from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
 from api.domain.exceptions.invalid_access_exception import InvalidAccessException
-from api.domain.exceptions.active_job_limit_exceeded_exception import (
-    ActiveJobLimitExceeded,
-)
+from api.domain.exceptions.not_found_exception import NotFoundError
+from api.domain.exceptions.runtime_api_exception import RuntimeFunctionsException
 
 logger = logging.getLogger("api.api.v1.exception_handler")
 
@@ -54,6 +53,11 @@ def endpoint_handle_exceptions(view_func: Callable):
             return Response(
                 {"message": error.message},
                 status=status.HTTP_404_NOT_FOUND,
+            )
+        except RuntimeFunctionsException as error:
+            return Response(
+                {"message": error.message},
+                status=status.HTTP_401_UNAUTHORIZED,
             )
         except InvalidAccessException as error:
             return Response(

@@ -20,7 +20,7 @@ def test_returns_function_from_200_response(instances_server):
 
     result = FunctionAccessClient().get_accessible_functions("crn:test:123")
 
-    assert result.has_response is True
+    assert result.use_legacy_authorization is False
     entry = result.get_function("ibm", "sampler")
     assert entry is not None
     assert entry.provider_name == "ibm"
@@ -34,7 +34,7 @@ def test_returns_empty_list_on_200_with_no_functions(instances_server):
 
     result = FunctionAccessClient().get_accessible_functions("crn:test:456")
 
-    assert result.has_response is True
+    assert result.use_legacy_authorization is False
     assert result.functions == []
 
 
@@ -43,7 +43,7 @@ def test_returns_no_response_on_server_error(instances_server):
 
     result = FunctionAccessClient().get_accessible_functions("crn:test:789")
 
-    assert result.has_response is False
+    assert result.use_legacy_authorization is True
 
 
 def test_returns_no_response_when_disabled(monkeypatch):
@@ -51,7 +51,7 @@ def test_returns_no_response_when_disabled(monkeypatch):
 
     result = FunctionAccessClient().get_accessible_functions("crn:test:000")
 
-    assert result.has_response is False
+    assert result.use_legacy_authorization is True
 
 
 def test_caches_successful_response(instances_server):
@@ -61,7 +61,7 @@ def test_caches_successful_response(instances_server):
     result = FunctionAccessClient().get_accessible_functions("crn:cache:hit")
 
     assert instances_server.request_count == 1
-    assert result.has_response is True
+    assert result.use_legacy_authorization is False
     assert result.get_function("ibm", "sampler") is not None
 
 
