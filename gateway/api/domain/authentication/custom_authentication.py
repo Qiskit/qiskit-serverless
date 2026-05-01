@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from api.domain.authentication.channel import Channel
+from api.domain.authorization.function_access_result import FunctionAccessResult
 
 
 @dataclass
@@ -14,4 +15,5 @@ class CustomAuthentication:
 
     channel: Channel
     token: str
+    accessible_functions: FunctionAccessResult
     instance: Optional[str]
