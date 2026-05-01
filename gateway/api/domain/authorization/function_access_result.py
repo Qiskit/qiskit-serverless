@@ -12,6 +12,7 @@ class FunctionAccessResult:
     """Result from the external function access client for a given instance CRN."""
 
     has_response: bool
+    message: str = ""
     functions: List[FunctionAccessEntry] = field(default_factory=list)
 
     def get_function(self, provider_name: str, function_title: str) -> Optional[FunctionAccessEntry]:
@@ -37,3 +38,7 @@ class FunctionAccessResult:
             if permission in e.permissions:
                 by_provider[e.provider_name].add(e.function_title)
         return dict(by_provider)
+
+    def __str__(self) -> str:
+        functions_str = ", ".join(f"{e.provider_name}.{e.function_title}" for e in self.functions)
+        return f"has_response={self.has_response}, message={self.message!r}, functions=[{functions_str}]"

@@ -10,6 +10,16 @@ from core.models import Program, Job, Provider, PLATFORM_PERMISSION_JOB_READ, PL
 pytestmark = pytest.mark.django_db
 
 
+def create_function_access_result(provider_name, function_title, permissions):
+    entry = FunctionAccessEntry(
+        provider_name=provider_name,
+        function_title=function_title,
+        permissions=permissions,
+        business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
+    )
+    return FunctionAccessResult(has_response=True, functions=[entry])
+
+
 @pytest.fixture()
 def job_author():
     return User.objects.create_user(username="author")
@@ -79,13 +89,7 @@ class TestCanAccess:
             admin = User.objects.create_user(username="admin_ext")
             provider = Provider.objects.create(name="ext-provider")
             program = Program.objects.create(title="fn", author=job_author, provider=provider)
-            entry = FunctionAccessEntry(
-                provider_name="ext-provider",
-                function_title="fn",
-                permissions=permissions,
-                business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
-            )
-            accessible = FunctionAccessResult(has_response=True, functions=[entry])
+            accessible = create_function_access_result("ext-provider", "fn", permissions)
             provider_job = Job.objects.create(program=program, author=job_author, status=Job.QUEUED)
             assert JobAccessPolicies.can_access(admin, provider_job, accessible_functions=accessible) is expected
 
@@ -182,13 +186,7 @@ class TestCanReadProviderLogs:
             admin = User.objects.create_user(username="log_admin")
             provider = Provider.objects.create(name="log-provider")
             program = Program.objects.create(title="log-fn", author=job_author, provider=provider)
-            entry = FunctionAccessEntry(
-                provider_name="log-provider",
-                function_title="log-fn",
-                permissions=permissions,
-                business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
-            )
-            accessible = FunctionAccessResult(has_response=True, functions=[entry])
+            accessible = create_function_access_result("log-provider", "log-fn", permissions)
             provider_job = Job.objects.create(program=program, author=job_author, status=Job.QUEUED)
             assert (
                 JobAccessPolicies.can_read_provider_logs(admin, provider_job, accessible_functions=accessible)
