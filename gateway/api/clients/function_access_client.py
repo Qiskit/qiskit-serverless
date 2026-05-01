@@ -20,11 +20,8 @@ class FunctionAccessClient:
     def get_accessible_functions(self, instance_crn: str) -> FunctionAccessResult:
         """Return all functions accessible to the given instance CRN with their permissions."""
         enabled = Config.get_bool(ConfigKey.RUNTIME_INSTANCES_API_ENABLED)
-        if not enabled:
-            return FunctionAccessResult(has_response=False)
-
         base_url = settings.RUNTIME_API_BASE_URL
-        if not base_url:
+        if not enabled or not base_url:
             return FunctionAccessResult(has_response=False)
 
         cache_key = f"accesible_functions:{instance_crn}"
@@ -47,7 +44,7 @@ class FunctionAccessClient:
             # for this instance, so we should fallback to Django
             return FunctionAccessResult(has_response=False)
 
-        if response.status_code != 200:
+        elif response.status_code != 200:
             logger.warning(
                 "FunctionAccessClient: unexpected status %s for CRN %s",
                 response.status_code,
