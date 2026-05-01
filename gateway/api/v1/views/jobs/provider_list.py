@@ -190,16 +190,23 @@ def get_provider_jobs(request: Request) -> Response:
 
     filters = JobFilters(**serializer.validated_data)
     user = cast(AbstractUser, request.user)
-
     accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
-    jobs, total = JobsProviderListUseCase().execute(
-        user=user, filters=filters, accessible_functions=accessible_functions
-    )
+
     logger.info(
-        "[jobs-provider-list] user_id=%s provider=%s function=%s accessible_functions=%s | Provider jobs listed ok",
+        "[jobs-provider-list] user_id=%s provider=%s function=%s accessible_functions=%s",
         user.id,
         filters.provider,
         filters.function,
         accessible_functions,
+    )
+
+    jobs, total = JobsProviderListUseCase().execute(
+        user=user, filters=filters, accessible_functions=accessible_functions
+    )
+    logger.info(
+        "[jobs-provider-list] user_id=%s provider=%s function=%s | Provider jobs listed ok",
+        user.id,
+        filters.provider,
+        filters.function,
     )
     return Response(serialize_output(jobs, total, request, filters.limit, filters.offset))

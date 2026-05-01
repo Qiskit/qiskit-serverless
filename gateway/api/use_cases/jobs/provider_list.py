@@ -58,11 +58,11 @@ class JobsProviderListUseCase:
             return None
         elif accessible_functions.has_response:
             # Runtime API instances, granularity per function:
-            # We get the function titles that the user has access to and we use them to filter
-            titles = accessible_functions.get_functions_by_provider(PLATFORM_PERMISSION_PROVIDER_JOBS).get(
-                filters.provider, set()
-            )
+            # We get the function titles that the user has access to, and we use them to filter
+            provider_functions = accessible_functions.get_functions_by_provider(PLATFORM_PERMISSION_PROVIDER_JOBS)
+            titles = provider_functions.get(filters.provider, set())
             if not titles:
+                # If the user can't access to any function, we hide the provider with a not found
                 raise ProviderNotFoundException(filters.provider)
             return titles
         else:
