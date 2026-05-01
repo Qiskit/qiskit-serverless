@@ -41,7 +41,7 @@ class FunctionAccessClient:
             )
         except requests.RequestException as exc:
             logger.exception("FunctionAccessClient: connection error for CRN %s", instance_crn)
-            raise RuntimeFunctionsException("Error connecting to Runtime API")
+            raise RuntimeFunctionsException("Error connecting to Runtime API") from exc
 
         if response.status_code == 204:
             # We agreed with Runtime that 204 response means there is no functions configured

@@ -46,7 +46,7 @@ def endpoint_handle_exceptions(view_func: Callable):
     """
 
     @wraps(view_func)
-    def wrapped_view(*args, **kwargs):
+    def wrapped_view(*args, **kwargs):  # pylint: disable=too-many-return-statements
         try:
             return view_func(*args, **kwargs)
         except NotFoundError as error:

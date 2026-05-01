@@ -41,4 +41,7 @@ class FunctionAccessResult:
 
     def __str__(self) -> str:
         functions_str = ", ".join(f"{e.provider_name}.{e.function_title}" for e in self.functions)
-        return f"use_legacy_authorization={self.use_legacy_authorization}, message={self.message!r}, functions=[{functions_str}]"
+        return (
+            f"use_legacy_authorization={self.use_legacy_authorization}, "
+            f"message={self.message!r}, functions=[{functions_str}]"
+        )
