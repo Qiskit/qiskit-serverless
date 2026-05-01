@@ -64,7 +64,7 @@ class TestRayRunner(APITestCase):
             assert job.ray_job_id == "AwesomeJobId"
             assert "test_user" == job.compute_resource.title
             assert job.compute_resource.host == head_node_url
-            assert job.compute_resource._state.adding  # Not saved to DB
+            assert not job.compute_resource._state.adding  # Saved to DB
             DynamicClient.resources.get.assert_called_once_with(api_version="v1", kind="RayCluster")
 
     def test_cleanup_cluster(self):
@@ -199,7 +199,7 @@ class TestRayClientOperations(APITestCase):
                 self.assertEqual(job.ray_job_id, "AwesomeJobId")
                 self.assertIsNotNone(job.compute_resource)
                 self.assertEqual(job.compute_resource.title, "Local compute resource")
-                self.assertTrue(job.compute_resource._state.adding)  # Not saved to DB
+                self.assertFalse(job.compute_resource._state.adding)  # Saved to DB
 
 
 class TestGetRunner(APITestCase):

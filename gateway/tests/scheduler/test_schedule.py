@@ -1,14 +1,14 @@
 """Tests scheduling."""
 
-import tempfile
 from unittest.mock import MagicMock, patch
 
 import pytest
 from django.core.management import call_command
 
-from core.models import Job, ComputeResource
+from core.models import Job
 from core.services.runners import RunnerError
 from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_job
+from tests.utils import TestUtils
 
 
 class TestScheduleApi:
@@ -34,25 +34,21 @@ class TestScheduleApi:
         assert "1a7947f9-6ae8-4e3d-ac1e-e7d608deec90" in job_ids
         assert "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82" in job_ids
 
-    @patch("scheduler.schedule.get_runner")
-    def test_execute_job_success(self, mock_get_runner_client):
-        """Tests successful job execution via runner.submit()."""
-        mock_compute_resource = MagicMock(spec=ComputeResource)
-        mock_compute_resource.title = "test-cluster"
+    @patch("core.services.runners.ray_runner.RayRunner._submit_to_ray", return_value="test-ray-job-id")
+    def test_execute_job_success(self, _mock_submit_to_ray, settings):
+        """Tests that execute_job saves ray_job_id, compute_resource and PENDING status to DB."""
+        settings.RAY_CLUSTER_MODE_LOCAL = True
+        settings.RAY_LOCAL_HOST = "http://localhost:8265"
 
-        mock_runner = MagicMock()
-        mock_get_runner_client.return_value = mock_runner
+        job = TestUtils.create_job(author="test_user", program="test_program", status=Job.QUEUED)
 
-        job = MagicMock()
-        job.status = Job.QUEUED
-        job.logs = ""
-        job.compute_resource = mock_compute_resource
+        execute_job(job)
 
-        ret_job = execute_job(job)
-
-        mock_runner.submit.assert_called_once()
-        mock_compute_resource.save.assert_called_once()
-        assert ret_job.status == Job.PENDING
+        job.refresh_from_db()
+        assert job.status == Job.PENDING
+        assert job.ray_job_id == "test-ray-job-id"
+        assert job.compute_resource is not None
+        assert job.compute_resource.host == "http://localhost:8265"
 
     @patch("scheduler.schedule.get_runner")
     def test_execute_job_failure(self, mock_get_runner_client):

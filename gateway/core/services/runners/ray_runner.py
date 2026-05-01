@@ -127,6 +127,7 @@ class RayRunner(AbstractRunner):
                 else:
                     host, title = self._create_k8s_cluster()
                     cluster_name = title
+                span.set_attribute("job.clustername", title)
 
                 compute_resource = ComputeResource(
                     title=title,
@@ -135,8 +136,15 @@ class RayRunner(AbstractRunner):
                     gpu=self._job.gpu,
                     active=True,
                 )
-                span.set_attribute("job.clustername", title)
+                compute_resource.save()
+
                 ray_job_id = self._submit_to_ray(compute_resource)
+
+                self._job.ray_job_id = ray_job_id
+                self._job.compute_resource = compute_resource
+                self._job.status = Job.PENDING
+                self._job.save(update_fields=["compute_resource", "ray_job_id", "status"])
+
                 span.set_attribute("job.id", self._job.id)
                 span.set_attribute("job.rayjobid", ray_job_id)
                 logger.info(
@@ -145,8 +153,6 @@ class RayRunner(AbstractRunner):
                     ray_job_id,
                     title,
                 )
-                self._job.compute_resource = compute_resource
-                self._job.ray_job_id = ray_job_id
 
             except Exception as ex:
                 logger.error(
