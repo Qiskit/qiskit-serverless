@@ -42,6 +42,11 @@ class FunctionAccessClient:
             logger.exception("FunctionAccessClient: connection error for CRN %s", instance_crn)
             return FunctionAccessResult(has_response=False)
 
+        if response.status_code == 204:
+            # We agreed with Runtime that 204 response means there is no functions configured
+            # for this instance, so we should fallback to Django
+            return FunctionAccessResult(has_response=False)
+
         if response.status_code != 200:
             logger.warning(
                 "FunctionAccessClient: unexpected status %s for CRN %s",
