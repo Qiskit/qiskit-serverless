@@ -44,7 +44,7 @@ class FunctionAccessClient:
             # for this instance, so we should fallback to Django
             return FunctionAccessResult(has_response=False)
 
-        elif response.status_code != 200:
+        if response.status_code != 200:
             logger.warning(
                 "FunctionAccessClient: unexpected status %s for CRN %s",
                 response.status_code,
