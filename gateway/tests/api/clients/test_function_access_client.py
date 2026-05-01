@@ -3,6 +3,7 @@
 import pytest
 
 from api.clients.function_access_client import FunctionAccessClient
+from api.domain.exceptions.runtime_api_exception import RuntimeFunctionsException
 from core.config_key import ConfigKey
 from core.models import PLATFORM_PERMISSION_RUN
 
@@ -38,12 +39,11 @@ def test_returns_empty_list_on_200_with_no_functions(instances_server):
     assert result.functions == []
 
 
-def test_returns_no_response_on_server_error(instances_server):
+def test_raises_on_server_error(instances_server):
     instances_server.error(500)
 
-    result = FunctionAccessClient().get_accessible_functions("crn:test:789")
-
-    assert result.use_legacy_authorization is True
+    with pytest.raises(RuntimeFunctionsException):
+        FunctionAccessClient().get_accessible_functions("crn:test:789")
 
 
 def test_returns_no_response_when_disabled(monkeypatch):
@@ -68,7 +68,9 @@ def test_caches_successful_response(instances_server):
 def test_does_not_cache_error_response(instances_server):
     instances_server.error(500)
 
-    FunctionAccessClient().get_accessible_functions("crn:cache:err")
-    FunctionAccessClient().get_accessible_functions("crn:cache:err")
+    with pytest.raises(RuntimeFunctionsException):
+        FunctionAccessClient().get_accessible_functions("crn:cache:err")
+    with pytest.raises(RuntimeFunctionsException):
+        FunctionAccessClient().get_accessible_functions("crn:cache:err")
 
     assert instances_server.request_count == 2

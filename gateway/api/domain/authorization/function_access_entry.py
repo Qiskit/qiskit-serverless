@@ -25,6 +25,7 @@ class FunctionAccessEntry:
     business_model: str
 
     def __post_init__(self):
+        self.business_model = self.business_model.upper()
         if self.business_model not in VALID_BUSINESS_MODELS:
             logger.error(
                 "Invalid business_model '%s' for %s.%s. Valid: %s",
