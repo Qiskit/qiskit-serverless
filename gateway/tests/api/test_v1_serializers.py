@@ -13,6 +13,8 @@ from django.core.management import call_command
 from api.domain.authentication.channel import Channel
 from api.v1.serializers import (
     JobConfigSerializer,
+    JobSerializer,
+    JobSerializerWithoutResult,
     UploadProgramSerializer,
     RunProgramSerializer,
     RunJobSerializer,
@@ -428,3 +430,23 @@ class TestSerializers:
         serializer_2.is_valid()
         program_2: Program = serializer_2.save(author=user)
         assert description == program_2.description
+
+    def test_job_serializer_includes_fleet_id(self):
+        """JobSerializer output includes fleet_id when set on the job."""
+        user = models.User.objects.get(username="test_user")
+        program = Program.objects.get(id="1a7947f9-6ae8-4e3d-ac1e-e7d608deec82")
+        job = TestUtils.create_job(author=user, program=program, fleet_id="fleet-abc")
+
+        data = JobSerializer(job).data
+        assert "fleet_id" in data
+        assert data["fleet_id"] == "fleet-abc"
+
+    def test_job_serializer_without_result_includes_fleet_id(self):
+        """JobSerializerWithoutResult output includes fleet_id when set on the job."""
+        user = models.User.objects.get(username="test_user")
+        program = Program.objects.get(id="1a7947f9-6ae8-4e3d-ac1e-e7d608deec82")
+        job = TestUtils.create_job(author=user, program=program, fleet_id="fleet-xyz")
+
+        data = JobSerializerWithoutResult(job).data
+        assert "fleet_id" in data
+        assert data["fleet_id"] == "fleet-xyz"
