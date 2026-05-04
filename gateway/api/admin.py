@@ -39,7 +39,7 @@ class ProgramAdmin(admin.ModelAdmin):
     """ProgramAdmin."""
 
     search_fields = ["title", "author__username"]
-    list_filter = ["provider", "type", "disabled"]
+    list_filter = ["provider", "type", "runner", "disabled"]
     exclude = ["env_vars"]
     filter_horizontal = ["instances", "trial_instances"]
     change_form_template = "program/change_form.html"
@@ -49,6 +49,7 @@ class ProgramAdmin(admin.ModelAdmin):
         "provider",
         "author",
         "type",
+        "runner",
         "disabled",
     ]
 
