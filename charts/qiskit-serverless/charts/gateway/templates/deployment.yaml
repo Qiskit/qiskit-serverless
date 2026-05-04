@@ -410,7 +410,7 @@ spec:
             - name: OTEL_EXPORTER_OTLP_TRACES_INSECURE
               value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
             - name: PROGRAM_TIMEOUT
-              value: {{ .Values.application.limits.programTimeoutDays | quote }}
+              value: {{ .Values.application.limits.TimeoutHours | quote }}
             - name: FUNCTIONS_LOGS_SIZE_LIMIT
               value: {{ .Values.application.logsMaximumSize | quote }}
             - name: LOG_FORMAT
