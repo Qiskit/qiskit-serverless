@@ -309,6 +309,9 @@ CE_SUBNET_POOL_ID = os.environ.get("CE_SUBNET_POOL_ID")
 CE_PDS_NAME_STATE = os.environ.get("CE_PDS_NAME_STATE")
 CE_PDS_NAME_USERS = os.environ.get("CE_PDS_NAME_USERS")
 CE_PDS_NAME_PROVIDERS = os.environ.get("CE_PDS_NAME_PROVIDERS")
+# Override the COS endpoint URL (e.g. use the private endpoint when running on IKS:
+# https://s3.private.us-east.cloud-object-storage.appdomain.cloud)
+CE_COS_ENDPOINT_URL = os.environ.get("CE_COS_ENDPOINT_URL")
 
 
 # ray cluster management

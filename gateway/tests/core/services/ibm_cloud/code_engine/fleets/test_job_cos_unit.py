@@ -229,6 +229,31 @@ def test_cos_raises_when_ce_secret_not_found() -> None:
             job_cos.get_object_bytes(bucket_name="b", key="k")
 
 
+def test_cos_endpoint_url_from_config_passed_to_cos_client() -> None:
+    """cos_config['cos_endpoint_url'] is forwarded to COSClient as endpoint_url."""
+    mock_job = MagicMock()
+    private_url = "https://s3.private.us-east.cloud-object-storage.appdomain.cloud"
+    mock_job.cos_config = {
+        "hmac_secret_name": "my-secret",
+        "cos_endpoint_url": private_url,
+    }
+    mock_job.project_id = "proj-id"
+    mock_job.client_provider.config.region = "us-south"
+    job_cos = JobCOS(mock_job)
+
+    mock_secret = MagicMock()
+    mock_secret.data = {"access_key_id": "ak123", "secret_access_key": "sk456"}
+
+    with patch("core.ibm_cloud.code_engine.fleets.cos.SecretsAndConfigmapsApi") as mock_api_cls, patch(
+        "core.ibm_cloud.code_engine.fleets.cos.COSClient"
+    ) as mock_cos_cls:
+        mock_api_cls.return_value.get_secret.return_value = mock_secret
+        mock_cos_cls.return_value.get_object_bytes.return_value = b"data"
+        job_cos.get_object_bytes(bucket_name="b", key="k")
+
+    assert mock_cos_cls.call_args.kwargs["endpoint_url"] == private_url
+
+
 def test_cos_raises_when_ce_secret_missing_fields() -> None:
     """Public methods raise ValueError when CE secret lacks required HMAC fields."""
     mock_job = MagicMock()

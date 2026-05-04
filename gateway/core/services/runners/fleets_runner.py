@@ -726,10 +726,14 @@ class FleetsRunner(AbstractRunner):
             logger.debug("No HMAC credentials configured for project [%s]", self._project.project_name)
             return None
 
-        return {
+        cos_config: dict = {
             "bucket_region": self._project.region,
             "hmac_secret_name": hmac_secret_name,
         }
+        endpoint_url = getattr(settings, "CE_COS_ENDPOINT_URL", None)
+        if endpoint_url:
+            cos_config["cos_endpoint_url"] = endpoint_url
+        return cos_config
 
     def _get_api_key(self) -> str:
         """Return the IBM Cloud API key from Django settings.

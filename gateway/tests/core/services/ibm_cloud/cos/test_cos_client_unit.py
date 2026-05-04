@@ -47,6 +47,29 @@ def test_s3_hmac_is_cached() -> None:
     client._provider.get_cos_hmac_client.assert_called_once()
 
 
+def test_endpoint_url_forwarded_to_provider() -> None:
+    """COSClient constructed with endpoint_url passes it to get_cos_hmac_client."""
+    mock_provider = MagicMock()
+    mock_provider.config.region = "us-south"
+    creds = CosHmacCredentials(access_key_id="ak", secret_access_key="sk")
+    custom_url = "https://s3.private.us-east.cloud-object-storage.appdomain.cloud"
+
+    client = COSClient(
+        client_provider=mock_provider,
+        credentials=creds,
+        bucket_region="us-east",
+        endpoint_url=custom_url,
+    )
+    _ = client._s3_hmac  # noqa: SLF001  trigger lazy init
+
+    mock_provider.get_cos_hmac_client.assert_called_once_with(
+        access_key_id="ak",
+        secret_access_key="sk",
+        bucket_region="us-east",
+        endpoint_url=custom_url,
+    )
+
+
 def test_upload_fileobj_calls_s3() -> None:
     """upload_fileobj should delegate to the S3 HMAC client."""
     client, mock_s3 = _make_client()

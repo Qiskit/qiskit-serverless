@@ -211,34 +211,38 @@ class IBMCloudClientProvider:
         access_key_id: str,
         secret_access_key: str,
         bucket_region: str | None = None,
+        endpoint_url: str | None = None,
     ) -> Any:
         """
         Return an S3-compatible IBM COS client using HMAC keys.
 
         Use for object operations: uploads, downloads, streaming.
-        Cached by ``(bucket_region, access_key_id)``.
+        Cached by ``(endpoint_url, access_key_id)``.
 
         Args:
             access_key_id: HMAC access key id from a COS service key.
             secret_access_key: HMAC secret access key from a COS service key.
             bucket_region: Bucket endpoint region. Defaults to the provider default region.
+                Ignored when ``endpoint_url`` is supplied.
+            endpoint_url: Override the COS S3 endpoint URL. When set, ``bucket_region``
+                is not used to derive the URL (but ``region_name`` is still passed to boto3).
 
         Returns:
             An S3-compatible ``ibm_boto3`` client configured for IBM COS (HMAC).
         """
         resolved_region = (bucket_region or self.config.region).strip()
-        cache_key = (resolved_region, access_key_id)
+        resolved_endpoint = endpoint_url or COS_URL_TEMPLATE.format(region=resolved_region)
+        cache_key = (resolved_endpoint, access_key_id)
 
         cached = self.clients.cos_hmac.get(cache_key)
         if cached is not None:
             return cached
 
-        endpoint_url = COS_URL_TEMPLATE.format(region=resolved_region)
         s3 = ibm_boto3_client(
             "s3",
             aws_access_key_id=access_key_id,
             aws_secret_access_key=secret_access_key,
-            endpoint_url=endpoint_url,
+            endpoint_url=resolved_endpoint,
             region_name=resolved_region,
         )
         self.clients.cos_hmac[cache_key] = s3

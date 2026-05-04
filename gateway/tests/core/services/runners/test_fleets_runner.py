@@ -500,6 +500,7 @@ def test_get_handler_cos_config_secret_name():
 
     with patch(f"{_RUNNER_MOD}.settings") as mock_settings:
         mock_settings.CE_HMAC_SECRET_NAME = "cos-hmac-secret"
+        mock_settings.CE_COS_ENDPOINT_URL = None
         config = runner._get_handler_cos_config()  # pylint: disable=protected-access
 
     assert config["hmac_secret_name"] == "cos-hmac-secret"
@@ -519,6 +520,33 @@ def test_get_handler_cos_config_returns_none_when_no_credentials():
         config = runner._get_handler_cos_config()  # pylint: disable=protected-access
 
     assert config is None
+
+
+def test_get_handler_cos_config_includes_endpoint_url_when_set():
+    """_get_handler_cos_config() includes cos_endpoint_url when CE_COS_ENDPOINT_URL is set."""
+    runner, _ = _make_runner()
+    runner._project.region = "us-east"  # pylint: disable=protected-access
+    private_url = "https://s3.private.us-east.cloud-object-storage.appdomain.cloud"
+
+    with patch(f"{_RUNNER_MOD}.settings") as mock_settings:
+        mock_settings.CE_HMAC_SECRET_NAME = "cos-hmac-secret"
+        mock_settings.CE_COS_ENDPOINT_URL = private_url
+        config = runner._get_handler_cos_config()  # pylint: disable=protected-access
+
+    assert config["cos_endpoint_url"] == private_url
+
+
+def test_get_handler_cos_config_omits_endpoint_url_when_not_set():
+    """_get_handler_cos_config() omits cos_endpoint_url when CE_COS_ENDPOINT_URL is None."""
+    runner, _ = _make_runner()
+    runner._project.region = "us-east"  # pylint: disable=protected-access
+
+    with patch(f"{_RUNNER_MOD}.settings") as mock_settings:
+        mock_settings.CE_HMAC_SECRET_NAME = "cos-hmac-secret"
+        mock_settings.CE_COS_ENDPOINT_URL = None
+        config = runner._get_handler_cos_config()  # pylint: disable=protected-access
+
+    assert "cos_endpoint_url" not in config
 
 
 def test_connect_skips_when_already_connected():
