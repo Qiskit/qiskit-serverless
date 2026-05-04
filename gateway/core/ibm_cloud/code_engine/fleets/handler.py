@@ -110,8 +110,8 @@ class FleetHandler:
         name: str,
         image_reference: str,
         network_placements: list[dict[str, Any]],
-        scale_cpu_limit: str,
-        scale_memory_limit: str,
+        scale_cpu_limit: str | None,
+        scale_memory_limit: str | None,
         scale_max_instances: int,
         scale_retry_limit: int,
         tasks_specification: dict[str, Any],
@@ -126,8 +126,10 @@ class FleetHandler:
             image_reference: Container image reference.
             network_placements: Network placement list, e.g.
                 ``[{"type": "subnet_pool", "reference": "<id>"}]``.
-            scale_cpu_limit: vCPUs per task, e.g. ``"1"``.
-            scale_memory_limit: Memory per task, e.g. ``"2G"``.
+            scale_cpu_limit: vCPUs per task, e.g. ``"1"``. Pass ``None`` when
+                ``scale_preferred_worker_profile`` is set in ``extra_fields``.
+            scale_memory_limit: Memory per task, e.g. ``"2G"``. Pass ``None``
+                when ``scale_preferred_worker_profile`` is set.
             scale_max_instances: Tasks processed simultaneously (>= 1).
             scale_retry_limit: Times to retry a failed task (>= 0).
             tasks_specification: Task index spec, e.g. ``{"indices": "0"}``.
@@ -144,13 +146,15 @@ class FleetHandler:
             "name": name,
             "image_reference": image_reference,
             "network_placements": network_placements,
-            "scale_cpu_limit": scale_cpu_limit,
-            "scale_memory_limit": scale_memory_limit,
             "scale_max_instances": scale_max_instances,
             "scale_retry_limit": scale_retry_limit,
             "tasks_specification": tasks_specification,
             "tasks_state_store": tasks_state_store,
         }
+        if scale_cpu_limit is not None:
+            body["scale_cpu_limit"] = scale_cpu_limit
+        if scale_memory_limit is not None:
+            body["scale_memory_limit"] = scale_memory_limit
         if image_secret:
             body["image_secret"] = image_secret
         if extra_fields:
