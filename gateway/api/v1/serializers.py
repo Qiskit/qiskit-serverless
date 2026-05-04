@@ -220,6 +220,7 @@ class JobSerializer(serializers.JobSerializer):
             "program",
             "created",
             "sub_status",
+            "fleet_id",
             "compute_profile",
         ]
 
@@ -232,4 +233,4 @@ class JobSerializerWithoutResult(serializers.JobSerializer):
     program = ProgramSummarySerializer(many=False)
 
     class Meta(serializers.JobSerializer.Meta):
-        fields = ["id", "status", "program", "created", "sub_status", "compute_profile"]
+        fields = ["id", "status", "program", "created", "sub_status", "fleet_id", "compute_profile"]

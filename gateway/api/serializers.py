@@ -240,6 +240,7 @@ class RunJobSerializer(serializers.ModelSerializer):
             "status",
             "created",
             "compute_profile",
+            "fleet_id",
             "arguments",
             "program",
         ]
