@@ -980,7 +980,7 @@ class TestProgramApi(APITestCase):
         fake_file = ContentFile(b"print('Hello World')")
         fake_file.name = "test_run.tar"
 
-        TestUtils.authorize_client(username="test_user_2", client=self.client)
+        TestUtils.authorize_client(user="test_user_2", client=self.client)
 
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             programs_response = self.client.post(
