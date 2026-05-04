@@ -1,7 +1,8 @@
 """Abstract runner for job execution in any engine (Ray, Fleets)."""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from core.models import Job
 
@@ -18,12 +19,12 @@ class RunnerError(Exception):
         original_exception: The underlying exception that caused this error (if any)
     """
 
-    def __init__(self, message: str, original_exception: Exception = None):
+    def __init__(self, message: str, original_exception: Exception | None = None):
         super().__init__(message)
         self.message = message
         self.original_exception = original_exception
 
-    def __str__(self):
+    def __str__(self) -> str:
         if self.original_exception:
             return f"{self.message}: {self.original_exception}"
         return self.message
@@ -32,7 +33,7 @@ class RunnerError(Exception):
 class AbstractRunner(ABC):
     """Abstract runner for executing jobs on different engines."""
 
-    def __init__(self, job: Job):
+    def __init__(self, job: Job) -> None:
         """
         Initialize the runner with a Job.
 
@@ -81,7 +82,7 @@ class AbstractRunner(ABC):
     # --- Methods that do NOT require connection ---
 
     @abstractmethod
-    def submit(self):
+    def submit(self) -> None:
         """
         Submit the job to the runner.
 
@@ -108,7 +109,7 @@ class AbstractRunner(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def status(self) -> Optional[str]:
+    def status(self) -> str | None:
         """
         Get job status (mapped to Job.STATUS).
         Automatically connects if not connected.
@@ -122,7 +123,7 @@ class AbstractRunner(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def logs(self) -> Optional[str]:
+    def logs(self) -> str | None:
         """
         Get job logs.
         Automatically connects if not connected.
@@ -132,6 +133,22 @@ class AbstractRunner(ABC):
 
         Raises:
             RunnerError: If unable to get job logs
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def provider_logs(self) -> str | None:
+        """
+        Get provider (unfiltered) job logs.
+
+        Engines that support dual-log routing (e.g. Fleets with PDS mounts)
+        return the full provider log. Other engines may return the same as logs().
+
+        Returns:
+            Provider log content or None
+
+        Raises:
+            RunnerError: If unable to get logs
         """
         raise NotImplementedError
 

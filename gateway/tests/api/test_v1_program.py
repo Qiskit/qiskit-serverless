@@ -973,3 +973,27 @@ class TestProgramApi(APITestCase):
             # Error message should mention invalid version
             errors = json.dumps(response.data)
             assert "Invalid version" in errors
+
+    def test_upload_with_runner_field(self):
+        """Tests that the runner field is persisted on upload."""
+
+        fake_file = ContentFile(b"print('Hello World')")
+        fake_file.name = "test_run.tar"
+
+        TestUtils.authorize_client(username="test_user_2", client=self.client)
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            programs_response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "Fleets function",
+                    "entrypoint": "main.py",
+                    "dependencies": "[]",
+                    "artifact": fake_file,
+                    "runner": Program.FLEETS,
+                },
+            )
+            assert programs_response.status_code == status.HTTP_200_OK
+
+        program = Program.objects.get(title="Fleets function")
+        assert program.runner == Program.FLEETS
