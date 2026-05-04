@@ -40,7 +40,7 @@ class TestJobApi:
         settings.MEDIA_ROOT = str(tmp_path)
         self.client = APIClient()
 
-    def _authorize(self, username, accessible_functions=FunctionAccessResult(has_response=False)):
+    def _authorize(self, username, accessible_functions=FunctionAccessResult(use_legacy_authorization=True)):
         """Authorize client and return the user."""
         user, _ = User.objects.get_or_create(username=username)
         token = MagicMock()
@@ -281,7 +281,7 @@ class TestJobApi:
             permissions={PLATFORM_PERMISSION_PROVIDER_JOBS},
             business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
         )
-        accessible = FunctionAccessResult(has_response=True, functions=[entry])
+        accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[entry])
         self._authorize("test_user", accessible_functions=accessible)
 
         jobs_response = self.client.get(
@@ -295,7 +295,7 @@ class TestJobApi:
 
     def test_job_provider_list_runtime_instances_no_access(self):
         """Runtime instances path: accessible_functions has no PROVIDER_JOBS for the provider → 404."""
-        accessible = FunctionAccessResult(has_response=True, functions=[])
+        accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[])
         self._authorize("test_user", accessible_functions=accessible)
 
         jobs_response = self.client.get(

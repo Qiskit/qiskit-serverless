@@ -830,6 +830,7 @@ class FleetsRunner(AbstractRunner):
             "failed": Job.FAILED,
             "stopped": Job.STOPPED,
             "cancelled": Job.STOPPED,
+            "canceled": Job.STOPPED,
             "canceling": Job.STOPPED,
         }
         return status_map.get(fleet_status.lower(), Job.PENDING)
