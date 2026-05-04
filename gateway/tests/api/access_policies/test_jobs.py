@@ -17,7 +17,7 @@ def create_function_access_result(provider_name, function_title, permissions):
         permissions=permissions,
         business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
     )
-    return FunctionAccessResult(has_response=True, functions=[entry])
+    return FunctionAccessResult(use_legacy_authorization=False, functions=[entry])
 
 
 @pytest.fixture()
@@ -95,7 +95,7 @@ class TestCanAccess:
 
         def test_author_always_true_regardless_of_accessible_functions(self, job_author, job):
             """Author can access their job even when accessible_functions returns no entries."""
-            accessible = FunctionAccessResult(has_response=True, functions=[])
+            accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[])
             assert JobAccessPolicies.can_access(job_author, job, accessible_functions=accessible) is True
 
 
