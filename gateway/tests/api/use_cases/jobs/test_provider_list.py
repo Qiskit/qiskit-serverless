@@ -3,13 +3,13 @@
 import pytest
 from django.contrib.auth.models import Group, User
 
-from api.domain.authorization.function_access_entry import FunctionAccessEntry
 from api.domain.authorization.function_access_result import FunctionAccessResult
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.domain.exceptions.provider_not_found_exception import ProviderNotFoundException
 from api.use_cases.jobs.provider_list import JobsProviderListUseCase
 from core.model_managers.jobs import JobFilters
 from core.models import Job, PLATFORM_PERMISSION_PROVIDER_JOBS, Program, Provider
+from tests.api.conftest import create_function_access_result
 
 pytestmark = pytest.mark.django_db
 
@@ -70,16 +70,6 @@ def jobs_two_functions(function_a, function_b, user, admin_user):
 
 def _no_response():
     return FunctionAccessResult(use_legacy_authorization=True)
-
-
-def create_function_access_result(provider_name, function_title, permissions):
-    entry = FunctionAccessEntry(
-        provider_name=provider_name,
-        function_title=function_title,
-        permissions=permissions,
-        business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
-    )
-    return FunctionAccessResult(use_legacy_authorization=False, functions=[entry])
 
 
 class TestProviderNotFound:

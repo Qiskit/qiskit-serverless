@@ -325,8 +325,12 @@ class RunJobSerializer(serializers.ModelSerializer):
         carrier = validated_data.pop("carrier")
         compute_profile_requested = validated_data.get("compute_profile", None)
 
-        trial = self.is_trial(program, author)
-        business_model = Job.BUSINESS_MODEL_TRIAL if trial else Job.BUSINESS_MODEL_SUBSIDIZED
+        business_model = validated_data.pop("business_model", None)
+        if business_model is not None:
+            trial = business_model == Job.BUSINESS_MODEL_TRIAL
+        else:
+            trial = self.is_trial(program, author)
+            business_model = Job.BUSINESS_MODEL_TRIAL if trial else Job.BUSINESS_MODEL_SUBSIDIZED
 
         # Get runner-specific configuration (compute_profile for Fleets, GPU for Ray)
         compute_profile, gpu = self._get_runner_config(program, compute_profile_requested)

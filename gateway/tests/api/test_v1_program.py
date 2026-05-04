@@ -3,16 +3,159 @@
 import json
 import os
 import tempfile
+from unittest.mock import MagicMock
 
+import pytest
+from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
 from django.urls import reverse
 from rest_framework import status
-from rest_framework.test import APITestCase
+from rest_framework.test import APIClient, APITestCase
 
+from api.domain.authorization.function_access_result import FunctionAccessResult
+from tests.api.conftest import create_function_access_result
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
-from core.models import Job, JobEvent, Program
+from core.models import (
+    Job,
+    JobEvent,
+    PLATFORM_PERMISSION_PROVIDER_JOBS,
+    PLATFORM_PERMISSION_PROVIDER_UPLOAD,
+    PLATFORM_PERMISSION_READ,
+    PLATFORM_PERMISSION_RUN,
+    Program,
+)
 from core.services.storage.arguments_storage import ArgumentsStorage
 from tests.utils import TestUtils
+
+
+@pytest.mark.django_db
+class TestProgramApiLegacyGroupsPermissions:
+    """Programs endpoints with legacy Django groups authorization (use_legacy_authorization=True)."""
+
+    @pytest.fixture
+    def client(self):
+        return APIClient()
+
+    @pytest.fixture
+    def authorize_legacy(self, client):
+        """Authorize with legacy groups (use_legacy_authorization=True) — no runtime instances client."""
+        from api.domain.authentication.channel import Channel
+        from api.domain.authorization.function_access_result import FunctionAccessResult
+
+        def _do(username):
+            user, _ = User.objects.get_or_create(username=username)
+            token = MagicMock()
+            token.accessible_functions = FunctionAccessResult(use_legacy_authorization=True)
+            token.channel = Channel.LOCAL
+            token.token = b"test-token"
+            token.instance = None
+            client.force_authenticate(user=user, token=token)
+            return user
+
+        return _do
+
+    class TestRunProgram:
+        def test_run_own_function(self, client, authorize_legacy):
+            """run() grants access to the function author via Django groups fallback."""
+            user = authorize_legacy("test-user")
+            TestUtils.create_program(program_title="my-func", author=user)
+
+            response = client.post(
+                "/api/v1/programs/run/",
+                data={"title": "my-func", "arguments": "{}", "config": {"workers": 1}},
+                format="json",
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+
+        def test_grant_run_provider_function_via_group(self, client, authorize_legacy):
+            """run() grants access to provider function when user is in the run_program group."""
+            user = authorize_legacy("test-user")
+            TestUtils.get_or_create_group(group="runner", permissions=[["run_program", "api", "program"]])
+            TestUtils.add_user_to_group(user, "runner")
+            TestUtils.create_program(
+                program_title="provider-func", author="other-author", provider="my-provider", instances=["runner"]
+            )
+
+            response = client.post(
+                "/api/v1/programs/run/",
+                data={"title": "provider-func", "provider": "my-provider", "arguments": "{}", "config": {"workers": 1}},
+                format="json",
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+
+        def test_revoke_run_provider_function_without_group(self, client, authorize_legacy):
+            """run() returns 404 when user has no group permission for the provider function."""
+            authorize_legacy("test-user")
+            TestUtils.create_program(program_title="provider-func", author="other-author", provider="my-provider")
+
+            response = client.post(
+                "/api/v1/programs/run/",
+                data={"title": "provider-func", "provider": "my-provider", "arguments": "{}", "config": {"workers": 1}},
+                format="json",
+            )
+
+            assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    class TestUpload:
+        def test_grant_upload_provider_function_via_admin_group(self, client, authorize_legacy):
+            """upload() grants access when user belongs to the provider admin_groups."""
+            user = authorize_legacy("test-user")
+            TestUtils.get_or_create_group(group="admin-group")
+            TestUtils.add_user_to_group(user, "admin-group")
+            TestUtils.get_or_create_provider(provider="my-provider", admin_group="admin-group")
+
+            response = client.post(
+                "/api/v1/programs/upload/",
+                data={"title": "my-func", "provider": "my-provider", "dependencies": "[]", "entrypoint": "main.py"},
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+
+        def test_revoke_upload_provider_function_without_admin_group(self, client, authorize_legacy):
+            """upload() returns 404 when user is not in the provider admin_groups."""
+            authorize_legacy("test-user")
+            TestUtils.get_or_create_provider(provider="my-provider")
+
+            response = client.post(
+                "/api/v1/programs/upload/",
+                data={"title": "my-func", "provider": "my-provider", "dependencies": "[]", "entrypoint": "main.py"},
+            )
+
+            assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    class TestGetJobs:
+        def test_provider_admin_sees_all_jobs(self, client, authorize_legacy):
+            """get_jobs() returns all jobs when user is in the provider admin_groups."""
+            user = authorize_legacy("admin-user")
+            TestUtils.get_or_create_group(group="admin-group")
+            TestUtils.add_user_to_group(user, "admin-group")
+            program = TestUtils.create_program(
+                program_title="my-func", author="func-author", provider="my-provider", instances=["admin-group"]
+            )
+            TestUtils.get_or_create_provider(provider="my-provider", admin_group="admin-group")
+            other_user, _ = User.objects.get_or_create(username="other-user")
+            TestUtils.create_job(author=user, program=program, status=Job.QUEUED)
+            TestUtils.create_job(author=other_user, program=program, status=Job.QUEUED)
+
+            response = client.get(f"/api/v1/programs/{program.id}/get_jobs/", format="json")
+
+            assert response.status_code == status.HTTP_200_OK
+            assert len(response.data) == 2
+
+        def test_non_admin_sees_only_own_jobs(self, client, authorize_legacy):
+            """get_jobs() returns only own jobs when user is not in the provider admin_groups."""
+            user = authorize_legacy("test-user")
+            program = TestUtils.create_program(program_title="my-func", author="func-author", provider="my-provider")
+            other_user, _ = User.objects.get_or_create(username="other-user")
+            TestUtils.create_job(author=user, program=program, status=Job.QUEUED)
+            TestUtils.create_job(author=other_user, program=program, status=Job.QUEUED)
+
+            response = client.get(f"/api/v1/programs/{program.id}/get_jobs/", format="json")
+
+            assert response.status_code == status.HTTP_200_OK
+            assert len(response.data) == 1
 
 
 class TestProgramApi(APITestCase):
@@ -760,7 +903,7 @@ class TestProgramApi(APITestCase):
         assert response.status_code == status.HTTP_200_OK
 
         # program w/ provider by author (sees only own job)
-        self.client.force_authenticate(user=user_1)
+        TestUtils.authorize_client(username=user_1.username, client=self.client)
 
         response = self.client.get(
             f"/api/v1/programs/{program_with_provider.id}/get_jobs/",
@@ -997,3 +1140,163 @@ class TestProgramApi(APITestCase):
 
         program = Program.objects.get(title="Fleets function")
         assert program.runner == Program.FLEETS
+
+
+@pytest.mark.django_db
+class TestProgramApiRuntimeInstances:
+    """Programs endpoints with runtime instances authorization (use_legacy_authorization=False)."""
+
+    @pytest.fixture
+    def client(self):
+        return APIClient()
+
+    @pytest.fixture
+    def authorize(self, client):
+        """Return a callable that authenticates the client with accessible_functions."""
+        from api.domain.authentication.channel import Channel
+
+        def _do(username, accessible_functions):
+            user, _ = User.objects.get_or_create(username=username)
+            token = MagicMock()
+            token.accessible_functions = accessible_functions
+            token.channel = Channel.LOCAL
+            token.token = b"test-token"
+            token.instance = None
+            client.force_authenticate(user=user, token=token)
+            return user
+
+        return _do
+
+    class TestRunProgram:
+        @pytest.mark.parametrize(
+            "permissions,expected_status",
+            [
+                ({PLATFORM_PERMISSION_RUN}, status.HTTP_200_OK),
+                (set(), status.HTTP_404_NOT_FOUND),
+            ],
+        )
+        def test_run_provider_function(self, client, authorize, permissions, expected_status):
+            """run() checks PLATFORM_PERMISSION_RUN in accessible_functions."""
+            TestUtils.create_program(program_title="my-func", author="func-author", provider="my-provider")
+            authorize("runtime-user", create_function_access_result("my-provider", "my-func", permissions))
+
+            response = client.post(
+                "/api/v1/programs/run/",
+                data={"title": "my-func", "provider": "my-provider", "arguments": "{}", "config": {"workers": 1}},
+                format="json",
+            )
+
+            assert response.status_code == expected_status
+
+        @pytest.mark.parametrize(
+            "business_model,expected_trial",
+            [
+                (Job.BUSINESS_MODEL_TRIAL, True),
+                (Job.BUSINESS_MODEL_SUBSIDIZED, False),
+                (Job.BUSINESS_MODEL_CONSUMPTION, False),
+            ],
+        )
+        def test_run_uses_business_model_from_serverless_client(
+            self, client, authorize, business_model, expected_trial
+        ):
+            """run() propagates business_model from the access entry to the created job."""
+            TestUtils.create_program(program_title="my-func", author="func-author", provider="my-provider")
+            authorize(
+                "runtime-user",
+                create_function_access_result(
+                    "my-provider", "my-func", {PLATFORM_PERMISSION_RUN}, business_model=business_model
+                ),
+            )
+
+            response = client.post(
+                "/api/v1/programs/run/",
+                data={"title": "my-func", "provider": "my-provider", "arguments": "{}", "config": {"workers": 1}},
+                format="json",
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+            job = Job.objects.get(id=response.data["id"])
+            assert job.business_model == business_model
+            assert job.trial is expected_trial
+
+    class TestListCatalog:
+        @pytest.mark.parametrize(
+            "permissions,expected_count",
+            [
+                ({PLATFORM_PERMISSION_RUN}, 1),
+                (set(), 0),
+            ],
+        )
+        def test_list_catalog(self, client, authorize, permissions, expected_count):
+            """list(catalog) returns only functions in accessible_functions."""
+            TestUtils.create_program(program_title="funcA", author="other-author", provider="provA")
+            TestUtils.create_program(program_title="funcB", author="other-author", provider="provB")
+            authorize("runtime-user", create_function_access_result("provA", "funcA", permissions))
+
+            response = client.get(reverse("v1:programs-list"), {"filter": "catalog"}, format="json")
+
+            assert response.status_code == status.HTTP_200_OK
+            assert len(response.data) == expected_count
+
+    class TestUpload:
+        @pytest.mark.parametrize(
+            "permissions,expected_status",
+            [
+                ({PLATFORM_PERMISSION_PROVIDER_UPLOAD}, status.HTTP_200_OK),
+                (set(), status.HTTP_404_NOT_FOUND),
+            ],
+        )
+        def test_upload_provider_function(self, client, authorize, permissions, expected_status):
+            """upload() checks PLATFORM_PERMISSION_PROVIDER_UPLOAD in accessible_functions."""
+            TestUtils.get_or_create_provider(provider="my-provider")
+            authorize("runtime-user", create_function_access_result("my-provider", "my-func", permissions))
+
+            response = client.post(
+                "/api/v1/programs/upload/",
+                data={"title": "my-func", "provider": "my-provider", "dependencies": "[]", "entrypoint": "main.py"},
+            )
+
+            assert response.status_code == expected_status
+
+    class TestGetByTitle:
+        @pytest.mark.parametrize(
+            "permissions,expected_status",
+            [
+                ({PLATFORM_PERMISSION_READ}, status.HTTP_200_OK),
+                (set(), status.HTTP_404_NOT_FOUND),
+            ],
+        )
+        def test_get_by_title(self, client, authorize, permissions, expected_status):
+            """get_by_title() checks PLATFORM_PERMISSION_READ in accessible_functions."""
+            TestUtils.create_program(program_title="my-func", author="func-author", provider="my-provider")
+            authorize("runtime-user", create_function_access_result("my-provider", "my-func", permissions))
+
+            response = client.get(
+                "/api/v1/programs/get_by_title/my-func/",
+                {"provider": "my-provider"},
+                format="json",
+            )
+
+            assert response.status_code == expected_status
+
+    class TestGetJobs:
+        @pytest.mark.parametrize(
+            "permissions,expected_job_count",
+            [
+                ({PLATFORM_PERMISSION_PROVIDER_JOBS}, 2),  # provider admin sees all jobs
+                (set(), 1),  # regular user sees only own job
+            ],
+        )
+        def test_get_jobs(self, client, authorize, permissions, expected_job_count):
+            """get_jobs() checks PLATFORM_PERMISSION_PROVIDER_JOBS in accessible_functions."""
+            program = TestUtils.create_program(program_title="my-func", author="func-author", provider="my-provider")
+            user, _ = User.objects.get_or_create(username="runtime-user")
+            other_user, _ = User.objects.get_or_create(username="other-user")
+            TestUtils.create_job(author=user, program=program, status=Job.QUEUED)
+            TestUtils.create_job(author=other_user, program=program, status=Job.QUEUED)
+            authorize("runtime-user", create_function_access_result("my-provider", "my-func", permissions))
+
+            response = client.get(f"/api/v1/programs/{program.id}/get_jobs/", format="json")
+
+            assert response.status_code == status.HTTP_200_OK
+            assert len(response.data) == expected_job_count

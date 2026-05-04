@@ -20,9 +20,12 @@ from rest_framework.decorators import action
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 
+from typing import cast
+
 from api.access_policies.providers import ProviderAccessPolicy
 from api.decorators.trace_decorator import trace_decorator_factory
 from api.domain.authentication.channel import Channel
+from api.domain.authorization.function_access_result import FunctionAccessResult
 from api.domain.exceptions.active_job_limit_exceeded_exception import (
     ActiveJobLimitExceeded,
 )
@@ -37,7 +40,14 @@ from api.serializers import (
 from api.utils import active_jobs_limit_reached, sanitize_name
 from api.v1.exception_handler import endpoint_handle_exceptions
 from core.enums.type_filter import TypeFilter
-from core.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Job, Provider
+from core.models import (
+    PLATFORM_PERMISSION_READ,
+    PLATFORM_PERMISSION_RUN,
+    RUN_PROGRAM_PERMISSION,
+    VIEW_PROGRAM_PERMISSION,
+    Job,
+    Provider,
+)
 from core.models import Program as Function
 
 # pylint: disable=duplicate-code
@@ -115,21 +125,46 @@ class ProgramViewSet(viewsets.GenericViewSet):
         """List programs:"""
         author = self.request.user
         type_filter = self.request.query_params.get("filter")
+        accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
+        logger.info(
+            "[programs-list] user_id=%s filter=%s accessible_functions=%s",
+            author.id,
+            type_filter,
+            accessible_functions,
+        )
 
         if type_filter == TypeFilter.SERVERLESS:
             # Serverless filter only returns functions created by the author
             # with the next criterias:
             # - user is the author of the function and there is no provider
             functions = Function.objects.user_functions(author)
-        elif type_filter == TypeFilter.CATALOG:
-            # Catalog filter only returns providers functions that user has access:
-            # author has view permissions and the function has a provider assigned
-            functions = Function.objects.provider_functions().with_permission(
-                author, legacy_permission_name=RUN_PROGRAM_PERMISSION
-            )
+        elif accessible_functions.use_legacy_authorization:
+            if type_filter == TypeFilter.CATALOG:
+                # Catalog filter only returns providers functions that user has access:
+                # author has view permissions and the function has a provider assigned
+                functions = Function.objects.provider_functions().with_permission(
+                    author, legacy_permission_name=RUN_PROGRAM_PERMISSION
+                )
+            else:
+                # If filter is not applied we return author and providers functions together
+                functions = Function.objects.with_permission(author, legacy_permission_name=VIEW_PROGRAM_PERMISSION)
         else:
-            # If filter is not applied we return author and providers functions together
-            functions = Function.objects.with_permission(author, legacy_permission_name=VIEW_PROGRAM_PERMISSION)
+            # Runtime API /functions determines the accessible_functions
+            if type_filter == TypeFilter.CATALOG:
+                # Catalog filter only returns provider functions that user has access:
+                # author has run permissions and the function has a provider assigned
+                functions = Function.objects.provider_functions().with_permission(
+                    author,
+                    legacy_permission_name=RUN_PROGRAM_PERMISSION,
+                    filter_function_names=accessible_functions.get_functions_by_provider(PLATFORM_PERMISSION_RUN),
+                )
+            else:
+                # If filter is not applied we return author + providers functions together
+                functions = Function.objects.with_permission(
+                    author,
+                    legacy_permission_name=VIEW_PROGRAM_PERMISSION,
+                    filter_function_names=accessible_functions.get_functions_by_provider(PLATFORM_PERMISSION_READ),
+                )
 
         serializer = self.get_serializer(list(functions), many=True)
         logger.info(
@@ -157,10 +192,22 @@ class ProgramViewSet(viewsets.GenericViewSet):
         author = request.user
         provider_name, title = serializer.get_provider_name_and_title(request_provider, title)
 
+        accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
+        logger.info(
+            "[programs-upload] user_id=%s program=%s provider=%s accessible_functions=%s",
+            author.id,
+            title,
+            provider_name,
+            accessible_functions,
+        )
+
         if provider_name:
             provider_obj = Provider.objects.filter(name=provider_name).first()
             if provider_obj is None or not ProviderAccessPolicy.can_upload_function(
-                user=author, provider=provider_obj, function_title=title
+                user=author,
+                provider=provider_obj,
+                function_title=title,
+                accessible_functions=accessible_functions,
             ):
                 # For security we just return a 404 not a 401
                 return Response(
@@ -209,12 +256,43 @@ class ProgramViewSet(viewsets.GenericViewSet):
         # but it's here until we can refactor the /run end-point
         provider_name = sanitize_name(serializer.data.get("provider"))
         function_title = sanitize_name(serializer.data.get("title"))
-        function = Function.objects.get_function_by_permission(
-            user=author,
-            legacy_permission_name=RUN_PROGRAM_PERMISSION,
-            function_title=function_title,
-            provider_name=provider_name,
+        accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
+        logger.info(
+            "[programs-run] user_id=%s function=%s provider=%s accessible_functions=%s",
+            author.id,
+            function_title,
+            provider_name,
+            accessible_functions,
         )
+
+        business_model = None
+        if accessible_functions.use_legacy_authorization:
+            function = Function.objects.get_function_by_permission(
+                user=author,
+                legacy_permission_name=RUN_PROGRAM_PERMISSION,
+                function_title=function_title,
+                provider_name=provider_name,
+                filter_function_names=None,
+            )
+        else:
+            if provider_name:
+                function = Function.objects.get_function(function_title, provider_name)
+                if function is None:
+                    return Response(
+                        {"message": f"Qiskit Pattern [{function_title}] was not found."},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+                if not accessible_functions.has_permission_for_function(
+                    provider_name, function_title, PLATFORM_PERMISSION_RUN
+                ):
+                    return Response(
+                        {"message": f"Qiskit Pattern [{function_title}] was not found."},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+                business_model = accessible_functions.get_function(provider_name, function_title).business_model
+            else:
+                function = Function.objects.get_user_function(author, function_title)
+
         if function is None:
             logger.error("[programs-run] user_id=%s function not found: %s", author.id, function_title)
             return Response(
@@ -290,6 +368,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
             "config": jobconfig,
             "instance": instance,
             "compute_profile": compute_profile,
+            "business_model": business_model,
         }
         job = job_serializer.save(**save_kwargs)
         logger.info("[programs-run] user_id=%s job_id=%s program=%s | Job queued ok", author.id, job.id, function_title)
@@ -305,12 +384,28 @@ class ProgramViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer_upload_program(data=self.request.data)
         provider_name, function_title = serializer.get_provider_name_and_title(provider_name, function_title)
 
+        accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
+        logger.info(
+            "[programs-get-by-title] user_id=%s program=%s provider=%s accessible_functions=%s",
+            author.id,
+            function_title,
+            provider_name,
+            accessible_functions,
+        )
+
         if provider_name:
+            # Only filter by function names from Runtime API /functions if use_legacy_authorization == False
+            filter_fns = (
+                accessible_functions.get_functions_by_provider(PLATFORM_PERMISSION_READ)
+                if not accessible_functions.use_legacy_authorization
+                else None
+            )
             function = Function.objects.get_function_by_permission(
                 user=author,
                 legacy_permission_name=VIEW_PROGRAM_PERMISSION,
                 function_title=function_title,
                 provider_name=provider_name,
+                filter_function_names=filter_fns,
             )
             if function is None:
                 return Response(
@@ -355,10 +450,22 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
+        logger.info(
+            "[programs-get-jobs] user_id=%s program_id=%s program=%s accessible_functions=%s",
+            request.user.id,
+            pk,
+            program.title,
+            accessible_functions,
+        )
+
         user_is_provider = False
         if program.provider:
             user_is_provider = ProviderAccessPolicy.can_list_jobs(
-                user=request.user, provider=program.provider, function_title=program.title
+                user=request.user,
+                provider=program.provider,
+                function_title=program.title,
+                accessible_functions=accessible_functions,
             )
 
         if user_is_provider:

@@ -3,21 +3,11 @@ import pytest
 from django.contrib.auth.models import User, Group
 
 from api.access_policies.jobs import JobAccessPolicies
-from api.domain.authorization.function_access_entry import FunctionAccessEntry
 from api.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import Program, Job, Provider, PLATFORM_PERMISSION_JOB_READ, PLATFORM_PERMISSION_PROVIDER_LOGS
+from tests.api.conftest import create_function_access_result
 
 pytestmark = pytest.mark.django_db
-
-
-def create_function_access_result(provider_name, function_title, permissions):
-    entry = FunctionAccessEntry(
-        provider_name=provider_name,
-        function_title=function_title,
-        permissions=permissions,
-        business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
-    )
-    return FunctionAccessResult(use_legacy_authorization=False, functions=[entry])
 
 
 @pytest.fixture()

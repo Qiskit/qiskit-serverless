@@ -290,6 +290,16 @@ class TestUtils:
         """
         Helper to authenticate a DRF test client.
         """
+        from unittest.mock import MagicMock
+
+        from api.domain.authentication.channel import Channel
+        from api.domain.authorization.function_access_result import FunctionAccessResult
+
         user, _ = TestUtils.get_user_and_username(author=username, is_active=is_active, is_staff=is_staff)
-        client.force_authenticate(user=user)
+        token = MagicMock()
+        token.accessible_functions = FunctionAccessResult(use_legacy_authorization=True)
+        token.channel = Channel.LOCAL
+        token.token = b"test-token"
+        token.instance = None
+        client.force_authenticate(user=user, token=token)
         return user
