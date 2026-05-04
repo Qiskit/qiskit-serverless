@@ -395,7 +395,7 @@ ERROR: Provider log
 
         assert str(exc_info.value) == expected_message
 
-    def test_event_send_error(self, serverless_client: ServerlessClient):
+    def test_events(self, serverless_client: ServerlessClient):
         """Integration test for submitting an error event within the function and retrieving it client-side."""
 
         events_function = QiskitFunction(
@@ -418,24 +418,6 @@ ERROR: Provider log
         assert event_data["message"] == "My error message"
         assert event_data["args"]["my-arg-1"] == 123
         assert event_data["args"]["my-arg-2"] == "hi"
-
-    def test_event_wrong_type(self, serverless_client: ServerlessClient):
-        """
-        Integration test for submitting an error event within the function
-        and failing to retrieve client-side because of wrong type specified.
-        """
-
-        events_function = QiskitFunction(
-            title="event_error_producer",
-            entrypoint="event_error_producer.py",
-            working_dir=resources_path,
-        )
-
-        events_function = serverless_client.upload(events_function)
-
-        job = events_function.run()
-
-        job.result()
 
         with raises(QiskitServerlessException) as exc_info:
             job.events(type="NotValidJobEventType")
@@ -492,24 +474,3 @@ ERROR: Provider log
         assert event_data["code"] == "1"
         assert event_data["message"] == "ValueError: This is not a ServerlessError"
         assert event_data["exception"] == "ValueError"
-
-    def test_provider_logs(self, serverless_client: ServerlessClient):
-        """Integration test for logs."""
-
-        function = QiskitFunction(title="logs_function_2", entrypoint="logger.py", working_dir=resources_path)
-        function = serverless_client.upload(function)
-        job = function.run()
-
-        while not job.in_terminal_state():
-            sleep(1)
-
-        with raises(QiskitServerlessException) as exc_info:
-            job.provider_logs()
-
-        expected_message = f"""
-| Message: Http bad request.
-| Code: 403
-| Details: You don't have access to job [{job.job_id}]
-""".strip()
-
-        assert str(exc_info.value).strip() == expected_message
