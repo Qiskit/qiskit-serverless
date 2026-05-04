@@ -105,14 +105,14 @@ def check_job_timeout(job: Job):
         latest_job_event = JobEvent.objects.filter(job=job).order_by("-created").first()
         if not latest_job_event:
             # This should never happen since every job should have at least 1 JobEvent (on creation).
-            pass
+            latest_job_event = job.created
         endtime = latest_job_event.created + timedelta(hours=timeout)
         now = datetime.now(tz=endtime.tzinfo)
         if endtime < now:
-            job.logs += "\nMaximum job runtime reached. Stopping the job."
             logger.warning(
-                "Job [%s] reached maximum runtime [%s] days and stopped.",
+                "job_id=%s cluster=%s timeout=%s hours: job stopped.",
                 job.id,
+                job.compute_resource.title,
                 timeout,
             )
             # The job has exceeded the maximum duration allowed.
