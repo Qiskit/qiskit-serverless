@@ -11,7 +11,7 @@ from api.domain.authorization.function_access_entry import FunctionAccessEntry
 class FunctionAccessResult:
     """Result from the external function access client for a given instance CRN."""
 
-    has_response: bool
+    use_legacy_authorization: bool
     message: str = ""
     functions: List[FunctionAccessEntry] = field(default_factory=list)
 
@@ -41,4 +41,7 @@ class FunctionAccessResult:
 
     def __str__(self) -> str:
         functions_str = ", ".join(f"{e.provider_name}.{e.function_title}" for e in self.functions)
-        return f"has_response={self.has_response}, message={self.message!r}, functions=[{functions_str}]"
+        return (
+            f"use_legacy_authorization={self.use_legacy_authorization}, "
+            f"message={self.message!r}, functions=[{functions_str}]"
+        )
