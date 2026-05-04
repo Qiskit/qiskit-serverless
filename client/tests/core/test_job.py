@@ -709,3 +709,47 @@ class TestJobMethods:
 
         assert job.raw_data == raw_data
         assert job.job_id == "test-job"
+
+    def test_fleet_id_returned_when_service_provides_it(self):
+        """fleet_id is accessible after status() fetches job data containing it."""
+        mock_service = Mock()
+        mock_service.get_job_data.return_value = {"status": "RUNNING", "fleet_id": "fleet-abc"}
+
+        job = Job(job_id="test-job", job_service=mock_service)
+        job.status()
+
+        assert job.fleet_id == "fleet-abc"
+
+    def test_fleet_id_none_when_not_in_job_data(self):
+        """fleet_id is None when the service does not return one."""
+        mock_service = Mock()
+        mock_service.get_job_data.return_value = {"status": "RUNNING"}
+
+        job = Job(job_id="test-job", job_service=mock_service)
+        job.status()
+
+        assert job.fleet_id is None
+
+    def test_status_uses_get_job_data_when_available(self):
+        """status() uses get_job_data() when it returns a dict."""
+        mock_service = Mock()
+        mock_service.get_job_data.return_value = {"status": "SUCCEEDED", "fleet_id": "fleet-xyz"}
+
+        job = Job(job_id="test-job", job_service=mock_service)
+        result = job.status()
+
+        assert result == "DONE"
+        mock_service.get_job_data.assert_called_once_with("test-job")
+        mock_service.status.assert_not_called()
+
+    def test_status_falls_back_when_get_job_data_returns_none(self):
+        """status() falls back to status() call when get_job_data returns None."""
+        mock_service = Mock()
+        mock_service.get_job_data.return_value = None
+        mock_service.status.return_value = Job.RUNNING
+
+        job = Job(job_id="test-job", job_service=mock_service)
+        result = job.status()
+
+        assert result == "RUNNING"
+        mock_service.status.assert_called_once_with("test-job")
