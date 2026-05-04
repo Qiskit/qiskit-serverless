@@ -7,6 +7,7 @@ Version views inherit from the different views.
 import logging
 import os
 import re
+from typing import Optional, Tuple, cast
 
 # pylint: disable=duplicate-code
 from django.conf import settings
@@ -19,8 +20,6 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from rest_framework.decorators import action
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-
-from typing import cast
 
 from api.access_policies.providers import ProviderAccessPolicy
 from api.decorators.trace_decorator import trace_decorator_factory
@@ -238,6 +237,36 @@ class ProgramViewSet(viewsets.GenericViewSet):
         )
         return Response(serializer.data)
 
+    @staticmethod
+    def _resolve_function(
+        author, function_title: str, provider_name: Optional[str], accessible_functions: FunctionAccessResult
+    ) -> Tuple[Optional[Function], Optional[str]]:
+        """Resolve function and business_model for run().
+
+        Returns (function, business_model). Returns (None, None) when access is denied or the
+        function does not exist — the caller is responsible for returning 404 in that case.
+        """
+        if accessible_functions.use_legacy_authorization:
+            function = Function.objects.get_function_by_permission(
+                user=author,
+                legacy_permission_name=RUN_PROGRAM_PERMISSION,
+                function_title=function_title,
+                provider_name=provider_name,
+                filter_function_names=None,
+            )
+            return function, None
+
+        if not provider_name:
+            return Function.objects.get_user_function(author, function_title), None
+
+        function = Function.objects.get_function(function_title, provider_name)
+        if function is None:
+            return None, None
+        if not accessible_functions.has_permission_for_function(provider_name, function_title, PLATFORM_PERMISSION_RUN):
+            return None, None
+        business_model = accessible_functions.get_function(provider_name, function_title).business_model
+        return function, business_model
+
     @_trace
     @action(methods=["POST"], detail=False)
     @endpoint_handle_exceptions
@@ -265,33 +294,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
             accessible_functions,
         )
 
-        business_model = None
-        if accessible_functions.use_legacy_authorization:
-            function = Function.objects.get_function_by_permission(
-                user=author,
-                legacy_permission_name=RUN_PROGRAM_PERMISSION,
-                function_title=function_title,
-                provider_name=provider_name,
-                filter_function_names=None,
-            )
-        else:
-            if provider_name:
-                function = Function.objects.get_function(function_title, provider_name)
-                if function is None:
-                    return Response(
-                        {"message": f"Qiskit Pattern [{function_title}] was not found."},
-                        status=status.HTTP_404_NOT_FOUND,
-                    )
-                if not accessible_functions.has_permission_for_function(
-                    provider_name, function_title, PLATFORM_PERMISSION_RUN
-                ):
-                    return Response(
-                        {"message": f"Qiskit Pattern [{function_title}] was not found."},
-                        status=status.HTTP_404_NOT_FOUND,
-                    )
-                business_model = accessible_functions.get_function(provider_name, function_title).business_model
-            else:
-                function = Function.objects.get_user_function(author, function_title)
+        function, business_model = self._resolve_function(author, function_title, provider_name, accessible_functions)
 
         if function is None:
             logger.error("[programs-run] user_id=%s function not found: %s", author.id, function_title)
