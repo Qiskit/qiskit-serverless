@@ -56,7 +56,12 @@ class JobsProviderListUseCase:
             if not Function.objects.get_function(filters.function, filters.provider):
                 raise FunctionNotFoundException(function=filters.function, provider=filters.provider)
             return None
-        elif accessible_functions.has_response:
+        elif accessible_functions.use_legacy_authorization:
+            # Legacy Django groups
+            if not ProviderAccessPolicy.is_provider_admin(user, provider):
+                raise ProviderNotFoundException(filters.provider)
+            return None
+        else:
             # Runtime API instances, granularity per function:
             # We get the function titles that the user has access to, and we use them to filter
             provider_functions = accessible_functions.get_functions_by_provider(PLATFORM_PERMISSION_PROVIDER_JOBS)
@@ -65,8 +70,3 @@ class JobsProviderListUseCase:
                 # If the user can't access to any function, we hide the provider with a not found
                 raise ProviderNotFoundException(filters.provider)
             return titles
-        else:
-            # Legacy Django groups
-            if not ProviderAccessPolicy.is_provider_admin(user, provider):
-                raise ProviderNotFoundException(filters.provider)
-            return None

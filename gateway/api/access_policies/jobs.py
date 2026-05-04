@@ -36,7 +36,7 @@ class JobAccessPolicies:
             user: Django user from the request
             job: Job instance against to check the access
             accessible_functions: Result from FunctionAccessClient; if None or
-                has_response=False, falls back to Django groups
+                use_legacy_authorization=True, falls back to Django groups
 
         Returns:
             bool: True or False in case the user has access
@@ -127,7 +127,7 @@ class JobAccessPolicies:
             user: Django user from the request
             job: Job instance against to check the permission
             accessible_functions: Result from FunctionAccessClient; if None or
-                has_response=False, falls back to Django groups
+                use_legacy_authorization=True, falls back to Django groups
 
         Returns:
             bool: True or False in case the user has permissions
