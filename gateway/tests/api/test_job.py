@@ -4,7 +4,7 @@ import json
 import os
 import re
 import shutil
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from django.contrib.auth.models import User, Group
@@ -13,8 +13,10 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from core.services.storage.result_storage import ResultStorage
 
+from api.domain.authorization.function_access_entry import FunctionAccessEntry
+from api.domain.authorization.function_access_result import FunctionAccessResult
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
-from core.models import Job, JobEvent, Program, Provider, RuntimeJob
+from core.models import Job, JobEvent, PLATFORM_PERMISSION_PROVIDER_JOBS, Program, Provider, RuntimeJob
 
 
 @pytest.mark.django_db
@@ -38,10 +40,12 @@ class TestJobApi:
         settings.MEDIA_ROOT = str(tmp_path)
         self.client = APIClient()
 
-    def _authorize(self, username):
+    def _authorize(self, username, accessible_functions=FunctionAccessResult(has_response=False)):
         """Authorize client and return the user."""
         user, _ = User.objects.get_or_create(username=username)
-        self.client.force_authenticate(user=user)
+        token = MagicMock()
+        token.accessible_functions = accessible_functions
+        self.client.force_authenticate(user=user, token=token)
         return user
 
     def _create_job(
@@ -268,6 +272,40 @@ class TestJobApi:
             r"/api/v1/jobs/provider/\?limit=1&offset=0$",
             jobs_response.data.get("previous"),
         )
+
+    def test_job_provider_list_runtime_instances_ok(self):
+        """Runtime instances path: accessible_functions has provider+function with PROVIDER_JOBS 200."""
+        entry = FunctionAccessEntry(
+            provider_name="default",
+            function_title="Docker-Image-Program",
+            permissions={PLATFORM_PERMISSION_PROVIDER_JOBS},
+            business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
+        )
+        accessible = FunctionAccessResult(has_response=True, functions=[entry])
+        self._authorize("test_user", accessible_functions=accessible)
+
+        jobs_response = self.client.get(
+            reverse("v1:jobs-provider-list"),
+            {"provider": "default"},
+            format="json",
+        )
+
+        assert jobs_response.status_code == status.HTTP_200_OK
+        assert jobs_response.data.get("count") == 2
+
+    def test_job_provider_list_runtime_instances_no_access(self):
+        """Runtime instances path: accessible_functions has no PROVIDER_JOBS for the provider → 404."""
+        accessible = FunctionAccessResult(has_response=True, functions=[])
+        self._authorize("test_user", accessible_functions=accessible)
+
+        jobs_response = self.client.get(
+            reverse("v1:jobs-provider-list"),
+            {"provider": "default"},
+            format="json",
+        )
+
+        assert jobs_response.status_code == status.HTTP_404_NOT_FOUND
+        assert jobs_response.data.get("message") == "Provider default doesn't exist."
 
     def test_job_detail(self, settings):
         """Tests job detail authorized."""
