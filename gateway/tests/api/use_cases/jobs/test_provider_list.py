@@ -9,7 +9,7 @@ from api.domain.exceptions.provider_not_found_exception import ProviderNotFoundE
 from api.use_cases.jobs.provider_list import JobsProviderListUseCase
 from core.model_managers.jobs import JobFilters
 from core.models import Job, PLATFORM_PERMISSION_PROVIDER_JOBS, Program, Provider
-from tests.api.conftest import create_function_access_result
+from tests.utils import create_function_access_result
 
 pytestmark = pytest.mark.django_db
 

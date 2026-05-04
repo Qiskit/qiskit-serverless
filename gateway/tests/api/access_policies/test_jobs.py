@@ -5,7 +5,7 @@ from django.contrib.auth.models import User, Group
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import Program, Job, Provider, PLATFORM_PERMISSION_JOB_READ, PLATFORM_PERMISSION_PROVIDER_LOGS
-from tests.api.conftest import create_function_access_result
+from tests.utils import create_function_access_result
 
 pytestmark = pytest.mark.django_db
 
