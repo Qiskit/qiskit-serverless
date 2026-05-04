@@ -26,6 +26,7 @@
       ~ServerlessClient.functions
       ~ServerlessClient.get
       ~ServerlessClient.get_job_by_id
+      ~ServerlessClient.get_job_data
       ~ServerlessClient.get_jobs
       ~ServerlessClient.job
       ~ServerlessClient.jobs

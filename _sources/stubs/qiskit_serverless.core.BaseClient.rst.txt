@@ -21,6 +21,7 @@
       ~BaseClient.functions
       ~BaseClient.get
       ~BaseClient.get_job_by_id
+      ~BaseClient.get_job_data
       ~BaseClient.get_jobs
       ~BaseClient.job
       ~BaseClient.jobs

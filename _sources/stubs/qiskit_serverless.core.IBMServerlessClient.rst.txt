@@ -26,6 +26,7 @@
       ~IBMServerlessClient.functions
       ~IBMServerlessClient.get
       ~IBMServerlessClient.get_job_by_id
+      ~IBMServerlessClient.get_job_data
       ~IBMServerlessClient.get_jobs
       ~IBMServerlessClient.job
       ~IBMServerlessClient.jobs

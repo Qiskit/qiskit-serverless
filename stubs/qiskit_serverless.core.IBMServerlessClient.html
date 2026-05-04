@@ -426,67 +426,70 @@ file using the default account name.</p>
 <tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_job_by_id</span></code>(job_id)</p></td>
 <td><p>Returns job by job id.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_jobs</span></code>(**kwargs)</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_job_data</span></code>(job_id)</p></td>
+<td><p>Return full job data dict, or None if not supported.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_jobs</span></code>(**kwargs)</p></td>
 <td><p>Return list of jobs.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">job</span></code>(job_id)</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">job</span></code>(job_id)</p></td>
 <td><p>Returns job by job id.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">jobs</span></code>([function])</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">jobs</span></code>([function])</p></td>
 <td><p>Retrieve a list of jobs with optional filtering.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">list</span></code>(**kwargs)</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">list</span></code>(**kwargs)</p></td>
 <td><p>Returns list of available programs.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">logs</span></code>(job_id)</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">logs</span></code>(job_id)</p></td>
 <td><p>Return logs.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">provider_file_delete</span></code>(file, function)</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">provider_file_delete</span></code>(file, function)</p></td>
 <td><p>Deletes a file available to the provider for the specific Qiskit Function.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">provider_file_download</span></code>(file, function[, ...])</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">provider_file_download</span></code>(file, function[, ...])</p></td>
 <td><p>Download a file available to the provider for the specific Qiskit Function.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">provider_file_upload</span></code>(file, function)</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">provider_file_upload</span></code>(file, function)</p></td>
 <td><p>Uploads a file in the specific provider's Qiskit Function folder.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">provider_files</span></code>(function)</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">provider_files</span></code>(function)</p></td>
 <td><p>Returns the list of files available for the provider in the Qiskit Function folder.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">provider_jobs</span></code>(function, **kwargs)</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">provider_jobs</span></code>(function, **kwargs)</p></td>
 <td><p>Retrieve jobs for a specific provider and function.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">provider_logs</span></code>(job_id)</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">provider_logs</span></code>(job_id)</p></td>
 <td><p>Return provider logs.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">result</span></code>(job_id)</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">result</span></code>(job_id)</p></td>
 <td><p>Return results.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">run</span></code>(program[, arguments, config, provider, ...])</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">run</span></code>(program[, arguments, config, provider, ...])</p></td>
 <td><p>Run a function and return its job.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">runtime_jobs</span></code>(job_id[, runtime_session])</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">runtime_jobs</span></code>(job_id[, runtime_session])</p></td>
 <td><p>Retrieve Qiskit IBM Runtime job ids that correspond to a given serverless job_id execution and, optionally, filtered by session id.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">runtime_sessions</span></code>(job_id)</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">runtime_sessions</span></code>(job_id)</p></td>
 <td><p>Retrieve Qiskit IBM Runtime session ids that correspond to a given serverless job_id execution.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">save_account</span></code>([token, name, overwrite, ...])</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">save_account</span></code>([token, name, overwrite, ...])</p></td>
 <td><p>Save the account to disk for future use.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">status</span></code>(job_id)</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">status</span></code>(job_id)</p></td>
 <td><p>Check status.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">stop</span></code>(job_id[, service])</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">stop</span></code>(job_id[, service])</p></td>
 <td><p>Stops job/program.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_dict</span></code>()</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_dict</span></code>()</p></td>
 <td><p>Converts class to dict.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">upload</span></code>(program)</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">upload</span></code>(program)</p></td>
 <td><p>Uploads program.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">widget</span></code>()</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">widget</span></code>()</p></td>
 <td><p>Widget for information about provider and jobs.</p></td>
 </tr>
 </tbody>

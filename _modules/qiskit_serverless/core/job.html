@@ -432,6 +432,10 @@
 <span class="sd">            exclude: rex expression finds match in the log line to be excluded</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_job_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>  <span class="c1"># pylint: disable=unused-argument</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return full job data dict, or None if not supported.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
     <span class="nd">@abstractmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">events</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">JobEvent</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns events of the job.</span>
@@ -488,10 +492,18 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">compute_profile</span> <span class="o">=</span> <span class="n">compute_profile</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">raw_data</span> <span class="o">=</span> <span class="n">raw_data</span> <span class="ow">or</span> <span class="p">{}</span></div>
 
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fleet_id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns the Code Engine fleet ID for this job (Fleets runner only).&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;fleet_id&quot;</span><span class="p">)</span>
+
     <span class="k">def</span><span class="w"> </span><span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns status of the job.&quot;&quot;&quot;</span>
-        <span class="n">status</span> <span class="o">=</span> <span class="n">_map_status_from_serveless</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job_service</span><span class="o">.</span><span class="n">status</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">status</span>
+        <span class="n">fresh_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_service</span><span class="o">.</span><span class="n">get_job_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fresh_data</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">raw_data</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">fresh_data</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">_map_status_from_serveless</span><span class="p">(</span><span class="n">fresh_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;status&quot;</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">_map_status_from_serveless</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job_service</span><span class="o">.</span><span class="n">status</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">service</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">QiskitRuntimeService</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Stops the job from running.&quot;&quot;&quot;</span>
