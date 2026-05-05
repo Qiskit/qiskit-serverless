@@ -13,6 +13,7 @@ from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
 from core.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.business_models import BusinessModel
 from tests.utils import create_function_access_result
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import (
@@ -352,7 +353,7 @@ class TestProgramApi(APITestCase):
 
             assert job.status == Job.QUEUED
             assert job.trial is True
-            assert job.business_model == Job.BUSINESS_MODEL_TRIAL
+            assert job.business_model == BusinessModel.TRIAL
             assert env_vars["ENV_ACCESS_TRIAL"] == "True"
             assert job.config.min_workers == 1
             assert job.config.max_workers == 5
@@ -414,7 +415,7 @@ class TestProgramApi(APITestCase):
 
             assert job.status == Job.QUEUED
             assert job.trial is False
-            assert job.business_model == Job.BUSINESS_MODEL_SUBSIDIZED
+            assert job.business_model == BusinessModel.SUBSIDIZED
             assert env_vars["PROGRAM_ENV1"] == "VALUE1"
             assert env_vars["PROGRAM_ENV2"] == "VALUE2"
             assert job.config.min_workers == 1
@@ -1213,9 +1214,9 @@ class TestProgramApiRuntimeInstances:
         @pytest.mark.parametrize(
             "business_model,expected_trial",
             [
-                (Job.BUSINESS_MODEL_TRIAL, True),
-                (Job.BUSINESS_MODEL_SUBSIDIZED, False),
-                (Job.BUSINESS_MODEL_CONSUMPTION, False),
+                (BusinessModel.TRIAL, True),
+                (BusinessModel.SUBSIDIZED, False),
+                (BusinessModel.CONSUMPTION, False),
             ],
         )
         def test_run_uses_business_model_from_serverless_client(

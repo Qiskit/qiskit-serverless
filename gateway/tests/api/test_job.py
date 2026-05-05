@@ -15,6 +15,7 @@ from core.services.storage.result_storage import ResultStorage
 
 from core.domain.authorization.function_access_entry import FunctionAccessEntry
 from core.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import Job, JobEvent, PLATFORM_PERMISSION_PROVIDER_JOBS, Program, Provider, RuntimeJob
 
@@ -279,7 +280,7 @@ class TestJobApi:
             provider_name="default",
             function_title="Docker-Image-Program",
             permissions={PLATFORM_PERMISSION_PROVIDER_JOBS},
-            business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
+            business_model=BusinessModel.SUBSIDIZED,
         )
         accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[entry])
         self._authorize("test_user", accessible_functions=accessible)

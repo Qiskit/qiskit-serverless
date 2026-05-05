@@ -16,6 +16,7 @@ from rest_framework import serializers
 from rest_framework import validators as validators_module
 
 from api.utils import build_env_variables, sanitize_name
+from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.services.storage.arguments_storage import ArgumentsStorage
 from core.utils import encrypt_env_vars, create_gpujob_allowlist
@@ -328,10 +329,10 @@ class RunJobSerializer(serializers.ModelSerializer):
 
         business_model = validated_data.pop("business_model", None)
         if business_model is not None:
-            trial = business_model == Job.BUSINESS_MODEL_TRIAL
+            trial = business_model == BusinessModel.TRIAL
         else:
             trial = self.is_trial(program, author)
-            business_model = Job.BUSINESS_MODEL_TRIAL if trial else Job.BUSINESS_MODEL_SUBSIDIZED
+            business_model = BusinessModel.TRIAL if trial else BusinessModel.SUBSIDIZED
 
         # Get runner-specific configuration (compute_profile for Fleets, GPU for Ray)
         compute_profile, gpu = self._get_runner_config(program, compute_profile_requested)

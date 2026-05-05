@@ -40,7 +40,7 @@ class FunctionsQuerySet(QuerySet):
             permission: Platform permission constant (e.g. PLATFORM_PERMISSION_RUN).
                 Required when accessible_functions is provided and use_legacy_authorization=False.
         """
-        if accessible_functions is not None and not accessible_functions.use_legacy_authorization:
+        if accessible_functions and not accessible_functions.use_legacy_authorization:
             filter_function_names = accessible_functions.get_functions_by_provider(permission)
             provider_criteria = Q()
             for pname, titles in filter_function_names.items():
@@ -154,7 +154,7 @@ class FunctionsQuerySet(QuerySet):
         if not provider_name:
             return self.user_functions(author=user).get_function(function_title)
 
-        if accessible_functions is not None and not accessible_functions.use_legacy_authorization:
+        if accessible_functions and not accessible_functions.use_legacy_authorization:
             entry = accessible_functions.get_function(provider_name, function_title)
             if entry is None or permission not in entry.permissions:
                 return None

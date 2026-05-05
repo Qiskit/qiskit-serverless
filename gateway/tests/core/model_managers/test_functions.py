@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 
 from core.domain.authorization.function_access_entry import FunctionAccessEntry
 from core.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.business_models import BusinessModel
 from core.models import Program, Provider, Job, PLATFORM_PERMISSION_RUN, PLATFORM_PERMISSION_READ
 
 pytestmark = pytest.mark.django_db
@@ -18,7 +19,7 @@ def make_result(provider_name, function_title, permissions):
         provider_name=provider_name,
         function_title=function_title,
         permissions=permissions,
-        business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
+        business_model=BusinessModel.SUBSIDIZED,
     )
     return FunctionAccessResult(use_legacy_authorization=False, functions=[entry])
 

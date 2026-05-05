@@ -12,6 +12,7 @@ from rest_framework.test import APIClient
 
 from core.domain.authorization.function_access_entry import FunctionAccessEntry
 from core.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.business_models import BusinessModel
 from core.models import Job, JobConfig, Program, Provider
 
 # literal for job status
@@ -311,7 +312,7 @@ def create_function_access_result(
     provider_name,
     function_title,
     permissions,
-    business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
+    business_model=BusinessModel.SUBSIDIZED,
 ):
     """Return a FunctionAccessResult with a single entry for the given provider/function/permissions."""
     entry = FunctionAccessEntry(

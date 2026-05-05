@@ -378,9 +378,6 @@ class Job(models.Model):
         (POST_PROCESSING, "Post-processing"),
     ]
 
-    BUSINESS_MODEL_TRIAL = BusinessModel.TRIAL
-    BUSINESS_MODEL_SUBSIDIZED = BusinessModel.SUBSIDIZED
-    BUSINESS_MODEL_CONSUMPTION = BusinessModel.CONSUMPTION
     BUSINESS_MODELS = [
         (BusinessModel.TRIAL, "Trial"),
         (BusinessModel.SUBSIDIZED, "Subsidized"),
