@@ -50,7 +50,8 @@ from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
 IAM_PROD_URL = "https://iam.cloud.ibm.com"
 IAM_TEST_URL = "https://iam.test.cloud.ibm.com"
 
-COS_URL_TEMPLATE = "https://s3.{region}.cloud-object-storage.appdomain.cloud"
+COS_URL_TEMPLATE = "https://s3.private.{region}.cloud-object-storage.appdomain.cloud"
+COS_PUBLIC_URL_TEMPLATE = "https://s3.{region}.cloud-object-storage.appdomain.cloud"
 CODE_ENGINE_URL_TEMPLATE = "https://api.{region}.codeengine.cloud.ibm.com/v2"
 
 DEFAULT_REGION = "us-south"
