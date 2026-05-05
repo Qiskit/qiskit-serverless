@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
+import json
 import logging
 import os
 import os.path
@@ -309,6 +310,10 @@ CE_SUBNET_POOL_ID = os.environ.get("CE_SUBNET_POOL_ID")
 CE_PDS_NAME_STATE = os.environ.get("CE_PDS_NAME_STATE")
 CE_PDS_NAME_USERS = os.environ.get("CE_PDS_NAME_USERS")
 CE_PDS_NAME_PROVIDERS = os.environ.get("CE_PDS_NAME_PROVIDERS")
+# Maps compute profiles to their availability zone. Populated at deploy time via FLEETS_PROFILE_ZONE_MAP
+# JSON env var, e.g. '{"gx2-8x64x1l40s": "us-east-1", "gx3d-24x120x1a100p": "us-east-2"}'.
+# Profiles absent from the map (or mapped to "any") fall back to the multi-zone project.
+FLEETS_PROFILE_ZONE_MAP: dict = json.loads(os.environ.get("FLEETS_PROFILE_ZONE_MAP", "{}"))  # type: ignore[assignment]
 
 
 # ray cluster management
