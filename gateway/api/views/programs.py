@@ -240,14 +240,10 @@ class ProgramViewSet(viewsets.GenericViewSet):
         return Response(serializer.data)
 
     @staticmethod
-    def _resolve_function(
+    def _resolve_run_function(
         author, function_title: str, provider_name: Optional[str], accessible_functions: FunctionAccessResult
     ) -> Tuple[Optional[Function], Optional[str]]:
-        """Resolve function and business_model for run().
-
-        Returns (function, business_model). Returns (None, None) when access is denied or the
-        function does not exist — the caller is responsible for returning 404 in that case.
-        """
+        """Resolve function and business_model for run()"""
         if accessible_functions.use_legacy_authorization:
             function = Function.objects.get_function_by_permission(
                 user=author,
@@ -258,16 +254,18 @@ class ProgramViewSet(viewsets.GenericViewSet):
             )
             return function, None
 
+        # Runtime API /functions
         if not provider_name:
             return Function.objects.get_user_function(author, function_title), None
 
         function = Function.objects.get_function(function_title, provider_name)
-        if function is None:
-            return None, None
-        if not accessible_functions.has_permission_for_function(provider_name, function_title, PLATFORM_PERMISSION_RUN):
-            return None, None
-        business_model = accessible_functions.get_function(provider_name, function_title).business_model
-        return function, business_model
+        if function and accessible_functions.has_permission_for_function(
+            provider_name, function_title, PLATFORM_PERMISSION_RUN
+        ):
+            business_model = accessible_functions.get_function(provider_name, function_title).business_model
+            return function, business_model
+
+        return None, None
 
     @_trace
     @action(methods=["POST"], detail=False)
@@ -296,7 +294,9 @@ class ProgramViewSet(viewsets.GenericViewSet):
             accessible_functions,
         )
 
-        function, business_model = self._resolve_function(author, function_title, provider_name, accessible_functions)
+        function, business_model = self._resolve_run_function(
+            author, function_title, provider_name, accessible_functions
+        )
 
         if function is None:
             logger.error("[programs-run] user_id=%s function not found: %s", author.id, function_title)
@@ -373,7 +373,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
             "config": jobconfig,
             "instance": instance,
             "compute_profile": compute_profile,
-            "business_model": business_model,
+            "business_model": business_model,  # the serializer would transform the business_model in trial here
         }
         job = job_serializer.save(**save_kwargs)
         logger.info("[programs-run] user_id=%s job_id=%s program=%s | Job queued ok", author.id, job.id, function_title)
