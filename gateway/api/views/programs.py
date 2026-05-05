@@ -24,7 +24,7 @@ from rest_framework.response import Response
 from api.access_policies.providers import ProviderAccessPolicy
 from api.decorators.trace_decorator import trace_decorator_factory
 from api.domain.authentication.channel import Channel
-from api.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from api.domain.exceptions.active_job_limit_exceeded_exception import (
     ActiveJobLimitExceeded,
 )
@@ -137,31 +137,23 @@ class ProgramViewSet(viewsets.GenericViewSet):
             # with the next criterias:
             # - user is the author of the function and there is no provider
             functions = Function.objects.user_functions(author)
-        elif accessible_functions.use_legacy_authorization:
-            if type_filter == TypeFilter.CATALOG:
-                # Catalog filter only returns providers functions that user has access:
-                # author has view permissions and the function has a provider assigned
-                functions = Function.objects.provider_functions().with_permission(
-                    author, legacy_permission_name=RUN_PROGRAM_PERMISSION
-                )
-            else:
-                # If filter is not applied we return author and providers functions together
-                functions = Function.objects.with_permission(author, legacy_permission_name=VIEW_PROGRAM_PERMISSION)
+        elif type_filter == TypeFilter.CATALOG:
+            # Catalog filter only returns provider functions that user has access:
+            # author has run permissions and the function has a provider assigned
+            functions = Function.objects.provider_functions().with_permission(
+                author,
+                legacy_permission_name=RUN_PROGRAM_PERMISSION,
+                accessible_functions=accessible_functions,
+                permission=PLATFORM_PERMISSION_RUN,
+            )
         else:
-            # Runtime API /functions determines the accessible_functions
-            if type_filter == TypeFilter.CATALOG:
-                # Catalog filter only returns provider functions that user has access:
-                # author has run permissions and the function has a provider assigned
-                functions = Function.objects.provider_functions().with_permission(
-                    author,
-                    filter_function_names=accessible_functions.get_functions_by_provider(PLATFORM_PERMISSION_RUN),
-                )
-            else:
-                # If filter is not applied we return author + providers functions together
-                functions = Function.objects.with_permission(
-                    author,
-                    filter_function_names=accessible_functions.get_functions_by_provider(PLATFORM_PERMISSION_READ),
-                )
+            # If filter is not applied we return author + providers functions together
+            functions = Function.objects.with_permission(
+                author,
+                legacy_permission_name=VIEW_PROGRAM_PERMISSION,
+                accessible_functions=accessible_functions,
+                permission=PLATFORM_PERMISSION_READ,
+            )
 
         serializer = self.get_serializer(list(functions), many=True)
         logger.info(
@@ -399,17 +391,12 @@ class ProgramViewSet(viewsets.GenericViewSet):
         )
 
         if provider_name:
-            # Only filter by function names from Runtime API /functions if use_legacy_authorization == False
-            filter_fns = (
-                accessible_functions.get_functions_by_provider(PLATFORM_PERMISSION_READ)
-                if not accessible_functions.use_legacy_authorization
-                else None
-            )
             function = Function.objects.get_function_by_permission(
                 user=author,
                 function_title=function_title,
                 provider_name=provider_name,
-                filter_function_names=filter_fns,
+                accessible_functions=accessible_functions,
+                permission=PLATFORM_PERMISSION_READ,
                 legacy_permission_name=VIEW_PROGRAM_PERMISSION,
             )
             if function is None:
