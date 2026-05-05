@@ -12,6 +12,11 @@ from django.db import models
 from django_prometheus.models import ExportModelOperationsMixin
 
 from core.config_key import ConfigKey
+from core.domain.business_models import (
+    BUSINESS_MODEL_CONSUMPTION,
+    BUSINESS_MODEL_SUBSIDIZED,
+    BUSINESS_MODEL_TRIAL,
+)
 from core.model_managers.functions import FunctionsQuerySet
 from core.model_managers.job_events import JobEventQuerySet
 from core.model_managers.jobs import JobQuerySet
@@ -377,9 +382,9 @@ class Job(models.Model):
         (POST_PROCESSING, "Post-processing"),
     ]
 
-    BUSINESS_MODEL_TRIAL = "TRIAL"
-    BUSINESS_MODEL_SUBSIDIZED = "SUBSIDIZED"
-    BUSINESS_MODEL_CONSUMPTION = "CONSUMPTION"
+    BUSINESS_MODEL_TRIAL = BUSINESS_MODEL_TRIAL
+    BUSINESS_MODEL_SUBSIDIZED = BUSINESS_MODEL_SUBSIDIZED
+    BUSINESS_MODEL_CONSUMPTION = BUSINESS_MODEL_CONSUMPTION
     BUSINESS_MODELS = [
         (BUSINESS_MODEL_TRIAL, "Trial"),
         (BUSINESS_MODEL_SUBSIDIZED, "Subsidized"),

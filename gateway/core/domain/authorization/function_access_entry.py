@@ -4,9 +4,15 @@ import logging
 from dataclasses import dataclass
 from typing import Set
 
+from core.domain.business_models import (
+    BUSINESS_MODEL_CONSUMPTION,
+    BUSINESS_MODEL_SUBSIDIZED,
+    BUSINESS_MODEL_TRIAL,
+)
+
 logger = logging.getLogger("api.FunctionAccessEntry")
 
-VALID_BUSINESS_MODELS = {"TRIAL", "SUBSIDIZED", "CONSUMPTION"}
+VALID_BUSINESS_MODELS = {BUSINESS_MODEL_TRIAL, BUSINESS_MODEL_SUBSIDIZED, BUSINESS_MODEL_CONSUMPTION}
 
 
 @dataclass
