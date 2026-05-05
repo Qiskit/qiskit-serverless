@@ -508,24 +508,10 @@ class FleetsRunner(AbstractRunner):
 
     def _build_gateway_env_vars(self) -> list[dict[str, str]]:
         """Extract job env vars so the container can call save_result() and use Qiskit Runtime."""
-        try:
-            env = json.loads(self.job.env_vars)
-            env = decrypt_env_vars(env)
-        except Exception:  # pylint: disable=broad-exception-caught
-            logger.warning("Could not decrypt env_vars for job [%s]", self.job.id)
-            return []
+        env = json.loads(self.job.env_vars)
+        env = decrypt_env_vars(env)
 
-        token = env.get("ENV_JOB_GATEWAY_TOKEN", "")
-        if token:
-            env["QISKIT_IBM_RUNTIME_CUSTOM_CLIENT_APP_HEADER"] = (
-                "middleware_job_id/" + str(self.job.id) + "," + token + "/"
-            )
-
-        return [
-            {"type": "literal", "name": k, "value": v}
-            for k, v in env.items()
-            if v
-        ]
+        return [{"type": "literal", "name": k, "value": v} for k, v in env.items() if v]
 
     def _build_cos_paths(self) -> dict[str, str]:
         """Build COS key prefixes and container mount paths for the job.
