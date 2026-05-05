@@ -154,14 +154,12 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 # author has run permissions and the function has a provider assigned
                 functions = Function.objects.provider_functions().with_permission(
                     author,
-                    legacy_permission_name=RUN_PROGRAM_PERMISSION,
                     filter_function_names=accessible_functions.get_functions_by_provider(PLATFORM_PERMISSION_RUN),
                 )
             else:
                 # If filter is not applied we return author + providers functions together
                 functions = Function.objects.with_permission(
                     author,
-                    legacy_permission_name=VIEW_PROGRAM_PERMISSION,
                     filter_function_names=accessible_functions.get_functions_by_provider(PLATFORM_PERMISSION_READ),
                 )
 
@@ -253,10 +251,9 @@ class ProgramViewSet(viewsets.GenericViewSet):
         if accessible_functions.use_legacy_authorization:
             function = Function.objects.get_function_by_permission(
                 user=author,
-                legacy_permission_name=RUN_PROGRAM_PERMISSION,
                 function_title=function_title,
                 provider_name=provider_name,
-                filter_function_names=None,
+                legacy_permission_name=RUN_PROGRAM_PERMISSION,
             )
             return function, None
 
@@ -410,10 +407,10 @@ class ProgramViewSet(viewsets.GenericViewSet):
             )
             function = Function.objects.get_function_by_permission(
                 user=author,
-                legacy_permission_name=VIEW_PROGRAM_PERMISSION,
                 function_title=function_title,
                 provider_name=provider_name,
                 filter_function_names=filter_fns,
+                legacy_permission_name=VIEW_PROGRAM_PERMISSION,
             )
             if function is None:
                 return Response(

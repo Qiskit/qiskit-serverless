@@ -19,7 +19,7 @@ class FunctionsQuerySet(QuerySet):
     def with_permission(
         self,
         author: AbstractUser,
-        legacy_permission_name: str,
+        legacy_permission_name: Optional[str] = None,
         filter_function_names: Optional[Dict[str, Set[str]]] = None,
     ) -> Self:
         """
@@ -115,29 +115,30 @@ class FunctionsQuerySet(QuerySet):
 
         return queryset.first()
 
-    def get_function_by_permission(  # pylint: disable=too-many-positional-arguments
+    def get_function_by_permission(
         self,
         user: AbstractUser,
-        legacy_permission_name: str,
         function_title: str,
         provider_name: Optional[str],
         filter_function_names: Optional[Dict[str, Set[str]]] = None,
+        legacy_permission_name: Optional[str] = None,
     ) -> Optional[Function]:
         """
         Returns the specified function if the user is the author or has access.
 
         When provider_name is None, always returns the user's own function (no permission check).
         When filter_function_names is provided, checks if function_title is in the allowed set.
-        Otherwise falls back to Django groups via with_permission().
+        Otherwise falls back to Django groups via with_permission() using legacy_permission_name.
 
         Args:
             user: Django user requesting access
-            legacy_permission_name: Django permission codename (e.g. RUN_PROGRAM_PERMISSION)
             function_title: title of the function
             provider_name: provider name, or None for user functions
             filter_function_names: {provider_name: {function_title, ...}} pre-computed by the
                 caller. If provided and function is in the set, returns it. If None, falls back
                 to Django groups.
+            legacy_permission_name: Django permission codename (e.g. RUN_PROGRAM_PERMISSION).
+                Only used in the Django groups fallback path (filter_function_names is None).
 
         Returns:
             Program | None: the function if the user has access, else None
