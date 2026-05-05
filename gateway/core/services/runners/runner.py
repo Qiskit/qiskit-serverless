@@ -30,8 +30,34 @@ class RunnerError(Exception):
         return self.message
 
 
-class AbstractRunner(ABC):
+class Runner(ABC):
     """Abstract runner for executing jobs on different engines."""
+
+    @staticmethod
+    def get(job: Job) -> Runner:
+        """
+        Factory: create the appropriate runner for the job.
+        The runner is created with the job but does NOT connect automatically.
+
+        Args:
+            job: Job instance
+
+        Returns:
+            Runner appropriate for the job's runner type
+
+        Raises:
+            RunnerError: If runner type is invalid or not supported
+        """
+        # Lazy imports to avoid circular dependencies (ray_runner/fleets_runner import Runner)
+        from core.models import Program  # pylint: disable=import-outside-toplevel
+        from core.services.runners.fleets_runner import FleetsRunner  # pylint: disable=import-outside-toplevel
+        from core.services.runners.ray_runner import RayRunner  # pylint: disable=import-outside-toplevel
+
+        if job.runner == Program.FLEETS:
+            return FleetsRunner(job)
+        if job.runner == Program.RAY:
+            return RayRunner(job)
+        raise RunnerError(f"Unknown runner type: {job.runner}")
 
     def __init__(self, job: Job) -> None:
         """

@@ -13,7 +13,7 @@ from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.domain.exceptions.invalid_access_exception import InvalidAccessException
 from core.domain.filter_logs import remove_prefix_tags_in_logs, filter_logs_with_public_tags
 from core.models import Job
-from core.services.runners import get_runner, RunnerError
+from core.services.runners.runner import Runner, RunnerError
 from core.utils import check_logs
 from core.services.storage.logs_storage import LogsStorage
 
@@ -50,7 +50,7 @@ class GetJobLogsUseCase:
         if logs:
             return logs
 
-        runner = get_runner(job)
+        runner = Runner.get(job)
         if runner.is_active():
             try:
                 logs = runner.logs()

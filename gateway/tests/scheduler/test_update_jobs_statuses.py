@@ -52,7 +52,7 @@ def test_fleets_result_retrieved_from_cos_on_terminal_state():
     mock_runner.get_result_from_cos.return_value = '{"counts": {"00": 512}}'
 
     with (
-        patch(f"{_MOD}.get_runner", return_value=mock_runner),
+        patch("core.services.runners.runner.Runner.get", return_value=mock_runner),
         patch(f"{_MOD}.check_job_timeout", return_value=False),
         patch(f"{_MOD}.JobEvent"),
     ):
@@ -74,7 +74,7 @@ def test_fleets_result_skipped_when_cos_returns_none():
     mock_runner.get_result_from_cos.return_value = None
 
     with (
-        patch(f"{_MOD}.get_runner", return_value=mock_runner),
+        patch("core.services.runners.runner.Runner.get", return_value=mock_runner),
         patch(f"{_MOD}.check_job_timeout", return_value=False),
         patch(f"{_MOD}.JobEvent"),
     ):
@@ -94,7 +94,7 @@ def test_fleets_result_cos_error_is_swallowed():
     mock_runner.get_result_from_cos.side_effect = RuntimeError("COS unavailable")
 
     with (
-        patch(f"{_MOD}.get_runner", return_value=mock_runner),
+        patch("core.services.runners.runner.Runner.get", return_value=mock_runner),
         patch(f"{_MOD}.check_job_timeout", return_value=False),
         patch(f"{_MOD}.JobEvent"),
     ):
