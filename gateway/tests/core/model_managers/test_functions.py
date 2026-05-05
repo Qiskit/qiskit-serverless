@@ -57,7 +57,6 @@ class TestWithPermissionRuntimeInstances:
         result = list(
             Program.objects.with_permission(
                 author=other_user,
-                legacy_permission_name="view_program",
                 accessible_functions=accessible,
                 permission=VIEW_PERMISSION,
             )
@@ -72,7 +71,6 @@ class TestWithPermissionRuntimeInstances:
         result = list(
             Program.objects.with_permission(
                 author=other_user,
-                legacy_permission_name="view_program",
                 accessible_functions=accessible,
                 permission=VIEW_PERMISSION,
             )
@@ -87,7 +85,6 @@ class TestWithPermissionRuntimeInstances:
         result = list(
             Program.objects.with_permission(
                 author=other_user,
-                legacy_permission_name="view_program",
                 accessible_functions=accessible,
                 permission=VIEW_PERMISSION,
             )
@@ -103,7 +100,6 @@ class TestWithPermissionRuntimeInstances:
         result = list(
             Program.objects.with_permission(
                 author=other_user,
-                legacy_permission_name="view_program",
                 accessible_functions=accessible,
                 permission=VIEW_PERMISSION,
             )
@@ -118,8 +114,7 @@ class TestWithPermissionFallback:
         """When accessible_functions=None, falls back to Django groups."""
         result = list(
             Program.objects.with_permission(
-                author=author,
-                legacy_permission_name="view_program",
+                author=author, legacy_permission_name="view_program", accessible_functions=None
             )
         )
 
@@ -135,7 +130,6 @@ class TestWithPermissionFallback:
                 author=author,
                 legacy_permission_name="view_program",
                 accessible_functions=accessible,
-                permission=VIEW_PERMISSION,
             )
         )
 
@@ -150,7 +144,6 @@ class TestGetFunctionByPermissionRuntimeInstances:
 
         result = Program.objects.get_function_by_permission(
             user=other_user,
-            legacy_permission_name="view_program",
             function_title="my-function",
             provider_name="my-provider",
             accessible_functions=accessible,
@@ -165,7 +158,6 @@ class TestGetFunctionByPermissionRuntimeInstances:
 
         result = Program.objects.get_function_by_permission(
             user=other_user,
-            legacy_permission_name="view_program",
             function_title="my-function",
             provider_name="my-provider",
             accessible_functions=accessible,
@@ -180,7 +172,6 @@ class TestGetFunctionByPermissionRuntimeInstances:
 
         result = Program.objects.get_function_by_permission(
             user=other_user,
-            legacy_permission_name="view_program",
             function_title="my-function",
             provider_name="my-provider",
             accessible_functions=accessible,
@@ -195,7 +186,6 @@ class TestGetFunctionByPermissionRuntimeInstances:
 
         result = Program.objects.get_function_by_permission(
             user=other_user,
-            legacy_permission_name="view_program",
             function_title="my-function",
             provider_name="my-provider",
             accessible_functions=accessible,
@@ -211,7 +201,6 @@ class TestGetFunctionByPermissionRuntimeInstances:
 
         result = Program.objects.get_function_by_permission(
             user=author,
-            legacy_permission_name="view_program",
             function_title="own-fn",
             provider_name=None,
             accessible_functions=accessible,
