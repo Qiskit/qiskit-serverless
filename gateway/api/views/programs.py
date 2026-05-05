@@ -244,6 +244,12 @@ class ProgramViewSet(viewsets.GenericViewSet):
         author, function_title: str, provider_name: Optional[str], accessible_functions: FunctionAccessResult
     ) -> Tuple[Optional[Function], Optional[str]]:
         """Resolve function and business_model for run()"""
+
+        # Custom functions
+        if not provider_name:
+            return Function.objects.get_user_function(author, function_title), None
+
+        # Partner functions: Legacy Django groups
         if accessible_functions.use_legacy_authorization:
             function = Function.objects.get_function_by_permission(
                 user=author,
@@ -254,10 +260,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
             )
             return function, None
 
-        # Runtime API /functions
-        if not provider_name:
-            return Function.objects.get_user_function(author, function_title), None
-
+        # Partner functions: Runtime API /functions
         function = Function.objects.get_function(function_title, provider_name)
         if function and accessible_functions.has_permission_for_function(
             provider_name, function_title, PLATFORM_PERMISSION_RUN
