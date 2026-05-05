@@ -14,7 +14,7 @@ from core.domain.filter_logs import (
 from core.services.storage.logs_storage import LogsStorage
 from core.utils import check_logs
 from core.models import Job, JobEvent, Program
-from core.services.runners import get_runner, RunnerError
+from core.services.runners.runner import Runner, RunnerError
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from scheduler.schedule import (
     check_job_timeout,
@@ -55,7 +55,7 @@ class UpdateJobsStatuses(SchedulerTask):
             )
             return False
 
-        runner = get_runner(job)
+        runner = Runner.get(job)
 
         try:
             job_new_status = runner.status()

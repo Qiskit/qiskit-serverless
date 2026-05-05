@@ -7,7 +7,7 @@ import pytest
 from django.core.management import call_command
 
 from core.models import Job, ComputeResource
-from core.services.runners import RunnerError
+from core.services.runners.runner import RunnerError
 from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_job
 
 
@@ -34,7 +34,7 @@ class TestScheduleApi:
         assert "1a7947f9-6ae8-4e3d-ac1e-e7d608deec90" in job_ids
         assert "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82" in job_ids
 
-    @patch("scheduler.schedule.get_runner")
+    @patch("core.services.runners.runner.Runner.get")
     def test_execute_job_success(self, mock_get_runner_client):
         """Tests successful job execution via runner.submit()."""
         mock_compute_resource = MagicMock(spec=ComputeResource)
@@ -54,7 +54,7 @@ class TestScheduleApi:
         mock_compute_resource.save.assert_called_once()
         assert ret_job.status == Job.PENDING
 
-    @patch("scheduler.schedule.get_runner")
+    @patch("core.services.runners.runner.Runner.get")
     def test_execute_job_failure(self, mock_get_runner_client):
         """Tests job execution failure handling."""
         mock_runner = MagicMock()

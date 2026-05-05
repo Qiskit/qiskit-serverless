@@ -14,8 +14,7 @@ from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 
 from core.models import ComputeResource, Job, Program
-from core.services.runners import get_runner
-from core.services.runners.abstract_runner import RunnerError
+from core.services.runners.runner import Runner, RunnerError
 from core.services.runners.ray_runner import RayRunner
 from core.utils import encrypt_string
 
@@ -50,7 +49,7 @@ class TestRayRunner(APITestCase):
         DynamicClient.resources.get = MagicMock(return_value=mock)
         head_node_url = "http://test_user-head-svc:8265/"
         job = Job.objects.first()
-        runner = get_runner(job)
+        runner = Runner.get(job)
 
         with (
             patch("core.services.runners.ray_runner._generate_resource_name", return_value="test_user"),
@@ -85,7 +84,7 @@ class TestRayRunner(APITestCase):
         )
         job.save()
 
-        runner = get_runner(job)
+        runner = Runner.get(job)
         success = runner.free_resources()
         self.assertTrue(success)
         DynamicClient.resources.get.assert_any_call(api_version="v1", kind="RayCluster")
@@ -129,7 +128,7 @@ class TestRayClientOperations(APITestCase):
         mock_client = MagicMock()
         mock_client.get_job_status.return_value = JobStatus.PENDING
 
-        runner = get_runner(job)
+        runner = Runner.get(job)
         runner._client = mock_client
         runner._connected = True
 
@@ -149,7 +148,7 @@ class TestRayClientOperations(APITestCase):
         mock_client = MagicMock()
         mock_client.get_job_logs.return_value = "No logs yet."
 
-        runner = get_runner(job)
+        runner = Runner.get(job)
         runner._client = mock_client
         runner._connected = True
 
@@ -169,7 +168,7 @@ class TestRayClientOperations(APITestCase):
         mock_client = MagicMock()
         mock_client.stop_job.return_value = True
 
-        runner = get_runner(job)
+        runner = Runner.get(job)
         runner._client = mock_client
         runner._connected = True
 
@@ -191,7 +190,7 @@ class TestRayClientOperations(APITestCase):
             mock_ray_runner = MagicMock()
             mock_ray_runner.submit_job.return_value = "AwesomeJobId"
 
-            runner = get_runner(job)
+            runner = Runner.get(job)
 
             with patch.object(runner, "_submit_to_ray", return_value="AwesomeJobId"):
                 runner.submit()
@@ -212,7 +211,7 @@ class TestGetRunner(APITestCase):
         job = Job.objects.first()
         job.runner = Program.RAY
 
-        runner = get_runner(job)
+        runner = Runner.get(job)
 
         self.assertIsInstance(runner, RayRunner)
 
@@ -223,7 +222,7 @@ class TestGetRunner(APITestCase):
         job = Job.objects.first()
         job.runner = Program.FLEETS
 
-        runner = get_runner(job)
+        runner = Runner.get(job)
 
         self.assertIsInstance(runner, FleetsRunner)
 
@@ -233,6 +232,6 @@ class TestGetRunner(APITestCase):
         job.runner = "unknown-runner"
 
         with self.assertRaises(RunnerError) as ctx:
-            get_runner(job)
+            Runner.get(job)
 
         self.assertEqual(str(ctx.exception), "Unknown runner type: unknown-runner")

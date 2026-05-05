@@ -26,7 +26,7 @@ from django.conf import settings
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
 from core.models import Job, CodeEngineProject
-from core.services.runners.abstract_runner import AbstractRunner, RunnerError
+from core.services.runners.runner import Runner, RunnerError
 from core.ibm_cloud.clients import IBMCloudClientProvider
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
 from core.ibm_cloud.code_engine.fleets.utils import (
@@ -89,7 +89,7 @@ def _retry_on_rate_limit(fn, retries=3, delays=(0.5, 1.0, 2.0)):
     return None
 
 
-class FleetsRunner(AbstractRunner):
+class FleetsRunner(Runner):
     """Runner that executes jobs on IBM Code Engine Fleets.
 
     Each runner instance is tied to a single :class:`~core.models.Job`. The

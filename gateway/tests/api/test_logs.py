@@ -12,7 +12,7 @@ from rest_framework.test import APIClient
 from prometheus_client import CollectorRegistry
 
 from core.models import ComputeResource, Job, Program, Provider
-from core.services.runners import RunnerError
+from core.services.runners.runner import RunnerError
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
@@ -67,18 +67,14 @@ class TestJobLogsPermissions:
             ("v1:jobs-provider-logs", "other_user", "provider", HTTP_403_FORBIDDEN),
         ],
     )
-    @patch("api.use_cases.jobs.get_logs.get_runner")
-    @patch("api.use_cases.jobs.provider_logs.get_runner")
-    def test_endpoint_permissions(
-        self, mock_provider_logs_handler, mock_get_logs_handler, endpoint, caller, provider_admin, expected_status
-    ):
+    @patch("core.services.runners.runner.Runner.get")
+    def test_endpoint_permissions(self, mock_runner_get, endpoint, caller, provider_admin, expected_status):
         """Test permissions for /logs and /provider-logs endpoints."""
         # Mock the runner clients to prevent hanging on Ray connection
         mock_handler = Mock()
         mock_handler.logs.return_value = "Test logs"
         mock_handler.provider_logs.return_value = "Test logs"
-        mock_get_logs_handler.return_value = mock_handler
-        mock_provider_logs_handler.return_value = mock_handler
+        mock_runner_get.return_value = mock_handler
 
         user_caller, _ = User.objects.get_or_create(username=caller)
         job = create_job(author="author", provider_admin=provider_admin)
@@ -123,7 +119,7 @@ class TestJobLogsCoverage:
         self.client.force_authenticate(user=user)
         return user
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    @patch("core.services.runners.runner.Runner.get")
     def test_job_logs_in_storage_user_job(self, get_runner_client_mock):
         """Tests /logs with user job from COS.
 
@@ -163,7 +159,7 @@ Unprefixed message
 """
         assert jobs_response.data.get("logs") == expected_logs
 
-    @patch("api.use_cases.jobs.get_logs.get_runner")
+    @patch("core.services.runners.runner.Runner.get")
     @patch("core.services.storage.logs_storage.LogsStorage.get_public_logs")
     def test_job_logs_in_ray(self, logs_storage_get_mock, get_runner_client_mock):
         """Tests /logs with user job from Ray."""
@@ -222,7 +218,7 @@ INFO: Final public log
         assert jobs_response.status_code == HTTP_200_OK
         assert jobs_response.data.get("logs") == "log from db"
 
-    @patch("api.use_cases.jobs.get_logs.get_runner")
+    @patch("core.services.runners.runner.Runner.get")
     @patch("core.services.storage.logs_storage.LogsStorage.get_public_logs")
     def test_job_logs_error(self, logs_storage_get_mock, get_runner_client_mock):
         """Tests /logs with user job, Ray error."""
@@ -242,7 +238,7 @@ INFO: Final public log
         assert jobs_response.status_code == HTTP_200_OK
         assert jobs_response.data.get("logs") == "Logs not available for this job during execution."
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    @patch("core.services.runners.runner.Runner.get")
     def test_job_provider_logs_in_storage(self, get_runner_client_mock):
         """Tests /provider-logs with provider job from COS.
 
@@ -282,7 +278,7 @@ Unprefixed message
         # /provider-logs returns all logs unfiltered (with prefixes)
         assert jobs_response.data.get("logs") == expected_provider_logs
 
-    @patch("api.use_cases.jobs.provider_logs.get_runner")
+    @patch("core.services.runners.runner.Runner.get")
     @patch("core.services.storage.logs_storage.LogsStorage.get_private_logs")
     def test_job_provider_logs_in_ray(self, logs_storage_get_mock, get_runner_client_mock):
         """Tests /provider-logs with provider job from Ray."""
@@ -355,7 +351,7 @@ WARNING: Private warning
         assert jobs_response.status_code == HTTP_200_OK
         assert jobs_response.data.get("logs") == "No logs yet."
 
-    @patch("api.use_cases.jobs.provider_logs.get_runner")
+    @patch("core.services.runners.runner.Runner.get")
     @patch("core.services.storage.logs_storage.LogsStorage.get_private_logs")
     def test_job_provider_logs_error(self, logs_storage_get_mock, get_runner_client_mock):
         """Tests /provider-logs with provider job, Ray error."""

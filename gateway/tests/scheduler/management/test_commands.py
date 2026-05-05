@@ -15,7 +15,7 @@ from prometheus_client import CollectorRegistry
 
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import ComputeResource, Job, JobEvent, Program, Provider, Config
-from core.services.runners import RunnerError
+from core.services.runners.runner import RunnerError
 from core.utils import check_logs
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
@@ -41,7 +41,7 @@ class TestCommands:
         num_resources = ComputeResource.objects.count()
         assert num_resources == 1
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    @patch("core.services.runners.runner.Runner.get")
     def test_update_jobs_statuses(self, get_runner):
         """Tests update of job statuses."""
         # Test status change from PENDING to RUNNING
@@ -158,7 +158,7 @@ class TestCommands:
         )
         assert "AAAAAAAAAAB" in logs
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    @patch("core.services.runners.runner.Runner.get")
     def test_update_jobs_statuses_filters_logs_user_function(self, get_runner, settings):
         """Tests that logs are filtered when saving for function without provider."""
         compute_resource = ComputeResource.objects.create(title="test-cluster-user-logs", active=True)
@@ -221,7 +221,7 @@ INFO: Final public log
         job.refresh_from_db()
         assert job.logs == ""
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    @patch("core.services.runners.runner.Runner.get")
     def test_update_jobs_statuses_filters_logs_provider_function(self, get_runner, settings):
         """Tests that logs are filtered when saving for function with provider."""
         compute_resource = ComputeResource.objects.create(title="test-cluster-provider-logs", active=True)
@@ -289,7 +289,7 @@ WARNING: Private warning
             saved_provider_logs = log_file.read()
         assert saved_provider_logs == expected_provider_logs
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    @patch("core.services.runners.runner.Runner.get")
     def test_update_jobs_statuses_job_handler_status_error_status_event(self, get_runner, settings):
         """Tests that the job_event is stored when runner.status() raises exception."""
         compute_resource = ComputeResource.objects.create(title="test-cluster-provider-logs", active=True)

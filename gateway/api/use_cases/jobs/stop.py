@@ -7,7 +7,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from qiskit_ibm_runtime import QiskitRuntimeService, RuntimeInvalidStateError
 
 from core.models import Job, JobEvent
-from core.services.runners import get_runner, RunnerError
+from core.services.runners.runner import Runner, RunnerError
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.repositories.runtime_job import RuntimeJobRepository
@@ -114,7 +114,7 @@ class StopJobUseCase:
             self.status_messages.append(f"Runtime job {job_id_str} could not be canceled (invalid state).")
 
     def _stop_ray_job_if_active(self, job: Job):
-        runner = get_runner(job)
+        runner = Runner.get(job)
         if runner.is_active():
             try:
                 was_running = runner.stop()

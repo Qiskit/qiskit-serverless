@@ -7,7 +7,7 @@ from kubernetes import client as kubernetes_client, config
 from kubernetes.dynamic.client import DynamicClient
 
 from core.models import ComputeResource, Job
-from core.services.runners import get_runner
+from core.services.runners.runner import Runner
 
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
@@ -46,7 +46,7 @@ class FreeResources(SchedulerTask):
 
     def _free_job(self, job):
         compute_resource = job.compute_resource
-        runner_client = get_runner(job)
+        runner_client = Runner.get(job)
         success = runner_client.free_resources()
         if success:
             compute_resource.active = False

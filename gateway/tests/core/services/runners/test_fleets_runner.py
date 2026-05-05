@@ -19,7 +19,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
-from core.services.runners.abstract_runner import RunnerError
+from core.services.runners.runner import RunnerError
 from core.services.runners.fleets_runner import FleetsRunner
 
 _RUNNER_MOD = "core.services.runners.fleets_runner"
