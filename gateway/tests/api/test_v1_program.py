@@ -12,7 +12,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
-from api.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from tests.utils import create_function_access_result
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import (
@@ -40,7 +40,7 @@ class TestProgramApiLegacyGroupsPermissions:
     def authorize_legacy(self, client):
         """Authorize with legacy groups (use_legacy_authorization=True) — no runtime instances client."""
         from api.domain.authentication.channel import Channel
-        from api.domain.authorization.function_access_result import FunctionAccessResult
+        from core.domain.authorization.function_access_result import FunctionAccessResult
 
         def _do(username):
             user, _ = User.objects.get_or_create(username=username)

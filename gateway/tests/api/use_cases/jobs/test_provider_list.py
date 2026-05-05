@@ -3,7 +3,7 @@
 import pytest
 from django.contrib.auth.models import Group, User
 
-from api.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.domain.exceptions.provider_not_found_exception import ProviderNotFoundException
 from api.use_cases.jobs.provider_list import JobsProviderListUseCase

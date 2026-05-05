@@ -13,7 +13,7 @@ from core.models import (
     PLATFORM_PERMISSION_PROVIDER_LOGS,
     PLATFORM_PERMISSION_PROVIDER_UPLOAD,
 )
-from api.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.authorization.function_access_result import FunctionAccessResult
 
 logger = logging.getLogger("api.ProviderAccessPolicy")
 

@@ -6,8 +6,8 @@ import requests
 from django.conf import settings
 from django.core.cache import cache
 
-from api.domain.authorization.function_access_entry import FunctionAccessEntry
-from api.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.authorization.function_access_entry import FunctionAccessEntry
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from api.domain.exceptions.runtime_api_exception import RuntimeFunctionsException
 from core.config_key import ConfigKey
 from core.models import Config

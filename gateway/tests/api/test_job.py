@@ -13,8 +13,8 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from core.services.storage.result_storage import ResultStorage
 
-from api.domain.authorization.function_access_entry import FunctionAccessEntry
-from api.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.authorization.function_access_entry import FunctionAccessEntry
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import Job, JobEvent, PLATFORM_PERMISSION_PROVIDER_JOBS, Program, Provider, RuntimeJob
 

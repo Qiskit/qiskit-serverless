@@ -10,8 +10,8 @@ from django.contrib.auth.models import (
 from django.contrib.contenttypes.models import ContentType
 from rest_framework.test import APIClient
 
-from api.domain.authorization.function_access_entry import FunctionAccessEntry
-from api.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.authorization.function_access_entry import FunctionAccessEntry
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import Job, JobConfig, Program, Provider
 
 # literal for job status
@@ -295,7 +295,7 @@ class TestUtils:
         from unittest.mock import MagicMock
 
         from api.domain.authentication.channel import Channel
-        from api.domain.authorization.function_access_result import FunctionAccessResult
+        from core.domain.authorization.function_access_result import FunctionAccessResult
 
         user, _ = TestUtils.get_user_and_username(author=username, is_active=is_active, is_staff=is_staff)
         token = MagicMock()
