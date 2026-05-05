@@ -1,16 +1,16 @@
 """Tests jobs APIs."""
 
 import json
-import os
 import re
 import shutil
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from django.contrib.auth.models import User, Group
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
+from core.services.storage.enums.working_dir import WorkingDir
 from core.services.storage.result_storage import ResultStorage
 
 from api.domain.authorization.function_access_entry import FunctionAccessEntry
@@ -23,21 +23,11 @@ from core.models import Job, JobEvent, PLATFORM_PERMISSION_PROVIDER_JOBS, Progra
 class TestJobApi:
     """TestJobApi."""
 
-    _fake_media_path = os.path.normpath(
-        os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-    )
-
     @pytest.fixture(autouse=True)
-    def _setup(self, tmp_path, settings, db):
+    def _setup(self, db):
         from django.core.management import call_command
 
         call_command("loaddata", "tests/fixtures/fixtures.json")
-        settings.MEDIA_ROOT = str(tmp_path)
         self.client = APIClient()
 
     def _authorize(self, username, accessible_functions=FunctionAccessResult(use_legacy_authorization=True)):
@@ -307,9 +297,13 @@ class TestJobApi:
         assert jobs_response.status_code == status.HTTP_404_NOT_FOUND
         assert jobs_response.data.get("message") == "Provider default doesn't exist."
 
-    def test_job_detail(self, settings):
+    def test_job_detail(self, mock_cos):
         """Tests job detail authorized."""
-        shutil.copytree(self._fake_media_path, settings.MEDIA_ROOT, dirs_exist_ok=True)
+        mock_cos.put_object(
+            "test_user/results/8317718f-5c0d-4fb6-9947-72e480b8a348.json",
+            '{"ultimate": 42}',
+            WorkingDir.USER_STORAGE,
+        )
         self._authorize("test_user")
 
         jobs_response = self.client.get(
@@ -363,7 +357,7 @@ class TestJobApi:
         )
         assert jobs_response.status_code == status.HTTP_404_NOT_FOUND
 
-    def test_job_result_uses_author_username(self, settings):
+    def test_job_result_uses_author_username(self, mock_cos):
         """
         Tests that job results are retrieved using job.author.username,
         not the requesting user's username. This ensures results are read
@@ -373,24 +367,24 @@ class TestJobApi:
         but this test validates the correct behavior if permissions change in
         the future to allow provider admins to read results.
         """
-        shutil.copytree(self._fake_media_path, settings.MEDIA_ROOT, dirs_exist_ok=True)
-
-        # Get a job created by test_user (author=1)
         job = Job.objects.get(pk="8317718f-5c0d-4fb6-9947-72e480b8a348")
         assert job.author.username == "test_user"
 
-        # Verify results file exists in author's directory
-        result_storage = ResultStorage(job.author.username)
+        mock_cos.put_object(
+            "test_user/results/8317718f-5c0d-4fb6-9947-72e480b8a348.json",
+            '{"ultimate": 42}',
+            WorkingDir.USER_STORAGE,
+        )
+
+        result_storage = ResultStorage(job)
         result = result_storage.get(str(job.id))
         assert result is not None
 
         # If we incorrectly used a different user's username, we wouldn't find it
-        different_user = User.objects.get(username="test_user_2")
-        wrong_result_storage = ResultStorage(different_user.username)
-        wrong_result = wrong_result_storage.get(str(job.id))
+        wrong_result = mock_cos.get_object(f"test_user_2/results/{job.id}.json", WorkingDir.USER_STORAGE)
         assert wrong_result is None  # Should not find result in wrong path
 
-    def test_job_save_result(self, settings):
+    def test_job_save_result(self, mock_cos):
         """Tests job results save."""
         self._authorize("test_user")
         job_id = "57fc2e4d-267f-40c6-91a3-38153272e764"
@@ -399,8 +393,7 @@ class TestJobApi:
             format="json",
             data={"result": json.dumps({"ultimate": 42})},
         )
-        result_path = os.path.join(settings.MEDIA_ROOT, "test_user", "results", f"{job_id}.json")
-        assert os.path.exists(result_path)
+        assert mock_cos.get_object(f"test_user/results/{job_id}.json", WorkingDir.USER_STORAGE) is not None
         assert jobs_response.status_code == status.HTTP_200_OK
         assert jobs_response.data.get("result") == '{"ultimate": 42}'
 
@@ -417,7 +410,7 @@ class TestJobApi:
         assert jobs_response.status_code == status.HTTP_404_NOT_FOUND
         assert jobs_response.data.get("message") == f"Job [{job_id}] not found"
 
-    def test_job_save_result_uses_author_username(self):
+    def test_job_save_result_uses_author_username(self, mock_cos):
         """
         Tests that job results are saved using job.author.username,
         not the requesting user's username. This ensures results are written
@@ -427,11 +420,9 @@ class TestJobApi:
         but this test validates the correct behavior if permissions change in
         the future to allow other users (e.g., system processes) to save results.
         """
-        # Get a job created by test_user (author=1)
         job = Job.objects.get(pk="57fc2e4d-267f-40c6-91a3-38153272e764")
         assert job.author.username == "test_user"
 
-        # Save result as the author
         self._authorize("test_user")
         test_result = json.dumps({"test_save": "value"})
         jobs_response = self.client.post(
@@ -441,95 +432,69 @@ class TestJobApi:
         )
         assert jobs_response.status_code == status.HTTP_200_OK
 
-        # Verify result is saved in author's directory
-        result_storage = ResultStorage(job.author.username)
+        result_storage = ResultStorage(job)
         saved_result = result_storage.get(str(job.id))
         assert saved_result == test_result
 
         # If we incorrectly saved using a different user's username, we wouldn't find it there
-        different_user = User.objects.get(username="test_user_2")
-        wrong_result_storage = ResultStorage(different_user.username)
-        wrong_result = wrong_result_storage.get(str(job.id))
+        wrong_result = mock_cos.get_object(f"test_user_2/results/{job.id}.json", WorkingDir.USER_STORAGE)
         assert wrong_result is None  # Should not find result in wrong path
 
-    def test_job_arguments_storage_path_user(self, settings):
+    def test_job_arguments_storage_path_user(self, mock_cos):
         """
         Tests that job arguments for user functions (no provider) are saved to:
-        /data/{username}/arguments/
+        username/arguments/
 
         This validates the DATA_PATH environment variable computation in build_env_variables()
         for user functions.
         """
         from core.services.storage.arguments_storage import ArgumentsStorage
 
-        # Create user function (no provider)
         user_job = self._create_job(author="test_user")
         assert user_job.program.provider is None
 
-        # Save arguments for user function
-        user_args_storage = ArgumentsStorage(
-            username=user_job.author.username, function_title=user_job.program.title, provider_name=None
-        )
+        user_args_storage = ArgumentsStorage(user_job)
         test_args = '{"param": "value"}'
         user_args_storage.save(str(user_job.id), test_args)
 
-        # Verify arguments saved in user's directory
-        expected_user_path = os.path.join(settings.MEDIA_ROOT, "test_user", "arguments", f"{user_job.id}.json")
-        assert os.path.exists(expected_user_path)
-
-        # Verify we can retrieve the arguments
         retrieved_args = user_args_storage.get(str(user_job.id))
         assert retrieved_args == test_args
 
         # Verify arguments are NOT in provider path
-        wrong_provider_storage = ArgumentsStorage(
-            username=user_job.author.username, function_title=user_job.program.title, provider_name="fake_provider"
-        )
+        wrong_job = Mock()
+        wrong_job.author.username = user_job.author.username
+        wrong_job.program.title = user_job.program.title
+        wrong_job.program.provider.name = "fake_provider"
+        wrong_provider_storage = ArgumentsStorage(wrong_job)
         assert wrong_provider_storage.get(str(user_job.id)) is None
 
-    def test_job_arguments_storage_path_provider(self, settings):
+    def test_job_arguments_storage_path_provider(self, mock_cos):
         """
         Tests that job arguments for provider functions are saved to:
-        /data/{username}/{provider}/{function}/arguments/
+        username/provider/function/arguments/
 
         This validates the DATA_PATH environment variable computation in build_env_variables()
         for provider functions.
         """
         from core.services.storage.arguments_storage import ArgumentsStorage
 
-        # Create provider function
         provider_job = self._create_job(author="test_user", provider_admin="test_provider")
         assert provider_job.program.provider is not None
         assert provider_job.program.provider.name == "test_provider"
 
-        # Save arguments for provider function
-        provider_args_storage = ArgumentsStorage(
-            username=provider_job.author.username,
-            function_title=provider_job.program.title,
-            provider_name=provider_job.program.provider.name,
-        )
+        provider_args_storage = ArgumentsStorage(provider_job)
         provider_test_args = '{"provider_param": "provider_value"}'
         provider_args_storage.save(str(provider_job.id), provider_test_args)
 
-        # Verify arguments saved in provider's directory structure
-        expected_provider_path = os.path.join(
-            settings.MEDIA_ROOT,
-            "test_user",
-            "test_provider",
-            provider_job.program.title,
-            "arguments",
-            f"{provider_job.id}.json",
-        )
-        assert os.path.exists(expected_provider_path)
-
-        # Verify we can retrieve the arguments
         retrieved_provider_args = provider_args_storage.get(str(provider_job.id))
         assert retrieved_provider_args == provider_test_args
 
         # Verify provider function arguments are NOT in user-only path
-        wrong_user_storage = ArgumentsStorage(
-            username=provider_job.author.username, function_title=provider_job.program.title, provider_name=None
-        )
+        wrong_job = Mock()
+        wrong_job.author.username = provider_job.author.username
+        wrong_job.program.title = provider_job.program.title
+        wrong_job.program.provider = None
+        wrong_user_storage = ArgumentsStorage(wrong_job)
         assert wrong_user_storage.get(str(provider_job.id)) is None
 
     def test_job_update_sub_status(self):

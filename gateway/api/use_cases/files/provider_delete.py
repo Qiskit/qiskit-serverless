@@ -13,6 +13,7 @@ from api.domain.exceptions.file_not_found_exception import FileNotFoundException
 from api.repositories.providers import ProviderRepository
 from core.models import RUN_PROGRAM_PERMISSION
 from core.models import Program as Function
+from core.services.storage import get_cos_for_program
 from core.services.storage.file_storage import FileStorage, WorkingDir
 
 logger = logging.getLogger("api.FilesProviderDeleteUseCase")
@@ -57,6 +58,7 @@ class FilesProviderDeleteUseCase:
             username=user.username,
             working_dir=self.working_dir,
             function=function,
+            cos=get_cos_for_program(function),
         )
         result = file_storage.remove_file(file_name=file_name)
 

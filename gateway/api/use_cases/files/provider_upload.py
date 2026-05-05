@@ -13,6 +13,7 @@ from api.domain.exceptions.function_not_found_exception import FunctionNotFoundE
 from api.repositories.providers import ProviderRepository
 from core.models import RUN_PROGRAM_PERMISSION
 from core.models import Program as Function
+from core.services.storage import get_cos_for_program
 from core.services.storage.file_storage import FileStorage, WorkingDir
 
 logger = logging.getLogger("api.FilesProviderUploadUseCase")
@@ -57,6 +58,7 @@ class FilesProviderUploadUseCase:
             username=user.username,
             working_dir=self.working_dir,
             function=function,
+            cos=get_cos_for_program(function),
         )
         result = file_storage.upload_file(file=uploaded_file)
 

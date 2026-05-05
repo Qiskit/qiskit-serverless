@@ -42,7 +42,7 @@ class JobSaveResultUseCase:
         if not can_save_result:
             raise JobNotFoundException(job_id)
 
-        result_storage = ResultStorage(job.author.username)
+        result_storage = ResultStorage(job)
         result_storage.save(job.id, result)
         job.result = result
 
