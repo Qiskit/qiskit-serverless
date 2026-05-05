@@ -109,6 +109,7 @@ class ScheduleQueuedJobs(SchedulerTask):
                 backup_logs = job.logs
                 backup_resource = job.compute_resource
                 backup_ray_job_id = job.ray_job_id
+                backup_fleet_id = job.fleet_id
 
                 succeed = False
                 attempts = settings.RAY_SETUP_MAX_RETRIES
@@ -144,6 +145,7 @@ class ScheduleQueuedJobs(SchedulerTask):
                         job.logs = backup_logs
                         job.compute_resource = backup_resource
                         job.ray_job_id = backup_ray_job_id
+                        job.fleet_id = backup_fleet_id
 
                 retries = settings.RAY_SETUP_MAX_RETRIES - attempts
                 if succeed:

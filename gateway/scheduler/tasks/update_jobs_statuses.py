@@ -103,12 +103,22 @@ class UpdateJobsStatuses(SchedulerTask):
             if job.in_terminal_state():
                 job.sub_status = None
                 job.env_vars = "{}"
+                # Fleets logs are already in COS; only Ray logs need fetching and persisting.
                 if not is_fleets_job:
                     try:
                         logs = runner.logs() or ""
                     except RunnerError:
                         logs = ""
                     save_logs_to_storage(job, logs)
+                else:
+                    # For Fleets jobs, retrieve results from COS and save to database
+                    try:
+                        result_str = runner.get_result_from_cos()
+                        if result_str:
+                            job.result = result_str
+                            logger.info("Retrieved and saved results for Fleets job [%s]", job.id)
+                    except Exception as ex:  # pylint: disable=broad-exception-caught
+                        logger.warning("Failed to retrieve results for Fleets job [%s]: %s", job.id, str(ex))
                 job.logs = ""
                 if job.status == Job.SUCCEEDED:
                     self._record_execution_duration(job)
@@ -214,14 +224,17 @@ class UpdateJobsStatuses(SchedulerTask):
 
 
 def save_logs_to_storage(job: Job, logs: str):
-    """
-    Save the logs in the corresponding storages.
+    """Save Ray job logs to the local filesystem (COS-mounted volume).
 
-    This function is called exactly once when a job transitions to a terminal state.
+    Called once when a Ray job transitions to a terminal state. Filters the
+    combined log stream into public (user) and private (provider) logs.
+
+    This function is only used for Ray jobs. Fleets logs are written directly
+    to COS by the PDS shell wrapper during execution.
 
     Args:
-        job: Job that has reached a terminal state
-        job_handler: JobHandler to retrieve logs from Ray
+        job: Job that has reached a terminal state.
+        logs: Combined log stream from Ray.
     """
 
     logs = check_logs(logs, job)
