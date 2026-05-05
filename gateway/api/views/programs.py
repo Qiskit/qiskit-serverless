@@ -7,7 +7,7 @@ Version views inherit from the different views.
 import logging
 import os
 import re
-from typing import Optional, Tuple, cast
+from typing import Optional, cast
 
 # pylint: disable=duplicate-code
 from django.conf import settings
@@ -142,16 +142,16 @@ class ProgramViewSet(viewsets.GenericViewSet):
             # author has run permissions and the function has a provider assigned
             functions = Function.objects.provider_functions().with_permission(
                 author,
-                legacy_permission_name=RUN_PROGRAM_PERMISSION,
                 accessible_functions=accessible_functions,
+                legacy_permission_name=RUN_PROGRAM_PERMISSION,
                 permission=PLATFORM_PERMISSION_RUN,
             )
         else:
             # If filter is not applied we return author + providers functions together
             functions = Function.objects.with_permission(
                 author,
-                legacy_permission_name=VIEW_PROGRAM_PERMISSION,
                 accessible_functions=accessible_functions,
+                legacy_permission_name=VIEW_PROGRAM_PERMISSION,
                 permission=PLATFORM_PERMISSION_READ,
             )
 
@@ -229,36 +229,6 @@ class ProgramViewSet(viewsets.GenericViewSet):
         )
         return Response(serializer.data)
 
-    @staticmethod
-    def _resolve_run_function(
-        author, function_title: str, provider_name: Optional[str], accessible_functions: FunctionAccessResult
-    ) -> Tuple[Optional[Function], Optional[str]]:
-        """Resolve function and business_model for run()"""
-
-        # Custom functions
-        if not provider_name:
-            return Function.objects.get_user_function(author, function_title), None
-
-        # Partner functions: Legacy Django groups
-        if accessible_functions.use_legacy_authorization:
-            function = Function.objects.get_function_by_permission(
-                user=author,
-                function_title=function_title,
-                provider_name=provider_name,
-                legacy_permission_name=RUN_PROGRAM_PERMISSION,
-            )
-            return function, None
-
-        # Partner functions: Runtime API /functions
-        function = Function.objects.get_function(function_title, provider_name)
-        if function and accessible_functions.has_permission_for_function(
-            provider_name, function_title, PLATFORM_PERMISSION_RUN
-        ):
-            business_model = accessible_functions.get_function(provider_name, function_title).business_model
-            return function, business_model
-
-        return None, None
-
     @_trace
     @action(methods=["POST"], detail=False)
     @endpoint_handle_exceptions
@@ -279,16 +249,26 @@ class ProgramViewSet(viewsets.GenericViewSet):
         function_title = sanitize_name(serializer.data.get("title"))
         accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
         logger.info(
-            "[programs-run] user_id=%s function=%s provider=%s accessible_functions=%s",
+            "[programs-run] user_id=%s program=%s provider=%s accessible_functions=%s",
             author.id,
             function_title,
             provider_name,
             accessible_functions,
         )
 
-        function, business_model = self._resolve_run_function(
-            author, function_title, provider_name, accessible_functions
+        function = Function.objects.get_function_by_permission(
+            user=author,
+            function_title=function_title,
+            provider_name=provider_name,
+            accessible_functions=accessible_functions,
+            permission=PLATFORM_PERMISSION_RUN,
+            legacy_permission_name=RUN_PROGRAM_PERMISSION,
         )
+        business_model = None
+        if function and provider_name and not accessible_functions.use_legacy_authorization:
+            entry = accessible_functions.get_function(provider_name, function_title)
+            if entry:
+                business_model = entry.business_model
 
         if function is None:
             logger.error("[programs-run] user_id=%s function not found: %s", author.id, function_title)
