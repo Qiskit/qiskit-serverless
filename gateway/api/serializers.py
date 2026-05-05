@@ -328,13 +328,13 @@ class RunJobSerializer(serializers.ModelSerializer):
         compute_profile_requested = validated_data.get("compute_profile", None)
 
         business_model = validated_data.pop("business_model", None)
-        if business_model is not None:
-            # set trial from the Runtime API business model
-            trial = business_model == BusinessModel.TRIAL
-        else:
-            # set the business_model from the trial flag that comes from the legacy Django Groups
+        if business_model is None:
+            # Django legacy: set the business_model from the trial flag that comes from the legacy Django Groups
             trial = self.is_trial(program, author)
             business_model = BusinessModel.TRIAL if trial else BusinessModel.SUBSIDIZED
+        else:
+            # Runtime API /functions: set trial from the Runtime
+            trial = business_model == BusinessModel.TRIAL
 
         # Get runner-specific configuration (compute_profile for Fleets, GPU for Ray)
         compute_profile, gpu = self._get_runner_config(program, compute_profile_requested)

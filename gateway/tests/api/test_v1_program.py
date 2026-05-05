@@ -1242,21 +1242,33 @@ class TestProgramApiRuntimeInstances:
             assert job.business_model == business_model
             assert job.trial is expected_trial
 
-    class TestListCatalog:
+    class TestList:
         @pytest.mark.parametrize(
-            "permissions,expected_count",
+            "filter_param,permissions,expected_count",
             [
-                ({PLATFORM_PERMISSION_RUN}, 1),
-                (set(), 0),
+                ("catalog", {PLATFORM_PERMISSION_RUN}, 1),  # only accessible provider func
+                ("catalog", set(), 0),  # no access to provider funcs
+                ("serverless", {PLATFORM_PERMISSION_RUN}, 1),  # own function, permissions irrelevant
+                ("serverless", set(), 1),
+                (None, {PLATFORM_PERMISSION_READ}, 2),  # own + accessible provider
+                (None, set(), 1),  # only own function
             ],
         )
-        def test_list_catalog(self, client, authorize, permissions, expected_count):
-            """list(catalog) returns only functions in accessible_functions."""
+        def test_list(self, client, authorize, filter_param, permissions, expected_count):
+            """list() returns different results depending on filter and accessible_functions.
+
+            Each filter uses a different permission to match against accessible_functions:
+              - catalog   → PLATFORM_PERMISSION_RUN  (functions the user can execute)
+              - serverless → no permission check     (only own functions, ignores accessible_functions)
+              - no filter  → PLATFORM_PERMISSION_READ (functions the user can see)
+            """
+            TestUtils.create_program(program_title="my-user-func", author="runtime-user")
             TestUtils.create_program(program_title="funcA", author="other-author", provider="provA")
             TestUtils.create_program(program_title="funcB", author="other-author", provider="provB")
             authorize("runtime-user", create_function_access_result("provA", "funcA", permissions))
 
-            response = client.get(reverse("v1:programs-list"), {"filter": "catalog"}, format="json")
+            params = {"filter": filter_param} if filter_param else {}
+            response = client.get(reverse("v1:programs-list"), params, format="json")
 
             assert response.status_code == status.HTTP_200_OK
             assert len(response.data) == expected_count
