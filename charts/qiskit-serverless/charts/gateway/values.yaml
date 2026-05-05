@@ -56,8 +56,9 @@ application:
     programTimeoutDays: 14
   qiskitRuntime:
     url: "https://cloud.ibm.com"
-  iqpQcon:
-    url: "https://api-qcon.quantum.ibm.com/api"
+  runtimeApi:
+    url: "https://quantum.cloud.ibm.com"
+    cacheTtl: "60"
   allowedHosts: "*"
   trustedOrigins: "http://localhost"
   corsOrigins: "http://localhost"
@@ -73,12 +74,9 @@ cos:
 
 secrets:
   secretKey:
-    create: true
     name: gateway-secret-key
     key: django-secret-key
-    value: "django-insecure-&)i3b5aue*#-i6k9i-03qm(d!0h&662lbhj12on_*gimn3x8p7"
   servicePsql:
-    create: true
     name: service-psql-binding
     key:
       databaseName: database-name
@@ -86,23 +84,12 @@ secrets:
       host: database-host
       port: database-port
       userName: user-name
-    value:
-      databaseName: gateway_db
-      databasePassword: CHANGE_ME
-      host: postgresql
-      port: "5432"
-      userName: serverlessuser
   superuser:
-    create: true
     name: gateway-superuser
     key:
       name: name
       password: password
       email: email
-    value:
-      name: admin
-      password: passw0rd
-      email: admin@examplemail.io
 
 image:
   repository: icr.io/quantum-public/qiskit-serverless/gateway

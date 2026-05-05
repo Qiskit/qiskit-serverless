@@ -226,7 +226,10 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             )
         )
 
-        return [Job(job.get("id"), job_service=self, raw_data=job) for job in response_data.get("results", [])]
+        return [
+            Job(job.get("id"), job_service=self, raw_data=job, compute_profile=job.get("compute_profile"))
+            for job in response_data.get("results", [])
+        ]
 
     @_trace_job("provider_list")
     def provider_jobs(self, function: Optional[QiskitFunction], **kwargs) -> List[Job]:
@@ -273,7 +276,10 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             )
         )
 
-        return [Job(job.get("id"), job_service=self, raw_data=job) for job in response_data.get("results", [])]
+        return [
+            Job(job.get("id"), job_service=self, raw_data=job, compute_profile=job.get("compute_profile"))
+            for job in response_data.get("results", [])
+        ]
 
     @_trace_job("get")
     def job(self, job_id: str) -> Optional[Job]:
@@ -292,6 +298,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             job = Job(
                 job_id=job_id,
                 job_service=self,
+                compute_profile=response_data.get("compute_profile"),
             )
 
         return job
@@ -302,6 +309,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
         provider: Optional[str] = None,
+        *,
+        compute_profile: Optional[str] = None,
     ) -> Job:
         if isinstance(program, QiskitFunction):
             title = program.title
@@ -320,6 +329,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             data = {
                 "title": title,
                 "provider": provider,
+                "compute_profile": compute_profile,
                 "arguments": json.dumps(arguments or {}, cls=QiskitObjectsEncoder),
             }  # type: Dict[str, Any]
             if config:
@@ -338,7 +348,20 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             job_id = response_data.get("id")
             span.set_attribute("job.id", job_id)
 
-        return Job(job_id, job_service=self)
+        return Job(job_id, job_service=self, compute_profile=response_data.get("compute_profile"))
+
+    def get_job_data(self, job_id: str) -> Optional[dict]:
+        return (
+            safe_json_request_as_dict(
+                request=lambda: requests.get(
+                    f"{self.host}/api/{self.version}/jobs/{job_id}/",
+                    params={"with_result": "false"},
+                    headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
+                    timeout=REQUESTS_TIMEOUT,
+                )
+            )
+            or None
+        )
 
     @_trace_job
     def status(self, job_id: str):

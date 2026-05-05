@@ -3,9 +3,11 @@ Access policies implementation for Job access
 """
 
 import logging
+from typing import Optional
 from django.contrib.auth.models import AbstractUser
 
 from core.models import Job
+from api.domain.authorization.function_access_result import FunctionAccessResult
 from api.access_policies.providers import ProviderAccessPolicy
 
 logger = logging.getLogger("api.JobAccessPolicies")
@@ -18,15 +20,23 @@ class JobAccessPolicies:
     """
 
     @staticmethod
-    def can_access(user: AbstractUser, job: Job) -> bool:
+    def can_access(
+        user: AbstractUser,
+        job: Job,
+        accessible_functions: Optional[FunctionAccessResult] = None,
+    ) -> bool:
         """
         Checks if the user has access to the Job. As an author
         you always have access. If you are not the author you
-        need to be an admin of the provider.
+        need:
+           - to be an admin of the provider (for legacy Django groups)
+           - to have the right permission for the function (Runtime instances).
 
         Args:
             user: Django user from the request
             job: Job instance against to check the access
+            accessible_functions: Result from FunctionAccessClient; if None or
+                use_legacy_authorization=True, falls back to Django groups
 
         Returns:
             bool: True or False in case the user has access
@@ -44,7 +54,9 @@ class JobAccessPolicies:
         has_access = False
         is_provider_job = job.program and job.program.provider
         if is_provider_job:
-            has_access = ProviderAccessPolicy.can_access(user, job.program.provider)
+            has_access = ProviderAccessPolicy.can_retrieve_job(
+                user, job.program.provider, job.program.title, accessible_functions
+            )
 
         if not has_access:
             logger.warning(
@@ -100,19 +112,32 @@ class JobAccessPolicies:
         return False
 
     @staticmethod
-    def can_read_provider_logs(user: AbstractUser, job: Job) -> bool:
+    def can_read_provider_logs(
+        user: AbstractUser,
+        job: Job,
+        accessible_functions: Optional[FunctionAccessResult] = None,
+    ) -> bool:
         """
-        Checks if the user has permissions to read the provider logs of a job:
+        Checks if the user has permissions to read the provider logs of a job.
+        The job must belong to a provider and the user must:
+           - to be an admin of the provider (for legacy Django groups)
+           - to have the right permission for the function (Runtime instances).
 
         Args:
             user: Django user from the request
             job: Job instance against to check the permission
+            accessible_functions: Result from FunctionAccessClient; if None or
+                use_legacy_authorization=True, falls back to Django groups
 
         Returns:
             bool: True or False in case the user has permissions
         """
 
-        if job.program.provider and ProviderAccessPolicy.can_access(user, job.program.provider):
+        if (
+            job.program
+            and job.program.provider
+            and ProviderAccessPolicy.can_read_logs(user, job.program.provider, job.program.title, accessible_functions)
+        ):
             return True
 
         logger.warning(

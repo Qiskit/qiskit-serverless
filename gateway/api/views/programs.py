@@ -6,6 +6,7 @@ Version views inherit from the different views.
 
 import logging
 import os
+import re
 
 # pylint: disable=duplicate-code
 from django.conf import settings
@@ -124,11 +125,11 @@ class ProgramViewSet(viewsets.GenericViewSet):
             # Catalog filter only returns providers functions that user has access:
             # author has view permissions and the function has a provider assigned
             functions = Function.objects.provider_functions().with_permission(
-                author, permission_name=RUN_PROGRAM_PERMISSION
+                author, legacy_permission_name=RUN_PROGRAM_PERMISSION
             )
         else:
             # If filter is not applied we return author and providers functions together
-            functions = Function.objects.with_permission(author, permission_name=VIEW_PROGRAM_PERMISSION)
+            functions = Function.objects.with_permission(author, legacy_permission_name=VIEW_PROGRAM_PERMISSION)
 
         serializer = self.get_serializer(list(functions), many=True)
         logger.info(
@@ -158,7 +159,9 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
         if provider_name:
             provider_obj = Provider.objects.filter(name=provider_name).first()
-            if provider_obj is None or not ProviderAccessPolicy.can_access(user=author, provider=provider_obj):
+            if provider_obj is None or not ProviderAccessPolicy.can_upload_function(
+                user=author, provider=provider_obj, function_title=title
+            ):
                 # For security we just return a 404 not a 401
                 return Response(
                     {"message": f"Provider [{provider_name}] was not found."},
@@ -178,20 +181,22 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 )
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        serializer.save(author=author, title=title, provider=provider_name)
+        runner = serializer.validated_data.get("runner", Function.RAY)
+        serializer.save(author=author, title=title, provider=provider_name, runner=runner)
 
         logger.info(
-            "[programs-upload] user_id=%s program=%s provider=%s | Function uploaded ok",
+            "[programs-upload] user_id=%s program=%s provider=%s runner=%s | Function uploaded ok",
             author.id,
             title,
             provider_name,
+            runner,
         )
         return Response(serializer.data)
 
     @_trace
     @action(methods=["POST"], detail=False)
     @endpoint_handle_exceptions
-    def run(self, request):  # pylint: disable=too-many-locals
+    def run(self, request):  # pylint: disable=too-many-locals,too-many-return-statements
         """Enqueues existing program."""
         serializer = self.get_serializer_run_program(data=request.data)
         if not serializer.is_valid():
@@ -208,7 +213,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
         function_title = sanitize_name(serializer.data.get("title"))
         function = Function.objects.get_function_by_permission(
             user=author,
-            permission_name=RUN_PROGRAM_PERMISSION,
+            legacy_permission_name=RUN_PROGRAM_PERMISSION,
             function_title=function_title,
             provider_name=provider_name,
         )
@@ -267,14 +272,28 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 settings.LIMITS_ACTIVE_JOBS_PER_USER,
             )
             raise ActiveJobLimitExceeded()
-        job = job_serializer.save(
-            author=author,
-            carrier=carrier,
-            channel=channel,
-            token=token,
-            config=jobconfig,
-            instance=instance,
-        )
+        # Extract and validate compute_profile from request if provided
+        compute_profile = request.data.get("compute_profile")
+        if compute_profile:
+            # Validate compute_profile format (must be lowercase)
+            if not re.match(r"^[a-z]+\d+[a-z]?-\d+x\d+(?:x\d+[a-z0-9]+)?$", compute_profile):
+                error_msg = (
+                    f"Invalid compute profile format: '{compute_profile}'. "
+                    f"Expected format: [type]-[cpu]x[memory] or [type]-[cpu]x[memory]x[gpu_count][gpu_type] "
+                    f"(lowercase only, e.g., 'cx3d-4x16' or 'gx3d-24x120x1a100p')"
+                )
+                return Response({"compute_profile": [error_msg]}, status=status.HTTP_400_BAD_REQUEST)
+
+        save_kwargs = {
+            "author": author,
+            "carrier": carrier,
+            "channel": channel,
+            "token": token,
+            "config": jobconfig,
+            "instance": instance,
+            "compute_profile": compute_profile,
+        }
+        job = job_serializer.save(**save_kwargs)
         logger.info("[programs-run] user_id=%s job_id=%s program=%s | Job queued ok", author.id, job.id, function_title)
         return Response(job_serializer.data)
 
@@ -291,7 +310,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
         if provider_name:
             function = Function.objects.get_function_by_permission(
                 user=author,
-                permission_name=VIEW_PROGRAM_PERMISSION,
+                legacy_permission_name=VIEW_PROGRAM_PERMISSION,
                 function_title=function_title,
                 provider_name=provider_name,
             )
@@ -340,7 +359,9 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
         user_is_provider = False
         if program.provider:
-            user_is_provider = ProviderAccessPolicy.can_access(user=request.user, provider=program.provider)
+            user_is_provider = ProviderAccessPolicy.can_list_jobs(
+                user=request.user, provider=program.provider, function_title=program.title
+            )
 
         if user_is_provider:
             jobs = Job.objects.filter(program=program)

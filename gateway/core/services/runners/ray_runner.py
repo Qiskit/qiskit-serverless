@@ -1,5 +1,7 @@
 """Ray client for executing jobs on Ray clusters."""
 
+from __future__ import annotations
+
 import json
 import logging
 import os
@@ -8,7 +10,6 @@ import shutil
 import tarfile
 import time
 import uuid
-from typing import Optional
 
 import requests
 import yaml
@@ -43,7 +44,7 @@ class RayRunner(AbstractRunner):
             job: Job instance to be executed
         """
         super().__init__(job)
-        self._client: Optional[JobSubmissionClient] = None
+        self._client: JobSubmissionClient | None = None
 
     def connect(self) -> None:
         """
@@ -167,7 +168,7 @@ class RayRunner(AbstractRunner):
 
                 raise RunnerError(f"Failed to submit job [{self._job.id}]", ex) from ex
 
-    def status(self) -> Optional[str]:
+    def status(self) -> str | None:
         """
         Get job status mapped to Job.STATUS.
 
@@ -214,7 +215,7 @@ class RayRunner(AbstractRunner):
         )
         return status
 
-    def logs(self) -> Optional[str]:
+    def logs(self) -> str | None:
         """
         Get job logs.
 
@@ -239,6 +240,20 @@ class RayRunner(AbstractRunner):
                 ex,
             )
             raise RunnerError(f"Unable to get logs for job [{self._job.ray_job_id}]", ex) from ex
+
+    def provider_logs(self) -> str | None:
+        """Return provider logs for this job.
+
+        Ray has no distinction between user and provider logs, so this
+        delegates to ``logs()``.
+
+        Returns:
+            Log content or ``None``.
+
+        Raises:
+            RunnerError: If unable to retrieve logs.
+        """
+        return self.logs()
 
     def stop(self) -> bool:
         """

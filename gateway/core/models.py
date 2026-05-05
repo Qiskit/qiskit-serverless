@@ -21,6 +21,17 @@ logger = logging.getLogger("core.models")
 VIEW_PROGRAM_PERMISSION = "view_program"
 RUN_PROGRAM_PERMISSION = "run_program"
 
+# Platform permissions (Runtime API instances access client)
+PLATFORM_PERMISSION_READ = "function.read"  # see function in catalog and retrieve its metadata
+PLATFORM_PERMISSION_RUN = "function.run"  # execute a new job of this function
+PLATFORM_PERMISSION_JOB_READ = "function.job.read"  # retrieve a specific job from this function (non-author access)
+PLATFORM_PERMISSION_USER_FILES = "function.files"  # list, download, upload and delete files in user space
+# Provider admin permissions
+PLATFORM_PERMISSION_PROVIDER_UPLOAD = "function.provider.upload"  # create or update this function's code
+PLATFORM_PERMISSION_PROVIDER_JOBS = "function.provider.jobs"  # list jobs from all users of this function
+PLATFORM_PERMISSION_PROVIDER_LOGS = "function.provider.logs"  # read provider-side logs of jobs from this function
+PLATFORM_PERMISSION_PROVIDER_FILES = "function.provider.files"  # list, download, upload, delete files in provider space
+
 
 def get_upload_path(instance, filename):
     """Returns save path for artifacts."""
@@ -156,6 +167,18 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     class Meta:
         app_label = "api"
         permissions = ((RUN_PROGRAM_PERMISSION, "Can run function"),)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["provider", "title"],
+                condition=models.Q(provider__isnull=False),
+                name="unique_provider_title",
+            ),
+            models.UniqueConstraint(
+                fields=["author", "title"],
+                condition=models.Q(provider__isnull=True),
+                name="unique_author_title_no_provider",
+            ),
+        ]
 
     def __str__(self):
         if self.provider:
@@ -245,7 +268,7 @@ class CodeEngineProject(models.Model):
     updated = models.DateTimeField(auto_now=True)
 
     # Code Engine identifiers (we could save one or both)
-    project_id = models.CharField(max_length=255, unique=True, help_text="IBM Code Engine project UUID")
+    project_id = models.CharField(max_length=255, help_text="IBM Code Engine project UUID")
     project_name = models.CharField(max_length=255, help_text="Code Engine project name in IBM Cloud")
 
     # Location and ownership
@@ -254,6 +277,13 @@ class CodeEngineProject(models.Model):
 
     # Networking
     subnet_pool_id = models.CharField(max_length=255, help_text="Subnet pool ID for fleet networking")
+    zone = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        unique=True,
+        help_text="Availability zone this project is pinned to (e.g. us-east-1)",
+    )
 
     # Storage and state management
     pds_name_state = models.CharField(max_length=255, help_text="Persistent Data Store name for task state")

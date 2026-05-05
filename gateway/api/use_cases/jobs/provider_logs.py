@@ -53,17 +53,22 @@ class GetProviderJobLogsUseCase:
         runner = get_runner(job)
         if runner.is_active():
             try:
-                logs = runner.logs()
+                logs = runner.provider_logs()
             except RunnerError:
-                return "Logs not available for this job during execution."
+                logger.warning(
+                    "[get-provider-logs] job_id=%s user_id=%s runner=%s | Failed to get provider logs",
+                    job.id,
+                    user.id,
+                    job.program.runner,
+                )
+                return f"Logs not available for job [{job_id}] during execution."
 
             logger.info(
-                "[get-provider-logs] job_id=%s user_id=%s runner=%s | Getting provider logs from runner",
+                "[get-provider-logs] job_id=%s user_id=%s runner=%s | Got provider logs from runner",
                 job.id,
                 user.id,
                 job.program.runner,
             )
-
             logs = check_logs(logs, job)
             return filter_logs_with_non_public_tags(logs)
 

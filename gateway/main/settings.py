@@ -284,6 +284,32 @@ LIMITS_MAX_FLEETS = int(os.environ.get("LIMITS_MAX_FLEETS", "1000"))  # Fleets P
 LIMITS_CPU_PER_TASK = int(os.environ.get("LIMITS_CPU_PER_TASK", "4"))
 LIMITS_GPU_PER_TASK = int(os.environ.get("LIMITS_GPU_PER_TASK", "1"))
 LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
+# Compute profile settings for Fleets runner
+DEFAULT_COMPUTE_PROFILE = os.environ.get("DEFAULT_COMPUTE_PROFILE", "cx3d-4x16")  # 4 CPU, 16GB RAM
+# Note: Update the default image with the default custom function ICR image
+FLEETS_DEFAULT_IMAGE = os.environ.get(
+    "FLEETS_DEFAULT_IMAGE",
+    "private.icr.io/qc-qiskit-functions-ce-staging/helloworld:latest",
+)
+# Fleets / Code Engine credentials
+IBM_CLOUD_API_KEY = os.environ.get("IBM_CLOUD_API_KEY")
+CE_ICR_PULL_SECRET = os.environ.get("CE_ICR_PULL_SECRET")
+CE_HMAC_SECRET_NAME = os.environ.get("CE_HMAC_SECRET_NAME")
+# Fleets COS settings
+CE_COS_INSTANCE_NAME = os.environ.get("CE_COS_INSTANCE_NAME")
+CE_COS_KEY_NAME = os.environ.get("CE_COS_KEY_NAME")
+CE_COS_BUCKET_USER_DATA_NAME = os.environ.get("CE_COS_BUCKET_USER_DATA_NAME")
+CE_COS_BUCKET_PROVIDER_DATA_NAME = os.environ.get("CE_COS_BUCKET_PROVIDER_DATA_NAME")
+# Code Engine project (set CE_PROJECT_ID to enable auto-provisioning)
+CE_PROJECT_ID = os.environ.get("CE_PROJECT_ID")
+CE_PROJECT_NAME = os.environ.get("CE_PROJECT_NAME")
+CE_REGION = os.environ.get("CE_REGION")
+CE_RESOURCE_GROUP_ID = os.environ.get("CE_RESOURCE_GROUP_ID")
+CE_SUBNET_POOL_ID = os.environ.get("CE_SUBNET_POOL_ID")
+CE_PDS_NAME_STATE = os.environ.get("CE_PDS_NAME_STATE")
+CE_PDS_NAME_USERS = os.environ.get("CE_PDS_NAME_USERS")
+CE_PDS_NAME_PROVIDERS = os.environ.get("CE_PDS_NAME_PROVIDERS")
+
 
 # ray cluster management
 RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
@@ -321,9 +347,8 @@ GATEWAY_GPU_JOBS_CONFIG = str(os.environ.get("GATEWAY_GPU_JOBS_CONFIG", "api/v1/
 
 # authentication base url for qiskit runtime
 QISKIT_IBM_URL = os.environ.get("QISKIT_IBM_URL", "https://cloud.ibm.com")
-
-# quantum api
-IQP_QCON_API_BASE_URL = os.environ.get("IQP_QCON_API_BASE_URL", None)
+RUNTIME_API_BASE_URL = os.environ.get("RUNTIME_API_BASE_URL")
+RUNTIME_API_CACHE_TTL = int(os.environ.get("RUNTIME_API_CACHE_TTL", "60"))
 
 # IBM Cloud
 
@@ -399,6 +424,11 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "application/octet-stream, application/zip, text/plain, text/csv",
         "type": "list",
         "description": "Specify the permitted mime types to upload files.",
+    },
+    "gateway.runtime_instances_api.enabled": {
+        "default": "false",
+        "type": "boolean",
+        "description": "Enable external Runtime instances API for function-level access control.",
     },
 }
 

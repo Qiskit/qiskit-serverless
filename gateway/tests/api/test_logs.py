@@ -76,6 +76,7 @@ class TestJobLogsPermissions:
         # Mock the runner clients to prevent hanging on Ray connection
         mock_handler = Mock()
         mock_handler.logs.return_value = "Test logs"
+        mock_handler.provider_logs.return_value = "Test logs"
         mock_get_logs_handler.return_value = mock_handler
         mock_provider_logs_handler.return_value = mock_handler
 
@@ -304,7 +305,7 @@ WARNING: Private warning
 """
 
         runner_mock = Mock()
-        runner_mock.logs.return_value = full_logs
+        runner_mock.provider_logs.return_value = full_logs
         get_runner_client_mock.return_value = runner_mock
 
         job = create_job(author="author", provider_admin="provider_admin")
@@ -360,7 +361,7 @@ WARNING: Private warning
         """Tests /provider-logs with provider job, Ray error."""
         logs_storage_get_mock.return_value = None
         runner_mock = Mock()
-        runner_mock.logs.side_effect = RunnerError("Cannot connect to Ray")
+        runner_mock.provider_logs.side_effect = RunnerError("Cannot connect to Ray")
         get_runner_client_mock.return_value = runner_mock
 
         job = create_job(author="author", provider_admin="provider_admin")
@@ -372,4 +373,4 @@ WARNING: Private warning
         )
 
         assert jobs_response.status_code == HTTP_200_OK
-        assert jobs_response.data.get("logs") == "Logs not available for this job during execution."
+        assert jobs_response.data.get("logs") == f"Logs not available for job [{job.id}] during execution."
