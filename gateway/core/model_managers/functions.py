@@ -37,7 +37,7 @@ class FunctionsQuerySet(QuerySet):
                 Only used in the Django groups fallback path.
             accessible_functions: Result from FunctionAccessClient. When present and
                 use_legacy_authorization=False, filters by its entries for the given permission.
-            permission: Platform permission constant (e.g. PLATFORM_PERMISSION_RUN).
+            permission: Runtime API permission constant (e.g. PLATFORM_PERMISSION_RUN).
                 Required when accessible_functions is provided and use_legacy_authorization=False.
         """
         if accessible_functions and not accessible_functions.use_legacy_authorization:
@@ -143,7 +143,7 @@ class FunctionsQuerySet(QuerySet):
             provider_name: provider name, or None for user functions
             accessible_functions: Result from FunctionAccessClient. When present and
                 use_legacy_authorization=False, used for the permission check.
-            permission: Platform permission constant (e.g. PLATFORM_PERMISSION_VIEW).
+            permission: Runtime API permission constant (e.g. PLATFORM_PERMISSION_VIEW).
                 Required when accessible_functions is provided and use_legacy_authorization=False.
             legacy_permission_name: Django permission codename (e.g. VIEW_PROGRAM_PERMISSION).
                 Only used in the Django groups fallback path.

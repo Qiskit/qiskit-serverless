@@ -329,8 +329,10 @@ class RunJobSerializer(serializers.ModelSerializer):
 
         business_model = validated_data.pop("business_model", None)
         if business_model is not None:
+            # set trial from the Runtime API business model
             trial = business_model == BusinessModel.TRIAL
         else:
+            # set the business_model from the trial flag that comes from the legacy Django Groups
             trial = self.is_trial(program, author)
             business_model = BusinessModel.TRIAL if trial else BusinessModel.SUBSIDIZED
 

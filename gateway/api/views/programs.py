@@ -143,6 +143,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
             functions = Function.objects.provider_functions().with_permission(
                 author,
                 accessible_functions=accessible_functions,
+                # it uses permission for Runtime API /functions or legacy_permission_name for Django Groups
                 legacy_permission_name=RUN_PROGRAM_PERMISSION,
                 permission=PLATFORM_PERMISSION_RUN,
             )
@@ -151,6 +152,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
             functions = Function.objects.with_permission(
                 author,
                 accessible_functions=accessible_functions,
+                # it uses permission for Runtime API /functions or legacy_permission_name for Django Groups
                 legacy_permission_name=VIEW_PROGRAM_PERMISSION,
                 permission=PLATFORM_PERMISSION_READ,
             )
@@ -260,16 +262,11 @@ class ProgramViewSet(viewsets.GenericViewSet):
             user=author,
             function_title=function_title,
             provider_name=provider_name,
+            # it uses permission for Runtime API /functions or legacy_permission_name for Django Groups
             accessible_functions=accessible_functions,
             permission=PLATFORM_PERMISSION_RUN,
             legacy_permission_name=RUN_PROGRAM_PERMISSION,
         )
-        business_model = None
-        if function and provider_name and not accessible_functions.use_legacy_authorization:
-            entry = accessible_functions.get_function(provider_name, function_title)
-            if entry:
-                business_model = entry.business_model
-
         if function is None:
             logger.error("[programs-run] user_id=%s function not found: %s", author.id, function_title)
             return Response(
@@ -337,6 +334,11 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 )
                 return Response({"compute_profile": [error_msg]}, status=status.HTTP_400_BAD_REQUEST)
 
+        # try to get business_model for partner functions from Runtime API /functions
+        business_model = None
+        if provider_name and not accessible_functions.use_legacy_authorization:
+            business_model = accessible_functions.get_function(provider_name, function_title).business_model
+
         save_kwargs = {
             "author": author,
             "carrier": carrier,
@@ -375,6 +377,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 user=author,
                 function_title=function_title,
                 provider_name=provider_name,
+                # it uses permission for Runtime API /functions or legacy_permission_name for Django Groups
                 accessible_functions=accessible_functions,
                 permission=PLATFORM_PERMISSION_READ,
                 legacy_permission_name=VIEW_PROGRAM_PERMISSION,
