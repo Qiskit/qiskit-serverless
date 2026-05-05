@@ -48,7 +48,7 @@ class TestCanRetrieveJob:
         user = User.objects.create_user(username="client")
         provider = Provider.objects.create(name="provider")
         functions = [_entry("provider", permissions)] if permissions else []
-        accessible = FunctionAccessResult(has_response=True, functions=functions)
+        accessible = FunctionAccessResult(use_legacy_authorization=False, functions=functions)
         assert ProviderAccessPolicy.can_retrieve_job(user, provider, "fnc", accessible) is expected
 
     class TestLegacyGroups:
@@ -82,7 +82,7 @@ class TestCanRetrieveJob:
             g = Group.objects.create(name="fallback_group")
             user.groups.add(g)
             provider.admin_groups.add(g)
-            accessible = FunctionAccessResult(has_response=False)
+            accessible = FunctionAccessResult(use_legacy_authorization=True)
             assert ProviderAccessPolicy.can_retrieve_job(user, provider, "fnc", accessible) is True
 
 
@@ -99,7 +99,7 @@ class TestCanReadLogs:
         user = User.objects.create_user(username="client")
         provider = Provider.objects.create(name="provider")
         functions = [_entry("provider", permissions)] if permissions else []
-        accessible = FunctionAccessResult(has_response=True, functions=functions)
+        accessible = FunctionAccessResult(use_legacy_authorization=False, functions=functions)
         assert ProviderAccessPolicy.can_read_logs(user, provider, "fnc", accessible) is expected
 
 
@@ -116,7 +116,7 @@ class TestCanListJobs:
         user = User.objects.create_user(username="client")
         provider = Provider.objects.create(name="provider")
         functions = [_entry("provider", permissions)] if permissions else []
-        accessible = FunctionAccessResult(has_response=True, functions=functions)
+        accessible = FunctionAccessResult(use_legacy_authorization=False, functions=functions)
         assert ProviderAccessPolicy.can_list_jobs(user, provider, "fnc", accessible) is expected
 
 
@@ -133,7 +133,7 @@ class TestCanManageFiles:
         user = User.objects.create_user(username="client")
         provider = Provider.objects.create(name="provider")
         functions = [_entry("provider", permissions)] if permissions else []
-        accessible = FunctionAccessResult(has_response=True, functions=functions)
+        accessible = FunctionAccessResult(use_legacy_authorization=False, functions=functions)
         assert ProviderAccessPolicy.can_manage_files(user, provider, "fnc", accessible) is expected
 
 
@@ -150,5 +150,5 @@ class TestCanUploadFunction:
         user = User.objects.create_user(username="client")
         provider = Provider.objects.create(name="provider")
         functions = [_entry("provider", permissions)] if permissions else []
-        accessible = FunctionAccessResult(has_response=True, functions=functions)
+        accessible = FunctionAccessResult(use_legacy_authorization=False, functions=functions)
         assert ProviderAccessPolicy.can_upload_function(user, provider, "fnc", accessible) is expected

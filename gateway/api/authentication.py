@@ -68,11 +68,7 @@ class CustomTokenBackend(authentication.BaseAuthentication):
             public_access=public_access,
         ).execute()
 
-        accessible_functions = (
-            FunctionAccessClient().get_accessible_functions(crn)
-            if crn
-            else FunctionAccessResult(has_response=False, message="No crn")
-        )
+        accessible_functions = FunctionAccessClient().get_accessible_functions(crn)
         return quantum_user, CustomAuthentication(
             channel=channel,
             token=authorization_token.encode(),
@@ -123,7 +119,7 @@ class MockTokenBackend(authentication.BaseAuthentication):
             channel=channel,
             token=authorization_token.encode(),
             instance=None,
-            accessible_functions=FunctionAccessResult(has_response=False, message="Mock"),
+            accessible_functions=FunctionAccessResult(use_legacy_authorization=True, message="Mock"),
         )
 
     def authenticate_header(self, request):

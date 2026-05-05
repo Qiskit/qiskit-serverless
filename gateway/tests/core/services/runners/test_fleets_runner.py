@@ -178,6 +178,7 @@ def test_is_active_false_on_connection_error():
         ("failed", "FAILED"),
         ("stopped", "STOPPED"),
         ("cancelled", "STOPPED"),
+        ("canceled", "STOPPED"),
         ("canceling", "STOPPED"),
         ("unknown-status", "PENDING"),
     ],

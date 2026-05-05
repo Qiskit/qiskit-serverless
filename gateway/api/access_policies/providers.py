@@ -27,15 +27,16 @@ def _check(
 ) -> bool:
     """Core provider access logic shared by all named methods.
 
-    When accessible_functions.has_response=True: checks the specific function entry (granular).
+    When accessible_functions.use_legacy_authorization=False: checks the specific function entry (granular).
     Otherwise falls back to Django admin_groups.
     """
-    # Runtime instances API has function granularity: user needs to have permission per function
-    if accessible_functions is not None and accessible_functions.has_response:
-        return accessible_functions.has_permission_for_function(provider.name, function_title, permission)
     # Legacy Django auth has provider granularity: user needs to be a provider admin
-    user_groups = set(user.groups.all())
-    return bool(user_groups.intersection(set(provider.admin_groups.all())))
+    if accessible_functions is None or accessible_functions.use_legacy_authorization:
+        user_groups = set(user.groups.all())
+        return bool(user_groups.intersection(set(provider.admin_groups.all())))
+
+    # Runtime instances API has function granularity: user needs to have permission per function
+    return accessible_functions.has_permission_for_function(provider.name, function_title, permission)
 
 
 class ProviderAccessPolicy:
