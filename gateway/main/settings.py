@@ -313,7 +313,7 @@ CE_PDS_NAME_PROVIDERS = os.environ.get("CE_PDS_NAME_PROVIDERS")
 # Maps compute profiles to their availability zone. Populated at deploy time via FLEETS_PROFILE_ZONE_MAP
 # JSON env var, e.g. '{"gx2-8x64x1l40s": "us-east-1", "gx3d-24x120x1a100p": "us-east-2"}'.
 # Profiles absent from the map (or mapped to "any") fall back to the multi-zone project.
-# TODO: review once automatic zone selection is supported in CE
+# Reminder: review once automatic zone selection is supported in CE
 FLEETS_PROFILE_ZONE_MAP: dict = json.loads(os.environ.get("FLEETS_PROFILE_ZONE_MAP", "{}"))  # type: ignore[assignment]
 
 
