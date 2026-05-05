@@ -7,7 +7,7 @@ Version views inherit from the different views.
 import logging
 import os
 import re
-from typing import Optional, cast
+from typing import cast
 
 # pylint: disable=duplicate-code
 from django.conf import settings
@@ -24,11 +24,9 @@ from rest_framework.response import Response
 from api.access_policies.providers import ProviderAccessPolicy
 from api.decorators.trace_decorator import trace_decorator_factory
 from api.domain.authentication.channel import Channel
-from core.domain.authorization.function_access_result import FunctionAccessResult
 from api.domain.exceptions.active_job_limit_exceeded_exception import (
     ActiveJobLimitExceeded,
 )
-
 from api.serializers import (
     JobConfigSerializer,
     RunJobSerializer,
@@ -38,6 +36,7 @@ from api.serializers import (
 )
 from api.utils import active_jobs_limit_reached, sanitize_name
 from api.v1.exception_handler import endpoint_handle_exceptions
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.enums.type_filter import TypeFilter
 from core.models import (
     PLATFORM_PERMISSION_READ,

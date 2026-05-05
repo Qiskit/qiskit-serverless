@@ -3,11 +3,12 @@
 import logging
 from rest_framework import authentication, exceptions
 
-from api.clients.function_access_client import FunctionAccessClient
-from api.domain.authentication.custom_authentication import CustomAuthentication
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from api.use_cases.authentication import AuthenticationUseCase
+
+from api.clients.function_access_client import FunctionAccessClient
 from api.domain.authentication.channel import Channel
+from api.domain.authentication.custom_authentication import CustomAuthentication
+from api.use_cases.authentication import AuthenticationUseCase
 
 logger = logging.getLogger("api.authentication")
 PUBLIC_ENDPOINTS = ["swagger"]
