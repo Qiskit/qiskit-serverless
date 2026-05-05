@@ -350,6 +350,19 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
 
         return Job(job_id, job_service=self, compute_profile=response_data.get("compute_profile"))
 
+    def get_job_data(self, job_id: str) -> Optional[dict]:
+        return (
+            safe_json_request_as_dict(
+                request=lambda: requests.get(
+                    f"{self.host}/api/{self.version}/jobs/{job_id}/",
+                    params={"with_result": "false"},
+                    headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
+                    timeout=REQUESTS_TIMEOUT,
+                )
+            )
+            or None
+        )
+
     @_trace_job
     def status(self, job_id: str):
         default_status = "Unknown"
