@@ -12,11 +12,7 @@ from django.db import models
 from django_prometheus.models import ExportModelOperationsMixin
 
 from core.config_key import ConfigKey
-from core.domain.business_models import (
-    BUSINESS_MODEL_CONSUMPTION,
-    BUSINESS_MODEL_SUBSIDIZED,
-    BUSINESS_MODEL_TRIAL,
-)
+from core.domain.business_models import BusinessModel
 from core.model_managers.functions import FunctionsQuerySet
 from core.model_managers.job_events import JobEventQuerySet
 from core.model_managers.jobs import JobQuerySet
@@ -382,13 +378,13 @@ class Job(models.Model):
         (POST_PROCESSING, "Post-processing"),
     ]
 
-    BUSINESS_MODEL_TRIAL = BUSINESS_MODEL_TRIAL
-    BUSINESS_MODEL_SUBSIDIZED = BUSINESS_MODEL_SUBSIDIZED
-    BUSINESS_MODEL_CONSUMPTION = BUSINESS_MODEL_CONSUMPTION
+    BUSINESS_MODEL_TRIAL = BusinessModel.TRIAL
+    BUSINESS_MODEL_SUBSIDIZED = BusinessModel.SUBSIDIZED
+    BUSINESS_MODEL_CONSUMPTION = BusinessModel.CONSUMPTION
     BUSINESS_MODELS = [
-        (BUSINESS_MODEL_TRIAL, "Trial"),
-        (BUSINESS_MODEL_SUBSIDIZED, "Subsidized"),
-        (BUSINESS_MODEL_CONSUMPTION, "Consumption"),
+        (BusinessModel.TRIAL, "Trial"),
+        (BusinessModel.SUBSIDIZED, "Subsidized"),
+        (BusinessModel.CONSUMPTION, "Consumption"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -418,7 +414,7 @@ class Job(models.Model):
     )
     sub_status = models.CharField(max_length=255, choices=SUB_STATUSES, default=None, null=True, blank=True)
     trial = models.BooleanField(default=False, null=False)
-    business_model = models.CharField(max_length=50, choices=BUSINESS_MODELS, default=BUSINESS_MODEL_SUBSIDIZED)
+    business_model = models.CharField(max_length=50, choices=BUSINESS_MODELS, default=BusinessModel.SUBSIDIZED)
     version = IntegerVersionField()
 
     author = models.ForeignKey(
