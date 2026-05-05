@@ -142,16 +142,14 @@ class ProgramViewSet(viewsets.GenericViewSet):
             functions = Function.objects.provider_functions().with_permission(
                 author,
                 accessible_functions=accessible_functions,
-                # it uses permission for Runtime API /functions or legacy_permission_name for Django Groups
                 legacy_permission_name=RUN_PROGRAM_PERMISSION,
-                permission=PLATFORM_PERMISSION_RUN,
+                permission=PLATFORM_PERMISSION_READ,
             )
         else:
             # If filter is not applied we return author + providers functions together
             functions = Function.objects.with_permission(
                 author,
                 accessible_functions=accessible_functions,
-                # it uses permission for Runtime API /functions or legacy_permission_name for Django Groups
                 legacy_permission_name=VIEW_PROGRAM_PERMISSION,
                 permission=PLATFORM_PERMISSION_READ,
             )

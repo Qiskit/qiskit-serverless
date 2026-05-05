@@ -1246,9 +1246,9 @@ class TestProgramApiRuntimeInstances:
         @pytest.mark.parametrize(
             "filter_param,permissions,expected_count",
             [
-                ("catalog", {PLATFORM_PERMISSION_RUN}, 1),  # only accessible provider func
+                ("catalog", {PLATFORM_PERMISSION_READ}, 1),  # only accessible provider func
                 ("catalog", set(), 0),  # no access to provider funcs
-                ("serverless", {PLATFORM_PERMISSION_RUN}, 1),  # own function, permissions irrelevant
+                ("serverless", {PLATFORM_PERMISSION_READ}, 1),  # own function, permissions irrelevant
                 ("serverless", set(), 1),
                 (None, {PLATFORM_PERMISSION_READ}, 2),  # own + accessible provider
                 (None, set(), 1),  # only own function
