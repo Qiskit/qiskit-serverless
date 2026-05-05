@@ -4,7 +4,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set
 
-from api.domain.authorization.function_access_entry import FunctionAccessEntry
+from core.domain.authorization.function_access_entry import FunctionAccessEntry
 
 
 @dataclass

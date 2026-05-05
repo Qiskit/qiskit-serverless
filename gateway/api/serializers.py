@@ -16,6 +16,7 @@ from rest_framework import serializers
 from rest_framework import validators as validators_module
 
 from api.utils import build_env_variables, sanitize_name
+from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.services.storage.arguments_storage import ArgumentsStorage
 from core.utils import encrypt_env_vars, create_gpujob_allowlist
@@ -326,8 +327,14 @@ class RunJobSerializer(serializers.ModelSerializer):
         carrier = validated_data.pop("carrier")
         compute_profile_requested = validated_data.get("compute_profile", None)
 
-        trial = self.is_trial(program, author)
-        business_model = Job.BUSINESS_MODEL_TRIAL if trial else Job.BUSINESS_MODEL_SUBSIDIZED
+        business_model = validated_data.pop("business_model", None)
+        if business_model is None:
+            # Django legacy: set the business_model from the trial flag that comes from the legacy Django Groups
+            trial = self.is_trial(program, author)
+            business_model = BusinessModel.TRIAL if trial else BusinessModel.SUBSIDIZED
+        else:
+            # Runtime API /functions: set trial from the Runtime
+            trial = business_model == BusinessModel.TRIAL
 
         # Get runner-specific configuration (compute_profile for Fleets, GPU for Ray)
         compute_profile, gpu = self._get_runner_config(program, compute_profile_requested)
