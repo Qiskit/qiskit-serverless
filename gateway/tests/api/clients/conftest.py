@@ -29,7 +29,7 @@ class InstancesServer:
 
     Usage:
         instances_server.grant("my-provider", "my-function", ["function.run"])
-        instances_server.reset()   # clears all grants (empty list, has_response=True)
+        instances_server.reset()   # clears all grants (empty list, use_legacy_authorization=False)
     """
 
     def __init__(self, httpd: HTTPServer):
@@ -63,7 +63,7 @@ class InstancesServer:
         return self
 
     def reset(self) -> "InstancesServer":
-        """Clear all grants (returns has_response=True with empty function list)."""
+        """Clear all grants (returns use_legacy_authorization=False with empty function list)."""
         self._httpd.response_config = {"status": 200, "body": {"functions": []}}
         return self
 

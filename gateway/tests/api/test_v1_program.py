@@ -997,3 +997,25 @@ class TestProgramApi(APITestCase):
 
         program = Program.objects.get(title="Fleets function")
         assert program.runner == Program.FLEETS
+
+    def test_upload_without_runner_defaults_to_ray(self):
+        """Upload without runner field defaults to Program.RAY."""
+        fake_file = ContentFile(b"print('Hello World')")
+        fake_file.name = "test_run.tar"
+
+        TestUtils.authorize_client(username="test_user_2", client=self.client)
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "Default runner function",
+                    "entrypoint": "main.py",
+                    "dependencies": "[]",
+                    "artifact": fake_file,
+                },
+            )
+            assert response.status_code == status.HTTP_200_OK
+
+        program = Program.objects.get(title="Default runner function")
+        assert program.runner == Program.RAY

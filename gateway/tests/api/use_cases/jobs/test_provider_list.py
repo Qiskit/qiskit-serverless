@@ -69,7 +69,7 @@ def jobs_two_functions(function_a, function_b, user, admin_user):
 
 
 def _no_response():
-    return FunctionAccessResult(has_response=False)
+    return FunctionAccessResult(use_legacy_authorization=True)
 
 
 def create_function_access_result(provider_name, function_title, permissions):
@@ -79,7 +79,7 @@ def create_function_access_result(provider_name, function_title, permissions):
         permissions=permissions,
         business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
     )
-    return FunctionAccessResult(has_response=True, functions=[entry])
+    return FunctionAccessResult(use_legacy_authorization=False, functions=[entry])
 
 
 class TestProviderNotFound:
@@ -166,7 +166,7 @@ class TestListJobs:
                 JobsProviderListUseCase().execute(
                     user=user,
                     filters=filters,
-                    accessible_functions=FunctionAccessResult(has_response=True, functions=[]),
+                    accessible_functions=FunctionAccessResult(use_legacy_authorization=False, functions=[]),
                 )
 
         @pytest.mark.parametrize(
@@ -203,5 +203,5 @@ class TestListJobs:
                 JobsProviderListUseCase().execute(
                     user=user,
                     filters=filters,
-                    accessible_functions=FunctionAccessResult(has_response=True, functions=[]),
+                    accessible_functions=FunctionAccessResult(use_legacy_authorization=False, functions=[]),
                 )
