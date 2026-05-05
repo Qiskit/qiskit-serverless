@@ -459,7 +459,7 @@ class FleetsRunner(AbstractRunner):
                 raise RunnerError(f"Code Engine project '{project.project_name}' is not active")
             return project
 
-        profile_zone_map: dict = getattr(settings, "FLEETS_PROFILE_ZONE_MAP", {})
+        profile_zone_map: dict = settings.FLEETS_PROFILE_ZONE_MAP
         zone = profile_zone_map.get(self.job.compute_profile or "")
         qs = CodeEngineProject.objects.filter(active=True)
         if zone and zone != "any":
