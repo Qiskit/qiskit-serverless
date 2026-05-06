@@ -1,5 +1,6 @@
 # pylint: disable=import-error, invalid-name
 """Fixtures for instance permission tests."""
+
 import os
 
 from pytest import fixture

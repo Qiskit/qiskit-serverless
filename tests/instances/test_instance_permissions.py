@@ -7,7 +7,7 @@ access depending on the permissions associated with the CRN instance used
 to authenticate.
 
 Endpoints covered:
-  - programs/list(catalog and unfiltered)
+  - programs/list (catalog, unfiltered, serverless)
   - programs/get_by_title
   - programs/run        (also validates business_model on the created job)
   - programs/upload
@@ -53,9 +53,11 @@ class TestUserInstance:
       business_model: TRIAL
 
     Expected behaviour:
-      - Can list and retrieve the provider function (function.read).
-      - Can run the provider function (function.run); job is created with business_model=TRIAL.
-      - Cannot upload a provider function → 404.
+      - catalog: provider function appears (function.read).
+      - unfiltered: provider function appears (function.read).
+      - serverless: provider function never appears (serverless ignores permissions, only own functions).
+      - Can run (function.run); job is created with business_model=TRIAL.
+      - Cannot upload → 404.
       - Cannot list provider jobs → 404.
     """
 
@@ -73,6 +75,17 @@ class TestUserInstance:
         assert _function_in_list(
             functions, provider_name, function_title
         ), f"Expected {provider_name}/{function_title} in unfiltered list"
+
+    def test_list_serverless_excludes_provider_function(self, user_client, provider_name, function_title):
+        """Serverless filter never returns provider functions regardless of permissions.
+
+        filter=serverless returns only Function.objects.user_functions(author), which
+        filters provider__isnull=True, so provider functions are always excluded.
+        """
+        functions = user_client.functions(filter="serverless")
+        assert not _function_in_list(
+            functions, provider_name, function_title
+        ), f"Expected {provider_name}/{function_title} NOT in serverless list (has provider)"
 
     def test_get_by_title_returns_function(self, user_client, provider_name, function_title):
         """get_by_title returns the provider function when function.read is present."""
