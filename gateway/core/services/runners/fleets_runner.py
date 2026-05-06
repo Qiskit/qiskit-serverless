@@ -27,6 +27,7 @@ from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
 from core.models import Job, CodeEngineProject
 from core.services.runners.abstract_runner import AbstractRunner, RunnerError
+from core.utils import decrypt_env_vars
 from core.ibm_cloud.clients import IBMCloudClientProvider
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
 from core.ibm_cloud.code_engine.fleets.utils import (
@@ -218,12 +219,12 @@ class FleetsRunner(AbstractRunner):
                     secondary_log_filename=LOG_FILENAME,
                     secondary_log_filter_key=LOG_FILTER_KEY,
                 )
-                run_env_variables.extend(
-                    [
-                        {"type": "literal", "name": "JOB_ID_GATEWAY", "value": job_id},
-                        {"type": "literal", "name": "DATA_PATH", "value": paths["user_mount_path"]},
-                    ]
+                run_env_variables.append(
+                    {"type": "literal", "name": "JOB_ID_GATEWAY", "value": job_id},
                 )
+
+                gateway_env = self._build_gateway_env_vars()
+                run_env_variables.extend(gateway_env)
                 run_commands = build_run_commands(
                     app_run_commands=["python", f"{paths['provider_mount_path']}/{self.job.program.entrypoint}"],
                     secondary_log_filter_key=LOG_FILTER_KEY,
@@ -504,6 +505,13 @@ class FleetsRunner(AbstractRunner):
                 raise RunnerError(f"Failed to initialize FleetHandler for project [{name}]", ex) from ex
 
         return self._handler
+
+    def _build_gateway_env_vars(self) -> list[dict[str, str]]:
+        """Extract job env vars so the container can call save_result() and use Qiskit Runtime."""
+        env = json.loads(self.job.env_vars)
+        env = decrypt_env_vars(env)
+
+        return [{"type": "literal", "name": k, "value": v} for k, v in env.items() if v]
 
     def _build_cos_paths(self) -> dict[str, str]:
         """Build COS key prefixes and container mount paths for the job.
