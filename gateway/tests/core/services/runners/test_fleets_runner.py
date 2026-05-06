@@ -262,9 +262,13 @@ def test_build_cos_paths_structure():
     assert paths["user_job_prefix"] == "users/user-42/provider_functions/default/my-program/jobs/job-uuid"
     assert paths["user_log_key"].endswith("/logs.log")
     assert paths["provider_log_key"].endswith("/logs.log")
-    assert paths["user_arguments_key"].endswith("/arguments.json")
+    assert (
+        paths["user_arguments_key"]
+        == "users/user-42/provider_functions/default/my-program/jobs/job-uuid/arguments/job-uuid.json"
+    )
     assert paths["user_mount_path"] == "/data"
     assert paths["provider_mount_path"] == "/function_data"
+    assert paths["provider_logs_mount_path"] == "/provider_logs"
 
 
 def test_submit_sets_fleet_id_without_cos():
