@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from api.domain.authentication.channel import Channel
-from api.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.authorization.function_access_result import FunctionAccessResult
 
 
 @dataclass
