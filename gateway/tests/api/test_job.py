@@ -319,6 +319,7 @@ class TestJobApi:
         )
         assert jobs_response.status_code == status.HTTP_200_OK
         assert jobs_response.data.get("result") == '{"ultimate": 42}'
+        assert jobs_response.data.get("business_model") == BusinessModel.SUBSIDIZED
 
     def test_job_detail_without_result_param(self):
         """Tests job detail authorized."""
@@ -330,6 +331,7 @@ class TestJobApi:
         )
         assert jobs_response.status_code == status.HTTP_200_OK
         assert jobs_response.data.get("result") is None
+        assert jobs_response.data.get("business_model") == BusinessModel.SUBSIDIZED
 
     def test_job_detail_without_result_file(self):
         """Tests job detail authorized."""
