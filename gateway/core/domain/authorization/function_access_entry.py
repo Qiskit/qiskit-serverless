@@ -4,15 +4,11 @@ import logging
 from dataclasses import dataclass
 from typing import Set
 
-from core.models import Job
+from core.domain.business_models import BusinessModel
 
 logger = logging.getLogger("api.FunctionAccessEntry")
 
-VALID_BUSINESS_MODELS = {
-    Job.BUSINESS_MODEL_TRIAL,
-    Job.BUSINESS_MODEL_SUBSIDIZED,
-    Job.BUSINESS_MODEL_CONSUMPTION,
-}
+VALID_BUSINESS_MODELS = {BusinessModel.TRIAL, BusinessModel.SUBSIDIZED, BusinessModel.CONSUMPTION}
 
 
 @dataclass
@@ -21,8 +17,9 @@ class FunctionAccessEntry:
 
     provider_name: str
     function_title: str
-    permissions: Set[str]
     business_model: str
+
+    permissions: Set[str]
 
     def __post_init__(self):
         self.business_model = self.business_model.upper()

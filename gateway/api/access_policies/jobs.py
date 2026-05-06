@@ -7,7 +7,7 @@ from typing import Optional
 from django.contrib.auth.models import AbstractUser
 
 from core.models import Job
-from api.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from api.access_policies.providers import ProviderAccessPolicy
 
 logger = logging.getLogger("api.JobAccessPolicies")
