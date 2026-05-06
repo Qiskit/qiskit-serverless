@@ -27,8 +27,8 @@ from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
 from core.models import Job, CodeEngineProject
 from core.services.runners.abstract_runner import AbstractRunner, RunnerError
+from core.ibm_cloud.clients import IBMCloudClientProvider, COS_PUBLIC_URL_TEMPLATE
 from core.utils import decrypt_env_vars
-from core.ibm_cloud.clients import IBMCloudClientProvider
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
 from core.ibm_cloud.code_engine.fleets.utils import (
     build_run_commands,
@@ -734,10 +734,13 @@ class FleetsRunner(AbstractRunner):
             logger.debug("No HMAC credentials configured for project [%s]", self._project.project_name)
             return None
 
-        return {
+        cos_config: dict = {
             "bucket_region": self._project.region,
             "hmac_secret_name": hmac_secret_name,
         }
+        if getattr(settings, "CE_COS_USE_PUBLIC_ENDPOINT", False):
+            cos_config["cos_endpoint_url"] = COS_PUBLIC_URL_TEMPLATE.format(region=self._project.region)
+        return cos_config
 
     def _get_api_key(self) -> str:
         """Return the IBM Cloud API key from Django settings.

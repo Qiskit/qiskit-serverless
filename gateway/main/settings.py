@@ -309,6 +309,9 @@ CE_SUBNET_POOL_ID = os.environ.get("CE_SUBNET_POOL_ID")
 CE_PDS_NAME_STATE = os.environ.get("CE_PDS_NAME_STATE")
 CE_PDS_NAME_USERS = os.environ.get("CE_PDS_NAME_USERS")
 CE_PDS_NAME_PROVIDERS = os.environ.get("CE_PDS_NAME_PROVIDERS")
+# Set to "true" to use the public COS endpoint instead of the private VPC endpoint.
+# Only needed for local testing outside IBM Cloud (e.g. docker-compose).
+CE_COS_USE_PUBLIC_ENDPOINT = os.environ.get("CE_COS_USE_PUBLIC_ENDPOINT", "false").lower() == "true"
 
 
 # ray cluster management
