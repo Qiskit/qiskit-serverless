@@ -444,8 +444,9 @@ class FleetsRunner(Runner):
     def _get_or_assign_project(self) -> CodeEngineProject:
         """Return the job's Code Engine project, assigning one if not yet set.
 
-        NOTE: currently picks the first active project. Replace with more
-        sophisticated assignment logic when multi-project support.
+        Zone resolution: looks up the compute profile in ``FLEETS_PROFILE_ZONE_MAP``.
+        Profiles absent from the map (or mapped to ``"any"``) fall back to the
+        multi-zone project (zone is null/blank).
 
         Returns:
             Active :class:`CodeEngineProject`.
@@ -459,7 +460,15 @@ class FleetsRunner(Runner):
                 raise RunnerError(f"Code Engine project '{project.project_name}' is not active")
             return project
 
-        project = CodeEngineProject.objects.filter(active=True).first()
+        profile_zone_map: dict = settings.FLEETS_PROFILE_ZONE_MAP
+        zone = profile_zone_map.get(self.job.compute_profile or "")
+        qs = CodeEngineProject.objects.filter(active=True)
+        if zone and zone != "any":
+            project = qs.filter(zone=zone).first()
+            if not project:
+                raise RunnerError(f"No active Code Engine project for zone '{zone}'")
+        else:
+            project = qs.filter(zone__isnull=True).first() or qs.filter(zone="").first() or qs.first()
         if not project:
             raise RunnerError("No active Code Engine project available")
 

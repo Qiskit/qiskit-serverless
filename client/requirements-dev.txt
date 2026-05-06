@@ -16,6 +16,6 @@ black[jupyter]~=25.11
 requests-mock>=1.11.0
 # new versions of testcontainers don't support docker compose
 testcontainers>=4.7.2
-tox>=4.0.0
+tox>=4.30.3
 pre-commit>=3.0.0
 setuptools>=80.0.0

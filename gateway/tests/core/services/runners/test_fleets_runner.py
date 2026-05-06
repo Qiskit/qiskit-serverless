@@ -492,6 +492,79 @@ def test_get_result_from_cos_returns_none_on_exception():
     assert result is None
 
 
+@pytest.mark.parametrize("active,raises", [(True, False), (False, True)])
+def test_get_or_assign_project_existing(active, raises):
+    """_get_or_assign_project() reuses an assigned active project; raises if inactive."""
+    runner, _ = _make_runner()
+    mock_project = MagicMock()
+    mock_project.active = active
+    mock_project.project_name = "my-project"
+    runner.job.code_engine_project = mock_project
+
+    with patch(f"{_RUNNER_MOD}.CodeEngineProject") as mock_ce:
+        if raises:
+            with pytest.raises(RunnerError):
+                runner._get_or_assign_project()  # pylint: disable=protected-access
+        else:
+            assert runner._get_or_assign_project() is mock_project  # pylint: disable=protected-access
+    mock_ce.objects.filter.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "zone_map,profile,expect_zone_filter",
+    [
+        ({"gx2-8x64x1l40s": "us-east-1"}, "gx2-8x64x1l40s", "us-east-1"),  # zone match
+        ({}, "cx3d-4x16", None),  # profile not in map → fallback
+        ({"cx3d-4x16": "any"}, "cx3d-4x16", None),  # "any" → fallback
+    ],
+)
+def test_get_or_assign_project_zone_routing(zone_map, profile, expect_zone_filter):
+    """_get_or_assign_project() routes to zone-specific or multi-zone project correctly."""
+    runner, _ = _make_runner()
+    runner.job.code_engine_project = None
+    runner.job.compute_profile = profile
+    runner.job.id = "job-uuid"
+    mock_project = MagicMock()
+    mock_qs = MagicMock()
+    mock_qs.filter.return_value.first.return_value = mock_project
+
+    with patch(f"{_RUNNER_MOD}.settings") as mock_settings, patch(f"{_RUNNER_MOD}.CodeEngineProject") as mock_ce:
+        mock_settings.FLEETS_PROFILE_ZONE_MAP = zone_map
+        mock_ce.objects.filter.return_value = mock_qs
+        result = runner._get_or_assign_project()  # pylint: disable=protected-access
+
+    assert result is mock_project
+    if expect_zone_filter:
+        mock_qs.filter.assert_called_once_with(zone=expect_zone_filter)
+    else:
+        mock_qs.filter.assert_any_call(zone__isnull=True)
+
+
+@pytest.mark.parametrize(
+    "zone_map,profile,none_qs,match",
+    [
+        ({"gx2-8x64x1l40s": "us-east-1"}, "gx2-8x64x1l40s", False, "us-east-1"),
+        ({}, None, True, "No active Code Engine project"),
+    ],
+)
+def test_get_or_assign_project_raises(zone_map, profile, none_qs, match):
+    """_get_or_assign_project() raises RunnerError when no suitable project is found."""
+    runner, _ = _make_runner()
+    runner.job.code_engine_project = None
+    runner.job.compute_profile = profile
+    runner.job.id = "job-uuid"
+    mock_qs = MagicMock()
+    mock_qs.filter.return_value.first.return_value = None
+    if none_qs:
+        mock_qs.first.return_value = None
+
+    with patch(f"{_RUNNER_MOD}.settings") as mock_settings, patch(f"{_RUNNER_MOD}.CodeEngineProject") as mock_ce:
+        mock_settings.FLEETS_PROFILE_ZONE_MAP = zone_map
+        mock_ce.objects.filter.return_value = mock_qs
+        with pytest.raises(RunnerError, match=match):
+            runner._get_or_assign_project()  # pylint: disable=protected-access
+
+
 def test_get_handler_cos_config_secret_name():
     """_get_handler_cos_config() returns hmac_secret_name when CE_HMAC_SECRET_NAME is set."""
     runner, _ = _make_runner()
