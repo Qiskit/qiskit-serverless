@@ -5,8 +5,9 @@ import pytest
 from django.contrib.auth.models import Group, User
 
 from api.access_policies.providers import ProviderAccessPolicy
-from api.domain.authorization.function_access_entry import FunctionAccessEntry
-from api.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.authorization.function_access_entry import FunctionAccessEntry
+from core.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.business_models import BusinessModel
 from core.models import (
     Job,
     PLATFORM_PERMISSION_JOB_READ,
@@ -25,7 +26,7 @@ def _entry(provider_name, permissions):
         provider_name=provider_name,
         function_title="fnc",
         permissions=permissions,
-        business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
+        business_model=BusinessModel.SUBSIDIZED,
     )
 
 

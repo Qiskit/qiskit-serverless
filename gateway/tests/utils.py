@@ -10,6 +10,9 @@ from django.contrib.auth.models import (
 from django.contrib.contenttypes.models import ContentType
 from rest_framework.test import APIClient
 
+from core.domain.authorization.function_access_entry import FunctionAccessEntry
+from core.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.business_models import BusinessModel
 from core.models import Job, JobConfig, Program, Provider
 
 # literal for job status
@@ -290,6 +293,32 @@ class TestUtils:
         """
         Helper to authenticate a DRF test client.
         """
+        from unittest.mock import MagicMock
+
+        from api.domain.authentication.channel import Channel
+        from core.domain.authorization.function_access_result import FunctionAccessResult
+
         user, _ = TestUtils.get_user_and_username(author=username, is_active=is_active, is_staff=is_staff)
-        client.force_authenticate(user=user)
+        token = MagicMock()
+        token.accessible_functions = FunctionAccessResult(use_legacy_authorization=True)
+        token.channel = Channel.LOCAL
+        token.token = b"test-token"
+        token.instance = None
+        client.force_authenticate(user=user, token=token)
         return user
+
+
+def create_function_access_result(
+    provider_name,
+    function_title,
+    permissions,
+    business_model=BusinessModel.SUBSIDIZED,
+):
+    """Return a FunctionAccessResult with a single entry for the given provider/function/permissions."""
+    entry = FunctionAccessEntry(
+        provider_name=provider_name,
+        function_title=function_title,
+        permissions=permissions,
+        business_model=business_model,
+    )
+    return FunctionAccessResult(use_legacy_authorization=False, functions=[entry])

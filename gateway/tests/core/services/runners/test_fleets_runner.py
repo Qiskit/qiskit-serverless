@@ -695,3 +695,81 @@ def test_upload_arguments_to_cos_uploads_json():
     call_kwargs = mock_handler.cos.upload_fileobj.call_args.kwargs
     assert call_kwargs["bucket_name"] == "user-bucket"
     assert call_kwargs["key"] == "users/1/jobs/j/arguments.json"
+
+
+def test_build_gateway_env_vars_returns_formatted_list():
+    """_build_gateway_env_vars() returns env vars formatted for Code Engine."""
+    runner, _ = _make_runner()
+    runner.job.env_vars = '{"KEY1": "val1", "KEY2": "val2"}'
+
+    with patch(f"{_RUNNER_MOD}.decrypt_env_vars", side_effect=lambda e: e):
+        result = runner._build_gateway_env_vars()  # pylint: disable=protected-access
+
+    assert result == [
+        {"type": "literal", "name": "KEY1", "value": "val1"},
+        {"type": "literal", "name": "KEY2", "value": "val2"},
+    ]
+
+
+def test_build_gateway_env_vars_decrypts_tokens():
+    """_build_gateway_env_vars() passes env vars through decrypt_env_vars."""
+    runner, _ = _make_runner()
+    runner.job.env_vars = '{"QISKIT_IBM_TOKEN": "encrypted", "SOME_URL": "http://example.com"}'
+
+    decrypted = {"QISKIT_IBM_TOKEN": "decrypted", "SOME_URL": "http://example.com"}
+    with patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value=decrypted) as mock_decrypt:
+        result = runner._build_gateway_env_vars()  # pylint: disable=protected-access
+
+    mock_decrypt.assert_called_once_with({"QISKIT_IBM_TOKEN": "encrypted", "SOME_URL": "http://example.com"})
+    assert {"type": "literal", "name": "QISKIT_IBM_TOKEN", "value": "decrypted"} in result
+    assert {"type": "literal", "name": "SOME_URL", "value": "http://example.com"} in result
+
+
+def test_build_gateway_env_vars_filters_empty_values():
+    """_build_gateway_env_vars() excludes entries with empty or None values."""
+    runner, _ = _make_runner()
+    runner.job.env_vars = '{"KEEP": "value", "EMPTY": "", "NULL_VAL": null}'
+
+    def passthrough(e):
+        return e
+
+    with patch(f"{_RUNNER_MOD}.decrypt_env_vars", side_effect=passthrough):
+        result = runner._build_gateway_env_vars()  # pylint: disable=protected-access
+
+    assert result == [{"type": "literal", "name": "KEEP", "value": "value"}]
+
+
+def test_build_gateway_env_vars_empty_env_vars():
+    """_build_gateway_env_vars() returns an empty list when job has no env vars."""
+    runner, _ = _make_runner()
+    runner.job.env_vars = "{}"
+
+    with patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value={}):
+        result = runner._build_gateway_env_vars()  # pylint: disable=protected-access
+
+    assert result == []
+
+
+def test_submit_includes_gateway_env_vars():
+    """submit() includes decrypted gateway env vars in the run_env_variables."""
+    runner, mock_handler = _make_submit_runner()
+    runner.job.env_vars = '{"MY_TOKEN": "secret", "MY_URL": "http://example.com"}'
+    runner.job.author.id = "user-1"
+    runner.job.program.provider = None
+    runner.job.program.title = "prog"
+
+    runner._project.cos_bucket_user_data_name = "user-bucket"  # pylint: disable=protected-access
+    runner._project.cos_bucket_provider_data_name = "prov-bucket"  # pylint: disable=protected-access
+    runner._project.cos_instance_name = "cos-inst"  # pylint: disable=protected-access
+    runner._project.cos_key_name = "cos-key"  # pylint: disable=protected-access
+    runner._project.pds_name_users = "pds-users"  # pylint: disable=protected-access
+    runner._project.pds_name_providers = "pds-provs"  # pylint: disable=protected-access
+
+    decrypted = {"MY_TOKEN": "decrypted_secret", "MY_URL": "http://example.com"}
+    with _patch_settings(), patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value=decrypted):
+        runner.submit()
+
+    call_kwargs = mock_handler.submit_job.call_args.kwargs
+    env_list = call_kwargs["extra_fields"]["run_env_variables"]
+    assert {"type": "literal", "name": "MY_TOKEN", "value": "decrypted_secret"} in env_list
+    assert {"type": "literal", "name": "MY_URL", "value": "http://example.com"} in env_list
