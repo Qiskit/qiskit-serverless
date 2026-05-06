@@ -315,6 +315,9 @@ CE_PDS_NAME_PROVIDERS = os.environ.get("CE_PDS_NAME_PROVIDERS")
 # Profiles absent from the map (or mapped to "any") fall back to the multi-zone project.
 # Reminder: review once automatic zone selection is supported in CE
 FLEETS_PROFILE_ZONE_MAP: dict = json.loads(os.environ.get("FLEETS_PROFILE_ZONE_MAP", "{}"))  # type: ignore[assignment]
+# Set to "true" to use the public COS endpoint instead of the private VPC endpoint.
+# Only needed for local testing outside IBM Cloud (e.g. docker-compose).
+CE_COS_USE_PUBLIC_ENDPOINT = os.environ.get("CE_COS_USE_PUBLIC_ENDPOINT", "false").lower() == "true"
 
 
 # ray cluster management
@@ -345,7 +348,7 @@ RAY_CLUSTER_GPU_NODE_SELECTOR_LABEL = os.environ.get(
     "ibm-cloud.kubernetes.io/worker-pool-name: gpu-workers",
 )
 
-PROGRAM_TIMEOUT = int(os.environ.get("PROGRAM_TIMEOUT", "14"))
+PROGRAM_TIMEOUT = int(os.environ.get("PROGRAM_TIMEOUT", "24"))  # Time units are hours
 
 GATEWAY_ALLOWLIST_CONFIG = str(os.environ.get("GATEWAY_ALLOWLIST_CONFIG", "api/v1/allowlist.json"))
 

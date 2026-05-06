@@ -117,6 +117,7 @@ class JobCOS:
 
         hmac_secret_name = cos_config.get("hmac_secret_name")
         bucket_region = cos_config.get("bucket_region", self._job.client_provider.config.region)
+        endpoint_url = cos_config.get("cos_endpoint_url")
 
         if not hmac_secret_name:
             raise ValueError(
@@ -131,6 +132,7 @@ class JobCOS:
             client_provider=self._job.client_provider,
             credentials=creds,
             bucket_region=bucket_region,
+            endpoint_url=endpoint_url,
         )
         return self.__cos
 
