@@ -470,9 +470,7 @@ class TestJobApi:
         assert user_job.program.provider is None
 
         # Save arguments for user function
-        user_args_storage = ArgumentsStorage(
-            username=user_job.author.username, function_title=user_job.program.title, provider_name=None
-        )
+        user_args_storage = ArgumentsStorage(username=user_job.author.username, function=user_job.program)
         test_args = '{"param": "value"}'
         user_args_storage.save(str(user_job.id), test_args)
 
@@ -485,9 +483,11 @@ class TestJobApi:
         assert retrieved_args == test_args
 
         # Verify arguments are NOT in provider path
-        wrong_provider_storage = ArgumentsStorage(
-            username=user_job.author.username, function_title=user_job.program.title, provider_name="fake_provider"
-        )
+        fake_program = MagicMock()
+        fake_program.title = user_job.program.title
+        fake_program.provider = MagicMock()
+        fake_program.provider.name = "fake_provider"
+        wrong_provider_storage = ArgumentsStorage(username=user_job.author.username, function=fake_program)
         assert wrong_provider_storage.get(str(user_job.id)) is None
 
     def test_job_arguments_storage_path_provider(self, settings):
@@ -508,8 +508,7 @@ class TestJobApi:
         # Save arguments for provider function
         provider_args_storage = ArgumentsStorage(
             username=provider_job.author.username,
-            function_title=provider_job.program.title,
-            provider_name=provider_job.program.provider.name,
+            function=provider_job.program,
         )
         provider_test_args = '{"provider_param": "provider_value"}'
         provider_args_storage.save(str(provider_job.id), provider_test_args)
@@ -530,9 +529,10 @@ class TestJobApi:
         assert retrieved_provider_args == provider_test_args
 
         # Verify provider function arguments are NOT in user-only path
-        wrong_user_storage = ArgumentsStorage(
-            username=provider_job.author.username, function_title=provider_job.program.title, provider_name=None
-        )
+        no_provider_program = MagicMock()
+        no_provider_program.title = provider_job.program.title
+        no_provider_program.provider = None
+        wrong_user_storage = ArgumentsStorage(username=provider_job.author.username, function=no_provider_program)
         assert wrong_user_storage.get(str(provider_job.id)) is None
 
     def test_job_update_sub_status(self):
