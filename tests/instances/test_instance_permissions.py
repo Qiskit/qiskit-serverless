@@ -1,6 +1,5 @@
 # pylint: disable=import-error, invalid-name
-"""
-Integration tests for instance-based permission enforcement.
+"""Integration tests for instance-based permission trough Runtime API /functions
 
 These tests verify that each implemented endpoint correctly grants or denies
 access depending on the permissions associated with the CRN instance used
@@ -13,17 +12,86 @@ Endpoints covered:
   - programs/upload
   - jobs/provider-list  (provider_jobs)
 
-Run all:
-    tox -e instances
+- By default, these tests are executed against localhost:8000, but it can be configured against staging with:
+GATEWAY_HOST=https://qiskit-serverless-dev.quantum.ibm.com
 
-Run a specific class:
-    pytest -v instances/test_instance_permissions.py::TestUserInstance
+- Feature must be enabled: gateway.runtime_instances_api.enabled should be true in the api_config table
 
-Run a specific test:
-    pytest -v instances/test_instance_permissions.py::TestCombinedInstance::test_run_creates_job
+- Runtime API /functions endpoint must be defined with:
+  - RUNTIME_API_BASE_URL=https://quantum.test.cloud.ibm.com # staging
+  - RUNTIME_API_BASE_URL=https://quantum.cloud.ibm.com # production
 
-Run by keyword:
-    pytest -v -k "test_run" instances/
+All tests use the function: ibm-dev/instances1-test. You can override it with TEST_PROVIDER_NAME and TEST_FUNCTION_TITLE env var
+
+- There are three kinds of tests, all of them use the same token GATEWAY_TOKEN
+  - User tests expect a CRN with only user permissions enabled. Env var TEST_USER_INSTANCE=test-crn-user
+  - Provider tests expect a CRN with only provider permissions enabled. Env var TEST_PROVIDER_INSTANCE=test-crn-provider
+  - Combined tests expect a CRN with all permissions enabled. Env var TEST_ALL_INSTANCE=test-crn-all by default
+
+In order to run the tests, this is the configuration you have to get from /functions api:
+
+- Instance 1 with only user permissions `test-crn-user` (override with TEST_USER_INSTANCE)
+
+```json
+{
+  "functions": [
+    {
+      "provider": "ibm-dev",
+      "name": "instances1-test",
+      "business_model": "trial",
+      "permissions": [
+        "function.read",
+        "function.run",
+        "function.job.read",
+        "function.files"
+      ]
+    }
+  ]
+}
+```
+- Instance 2 with only provider permissions `test-crn-provider (override with TEST_PROVIDER_INSTANCE)
+
+```json
+{
+  "functions": [
+    {
+      "provider": "ibm-dev",
+      "name": "instances1-test",
+      "business_model": "subsidized",
+      "permissions": [
+        "function.provider.upload",
+        "function.provider.jobs",
+        "function.provider.logs",
+        "function.provider.files"
+      ]
+    }
+  ]
+}
+```
+
+- Instance 3 with all permissions `test-crn-all` (override with TEST_ALL_INSTANCE)
+
+```json
+{
+  "functions": [
+    {
+      "provider": "ibm-dev",
+      "name": "instances1-test",
+      "business_model": "consumption",
+      "permissions": [
+        "function.read",
+        "function.run",
+        "function.job.read",
+        "function.files",
+        "function.provider.upload",
+        "function.provider.jobs",
+        "function.provider.logs",
+        "function.provider.files"
+      ]
+    }
+  ]
+}
+```
 """
 
 import pytest
@@ -33,7 +101,7 @@ from qiskit_serverless.exception import QiskitServerlessException
 # Expected business_model per CRN (must match REQUEST.md and the Runtime API configuration).
 # These come from core.domain.business_models.BusinessModel constants.
 BUSINESS_MODEL_USER = "TRIAL"
-BUSINESS_MODEL_COMBINED = "CONSUMPTION"
+BUSINESS_MODEL_ALL = "CONSUMPTION"
 
 
 def _assert_404(exc_info):
@@ -246,8 +314,8 @@ class TestCombinedInstance:
 
         job_data = combined_client.get_job_data(job.job_id)
         assert (
-            job_data.get("business_model") == BUSINESS_MODEL_COMBINED
-        ), f"Expected business_model={BUSINESS_MODEL_COMBINED}, got {job_data.get('business_model')}"
+            job_data.get("business_model") == BUSINESS_MODEL_ALL
+        ), f"Expected business_model={BUSINESS_MODEL_ALL}, got {job_data.get('business_model')}"
 
     def test_upload_succeeds(self, combined_client, provider_name, function_title, tmp_path):
         """upload() succeeds with full permissions."""

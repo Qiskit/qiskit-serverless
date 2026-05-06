@@ -7,6 +7,7 @@ from pytest import fixture
 from qiskit_serverless import ServerlessClient
 
 GATEWAY_HOST = os.environ.get("GATEWAY_HOST", "http://localhost:8000")
+GATEWAY_TOKEN = os.environ.get("GATEWAY_TOKEN", "awesome_token")
 GATEWAY_CHANNEL = os.environ.get("GATEWAY_CHANNEL", "ibm_quantum_platform")
 
 PROVIDER_NAME = os.environ.get("TEST_PROVIDER_NAME", "ibm-dev")
@@ -32,7 +33,7 @@ def user_client():
     Permissions: function.read, function.run, function.job.read, function.files
     """
     return ServerlessClient(
-        token=os.environ.get("TEST_USER_TOKEN", "awesome_token"),
+        token=GATEWAY_TOKEN,
         host=GATEWAY_HOST,
         instance=os.environ.get("TEST_USER_INSTANCE", "test-crn-user"),
         channel=GATEWAY_CHANNEL,
@@ -46,7 +47,7 @@ def provider_client():
     Permissions: function.provider.upload, function.provider.jobs, function.provider.logs, function.provider.files
     """
     return ServerlessClient(
-        token=os.environ.get("TEST_PROVIDER_TOKEN", "awesome_token"),
+        token=GATEWAY_TOKEN,
         host=GATEWAY_HOST,
         instance=os.environ.get("TEST_PROVIDER_INSTANCE", "test-crn-provider"),
         channel=GATEWAY_CHANNEL,
@@ -61,7 +62,7 @@ def combined_client():
                  function.provider.upload, function.provider.jobs, function.provider.logs, function.provider.files
     """
     return ServerlessClient(
-        token=os.environ.get("TEST_ALL_TOKEN", "awesome_token"),
+        token=GATEWAY_TOKEN,
         host=GATEWAY_HOST,
         instance=os.environ.get("TEST_ALL_INSTANCE", "test-crn-all"),
         channel=GATEWAY_CHANNEL,
