@@ -1,0 +1,12 @@
+---
+upgrade:
+  - |
+    Job time limiting is now applied only to jobs in the PENDING and RUNNING states,
+    instead of at the queue level.
+    
+    The gateway configuration value `programTimeoutDays` has been renamed to
+    `programTimeoutHours`. The default time limit is now 24 hours and can be configured
+    using the `PROGRAM_TIMEOUT` environment variable.
+    
+    Jobs that exceed this time limit will be transitioned to the ``STOPPED`` state,
+    and a warning message will be logged.

@@ -188,7 +188,7 @@ class TestProgramApi(APITestCase):
         Since user doesn't belong to any group, it will only be self-authored programs.
         """
 
-        user = TestUtils.authorize_client(username="test_user", client=self.client)
+        user = TestUtils.authorize_client(user="test_user", client=self.client)
 
         # Create 3 programs for test_user
         program_names = ["ProgramLocked", "Program", "ProgramLocked2"]
@@ -210,7 +210,7 @@ class TestProgramApi(APITestCase):
     def test_provider_programs_list(self):
         """Tests programs list returns only programs user has access permission for."""
 
-        user = TestUtils.authorize_client(username="test_user_2", client=self.client)
+        user = TestUtils.authorize_client(user="test_user_2", client=self.client)
 
         # Create provider program accessible to test_user_2 as author
         TestUtils.create_program(
@@ -240,7 +240,7 @@ class TestProgramApi(APITestCase):
         provider assigned.
         """
 
-        user = TestUtils.authorize_client(username="test_user_4", client=self.client)
+        user = TestUtils.authorize_client(user="test_user_4", client=self.client)
         TestUtils.get_or_create_group(group="runner", permissions=[self.runner_permission])
         # Add user to runner group for RUN_PROGRAM_PERMISSION
         TestUtils.add_user_to_group(user=user, group="runner")
@@ -291,7 +291,7 @@ class TestProgramApi(APITestCase):
         """Tests programs list for serverless list. The return criteria is the user is the author of the function and
         there is no provider"""
 
-        user = TestUtils.authorize_client(username="test_user_3", client=self.client)
+        user = TestUtils.authorize_client(user="test_user_3", client=self.client)
 
         # Create serverless program (author=user, no provider) - have permission to run
         TestUtils.create_program(
@@ -318,7 +318,7 @@ class TestProgramApi(APITestCase):
         """Tests run existing authorized."""
 
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            user = TestUtils.authorize_client(username="test_user_3", client=self.client)
+            user = TestUtils.authorize_client(user="test_user_3", client=self.client)
             TestUtils.get_or_create_group(group="runner", permissions=[self.runner_permission])
             # Add user to runner group for trial access
             TestUtils.add_user_to_group(user, "runner")
@@ -381,7 +381,7 @@ class TestProgramApi(APITestCase):
         """Tests run existing authorized."""
 
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            user = TestUtils.authorize_client(username="test_user_2", client=self.client)
+            user = TestUtils.authorize_client(user="test_user_2", client=self.client)
             TestUtils.get_or_create_provider(provider="default")
 
             # Create program with provider and env_vars
@@ -475,7 +475,7 @@ class TestProgramApi(APITestCase):
                 LIMITS_ACTIVE_JOBS_PER_USER=self.LIMITS_ACTIVE_JOBS_PER_USER,
                 MEDIA_ROOT=temp_dir,
             ):
-                user = TestUtils.authorize_client(username="test_limit_user", client=self.client)
+                user = TestUtils.authorize_client(user="test_limit_user", client=self.client)
                 program = TestUtils.create_program(
                     program_title="Docker-Image-Program-Test",
                     author="test_limit_user",
@@ -528,7 +528,7 @@ class TestProgramApi(APITestCase):
     def test_run_locked(self):
         """Tests run disabled program."""
 
-        user = TestUtils.authorize_client(username="test_user", client=self.client)
+        user = TestUtils.authorize_client(user="test_user", client=self.client)
 
         # Create disabled program with custom message
         TestUtils.create_program(
@@ -563,7 +563,7 @@ class TestProgramApi(APITestCase):
     def test_run_locked_default_msg(self):
         """Tests run disabled program."""
 
-        user = TestUtils.authorize_client(username="test_user", client=self.client)
+        user = TestUtils.authorize_client(user="test_user", client=self.client)
 
         # Create disabled program without custom message (uses default)
         TestUtils.create_program(
@@ -600,7 +600,7 @@ class TestProgramApi(APITestCase):
         fake_file = ContentFile(b"print('Hello World')")
         fake_file.name = "test_run.tar"
 
-        TestUtils.authorize_client(username="test_user_2", client=self.client)
+        TestUtils.authorize_client(user="test_user_2", client=self.client)
 
         env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
 
@@ -621,7 +621,7 @@ class TestProgramApi(APITestCase):
     def test_upload_custom_image_without_provider(self):
         """Tests upload end-point authorized."""
 
-        TestUtils.authorize_client(username="test_user_2", client=self.client)
+        TestUtils.authorize_client(user="test_user_2", client=self.client)
 
         env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
         programs_response = self.client.post(
@@ -638,7 +638,7 @@ class TestProgramApi(APITestCase):
     def test_upload_custom_image_without_access_to_the_provider(self):
         """Tests upload end-point authorized."""
 
-        TestUtils.authorize_client(username="test_user", client=self.client)
+        TestUtils.authorize_client(user="test_user", client=self.client)
 
         # Create ibm provider (user doesn't have access)
         TestUtils.get_or_create_provider("ibm")
@@ -673,7 +673,7 @@ class TestProgramApi(APITestCase):
         fake_file = ContentFile(b"print('Hello World')")
         fake_file.name = "test_run.tar"
 
-        user = TestUtils.authorize_client(username="test_user_2", client=self.client)
+        user = TestUtils.authorize_client(user="test_user_2", client=self.client)
         # create admin group
         TestUtils.get_or_create_group(group="default-group")
         TestUtils.add_user_to_group(user=user, group="default-group")
@@ -704,7 +704,7 @@ class TestProgramApi(APITestCase):
         fake_file = ContentFile(b"print('Hello World')")
         fake_file.name = "test_run.tar"
 
-        user = TestUtils.authorize_client(username="test_user_2", client=self.client)
+        user = TestUtils.authorize_client(user="test_user_2", client=self.client)
 
         # Create default provider and add user as admin
         TestUtils.get_or_create_provider(provider="default", admin_group="default-group")
@@ -741,7 +741,7 @@ class TestProgramApi(APITestCase):
         fake_file = ContentFile(b"print('Hello World')")
         fake_file.name = "test_run.tar"
 
-        TestUtils.authorize_client(username="test_user", client=self.client)
+        TestUtils.authorize_client(user="test_user", client=self.client)
 
         # Create default provider (user doesn't have admin access)
         TestUtils.get_or_create_provider("default")
@@ -766,7 +766,7 @@ class TestProgramApi(APITestCase):
         fake_file = ContentFile(b"print('Hello World')")
         fake_file.name = "test_run.tar"
 
-        user = TestUtils.authorize_client(username="test_user_2", client=self.client)
+        user = TestUtils.authorize_client(user="test_user_2", client=self.client)
         TestUtils.get_or_create_group(group="default-group")
         # Create default provider and add user as admin
         TestUtils.get_or_create_provider(provider="default", admin_group="default-group")
@@ -811,7 +811,7 @@ class TestProgramApi(APITestCase):
 
     def test_get_by_title(self):
         """Tests get program by title."""
-        user = TestUtils.authorize_client(username="test_user_2", client=self.client)
+        user = TestUtils.authorize_client(user="test_user_2", client=self.client)
 
         # Create provider program
         TestUtils.create_program(
@@ -860,8 +860,8 @@ class TestProgramApi(APITestCase):
     def test_get_jobs(self):
         """Tests run existing authorized."""
 
-        user_1 = TestUtils.authorize_client(username="test_user", client=self.client)
-        user_2 = TestUtils.authorize_client(username="test_user_2", client=self.client)
+        user_1 = TestUtils.authorize_client(user="test_user", client=self.client)
+        user_2 = TestUtils.authorize_client(user="test_user_2", client=self.client)
 
         # create admin group
         TestUtils.get_or_create_group(group="default-group")
@@ -904,7 +904,7 @@ class TestProgramApi(APITestCase):
         assert response.status_code == status.HTTP_200_OK
 
         # program w/ provider by author (sees only own job)
-        TestUtils.authorize_client(username=user_1.username, client=self.client)
+        TestUtils.authorize_client(user=user_1.username, client=self.client)
 
         response = self.client.get(
             f"/api/v1/programs/{program_with_provider.id}/get_jobs/",
@@ -919,7 +919,7 @@ class TestProgramApi(APITestCase):
         fake_file = ContentFile(b"print('Hello World')")
         fake_file.name = "test_run.tar"
 
-        user = TestUtils.authorize_client(username="test_user", client=self.client)
+        user = TestUtils.authorize_client(user="test_user", client=self.client)
 
         # Create existing program with description
         TestUtils.create_program(
@@ -948,7 +948,7 @@ class TestProgramApi(APITestCase):
         fake_file = ContentFile(b"print('Hello World')")
         fake_file.name = "test_run.tar"
 
-        user = TestUtils.authorize_client(username="test_user", client=self.client)
+        user = TestUtils.authorize_client(user="test_user", client=self.client)
         # Create existing program with description
         TestUtils.create_program(
             program_title="Program",
@@ -982,7 +982,7 @@ class TestProgramApi(APITestCase):
         """
 
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            user = TestUtils.authorize_client(username="test_user_2", client=self.client)
+            user = TestUtils.authorize_client(user="test_user_2", client=self.client)
             # create admin group
             TestUtils.get_or_create_group(group="default-group")
             TestUtils.add_user_to_group(user=user, group="default-group")
@@ -1065,7 +1065,7 @@ class TestProgramApi(APITestCase):
 
     def test_program_version_field_returned(self):
         """Tests that the Program `version` field is returned by the API."""
-        user = TestUtils.authorize_client(username="test_user_2", client=self.client)
+        user = TestUtils.authorize_client(user="test_user_2", client=self.client)
 
         # create admin group
         TestUtils.get_or_create_group(group="default-group")
@@ -1097,7 +1097,7 @@ class TestProgramApi(APITestCase):
         """Tests upload returns 400 when version is invalid."""
 
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            TestUtils.authorize_client(username="test_user_2", client=self.client)
+            TestUtils.authorize_client(user="test_user_2", client=self.client)
 
             env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
             version = "not_a_version"
@@ -1124,7 +1124,7 @@ class TestProgramApi(APITestCase):
         fake_file = ContentFile(b"print('Hello World')")
         fake_file.name = "test_run.tar"
 
-        TestUtils.authorize_client(username="test_user_2", client=self.client)
+        TestUtils.authorize_client(user="test_user_2", client=self.client)
 
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             programs_response = self.client.post(
@@ -1147,7 +1147,7 @@ class TestProgramApi(APITestCase):
         fake_file = ContentFile(b"print('Hello World')")
         fake_file.name = "test_run.tar"
 
-        TestUtils.authorize_client(username="test_user_2", client=self.client)
+        TestUtils.authorize_client(user="test_user_2", client=self.client)
 
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             response = self.client.post(
