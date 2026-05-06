@@ -133,11 +133,11 @@ class TestProviderInstance:
       function.provider.logs, function.provider.files
 
     Expected behavior:
-      - Cannot list the provider function in catalog → excluded from list.
-      - Cannot list the provider function unfiltered → excluded from list.
-      - Cannot retrieve the provider function by title → 404.
-      - Cannot run the provider function → 404.
-      - Can upload a provider function (function.provider.upload).
+      - catalog: provider function excluded (no function.read).
+      - unfiltered: provider function excluded (no function.read).
+      - serverless: provider function never appears (serverless ignores permissions).
+      - get_by_title → 404, run → 404.
+      - Can upload (function.provider.upload).
       - Can list provider jobs (function.provider.jobs).
     """
 
@@ -190,13 +190,24 @@ class TestProviderInstance:
         jobs = provider_client.provider_jobs(fn)
         assert isinstance(jobs, list)
 
+    def test_list_serverless_excludes_provider_function(self, provider_client, provider_name, function_title):
+        """Serverless filter never returns provider functions regardless of permissions."""
+        functions = provider_client.functions(filter="serverless")
+        assert not _function_in_list(
+            functions, provider_name, function_title
+        ), f"Expected {provider_name}/{function_title} NOT in serverless list (has provider)"
+
 
 class TestCombinedInstance:
     """
     Instance with ALL 8 permissions (USER + PROVIDER).
       business_model: CONSUMPTION
 
-    Expected behaviour: every endpoint works correctly.
+    Expected behaviour:
+      - catalog: provider function appears.
+      - unfiltered: provider function appears.
+      - serverless: provider function never appears (serverless ignores permissions).
+      - All other endpoints work correctly.
     """
 
     def test_list_catalog_includes_function(self, combined_client, provider_name, function_title):
@@ -205,6 +216,20 @@ class TestCombinedInstance:
         assert _function_in_list(
             functions, provider_name, function_title
         ), f"Expected {provider_name}/{function_title} in catalog list"
+
+    def test_list_all_includes_function(self, combined_client, provider_name, function_title):
+        """Unfiltered list includes the provider function."""
+        functions = combined_client.functions()
+        assert _function_in_list(
+            functions, provider_name, function_title
+        ), f"Expected {provider_name}/{function_title} in unfiltered list"
+
+    def test_list_serverless_excludes_provider_function(self, combined_client, provider_name, function_title):
+        """Serverless filter never returns provider functions regardless of permissions."""
+        functions = combined_client.functions(filter="serverless")
+        assert not _function_in_list(
+            functions, provider_name, function_title
+        ), f"Expected {provider_name}/{function_title} NOT in serverless list (has provider)"
 
     def test_get_by_title_returns_function(self, combined_client, provider_name, function_title):
         """get_by_title returns the provider function."""
