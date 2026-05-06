@@ -904,7 +904,7 @@ class TestProgramApi(APITestCase):
         assert response.status_code == status.HTTP_200_OK
 
         # program w/ provider by author (sees only own job)
-        TestUtils.authorize_client(username=user_1.username, client=self.client)
+        TestUtils.authorize_client(user=user_1.username, client=self.client)
 
         response = self.client.get(
             f"/api/v1/programs/{program_with_provider.id}/get_jobs/",
@@ -1147,7 +1147,7 @@ class TestProgramApi(APITestCase):
         fake_file = ContentFile(b"print('Hello World')")
         fake_file.name = "test_run.tar"
 
-        TestUtils.authorize_client(username="test_user_2", client=self.client)
+        TestUtils.authorize_client(user="test_user_2", client=self.client)
 
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             response = self.client.post(

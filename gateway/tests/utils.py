@@ -660,7 +660,6 @@ class TestUtils:
         from unittest.mock import MagicMock
 
         from api.domain.authentication.channel import Channel
-        from core.domain.authorization.function_access_result import FunctionAccessResult
 
         user_obj, _ = TestUtils.get_user_and_username(author=user, is_active=is_active, is_staff=is_staff)
         token = MagicMock()
