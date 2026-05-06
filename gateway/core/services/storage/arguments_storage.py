@@ -6,6 +6,7 @@ import logging
 import os
 from typing import Optional
 
+from core.models import Program
 from core.services.storage.path_builder import PathBuilder
 from core.services.storage.enums.working_dir import WorkingDir
 
@@ -19,7 +20,10 @@ class ArgumentsStorage:
     PATH = "arguments"
     ENCODING = "utf-8"
 
-    def __init__(self, username: str, function_title: str, provider_name: Optional[str] = None):
+    def __init__(self, username: str, function: Program) -> None:
+        function_title = function.title
+        provider_name = function.provider.name if function.provider else None
+
         ### In this case arguments are always stored in user folder
         self.sub_path = PathBuilder.sub_path(
             working_dir=WorkingDir.USER_STORAGE,

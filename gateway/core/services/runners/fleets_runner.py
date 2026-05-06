@@ -575,8 +575,7 @@ class FleetsRunner(AbstractRunner):
             paths: Dict from :meth:`_build_cos_paths`.
         """
         program = self.job.program
-        provider_name = program.provider.name if program.provider else None
-        storage = ArgumentsStorage(self.job.author.username, program.title, provider_name)
+        storage = ArgumentsStorage(self.job.author.username, program)
         content = storage.get(str(self.job.id)) or "{}"
 
         try:

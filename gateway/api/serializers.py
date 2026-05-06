@@ -361,8 +361,7 @@ class RunJobSerializer(serializers.ModelSerializer):
             )
         )
 
-        provider_name = program.provider.name if program.provider else None
-        arguments_storage = ArgumentsStorage(author.username, program.title, provider_name)
+        arguments_storage = ArgumentsStorage(author.username, program)
         arguments_storage.save(job.id, arguments)
 
         try:
