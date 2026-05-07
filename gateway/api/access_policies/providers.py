@@ -97,7 +97,7 @@ class ProviderAccessPolicy:
         function_title: str,
         accessible_functions: Optional[FunctionAccessResult] = None,
     ) -> bool:
-        """Runtime instances: checks function has provider.files.read permission. Legacy: checks provider admin group."""
+        """Runtime instances: checks function has provider.files.read permission. Legacy:checks provider admin group."""
         if provider is None:
             raise ValueError("provider cannot be None")
         has_access = _check(
@@ -114,7 +114,7 @@ class ProviderAccessPolicy:
         function_title: str,
         accessible_functions: Optional[FunctionAccessResult] = None,
     ) -> bool:
-        """Runtime instances: checks function has provider.files.write permission. Legacy: checks provider admin group."""
+        """Runtime instances: checks function has provider.files.write permission.Legacy:checks provider admin group."""
         if provider is None:
             raise ValueError("provider cannot be None")
         has_access = _check(
