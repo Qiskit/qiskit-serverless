@@ -254,8 +254,8 @@ class RayRunner(AbstractRunner):
             ``None`` if the response body is empty, or raises ``RuntimeError``
             on HTTP errors.
         """
-        host = self._job.compute_resource.host
-        url = f"{host}api/jobs/{self._job.ray_job_id}/logs"
+        host = self._client.get_address()
+        url = f"{host.rstrip('/')}/api/jobs/{self._job.ray_job_id}/logs"
         max_bytes = settings.FUNCTIONS_LOGS_SIZE_LIMIT
         chunks: deque[bytes] = deque()
         total_size = 0
