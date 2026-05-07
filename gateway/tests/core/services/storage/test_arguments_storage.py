@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from core.services.storage.arguments_storage import ArgumentsStorage
+from core.services.storage.arguments_storage_ray import RayArgumentsStorage as ArgumentsStorage
 from tests.utils import TestUtils
 
 

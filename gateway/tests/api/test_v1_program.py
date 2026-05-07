@@ -25,7 +25,7 @@ from core.models import (
     PLATFORM_PERMISSION_RUN,
     Program,
 )
-from core.services.storage.arguments_storage import ArgumentsStorage
+from core.services.storage import get_arguments_storage
 from tests.utils import TestUtils
 
 
@@ -361,7 +361,7 @@ class TestProgramApi(APITestCase):
             assert job.config.auto_scaling is True
 
             program = Program.objects.get(title="Program", author=user)
-            arguments_storage = ArgumentsStorage(user.username, program)
+            arguments_storage = get_arguments_storage(user.username, program)
             stored_arguments = arguments_storage.get(job.id)
 
             assert stored_arguments == arguments
@@ -424,7 +424,7 @@ class TestProgramApi(APITestCase):
             assert job.config.auto_scaling is True
 
             program = Program.objects.get(title="Docker-Image-Program", author=user)
-            arguments_storage = ArgumentsStorage(user.username, program)
+            arguments_storage = get_arguments_storage(user.username, program)
             stored_arguments = arguments_storage.get(job.id)
 
             assert stored_arguments == arguments
@@ -1054,7 +1054,7 @@ class TestProgramApi(APITestCase):
             assert job.program.provider is None
 
             # Verify arguments are stored in the correct path (user storage, not provider)
-            arguments_storage = ArgumentsStorage(user.username, user_program)
+            arguments_storage = get_arguments_storage(user.username, user_program)
             stored_arguments = arguments_storage.get(job.id)
             assert stored_arguments == arguments
 

@@ -463,14 +463,14 @@ class TestJobApi:
         This validates the DATA_PATH environment variable computation in build_env_variables()
         for user functions.
         """
-        from core.services.storage.arguments_storage import ArgumentsStorage
+        from core.services.storage import get_arguments_storage
 
         # Create user function (no provider)
         user_job = self._create_job(author="test_user")
         assert user_job.program.provider is None
 
         # Save arguments for user function
-        user_args_storage = ArgumentsStorage(username=user_job.author.username, function=user_job.program)
+        user_args_storage = get_arguments_storage(username=user_job.author.username, function=user_job.program)
         test_args = '{"param": "value"}'
         user_args_storage.save(str(user_job.id), test_args)
 
@@ -487,7 +487,8 @@ class TestJobApi:
         fake_program.title = user_job.program.title
         fake_program.provider = MagicMock()
         fake_program.provider.name = "fake_provider"
-        wrong_provider_storage = ArgumentsStorage(username=user_job.author.username, function=fake_program)
+        fake_program.runner = Program.RAY
+        wrong_provider_storage = get_arguments_storage(username=user_job.author.username, function=fake_program)
         assert wrong_provider_storage.get(str(user_job.id)) is None
 
     def test_job_arguments_storage_path_provider(self, settings):
@@ -498,7 +499,7 @@ class TestJobApi:
         This validates the DATA_PATH environment variable computation in build_env_variables()
         for provider functions.
         """
-        from core.services.storage.arguments_storage import ArgumentsStorage
+        from core.services.storage import get_arguments_storage
 
         # Create provider function
         provider_job = self._create_job(author="test_user", provider_admin="test_provider")
@@ -506,7 +507,7 @@ class TestJobApi:
         assert provider_job.program.provider.name == "test_provider"
 
         # Save arguments for provider function
-        provider_args_storage = ArgumentsStorage(
+        provider_args_storage = get_arguments_storage(
             username=provider_job.author.username,
             function=provider_job.program,
         )
@@ -532,7 +533,8 @@ class TestJobApi:
         no_provider_program = MagicMock()
         no_provider_program.title = provider_job.program.title
         no_provider_program.provider = None
-        wrong_user_storage = ArgumentsStorage(username=provider_job.author.username, function=no_provider_program)
+        no_provider_program.runner = Program.RAY
+        wrong_user_storage = get_arguments_storage(username=provider_job.author.username, function=no_provider_program)
         assert wrong_user_storage.get(str(provider_job.id)) is None
 
     def test_job_update_sub_status(self):
