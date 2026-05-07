@@ -10,6 +10,7 @@ import shutil
 import tarfile
 import time
 import uuid
+from collections import deque
 
 import requests
 import yaml
@@ -216,10 +217,14 @@ class RayRunner(AbstractRunner):
 
     def logs(self) -> str | None:
         """
-        Get job logs.
+        Get job logs, streaming from Ray to avoid loading the full log into memory.
+
+        Fetches the log stream in chunks and keeps only the last
+        ``FUNCTIONS_LOGS_SIZE_LIMIT`` bytes, so large logs (e.g. 1 GB) never
+        allocate more than ~50 MB of RAM.
 
         Returns:
-            Job logs or None
+            Job logs (tail up to the configured size limit) or None
 
         Raises:
             RunnerError: If unable to get job logs
@@ -227,10 +232,7 @@ class RayRunner(AbstractRunner):
         self._ensure_connected()
 
         try:
-            return retry_function(
-                callback=lambda: self._client.get_job_logs(self._job.ray_job_id),
-                error_message=f"Runtime error during logs fetching from ray job [{self._job.ray_job_id}]",
-            )
+            return self._stream_logs_from_ray()
         except RuntimeError as ex:
             logger.error(
                 "[logs] job_id=%s ray_job_id=%s error=%s Get logs failed",
@@ -239,6 +241,66 @@ class RayRunner(AbstractRunner):
                 ex,
             )
             raise RunnerError(f"Unable to get logs for job [{self._job.ray_job_id}]", ex) from ex
+
+    def _stream_logs_from_ray(self) -> str | None:
+        """Stream job logs from the Ray dashboard HTTP endpoint with a rolling buffer.
+
+        Reads the log response in 64 KB chunks and discards the oldest chunks
+        once the accumulated size exceeds ``FUNCTIONS_LOGS_SIZE_LIMIT``, so
+        memory usage is bounded regardless of total log size.
+
+        Returns:
+            The tail of the logs (up to the size limit) as a UTF-8 string,
+            ``None`` if the response body is empty, or raises ``RuntimeError``
+            on HTTP errors.
+        """
+        host = self._job.compute_resource.host
+        url = f"{host}api/jobs/{self._job.ray_job_id}/logs"
+        max_bytes = settings.FUNCTIONS_LOGS_SIZE_LIMIT
+        chunks: deque[bytes] = deque()
+        total_size = 0
+        truncated = False
+
+        logger.info(
+            "[_stream_logs_from_ray] job_id=%s ray_job_id=%s Streaming logs (limit=%d bytes)",
+            self._job.id,
+            self._job.ray_job_id,
+            max_bytes,
+        )
+
+        with requests.get(url, stream=True, timeout=(10, 300)) as response:
+            if not response.ok:
+                raise RuntimeError(
+                    f"Ray dashboard returned HTTP {response.status_code} for job logs [{self._job.ray_job_id}]"
+                )
+            for chunk in response.iter_content(chunk_size=65536):
+                if not chunk:
+                    continue
+                chunks.append(chunk)
+                total_size += len(chunk)
+                while total_size > max_bytes and chunks:
+                    removed = chunks.popleft()
+                    total_size -= len(removed)
+                    truncated = True
+
+        if not chunks:
+            return None
+
+        result = b"".join(chunks).decode("utf-8", errors="replace")
+        if truncated:
+            logger.warning(
+                "[_stream_logs_from_ray] job_id=%s ray_job_id=%s Logs truncated to last %d bytes",
+                self._job.id,
+                self._job.ray_job_id,
+                max_bytes,
+            )
+            result = (
+                "[Logs exceeded maximum allowed size ("
+                + str(max_bytes / (1024**2))
+                + " MB). Logs have been truncated, discarding the oldest entries first.]\n"
+                + result
+            )
+        return result
 
     def provider_logs(self) -> str | None:
         """Return provider logs for this job.
