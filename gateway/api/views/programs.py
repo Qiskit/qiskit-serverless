@@ -299,10 +299,12 @@ class ProgramViewSet(viewsets.GenericViewSet):
         channel = Channel.IBM_QUANTUM_PLATFORM
         token = ""
         instance = None
+        account_id = None
         if request.auth:
             channel = request.auth.channel
             token = request.auth.token.decode()
             instance = request.auth.instance
+            account_id = request.auth.account_id
         job_data = {"arguments": arguments, "program": function.id}
         job_serializer = self.get_serializer_run_job(data=job_data)
         if not job_serializer.is_valid():
