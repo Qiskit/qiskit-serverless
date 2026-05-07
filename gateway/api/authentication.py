@@ -62,7 +62,7 @@ class CustomTokenBackend(authentication.BaseAuthentication):
             raise exceptions.AuthenticationFailed("Authorization token was not provided.")
         authorization_token = auth_header.split(" ")[-1]
 
-        quantum_user = AuthenticationUseCase(
+        quantum_user, quantum_account_id = AuthenticationUseCase(
             channel=channel,
             authorization_token=authorization_token,
             crn=crn,
@@ -75,6 +75,7 @@ class CustomTokenBackend(authentication.BaseAuthentication):
             token=authorization_token.encode(),
             accessible_functions=accessible_functions,
             instance=crn,
+            account_id=quantum_account_id,
         )
 
     def authenticate_header(self, request):
@@ -109,7 +110,7 @@ class MockTokenBackend(authentication.BaseAuthentication):
             raise exceptions.AuthenticationFailed("Authorization token was not provided.")
         authorization_token = auth_header.split(" ")[-1]
 
-        quantum_user = AuthenticationUseCase(
+        quantum_user, _ = AuthenticationUseCase(
             channel=channel,
             authorization_token=authorization_token,
             crn=None,
@@ -121,6 +122,7 @@ class MockTokenBackend(authentication.BaseAuthentication):
             token=authorization_token.encode(),
             instance=None,
             accessible_functions=FunctionAccessResult(use_legacy_authorization=True, message="Mock"),
+            account_id=None,
         )
 
     def authenticate_header(self, request):

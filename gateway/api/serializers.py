@@ -349,6 +349,7 @@ class RunJobSerializer(serializers.ModelSerializer):
             gpu=gpu,
             runner=program.runner,
             compute_profile=compute_profile,
+            instance_crn=instance,
         )
 
         env = encrypt_env_vars(

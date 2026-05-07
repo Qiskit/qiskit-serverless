@@ -13,6 +13,7 @@ class AuthenticationBase(ABC):
     - authenticate
     - verify_access
     - get_groups
+    - get_account_id
     """
 
     @abstractmethod
@@ -26,3 +27,7 @@ class AuthenticationBase(ABC):
     @abstractmethod
     def get_groups(self) -> List[AuthenticationGroup]:
         """This method returns the current groups of the user."""
+
+    @abstractmethod
+    def get_account_id(self):
+        """This method returns the current account id of the user."""
