@@ -25,13 +25,15 @@ RUN_PROGRAM_PERMISSION = "run_program"
 # Platform permissions (Runtime API instances access client)
 PLATFORM_PERMISSION_READ = "function.read"  # see function in catalog and retrieve its metadata
 PLATFORM_PERMISSION_RUN = "function.run"  # execute a new job of this function
-PLATFORM_PERMISSION_JOB_READ = "function.job.read"  # retrieve a specific job from this function (non-author access)
-PLATFORM_PERMISSION_USER_FILES = "function.files"  # list, download, upload and delete files in user space
+PLATFORM_PERMISSION_JOB_READ = "function-job.read"  # retrieve a specific job from this function (non-author access)
+PLATFORM_PERMISSION_USER_FILES = "function-files.read"  # list, download, upload and delete files in user space
 # Provider admin permissions
-PLATFORM_PERMISSION_PROVIDER_UPLOAD = "function.provider.upload"  # create or update this function's code
-PLATFORM_PERMISSION_PROVIDER_JOBS = "function.provider.jobs"  # list jobs from all users of this function
-PLATFORM_PERMISSION_PROVIDER_LOGS = "function.provider.logs"  # read provider-side logs of jobs from this function
-PLATFORM_PERMISSION_PROVIDER_FILES = "function.provider.files"  # list, download, upload, delete files in provider space
+PLATFORM_PERMISSION_PROVIDER_UPLOAD = "function.write"  # create or update this function's code
+PLATFORM_PERMISSION_PROVIDER_JOBS = "function-job.read"  # list jobs from all users of this function
+PLATFORM_PERMISSION_PROVIDER_LOGS = "function-provider-logs.read"  # read provider-side logs of jobs from this function
+PLATFORM_PERMISSION_PROVIDER_FILES = (
+    "function-provider-files.write"  # list, download, upload, delete files in provider space
+)
 
 
 def get_upload_path(instance, filename):
