@@ -18,7 +18,7 @@ from rest_framework import validators as validators_module
 from api.utils import build_env_variables, sanitize_name
 from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.services.storage.arguments_storage import ArgumentsStorage
+from core.services.storage import get_arguments_storage
 from core.utils import encrypt_env_vars, create_gpujob_allowlist
 
 from core.models import (
@@ -361,7 +361,7 @@ class RunJobSerializer(serializers.ModelSerializer):
             )
         )
 
-        arguments_storage = ArgumentsStorage(author.username, program)
+        arguments_storage = get_arguments_storage(author.username, program)
         arguments_storage.save(job.id, arguments)
 
         try:
