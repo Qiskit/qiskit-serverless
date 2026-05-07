@@ -8,7 +8,7 @@ from api.domain.exceptions.provider_not_found_exception import ProviderNotFoundE
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.model_managers.jobs import JobFilters
-from core.models import Job, PLATFORM_PERMISSION_PROVIDER_JOBS
+from core.models import Job, PLATFORM_PERMISSION_JOBS_READ
 from core.models import Program as Function
 from api.repositories.providers import ProviderRepository
 
@@ -64,7 +64,7 @@ class JobsProviderListUseCase:
         else:
             # Runtime API instances, granularity per function:
             # We get the function titles that the user has access to, and we use them to filter
-            provider_functions = accessible_functions.get_functions_by_provider(PLATFORM_PERMISSION_PROVIDER_JOBS)
+            provider_functions = accessible_functions.get_functions_by_provider(PLATFORM_PERMISSION_JOBS_READ)
             titles = provider_functions.get(filters.provider, set())
             if not titles:
                 # If the user can't access to any function, we hide the provider with a not found
