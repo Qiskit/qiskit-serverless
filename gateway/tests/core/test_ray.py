@@ -92,7 +92,7 @@ class TestRayRunner:
 
         ray_client = MagicMock()
         ray_client.get_job_status.return_value = JobStatus.PENDING
-        ray_client.get_job_logs.return_value = "No logs yet."
+        ray_client.get_address.return_value = "http://test:8265"
         ray_client.stop_job.return_value = True
         ray_client.submit_job.return_value = "AwesomeJobId"
 
@@ -119,7 +119,10 @@ class TestRayRunner:
 
     def test_job_logs(self):
         """Tests job logs."""
-        job_logs = self.handler.logs()
+        self.handler._job.ray_job_id = "AwesomeJobId"
+        with requests_mock.Mocker() as m:
+            m.get("http://test:8265/api/jobs/AwesomeJobId/logs", text="No logs yet.")
+            job_logs = self.handler.logs()
         assert job_logs == "No logs yet."
 
     def test_job_stop(self):

@@ -141,21 +141,20 @@ class TestRayClientOperations(APITestCase):
         """Tests job logs."""
         job = Job.objects.first()
         job.ray_job_id = "AwesomeJobId"
-        job.compute_resource = ComputeResource.objects.create(
-            title="test_cluster", host="http://test:8265/", owner=job.author
-        )
         job.save()
 
         mock_client = MagicMock()
-        mock_client.get_job_logs.return_value = "No logs yet."
+        mock_client.get_address.return_value = "http://test:8265"
 
         runner = get_runner(job)
         runner._client = mock_client
         runner._connected = True
 
-        job_logs = runner.logs()
+        with requests_mock.Mocker() as m:
+            m.get("http://test:8265/api/jobs/AwesomeJobId/logs", text="No logs yet.")
+            job_logs = runner.logs()
+
         self.assertEqual(job_logs, "No logs yet.")
-        mock_client.get_job_logs.assert_called_once_with("AwesomeJobId")
 
     def test_job_stop(self):
         """Tests stopping of job."""
