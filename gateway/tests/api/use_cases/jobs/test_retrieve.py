@@ -1,6 +1,7 @@
 """Unit tests for JobRetrieveUseCase."""
 
 import pytest
+import uuid
 from django.contrib.auth.models import Group, User
 
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
@@ -60,7 +61,6 @@ class TestJobRetrieveUseCase:
 
     def test_not_found_raises_exception(self, author):
         """Non-existent job ID raises JobNotFoundException."""
-        import uuid
 
         with pytest.raises(Job.DoesNotExist):
             JobRetrieveUseCase().execute(uuid.uuid4(), author, with_result=False)
