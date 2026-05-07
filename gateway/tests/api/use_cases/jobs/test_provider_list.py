@@ -8,7 +8,7 @@ from api.domain.exceptions.function_not_found_exception import FunctionNotFoundE
 from api.domain.exceptions.provider_not_found_exception import ProviderNotFoundException
 from api.use_cases.jobs.provider_list import JobsProviderListUseCase
 from core.model_managers.jobs import JobFilters
-from core.models import Job, PLATFORM_PERMISSION_PROVIDER_JOBS, Program, Provider
+from core.models import Job, PLATFORM_PERMISSION_JOBS_READ, Program, Provider
 from tests.utils import create_function_access_result
 
 pytestmark = pytest.mark.django_db
@@ -130,14 +130,14 @@ class TestListJobs:
         @pytest.mark.parametrize(
             "permissions,expected_total",
             [
-                ({PLATFORM_PERMISSION_PROVIDER_JOBS}, 2),
+                ({PLATFORM_PERMISSION_JOBS_READ}, 2),
                 ({"other-permission"}, None),
             ],
         )
         def test_access_depends_on_provider_jobs_permission(
             self, user, provider, function, jobs, permissions, expected_total
         ):
-            """Only PLATFORM_PERMISSION_PROVIDER_JOBS grants access; any other permission hides the provider."""
+            """Only PLATFORM_PERMISSION_JOBS_READ grants access; any other permission hides the provider."""
             filters = JobFilters(provider="my-provider")
             accessible = create_function_access_result("my-provider", "my-function", permissions)
             if expected_total is None:
@@ -173,9 +173,7 @@ class TestListJobs:
             """Filter by function name returns only that function's jobs;
             a function not in DB raises FunctionNotFoundException even if access is granted."""
             filters = JobFilters(provider="my-provider", function=function_filter)
-            accessible = create_function_access_result(
-                "my-provider", function_filter, {PLATFORM_PERMISSION_PROVIDER_JOBS}
-            )
+            accessible = create_function_access_result("my-provider", function_filter, {PLATFORM_PERMISSION_JOBS_READ})
             if expected is FunctionNotFoundException:
                 with pytest.raises(FunctionNotFoundException):
                     JobsProviderListUseCase().execute(user=user, filters=filters, accessible_functions=accessible)
