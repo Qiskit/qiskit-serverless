@@ -204,18 +204,23 @@ class FleetsRunner(AbstractRunner):
 
                 run_volume_mounts = build_run_volume_mounts(
                     mounts=[
-                        (paths["user_mount_path"], self._project.pds_name_users, paths["user_function_prefix"]),
+                        (paths["user_mount_path"], self._project.pds_name_users, paths["user_job_prefix"]),
                         (
                             paths["provider_mount_path"],
                             self._project.pds_name_providers,
                             paths["provider_function_prefix"],
                         ),
+                        (
+                            paths["provider_logs_mount_path"],
+                            self._project.pds_name_providers,
+                            paths["provider_job_prefix"],
+                        ),
                     ]
                 )
                 run_env_variables = build_run_env_variables(
-                    primary_mount_path=f"{paths['provider_mount_path']}/jobs/{job_id}",
+                    primary_mount_path=paths["provider_logs_mount_path"],
                     primary_log_filename=LOG_FILENAME,
-                    secondary_mount_path=f"{paths['user_mount_path']}/jobs/{job_id}",
+                    secondary_mount_path=paths["user_mount_path"],
                     secondary_log_filename=LOG_FILENAME,
                     secondary_log_filter_key=LOG_FILTER_KEY,
                 )
@@ -525,9 +530,10 @@ class FleetsRunner(AbstractRunner):
     def _build_cos_paths(self) -> dict[str, str]:
         """Build COS key prefixes and container mount paths for the job.
 
-        Both PDS volumes mount at function level so all jobs sharing the same
-        program share function-level files while having isolated job-level
-        directories for arguments, logs, and results.
+        Three PDS volume mounts provide job-level isolation:
+          - /data          → user-data-bucket @ user_job_prefix (job level)
+          - /function_data → provider-data-bucket @ provider_function_prefix (function level)
+          - /provider_logs → provider-data-bucket @ provider_job_prefix (job level)
 
         Returns:
             Dict with function/job prefixes, COS log/argument keys, and
@@ -550,25 +556,26 @@ class FleetsRunner(AbstractRunner):
             "provider_job_prefix": provider_job_prefix,
             "user_log_key": f"{user_job_prefix}/{LOG_FILENAME}",
             "provider_log_key": f"{provider_job_prefix}/{LOG_FILENAME}",
-            "user_arguments_key": f"{user_job_prefix}/arguments.json",
+            "user_arguments_key": f"{user_job_prefix}/arguments/{job_id}.json",
             "user_mount_path": "/data",
             "provider_mount_path": "/function_data",
+            "provider_logs_mount_path": "/provider_logs",
         }
 
     def _upload_arguments_to_cos(self, handler: FleetHandler, paths: dict[str, str]) -> None:
         """Upload job arguments from local storage to the COS user bucket.
 
         Reads from :class:`ArgumentsStorage` and uploads to
-        ``{user_job_prefix}/arguments.json``. Unwraps a single-key
-        ``{"arguments": ...}`` envelope if present.
+        ``{user_job_prefix}/arguments/{job_id}.json`` so the SDK's
+        ``get_arguments()`` finds them at ``/data/arguments/{job_id}.json``.
+        Unwraps a single-key ``{"arguments": ...}`` envelope if present.
 
         Args:
             handler: Initialized :class:`FleetHandler` with COS access.
             paths: Dict from :meth:`_build_cos_paths`.
         """
         program = self.job.program
-        provider_name = program.provider.name if program.provider else None
-        storage = ArgumentsStorage(self.job.author.username, program.title, provider_name)
+        storage = ArgumentsStorage(self.job.author.username, program)
         content = storage.get(str(self.job.id)) or "{}"
 
         try:
@@ -590,7 +597,7 @@ class FleetsRunner(AbstractRunner):
         """Extract the program artifact tar and upload files to COS.
 
         Entrypoint → provider bucket (accessible at ``/function_data/{entrypoint}``).
-        All other files → user bucket (accessible at ``/data/{filename}``).
+        All other files → user bucket at job level (accessible at ``/data/{filename}``).
 
         Provider functions skip this — their files are pre-uploaded by the
         provider admin.
@@ -621,7 +628,7 @@ class FleetsRunner(AbstractRunner):
                         key = f"{paths['provider_function_prefix']}/{member.name}"
                     else:
                         bucket_name = user_bucket
-                        key = f"{paths['user_function_prefix']}/{member.name}"
+                        key = f"{paths['user_job_prefix']}/{member.name}"
 
                     handler.cos.upload_fileobj(fileobj=extracted, bucket_name=bucket_name, key=key)
                     logger.debug("Uploaded [%s] for job [%s] to %s/%s", member.name, self.job.id, bucket_name, key)
