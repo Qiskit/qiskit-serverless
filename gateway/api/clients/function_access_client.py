@@ -61,6 +61,7 @@ class FunctionAccessClient:
             raise RuntimeFunctionsException(f"Unexpected status {response.status_code} for CRN {instance_crn}")
 
         functions = []
+        print(response.text)
         for entry in response.json().get("functions", []):
             try:
                 function_entry = FunctionAccessEntry(
