@@ -27,15 +27,33 @@ def function_title():
 
 
 @fixture(scope="session")
-def user_client():
-    """Client authenticated with a user permissions instance.
-    Default CRN: test-crn-user
-    Permissions: function.read, function.run, function.job.read, function.files
+def none_client():
+    """Client authenticated with an instance that has no permissions (empty functions list).
+    Permissions: (none)
     """
     return ServerlessClient(
         token=GATEWAY_TOKEN,
         host=GATEWAY_HOST,
-        instance=os.environ.get("TEST_USER_INSTANCE", "test-crn-user"),
+        instance=os.environ.get(
+            "TEST_NONE_INSTANCE",
+            "crn:v1:staging:public:quantum-computing:us-east:a/efb0dd39cdb64955b8f6e32d44290acf:f0e2a145-2282-4605-9f54-eafdb7ec68a1::",
+        ),
+        channel=GATEWAY_CHANNEL,
+    )
+
+
+@fixture(scope="session")
+def user_client():
+    """Client authenticated with a user permissions instance.
+    Permissions: function.read, function.run, function-files.read, function-files.write
+    """
+    return ServerlessClient(
+        token=GATEWAY_TOKEN,
+        host=GATEWAY_HOST,
+        instance=os.environ.get(
+            "TEST_USER_INSTANCE",
+            "crn:v1:staging:public:quantum-computing:us-east:a/efb0dd39cdb64955b8f6e32d44290acf:6f3d655d-796c-43b9-9d03-a765ab3f6f62::",
+        ),
         channel=GATEWAY_CHANNEL,
     )
 
@@ -43,13 +61,16 @@ def user_client():
 @fixture(scope="session")
 def provider_client():
     """Client authenticated with a provider permissions instance.
-    Default CRN: test-crn-provider
-    Permissions: function.provider.upload, function.provider.jobs, function.provider.logs, function.provider.files
+    Permissions: function.write, function-job.read, function-provider-logs.read,
+                 function-provider-files.read, function-provider-files.write
     """
     return ServerlessClient(
         token=GATEWAY_TOKEN,
         host=GATEWAY_HOST,
-        instance=os.environ.get("TEST_PROVIDER_INSTANCE", "test-crn-provider"),
+        instance=os.environ.get(
+            "TEST_PROVIDER_INSTANCE",
+            "crn:v1:staging:public:quantum-computing:us-east:a/efb0dd39cdb64955b8f6e32d44290acf:aad85243-d34e-4374-b22a-ba59fa11e12f::",
+        ),
         channel=GATEWAY_CHANNEL,
     )
 
@@ -57,13 +78,16 @@ def provider_client():
 @fixture(scope="session")
 def combined_client():
     """Client authenticated with all permissions instance.
-    Default CRN: test-crn-all
-    Permissions: function.read, function.run, function.job.read, function.files
-                 function.provider.upload, function.provider.jobs, function.provider.logs, function.provider.files
+    Permissions: function.read, function.run, function-files.read, function-files.write,
+                 function.write, function-job.read, function-provider-logs.read,
+                 function-provider-files.read, function-provider-files.write
     """
     return ServerlessClient(
         token=GATEWAY_TOKEN,
         host=GATEWAY_HOST,
-        instance=os.environ.get("TEST_ALL_INSTANCE", "test-crn-all"),
+        instance=os.environ.get(
+            "TEST_ALL_INSTANCE",
+            "crn:v1:staging:public:quantum-computing:us-east:a/efb0dd39cdb64955b8f6e32d44290acf:e862a3cb-ff3b-49c7-9d80-20be5656e550::",
+        ),
         channel=GATEWAY_CHANNEL,
     )
