@@ -354,9 +354,11 @@ GATEWAY_ALLOWLIST_CONFIG = str(os.environ.get("GATEWAY_ALLOWLIST_CONFIG", "api/v
 
 GATEWAY_GPU_JOBS_CONFIG = str(os.environ.get("GATEWAY_GPU_JOBS_CONFIG", "api/v1/gpu-jobs.json"))
 
-# authentication base url for qiskit runtime
+# Authentication base url for Qiskit Runtime
 QISKIT_IBM_URL = os.environ.get("QISKIT_IBM_URL", "https://cloud.ibm.com")
-RUNTIME_API_BASE_URL = os.environ.get("RUNTIME_API_BASE_URL")
+
+# Authentication Runtime API
+RUNTIME_API_BASE_URL = os.environ.get("RUNTIME_API_BASE_URL", "https://quantum.test.cloud.ibm.com")
 RUNTIME_API_CACHE_TTL = int(os.environ.get("RUNTIME_API_CACHE_TTL", "60"))
 
 # IBM Cloud

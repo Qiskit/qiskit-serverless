@@ -18,7 +18,7 @@ logger = logging.getLogger("api.FunctionAccessClient")
 class FunctionAccessClient:
     """Client for retrieving accessible functions for a given instance CRN."""
 
-    def get_accessible_functions(self, instance_crn: str) -> FunctionAccessResult:
+    def get_accessible_functions(self, instance_crn: str, api_key: str) -> FunctionAccessResult:
         """Return all functions accessible to the given instance CRN with their permissions."""
         enabled = Config.get_bool(ConfigKey.RUNTIME_INSTANCES_API_ENABLED)
         base_url = settings.RUNTIME_API_BASE_URL
@@ -36,7 +36,7 @@ class FunctionAccessClient:
         try:
             response = requests.get(
                 f"{base_url}/api/v1/functions",
-                headers={"Service-CRN": instance_crn},
+                headers={"Service-CRN": instance_crn, "Authorization": f"apikey {api_key}"},
                 timeout=5,
             )
         except requests.RequestException as exc:
@@ -59,6 +59,7 @@ class FunctionAccessClient:
             raise RuntimeFunctionsException(f"Unexpected status {response.status_code} for CRN {instance_crn}")
 
         functions = []
+        print(response.text)
         for entry in response.json().get("functions", []):
             try:
                 function_entry = FunctionAccessEntry(

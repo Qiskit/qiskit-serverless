@@ -41,11 +41,16 @@ class FunctionsQuerySet(QuerySet):
                 Required when accessible_functions is provided and use_legacy_authorization=False.
         """
         if accessible_functions and not accessible_functions.use_legacy_authorization:
+            # Runtime API /functions
             filter_function_names = accessible_functions.get_functions_by_provider(permission)
+            # Custom functions (provider=None) are always visible
+            # Provider functions are gated by instance permissions, even if the user is the author.
+            author_criteria = Q(author=author, provider=None)
             provider_criteria = Q()
             for pname, titles in filter_function_names.items():
                 provider_criteria |= Q(provider__name=pname, title__in=titles)
-            return self.filter(Q(author=author) | provider_criteria).distinct()
+            combined = author_criteria | provider_criteria if provider_criteria else author_criteria
+            return self.filter(combined).distinct()
 
         # Fallback: Django groups
         groups = Group.objects.filter(user=author, permissions__codename=legacy_permission_name)
