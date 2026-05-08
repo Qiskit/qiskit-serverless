@@ -83,6 +83,26 @@ class TestWithPermissionRuntimeInstances:
 
         assert provider_function not in result
 
+    def test_own_provider_function_excluded_when_permission_absent(self, author, provider):
+        """Provider function authored by the querying user is excluded when permission is absent.
+
+        Regression: Q(author=author) without provider=None would include provider functions
+        authored by the user regardless of instance permissions.
+        """
+        provider_function = Program.objects.create(title="my-provider-fn", author=author, provider=provider)
+        # accessible_functions has an entry for the function but with a different permission
+        accessible = make_result(provider.name, provider_function.title, {"function.write"})
+
+        result = list(
+            Program.objects.with_permission(
+                author=author,
+                accessible_functions=accessible,
+                permission=PLATFORM_PERMISSION_READ,
+            )
+        )
+
+        assert provider_function not in result
+
     def test_empty_functions_returns_only_own(self, author, other_user):
         """When accessible_functions has no entries, returns only own functions."""
         user_function = Program.objects.create(title="user-fn", author=author)
