@@ -78,27 +78,27 @@ class TestJobRetrieveUseCase:
 
     class TestRuntimeInstances:
         @pytest.mark.parametrize(
-            "permissions,should_raise",
+            "permissions,grant",
             [
-                ({PLATFORM_PERMISSION_JOBS_READ}, False),
-                ({"other-permission"}, True),
-                (set(), True),
+                ({PLATFORM_PERMISSION_JOBS_READ}, True),
+                ({"other-permission"}, False),
+                (set(), False),
             ],
         )
-        def test_access_depends_on_jobs_read_permission(self, author, other_user, provider, permissions, should_raise):
+        def test_access_depends_on_jobs_read_permission(self, author, other_user, provider, permissions, grant):
             """Non-author access requires PLATFORM_PERMISSION_JOBS_READ for the function."""
             program = Program.objects.create(title="fn", author=author, provider=provider)
             job = Job.objects.create(author=author, program=program)
             accessible = create_function_access_result("my-provider", "fn", permissions)
 
-            if should_raise:
-                with pytest.raises(JobNotFoundException):
-                    JobRetrieveUseCase().execute(job.id, other_user, with_result=False, accessible_functions=accessible)
-            else:
+            if grant:
                 result = JobRetrieveUseCase().execute(
                     job.id, other_user, with_result=False, accessible_functions=accessible
                 )
                 assert result.id == job.id
+            else:
+                with pytest.raises(JobNotFoundException):
+                    JobRetrieveUseCase().execute(job.id, other_user, with_result=False, accessible_functions=accessible)
 
         def test_author_always_succeeds_regardless_of_accessible_functions(self, author, provider_job):
             """Author can always retrieve their job even with empty accessible_functions."""
