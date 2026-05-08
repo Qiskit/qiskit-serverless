@@ -107,7 +107,7 @@ def test_decode_jwt_invalid_payload() -> None:
         decode_jwt(bad_token)
 
 
-def GATEWAY_TOKEN_fetch_exception_bubbles_up() -> None:
+def test_provider_token_fetch_exception_bubbles_up() -> None:
     """Provider should bubble up errors from token_manager.get_token()."""
     with pytest.raises(Exception, match="bad key"):
         with patched_provider(token_side_effect=Exception("bad key")):
