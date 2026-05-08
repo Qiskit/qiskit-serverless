@@ -1,5 +1,6 @@
 """FunctionAccessClient."""
 
+import hashlib
 import logging
 
 import requests
@@ -28,7 +29,8 @@ class FunctionAccessClient:
         if not instance_crn:
             raise RuntimeFunctionsException("Missing instance_crn")
 
-        cache_key = f"accesible_functions:{instance_crn}"
+        api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+        cache_key = f"accesible_functions:{instance_crn}:{api_key_hash}"
         cached = cache.get(cache_key)
         if cached is not None:
             return cached
