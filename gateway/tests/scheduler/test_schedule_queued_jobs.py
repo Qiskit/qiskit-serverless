@@ -1,11 +1,11 @@
-"""Unit tests for ScheduleQueuedJobs."""
+"""Unit tests for ScheduleRayJobs."""
 
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 from django.db.models import F
 
-from scheduler.tasks.schedule_queued_jobs import ScheduleQueuedJobs
+from scheduler.tasks.schedule_queued_jobs import ScheduleRayJobs
 
 _MOD = "scheduler.tasks.schedule_queued_jobs"
 
@@ -13,7 +13,7 @@ _MOD = "scheduler.tasks.schedule_queued_jobs"
 def _make_task():
     kill_signal = MagicMock()
     kill_signal.received = False
-    return ScheduleQueuedJobs(kill_signal=kill_signal, metrics=MagicMock())
+    return ScheduleRayJobs(kill_signal=kill_signal, metrics=MagicMock())
 
 
 def test_job_saved_with_queryset_update():
@@ -23,7 +23,6 @@ def test_job_saved_with_queryset_update():
     mock_job = MagicMock()
     mock_job.id = 42
     mock_job.ray_job_id = "ray-abc"
-    mock_job.fleet_id = "fleet-xyz"
     mock_job.status = "PENDING"
     mock_job.compute_resource = None
     mock_job.env_vars = '{"traceparent": null}'
@@ -47,7 +46,6 @@ def test_job_saved_with_queryset_update():
         status=mock_job.status,
         ray_job_id=mock_job.ray_job_id,
         compute_resource=mock_job.compute_resource,
-        fleet_id=mock_job.fleet_id,
         version=F("version") + 1,
     )
     mock_job.refresh_from_db.assert_called_once_with(fields=["version"])
