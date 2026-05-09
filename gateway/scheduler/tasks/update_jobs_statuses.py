@@ -119,6 +119,8 @@ class UpdateJobsStatuses(SchedulerTask):
 
         return status_has_changed
 
+    # pylint: disable=too-many-statements
+    # pylint: disable=too-many-branches
     def _update_ray_job_status(self, job: Job) -> bool:
         """Update status of a Ray job (CPU or GPU)."""
         if not job.compute_resource:
