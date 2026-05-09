@@ -35,24 +35,16 @@ class UpdateJobsStatuses(SchedulerTask):
         self.kill_signal = kill_signal
         self.metrics = metrics
 
-    # pylint: disable=too-many-statements
-    # pylint: disable=too-many-branches
-    def update_job_status(self, job: Job):
-        """Update status of one job."""
-        is_fleets_job = job.runner == Program.FLEETS
+    def update_job_status(self, job: Job) -> bool:
+        """Update status of one job. Dispatches to runner-specific implementation."""
+        if job.runner == Program.FLEETS:
+            return self._update_fleets_job_status(job)
+        return self._update_ray_job_status(job)
 
-        if not is_fleets_job and not job.compute_resource:
-            logger.warning(
-                "job_id=%s Job doesn't have ComputeResource. Return false",
-                job.id,
-            )
-            return False
-
-        if is_fleets_job and not job.fleet_id:
-            logger.warning(
-                "job_id=%s Fleets job doesn't have fleet_id. Return false",
-                job.id,
-            )
+    def _update_fleets_job_status(self, job: Job) -> bool:
+        """Update status of a Fleets (Code Engine) job."""
+        if not job.fleet_id:
+            logger.warning("job_id=%s Fleets job doesn't have fleet_id. Return false", job.id)
             return False
 
         runner = get_runner(job)
@@ -72,11 +64,7 @@ class UpdateJobsStatuses(SchedulerTask):
                     status=job.status,
                 )
                 self._increment_terminal_counter(job)
-                logger.warning(
-                    "job_id=%s error=%s Error getting status, set job as FAILED",
-                    job.id,
-                    str(ex),
-                )
+                logger.warning("job_id=%s error=%s Error getting status, set job as FAILED", job.id, str(ex))
             except RecordModifiedError:
                 logger.warning(
                     "job_id=%s error=%s Error getting status + RecordModifiedError setting job as FAILED",
@@ -99,37 +87,105 @@ class UpdateJobsStatuses(SchedulerTask):
             )
             status_has_changed = True
             job.status = job_new_status
-            # cleanup env vars and save logs when job reaches terminal state
             if job.in_terminal_state():
                 job.sub_status = None
                 job.env_vars = "{}"
-                # Fleets logs are already in COS; only Ray logs need fetching and persisting.
-                if not is_fleets_job:
-                    try:
-                        logs = runner.logs() or ""
-                    except RunnerError:
-                        logs = ""
-                    save_logs_to_storage(job, logs)
-                else:
-                    # For Fleets jobs, retrieve results from COS and save to database
-                    try:
-                        result_str = runner.get_result_from_cos()
-                        if result_str:
-                            job.result = result_str
-                            logger.info("Retrieved and saved results for Fleets job [%s]", job.id)
-                    except Exception as ex:  # pylint: disable=broad-exception-caught
-                        logger.warning("Failed to retrieve results for Fleets job [%s]: %s", job.id, str(ex))
+                # Retrieve results from COS and save to database
+                try:
+                    result_str = runner.get_result_from_cos()
+                    if result_str:
+                        job.result = result_str
+                        logger.info("Retrieved and saved results for Fleets job [%s]", job.id)
+                except Exception as ex:  # pylint: disable=broad-exception-caught
+                    logger.warning("Failed to retrieve results for Fleets job [%s]: %s", job.id, str(ex))
                 job.logs = ""
                 if job.status == Job.SUCCEEDED:
                     self._record_execution_duration(job)
 
-        if not is_fleets_job and not job.in_terminal_state():
+        try:
+            job.save()
+            if status_has_changed:
+                JobEvent.objects.add_status_event(
+                    job_id=job.id,
+                    origin=JobEventOrigin.SCHEDULER,
+                    context=JobEventContext.UPDATE_JOB_STATUS,
+                    status=job.status,
+                )
+                if job.in_terminal_state():
+                    self._increment_terminal_counter(job)
+        except RecordModifiedError:
+            status_has_changed = False
+            logger.warning("job_id=%s RecordModifiedError on save", job.id)
+
+        return status_has_changed
+
+    def _update_ray_job_status(self, job: Job) -> bool:
+        """Update status of a Ray job (CPU or GPU)."""
+        if not job.compute_resource:
+            logger.warning("job_id=%s Job doesn't have ComputeResource. Return false", job.id)
+            return False
+
+        runner = get_runner(job)
+
+        try:
+            job_new_status = runner.status()
+        except RunnerError as ex:
+            job.status = Job.FAILED
+            job.sub_status = None
+            job.env_vars = "{}"
+            try:
+                job.save()
+                JobEvent.objects.add_status_event(
+                    job_id=job.id,
+                    origin=JobEventOrigin.SCHEDULER,
+                    context=JobEventContext.UPDATE_JOB_STATUS,
+                    status=job.status,
+                )
+                self._increment_terminal_counter(job)
+                logger.warning("job_id=%s error=%s Error getting status, set job as FAILED", job.id, str(ex))
+            except RecordModifiedError:
+                logger.warning(
+                    "job_id=%s error=%s Error getting status + RecordModifiedError setting job as FAILED",
+                    job.id,
+                    str(ex),
+                )
+            return True
+
+        status_has_changed = False
+        logs = None
+        if check_job_timeout(job):
+            job_new_status = Job.STOPPED
+
+        if job_new_status != job.status:
+            logger.info(
+                "job_id=%s user_id=%s Changing status from %s to %s",
+                job.id,
+                job.author.id,
+                job.status,
+                job_new_status,
+            )
+            status_has_changed = True
+            job.status = job_new_status
+            if job.in_terminal_state():
+                job.sub_status = None
+                job.env_vars = "{}"
+                # Fetch and persist Ray logs once on terminal transition
+                try:
+                    logs = runner.logs() or ""
+                except RunnerError:
+                    logs = ""
+                save_logs_to_storage(job, logs)
+                job.logs = ""
+                if job.status == Job.SUCCEEDED:
+                    self._record_execution_duration(job)
+
+        if not job.in_terminal_state():
             try:
                 logs = runner.logs()
             except RunnerError:
                 logs = None
 
-        if not is_fleets_job and logs:
+        if logs:
             # check if job is resource constrained
             no_resources_log = "No available node types can fulfill resource request"
             if no_resources_log in logs:
@@ -148,7 +204,6 @@ class UpdateJobsStatuses(SchedulerTask):
                     f"{settings.LIMITS_MEMORY_PER_TASK} GB of RAM per job."
                 )
                 job.status = job_new_status
-                # cleanup env vars
                 job.env_vars = "{}"
                 status_has_changed = True
                 save_logs_to_storage(job, logs)
@@ -156,7 +211,6 @@ class UpdateJobsStatuses(SchedulerTask):
 
         try:
             job.save()
-
             if status_has_changed:
                 JobEvent.objects.add_status_event(
                     job_id=job.id,
