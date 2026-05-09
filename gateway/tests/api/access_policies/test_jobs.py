@@ -4,7 +4,7 @@ from django.contrib.auth.models import User, Group
 
 from api.access_policies.jobs import JobAccessPolicies
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import Program, Job, Provider, PLATFORM_PERMISSION_JOB_READ, PLATFORM_PERMISSION_PROVIDER_LOGS
+from core.models import Program, Job, Provider, PLATFORM_PERMISSION_JOBS_READ, PLATFORM_PERMISSION_PROVIDER_LOGS
 from tests.utils import create_function_access_result
 
 pytestmark = pytest.mark.django_db
@@ -70,12 +70,12 @@ class TestCanAccess:
         @pytest.mark.parametrize(
             "permissions,expected",
             [
-                ({PLATFORM_PERMISSION_JOB_READ}, True),
+                ({PLATFORM_PERMISSION_JOBS_READ}, True),
                 ({"other-permission"}, False),
             ],
         )
-        def test_access_depends_on_job_read_permission(self, job_author, permissions, expected):
-            """Access is granted if the entry includes PLATFORM_PERMISSION_JOB_READ for the function."""
+        def test_access_depends_on_provider_jobs_permission(self, job_author, permissions, expected):
+            """Access is granted if the entry includes PLATFORM_PERMISSION_JOBS_READ for the function."""
             admin = User.objects.create_user(username="admin_ext")
             provider = Provider.objects.create(name="ext-provider")
             program = Program.objects.create(title="fn", author=job_author, provider=provider)

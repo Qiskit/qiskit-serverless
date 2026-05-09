@@ -2,7 +2,7 @@
 
 from core.domain.authorization.function_access_entry import FunctionAccessEntry
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import PLATFORM_PERMISSION_RUN, PLATFORM_PERMISSION_READ, PLATFORM_PERMISSION_PROVIDER_JOBS
+from core.models import PLATFORM_PERMISSION_RUN, PLATFORM_PERMISSION_READ, PLATFORM_PERMISSION_JOBS_READ
 
 
 def _entry(provider_name, function_title, permissions, business_model="SUBSIDIZED"):
@@ -28,12 +28,12 @@ def test_get_function():
 
 def test_has_permission_for_provider():
     entries = [
-        _entry("prov", "func1", {PLATFORM_PERMISSION_PROVIDER_JOBS}),
+        _entry("prov", "func1", {PLATFORM_PERMISSION_JOBS_READ}),
         _entry("prov", "func2", {PLATFORM_PERMISSION_READ}),
     ]
     result = FunctionAccessResult(use_legacy_authorization=False, functions=entries)
-    assert result.has_permission_for_provider("prov", PLATFORM_PERMISSION_PROVIDER_JOBS) is True
-    assert result.has_permission_for_provider("prov", PLATFORM_PERMISSION_PROVIDER_JOBS) is True
+    assert result.has_permission_for_provider("prov", PLATFORM_PERMISSION_JOBS_READ) is True
+    assert result.has_permission_for_provider("prov", PLATFORM_PERMISSION_JOBS_READ) is True
     assert result.has_permission_for_provider("prov", PLATFORM_PERMISSION_RUN) is False
 
 

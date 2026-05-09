@@ -19,8 +19,8 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobE
 from core.models import (
     Job,
     JobEvent,
-    PLATFORM_PERMISSION_PROVIDER_JOBS,
-    PLATFORM_PERMISSION_PROVIDER_UPLOAD,
+    PLATFORM_PERMISSION_JOBS_READ,
+    PLATFORM_PERMISSION_WRITE,
     PLATFORM_PERMISSION_READ,
     PLATFORM_PERMISSION_RUN,
     Program,
@@ -1276,12 +1276,12 @@ class TestProgramApiRuntimeInstances:
         @pytest.mark.parametrize(
             "permissions,expected_status",
             [
-                ({PLATFORM_PERMISSION_PROVIDER_UPLOAD}, status.HTTP_200_OK),
+                ({PLATFORM_PERMISSION_WRITE}, status.HTTP_200_OK),
                 (set(), status.HTTP_404_NOT_FOUND),
             ],
         )
         def test_upload_provider_function(self, client, authorize, permissions, expected_status):
-            """upload() checks PLATFORM_PERMISSION_PROVIDER_UPLOAD in accessible_functions."""
+            """upload() checks PLATFORM_PERMISSION_WRITE in accessible_functions."""
             TestUtils.get_or_create_provider(provider="my-provider")
             authorize("runtime-user", create_function_access_result("my-provider", "my-func", permissions))
 
@@ -1317,12 +1317,12 @@ class TestProgramApiRuntimeInstances:
         @pytest.mark.parametrize(
             "permissions,expected_job_count",
             [
-                ({PLATFORM_PERMISSION_PROVIDER_JOBS}, 2),  # provider admin sees all jobs
+                ({PLATFORM_PERMISSION_JOBS_READ}, 2),  # provider admin sees all jobs
                 (set(), 1),  # regular user sees only own job
             ],
         )
         def test_get_jobs(self, client, authorize, permissions, expected_job_count):
-            """get_jobs() checks PLATFORM_PERMISSION_PROVIDER_JOBS in accessible_functions."""
+            """get_jobs() checks PLATFORM_PERMISSION_JOBS_READ in accessible_functions."""
             program = TestUtils.create_program(program_title="my-func", author="func-author", provider="my-provider")
             user, _ = User.objects.get_or_create(username="runtime-user")
             other_user, _ = User.objects.get_or_create(username="other-user")

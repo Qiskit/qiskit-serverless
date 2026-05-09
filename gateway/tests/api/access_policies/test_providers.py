@@ -10,11 +10,11 @@ from core.domain.authorization.function_access_result import FunctionAccessResul
 from core.domain.business_models import BusinessModel
 from core.models import (
     Job,
-    PLATFORM_PERMISSION_JOB_READ,
-    PLATFORM_PERMISSION_PROVIDER_FILES,
-    PLATFORM_PERMISSION_PROVIDER_JOBS,
+    PLATFORM_PERMISSION_PROVIDER_FILES_READ,
+    PLATFORM_PERMISSION_PROVIDER_FILES_WRITE,
+    PLATFORM_PERMISSION_JOBS_READ,
     PLATFORM_PERMISSION_PROVIDER_LOGS,
-    PLATFORM_PERMISSION_PROVIDER_UPLOAD,
+    PLATFORM_PERMISSION_WRITE,
     Provider,
 )
 
@@ -40,12 +40,12 @@ class TestCanRetrieveJob:
     @pytest.mark.parametrize(
         "permissions,expected",
         [
-            ({PLATFORM_PERMISSION_JOB_READ}, True),
+            ({PLATFORM_PERMISSION_JOBS_READ}, True),
             (set(), False),
         ],
     )
     def test_grant(self, permissions, expected):
-        """Access depends on whether accessible_functions includes JOB_READ for the provider."""
+        """Access depends on whether accessible_functions includes PROVIDER_JOBS for the provider."""
         user = User.objects.create_user(username="client")
         provider = Provider.objects.create(name="provider")
         functions = [_entry("provider", permissions)] if permissions else []
@@ -108,12 +108,12 @@ class TestCanListJobs:
     @pytest.mark.parametrize(
         "permissions,expected",
         [
-            ({PLATFORM_PERMISSION_PROVIDER_JOBS}, True),
+            ({PLATFORM_PERMISSION_JOBS_READ}, True),
             (set(), False),
         ],
     )
     def test_grant(self, permissions, expected):
-        """Job list access is granted if the entry includes PLATFORM_PERMISSION_PROVIDER_JOBS."""
+        """Job list access is granted if the entry includes PLATFORM_PERMISSION_JOBS_READ."""
         user = User.objects.create_user(username="client")
         provider = Provider.objects.create(name="provider")
         functions = [_entry("provider", permissions)] if permissions else []
@@ -121,33 +121,50 @@ class TestCanListJobs:
         assert ProviderAccessPolicy.can_list_jobs(user, provider, "fnc", accessible) is expected
 
 
-class TestCanManageFiles:
+class TestCanReadFiles:
     @pytest.mark.parametrize(
         "permissions,expected",
         [
-            ({PLATFORM_PERMISSION_PROVIDER_FILES}, True),
+            ({PLATFORM_PERMISSION_PROVIDER_FILES_READ}, True),
             (set(), False),
         ],
     )
     def test_grant(self, permissions, expected):
-        """File management access is granted if the entry includes PLATFORM_PERMISSION_PROVIDER_FILES."""
+        """File read access is granted if the entry includes PLATFORM_PERMISSION_PROVIDER_FILES_READ."""
         user = User.objects.create_user(username="client")
         provider = Provider.objects.create(name="provider")
         functions = [_entry("provider", permissions)] if permissions else []
         accessible = FunctionAccessResult(use_legacy_authorization=False, functions=functions)
-        assert ProviderAccessPolicy.can_manage_files(user, provider, "fnc", accessible) is expected
+        assert ProviderAccessPolicy.can_read_files(user, provider, "fnc", accessible) is expected
+
+
+class TestCanWriteFiles:
+    @pytest.mark.parametrize(
+        "permissions,expected",
+        [
+            ({PLATFORM_PERMISSION_PROVIDER_FILES_WRITE}, True),
+            (set(), False),
+        ],
+    )
+    def test_grant(self, permissions, expected):
+        """File write access is granted if the entry includes PLATFORM_PERMISSION_PROVIDER_FILES_WRITE."""
+        user = User.objects.create_user(username="client")
+        provider = Provider.objects.create(name="provider")
+        functions = [_entry("provider", permissions)] if permissions else []
+        accessible = FunctionAccessResult(use_legacy_authorization=False, functions=functions)
+        assert ProviderAccessPolicy.can_write_files(user, provider, "fnc", accessible) is expected
 
 
 class TestCanUploadFunction:
     @pytest.mark.parametrize(
         "permissions,expected",
         [
-            ({PLATFORM_PERMISSION_PROVIDER_UPLOAD}, True),
+            ({PLATFORM_PERMISSION_WRITE}, True),
             (set(), False),
         ],
     )
     def test_grant(self, permissions, expected):
-        """Function upload access is granted if the entry includes PLATFORM_PERMISSION_PROVIDER_UPLOAD."""
+        """Function upload access is granted if the entry includes PLATFORM_PERMISSION_WRITE."""
         user = User.objects.create_user(username="client")
         provider = Provider.objects.create(name="provider")
         functions = [_entry("provider", permissions)] if permissions else []
