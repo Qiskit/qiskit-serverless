@@ -19,7 +19,7 @@ from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
 from scheduler.tasks.free_resources import FreeResources
-from scheduler.tasks.schedule_queued_jobs import ScheduleQueuedJobs
+from scheduler.tasks.schedule_queued_jobs import ScheduleRayJobs
 from scheduler.schedule import get_jobs_to_schedule_fair_share
 from tests.utils import TestUtils
 
@@ -129,7 +129,7 @@ class TestCommands:
         fake_job.fleet_id = None
 
         execute_job.return_value = fake_job
-        ScheduleQueuedJobs(kill_signal=KillSignal(), metrics=self.metrics).run()
+        ScheduleRayJobs(kill_signal=KillSignal(), metrics=self.metrics).run()
         # TODO: mock execute job to change status of job and query for QUEUED jobs  # pylint: disable=fixme
         job_count = Job.objects.count()
         assert job_count == 7

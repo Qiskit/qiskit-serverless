@@ -12,7 +12,8 @@ from scheduler.http_server import SchedulerHttpServer
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.kill_signal import KillSignal
 from scheduler.tasks.free_resources import FreeResources
-from scheduler.tasks.schedule_queued_jobs import ScheduleQueuedJobs
+from scheduler.tasks.schedule_queued_jobs import ScheduleRayJobs
+from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
 from scheduler.tasks.update_job_status_counts import UpdateJobStatusCounts
 from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
 
@@ -36,7 +37,8 @@ class Main:
 
         self.tasks = [
             UpdateJobStatusCounts(self.kill_signal, self.metrics),
-            ScheduleQueuedJobs(self.kill_signal, self.metrics),
+            ScheduleRayJobs(self.kill_signal, self.metrics),
+            ScheduleFleetsJobs(self.kill_signal, self.metrics),
             UpdateJobsStatuses(self.kill_signal, self.metrics),
             FreeResources(self.kill_signal, self.metrics),
         ]
