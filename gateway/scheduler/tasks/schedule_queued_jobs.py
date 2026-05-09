@@ -113,7 +113,6 @@ class ScheduleQueuedJobs(SchedulerTask):
 
                 # Store the wait time (time since job was created) in the metrics
                 self.add_queue_wait_time_metric(job)
-
         if jobs:
             logger.info("%s jobs are scheduled for execution.", len(jobs))
 

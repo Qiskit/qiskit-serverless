@@ -3,9 +3,12 @@
 import logging
 from rest_framework import authentication, exceptions
 
+from core.domain.authorization.function_access_result import FunctionAccessResult
+
+from api.clients.function_access_client import FunctionAccessClient
+from api.domain.authentication.channel import Channel
 from api.domain.authentication.custom_authentication import CustomAuthentication
 from api.use_cases.authentication import AuthenticationUseCase
-from api.domain.authentication.channel import Channel
 
 logger = logging.getLogger("api.authentication")
 PUBLIC_ENDPOINTS = ["swagger"]
@@ -66,7 +69,13 @@ class CustomTokenBackend(authentication.BaseAuthentication):
             public_access=public_access,
         ).execute()
 
-        return quantum_user, CustomAuthentication(channel=channel, token=authorization_token.encode(), instance=crn)
+        accessible_functions = FunctionAccessClient().get_accessible_functions(crn)
+        return quantum_user, CustomAuthentication(
+            channel=channel,
+            token=authorization_token.encode(),
+            accessible_functions=accessible_functions,
+            instance=crn,
+        )
 
     def authenticate_header(self, request):
         """
@@ -107,7 +116,12 @@ class MockTokenBackend(authentication.BaseAuthentication):
             public_access=public_access,
         ).execute()
 
-        return quantum_user, CustomAuthentication(channel=channel, token=authorization_token.encode(), instance=None)
+        return quantum_user, CustomAuthentication(
+            channel=channel,
+            token=authorization_token.encode(),
+            instance=None,
+            accessible_functions=FunctionAccessResult(use_legacy_authorization=True, message="Mock"),
+        )
 
     def authenticate_header(self, request):
         """

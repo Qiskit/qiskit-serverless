@@ -223,10 +223,10 @@ def check_logs(logs: Union[str, None], job) -> str:
 
     if logs_size > max_bytes:
         logger.warning(
-            "Job %s is exceeding the maximum size for logs %s MB > %s MB.",
+            "Job %s is exceeding the maximum size for logs %.1f MB > %.1f MB.",
             job.id,
-            logs_size,
-            max_bytes,
+            logs_size / (1024**2),
+            max_bytes / (1024**2),
         )
 
         # truncate logs discarding older

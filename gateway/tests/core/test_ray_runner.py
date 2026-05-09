@@ -216,15 +216,16 @@ class TestGetRunner(APITestCase):
 
         self.assertIsInstance(runner, RayRunner)
 
-    def test_get_runner_raises_for_fleets_runner(self):
-        """Tests that get_runner raises RunnerError for unsupported FLEETS jobs."""
+    def test_get_runner_returns_fleets_runner(self):
+        """Tests that get_runner returns a FleetsRunner for FLEETS jobs."""
+        from core.services.runners.fleets_runner import FleetsRunner  # pylint: disable=import-outside-toplevel
+
         job = Job.objects.first()
         job.runner = Program.FLEETS
 
-        with self.assertRaises(RunnerError) as ctx:
-            get_runner(job)
+        runner = get_runner(job)
 
-        self.assertIn("Fleets runner is not supported yet", str(ctx.exception))
+        self.assertIsInstance(runner, FleetsRunner)
 
     def test_get_runner_raises_for_unknown_runner(self):
         """Tests that get_runner raises RunnerError for unknown runner types."""

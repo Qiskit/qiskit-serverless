@@ -21,7 +21,7 @@ def api_client():
 @pytest.fixture
 def user(api_client):
     """Create and authenticate a test user."""
-    return TestUtils.authorize_client(username="test_user", client=api_client)
+    return TestUtils.authorize_client(user="test_user", client=api_client)
 
 
 @pytest.fixture

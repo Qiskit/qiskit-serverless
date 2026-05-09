@@ -12,6 +12,7 @@ from django.db import models
 from django_prometheus.models import ExportModelOperationsMixin
 
 from core.config_key import ConfigKey
+from core.domain.business_models import BusinessModel
 from core.model_managers.functions import FunctionsQuerySet
 from core.model_managers.job_events import JobEventQuerySet
 from core.model_managers.jobs import JobQuerySet
@@ -20,6 +21,18 @@ logger = logging.getLogger("core.models")
 
 VIEW_PROGRAM_PERMISSION = "view_program"
 RUN_PROGRAM_PERMISSION = "run_program"
+
+# Platform permissions (Runtime API instances access client)
+PLATFORM_PERMISSION_READ = "function.read"  # see function in catalog and retrieve its metadata
+PLATFORM_PERMISSION_RUN = "function.run"  # execute a new job of this function
+PLATFORM_PERMISSION_USER_FILES_READ = "function-files.read"  # list and download files in user space
+PLATFORM_PERMISSION_USER_FILES_WRITE = "function-files.write"  # upload and delete files in user space
+# Provider admin permissions
+PLATFORM_PERMISSION_WRITE = "function.write"  # create or update this function's code
+PLATFORM_PERMISSION_JOBS_READ = "function-job.read"  # list or retrieve jobs from this function (non-author access)
+PLATFORM_PERMISSION_PROVIDER_LOGS = "function-provider-logs.read"  # read provider-side logs of jobs from this function
+PLATFORM_PERMISSION_PROVIDER_FILES_READ = "function-provider-files.read"  # list and download files in provider space
+PLATFORM_PERMISSION_PROVIDER_FILES_WRITE = "function-provider-files.write"  # upload and delete files in provider space
 
 
 def get_upload_path(instance, filename):
@@ -156,6 +169,18 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     class Meta:
         app_label = "api"
         permissions = ((RUN_PROGRAM_PERMISSION, "Can run function"),)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["provider", "title"],
+                condition=models.Q(provider__isnull=False),
+                name="unique_provider_title",
+            ),
+            models.UniqueConstraint(
+                fields=["author", "title"],
+                condition=models.Q(provider__isnull=True),
+                name="unique_author_title_no_provider",
+            ),
+        ]
 
     def __str__(self):
         if self.provider:
@@ -245,7 +270,7 @@ class CodeEngineProject(models.Model):
     updated = models.DateTimeField(auto_now=True)
 
     # Code Engine identifiers (we could save one or both)
-    project_id = models.CharField(max_length=255, unique=True, help_text="IBM Code Engine project UUID")
+    project_id = models.CharField(max_length=255, help_text="IBM Code Engine project UUID")
     project_name = models.CharField(max_length=255, help_text="Code Engine project name in IBM Cloud")
 
     # Location and ownership
@@ -254,6 +279,13 @@ class CodeEngineProject(models.Model):
 
     # Networking
     subnet_pool_id = models.CharField(max_length=255, help_text="Subnet pool ID for fleet networking")
+    zone = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        unique=True,
+        help_text="Availability zone this project is pinned to (e.g. us-east-1)",
+    )
 
     # Storage and state management
     pds_name_state = models.CharField(max_length=255, help_text="Persistent Data Store name for task state")
@@ -347,13 +379,10 @@ class Job(models.Model):
         (POST_PROCESSING, "Post-processing"),
     ]
 
-    BUSINESS_MODEL_TRIAL = "TRIAL"
-    BUSINESS_MODEL_SUBSIDIZED = "SUBSIDIZED"
-    BUSINESS_MODEL_CONSUMPTION = "CONSUMPTION"
     BUSINESS_MODELS = [
-        (BUSINESS_MODEL_TRIAL, "Trial"),
-        (BUSINESS_MODEL_SUBSIDIZED, "Subsidized"),
-        (BUSINESS_MODEL_CONSUMPTION, "Consumption"),
+        (BusinessModel.TRIAL, "Trial"),
+        (BusinessModel.SUBSIDIZED, "Subsidized"),
+        (BusinessModel.CONSUMPTION, "Consumption"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -383,7 +412,7 @@ class Job(models.Model):
     )
     sub_status = models.CharField(max_length=255, choices=SUB_STATUSES, default=None, null=True, blank=True)
     trial = models.BooleanField(default=False, null=False)
-    business_model = models.CharField(max_length=50, choices=BUSINESS_MODELS, default=BUSINESS_MODEL_SUBSIDIZED)
+    business_model = models.CharField(max_length=50, choices=BUSINESS_MODELS, default=BusinessModel.SUBSIDIZED)
     version = IntegerVersionField()
 
     author = models.ForeignKey(

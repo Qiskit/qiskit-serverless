@@ -13,8 +13,10 @@ from typing import Tuple, Union
 from django.conf import settings
 from django.contrib.auth.models import Group
 from rest_framework import serializers
+from rest_framework import validators as validators_module
 
 from api.utils import build_env_variables, sanitize_name
+from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.services.storage.arguments_storage import ArgumentsStorage
 from core.utils import encrypt_env_vars, create_gpujob_allowlist
@@ -45,6 +47,12 @@ class UploadProgramSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Program
+
+    def get_validators(self):
+        """Exclude UniqueConstraint validators.
+        Uniqueness is enforced at DB level; the upload view handles
+        upsert logic (find-or-create) before saving."""
+        return [v for v in super().get_validators() if not isinstance(v, validators_module.UniqueTogetherValidator)]
 
     def _normalize_dependency(self, raw_dependency):
         if isinstance(raw_dependency, str):
@@ -233,6 +241,7 @@ class RunJobSerializer(serializers.ModelSerializer):
             "status",
             "created",
             "compute_profile",
+            "fleet_id",
             "arguments",
             "program",
         ]
@@ -318,8 +327,14 @@ class RunJobSerializer(serializers.ModelSerializer):
         carrier = validated_data.pop("carrier")
         compute_profile_requested = validated_data.get("compute_profile", None)
 
-        trial = self.is_trial(program, author)
-        business_model = Job.BUSINESS_MODEL_TRIAL if trial else Job.BUSINESS_MODEL_SUBSIDIZED
+        business_model = validated_data.pop("business_model", None)
+        if business_model is None:
+            # Django legacy: set the business_model from the trial flag that comes from the legacy Django Groups
+            trial = self.is_trial(program, author)
+            business_model = BusinessModel.TRIAL if trial else BusinessModel.SUBSIDIZED
+        else:
+            # Runtime API /functions: set trial from the Runtime
+            trial = business_model == BusinessModel.TRIAL
 
         # Get runner-specific configuration (compute_profile for Fleets, GPU for Ray)
         compute_profile, gpu = self._get_runner_config(program, compute_profile_requested)
@@ -346,8 +361,7 @@ class RunJobSerializer(serializers.ModelSerializer):
             )
         )
 
-        provider_name = program.provider.name if program.provider else None
-        arguments_storage = ArgumentsStorage(author.username, program.title, provider_name)
+        arguments_storage = ArgumentsStorage(author.username, program)
         arguments_storage.save(job.id, arguments)
 
         try:

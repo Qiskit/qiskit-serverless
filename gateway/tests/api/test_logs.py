@@ -16,6 +16,7 @@ from core.services.runners import RunnerError
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
+from tests.utils import TestUtils
 
 
 def create_job(author: str, provider_admin: Optional[str] = None) -> Job:
@@ -24,21 +25,18 @@ def create_job(author: str, provider_admin: Optional[str] = None) -> Job:
     provider = None
 
     if provider_admin:
-        provider = Provider.objects.create(name=provider_admin)
-        admin_group, _ = Group.objects.get_or_create(name=provider_admin)
-        admin_user, _ = User.objects.get_or_create(username=provider_admin)
-        admin_user.groups.add(admin_group)
-        provider.admin_groups.add(admin_group)
+        TestUtils.add_user_to_group(provider_admin, provider_admin)
+        provider = TestUtils.get_or_create_provider(provider_admin, provider_admin)
 
-    program = Program.objects.create(
-        title=f"{author_user}-{provider_admin or 'custom'}",
+    program = TestUtils.create_program(
+        program_title=f"{author_user.username}-{provider_admin or 'custom'}",
         author=author_user,
         provider=provider,
     )
 
     compute_resource = ComputeResource.objects.create(title="test-cluster-storage-provider-logs", active=True)
 
-    return Job.objects.create(
+    return TestUtils.create_job(
         author=author_user,
         program=program,
         status="RUNNING",
@@ -76,6 +74,7 @@ class TestJobLogsPermissions:
         # Mock the runner clients to prevent hanging on Ray connection
         mock_handler = Mock()
         mock_handler.logs.return_value = "Test logs"
+        mock_handler.provider_logs.return_value = "Test logs"
         mock_get_logs_handler.return_value = mock_handler
         mock_provider_logs_handler.return_value = mock_handler
 
@@ -304,7 +303,7 @@ WARNING: Private warning
 """
 
         runner_mock = Mock()
-        runner_mock.logs.return_value = full_logs
+        runner_mock.provider_logs.return_value = full_logs
         get_runner_client_mock.return_value = runner_mock
 
         job = create_job(author="author", provider_admin="provider_admin")
@@ -360,7 +359,7 @@ WARNING: Private warning
         """Tests /provider-logs with provider job, Ray error."""
         logs_storage_get_mock.return_value = None
         runner_mock = Mock()
-        runner_mock.logs.side_effect = RunnerError("Cannot connect to Ray")
+        runner_mock.provider_logs.side_effect = RunnerError("Cannot connect to Ray")
         get_runner_client_mock.return_value = runner_mock
 
         job = create_job(author="author", provider_admin="provider_admin")
@@ -372,4 +371,4 @@ WARNING: Private warning
         )
 
         assert jobs_response.status_code == HTTP_200_OK
-        assert jobs_response.data.get("logs") == "Logs not available for this job during execution."
+        assert jobs_response.data.get("logs") == f"Logs not available for job [{job.id}] during execution."

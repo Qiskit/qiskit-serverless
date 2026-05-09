@@ -182,8 +182,10 @@ spec:
               value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
             - name: QISKIT_IBM_URL
               value: {{ .Values.application.qiskitRuntime.url }}
-            - name: IQP_QCON_API_BASE_URL
-              value: {{ .Values.application.iqpQcon.url }}
+            - name: RUNTIME_API_BASE_URL
+              value: {{ .Values.application.runtimeApi.url | quote }}
+            - name: RUNTIME_API_CACHE_TTL
+              value: {{ .Values.application.runtimeApi.cacheTtl | quote }}
             - name: DATABASE_HOST
               valueFrom:
                 secretKeyRef:
@@ -408,7 +410,7 @@ spec:
             - name: OTEL_EXPORTER_OTLP_TRACES_INSECURE
               value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
             - name: PROGRAM_TIMEOUT
-              value: {{ .Values.application.limits.programTimeoutDays | quote }}
+              value: {{ .Values.application.limits.programTimeoutHours | quote }}
             - name: FUNCTIONS_LOGS_SIZE_LIMIT
               value: {{ .Values.application.logsMaximumSize | quote }}
             - name: LOG_FORMAT

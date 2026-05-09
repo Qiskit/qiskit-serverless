@@ -3,7 +3,7 @@
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, Tuple, Self
+from typing import Optional, Set, Tuple, Self
 
 from django.db.models import QuerySet
 from django.contrib.auth.models import AbstractUser
@@ -20,6 +20,7 @@ class JobFilters:
 
     Attributes:
         function: Function title
+        functions: Function title list
         provider: Provider who owns the function
         limit: Number of results to return per page
         offset: Number of results to skip
@@ -29,6 +30,7 @@ class JobFilters:
     """
 
     function: Optional[str] = None
+    functions: Optional[Set[str]] = None
     provider: Optional[str] = None
 
     limit: Optional[int] = None
@@ -98,6 +100,8 @@ class JobQuerySet(QuerySet):
 
         if filters.function:
             queryset = queryset.filter(program__title=filters.function)
+        elif filters.functions:
+            queryset = queryset.filter(program__title__in=filters.functions)
 
         return queryset
 

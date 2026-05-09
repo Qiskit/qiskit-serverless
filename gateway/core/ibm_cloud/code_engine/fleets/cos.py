@@ -117,6 +117,7 @@ class JobCOS:
 
         hmac_secret_name = cos_config.get("hmac_secret_name")
         bucket_region = cos_config.get("bucket_region", self._job.client_provider.config.region)
+        endpoint_url = cos_config.get("cos_endpoint_url")
 
         if not hmac_secret_name:
             raise ValueError(
@@ -131,6 +132,7 @@ class JobCOS:
             client_provider=self._job.client_provider,
             credentials=creds,
             bucket_region=bucket_region,
+            endpoint_url=endpoint_url,
         )
         return self.__cos
 
@@ -199,6 +201,47 @@ class JobCOS:
             timeout_seconds=timeout,
             poll_interval=poll_interval,
         )
+
+    def upload_fileobj(
+        self,
+        *,
+        fileobj: object,
+        bucket_name: str,
+        key: str,
+    ) -> None:
+        """Upload a file-like object to COS.
+
+        Args:
+            fileobj: Binary file-like object to upload.
+            bucket_name: COS bucket name.
+            key: Object key.
+
+        Raises:
+            ValueError: If bucket_name or key is missing.
+        """
+        if not bucket_name:
+            raise ValueError("bucket_name is required.")
+        if not key:
+            raise ValueError("key is required.")
+
+        self._cos.upload_fileobj(fileobj=fileobj, bucket=bucket_name, key=key)
+
+    def get_object_bytes(self, *, bucket_name: str, key: str) -> bytes:
+        """Retrieve an object fully into memory.
+
+        Args:
+            bucket_name: COS bucket name.
+            key: Object key.
+
+        Returns:
+            Object content as bytes.
+        """
+        if not bucket_name:
+            raise ValueError("bucket_name is required.")
+        if not key:
+            raise ValueError("key is required.")
+
+        return self._cos.get_object_bytes(bucket=bucket_name, key=key)
 
     def list_keys(
         self,

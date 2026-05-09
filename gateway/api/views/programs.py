@@ -7,6 +7,7 @@ Version views inherit from the different views.
 import logging
 import os
 import re
+from typing import cast
 
 # pylint: disable=duplicate-code
 from django.conf import settings
@@ -26,7 +27,6 @@ from api.domain.authentication.channel import Channel
 from api.domain.exceptions.active_job_limit_exceeded_exception import (
     ActiveJobLimitExceeded,
 )
-
 from api.serializers import (
     JobConfigSerializer,
     RunJobSerializer,
@@ -36,8 +36,16 @@ from api.serializers import (
 )
 from api.utils import active_jobs_limit_reached, sanitize_name
 from api.v1.exception_handler import endpoint_handle_exceptions
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.enums.type_filter import TypeFilter
-from core.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Job, Provider
+from core.models import (
+    PLATFORM_PERMISSION_READ,
+    PLATFORM_PERMISSION_RUN,
+    RUN_PROGRAM_PERMISSION,
+    VIEW_PROGRAM_PERMISSION,
+    Job,
+    Provider,
+)
 from core.models import Program as Function
 
 # pylint: disable=duplicate-code
@@ -115,6 +123,13 @@ class ProgramViewSet(viewsets.GenericViewSet):
         """List programs:"""
         author = self.request.user
         type_filter = self.request.query_params.get("filter")
+        accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
+        logger.info(
+            "[programs-list] user_id=%s filter=%s accessible_functions=%s",
+            author.id,
+            type_filter,
+            accessible_functions,
+        )
 
         if type_filter == TypeFilter.SERVERLESS:
             # Serverless filter only returns functions created by the author
@@ -122,14 +137,22 @@ class ProgramViewSet(viewsets.GenericViewSet):
             # - user is the author of the function and there is no provider
             functions = Function.objects.user_functions(author)
         elif type_filter == TypeFilter.CATALOG:
-            # Catalog filter only returns providers functions that user has access:
-            # author has view permissions and the function has a provider assigned
+            # Catalog filter only returns provider functions that user has access:
+            # author has run permissions and the function has a provider assigned
             functions = Function.objects.provider_functions().with_permission(
-                author, permission_name=RUN_PROGRAM_PERMISSION
+                author,
+                accessible_functions=accessible_functions,
+                legacy_permission_name=RUN_PROGRAM_PERMISSION,
+                permission=PLATFORM_PERMISSION_READ,
             )
         else:
-            # If filter is not applied we return author and providers functions together
-            functions = Function.objects.with_permission(author, permission_name=VIEW_PROGRAM_PERMISSION)
+            # If filter is not applied we return author + providers functions together
+            functions = Function.objects.with_permission(
+                author,
+                accessible_functions=accessible_functions,
+                legacy_permission_name=VIEW_PROGRAM_PERMISSION,
+                permission=PLATFORM_PERMISSION_READ,
+            )
 
         serializer = self.get_serializer(list(functions), many=True)
         logger.info(
@@ -157,9 +180,23 @@ class ProgramViewSet(viewsets.GenericViewSet):
         author = request.user
         provider_name, title = serializer.get_provider_name_and_title(request_provider, title)
 
+        accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
+        logger.info(
+            "[programs-upload] user_id=%s program=%s provider=%s accessible_functions=%s",
+            author.id,
+            title,
+            provider_name,
+            accessible_functions,
+        )
+
         if provider_name:
             provider_obj = Provider.objects.filter(name=provider_name).first()
-            if provider_obj is None or not ProviderAccessPolicy.can_access(user=author, provider=provider_obj):
+            if provider_obj is None or not ProviderAccessPolicy.can_upload_function(
+                user=author,
+                provider=provider_obj,
+                function_title=title,
+                accessible_functions=accessible_functions,
+            ):
                 # For security we just return a 404 not a 401
                 return Response(
                     {"message": f"Provider [{provider_name}] was not found."},
@@ -179,13 +216,15 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 )
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        serializer.save(author=author, title=title, provider=provider_name)
+        runner = serializer.validated_data.get("runner", Function.RAY)
+        serializer.save(author=author, title=title, provider=provider_name, runner=runner)
 
         logger.info(
-            "[programs-upload] user_id=%s program=%s provider=%s | Function uploaded ok",
+            "[programs-upload] user_id=%s program=%s provider=%s runner=%s | Function uploaded ok",
             author.id,
             title,
             provider_name,
+            runner,
         )
         return Response(serializer.data)
 
@@ -207,11 +246,23 @@ class ProgramViewSet(viewsets.GenericViewSet):
         # but it's here until we can refactor the /run end-point
         provider_name = sanitize_name(serializer.data.get("provider"))
         function_title = sanitize_name(serializer.data.get("title"))
+        accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
+        logger.info(
+            "[programs-run] user_id=%s program=%s provider=%s accessible_functions=%s",
+            author.id,
+            function_title,
+            provider_name,
+            accessible_functions,
+        )
+
         function = Function.objects.get_function_by_permission(
             user=author,
-            permission_name=RUN_PROGRAM_PERMISSION,
             function_title=function_title,
             provider_name=provider_name,
+            # it uses permission for Runtime API /functions or legacy_permission_name for Django Groups
+            accessible_functions=accessible_functions,
+            permission=PLATFORM_PERMISSION_RUN,
+            legacy_permission_name=RUN_PROGRAM_PERMISSION,
         )
         if function is None:
             logger.error("[programs-run] user_id=%s function not found: %s", author.id, function_title)
@@ -280,6 +331,11 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 )
                 return Response({"compute_profile": [error_msg]}, status=status.HTTP_400_BAD_REQUEST)
 
+        # try to get business_model for partner functions from Runtime API /functions
+        business_model = None
+        if provider_name and not accessible_functions.use_legacy_authorization:
+            business_model = accessible_functions.get_function(provider_name, function_title).business_model
+
         save_kwargs = {
             "author": author,
             "carrier": carrier,
@@ -288,6 +344,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
             "config": jobconfig,
             "instance": instance,
             "compute_profile": compute_profile,
+            "business_model": business_model,  # the serializer would transform the business_model in trial here
         }
         job = job_serializer.save(**save_kwargs)
         logger.info("[programs-run] user_id=%s job_id=%s program=%s | Job queued ok", author.id, job.id, function_title)
@@ -303,12 +360,24 @@ class ProgramViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer_upload_program(data=self.request.data)
         provider_name, function_title = serializer.get_provider_name_and_title(provider_name, function_title)
 
+        accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
+        logger.info(
+            "[programs-get-by-title] user_id=%s program=%s provider=%s accessible_functions=%s",
+            author.id,
+            function_title,
+            provider_name,
+            accessible_functions,
+        )
+
         if provider_name:
             function = Function.objects.get_function_by_permission(
                 user=author,
-                permission_name=VIEW_PROGRAM_PERMISSION,
                 function_title=function_title,
                 provider_name=provider_name,
+                # it uses permission for Runtime API /functions or legacy_permission_name for Django Groups
+                accessible_functions=accessible_functions,
+                permission=PLATFORM_PERMISSION_READ,
+                legacy_permission_name=VIEW_PROGRAM_PERMISSION,
             )
             if function is None:
                 return Response(
@@ -353,9 +422,23 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
+        logger.info(
+            "[programs-get-jobs] user_id=%s program_id=%s program=%s accessible_functions=%s",
+            request.user.id,
+            pk,
+            program.title,
+            accessible_functions,
+        )
+
         user_is_provider = False
         if program.provider:
-            user_is_provider = ProviderAccessPolicy.can_access(user=request.user, provider=program.provider)
+            user_is_provider = ProviderAccessPolicy.can_list_jobs(
+                user=request.user,
+                provider=program.provider,
+                function_title=program.title,
+                accessible_functions=accessible_functions,
+            )
 
         if user_is_provider:
             jobs = Job.objects.filter(program=program)
