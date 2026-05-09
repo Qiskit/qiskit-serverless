@@ -64,7 +64,7 @@ class UpdateJobsStatuses(SchedulerTask):
             job.sub_status = None
             job.env_vars = "{}"
             try:
-                job.save()
+                job.save(update_fields=["status", "sub_status", "env_vars"])
                 JobEvent.objects.add_status_event(
                     job_id=job.id,
                     origin=JobEventOrigin.SCHEDULER,
@@ -155,7 +155,7 @@ class UpdateJobsStatuses(SchedulerTask):
                 job.logs = ""
 
         try:
-            job.save()
+            job.save(update_fields=["status", "sub_status", "env_vars", "result", "logs"])
 
             if status_has_changed:
                 JobEvent.objects.add_status_event(
