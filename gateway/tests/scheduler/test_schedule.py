@@ -1,6 +1,7 @@
 """Tests scheduling."""
 
 from unittest.mock import MagicMock, patch
+from django.test import override_settings
 from prometheus_client import CollectorRegistry
 
 import pytest
@@ -71,12 +72,10 @@ class TestScheduleApi(APITestCase):
         assert str(job1.id) in job_ids  # `test4_user` job
         assert str(job6.id) in job_ids  # `test_user` job
 
+    @override_settings(RAY_CLUSTER_MODE_LOCAL=True, RAY_LOCAL_HOST="http://localhost:8265")
     @patch("core.services.runners.ray_runner.RayRunner._submit_to_ray", return_value="test-ray-job-id")
-    def test_execute_job_success(self, _mock_submit_to_ray, settings):
+    def test_execute_job_success(self, _mock_submit_to_ray):
         """Tests that execute_job saves ray_job_id, compute_resource and PENDING status to DB."""
-        settings.RAY_CLUSTER_MODE_LOCAL = True
-        settings.RAY_LOCAL_HOST = "http://localhost:8265"
-
         job = TestUtils.create_job(author="test_user", program="test_program", status=Job.QUEUED)
 
         execute_job(job)
