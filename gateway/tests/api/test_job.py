@@ -17,7 +17,7 @@ from core.domain.authorization.function_access_entry import FunctionAccessEntry
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
-from core.models import Job, JobEvent, PLATFORM_PERMISSION_PROVIDER_JOBS, Program, Provider, RuntimeJob
+from core.models import Job, JobEvent, PLATFORM_PERMISSION_JOBS_READ, Program, Provider, RuntimeJob
 
 
 @pytest.mark.django_db
@@ -279,7 +279,7 @@ class TestJobApi:
         entry = FunctionAccessEntry(
             provider_name="default",
             function_title="Docker-Image-Program",
-            permissions={PLATFORM_PERMISSION_PROVIDER_JOBS},
+            permissions={PLATFORM_PERMISSION_JOBS_READ},
             business_model=BusinessModel.SUBSIDIZED,
         )
         accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[entry])
@@ -307,91 +307,6 @@ class TestJobApi:
 
         assert jobs_response.status_code == status.HTTP_404_NOT_FOUND
         assert jobs_response.data.get("message") == "Provider default doesn't exist."
-
-    def test_job_detail(self, settings):
-        """Tests job detail authorized."""
-        shutil.copytree(self._fake_media_path, settings.MEDIA_ROOT, dirs_exist_ok=True)
-        self._authorize("test_user")
-
-        jobs_response = self.client.get(
-            reverse("v1:retrieve", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"]),
-            format="json",
-        )
-        assert jobs_response.status_code == status.HTTP_200_OK
-        assert jobs_response.data.get("result") == '{"ultimate": 42}'
-        assert jobs_response.data.get("business_model") == BusinessModel.SUBSIDIZED
-
-    def test_job_detail_without_result_param(self):
-        """Tests job detail authorized."""
-        self._authorize("test_user")
-
-        jobs_response = self.client.get(
-            reverse("v1:retrieve", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"]) + "?with_result=false",
-            format="json",
-        )
-        assert jobs_response.status_code == status.HTTP_200_OK
-        assert jobs_response.data.get("result") is None
-        assert jobs_response.data.get("business_model") == BusinessModel.SUBSIDIZED
-
-    def test_job_detail_without_result_file(self):
-        """Tests job detail authorized."""
-        self._authorize("test_user")
-
-        jobs_response = self.client.get(
-            reverse("v1:retrieve", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]),
-            format="json",
-        )
-        assert jobs_response.status_code == status.HTTP_200_OK
-        assert jobs_response.data.get("result") == '{"somekey":1}'
-
-    def test_job_provider_detail(self):
-        """Tests job detail authorized."""
-        self._authorize("test_user_2")
-
-        jobs_response = self.client.get(
-            reverse("v1:retrieve", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec86"]),
-            format="json",
-        )
-        assert jobs_response.status_code == status.HTTP_200_OK
-        assert jobs_response.data.get("status") == "QUEUED"
-        assert jobs_response.data.get("result") is None
-
-    def test_not_authorized_job_detail(self):
-        """Tests job detail fails trying to access to other user job."""
-        self._authorize("test_user")
-
-        jobs_response = self.client.get(
-            reverse("v1:retrieve", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec84"]),
-            format="json",
-        )
-        assert jobs_response.status_code == status.HTTP_404_NOT_FOUND
-
-    def test_job_result_uses_author_username(self, settings):
-        """
-        Tests that job results are retrieved using job.author.username,
-        not the requesting user's username. This ensures results are read
-        from the correct storage path where they were saved.
-
-        Note: Currently can_read_result() only allows authors to read results,
-        but this test validates the correct behavior if permissions change in
-        the future to allow provider admins to read results.
-        """
-        shutil.copytree(self._fake_media_path, settings.MEDIA_ROOT, dirs_exist_ok=True)
-
-        # Get a job created by test_user (author=1)
-        job = Job.objects.get(pk="8317718f-5c0d-4fb6-9947-72e480b8a348")
-        assert job.author.username == "test_user"
-
-        # Verify results file exists in author's directory
-        result_storage = ResultStorage(job.author.username)
-        result = result_storage.get(str(job.id))
-        assert result is not None
-
-        # If we incorrectly used a different user's username, we wouldn't find it
-        different_user = User.objects.get(username="test_user_2")
-        wrong_result_storage = ResultStorage(different_user.username)
-        wrong_result = wrong_result_storage.get(str(job.id))
-        assert wrong_result is None  # Should not find result in wrong path
 
     def test_job_save_result(self, settings):
         """Tests job results save."""
@@ -1049,5 +964,141 @@ class TestJobApi:
             {"type": JobEventType.ERROR},
             format="json",
         )
-
         assert job_event_response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+class TestRetrieveJob:
+    """Tests for the v1:retrieve endpoint grouped by authorization path."""
+
+    _fake_media_path = os.path.normpath(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "resources", "fake_media")
+    )
+
+    @pytest.fixture(autouse=True)
+    def _load_fixtures(self, tmp_path, settings):
+        from django.core.management import call_command
+
+        call_command("loaddata", "tests/fixtures/fixtures.json")
+        settings.MEDIA_ROOT = str(tmp_path)
+
+    @pytest.fixture()
+    def authorize(self):
+        """Returns a callable that authenticates an APIClient and returns it."""
+        client = APIClient()
+
+        def _authorize(username, accessible_functions=FunctionAccessResult(use_legacy_authorization=True)):
+            user, _ = User.objects.get_or_create(username=username)
+            token = MagicMock()
+            token.accessible_functions = accessible_functions
+            client.force_authenticate(user=user, token=token)
+            return client
+
+        return _authorize
+
+    def test_author_retrieves_with_result(self, authorize, settings):
+        """Job author can retrieve their own job including the result."""
+        shutil.copytree(self._fake_media_path, settings.MEDIA_ROOT, dirs_exist_ok=True)
+        client = authorize("test_user")
+
+        response = client.get(reverse("v1:retrieve", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"]), format="json")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data.get("result") == '{"ultimate": 42}'
+        assert response.data.get("business_model") == BusinessModel.SUBSIDIZED
+
+    def test_author_retrieves_without_result_param(self, authorize):
+        """?with_result=false returns the job without the result field."""
+        client = authorize("test_user")
+
+        response = client.get(
+            reverse("v1:retrieve", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"]) + "?with_result=false",
+            format="json",
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data.get("result") is None
+        assert response.data.get("business_model") == BusinessModel.SUBSIDIZED
+
+    def test_author_retrieves_inline_result(self, authorize):
+        """Author retrieves a job whose result is stored inline in the DB."""
+        client = authorize("test_user")
+
+        response = client.get(reverse("v1:retrieve", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]), format="json")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data.get("result") == '{"somekey":1}'
+
+    def test_result_read_from_authors_storage(self, settings):
+        """Result is read from the job author's storage path, not the requesting user's."""
+        shutil.copytree(self._fake_media_path, settings.MEDIA_ROOT, dirs_exist_ok=True)
+
+        job = Job.objects.get(pk="8317718f-5c0d-4fb6-9947-72e480b8a348")
+        assert job.author.username == "test_user"
+
+        result_storage = ResultStorage(job.author.username)
+        assert result_storage.get(str(job.id)) is not None
+
+        different_user = User.objects.get(username="test_user_2")
+        wrong_result_storage = ResultStorage(different_user.username)
+        assert wrong_result_storage.get(str(job.id)) is None
+
+    class TestLegacyGroups:
+        def test_provider_admin_can_retrieve(self, authorize):
+            """Provider admin (via Django groups) can retrieve a provider job they don't own."""
+            # job_author != requester: admin accesses a job created by a different user
+            job_author = User.objects.create_user(username="job_author_legacy")
+            requester = User.objects.get(username="test_user_2")  # belongs to default-group (admin)
+            provider = Provider.objects.get(name="default")
+            program = Program.objects.create(title="fn", author=job_author, provider=provider)
+            job = Job.objects.create(author=job_author, program=program, status=Job.QUEUED)
+
+            client = authorize("test_user_2")
+            response = client.get(reverse("v1:retrieve", args=[job.id]), format="json")
+            assert response.status_code == status.HTTP_200_OK
+            assert response.data.get("status") == "QUEUED"
+
+        def test_non_admin_cannot_retrieve(self, authorize):
+            """User not in any admin group cannot retrieve a provider job they don't own."""
+            # job_author != requester: test_user is not in default-group
+            job_author = User.objects.create_user(username="job_author_non_admin")
+            provider = Provider.objects.get(name="default")
+            program = Program.objects.create(title="fn", author=job_author, provider=provider)
+            job = Job.objects.create(author=job_author, program=program, status=Job.QUEUED)
+
+            client = authorize("test_user")  # not in default-group
+            response = client.get(reverse("v1:retrieve", args=[job.id]), format="json")
+            assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    class TestRuntimeInstances:
+        def test_jobs_read_permission_grants_access(self, authorize):
+            """PLATFORM_PERMISSION_JOBS_READ grants retrieve access to a job the requester doesn't own."""
+            # job_author != requester: test_user has JOBS_READ for the function but is not the author
+            job_author = User.objects.create_user(username="job_author_rt_ok")
+            provider = Provider.objects.get(name="default")
+            program = Program.objects.create(title="fn", author=job_author, provider=provider)
+            job = Job.objects.create(author=job_author, program=program, status=Job.QUEUED)
+
+            entry = FunctionAccessEntry(
+                provider_name="default",
+                function_title="fn",
+                permissions={PLATFORM_PERMISSION_JOBS_READ},
+                business_model=BusinessModel.SUBSIDIZED,
+            )
+            accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[entry])
+            client = authorize("test_user", accessible_functions=accessible)
+
+            response = client.get(reverse("v1:retrieve", args=[job.id]), format="json")
+            assert response.status_code == status.HTTP_200_OK
+            assert response.data.get("status") == "QUEUED"
+
+        def test_no_permission_denies_access(self, authorize):
+            """No PLATFORM_PERMISSION_JOBS_READ → 404 for a job the requester doesn't own."""
+            # job_author != requester: test_user has no permissions for the function
+            job_author = User.objects.create_user(username="job_author_rt_deny")
+            provider = Provider.objects.get(name="default")
+            program = Program.objects.create(title="fn", author=job_author, provider=provider)
+            job = Job.objects.create(author=job_author, program=program, status=Job.QUEUED)
+
+            accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[])
+            client = authorize("test_user", accessible_functions=accessible)
+
+            response = client.get(reverse("v1:retrieve", args=[job.id]), format="json")
+            assert response.status_code == status.HTTP_404_NOT_FOUND
