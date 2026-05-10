@@ -69,7 +69,7 @@ class CustomTokenBackend(authentication.BaseAuthentication):
             public_access=public_access,
         ).execute()
 
-        accessible_functions = FunctionAccessClient().get_accessible_functions(crn)
+        accessible_functions = FunctionAccessClient().get_accessible_functions(crn, authorization_token)
         return quantum_user, CustomAuthentication(
             channel=channel,
             token=authorization_token.encode(),

@@ -123,7 +123,7 @@ class UpdateJobsStatuses(SchedulerTask):
                 if job.status == Job.SUCCEEDED:
                     self._record_execution_duration(job)
 
-        if not is_fleets_job:
+        if not is_fleets_job and not job.in_terminal_state():
             try:
                 logs = runner.logs()
             except RunnerError:
