@@ -4,7 +4,7 @@ import logging
 import os
 from typing import Optional
 
-from core.models import Program
+from core.models import Job
 from core.services.storage.arguments_storage import ArgumentsStorage
 from core.services.storage.path_builder import PathBuilder
 from core.services.storage.enums.working_dir import WorkingDir
@@ -19,9 +19,11 @@ class RayArgumentsStorage(ArgumentsStorage):
     PATH = "arguments"
     ENCODING = "utf-8"
 
-    def __init__(self, username: str, function: Program) -> None:
-        function_title = function.title
-        provider_name = function.provider.name if function.provider else None
+    def __init__(self, job: Job) -> None:
+        self._job_id = str(job.id)
+        username = job.author.username
+        function_title = job.program.title
+        provider_name = job.program.provider.name if job.program.provider else None
 
         self.sub_path = PathBuilder.sub_path(
             working_dir=WorkingDir.USER_STORAGE,
@@ -38,15 +40,15 @@ class RayArgumentsStorage(ArgumentsStorage):
             extra_sub_path=self.PATH,
         )
 
-    def _get_arguments_path(self, job_id: str) -> str:
-        return os.path.join(self.absolute_path, f"{job_id}{self.ARGUMENTS_FILE_EXTENSION}")
+    def _get_arguments_path(self) -> str:
+        return os.path.join(self.absolute_path, f"{self._job_id}{self.ARGUMENTS_FILE_EXTENSION}")
 
-    def get(self, job_id: str) -> Optional[str]:
-        arguments_path = self._get_arguments_path(job_id)
+    def get(self) -> Optional[str]:
+        arguments_path = self._get_arguments_path()
         if not os.path.exists(arguments_path):
             logger.info(
                 "Arguments file for job ID '%s' not found in directory '%s'.",
-                job_id,
+                self._job_id,
                 arguments_path,
             )
             return None
@@ -57,17 +59,17 @@ class RayArgumentsStorage(ArgumentsStorage):
         except (UnicodeDecodeError, IOError) as e:
             logger.error(
                 "Failed to read arguments file for job ID '%s': %s",
-                job_id,
+                self._job_id,
                 str(e),
             )
             return None
 
-    def save(self, job_id: str, arguments: str) -> None:
-        arguments_path = self._get_arguments_path(job_id)
+    def save(self, arguments: str) -> None:
+        arguments_path = self._get_arguments_path()
         with open(arguments_path, "w", encoding=self.ENCODING) as arguments_file:
             arguments_file.write(arguments)
         logger.info(
             "Arguments for job ID '%s' successfully saved at '%s'.",
-            job_id,
+            self._job_id,
             arguments_path,
         )

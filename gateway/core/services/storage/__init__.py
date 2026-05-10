@@ -1,16 +1,15 @@
 """Factory and exports for services storages."""
 
-from core.models import Program
+from core.models import Job, Program
 from core.services.storage.arguments_storage import ArgumentsStorage
 from core.services.storage.arguments_storage_ray import RayArgumentsStorage
 
 
-def get_arguments_storage(username: str, function: Program) -> ArgumentsStorage:
-    """Factory: return the appropriate ArgumentsStorage for the program's runner.
+def get_arguments_storage(job: Job) -> ArgumentsStorage:
+    """Factory: return the appropriate ArgumentsStorage for the job's program runner.
 
     Args:
-        username: The job author's username.
-        function: The Program instance whose runner determines the implementation.
+        job: The Job instance whose program runner determines the implementation.
 
     Returns:
         An ArgumentsStorage instance appropriate for the runner type.
@@ -18,9 +17,9 @@ def get_arguments_storage(username: str, function: Program) -> ArgumentsStorage:
     Raises:
         ValueError: If the runner type is unknown.
     """
-    if function.runner == Program.RAY:
-        return RayArgumentsStorage(username, function)
-    if function.runner == Program.FLEETS:
+    if job.program.runner == Program.RAY:
+        return RayArgumentsStorage(job)
+    if job.program.runner == Program.FLEETS:
         # Replace with FleetsArgumentsStorage once implemented
-        return RayArgumentsStorage(username, function)
-    raise ValueError(f"Unknown runner type: {function.runner}")
+        return RayArgumentsStorage(job)
+    raise ValueError(f"Unknown runner type: {job.program.runner}")

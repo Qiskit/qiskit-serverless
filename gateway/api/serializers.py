@@ -361,8 +361,8 @@ class RunJobSerializer(serializers.ModelSerializer):
             )
         )
 
-        arguments_storage = get_arguments_storage(author.username, program)
-        arguments_storage.save(job.id, arguments)
+        arguments_storage = get_arguments_storage(job)
+        arguments_storage.save(arguments)
 
         try:
             env["traceparent"] = carrier["traceparent"]

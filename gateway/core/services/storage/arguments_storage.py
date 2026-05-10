@@ -8,9 +8,9 @@ class ArgumentsStorage(ABC):
     """Abstract interface for job arguments storage."""
 
     @abstractmethod
-    def get(self, job_id: str) -> Optional[str]:
-        """Retrieve arguments for the given job ID."""
+    def get(self) -> Optional[str]:
+        """Retrieve arguments for the job."""
 
     @abstractmethod
-    def save(self, job_id: str, arguments: str) -> None:
-        """Persist arguments for the given job ID."""
+    def save(self, arguments: str) -> None:
+        """Persist arguments for the job."""

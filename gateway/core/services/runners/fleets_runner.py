@@ -574,9 +574,8 @@ class FleetsRunner(AbstractRunner):
             handler: Initialized :class:`FleetHandler` with COS access.
             paths: Dict from :meth:`_build_cos_paths`.
         """
-        program = self.job.program
-        storage = get_arguments_storage(self.job.author.username, program)
-        content = storage.get(str(self.job.id)) or "{}"
+        storage = get_arguments_storage(self.job)
+        content = storage.get() or "{}"
 
         try:
             parsed = json.loads(content)

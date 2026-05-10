@@ -2,18 +2,18 @@
 
 from typing import Optional
 
-from core.models import Program
+from core.models import Job
 from core.services.storage.arguments_storage import ArgumentsStorage
 
 
 class FleetsArgumentsStorage(ArgumentsStorage):
     """Handles the storage and retrieval of user arguments for Fleets jobs."""
 
-    def __init__(self, username: str, function: Program) -> None:
-        pass
+    def __init__(self, job: Job) -> None:
+        self._job_id = str(job.id)
 
-    def get(self, job_id: str) -> Optional[str]:
+    def get(self) -> Optional[str]:
         raise NotImplementedError
 
-    def save(self, job_id: str, arguments: str) -> None:
+    def save(self, arguments: str) -> None:
         raise NotImplementedError
