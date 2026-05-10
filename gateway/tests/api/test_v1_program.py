@@ -360,9 +360,8 @@ class TestProgramApi(APITestCase):
             assert job.config.workers is None
             assert job.config.auto_scaling is True
 
-            program = Program.objects.get(title="Program", author=user)
-            arguments_storage = get_arguments_storage(user.username, program)
-            stored_arguments = arguments_storage.get(job.id)
+            arguments_storage = get_arguments_storage(job)
+            stored_arguments = arguments_storage.get()
 
             assert stored_arguments == arguments
 
@@ -423,9 +422,8 @@ class TestProgramApi(APITestCase):
             assert job.config.workers is None
             assert job.config.auto_scaling is True
 
-            program = Program.objects.get(title="Docker-Image-Program", author=user)
-            arguments_storage = get_arguments_storage(user.username, program)
-            stored_arguments = arguments_storage.get(job.id)
+            arguments_storage = get_arguments_storage(job)
+            stored_arguments = arguments_storage.get()
 
             assert stored_arguments == arguments
 
@@ -1054,8 +1052,8 @@ class TestProgramApi(APITestCase):
             assert job.program.provider is None
 
             # Verify arguments are stored in the correct path (user storage, not provider)
-            arguments_storage = get_arguments_storage(user.username, user_program)
-            stored_arguments = arguments_storage.get(job.id)
+            arguments_storage = get_arguments_storage(job)
+            stored_arguments = arguments_storage.get()
             assert stored_arguments == arguments
 
             # Verify the storage path is for user function (no provider in path)

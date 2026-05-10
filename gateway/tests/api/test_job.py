@@ -385,26 +385,22 @@ class TestJobApi:
         assert user_job.program.provider is None
 
         # Save arguments for user function
-        user_args_storage = get_arguments_storage(username=user_job.author.username, function=user_job.program)
+        user_args_storage = get_arguments_storage(user_job)
         test_args = '{"param": "value"}'
-        user_args_storage.save(str(user_job.id), test_args)
+        user_args_storage.save(test_args)
 
         # Verify arguments saved in user's directory
         expected_user_path = os.path.join(settings.MEDIA_ROOT, "test_user", "arguments", f"{user_job.id}.json")
         assert os.path.exists(expected_user_path)
 
         # Verify we can retrieve the arguments
-        retrieved_args = user_args_storage.get(str(user_job.id))
+        retrieved_args = user_args_storage.get()
         assert retrieved_args == test_args
 
-        # Verify arguments are NOT in provider path
-        fake_program = MagicMock()
-        fake_program.title = user_job.program.title
-        fake_program.provider = MagicMock()
-        fake_program.provider.name = "fake_provider"
-        fake_program.runner = Program.RAY
-        wrong_provider_storage = get_arguments_storage(username=user_job.author.username, function=fake_program)
-        assert wrong_provider_storage.get(str(user_job.id)) is None
+        # Verify arguments are NOT in provider path (different job with provider program)
+        wrong_provider_job = self._create_job(author="test_user", provider_admin="fake_provider")
+        wrong_provider_storage = get_arguments_storage(wrong_provider_job)
+        assert wrong_provider_storage.get() is None
 
     def test_job_arguments_storage_path_provider(self, settings):
         """
@@ -422,12 +418,9 @@ class TestJobApi:
         assert provider_job.program.provider.name == "test_provider"
 
         # Save arguments for provider function
-        provider_args_storage = get_arguments_storage(
-            username=provider_job.author.username,
-            function=provider_job.program,
-        )
+        provider_args_storage = get_arguments_storage(provider_job)
         provider_test_args = '{"provider_param": "provider_value"}'
-        provider_args_storage.save(str(provider_job.id), provider_test_args)
+        provider_args_storage.save(provider_test_args)
 
         # Verify arguments saved in provider's directory structure
         expected_provider_path = os.path.join(
@@ -441,16 +434,13 @@ class TestJobApi:
         assert os.path.exists(expected_provider_path)
 
         # Verify we can retrieve the arguments
-        retrieved_provider_args = provider_args_storage.get(str(provider_job.id))
+        retrieved_provider_args = provider_args_storage.get()
         assert retrieved_provider_args == provider_test_args
 
-        # Verify provider function arguments are NOT in user-only path
-        no_provider_program = MagicMock()
-        no_provider_program.title = provider_job.program.title
-        no_provider_program.provider = None
-        no_provider_program.runner = Program.RAY
-        wrong_user_storage = get_arguments_storage(username=provider_job.author.username, function=no_provider_program)
-        assert wrong_user_storage.get(str(provider_job.id)) is None
+        # Verify provider function arguments are NOT in user-only path (different job without provider)
+        wrong_user_job = self._create_job(author="test_user")
+        wrong_user_storage = get_arguments_storage(wrong_user_job)
+        assert wrong_user_storage.get() is None
 
     def test_job_update_sub_status(self):
         """Test job update sub status"""
