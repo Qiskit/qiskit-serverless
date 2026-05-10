@@ -3,7 +3,6 @@
 from core.models import Program
 from core.services.storage.arguments_storage import ArgumentsStorage
 from core.services.storage.arguments_storage_ray import RayArgumentsStorage
-from core.services.storage.arguments_storage_fleets import FleetsArgumentsStorage
 
 
 def get_arguments_storage(username: str, function: Program) -> ArgumentsStorage:
@@ -22,5 +21,6 @@ def get_arguments_storage(username: str, function: Program) -> ArgumentsStorage:
     if function.runner == Program.RAY:
         return RayArgumentsStorage(username, function)
     if function.runner == Program.FLEETS:
-        return FleetsArgumentsStorage(username, function)
+        # Replace with FleetsArgumentsStorage once implemented
+        return RayArgumentsStorage(username, function)
     raise ValueError(f"Unknown runner type: {function.runner}")
