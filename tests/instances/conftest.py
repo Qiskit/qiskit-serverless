@@ -1,4 +1,4 @@
-# pylint: disable=import-error, invalid-name, line-too-long
+# pylint: disable=import-error, invalid-name, line-too-long, redefined-outer-name
 """Fixtures for instance permission tests."""
 
 import os
