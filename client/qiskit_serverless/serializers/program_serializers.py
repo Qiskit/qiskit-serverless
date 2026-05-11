@@ -95,9 +95,7 @@ def get_arguments() -> Dict[str, Any]:
     os.makedirs(os.path.dirname(arguments_path), exist_ok=True)
 
     if not os.path.isfile(arguments_path):
-        raise QiskitServerlessException(
-            f"Error getting arguments: {arguments_path} is not a file or doesn't exist"
-        )
+        raise QiskitServerlessException(f"Error getting arguments: {arguments_path} is not a file or doesn't exist")
 
     with open(arguments_path, "r", encoding="utf-8") as f:
         arguments = f.read()
