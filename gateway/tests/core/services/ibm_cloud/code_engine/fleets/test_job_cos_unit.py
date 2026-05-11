@@ -10,7 +10,7 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Unit tests for JobCOS."""
+"""Unit tests for JobCOS and build_cos_client."""
 
 from __future__ import annotations
 
@@ -20,26 +20,27 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
-from core.ibm_cloud.code_engine.fleets.cos import JobCOS
+from core.ibm_cloud.code_engine.fleets.cos import JobCOS, build_cos_client
+
+_COS_MOD = "core.ibm_cloud.code_engine.fleets.cos"
 
 
-def _make_job_cos(cos_config: dict | None = None) -> tuple[JobCOS, MagicMock]:
-    """Return a JobCOS bound to a mock JobHandler with a pre-wired COSClient."""
-    mock_job = MagicMock()
-    mock_job.cos_config = cos_config or {
-        "hmac_secret_name": "cos-hmac-credential",
-        "bucket_region": "us-south",
-    }
-    mock_job.client_provider.config.region = "us-south"
-    mock_job.project_id = "proj-id"
-
-    job_cos = JobCOS(mock_job)
-
-    # Pre-wire _cos so tests don't need a real IBMCloudClientProvider
+def _make_job_cos() -> tuple[JobCOS, MagicMock]:
+    """Return a JobCOS bound to a mock COSClient."""
     mock_cos = MagicMock()
-    job_cos._JobCOS__cos = mock_cos  # noqa: SLF001
+    return JobCOS(mock_cos), mock_cos
 
-    return job_cos, mock_cos
+
+def _make_mock_project(region: str = "us-south", project_id: str = "proj-id") -> MagicMock:
+    project = MagicMock()
+    project.region = region
+    project.project_id = project_id
+    return project
+
+
+# ---------------------------------------------------------------------------
+# JobCOS operation tests
+# ---------------------------------------------------------------------------
 
 
 def test_cos_logs_retrieves_from_cos() -> None:
@@ -59,21 +60,10 @@ def test_cos_logs_retrieves_from_cos() -> None:
     mock_cos.get_object_bytes.assert_called_once_with(bucket="my-bucket", key="jobs/123/logs.log")
 
 
-def test_cos_logs_without_cos_config_raises_error() -> None:
-    """logs() raises ValueError when no cos_config is provided."""
-    mock_job = MagicMock()
-    mock_job.cos_config = None
-    job_cos = JobCOS(mock_job)
-
-    with pytest.raises(ValueError, match="COS not configured"):
-        job_cos.logs(bucket_name="my-bucket", log_key="jobs/123/logs.log")
-
-
 def test_cos_logs_waits_for_availability() -> None:
     """logs() calls wait_until_object_exists when wait_for_availability=True."""
     job_cos, mock_cos = _make_job_cos()
     mock_cos.get_object_bytes.return_value = b"content"
-    mock_cos.wait_until_object_exists.return_value = None
 
     job_cos.logs(
         bucket_name="bucket",
@@ -132,36 +122,6 @@ def test_cos_get_object_bytes() -> None:
     mock_cos.get_object_bytes.assert_called_once_with(bucket="my-bucket", key="some/key")
 
 
-def test_cos_init_fetches_credentials_from_ce_secret() -> None:
-    """Public methods trigger lazy COS init that fetches HMAC credentials from CE secret."""
-    mock_job = MagicMock()
-    mock_job.cos_config = {"hmac_secret_name": "my-secret"}
-    mock_job.client_provider.config.region = "us-south"
-    job_cos = JobCOS(mock_job)
-
-    mock_secret = MagicMock()
-    mock_secret.data = {"access_key_id": "ak2", "secret_access_key": "sk2"}
-
-    with patch("core.ibm_cloud.code_engine.fleets.cos.SecretsAndConfigmapsApi") as mock_api_cls, patch(
-        "core.ibm_cloud.code_engine.fleets.cos.COSClient"
-    ) as mock_cos_cls:
-        mock_api_cls.return_value.get_secret.return_value = mock_secret
-        mock_cos_cls.return_value.get_object_bytes.return_value = b"data"
-        job_cos.get_object_bytes(bucket_name="b", key="k")
-
-    mock_api_cls.return_value.get_secret.assert_called_once()
-
-
-def test_cos_raises_when_no_cos_config() -> None:
-    """Public methods raise ValueError when cos_config is None."""
-    mock_job = MagicMock()
-    mock_job.cos_config = None
-    job_cos = JobCOS(mock_job)
-
-    with pytest.raises(ValueError, match="COS not configured"):
-        job_cos.get_object_bytes(bucket_name="b", key="k")
-
-
 def test_cos_wait_for_object_raises_when_missing_args() -> None:
     """wait_for_object() raises ValueError when bucket_name or key is missing."""
     job_cos, _ = _make_job_cos()
@@ -192,80 +152,135 @@ def test_cos_get_object_bytes_raises_when_missing_args() -> None:
         job_cos.get_object_bytes(bucket_name="b", key="")
 
 
-def test_cos_hmac_credentials_extracted_from_secret() -> None:
-    """COS client is initialized with HMAC credentials from CE secret."""
-    mock_job = MagicMock()
-    mock_job.cos_config = {"hmac_secret_name": "my-secret"}
-    mock_job.project_id = "proj-id"
-    mock_job.client_provider.config.region = "us-south"
-    job_cos = JobCOS(mock_job)
+# ---------------------------------------------------------------------------
+# build_cos_client tests
+# ---------------------------------------------------------------------------
 
+
+def test_build_cos_client_fetches_hmac_from_ce_secret() -> None:
+    """build_cos_client() fetches HMAC credentials from the CE secret."""
+    project = _make_mock_project()
     mock_secret = MagicMock()
     mock_secret.data = {"access_key_id": "ak123", "secret_access_key": "sk456"}
 
-    with patch("core.ibm_cloud.code_engine.fleets.cos.SecretsAndConfigmapsApi") as mock_api_cls, patch(
-        "core.ibm_cloud.code_engine.fleets.cos.COSClient"
-    ) as mock_cos_cls:
-        mock_api_cls.return_value.get_secret.return_value = mock_secret
-        mock_cos_cls.return_value.get_object_bytes.return_value = b"data"
-        job_cos.get_object_bytes(bucket_name="b", key="k")
+    with (
+        patch(f"{_COS_MOD}.settings") as mock_settings,
+        patch(f"{_COS_MOD}.build_ce_auth", return_value=(MagicMock(), MagicMock())),
+        patch(f"{_COS_MOD}.SecretsAndConfigmapsApi") as mock_secrets_api_cls,
+        patch(f"{_COS_MOD}.COSClient"),
+    ):
+        mock_settings.IBM_CLOUD_API_KEY = "test-key"
+        mock_settings.CE_HMAC_SECRET_NAME = "cos-hmac"
+        mock_settings.CE_COS_USE_PUBLIC_ENDPOINT = False
+        mock_secrets_api_cls.return_value.get_secret.return_value = mock_secret
+
+        build_cos_client(project)
+
+    mock_secrets_api_cls.return_value.get_secret.assert_called_once_with(project_id="proj-id", name="cos-hmac")
+
+
+def test_build_cos_client_passes_hmac_creds_to_cos_client() -> None:
+    """build_cos_client() passes extracted HMAC credentials to COSClient."""
+    project = _make_mock_project()
+    mock_secret = MagicMock()
+    mock_secret.data = {"access_key_id": "ak123", "secret_access_key": "sk456"}
+
+    with (
+        patch(f"{_COS_MOD}.settings") as mock_settings,
+        patch(f"{_COS_MOD}.build_ce_auth", return_value=(MagicMock(), MagicMock())),
+        patch(f"{_COS_MOD}.SecretsAndConfigmapsApi") as mock_secrets_api_cls,
+        patch(f"{_COS_MOD}.COSClient") as mock_cos_cls,
+    ):
+        mock_settings.IBM_CLOUD_API_KEY = "test-key"
+        mock_settings.CE_HMAC_SECRET_NAME = "cos-hmac"
+        mock_settings.CE_COS_USE_PUBLIC_ENDPOINT = False
+        mock_secrets_api_cls.return_value.get_secret.return_value = mock_secret
+
+        build_cos_client(project)
 
     creds = mock_cos_cls.call_args.kwargs["credentials"]
     assert creds.access_key_id == "ak123"
     assert creds.secret_access_key == "sk456"
 
 
-def test_cos_raises_when_ce_secret_not_found() -> None:
-    """Public methods raise ValueError when CE secret returns 404."""
-    mock_job = MagicMock()
-    mock_job.cos_config = {"hmac_secret_name": "missing-secret"}
-    mock_job.project_id = "proj-id"
-    mock_job.client_provider.config.region = "us-south"
-    job_cos = JobCOS(mock_job)
+def test_build_cos_client_raises_when_ce_secret_not_found() -> None:
+    """build_cos_client() raises ValueError when CE secret returns 404."""
+    project = _make_mock_project()
 
-    with patch("core.ibm_cloud.code_engine.fleets.cos.SecretsAndConfigmapsApi") as mock_api_cls:
-        mock_api_cls.return_value.get_secret.side_effect = ApiException(status=404, reason="Not Found")
+    with (
+        patch(f"{_COS_MOD}.settings") as mock_settings,
+        patch(f"{_COS_MOD}.build_ce_auth", return_value=(MagicMock(), MagicMock())),
+        patch(f"{_COS_MOD}.SecretsAndConfigmapsApi") as mock_secrets_api_cls,
+    ):
+        mock_settings.IBM_CLOUD_API_KEY = "test-key"
+        mock_settings.CE_HMAC_SECRET_NAME = "missing-secret"
+        mock_secrets_api_cls.return_value.get_secret.side_effect = ApiException(status=404, reason="Not Found")
+
         with pytest.raises(ValueError, match="not found"):
-            job_cos.get_object_bytes(bucket_name="b", key="k")
+            build_cos_client(project)
 
 
-def test_cos_endpoint_url_from_config_passed_to_cos_client() -> None:
-    """cos_config['cos_endpoint_url'] is forwarded to COSClient as endpoint_url."""
-    mock_job = MagicMock()
-    private_url = "https://s3.private.us-east.cloud-object-storage.appdomain.cloud"
-    mock_job.cos_config = {
-        "hmac_secret_name": "my-secret",
-        "cos_endpoint_url": private_url,
-    }
-    mock_job.project_id = "proj-id"
-    mock_job.client_provider.config.region = "us-south"
-    job_cos = JobCOS(mock_job)
-
-    mock_secret = MagicMock()
-    mock_secret.data = {"access_key_id": "ak123", "secret_access_key": "sk456"}
-
-    with patch("core.ibm_cloud.code_engine.fleets.cos.SecretsAndConfigmapsApi") as mock_api_cls, patch(
-        "core.ibm_cloud.code_engine.fleets.cos.COSClient"
-    ) as mock_cos_cls:
-        mock_api_cls.return_value.get_secret.return_value = mock_secret
-        mock_cos_cls.return_value.get_object_bytes.return_value = b"data"
-        job_cos.get_object_bytes(bucket_name="b", key="k")
-
-    assert mock_cos_cls.call_args.kwargs["endpoint_url"] == private_url
-
-
-def test_cos_raises_when_ce_secret_missing_fields() -> None:
-    """Public methods raise ValueError when CE secret lacks required HMAC fields."""
-    mock_job = MagicMock()
-    mock_job.cos_config = {"hmac_secret_name": "incomplete-secret"}
-    mock_job.project_id = "proj-id"
-    mock_job.client_provider.config.region = "us-south"
-    job_cos = JobCOS(mock_job)
-
+def test_build_cos_client_raises_when_ce_secret_missing_fields() -> None:
+    """build_cos_client() raises ValueError when CE secret lacks required HMAC fields."""
+    project = _make_mock_project()
     mock_secret = MagicMock()
     mock_secret.data = {"access_key_id": "ak123"}  # missing secret_access_key
 
-    with patch("core.ibm_cloud.code_engine.fleets.cos.SecretsAndConfigmapsApi") as mock_api_cls:
-        mock_api_cls.return_value.get_secret.return_value = mock_secret
+    with (
+        patch(f"{_COS_MOD}.settings") as mock_settings,
+        patch(f"{_COS_MOD}.build_ce_auth", return_value=(MagicMock(), MagicMock())),
+        patch(f"{_COS_MOD}.SecretsAndConfigmapsApi") as mock_secrets_api_cls,
+    ):
+        mock_settings.IBM_CLOUD_API_KEY = "test-key"
+        mock_settings.CE_HMAC_SECRET_NAME = "incomplete-secret"
+        mock_secrets_api_cls.return_value.get_secret.return_value = mock_secret
+
         with pytest.raises(ValueError, match="missing"):
-            job_cos.get_object_bytes(bucket_name="b", key="k")
+            build_cos_client(project)
+
+
+def test_build_cos_client_uses_public_endpoint_when_configured() -> None:
+    """build_cos_client() passes public endpoint URL to COSClient when flag is set."""
+    project = _make_mock_project(region="us-east")
+    mock_secret = MagicMock()
+    mock_secret.data = {"access_key_id": "ak", "secret_access_key": "sk"}
+
+    with (
+        patch(f"{_COS_MOD}.settings") as mock_settings,
+        patch(f"{_COS_MOD}.build_ce_auth", return_value=(MagicMock(), MagicMock())),
+        patch(f"{_COS_MOD}.SecretsAndConfigmapsApi") as mock_secrets_api_cls,
+        patch(f"{_COS_MOD}.COSClient") as mock_cos_cls,
+    ):
+        mock_settings.IBM_CLOUD_API_KEY = "test-key"
+        mock_settings.CE_HMAC_SECRET_NAME = "cos-hmac"
+        mock_settings.CE_COS_USE_PUBLIC_ENDPOINT = True
+        mock_secrets_api_cls.return_value.get_secret.return_value = mock_secret
+
+        build_cos_client(project)
+
+    endpoint_url = mock_cos_cls.call_args.kwargs["endpoint_url"]
+    assert "us-east" in endpoint_url
+
+
+def test_build_cos_client_raises_when_api_key_missing() -> None:
+    """build_cos_client() raises ValueError when IBM_CLOUD_API_KEY is not set."""
+    project = _make_mock_project()
+
+    with patch(f"{_COS_MOD}.settings") as mock_settings:
+        mock_settings.IBM_CLOUD_API_KEY = ""
+        mock_settings.CE_HMAC_SECRET_NAME = "cos-hmac"
+
+        with pytest.raises(ValueError, match="IBM_CLOUD_API_KEY"):
+            build_cos_client(project)
+
+
+def test_build_cos_client_raises_when_hmac_secret_name_missing() -> None:
+    """build_cos_client() raises ValueError when CE_HMAC_SECRET_NAME is not set."""
+    project = _make_mock_project()
+
+    with patch(f"{_COS_MOD}.settings") as mock_settings:
+        mock_settings.IBM_CLOUD_API_KEY = "test-key"
+        mock_settings.CE_HMAC_SECRET_NAME = ""
+
+        with pytest.raises(ValueError, match="CE_HMAC_SECRET_NAME"):
+            build_cos_client(project)
