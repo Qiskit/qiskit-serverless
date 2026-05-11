@@ -301,7 +301,7 @@ CE_COS_INSTANCE_NAME = os.environ.get("CE_COS_INSTANCE_NAME")
 CE_COS_KEY_NAME = os.environ.get("CE_COS_KEY_NAME")
 CE_COS_BUCKET_USER_DATA_NAME = os.environ.get("CE_COS_BUCKET_USER_DATA_NAME")
 CE_COS_BUCKET_PROVIDER_DATA_NAME = os.environ.get("CE_COS_BUCKET_PROVIDER_DATA_NAME")
-# Code Engine project (set CE_PROJECT_ID to enable auto-provisioning)
+# Code Engine project (set CE_PROJECT_ID to enable single-project auto-provisioning)
 CE_PROJECT_ID = os.environ.get("CE_PROJECT_ID")
 CE_PROJECT_NAME = os.environ.get("CE_PROJECT_NAME")
 CE_REGION = os.environ.get("CE_REGION")
@@ -310,6 +310,12 @@ CE_SUBNET_POOL_ID = os.environ.get("CE_SUBNET_POOL_ID")
 CE_PDS_NAME_STATE = os.environ.get("CE_PDS_NAME_STATE")
 CE_PDS_NAME_USERS = os.environ.get("CE_PDS_NAME_USERS")
 CE_PDS_NAME_PROVIDERS = os.environ.get("CE_PDS_NAME_PROVIDERS")
+# Optional zone for the single-project setup. For multi-project, use CE_PROJECTS instead.
+CE_ZONE = os.environ.get("CE_ZONE")
+# Multi-project setup: JSON array of project dicts, each with the same keys as the CE_* vars above
+# plus an optional "zone" field. When set, CE_PROJECT_ID / CE_* single-project vars are ignored.
+# Example: '[{"project_id": "...", "project_name": "...", "region": "us-east", "zone": "us-east-1", ...}]'
+CE_PROJECTS: list = json.loads(os.environ.get("CE_PROJECTS", "[]"))  # type: ignore[assignment]
 # Maps compute profiles to their availability zone. Populated at deploy time via FLEETS_PROFILE_ZONE_MAP
 # JSON env var, e.g. '{"gx2-8x64x1l40s": "us-east-1", "gx3d-24x120x1a100p": "us-east-2"}'.
 # Profiles absent from the map (or mapped to "any") fall back to the multi-zone project.
