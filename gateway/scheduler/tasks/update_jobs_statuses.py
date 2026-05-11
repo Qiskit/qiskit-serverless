@@ -4,6 +4,7 @@ import logging
 from datetime import datetime, timezone
 
 from django.conf import settings
+from django.db.models import F
 
 from core.domain.filter_logs import (
     filter_logs_with_non_public_tags,
@@ -62,7 +63,9 @@ class UpdateJobsStatuses(SchedulerTask):
             job.status = Job.FAILED
             job.sub_status = None
             job.env_vars = "{}"
-            Job.objects.filter(pk=job.id).update(status=job.status, sub_status=job.sub_status, env_vars=job.env_vars)
+            Job.objects.filter(pk=job.id).update(
+                status=job.status, sub_status=job.sub_status, env_vars=job.env_vars, version=F("version") + 1
+            )
             JobEvent.objects.add_status_event(
                 job_id=job.id,
                 origin=JobEventOrigin.SCHEDULER,
@@ -152,6 +155,7 @@ class UpdateJobsStatuses(SchedulerTask):
             env_vars=job.env_vars,
             result=job.result,
             logs=job.logs,
+            version=F("version") + 1,
         )
 
         if status_has_changed:
