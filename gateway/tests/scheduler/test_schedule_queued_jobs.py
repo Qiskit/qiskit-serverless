@@ -15,7 +15,7 @@ def _make_task():
 
 
 def test_job_saved_with_update_fields_no_logs():
-    """Job is saved with explicit update_fields — logs is excluded (deprecated)."""
+    """Job is saved with explicit update_fields"""
     task = _make_task()
 
     mock_job = MagicMock()
