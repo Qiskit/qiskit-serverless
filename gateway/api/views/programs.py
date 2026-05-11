@@ -345,6 +345,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
             "token": token,
             "config": jobconfig,
             "instance": instance,
+            "account_id": account_id,
             "compute_profile": compute_profile,
             "business_model": business_model,  # the serializer would transform the business_model in trial here
         }

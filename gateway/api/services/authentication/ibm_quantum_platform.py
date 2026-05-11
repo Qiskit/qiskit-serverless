@@ -200,5 +200,6 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
         return group_ids
 
     def get_account_id(self):
-        """This method returns the current account id of the user. The account id is populated in 'authenticate' method."""
+        """This method returns the current account id of the user.
+        The account id is populated in 'authenticate' method."""
         return self.account_id
