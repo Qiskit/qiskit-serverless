@@ -18,6 +18,7 @@ from rest_framework import validators as validators_module
 from api.utils import build_env_variables, sanitize_name
 from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
+from core.model_managers.code_engine_projects import select_ce_project
 from core.services.storage import get_arguments_storage
 from core.utils import encrypt_env_vars, create_gpujob_allowlist
 
@@ -339,6 +340,13 @@ class RunJobSerializer(serializers.ModelSerializer):
         # Get runner-specific configuration (compute_profile for Fleets, GPU for Ray)
         compute_profile, gpu = self._get_runner_config(program, compute_profile_requested)
 
+        code_engine_project = None
+        if program.runner == Program.FLEETS:
+            try:
+                code_engine_project = select_ce_project(compute_profile)
+            except ValueError as ex:
+                raise serializers.ValidationError(str(ex)) from ex
+
         job = Job(
             trial=trial,
             business_model=business_model,
@@ -349,6 +357,7 @@ class RunJobSerializer(serializers.ModelSerializer):
             gpu=gpu,
             runner=program.runner,
             compute_profile=compute_profile,
+            code_engine_project=code_engine_project,
         )
 
         env = encrypt_env_vars(
