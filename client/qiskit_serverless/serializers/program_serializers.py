@@ -92,6 +92,8 @@ def get_arguments() -> Dict[str, Any]:
             "Error getting arguments: ARGUMENTS_PATH environment variable is missing or empty"
         )
 
+    os.makedirs(os.path.dirname(arguments_path), exist_ok=True)
+
     if not os.path.isfile(arguments_path):
         raise QiskitServerlessException(
             f"Error getting arguments: {arguments_path} is not a file or doesn't exist"
