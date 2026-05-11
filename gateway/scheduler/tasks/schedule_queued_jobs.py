@@ -6,6 +6,7 @@ import time
 from datetime import datetime, timezone
 
 from django.conf import settings
+from django.db.models import F
 
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
@@ -107,7 +108,9 @@ class ScheduleQueuedJobs(SchedulerTask):
                     ray_job_id=job.ray_job_id,
                     compute_resource=job.compute_resource,
                     fleet_id=job.fleet_id,
+                    version=F("version") + 1,
                 )
+                job.refresh_from_db(fields=["version"])
                 JobEvent.objects.add_status_event(
                     job_id=job.id,
                     origin=JobEventOrigin.SCHEDULER,

@@ -124,6 +124,9 @@ class TestCommands:
         fake_job.save.return_value = None
         fake_job.created = datetime.now(timezone.utc)
         fake_job.gpu = False
+        fake_job.ray_job_id = None
+        fake_job.compute_resource = None
+        fake_job.fleet_id = None
 
         execute_job.return_value = fake_job
         ScheduleQueuedJobs(kill_signal=KillSignal(), metrics=self.metrics).run()
