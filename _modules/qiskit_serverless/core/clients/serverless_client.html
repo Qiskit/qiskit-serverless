@@ -702,7 +702,7 @@
                     <span class="s2">&quot;Continuing without a QiskitRuntimeService.&quot;</span>
                 <span class="p">)</span>
                 <span class="n">service</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s2">&quot;service&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">service</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsEncoder</span><span class="p">),</span>
         <span class="p">}</span>
 
