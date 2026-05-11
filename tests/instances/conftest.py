@@ -4,7 +4,7 @@
 import os
 
 from pytest import fixture
-from qiskit_serverless import ServerlessClient
+from qiskit_serverless import QiskitFunction, ServerlessClient
 
 GATEWAY_HOST = os.environ.get("GATEWAY_HOST", "http://localhost:8000")
 GATEWAY_TOKEN = os.environ.get("GATEWAY_TOKEN", "awesome_token")
@@ -24,6 +24,38 @@ def provider_name():
 def function_title():
     """Title of the test function."""
     return FUNCTION_TITLE
+
+
+@fixture(scope="session")
+def other_function_title():
+    """Title of a second function that exists in the DB but is NOT in any test CRN's entitlements.
+
+    This function must be pre-seeded in the test environment (e.g. via the gateway admin panel
+    or a management command) and must NOT appear in any of the four test CRN entitlements.
+    Override with TEST_OTHER_FUNCTION_TITLE env var.
+    """
+    return os.environ.get("TEST_OTHER_FUNCTION_TITLE", "instances2-test")
+
+
+@fixture(scope="session")
+def seeded_job_id(combined_client, provider_name, function_title, tmp_path_factory):
+    """Ensure at least one known job exists for the test function at session start.
+
+    Uploads the function (idempotent) and runs a job using combined_client, which has all
+    required permissions. Returns the job_id so tests can reference a known job without
+    relying on pre-existing environment state.
+    """
+    tmp = tmp_path_factory.mktemp("job_seed")
+    (tmp / "main.py").write_text('print("seeded job")\n')
+    fn = QiskitFunction(
+        title=function_title,
+        provider=provider_name,
+        entrypoint="main.py",
+        working_dir=str(tmp),
+    )
+    combined_client.upload(fn)
+    job = combined_client.run(function_title, provider=provider_name)
+    return job.job_id
 
 
 @fixture(scope="session")

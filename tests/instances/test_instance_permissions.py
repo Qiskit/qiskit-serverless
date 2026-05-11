@@ -22,7 +22,11 @@ GATEWAY_HOST=https://qiskit-serverless-dev.quantum.ibm.com
   - RUNTIME_API_BASE_URL=https://quantum.test.cloud.ibm.com # staging
   - RUNTIME_API_BASE_URL=https://quantum.cloud.ibm.com # production
 
-All tests use the function: ibm-dev/instances1-test. You can override it with TEST_PROVIDER_NAME and TEST_FUNCTION_TITLE env var
+All tests use the function: ibm-dev/instances1-test. You can override it with TEST_PROVIDER_NAME and TEST_FUNCTION_TITLE env var.
+
+A second function (TEST_OTHER_FUNCTION_TITLE, default instances2-test) must be pre-seeded in the DB
+with the same provider and must NOT appear in any of the four test CRN entitlements. It is used to
+verify that the list endpoints only return functions that the instance is explicitly entitled to see.
 
 - There are four kinds of tests, all of them use the same token GATEWAY_TOKEN
   - None tests expect a CRN with no permissions at all. Env var TEST_NONE_INSTANCE
@@ -194,6 +198,24 @@ class TestUserInstance:
             functions, provider_name, function_title
         ), f"Expected {provider_name}/{function_title} in unfiltered list"
 
+    def test_list_catalog_excludes_other_function(self, user_client, provider_name, other_function_title):
+        """Catalog list only shows functions explicitly in the instance entitlements.
+
+        Even with function.read present for instances1-test, other_function_title is not
+        entitled for this CRN and must not appear.
+        """
+        functions = user_client.functions(filter="catalog")
+        assert not _function_in_list(
+            functions, provider_name, other_function_title
+        ), f"Expected {provider_name}/{other_function_title} NOT in catalog list (not in CRN entitlements)"
+
+    def test_list_all_excludes_other_function(self, user_client, provider_name, other_function_title):
+        """Unfiltered list only shows functions explicitly in the instance entitlements."""
+        functions = user_client.functions()
+        assert not _function_in_list(
+            functions, provider_name, other_function_title
+        ), f"Expected {provider_name}/{other_function_title} NOT in unfiltered list (not in CRN entitlements)"
+
     def test_list_serverless_excludes_provider_function(self, user_client, provider_name, function_title):
         """Serverless filter never returns provider functions regardless of permissions.
 
@@ -278,6 +300,20 @@ class TestProviderInstance:
             functions, provider_name, function_title
         ), f"Expected {provider_name}/{function_title} NOT in unfiltered list (no function.read)"
 
+    def test_list_catalog_excludes_other_function(self, provider_client, provider_name, other_function_title):
+        """Catalog list excludes functions not in the instance entitlements."""
+        functions = provider_client.functions(filter="catalog")
+        assert not _function_in_list(
+            functions, provider_name, other_function_title
+        ), f"Expected {provider_name}/{other_function_title} NOT in catalog list (not in CRN entitlements)"
+
+    def test_list_all_excludes_other_function(self, provider_client, provider_name, other_function_title):
+        """Unfiltered list excludes functions not in the instance entitlements."""
+        functions = provider_client.functions()
+        assert not _function_in_list(
+            functions, provider_name, other_function_title
+        ), f"Expected {provider_name}/{other_function_title} NOT in unfiltered list (not in CRN entitlements)"
+
     def test_get_by_title_raises_404(self, provider_client, provider_name, function_title):
         """get_by_title is denied (404) when function.read is absent."""
         with pytest.raises(QiskitServerlessException) as exc:
@@ -303,23 +339,27 @@ class TestProviderInstance:
         assert result is not None
         assert result.title == function_title
 
-    def test_provider_jobs_returns_list(self, provider_client, provider_name, function_title):
-        """provider_jobs() succeeds when function-job.read is present."""
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        jobs = provider_client.provider_jobs(fn)
-        assert isinstance(jobs, list)
+    def test_provider_jobs_contains_seeded_job(self, provider_client, provider_name, function_title, seeded_job_id):
+        """provider_jobs() returns the expected jobs when function-job.read is present.
 
-    def test_retrieve_job_succeeds(self, provider_client, provider_name, function_title):
-        """retrieve() succeeds when function-job.read is present.
-
-        function-job.read covers both listing and retrieving jobs: a provider
-        that can list jobs from a function can also retrieve each individual job.
+        Verifies that the seeded job appears in the list, confirming the endpoint filters
+        correctly by function and that function-job.read grants access.
         """
         fn = QiskitFunction(title=function_title, provider=provider_name)
         jobs = provider_client.provider_jobs(fn)
-        assert jobs, "Need at least one job to test retrieve — run a job first"
-        job_id = jobs[0].job_id
-        job_data = provider_client.get_job_data(job_id)
+        assert isinstance(jobs, list)
+        assert any(
+            j.job_id == seeded_job_id for j in jobs
+        ), f"Seeded job {seeded_job_id} not found in provider_jobs. Got: {[j.job_id for j in jobs]}"
+
+    def test_retrieve_job_succeeds(self, provider_client, seeded_job_id):
+        """retrieve() succeeds when function-job.read is present.
+
+        Note: since all test clients share the same GATEWAY_TOKEN, the seeded job is
+        authored by the same user and the author check alone would grant access. The
+        non-author code path (function-job.read only) requires a separate user token.
+        """
+        job_data = provider_client.get_job_data(seeded_job_id)
         assert job_data is not None
         assert "status" in job_data
 
@@ -361,6 +401,30 @@ class TestCombinedInstance:
             functions, provider_name, function_title
         ), f"Expected {provider_name}/{function_title} in unfiltered list"
 
+    def test_list_catalog_excludes_other_function(self, combined_client, provider_name, other_function_title):
+        """Catalog list only shows functions explicitly in the instance entitlements.
+
+        This is the key isolation test: even with all permissions (function.read, function.run,
+        etc.), only instances1-test is entitled for this CRN. other_function_title must not appear,
+        verifying that instance permissions are enforced at function level, not provider level.
+        """
+        functions = combined_client.functions(filter="catalog")
+        assert not _function_in_list(functions, provider_name, other_function_title), (
+            f"Expected {provider_name}/{other_function_title} NOT in catalog list "
+            f"(not in CRN entitlements even with full permissions)"
+        )
+
+    def test_list_all_excludes_other_function(self, combined_client, provider_name, other_function_title):
+        """Unfiltered list only shows functions explicitly in the instance entitlements.
+
+        Verifies function-level isolation: all permissions present but only for instances1-test.
+        """
+        functions = combined_client.functions()
+        assert not _function_in_list(functions, provider_name, other_function_title), (
+            f"Expected {provider_name}/{other_function_title} NOT in unfiltered list "
+            f"(not in CRN entitlements even with full permissions)"
+        )
+
     def test_list_serverless_excludes_provider_function(self, combined_client, provider_name, function_title):
         """Serverless filter never returns provider functions regardless of permissions."""
         functions = combined_client.functions(filter="serverless")
@@ -399,22 +463,17 @@ class TestCombinedInstance:
         assert result is not None
         assert result.title == function_title
 
-    def test_provider_jobs_returns_list(self, combined_client, provider_name, function_title):
-        """provider_jobs() returns a list with full permissions."""
+    def test_provider_jobs_contains_seeded_job(self, combined_client, provider_name, function_title, seeded_job_id):
+        """provider_jobs() returns the expected jobs with full permissions."""
         fn = QiskitFunction(title=function_title, provider=provider_name)
         jobs = combined_client.provider_jobs(fn)
         assert isinstance(jobs, list)
+        assert any(
+            j.job_id == seeded_job_id for j in jobs
+        ), f"Seeded job {seeded_job_id} not found in provider_jobs. Got: {[j.job_id for j in jobs]}"
 
-    def test_retrieve_job_succeeds(self, combined_client, provider_name, function_title):
-        """retrieve() succeeds when function-job.read is present.
-
-        function-job.read covers both listing and retrieving jobs: a provider
-        that can list jobs from a function can also retrieve each individual job.
-        """
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        jobs = combined_client.provider_jobs(fn)
-        assert jobs, "Need at least one job to test retrieve — run a job first"
-        job_id = jobs[0].job_id
-        job_data = combined_client.get_job_data(job_id)
+    def test_retrieve_job_succeeds(self, combined_client, seeded_job_id):
+        """retrieve() succeeds with full permissions."""
+        job_data = combined_client.get_job_data(seeded_job_id)
         assert job_data is not None
         assert "status" in job_data
