@@ -105,15 +105,6 @@ class UpdateJobsStatuses(SchedulerTask):
                     except RunnerError:
                         logs = ""
                     save_logs_to_storage(job, logs)
-                else:
-                    # For Fleets jobs, retrieve results from COS and save to database
-                    try:
-                        result_str = runner.get_result_from_cos()
-                        if result_str:
-                            job.result = result_str
-                            logger.info("Retrieved and saved results for Fleets job [%s]", job.id)
-                    except Exception as ex:  # pylint: disable=broad-exception-caught
-                        logger.warning("Failed to retrieve results for Fleets job [%s]: %s", job.id, str(ex))
                 if job.status == Job.SUCCEEDED:
                     self._record_execution_duration(job)
 
@@ -147,21 +138,22 @@ class UpdateJobsStatuses(SchedulerTask):
                 status_has_changed = True
                 save_logs_to_storage(job, logs)
 
-        Job.objects.filter(pk=job.id).update(
-            status=job.status,
-            sub_status=job.sub_status,
-            env_vars=job.env_vars,
-            version=F("version") + 1,
-        )
-
-         JobEvent.objects.add_status_event(
-            job_id=job.id,
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.UPDATE_JOB_STATUS,
-            status=job.status,
-         )
-        if job.in_terminal_state():
-            self._increment_terminal_counter(job)
+        if status_has_changed:
+            Job.objects.filter(pk=job.id).update(
+                status=job.status,
+                sub_status=job.sub_status,
+                env_vars=job.env_vars,
+                version=F("version") + 1,
+            )
+            job.refresh_from_db(fields=["version"])
+            JobEvent.objects.add_status_event(
+                job_id=job.id,
+                origin=JobEventOrigin.SCHEDULER,
+                context=JobEventContext.UPDATE_JOB_STATUS,
+                status=job.status,
+            )
+            if job.in_terminal_state():
+                self._increment_terminal_counter(job)
 
         return status_has_changed
 
