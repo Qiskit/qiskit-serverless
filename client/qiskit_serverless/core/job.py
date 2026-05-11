@@ -327,7 +327,7 @@ def send_error(code: Union[str, int], message: str, exception: str, args: Option
     channel = os.environ.get(QISKIT_IBM_CHANNEL, None)
     url = f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/" f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/event/"
 
-    request_json = {"type": "ERROR", "code": code, "message": message, "exception": exception}
+    request_json: dict[str, Any] = {"type": "ERROR", "code": code, "message": message, "exception": exception}
     if args:
         request_json["args"] = args
 
