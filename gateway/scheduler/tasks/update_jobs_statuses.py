@@ -154,15 +154,14 @@ class UpdateJobsStatuses(SchedulerTask):
             version=F("version") + 1,
         )
 
-        if status_has_changed:
-            JobEvent.objects.add_status_event(
-                job_id=job.id,
-                origin=JobEventOrigin.SCHEDULER,
-                context=JobEventContext.UPDATE_JOB_STATUS,
-                status=job.status,
-            )
-            if job.in_terminal_state():
-                self._increment_terminal_counter(job)
+         JobEvent.objects.add_status_event(
+            job_id=job.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            status=job.status,
+         )
+        if job.in_terminal_state():
+            self._increment_terminal_counter(job)
 
         return status_has_changed
 
