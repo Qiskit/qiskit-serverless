@@ -253,7 +253,6 @@ INFO: Final public log
         assert not os.path.exists(private_log_file_path)
 
         job.refresh_from_db()
-        assert job.logs == ""
 
     @patch("scheduler.tasks.update_jobs_statuses.get_runner")
     def test_update_jobs_statuses_filters_logs_provider_function(self, get_runner, settings):

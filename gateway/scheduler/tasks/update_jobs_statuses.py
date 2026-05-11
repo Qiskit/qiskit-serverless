@@ -114,7 +114,6 @@ class UpdateJobsStatuses(SchedulerTask):
                             logger.info("Retrieved and saved results for Fleets job [%s]", job.id)
                     except Exception as ex:  # pylint: disable=broad-exception-caught
                         logger.warning("Failed to retrieve results for Fleets job [%s]: %s", job.id, str(ex))
-                job.logs = ""
                 if job.status == Job.SUCCEEDED:
                     self._record_execution_duration(job)
 
@@ -147,14 +146,12 @@ class UpdateJobsStatuses(SchedulerTask):
                 job.env_vars = "{}"
                 status_has_changed = True
                 save_logs_to_storage(job, logs)
-                job.logs = ""
 
         Job.objects.filter(pk=job.id).update(
             status=job.status,
             sub_status=job.sub_status,
             env_vars=job.env_vars,
             result=job.result,
-            logs=job.logs,
             version=F("version") + 1,
         )
 
