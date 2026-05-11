@@ -102,7 +102,12 @@ class ScheduleQueuedJobs(SchedulerTask):
                 )
 
                 t1 = time.monotonic()
-                job.save(update_fields=["status", "ray_job_id", "compute_resource", "fleet_id"])
+                Job.objects.filter(pk=job.id).update(
+                    status=job.status,
+                    ray_job_id=job.ray_job_id,
+                    compute_resource=job.compute_resource,
+                    fleet_id=job.fleet_id,
+                )
                 JobEvent.objects.add_status_event(
                     job_id=job.id,
                     origin=JobEventOrigin.SCHEDULER,
