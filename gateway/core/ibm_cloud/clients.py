@@ -248,3 +248,25 @@ class IBMCloudClientProvider:
         )
         self.clients.cos_hmac[cache_key] = s3
         return s3
+
+
+def build_ce_auth(api_key: str, region: str) -> tuple[Any, IBMCloudClientProvider]:
+    """Create an authenticated CE ApiClient and IBMCloudClientProvider.
+
+    Args:
+        api_key: IBM Cloud API key.
+        region: IBM Cloud region (e.g. ``"us-south"``).
+
+    Returns:
+        Tuple of ``(ApiClient, IBMCloudClientProvider)``.
+    """
+    from core.ibm_cloud.code_engine.ce_client import ApiClient, Configuration  # pylint: disable=import-outside-toplevel
+
+    client_provider = IBMCloudClientProvider(api_key=api_key, region=region)
+    cfg = Configuration()
+    cfg.host = client_provider.config.code_engine_url
+    # Configuration uses a copy-on-call singleton; replace the shared dict references
+    # so different ApiClient instances don't mutate each other's credentials.
+    cfg.api_key = {"Authorization": client_provider.auth.token}
+    cfg.api_key_prefix = {"Authorization": "Bearer"}
+    return ApiClient(cfg), client_provider
