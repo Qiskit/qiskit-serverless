@@ -3,7 +3,6 @@
 import logging
 from datetime import datetime, timezone
 
-from concurrency.exceptions import RecordModifiedError
 from django.conf import settings
 
 from core.domain.filter_logs import (
@@ -63,26 +62,19 @@ class UpdateJobsStatuses(SchedulerTask):
             job.status = Job.FAILED
             job.sub_status = None
             job.env_vars = "{}"
-            try:
-                job.save(update_fields=["status", "sub_status", "env_vars"])
-                JobEvent.objects.add_status_event(
-                    job_id=job.id,
-                    origin=JobEventOrigin.SCHEDULER,
-                    context=JobEventContext.UPDATE_JOB_STATUS,
-                    status=job.status,
-                )
-                self._increment_terminal_counter(job)
-                logger.warning(
-                    "job_id=%s error=%s Error getting status, set job as FAILED",
-                    job.id,
-                    str(ex),
-                )
-            except RecordModifiedError:
-                logger.warning(
-                    "job_id=%s error=%s Error getting status + RecordModifiedError setting job as FAILED",
-                    job.id,
-                    str(ex),
-                )
+            Job.objects.filter(pk=job.id).update(status=job.status, sub_status=job.sub_status, env_vars=job.env_vars)
+            JobEvent.objects.add_status_event(
+                job_id=job.id,
+                origin=JobEventOrigin.SCHEDULER,
+                context=JobEventContext.UPDATE_JOB_STATUS,
+                status=job.status,
+            )
+            self._increment_terminal_counter(job)
+            logger.warning(
+                "job_id=%s error=%s Error getting status, set job as FAILED",
+                job.id,
+                str(ex),
+            )
             return True
 
         status_has_changed = False
@@ -154,21 +146,23 @@ class UpdateJobsStatuses(SchedulerTask):
                 save_logs_to_storage(job, logs)
                 job.logs = ""
 
-        try:
-            job.save(update_fields=["status", "sub_status", "env_vars", "result", "logs"])
+        Job.objects.filter(pk=job.id).update(
+            status=job.status,
+            sub_status=job.sub_status,
+            env_vars=job.env_vars,
+            result=job.result,
+            logs=job.logs,
+        )
 
-            if status_has_changed:
-                JobEvent.objects.add_status_event(
-                    job_id=job.id,
-                    origin=JobEventOrigin.SCHEDULER,
-                    context=JobEventContext.UPDATE_JOB_STATUS,
-                    status=job.status,
-                )
-                if job.in_terminal_state():
-                    self._increment_terminal_counter(job)
-        except RecordModifiedError:
-            status_has_changed = False
-            logger.warning("job_id=%s RecordModifiedError on save", job.id)
+        if status_has_changed:
+            JobEvent.objects.add_status_event(
+                job_id=job.id,
+                origin=JobEventOrigin.SCHEDULER,
+                context=JobEventContext.UPDATE_JOB_STATUS,
+                status=job.status,
+            )
+            if job.in_terminal_state():
+                self._increment_terminal_counter(job)
 
         return status_has_changed
 
