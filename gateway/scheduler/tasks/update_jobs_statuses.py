@@ -151,7 +151,6 @@ class UpdateJobsStatuses(SchedulerTask):
             status=job.status,
             sub_status=job.sub_status,
             env_vars=job.env_vars,
-            result=job.result,
             version=F("version") + 1,
         )
 
