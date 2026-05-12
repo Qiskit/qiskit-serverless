@@ -36,7 +36,7 @@ from core.ibm_cloud.code_engine.fleets.utils import (
     build_run_env_variables,
     build_run_volume_mounts,
 )
-from core.services.storage.arguments_storage import ArgumentsStorage
+from core.services.storage import get_arguments_storage
 
 logger = logging.getLogger("FleetsRunner")
 
@@ -202,7 +202,6 @@ class FleetsRunner(AbstractRunner):
 
             if self._is_cos_configured():
                 paths = self._build_cos_paths()
-                job_id = str(self.job.id)
 
                 run_volume_mounts = build_run_volume_mounts(
                     mounts=[
@@ -226,12 +225,17 @@ class FleetsRunner(AbstractRunner):
                     secondary_log_filename=LOG_FILENAME,
                     secondary_log_filter_key=LOG_FILTER_KEY,
                 )
-                run_env_variables.append(
-                    {"type": "literal", "name": "JOB_ID_GATEWAY", "value": job_id},
-                )
 
                 gateway_env = self._build_gateway_env_vars()
                 run_env_variables.extend(gateway_env)
+
+                run_env_variables.append(
+                    {
+                        "type": "literal",
+                        "name": "ARGUMENTS_PATH",
+                        "value": f"{paths['user_mount_path']}/arguments.json",
+                    },
+                )
                 run_commands = build_run_commands(
                     app_run_commands=["python", f"{paths['provider_mount_path']}/{self.job.program.entrypoint}"],
                     secondary_log_filter_key=LOG_FILTER_KEY,
@@ -542,12 +546,12 @@ class FleetsRunner(AbstractRunner):
             Dict with function/job prefixes, COS log/argument keys, and
             container mount paths.
         """
-        author_id = str(self.job.author.id)
+        username = self.job.author.username
         provider_name = self.job.program.provider.name if self.job.program and self.job.program.provider else "default"
         program_title = self.job.program.title if self.job.program else "unknown"
         job_id = str(self.job.id)
 
-        user_function_prefix = f"users/{author_id}/provider_functions/{provider_name}/{program_title}"
+        user_function_prefix = f"users/{username}/provider_functions/{provider_name}/{program_title}"
         provider_function_prefix = f"providers/{provider_name}/{program_title}"
         user_job_prefix = f"{user_function_prefix}/jobs/{job_id}"
         provider_job_prefix = f"{provider_function_prefix}/jobs/{job_id}"
@@ -559,7 +563,7 @@ class FleetsRunner(AbstractRunner):
             "provider_job_prefix": provider_job_prefix,
             "user_log_key": f"{user_job_prefix}/{LOG_FILENAME}",
             "provider_log_key": f"{provider_job_prefix}/{LOG_FILENAME}",
-            "user_arguments_key": f"{user_job_prefix}/arguments/{job_id}.json",
+            "user_arguments_key": f"{user_job_prefix}/arguments.json",
             "user_mount_path": "/data",
             "provider_mount_path": "/function_data",
             "provider_logs_mount_path": "/provider_logs",
@@ -569,16 +573,16 @@ class FleetsRunner(AbstractRunner):
         """Upload job arguments from local storage to the COS user bucket.
 
         Reads from :class:`ArgumentsStorage` and uploads to
-        ``{user_job_prefix}/arguments/{job_id}.json`` so the SDK's
-        ``get_arguments()`` finds them at ``/data/arguments/{job_id}.json``.
+        ``{user_job_prefix}/arguments.json`` so the SDK's
+        ``get_arguments()`` finds them at ``/data/arguments.json``
+        (via the ``ARGUMENTS_PATH`` env var).
         Unwraps a single-key ``{"arguments": ...}`` envelope if present.
 
         Args:
             paths: Dict from :meth:`_build_cos_paths`.
         """
-        program = self.job.program
-        storage = ArgumentsStorage(self.job.author.username, program)
-        content = storage.get(str(self.job.id)) or "{}"
+        storage = get_arguments_storage(self.job)
+        content = storage.get() or "{}"
 
         try:
             parsed = json.loads(content)

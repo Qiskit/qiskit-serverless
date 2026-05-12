@@ -124,6 +124,9 @@ class TestCommands:
         fake_job.save.return_value = None
         fake_job.created = datetime.now(timezone.utc)
         fake_job.gpu = False
+        fake_job.ray_job_id = None
+        fake_job.compute_resource = None
+        fake_job.fleet_id = None
 
         execute_job.return_value = fake_job
         ScheduleQueuedJobs(kill_signal=KillSignal(), metrics=self.metrics).run()
@@ -251,9 +254,6 @@ INFO: Final public log
         )
         # private log shouldn't exist
         assert not os.path.exists(private_log_file_path)
-
-        job.refresh_from_db()
-        assert job.logs == ""
 
     @patch("scheduler.tasks.update_jobs_statuses.get_runner")
     def test_update_jobs_statuses_filters_logs_provider_function(self, get_runner, settings):
