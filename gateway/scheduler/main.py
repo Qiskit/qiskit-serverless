@@ -13,6 +13,7 @@ from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.kill_signal import KillSignal
 from scheduler.tasks.free_resources import FreeResources
 from scheduler.tasks.schedule_queued_jobs import ScheduleQueuedJobs
+from scheduler.tasks.update_job_status_counts import UpdateJobStatusCounts
 from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
 
 logger = logging.getLogger("scheduler.main")
@@ -34,6 +35,7 @@ class Main:
         Config.add_defaults()
 
         self.tasks = [
+            UpdateJobStatusCounts(self.kill_signal, self.metrics),
             ScheduleQueuedJobs(self.kill_signal, self.metrics),
             UpdateJobsStatuses(self.kill_signal, self.metrics),
             FreeResources(self.kill_signal, self.metrics),

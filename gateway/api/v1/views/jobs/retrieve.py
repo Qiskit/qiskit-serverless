@@ -22,6 +22,7 @@ from api.use_cases.jobs.retrieve import JobRetrieveUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import Job
 
 logger = logging.getLogger("api.api.v1.views.jobs.retrieve")
@@ -149,7 +150,14 @@ def retrieve(request: Request, job_id: UUID) -> Response:
     with_result: bool = params.validated_data["with_result"]
 
     user = cast(AbstractUser, request.user)
-    job = JobRetrieveUseCase().execute(job_id, user, with_result)
+    accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
+    logger.info(
+        "[jobs-retrieve] user_id=%s job_id=%s accessible_functions=%s",
+        user.id,
+        job_id,
+        accessible_functions,
+    )
+    job = JobRetrieveUseCase().execute(job_id, user, with_result, accessible_functions=accessible_functions)
     logger.info(
         "[jobs-retrieve] user_id=%s job_id=%s program=%s | Job retrieved ok",
         user.id,

@@ -31,7 +31,7 @@ class FilesProviderListUseCase:
         """
 
         provider = self.provider_repository.get_provider_by_name(name=provider_name)
-        if provider is None or not ProviderAccessPolicy.can_manage_files(
+        if provider is None or not ProviderAccessPolicy.can_read_files(
             user=user, provider=provider, function_title=function_title
         ):
             raise ProviderNotFoundException(provider_name)
