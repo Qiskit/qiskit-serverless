@@ -35,7 +35,7 @@ from core.ibm_cloud.code_engine.fleets.utils import (
     build_run_env_variables,
     build_run_volume_mounts,
 )
-from core.services.storage.arguments_storage import ArgumentsStorage
+from core.services.storage import get_arguments_storage
 
 logger = logging.getLogger("FleetsRunner")
 
@@ -579,9 +579,8 @@ class FleetsRunner(AbstractRunner):
             handler: Initialized :class:`FleetHandler` with COS access.
             paths: Dict from :meth:`_build_cos_paths`.
         """
-        program = self.job.program
-        storage = ArgumentsStorage(self.job.author.username, program)
-        content = storage.get(str(self.job.id)) or "{}"
+        storage = get_arguments_storage(self.job)
+        content = storage.get() or "{}"
 
         try:
             parsed = json.loads(content)
