@@ -79,6 +79,12 @@ In order to run the tests, this is the configuration you have to get from /funct
           "provider": "ibm-dev",
           "business_model": "consumption",
           "permissions": ["function.read", "function.run", "function-files.read", "function-files.write", "function.write", "function-job.read", "function-provider-logs.read", "function-provider-files.read", "function-provider-files.write"]
+        },
+        {
+          "name": "instances2-test",
+          "provider": "ibm-dev",
+          "business_model": "consumption",
+          "permissions": ["function.read", "function.run", "function-files.read", "function-files.write", "function.write", "function-job.read", "function-provider-logs.read", "function-provider-files.read", "function-provider-files.write"]
         }
       ]
     }
@@ -198,23 +204,26 @@ class TestUserInstance:
             functions, provider_name, function_title
         ), f"Expected {provider_name}/{function_title} in unfiltered list"
 
-    def test_list_catalog_excludes_other_function(self, user_client, provider_name, other_function_title):
+    def test_list_catalog_excludes_other_function(self, user_client, provider_name, seeded_other_function):
         """Catalog list only shows functions explicitly in the instance entitlements.
 
-        Even with function.read present for instances1-test, other_function_title is not
-        entitled for this CRN and must not appear.
+        instances2-test exists in the DB (seeded via combined_client) but is not in the
+        user_instance CRN entitlements, so it must not appear.
         """
         functions = user_client.functions(filter="catalog")
         assert not _function_in_list(
-            functions, provider_name, other_function_title
-        ), f"Expected {provider_name}/{other_function_title} NOT in catalog list (not in CRN entitlements)"
+            functions, provider_name, seeded_other_function
+        ), f"Expected {provider_name}/{seeded_other_function} NOT in catalog list (not in CRN entitlements)"
 
-    def test_list_all_excludes_other_function(self, user_client, provider_name, other_function_title):
-        """Unfiltered list only shows functions explicitly in the instance entitlements."""
+    def test_list_all_excludes_other_function(self, user_client, provider_name, seeded_other_function):
+        """Unfiltered list only shows functions explicitly in the instance entitlements.
+
+        instances2-test exists in the DB but is not entitled for user_instance.
+        """
         functions = user_client.functions()
         assert not _function_in_list(
-            functions, provider_name, other_function_title
-        ), f"Expected {provider_name}/{other_function_title} NOT in unfiltered list (not in CRN entitlements)"
+            functions, provider_name, seeded_other_function
+        ), f"Expected {provider_name}/{seeded_other_function} NOT in unfiltered list (not in CRN entitlements)"
 
     def test_list_serverless_excludes_provider_function(self, user_client, provider_name, function_title):
         """Serverless filter never returns provider functions regardless of permissions.
@@ -300,19 +309,26 @@ class TestProviderInstance:
             functions, provider_name, function_title
         ), f"Expected {provider_name}/{function_title} NOT in unfiltered list (no function.read)"
 
-    def test_list_catalog_excludes_other_function(self, provider_client, provider_name, other_function_title):
-        """Catalog list excludes functions not in the instance entitlements."""
+    def test_list_catalog_excludes_other_function(self, provider_client, provider_name, seeded_other_function):
+        """Catalog list excludes functions not in the instance entitlements.
+
+        instances2-test exists in the DB (seeded via combined_client) but is not in the
+        provider_instance CRN entitlements.
+        """
         functions = provider_client.functions(filter="catalog")
         assert not _function_in_list(
-            functions, provider_name, other_function_title
-        ), f"Expected {provider_name}/{other_function_title} NOT in catalog list (not in CRN entitlements)"
+            functions, provider_name, seeded_other_function
+        ), f"Expected {provider_name}/{seeded_other_function} NOT in catalog list (not in CRN entitlements)"
 
-    def test_list_all_excludes_other_function(self, provider_client, provider_name, other_function_title):
-        """Unfiltered list excludes functions not in the instance entitlements."""
+    def test_list_all_excludes_other_function(self, provider_client, provider_name, seeded_other_function):
+        """Unfiltered list excludes functions not in the instance entitlements.
+
+        instances2-test exists in the DB but is not entitled for provider_instance.
+        """
         functions = provider_client.functions()
         assert not _function_in_list(
-            functions, provider_name, other_function_title
-        ), f"Expected {provider_name}/{other_function_title} NOT in unfiltered list (not in CRN entitlements)"
+            functions, provider_name, seeded_other_function
+        ), f"Expected {provider_name}/{seeded_other_function} NOT in unfiltered list (not in CRN entitlements)"
 
     def test_get_by_title_raises_404(self, provider_client, provider_name, function_title):
         """get_by_title is denied (404) when function.read is absent."""
@@ -401,29 +417,35 @@ class TestCombinedInstance:
             functions, provider_name, function_title
         ), f"Expected {provider_name}/{function_title} in unfiltered list"
 
-    def test_list_catalog_excludes_other_function(self, combined_client, provider_name, other_function_title):
-        """Catalog list only shows functions explicitly in the instance entitlements.
+    def test_list_catalog_includes_both_functions(
+        self, combined_client, provider_name, function_title, seeded_other_function
+    ):
+        """Catalog includes both functions entitled for this CRN.
 
-        This is the key isolation test: even with all permissions (function.read, function.run,
-        etc.), only instances1-test is entitled for this CRN. other_function_title must not appear,
-        verifying that instance permissions are enforced at function level, not provider level.
+        combined_instance has function.read for instances1-test and instances2-test.
+        Both must appear, confirming that multi-function entitlements work correctly.
+        The isolation guarantee (user/provider cannot see instances2-test) is verified
+        in TestUserInstance and TestProviderInstance.
         """
         functions = combined_client.functions(filter="catalog")
-        assert not _function_in_list(functions, provider_name, other_function_title), (
-            f"Expected {provider_name}/{other_function_title} NOT in catalog list "
-            f"(not in CRN entitlements even with full permissions)"
-        )
+        assert _function_in_list(
+            functions, provider_name, function_title
+        ), f"Expected {provider_name}/{function_title} in catalog list"
+        assert _function_in_list(
+            functions, provider_name, seeded_other_function
+        ), f"Expected {provider_name}/{seeded_other_function} in catalog list (entitled for combined_instance)"
 
-    def test_list_all_excludes_other_function(self, combined_client, provider_name, other_function_title):
-        """Unfiltered list only shows functions explicitly in the instance entitlements.
-
-        Verifies function-level isolation: all permissions present but only for instances1-test.
-        """
+    def test_list_all_includes_both_functions(
+        self, combined_client, provider_name, function_title, seeded_other_function
+    ):
+        """Unfiltered list includes both functions entitled for this CRN."""
         functions = combined_client.functions()
-        assert not _function_in_list(functions, provider_name, other_function_title), (
-            f"Expected {provider_name}/{other_function_title} NOT in unfiltered list "
-            f"(not in CRN entitlements even with full permissions)"
-        )
+        assert _function_in_list(
+            functions, provider_name, function_title
+        ), f"Expected {provider_name}/{function_title} in unfiltered list"
+        assert _function_in_list(
+            functions, provider_name, seeded_other_function
+        ), f"Expected {provider_name}/{seeded_other_function} in unfiltered list (entitled for combined_instance)"
 
     def test_list_serverless_excludes_provider_function(self, combined_client, provider_name, function_title):
         """Serverless filter never returns provider functions regardless of permissions."""

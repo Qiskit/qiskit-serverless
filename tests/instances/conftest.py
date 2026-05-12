@@ -108,11 +108,33 @@ def provider_client():
 
 
 @fixture(scope="session")
+def seeded_other_function(combined_client, provider_name, other_function_title, tmp_path_factory):
+    """Create other_function_title in the DB using combined_client.
+
+    combined_client has function.write for both instances1-test and instances2-test (requires the
+    Runtime API to be configured accordingly). This makes isolation tests meaningful: the function
+    exists in the DB but user_client and provider_client cannot see it because it is not in their
+    CRN entitlements.
+    """
+    tmp = tmp_path_factory.mktemp("other_fn_seed")
+    (tmp / "main.py").write_text('print("other function")\n')
+    fn = QiskitFunction(
+        title=other_function_title,
+        provider=provider_name,
+        entrypoint="main.py",
+        working_dir=str(tmp),
+    )
+    combined_client.upload(fn)
+    return other_function_title
+
+
+@fixture(scope="session")
 def combined_client():
-    """Client authenticated with all permissions instance.
-    Permissions: function.read, function.run, function-files.read, function-files.write,
-                 function.write, function-job.read, function-provider-logs.read,
-                 function-provider-files.read, function-provider-files.write
+    """Client authenticated with all permissions instance, entitled for both test functions.
+    Permissions for instances1-test and instances2-test:
+      function.read, function.run, function-files.read, function-files.write,
+      function.write, function-job.read, function-provider-logs.read,
+      function-provider-files.read, function-provider-files.write
     """
     return ServerlessClient(
         token=GATEWAY_TOKEN,
