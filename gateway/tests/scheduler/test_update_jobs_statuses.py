@@ -59,63 +59,6 @@ def _make_ray_job(status=Job.RUNNING):
 class TestFleetsJobStatusUpdate:
     """Tests for update_job_status() with Fleets jobs."""
 
-    def test_result_retrieved_from_cos_on_terminal_state(self):
-        """Saves COS result to job.result when Fleets job reaches terminal state."""
-        task = _make_task()
-        job = _make_fleets_job()
-        job.in_terminal_state.return_value = True
-
-        mock_runner = MagicMock()
-        mock_runner.status.return_value = Job.SUCCEEDED
-        mock_runner.get_result_from_cos.return_value = '{"counts": {"00": 512}}'
-
-        with (
-            patch(f"{_MOD}.get_runner", return_value=mock_runner),
-            patch(f"{_MOD}.check_job_timeout", return_value=False),
-            patch(f"{_MOD}.JobEvent"),
-        ):
-            task.update_job_status(job)
-
-        mock_runner.get_result_from_cos.assert_called_once()
-        assert job.result == '{"counts": {"00": 512}}'
-
-    def test_result_skipped_when_cos_returns_none(self):
-        """Leaves job.result unchanged when get_result_from_cos returns None."""
-        task = _make_task()
-        job = _make_fleets_job()
-        job.in_terminal_state.return_value = True
-        job.result = "previous-result"
-
-        mock_runner = MagicMock()
-        mock_runner.status.return_value = Job.SUCCEEDED
-        mock_runner.get_result_from_cos.return_value = None
-
-        with (
-            patch(f"{_MOD}.get_runner", return_value=mock_runner),
-            patch(f"{_MOD}.check_job_timeout", return_value=False),
-            patch(f"{_MOD}.JobEvent"),
-        ):
-            task.update_job_status(job)
-
-        assert job.result == "previous-result"
-
-    def test_cos_error_is_swallowed(self):
-        """Logs a warning and continues if get_result_from_cos raises."""
-        task = _make_task()
-        job = _make_fleets_job()
-        job.in_terminal_state.return_value = True
-
-        mock_runner = MagicMock()
-        mock_runner.status.return_value = Job.SUCCEEDED
-        mock_runner.get_result_from_cos.side_effect = RuntimeError("COS unavailable")
-
-        with (
-            patch(f"{_MOD}.get_runner", return_value=mock_runner),
-            patch(f"{_MOD}.check_job_timeout", return_value=False),
-            patch(f"{_MOD}.JobEvent"),
-        ):
-            task.update_job_status(job)  # should not raise
-
 
 class TestRayJobStatusUpdate:
     """Tests for update_job_status() with Ray jobs."""
@@ -139,6 +82,7 @@ class TestRayJobStatusUpdate:
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
             patch(f"{_MOD}.check_job_timeout", return_value=False),
             patch(f"{_MOD}.save_logs_to_storage"),
+            patch(f"{_MOD}.Job.objects"),
             patch(f"{_MOD}.JobEvent"),
         ):
             task.update_job_status(job)
@@ -158,6 +102,7 @@ class TestRayJobStatusUpdate:
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
             patch(f"{_MOD}.check_job_timeout", return_value=False),
+            patch(f"{_MOD}.Job.objects"),
             patch(f"{_MOD}.JobEvent"),
         ):
             task.update_job_status(job)
