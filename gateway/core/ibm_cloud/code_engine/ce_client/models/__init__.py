@@ -31,6 +31,8 @@ from core.ibm_cloud.code_engine.ce_client.models.v2_env_var import V2EnvVar
 from core.ibm_cloud.code_engine.ce_client.models.v2_fleet import V2Fleet
 from core.ibm_cloud.code_engine.ce_client.models.v2_fleet_list import V2FleetList
 from core.ibm_cloud.code_engine.ce_client.models.v2_fleet_status_details import V2FleetStatusDetails
+from core.ibm_cloud.code_engine.ce_client.models.v2_gpu_preference import V2GPUPreference
+from core.ibm_cloud.code_engine.ce_client.models.v2_gpu_scale import V2GPUScale
 from core.ibm_cloud.code_engine.ce_client.models.v2_task_progress import V2TaskProgress
 from core.ibm_cloud.code_engine.ce_client.models.v2_task_state_store import V2TaskStateStore
 from core.ibm_cloud.code_engine.ce_client.models.v2_tasks_specification import V2TasksSpecification

@@ -3,9 +3,9 @@ import pytest
 from django.contrib.auth.models import User, Group
 
 from api.access_policies.jobs import JobAccessPolicies
-from api.domain.authorization.function_access_entry import FunctionAccessEntry
-from api.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import Program, Job, Provider, PLATFORM_PERMISSION_JOB_READ, PLATFORM_PERMISSION_PROVIDER_LOGS
+from core.domain.authorization.function_access_result import FunctionAccessResult
+from core.models import Program, Job, Provider, PLATFORM_PERMISSION_JOBS_READ, PLATFORM_PERMISSION_PROVIDER_LOGS
+from tests.utils import create_function_access_result
 
 pytestmark = pytest.mark.django_db
 
@@ -70,28 +70,22 @@ class TestCanAccess:
         @pytest.mark.parametrize(
             "permissions,expected",
             [
-                ({PLATFORM_PERMISSION_JOB_READ}, True),
+                ({PLATFORM_PERMISSION_JOBS_READ}, True),
                 ({"other-permission"}, False),
             ],
         )
-        def test_access_depends_on_job_read_permission(self, job_author, permissions, expected):
-            """Access is granted if the entry includes PLATFORM_PERMISSION_JOB_READ for the function."""
+        def test_access_depends_on_provider_jobs_permission(self, job_author, permissions, expected):
+            """Access is granted if the entry includes PLATFORM_PERMISSION_JOBS_READ for the function."""
             admin = User.objects.create_user(username="admin_ext")
             provider = Provider.objects.create(name="ext-provider")
             program = Program.objects.create(title="fn", author=job_author, provider=provider)
-            entry = FunctionAccessEntry(
-                provider_name="ext-provider",
-                function_title="fn",
-                permissions=permissions,
-                business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
-            )
-            accessible = FunctionAccessResult(has_response=True, functions=[entry])
+            accessible = create_function_access_result("ext-provider", "fn", permissions)
             provider_job = Job.objects.create(program=program, author=job_author, status=Job.QUEUED)
             assert JobAccessPolicies.can_access(admin, provider_job, accessible_functions=accessible) is expected
 
         def test_author_always_true_regardless_of_accessible_functions(self, job_author, job):
             """Author can access their job even when accessible_functions returns no entries."""
-            accessible = FunctionAccessResult(has_response=True, functions=[])
+            accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[])
             assert JobAccessPolicies.can_access(job_author, job, accessible_functions=accessible) is True
 
 
@@ -182,13 +176,7 @@ class TestCanReadProviderLogs:
             admin = User.objects.create_user(username="log_admin")
             provider = Provider.objects.create(name="log-provider")
             program = Program.objects.create(title="log-fn", author=job_author, provider=provider)
-            entry = FunctionAccessEntry(
-                provider_name="log-provider",
-                function_title="log-fn",
-                permissions=permissions,
-                business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
-            )
-            accessible = FunctionAccessResult(has_response=True, functions=[entry])
+            accessible = create_function_access_result("log-provider", "log-fn", permissions)
             provider_job = Job.objects.create(program=program, author=job_author, status=Job.QUEUED)
             assert (
                 JobAccessPolicies.can_read_provider_logs(admin, provider_job, accessible_functions=accessible)

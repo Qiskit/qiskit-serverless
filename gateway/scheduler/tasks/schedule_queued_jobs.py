@@ -6,8 +6,6 @@ import time
 from datetime import datetime, timezone
 
 from django.conf import settings
-from django.db.models import Count
-
 from concurrency.exceptions import RecordModifiedError
 
 from opentelemetry import trace
@@ -40,7 +38,6 @@ class ScheduleQueuedJobs(SchedulerTask):
             logger.warning("System in maintenance mode. Skipping new jobs schedule.")
             return
 
-        self._update_job_status_counts_metric()
         self._schedule_fleets_jobs()
         self._schedule_cpu_jobs()
         self._schedule_gpu_jobs()
@@ -109,6 +106,7 @@ class ScheduleQueuedJobs(SchedulerTask):
                 backup_logs = job.logs
                 backup_resource = job.compute_resource
                 backup_ray_job_id = job.ray_job_id
+                backup_fleet_id = job.fleet_id
 
                 succeed = False
                 attempts = settings.RAY_SETUP_MAX_RETRIES
@@ -144,6 +142,7 @@ class ScheduleQueuedJobs(SchedulerTask):
                         job.logs = backup_logs
                         job.compute_resource = backup_resource
                         job.ray_job_id = backup_ray_job_id
+                        job.fleet_id = backup_fleet_id
 
                 retries = settings.RAY_SETUP_MAX_RETRIES - attempts
                 if succeed:
@@ -163,23 +162,6 @@ class ScheduleQueuedJobs(SchedulerTask):
                     )
         if jobs:
             logger.info("%s jobs are scheduled for execution.", len(jobs))
-
-    def _update_job_status_counts_metric(self):
-        """Update job counts per status and provider (active states only)."""
-        statuses = [Job.QUEUED, Job.PENDING, Job.RUNNING]
-        rows = (
-            Job.objects.filter(status__in=statuses)
-            .values("status", "program__provider__name")
-            .annotate(count=Count("id"))
-        )
-        counts = {}
-        for row in rows:
-            status = row["status"]
-            provider = row["program__provider__name"] or "custom"
-            counts[(status, provider)] = row["count"]
-        self.metrics.clear_job_status_counts()
-        for (status, provider), count in counts.items():
-            self.metrics.set_job_status_count(count, status, provider)
 
     def add_queue_wait_time_metric(self, job: Job):
         """Add queue wait time metric."""

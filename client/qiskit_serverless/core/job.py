@@ -124,6 +124,10 @@ class JobService(ABC):
             exclude: rex expression finds match in the log line to be excluded
         """
 
+    def get_job_data(self, job_id: str) -> Optional[Dict[str, Any]]:  # pylint: disable=unused-argument
+        """Return full job data dict, or None if not supported."""
+        return None
+
     @abstractmethod
     def events(self, job_id: str, **kwargs) -> list[JobEvent]:
         """Returns events of the job.
@@ -180,10 +184,18 @@ class Job:
         self.compute_profile = compute_profile
         self.raw_data = raw_data or {}
 
+    @property
+    def fleet_id(self) -> Optional[str]:
+        """Returns the Code Engine fleet ID for this job (Fleets runner only)."""
+        return self.raw_data.get("fleet_id")
+
     def status(self):
         """Returns status of the job."""
-        status = _map_status_from_serveless(self._job_service.status(self.job_id))
-        return status
+        fresh_data = self._job_service.get_job_data(self.job_id)
+        if isinstance(fresh_data, dict):
+            self.raw_data.update(fresh_data)
+            return _map_status_from_serveless(fresh_data.get("status"))
+        return _map_status_from_serveless(self._job_service.status(self.job_id))
 
     def stop(self, service: Optional[QiskitRuntimeService] = None):
         """Stops the job from running."""
@@ -315,7 +327,7 @@ def send_error(code: Union[str, int], message: str, exception: str, args: Option
     channel = os.environ.get(QISKIT_IBM_CHANNEL, None)
     url = f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/" f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/event/"
 
-    request_json = {"type": "ERROR", "code": code, "message": message, "exception": exception}
+    request_json: dict[str, Any] = {"type": "ERROR", "code": code, "message": message, "exception": exception}
     if args:
         request_json["args"] = args
 

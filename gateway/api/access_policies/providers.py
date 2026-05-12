@@ -7,13 +7,13 @@ from typing import Optional
 
 from core.models import (
     Provider,
-    PLATFORM_PERMISSION_JOB_READ,
-    PLATFORM_PERMISSION_PROVIDER_FILES,
-    PLATFORM_PERMISSION_PROVIDER_JOBS,
+    PLATFORM_PERMISSION_PROVIDER_FILES_READ,
+    PLATFORM_PERMISSION_PROVIDER_FILES_WRITE,
+    PLATFORM_PERMISSION_JOBS_READ,
     PLATFORM_PERMISSION_PROVIDER_LOGS,
-    PLATFORM_PERMISSION_PROVIDER_UPLOAD,
+    PLATFORM_PERMISSION_WRITE,
 )
-from api.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.authorization.function_access_result import FunctionAccessResult
 
 logger = logging.getLogger("api.ProviderAccessPolicy")
 
@@ -27,15 +27,16 @@ def _check(
 ) -> bool:
     """Core provider access logic shared by all named methods.
 
-    When accessible_functions.has_response=True: checks the specific function entry (granular).
+    When accessible_functions.use_legacy_authorization=False: checks the specific function entry (granular).
     Otherwise falls back to Django admin_groups.
     """
-    # Runtime instances API has function granularity: user needs to have permission per function
-    if accessible_functions is not None and accessible_functions.has_response:
-        return accessible_functions.has_permission_for_function(provider.name, function_title, permission)
     # Legacy Django auth has provider granularity: user needs to be a provider admin
-    user_groups = set(user.groups.all())
-    return bool(user_groups.intersection(set(provider.admin_groups.all())))
+    if accessible_functions is None or accessible_functions.use_legacy_authorization:
+        user_groups = set(user.groups.all())
+        return bool(user_groups.intersection(set(provider.admin_groups.all())))
+
+    # Runtime instances API has function granularity: user needs to have permission per function
+    return accessible_functions.has_permission_for_function(provider.name, function_title, permission)
 
 
 class ProviderAccessPolicy:
@@ -54,7 +55,7 @@ class ProviderAccessPolicy:
         """Runtime instances: checks function has job.retrieve permission. Legacy: checks provider admin group."""
         if provider is None:
             raise ValueError("provider cannot be None")
-        has_access = _check(user, provider, function_title, accessible_functions, PLATFORM_PERMISSION_JOB_READ)
+        has_access = _check(user, provider, function_title, accessible_functions, PLATFORM_PERMISSION_JOBS_READ)
         if not has_access:
             logger.warning("[can_retrieve_job] provider=%s user_id=%s | no access", provider.name, user.id)
         return has_access
@@ -84,24 +85,43 @@ class ProviderAccessPolicy:
         """Runtime instances: checks function has provider.jobs permission. Legacy: checks provider admin group."""
         if provider is None:
             raise ValueError("provider cannot be None")
-        has_access = _check(user, provider, function_title, accessible_functions, PLATFORM_PERMISSION_PROVIDER_JOBS)
+        has_access = _check(user, provider, function_title, accessible_functions, PLATFORM_PERMISSION_JOBS_READ)
         if not has_access:
             logger.warning("[can_list_jobs] provider=%s user_id=%s | no access", provider.name, user.id)
         return has_access
 
     @staticmethod
-    def can_manage_files(
+    def can_read_files(
         user,
         provider: Provider,
         function_title: str,
         accessible_functions: Optional[FunctionAccessResult] = None,
     ) -> bool:
-        """Runtime instances: checks function has provider.files permission. Legacy: checks provider admin group."""
+        """Runtime instances: checks function has provider.files.read permission. Legacy:checks provider admin group."""
         if provider is None:
             raise ValueError("provider cannot be None")
-        has_access = _check(user, provider, function_title, accessible_functions, PLATFORM_PERMISSION_PROVIDER_FILES)
+        has_access = _check(
+            user, provider, function_title, accessible_functions, PLATFORM_PERMISSION_PROVIDER_FILES_READ
+        )
         if not has_access:
-            logger.warning("[can_manage_files] provider=%s user_id=%s | no access", provider.name, user.id)
+            logger.warning("[can_read_files] provider=%s user_id=%s | no access", provider.name, user.id)
+        return has_access
+
+    @staticmethod
+    def can_write_files(
+        user,
+        provider: Provider,
+        function_title: str,
+        accessible_functions: Optional[FunctionAccessResult] = None,
+    ) -> bool:
+        """Runtime instances: checks function has provider.files.write permission.Legacy:checks provider admin group."""
+        if provider is None:
+            raise ValueError("provider cannot be None")
+        has_access = _check(
+            user, provider, function_title, accessible_functions, PLATFORM_PERMISSION_PROVIDER_FILES_WRITE
+        )
+        if not has_access:
+            logger.warning("[can_write_files] provider=%s user_id=%s | no access", provider.name, user.id)
         return has_access
 
     @staticmethod
@@ -114,7 +134,7 @@ class ProviderAccessPolicy:
         """Runtime instances: checks function has provider.upload permission. Legacy: checks provider admin group."""
         if provider is None:
             raise ValueError("provider cannot be None")
-        has_access = _check(user, provider, function_title, accessible_functions, PLATFORM_PERMISSION_PROVIDER_UPLOAD)
+        has_access = _check(user, provider, function_title, accessible_functions, PLATFORM_PERMISSION_WRITE)
         if not has_access:
             logger.warning("[can_upload_function] provider=%s user_id=%s | no access", provider.name, user.id)
         return has_access
@@ -125,4 +145,7 @@ class ProviderAccessPolicy:
         if provider is None:
             raise ValueError("provider cannot be None")
         user_groups = set(user.groups.all())
-        return bool(user_groups.intersection(set(provider.admin_groups.all())))
+        has_access = bool(user_groups.intersection(set(provider.admin_groups.all())))
+        if not has_access:
+            logger.warning("[is_provider_admin] provider=%s user_id=%s | no access", provider.name, user.id)
+        return has_access

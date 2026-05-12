@@ -3,6 +3,7 @@
 from core.models import Job, Program
 from core.services.runners.abstract_runner import RunnerError, AbstractRunner
 
+from core.services.runners.fleets_runner import FleetsRunner
 from core.services.runners.ray_runner import RayRunner
 
 
@@ -21,7 +22,7 @@ def get_runner(job: Job) -> AbstractRunner:
         RunnerError: If runner type is invalid or not supported
     """
     if job.runner == Program.FLEETS:
-        raise RunnerError(f"Fleets runner is not supported yet: {job.runner}")
+        return FleetsRunner(job)
     if job.runner == Program.RAY:
         return RayRunner(job)
     raise RunnerError(f"Unknown runner type: {job.runner}")

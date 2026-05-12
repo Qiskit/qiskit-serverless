@@ -8,6 +8,7 @@ from django.urls import path
 from django.shortcuts import render, get_object_or_404
 from django.contrib.admin.views.main import PAGE_VAR
 from core.models import (
+    CodeEngineProject,
     Config,
     GroupMetadata,
     JobConfig,
@@ -26,6 +27,16 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobE
 class JobConfigAdmin(admin.ModelAdmin):
     """JobConfigAdmin."""
 
+    search_fields = ["id"]
+
+
+@admin.register(CodeEngineProject)
+class CodeEngineProjectAdmin(admin.ModelAdmin):
+    """CodeEngineProjectAdmin."""
+
+    search_fields = ["project_name", "project_id", "region"]
+    list_display = ["project_name", "region", "zone"]
+
 
 @admin.register(Provider)
 class ProviderAdmin(admin.ModelAdmin):
@@ -39,9 +50,9 @@ class ProgramAdmin(admin.ModelAdmin):
     """ProgramAdmin."""
 
     search_fields = ["title", "author__username"]
-    list_filter = ["provider", "type", "disabled"]
+    list_filter = ["provider", "type", "runner", "disabled"]
     exclude = ["env_vars"]
-    filter_horizontal = ["instances", "trial_instances"]
+    autocomplete_fields = ["author", "provider", "instances", "trial_instances"]
     change_form_template = "program/change_form.html"
 
     list_display = [
@@ -49,6 +60,7 @@ class ProgramAdmin(admin.ModelAdmin):
         "provider",
         "author",
         "type",
+        "runner",
         "disabled",
     ]
 
@@ -100,6 +112,7 @@ class ComputeResourceAdmin(admin.ModelAdmin):
 
     search_fields = ["title", "owner__username"]
     list_filter = ["active"]
+    autocomplete_fields = ["owner"]
 
 
 class JobEventInline(admin.TabularInline):
@@ -154,6 +167,7 @@ class JobAdmin(admin.ModelAdmin):
     exclude = ["arguments", "env_vars", "logs", "result"]
     ordering = ["-created"]
     inlines = [JobEventInline]
+    autocomplete_fields = ["author", "program", "compute_resource", "code_engine_project", "config"]
 
     def save_model(self, request, obj, form, change):
         if change:
@@ -181,13 +195,15 @@ class RuntimeJobAdmin(admin.ModelAdmin):
     """RuntimeJobAdmin."""
 
     search_fields = ["job__id"]
+    autocomplete_fields = ["job"]
 
 
 @admin.register(GroupMetadata)
 class GroupMetadataAdmin(admin.ModelAdmin):
-    """RuntimeJobAdmin."""
+    """GroupMetadataAdmin."""
 
     search_fields = ["account", "group__name"]
+    autocomplete_fields = ["group"]
 
 
 @admin.register(Config)

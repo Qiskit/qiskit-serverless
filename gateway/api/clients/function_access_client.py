@@ -1,13 +1,16 @@
 """FunctionAccessClient."""
 
+import hashlib
 import logging
 
 import requests
 from django.conf import settings
+from django.core.cache import cache
 
-from api.domain.authorization.function_access_entry import FunctionAccessEntry
-from api.domain.authorization.function_access_result import FunctionAccessResult
+from api.domain.exceptions.runtime_api_exception import RuntimeFunctionsException
 from core.config_key import ConfigKey
+from core.domain.authorization.function_access_entry import FunctionAccessEntry
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import Config
 
 logger = logging.getLogger("api.FunctionAccessClient")
@@ -16,25 +19,38 @@ logger = logging.getLogger("api.FunctionAccessClient")
 class FunctionAccessClient:
     """Client for retrieving accessible functions for a given instance CRN."""
 
-    def get_accessible_functions(self, instance_crn: str) -> FunctionAccessResult:
+    def get_accessible_functions(self, instance_crn: str, api_key: str) -> FunctionAccessResult:
         """Return all functions accessible to the given instance CRN with their permissions."""
         enabled = Config.get_bool(ConfigKey.RUNTIME_INSTANCES_API_ENABLED)
+        base_url = settings.RUNTIME_API_BASE_URL
         if not enabled:
-            return FunctionAccessResult(has_response=False)
+            return FunctionAccessResult(use_legacy_authorization=True, message="RUNTIME_INSTANCES_API_ENABLED is False")
 
-        base_url = settings.RUNTIME_INSTANCES_API_BASE_URL
-        if not base_url:
-            return FunctionAccessResult(has_response=False)
+        if not instance_crn:
+            raise RuntimeFunctionsException("Missing instance_crn")
+
+        api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+        cache_key = f"accesible_functions:{instance_crn}:{api_key_hash}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
 
         try:
             response = requests.get(
-                f"{base_url}/instances/functions",
-                headers={"Service-CRN": instance_crn},
+                f"{base_url}/api/v1/functions",
+                headers={"Service-CRN": instance_crn, "Authorization": f"apikey {api_key}"},
                 timeout=5,
             )
-        except requests.RequestException:
+        except requests.RequestException as exc:
             logger.exception("FunctionAccessClient: connection error for CRN %s", instance_crn)
-            return FunctionAccessResult(has_response=False)
+            raise RuntimeFunctionsException("Error connecting to Runtime API") from exc
+
+        if response.status_code == 204:
+            # We agreed with Runtime that 204 response means there is no functions configured
+            # for this instance, so we should fallback to Django
+            return FunctionAccessResult(
+                use_legacy_authorization=True, message="Instance not configured, migration pending"
+            )
 
         if response.status_code != 200:
             logger.warning(
@@ -42,20 +58,22 @@ class FunctionAccessClient:
                 response.status_code,
                 instance_crn,
             )
-            return FunctionAccessResult(has_response=False)
+            raise RuntimeFunctionsException(f"Unexpected status {response.status_code} for CRN {instance_crn}")
 
         functions = []
-        for f in response.json().get("functions", []):
+        for entry in response.json().get("functions", []):
             try:
-                functions.append(
-                    FunctionAccessEntry(
-                        provider_name=f["provider"],
-                        function_title=f["name"],
-                        permissions=set(f.get("permissions", [])),
-                        business_model=f["business_model"].upper(),
-                    )
+                function_entry = FunctionAccessEntry(
+                    provider_name=entry["provider"],
+                    function_title=entry["name"],
+                    permissions=set(entry.get("permissions", [])),
+                    business_model=entry["business_model"],
                 )
+                functions.append(function_entry)
             except (KeyError, ValueError) as exc:
-                logger.error("FunctionAccessClient: invalid entry %s — %s", f, exc)
+                # entry with missing field or incorrect business model
+                logger.error("FunctionAccessClient: invalid entry %s — %s", entry, exc)
 
-        return FunctionAccessResult(has_response=True, functions=functions)
+        result = FunctionAccessResult(use_legacy_authorization=False, functions=functions)
+        cache.set(cache_key, result, timeout=settings.RUNTIME_API_CACHE_TTL)
+        return result

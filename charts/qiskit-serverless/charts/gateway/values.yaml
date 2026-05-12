@@ -53,11 +53,12 @@ application:
     maxComputeResources: 4
     maxGpuResources: 1
     keepClusterOnComplete: False
-    programTimeoutDays: 14
+    programTimeoutHours: 24
   qiskitRuntime:
     url: "https://cloud.ibm.com"
-  iqpQcon:
-    url: "https://api-qcon.quantum.ibm.com/api"
+  runtimeApi:
+    url: "https://quantum.cloud.ibm.com"
+    cacheTtl: "60"
   allowedHosts: "*"
   trustedOrigins: "http://localhost"
   corsOrigins: "http://localhost"

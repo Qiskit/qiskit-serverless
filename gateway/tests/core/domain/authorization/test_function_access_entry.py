@@ -2,7 +2,7 @@
 
 import pytest
 
-from api.domain.authorization.function_access_entry import FunctionAccessEntry
+from core.domain.authorization.function_access_entry import FunctionAccessEntry
 from core.models import PLATFORM_PERMISSION_RUN, PLATFORM_PERMISSION_READ
 
 
@@ -16,6 +16,16 @@ def test_valid_entry():
     assert entry.provider_name == "my-provider"
     assert entry.function_title == "my-function"
     assert PLATFORM_PERMISSION_RUN in entry.permissions
+    assert entry.business_model == "TRIAL"
+
+
+def test_business_model_normalized_to_uppercase():
+    entry = FunctionAccessEntry(
+        provider_name="p",
+        function_title="f",
+        permissions={PLATFORM_PERMISSION_RUN},
+        business_model="trial",
+    )
     assert entry.business_model == "TRIAL"
 
 

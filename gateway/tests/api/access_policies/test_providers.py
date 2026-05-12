@@ -5,15 +5,16 @@ import pytest
 from django.contrib.auth.models import Group, User
 
 from api.access_policies.providers import ProviderAccessPolicy
-from api.domain.authorization.function_access_entry import FunctionAccessEntry
-from api.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.authorization.function_access_entry import FunctionAccessEntry
+from core.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.business_models import BusinessModel
 from core.models import (
     Job,
-    PLATFORM_PERMISSION_JOB_READ,
-    PLATFORM_PERMISSION_PROVIDER_FILES,
-    PLATFORM_PERMISSION_PROVIDER_JOBS,
+    PLATFORM_PERMISSION_PROVIDER_FILES_READ,
+    PLATFORM_PERMISSION_PROVIDER_FILES_WRITE,
+    PLATFORM_PERMISSION_JOBS_READ,
     PLATFORM_PERMISSION_PROVIDER_LOGS,
-    PLATFORM_PERMISSION_PROVIDER_UPLOAD,
+    PLATFORM_PERMISSION_WRITE,
     Provider,
 )
 
@@ -25,7 +26,7 @@ def _entry(provider_name, permissions):
         provider_name=provider_name,
         function_title="fnc",
         permissions=permissions,
-        business_model=Job.BUSINESS_MODEL_SUBSIDIZED,
+        business_model=BusinessModel.SUBSIDIZED,
     )
 
 
@@ -39,16 +40,16 @@ class TestCanRetrieveJob:
     @pytest.mark.parametrize(
         "permissions,expected",
         [
-            ({PLATFORM_PERMISSION_JOB_READ}, True),
+            ({PLATFORM_PERMISSION_JOBS_READ}, True),
             (set(), False),
         ],
     )
     def test_grant(self, permissions, expected):
-        """Access depends on whether accessible_functions includes JOB_READ for the provider."""
+        """Access depends on whether accessible_functions includes PROVIDER_JOBS for the provider."""
         user = User.objects.create_user(username="client")
         provider = Provider.objects.create(name="provider")
         functions = [_entry("provider", permissions)] if permissions else []
-        accessible = FunctionAccessResult(has_response=True, functions=functions)
+        accessible = FunctionAccessResult(use_legacy_authorization=False, functions=functions)
         assert ProviderAccessPolicy.can_retrieve_job(user, provider, "fnc", accessible) is expected
 
     class TestLegacyGroups:
@@ -82,7 +83,7 @@ class TestCanRetrieveJob:
             g = Group.objects.create(name="fallback_group")
             user.groups.add(g)
             provider.admin_groups.add(g)
-            accessible = FunctionAccessResult(has_response=False)
+            accessible = FunctionAccessResult(use_legacy_authorization=True)
             assert ProviderAccessPolicy.can_retrieve_job(user, provider, "fnc", accessible) is True
 
 
@@ -99,7 +100,7 @@ class TestCanReadLogs:
         user = User.objects.create_user(username="client")
         provider = Provider.objects.create(name="provider")
         functions = [_entry("provider", permissions)] if permissions else []
-        accessible = FunctionAccessResult(has_response=True, functions=functions)
+        accessible = FunctionAccessResult(use_legacy_authorization=False, functions=functions)
         assert ProviderAccessPolicy.can_read_logs(user, provider, "fnc", accessible) is expected
 
 
@@ -107,48 +108,65 @@ class TestCanListJobs:
     @pytest.mark.parametrize(
         "permissions,expected",
         [
-            ({PLATFORM_PERMISSION_PROVIDER_JOBS}, True),
+            ({PLATFORM_PERMISSION_JOBS_READ}, True),
             (set(), False),
         ],
     )
     def test_grant(self, permissions, expected):
-        """Job list access is granted if the entry includes PLATFORM_PERMISSION_PROVIDER_JOBS."""
+        """Job list access is granted if the entry includes PLATFORM_PERMISSION_JOBS_READ."""
         user = User.objects.create_user(username="client")
         provider = Provider.objects.create(name="provider")
         functions = [_entry("provider", permissions)] if permissions else []
-        accessible = FunctionAccessResult(has_response=True, functions=functions)
+        accessible = FunctionAccessResult(use_legacy_authorization=False, functions=functions)
         assert ProviderAccessPolicy.can_list_jobs(user, provider, "fnc", accessible) is expected
 
 
-class TestCanManageFiles:
+class TestCanReadFiles:
     @pytest.mark.parametrize(
         "permissions,expected",
         [
-            ({PLATFORM_PERMISSION_PROVIDER_FILES}, True),
+            ({PLATFORM_PERMISSION_PROVIDER_FILES_READ}, True),
             (set(), False),
         ],
     )
     def test_grant(self, permissions, expected):
-        """File management access is granted if the entry includes PLATFORM_PERMISSION_PROVIDER_FILES."""
+        """File read access is granted if the entry includes PLATFORM_PERMISSION_PROVIDER_FILES_READ."""
         user = User.objects.create_user(username="client")
         provider = Provider.objects.create(name="provider")
         functions = [_entry("provider", permissions)] if permissions else []
-        accessible = FunctionAccessResult(has_response=True, functions=functions)
-        assert ProviderAccessPolicy.can_manage_files(user, provider, "fnc", accessible) is expected
+        accessible = FunctionAccessResult(use_legacy_authorization=False, functions=functions)
+        assert ProviderAccessPolicy.can_read_files(user, provider, "fnc", accessible) is expected
+
+
+class TestCanWriteFiles:
+    @pytest.mark.parametrize(
+        "permissions,expected",
+        [
+            ({PLATFORM_PERMISSION_PROVIDER_FILES_WRITE}, True),
+            (set(), False),
+        ],
+    )
+    def test_grant(self, permissions, expected):
+        """File write access is granted if the entry includes PLATFORM_PERMISSION_PROVIDER_FILES_WRITE."""
+        user = User.objects.create_user(username="client")
+        provider = Provider.objects.create(name="provider")
+        functions = [_entry("provider", permissions)] if permissions else []
+        accessible = FunctionAccessResult(use_legacy_authorization=False, functions=functions)
+        assert ProviderAccessPolicy.can_write_files(user, provider, "fnc", accessible) is expected
 
 
 class TestCanUploadFunction:
     @pytest.mark.parametrize(
         "permissions,expected",
         [
-            ({PLATFORM_PERMISSION_PROVIDER_UPLOAD}, True),
+            ({PLATFORM_PERMISSION_WRITE}, True),
             (set(), False),
         ],
     )
     def test_grant(self, permissions, expected):
-        """Function upload access is granted if the entry includes PLATFORM_PERMISSION_PROVIDER_UPLOAD."""
+        """Function upload access is granted if the entry includes PLATFORM_PERMISSION_WRITE."""
         user = User.objects.create_user(username="client")
         provider = Provider.objects.create(name="provider")
         functions = [_entry("provider", permissions)] if permissions else []
-        accessible = FunctionAccessResult(has_response=True, functions=functions)
+        accessible = FunctionAccessResult(use_legacy_authorization=False, functions=functions)
         assert ProviderAccessPolicy.can_upload_function(user, provider, "fnc", accessible) is expected

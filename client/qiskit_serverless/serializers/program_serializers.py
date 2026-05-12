@@ -34,7 +34,7 @@ from qiskit.primitives import SamplerResult, EstimatorResult
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_ibm_runtime.utils.json import RuntimeDecoder, RuntimeEncoder
 
-from qiskit_serverless.core.constants import ENV_JOB_ID_GATEWAY, DATA_PATH
+from qiskit_serverless.core.constants import ARGUMENTS_PATH
 from qiskit_serverless.exception import QiskitServerlessException
 
 
@@ -79,29 +79,25 @@ class QiskitObjectsDecoder(RuntimeDecoder):
 
 def get_arguments() -> Dict[str, Any]:
     """Parses arguments for program and returns them as dict.
+
+    Reads the file path specified by the ``ARGUMENTS_PATH`` environment
+    variable, which is set by the runner (Ray or Fleets) at job submission.
+
     Returns:
         Dictionary of arguments.
     """
-    arguments = "{}"
-    job_id_gateway = os.environ.get(ENV_JOB_ID_GATEWAY)
-    if not job_id_gateway:
+    arguments_path = os.environ.get(ARGUMENTS_PATH)
+    if not arguments_path:
         raise QiskitServerlessException(
-            "Error getting arguments: JOB_ID_GATEWAY environment variable is missing or empty"
-        )
-    # DATA_PATH is just used in tests and local development.
-    # In k8 we always want to use the default "/data"
-    data_path = os.environ.get(DATA_PATH, "/data")
-    arguments_dir = f"{data_path}/arguments"
-    arguments_file_path = f"{arguments_dir}/{job_id_gateway}.json"
-
-    os.makedirs(arguments_dir, exist_ok=True)
-
-    if not os.path.isfile(arguments_file_path):
-        raise QiskitServerlessException(
-            f"Error getting arguments: {arguments_file_path} is not a file or doesn't exists"
+            "Error getting arguments: ARGUMENTS_PATH environment variable is missing or empty"
         )
 
-    with open(arguments_file_path, "r", encoding="utf-8") as f:
+    os.makedirs(os.path.dirname(arguments_path), exist_ok=True)
+
+    if not os.path.isfile(arguments_path):
+        raise QiskitServerlessException(f"Error getting arguments: {arguments_path} is not a file or doesn't exist")
+
+    with open(arguments_path, "r", encoding="utf-8") as f:
         arguments = f.read()
 
     return json.loads(arguments, cls=QiskitObjectsDecoder)
