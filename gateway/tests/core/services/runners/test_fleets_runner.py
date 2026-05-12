@@ -19,6 +19,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
+from core.models import Program
 from core.services.runners.abstract_runner import RunnerError
 from core.services.runners.fleets_runner import FleetsRunner
 
@@ -718,7 +719,7 @@ def test_upload_arguments_to_cos_uploads_json():
 
     paths = {"user_arguments_key": "users/1/jobs/j/arguments.json"}
 
-    with patch(f"{_RUNNER_MOD}.ArgumentsStorage") as mock_storage_cls:
+    with patch(f"{_RUNNER_MOD}.get_arguments_storage") as mock_storage_cls:
         mock_storage_cls.return_value.get.return_value = '{"backend_name": "ibm_sherbrooke"}'
         runner._upload_arguments_to_cos(mock_handler, paths)  # pylint: disable=protected-access
 
@@ -788,6 +789,7 @@ def test_submit_includes_gateway_env_vars():
     runner.job.author.id = "user-1"
     runner.job.program.provider = None
     runner.job.program.title = "prog"
+    runner.job.program.runner = Program.FLEETS
 
     runner._project.cos_bucket_user_data_name = "user-bucket"  # pylint: disable=protected-access
     runner._project.cos_bucket_provider_data_name = "prov-bucket"  # pylint: disable=protected-access
