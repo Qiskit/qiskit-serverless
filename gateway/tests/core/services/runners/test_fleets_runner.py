@@ -19,6 +19,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
+from core.models import Program
 from core.services.runners.abstract_runner import RunnerError
 from core.services.runners.fleets_runner import FleetsRunner
 
@@ -125,7 +126,7 @@ def _make_logs_runner() -> tuple[FleetsRunner, MagicMock]:
         Tuple of ``(runner, mock_handler)`` with COS fully configured.
     """
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
-    runner.job.author.id = "user-42"
+    runner.job.author.username = "user-42"
     runner.job.program.provider = None
     runner.job.program.title = "my-program"
     runner.job.id = "job-uuid"
@@ -242,30 +243,52 @@ def test_stop_returns_false_when_already_terminal():
     mock_handler.cancel_job.assert_not_called()
 
 
-def test_build_cos_paths_structure():
-    """_build_cos_paths() produces the expected COS key structure.
-
-    Verifies that user/provider function prefixes and job-level paths follow
-    the convention used by fleets_runner._build_cos_paths() and expected by
-    the entrypoint running inside the container.
-    """
+def test_build_cos_paths_custom_function():
+    """Full COS key paths for a custom function (provider=None → 'default')."""
     runner, _ = _make_runner()
-    runner.job.author.id = "user-42"
-    runner.job.program.provider = None  # custom function -> provider_name = "default"
-    runner.job.program.title = "my-program"
-    runner.job.id = "job-uuid"
+    runner.job.author.username = "alice"
+    runner.job.program.provider = None
+    runner.job.program.title = "hello-world"
+    runner.job.id = "job-aaa-111"
 
     paths = runner._build_cos_paths()  # pylint: disable=protected-access
 
-    assert paths["user_function_prefix"] == "users/user-42/provider_functions/default/my-program"
-    assert paths["provider_function_prefix"] == "providers/default/my-program"
-    assert paths["user_job_prefix"] == "users/user-42/provider_functions/default/my-program/jobs/job-uuid"
-    assert paths["user_log_key"].endswith("/logs.log")
-    assert paths["provider_log_key"].endswith("/logs.log")
+    assert paths["user_function_prefix"] == "users/alice/provider_functions/default/hello-world"
+    assert paths["user_job_prefix"] == "users/alice/provider_functions/default/hello-world/jobs/job-aaa-111"
     assert (
         paths["user_arguments_key"]
-        == "users/user-42/provider_functions/default/my-program/jobs/job-uuid/arguments/job-uuid.json"
+        == "users/alice/provider_functions/default/hello-world/jobs/job-aaa-111/arguments.json"
     )
+    assert paths["user_log_key"] == "users/alice/provider_functions/default/hello-world/jobs/job-aaa-111/logs.log"
+    assert paths["provider_function_prefix"] == "providers/default/hello-world"
+    assert paths["provider_job_prefix"] == "providers/default/hello-world/jobs/job-aaa-111"
+    assert paths["provider_log_key"] == "providers/default/hello-world/jobs/job-aaa-111/logs.log"
+    assert paths["user_mount_path"] == "/data"
+    assert paths["provider_mount_path"] == "/function_data"
+    assert paths["provider_logs_mount_path"] == "/provider_logs"
+
+
+def test_build_cos_paths_provider_function():
+    """Full COS key paths for a provider function."""
+    runner, _ = _make_runner()
+    runner.job.author.username = "alice"
+    runner.job.program.provider = MagicMock()
+    runner.job.program.provider.name = "good-partner"
+    runner.job.program.title = "sampler-v2"
+    runner.job.id = "job-bbb-222"
+
+    paths = runner._build_cos_paths()  # pylint: disable=protected-access
+
+    assert paths["user_function_prefix"] == "users/alice/provider_functions/good-partner/sampler-v2"
+    assert paths["user_job_prefix"] == "users/alice/provider_functions/good-partner/sampler-v2/jobs/job-bbb-222"
+    assert (
+        paths["user_arguments_key"]
+        == "users/alice/provider_functions/good-partner/sampler-v2/jobs/job-bbb-222/arguments.json"
+    )
+    assert paths["user_log_key"] == "users/alice/provider_functions/good-partner/sampler-v2/jobs/job-bbb-222/logs.log"
+    assert paths["provider_function_prefix"] == "providers/good-partner/sampler-v2"
+    assert paths["provider_job_prefix"] == "providers/good-partner/sampler-v2/jobs/job-bbb-222"
+    assert paths["provider_log_key"] == "providers/good-partner/sampler-v2/jobs/job-bbb-222/logs.log"
     assert paths["user_mount_path"] == "/data"
     assert paths["provider_mount_path"] == "/function_data"
     assert paths["provider_logs_mount_path"] == "/provider_logs"
@@ -718,7 +741,7 @@ def test_upload_arguments_to_cos_uploads_json():
 
     paths = {"user_arguments_key": "users/1/jobs/j/arguments.json"}
 
-    with patch(f"{_RUNNER_MOD}.ArgumentsStorage") as mock_storage_cls:
+    with patch(f"{_RUNNER_MOD}.get_arguments_storage") as mock_storage_cls:
         mock_storage_cls.return_value.get.return_value = '{"backend_name": "ibm_sherbrooke"}'
         runner._upload_arguments_to_cos(mock_handler, paths)  # pylint: disable=protected-access
 
@@ -785,9 +808,10 @@ def test_submit_includes_gateway_env_vars():
     """submit() includes decrypted gateway env vars in the run_env_variables."""
     runner, mock_handler = _make_submit_runner()
     runner.job.env_vars = '{"MY_TOKEN": "secret", "MY_URL": "http://example.com"}'
-    runner.job.author.id = "user-1"
+    runner.job.author.username = "user-1"
     runner.job.program.provider = None
     runner.job.program.title = "prog"
+    runner.job.program.runner = Program.FLEETS
 
     runner._project.cos_bucket_user_data_name = "user-bucket"  # pylint: disable=protected-access
     runner._project.cos_bucket_provider_data_name = "prov-bucket"  # pylint: disable=protected-access
