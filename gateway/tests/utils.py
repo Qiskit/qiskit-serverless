@@ -492,7 +492,8 @@ class TestUtils:
 
     @staticmethod
     def authorize_client(
-        user: Union[str, User], client: APIClient, is_active: bool = True, is_staff: bool = False
+        user: Union[str, User], client: APIClient, is_active: bool = True, is_staff: bool = False,
+        accessible_functions: FunctionAccessResult=None, token=None,
     ) -> User:
         """Authenticate a DRF test client with a user.
 
@@ -506,6 +507,8 @@ class TestUtils:
                 creating new users (user is str). Default is True.
             is_staff: Whether the created user should have staff privileges. Only
                 used when creating new users (user is str). Default is False.
+            accessible_functions: User accessible functions to use. If 'None', initialize defaults.
+            token: Optional DRF token to authenticate with. If 'None', initialize defaults.,
 
         Returns:
             User instance that was authenticated.
@@ -515,11 +518,18 @@ class TestUtils:
         from api.domain.authentication.channel import Channel
 
         user_obj, _ = TestUtils.get_user_and_username(author=user, is_active=is_active, is_staff=is_staff)
-        token = MagicMock()
-        token.accessible_functions = FunctionAccessResult(use_legacy_authorization=True)
-        token.channel = Channel.LOCAL
-        token.token = b"test-token"
-        token.instance = None
+        if not token:
+            token = MagicMock()
+            if isinstance(accessible_functions, FunctionAccessResult):
+                token.accessible_functions = accessible_functions
+            else:
+                token.accessible_functions = FunctionAccessResult(use_legacy_authorization=True)
+            token.channel = Channel.LOCAL
+            token.token = b"test-token"
+            token.instance = None
+            token.account_id = None
+        elif isinstance(accessible_functions, FunctionAccessResult):
+                token.accessible_functions = accessible_functions
         client.force_authenticate(user=user_obj, token=token)
         return user_obj
 

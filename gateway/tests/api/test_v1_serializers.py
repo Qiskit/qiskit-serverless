@@ -248,6 +248,7 @@ class TestSerializers:
             carrier={},
             token="my_token",
             config=jobconfig,
+            account_id="1234-5678-9012"
         )
         env_vars = json.loads(job.env_vars)
 
@@ -261,6 +262,7 @@ class TestSerializers:
         assert job.business_model == BusinessModel.SUBSIDIZED
         assert env_vars["PROGRAM_ENV1"] == "VALUE1"
         assert env_vars["PROGRAM_ENV2"] == "VALUE2"
+        assert job.account_id == "1234-5678-9012"
 
     @patch("api.serializers.create_gpujob_allowlist")
     def test_run_job_serializer_sets_gpu_flag_for_gpu_provider(self, mock_gpujob_allowlist):
