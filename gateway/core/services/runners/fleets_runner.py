@@ -381,7 +381,7 @@ class FleetsRunner(AbstractRunner):
             paths = self._build_cos_paths()
             user_bucket = self._project.cos_bucket_user_data_name
             # results_key = f"{paths['user_job_prefix']}/results.json"
-            results_key = paths['user_results_key']
+            results_key = paths["user_results_key"]
 
             logger.debug("Retrieving results for job [%s] from %s/%s", self.job.id, user_bucket, results_key)
 
