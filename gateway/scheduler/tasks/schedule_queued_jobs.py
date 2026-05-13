@@ -6,7 +6,6 @@ import time
 from datetime import datetime, timezone
 
 from django.conf import settings
-from django.db.models import F
 
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
@@ -14,7 +13,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from core.config_key import ConfigKey
 from core.models import ComputeResource, Job, JobEvent, Config, Program
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_job
+from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_ray_job
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
@@ -79,17 +78,15 @@ class ScheduleRayJobs(SchedulerTask):
             tracer = trace.get_tracer("scheduler.tracer")
             with tracer.start_as_current_span("scheduler.handle", context=ctx):
                 t0 = time.monotonic()
-                job = execute_job(job)
-                logger.info("job_id=%s Execute job (%.2fs)", job.id, time.monotonic() - t0)
+                job = execute_ray_job(job)  # from QUEUED to PENDING
+                logger.info(
+                    "job_id=%s Execute job (%.2fs)",
+                    job.id,
+                    time.monotonic() - t0,
+                )
 
                 t1 = time.monotonic()
-                Job.objects.filter(pk=job.id).update(
-                    status=job.status,
-                    ray_job_id=job.ray_job_id,
-                    compute_resource=job.compute_resource,
-                    version=F("version") + 1,
-                )
-                job.refresh_from_db(fields=["version"])
+                job.save_direct(["status", "ray_job_id", "compute_resource"])
                 JobEvent.objects.add_status_event(
                     job_id=job.id,
                     origin=JobEventOrigin.SCHEDULER,
@@ -100,7 +97,7 @@ class ScheduleRayJobs(SchedulerTask):
                 if job.status == Job.PENDING:
                     self.add_queue_wait_time_metric(job)
 
-                logger.warning(
+                logger.info(
                     "job_id=%s Job saved with status=%s (%.2fs)",
                     job.id,
                     job.status,

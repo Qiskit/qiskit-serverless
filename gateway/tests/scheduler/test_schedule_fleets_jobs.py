@@ -14,8 +14,8 @@ def _make_task():
     return ScheduleFleetsJobs(kill_signal=kill_signal, metrics=MagicMock())
 
 
-def test_fleets_job_saved_with_update_fields():
-    """Fleets job is saved with update_fields=["status", "fleet_id"] — no full save."""
+def test_fleets_execute_called_with_ctx():
+    """execute_fleets is called with the job and the tracing context extracted from env_vars."""
     task = _make_task()
 
     mock_job = MagicMock()
@@ -25,36 +25,14 @@ def test_fleets_job_saved_with_update_fields():
     mock_job.env_vars = '{"traceparent": null}'
     mock_job.created = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
-    with (
-        patch(f"{_MOD}.get_jobs_to_schedule_fair_share", return_value=[mock_job]),
-        patch(f"{_MOD}.execute_job", return_value=mock_job),
-        patch(f"{_MOD}.JobEvent"),
-        patch(f"{_MOD}.TraceContextTextMapPropagator"),
-        patch(f"{_MOD}.trace"),
-    ):
-        task._schedule_jobs_if_slots_available(max_slots_possible=5, number_of_slots_running=0)
-
-    mock_job.save.assert_called_once_with(update_fields=["status", "fleet_id"])
-
-
-def test_fleets_no_retry_on_save():
-    """Fleets task never calls refresh_from_db — no retry loop."""
-    task = _make_task()
-
-    mock_job = MagicMock()
-    mock_job.fleet_id = "fleet-xyz"
-    mock_job.status = "PENDING"
-    mock_job.gpu = False
-    mock_job.env_vars = '{"traceparent": null}'
-    mock_job.created = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    mock_ctx = MagicMock()
 
     with (
         patch(f"{_MOD}.get_jobs_to_schedule_fair_share", return_value=[mock_job]),
-        patch(f"{_MOD}.execute_job", return_value=mock_job),
-        patch(f"{_MOD}.JobEvent"),
-        patch(f"{_MOD}.TraceContextTextMapPropagator"),
-        patch(f"{_MOD}.trace"),
+        patch(f"{_MOD}.execute_fleets", return_value=mock_job) as mock_execute,
+        patch(f"{_MOD}.TraceContextTextMapPropagator") as mock_propagator,
     ):
+        mock_propagator.return_value.extract.return_value = mock_ctx
         task._schedule_jobs_if_slots_available(max_slots_possible=5, number_of_slots_running=0)
 
-    mock_job.refresh_from_db.assert_not_called()
+    mock_execute.assert_called_once_with(mock_job, mock_ctx)
