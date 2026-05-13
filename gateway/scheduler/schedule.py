@@ -45,11 +45,7 @@ def execute_ray_job(job: Job) -> Job:
                 job.compute_resource.save()
                 span.set_attribute("job.clustername", job.compute_resource.title)
         except RunnerError as ex:
-            logger.error(
-                "job_id=%s error=%s Job set as FAILED: compute resource or submission error",
-                job.id,
-                ex,
-            )
+            logger.error("job_id=%s error=%s Job set as FAILED: compute resource or submission error", job.id, ex)
             job.status = Job.FAILED
             job.logs += "\nCompute resource creation or job submission failed."
 

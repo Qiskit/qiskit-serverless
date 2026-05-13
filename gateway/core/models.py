@@ -141,10 +141,7 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     dependencies = models.TextField(null=False, blank=True, default="[]")
 
     runner = models.CharField(
-        max_length=20,
-        choices=RUNNER_CHOICES,
-        default=RAY,
-        help_text="Execution backend for this program",
+        max_length=20, choices=RUNNER_CHOICES, default=RAY, help_text="Execution backend for this program"
     )
 
     default_compute_profile = models.CharField(
@@ -307,10 +304,7 @@ class CodeEngineProject(models.Model):
         help_text="COS bucket name for task store (corresponds to pds_name_state)",
     )
     cos_bucket_user_data_name = models.CharField(
-        max_length=255,
-        null=True,
-        blank=True,
-        help_text="COS bucket name for user data (corresponds to pds_name_users)",
+        max_length=255, null=True, blank=True, help_text="COS bucket name for user data (corresponds to pds_name_users)"
     )
     cos_bucket_provider_data_name = models.CharField(
         max_length=255,
@@ -320,10 +314,7 @@ class CodeEngineProject(models.Model):
     )
     cos_instance_name = models.CharField(max_length=255, null=True, blank=True, help_text="COS instance name")
     cos_key_name = models.CharField(
-        max_length=255,
-        null=True,
-        blank=True,
-        help_text="COS HMAC key name for authentication",
+        max_length=255, null=True, blank=True, help_text="COS HMAC key name for authentication"
     )
 
     # Legacy field - kept for backward compatibility, can be removed in future
@@ -410,10 +401,7 @@ class Job(models.Model):
     )
     logs = models.TextField(default="No logs yet.")
     runner = models.CharField(
-        max_length=20,
-        choices=Program.RUNNER_CHOICES,
-        default=Program.RAY,
-        help_text="Execution backend: ray or fleets",
+        max_length=20, choices=Program.RUNNER_CHOICES, default=Program.RAY, help_text="Execution backend: ray or fleets"
     )
     ray_job_id = models.CharField(max_length=255, null=True, blank=True)
     fleet_id = models.CharField(max_length=255, null=True, blank=True, help_text="Code Engine fleet ID")
@@ -433,11 +421,7 @@ class Job(models.Model):
         on_delete=models.CASCADE,
     )
     compute_resource = models.ForeignKey(
-        ComputeResource,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        help_text="Ray cluster (for Ray runner)",
+        ComputeResource, on_delete=models.SET_NULL, null=True, blank=True, help_text="Ray cluster (for Ray runner)"
     )
     code_engine_project = models.ForeignKey(
         CodeEngineProject,
