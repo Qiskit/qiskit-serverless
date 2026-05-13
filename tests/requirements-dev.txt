@@ -8,7 +8,7 @@ tox>=4.54.0
 black[jupyter]~=26.3
 requests-mock>=1.12.1
 pylint>=4.0.5
-mypy>=1.20.2
+mypy>=2.1.0
 mypy-extensions>=1.1.0
 # dependency from ray and tox requires newer versions from cachetools
 cachetools~=7.1.1
