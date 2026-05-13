@@ -394,7 +394,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                     "Continuing without a QiskitRuntimeService."
                 )
                 service = None
-        data = {
+        data: dict[str, Any] = {
             "service": json.dumps(service, cls=QiskitObjectsEncoder),
         }
 
