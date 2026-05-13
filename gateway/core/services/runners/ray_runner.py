@@ -361,7 +361,8 @@ class RayRunner(AbstractRunner):
         TraceContextTextMapPropagator().inject(carrier)
         env_w_span = json.loads(self._job.env_vars)
         try:
-            env_w_span["OT_TRACEPARENT_ID_KEY"] = carrier["traceparent"]
+            # must match client constant QS_OT_TRACEPARENT_ID_KEY
+            env_w_span["QS_OT_TRACEPARENT_ID_KEY"] = carrier["traceparent"]
         except KeyError:
             pass
 
