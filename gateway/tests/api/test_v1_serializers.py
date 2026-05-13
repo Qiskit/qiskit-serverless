@@ -248,7 +248,7 @@ class TestSerializers:
             carrier={},
             token="my_token",
             config=jobconfig,
-            account_id="1234-5678-9012"
+            account_id="1234-5678-9012",
         )
         env_vars = json.loads(job.env_vars)
 

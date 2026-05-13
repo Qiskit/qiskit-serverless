@@ -492,8 +492,12 @@ class TestUtils:
 
     @staticmethod
     def authorize_client(
-        user: Union[str, User], client: APIClient, is_active: bool = True, is_staff: bool = False,
-        accessible_functions: FunctionAccessResult=None, token=None,
+        user: Union[str, User],
+        client: APIClient,
+        is_active: bool = True,
+        is_staff: bool = False,
+        accessible_functions: FunctionAccessResult=None,
+        token=None,
     ) -> User:
         """Authenticate a DRF test client with a user.
 
@@ -529,7 +533,7 @@ class TestUtils:
             token.instance = None
             token.account_id = None
         elif isinstance(accessible_functions, FunctionAccessResult):
-                token.accessible_functions = accessible_functions
+            token.accessible_functions = accessible_functions
         client.force_authenticate(user=user_obj, token=token)
         return user_obj
 

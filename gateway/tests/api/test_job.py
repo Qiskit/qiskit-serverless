@@ -42,9 +42,13 @@ class TestJobApi:
         settings.MEDIA_ROOT = str(tmp_path)
         self.client = APIClient()
 
-    def _authorize(self, username, accessible_functions=FunctionAccessResult(use_legacy_authorization=True), token=None):
+    def _authorize(
+        self, username, accessible_functions=FunctionAccessResult(use_legacy_authorization=True), token=None
+    ):
         """Authorize client and return the user."""
-        user = TestUtils.authorize_client(user=username, client=self.client, accessible_functions=accessible_functions, token=token)
+        user = TestUtils.authorize_client(
+            user=username, client=self.client, accessible_functions=accessible_functions, token=token
+        )
         return user
 
     def _create_job(
