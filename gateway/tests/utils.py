@@ -496,7 +496,7 @@ class TestUtils:
         client: APIClient,
         is_active: bool = True,
         is_staff: bool = False,
-        accessible_functions: FunctionAccessResult=None,
+        accessible_functions: FunctionAccessResult = None,
         token=None,
     ) -> User:
         """Authenticate a DRF test client with a user.
