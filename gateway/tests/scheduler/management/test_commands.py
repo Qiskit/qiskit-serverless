@@ -86,8 +86,8 @@ class TestCommands:
         assert job_events[3].origin == JobEventOrigin.SCHEDULER
         assert job_events[3].context == JobEventContext.UPDATE_JOB_STATUS
 
-    @patch("scheduler.tasks.schedule_queued_jobs.execute_job")
-    def test_schedule_queued_jobs(self, execute_job):
+    @patch("scheduler.tasks.schedule_queued_jobs.execute_ray_job")
+    def test_schedule_queued_jobs(self, execute_ray_job):
         """Tests schedule of queued jobs command."""
         # Create test data to match fixture expectations (7 jobs total)
         test_user = TestUtils.get_user_and_username("test_user")[0]
@@ -128,7 +128,7 @@ class TestCommands:
         fake_job.compute_resource = None
         fake_job.fleet_id = None
 
-        execute_job.return_value = fake_job
+        execute_ray_job.return_value = fake_job
         ScheduleRayJobs(kill_signal=KillSignal(), metrics=self.metrics).run()
         # TODO: mock execute job to change status of job and query for QUEUED jobs  # pylint: disable=fixme
         job_count = Job.objects.count()
@@ -136,7 +136,7 @@ class TestCommands:
 
         job_events = JobEvent.objects.filter(job_id=fake_job.id)
         # job1 is in QUEUED state and from its creation it has 1 corresponding JobEvent.
-        # It calls `execute_job` twice and add 2 equal events.
+        # It calls `execute_ray_job` twice and add 2 equal events.
         assert len(job_events) == 3
         assert job_events[0].event_type == JobEventType.STATUS_CHANGE
         assert job_events[0].data["status"] == JobStatus.SUCCEEDED
