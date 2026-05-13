@@ -233,6 +233,11 @@ class FleetsRunner(AbstractRunner):
                         "name": "ARGUMENTS_PATH",
                         "value": f"{paths['user_mount_path']}/arguments.json",
                     },
+                    {
+                        "type": "literal",
+                        "name": "RESULTS_PATH",
+                        "value": f"{paths['user_mount_path']}/results.json",
+                    },
                 )
                 run_commands = build_run_commands(
                     app_run_commands=["python", f"{paths['provider_mount_path']}/{self.job.program.entrypoint}"],
@@ -375,7 +380,8 @@ class FleetsRunner(AbstractRunner):
             handler = self._get_handler()
             paths = self._build_cos_paths()
             user_bucket = self._project.cos_bucket_user_data_name
-            results_key = f"{paths['user_job_prefix']}/results.json"
+            # results_key = f"{paths['user_job_prefix']}/results.json"
+            results_key = paths['user_results_key']
 
             logger.debug("Retrieving results for job [%s] from %s/%s", self.job.id, user_bucket, results_key)
 
@@ -561,6 +567,7 @@ class FleetsRunner(AbstractRunner):
             "user_log_key": f"{user_job_prefix}/{LOG_FILENAME}",
             "provider_log_key": f"{provider_job_prefix}/{LOG_FILENAME}",
             "user_arguments_key": f"{user_job_prefix}/arguments.json",
+            "user_results_key": f"{user_job_prefix}/results.json",
             "user_mount_path": "/data",
             "provider_mount_path": "/function_data",
             "provider_logs_mount_path": "/provider_logs",
