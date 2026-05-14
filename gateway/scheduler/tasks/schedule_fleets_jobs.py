@@ -64,9 +64,13 @@ class ScheduleFleetsJobs(SchedulerTask):
 
             job = execute_fleets(job, ctx)
 
+            logger.warning("job_id=%s Job saved with status=%s", job.id, job.status)
+
             if job.status == Job.PENDING:
                 self.add_queue_wait_time_metric(job)
-            logger.warning("job_id=%s Job saved with status=%s", job.id, job.status)
+            else:
+                # job failed
+                pass
 
         if jobs:
             logger.info("%s jobs are scheduled for execution.", len(jobs))
