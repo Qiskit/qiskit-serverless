@@ -37,10 +37,11 @@ class Main:
 
         self.tasks = [
             UpdateJobStatusCounts(self.kill_signal, self.metrics),
+            # submit jobs, status change from PENDING to QUEUED/FAILED
             ScheduleRayJobs(self.kill_signal, self.metrics),
             ScheduleFleetsJobs(self.kill_signal, self.metrics),
             UpdateJobsStatuses(self.kill_signal, self.metrics),
-            FreeResources(self.kill_signal, self.metrics),
+            FreeResources(self.kill_signal, self.metrics),  # Ray only
         ]
 
     def start_http_server(self):
