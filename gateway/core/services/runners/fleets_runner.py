@@ -27,10 +27,10 @@ from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
 from core.models import Job, CodeEngineProject
 from core.services.runners.abstract_runner import AbstractRunner, RunnerError
-from core.ibm_cloud.clients import build_ce_auth
+from core.ibm_cloud import get_ce_auth, get_cos_client
 from core.utils import decrypt_env_vars
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
-from core.ibm_cloud.code_engine.fleets.cos import build_cos_client, JobCOS
+from core.ibm_cloud.code_engine.fleets.cos import JobCOS
 from core.ibm_cloud.code_engine.fleets.utils import (
     build_run_commands,
     build_run_env_variables,
@@ -507,7 +507,7 @@ class FleetsRunner(AbstractRunner):
 
         if self._handler is None:
             try:
-                ce_api_client, _ = build_ce_auth(self._get_api_key(), self._project.region)
+                ce_api_client, _ = get_ce_auth(self._get_api_key(), self._project.region)
                 self._handler = FleetHandler(
                     ce_api_client=ce_api_client,
                     project_id=self._project.project_id,
@@ -524,7 +524,7 @@ class FleetsRunner(AbstractRunner):
         if not self._project:
             self._project = self._get_or_assign_project()
         if self._cos is None:
-            self._cos = build_cos_client(self._project)
+            self._cos = get_cos_client(self._project)
         return self._cos
 
     def _build_gateway_env_vars(self) -> list[dict[str, str]]:

@@ -65,7 +65,7 @@ class FleetHandler:
 
         Args:
             ce_api_client: Authenticated CE :class:`ApiClient`. Use
-                :func:`~core.ibm_cloud.clients.build_ce_auth` to create one.
+                :func:`~core.ibm_cloud.get_ce_auth` to create one.
             project_id: Code Engine project UUID.
         """
         self.project_id = project_id
