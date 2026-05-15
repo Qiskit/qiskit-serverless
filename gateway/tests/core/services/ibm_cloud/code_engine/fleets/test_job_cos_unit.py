@@ -232,10 +232,10 @@ def test_cos_raises_when_ce_secret_not_found() -> None:
 def test_cos_endpoint_url_from_config_passed_to_cos_client() -> None:
     """cos_config['cos_endpoint_url'] is forwarded to COSClient as endpoint_url."""
     mock_job = MagicMock()
-    private_url = "https://s3.private.us-east.cloud-object-storage.appdomain.cloud"
+    direct_url = "https://s3.direct.us-east.cloud-object-storage.appdomain.cloud"
     mock_job.cos_config = {
         "hmac_secret_name": "my-secret",
-        "cos_endpoint_url": private_url,
+        "cos_endpoint_url": direct_url,
     }
     mock_job.project_id = "proj-id"
     mock_job.client_provider.config.region = "us-south"
@@ -251,7 +251,7 @@ def test_cos_endpoint_url_from_config_passed_to_cos_client() -> None:
         mock_cos_cls.return_value.get_object_bytes.return_value = b"data"
         job_cos.get_object_bytes(bucket_name="b", key="k")
 
-    assert mock_cos_cls.call_args.kwargs["endpoint_url"] == private_url
+    assert mock_cos_cls.call_args.kwargs["endpoint_url"] == direct_url
 
 
 def test_cos_raises_when_ce_secret_missing_fields() -> None:

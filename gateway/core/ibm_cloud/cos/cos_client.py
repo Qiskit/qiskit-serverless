@@ -74,8 +74,8 @@ class COSClient:
             client_provider: Initialized IBM Cloud client provider.
             credentials: HMAC credentials for S3-compatible access.
             bucket_region: Bucket endpoint region. Defaults to the provider region.
-            endpoint_url: Override the COS S3 endpoint URL. Use the private endpoint
-                (e.g. ``https://s3.private.us-east.cloud-object-storage.appdomain.cloud``)
+            endpoint_url: Override the COS S3 endpoint URL. Use the direct endpoint
+                (e.g. ``https://s3.direct.us-east.cloud-object-storage.appdomain.cloud``)
                 when running inside IBM Cloud to avoid public internet egress.
             max_threads: Multipart transfer concurrency limit.
         """
