@@ -1,4 +1,4 @@
-"""Update jobs statuses service."""
+"""Update Ray jobs statuses service."""
 
 import logging
 from datetime import datetime, timezone
@@ -29,7 +29,7 @@ logger = logging.getLogger("scheduler.UpdateJobsStatuses")
 
 
 class UpdateJobsStatuses(SchedulerTask):
-    """Update status of jobs."""
+    """Update status of Ray jobs."""
 
     def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
         self.kill_signal = kill_signal
@@ -38,19 +38,10 @@ class UpdateJobsStatuses(SchedulerTask):
     # pylint: disable=too-many-statements
     # pylint: disable=too-many-branches
     def update_job_status(self, job: Job):
-        """Update status of one job."""
-        is_fleets_job = job.runner == Program.FLEETS
-
-        if not is_fleets_job and not job.compute_resource:
+        """Update status of one Ray job."""
+        if not job.compute_resource:
             logger.warning(
                 "job_id=%s Job doesn't have ComputeResource. Return false",
-                job.id,
-            )
-            return False
-
-        if is_fleets_job and not job.fleet_id:
-            logger.warning(
-                "job_id=%s Fleets job doesn't have fleet_id. Return false",
                 job.id,
             )
             return False
@@ -94,27 +85,25 @@ class UpdateJobsStatuses(SchedulerTask):
             )
             status_has_changed = True
             job.status = job_new_status
-            # cleanup env vars and save logs when job reaches terminal state
             if job.in_terminal_state():
                 job.sub_status = None
                 job.env_vars = "{}"
-                # Fleets logs are already in COS; only Ray logs need fetching and persisting.
-                if not is_fleets_job:
-                    try:
-                        logs = runner.logs() or ""
-                    except RunnerError:
-                        logs = ""
-                    save_logs_to_storage(job, logs)
+                # Ray logs need fetching and persisting when the finishes
+                try:
+                    logs = runner.logs() or ""
+                except RunnerError:
+                    logs = ""
+                save_logs_to_storage(job, logs)
                 if job.status == Job.SUCCEEDED:
                     self._record_execution_duration(job)
 
-        if not is_fleets_job and not job.in_terminal_state():
+        if not job.in_terminal_state():
             try:
                 logs = runner.logs()
             except RunnerError:
                 logs = None
 
-        if not is_fleets_job and logs:
+        if logs:
             # check if job is resource constrained
             no_resources_log = "No available node types can fulfill resource request"
             if no_resources_log in logs:
@@ -172,36 +161,25 @@ class UpdateJobsStatuses(SchedulerTask):
         self.metrics.observe_job_execution_duration(duration, provider)
 
     def run(self):
-        """Update statuses of all running jobs."""
+        """Update statuses of all running Ray jobs."""
         max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
         max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
-        max_fleets_clusters_possible = settings.LIMITS_MAX_FLEETS
         update_ray_jobs = max_ray_clusters_possible > 0
         update_gpu_jobs = max_gpu_clusters_possible > 0
-        update_fleets_jobs = max_fleets_clusters_possible > 0
 
-        fleets_counter = 0
         ray_counter = 0
         gpu_counter = 0
-        # Note: with LIMITS_MAX_FLEETS potentially reaching 1000+ concurrent jobs, updating statuses
-        # sequentially will become a bottleneck. This loop should be parallelized using multiple
-        # threads or batched processing for performance reasons.
-        jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES)
+        jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES).exclude(runner=Program.FLEETS)
         for job in jobs:
             if self.kill_signal.received:
                 return
-            if job.runner == Program.FLEETS and update_fleets_jobs:
-                if self.update_job_status(job):
-                    fleets_counter += 1
-            elif job.gpu and update_gpu_jobs:
+            if job.gpu and update_gpu_jobs:
                 if self.update_job_status(job):
                     gpu_counter += 1
             elif not job.gpu and update_ray_jobs:
                 if self.update_job_status(job):
                     ray_counter += 1
 
-        if fleets_counter:
-            logger.info("Updated %s Fleets jobs.", fleets_counter)
         if ray_counter:
             logger.info("Updated %s classical jobs.", ray_counter)
         if gpu_counter:

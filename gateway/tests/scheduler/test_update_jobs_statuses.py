@@ -26,21 +26,6 @@ def _make_task():
     return UpdateJobsStatuses(kill_signal=kill_signal, metrics=MagicMock())
 
 
-def _make_fleets_job(status=Job.RUNNING, fleet_id="fleet-123"):
-    job = MagicMock(spec=Job)
-    job.runner = Program.FLEETS
-    job.fleet_id = fleet_id
-    job.status = status
-    job.result = None
-    job.logs = ""
-    job.env_vars = "{}"
-    job.sub_status = None
-    job.in_terminal_state.return_value = False
-    job.SUCCEEDED = Job.SUCCEEDED
-    job.FAILED = Job.FAILED
-    return job
-
-
 def _make_ray_job(status=Job.RUNNING):
     job = MagicMock(spec=Job)
     job.runner = Program.RAY
