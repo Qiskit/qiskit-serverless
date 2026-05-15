@@ -88,13 +88,12 @@ class UpdateJobsStatuses(SchedulerTask):
             if job.in_terminal_state():
                 job.sub_status = None
                 job.env_vars = "{}"
-                # Fleets logs are already in COS; only Ray logs need fetching and persisting.
-                if not is_fleets_job:
-                    try:
-                        logs = runner.logs() or ""
-                    except RunnerError:
-                        logs = ""
-                    save_logs_to_storage(job, logs)
+                # Ray logs need fetching and persisting when the finishes
+                try:
+                    logs = runner.logs() or ""
+                except RunnerError:
+                    logs = ""
+                save_logs_to_storage(job, logs)
                 if job.status == Job.SUCCEEDED:
                     self._record_execution_duration(job)
 

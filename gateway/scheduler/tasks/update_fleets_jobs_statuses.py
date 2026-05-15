@@ -1,13 +1,13 @@
 """Update Fleets jobs statuses service."""
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from typing import cast
 
-from concurrency.exceptions import RecordModifiedError
 from django.conf import settings
 
 from core.models import Job, JobEvent, Program
-from core.services.runners import get_runner, RunnerError
+from core.services.runners import get_runner, RunnerError, FleetsRunner
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
 from scheduler.kill_signal import KillSignal
@@ -24,91 +24,102 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         self.kill_signal = kill_signal
         self.metrics = metrics
 
-    # pylint: disable=too-many-branches
-    def update_job_status(self, job: Job):
-        """Update status of one Fleets job."""
+    def update_job_status(self, job: Job) -> bool:
+        """Update status of one Fleets job. Returns True if status changed."""
         if not job.fleet_id:
-            logger.warning(
-                "job_id=%s Fleets job doesn't have fleet_id. Return false",
-                job.id,
-            )
+            logger.warning("job_id=%s Fleets job doesn't have fleet_id.", job.id)
             return False
 
-        runner = get_runner(job)
+        runner: FleetsRunner = cast(FleetsRunner, get_runner(job))
 
         try:
-            job_new_status = runner.status()
+            new_status = runner.status()
         except RunnerError as ex:
-            job.status = Job.FAILED
-            job.sub_status = None
-            job.env_vars = "{}"
-            try:
-                job.save()
-                JobEvent.objects.add_status_event(
-                    job_id=job.id,
-                    origin=JobEventOrigin.SCHEDULER,
-                    context=JobEventContext.UPDATE_JOB_STATUS,
-                    status=job.status,
-                )
-                self._increment_terminal_counter(job)
-                logger.warning(
-                    "job_id=%s error=%s Error getting status, set job as FAILED",
-                    job.id,
-                    str(ex),
-                )
-            except RecordModifiedError:
-                logger.warning(
-                    "job_id=%s error=%s Error getting status + RecordModifiedError setting job as FAILED",
-                    job.id,
-                    str(ex),
-                )
-            return True
+            logger.error(
+                "job_id=%s user_id=%s error=%s Error getting status, set job as FAILED", job.id, job.author.id, str(ex)
+            )
+            self.to_terminal(job, Job.FAILED)
+            return False
 
-        status_has_changed = False
+        if new_status == Job.SUCCEEDED:
+            self.to_terminal(job, Job.SUCCEEDED)
+            self._record_execution_duration(job)
 
-        if job_new_status != job.status:
-            logger.info(
-                "job_id=%s user_id=%s Changing status from %s to %s",
+        elif new_status == Job.STOPPED:
+            self.to_terminal(job, Job.STOPPED)
+
+        elif new_status == Job.FAILED:
+            self.to_terminal(job, Job.FAILED)
+
+        elif new_status == Job.PENDING:
+            # don't change the status... job still trying to start
+            self.stop_job_if_timeout(job)
+
+        elif new_status == Job.RUNNING:
+            if job.status == Job.PENDING:
+                # Transition from PENDING to RUNNING
+                self.to_running(job)
+
+            self.stop_job_if_timeout(job)
+
+        else:
+            self.to_terminal(job, Job.FAILED)
+            logger.error(
+                "job_id=%s user_id=%s status=%s Unknown new job status: %s",
                 job.id,
                 job.author.id,
                 job.status,
-                job_new_status,
+                new_status,
             )
-            status_has_changed = True
-            job.status = job_new_status
 
-            if job.in_terminal_state():
-                job.sub_status = None
-                job.env_vars = "{}"
-                # Retrieve results from COS and save to database
-                try:
-                    result_str = runner.get_result_from_cos()
-                    if result_str:
-                        job.result = result_str
-                        logger.info("Retrieved and saved results for Fleets job [%s]", job.id)
-                except Exception as ex:  # pylint: disable=broad-exception-caught
-                    logger.warning("Failed to retrieve results for Fleets job [%s]: %s", job.id, str(ex))
-                job.logs = ""
-                if job.status == Job.SUCCEEDED:
-                    self._record_execution_duration(job)
+        return True
 
-        try:
-            job.save()
+    def to_terminal(self, job: Job, new_status: str) -> None:
+        """Persist a terminal status transition."""
+        logger.info(
+            "job_id=%s user_id=%s Changing status from %s to %s",
+            job.id,
+            job.author.id,
+            job.status,
+            new_status,
+        )
+        job.update_fields({"status": new_status, "sub_status": None, "env_vars": "{}"})
+        JobEvent.objects.add_status_event(
+            job_id=job.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            status=job.status,
+        )
+        self._increment_terminal_counter(job)
 
-            if status_has_changed:
-                JobEvent.objects.add_status_event(
-                    job_id=job.id,
-                    origin=JobEventOrigin.SCHEDULER,
-                    context=JobEventContext.UPDATE_JOB_STATUS,
-                    status=job.status,
-                )
-                if job.in_terminal_state():
-                    self._increment_terminal_counter(job)
-        except RecordModifiedError:
-            status_has_changed = False
-            logger.warning("job_id=%s RecordModifiedError on save", job.id)
+    def to_running(self, job: Job) -> None:
+        """Transition job from PENDING to RUNNING."""
+        logger.info(
+            "job_id=%s user_id=%s Changing status from %s to %s",
+            job.id,
+            job.author.id,
+            job.status,
+            Job.RUNNING,
+        )
+        job.update_fields({"status": Job.RUNNING})
+        JobEvent.objects.add_status_event(
+            job_id=job.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            status=job.status,
+        )
 
-        return status_has_changed
+    def stop_job_if_timeout(self, job: Job) -> None:
+        """Stop job if it has exceeded the maximum allowed duration."""
+        timeout = settings.PROGRAM_TIMEOUT
+        latest_event = JobEvent.objects.filter(job=job).order_by("-created").first()
+        reference_time = latest_event.created if latest_event else job.created
+        endtime = reference_time + timedelta(hours=timeout)
+        if datetime.now(tz=endtime.tzinfo) < endtime:
+            return
+
+        logger.warning("job_id=%s user_id=%s timeout=%s hours: job stopped.", job.id, job.author.id, timeout)
+        self.to_terminal(job, Job.STOPPED)
 
     def _increment_terminal_counter(self, job: Job) -> None:
         """Increment terminal jobs counter."""
@@ -129,7 +140,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         if settings.LIMITS_MAX_FLEETS <= 0:
             return
 
-        fleets_counter = 0
+        counter = 0
         # Note: with LIMITS_MAX_FLEETS potentially reaching 1000+ concurrent jobs, updating statuses
         # sequentially will become a bottleneck. This loop should be parallelized using multiple
         # threads or batched processing for performance reasons.
@@ -138,7 +149,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             if self.kill_signal.received:
                 return
             if self.update_job_status(job):
-                fleets_counter += 1
+                counter += 1
 
-        if fleets_counter:
-            logger.info("Updated %s Fleets jobs.", fleets_counter)
+        if counter:
+            logger.info("Updated %s Fleets jobs.", counter)

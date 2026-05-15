@@ -14,6 +14,7 @@ from scheduler.kill_signal import KillSignal
 from scheduler.tasks.free_resources import FreeResources
 from scheduler.tasks.schedule_queued_jobs import ScheduleQueuedJobs
 from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses
+from scheduler.tasks.update_job_status_counts import UpdateJobStatusCounts
 from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
 
 logger = logging.getLogger("scheduler.main")
