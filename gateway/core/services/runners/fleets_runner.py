@@ -507,7 +507,7 @@ class FleetsRunner(AbstractRunner):
 
         if self._handler is None:
             try:
-                ce_api_client, _ = get_ce_auth(self._get_api_key(), self._project.region)
+                ce_api_client = get_ce_auth(self._get_api_key(), self._project.region).api_client
                 self._handler = FleetHandler(
                     ce_api_client=ce_api_client,
                     project_id=self._project.project_id,

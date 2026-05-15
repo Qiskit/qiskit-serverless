@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
@@ -16,7 +17,15 @@ if TYPE_CHECKING:
     from core.models import CodeEngineProject
 
 
-def get_ce_auth(api_key: str, region: str) -> tuple[Any, IBMCloudClientProvider]:
+@dataclass(frozen=True)
+class CEAuth:
+    """Authenticated Code Engine session."""
+
+    api_client: ApiClient
+    client_provider: IBMCloudClientProvider
+
+
+def get_ce_auth(api_key: str, region: str) -> CEAuth:
     """Create an authenticated CE ApiClient and IBMCloudClientProvider.
 
     Args:
@@ -24,7 +33,7 @@ def get_ce_auth(api_key: str, region: str) -> tuple[Any, IBMCloudClientProvider]
         region: IBM Cloud region (e.g. ``"us-south"``).
 
     Returns:
-        Tuple of ``(ApiClient, IBMCloudClientProvider)``.
+        :class:`CEAuth` holding the CE API client and the client provider.
     """
     client_provider = IBMCloudClientProvider(api_key=api_key, region=region)
     cfg = Configuration()
@@ -33,7 +42,7 @@ def get_ce_auth(api_key: str, region: str) -> tuple[Any, IBMCloudClientProvider]
     # so different ApiClient instances don't mutate each other's credentials.
     cfg.api_key = {"Authorization": client_provider.auth.token}
     cfg.api_key_prefix = {"Authorization": "Bearer"}
-    return ApiClient(cfg), client_provider
+    return CEAuth(api_client=ApiClient(cfg), client_provider=client_provider)
 
 
 def get_cos_client(project: CodeEngineProject) -> JobCOS:
@@ -63,9 +72,9 @@ def get_cos_client(project: CodeEngineProject) -> JobCOS:
     if not hmac_secret_name:
         raise ValueError("CE_HMAC_SECRET_NAME not configured")
 
-    ce_api_client, client_provider = get_ce_auth(api_key, project.region)
+    ce_auth = get_ce_auth(api_key, project.region)
 
-    secrets_api = SecretsAndConfigmapsApi(ce_api_client)
+    secrets_api = SecretsAndConfigmapsApi(ce_auth.api_client)
     try:
         secret = secrets_api.get_secret(project_id=project.project_id, name=hmac_secret_name)
     except ApiException as exc:
@@ -85,7 +94,7 @@ def get_cos_client(project: CodeEngineProject) -> JobCOS:
         endpoint_url = COS_PUBLIC_URL_TEMPLATE.format(region=project.region)
 
     cos_client = COSClient(
-        client_provider=client_provider,
+        client_provider=ce_auth.client_provider,
         credentials=CosHmacCredentials(
             access_key_id=access_key_id,
             secret_access_key=secret_access_key,
@@ -96,4 +105,4 @@ def get_cos_client(project: CodeEngineProject) -> JobCOS:
     return JobCOS(cos_client)
 
 
-__all__ = ["get_ce_auth", "get_cos_client", "JobCOS"]
+__all__ = ["CEAuth", "get_ce_auth", "get_cos_client", "JobCOS"]

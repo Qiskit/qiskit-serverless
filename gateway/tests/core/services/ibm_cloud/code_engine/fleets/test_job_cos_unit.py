@@ -166,7 +166,7 @@ def test_get_cos_client_fetches_hmac_from_ce_secret() -> None:
 
     with (
         patch(f"{_IBM_CLOUD_MOD}.settings") as mock_settings,
-        patch(f"{_IBM_CLOUD_MOD}.get_ce_auth", return_value=(MagicMock(), MagicMock())),
+        patch(f"{_IBM_CLOUD_MOD}.get_ce_auth", return_value=MagicMock()),
         patch(f"{_IBM_CLOUD_MOD}.SecretsAndConfigmapsApi") as mock_secrets_api_cls,
         patch(f"{_IBM_CLOUD_MOD}.COSClient"),
     ):
@@ -188,7 +188,7 @@ def test_get_cos_client_passes_hmac_creds_to_cos_client() -> None:
 
     with (
         patch(f"{_IBM_CLOUD_MOD}.settings") as mock_settings,
-        patch(f"{_IBM_CLOUD_MOD}.get_ce_auth", return_value=(MagicMock(), MagicMock())),
+        patch(f"{_IBM_CLOUD_MOD}.get_ce_auth", return_value=MagicMock()),
         patch(f"{_IBM_CLOUD_MOD}.SecretsAndConfigmapsApi") as mock_secrets_api_cls,
         patch(f"{_IBM_CLOUD_MOD}.COSClient") as mock_cos_cls,
     ):
@@ -210,7 +210,7 @@ def test_get_cos_client_raises_when_ce_secret_not_found() -> None:
 
     with (
         patch(f"{_IBM_CLOUD_MOD}.settings") as mock_settings,
-        patch(f"{_IBM_CLOUD_MOD}.get_ce_auth", return_value=(MagicMock(), MagicMock())),
+        patch(f"{_IBM_CLOUD_MOD}.get_ce_auth", return_value=MagicMock()),
         patch(f"{_IBM_CLOUD_MOD}.SecretsAndConfigmapsApi") as mock_secrets_api_cls,
     ):
         mock_settings.IBM_CLOUD_API_KEY = "test-key"
@@ -229,7 +229,7 @@ def test_get_cos_client_raises_when_ce_secret_missing_fields() -> None:
 
     with (
         patch(f"{_IBM_CLOUD_MOD}.settings") as mock_settings,
-        patch(f"{_IBM_CLOUD_MOD}.get_ce_auth", return_value=(MagicMock(), MagicMock())),
+        patch(f"{_IBM_CLOUD_MOD}.get_ce_auth", return_value=MagicMock()),
         patch(f"{_IBM_CLOUD_MOD}.SecretsAndConfigmapsApi") as mock_secrets_api_cls,
     ):
         mock_settings.IBM_CLOUD_API_KEY = "test-key"
@@ -248,7 +248,7 @@ def test_get_cos_client_uses_public_endpoint_when_configured() -> None:
 
     with (
         patch(f"{_IBM_CLOUD_MOD}.settings") as mock_settings,
-        patch(f"{_IBM_CLOUD_MOD}.get_ce_auth", return_value=(MagicMock(), MagicMock())),
+        patch(f"{_IBM_CLOUD_MOD}.get_ce_auth", return_value=MagicMock()),
         patch(f"{_IBM_CLOUD_MOD}.SecretsAndConfigmapsApi") as mock_secrets_api_cls,
         patch(f"{_IBM_CLOUD_MOD}.COSClient") as mock_cos_cls,
     ):
