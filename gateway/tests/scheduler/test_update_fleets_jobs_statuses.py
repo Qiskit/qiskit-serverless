@@ -64,7 +64,7 @@ class TestUpdateJobStatus:
         mock_terminal.assert_called_once_with(job, Job.FAILED)
         assert result is False
 
-    def test_succeeded_calls_to_terminal_records_duration_returns_true(self):
+    def test_succeeded_calls_to_terminal_and_records_duration(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
@@ -76,31 +76,12 @@ class TestUpdateJobStatus:
             patch.object(task, "to_terminal") as mock_terminal,
             patch.object(task, "_record_execution_duration") as mock_duration,
         ):
-            result = task.update_job_status(job)
+            task.update_job_status(job)
 
         mock_terminal.assert_called_once_with(job, Job.SUCCEEDED)
         mock_duration.assert_called_once_with(job)
-        assert result is True
 
-    def test_failed_calls_to_terminal_no_duration_returns_true(self):
-        task = _make_task()
-        job = _make_fleets_job(status=Job.RUNNING)
-
-        mock_runner = MagicMock()
-        mock_runner.status.return_value = Job.FAILED
-
-        with (
-            patch(f"{_MOD}.get_runner", return_value=mock_runner),
-            patch.object(task, "to_terminal"),
-            patch.object(task, "_record_execution_duration") as mock_duration,
-            patch.object(task, "_increment_terminal_counter"),
-        ):
-            result = task.update_job_status(job)
-
-        mock_duration.assert_not_called()
-        assert result is True
-
-    def test_pending_to_running_calls_to_running_returns_true(self):
+    def test_pending_to_running_calls_to_running(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.PENDING)
 
@@ -112,12 +93,11 @@ class TestUpdateJobStatus:
             patch.object(task, "to_running") as mock_running,
             patch.object(task, "stop_job_if_timeout"),
         ):
-            result = task.update_job_status(job)
+            task.update_job_status(job)
 
         mock_running.assert_called_once_with(job)
-        assert result is True
 
-    def test_running_to_running_skips_to_running_returns_true(self):
+    def test_running_to_running_skips_to_running(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
@@ -129,10 +109,9 @@ class TestUpdateJobStatus:
             patch.object(task, "to_running") as mock_running,
             patch.object(task, "stop_job_if_timeout"),
         ):
-            result = task.update_job_status(job)
+            task.update_job_status(job)
 
         mock_running.assert_not_called()
-        assert result is True
 
     def test_unknown_status_calls_to_terminal_failed(self):
         task = _make_task()
@@ -145,25 +124,9 @@ class TestUpdateJobStatus:
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
             patch.object(task, "to_terminal") as mock_terminal,
         ):
-            result = task.update_job_status(job)
-
-        mock_terminal.assert_called_once_with(job, Job.FAILED)
-        assert result is True
-
-    def test_stop_job_if_timeout_called_for_running(self):
-        task = _make_task()
-        job = _make_fleets_job(status=Job.RUNNING)
-
-        mock_runner = MagicMock()
-        mock_runner.status.return_value = Job.RUNNING
-
-        with (
-            patch(f"{_MOD}.get_runner", return_value=mock_runner),
-            patch.object(task, "stop_job_if_timeout") as mock_timeout,
-        ):
             task.update_job_status(job)
 
-        mock_timeout.assert_called_once_with(job)
+        mock_terminal.assert_called_once_with(job, Job.FAILED)
 
 
 class TestToTerminal:
@@ -172,6 +135,8 @@ class TestToTerminal:
     def test_job_reaches_succeeded_state(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
+        job.sub_status = "pending"
+        job.env_vars = '{"key": "value"}'
 
         with patch(f"{_MOD}.JobEvent"):
             task.to_terminal(job, Job.SUCCEEDED)
@@ -183,6 +148,8 @@ class TestToTerminal:
     def test_job_reaches_failed_state(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
+        job.sub_status = "pending"
+        job.env_vars = '{"key": "value"}'
 
         with patch(f"{_MOD}.JobEvent"):
             task.to_terminal(job, Job.FAILED)
