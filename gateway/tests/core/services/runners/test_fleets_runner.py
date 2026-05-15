@@ -52,6 +52,7 @@ def _make_runner(fleet_id: str | None = None) -> tuple[FleetsRunner, MagicMock]:
     mock_handler = MagicMock()
     runner._handler = mock_handler  # pylint: disable=protected-access
     runner._project = MagicMock()  # pylint: disable=protected-access
+    runner._cos = MagicMock()  # pylint: disable=protected-access
     runner._connected = True  # pylint: disable=protected-access
     return runner, mock_handler
 
@@ -115,6 +116,7 @@ def _make_submit_runner() -> tuple[FleetsRunner, MagicMock]:
     mock_fleet = MagicMock()
     mock_fleet.to_dict.return_value = {"id": "fleet-abc"}
     mock_handler.submit_job.return_value = mock_fleet
+    runner._cos = MagicMock()  # pylint: disable=protected-access
 
     return runner, mock_handler
 
@@ -291,7 +293,6 @@ def test_build_cos_paths_provider_function():
     assert paths["provider_log_key"] == "providers/good-partner/sampler-v2/jobs/job-bbb-222/logs.log"
     assert paths["user_mount_path"] == "/data"
     assert paths["provider_mount_path"] == "/function_data"
-    assert paths["provider_logs_mount_path"] == "/provider_logs"
 
 
 def test_submit_sets_fleet_id_without_cos():
@@ -426,26 +427,26 @@ def test_submit_uses_settings_max_instances_when_no_config():
 
 def test_logs_returns_content_from_cos():
     """logs() retrieves user logs from the COS user bucket."""
-    runner, mock_handler = _make_logs_runner()
-    mock_handler.cos.logs.return_value = "log content"
+    runner, _ = _make_logs_runner()
+    runner._cos.logs.return_value = "log content"  # pylint: disable=protected-access
 
     result = runner.logs()
 
     assert result == "log content"
-    call_kwargs = mock_handler.cos.logs.call_args.kwargs
+    call_kwargs = runner._cos.logs.call_args.kwargs  # pylint: disable=protected-access
     assert call_kwargs["bucket_name"] == "user-bucket"
     assert call_kwargs["log_key"].endswith("/logs.log")
 
 
 def test_provider_logs_returns_content_from_cos():
     """provider_logs() retrieves provider logs from the COS provider bucket."""
-    runner, mock_handler = _make_logs_runner()
-    mock_handler.cos.logs.return_value = "provider log"
+    runner, _ = _make_logs_runner()
+    runner._cos.logs.return_value = "provider log"  # pylint: disable=protected-access
 
     result = runner.provider_logs()
 
     assert result == "provider log"
-    call_kwargs = mock_handler.cos.logs.call_args.kwargs
+    call_kwargs = runner._cos.logs.call_args.kwargs  # pylint: disable=protected-access
     assert call_kwargs["bucket_name"] == "provider-bucket"
     assert call_kwargs["log_key"].endswith("/logs.log")
 
@@ -465,8 +466,8 @@ def test_logs_returns_not_configured_when_cos_missing():
 
 def test_logs_raises_runner_error_on_api_exception():
     """logs() raises RunnerError when COS returns an API error."""
-    runner, mock_handler = _make_logs_runner()
-    mock_handler.cos.logs.side_effect = ApiException(status=403, reason="Forbidden")
+    runner, _ = _make_logs_runner()
+    runner._cos.logs.side_effect = ApiException(status=403, reason="Forbidden")  # pylint: disable=protected-access
 
     with pytest.raises(RunnerError):
         runner.logs()
@@ -484,9 +485,9 @@ def test_get_result_from_cos_returns_none_when_cos_not_configured():
 
 def test_get_result_from_cos_returns_json_string():
     """get_result_from_cos() returns decoded results.json from COS."""
-    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    runner, _ = _make_runner(fleet_id="fleet-123")
 
-    mock_handler.cos.get_object_bytes.return_value = b'{"status": "ok"}'
+    runner._cos.get_object_bytes.return_value = b'{"status": "ok"}'  # pylint: disable=protected-access
     runner._project.cos_bucket_user_data_name = "user-bucket"  # pylint: disable=protected-access
 
     with patch.object(runner, "_is_cos_configured", return_value=True), patch.object(
@@ -507,9 +508,9 @@ def test_get_result_from_cos_returns_json_string():
 
 def test_get_result_from_cos_returns_none_on_exception():
     """get_result_from_cos() returns None when COS retrieval fails."""
-    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    runner, _ = _make_runner(fleet_id="fleet-123")
     runner._project.cos_bucket_user_data_name = "user-bucket"  # pylint: disable=protected-access
-    mock_handler.cos.get_object_bytes.side_effect = RuntimeError("COS error")
+    runner._cos.get_object_bytes.side_effect = RuntimeError("COS error")  # pylint: disable=protected-access
 
     with patch.object(runner, "_is_cos_configured", return_value=True), patch.object(
         runner, "_get_fleet_name", return_value="fleet-name"
@@ -590,63 +591,6 @@ def test_get_or_assign_project_raises(zone_map, profile, none_qs, match):
         mock_ce.objects.filter.return_value = mock_qs
         with pytest.raises(RunnerError, match=match):
             runner._get_or_assign_project()  # pylint: disable=protected-access
-
-
-def test_get_handler_cos_config_secret_name():
-    """_get_handler_cos_config() returns hmac_secret_name when CE_HMAC_SECRET_NAME is set."""
-    runner, _ = _make_runner()
-    runner._project.cos_instance_name = "my-cos"  # pylint: disable=protected-access
-    runner._project.cos_key_name = "my-key"  # pylint: disable=protected-access
-    runner._project.region = "us-east"  # pylint: disable=protected-access
-
-    with patch(f"{_RUNNER_MOD}.settings") as mock_settings:
-        mock_settings.CE_HMAC_SECRET_NAME = "cos-hmac-secret"
-        mock_settings.CE_COS_USE_PUBLIC_ENDPOINT = False
-        config = runner._get_handler_cos_config()  # pylint: disable=protected-access
-
-    assert config["hmac_secret_name"] == "cos-hmac-secret"
-    assert config["bucket_region"] == "us-east"
-    assert len(config) == 2
-
-
-def test_get_handler_cos_config_returns_none_when_no_credentials():
-    """_get_handler_cos_config() returns None when CE_HMAC_SECRET_NAME is not configured."""
-    runner, _ = _make_runner()
-    runner._project.cos_instance_name = "my-cos"  # pylint: disable=protected-access
-    runner._project.cos_key_name = "my-key"  # pylint: disable=protected-access
-    runner._project.region = "us-east"  # pylint: disable=protected-access
-
-    with patch(f"{_RUNNER_MOD}.settings") as mock_settings:
-        mock_settings.CE_HMAC_SECRET_NAME = None
-        config = runner._get_handler_cos_config()  # pylint: disable=protected-access
-
-    assert config is None
-
-
-def test_get_handler_cos_config_includes_public_endpoint_when_flag_set():
-    """_get_handler_cos_config() sets public cos_endpoint_url when CE_COS_USE_PUBLIC_ENDPOINT is True."""
-    runner, _ = _make_runner()
-    runner._project.region = "us-east"  # pylint: disable=protected-access
-
-    with patch(f"{_RUNNER_MOD}.settings") as mock_settings:
-        mock_settings.CE_HMAC_SECRET_NAME = "cos-hmac-secret"
-        mock_settings.CE_COS_USE_PUBLIC_ENDPOINT = True
-        config = runner._get_handler_cos_config()  # pylint: disable=protected-access
-
-    assert config["cos_endpoint_url"] == "https://s3.us-east.cloud-object-storage.appdomain.cloud"
-
-
-def test_get_handler_cos_config_omits_endpoint_url_by_default():
-    """_get_handler_cos_config() omits cos_endpoint_url when CE_COS_USE_PUBLIC_ENDPOINT is False (private default)."""
-    runner, _ = _make_runner()
-    runner._project.region = "us-east"  # pylint: disable=protected-access
-
-    with patch(f"{_RUNNER_MOD}.settings") as mock_settings:
-        mock_settings.CE_HMAC_SECRET_NAME = "cos-hmac-secret"
-        mock_settings.CE_COS_USE_PUBLIC_ENDPOINT = False
-        config = runner._get_handler_cos_config()  # pylint: disable=protected-access
-
-    assert "cos_endpoint_url" not in config
 
 
 def test_connect_skips_when_already_connected():
@@ -743,10 +687,10 @@ def test_upload_arguments_to_cos_uploads_json():
 
     with patch(f"{_RUNNER_MOD}.get_arguments_storage") as mock_storage_cls:
         mock_storage_cls.return_value.get.return_value = '{"backend_name": "ibm_sherbrooke"}'
-        runner._upload_arguments_to_cos(mock_handler, paths)  # pylint: disable=protected-access
+        runner._upload_arguments_to_cos(paths)  # pylint: disable=protected-access
 
-    mock_handler.cos.upload_fileobj.assert_called_once()
-    call_kwargs = mock_handler.cos.upload_fileobj.call_args.kwargs
+    runner._cos.upload_fileobj.assert_called_once()  # pylint: disable=protected-access
+    call_kwargs = runner._cos.upload_fileobj.call_args.kwargs  # pylint: disable=protected-access
     assert call_kwargs["bucket_name"] == "user-bucket"
     assert call_kwargs["key"] == "users/1/jobs/j/arguments.json"
 
