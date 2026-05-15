@@ -1,13 +1,13 @@
 """This file contains some helpers to work with the HTTP calls to the API."""
 
-from typing import Dict, Optional, Union
+from typing import Dict, Optional
 
 
 def get_headers(
     token: str,
     instance: Optional[str] = None,
     channel: Optional[str] = None,
-) -> Dict[str, Union[str, bytes]]:
+) -> Dict[str, str]:
     """
     Returns the headers to make the calls to the API
 
@@ -16,10 +16,10 @@ def get_headers(
         instance: IBM Cloud CRN
 
     Returns:
-        Dict[str, Union[str, bytes]]: dict with the authentication headers
+        Dict[str, str]: dict with the authentication headers
     """
 
-    headers = {
+    headers: Dict[str, str] = {
         "Authorization": f"Bearer {token}",
     }
     if channel is not None:
