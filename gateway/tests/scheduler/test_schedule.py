@@ -16,7 +16,7 @@ from core.services.storage.logs_storage import LogsStorage
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 
-from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_job
+from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_ray_job, execute_fleets
 from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
 
 from tests.utils import TestUtils
@@ -72,8 +72,8 @@ class TestScheduleApi(APITestCase):
         assert str(job6.id) in job_ids  # `test_user` job
 
     @patch("scheduler.schedule.get_runner")
-    def test_execute_job_success(self, mock_get_runner_client):
-        """Tests successful job execution via runner.submit()."""
+    def test_execute_ray_job_success(self, mock_get_runner_client):
+        """Tests successful Ray job execution via runner.submit()."""
         mock_compute_resource = MagicMock(spec=ComputeResource)
         mock_compute_resource.title = "test-cluster"
 
@@ -85,15 +85,15 @@ class TestScheduleApi(APITestCase):
         job.logs = ""
         job.compute_resource = mock_compute_resource
 
-        ret_job = execute_job(job)
+        ret_job = execute_ray_job(job)
 
         mock_runner.submit.assert_called_once()
         mock_compute_resource.save.assert_called_once()
         assert ret_job.status == Job.PENDING
 
     @patch("scheduler.schedule.get_runner")
-    def test_execute_job_failure(self, mock_get_runner_client):
-        """Tests job execution failure handling."""
+    def test_execute_ray_job_failure(self, mock_get_runner_client):
+        """Tests Ray job execution failure handling."""
         mock_runner = MagicMock()
         mock_runner.submit.side_effect = RunnerError("Submit failed")
         mock_get_runner_client.return_value = mock_runner
@@ -102,11 +102,51 @@ class TestScheduleApi(APITestCase):
         job.status = Job.QUEUED
         job.logs = ""
 
-        ret_job = execute_job(job)
+        ret_job = execute_ray_job(job)
 
         mock_runner.submit.assert_called_once()
         assert ret_job.status == Job.FAILED
         assert "Compute resource creation or job submission failed" in ret_job.logs
+
+    @patch("scheduler.schedule.get_runner")
+    @patch("scheduler.schedule.JobEvent")
+    @patch("scheduler.schedule.trace")
+    def test_execute_fleets_success(self, mock_trace, mock_job_event, mock_get_runner_client):
+        """Tests successful Fleets job execution via runner.submit()."""
+        mock_runner = MagicMock()
+        mock_get_runner_client.return_value = mock_runner
+
+        job = MagicMock()
+        job.status = Job.QUEUED
+        job.logs = ""
+
+        ctx = MagicMock()
+        ret_job = execute_fleets(job, ctx)
+
+        mock_runner.submit.assert_called_once()
+        assert ret_job.status == Job.PENDING
+        ret_job.save_direct.assert_called_once_with(["status", "fleet_id"])
+        mock_job_event.objects.add_status_event.assert_called_once()
+
+    @patch("scheduler.schedule.get_runner")
+    @patch("scheduler.schedule.JobEvent")
+    @patch("scheduler.schedule.trace")
+    def test_execute_fleets_failure(self, mock_trace, mock_job_event, mock_get_runner_client):
+        """Tests Fleets job execution failure handling."""
+        mock_runner = MagicMock()
+        mock_runner.submit.side_effect = RunnerError("Submit failed")
+        mock_get_runner_client.return_value = mock_runner
+
+        job = MagicMock()
+        job.status = Job.QUEUED
+        job.logs = ""
+
+        ctx = MagicMock()
+        ret_job = execute_fleets(job, ctx)
+
+        mock_runner.submit.assert_called_once()
+        assert ret_job.status == Job.FAILED
+        mock_job_event.objects.add_status_event.assert_called_once()
 
     @patch("scheduler.tasks.update_jobs_statuses.get_runner")
     def test_job_runtime_limit(self, get_runner):

@@ -2,6 +2,7 @@
 
 import logging
 import random
+import time
 from typing import List
 from datetime import datetime, timedelta
 
@@ -13,6 +14,7 @@ from django.db.models.aggregates import Count, Min
 
 from opentelemetry import trace
 
+from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, JobEvent, Program
 from core.services.runners import get_runner, RunnerError
 
@@ -20,8 +22,8 @@ User: Model = get_user_model()
 logger = logging.getLogger("scheduler.schedule")
 
 
-def execute_job(job: Job) -> Job:
-    """Executes program.
+def execute_ray_job(job: Job) -> Job:
+    """Executes a Ray job.
 
     Creates compute resource, connects to cluster, and submits the job.
     Resource cleanup on failure is handled by runner.submit().
@@ -48,6 +50,54 @@ def execute_job(job: Job) -> Job:
             job.logs += "\nCompute resource creation or job submission failed."
 
         span.set_attribute("job.status", job.status)
+    return job
+
+
+def execute_fleets(job: Job, ctx) -> Job:
+    """Submits a Fleets (Code Engine) job and persists the result.
+
+    Wraps submission under the scheduler.handle trace span propagated from the
+    job's env_vars, times the operation, and calls save_direct to bypass
+    optimistic-locking validation (see Job.save_direct for rationale).
+
+    Args:
+        job: job to execute
+        ctx: OpenTelemetry context extracted from job env_vars
+
+    Returns:
+        job with updated status (PENDING on success, FAILED on error)
+    """
+    start = time.monotonic()
+    tracer = trace.get_tracer("scheduler.tracer")
+    with tracer.start_as_current_span("scheduler.submit", context=ctx) as span:
+
+        runner = get_runner(job)
+        try:
+            runner.submit()
+            job.status = Job.PENDING
+            logger.info(
+                "[execute_fleets] job_id=%s Execute job (%.2fs) set as PENDING",
+                job.id,
+                time.monotonic() - start,
+            )
+        except RunnerError as ex:
+            logger.error(
+                "[execute_fleets] job_id=%s error=%s Job set as FAILED: submission error",
+                job.id,
+                ex,
+            )
+            job.status = Job.FAILED
+
+        span.set_attribute("job.status", job.status)
+
+        job.save_direct(["status", "fleet_id"])
+        JobEvent.objects.add_status_event(
+            job_id=job.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.SCHEDULE_JOBS,
+            status=job.status,
+        )
+
     return job
 
 

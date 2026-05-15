@@ -9,6 +9,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.core.validators import FileExtensionValidator
 from django.db import models
+from django.db.models import F
 from django_prometheus.models import ExportModelOperationsMixin
 
 from core.config_key import ConfigKey
@@ -449,6 +450,26 @@ class Job(models.Model):
     def in_terminal_state(self):
         """Returns true if job is in terminal state."""
         return self.status in self.TERMINAL_STATUSES
+
+    def save_direct(self, fields: list[str]) -> None:
+        """Persist selected fields bypassing optimistic-locking validation.
+
+        Django-concurrency raises RecordModifiedError when job.save() is called
+        and the DB version differs from the instance version (another writer got
+        there first). save_direct uses a raw queryset UPDATE to skip that check.
+
+        version is still incremented so any other code that calls job.save()
+        later will correctly detect the update and retry rather than silently
+        overwriting it.
+
+        refresh_from_db is required afterwards to bring the instance version
+        in sync with the value that was actually written to the DB, so
+        subsequent saves from this same instance don't conflict with themselves.
+        """
+        update_kwargs = {field: getattr(self, field) for field in fields}
+        update_kwargs["version"] = F("version") + 1
+        Job.objects.filter(pk=self.id).update(**update_kwargs)
+        self.refresh_from_db(fields=["version"])
 
 
 class RuntimeJob(models.Model):

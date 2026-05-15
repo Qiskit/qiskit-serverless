@@ -1,4 +1,4 @@
-"""Schedule queued jobs service."""
+"""Schedule Ray jobs service."""
 
 import json
 import logging
@@ -6,47 +6,36 @@ import time
 from datetime import datetime, timezone
 
 from django.conf import settings
-from django.db.models import F
 
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
 from core.config_key import ConfigKey
 from core.models import ComputeResource, Job, JobEvent, Config, Program
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from scheduler.schedule import (
-    get_jobs_to_schedule_fair_share,
-    execute_job,
-)
-
+from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_ray_job
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
 
-logger = logging.getLogger("scheduler.ScheduleQueuedJobs")
+logger = logging.getLogger("scheduler.ScheduleRayJobs")
 
 
-class ScheduleQueuedJobs(SchedulerTask):
-    """Schedule jobs service."""
+class ScheduleRayJobs(SchedulerTask):
+    """Schedule Ray jobs service."""
 
     def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
         self.kill_signal = kill_signal
         self.metrics = metrics
 
     def run(self):
-        """Schedule queued jobs to available cluster slots."""
+        """Schedule queued Ray jobs to available cluster slots."""
         if Config.get_bool(ConfigKey.MAINTENANCE):
             logger.warning("System in maintenance mode. Skipping new jobs schedule.")
             return
 
-        self._schedule_fleets_jobs()
         self._schedule_cpu_jobs()
         self._schedule_gpu_jobs()
-
-    def _schedule_fleets_jobs(self):
-        """Schedule Fleets jobs (Code Engine). These don't use Ray clusters."""
-        max_fleets = settings.LIMITS_MAX_FLEETS
-        running_fleets = Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=Program.FLEETS).count()
-        self._schedule_jobs_if_slots_available(max_fleets, running_fleets, gpu_job=False, runner=Program.FLEETS)
 
     def _schedule_cpu_jobs(self):
         """Schedule CPU jobs."""
@@ -60,14 +49,8 @@ class ScheduleQueuedJobs(SchedulerTask):
         running_clusters = ComputeResource.objects.filter(active=True, gpu=True).count()
         self._schedule_jobs_if_slots_available(max_clusters, running_clusters, gpu_job=True)
 
-    def _schedule_jobs_if_slots_available(
-        self,
-        max_slots_possible,
-        number_of_slots_running,
-        gpu_job,
-        runner=Program.RAY,
-    ):
-        """Schedule jobs depending on free slots."""
+    def _schedule_jobs_if_slots_available(self, max_slots_possible, number_of_slots_running, gpu_job):
+        """Schedule Ray jobs depending on free slots."""
         free_slots = max_slots_possible - number_of_slots_running
 
         if gpu_job:
@@ -83,7 +66,7 @@ class ScheduleQueuedJobs(SchedulerTask):
             )
             return
 
-        jobs = get_jobs_to_schedule_fair_share(slots=free_slots, gpu=gpu_job, runner=runner)
+        jobs = get_jobs_to_schedule_fair_share(slots=free_slots, gpu=gpu_job, runner=Program.RAY)
 
         for job in jobs:
             if self.kill_signal.received:
@@ -95,7 +78,7 @@ class ScheduleQueuedJobs(SchedulerTask):
             tracer = trace.get_tracer("scheduler.tracer")
             with tracer.start_as_current_span("scheduler.handle", context=ctx):
                 t0 = time.monotonic()
-                job = execute_job(job)  # from QUEUED to PENDING
+                job = execute_ray_job(job)  # from QUEUED to PENDING
                 logger.info(
                     "job_id=%s Execute job (%.2fs)",
                     job.id,
@@ -103,14 +86,7 @@ class ScheduleQueuedJobs(SchedulerTask):
                 )
 
                 t1 = time.monotonic()
-                Job.objects.filter(pk=job.id).update(
-                    status=job.status,
-                    ray_job_id=job.ray_job_id,
-                    compute_resource=job.compute_resource,
-                    fleet_id=job.fleet_id,
-                    version=F("version") + 1,
-                )
-                job.refresh_from_db(fields=["version"])
+                job.save_direct(["status", "ray_job_id", "compute_resource"])
                 JobEvent.objects.add_status_event(
                     job_id=job.id,
                     origin=JobEventOrigin.SCHEDULER,
@@ -121,7 +97,7 @@ class ScheduleQueuedJobs(SchedulerTask):
                 if job.status == Job.PENDING:
                     self.add_queue_wait_time_metric(job)
 
-                logger.warning(
+                logger.info(
                     "job_id=%s Job saved with status=%s (%.2fs)",
                     job.id,
                     job.status,
