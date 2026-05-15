@@ -45,7 +45,7 @@ def execute_job(job: Job) -> Job:
         except RunnerError as ex:
             logger.error("job_id=%s error=%s Job set as FAILED: compute resource or submission error", job.id, ex)
             job.status = Job.FAILED
-            job.logs += "\nCompute resource creation or job submission failed."
+            job.logs += f"\nJob submission failed: {ex}"
 
         span.set_attribute("job.status", job.status)
     return job

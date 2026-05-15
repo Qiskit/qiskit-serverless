@@ -35,6 +35,7 @@ class Main:
         Config.add_defaults()
 
         self.tasks = [
+            UpdateJobStatusCounts(self.kill_signal, self.metrics),
             ScheduleQueuedJobs(self.kill_signal, self.metrics),
             UpdateJobsStatuses(self.kill_signal, self.metrics),
             UpdateFleetsJobsStatuses(self.kill_signal, self.metrics),

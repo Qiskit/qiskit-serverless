@@ -27,15 +27,16 @@ from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
 from core.models import Job, CodeEngineProject
 from core.services.runners.abstract_runner import AbstractRunner, RunnerError
-from core.ibm_cloud.clients import IBMCloudClientProvider, COS_PUBLIC_URL_TEMPLATE
+from core.ibm_cloud import get_ce_auth, get_cos_client
 from core.utils import decrypt_env_vars
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
+from core.ibm_cloud.code_engine.fleets.cos import JobCOS
 from core.ibm_cloud.code_engine.fleets.utils import (
     build_run_commands,
     build_run_env_variables,
     build_run_volume_mounts,
 )
-from core.services.storage.arguments_storage import ArgumentsStorage
+from core.services.storage import get_arguments_storage
 
 logger = logging.getLogger("FleetsRunner")
 
@@ -109,6 +110,7 @@ class FleetsRunner(AbstractRunner):
         super().__init__(job)
         self._handler: FleetHandler | None = None
         self._project: CodeEngineProject | None = None
+        self._cos: JobCOS | None = None
 
     def connect(self) -> None:
         """Initialize the FleetHandler and validate IBM Cloud credentials.
@@ -200,7 +202,6 @@ class FleetsRunner(AbstractRunner):
 
             if self._is_cos_configured():
                 paths = self._build_cos_paths()
-                job_id = str(self.job.id)
 
                 run_volume_mounts = build_run_volume_mounts(
                     mounts=[
@@ -224,12 +225,17 @@ class FleetsRunner(AbstractRunner):
                     secondary_log_filename=LOG_FILENAME,
                     secondary_log_filter_key=LOG_FILTER_KEY,
                 )
-                run_env_variables.append(
-                    {"type": "literal", "name": "JOB_ID_GATEWAY", "value": job_id},
-                )
 
                 gateway_env = self._build_gateway_env_vars()
                 run_env_variables.extend(gateway_env)
+
+                run_env_variables.append(
+                    {
+                        "type": "literal",
+                        "name": "ARGUMENTS_PATH",
+                        "value": f"{paths['user_mount_path']}/arguments.json",
+                    },
+                )
                 run_commands = build_run_commands(
                     app_run_commands=["python", f"{paths['provider_mount_path']}/{self.job.program.entrypoint}"],
                     secondary_log_filter_key=LOG_FILTER_KEY,
@@ -241,8 +247,8 @@ class FleetsRunner(AbstractRunner):
                         "run_commands": run_commands,
                     }
                 )
-                _retry_on_rate_limit(lambda: self._upload_arguments_to_cos(handler, paths))
-                _retry_on_rate_limit(lambda: self._upload_artifact_to_cos(handler, paths))
+                _retry_on_rate_limit(lambda: self._upload_arguments_to_cos(paths))
+                _retry_on_rate_limit(lambda: self._upload_artifact_to_cos(paths))
                 logger.info(
                     "COS configured for job [%s]: user_key=[%s] provider_key=[%s]",
                     self.job.id,
@@ -368,14 +374,13 @@ class FleetsRunner(AbstractRunner):
             return None
 
         try:
-            handler = self._get_handler()
             paths = self._build_cos_paths()
             user_bucket = self._project.cos_bucket_user_data_name
             results_key = f"{paths['user_job_prefix']}/results.json"
 
             logger.debug("Retrieving results for job [%s] from %s/%s", self.job.id, user_bucket, results_key)
 
-            results_bytes = handler.cos.get_object_bytes(bucket_name=user_bucket, key=results_key)
+            results_bytes = self._get_cos().get_object_bytes(bucket_name=user_bucket, key=results_key)
             if results_bytes:
                 logger.info("Retrieved results for job [%s] (%d bytes)", self.job.id, len(results_bytes))
                 return results_bytes.decode("utf-8")
@@ -502,23 +507,25 @@ class FleetsRunner(AbstractRunner):
 
         if self._handler is None:
             try:
-                client_provider = IBMCloudClientProvider(
-                    api_key=self._get_api_key(),
-                    region=self._project.region,
-                )
-                cos_config = self._get_handler_cos_config()
+                ce_api_client = get_ce_auth(self._get_api_key(), self._project.region).api_client
                 self._handler = FleetHandler(
-                    client_provider=client_provider,
+                    ce_api_client=ce_api_client,
                     project_id=self._project.project_id,
-                    cos_config=cos_config,
                 )
-                label = "with COS" if cos_config else "without COS"
-                logger.info("Initialized FleetHandler %s for project [%s]", label, self._project.project_name)
+                logger.info("Initialized FleetHandler for project [%s]", self._project.project_name)
             except Exception as ex:
                 name = self._project.project_name if self._project else "unassigned"
                 raise RunnerError(f"Failed to initialize FleetHandler for project [{name}]", ex) from ex
 
         return self._handler
+
+    def _get_cos(self) -> JobCOS:
+        """Return the :class:`JobCOS`, creating it lazily on first use."""
+        if not self._project:
+            self._project = self._get_or_assign_project()
+        if self._cos is None:
+            self._cos = get_cos_client(self._project)
+        return self._cos
 
     def _build_gateway_env_vars(self) -> list[dict[str, str]]:
         """Extract job env vars so the container can call save_result() and use Qiskit Runtime."""
@@ -539,12 +546,12 @@ class FleetsRunner(AbstractRunner):
             Dict with function/job prefixes, COS log/argument keys, and
             container mount paths.
         """
-        author_id = str(self.job.author.id)
+        username = self.job.author.username
         provider_name = self.job.program.provider.name if self.job.program and self.job.program.provider else "default"
         program_title = self.job.program.title if self.job.program else "unknown"
         job_id = str(self.job.id)
 
-        user_function_prefix = f"users/{author_id}/provider_functions/{provider_name}/{program_title}"
+        user_function_prefix = f"users/{username}/provider_functions/{provider_name}/{program_title}"
         provider_function_prefix = f"providers/{provider_name}/{program_title}"
         user_job_prefix = f"{user_function_prefix}/jobs/{job_id}"
         provider_job_prefix = f"{provider_function_prefix}/jobs/{job_id}"
@@ -556,27 +563,26 @@ class FleetsRunner(AbstractRunner):
             "provider_job_prefix": provider_job_prefix,
             "user_log_key": f"{user_job_prefix}/{LOG_FILENAME}",
             "provider_log_key": f"{provider_job_prefix}/{LOG_FILENAME}",
-            "user_arguments_key": f"{user_job_prefix}/arguments/{job_id}.json",
+            "user_arguments_key": f"{user_job_prefix}/arguments.json",
             "user_mount_path": "/data",
             "provider_mount_path": "/function_data",
             "provider_logs_mount_path": "/provider_logs",
         }
 
-    def _upload_arguments_to_cos(self, handler: FleetHandler, paths: dict[str, str]) -> None:
+    def _upload_arguments_to_cos(self, paths: dict[str, str]) -> None:
         """Upload job arguments from local storage to the COS user bucket.
 
         Reads from :class:`ArgumentsStorage` and uploads to
-        ``{user_job_prefix}/arguments/{job_id}.json`` so the SDK's
-        ``get_arguments()`` finds them at ``/data/arguments/{job_id}.json``.
+        ``{user_job_prefix}/arguments.json`` so the SDK's
+        ``get_arguments()`` finds them at ``/data/arguments.json``
+        (via the ``ARGUMENTS_PATH`` env var).
         Unwraps a single-key ``{"arguments": ...}`` envelope if present.
 
         Args:
-            handler: Initialized :class:`FleetHandler` with COS access.
             paths: Dict from :meth:`_build_cos_paths`.
         """
-        program = self.job.program
-        storage = ArgumentsStorage(self.job.author.username, program)
-        content = storage.get(str(self.job.id)) or "{}"
+        storage = get_arguments_storage(self.job)
+        content = storage.get() or "{}"
 
         try:
             parsed = json.loads(content)
@@ -586,14 +592,14 @@ class FleetsRunner(AbstractRunner):
             pass
 
         user_bucket = self._project.cos_bucket_user_data_name
-        handler.cos.upload_fileobj(
+        self._get_cos().upload_fileobj(
             fileobj=io.BytesIO(content.encode("utf-8")),
             bucket_name=user_bucket,
             key=paths["user_arguments_key"],
         )
         logger.info("Uploaded arguments for job [%s] to %s/%s", self.job.id, user_bucket, paths["user_arguments_key"])
 
-    def _upload_artifact_to_cos(self, handler: FleetHandler, paths: dict[str, str]) -> None:
+    def _upload_artifact_to_cos(self, paths: dict[str, str]) -> None:
         """Extract the program artifact tar and upload files to COS.
 
         Entrypoint → provider bucket (accessible at ``/function_data/{entrypoint}``).
@@ -603,7 +609,6 @@ class FleetsRunner(AbstractRunner):
         provider admin.
 
         Args:
-            handler: Initialized :class:`FleetHandler` with COS access.
             paths: Dict from :meth:`_build_cos_paths`.
         """
         program = self.job.program
@@ -630,7 +635,7 @@ class FleetsRunner(AbstractRunner):
                         bucket_name = user_bucket
                         key = f"{paths['user_job_prefix']}/{member.name}"
 
-                    handler.cos.upload_fileobj(fileobj=extracted, bucket_name=bucket_name, key=key)
+                    self._get_cos().upload_fileobj(fileobj=extracted, bucket_name=bucket_name, key=key)
                     logger.debug("Uploaded [%s] for job [%s] to %s/%s", member.name, self.job.id, bucket_name, key)
         except tarfile.TarError as ex:
             raise RunnerError(f"Failed to read artifact for job [{self.job.id}]", ex) from ex
@@ -656,8 +661,6 @@ class FleetsRunner(AbstractRunner):
             raise RunnerError("Job has no fleet_id assigned")
 
         try:
-            handler = self._get_handler()
-
             if not self._is_cos_configured():
                 return "Logs not available (COS logging not configured for this project)"
 
@@ -676,7 +679,7 @@ class FleetsRunner(AbstractRunner):
                 log_key,
             )
 
-            logs = handler.cos.logs(
+            logs = self._get_cos().logs(
                 bucket_name=bucket_name,
                 log_key=log_key,
                 save_locally=False,
@@ -732,31 +735,6 @@ class FleetsRunner(AbstractRunner):
                 self._project.cos_key_name,
             ]
         )
-
-    def _get_handler_cos_config(self) -> dict | None:
-        """Build the ``cos_config`` dict for :class:`FleetHandler`.
-
-        Returns ``None`` when the project fields or the secret name are
-        not configured.
-
-        Returns:
-            COS config dict or ``None``.
-        """
-        if not self._project or not self._is_cos_configured():
-            return None
-
-        hmac_secret_name = settings.CE_HMAC_SECRET_NAME
-        if not hmac_secret_name:
-            logger.debug("No HMAC credentials configured for project [%s]", self._project.project_name)
-            return None
-
-        cos_config: dict = {
-            "bucket_region": self._project.region,
-            "hmac_secret_name": hmac_secret_name,
-        }
-        if getattr(settings, "CE_COS_USE_PUBLIC_ENDPOINT", False):
-            cos_config["cos_endpoint_url"] = COS_PUBLIC_URL_TEMPLATE.format(region=self._project.region)
-        return cos_config
 
     def _get_api_key(self) -> str:
         """Return the IBM Cloud API key from Django settings.

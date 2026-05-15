@@ -6,9 +6,7 @@ import time
 from datetime import datetime, timezone
 
 from django.conf import settings
-from django.db.models import Count
-
-from concurrency.exceptions import RecordModifiedError
+from django.db.models import F
 
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
@@ -40,7 +38,6 @@ class ScheduleQueuedJobs(SchedulerTask):
             logger.warning("System in maintenance mode. Skipping new jobs schedule.")
             return
 
-        self._update_job_status_counts_metric()
         self._schedule_fleets_jobs()
         self._schedule_cpu_jobs()
         self._schedule_gpu_jobs()
@@ -63,7 +60,7 @@ class ScheduleQueuedJobs(SchedulerTask):
         running_clusters = ComputeResource.objects.filter(active=True, gpu=True).count()
         self._schedule_jobs_if_slots_available(max_clusters, running_clusters, gpu_job=True)
 
-    def _schedule_jobs_if_slots_available(  # pylint: disable=too-many-branches, too-many-locals
+    def _schedule_jobs_if_slots_available(
         self,
         max_slots_possible,
         number_of_slots_running,
@@ -105,88 +102,37 @@ class ScheduleQueuedJobs(SchedulerTask):
                     time.monotonic() - t0,
                 )
 
-                backup_status = job.status
-                backup_logs = job.logs
-                backup_resource = job.compute_resource
-                backup_ray_job_id = job.ray_job_id
-                backup_fleet_id = job.fleet_id
-
-                succeed = False
-                attempts = settings.RAY_SETUP_MAX_RETRIES
                 t1 = time.monotonic()
-                while not succeed and attempts > 0:
-                    attempts -= 1
+                Job.objects.filter(pk=job.id).update(
+                    status=job.status,
+                    ray_job_id=job.ray_job_id,
+                    compute_resource=job.compute_resource,
+                    fleet_id=job.fleet_id,
+                    version=F("version") + 1,
+                )
+                job.refresh_from_db(fields=["version"])
+                JobEvent.objects.add_status_event(
+                    job_id=job.id,
+                    origin=JobEventOrigin.SCHEDULER,
+                    context=JobEventContext.SCHEDULE_JOBS,
+                    status=job.status,
+                )
 
-                    try:
-                        job.save()
-                        # # remove artifact after successful submission and save
-                        # if os.path.exists(job.program.artifact.path):
-                        #     os.remove(job.program.artifact.path)
+                if job.status == Job.PENDING:
+                    self.add_queue_wait_time_metric(job)
 
-                        succeed = True
-                        JobEvent.objects.add_status_event(
-                            job_id=job.id,
-                            origin=JobEventOrigin.SCHEDULER,
-                            context=JobEventContext.SCHEDULE_JOBS,
-                            status=job.status,
-                        )
+                logger.warning(
+                    "job_id=%s Job saved with status=%s (%.2fs)",
+                    job.id,
+                    job.status,
+                    time.monotonic() - t1,
+                )
 
-                        # Store the wait time (from QUEUED to PENDING) in the metrics
-                        if job.status == Job.PENDING:
-                            self.add_queue_wait_time_metric(job)
-
-                    except RecordModifiedError:
-                        logger.warning("job_id=%s RecordModifiedError sleep 1", job.id)
-
-                        time.sleep(1)
-
-                        job.refresh_from_db()
-                        job.status = backup_status
-                        job.logs = backup_logs
-                        job.compute_resource = backup_resource
-                        job.ray_job_id = backup_ray_job_id
-                        job.fleet_id = backup_fleet_id
-
-                retries = settings.RAY_SETUP_MAX_RETRIES - attempts
-                if succeed:
-                    logger.warning(
-                        "job_id=%s Job saved with status=%s (%.2fs) tries=%s",
-                        job.id,
-                        job.status,
-                        time.monotonic() - t1,
-                        retries,
-                    )
-                else:
-                    logger.warning(
-                        "job_id=%s Job save failed after %s tries (%.2fs)",
-                        job.id,
-                        retries,
-                        time.monotonic() - t1,
-                    )
         if jobs:
             logger.info("%s jobs are scheduled for execution.", len(jobs))
 
-    def _update_job_status_counts_metric(self):
-        """Update job counts per status and provider (active states only)."""
-        statuses = [Job.QUEUED, Job.PENDING, Job.RUNNING]
-        rows = (
-            Job.objects.filter(status__in=statuses)
-            .values("status", "program__provider__name")
-            .annotate(count=Count("id"))
-        )
-        counts = {}
-        for row in rows:
-            status = row["status"]
-            provider = row["program__provider__name"] or "custom"
-            counts[(status, provider)] = row["count"]
-        self.metrics.clear_job_status_counts()
-        for (status, provider), count in counts.items():
-            self.metrics.set_job_status_count(count, status, provider)
-
     def add_queue_wait_time_metric(self, job: Job):
         """Add queue wait time metric."""
-        # Wait time can be get from db -> wait_time = RUNNING event.timestamp - QUEUED event.timestamp
-        # Jobs are created in QUEUED state, so "created" field should have the same timestamp as QUEUED event
         now = datetime.now(timezone.utc)
         wait_seconds = (now - job.created).total_seconds()
         job_compute_type = "gpu" if job.gpu else "cpu"

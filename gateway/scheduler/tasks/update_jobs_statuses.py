@@ -3,8 +3,8 @@
 import logging
 from datetime import datetime, timezone
 
-from concurrency.exceptions import RecordModifiedError
 from django.conf import settings
+from django.db.models import F
 
 from core.domain.filter_logs import (
     filter_logs_with_non_public_tags,
@@ -54,26 +54,21 @@ class UpdateJobsStatuses(SchedulerTask):
             job.status = Job.FAILED
             job.sub_status = None
             job.env_vars = "{}"
-            try:
-                job.save()
-                JobEvent.objects.add_status_event(
-                    job_id=job.id,
-                    origin=JobEventOrigin.SCHEDULER,
-                    context=JobEventContext.UPDATE_JOB_STATUS,
-                    status=job.status,
-                )
-                self._increment_terminal_counter(job)
-                logger.warning(
-                    "job_id=%s error=%s Error getting status, set job as FAILED",
-                    job.id,
-                    str(ex),
-                )
-            except RecordModifiedError:
-                logger.warning(
-                    "job_id=%s error=%s Error getting status + RecordModifiedError setting job as FAILED",
-                    job.id,
-                    str(ex),
-                )
+            Job.objects.filter(pk=job.id).update(
+                status=job.status, sub_status=job.sub_status, env_vars=job.env_vars, version=F("version") + 1
+            )
+            JobEvent.objects.add_status_event(
+                job_id=job.id,
+                origin=JobEventOrigin.SCHEDULER,
+                context=JobEventContext.UPDATE_JOB_STATUS,
+                status=job.status,
+            )
+            self._increment_terminal_counter(job)
+            logger.warning(
+                "job_id=%s error=%s Error getting status, set job as FAILED",
+                job.id,
+                str(ex),
+            )
             return True
 
         status_has_changed = False
@@ -93,12 +88,13 @@ class UpdateJobsStatuses(SchedulerTask):
             if job.in_terminal_state():
                 job.sub_status = None
                 job.env_vars = "{}"
-                try:
-                    logs = runner.logs() or ""
-                except RunnerError:
-                    logs = ""
-                save_logs_to_storage(job, logs)
-                job.logs = ""
+                # Fleets logs are already in COS; only Ray logs need fetching and persisting.
+                if not is_fleets_job:
+                    try:
+                        logs = runner.logs() or ""
+                    except RunnerError:
+                        logs = ""
+                    save_logs_to_storage(job, logs)
                 if job.status == Job.SUCCEEDED:
                     self._record_execution_duration(job)
 
@@ -131,23 +127,23 @@ class UpdateJobsStatuses(SchedulerTask):
                 job.env_vars = "{}"
                 status_has_changed = True
                 save_logs_to_storage(job, logs)
-                job.logs = ""
 
-        try:
-            job.save()
-
-            if status_has_changed:
-                JobEvent.objects.add_status_event(
-                    job_id=job.id,
-                    origin=JobEventOrigin.SCHEDULER,
-                    context=JobEventContext.UPDATE_JOB_STATUS,
-                    status=job.status,
-                )
-                if job.in_terminal_state():
-                    self._increment_terminal_counter(job)
-        except RecordModifiedError:
-            status_has_changed = False
-            logger.warning("job_id=%s RecordModifiedError on save", job.id)
+        if status_has_changed:
+            Job.objects.filter(pk=job.id).update(
+                status=job.status,
+                sub_status=job.sub_status,
+                env_vars=job.env_vars,
+                version=F("version") + 1,
+            )
+            job.refresh_from_db(fields=["version"])
+            JobEvent.objects.add_status_event(
+                job_id=job.id,
+                origin=JobEventOrigin.SCHEDULER,
+                context=JobEventContext.UPDATE_JOB_STATUS,
+                status=job.status,
+            )
+            if job.in_terminal_state():
+                self._increment_terminal_counter(job)
 
         return status_has_changed
 

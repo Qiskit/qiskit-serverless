@@ -19,7 +19,7 @@ def get_headers(
         Dict[str, str]: dict with the authentication headers
     """
 
-    headers = {
+    headers: Dict[str, str] = {
         "Authorization": f"Bearer {token}",
     }
     if channel is not None:

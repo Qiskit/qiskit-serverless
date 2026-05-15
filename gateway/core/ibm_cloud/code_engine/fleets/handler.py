@@ -20,8 +20,6 @@ Implements the :class:`FleetHandler` API for managing fleet jobs:
 - Cancel a job
 - Delete a job
 
-COS operations are delegated to the :attr:`FleetHandler.cos` sub-manager.
-
 Configuration builders for volume mounts, environment variables, and
 run commands are available as standalone functions in
 :mod:`core.ibm_cloud.code_engine.fleets.utils`.
@@ -33,13 +31,9 @@ Example usage::
         project_id=project_id,
     )
 
-    # Fleet CRUD
     handler.submit_job(name="my-fleet", ...)
     handler.get_job_status("my-fleet")
     handler.cancel_job("my-fleet", wait=True, delete=True)
-
-    # COS (sub-manager)
-    handler.cos.logs(bucket_name="...", log_key="...")
 """
 
 from __future__ import annotations
@@ -47,15 +41,11 @@ from __future__ import annotations
 import logging
 import re
 import time
-from functools import cached_property
 from typing import Any
 
-from core.ibm_cloud.code_engine.ce_client import ApiClient, Configuration
+from core.ibm_cloud.code_engine.ce_client import ApiClient
 from core.ibm_cloud.code_engine.ce_client.api.fleets_api import FleetsApi
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
-
-from core.ibm_cloud.clients import IBMCloudClientProvider
-from core.ibm_cloud.code_engine.fleets.cos import JobCOS
 
 logger = logging.getLogger("FleetHandler")
 
@@ -63,46 +53,24 @@ _UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F
 
 
 class FleetHandler:
-    """Uses the swagger-generated FleetsAPI to manage fleet jobs.
-
-    Sub-managers:
-      - ``handler.cos`` — Cloud Object Storage operations
-    """
+    """Uses the swagger-generated FleetsAPI to manage fleet jobs."""
 
     def __init__(
         self,
         *,
-        client_provider: IBMCloudClientProvider,
+        ce_api_client: ApiClient,
         project_id: str,
-        cos_config: dict[str, Any] | None = None,
     ) -> None:
         """Initialize FleetHandler.
 
         Args:
-            client_provider: Initialized :class:`IBMCloudClientProvider` with
-                authenticated state and a specified region.
+            ce_api_client: Authenticated CE :class:`ApiClient`. Use
+                :func:`~core.ibm_cloud.get_ce_auth` to create one.
             project_id: Code Engine project UUID.
-            cos_config: Optional COS configuration for log retrieval. Required
-                key: ``hmac_secret_name`` — name of the Code Engine secret
-                containing HMAC credentials. Optional key: ``bucket_region``
-                (defaults to provider region).
         """
-        self.client_provider = client_provider
         self.project_id = project_id
-        self.cos_config = cos_config
-
-        cfg = Configuration()
-        cfg.host = self.client_provider.config.code_engine_url
-        cfg.api_key["Authorization"] = self.client_provider.auth.token
-        cfg.api_key_prefix["Authorization"] = "Bearer"
-
-        self._client = ApiClient(cfg)
-        self._fleets_api = FleetsApi(self._client)
-
-    @cached_property
-    def cos(self) -> JobCOS:
-        """COS operations manager bound to this job handler."""
-        return JobCOS(self)
+        self._client = ce_api_client
+        self._fleets_api = FleetsApi(ce_api_client)
 
     def submit_job(  # pylint: disable=too-many-arguments
         self,
