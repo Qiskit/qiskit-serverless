@@ -490,16 +490,18 @@ def test_get_result_from_cos_returns_json_string():
     runner._cos.get_object_bytes.return_value = b'{"status": "ok"}'  # pylint: disable=protected-access
     runner._project.cos_bucket_user_data_name = "user-bucket"  # pylint: disable=protected-access
 
-    with patch.object(runner, "_is_cos_configured", return_value=True), patch.object(
-        runner, "_get_fleet_name", return_value="fleet-name"
-    ), patch.object(
-        runner,
-        "_build_cos_paths",
-        return_value={
-            "user_job_prefix": "users/1/provider_functions/p/t/jobs/j",
-            "user_function_prefix": "users/1/provider_functions/p/t",
-            "provider_function_prefix": "providers/p/t",
-        },
+    with (
+        patch.object(runner, "_is_cos_configured", return_value=True),
+        patch.object(runner, "_get_fleet_name", return_value="fleet-name"),
+        patch.object(
+            runner,
+            "_build_cos_paths",
+            return_value={
+                "user_job_prefix": "users/1/provider_functions/p/t/jobs/j",
+                "user_function_prefix": "users/1/provider_functions/p/t",
+                "provider_function_prefix": "providers/p/t",
+            },
+        ),
     ):
         result = runner.get_result_from_cos()
 
@@ -512,9 +514,11 @@ def test_get_result_from_cos_returns_none_on_exception():
     runner._project.cos_bucket_user_data_name = "user-bucket"  # pylint: disable=protected-access
     runner._cos.get_object_bytes.side_effect = RuntimeError("COS error")  # pylint: disable=protected-access
 
-    with patch.object(runner, "_is_cos_configured", return_value=True), patch.object(
-        runner, "_get_fleet_name", return_value="fleet-name"
-    ), patch.object(runner, "_build_cos_paths", return_value={"user_job_prefix": "u/jobs/j"}):
+    with (
+        patch.object(runner, "_is_cos_configured", return_value=True),
+        patch.object(runner, "_get_fleet_name", return_value="fleet-name"),
+        patch.object(runner, "_build_cos_paths", return_value={"user_job_prefix": "u/jobs/j"}),
+    ):
         result = runner.get_result_from_cos()
 
     assert result is None
