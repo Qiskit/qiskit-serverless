@@ -438,6 +438,9 @@ class Job(models.Model):
     )
     program = models.ForeignKey(to=Program, on_delete=models.SET_NULL, null=True)
 
+    account_id = models.CharField(max_length=255, null=True, blank=True)
+    instance_crn = models.CharField(max_length=255, null=True, blank=True)
+
     objects: JobQuerySet = JobQuerySet.as_manager()
 
     class Meta:

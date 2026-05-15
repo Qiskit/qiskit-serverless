@@ -18,6 +18,7 @@ from core.domain.authorization.function_access_result import FunctionAccessResul
 from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import Job, JobEvent, PLATFORM_PERMISSION_JOBS_READ, Program, Provider, RuntimeJob
+from tests.utils import TestUtils
 
 
 @pytest.mark.django_db
@@ -41,12 +42,13 @@ class TestJobApi:
         settings.MEDIA_ROOT = str(tmp_path)
         self.client = APIClient()
 
-    def _authorize(self, username, accessible_functions=FunctionAccessResult(use_legacy_authorization=True)):
+    def _authorize(
+        self, username, accessible_functions=FunctionAccessResult(use_legacy_authorization=True), token=None
+    ):
         """Authorize client and return the user."""
-        user, _ = User.objects.get_or_create(username=username)
-        token = MagicMock()
-        token.accessible_functions = accessible_functions
-        self.client.force_authenticate(user=user, token=token)
+        user = TestUtils.authorize_client(
+            user=username, client=self.client, accessible_functions=accessible_functions, token=token
+        )
         return user
 
     def _create_job(
@@ -957,6 +959,36 @@ class TestJobApi:
             format="json",
         )
         assert job_event_response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_job_account_id(self):
+        """Tests check that the account id is inserted to the job object."""
+
+        from api.domain.authentication.channel import Channel
+
+        # creating a token that has non-empty 'account_id'.
+        token = MagicMock()
+        token.accessible_functions = FunctionAccessResult(use_legacy_authorization=True)
+        token.channel = Channel.LOCAL
+        token.token = b"test-token"
+        token.instance = "awesome-instance"
+        token.account_id = "1111-2222-3333-4444"
+        user = self._authorize(username="test_user", token=token)
+
+        # submitting a request to a job with the program
+        TestUtils.create_program(program_title="my-func", author=user)
+        programs_response = self.client.post(
+            "/api/v1/programs/run/",
+            data={"title": "my-func", "arguments": "{}", "config": {"workers": 1}},
+            format="json",
+        )
+
+        assert programs_response.status_code == status.HTTP_200_OK
+
+        # checking the 'account_id' and 'instance_crn' fields in the Job model are filled correctly.
+        job_id = programs_response.data.get("id")
+        job = Job.objects.get(id=job_id)
+        assert job.account_id == token.account_id
+        assert job.instance_crn == token.instance
 
 
 @pytest.mark.django_db

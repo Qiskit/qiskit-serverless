@@ -17,3 +17,4 @@ class CustomAuthentication:
     token: str
     accessible_functions: FunctionAccessResult
     instance: Optional[str]
+    account_id: Optional[str]
