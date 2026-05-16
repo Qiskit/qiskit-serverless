@@ -1,0 +1,155 @@
+# compose config for fleets integration tests (mock CE + MinIO)
+x-gateway-env: &gateway-env
+  DEBUG: "1"
+  SETTINGS_AUTH_MECHANISM: mock_token
+  DATABASE_HOST: postgres
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: serverlessdb
+  DATABASE_USER: serverlessuser
+  DATABASE_PASSWORD: serverlesspassword
+  FLEETS_MOCK_ENABLED: "1"
+  MINIO_ENDPOINT: http://minio:9000
+  MINIO_ACCESS_KEY: minioadmin
+  MINIO_SECRET_KEY: minioadmin
+  IBM_CLOUD_API_KEY: fake-api-key-for-test
+  CE_HMAC_SECRET_NAME: cos-hmac-secret
+  LIMITS_MAX_FLEETS: "10"
+  FLEETS_DEFAULT_IMAGE: python:3.11-slim
+  DEFAULT_COMPUTE_PROFILE: cx3d-4x16
+  CE_PROJECT_ID: test-project-id
+  CE_PROJECT_NAME: test-project
+  CE_REGION: us-south
+  CE_RESOURCE_GROUP_ID: test-rg-id
+  CE_SUBNET_POOL_ID: test-subnet-pool-id
+  CE_PDS_NAME_STATE: test-pds-state
+  CE_PDS_NAME_USERS: test-pds-users
+  CE_PDS_NAME_PROVIDERS: test-pds-providers
+  CE_COS_BUCKET_USER_DATA_NAME: user-data-bucket
+  CE_COS_BUCKET_PROVIDER_DATA_NAME: provider-data-bucket
+  CE_COS_BUCKET_TASK_STORE_NAME: task-store-bucket
+  CE_COS_INSTANCE_NAME: test-cos-instance
+  CE_COS_KEY_NAME: test-cos-key
+  # Explicit opt-out of OTEL span export (default is "0" — set for clarity).
+  OTEL_ENABLED: "0"
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: serverlessdb
+      POSTGRES_USER: serverlessuser
+      POSTGRES_PASSWORD: serverlesspassword
+    networks:
+      - safe-tier
+    ports:
+      - 5432:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U serverlessuser -d serverlessdb"]
+      interval: 1s
+      timeout: 5s
+      retries: 5
+  minio:
+    image: minio/minio:latest
+    command: server /data
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    networks:
+      - safe-tier
+    ports:
+      - 9000:9000
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/minio/health/live || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin &&
+      mc mb --ignore-existing local/user-data-bucket &&
+      mc mb --ignore-existing local/provider-data-bucket &&
+      mc mb --ignore-existing local/task-store-bucket &&
+      mc mb --ignore-existing local/fleet-state &&
+      mc mb --ignore-existing local/fleet-state-archive &&
+      echo 'Buckets created successfully'
+      "
+    networks:
+      - safe-tier
+  gateway:
+    container_name: gateway
+    build:
+      context: ./
+      dockerfile: gateway/Dockerfile
+    command: python manage.py runserver 0.0.0.0:8000
+    ports:
+      - 8000:8000
+    user: "root" # root user is needed to write on volumes and sync files from local system (see the watch: section)
+    environment:
+      <<: *gateway-env
+      DJANGO_SUPERUSER_USERNAME: admin
+      DJANGO_SUPERUSER_PASSWORD: "123"
+      DJANGO_SUPERUSER_EMAIL: admin@noemail.com
+      SITE_HOST: http://gateway:8000
+    networks:
+      - safe-tier
+    volumes:
+      - media-data:/usr/src/app/media/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    develop:
+      watch:
+        - path: ./gateway
+          action: sync
+          target: /usr/src/app
+  scheduler:
+    user: "root" # root user is needed to write on volumes
+    container_name: scheduler
+    build:
+      context: ./
+      dockerfile: gateway/Dockerfile
+    # Skip sync_ce_project here — the gateway entrypoint already creates the
+    # CodeEngineProject row.  Running it from both services races and can
+    # produce duplicate rows (MultipleObjectsReturned on the next call).
+    entrypoint: ["/bin/sh", "-c", "python manage.py migrate_with_lock && exec python manage.py run_scheduler"]
+    environment:
+      <<: *gateway-env
+    networks:
+      - safe-tier
+    volumes:
+      - media-data:/usr/src/app/media/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+  fleet-worker:
+    container_name: fleet-worker
+    build:
+      context: ./
+      dockerfile: tests/fleets/fleet-worker/Dockerfile
+    privileged: true
+    environment:
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - FLEET_STATE_BUCKET=fleet-state
+      - TASK_STORE_BUCKET=task-store-bucket
+      - USER_DATA_BUCKET=user-data-bucket
+      - PROVIDER_DATA_BUCKET=provider-data-bucket
+    networks:
+      - safe-tier
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
+networks:
+  safe-tier:
+volumes:
+  media-data:

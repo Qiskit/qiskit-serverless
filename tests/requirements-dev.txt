@@ -2,6 +2,9 @@
 pytest>=9.0.3
 pytest-order>=1.4.0
 pytest-randomly>=4.1.0
+pytest-timeout>=2.3.0
+boto3>=1.34.0
+psycopg2-binary>=2.9.9
 # new versions of testcontainers don't support docker compose
 testcontainers>=4.14.2
 tox>=4.54.0
