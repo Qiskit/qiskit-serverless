@@ -26,8 +26,11 @@ class CoreConfig(AppConfig):
         # Check if all models has the "api_" prefix
         register(Tags.models)(check_model_labels)
 
-        if (settings.IS_GATEWAY or settings.IS_SCHEDULER) and os.environ.get("FLEETS_MOCK_ENABLED") == "1":
-            from core.services.runners.fleets_mock import install_mocks  # pylint: disable=import-outside-toplevel
+        mock_enabled = os.environ.get("FLEETS_MOCK_ENABLED") == "1"
+        if (settings.IS_GATEWAY or settings.IS_SCHEDULER) and mock_enabled:
+            from core.services.runners.fleets_mock import (  # pylint: disable=import-outside-toplevel
+                install_mocks,
+            )
 
             install_mocks()
 

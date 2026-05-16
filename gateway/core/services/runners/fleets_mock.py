@@ -103,7 +103,8 @@ def _get_mock_s3():
 
 def _make_fake_jwt() -> str:
     """Build a minimal decodable JWT with iam_id and account.bss fields."""
-    header = base64.urlsafe_b64encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode()).rstrip(b"=").decode()
+    header_json = json.dumps({"alg": "HS256", "typ": "JWT"}).encode()
+    header = base64.urlsafe_b64encode(header_json).rstrip(b"=").decode()
     payload_data = {
         "iam_id": "iam-mock-fleets-test",
         "account": {"bss": "mock-account-id"},
@@ -115,7 +116,7 @@ def _make_fake_jwt() -> str:
     return f"{header}.{payload}.{signature}"
 
 
-class _FakeTokenManager:
+class _FakeTokenManager:  # pylint: disable=too-few-public-methods
     """Mimics the IAM SDK token manager interface."""
 
     def __init__(self):
@@ -207,7 +208,7 @@ def _pds_reference_to_bucket(reference: str) -> str:
     )
 
 
-def _mock_submit_job(self, **kwargs):  # pylint: disable=unused-argument
+def _mock_submit_job(self, **kwargs):  # pylint: disable=unused-argument,too-many-locals
     """Write a fleet manifest to MinIO instead of calling Code Engine."""
     s3 = _get_mock_s3()
     fleet_id = str(uuid.uuid4())
