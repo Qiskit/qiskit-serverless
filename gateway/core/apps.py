@@ -3,6 +3,7 @@
 import importlib
 import inspect
 import logging
+import os
 
 from django.apps import AppConfig
 from django.conf import settings
@@ -24,6 +25,14 @@ class CoreConfig(AppConfig):
 
         # Check if all models has the "api_" prefix
         register(Tags.models)(check_model_labels)
+
+        mock_enabled = os.environ.get("FLEETS_MOCK_ENABLED") == "1"
+        if (settings.IS_GATEWAY or settings.IS_SCHEDULER) and mock_enabled:
+            from core.services.runners.fleets_mock import (  # pylint: disable=import-outside-toplevel
+                install_mocks,
+            )
+
+            install_mocks()
 
         if settings.IS_GATEWAY or settings.IS_SCHEDULER:
             logger.info("[BOOT] CoreApp.ready in %s", "gateway" if settings.IS_GATEWAY else "scheduler")

@@ -1,0 +1,51 @@
+name: Fleet mock + MinIO integration tests
+
+on:
+  pull_request:
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-fleets:
+    name: Fleet mock + MinIO integration tests
+    # Requires FUSE (for s3fs in the fleet-worker container) and privileged Docker.
+    # Both are available on GitHub-hosted ubuntu-latest; switching runners will
+    # require either a FUSE-capable image or a non-FUSE worker rewrite.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Install tox
+        run: pip install tox>=4.0.0
+      - name: Build containers
+        run: docker compose -f docker-compose-fleets-test.yaml build
+      - name: Start services
+        run: docker compose -f docker-compose-fleets-test.yaml up -d
+      - name: Wait for services
+        run: |
+          echo "Waiting for gateway..."
+          curl --retry 30 --retry-delay 2 --retry-all-errors --fail http://localhost:8000/liveness/
+          echo "Waiting for scheduler..."
+          docker compose -f docker-compose-fleets-test.yaml exec -T scheduler python -c "print('scheduler ready')"
+          echo "Waiting for fleet-worker s3fs mounts..."
+          timeout 60 bash -c 'until docker compose -f docker-compose-fleets-test.yaml logs fleet-worker | grep -q "s3fs mounts ready"; do sleep 2; done'
+      - name: Verify CE project provisioned
+        run: docker compose -f docker-compose-fleets-test.yaml exec -T gateway python manage.py sync_ce_project
+      - name: Run fleets integration tests
+        run: tox -c tests/tox.ini -e py311-fleets
+      - name: Print logs on failure
+        if: failure()
+        run: |
+          docker compose -f docker-compose-fleets-test.yaml ps -a
+          docker compose -f docker-compose-fleets-test.yaml logs --tail=300 gateway
+          docker compose -f docker-compose-fleets-test.yaml logs --tail=100 scheduler
+          docker compose -f docker-compose-fleets-test.yaml logs --tail=100 fleet-worker
+          docker compose -f docker-compose-fleets-test.yaml logs --tail=50 postgres
+          docker compose -f docker-compose-fleets-test.yaml logs --tail=50 minio
+      - name: Stop services
+        if: always()
+        run: docker compose -f docker-compose-fleets-test.yaml down

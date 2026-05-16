@@ -44,4 +44,5 @@ static
 stats
 *.sqlite3
 tests
+!tests/fleets/fleet-worker
 gateway/media
