@@ -15,7 +15,7 @@ from core.services.storage.logs_storage import LogsStorage
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 
-from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_ray_job, execute_fleets
+from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_ray_job, execute_fleets_job
 from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
 
 from tests.utils import TestUtils
@@ -111,7 +111,7 @@ class TestScheduleApi(APITestCase):
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.JobEvent")
     @patch("scheduler.schedule.trace")
-    def test_execute_fleets_success(self, mock_trace, mock_job_event, mock_get_runner_client):
+    def test_execute_fleets_job_success(self, mock_trace, mock_job_event, mock_get_runner_client):
         """Tests successful Fleets job execution via runner.submit()."""
         mock_runner = MagicMock()
         mock_get_runner_client.return_value = mock_runner
@@ -121,7 +121,7 @@ class TestScheduleApi(APITestCase):
         job.logs = ""
 
         ctx = MagicMock()
-        ret_job = execute_fleets(job, ctx)
+        ret_job = execute_fleets_job(job, ctx)
 
         mock_runner.submit.assert_called_once()
         assert ret_job.status == Job.PENDING
@@ -131,7 +131,7 @@ class TestScheduleApi(APITestCase):
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.JobEvent")
     @patch("scheduler.schedule.trace")
-    def test_execute_fleets_failure(self, mock_trace, mock_job_event, mock_get_runner_client):
+    def test_execute_fleets_job_failure(self, mock_trace, mock_job_event, mock_get_runner_client):
         """Tests Fleets job execution failure handling."""
         mock_runner = MagicMock()
         mock_runner.submit.side_effect = RunnerError("Submit failed")
@@ -142,7 +142,7 @@ class TestScheduleApi(APITestCase):
         job.logs = ""
 
         ctx = MagicMock()
-        ret_job = execute_fleets(job, ctx)
+        ret_job = execute_fleets_job(job, ctx)
 
         mock_runner.submit.assert_called_once()
         assert ret_job.status == Job.FAILED

@@ -53,7 +53,7 @@ def execute_ray_job(job: Job) -> Job:
     return job
 
 
-def execute_fleets(job: Job, ctx) -> Job:
+def execute_fleets_job(job: Job, ctx) -> Job:
     """Submits a Fleets (Code Engine) job and persists the result.
 
     Wraps submission under the scheduler.handle trace span propagated from the
@@ -76,13 +76,13 @@ def execute_fleets(job: Job, ctx) -> Job:
             runner.submit()
             job.status = Job.PENDING
             logger.info(
-                "[execute_fleets] job_id=%s Execute job (%.2fs) set as PENDING",
+                "[execute_fleets_job] job_id=%s Execute job (%.2fs) set as PENDING",
                 job.id,
                 time.monotonic() - start,
             )
         except RunnerError as ex:
             logger.error(
-                "[execute_fleets] job_id=%s error=%s Job set as FAILED: submission error",
+                "[execute_fleets_job] job_id=%s error=%s Job set as FAILED: submission error",
                 job.id,
                 ex,
             )

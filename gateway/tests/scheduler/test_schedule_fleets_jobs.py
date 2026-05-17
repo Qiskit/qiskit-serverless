@@ -15,7 +15,7 @@ def _make_task():
 
 
 def test_fleets_execute_called_with_ctx():
-    """execute_fleets is called with the job and the tracing context extracted from env_vars."""
+    """execute_fleets_job is called with the job and the tracing context extracted from env_vars."""
     task = _make_task()
 
     mock_job = MagicMock()
@@ -29,7 +29,7 @@ def test_fleets_execute_called_with_ctx():
 
     with (
         patch(f"{_MOD}.get_jobs_to_schedule_fair_share", return_value=[mock_job]),
-        patch(f"{_MOD}.execute_fleets", return_value=mock_job) as mock_execute,
+        patch(f"{_MOD}.execute_fleets_job", return_value=mock_job) as mock_execute,
         patch(f"{_MOD}.TraceContextTextMapPropagator") as mock_propagator,
     ):
         mock_propagator.return_value.extract.return_value = mock_ctx

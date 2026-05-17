@@ -10,7 +10,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 
 from core.config_key import ConfigKey
 from core.models import Job, Config, Program
-from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_fleets
+from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_fleets_job
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
@@ -62,7 +62,7 @@ class ScheduleFleetsJobs(SchedulerTask):
             env = json.loads(job.env_vars)
             ctx = TraceContextTextMapPropagator().extract(carrier=env)
 
-            job = execute_fleets(job, ctx)
+            job = execute_fleets_job(job, ctx)
 
             logger.warning("job_id=%s Job saved with status=%s", job.id, job.status)
 
