@@ -10,131 +10,24 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""
-COS sub-manager for fleet job artifacts.
-
-Provides :class:`JobCOS`, which wraps :class:`COSClient` for operations on
-COS objects associated with a fleet job: waiting for objects, deleting objects,
-listing keys, and retrieving log files.
-
-HMAC credentials are resolved from the Code Engine secret named by
-``hmac_secret_name`` in ``cos_config`` via the Secrets API (same project).
-
-Access via the parent handler::
-
-    handler = FleetHandler(client_provider=provider, project_id=project_id,
-                           cos_config={...})
-    handler.cos.wait_for_object(bucket_name="my-bucket", key="logs/run.log")
-    content = handler.cos.logs(bucket_name="my-bucket", log_key="logs/run.log")
-"""
+"""COS operations for fleet job artifacts."""
 
 from __future__ import annotations
 
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
 
-from core.ibm_cloud.code_engine.ce_client.api.secrets_and_configmaps_api import SecretsAndConfigmapsApi
-from core.ibm_cloud.code_engine.ce_client.rest import ApiException
-
-from core.ibm_cloud.cos.cos_client import COSClient, CosHmacCredentials
-
-if TYPE_CHECKING:
-    from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
+from core.ibm_cloud.cos.cos_client import COSClient
 
 logger = logging.getLogger("FleetHandler")
 
 
 class JobCOS:
-    """
-    Sub-manager for COS operations on fleet job artifacts.
+    """COS operations wrapper for fleet job artifacts."""
 
-    Instances are created automatically by :class:`FleetHandler` and
-    should not be instantiated directly.
-    """
-
-    def __init__(self, job: FleetHandler) -> None:
-        self._job = job
-        self.__cos: COSClient | None = None
-
-    def _get_hmac_from_ce_secret(self, secret_name: str) -> CosHmacCredentials:
-        """Fetch HMAC credentials from a Code Engine secret.
-
-        Args:
-            secret_name: Name of the CE secret containing HMAC credentials.
-
-        Returns:
-            :class:`CosHmacCredentials` extracted from the secret data.
-
-        Raises:
-            ValueError: If the secret does not exist or lacks valid HMAC data.
-        """
-        secrets_api = SecretsAndConfigmapsApi(self._job._client)  # pylint: disable=protected-access
-        try:
-            secret = secrets_api.get_secret(
-                project_id=self._job.project_id,
-                name=secret_name,
-            )
-        except ApiException as exc:
-            if exc.status == 404:
-                raise ValueError(f"CE secret {secret_name!r} not found in project {self._job.project_id!r}.") from exc
-            raise
-
-        data: dict[str, Any] = secret.data if isinstance(secret.data, dict) else {}
-        access_key_id = data.get("access_key_id", "")
-        secret_access_key = data.get("secret_access_key", "")
-
-        if not access_key_id or not secret_access_key:
-            raise ValueError(
-                f"CE secret {secret_name!r} exists but is missing 'access_key_id' or 'secret_access_key' fields."
-            )
-
-        return CosHmacCredentials(
-            access_key_id=access_key_id,
-            secret_access_key=secret_access_key,
-        )
-
-    @property
-    def _cos(self) -> COSClient:
-        """Lazily initialize and return the COSClient.
-
-        Fetches HMAC credentials from the Code Engine secret named by
-        ``cos_config["hmac_secret_name"]``.
-
-        Returns:
-            Initialized :class:`COSClient` bound to the resolved HMAC credentials.
-
-        Raises:
-            ValueError: If ``cos_config`` is missing or ``hmac_secret_name`` is not set.
-        """
-        if self.__cos is not None:
-            return self.__cos
-
-        cos_config = self._job.cos_config
-        if not cos_config:
-            raise ValueError("COS not configured. Pass cos_config to FleetHandler constructor.")
-
-        hmac_secret_name = cos_config.get("hmac_secret_name")
-        bucket_region = cos_config.get("bucket_region", self._job.client_provider.config.region)
-        endpoint_url = cos_config.get("cos_endpoint_url")
-
-        if not hmac_secret_name:
-            raise ValueError(
-                "cos_config must include 'hmac_secret_name' — "
-                "the name of the Code Engine secret containing HMAC credentials."
-            )
-
-        logger.debug("Fetching HMAC credentials from CE secret %r", hmac_secret_name)
-        creds = self._get_hmac_from_ce_secret(hmac_secret_name)
-
-        self.__cos = COSClient(
-            client_provider=self._job.client_provider,
-            credentials=creds,
-            bucket_region=bucket_region,
-            endpoint_url=endpoint_url,
-        )
-        return self.__cos
+    def __init__(self, cos_client: COSClient) -> None:
+        self._cos = cos_client
 
     def wait_for_object(
         self,

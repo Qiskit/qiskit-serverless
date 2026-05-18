@@ -169,17 +169,19 @@ spec:
                   key: {{ .Values.secrets.superuser.key.email }}
 {{- end }}
             - name: OTEL_ENABLED
-              value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
+              value: {{ .Values.tracing.enabled | ternary "1" "0" | quote }}
             - name: OTEL_SERVICE_NAME
               value: "Gateway"
             - name: OTEL_TRACES_EXPORTER
-              value: console,otlp
+              value: otlp
             - name: OTEL_METRICS_EXPORTER
               value: console
             - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
-              value: {{ .Values.application.ray.openTelemetryCollector.host }}:{{ .Values.application.ray.openTelemetryCollector.port }}
+              value: {{ .Values.tracing.agentUrl | quote }}
             - name: OTEL_EXPORTER_OTLP_TRACES_INSECURE
-              value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
+              value: {{ .Values.tracing.insecure | ternary "1" "0" | quote }}
+            - name: METRICS_PORT
+              value: {{ .Values.tracing.metricsPort | quote }}
             - name: QISKIT_IBM_URL
               value: {{ .Values.application.qiskitRuntime.url }}
             - name: RUNTIME_API_BASE_URL
@@ -398,17 +400,19 @@ spec:
               value: "True"
 {{- end }}
             - name: OTEL_ENABLED
-              value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
+              value: {{ .Values.tracing.enabled | ternary "1" "0" | quote }}
             - name: OTEL_SERVICE_NAME
-              value: "Gateway"
+              value: "Scheduler"
             - name: OTEL_TRACES_EXPORTER
-              value: console,otlp
+              value: otlp
             - name: OTEL_METRICS_EXPORTER
               value: console
             - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
-              value: {{ .Values.application.ray.openTelemetryCollector.host }}:{{ .Values.application.ray.openTelemetryCollector.port }}
+              value: {{ .Values.tracing.agentUrl | quote }}
             - name: OTEL_EXPORTER_OTLP_TRACES_INSECURE
-              value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
+              value: {{ .Values.tracing.insecure | ternary "1" "0" | quote }}
+            - name: METRICS_PORT
+              value: {{ .Values.tracing.metricsPort | quote }}
             - name: PROGRAM_TIMEOUT
               value: {{ .Values.application.limits.programTimeoutHours | quote }}
             - name: FUNCTIONS_LOGS_SIZE_LIMIT

@@ -38,15 +38,9 @@ application:
     opensslImage: registry.access.redhat.com/ubi8/openssl:8.9-13
     kubectlImage: alpine/k8s:1.35.4
     scrapeWithPrometheus: true
-    openTelemetry: false
-    openTelemetryCollector:
-      enabled: 0
-      local: false
-      host: "http://otel-collector"
-      port: 4317
-      insecure: 0
     useTLS: true
     gpuJobsConfig: "api/v1/gpu-jobs.json"
+
   limits:
     maxJobsPerUser: 2
     maxActiveJobsPerUser: 50
@@ -68,6 +62,15 @@ application:
     hstsSeconds: 0  # 0 means disabled
     hstsIncludeSubdomains: false
     hstsPreload: false
+
+tracing:
+  enabled: false
+  agentUrl: "http://otel-collector:4317"
+  insecure: false
+  metricsPort: 8081
+  ray:
+    enabled: false
+    local: false
 
 cos:
   claimName: gateway-claim
