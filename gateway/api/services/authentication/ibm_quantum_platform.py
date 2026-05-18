@@ -198,3 +198,8 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
 
         cache.set(cache_key, group_ids, timeout=self.cache_ttl)
         return group_ids
+
+    def get_account_id(self):
+        """This method returns the current account id of the user.
+        The account id is populated in 'authenticate' method."""
+        return self.account_id
