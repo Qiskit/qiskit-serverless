@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
+from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, Program
 from core.services.runners import RunnerError
 from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses
@@ -138,12 +139,18 @@ class TestToTerminal:
         job.sub_status = "pending"
         job.env_vars = '{"key": "value"}'
 
-        with patch(f"{_MOD}.JobEvent"):
+        with patch(f"{_MOD}.JobEvent") as mock_job_event:
             task.to_terminal(job, Job.SUCCEEDED)
 
         assert job.status == Job.SUCCEEDED
         assert job.sub_status is None
         assert job.env_vars == "{}"
+        mock_job_event.objects.add_status_event.assert_called_once_with(
+            job_id=job.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            status=Job.SUCCEEDED,
+        )
 
     def test_job_reaches_failed_state(self):
         task = _make_task()
@@ -151,12 +158,18 @@ class TestToTerminal:
         job.sub_status = "pending"
         job.env_vars = '{"key": "value"}'
 
-        with patch(f"{_MOD}.JobEvent"):
+        with patch(f"{_MOD}.JobEvent") as mock_job_event:
             task.to_terminal(job, Job.FAILED)
 
         assert job.status == Job.FAILED
         assert job.sub_status is None
         assert job.env_vars == "{}"
+        mock_job_event.objects.add_status_event.assert_called_once_with(
+            job_id=job.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            status=Job.FAILED,
+        )
 
 
 class TestToRunning:
@@ -166,10 +179,16 @@ class TestToRunning:
         task = _make_task()
         job = _make_fleets_job(status=Job.PENDING)
 
-        with patch(f"{_MOD}.JobEvent"):
+        with patch(f"{_MOD}.JobEvent") as mock_job_event:
             task.to_running(job)
 
         assert job.status == Job.RUNNING
+        mock_job_event.objects.add_status_event.assert_called_once_with(
+            job_id=job.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            status=Job.RUNNING,
+        )
 
 
 class TestStopJobIfTimeout:
