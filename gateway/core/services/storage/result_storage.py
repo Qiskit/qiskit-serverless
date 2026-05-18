@@ -2,10 +2,14 @@
 This module handle the access to the result store
 """
 
+import json
 import os
 import logging
 from typing import Optional
 from django.conf import settings
+
+from core.constants import RESULTS_PATH
+from qiskit_serverless.exception import QiskitServerlessException
 
 logger = logging.getLogger("core.ResultStorage")
 
@@ -21,9 +25,21 @@ class ResultStorage:
         self.user_results_directory = os.path.join(settings.MEDIA_ROOT, username, "results")
         os.makedirs(self.user_results_directory, exist_ok=True)
 
-    def __get_result_path(self, job_id: str) -> str:
-        """Construct the full path for a result file."""
-        return os.path.join(self.user_results_directory, f"{job_id}{self.RESULT_FILE_EXTENSION}")
+    def __get_result_path(self) -> str:
+        """Check if the file path specified by the ``RESULTS_PATH`` environment variable,
+        which is set by the runner (Ray or Fleets) at job submission, exists and legal."""
+        results_path = os.environ.get(RESULTS_PATH)
+        if not results_path:
+            raise QiskitServerlessException(
+                "Error getting arguments: RESULTS_PATH environment variable is missing or empty"
+            )
+
+        os.makedirs(os.path.dirname(results_path), exist_ok=True)
+
+        if not os.path.isfile(results_path):
+            raise QiskitServerlessException(f"Error saving results: {results_path} is not a file or doesn't exist")
+
+        return results_path
 
     def get(self, job_id: str) -> Optional[str]:
         """
@@ -71,7 +87,7 @@ class ResultStorage:
         Returns:
             None
         """
-        result_path = self.__get_result_path(job_id)
+        result_path = self.__get_result_path()
 
         with open(result_path, "w", encoding=self.ENCODING) as result_file:
             result_file.write(result)
