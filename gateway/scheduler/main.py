@@ -12,9 +12,9 @@ from scheduler.http_server import SchedulerHttpServer
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.kill_signal import KillSignal
 from scheduler.tasks.free_resources import FreeResources
-from scheduler.tasks.schedule_ray_jobs import ScheduleQueuedJobs
+from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
+from scheduler.tasks.schedule_ray_jobs import ScheduleRayJobs
 from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses
-from scheduler.tasks.schedule_ray_jobs import ScheduleRayJobs, ScheduleFleetsJobs
 from scheduler.tasks.update_job_status_counts import UpdateJobStatusCounts
 from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
 
