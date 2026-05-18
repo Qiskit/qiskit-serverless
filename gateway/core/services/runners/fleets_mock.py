@@ -10,26 +10,7 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""
-Fleets mock layer for local integration tests.
-
-When ``FLEETS_MOCK_ENABLED=1``, :func:`install_mocks` patches nine narrow
-call sites that normally talk to IBM Cloud APIs, replacing them with
-MinIO-based dispatch so that integration tests can run without real
-IBM Cloud credentials.
-
-Patches applied:
-
-1. ``core.ibm_cloud.clients.IAMAuthenticator`` -- fake authenticator
-2. ``api.services.authentication.ibm_quantum_platform.IAMAuthenticator`` -- same, second import site
-3. ``IBMCloudClientProvider.get_cos_hmac_client`` -- MinIO-backed S3 client
-4. ``core.ibm_cloud.get_cos_client`` -- returns a JobCOS wired to MinIO
-5. ``core.services.runners.fleets_runner.get_cos_client`` -- same, bound import in runner
-6. ``FleetHandler.submit_job`` -- writes manifest to MinIO ``fleet-state/``
-7. ``FleetHandler.get_job_status`` -- reads status from MinIO ``task-store-bucket/``
-8. ``FleetHandler.cancel_job`` -- no-op
-9. ``FleetHandler.delete_job`` -- no-op
-"""
+"""Fleets mock layer for local integration tests (FLEETS_MOCK_ENABLED=1)."""
 
 from __future__ import annotations
 
@@ -42,42 +23,91 @@ import uuid
 from unittest.mock import patch
 
 from django.conf import settings
+from ibm_boto3 import client as ibm_boto3_client
+
+from ibm_botocore.exceptions import ClientError as BotoClientError
+
+from core.ibm_cloud.clients import IBMCloudClientProvider
+from core.ibm_cloud.code_engine.fleets.cos import JobCOS
+from core.ibm_cloud.cos.cos_client import COSClient, CosHmacCredentials
 
 logger = logging.getLogger("FleetsMock")
 
 FLEET_STATE_BUCKET = "fleet-state"
 FLEET_STATE_ARCHIVE_BUCKET = "fleet-state-archive"
 
-
-def _task_store_bucket() -> str:
-    """Bucket where the worker writes ``<fleet_id>.status``.
-
-    Mirrors CE's persistent task state. Sourced from the same env var the
-    gateway sets (``CE_COS_BUCKET_TASK_STORE_NAME``) so the compose file is
-    the single source of truth.
-    """
-    return os.environ["CE_COS_BUCKET_TASK_STORE_NAME"]
-
-
 _patches: list = []
+_MOCK_S3: tuple[int, object] | None = None
 
 
 def _minio_endpoint() -> str:
+    """Return the MinIO endpoint URL from environment.
+
+    Returns:
+        The MINIO_ENDPOINT environment variable value.
+    """
     return os.environ["MINIO_ENDPOINT"]
 
 
 def _minio_access_key() -> str:
+    """Return the MinIO access key from environment.
+
+    Returns:
+        The MINIO_ACCESS_KEY environment variable value.
+    """
     return os.environ["MINIO_ACCESS_KEY"]
 
 
 def _minio_secret_key() -> str:
+    """Return the MinIO secret key from environment.
+
+    Returns:
+        The MINIO_SECRET_KEY environment variable value.
+    """
     return os.environ["MINIO_SECRET_KEY"]
 
 
-def _make_mock_s3_client():
-    """Create an ibm_boto3 S3 client pointing at MinIO for fleet-state operations."""
-    from ibm_boto3 import client as ibm_boto3_client  # pylint: disable=import-outside-toplevel
+def _task_store_bucket() -> str:
+    """Return the task-store bucket name from environment.
 
+    Returns:
+        The CE_COS_BUCKET_TASK_STORE_NAME environment variable value.
+    """
+    return os.environ["CE_COS_BUCKET_TASK_STORE_NAME"]
+
+
+def _pds_reference_to_bucket(reference: str) -> str:
+    """Map a PDS reference name to its COS bucket name via Django settings.
+
+    Args:
+        reference: The PDS reference name (e.g. ``test-pds-users``).
+
+    Returns:
+        The corresponding COS bucket name from Django settings.
+
+    Raises:
+        ValueError: If the reference doesn't match any known PDS name.
+    """
+    pds_users = getattr(settings, "CE_PDS_NAME_USERS", None)
+    pds_providers = getattr(settings, "CE_PDS_NAME_PROVIDERS", None)
+
+    if pds_users and reference == pds_users:
+        return settings.CE_COS_BUCKET_USER_DATA_NAME
+    if pds_providers and reference == pds_providers:
+        return settings.CE_COS_BUCKET_PROVIDER_DATA_NAME
+
+    raise ValueError(
+        f"Unknown PDS reference {reference!r} — expected one of "
+        f"{pds_users!r} (users) or {pds_providers!r} (providers)"
+    )
+
+
+def _make_mock_s3_client():
+    """Create an ibm_boto3 S3 client pointing at MinIO.
+
+    Returns:
+        An ibm_boto3 S3 client configured for the local MinIO instance.
+    """
     return ibm_boto3_client(
         "s3",
         aws_access_key_id=_minio_access_key(),
@@ -86,13 +116,13 @@ def _make_mock_s3_client():
     )
 
 
-_MOCK_S3: tuple[int, object] | None = None
-
-
 def _get_mock_s3():
-    """Return a per-process MinIO S3 client for fleet-state operations.
+    """Return a per-process MinIO S3 client.
 
     Keyed on pid so gunicorn forks don't inherit the parent's socket.
+
+    Returns:
+        An ibm_boto3 S3 client for the current process.
     """
     global _MOCK_S3  # pylint: disable=global-statement
     pid = os.getpid()
@@ -102,7 +132,11 @@ def _get_mock_s3():
 
 
 def _make_fake_jwt() -> str:
-    """Build a minimal decodable JWT with iam_id and account.bss fields."""
+    """Build a minimal decodable JWT with iam_id and account.bss fields.
+
+    Returns:
+        A base64-encoded JWT string with mock claims.
+    """
     header_json = json.dumps({"alg": "HS256", "typ": "JWT"}).encode()
     header = base64.urlsafe_b64encode(header_json).rstrip(b"=").decode()
     payload_data = {
@@ -123,7 +157,11 @@ class _FakeTokenManager:  # pylint: disable=too-few-public-methods
         self._token = _make_fake_jwt()
 
     def get_token(self) -> str:
-        """Return the fake JWT token."""
+        """Return the fake JWT token.
+
+        Returns:
+            A mock JWT string.
+        """
         return self._token
 
 
@@ -133,6 +171,11 @@ class _FakeIAMAuthenticator:
     Accepts both ``apikey`` (keyword used by the real SDK and
     ``ibm_quantum_platform.py``) and a positional first arg (used by
     ``IBMCloudClientProvider`` which passes the key positionally).
+
+    Args:
+        apikey: The API key (ignored).
+        url: The IAM URL (ignored).
+        **kwargs: Additional keyword arguments (ignored).
     """
 
     def __init__(self, apikey: str = "", *, url: str = "", **kwargs):  # pylint: disable=unused-argument
@@ -142,15 +185,28 @@ class _FakeIAMAuthenticator:
         """No-op validation."""
 
     def authenticate(self, req):
-        """No-op authentication."""
+        """No-op authentication.
+
+        Args:
+            req: The request object (ignored).
+        """
 
 
 def _mock_get_cos_hmac_client(
     self, *, access_key_id, secret_access_key, bucket_region=None, endpoint_url=None  # pylint: disable=unused-argument
 ):
-    """Return an ibm_boto3 S3 client pointing at MinIO for user/provider data buckets."""
-    from ibm_boto3 import client as ibm_boto3_client  # pylint: disable=import-outside-toplevel
+    """Return an ibm_boto3 S3 client pointing at MinIO for user/provider data buckets.
 
+    Args:
+        self: The IBMCloudClientProvider instance (ignored).
+        access_key_id: HMAC access key (ignored, MinIO creds used instead).
+        secret_access_key: HMAC secret key (ignored, MinIO creds used instead).
+        bucket_region: COS bucket region (ignored).
+        endpoint_url: COS endpoint URL (ignored, MinIO endpoint used instead).
+
+    Returns:
+        An ibm_boto3 S3 client configured for the local MinIO instance.
+    """
     return ibm_boto3_client(
         "s3",
         aws_access_key_id=_minio_access_key(),
@@ -162,17 +218,12 @@ def _mock_get_cos_hmac_client(
 def _mock_get_cos_client(project):  # pylint: disable=unused-argument
     """Return a JobCOS wired directly to MinIO, bypassing CE secret retrieval.
 
-    The upstream ``get_cos_client`` factory fetches HMAC credentials from a
-    Code Engine secret via ``SecretsAndConfigmapsApi.get_secret``. In the
-    mock environment there is no real CE backend, so we build the JobCOS
-    directly. The underlying S3 client still flows through the patched
-    ``IBMCloudClientProvider.get_cos_hmac_client``, which routes to MinIO.
-    """
-    # pylint: disable=import-outside-toplevel
-    from core.ibm_cloud.clients import IBMCloudClientProvider
-    from core.ibm_cloud.code_engine.fleets.cos import JobCOS
-    from core.ibm_cloud.cos.cos_client import COSClient, CosHmacCredentials
+    Args:
+        project: The CodeEngineProject instance (region is used for client init).
 
+    Returns:
+        A JobCOS instance backed by the local MinIO.
+    """
     client_provider = IBMCloudClientProvider(api_key=settings.IBM_CLOUD_API_KEY, region=project.region)
     cos_client = COSClient(
         client_provider=client_provider,
@@ -186,36 +237,23 @@ def _mock_get_cos_client(project):  # pylint: disable=unused-argument
     return JobCOS(cos_client)
 
 
-def _pds_reference_to_bucket(reference: str) -> str:
-    """Map a PDS reference name to its COS bucket name via Django settings.
-
-    Raises ``ValueError`` on unknown references — fails loudly rather than
-    letting ``None`` propagate into the manifest and surface as a KeyError
-    in the worker. Missing bucket settings will raise ``AttributeError`` via
-    direct attribute access.
-    """
-    pds_users = getattr(settings, "CE_PDS_NAME_USERS", None)
-    pds_providers = getattr(settings, "CE_PDS_NAME_PROVIDERS", None)
-
-    if pds_users and reference == pds_users:
-        return settings.CE_COS_BUCKET_USER_DATA_NAME
-    if pds_providers and reference == pds_providers:
-        return settings.CE_COS_BUCKET_PROVIDER_DATA_NAME
-
-    raise ValueError(
-        f"Unknown PDS reference {reference!r} — expected one of "
-        f"{pds_users!r} (users) or {pds_providers!r} (providers)"
-    )
-
-
 def _mock_submit_job(self, **kwargs):  # pylint: disable=unused-argument,too-many-locals
-    """Write a fleet manifest to MinIO instead of calling Code Engine."""
+    """Write a fleet manifest to MinIO instead of calling Code Engine.
+
+    Args:
+        self: The FleetHandler instance (ignored).
+        **kwargs: Job submission keyword arguments. Expected key: ``extra_fields``
+            containing ``run_volume_mounts``, ``run_env_variables``, and
+            ``run_commands``.
+
+    Returns:
+        A SimpleNamespace with a ``to_dict()`` method returning ``{"id": fleet_id}``.
+    """
     s3 = _get_mock_s3()
     fleet_id = str(uuid.uuid4())
 
     extra_fields = kwargs.get("extra_fields") or {}
 
-    # Volume mounts
     raw_mounts = extra_fields.get("run_volume_mounts", [])
     volume_mounts = []
     for mount in raw_mounts:
@@ -228,7 +266,6 @@ def _mock_submit_job(self, **kwargs):  # pylint: disable=unused-argument,too-man
             }
         )
 
-    # Environment variables: [{type, name, value}, ...] -> {name: value, ...}
     raw_env = extra_fields.get("run_env_variables", [])
     env_vars = {}
     for entry in raw_env:
@@ -237,10 +274,7 @@ def _mock_submit_job(self, **kwargs):  # pylint: disable=unused-argument,too-man
         if name:
             env_vars[name] = value
 
-    # Run commands (already a list)
     run_commands = extra_fields.get("run_commands", [])
-
-    # Extract job_id from env vars
     job_id = env_vars.get("ENV_JOB_ID_GATEWAY", "")
 
     manifest = {
@@ -264,9 +298,16 @@ def _mock_submit_job(self, **kwargs):  # pylint: disable=unused-argument,too-man
 
 
 def _mock_get_job_status(self, identifier):  # pylint: disable=unused-argument
-    """Check the task-store bucket for fleet status instead of calling Code Engine."""
-    from ibm_botocore.exceptions import ClientError  # pylint: disable=import-outside-toplevel
+    """Check the task-store bucket for fleet status instead of calling Code Engine.
 
+    Args:
+        self: The FleetHandler instance (ignored).
+        identifier: The fleet ID to look up.
+
+    Returns:
+        A dict with keys: id, name, status, desired_instances, running_instances,
+        created_at, updated_at, raw.
+    """
     s3 = _get_mock_s3()
     fleet_id = identifier
 
@@ -275,7 +316,7 @@ def _mock_get_job_status(self, identifier):  # pylint: disable=unused-argument
         resp = s3.get_object(Bucket=_task_store_bucket(), Key=status_key)
         content = resp["Body"].read().decode("utf-8").strip()
         status = content
-    except ClientError as exc:
+    except BotoClientError as exc:
         code = exc.response.get("Error", {}).get("Code", "")
         if code in {"404", "NoSuchKey", "NotFound"}:
             status = "pending"
@@ -295,11 +336,22 @@ def _mock_get_job_status(self, identifier):  # pylint: disable=unused-argument
 
 
 def _mock_cancel_job(self, identifier, **kwargs):  # pylint: disable=unused-argument
-    """No-op cancel."""
+    """No-op cancel.
+
+    Args:
+        self: The FleetHandler instance (ignored).
+        identifier: The fleet ID (ignored).
+        **kwargs: Additional arguments (ignored).
+    """
 
 
 def _mock_delete_job(self, identifier):  # pylint: disable=unused-argument
-    """No-op delete."""
+    """No-op delete.
+
+    Args:
+        self: The FleetHandler instance (ignored).
+        identifier: The fleet ID (ignored).
+    """
 
 
 def install_mocks():
@@ -318,9 +370,8 @@ def install_mocks():
             "core.ibm_cloud.clients.IAMAuthenticator",
             _FakeIAMAuthenticator,
         ),
-        # Also patch the ibm_quantum_platform import site. mock_token auth
-        # bypasses it today, but custom_token imports IAMAuthenticator directly
-        # and would hit real IAM without this patch.
+        # Defensive: mock_token auth bypasses ibm_quantum_platform today,
+        # but custom_token would hit real IAM without this patch.
         patch(
             "api.services.authentication.ibm_quantum_platform.IAMAuthenticator",
             _FakeIAMAuthenticator,
@@ -333,9 +384,8 @@ def install_mocks():
             "core.ibm_cloud.get_cos_client",
             _mock_get_cos_client,
         ),
-        # fleets_runner imports get_cos_client by name, so patch the bound
-        # reference in the runner module too — patching only the source
-        # module would miss already-imported names.
+        # Patch the bound reference in the runner module too — patching only
+        # the source module misses already-imported names.
         patch(
             "core.services.runners.fleets_runner.get_cos_client",
             _mock_get_cos_client,

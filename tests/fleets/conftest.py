@@ -14,7 +14,11 @@ from _helpers import DATA_BUCKETS, FLEET_STATE_BUCKETS
 
 @pytest.fixture(scope="session")
 def serverless_client():
-    """Create a ServerlessClient configured from environment variables."""
+    """Create a ServerlessClient configured from environment variables.
+
+    Returns:
+        A ServerlessClient instance pointing at the local gateway.
+    """
     return ServerlessClient(
         token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
         host=os.environ.get("GATEWAY_HOST", "http://localhost:8000"),
@@ -24,7 +28,11 @@ def serverless_client():
 
 @pytest.fixture(scope="session")
 def pg_conn():
-    """Open a shared PostgreSQL connection for the test session."""
+    """Open a shared PostgreSQL connection for the test session.
+
+    Returns:
+        A psycopg2 connection with autocommit enabled.
+    """
     conn = psycopg2.connect(
         host=os.environ.get("DATABASE_HOST", "localhost"),
         port=int(os.environ.get("DATABASE_PORT", "5432")),
@@ -39,7 +47,11 @@ def pg_conn():
 
 @pytest.fixture(scope="session")
 def minio_client():
-    """Create a boto3 S3 client pointing at the local MinIO instance."""
+    """Create a boto3 S3 client pointing at the local MinIO instance.
+
+    Returns:
+        A boto3 S3 client configured for MinIO.
+    """
     return boto3.client(
         "s3",
         endpoint_url=os.environ.get("MINIO_ENDPOINT", "http://localhost:9000"),
@@ -63,7 +75,11 @@ def cleanup_minio(minio_client):  # pylint: disable=redefined-outer-name
 
 @pytest.fixture()
 def unique_title():
-    """Generate a unique function title to avoid collisions across test runs."""
+    """Generate a unique function title to avoid collisions across test runs.
+
+    Returns:
+        A string like ``fleets-hello-<8 hex chars>``.
+    """
     return f"fleets-hello-{uuid.uuid4().hex[:8]}"
 
 
@@ -73,18 +89,21 @@ def test_provider(pg_conn):  # pylint: disable=redefined-outer-name
 
     Raw SQL is used because tests run out-of-process from Django. Coupled
     tables/columns: auth_group(name), api_provider(id, created, updated, name),
-    api_provider_admin_groups(provider_id, group_id). Schema migrations that
-    rename any of these will break this fixture silently.
+    api_provider_admin_groups(provider_id, group_id).
+
+    Args:
+        pg_conn: The shared PostgreSQL connection fixture.
+
+    Returns:
+        The provider name string.
     """
     provider_name = "test-provider"
     cur = pg_conn.cursor()
 
-    # Ensure the group exists (mock auth creates it on first request, but fixture runs first)
     cur.execute("INSERT INTO auth_group (name) VALUES ('mockgroup') ON CONFLICT (name) DO NOTHING")
     cur.execute("SELECT id FROM auth_group WHERE name = 'mockgroup'")
     group_id = cur.fetchone()[0]
 
-    # Create provider
     provider_id = str(uuid.uuid4())
     cur.execute(
         "INSERT INTO api_provider (id, created, updated, name) "
@@ -93,7 +112,6 @@ def test_provider(pg_conn):  # pylint: disable=redefined-outer-name
     )
     provider_id = cur.fetchone()[0]
 
-    # Link mockgroup to provider admin_groups
     cur.execute(
         "INSERT INTO api_provider_admin_groups (provider_id, group_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
         (provider_id, group_id),
