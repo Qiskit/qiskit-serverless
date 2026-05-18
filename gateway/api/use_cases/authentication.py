@@ -45,7 +45,7 @@ class AuthenticationUseCase:
 
         return LocalAuthenticationService(authorization_token=self.authorization_token)
 
-    def execute(self) -> Optional[type[AbstractUser]]:
+    def execute(self) -> tuple[Optional[type[AbstractUser]], Optional[str]]:
         """
         This contains the logic to authenticate and validate the user
         that is doing the request.
@@ -53,6 +53,7 @@ class AuthenticationUseCase:
         authentication_service = self._get_authentication_service_instance()
 
         user_id = authentication_service.authenticate()
+        account_id = authentication_service.get_account_id()
 
         if self.public_access is False:
             verified = authentication_service.verify_access()
@@ -86,4 +87,4 @@ class AuthenticationUseCase:
                 permission_names=permission_names,
             )
 
-        return quantum_user
+        return quantum_user, account_id

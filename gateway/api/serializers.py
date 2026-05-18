@@ -325,6 +325,7 @@ class RunJobSerializer(serializers.ModelSerializer):
         channel = validated_data.pop("channel")
         token = validated_data.pop("token")
         instance = validated_data.pop("instance", None)
+        account_id = validated_data.pop("account_id", None)
         carrier = validated_data.pop("carrier")
         compute_profile_requested = validated_data.get("compute_profile", None)
 
@@ -359,6 +360,8 @@ class RunJobSerializer(serializers.ModelSerializer):
             runner=program.runner,
             compute_profile=compute_profile,
             code_engine_project=code_engine_project,
+            instance_crn=instance,
+            account_id=account_id,
         )
 
         env = encrypt_env_vars(
