@@ -3,7 +3,6 @@
 import json
 import os
 import tempfile
-from unittest.mock import MagicMock
 
 import pytest
 from django.contrib.auth.models import User
@@ -12,9 +11,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
-from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.business_models import BusinessModel
-from tests.utils import create_function_access_result
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import (
     Job,
@@ -26,7 +23,7 @@ from core.models import (
     Program,
 )
 from core.services.storage import get_arguments_storage
-from tests.utils import TestUtils
+from tests.utils import TestUtils, create_function_access_result
 
 
 @pytest.mark.django_db
@@ -41,16 +38,9 @@ class TestProgramApiLegacyGroupsPermissions:
     def authorize_legacy(self, client):
         """Authorize with legacy groups (use_legacy_authorization=True) — no runtime instances client."""
         from api.domain.authentication.channel import Channel
-        from core.domain.authorization.function_access_result import FunctionAccessResult
 
         def _do(username):
-            user, _ = User.objects.get_or_create(username=username)
-            token = MagicMock()
-            token.accessible_functions = FunctionAccessResult(use_legacy_authorization=True)
-            token.channel = Channel.LOCAL
-            token.token = b"test-token"
-            token.instance = None
-            client.force_authenticate(user=user, token=token)
+            user = TestUtils.authorize_client(user=username, client=client)
             return user
 
         return _do
@@ -1176,13 +1166,7 @@ class TestProgramApiRuntimeInstances:
         from api.domain.authentication.channel import Channel
 
         def _do(username, accessible_functions):
-            user, _ = User.objects.get_or_create(username=username)
-            token = MagicMock()
-            token.accessible_functions = accessible_functions
-            token.channel = Channel.LOCAL
-            token.token = b"test-token"
-            token.instance = None
-            client.force_authenticate(user=user, token=token)
+            user = TestUtils.authorize_client(user=username, client=client, accessible_functions=accessible_functions)
             return user
 
         return _do
