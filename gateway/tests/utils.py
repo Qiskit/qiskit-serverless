@@ -524,16 +524,14 @@ class TestUtils:
         user_obj, _ = TestUtils.get_user_and_username(author=user, is_active=is_active, is_staff=is_staff)
         if not token:
             token = MagicMock()
-            if isinstance(accessible_functions, FunctionAccessResult):
-                token.accessible_functions = accessible_functions
-            else:
-                token.accessible_functions = FunctionAccessResult(use_legacy_authorization=True)
             token.channel = Channel.LOCAL
             token.token = b"test-token"
             token.instance = None
             token.account_id = None
-        elif isinstance(accessible_functions, FunctionAccessResult):
+        if isinstance(accessible_functions, FunctionAccessResult):
             token.accessible_functions = accessible_functions
+        else:
+            token.accessible_functions = FunctionAccessResult(use_legacy_authorization=True)
         client.force_authenticate(user=user_obj, token=token)
         return user_obj
 
