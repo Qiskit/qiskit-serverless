@@ -44,7 +44,7 @@ class TestCommands:
         num_resources = ComputeResource.objects.count()
         assert num_resources == 1
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    @patch("scheduler.tasks.update_ray_jobs_statuses.get_runner")
     def test_update_jobs_statuses(self, get_runner):
         """Tests update of job statuses."""
         # Test status change from PENDING to RUNNING
@@ -86,7 +86,7 @@ class TestCommands:
         assert job_events[3].origin == JobEventOrigin.SCHEDULER
         assert job_events[3].context == JobEventContext.UPDATE_JOB_STATUS
 
-    @patch("scheduler.tasks.schedule_queued_jobs.execute_ray_job")
+    @patch("scheduler.tasks.schedule_ray_jobs.execute_ray_job")
     def test_schedule_queued_jobs(self, execute_ray_job):
         """Tests schedule of queued jobs command."""
         # Create test data to match fixture expectations (7 jobs total)
@@ -190,7 +190,7 @@ class TestCommands:
         )
         assert "AAAAAAAAAAB" in logs
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    @patch("scheduler.tasks.update_ray_jobs_statuses.get_runner")
     def test_update_jobs_statuses_filters_logs_user_function(self, get_runner, settings):
         """Tests that logs are filtered when saving for function without provider."""
         compute_resource = TestUtils.get_or_create_compute_resource(title="test-cluster-user-logs", active=True)
@@ -255,7 +255,7 @@ INFO: Final public log
         # private log shouldn't exist
         assert not os.path.exists(private_log_file_path)
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    @patch("scheduler.tasks.update_ray_jobs_statuses.get_runner")
     def test_update_jobs_statuses_filters_logs_provider_function(self, get_runner, settings):
         """Tests that logs are filtered when saving for function with provider."""
         compute_resource = TestUtils.get_or_create_compute_resource(title="test-cluster-provider-logs", active=True)
@@ -323,7 +323,7 @@ WARNING: Private warning
             saved_provider_logs = log_file.read()
         assert saved_provider_logs == expected_provider_logs
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    @patch("scheduler.tasks.update_ray_jobs_statuses.get_runner")
     def test_update_jobs_statuses_job_handler_status_error_status_event(self, get_runner, settings):
         """Tests that the job_event is stored when runner.status() raises exception."""
         compute_resource = TestUtils.get_or_create_compute_resource(title="test-cluster-provider-logs", active=True)

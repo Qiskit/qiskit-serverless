@@ -121,7 +121,7 @@ class TestJobLogsCoverage:
         self.client.force_authenticate(user=user)
         return user
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    @patch("scheduler.tasks.update_ray_jobs_statuses.get_runner")
     def test_job_logs_in_storage_user_job(self, get_runner_client_mock):
         """Tests /logs with user job from COS.
 
@@ -240,7 +240,7 @@ INFO: Final public log
         assert jobs_response.status_code == HTTP_200_OK
         assert jobs_response.data.get("logs") == "Logs not available for this job during execution."
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    @patch("scheduler.tasks.update_ray_jobs_statuses.get_runner")
     def test_job_provider_logs_in_storage(self, get_runner_client_mock):
         """Tests /provider-logs with provider job from COS.
 

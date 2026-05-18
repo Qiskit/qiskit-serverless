@@ -148,7 +148,7 @@ class TestScheduleApi(APITestCase):
         assert ret_job.status == Job.FAILED
         mock_job_event.objects.add_status_event.assert_called_once()
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    @patch("scheduler.tasks.update_ray_jobs_statuses.get_runner")
     def test_job_runtime_limit(self, get_runner):
         """Tests job runtime limit enforcement.
 
