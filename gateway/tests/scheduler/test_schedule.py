@@ -1,6 +1,5 @@
 """Tests scheduling."""
 
-import tempfile
 from unittest.mock import MagicMock, patch
 from prometheus_client import CollectorRegistry
 
@@ -76,6 +75,7 @@ class TestScheduleApi(APITestCase):
         """Tests successful job execution via runner.submit()."""
         mock_compute_resource = MagicMock(spec=ComputeResource)
         mock_compute_resource.title = "test-cluster"
+        mock_compute_resource.pk = None
 
         mock_runner = MagicMock()
         mock_get_runner_client.return_value = mock_runner
@@ -91,8 +91,9 @@ class TestScheduleApi(APITestCase):
         mock_compute_resource.save.assert_called_once()
         assert ret_job.status == Job.PENDING
 
+    @patch("scheduler.schedule.JobEvent")
     @patch("scheduler.schedule.get_runner")
-    def test_execute_job_failure(self, mock_get_runner_client):
+    def test_execute_job_failure(self, mock_get_runner_client, mock_job_event):
         """Tests job execution failure handling."""
         mock_runner = MagicMock()
         mock_runner.submit.side_effect = RunnerError("Submit failed")
@@ -106,7 +107,7 @@ class TestScheduleApi(APITestCase):
 
         mock_runner.submit.assert_called_once()
         assert ret_job.status == Job.FAILED
-        assert "Compute resource creation or job submission failed" in ret_job.logs
+        assert "Job submission failed" in ret_job.logs
 
     @patch("scheduler.tasks.update_jobs_statuses.get_runner")
     def test_job_runtime_limit(self, get_runner):
