@@ -15,7 +15,7 @@
 from unittest.mock import MagicMock, patch
 
 from core.models import Job, Program
-from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
+from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
 
 _MOD = "scheduler.tasks.update_jobs_statuses"
 
@@ -23,7 +23,7 @@ _MOD = "scheduler.tasks.update_jobs_statuses"
 def _make_task():
     kill_signal = MagicMock()
     kill_signal.received = False
-    return UpdateJobsStatuses(kill_signal=kill_signal, metrics=MagicMock())
+    return UpdateRayJobsStatuses(kill_signal=kill_signal, metrics=MagicMock())
 
 
 def _make_ray_job(status=Job.RUNNING):

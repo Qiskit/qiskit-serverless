@@ -28,7 +28,7 @@ from .task import SchedulerTask
 logger = logging.getLogger("scheduler.UpdateJobsStatuses")
 
 
-class UpdateJobsStatuses(SchedulerTask):
+class UpdateRayJobsStatuses(SchedulerTask):
     """Update status of Ray jobs."""
 
     def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):

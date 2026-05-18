@@ -15,7 +15,7 @@ from core.models import ComputeResource, Job, Program, Provider
 from core.services.runners import RunnerError
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
+from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
 from tests.utils import TestUtils
 
 
@@ -142,7 +142,7 @@ Unprefixed message
         get_runner_client_mock.return_value = runner_mock
 
         # Execute update_jobs_statuses to detect terminal state and save logs
-        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
+        UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         # Call endpoint and verify logs are retrieved from storage
         self._authorize("author")
@@ -267,7 +267,7 @@ Unprefixed message
         get_runner_client_mock.return_value = runner_mock
 
         # Execute update_jobs_statuses to detect terminal state and save logs
-        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
+        UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         # Call endpoint and verify logs are retrieved from storage
         self._authorize("provider_admin")

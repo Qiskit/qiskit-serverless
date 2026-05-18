@@ -17,9 +17,9 @@ from core.services.runners import RunnerError
 from core.utils import check_logs
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
+from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
 from scheduler.tasks.free_resources import FreeResources
-from scheduler.tasks.schedule_queued_jobs import ScheduleRayJobs
+from scheduler.tasks.schedule_ray_jobs import ScheduleRayJobs
 from scheduler.schedule import get_jobs_to_schedule_fair_share
 from tests.utils import TestUtils
 
@@ -55,7 +55,7 @@ class TestCommands:
 
         job = self._create_test_job(ray_job_id="test_update_jobs_statuses")
 
-        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
+        UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         job.refresh_from_db()
         assert job.status == "RUNNING"
@@ -72,7 +72,7 @@ class TestCommands:
         runner.status.return_value = JobStatus.FAILED
         runner.logs.return_value = ""
 
-        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
+        UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         job.refresh_from_db()
         assert job.status == "FAILED"
@@ -222,7 +222,7 @@ Ray internal log without marker
         runner.logs.return_value = full_logs
         get_runner.return_value = runner
 
-        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
+        UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         # User logs are located in username/logs/
         # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
@@ -283,7 +283,7 @@ Internal system log
         runner.logs.return_value = full_logs
         get_runner.return_value = runner
 
-        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
+        UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         # User logs are located in username/provider/function/logs/ for provider jobs
         # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
@@ -339,7 +339,7 @@ WARNING: Private warning
         runner.status.side_effect = RunnerError("Error")
         get_runner.return_value = runner
 
-        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
+        UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         job_events = JobEvent.objects.filter(job=job.id)
         assert len(job_events) == 3  # the events are: creation, running, failed

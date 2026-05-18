@@ -16,7 +16,7 @@ from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 
 from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_ray_job, execute_fleets_job
-from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
+from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
 
 from tests.utils import TestUtils
 
@@ -185,7 +185,7 @@ class TestScheduleApi(APITestCase):
 
             # Running job status update which verify that will change the job status (timeout exceeded)
             # Since PROGRAM_TIMEOUT=0, any job with a JobEvent will have exceeded the limit
-            UpdateJobsStatuses(kill_signal=KillSignal(), metrics=SchedulerMetrics(CollectorRegistry())).run()
+            UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=SchedulerMetrics(CollectorRegistry())).run()
             job.refresh_from_db()
             job_event = JobEvent.objects.filter(job=job).first()
 

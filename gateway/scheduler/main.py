@@ -12,11 +12,11 @@ from scheduler.http_server import SchedulerHttpServer
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.kill_signal import KillSignal
 from scheduler.tasks.free_resources import FreeResources
-from scheduler.tasks.schedule_queued_jobs import ScheduleQueuedJobs
+from scheduler.tasks.schedule_ray_jobs import ScheduleQueuedJobs
 from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses
-from scheduler.tasks.schedule_queued_jobs import ScheduleRayJobs, ScheduleFleetsJobs
+from scheduler.tasks.schedule_ray_jobs import ScheduleRayJobs, ScheduleFleetsJobs
 from scheduler.tasks.update_job_status_counts import UpdateJobStatusCounts
-from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
+from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
 
 logger = logging.getLogger("scheduler.main")
 
@@ -41,7 +41,7 @@ class Main:
             # submit jobs, status change from QUEUED to PENDING
             ScheduleRayJobs(self.kill_signal, self.metrics),
             ScheduleFleetsJobs(self.kill_signal, self.metrics),
-            UpdateJobsStatuses(self.kill_signal, self.metrics),
+            UpdateRayJobsStatuses(self.kill_signal, self.metrics),
             UpdateFleetsJobsStatuses(self.kill_signal, self.metrics),
             FreeResources(self.kill_signal, self.metrics),  # Ray only
         ]
