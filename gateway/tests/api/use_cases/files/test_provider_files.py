@@ -111,18 +111,20 @@ class TestFilesProviderDownload:
             with patch("api.use_cases.files.provider_download.FileStorage") as mock_storage:
                 mock_storage.return_value.get_file_stream.return_value = (stream, "text/plain", 4)
                 result = FilesProviderDownloadUseCase().execute(
-                    admin_user, "my-provider", "my-function", "file.txt", _legacy()
+                    admin_user, "my-provider", "my-function", "file.txt", accessible_functions=_legacy()
                 )
             assert result is not None
 
         def test_non_admin_raises_provider_not_found(self, user, provider_with_admin):
             with pytest.raises(ProviderNotFoundException):
-                FilesProviderDownloadUseCase().execute(user, "my-provider", "my-function", "file.txt", _legacy())
+                FilesProviderDownloadUseCase().execute(
+                    user, "my-provider", "my-function", "file.txt", accessible_functions=_legacy()
+                )
 
         def test_unknown_function_raises_function_not_found(self, admin_user, provider_with_admin):
             with pytest.raises(FunctionNotFoundException):
                 FilesProviderDownloadUseCase().execute(
-                    admin_user, "my-provider", "ghost-function", "file.txt", _legacy()
+                    admin_user, "my-provider", "ghost-function", "file.txt", accessible_functions=_legacy()
                 )
 
     class TestRuntimeInstances:
@@ -131,13 +133,15 @@ class TestFilesProviderDownload:
             with patch("api.use_cases.files.provider_download.FileStorage") as mock_storage:
                 mock_storage.return_value.get_file_stream.return_value = (stream, "text/plain", 4)
                 result = FilesProviderDownloadUseCase().execute(
-                    user, "my-provider", "my-function", "file.txt", _read_access()
+                    user, "my-provider", "my-function", "file.txt", accessible_functions=_read_access()
                 )
             assert result is not None
 
         def test_no_permission_raises_provider_not_found(self, user, provider, function):
             with pytest.raises(ProviderNotFoundException):
-                FilesProviderDownloadUseCase().execute(user, "my-provider", "my-function", "file.txt", _no_access())
+                FilesProviderDownloadUseCase().execute(
+                    user, "my-provider", "my-function", "file.txt", accessible_functions=_no_access()
+                )
 
 
 class TestFilesProviderUpload:
@@ -147,18 +151,20 @@ class TestFilesProviderUpload:
             with patch("api.use_cases.files.provider_upload.FileStorage") as mock_storage:
                 mock_storage.return_value.upload_file.return_value = "path/to/file.txt"
                 result = FilesProviderUploadUseCase().execute(
-                    admin_user, "my-provider", "my-function", uploaded_file, _legacy()
+                    admin_user, "my-provider", "my-function", uploaded_file, accessible_functions=_legacy()
                 )
             assert result == "path/to/file.txt"
 
         def test_non_admin_raises_provider_not_found(self, user, provider_with_admin):
             with pytest.raises(ProviderNotFoundException):
-                FilesProviderUploadUseCase().execute(user, "my-provider", "my-function", MagicMock(), _legacy())
+                FilesProviderUploadUseCase().execute(
+                    user, "my-provider", "my-function", MagicMock(), accessible_functions=_legacy()
+                )
 
         def test_unknown_function_raises_function_not_found(self, admin_user, provider_with_admin):
             with pytest.raises(FunctionNotFoundException):
                 FilesProviderUploadUseCase().execute(
-                    admin_user, "my-provider", "ghost-function", MagicMock(), _legacy()
+                    admin_user, "my-provider", "ghost-function", MagicMock(), accessible_functions=_legacy()
                 )
 
     class TestRuntimeInstances:
@@ -167,17 +173,21 @@ class TestFilesProviderUpload:
             with patch("api.use_cases.files.provider_upload.FileStorage") as mock_storage:
                 mock_storage.return_value.upload_file.return_value = "path/to/file.txt"
                 result = FilesProviderUploadUseCase().execute(
-                    user, "my-provider", "my-function", uploaded_file, _write_access()
+                    user, "my-provider", "my-function", uploaded_file, accessible_functions=_write_access()
                 )
             assert result == "path/to/file.txt"
 
         def test_no_permission_raises_provider_not_found(self, user, provider, function):
             with pytest.raises(ProviderNotFoundException):
-                FilesProviderUploadUseCase().execute(user, "my-provider", "my-function", MagicMock(), _no_access())
+                FilesProviderUploadUseCase().execute(
+                    user, "my-provider", "my-function", MagicMock(), accessible_functions=_no_access()
+                )
 
         def test_read_permission_is_not_enough_for_upload(self, user, provider, function):
             with pytest.raises(ProviderNotFoundException):
-                FilesProviderUploadUseCase().execute(user, "my-provider", "my-function", MagicMock(), _read_access())
+                FilesProviderUploadUseCase().execute(
+                    user, "my-provider", "my-function", MagicMock(), accessible_functions=_read_access()
+                )
 
 
 class TestFilesProviderDelete:
@@ -185,26 +195,38 @@ class TestFilesProviderDelete:
         def test_admin_can_delete_file(self, admin_user, provider_with_admin, function):
             with patch("api.use_cases.files.provider_delete.FileStorage") as mock_storage:
                 mock_storage.return_value.remove_file.return_value = True
-                FilesProviderDeleteUseCase().execute(admin_user, "my-provider", "my-function", "file.txt", _legacy())
+                FilesProviderDeleteUseCase().execute(
+                    admin_user, "my-provider", "my-function", "file.txt", accessible_functions=_legacy()
+                )
 
         def test_non_admin_raises_provider_not_found(self, user, provider_with_admin):
             with pytest.raises(ProviderNotFoundException):
-                FilesProviderDeleteUseCase().execute(user, "my-provider", "my-function", "file.txt", _legacy())
+                FilesProviderDeleteUseCase().execute(
+                    user, "my-provider", "my-function", "file.txt", accessible_functions=_legacy()
+                )
 
         def test_unknown_function_raises_function_not_found(self, admin_user, provider_with_admin):
             with pytest.raises(FunctionNotFoundException):
-                FilesProviderDeleteUseCase().execute(admin_user, "my-provider", "ghost-function", "file.txt", _legacy())
+                FilesProviderDeleteUseCase().execute(
+                    admin_user, "my-provider", "ghost-function", "file.txt", accessible_functions=_legacy()
+                )
 
     class TestRuntimeInstances:
         def test_write_permission_grants_access(self, user, provider, function):
             with patch("api.use_cases.files.provider_delete.FileStorage") as mock_storage:
                 mock_storage.return_value.remove_file.return_value = True
-                FilesProviderDeleteUseCase().execute(user, "my-provider", "my-function", "file.txt", _write_access())
+                FilesProviderDeleteUseCase().execute(
+                    user, "my-provider", "my-function", "file.txt", accessible_functions=_write_access()
+                )
 
         def test_no_permission_raises_provider_not_found(self, user, provider, function):
             with pytest.raises(ProviderNotFoundException):
-                FilesProviderDeleteUseCase().execute(user, "my-provider", "my-function", "file.txt", _no_access())
+                FilesProviderDeleteUseCase().execute(
+                    user, "my-provider", "my-function", "file.txt", accessible_functions=_no_access()
+                )
 
         def test_read_permission_is_not_enough_for_delete(self, user, provider, function):
             with pytest.raises(ProviderNotFoundException):
-                FilesProviderDeleteUseCase().execute(user, "my-provider", "my-function", "file.txt", _read_access())
+                FilesProviderDeleteUseCase().execute(
+                    user, "my-provider", "my-function", "file.txt", accessible_functions=_read_access()
+                )
