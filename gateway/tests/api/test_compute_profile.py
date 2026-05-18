@@ -6,7 +6,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from core.models import Job, Program
+from core.models import CodeEngineProject, Job, Program
 from tests.utils import TestUtils
 
 pytestmark = pytest.mark.django_db
@@ -25,6 +25,26 @@ def user(api_client):
 
 
 @pytest.fixture
+def ce_project():
+    """Create an active CodeEngineProject so select_ce_project() can find one."""
+    return CodeEngineProject.objects.create(
+        project_id="test-ce-project-id",
+        project_name="test-project",
+        region="us-east",
+        resource_group_id="rg-id",
+        subnet_pool_id="subnet-id",
+        pds_name_state="pds-state",
+        pds_name_users="pds-users",
+        pds_name_providers="pds-providers",
+        cos_instance_name="cos-instance",
+        cos_key_name="cos-key",
+        cos_bucket_user_data_name="bucket-user",
+        cos_bucket_provider_data_name="bucket-provider",
+        active=True,
+    )
+
+
+@pytest.fixture
 def program(user):
     """Create a test program with Fleets runner for compute_profile testing."""
     return TestUtils.create_program(
@@ -35,7 +55,7 @@ def program(user):
 
 
 @override_settings(DEFAULT_COMPUTE_PROFILE="cx3d-4x16")
-def test_create_job_with_compute_profile(api_client, program):
+def test_create_job_with_compute_profile(api_client, program, ce_project):
     """Test creating a job with explicit compute_profile."""
     url = reverse("v1:programs-run")
     data = {
@@ -56,7 +76,7 @@ def test_create_job_with_compute_profile(api_client, program):
 
 
 @override_settings(DEFAULT_COMPUTE_PROFILE="cx3d-4x16")
-def test_create_job_without_compute_profile_uses_default(api_client, program):
+def test_create_job_without_compute_profile_uses_default(api_client, program, ce_project):
     """Test creating a job without compute_profile uses system default."""
     url = reverse("v1:programs-run")
     data = {
@@ -84,7 +104,7 @@ def test_create_job_without_compute_profile_uses_default(api_client, program):
         "bx2d-2x8",
     ],
 )
-def test_compute_profile_validation_valid_formats(api_client, program, profile):
+def test_compute_profile_validation_valid_formats(api_client, program, profile, ce_project):
     """Test compute_profile validation accepts valid formats."""
     url = reverse("v1:programs-run")
     data = {

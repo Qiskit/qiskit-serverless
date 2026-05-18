@@ -22,6 +22,7 @@ from core.services.storage import get_arguments_storage
 from core.utils import encrypt_env_vars, create_gpujob_allowlist
 
 from core.models import (
+    CodeEngineProject,
     JobEvent,
     Provider,
     Program,
@@ -340,6 +341,14 @@ class RunJobSerializer(serializers.ModelSerializer):
         # Get runner-specific configuration (compute_profile for Fleets, GPU for Ray)
         compute_profile, gpu = self._get_runner_config(program, compute_profile_requested)
 
+        code_engine_project = None
+        if program.runner == Program.FLEETS:
+            code_engine_project = CodeEngineProject.objects.select_for_profile(compute_profile)
+            if code_engine_project is None:
+                raise serializers.ValidationError(
+                    f"No active Code Engine project available for compute profile {compute_profile}"
+                )
+
         job = Job(
             trial=trial,
             business_model=business_model,
@@ -350,6 +359,7 @@ class RunJobSerializer(serializers.ModelSerializer):
             gpu=gpu,
             runner=program.runner,
             compute_profile=compute_profile,
+            code_engine_project=code_engine_project,
             instance_crn=instance,
             account_id=account_id,
         )
