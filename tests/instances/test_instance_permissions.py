@@ -14,6 +14,8 @@ Endpoints covered:
   - jobs/retrieve       (non-author access via function-job.read)
   - files/provider-list (provider_files)
   - files/provider-upload (provider_file_upload)
+  - files/provider-download (provider_file_download)
+  - files/provider-delete (provider_file_delete)
 
 - By default, these tests are executed against localhost:8000, but it can be configured against staging with:
 GATEWAY_HOST=https://qiskit-serverless-dev.quantum.ibm.com
@@ -95,6 +97,7 @@ In order to run the tests, this is the configuration you have to get from /funct
 ```
 """
 
+import requests
 import pytest
 from qiskit_serverless import QiskitFunction
 from qiskit_serverless.exception import QiskitServerlessException
@@ -108,6 +111,15 @@ BUSINESS_MODEL_ALL = "CONSUMPTION"
 def _assert_404(exc_info):
     """Assert the exception is an HTTP 404 from the gateway."""
     assert "| Code: 404" in str(exc_info.value)
+
+
+def _assert_download_404(exc_info):
+    """Assert the download was denied with a 404.
+
+    provider_file_download uses raise_for_status() so it raises
+    requests.exceptions.HTTPError instead of QiskitServerlessException.
+    """
+    assert "404" in str(exc_info.value)
 
 
 def _function_in_list(functions, provider_name, function_title):
@@ -128,6 +140,8 @@ class TestNoPermissionsInstance:
       - provider_jobs → 404.
       - provider_files → 404.
       - provider_file_upload → 404.
+      - provider_file_download → 404.
+      - provider_file_delete → 404.
     """
 
     def test_list_catalog_excludes_function(self, none_client, provider_name, function_title):
@@ -192,6 +206,20 @@ class TestNoPermissionsInstance:
             none_client.provider_file_upload(str(file), fn)
         _assert_404(exc)
 
+    def test_provider_file_download_raises_404(self, none_client, provider_name, function_title, tmp_path):
+        """provider_file_download() is denied (404) when no permissions are present."""
+        fn = QiskitFunction(title=function_title, provider=provider_name)
+        with pytest.raises(requests.exceptions.HTTPError) as exc:
+            none_client.provider_file_download("nonexistent.txt", fn, download_location=str(tmp_path))
+        _assert_download_404(exc)
+
+    def test_provider_file_delete_raises_404(self, none_client, provider_name, function_title):
+        """provider_file_delete() is denied (404) when no permissions are present."""
+        fn = QiskitFunction(title=function_title, provider=provider_name)
+        with pytest.raises(QiskitServerlessException) as exc:
+            none_client.provider_file_delete("nonexistent.txt", fn)
+        _assert_404(exc)
+
 
 class TestUserInstance:
     """
@@ -209,6 +237,8 @@ class TestUserInstance:
       - Can always retrieve own jobs (author check, no permission needed).
       - provider_files → 404 (no function-provider-files.read).
       - provider_file_upload → 404 (no function-provider-files.write).
+      - provider_file_download → 404 (no function-provider-files.read).
+      - provider_file_delete → 404 (no function-provider-files.write).
     """
 
     def test_list_catalog_includes_function(self, user_client, provider_name, function_title):
@@ -315,6 +345,20 @@ class TestUserInstance:
             user_client.provider_file_upload(str(file), fn)
         _assert_404(exc)
 
+    def test_provider_file_download_raises_404(self, user_client, provider_name, function_title, tmp_path):
+        """provider_file_download() is denied (404) when function-provider-files.read is absent."""
+        fn = QiskitFunction(title=function_title, provider=provider_name)
+        with pytest.raises(requests.exceptions.HTTPError) as exc:
+            user_client.provider_file_download("nonexistent.txt", fn, download_location=str(tmp_path))
+        _assert_download_404(exc)
+
+    def test_provider_file_delete_raises_404(self, user_client, provider_name, function_title):
+        """provider_file_delete() is denied (404) when function-provider-files.write is absent."""
+        fn = QiskitFunction(title=function_title, provider=provider_name)
+        with pytest.raises(QiskitServerlessException) as exc:
+            user_client.provider_file_delete("nonexistent.txt", fn)
+        _assert_404(exc)
+
 
 class TestProviderInstance:
     """
@@ -332,6 +376,8 @@ class TestProviderInstance:
       - Can retrieve a specific job (function-job.read covers both list and retrieve).
       - Can list provider files (function-provider-files.read).
       - Can upload provider files (function-provider-files.write).
+      - Can download provider files (function-provider-files.read).
+      - Can delete provider files (function-provider-files.write).
     """
 
     def test_list_catalog_excludes_function(self, provider_client, provider_name, function_title):
@@ -443,6 +489,28 @@ class TestProviderInstance:
         result = provider_client.provider_file_upload(str(file), fn)
         assert result is not None
 
+    def test_provider_file_download_succeeds(self, provider_client, provider_name, function_title, tmp_path):
+        """provider_file_download() succeeds when function-provider-files.read is present."""
+        file = tmp_path / "dl_test.txt"
+        file.write_text("download content")
+        fn = QiskitFunction(title=function_title, provider=provider_name)
+        provider_client.provider_file_upload(str(file), fn)
+        result = provider_client.provider_file_download(
+            "dl_test.txt", fn, download_location=str(tmp_path), target_name="dl_result.txt"
+        )
+        assert result is not None
+        assert (tmp_path / "dl_result.txt").exists()
+
+    def test_provider_file_delete_succeeds(self, provider_client, provider_name, function_title, tmp_path):
+        """provider_file_delete() succeeds when function-provider-files.write is present."""
+        file = tmp_path / "del_test.txt"
+        file.write_text("delete content")
+        fn = QiskitFunction(title=function_title, provider=provider_name)
+        provider_client.provider_file_upload(str(file), fn)
+        provider_client.provider_file_delete("del_test.txt", fn)
+        remaining = provider_client.provider_files(fn)
+        assert "del_test.txt" not in remaining
+
 
 class TestCombinedInstance:
     """
@@ -460,6 +528,8 @@ class TestCombinedInstance:
       - Can list provider jobs and retrieve individual jobs (function-job.read).
       - Can list provider files (function-provider-files.read).
       - Can upload provider files (function-provider-files.write).
+      - Can download provider files (function-provider-files.read).
+      - Can delete provider files (function-provider-files.write).
     """
 
     def test_list_catalog_includes_function(self, combined_client, provider_name, function_title):
@@ -572,3 +642,25 @@ class TestCombinedInstance:
         fn = QiskitFunction(title=function_title, provider=provider_name)
         result = combined_client.provider_file_upload(str(file), fn)
         assert result is not None
+
+    def test_provider_file_download_succeeds(self, combined_client, provider_name, function_title, tmp_path):
+        """provider_file_download() succeeds with full permissions."""
+        file = tmp_path / "dl_test.txt"
+        file.write_text("download content")
+        fn = QiskitFunction(title=function_title, provider=provider_name)
+        combined_client.provider_file_upload(str(file), fn)
+        result = combined_client.provider_file_download(
+            "dl_test.txt", fn, download_location=str(tmp_path), target_name="dl_result.txt"
+        )
+        assert result is not None
+        assert (tmp_path / "dl_result.txt").exists()
+
+    def test_provider_file_delete_succeeds(self, combined_client, provider_name, function_title, tmp_path):
+        """provider_file_delete() succeeds with full permissions."""
+        file = tmp_path / "del_test.txt"
+        file.write_text("delete content")
+        fn = QiskitFunction(title=function_title, provider=provider_name)
+        combined_client.provider_file_upload(str(file), fn)
+        combined_client.provider_file_delete("del_test.txt", fn)
+        remaining = combined_client.provider_files(fn)
+        assert "del_test.txt" not in remaining
