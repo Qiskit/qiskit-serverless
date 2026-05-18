@@ -451,40 +451,23 @@ class FleetsRunner(AbstractRunner):
         #     return False
         return False
 
-    def _get_or_assign_project(self) -> CodeEngineProject:
-        """Return the job's Code Engine project, assigning one if not yet set.
+    def _get_project(self) -> CodeEngineProject:
+        """Return the job's assigned Code Engine project.
 
-        Zone resolution: looks up the compute profile in ``FLEETS_PROFILE_ZONE_MAP``.
-        Profiles absent from the map (or mapped to ``"any"``) fall back to the
-        multi-zone project (zone is null/blank).
+        The project is selected at job creation time (in ``RunJobSerializer.create``).
+        This method only validates that the assignment is present and active.
 
         Returns:
             Active :class:`CodeEngineProject`.
 
         Raises:
-            RunnerError: If no active project is available.
+            RunnerError: If no project is assigned or the assigned project is inactive.
         """
-        if self.job.code_engine_project:
-            project = self.job.code_engine_project
-            if not project.active:
-                raise RunnerError(f"Code Engine project '{project.project_name}' is not active")
-            return project
-
-        profile_zone_map: dict = settings.FLEETS_PROFILE_ZONE_MAP
-        zone = profile_zone_map.get(self.job.compute_profile or "")
-        qs = CodeEngineProject.objects.filter(active=True)
-        if zone and zone != "any":
-            project = qs.filter(zone=zone).first()
-            if not project:
-                raise RunnerError(f"No active Code Engine project for zone '{zone}'")
-        else:
-            project = qs.filter(zone__isnull=True).first() or qs.filter(zone="").first() or qs.first()
+        project = self.job.code_engine_project
         if not project:
-            raise RunnerError("No active Code Engine project available")
-
-        self.job.code_engine_project = project
-        self.job.save()
-        logger.info("Assigned project [%s] to job [%s]", project.project_name, self.job.id)
+            raise RunnerError(f"No Code Engine project assigned to job '{self.job.id}'")
+        if not project.active:
+            raise RunnerError(f"Code Engine project '{project.project_name}' is not active")
         return project
 
     def _get_handler(self) -> FleetHandler:
@@ -503,7 +486,7 @@ class FleetsRunner(AbstractRunner):
             RunnerError: If initialization fails.
         """
         if not self._project:
-            self._project = self._get_or_assign_project()
+            self._project = self._get_project()
 
         if self._handler is None:
             try:
@@ -522,7 +505,7 @@ class FleetsRunner(AbstractRunner):
     def _get_cos(self) -> JobCOS:
         """Return the :class:`JobCOS`, creating it lazily on first use."""
         if not self._project:
-            self._project = self._get_or_assign_project()
+            self._project = self._get_project()
         if self._cos is None:
             self._cos = get_cos_client(self._project)
         return self._cos
