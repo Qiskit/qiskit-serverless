@@ -30,7 +30,11 @@ S3FS_PASSWD_FILE = "/etc/s3fs-passwd"
 
 
 def create_s3_client():
-    """Create a boto3 S3 client connected to MinIO."""
+    """Create a boto3 S3 client connected to MinIO.
+
+    Returns:
+        A boto3 S3 client configured for the local MinIO instance.
+    """
     return boto3.client(
         "s3",
         endpoint_url=MINIO_ENDPOINT,
@@ -57,7 +61,15 @@ def setup_s3fs_mounts():
 
 
 def mount_bucket(bucket, mount_point):
-    """Mount an S3 bucket via s3fs."""
+    """Mount an S3 bucket via s3fs.
+
+    Args:
+        bucket: The S3 bucket name to mount.
+        mount_point: The local filesystem path to mount the bucket at.
+
+    Raises:
+        RuntimeError: If the s3fs mount command fails.
+    """
     cmd = [
         "s3fs",
         bucket,
@@ -84,7 +96,15 @@ def mount_bucket(bucket, mount_point):
 
 
 def resolve_symlink_targets(volume_mounts):
-    """Resolve symlink targets from volume_mounts based on mount_path."""
+    """Resolve symlink targets from volume_mounts based on mount_path.
+
+    Args:
+        volume_mounts: List of volume mount dicts with mount_path, sub_path, and bucket keys.
+
+    Returns:
+        A tuple of (data_target, function_data_target, provider_logs_target) paths,
+        each of which may be None if the corresponding mount is not present.
+    """
     data_target = None
     function_data_target = None
     provider_logs_target = None
@@ -103,7 +123,12 @@ def resolve_symlink_targets(volume_mounts):
 
 
 def create_symlink(link_path, target_path):
-    """Create a symlink, removing any existing one first."""
+    """Create a symlink, removing any existing one first.
+
+    Args:
+        link_path: The path where the symlink will be created.
+        target_path: The target directory the symlink will point to.
+    """
     if os.path.islink(link_path) or os.path.exists(link_path):
         os.unlink(link_path)
     os.makedirs(target_path, exist_ok=True)
@@ -112,7 +137,11 @@ def create_symlink(link_path, target_path):
 
 
 def remove_symlink(link_path):
-    """Remove a symlink if it exists."""
+    """Remove a symlink if it exists.
+
+    Args:
+        link_path: The symlink path to remove.
+    """
     try:
         if os.path.islink(link_path):
             os.unlink(link_path)
@@ -126,6 +155,11 @@ def wait_for_s3_visibility(s3_client, volume_mounts, timeout=30):  # pylint: dis
     s3fs flushes on close() but MinIO visibility is not guaranteed to be
     synchronous. We walk each mount locally and wait for each file to appear
     via list_objects_v2. Backstops the post-run ``sleep`` with a real check.
+
+    Args:
+        s3_client: A boto3 S3 client.
+        volume_mounts: List of volume mount dicts with mount_path, bucket, and sub_path keys.
+        timeout: Maximum seconds to wait for all files to become visible.
     """
     deadline = time.time() + timeout
     for vm in volume_mounts:
@@ -161,7 +195,13 @@ def wait_for_s3_visibility(s3_client, volume_mounts, timeout=30):  # pylint: dis
 
 
 def process_manifest(s3_client, key, manifest):  # pylint: disable=too-many-locals
-    """Execute a job manifest and report status."""
+    """Execute a job manifest and report status.
+
+    Args:
+        s3_client: A boto3 S3 client.
+        key: The S3 object key of the manifest in the fleet-state bucket.
+        manifest: The parsed manifest dict containing volume_mounts, env_vars, and run_commands.
+    """
     fleet_id = manifest.get("fleet_id") or key.replace(".json", "")
     logger.info("Processing manifest for fleet_id=%s job_id=%s", fleet_id, manifest.get("job_id"))
 
@@ -229,10 +269,11 @@ def process_manifest(s3_client, key, manifest):  # pylint: disable=too-many-loca
 def poll_loop(s3_client):
     """Continuously poll for new job manifests.
 
-    NOTE: assumes a single worker replica — manifests are not leased before
-    execution, so multiple workers would double-execute the same job. Add
-    a lease/lock (e.g. conditional rename to a `.processing` key) before
-    scaling out.
+    Assumes a single worker replica — manifests are not leased before
+    execution, so multiple workers would double-execute the same job.
+
+    Args:
+        s3_client: A boto3 S3 client.
     """
     logger.info("Entering poll loop")
     while True:

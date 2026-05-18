@@ -22,7 +22,14 @@ resources_path = os.path.join(os.path.dirname(__file__), "source_files")
 
 
 def is_valid_uuid(value: str) -> bool:
-    """Return True if value is a valid UUID string."""
+    """Return True if value is a valid UUID string.
+
+    Args:
+        value: The string to validate.
+
+    Returns:
+        True if the string is a valid UUID, False otherwise.
+    """
     try:
         uuid.UUID(value)
         return True
@@ -31,7 +38,19 @@ def is_valid_uuid(value: str) -> bool:
 
 
 def _wait_for_terminal(job, timeout=120):
-    """Poll job.status() until terminal. Returns (job_id, client_status)."""
+    """Poll job.status() until a terminal state is reached.
+
+    Args:
+        job: A ServerlessJob instance.
+        timeout: Maximum seconds to wait.
+
+    Returns:
+        A tuple of (job_id, client_status) where client_status is one of
+        DONE, ERROR, or CANCELED.
+
+    Raises:
+        AssertionError: If the job does not reach a terminal state within timeout.
+    """
     job_id = job.job_id
     deadline = time.time() + timeout
     client_status = None
@@ -44,7 +63,13 @@ def _wait_for_terminal(job, timeout=120):
 
 
 def _assert_client_api(job, expected_name="world", check_provider_logs=False):
-    """Verify result and logs via the client API."""
+    """Verify result and logs via the client API.
+
+    Args:
+        job: A ServerlessJob instance in terminal state.
+        expected_name: The name expected in the greeting result.
+        check_provider_logs: If True, also verify provider logs contain private output.
+    """
     result = job.result(wait=False)
     assert result["greeting"] == f"Hello, {expected_name}!"
     assert result["status"] == "completed"
@@ -61,7 +86,13 @@ def _assert_client_api(job, expected_name="world", check_provider_logs=False):
 
 
 def _assert_manifest(pg_conn, minio_client, job_id):
-    """Verify the dispatch manifest in fleet-state-archive."""
+    """Verify the dispatch manifest in fleet-state-archive.
+
+    Args:
+        pg_conn: A psycopg2 connection.
+        minio_client: A boto3 S3 client.
+        job_id: The job ID to look up.
+    """
     row_for_fleet = wait_for_db_condition(
         pg_conn,
         "SELECT fleet_id FROM api_job WHERE id = %s",
@@ -86,7 +117,13 @@ def _assert_manifest(pg_conn, minio_client, job_id):
 
 
 def _assert_db_state(pg_conn, job_id, client_status):  # pylint: disable=too-many-locals
-    """Verify job, program, CE project, and event rows in the database."""
+    """Verify job, program, CE project, and event rows in the database.
+
+    Args:
+        pg_conn: A psycopg2 connection.
+        job_id: The job ID to verify.
+        client_status: The expected client-facing status (DONE, ERROR, etc.).
+    """
     row = wait_for_db_condition(
         pg_conn,
         "SELECT status, runner, fleet_id, ray_job_id, code_engine_project_id FROM api_job WHERE id = %s",
@@ -146,7 +183,14 @@ def _assert_db_state(pg_conn, job_id, client_status):  # pylint: disable=too-man
 
 
 def _assert_cos_objects(pg_conn, minio_client, job_id, provider_name="default"):  # pylint: disable=too-many-locals
-    """Verify arguments, entrypoint, and log objects in MinIO."""
+    """Verify arguments, entrypoint, and log objects in MinIO.
+
+    Args:
+        pg_conn: A psycopg2 connection.
+        minio_client: A boto3 S3 client.
+        job_id: The job ID to verify.
+        provider_name: The provider name used in COS path prefixes.
+    """
     cur = pg_conn.cursor()
     cur.execute(
         "SELECT u.username FROM auth_user u JOIN api_job j ON j.author_id = u.id WHERE j.id = %s",
@@ -191,7 +235,7 @@ class TestFleetsJobs:
     """End-to-end tests for the fleets runner job lifecycle."""
 
     def test_upload_fleets_function(self, serverless_client, unique_title):
-        """Upload a function with runner=fleets."""
+        """Upload a function with runner=fleets and verify retrieval."""
         fn = QiskitFunction(
             title=unique_title,
             entrypoint="entrypoint.py",
