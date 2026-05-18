@@ -18,11 +18,11 @@ from rest_framework import validators as validators_module
 from api.utils import build_env_variables, sanitize_name
 from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.model_managers.code_engine_projects import select_ce_project
 from core.services.storage import get_arguments_storage
 from core.utils import encrypt_env_vars, create_gpujob_allowlist
 
 from core.models import (
+    CodeEngineProject,
     JobEvent,
     Provider,
     Program,
@@ -342,10 +342,11 @@ class RunJobSerializer(serializers.ModelSerializer):
 
         code_engine_project = None
         if program.runner == Program.FLEETS:
-            try:
-                code_engine_project = select_ce_project(compute_profile)
-            except ValueError as ex:
-                raise serializers.ValidationError(str(ex)) from ex
+            code_engine_project = CodeEngineProject.objects.select_for_profile(compute_profile)
+            if code_engine_project is None:
+                raise serializers.ValidationError(
+                    f"No active Code Engine project available for compute profile {compute_profile}"
+                )
 
         job = Job(
             trial=trial,

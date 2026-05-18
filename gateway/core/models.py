@@ -13,6 +13,7 @@ from django_prometheus.models import ExportModelOperationsMixin
 
 from core.config_key import ConfigKey
 from core.domain.business_models import BusinessModel
+from core.model_managers.code_engine_projects import CodeEngineProjectQuerySet
 from core.model_managers.functions import FunctionsQuerySet
 from core.model_managers.job_events import JobEventQuerySet
 from core.model_managers.jobs import JobQuerySet
@@ -326,6 +327,8 @@ class CodeEngineProject(models.Model):
 
     # Status and ownership
     active = models.BooleanField(default=True, help_text="Whether this project is available for job execution")
+
+    objects: CodeEngineProjectQuerySet = CodeEngineProjectQuerySet.as_manager()
 
     class Meta:
         app_label = "api"

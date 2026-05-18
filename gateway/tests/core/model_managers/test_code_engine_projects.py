@@ -10,18 +10,34 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Unit tests for core.model_managers.code_engine_projects."""
+"""Tests for CodeEngineProjectQuerySet."""
 
 import pytest
-from unittest.mock import MagicMock, patch
+from django.test import override_settings
 
-from core.model_managers.code_engine_projects import select_ce_project
+from core.models import CodeEngineProject
 
-_MOD = "core.model_managers.code_engine_projects"
+pytestmark = pytest.mark.django_db
+
+
+def _make_project(**kwargs):
+    defaults = {
+        "project_id": "proj-id",
+        "project_name": "test-project",
+        "region": "us-east",
+        "resource_group_id": "rg-id",
+        "subnet_pool_id": "subnet-id",
+        "pds_name_state": "pds-state",
+        "pds_name_users": "pds-users",
+        "pds_name_providers": "pds-providers",
+        "active": True,
+    }
+    defaults.update(kwargs)
+    return CodeEngineProject.objects.create(**defaults)
 
 
 @pytest.mark.parametrize(
-    "zone_map,profile,expect_zone_filter",
+    "zone_map,profile,project_zone",
     [
         ({"gx2-8x64x1l40s": "us-east-1"}, "gx2-8x64x1l40s", "us-east-1"),  # zone match
         ({}, "cx3d-4x16", None),  # profile not in map → fallback
@@ -29,42 +45,25 @@ _MOD = "core.model_managers.code_engine_projects"
         ({}, None, None),  # no profile → fallback
     ],
 )
-def test_select_ce_project_zone_routing(zone_map, profile, expect_zone_filter):
-    """select_ce_project() routes to zone-specific or multi-zone project correctly."""
-    mock_project = MagicMock()
-    mock_qs = MagicMock()
-    mock_qs.filter.return_value.first.return_value = mock_project
+def test_select_for_profile_zone_routing(zone_map, profile, project_zone):
+    """select_for_profile() routes to zone-specific or multi-zone project correctly."""
+    project = _make_project(zone=project_zone)
 
-    with patch(f"{_MOD}.settings") as mock_settings, patch(f"{_MOD}.CodeEngineProject") as mock_ce:
-        mock_settings.FLEETS_PROFILE_ZONE_MAP = zone_map
-        mock_ce.objects.filter.return_value = mock_qs
+    with override_settings(FLEETS_PROFILE_ZONE_MAP=zone_map):
+        result = CodeEngineProject.objects.select_for_profile(profile)
 
-        result = select_ce_project(profile)
-
-    assert result is mock_project
-    if expect_zone_filter:
-        mock_qs.filter.assert_called_once_with(zone=expect_zone_filter)
-    else:
-        mock_qs.filter.assert_any_call(zone__isnull=True)
+    assert result == project
 
 
-@pytest.mark.parametrize(
-    "zone_map,profile,none_qs,match",
-    [
-        ({"gx2-8x64x1l40s": "us-east-1"}, "gx2-8x64x1l40s", False, "us-east-1"),
-        ({}, None, True, "No active Code Engine project available"),
-    ],
-)
-def test_select_ce_project_raises(zone_map, profile, none_qs, match):
-    """select_ce_project() raises ValueError when no suitable project is found."""
-    mock_qs = MagicMock()
-    mock_qs.filter.return_value.first.return_value = None
-    if none_qs:
-        mock_qs.first.return_value = None
+def test_select_for_profile_returns_none_when_no_project_for_zone():
+    """select_for_profile() returns None when no active project matches the zone."""
+    _make_project(zone=None)  # exists but wrong zone
 
-    with patch(f"{_MOD}.settings") as mock_settings, patch(f"{_MOD}.CodeEngineProject") as mock_ce:
-        mock_settings.FLEETS_PROFILE_ZONE_MAP = zone_map
-        mock_ce.objects.filter.return_value = mock_qs
+    with override_settings(FLEETS_PROFILE_ZONE_MAP={"gx2-8x64x1l40s": "us-east-1"}):
+        assert CodeEngineProject.objects.select_for_profile("gx2-8x64x1l40s") is None
 
-        with pytest.raises(ValueError, match=match):
-            select_ce_project(profile)
+
+def test_select_for_profile_returns_none_when_no_active_project():
+    """select_for_profile() returns None when no active project exists."""
+    with override_settings(FLEETS_PROFILE_ZONE_MAP={}):
+        assert CodeEngineProject.objects.select_for_profile(None) is None

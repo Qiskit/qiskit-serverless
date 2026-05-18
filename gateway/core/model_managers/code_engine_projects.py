@@ -10,48 +10,53 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Code Engine project selection helpers."""
+"""Code Engine project QuerySet."""
 
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING, Self
 
 from django.conf import settings
+from django.db.models import QuerySet
 
-from core.models import CodeEngineProject
+if TYPE_CHECKING:
+    from core.models import CodeEngineProject
 
 logger = logging.getLogger("core.model_managers.code_engine_projects")
 
 
-def select_ce_project(compute_profile: str | None):
-    """Select an active Code Engine project for the given compute profile.
+class CodeEngineProjectQuerySet(QuerySet):
+    """QuerySet for CodeEngineProject with project selection helpers."""
 
-    Zone resolution: looks up the compute profile in ``FLEETS_PROFILE_ZONE_MAP``.
-    Profiles absent from the map (or mapped to ``"any"``) fall back to the
-    multi-zone project (zone is null/blank).
+    def select_for_profile(self, compute_profile: str | None) -> "CodeEngineProject | None":
+        """Select an active Code Engine project for the given compute profile.
 
-    Args:
-        compute_profile: Compute profile string, e.g. ``"gx2-8x64x1l40s"``.
+        Zone resolution: looks up the compute profile in ``FLEETS_PROFILE_ZONE_MAP``.
+        Profiles absent from the map (or mapped to ``"any"``) fall back to the
+        multi-zone project (zone is null/blank).
 
-    Returns:
-        Active :class:`~core.models.CodeEngineProject`.
+        Args:
+            compute_profile: Compute profile string, e.g. ``"gx2-8x64x1l40s"``.
 
-    Raises:
-        ValueError: If no active project is available for the requested zone.
-    """
-    profile_zone_map: dict = settings.FLEETS_PROFILE_ZONE_MAP
-    zone = profile_zone_map.get(compute_profile or "")
-    qs = CodeEngineProject.objects.filter(active=True)
+        Returns:
+            Active :class:`~core.models.CodeEngineProject`, or ``None`` if not found.
+        """
+        profile_zone_map: dict = settings.FLEETS_PROFILE_ZONE_MAP
+        zone = profile_zone_map.get(compute_profile or "")
+        qs = self.filter(active=True)
 
-    if zone and zone != "any":
-        project = qs.filter(zone=zone).first()
-        if not project:
-            raise ValueError(f"No active Code Engine project for zone '{zone}'")
-    else:
-        project = qs.filter(zone__isnull=True).first() or qs.filter(zone="").first() or qs.first()
+        if zone and zone != "any":
+            project = qs.filter(zone=zone).first()
+            if not project:
+                logger.warning(
+                    "No active Code Engine project for zone '%s' (compute profile: %s)", zone, compute_profile
+                )
+        else:
+            project = qs.filter(zone__isnull=True).first() or qs.filter(zone="").first() or qs.first()
+            if not project:
+                logger.warning("No active Code Engine project available (compute profile: %s)", compute_profile)
 
-    if not project:
-        raise ValueError("No active Code Engine project available")
-
-    logger.info("Selected project [%s] for compute profile [%s]", project.project_name, compute_profile)
-    return project
+        if project:
+            logger.info("Selected project [%s] for compute profile [%s]", project.project_name, compute_profile)
+        return project

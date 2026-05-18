@@ -20,7 +20,8 @@ from api.v1.serializers import (
     RunJobSerializer,
 )
 from core.domain.business_models import BusinessModel
-from core.models import Job, JobConfig, Program
+from core.models import CodeEngineProject, Job, JobConfig, Program
+from rest_framework.exceptions import ValidationError
 from tests.utils import TestUtils
 
 
@@ -451,3 +452,20 @@ class TestSerializers:
         data = JobSerializerWithoutResult(job).data
         assert "fleet_id" in data
         assert data["fleet_id"] == "fleet-xyz"
+
+    @patch.object(CodeEngineProject.objects, "select_for_profile", return_value=None)
+    def test_run_job_serializer_raises_validation_error_when_no_ce_project(self, _):
+        """RunJobSerializer.create() raises ValidationError when select_for_profile returns None."""
+        user = models.User.objects.get(username="test_user")
+        program = TestUtils.create_program(program_title="fleets-program", author=user, runner=Program.FLEETS)
+
+        job_serializer = RunJobSerializer(data={"program": program.id})
+        job_serializer.is_valid()
+
+        with pytest.raises(ValidationError):
+            job_serializer.save(
+                channel=Channel.IBM_QUANTUM_PLATFORM,
+                author=user,
+                carrier={},
+                token="my_token",
+            )
