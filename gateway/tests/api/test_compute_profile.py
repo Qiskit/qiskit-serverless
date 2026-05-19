@@ -5,11 +5,21 @@ from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
+from unittest.mock import patch
 
-from core.models import CodeEngineProject, Job, Program
+from core.models import Job, Program
 from tests.utils import TestUtils
 
 pytestmark = pytest.mark.django_db
+
+_STORAGE_MOD = "core.services.storage.arguments_storage_fleets.FleetsArgumentsStorage.save"
+
+
+@pytest.fixture(autouse=True)
+def mock_fleets_arguments_storage_save():
+    """Prevent FleetsArgumentsStorage.save() from calling COS in unit tests."""
+    with patch(_STORAGE_MOD):
+        yield
 
 
 @pytest.fixture
@@ -27,20 +37,13 @@ def user(api_client):
 @pytest.fixture
 def ce_project():
     """Create an active CodeEngineProject so select_ce_project() can find one."""
-    return CodeEngineProject.objects.create(
-        project_id="test-ce-project-id",
+    return TestUtils.get_or_create_ce_project(
         project_name="test-project",
-        region="us-east",
-        resource_group_id="rg-id",
-        subnet_pool_id="subnet-id",
-        pds_name_state="pds-state",
-        pds_name_users="pds-users",
-        pds_name_providers="pds-providers",
+        project_id="test-ce-project-id",
+        cos_bucket_user_data_name="user-bucket",
+        cos_bucket_provider_data_name="provider-bucket",
         cos_instance_name="cos-instance",
         cos_key_name="cos-key",
-        cos_bucket_user_data_name="bucket-user",
-        cos_bucket_provider_data_name="bucket-provider",
-        active=True,
     )
 
 
