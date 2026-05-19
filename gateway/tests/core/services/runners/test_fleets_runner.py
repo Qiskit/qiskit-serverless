@@ -257,10 +257,6 @@ def test_build_cos_paths_custom_function():
 
     assert paths["user_function_prefix"] == "users/alice/provider_functions/default/hello-world"
     assert paths["user_job_prefix"] == "users/alice/provider_functions/default/hello-world/jobs/job-aaa-111"
-    assert (
-        paths["user_arguments_key"]
-        == "users/alice/provider_functions/default/hello-world/jobs/job-aaa-111/arguments.json"
-    )
     assert paths["user_log_key"] == "users/alice/provider_functions/default/hello-world/jobs/job-aaa-111/logs.log"
     assert paths["provider_function_prefix"] == "providers/default/hello-world"
     assert paths["provider_job_prefix"] == "providers/default/hello-world/jobs/job-aaa-111"
@@ -283,10 +279,6 @@ def test_build_cos_paths_provider_function():
 
     assert paths["user_function_prefix"] == "users/alice/provider_functions/good-partner/sampler-v2"
     assert paths["user_job_prefix"] == "users/alice/provider_functions/good-partner/sampler-v2/jobs/job-bbb-222"
-    assert (
-        paths["user_arguments_key"]
-        == "users/alice/provider_functions/good-partner/sampler-v2/jobs/job-bbb-222/arguments.json"
-    )
     assert paths["user_log_key"] == "users/alice/provider_functions/good-partner/sampler-v2/jobs/job-bbb-222/logs.log"
     assert paths["provider_function_prefix"] == "providers/good-partner/sampler-v2"
     assert paths["provider_job_prefix"] == "providers/good-partner/sampler-v2/jobs/job-bbb-222"
@@ -631,25 +623,6 @@ def test_get_fleet_name_falls_back_on_exception():
     result = runner._get_fleet_name()  # pylint: disable=protected-access
 
     assert result == "job-job-uuid"
-
-
-def test_upload_arguments_to_cos_uploads_json():
-    """_upload_arguments_to_cos() reads ArgumentsStorage and uploads to COS."""
-    runner, mock_handler = _make_runner()
-    runner._project.cos_bucket_user_data_name = "user-bucket"  # pylint: disable=protected-access
-    runner.job.program.provider = None
-    runner.job.author.username = "testuser"
-
-    paths = {"user_arguments_key": "users/1/jobs/j/arguments.json"}
-
-    with patch(f"{_RUNNER_MOD}.get_arguments_storage") as mock_storage_cls:
-        mock_storage_cls.return_value.get.return_value = '{"backend_name": "ibm_sherbrooke"}'
-        runner._upload_arguments_to_cos(paths)  # pylint: disable=protected-access
-
-    runner._cos.upload_fileobj.assert_called_once()  # pylint: disable=protected-access
-    call_kwargs = runner._cos.upload_fileobj.call_args.kwargs  # pylint: disable=protected-access
-    assert call_kwargs["bucket_name"] == "user-bucket"
-    assert call_kwargs["key"] == "users/1/jobs/j/arguments.json"
 
 
 def test_build_gateway_env_vars_returns_formatted_list():
