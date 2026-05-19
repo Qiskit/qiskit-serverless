@@ -524,29 +524,36 @@ def test_get_result_from_cos_returns_none_on_exception():
     assert result is None
 
 
-@pytest.mark.parametrize("active,raises", [(True, False), (False, True)])
-def test_get_project_existing(active, raises):
-    """_get_project() returns an active project; raises if inactive."""
+def test_get_project_returns_assigned_project():
+    """_get_project() returns the pre-assigned active project."""
     runner, _ = _make_runner()
     mock_project = MagicMock()
-    mock_project.active = active
+    mock_project.active = True
     mock_project.project_name = "my-project"
     runner.job.code_engine_project = mock_project
 
-    if raises:
-        with pytest.raises(RunnerError):
-            runner._get_project()  # pylint: disable=protected-access
-    else:
-        assert runner._get_project() is mock_project  # pylint: disable=protected-access
+    assert runner._get_project() is mock_project  # pylint: disable=protected-access
 
 
-def test_get_project_raises_when_unassigned():
-    """_get_project() raises RunnerError when no project is assigned to the job."""
+def test_get_project_raises_when_no_project_assigned():
+    """_get_project() raises RunnerError when job.code_engine_project is None."""
     runner, _ = _make_runner()
     runner.job.code_engine_project = None
     runner.job.id = "job-uuid"
 
     with pytest.raises(RunnerError, match="No Code Engine project assigned"):
+        runner._get_project()  # pylint: disable=protected-access
+
+
+def test_get_project_raises_when_project_inactive():
+    """_get_project() raises RunnerError when the assigned project is not active."""
+    runner, _ = _make_runner()
+    mock_project = MagicMock()
+    mock_project.active = False
+    mock_project.project_name = "inactive-project"
+    runner.job.code_engine_project = mock_project
+
+    with pytest.raises(RunnerError, match="is not active"):
         runner._get_project()  # pylint: disable=protected-access
 
 

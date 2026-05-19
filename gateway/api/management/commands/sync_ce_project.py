@@ -40,6 +40,7 @@ _REQUIRED_KEYS = [
     "pds_name_providers",
     "cos_instance_name",
     "cos_key_name",
+    "cos_bucket_task_store_name",
     "cos_bucket_user_data_name",
     "cos_bucket_provider_data_name",
 ]
@@ -109,6 +110,7 @@ class Command(BaseCommand):
             "pds_name_providers": settings.CE_PDS_NAME_PROVIDERS,
             "cos_instance_name": settings.CE_COS_INSTANCE_NAME,
             "cos_key_name": settings.CE_COS_KEY_NAME,
+            "cos_bucket_task_store_name": settings.CE_COS_BUCKET_TASK_STORE_NAME,
             "cos_bucket_user_data_name": settings.CE_COS_BUCKET_USER_DATA_NAME,
             "cos_bucket_provider_data_name": settings.CE_COS_BUCKET_PROVIDER_DATA_NAME,
             "zone": settings.CE_ZONE,

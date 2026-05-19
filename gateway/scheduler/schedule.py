@@ -48,6 +48,16 @@ def execute_ray_job(job: Job) -> Job:
             logger.error("job_id=%s error=%s Job set as FAILED: compute resource or submission error", job.id, ex)
             job.status = Job.FAILED
             job.logs += f"\nJob submission failed: {ex}"
+            job.save()
+            JobEvent.objects.add_error_event(
+                job_id=job.id,
+                origin=JobEventOrigin.SCHEDULER,
+                context=JobEventContext.SCHEDULE_JOBS,
+                code="SUBMISSION_ERROR",
+                message=str(ex),
+                exception=type(ex.__cause__).__name__ if ex.__cause__ else type(ex).__name__,
+                args={},
+            )
 
         span.set_attribute("job.status", job.status)
     return job
@@ -174,6 +184,10 @@ def check_job_timeout(job: Job):
 
 def fail_job_insufficient_resources(job: Job):
     """Fail job if insufficient resources are available."""
+    if not job.compute_resource:
+        # Fleets jobs don't have compute_resource
+        return Job.FAILED
+
     if settings.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
         logger.debug(
             "job_id=%s cluster=%s RAY_CLUSTER_NO_DELETE_ON_COMPLETE enabled, cluster not removed",
