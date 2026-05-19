@@ -52,7 +52,7 @@ def test_endpoint_url_forwarded_to_provider() -> None:
     mock_provider = MagicMock()
     mock_provider.config.region = "us-south"
     creds = CosHmacCredentials(access_key_id="ak", secret_access_key="sk")
-    custom_url = "https://s3.private.us-east.cloud-object-storage.appdomain.cloud"
+    custom_url = "https://s3.direct.us-east.cloud-object-storage.appdomain.cloud"
 
     client = COSClient(
         client_provider=mock_provider,

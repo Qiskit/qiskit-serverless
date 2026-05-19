@@ -17,9 +17,9 @@ from core.services.runners import RunnerError
 from core.utils import check_logs
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
+from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
 from scheduler.tasks.free_resources import FreeResources
-from scheduler.tasks.schedule_queued_jobs import ScheduleRayJobs
+from scheduler.tasks.schedule_ray_jobs import ScheduleRayJobs
 from scheduler.schedule import get_jobs_to_schedule_fair_share
 from tests.utils import TestUtils
 
@@ -44,7 +44,7 @@ class TestCommands:
         num_resources = ComputeResource.objects.count()
         assert num_resources == 1
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    @patch("scheduler.tasks.update_ray_jobs_statuses.get_runner")
     def test_update_jobs_statuses(self, get_runner):
         """Tests update of job statuses."""
         # Test status change from PENDING to RUNNING
@@ -55,7 +55,7 @@ class TestCommands:
 
         job = self._create_test_job(ray_job_id="test_update_jobs_statuses")
 
-        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
+        UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         job.refresh_from_db()
         assert job.status == "RUNNING"
@@ -72,7 +72,7 @@ class TestCommands:
         runner.status.return_value = JobStatus.FAILED
         runner.logs.return_value = ""
 
-        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
+        UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         job.refresh_from_db()
         assert job.status == "FAILED"
@@ -86,7 +86,7 @@ class TestCommands:
         assert job_events[3].origin == JobEventOrigin.SCHEDULER
         assert job_events[3].context == JobEventContext.UPDATE_JOB_STATUS
 
-    @patch("scheduler.tasks.schedule_queued_jobs.execute_ray_job")
+    @patch("scheduler.tasks.schedule_ray_jobs.execute_ray_job")
     def test_schedule_queued_jobs(self, execute_ray_job):
         """Tests schedule of queued jobs command."""
         # Create test data to match fixture expectations (7 jobs total)
@@ -190,7 +190,7 @@ class TestCommands:
         )
         assert "AAAAAAAAAAB" in logs
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    @patch("scheduler.tasks.update_ray_jobs_statuses.get_runner")
     def test_update_jobs_statuses_filters_logs_user_function(self, get_runner, settings):
         """Tests that logs are filtered when saving for function without provider."""
         compute_resource = TestUtils.get_or_create_compute_resource(title="test-cluster-user-logs", active=True)
@@ -222,7 +222,7 @@ Ray internal log without marker
         runner.logs.return_value = full_logs
         get_runner.return_value = runner
 
-        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
+        UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         # User logs are located in username/logs/
         # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
@@ -255,7 +255,7 @@ INFO: Final public log
         # private log shouldn't exist
         assert not os.path.exists(private_log_file_path)
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    @patch("scheduler.tasks.update_ray_jobs_statuses.get_runner")
     def test_update_jobs_statuses_filters_logs_provider_function(self, get_runner, settings):
         """Tests that logs are filtered when saving for function with provider."""
         compute_resource = TestUtils.get_or_create_compute_resource(title="test-cluster-provider-logs", active=True)
@@ -283,7 +283,7 @@ Internal system log
         runner.logs.return_value = full_logs
         get_runner.return_value = runner
 
-        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
+        UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         # User logs are located in username/provider/function/logs/ for provider jobs
         # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
@@ -323,7 +323,7 @@ WARNING: Private warning
             saved_provider_logs = log_file.read()
         assert saved_provider_logs == expected_provider_logs
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    @patch("scheduler.tasks.update_ray_jobs_statuses.get_runner")
     def test_update_jobs_statuses_job_handler_status_error_status_event(self, get_runner, settings):
         """Tests that the job_event is stored when runner.status() raises exception."""
         compute_resource = TestUtils.get_or_create_compute_resource(title="test-cluster-provider-logs", active=True)
@@ -339,7 +339,7 @@ WARNING: Private warning
         runner.status.side_effect = RunnerError("Error")
         get_runner.return_value = runner
 
-        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
+        UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         job_events = JobEvent.objects.filter(job=job.id)
         assert len(job_events) == 3  # the events are: creation, running, failed

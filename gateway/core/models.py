@@ -477,6 +477,20 @@ class Job(models.Model):
         Job.objects.filter(pk=self.id).update(**update_kwargs)
         self.refresh_from_db(fields=["version"])
 
+    def update_fields(self, fields_map: dict) -> None:
+        """Persist an explicit field map bypassing optimistic-locking validation.
+
+        Like save_direct, but the caller provides values directly instead of
+        reading them from the instance. Also updates the instance attributes so
+        the in-memory object stays consistent with the DB.
+        """
+        for field, value in fields_map.items():
+            setattr(self, field, value)
+        update_kwargs = dict(fields_map)
+        update_kwargs["version"] = F("version") + 1
+        Job.objects.filter(pk=self.id).update(**update_kwargs)
+        self.refresh_from_db(fields=["version"])
+
 
 class RuntimeJob(models.Model):
     """Runtime Job model."""

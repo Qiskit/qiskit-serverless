@@ -21,6 +21,7 @@ import pytest
 
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud import get_cos_client
+from core.ibm_cloud.clients import COS_PUBLIC_URL_TEMPLATE
 from core.ibm_cloud.code_engine.fleets.cos import JobCOS
 
 _IBM_CLOUD_MOD = "core.ibm_cloud"
@@ -260,7 +261,7 @@ def test_get_cos_client_uses_public_endpoint_when_configured() -> None:
         get_cos_client(project)
 
     endpoint_url = mock_cos_cls.call_args.kwargs["endpoint_url"]
-    assert "us-east" in endpoint_url
+    assert endpoint_url == COS_PUBLIC_URL_TEMPLATE.format(region="us-east")
 
 
 def test_get_cos_client_raises_when_api_key_missing() -> None:
