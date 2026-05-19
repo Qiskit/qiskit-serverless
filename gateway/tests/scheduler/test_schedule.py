@@ -1,6 +1,6 @@
 """Tests scheduling."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 from prometheus_client import CollectorRegistry
 
 import pytest
@@ -15,7 +15,7 @@ from core.services.storage.logs_storage import LogsStorage
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 
-from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_ray_job, execute_fleets_job
+from scheduler.schedule import execute_fleets_job, execute_ray_job, get_jobs_to_schedule_fair_share
 from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
 
 from tests.utils import TestUtils
@@ -92,7 +92,8 @@ class TestScheduleApi(APITestCase):
         assert ret_job.status == Job.PENDING
 
     @patch("scheduler.schedule.get_runner")
-    def test_execute_ray_job_failure(self, mock_get_runner_client):
+    @patch("scheduler.schedule.JobEvent")
+    def test_execute_ray_job_failure(self, mock_job_event, mock_get_runner_client):
         """Tests Ray job execution failure handling."""
         mock_runner = MagicMock()
         mock_runner.submit.side_effect = RunnerError("Submit failed")
@@ -107,6 +108,34 @@ class TestScheduleApi(APITestCase):
         mock_runner.submit.assert_called_once()
         assert ret_job.status == Job.FAILED
         assert "Job submission failed" in ret_job.logs
+        mock_job_event.objects.add_error_event.assert_called_once()
+
+    @patch("scheduler.schedule.get_runner")
+    @patch("scheduler.schedule.JobEvent")
+    def test_execute_ray_job_failure_emits_error_event(self, mock_job_event, mock_get_runner):
+        """execute_ray_job() records a SUBMISSION_ERROR event with cause exception name on RunnerError."""
+        cause = ValueError("underlying cause")
+        err = RunnerError("Submit failed")
+        err.__cause__ = cause
+        mock_runner = MagicMock()
+        mock_runner.submit.side_effect = err
+        mock_get_runner.return_value = mock_runner
+
+        job = MagicMock()
+        job.status = Job.QUEUED
+        job.logs = ""
+
+        execute_ray_job(job)
+
+        mock_job_event.objects.add_error_event.assert_called_once_with(
+            job_id=job.id,
+            origin=ANY,
+            context=ANY,
+            code="SUBMISSION_ERROR",
+            message="Submit failed",
+            exception="ValueError",
+            args={},
+        )
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.JobEvent")

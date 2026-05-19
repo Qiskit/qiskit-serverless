@@ -184,10 +184,6 @@ def check_job_timeout(job: Job):
 
 def fail_job_insufficient_resources(job: Job):
     """Fail job if insufficient resources are available."""
-    if not job.compute_resource:
-        # Fleets jobs don't have compute_resource
-        return Job.FAILED
-
     if settings.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
         logger.debug(
             "job_id=%s cluster=%s RAY_CLUSTER_NO_DELETE_ON_COMPLETE enabled, cluster not removed",
