@@ -39,7 +39,7 @@ class ScheduleFleetsJobs(SchedulerTask):
         running_fleets = Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=Program.FLEETS).count()
         self._schedule_jobs_if_slots_available(max_fleets, running_fleets)
 
-    def _schedule_jobs_if_slots_available(self, max_slots_possible, number_of_slots_running):
+    def _schedule_jobs_if_slots_available(self, max_slots_possible: int, number_of_slots_running: int):
         """Schedule Fleets jobs depending on free slots."""
         free_slots = max_slots_possible - number_of_slots_running
 

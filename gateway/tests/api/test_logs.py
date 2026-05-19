@@ -15,7 +15,7 @@ from core.models import ComputeResource, Job, Program, Provider
 from core.services.runners import RunnerError
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
+from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
 from tests.utils import TestUtils
 
 
@@ -121,7 +121,7 @@ class TestJobLogsCoverage:
         self.client.force_authenticate(user=user)
         return user
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    @patch("scheduler.tasks.update_ray_jobs_statuses.get_runner")
     def test_job_logs_in_storage_user_job(self, get_runner_client_mock):
         """Tests /logs with user job from COS.
 
@@ -142,7 +142,7 @@ Unprefixed message
         get_runner_client_mock.return_value = runner_mock
 
         # Execute update_jobs_statuses to detect terminal state and save logs
-        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
+        UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         # Call endpoint and verify logs are retrieved from storage
         self._authorize("author")
@@ -240,7 +240,7 @@ INFO: Final public log
         assert jobs_response.status_code == HTTP_200_OK
         assert jobs_response.data.get("logs") == "Logs not available for this job during execution."
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    @patch("scheduler.tasks.update_ray_jobs_statuses.get_runner")
     def test_job_provider_logs_in_storage(self, get_runner_client_mock):
         """Tests /provider-logs with provider job from COS.
 
@@ -267,7 +267,7 @@ Unprefixed message
         get_runner_client_mock.return_value = runner_mock
 
         # Execute update_jobs_statuses to detect terminal state and save logs
-        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
+        UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         # Call endpoint and verify logs are retrieved from storage
         self._authorize("provider_admin")

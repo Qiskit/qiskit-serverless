@@ -73,6 +73,7 @@ def execute_fleets_job(job: Job, ctx) -> Job:
 
         runner = get_runner(job)
         try:
+            # Fleets runner set only fleet_id
             runner.submit()
             job.status = Job.PENDING
             logger.info(
