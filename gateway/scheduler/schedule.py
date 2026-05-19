@@ -55,7 +55,7 @@ def execute_ray_job(job: Job) -> Job:
                 context=JobEventContext.SCHEDULE_JOBS,
                 code="SUBMISSION_ERROR",
                 message=str(ex),
-                exception=type(ex.__cause__).__name__ if ex.__cause__ else type(ex).__name__,
+                exception=type(ex.__cause__ or ex).__name__,
                 args={},
             )
 
