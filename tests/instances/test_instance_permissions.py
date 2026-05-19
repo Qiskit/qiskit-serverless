@@ -122,6 +122,11 @@ def _assert_download_404(exc_info):
     assert "404" in str(exc_info.value)
 
 
+def _assert_403(exc_info):
+    """Assert the exception is an HTTP 403 from the gateway."""
+    assert "| Code: 403" in str(exc_info.value)
+
+
 def _function_in_list(functions, provider_name, function_title):
     """Return True if the provider function appears in the list."""
     return any(f.title == function_title and f.provider == provider_name for f in functions)
@@ -219,6 +224,12 @@ class TestNoPermissionsInstance:
         with pytest.raises(QiskitServerlessException) as exc:
             none_client.provider_file_delete("nonexistent.txt", fn)
         _assert_404(exc)
+
+    def test_provider_logs_raises_403(self, none_client, seeded_job_id):
+        """provider_logs() is denied (403) when no permissions are present."""
+        with pytest.raises(QiskitServerlessException) as exc:
+            none_client.provider_logs(seeded_job_id)
+        _assert_403(exc)
 
 
 class TestUserInstance:
@@ -358,6 +369,12 @@ class TestUserInstance:
         with pytest.raises(QiskitServerlessException) as exc:
             user_client.provider_file_delete("nonexistent.txt", fn)
         _assert_404(exc)
+
+    def test_provider_logs_raises_403(self, user_client, seeded_job_id):
+        """provider_logs() is denied (403) when function-provider-logs.read is absent."""
+        with pytest.raises(QiskitServerlessException) as exc:
+            user_client.provider_logs(seeded_job_id)
+        _assert_403(exc)
 
 
 class TestProviderInstance:
@@ -511,6 +528,11 @@ class TestProviderInstance:
         remaining = provider_client.provider_files(fn)
         assert "del_test.txt" not in remaining
 
+    def test_provider_logs_succeeds(self, provider_client, seeded_job_id):
+        """provider_logs() succeeds when function-provider-logs.read is present."""
+        logs = provider_client.provider_logs(seeded_job_id)
+        assert logs is not None
+
 
 class TestCombinedInstance:
     """
@@ -628,6 +650,11 @@ class TestCombinedInstance:
         job_data = combined_client.get_job_data(seeded_job_id)
         assert job_data is not None
         assert "status" in job_data
+
+    def test_provider_logs_succeeds(self, combined_client, seeded_job_id):
+        """provider_logs() succeeds with full permissions."""
+        logs = combined_client.provider_logs(seeded_job_id)
+        assert logs is not None
 
     def test_provider_files_list_returns_list(self, combined_client, provider_name, function_title):
         """provider_files() succeeds with full permissions."""
