@@ -211,15 +211,10 @@ class FleetsRunner(AbstractRunner):
                             self._project.pds_name_providers,
                             paths["provider_function_prefix"],
                         ),
-                        (
-                            paths["provider_logs_mount_path"],
-                            self._project.pds_name_providers,
-                            paths["provider_job_prefix"],
-                        ),
                     ]
                 )
                 run_env_variables = build_run_env_variables(
-                    primary_mount_path=paths["provider_logs_mount_path"],
+                    primary_mount_path=f"{paths['provider_mount_path']}/jobs/{str(self.job.id)}",
                     primary_log_filename=LOG_FILENAME,
                     secondary_mount_path=paths["user_mount_path"],
                     secondary_log_filename=LOG_FILENAME,
@@ -549,7 +544,6 @@ class FleetsRunner(AbstractRunner):
             "user_arguments_key": f"{user_job_prefix}/arguments.json",
             "user_mount_path": "/data",
             "provider_mount_path": "/function_data",
-            "provider_logs_mount_path": "/provider_logs",
         }
 
     def _upload_arguments_to_cos(self, paths: dict[str, str]) -> None:
