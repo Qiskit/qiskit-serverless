@@ -267,7 +267,6 @@ def test_build_cos_paths_custom_function():
     assert paths["provider_log_key"] == "providers/default/hello-world/jobs/job-aaa-111/logs.log"
     assert paths["user_mount_path"] == "/data"
     assert paths["provider_mount_path"] == "/function_data"
-    assert paths["provider_logs_mount_path"] == "/provider_logs"
 
 
 def test_build_cos_paths_provider_function():
@@ -657,7 +656,7 @@ def test_build_gateway_env_vars_returns_formatted_list():
     runner, _ = _make_runner()
     runner.job.env_vars = '{"KEY1": "val1", "KEY2": "val2"}'
 
-    with patch(f"{_RUNNER_MOD}.decrypt_env_vars", side_effect=lambda e: e):
+    with _patch_settings(FLEETS_GATEWAY_HOST=None), patch(f"{_RUNNER_MOD}.decrypt_env_vars", side_effect=lambda e: e):
         result = runner._build_gateway_env_vars()  # pylint: disable=protected-access
 
     assert result == [
@@ -688,18 +687,18 @@ def test_build_gateway_env_vars_filters_empty_values():
     def passthrough(e):
         return e
 
-    with patch(f"{_RUNNER_MOD}.decrypt_env_vars", side_effect=passthrough):
+    with _patch_settings(FLEETS_GATEWAY_HOST=None), patch(f"{_RUNNER_MOD}.decrypt_env_vars", side_effect=passthrough):
         result = runner._build_gateway_env_vars()  # pylint: disable=protected-access
 
     assert result == [{"type": "literal", "name": "KEEP", "value": "value"}]
 
 
 def test_build_gateway_env_vars_empty_env_vars():
-    """_build_gateway_env_vars() returns an empty list when job has no env vars."""
+    """_build_gateway_env_vars() returns an empty list when job has no env vars and no gateway host."""
     runner, _ = _make_runner()
     runner.job.env_vars = "{}"
 
-    with patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value={}):
+    with _patch_settings(FLEETS_GATEWAY_HOST=None), patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value={}):
         result = runner._build_gateway_env_vars()  # pylint: disable=protected-access
 
     assert result == []
@@ -729,3 +728,44 @@ def test_submit_includes_gateway_env_vars():
     env_list = call_kwargs["extra_fields"]["run_env_variables"]
     assert {"type": "literal", "name": "MY_TOKEN", "value": "decrypted_secret"} in env_list
     assert {"type": "literal", "name": "MY_URL", "value": "http://example.com"} in env_list
+
+
+def test_build_gateway_env_vars_includes_gateway_host():
+    """_build_gateway_env_vars() injects ENV_JOB_GATEWAY_HOST from settings.FLEETS_GATEWAY_HOST."""
+    runner, _ = _make_runner()
+    runner.job.env_vars = "{}"
+
+    with (
+        _patch_settings(FLEETS_GATEWAY_HOST="https://gateway.example.com"),
+        patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value={}),
+    ):
+        result = runner._build_gateway_env_vars()  # pylint: disable=protected-access
+
+    assert {"type": "literal", "name": "ENV_JOB_GATEWAY_HOST", "value": "https://gateway.example.com"} in result
+
+
+def test_submit_arguments_path_set_exactly_once():
+    """submit() sets ARGUMENTS_PATH exactly once even when it appears in job env vars."""
+    runner, mock_handler = _make_submit_runner()
+    runner.job.env_vars = '{"ARGUMENTS_PATH": "/old/stale/path", "OTHER": "val"}'
+    runner.job.author.username = "user-1"
+    runner.job.program.provider = None
+    runner.job.program.title = "prog"
+    runner.job.program.runner = Program.FLEETS
+
+    runner._project.cos_bucket_user_data_name = "user-bucket"  # pylint: disable=protected-access
+    runner._project.cos_bucket_provider_data_name = "prov-bucket"  # pylint: disable=protected-access
+    runner._project.cos_instance_name = "cos-inst"  # pylint: disable=protected-access
+    runner._project.cos_key_name = "cos-key"  # pylint: disable=protected-access
+    runner._project.pds_name_users = "pds-users"  # pylint: disable=protected-access
+    runner._project.pds_name_providers = "pds-provs"  # pylint: disable=protected-access
+
+    decrypted = {"ARGUMENTS_PATH": "/old/stale/path", "OTHER": "val"}
+    with _patch_settings(), patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value=decrypted):
+        runner.submit()
+
+    call_kwargs = mock_handler.submit_job.call_args.kwargs
+    env_list = call_kwargs["extra_fields"]["run_env_variables"]
+    arguments_path_entries = [e for e in env_list if e.get("name") == "ARGUMENTS_PATH"]
+    assert len(arguments_path_entries) == 1
+    assert arguments_path_entries[0]["value"] == "/data/arguments.json"
