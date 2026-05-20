@@ -1,7 +1,7 @@
 """Tests for job logs APIs."""
 
 from typing import Optional
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, MagicMock, patch
 
 import pytest
 from django.contrib.auth.models import User, Group
@@ -11,6 +11,7 @@ from rest_framework.test import APIClient
 
 from prometheus_client import CollectorRegistry
 
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import ComputeResource, Job, Program, Provider
 from core.services.runners import RunnerError
 from scheduler.kill_signal import KillSignal
@@ -81,8 +82,10 @@ class TestJobLogsPermissions:
         user_caller, _ = User.objects.get_or_create(username=caller)
         job = create_job(author="author", provider_admin=provider_admin)
 
+        token = MagicMock()
+        token.accessible_functions = FunctionAccessResult(use_legacy_authorization=True)
         client = APIClient()
-        client.force_authenticate(user=user_caller)
+        client.force_authenticate(user=user_caller, token=token)
         response = client.get(reverse(endpoint, args=[str(job.id)]), format="json")
 
         assert response.status_code == expected_status
@@ -118,7 +121,9 @@ class TestJobLogsCoverage:
     def _authorize(self, username):
         """Authorize client and return the user."""
         user, _ = User.objects.get_or_create(username=username)
-        self.client.force_authenticate(user=user)
+        token = MagicMock()
+        token.accessible_functions = FunctionAccessResult(use_legacy_authorization=True)
+        self.client.force_authenticate(user=user, token=token)
         return user
 
     @patch("scheduler.tasks.update_ray_jobs_statuses.get_runner")
