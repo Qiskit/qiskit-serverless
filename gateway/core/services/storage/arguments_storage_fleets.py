@@ -25,6 +25,7 @@ class FleetsArgumentsStorage(ArgumentsStorage):
             raise ValueError(f"Job '{job.id}' has no CodeEngineProject assigned")
 
         self._job_id = str(job.id)
+        self._user_id = job.author.id
         self._project = job.code_engine_project
 
         bucket = job.code_engine_project.cos_bucket_user_data_name
@@ -57,7 +58,8 @@ class FleetsArgumentsStorage(ArgumentsStorage):
             key=self._arguments_key,
         )
         logger.info(
-            "[save] job_id=%s bucket=%s key=%s Arguments saved to COS",
+            "[save] user_id=%s job_id=%s bucket=%s key=%s Arguments saved to COS",
+            self._user_id,
             self._job_id,
             self._bucket,
             self._arguments_key,
@@ -68,5 +70,10 @@ class FleetsArgumentsStorage(ArgumentsStorage):
             data = self._get_cos().get_object_bytes(bucket_name=self._bucket, key=self._arguments_key)
             return data.decode("utf-8") if data else None
         except Exception:  # pylint: disable=broad-exception-caught
-            logger.warning("[get] job_id=%s Could not retrieve arguments from COS", self._job_id)
+            logger.warning(
+                "[get] user_id=%s job_id=%s key=%s Could not retrieve arguments from COS",
+                self._user_id,
+                self._job_id,
+                self._arguments_key,
+            )
             return None
