@@ -225,6 +225,36 @@ class TestNoPermissionsInstance:
             none_client.provider_file_delete("nonexistent.txt", fn)
         _assert_404(exc)
 
+    def test_provider_files_list_raises_404(self, none_client, provider_name, function_title):
+        """provider_files() is denied (404) when no permissions are present."""
+        fn = QiskitFunction(title=function_title, provider=provider_name)
+        with pytest.raises(QiskitServerlessException) as exc:
+            none_client.provider_files(fn)
+        _assert_404(exc)
+
+    def test_provider_file_upload_raises_404(self, none_client, provider_name, function_title, tmp_path):
+        """provider_file_upload() is denied (404) when no permissions are present."""
+        file = tmp_path / "data.txt"
+        file.write_text("content")
+        fn = QiskitFunction(title=function_title, provider=provider_name)
+        with pytest.raises(QiskitServerlessException) as exc:
+            none_client.provider_file_upload(str(file), fn)
+        _assert_404(exc)
+
+    def test_provider_file_download_raises_404(self, none_client, provider_name, function_title, tmp_path):
+        """provider_file_download() is denied (404) when no permissions are present."""
+        fn = QiskitFunction(title=function_title, provider=provider_name)
+        with pytest.raises(requests.exceptions.HTTPError) as exc:
+            none_client.provider_file_download("nonexistent.txt", fn, download_location=str(tmp_path))
+        _assert_download_404(exc)
+
+    def test_provider_file_delete_raises_404(self, none_client, provider_name, function_title):
+        """provider_file_delete() is denied (404) when no permissions are present."""
+        fn = QiskitFunction(title=function_title, provider=provider_name)
+        with pytest.raises(QiskitServerlessException) as exc:
+            none_client.provider_file_delete("nonexistent.txt", fn)
+        _assert_404(exc)
+
     def test_provider_logs_raises_403(self, none_client, seeded_job_id):
         """provider_logs() is denied (403) when no permissions are present."""
         with pytest.raises(QiskitServerlessException) as exc:
@@ -335,6 +365,39 @@ class TestUserInstance:
         fn = QiskitFunction(title=function_title, provider=provider_name)
         with pytest.raises(QiskitServerlessException) as exc:
             user_client.provider_jobs(fn)
+        _assert_404(exc)
+
+    def test_provider_files_list_raises_404(self, user_client, provider_name, function_title):
+        """provider_files() is denied (404) when function-provider-files.read is absent.
+
+        user_instance has function-files.read/write but not function-provider-files.read.
+        """
+        fn = QiskitFunction(title=function_title, provider=provider_name)
+        with pytest.raises(QiskitServerlessException) as exc:
+            user_client.provider_files(fn)
+        _assert_404(exc)
+
+    def test_provider_file_upload_raises_404(self, user_client, provider_name, function_title, tmp_path):
+        """provider_file_upload() is denied (404) when function-provider-files.write is absent."""
+        file = tmp_path / "data.txt"
+        file.write_text("content")
+        fn = QiskitFunction(title=function_title, provider=provider_name)
+        with pytest.raises(QiskitServerlessException) as exc:
+            user_client.provider_file_upload(str(file), fn)
+        _assert_404(exc)
+
+    def test_provider_file_download_raises_404(self, user_client, provider_name, function_title, tmp_path):
+        """provider_file_download() is denied (404) when function-provider-files.read is absent."""
+        fn = QiskitFunction(title=function_title, provider=provider_name)
+        with pytest.raises(requests.exceptions.HTTPError) as exc:
+            user_client.provider_file_download("nonexistent.txt", fn, download_location=str(tmp_path))
+        _assert_download_404(exc)
+
+    def test_provider_file_delete_raises_404(self, user_client, provider_name, function_title):
+        """provider_file_delete() is denied (404) when function-provider-files.write is absent."""
+        fn = QiskitFunction(title=function_title, provider=provider_name)
+        with pytest.raises(QiskitServerlessException) as exc:
+            user_client.provider_file_delete("nonexistent.txt", fn)
         _assert_404(exc)
 
     def test_provider_files_list_raises_404(self, user_client, provider_name, function_title):
