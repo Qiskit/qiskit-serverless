@@ -19,6 +19,7 @@ from api.use_cases.files.provider_delete import FilesProviderDeleteUseCase
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_file_name, sanitize_name
+from core.domain.authorization.function_access_result import FunctionAccessResult
 
 logger = logging.getLogger("api.api.v1.views.files.provider_delete")
 
@@ -113,8 +114,17 @@ def files_provider_delete(request: Request) -> Response:
     file = serializer.validated_data.get("file")
 
     user = cast(AbstractUser, request.user)
+    accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
+    logger.info(
+        "[files-provider-delete] user_id=%s function=%s provider=%s file=%s accessible_functions=%s",
+        user.id,
+        function,
+        provider,
+        file,
+        accessible_functions,
+    )
 
-    FilesProviderDeleteUseCase().execute(user, provider, function, file)
+    FilesProviderDeleteUseCase().execute(user, provider, function, file, accessible_functions=accessible_functions)
     logger.info(
         "[files-provider-delete] user_id=%s function=%s provider=%s file=%s | Provider file deleted ok",
         user.id,

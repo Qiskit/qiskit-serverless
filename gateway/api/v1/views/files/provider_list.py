@@ -19,6 +19,7 @@ from api.use_cases.files.provider_list import FilesProviderListUseCase
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_name
+from core.domain.authorization.function_access_result import FunctionAccessResult
 
 logger = logging.getLogger("api.api.v1.views.files.provider_list")
 
@@ -100,8 +101,16 @@ def files_provider_list(request: Request) -> Response:
     provider = serializer.validated_data.get("provider")
 
     user = cast(AbstractUser, request.user)
+    accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
+    logger.info(
+        "[files-provider-list] user_id=%s function=%s provider=%s accessible_functions=%s",
+        user.id,
+        function,
+        provider,
+        accessible_functions,
+    )
 
-    files = FilesProviderListUseCase().execute(user, provider, function)
+    files = FilesProviderListUseCase().execute(user, provider, function, accessible_functions=accessible_functions)
     logger.info(
         "[files-provider-list] user_id=%s function=%s provider=%s | Provider files listed ok",
         user.id,

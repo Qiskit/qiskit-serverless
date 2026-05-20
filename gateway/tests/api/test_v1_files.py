@@ -2,6 +2,7 @@
 
 import os
 import shutil
+from unittest.mock import MagicMock
 from urllib.parse import urlencode
 
 import pytest
@@ -14,6 +15,7 @@ from django.core.cache import cache
 from django.conf import settings as dj_settings
 
 from core.config_key import ConfigKey
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import Config
 
 
@@ -37,6 +39,11 @@ class TestFilesApi:
         Config.add_defaults()
         self.client = APIClient()
 
+    def _authenticate(self, user):
+        token = MagicMock()
+        token.accessible_functions = FunctionAccessResult(use_legacy_authorization=True)
+        self.client.force_authenticate(user=user, token=token)
+
     def test_files_list_non_authorized(self):
         """Tests files list non-authorized."""
         url = reverse("v1:files-list")
@@ -46,7 +53,7 @@ class TestFilesApi:
     def test_files_list_with_empty_params(self):
         """Tests files list using empty params"""
         user = models.User.objects.get(username="test_user")
-        self.client.force_authenticate(user=user)
+        self._authenticate(user)
         url = reverse("v1:files-list")
         response = self.client.get(url, format="json")
         assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -58,7 +65,7 @@ class TestFilesApi:
         shutil.copytree(self._fake_media_path, dj_settings.MEDIA_ROOT, dirs_exist_ok=True)
 
         user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        self._authenticate(user)
         url = reverse("v1:files-list")
         response = self.client.get(
             url,
@@ -76,7 +83,7 @@ class TestFilesApi:
         function = "Program"
 
         user = models.User.objects.get(username="test_user")
-        self.client.force_authenticate(user=user)
+        self._authenticate(user)
         url = reverse("v1:files-list")
         response = self.client.get(
             url,
@@ -96,7 +103,7 @@ class TestFilesApi:
         shutil.copytree(self._fake_media_path, dj_settings.MEDIA_ROOT, dirs_exist_ok=True)
 
         user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        self._authenticate(user)
         url = reverse("v1:files-list")
         response = self.client.get(
             url,
@@ -115,7 +122,7 @@ class TestFilesApi:
         function = "Program"
 
         user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        self._authenticate(user)
         url = reverse("v1:files-list")
         response = self.client.get(
             url,
@@ -135,7 +142,7 @@ class TestFilesApi:
         shutil.copytree(self._fake_media_path, dj_settings.MEDIA_ROOT, dirs_exist_ok=True)
 
         user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        self._authenticate(user)
         url = reverse("v1:files-provider-list")
         response = self.client.get(
             url,
@@ -154,7 +161,7 @@ class TestFilesApi:
         function = "Program"
 
         user = models.User.objects.get(username="test_user")
-        self.client.force_authenticate(user=user)
+        self._authenticate(user)
         url = reverse("v1:files-provider-list")
         response = self.client.get(
             url,
@@ -172,7 +179,7 @@ class TestFilesApi:
         function = "personal-program"
 
         user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        self._authenticate(user)
         url = reverse("v1:files-download")
         response = self.client.get(
             url,
@@ -192,7 +199,7 @@ class TestFilesApi:
         function = "personal-program"
 
         user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        self._authenticate(user)
         url = reverse("v1:files-download")
         response = self.client.get(
             url,
@@ -212,7 +219,7 @@ class TestFilesApi:
         function = "Program"
 
         user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        self._authenticate(user)
         url = reverse("v1:files-provider-download")
         response = self.client.get(
             url,
@@ -234,7 +241,7 @@ class TestFilesApi:
         function = "Program"
 
         user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        self._authenticate(user)
         url = reverse("v1:files-provider-download")
         response = self.client.get(
             url,
@@ -262,7 +269,7 @@ class TestFilesApi:
 
         query_params = {"function": function, "file": file}
         user = models.User.objects.get(username=username)
-        self.client.force_authenticate(user=user)
+        self._authenticate(user)
         url = reverse("v1:files-delete")
         response = self.client.delete(f"{url}?{urlencode(query_params)}")
         assert response.status_code == status.HTTP_200_OK
@@ -282,7 +289,7 @@ class TestFilesApi:
 
         query_params = {"function": function, "provider": provider, "file": file}
         user = models.User.objects.get(username=username)
-        self.client.force_authenticate(user=user)
+        self._authenticate(user)
         url = reverse("v1:files-provider-delete")
         response = self.client.delete(f"{url}?{urlencode(query_params)}")
         assert response.status_code == status.HTTP_200_OK
@@ -295,7 +302,7 @@ class TestFilesApi:
 
         query_params = {"function": function, "file": file}
         user = models.User.objects.get(username=username)
-        self.client.force_authenticate(user=user)
+        self._authenticate(user)
         url = reverse("v1:files-delete")
         response = self.client.delete(f"{url}?{urlencode(query_params)}")
         assert response.status_code == status.HTTP_404_NOT_FOUND
@@ -309,7 +316,7 @@ class TestFilesApi:
 
         query_params = {"function": function, "provider": provider, "file": file}
         user = models.User.objects.get(username=username)
-        self.client.force_authenticate(user=user)
+        self._authenticate(user)
         url = reverse("v1:files-provider-delete")
         response = self.client.delete(f"{url}?{urlencode(query_params)}")
         assert response.status_code == status.HTTP_404_NOT_FOUND
@@ -319,7 +326,7 @@ class TestFilesApi:
         settings.UPLOAD_FILE_VALID_MIME_TYPES = ["text/plain"]
         function = "personal-program"
         user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        self._authenticate(user)
         url = reverse("v1:files-upload")
 
         with open("README.md") as f:
@@ -339,7 +346,7 @@ class TestFilesApi:
         provider = "default"
         function = "Program"
         user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        self._authenticate(user)
         url = reverse("v1:files-provider-upload")
 
         with open("README.md") as f:
@@ -358,7 +365,7 @@ class TestFilesApi:
         provider = "default"
         function = "Program"
         user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        self._authenticate(user)
         url = reverse("v1:files-provider-upload")
 
         path_to_resource_artifact = os.path.join(
@@ -384,7 +391,7 @@ class TestFilesApi:
         Config.set(ConfigKey.UPLOAD_FILE_VALID_MIME_TYPES, '["image/jpeg"]')
         function = "personal-program"
         user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        self._authenticate(user)
         url = reverse("v1:files-upload")
 
         with open("README.md") as f:
@@ -402,7 +409,7 @@ class TestFilesApi:
         """Tests uploading existing file."""
         function = "personal-program"
         user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        self._authenticate(user)
         url = reverse("v1:files-upload")
 
         path_to_resource_artifact = os.path.join(
@@ -428,7 +435,7 @@ class TestFilesApi:
         provider = "default"
         function = "Program"
         user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        self._authenticate(user)
         url = reverse("v1:files-provider-upload")
 
         query_params = {"function": function, "provider": provider}
@@ -443,7 +450,7 @@ class TestFilesApi:
         """Tests uploading existing file."""
         function = "personal-program"
         user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        self._authenticate(user)
         url = reverse("v1:files-upload")
 
         query_params = {"function": function}
@@ -458,7 +465,7 @@ class TestFilesApi:
         """Tests directory escape / injection."""
         function = "personal-program"
         user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        self._authenticate(user)
         url = reverse("v1:files-download")
 
         response = self.client.get(

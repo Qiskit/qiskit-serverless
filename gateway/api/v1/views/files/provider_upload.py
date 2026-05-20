@@ -20,6 +20,7 @@ from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_name
 from api.v1.views.utils import validate_uploaded_file
+from core.domain.authorization.function_access_result import FunctionAccessResult
 
 logger = logging.getLogger("api.api.v1.views.files.provider_upload")
 
@@ -107,8 +108,18 @@ def files_provider_upload(request: Request) -> Response:
     validate_uploaded_file(uploaded_file)
 
     user = cast(AbstractUser, request.user)
+    accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
+    logger.info(
+        "[files-provider-upload] user_id=%s function=%s provider=%s accessible_functions=%s",
+        user.id,
+        function,
+        provider,
+        accessible_functions,
+    )
 
-    result = FilesProviderUploadUseCase().execute(user, provider, function, uploaded_file)
+    result = FilesProviderUploadUseCase().execute(
+        user, provider, function, uploaded_file, accessible_functions=accessible_functions
+    )
     logger.info(
         "[files-provider-upload] user_id=%s function=%s provider=%s | Provider file uploaded ok",
         user.id,
