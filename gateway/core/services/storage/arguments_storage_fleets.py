@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import io
 import logging
-from typing import Optional
 
 from core.ibm_cloud import get_cos_client
 from core.models import Job
@@ -58,15 +57,5 @@ class FleetsArgumentsStorage(ArgumentsStorage):
             self._arguments_key,
         )
 
-    def get(self) -> Optional[str]:
-        try:
-            data = get_cos_client(self._project).get_object_bytes(bucket_name=self._bucket, key=self._arguments_key)
-            return data.decode("utf-8") if data else None
-        except Exception:  # pylint: disable=broad-exception-caught
-            logger.warning(
-                "[get] user_id=%s job_id=%s key=%s Could not retrieve arguments from COS",
-                self._user_id,
-                self._job_id,
-                self._arguments_key,
-            )
-            return None
+    def get(self) -> str | None:
+        raise NotImplementedError
