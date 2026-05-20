@@ -57,7 +57,7 @@ class FleetsArgumentsStorage(ArgumentsStorage):
             key=self._arguments_key,
         )
         logger.info(
-            "Arguments for job [%s] saved to COS at %s/%s",
+            "[save] job_id=%s bucket=%s key=%s Arguments saved to COS",
             self._job_id,
             self._bucket,
             self._arguments_key,
@@ -68,5 +68,5 @@ class FleetsArgumentsStorage(ArgumentsStorage):
             data = self._get_cos().get_object_bytes(bucket_name=self._bucket, key=self._arguments_key)
             return data.decode("utf-8") if data else None
         except Exception:  # pylint: disable=broad-exception-caught
-            logger.warning("Could not retrieve arguments for job [%s] from COS", self._job_id)
+            logger.warning("[get] job_id=%s Could not retrieve arguments from COS", self._job_id)
             return None
