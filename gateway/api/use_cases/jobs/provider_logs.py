@@ -3,6 +3,7 @@ Use case: retrieve job logs.
 """
 
 import logging
+from typing import Optional
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
@@ -11,6 +12,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.domain.exceptions.invalid_access_exception import InvalidAccessException
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.filter_logs import filter_logs_with_non_public_tags
 from core.models import Job
 from core.utils import check_logs
@@ -23,12 +25,19 @@ logger = logging.getLogger("api.GetProviderJobLogsUseCase")
 class GetProviderJobLogsUseCase:
     """Use case for retrieving job logs."""
 
-    def execute(self, job_id: UUID, user: AbstractUser) -> str:
+    def execute(
+        self,
+        job_id: UUID,
+        user: AbstractUser,
+        accessible_functions: Optional[FunctionAccessResult] = None,
+    ) -> str:
         """Return the logs of a job if the user has access.
 
         Args:
             job_id (str): Unique identifier of the job.
             user (AbstractUser): User requesting the logs.
+            accessible_functions: Result from FunctionAccessClient; if None or
+                use_legacy_authorization=True, falls back to Django groups.
 
         Raises:
             NotFoundError: If the job does not exist.
@@ -41,7 +50,7 @@ class GetProviderJobLogsUseCase:
         except ObjectDoesNotExist:
             raise JobNotFoundException(job_id)
 
-        if not JobAccessPolicies.can_read_provider_logs(user, job):
+        if not JobAccessPolicies.can_read_provider_logs(user, job, accessible_functions=accessible_functions):
             raise InvalidAccessException(f"You don't have access to job [{job_id}]")
 
         # Logs stored in COS. They are already filtered
