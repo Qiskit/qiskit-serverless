@@ -4,13 +4,11 @@ from __future__ import annotations
 
 import io
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
+from core.ibm_cloud import get_cos_client
 from core.models import Job
 from core.services.storage.arguments_storage import ArgumentsStorage
-
-if TYPE_CHECKING:
-    from core.ibm_cloud.code_engine.fleets.cos import JobCOS
 
 logger = logging.getLogger("core.FleetsArgumentsStorage")
 
@@ -46,13 +44,8 @@ class FleetsArgumentsStorage(ArgumentsStorage):
 
         self._arguments_key = f"{path}/{self.ARGUMENTS_FILENAME}"
 
-    def _get_cos(self) -> "JobCOS":
-        from core.ibm_cloud import get_cos_client  # pylint: disable=import-outside-toplevel
-
-        return get_cos_client(self._project)
-
     def save(self, arguments: str) -> None:
-        self._get_cos().upload_fileobj(
+        get_cos_client(self._project).upload_fileobj(
             fileobj=io.BytesIO(arguments.encode("utf-8")),
             bucket_name=self._bucket,
             key=self._arguments_key,
@@ -67,7 +60,7 @@ class FleetsArgumentsStorage(ArgumentsStorage):
 
     def get(self) -> Optional[str]:
         try:
-            data = self._get_cos().get_object_bytes(bucket_name=self._bucket, key=self._arguments_key)
+            data = get_cos_client(self._project).get_object_bytes(bucket_name=self._bucket, key=self._arguments_key)
             return data.decode("utf-8") if data else None
         except Exception:  # pylint: disable=broad-exception-caught
             logger.warning(
