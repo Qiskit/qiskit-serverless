@@ -2,6 +2,7 @@
 
 from core.models import Job, Program
 from core.services.storage.arguments_storage import ArgumentsStorage
+from core.services.storage.arguments_storage_fleets import FleetsArgumentsStorage
 from core.services.storage.arguments_storage_ray import RayArgumentsStorage
 
 
@@ -20,6 +21,5 @@ def get_arguments_storage(job: Job) -> ArgumentsStorage:
     if job.program.runner == Program.RAY:
         return RayArgumentsStorage(job)
     if job.program.runner == Program.FLEETS:
-        # Replace with FleetsArgumentsStorage once implemented
-        return RayArgumentsStorage(job)
+        return FleetsArgumentsStorage(job)
     raise ValueError(f"Unknown runner type: {job.program.runner}")
