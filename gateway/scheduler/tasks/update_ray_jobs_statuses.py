@@ -11,7 +11,7 @@ from core.domain.filter_logs import (
     filter_logs_with_public_tags,
     remove_prefix_tags_in_logs,
 )
-from core.services.storage.logs_storage import LogsStorage
+from core.services.storage import get_logs_storage
 from core.utils import check_logs
 from core.models import Job, JobEvent, Program
 from core.services.runners import get_runner, RunnerError
@@ -202,7 +202,7 @@ def save_logs_to_storage(job: Job, logs: str):
 
     logs = check_logs(logs, job)
 
-    logs_storage = LogsStorage(job)
+    logs_storage = get_logs_storage(job)
     if job.program.provider:
         public_logs = filter_logs_with_public_tags(logs)
         logs_storage.save_public_logs(public_logs)

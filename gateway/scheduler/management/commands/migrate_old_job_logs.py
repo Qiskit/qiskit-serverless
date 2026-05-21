@@ -5,7 +5,7 @@ import logging
 from django.core.management.base import BaseCommand
 
 from core.models import Job
-from core.services.storage.logs_storage import LogsStorage
+from core.services.storage import get_logs_storage
 from core.utils import check_logs
 from main import settings
 
@@ -22,7 +22,7 @@ def save_job_logs_to_storage(job: Job):
 
     logs = check_logs(job.logs, job)
 
-    logs_storage = LogsStorage(job)
+    logs_storage = get_logs_storage(job)
     if job.program.provider:
         logs_storage.save_private_logs(logs)
     else:

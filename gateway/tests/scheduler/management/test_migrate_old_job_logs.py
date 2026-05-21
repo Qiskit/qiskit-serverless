@@ -8,7 +8,7 @@ from django.contrib.auth.models import User, Group
 from django.core.management import call_command
 
 from core.models import ComputeResource, Job, Program, Provider, Config
-from core.services.storage.logs_storage import LogsStorage
+from core.services.storage import get_logs_storage
 
 
 @pytest.fixture(autouse=True)
@@ -74,7 +74,7 @@ def test_migrate_jobs_logs_to_storage_active():
     for job in [job_succeeded_active, job_failed_active, job_stopped_active, job_queued_active, job_running_active]:
         job.refresh_from_db()
         assert job.logs == test_logs
-        assert LogsStorage(job).get_public_logs() is None
+        assert get_logs_storage(job).get_public_logs() is None
 
 
 @pytest.mark.django_db
@@ -95,8 +95,8 @@ def test_migrate_jobs_logs_to_storage_active_with_provider():
     for job in jobs:
         job.refresh_from_db()
         assert job.logs == test_logs
-        assert LogsStorage(job).get_public_logs() is None
-        assert LogsStorage(job).get_private_logs() is None
+        assert get_logs_storage(job).get_public_logs() is None
+        assert get_logs_storage(job).get_private_logs() is None
 
 
 @pytest.mark.django_db
@@ -123,7 +123,7 @@ def test_migrate_jobs_logs_to_storage_not_active(settings):
     ]:
         job.refresh_from_db()
         assert job.logs == expected_logs
-        assert LogsStorage(job).get_public_logs() == expected_storage
+        assert get_logs_storage(job).get_public_logs() == expected_storage
 
 
 @pytest.mark.django_db
@@ -160,8 +160,8 @@ def test_migrate_jobs_logs_to_storage_not_active_with_provider(settings):
     ]:
         job.refresh_from_db()
         assert job.logs == expected_logs
-        assert LogsStorage(job).get_public_logs() == expected_public
-        assert LogsStorage(job).get_private_logs() == expected_private
+        assert get_logs_storage(job).get_public_logs() == expected_public
+        assert get_logs_storage(job).get_private_logs() == expected_private
 
 
 @pytest.mark.django_db

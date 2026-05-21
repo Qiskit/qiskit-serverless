@@ -167,7 +167,7 @@ Unprefixed message
         assert jobs_response.data.get("logs") == expected_logs
 
     @patch("api.use_cases.jobs.get_logs.get_runner")
-    @patch("core.services.storage.logs_storage.LogsStorage.get_public_logs")
+    @patch("core.services.storage.logs_storage_ray.RayLogsStorage.get_public_logs")
     def test_job_logs_in_ray(self, logs_storage_get_mock, get_runner_client_mock):
         """Tests /logs with user job from Ray."""
         logs_storage_get_mock.return_value = None
@@ -205,7 +205,7 @@ INFO: Final public log
         assert jobs_response.status_code == HTTP_200_OK
         assert jobs_response.data.get("logs") == expected_user_logs
 
-    @patch("core.services.storage.logs_storage.LogsStorage.get_public_logs")
+    @patch("core.services.storage.logs_storage_ray.RayLogsStorage.get_public_logs")
     def test_job_logs_in_db(self, logs_storage_get_mock):
         """Tests /logs with user job from DB (legacy)."""
         logs_storage_get_mock.return_value = None
@@ -226,7 +226,7 @@ INFO: Final public log
         assert jobs_response.data.get("logs") == "log from db"
 
     @patch("api.use_cases.jobs.get_logs.get_runner")
-    @patch("core.services.storage.logs_storage.LogsStorage.get_public_logs")
+    @patch("core.services.storage.logs_storage_ray.RayLogsStorage.get_public_logs")
     def test_job_logs_error(self, logs_storage_get_mock, get_runner_client_mock):
         """Tests /logs with user job, Ray error."""
         logs_storage_get_mock.return_value = None
@@ -286,7 +286,7 @@ Unprefixed message
         assert jobs_response.data.get("logs") == expected_provider_logs
 
     @patch("api.use_cases.jobs.provider_logs.get_runner")
-    @patch("core.services.storage.logs_storage.LogsStorage.get_private_logs")
+    @patch("core.services.storage.logs_storage_ray.RayLogsStorage.get_private_logs")
     def test_job_provider_logs_in_ray(self, logs_storage_get_mock, get_runner_client_mock):
         """Tests /provider-logs with provider job from Ray."""
         logs_storage_get_mock.return_value = None
@@ -323,7 +323,7 @@ WARNING: Private warning
         assert jobs_response.status_code == HTTP_200_OK
         assert jobs_response.data.get("logs") == expected_provider_logs
 
-    @patch("core.services.storage.logs_storage.LogsStorage.get_private_logs")
+    @patch("core.services.storage.logs_storage_ray.RayLogsStorage.get_private_logs")
     def test_job_provider_logs_in_db(self, logs_storage_get_mock):
         """Tests /provider-logs with provider job from DB (legacy)."""
         logs_storage_get_mock.return_value = None
@@ -359,7 +359,7 @@ WARNING: Private warning
         assert jobs_response.data.get("logs") == "No logs yet."
 
     @patch("api.use_cases.jobs.provider_logs.get_runner")
-    @patch("core.services.storage.logs_storage.LogsStorage.get_private_logs")
+    @patch("core.services.storage.logs_storage_ray.RayLogsStorage.get_private_logs")
     def test_job_provider_logs_error(self, logs_storage_get_mock, get_runner_client_mock):
         """Tests /provider-logs with provider job, Ray error."""
         logs_storage_get_mock.return_value = None
