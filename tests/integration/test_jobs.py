@@ -451,7 +451,7 @@ ERROR: Provider log
         assert event_data["code"] == "A123"
         assert event_data["message"] == "My error message"
         assert event_data["args"]["my-args"] == 123
-        assert expected_message == job.error_message()
+        assert expected_message == job.error_message().strip()
 
     def test_other_error_raise(self, serverless_client: ServerlessClient):
         """Integration test for submitting an error event within the function and retrieving it client-side."""
