@@ -17,7 +17,7 @@ from core.domain.filter_logs import filter_logs_with_non_public_tags
 from core.models import Job
 from core.utils import check_logs
 from core.services.runners import get_runner, RunnerError
-from core.services.storage.logs_storage import LogsStorage
+from core.services.storage import get_logs_storage
 
 logger = logging.getLogger("api.GetProviderJobLogsUseCase")
 
@@ -54,7 +54,7 @@ class GetProviderJobLogsUseCase:
             raise InvalidAccessException(f"You don't have access to job [{job_id}]")
 
         # Logs stored in COS. They are already filtered
-        logs_storage = LogsStorage(job)
+        logs_storage = get_logs_storage(job)
         logs = logs_storage.get_private_logs()
         if logs:
             return logs

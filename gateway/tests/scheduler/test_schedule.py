@@ -10,7 +10,7 @@ from rest_framework.test import APITestCase
 
 from core.models import Job, ComputeResource, JobEvent
 from core.services.runners import RunnerError
-from core.services.storage.logs_storage import LogsStorage
+from core.services.storage import get_logs_storage
 
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
@@ -193,7 +193,7 @@ class TestScheduleApi(APITestCase):
             # Since the job is in terminal state, its `logs` attribute instance is empty.
             # We need to check the logs in storage
             assert (
-                "Maximum job runtime reached" in LogsStorage(job).get_public_logs()
+                "Maximum job runtime reached" in get_logs_storage(job).get_public_logs()
             ), "Job logs should contain timeout message"
 
             job_events = JobEvent.objects.filter(job=job).order_by("created")

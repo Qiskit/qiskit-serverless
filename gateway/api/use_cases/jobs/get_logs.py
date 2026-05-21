@@ -15,7 +15,7 @@ from core.domain.filter_logs import remove_prefix_tags_in_logs, filter_logs_with
 from core.models import Job
 from core.services.runners import get_runner, RunnerError
 from core.utils import check_logs
-from core.services.storage.logs_storage import LogsStorage
+from core.services.storage import get_logs_storage
 
 logger = logging.getLogger("api.GetJobLogsUseCase")
 
@@ -45,7 +45,7 @@ class GetJobLogsUseCase:
             raise InvalidAccessException(f"You don't have access to read user logs of the job [{job_id}]")
 
         # Logs stored in COS. They are already filtered
-        logs_storage = LogsStorage(job)
+        logs_storage = get_logs_storage(job)
         logs = logs_storage.get_public_logs()
         if logs:
             return logs

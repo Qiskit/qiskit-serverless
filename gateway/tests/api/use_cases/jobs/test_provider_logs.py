@@ -48,9 +48,9 @@ def provider_job(author, provider):
 
 
 def _execute_provider_logs_use_case(job_id, user, logs_content="provider logs from COS", accessible_functions=None):
-    """Run execute() with LogsStorage returning logs from COS (happy path)."""
-    with patch("api.use_cases.jobs.provider_logs.LogsStorage") as mock_storage_cls:
-        mock_storage_cls.return_value.get_private_logs.return_value = logs_content
+    """Run execute() with get_logs_storage returning logs from COS (happy path)."""
+    with patch("api.use_cases.jobs.provider_logs.get_logs_storage") as mock_get_storage:
+        mock_get_storage.return_value.get_private_logs.return_value = logs_content
         return GetProviderJobLogsUseCase().execute(job_id, user, accessible_functions=accessible_functions)
 
 
