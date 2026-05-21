@@ -242,8 +242,8 @@ class Job:
 
         error_events = self.events(type="ERROR")
         if len(error_events) > 0:
-            error_msg = [format_err_event(evt) for evt in error_events]
-            return error_msg
+            error_msg_list = [format_err_event(evt) for evt in error_events]
+            return "\n\n".join(error_msg_list)
 
         error_result = self._job_service.result(self.job_id) if self.status() == "ERROR" else ""
 
