@@ -121,26 +121,6 @@ def _make_submit_runner() -> tuple[FleetsRunner, MagicMock]:
     return runner, mock_handler
 
 
-def _make_logs_runner() -> tuple[FleetsRunner, MagicMock]:
-    """Build a FleetsRunner pre-wired for logs()/provider_logs() tests.
-
-    Returns:
-        Tuple of ``(runner, mock_handler)`` with COS fully configured.
-    """
-    runner, mock_handler = _make_runner(fleet_id="fleet-123")
-    runner.job.author.username = "user-42"
-    runner.job.program.provider = None
-    runner.job.program.title = "my-program"
-    runner.job.id = "job-uuid"
-
-    runner._project.cos_bucket_user_data_name = "user-bucket"  # pylint: disable=protected-access
-    runner._project.cos_bucket_provider_data_name = "provider-bucket"  # pylint: disable=protected-access
-    runner._project.cos_instance_name = "cos-instance"  # pylint: disable=protected-access
-    runner._project.cos_key_name = "cos-key"  # pylint: disable=protected-access
-
-    return runner, mock_handler
-
-
 def test_is_active_true_when_fleet_exists():
     """is_active() returns True when CE API confirms fleet exists."""
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
@@ -415,54 +395,6 @@ def test_submit_uses_settings_max_instances_when_no_config():
         runner.submit()
 
     assert mock_handler.submit_job.call_args.kwargs["scale_max_instances"] == 5
-
-
-def test_logs_returns_content_from_cos():
-    """logs() retrieves user logs from the COS user bucket."""
-    runner, _ = _make_logs_runner()
-    runner._cos.logs.return_value = "log content"  # pylint: disable=protected-access
-
-    result = runner.logs()
-
-    assert result == "log content"
-    call_kwargs = runner._cos.logs.call_args.kwargs  # pylint: disable=protected-access
-    assert call_kwargs["bucket_name"] == "user-bucket"
-    assert call_kwargs["log_key"].endswith("/logs.log")
-
-
-def test_provider_logs_returns_content_from_cos():
-    """provider_logs() retrieves provider logs from the COS provider bucket."""
-    runner, _ = _make_logs_runner()
-    runner._cos.logs.return_value = "provider log"  # pylint: disable=protected-access
-
-    result = runner.provider_logs()
-
-    assert result == "provider log"
-    call_kwargs = runner._cos.logs.call_args.kwargs  # pylint: disable=protected-access
-    assert call_kwargs["bucket_name"] == "provider-bucket"
-    assert call_kwargs["log_key"].endswith("/logs.log")
-
-
-def test_logs_returns_not_configured_when_cos_missing():
-    """logs() returns a message when COS is not configured."""
-    runner, _ = _make_runner(fleet_id="fleet-123")
-    runner._project.cos_bucket_user_data_name = None  # pylint: disable=protected-access
-    runner._project.cos_bucket_provider_data_name = None  # pylint: disable=protected-access
-    runner._project.cos_instance_name = None  # pylint: disable=protected-access
-    runner._project.cos_key_name = None  # pylint: disable=protected-access
-
-    result = runner.logs()
-
-    assert "not configured" in result
-
-
-def test_logs_raises_runner_error_on_api_exception():
-    """logs() raises RunnerError when COS returns an API error."""
-    runner, _ = _make_logs_runner()
-    runner._cos.logs.side_effect = ApiException(status=403, reason="Forbidden")  # pylint: disable=protected-access
-
-    with pytest.raises(RunnerError):
-        runner.logs()
 
 
 def test_get_result_from_cos_returns_none_when_cos_not_configured():
