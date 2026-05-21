@@ -5,7 +5,8 @@ from core.services.storage.arguments_storage import ArgumentsStorage
 from core.services.storage.arguments_storage_fleets import FleetsArgumentsStorage
 from core.services.storage.arguments_storage_ray import RayArgumentsStorage
 from core.services.storage.logs_storage import LogsStorage
-from core.services.storage.logs_storage_fleets import FleetsLogsStorage
+
+# from core.services.storage.logs_storage_fleets import FleetsLogsStorage
 from core.services.storage.logs_storage_ray import RayLogsStorage
 
 
@@ -43,5 +44,7 @@ def get_logs_storage(job: Job) -> LogsStorage:
     if job.program.runner == Program.RAY:
         return RayLogsStorage(job)
     if job.program.runner == Program.FLEETS:
-        return FleetsLogsStorage(job)
+        # We will use RayLogs until we have the implementation in fleets
+        # return FleetsLogsStorage(job)
+        return RayLogsStorage(job)
     raise ValueError(f"Unknown runner type: {job.program.runner}")
