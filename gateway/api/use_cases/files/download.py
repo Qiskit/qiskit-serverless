@@ -30,6 +30,7 @@ class FilesDownloadUseCase:
         provider_name: str,
         function_title: str,
         requested_file_name: str,
+        *,
         accessible_functions: FunctionAccessResult,
     ) -> Tuple[Iterator[bytes], str, int]:
         """

@@ -29,6 +29,7 @@ class FilesDeleteUseCase:
         provider_name: str,
         function_title: str,
         file_name: str,
+        *,
         accessible_functions: FunctionAccessResult,
     ):
         """

@@ -29,6 +29,7 @@ class FilesUploadUseCase:
         provider_name: str,
         function_title: str,
         uploaded_file: File,
+        *,
         accessible_functions: FunctionAccessResult,
     ):
         """
