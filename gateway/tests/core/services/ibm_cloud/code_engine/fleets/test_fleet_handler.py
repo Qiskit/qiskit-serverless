@@ -156,7 +156,7 @@ def test_submit_job_with_builder_extra_fields(mock_fleets_api_cls, project_id, b
 
     extra_fields = {
         "run_volume_mounts": build_run_volume_mounts(mounts=[("/output", "test-pds", "test_user/fleet-1")]),
-        "run_env_variables": build_run_env_variables(primary_mount_path="/output"),
+        "run_env_variables": build_run_env_variables(public_mount_path="/output"),
         "run_commands": build_run_commands(app_run_commands=["python", "main.py"]),
     }
 
@@ -660,31 +660,70 @@ def test_build_run_volume_mounts_empty_raises():
         build_run_volume_mounts(mounts=[])
 
 
-def test_build_run_env_variables_primary_only():
-    """build_run_env_variables returns PRIMARY_LOG_DIR and PRIMARY_LOG_PATH."""
-    result = build_run_env_variables(primary_mount_path="/output")
+def test_build_run_env_variables_public_only():
+    """build_run_env_variables returns PUBLIC_LOG_DIR and PUBLIC_LOG_PATH."""
+    result = build_run_env_variables(public_mount_path="/output")
     names = {e["name"] for e in result}
-    assert "PRIMARY_LOG_DIR" in names
-    assert "PRIMARY_LOG_PATH" in names
-    assert "SECONDARY_LOG_DIR" not in names
+    assert "PUBLIC_LOG_DIR" in names
+    assert "PUBLIC_LOG_PATH" in names
+    assert "LOG_FLUSH_INTERVAL_SECONDS" in names
+    assert "PRIVATE_LOG_DIR" not in names
+    assert "PRIVATE_LOG_PATH" not in names
 
 
-def test_build_run_env_variables_secondary_without_mount_raises():
-    """build_run_env_variables raises when filter key given without secondary mount."""
-    with pytest.raises(ValueError, match="secondary_mount_path is required"):
-        build_run_env_variables(
-            primary_mount_path="/output",
-            secondary_log_filter_key="[public]",
-        )
+def test_build_run_env_variables_with_private_mount():
+    """build_run_env_variables exposes PRIVATE_* when private_mount_path is given."""
+    result = build_run_env_variables(
+        public_mount_path="/public",
+        private_mount_path="/private",
+    )
+    by_name = {e["name"]: e["value"] for e in result}
+    assert by_name["PUBLIC_LOG_DIR"] == "/public"
+    assert by_name["PUBLIC_LOG_PATH"] == "/public/logs.log"
+    assert by_name["PRIVATE_LOG_DIR"] == "/private"
+    assert by_name["PRIVATE_LOG_PATH"] == "/private/logs.log"
 
 
-def test_build_run_commands_primary_only():
-    """build_run_commands wraps command in a sh -c script with PRIMARY_LOG_PATH redirection."""
+def test_build_run_env_variables_default_flush_interval():
+    """build_run_env_variables defaults LOG_FLUSH_INTERVAL_SECONDS to 15."""
+    result = build_run_env_variables(public_mount_path="/output")
+    interval = next(e for e in result if e["name"] == "LOG_FLUSH_INTERVAL_SECONDS")
+    assert interval["value"] == "15"
+
+
+def test_build_run_env_variables_custom_flush_interval():
+    """build_run_env_variables honors flush_interval_seconds override."""
+    result = build_run_env_variables(public_mount_path="/output", flush_interval_seconds=42)
+    interval = next(e for e in result if e["name"] == "LOG_FLUSH_INTERVAL_SECONDS")
+    assert interval["value"] == "42"
+
+
+def test_build_run_env_variables_missing_public_raises():
+    """build_run_env_variables raises when public_mount_path is missing."""
+    with pytest.raises(ValueError, match="public_mount_path is required"):
+        build_run_env_variables(public_mount_path="")
+
+
+def test_build_run_commands_public_only():
+    """build_run_commands renders the custom-job template (single public log)."""
     result = build_run_commands(app_run_commands=["python", "main.py"])
+    script = result[2]
     assert result[0] == "sh"
     assert result[1] == "-c"
-    assert "python" in result[2]
-    assert "PRIMARY_LOG_PATH" in result[2]
+    assert "python" in script
+    assert "PUBLIC_LOG_PATH" in script
+    assert "LOCAL_PUBLIC" in script
+    assert "LOG_FLUSH_INTERVAL_SECONDS" in script
+    assert "flush_final" in script
+    assert "wc -c" in script
+    # Prefix-stripping awk is hardcoded with the SDK casing.
+    assert "[PUBLIC]" in script
+    assert "[PRIVATE]" in script
+    assert "toupper" in script
+    # Provider-only artefacts must not appear in the custom-job template.
+    assert "PRIVATE_LOG_PATH" not in script
+    assert "LOCAL_PRIVATE" not in script
+    assert "mkfifo" not in script
 
 
 def test_build_run_commands_empty_raises():
@@ -693,11 +732,30 @@ def test_build_run_commands_empty_raises():
         build_run_commands(app_run_commands=[])
 
 
-def test_build_run_commands_with_secondary_log():
-    """build_run_commands includes tee/awk piping when secondary_log_filter_key is set."""
+def test_build_run_commands_with_private_log():
+    """build_run_commands renders the provider-job template (split public/private)."""
     result = build_run_commands(
         app_run_commands=["python", "main.py"],
-        secondary_log_filter_key="[public]",
+        with_private_log=True,
     )
-    assert "SECONDARY_LOG_PATH" in result[2]
-    assert "awk" in result[2]
+    script = result[2]
+    assert "PUBLIC_LOG_PATH" in script
+    assert "PRIVATE_LOG_PATH" in script
+    assert "LOCAL_PUBLIC" in script
+    assert "LOCAL_PRIVATE" in script
+    assert "awk" in script
+    assert "mkfifo" in script
+    assert "flush_final" in script
+    assert "wc -c" in script
+    # Prefix-stripping awk is hardcoded with the SDK casing.
+    assert "[PUBLIC]" in script
+    assert "[PRIVATE]" in script
+    assert "toupper" in script
+
+
+def test_build_run_commands_app_cmd_not_html_escaped():
+    """build_run_commands keeps shell metacharacters intact (no HTML autoescape)."""
+    result = build_run_commands(app_run_commands=["sh", "-c", "echo a && echo b"])
+    # Shell quoting from shlex must survive Django rendering as-is.
+    assert "&amp;" not in result[2]
+    assert "&&" in result[2]

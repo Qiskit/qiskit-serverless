@@ -38,7 +38,6 @@ from core.ibm_cloud.code_engine.fleets.utils import (
 
 logger = logging.getLogger("FleetsRunner")
 
-LOG_FILTER_KEY = "[public]"
 LOG_FILENAME = "logs.log"
 
 
@@ -217,11 +216,10 @@ class FleetsRunner(AbstractRunner):
                     ]
                 )
                 run_env_variables = build_run_env_variables(
-                    primary_mount_path=paths["provider_logs_mount_path"],
-                    primary_log_filename=LOG_FILENAME,
-                    secondary_mount_path=paths["user_mount_path"],
-                    secondary_log_filename=LOG_FILENAME,
-                    secondary_log_filter_key=LOG_FILTER_KEY,
+                    public_mount_path=paths["user_mount_path"],
+                    public_log_filename=LOG_FILENAME,
+                    private_mount_path=paths["provider_logs_mount_path"],
+                    private_log_filename=LOG_FILENAME,
                 )
 
                 gateway_env = self._build_gateway_env_vars()
@@ -236,7 +234,7 @@ class FleetsRunner(AbstractRunner):
                 )
                 run_commands = build_run_commands(
                     app_run_commands=["python", f"{paths['provider_mount_path']}/{self.job.program.entrypoint}"],
-                    secondary_log_filter_key=LOG_FILTER_KEY,
+                    with_private_log=True,
                 )
                 extra_fields.update(
                     {

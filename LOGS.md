@@ -20,16 +20,29 @@ During the function execution, the code could use `get_logger()` or `get_provide
 
 ## How are the logs obtained
 
-User gets the logs using the `logs()` and `provider_logs()` methods from the client (they will use `/logs` and `/provider-logs` respectively). Based on the log state, the endpoints will:
+User gets the logs using the `logs()` and `provider_logs()` methods from the client (they will use `/logs` and `/provider-logs` respectively). The flow depends on the runtime backend (Ray or Fleets) and on whether the job is still running.
 
-- During execution: logs are obtained from Ray's console while the job is running.
-- After execution: logs are obtained from COS (Cloud Object Storage). For legacy jobs, the logs are obtained from the database.
+### Ray jobs
 
-To download from COS, the logs must be uploaded there first. So, the scheduler will check if the job has finished in the `update_job_statuses` step, and uploads logs to COS:
-- In user jobs: one file with all logs (removing the prefixes)
-- In provider jobs: two files (public and private) with different filtering rules:
-  - Provider logs: all logs but the lines with the `[PUBLIC]` prefix.
-  - Public logs: The lines with the `[PUBLIC]` prefix only.
+- During execution: logs are obtained from Ray's console while the job is running, and the filter functions are applied at read time.
+- After execution: logs are obtained from COS. The scheduler checks if the job has finished in the `update_job_statuses`
+  step and uploads logs to COS, already filtered:
+  - In user jobs: one file with all logs (prefixes removed).
+  - In provider jobs: two files (public and private) with different filtering rules:
+    - Provider logs: all logs but the lines with the `[PUBLIC]` prefix.
+    - Public logs: the lines with the `[PUBLIC]` prefix only.
+
+### Fleet jobs
+
+In Fleets the gateway cannot read the worker output in real time, so there is no "from Ray" path. Instead, the wrapper script that runs inside the container is responsible for shipping the logs to COS itself, both during the run (for near real-time visibility) and at the end.
+
+- The wrapper writes to local files in `/tmp` (fast disk) and copies them to the COS-backed mount every `LOG_FLUSH_INTERVAL_SECONDS` (default 15s), skipping the upload when the file has not changed since the previous one.
+- An `EXIT`/`TERM`/`INT` trap performs an unconditional final copy when the application terminates, so the last lines reach COS even on cancel or scale-down.
+- The files in COS are already filtered, so the endpoints can serve them as-is without re-applying any filter. The public log is always present (it is the file served by `/logs` to the job's author); the private log is the addition that provider jobs need on top, served by `/provider-logs`:
+  - Custom (user) jobs: a single file under `PUBLIC_LOG_PATH` equivalent to `remove_prefix_tags_in_logs` applied to the raw output.
+  - Provider jobs: two files. `PUBLIC_LOG_PATH` equivalent to `filter_logs_with_public_tags` and `PRIVATE_LOG_PATH` equivalent to `filter_logs_with_non_public_tags`.
+- Prefix matching in the wrapper is case-insensitive, mirroring the `re.IGNORECASE` used by the Python filter functions.
+- Freshness of the COS file is bounded by `LOG_FLUSH_INTERVAL_SECONDS`; the endpoint always reads from COS for Fleet jobs.
 
 ## Legacy logs
 
@@ -65,7 +78,7 @@ If it's a provider job:
 - Returns filtered logs containing `[PRIVATE]`, and 3rd party content (`[PUBLIC]` content and prefixes are removed)
 
 
-These are the behavior table for the endpoints.
+These are the behavior table for the endpoints. The `1-COS File` and `2-Ray` columns describe the Ray flow, where filtering is applied at read time. For Fleet jobs the COS file is pre-filtered by the in-container wrapper (see "Fleet jobs" above), so the endpoint streams it without applying any extra filter.
 
 | Job Type | Caller | Endpoint | 1-COS File | 2-Ray | 3-Db (legacy) |
 |----------|--------|----------|------------|-------|---------------|

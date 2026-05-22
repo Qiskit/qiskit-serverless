@@ -1,0 +1,121 @@
+{% autoescape off %}# Fleet wrapper for provider jobs.
+#
+# In Fleets the gateway cannot read logs in real time from the worker, so the
+# wrapper inside the container is responsible for shipping the logs to COS
+# itself. To avoid hammering the COS-backed mount on every line, we write
+# the application output to two local files in /tmp (fast disk) and
+# periodically copy them to the mount. A trap guarantees a final flush on
+# exit so no buffered tail is lost when the container terminates.
+#
+# Provider jobs are like custom jobs but with an extra private log on top
+# of the public one. The application output is split into two pre-filtered
+# files matching what the endpoints expect:
+#
+#   - $PUBLIC_LOG_PATH:  the file served by /logs to the job's author. Only
+#                        lines with a leading [PUBLIC] tag, with the tag
+#                        removed (= filter_logs_with_public_tags).
+#   - $PRIVATE_LOG_PATH: the file served by /provider-logs to the provider.
+#                        Every other line. Lines with a leading [PRIVATE]
+#                        tag are stripped of the tag; everything else is
+#                        kept verbatim (= filter_logs_with_non_public_tags).
+#
+# The matching is case-insensitive to mirror the Python re.IGNORECASE used in
+# core.domain.filter_logs. The SDK (qiskit_serverless.utils.loggers) emits
+# uppercase [PUBLIC] / [PRIVATE], but accepting any case prevents drift.
+
+set -eu
+
+# Upload period (seconds) between local -> COS copies. Defaults to 15s.
+INTERVAL="${LOG_FLUSH_INTERVAL_SECONDS:-15}"
+
+# Local working files. Append-only, fast, never read by COS during the run.
+LOCAL_PUBLIC="/tmp/public.log"
+LOCAL_PRIVATE="/tmp/private.log"
+
+# Named pipe that fans the app output to the splitter awk, plus a sidecar
+# file used to recover the application's exit code (the app runs inside a
+# pipeline, so $? would refer to awk, not the app).
+PIPE="/tmp/app.pipe"
+STATUS_FILE="/tmp/app.status"
+
+# Clean up any leftovers from a previous run, reset the local logs, recreate
+# the FIFO and ensure both COS mount paths exist.
+rm -f "$PIPE" "$STATUS_FILE"
+: > "$LOCAL_PUBLIC"
+: > "$LOCAL_PRIVATE"
+mkfifo "$PIPE"
+mkdir -p "$PUBLIC_LOG_DIR" "$PRIVATE_LOG_DIR"
+
+# Splitter pipeline: a single awk reads every line from the FIFO and routes
+# it to one of the two local files, stripping the matching prefix. Indices
+# (10, 11) are 1-based and match the Python slice offsets (line[9:],
+# line[10:]) so the byte-for-byte output stays consistent with the existing
+# Python filter functions.
+awk -v pub="$LOCAL_PUBLIC" -v priv="$LOCAL_PRIVATE" '{
+  head8 = toupper(substr($0, 1, 8))
+  head9 = toupper(substr($0, 1, 9))
+  if (head8 == "[PUBLIC]") {
+    print substr($0, 10) >> pub; fflush(pub)
+  } else if (head9 == "[PRIVATE]") {
+    print substr($0, 11) >> priv; fflush(priv)
+  } else {
+    print $0 >> priv; fflush(priv)
+  }
+}' < "$PIPE" &
+LOGGER_PID=$!
+
+# Background uploader: every $INTERVAL seconds, copy each local log to COS,
+# but only if its size changed since the previous upload (skips no-op PUTs
+# when the app is silent or when no line has matched the public filter).
+(
+  last_pub=-1
+  last_priv=-1
+  while :; do
+    sleep "$INTERVAL"
+    cur_pub=$(wc -c < "$LOCAL_PUBLIC" 2>/dev/null || echo -1)
+    if [ "$cur_pub" != "$last_pub" ]; then
+      cp "$LOCAL_PUBLIC" "$PUBLIC_LOG_PATH" 2>/dev/null && last_pub=$cur_pub || true
+    fi
+    cur_priv=$(wc -c < "$LOCAL_PRIVATE" 2>/dev/null || echo -1)
+    if [ "$cur_priv" != "$last_priv" ]; then
+      cp "$LOCAL_PRIVATE" "$PRIVATE_LOG_PATH" 2>/dev/null && last_priv=$cur_priv || true
+    fi
+  done
+) &
+UPLOADER_PID=$!
+
+# On exit (normal, SIGTERM, SIGINT) stop the uploader and force one final
+# unconditional copy of both logs, so COS reflects the very last lines.
+flush_final() {
+  kill "$UPLOADER_PID" 2>/dev/null || true
+  cp "$LOCAL_PUBLIC" "$PUBLIC_LOG_PATH" 2>/dev/null || true
+  cp "$LOCAL_PRIVATE" "$PRIVATE_LOG_PATH" 2>/dev/null || true
+}
+trap 'flush_final' EXIT TERM INT
+
+# Run the application: its stdout/stderr feed the FIFO, and its exit code
+# is recorded in $STATUS_FILE so we can propagate it after the pipeline.
+#
+# `set +e` inside the subshell is required so that a non-zero exit from the
+# app does not abort the subshell before the exit code is recorded.
+( set +e; {{ app_cmd }}; printf "%s\n" "$?" > "$STATUS_FILE" ) > "$PIPE" 2>&1
+
+# Wait for the splitter to drain the remaining buffered lines.
+# A failure here must not mask the application's exit code.
+wait "$LOGGER_PID" || true
+
+# Validate that we actually captured an exit code; if not, fail loudly so
+# the wrapper does not silently report success on a broken run.
+if [ ! -f "$STATUS_FILE" ]; then
+  echo "logging wrapper error: status file was not created" >&2
+  exit 1
+fi
+STATUS="$(cat "$STATUS_FILE")"
+case "$STATUS" in
+  ""|*[!0-9]*) echo "logging wrapper error: invalid status: $STATUS" >&2; exit 1 ;;
+esac
+
+# Propagate the application's real exit code; the EXIT trap fires now and
+# performs the final flush before the script terminates.
+exit "$STATUS"
+{% endautoescape %}

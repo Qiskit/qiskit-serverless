@@ -28,13 +28,15 @@ Example::
     mounts = build_run_volume_mounts(
         mounts=[("/output", "my-pds", "user/job-1")]
     )
-    env = build_run_env_variables(primary_mount_path="/output")
+    env = build_run_env_variables(public_mount_path="/output")
     cmds = build_run_commands(app_run_commands=["python", "main.py"])
 """
 
 from __future__ import annotations
 
 import shlex
+
+from django.template.loader import get_template
 
 
 def build_run_volume_mounts(
@@ -84,11 +86,11 @@ def build_run_volume_mounts(
 
 def build_run_env_variables(
     *,
-    primary_mount_path: str,
-    primary_log_filename: str = "logs.log",
-    secondary_mount_path: str | None = None,
-    secondary_log_filename: str = "logs.log",
-    secondary_log_filter_key: str | None = None,
+    public_mount_path: str,
+    public_log_filename: str = "logs.log",
+    private_mount_path: str | None = None,
+    private_log_filename: str = "logs.log",
+    flush_interval_seconds: int = 15,
 ) -> list[dict[str, str]]:
     """
     Build environment variables used by the logging wrapper command.
@@ -97,57 +99,57 @@ def build_run_env_variables(
     is needed here.
 
     Args:
-        primary_mount_path: Container path for the primary log store.
-        primary_log_filename: File name for the primary log.
-        secondary_mount_path: Container path for the secondary log store.
-        secondary_log_filename: File name for the secondary log.
-        secondary_log_filter_key: Text filter used to route lines to the
-            secondary log.
+        public_mount_path: Container path for the public log store. Always
+            present: it is the file served by ``/logs`` to the job's author
+            (``filter_logs_with_public_tags`` for provider jobs, full output
+            with prefixes stripped for custom jobs).
+        public_log_filename: File name for the public log.
+        private_mount_path: Container path for the private log store.
+            Required only for provider jobs that emit a separate private
+            stream served by ``/provider-logs``.
+        private_log_filename: File name for the private log.
+        flush_interval_seconds: Period (in seconds) between log uploads from
+            the local working directory to the COS-backed mount.
 
     Returns:
         Environment variable definitions for ``run_env_variables``.
 
     Raises:
-        ValueError: If the primary log configuration is incomplete, or if
-            secondary log filtering is requested without a complete secondary
-            log configuration.
+        ValueError: If the public log configuration is incomplete.
     """
-    if not primary_mount_path:
-        raise ValueError("primary_mount_path is required.")
+    if not public_mount_path:
+        raise ValueError("public_mount_path is required.")
 
     run_env_variables = [
         {
             "type": "literal",
-            "name": "PRIMARY_LOG_DIR",
-            "value": primary_mount_path,
+            "name": "PUBLIC_LOG_DIR",
+            "value": public_mount_path,
         },
         {
             "type": "literal",
-            "name": "PRIMARY_LOG_PATH",
-            "value": f"{primary_mount_path}/{primary_log_filename}",
+            "name": "PUBLIC_LOG_PATH",
+            "value": f"{public_mount_path}/{public_log_filename}",
+        },
+        {
+            "type": "literal",
+            "name": "LOG_FLUSH_INTERVAL_SECONDS",
+            "value": str(flush_interval_seconds),
         },
     ]
 
-    if secondary_log_filter_key is not None:
-        if not secondary_mount_path:
-            raise ValueError("secondary_mount_path is required when secondary_log_filter_key is provided.")
-
+    if private_mount_path is not None:
         run_env_variables.extend(
             [
                 {
                     "type": "literal",
-                    "name": "SECONDARY_LOG_DIR",
-                    "value": secondary_mount_path,
+                    "name": "PRIVATE_LOG_DIR",
+                    "value": private_mount_path,
                 },
                 {
                     "type": "literal",
-                    "name": "SECONDARY_LOG_PATH",
-                    "value": f"{secondary_mount_path}/{secondary_log_filename}",
-                },
-                {
-                    "type": "literal",
-                    "name": "SECONDARY_LOG_FILTER_KEY",
-                    "value": secondary_log_filter_key,
+                    "name": "PRIVATE_LOG_PATH",
+                    "value": f"{private_mount_path}/{private_log_filename}",
                 },
             ]
         )
@@ -159,7 +161,7 @@ def build_run_commands(
     *,
     app_run_commands: list[str],
     app_run_arguments: list[str] | None = None,
-    secondary_log_filter_key: str | None = None,
+    with_private_log: bool = False,
 ) -> list[str]:
     """
     Build wrapper commands for fleet execution and logging.
@@ -167,8 +169,10 @@ def build_run_commands(
     Args:
         app_run_commands: Command override for the application.
         app_run_arguments: Argument override for the application.
-        secondary_log_filter_key: Text filter used to route lines to the
-            secondary log. If not provided, only the primary log is written.
+        with_private_log: When True, the wrapper splits the application
+            output into a public log and a private log (provider job). When
+            False, the wrapper writes a single prefix-stripped public log
+            (custom/user job).
 
     Returns:
         Command definition for ``run_commands``.
@@ -182,37 +186,7 @@ def build_run_commands(
     app_parts = [*app_run_commands, *(app_run_arguments or [])]
     app_cmd = " ".join(shlex.quote(part) for part in app_parts)
 
-    if secondary_log_filter_key is not None:
-        script = (
-            "set -eu; "
-            'PIPE="/tmp/app.pipe"; '
-            'STATUS_FILE="/tmp/app.status"; '
-            'rm -f "$PIPE" "$STATUS_FILE"; '
-            'mkfifo "$PIPE"; '
-            'mkdir -p "$PRIMARY_LOG_DIR" "$SECONDARY_LOG_DIR"; '
-            'tee -a "$PRIMARY_LOG_PATH" < "$PIPE" | '
-            'awk -v pat="$SECONDARY_LOG_FILTER_KEY" '
-            '-v out="$SECONDARY_LOG_PATH" '
-            "'index($0, pat) { print >> out; fflush(out) }' & "
-            "LOGGER_PID=$!; "
-            f'( {app_cmd}; printf "%s\\n" "$?" > "$STATUS_FILE" ) > "$PIPE" 2>&1; '
-            'wait "$LOGGER_PID" || true; '
-            'if [ ! -f "$STATUS_FILE" ]; then '
-            '  echo "logging wrapper error: status file was not created" >&2; '
-            '  rm -f "$PIPE" "$STATUS_FILE"; '
-            "  exit 1; "
-            "fi; "
-            'STATUS="$(cat "$STATUS_FILE")"; '
-            'rm -f "$PIPE" "$STATUS_FILE"; '
-            'case "$STATUS" in '
-            '  ""|*[!0-9]*) '
-            '    echo "logging wrapper error: invalid status: $STATUS" >&2; '
-            "    exit 1 "
-            "    ;; "
-            "esac; "
-            'exit "$STATUS"'
-        )
-    else:
-        script = f'set -eu; mkdir -p "$PRIMARY_LOG_DIR"; exec {app_cmd} >> "$PRIMARY_LOG_PATH" 2>&1'
+    template_name = "fleet_provider_job_wrapper.tmpl" if with_private_log else "fleet_custom_job_wrapper.tmpl"
+    script = get_template(template_name).render({"app_cmd": app_cmd})
 
     return ["sh", "-c", script]
