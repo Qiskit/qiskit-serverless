@@ -218,7 +218,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # =============
 # AUTH SETTINGS
 # =============
-SETTINGS_AUTH_MECHANISM = os.environ.get("SETTINGS_AUTH_MECHANISM", "custom_token")
+SETTINGS_AUTH_MECHANISM = os.environ.get("SETTINGS_AUTH_MECHANISM") or "custom_token"
 ALL_AUTH_CLASSES_CONFIGURATION = {
     "custom_token": [
         "api.authentication.CustomTokenBackend",
@@ -257,24 +257,6 @@ SWAGGER_SETTINGS = {
 
 SITE_ID = 1
 SITE_HOST = os.environ.get("SITE_HOST", "http://localhost:8001" if IS_SCHEDULER else "http://localhost:8000")
-
-# custom token auth
-QUANTUM_PLATFORM_API_BASE_URL = os.environ.get("QUANTUM_PLATFORM_API_BASE_URL", None)
-# verification fields to check when returned from auth api
-# Example of checking multiple fields:
-#    For following verification data
-#    {
-#       "is_valid": true,
-#       "some": {
-#         "nested": {
-#           "field": true
-#         },
-#         "other": "bla"
-#       }
-#    }
-#   setting string will be:
-#    "SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD", "is_valid;some,nested,field"
-SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD = os.environ.get("SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD", None)
 
 # resources limitations
 LIMITS_JOBS_PER_USER = int(os.environ.get("LIMITS_JOBS_PER_USER", "2"))
@@ -369,11 +351,10 @@ RUNTIME_API_CACHE_TTL = int(os.environ.get("RUNTIME_API_CACHE_TTL", "60"))
 
 # IBM Cloud
 
-IAM_IBM_CLOUD_BASE_URL = os.environ.get("IAM_IBM_CLOUD_BASE_URL", "https://iam.test.cloud.ibm.com")
+IAM_IBM_CLOUD_BASE_URL = os.environ.get("IAM_IBM_CLOUD_BASE_URL") or "https://iam.test.cloud.ibm.com"
 IAM_IBM_CLOUD_CACHE_TTL = int(os.environ.get("IAM_IBM_CLOUD_CACHE_TTL", "60"))
-RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL = os.environ.get(
-    "RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL",
-    "https://resource-controller.test.cloud.ibm.com",
+RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL = (
+    os.environ.get("RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL") or "https://resource-controller.test.cloud.ibm.com"
 )
 RESOURCE_PLANS_ID_ALLOWED = os.environ.get("RESOURCE_PLANS_ID_ALLOWED", "").split(",")
 
