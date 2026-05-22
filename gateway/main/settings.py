@@ -218,7 +218,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # =============
 # AUTH SETTINGS
 # =============
-SETTINGS_AUTH_MECHANISM = os.environ.get("SETTINGS_AUTH_MECHANISM", "custom_token")
+SETTINGS_AUTH_MECHANISM = os.environ.get("SETTINGS_AUTH_MECHANISM") or "custom_token"
 ALL_AUTH_CLASSES_CONFIGURATION = {
     "custom_token": [
         "api.authentication.CustomTokenBackend",
