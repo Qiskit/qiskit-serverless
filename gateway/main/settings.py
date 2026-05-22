@@ -371,9 +371,8 @@ RUNTIME_API_CACHE_TTL = int(os.environ.get("RUNTIME_API_CACHE_TTL", "60"))
 
 IAM_IBM_CLOUD_BASE_URL = os.environ.get("IAM_IBM_CLOUD_BASE_URL") or "https://iam.test.cloud.ibm.com"
 IAM_IBM_CLOUD_CACHE_TTL = int(os.environ.get("IAM_IBM_CLOUD_CACHE_TTL", "60"))
-RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL = os.environ.get(
-    "RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL",
-    "https://resource-controller.test.cloud.ibm.com",
+RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL = (
+    os.environ.get("RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL") or "https://resource-controller.test.cloud.ibm.com"
 )
 RESOURCE_PLANS_ID_ALLOWED = os.environ.get("RESOURCE_PLANS_ID_ALLOWED", "").split(",")
 
