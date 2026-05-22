@@ -258,24 +258,6 @@ SWAGGER_SETTINGS = {
 SITE_ID = 1
 SITE_HOST = os.environ.get("SITE_HOST", "http://localhost:8001" if IS_SCHEDULER else "http://localhost:8000")
 
-# custom token auth
-QUANTUM_PLATFORM_API_BASE_URL = os.environ.get("QUANTUM_PLATFORM_API_BASE_URL", None)
-# verification fields to check when returned from auth api
-# Example of checking multiple fields:
-#    For following verification data
-#    {
-#       "is_valid": true,
-#       "some": {
-#         "nested": {
-#           "field": true
-#         },
-#         "other": "bla"
-#       }
-#    }
-#   setting string will be:
-#    "SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD", "is_valid;some,nested,field"
-SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD = os.environ.get("SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD", None)
-
 # resources limitations
 LIMITS_JOBS_PER_USER = int(os.environ.get("LIMITS_JOBS_PER_USER", "2"))
 LIMITS_ACTIVE_JOBS_PER_USER = int(os.environ.get("LIMITS_ACTIVE_JOBS_PER_USER", "50"))
