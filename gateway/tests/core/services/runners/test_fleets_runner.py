@@ -257,10 +257,6 @@ def test_build_cos_paths_custom_function():
 
     assert paths["user_function_prefix"] == "users/alice/provider_functions/default/hello-world"
     assert paths["user_job_prefix"] == "users/alice/provider_functions/default/hello-world/jobs/job-aaa-111"
-    assert (
-        paths["user_arguments_key"]
-        == "users/alice/provider_functions/default/hello-world/jobs/job-aaa-111/arguments.json"
-    )
     assert paths["user_log_key"] == "users/alice/provider_functions/default/hello-world/jobs/job-aaa-111/logs.log"
     assert paths["provider_function_prefix"] == "providers/default/hello-world"
     assert paths["provider_job_prefix"] == "providers/default/hello-world/jobs/job-aaa-111"
@@ -283,10 +279,6 @@ def test_build_cos_paths_provider_function():
 
     assert paths["user_function_prefix"] == "users/alice/provider_functions/good-partner/sampler-v2"
     assert paths["user_job_prefix"] == "users/alice/provider_functions/good-partner/sampler-v2/jobs/job-bbb-222"
-    assert (
-        paths["user_arguments_key"]
-        == "users/alice/provider_functions/good-partner/sampler-v2/jobs/job-bbb-222/arguments.json"
-    )
     assert paths["user_log_key"] == "users/alice/provider_functions/good-partner/sampler-v2/jobs/job-bbb-222/logs.log"
     assert paths["provider_function_prefix"] == "providers/good-partner/sampler-v2"
     assert paths["provider_job_prefix"] == "providers/good-partner/sampler-v2/jobs/job-bbb-222"
@@ -525,76 +517,29 @@ def test_get_result_from_cos_returns_none_on_exception():
 
 
 @pytest.mark.parametrize("active,raises", [(True, False), (False, True)])
-def test_get_or_assign_project_existing(active, raises):
-    """_get_or_assign_project() reuses an assigned active project; raises if inactive."""
+def test_get_project_existing(active, raises):
+    """_get_project() returns an active project; raises if inactive."""
     runner, _ = _make_runner()
     mock_project = MagicMock()
     mock_project.active = active
     mock_project.project_name = "my-project"
     runner.job.code_engine_project = mock_project
 
-    with patch(f"{_RUNNER_MOD}.CodeEngineProject") as mock_ce:
-        if raises:
-            with pytest.raises(RunnerError):
-                runner._get_or_assign_project()  # pylint: disable=protected-access
-        else:
-            assert runner._get_or_assign_project() is mock_project  # pylint: disable=protected-access
-    mock_ce.objects.filter.assert_not_called()
-
-
-@pytest.mark.parametrize(
-    "zone_map,profile,expect_zone_filter",
-    [
-        ({"gx2-8x64x1l40s": "us-east-1"}, "gx2-8x64x1l40s", "us-east-1"),  # zone match
-        ({}, "cx3d-4x16", None),  # profile not in map → fallback
-        ({"cx3d-4x16": "any"}, "cx3d-4x16", None),  # "any" → fallback
-    ],
-)
-def test_get_or_assign_project_zone_routing(zone_map, profile, expect_zone_filter):
-    """_get_or_assign_project() routes to zone-specific or multi-zone project correctly."""
-    runner, _ = _make_runner()
-    runner.job.code_engine_project = None
-    runner.job.compute_profile = profile
-    runner.job.id = "job-uuid"
-    mock_project = MagicMock()
-    mock_qs = MagicMock()
-    mock_qs.filter.return_value.first.return_value = mock_project
-
-    with patch(f"{_RUNNER_MOD}.settings") as mock_settings, patch(f"{_RUNNER_MOD}.CodeEngineProject") as mock_ce:
-        mock_settings.FLEETS_PROFILE_ZONE_MAP = zone_map
-        mock_ce.objects.filter.return_value = mock_qs
-        result = runner._get_or_assign_project()  # pylint: disable=protected-access
-
-    assert result is mock_project
-    if expect_zone_filter:
-        mock_qs.filter.assert_called_once_with(zone=expect_zone_filter)
+    if raises:
+        with pytest.raises(RunnerError):
+            runner._get_project()  # pylint: disable=protected-access
     else:
-        mock_qs.filter.assert_any_call(zone__isnull=True)
+        assert runner._get_project() is mock_project  # pylint: disable=protected-access
 
 
-@pytest.mark.parametrize(
-    "zone_map,profile,none_qs,match",
-    [
-        ({"gx2-8x64x1l40s": "us-east-1"}, "gx2-8x64x1l40s", False, "us-east-1"),
-        ({}, None, True, "No active Code Engine project"),
-    ],
-)
-def test_get_or_assign_project_raises(zone_map, profile, none_qs, match):
-    """_get_or_assign_project() raises RunnerError when no suitable project is found."""
+def test_get_project_raises_when_unassigned():
+    """_get_project() raises RunnerError when no project is assigned to the job."""
     runner, _ = _make_runner()
     runner.job.code_engine_project = None
-    runner.job.compute_profile = profile
     runner.job.id = "job-uuid"
-    mock_qs = MagicMock()
-    mock_qs.filter.return_value.first.return_value = None
-    if none_qs:
-        mock_qs.first.return_value = None
 
-    with patch(f"{_RUNNER_MOD}.settings") as mock_settings, patch(f"{_RUNNER_MOD}.CodeEngineProject") as mock_ce:
-        mock_settings.FLEETS_PROFILE_ZONE_MAP = zone_map
-        mock_ce.objects.filter.return_value = mock_qs
-        with pytest.raises(RunnerError, match=match):
-            runner._get_or_assign_project()  # pylint: disable=protected-access
+    with pytest.raises(RunnerError, match="No Code Engine project assigned"):
+        runner._get_project()  # pylint: disable=protected-access
 
 
 def test_connect_skips_when_already_connected():
@@ -678,25 +623,6 @@ def test_get_fleet_name_falls_back_on_exception():
     result = runner._get_fleet_name()  # pylint: disable=protected-access
 
     assert result == "job-job-uuid"
-
-
-def test_upload_arguments_to_cos_uploads_json():
-    """_upload_arguments_to_cos() reads ArgumentsStorage and uploads to COS."""
-    runner, mock_handler = _make_runner()
-    runner._project.cos_bucket_user_data_name = "user-bucket"  # pylint: disable=protected-access
-    runner.job.program.provider = None
-    runner.job.author.username = "testuser"
-
-    paths = {"user_arguments_key": "users/1/jobs/j/arguments.json"}
-
-    with patch(f"{_RUNNER_MOD}.get_arguments_storage") as mock_storage_cls:
-        mock_storage_cls.return_value.get.return_value = '{"backend_name": "ibm_sherbrooke"}'
-        runner._upload_arguments_to_cos(paths)  # pylint: disable=protected-access
-
-    runner._cos.upload_fileobj.assert_called_once()  # pylint: disable=protected-access
-    call_kwargs = runner._cos.upload_fileobj.call_args.kwargs  # pylint: disable=protected-access
-    assert call_kwargs["bucket_name"] == "user-bucket"
-    assert call_kwargs["key"] == "users/1/jobs/j/arguments.json"
 
 
 def test_build_gateway_env_vars_returns_formatted_list():

@@ -13,7 +13,7 @@ from rest_framework.test import APIClient
 from core.domain.authorization.function_access_entry import FunctionAccessEntry
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.business_models import BusinessModel
-from core.models import Job, JobConfig, JobEvent, Program, Provider, ComputeResource
+from core.models import Job, JobConfig, JobEvent, Program, Provider, ComputeResource, CodeEngineProject
 from core.model_managers.job_events import JobEventOrigin, JobEventContext, JobEventType
 
 # literal for job status
@@ -140,6 +140,63 @@ class TestUtils:
             },
         )
         return compute_resource
+
+    @staticmethod
+    def get_or_create_ce_project(
+        project_name: str,
+        project_id: str,
+        region: str = "us-east",
+        active: bool = True,
+        resource_group_id: str = "rg-id",
+        subnet_pool_id: str = "subnet-id",
+        pds_name_state: str = "pds-state",
+        pds_name_users: str = "pds-users",
+        pds_name_providers: str = "pds-providers",
+        cos_bucket_user_data_name: str = None,
+        cos_bucket_provider_data_name: str = None,
+        cos_instance_name: str = None,
+        cos_key_name: str = None,
+    ) -> CodeEngineProject:
+        """Get or create a CodeEngineProject instance.
+
+        Retrieves an existing CodeEngineProject by project_name or creates a new one.
+
+        Args:
+            project_name: Unique name for the Code Engine project.
+            project_id: IBM Cloud project UUID.
+            region: IBM Cloud region. Default is "us-east".
+            active: Whether the project is active. Default is True.
+            resource_group_id: IBM Cloud resource group ID. Default is "rg-id".
+            subnet_pool_id: Subnet pool ID for network placement. Default is "subnet-id".
+            pds_name_state: PDS name for task state. Default is "pds-state".
+            pds_name_users: PDS name for user data. Default is "pds-users".
+            pds_name_providers: PDS name for provider data. Default is "pds-providers".
+            cos_bucket_user_data_name: COS bucket for user data. Default is None.
+            cos_bucket_provider_data_name: COS bucket for provider data. Default is None.
+            cos_instance_name: COS instance name. Default is None.
+            cos_key_name: COS HMAC key name. Default is None.
+
+        Returns:
+            CodeEngineProject instance.
+        """
+        ce_project, _ = CodeEngineProject.objects.get_or_create(
+            project_name=project_name,
+            defaults={
+                "project_id": project_id,
+                "region": region,
+                "active": active,
+                "resource_group_id": resource_group_id,
+                "subnet_pool_id": subnet_pool_id,
+                "pds_name_state": pds_name_state,
+                "pds_name_users": pds_name_users,
+                "pds_name_providers": pds_name_providers,
+                "cos_bucket_user_data_name": cos_bucket_user_data_name,
+                "cos_bucket_provider_data_name": cos_bucket_provider_data_name,
+                "cos_instance_name": cos_instance_name,
+                "cos_key_name": cos_key_name,
+            },
+        )
+        return ce_project
 
     @staticmethod
     def _humanize_permission_name(codename: str, model: str) -> str:
@@ -492,7 +549,12 @@ class TestUtils:
 
     @staticmethod
     def authorize_client(
-        user: Union[str, User], client: APIClient, is_active: bool = True, is_staff: bool = False
+        user: Union[str, User],
+        client: APIClient,
+        is_active: bool = True,
+        is_staff: bool = False,
+        accessible_functions: FunctionAccessResult = None,
+        token=None,
     ) -> User:
         """Authenticate a DRF test client with a user.
 
@@ -506,6 +568,8 @@ class TestUtils:
                 creating new users (user is str). Default is True.
             is_staff: Whether the created user should have staff privileges. Only
                 used when creating new users (user is str). Default is False.
+            accessible_functions: User accessible functions to use. If 'None', initialize defaults.
+            token: Optional DRF token to authenticate with. If 'None', initialize defaults.,
 
         Returns:
             User instance that was authenticated.
@@ -515,11 +579,16 @@ class TestUtils:
         from api.domain.authentication.channel import Channel
 
         user_obj, _ = TestUtils.get_user_and_username(author=user, is_active=is_active, is_staff=is_staff)
-        token = MagicMock()
-        token.accessible_functions = FunctionAccessResult(use_legacy_authorization=True)
-        token.channel = Channel.LOCAL
-        token.token = b"test-token"
-        token.instance = None
+        if not token:
+            token = MagicMock()
+            token.channel = Channel.LOCAL
+            token.token = b"test-token"
+            token.instance = None
+            token.account_id = None
+        if isinstance(accessible_functions, FunctionAccessResult):
+            token.accessible_functions = accessible_functions
+        else:
+            token.accessible_functions = FunctionAccessResult(use_legacy_authorization=True)
         client.force_authenticate(user=user_obj, token=token)
         return user_obj
 

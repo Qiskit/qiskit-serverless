@@ -237,15 +237,23 @@ class Job:
 
     def error_message(self):
         """Returns the execution error message."""
-        error = self._job_service.result(self.job_id) if self.status() == "ERROR" else ""
+        if self.status() != "ERROR":
+            return ""
 
-        if isinstance(error, str):
+        error_events = self.events(type="ERROR")
+        if len(error_events) > 0:
+            error_msg_list = [format_err_event(evt) for evt in error_events]
+            return "\n\n".join(error_msg_list)
+
+        error_result = self._job_service.result(self.job_id) if self.status() == "ERROR" else ""
+
+        if isinstance(error_result, str):
             try:
-                return error.strip('"').encode().decode("unicode_escape")
+                return error_result.strip('"').encode().decode("unicode_escape")
             except UnicodeDecodeError:
                 logging.warning("Error decoding error message, returning raw message.")
 
-        return error
+        return error_result
 
     def result(self, wait=True, cadence=30, verbose=False, maxwait=0):
         """Return results of the job.
@@ -267,18 +275,15 @@ class Job:
                 if verbose:
                     logging.info(count)
 
-        # Retrieve the results. If they're string format, try to decode to a dictionary.
-        results = self._job_service.result(self.job_id)
-
         if self.status() == "ERROR":
-            error_events = self.events(type="ERROR")
-            if len(error_events) > 0:
-                error_msg = [format_err_event(evt) for evt in error_events]
-                raise QiskitServerlessException("\n\n".join(error_msg))
-            if results:
-                raise QiskitServerlessException(results)
+            error_message = self.error_message()
+            if error_message:
+                raise QiskitServerlessException(error_message)
 
             raise QiskitServerlessException(self.filtered_logs(include=r"(?i)error|exception"))
+
+        # Retrieve the results. If they're string format, try to decode to a dictionary.
+        results = self._job_service.result(self.job_id)
 
         if isinstance(results, str):
             try:

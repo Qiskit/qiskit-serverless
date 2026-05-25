@@ -14,7 +14,6 @@
 
 from __future__ import annotations
 
-import io
 import json
 import logging
 import re
@@ -36,7 +35,6 @@ from core.ibm_cloud.code_engine.fleets.utils import (
     build_run_env_variables,
     build_run_volume_mounts,
 )
-from core.services.storage import get_arguments_storage
 
 logger = logging.getLogger("FleetsRunner")
 
@@ -252,7 +250,6 @@ class FleetsRunner(AbstractRunner):
                         "run_commands": run_commands,
                     }
                 )
-                _retry_on_rate_limit(lambda: self._upload_arguments_to_cos(paths))
                 _retry_on_rate_limit(lambda: self._upload_artifact_to_cos(paths))
                 logger.info(
                     "COS configured for job [%s]: user_key=[%s] provider_key=[%s]",
@@ -457,40 +454,23 @@ class FleetsRunner(AbstractRunner):
         #     return False
         return False
 
-    def _get_or_assign_project(self) -> CodeEngineProject:
-        """Return the job's Code Engine project, assigning one if not yet set.
+    def _get_project(self) -> CodeEngineProject:
+        """Return the job's assigned Code Engine project.
 
-        Zone resolution: looks up the compute profile in ``FLEETS_PROFILE_ZONE_MAP``.
-        Profiles absent from the map (or mapped to ``"any"``) fall back to the
-        multi-zone project (zone is null/blank).
+        The project is selected at job creation time (in ``RunJobSerializer.create``).
+        This method only validates that the assignment is present and active.
 
         Returns:
             Active :class:`CodeEngineProject`.
 
         Raises:
-            RunnerError: If no active project is available.
+            RunnerError: If no project is assigned or the assigned project is inactive.
         """
-        if self.job.code_engine_project:
-            project = self.job.code_engine_project
-            if not project.active:
-                raise RunnerError(f"Code Engine project '{project.project_name}' is not active")
-            return project
-
-        profile_zone_map: dict = settings.FLEETS_PROFILE_ZONE_MAP
-        zone = profile_zone_map.get(self.job.compute_profile or "")
-        qs = CodeEngineProject.objects.filter(active=True)
-        if zone and zone != "any":
-            project = qs.filter(zone=zone).first()
-            if not project:
-                raise RunnerError(f"No active Code Engine project for zone '{zone}'")
-        else:
-            project = qs.filter(zone__isnull=True).first() or qs.filter(zone="").first() or qs.first()
+        project = self.job.code_engine_project
         if not project:
-            raise RunnerError("No active Code Engine project available")
-
-        self.job.code_engine_project = project
-        self.job.save()
-        logger.info("Assigned project [%s] to job [%s]", project.project_name, self.job.id)
+            raise RunnerError(f"No Code Engine project assigned to job '{self.job.id}'")
+        if not project.active:
+            raise RunnerError(f"Code Engine project '{project.project_name}' is not active")
         return project
 
     def _get_handler(self) -> FleetHandler:
@@ -509,7 +489,7 @@ class FleetsRunner(AbstractRunner):
             RunnerError: If initialization fails.
         """
         if not self._project:
-            self._project = self._get_or_assign_project()
+            self._project = self._get_project()
 
         if self._handler is None:
             try:
@@ -528,7 +508,7 @@ class FleetsRunner(AbstractRunner):
     def _get_cos(self) -> JobCOS:
         """Return the :class:`JobCOS`, creating it lazily on first use."""
         if not self._project:
-            self._project = self._get_or_assign_project()
+            self._project = self._get_project()
         if self._cos is None:
             self._cos = get_cos_client(self._project)
         return self._cos
@@ -569,42 +549,10 @@ class FleetsRunner(AbstractRunner):
             "provider_job_prefix": provider_job_prefix,
             "user_log_key": f"{user_job_prefix}/{LOG_FILENAME}",
             "provider_log_key": f"{provider_job_prefix}/{LOG_FILENAME}",
-            "user_arguments_key": f"{user_job_prefix}/arguments.json",
-            "user_results_key": f"{user_job_prefix}/results.json",
             "user_mount_path": "/data",
             "provider_mount_path": "/function_data",
             "provider_logs_mount_path": "/provider_logs",
         }
-
-    def _upload_arguments_to_cos(self, paths: dict[str, str]) -> None:
-        """Upload job arguments from local storage to the COS user bucket.
-
-        Reads from :class:`ArgumentsStorage` and uploads to
-        ``{user_job_prefix}/arguments.json`` so the SDK's
-        ``get_arguments()`` finds them at ``/data/arguments.json``
-        (via the ``ARGUMENTS_PATH`` env var).
-        Unwraps a single-key ``{"arguments": ...}`` envelope if present.
-
-        Args:
-            paths: Dict from :meth:`_build_cos_paths`.
-        """
-        storage = get_arguments_storage(self.job)
-        content = storage.get() or "{}"
-
-        try:
-            parsed = json.loads(content)
-            if isinstance(parsed, dict) and list(parsed.keys()) == ["arguments"]:
-                content = json.dumps(parsed["arguments"])
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-        user_bucket = self._project.cos_bucket_user_data_name
-        self._get_cos().upload_fileobj(
-            fileobj=io.BytesIO(content.encode("utf-8")),
-            bucket_name=user_bucket,
-            key=paths["user_arguments_key"],
-        )
-        logger.info("Uploaded arguments for job [%s] to %s/%s", self.job.id, user_bucket, paths["user_arguments_key"])
 
     def _upload_artifact_to_cos(self, paths: dict[str, str]) -> None:
         """Extract the program artifact tar and upload files to COS.

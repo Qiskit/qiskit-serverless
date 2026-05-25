@@ -49,7 +49,7 @@ class ScheduleRayJobs(SchedulerTask):
         running_clusters = ComputeResource.objects.filter(active=True, gpu=True).count()
         self._schedule_jobs_if_slots_available(max_clusters, running_clusters, gpu_job=True)
 
-    def _schedule_jobs_if_slots_available(self, max_slots_possible, number_of_slots_running, gpu_job):
+    def _schedule_jobs_if_slots_available(self, max_slots_possible: int, number_of_slots_running: int, gpu_job: bool):
         """Schedule Ray jobs depending on free slots."""
         free_slots = max_slots_possible - number_of_slots_running
 

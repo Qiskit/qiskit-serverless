@@ -60,3 +60,12 @@ class LocalAuthenticationService(AuthenticationBase):
             List of groups
         """
         return [AuthenticationGroup(group_name="mockgroup")]
+
+    def get_account_id(self) -> None:
+        """
+        Locally there is no account id since it is used in IBM Quantum Platform.
+
+        Returns:
+            None
+        """
+        return None

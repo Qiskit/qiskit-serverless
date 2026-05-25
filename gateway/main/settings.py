@@ -218,7 +218,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # =============
 # AUTH SETTINGS
 # =============
-SETTINGS_AUTH_MECHANISM = os.environ.get("SETTINGS_AUTH_MECHANISM", "custom_token")
+SETTINGS_AUTH_MECHANISM = os.environ.get("SETTINGS_AUTH_MECHANISM") or "custom_token"
 ALL_AUTH_CLASSES_CONFIGURATION = {
     "custom_token": [
         "api.authentication.CustomTokenBackend",
@@ -258,24 +258,6 @@ SWAGGER_SETTINGS = {
 SITE_ID = 1
 SITE_HOST = os.environ.get("SITE_HOST", "http://localhost:8001" if IS_SCHEDULER else "http://localhost:8000")
 
-# custom token auth
-QUANTUM_PLATFORM_API_BASE_URL = os.environ.get("QUANTUM_PLATFORM_API_BASE_URL", None)
-# verification fields to check when returned from auth api
-# Example of checking multiple fields:
-#    For following verification data
-#    {
-#       "is_valid": true,
-#       "some": {
-#         "nested": {
-#           "field": true
-#         },
-#         "other": "bla"
-#       }
-#    }
-#   setting string will be:
-#    "SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD", "is_valid;some,nested,field"
-SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD = os.environ.get("SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD", None)
-
 # resources limitations
 LIMITS_JOBS_PER_USER = int(os.environ.get("LIMITS_JOBS_PER_USER", "2"))
 LIMITS_ACTIVE_JOBS_PER_USER = int(os.environ.get("LIMITS_ACTIVE_JOBS_PER_USER", "50"))
@@ -301,7 +283,7 @@ CE_COS_INSTANCE_NAME = os.environ.get("CE_COS_INSTANCE_NAME")
 CE_COS_KEY_NAME = os.environ.get("CE_COS_KEY_NAME")
 CE_COS_BUCKET_USER_DATA_NAME = os.environ.get("CE_COS_BUCKET_USER_DATA_NAME")
 CE_COS_BUCKET_PROVIDER_DATA_NAME = os.environ.get("CE_COS_BUCKET_PROVIDER_DATA_NAME")
-# Code Engine project (set CE_PROJECT_ID to enable auto-provisioning)
+# Code Engine project (set CE_PROJECT_ID to enable single-project auto-provisioning)
 CE_PROJECT_ID = os.environ.get("CE_PROJECT_ID")
 CE_PROJECT_NAME = os.environ.get("CE_PROJECT_NAME")
 CE_REGION = os.environ.get("CE_REGION")
@@ -310,6 +292,12 @@ CE_SUBNET_POOL_ID = os.environ.get("CE_SUBNET_POOL_ID")
 CE_PDS_NAME_STATE = os.environ.get("CE_PDS_NAME_STATE")
 CE_PDS_NAME_USERS = os.environ.get("CE_PDS_NAME_USERS")
 CE_PDS_NAME_PROVIDERS = os.environ.get("CE_PDS_NAME_PROVIDERS")
+# Optional zone for the single-project setup. For multi-project, use CE_PROJECTS instead.
+CE_ZONE = os.environ.get("CE_ZONE")
+# Multi-project setup: JSON array of project dicts, each with the same keys as the CE_* vars above
+# plus an optional "zone" field. When set, CE_PROJECT_ID / CE_* single-project vars are ignored.
+# Example: '[{"project_id": "...", "project_name": "...", "region": "us-east", "zone": "us-east-1", ...}]'
+CE_PROJECTS: list = json.loads(os.environ.get("CE_PROJECTS", "[]"))  # type: ignore[assignment]
 # Maps compute profiles to their availability zone. Populated at deploy time via FLEETS_PROFILE_ZONE_MAP
 # JSON env var, e.g. '{"gx2-8x64x1l40s": "us-east-1", "gx3d-24x120x1a100p": "us-east-2"}'.
 # Profiles absent from the map (or mapped to "any") fall back to the multi-zone project.
@@ -363,11 +351,10 @@ RUNTIME_API_CACHE_TTL = int(os.environ.get("RUNTIME_API_CACHE_TTL", "60"))
 
 # IBM Cloud
 
-IAM_IBM_CLOUD_BASE_URL = os.environ.get("IAM_IBM_CLOUD_BASE_URL", "https://iam.test.cloud.ibm.com")
+IAM_IBM_CLOUD_BASE_URL = os.environ.get("IAM_IBM_CLOUD_BASE_URL") or "https://iam.test.cloud.ibm.com"
 IAM_IBM_CLOUD_CACHE_TTL = int(os.environ.get("IAM_IBM_CLOUD_CACHE_TTL", "60"))
-RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL = os.environ.get(
-    "RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL",
-    "https://resource-controller.test.cloud.ibm.com",
+RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL = (
+    os.environ.get("RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL") or "https://resource-controller.test.cloud.ibm.com"
 )
 RESOURCE_PLANS_ID_ALLOWED = os.environ.get("RESOURCE_PLANS_ID_ALLOWED", "").split(",")
 

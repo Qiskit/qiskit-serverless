@@ -1,7 +1,7 @@
 """Tests for job logs APIs."""
 
 from typing import Optional
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, MagicMock, patch
 
 import pytest
 from django.contrib.auth.models import User, Group
@@ -11,11 +11,12 @@ from rest_framework.test import APIClient
 
 from prometheus_client import CollectorRegistry
 
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import ComputeResource, Job, Program, Provider
 from core.services.runners import RunnerError
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
+from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
 from tests.utils import TestUtils
 
 
@@ -81,8 +82,10 @@ class TestJobLogsPermissions:
         user_caller, _ = User.objects.get_or_create(username=caller)
         job = create_job(author="author", provider_admin=provider_admin)
 
+        token = MagicMock()
+        token.accessible_functions = FunctionAccessResult(use_legacy_authorization=True)
         client = APIClient()
-        client.force_authenticate(user=user_caller)
+        client.force_authenticate(user=user_caller, token=token)
         response = client.get(reverse(endpoint, args=[str(job.id)]), format="json")
 
         assert response.status_code == expected_status
@@ -118,10 +121,12 @@ class TestJobLogsCoverage:
     def _authorize(self, username):
         """Authorize client and return the user."""
         user, _ = User.objects.get_or_create(username=username)
-        self.client.force_authenticate(user=user)
+        token = MagicMock()
+        token.accessible_functions = FunctionAccessResult(use_legacy_authorization=True)
+        self.client.force_authenticate(user=user, token=token)
         return user
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    @patch("scheduler.tasks.update_ray_jobs_statuses.get_runner")
     def test_job_logs_in_storage_user_job(self, get_runner_client_mock):
         """Tests /logs with user job from COS.
 
@@ -142,7 +147,7 @@ Unprefixed message
         get_runner_client_mock.return_value = runner_mock
 
         # Execute update_jobs_statuses to detect terminal state and save logs
-        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
+        UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         # Call endpoint and verify logs are retrieved from storage
         self._authorize("author")
@@ -162,7 +167,7 @@ Unprefixed message
         assert jobs_response.data.get("logs") == expected_logs
 
     @patch("api.use_cases.jobs.get_logs.get_runner")
-    @patch("core.services.storage.logs_storage.LogsStorage.get_public_logs")
+    @patch("core.services.storage.logs_storage_ray.RayLogsStorage.get_public_logs")
     def test_job_logs_in_ray(self, logs_storage_get_mock, get_runner_client_mock):
         """Tests /logs with user job from Ray."""
         logs_storage_get_mock.return_value = None
@@ -200,7 +205,7 @@ INFO: Final public log
         assert jobs_response.status_code == HTTP_200_OK
         assert jobs_response.data.get("logs") == expected_user_logs
 
-    @patch("core.services.storage.logs_storage.LogsStorage.get_public_logs")
+    @patch("core.services.storage.logs_storage_ray.RayLogsStorage.get_public_logs")
     def test_job_logs_in_db(self, logs_storage_get_mock):
         """Tests /logs with user job from DB (legacy)."""
         logs_storage_get_mock.return_value = None
@@ -221,7 +226,7 @@ INFO: Final public log
         assert jobs_response.data.get("logs") == "log from db"
 
     @patch("api.use_cases.jobs.get_logs.get_runner")
-    @patch("core.services.storage.logs_storage.LogsStorage.get_public_logs")
+    @patch("core.services.storage.logs_storage_ray.RayLogsStorage.get_public_logs")
     def test_job_logs_error(self, logs_storage_get_mock, get_runner_client_mock):
         """Tests /logs with user job, Ray error."""
         logs_storage_get_mock.return_value = None
@@ -240,7 +245,7 @@ INFO: Final public log
         assert jobs_response.status_code == HTTP_200_OK
         assert jobs_response.data.get("logs") == "Logs not available for this job during execution."
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    @patch("scheduler.tasks.update_ray_jobs_statuses.get_runner")
     def test_job_provider_logs_in_storage(self, get_runner_client_mock):
         """Tests /provider-logs with provider job from COS.
 
@@ -267,7 +272,7 @@ Unprefixed message
         get_runner_client_mock.return_value = runner_mock
 
         # Execute update_jobs_statuses to detect terminal state and save logs
-        UpdateJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
+        UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         # Call endpoint and verify logs are retrieved from storage
         self._authorize("provider_admin")
@@ -281,7 +286,7 @@ Unprefixed message
         assert jobs_response.data.get("logs") == expected_provider_logs
 
     @patch("api.use_cases.jobs.provider_logs.get_runner")
-    @patch("core.services.storage.logs_storage.LogsStorage.get_private_logs")
+    @patch("core.services.storage.logs_storage_ray.RayLogsStorage.get_private_logs")
     def test_job_provider_logs_in_ray(self, logs_storage_get_mock, get_runner_client_mock):
         """Tests /provider-logs with provider job from Ray."""
         logs_storage_get_mock.return_value = None
@@ -318,7 +323,7 @@ WARNING: Private warning
         assert jobs_response.status_code == HTTP_200_OK
         assert jobs_response.data.get("logs") == expected_provider_logs
 
-    @patch("core.services.storage.logs_storage.LogsStorage.get_private_logs")
+    @patch("core.services.storage.logs_storage_ray.RayLogsStorage.get_private_logs")
     def test_job_provider_logs_in_db(self, logs_storage_get_mock):
         """Tests /provider-logs with provider job from DB (legacy)."""
         logs_storage_get_mock.return_value = None
@@ -354,7 +359,7 @@ WARNING: Private warning
         assert jobs_response.data.get("logs") == "No logs yet."
 
     @patch("api.use_cases.jobs.provider_logs.get_runner")
-    @patch("core.services.storage.logs_storage.LogsStorage.get_private_logs")
+    @patch("core.services.storage.logs_storage_ray.RayLogsStorage.get_private_logs")
     def test_job_provider_logs_error(self, logs_storage_get_mock, get_runner_client_mock):
         """Tests /provider-logs with provider job, Ray error."""
         logs_storage_get_mock.return_value = None

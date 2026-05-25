@@ -11,7 +11,7 @@ from api.domain.exceptions.function_not_found_exception import FunctionNotFoundE
 from api.domain.exceptions.file_not_found_exception import FileNotFoundException
 
 from api.repositories.providers import ProviderRepository
-from core.models import RUN_PROGRAM_PERMISSION
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import Program as Function
 from core.services.storage.file_storage import FileStorage, WorkingDir
 
@@ -32,6 +32,8 @@ class FilesProviderDeleteUseCase:
         provider_name: str,
         function_title: str,
         file_name: str,
+        *,
+        accessible_functions: FunctionAccessResult,
     ):
         """
         Delete file from provider storage.
@@ -39,13 +41,14 @@ class FilesProviderDeleteUseCase:
 
         provider = self.provider_repository.get_provider_by_name(name=provider_name)
         if provider is None or not ProviderAccessPolicy.can_write_files(
-            user=user, provider=provider, function_title=function_title
+            user=user,
+            provider=provider,
+            function_title=function_title,
+            accessible_functions=accessible_functions,
         ):
             raise ProviderNotFoundException(provider_name)
 
-        function = Function.objects.get_function_by_permission(
-            user=user,
-            legacy_permission_name=RUN_PROGRAM_PERMISSION,
+        function = Function.objects.get_function(
             function_title=function_title,
             provider_name=provider_name,
         )

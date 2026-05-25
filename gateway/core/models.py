@@ -14,6 +14,7 @@ from django_prometheus.models import ExportModelOperationsMixin
 
 from core.config_key import ConfigKey
 from core.domain.business_models import BusinessModel
+from core.model_managers.code_engine_projects import CodeEngineProjectQuerySet
 from core.model_managers.functions import FunctionsQuerySet
 from core.model_managers.job_events import JobEventQuerySet
 from core.model_managers.jobs import JobQuerySet
@@ -328,6 +329,8 @@ class CodeEngineProject(models.Model):
     # Status and ownership
     active = models.BooleanField(default=True, help_text="Whether this project is available for job execution")
 
+    objects: CodeEngineProjectQuerySet = CodeEngineProjectQuerySet.as_manager()
+
     class Meta:
         app_label = "api"
 
@@ -439,6 +442,9 @@ class Job(models.Model):
     )
     program = models.ForeignKey(to=Program, on_delete=models.SET_NULL, null=True)
 
+    account_id = models.CharField(max_length=255, null=True, blank=True)
+    instance_crn = models.CharField(max_length=255, null=True, blank=True)
+
     objects: JobQuerySet = JobQuerySet.as_manager()
 
     class Meta:
@@ -467,6 +473,20 @@ class Job(models.Model):
         subsequent saves from this same instance don't conflict with themselves.
         """
         update_kwargs = {field: getattr(self, field) for field in fields}
+        update_kwargs["version"] = F("version") + 1
+        Job.objects.filter(pk=self.id).update(**update_kwargs)
+        self.refresh_from_db(fields=["version"])
+
+    def update_fields(self, fields_map: dict) -> None:
+        """Persist an explicit field map bypassing optimistic-locking validation.
+
+        Like save_direct, but the caller provides values directly instead of
+        reading them from the instance. Also updates the instance attributes so
+        the in-memory object stays consistent with the DB.
+        """
+        for field, value in fields_map.items():
+            setattr(self, field, value)
+        update_kwargs = dict(fields_map)
         update_kwargs["version"] = F("version") + 1
         Job.objects.filter(pk=self.id).update(**update_kwargs)
         self.refresh_from_db(fields=["version"])

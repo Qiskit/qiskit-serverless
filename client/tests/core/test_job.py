@@ -144,6 +144,7 @@ class TestJob:
         client.status = MagicMock(
             return_value="ERROR",
         )
+        client.events = MagicMock(return_value=[])
         client.result = MagicMock(
             return_value=(
                 '"This is the line \\"1\\"\\n' "This is the second line\\n" 'OK.  This is the last line.\\n"'
@@ -400,10 +401,9 @@ class TestJobResult:
         with pytest.raises(QiskitServerlessException) as exc_info:
             job.result(wait=False)
 
-        assert (
-            "\n| Message: Job execution failed\n| Code: M123\n| Exception: ServerlessError\n| Details:\n|   - my-args: 123"
-            == str(exc_info.value)
-        )
+        expected_error_msg = "\n| Message: Job execution failed\n| Code: M123\n| Exception: ServerlessError\n| Details:\n|   - my-args: 123"
+        assert expected_error_msg == str(exc_info.value)
+        assert expected_error_msg == job.error_message()
 
 
 class TestJobInTerminalState:

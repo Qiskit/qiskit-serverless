@@ -5,7 +5,7 @@ from django.contrib.auth.models import User, Group
 from api.access_policies.jobs import JobAccessPolicies
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import Program, Job, Provider, PLATFORM_PERMISSION_JOBS_READ, PLATFORM_PERMISSION_PROVIDER_LOGS
-from tests.utils import create_function_access_result
+from tests.utils import TestUtils, create_function_access_result
 
 pytestmark = pytest.mark.django_db
 
@@ -23,7 +23,7 @@ def other_user():
 @pytest.fixture()
 def job(job_author):
     program = Program.objects.create(title="Program", author=job_author)
-    return Job.objects.create(program=program, author=job_author, status=Job.QUEUED)
+    return TestUtils.create_job(author=job_author, program=program, status=Job.QUEUED)
 
 
 @pytest.fixture()
