@@ -1,0 +1,6 @@
+---
+upgrade:
+  - |
+    Python 3.9 has reached end-of-life and is no longer supported. The minimum
+    supported Python version is now ``3.10``. Users still on Python 3.9 should
+    upgrade before installing this release.
