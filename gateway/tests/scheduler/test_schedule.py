@@ -10,13 +10,13 @@ from rest_framework.test import APITestCase
 
 from core.models import Job, ComputeResource, JobEvent
 from core.services.runners import RunnerError
-from core.services.storage.logs_storage import LogsStorage
+from core.services.storage import get_logs_storage
 
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 
 from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_ray_job, execute_fleets_job
-from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
+from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
 
 from tests.utils import TestUtils
 
@@ -148,7 +148,7 @@ class TestScheduleApi(APITestCase):
         assert ret_job.status == Job.FAILED
         mock_job_event.objects.add_status_event.assert_called_once()
 
-    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
+    @patch("scheduler.tasks.update_ray_jobs_statuses.get_runner")
     def test_job_runtime_limit(self, get_runner):
         """Tests job runtime limit enforcement.
 
@@ -185,7 +185,7 @@ class TestScheduleApi(APITestCase):
 
             # Running job status update which verify that will change the job status (timeout exceeded)
             # Since PROGRAM_TIMEOUT=0, any job with a JobEvent will have exceeded the limit
-            UpdateJobsStatuses(kill_signal=KillSignal(), metrics=SchedulerMetrics(CollectorRegistry())).run()
+            UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=SchedulerMetrics(CollectorRegistry())).run()
             job.refresh_from_db()
             job_event = JobEvent.objects.filter(job=job).first()
 
@@ -193,7 +193,7 @@ class TestScheduleApi(APITestCase):
             # Since the job is in terminal state, its `logs` attribute instance is empty.
             # We need to check the logs in storage
             assert (
-                "Maximum job runtime reached" in LogsStorage(job).get_public_logs()
+                "Maximum job runtime reached" in get_logs_storage(job).get_public_logs()
             ), "Job logs should contain timeout message"
 
             job_events = JobEvent.objects.filter(job=job).order_by("created")
