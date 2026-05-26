@@ -31,14 +31,14 @@ from core.utils import decrypt_env_vars
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
 from core.ibm_cloud.code_engine.fleets.cos import JobCOS
 from core.ibm_cloud.code_engine.fleets.utils import (
+    LOG_FILENAME,
+    build_cos_paths,
     build_run_commands,
     build_run_env_variables,
     build_run_volume_mounts,
 )
 
 logger = logging.getLogger("FleetsRunner")
-
-LOG_FILENAME = "logs.log"
 
 
 class TTLCache:
@@ -513,38 +513,7 @@ class FleetsRunner(AbstractRunner):
         return [{"type": "literal", "name": k, "value": v} for k, v in env.items() if v]
 
     def _build_cos_paths(self) -> dict[str, str]:
-        """Build COS key prefixes and container mount paths for the job.
-
-        Three PDS volume mounts provide job-level isolation:
-          - /data          → user-data-bucket @ user_job_prefix (job level)
-          - /function_data → provider-data-bucket @ provider_function_prefix (function level)
-          - /provider_logs → provider-data-bucket @ provider_job_prefix (job level)
-
-        Returns:
-            Dict with function/job prefixes, COS log/argument keys, and
-            container mount paths.
-        """
-        username = self.job.author.username
-        provider_name = self.job.program.provider.name if self.job.program and self.job.program.provider else "default"
-        program_title = self.job.program.title if self.job.program else "unknown"
-        job_id = str(self.job.id)
-
-        user_function_prefix = f"users/{username}/provider_functions/{provider_name}/{program_title}"
-        provider_function_prefix = f"providers/{provider_name}/{program_title}"
-        user_job_prefix = f"{user_function_prefix}/jobs/{job_id}"
-        provider_job_prefix = f"{provider_function_prefix}/jobs/{job_id}"
-
-        return {
-            "user_function_prefix": user_function_prefix,
-            "provider_function_prefix": provider_function_prefix,
-            "user_job_prefix": user_job_prefix,
-            "provider_job_prefix": provider_job_prefix,
-            "user_log_key": f"{user_job_prefix}/{LOG_FILENAME}",
-            "provider_log_key": f"{provider_job_prefix}/{LOG_FILENAME}",
-            "user_mount_path": "/data",
-            "provider_mount_path": "/function_data",
-            "provider_logs_mount_path": "/provider_logs",
-        }
+        return build_cos_paths(self.job)
 
     def _upload_artifact_to_cos(self, paths: dict[str, str]) -> None:
         """Extract the program artifact tar and upload files to COS.

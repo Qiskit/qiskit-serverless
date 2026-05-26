@@ -12,7 +12,7 @@ from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.domain.exceptions.invalid_access_exception import InvalidAccessException
 from core.domain.filter_logs import remove_prefix_tags_in_logs, filter_logs_with_public_tags
-from core.models import Job
+from core.models import Job, Program
 from core.services.runners import get_runner, RunnerError
 from core.utils import check_logs
 from core.services.storage import get_logs_storage
@@ -50,6 +50,11 @@ class GetJobLogsUseCase:
         if logs:
             return logs
 
+        if job.program.runner == Program.FLEETS:
+            # Fleets wrapper needs up to 15 seconds to start uploading a log to COS
+            return "No logs yet."
+
+        # Ray only path
         runner = get_runner(job)
         if runner.is_active():
             try:
@@ -60,6 +65,10 @@ class GetJobLogsUseCase:
             logs = check_logs(logs, job)
 
             logger.info("Getting logs from runner=%s job_id=%s", job.program.runner, job.id)
+
+            if job.program.runner == Program.FLEETS:
+                # Logs are pre-filtered by the in-container wrapper; no re-filtering needed
+                return logs
 
             if job.program.provider:
                 # Public logs from a provider job

@@ -38,6 +38,10 @@ import shlex
 
 from django.template.loader import get_template
 
+from core.models import Job
+
+LOG_FILENAME = "logs.log"
+
 
 def build_run_volume_mounts(
     *,
@@ -190,3 +194,36 @@ def build_run_commands(
     script = get_template(template_name).render({"app_cmd": app_cmd})
 
     return ["sh", "-c", script]
+
+
+def build_cos_paths(job: Job) -> dict[str, str]:
+    """Build COS key prefixes and container mount paths for a fleet job.
+
+    Args:
+        job: Job instance.
+
+    Returns:
+        Dict with function/job prefixes, COS log/argument keys, and
+        container mount paths.
+    """
+    username = job.author.username
+    provider_name = job.program.provider.name if job.program and job.program.provider else "default"
+    program_title = job.program.title if job.program else "unknown"
+    job_id = str(job.id)
+
+    user_function_prefix = f"users/{username}/provider_functions/{provider_name}/{program_title}"
+    provider_function_prefix = f"providers/{provider_name}/{program_title}"
+    user_job_prefix = f"{user_function_prefix}/jobs/{job_id}"
+    provider_job_prefix = f"{provider_function_prefix}/jobs/{job_id}"
+
+    return {
+        "user_function_prefix": user_function_prefix,
+        "provider_function_prefix": provider_function_prefix,
+        "user_job_prefix": user_job_prefix,
+        "provider_job_prefix": provider_job_prefix,
+        "user_log_key": f"{user_job_prefix}/{LOG_FILENAME}",
+        "provider_log_key": f"{provider_job_prefix}/{LOG_FILENAME}",
+        "user_mount_path": "/data",
+        "provider_mount_path": "/function_data",
+        "provider_logs_mount_path": "/provider_logs",
+    }

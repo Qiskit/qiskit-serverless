@@ -170,7 +170,7 @@ def test_submit_job_with_builder_extra_fields(mock_fleets_api_cls, project_id, b
     assert mount["sub_path"] == "test_user/fleet-1"
     assert body["run_commands"][0] == "sh"
     assert body["run_commands"][1] == "-c"
-    assert "mkdir -p" in body["run_commands"][2]
+    assert "PUBLIC_LOG_PATH" in body["run_commands"][2]
 
 
 def test_get_job_status_uuid_happy_path(project_id):
