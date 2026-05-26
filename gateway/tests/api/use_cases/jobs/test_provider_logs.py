@@ -1,6 +1,6 @@
 """Unit tests for GetProviderJobLogsUseCase."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from django.contrib.auth.models import Group, User
@@ -101,3 +101,50 @@ class TestGetProviderJobLogsUseCase:
             accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[])
             with pytest.raises(InvalidAccessException):
                 _execute_provider_logs_use_case(provider_job.id, author, accessible_functions=accessible)
+
+
+class TestGetProviderJobLogsFiltering:
+    """Confirm that [public] lines are excluded from provider logs.
+
+    The provider log file contains all raw output. GetProviderJobLogsUseCase applies
+    filter_logs_with_non_public_tags() before returning, so [public] lines must be
+    absent from the result and untagged / [private] lines must be present.
+    """
+
+    MIXED_LOGS = (
+        "[public] this is a public line\n"
+        "this is an untagged line\n"
+        "[PRIVATE] this is a private line\n"
+        "[PUBLIC] another public line\n"
+        "another untagged line\n"
+    )
+
+    def _execute_via_active_runner(self, job, user, raw_logs):
+        """Run the use case through the active-runner path (COS storage returns nothing)."""
+        mock_runner = MagicMock()
+        mock_runner.is_active.return_value = True
+        mock_runner.provider_logs.return_value = raw_logs
+
+        with (
+            patch("api.use_cases.jobs.provider_logs.get_logs_storage") as mock_storage,
+            patch("api.use_cases.jobs.provider_logs.get_runner", return_value=mock_runner),
+        ):
+            mock_storage.return_value.get_private_logs.return_value = None
+            return GetProviderJobLogsUseCase().execute(job.id, user)
+
+    def test_public_lines_are_excluded(self, provider_job, other_user, provider_with_admin):
+        """[public] tagged lines must not appear in provider_logs output."""
+        result = self._execute_via_active_runner(provider_job, other_user, self.MIXED_LOGS)
+        assert "[public]" not in result.lower()
+
+    def test_untagged_lines_are_included(self, provider_job, other_user, provider_with_admin):
+        """Untagged lines must be present in provider_logs output."""
+        result = self._execute_via_active_runner(provider_job, other_user, self.MIXED_LOGS)
+        assert "this is an untagged line" in result
+        assert "another untagged line" in result
+
+    def test_private_lines_are_included_without_prefix(self, provider_job, other_user, provider_with_admin):
+        """[private] tagged lines must appear in provider_logs output with the prefix stripped."""
+        result = self._execute_via_active_runner(provider_job, other_user, self.MIXED_LOGS)
+        assert "this is a private line" in result
+        assert "[PRIVATE]" not in result
