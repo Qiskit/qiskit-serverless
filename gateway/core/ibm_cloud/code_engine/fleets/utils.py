@@ -136,7 +136,6 @@ def build_run_env_variables(
             "name": "LOG_FLUSH_INTERVAL_SECONDS",
             "value": str(flush_interval_seconds),
         },
-        zx,
     ]
 
     if private_mount_path is not None:
