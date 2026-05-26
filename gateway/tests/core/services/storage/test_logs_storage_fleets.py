@@ -54,10 +54,10 @@ class TestFleetsLogsStorage:
     # ── path generation ────────────────────────────────────────────────────────
 
     def test_public_key_custom_function(self, job):
-        """_public_key uses provider_functions/default path when program has no provider."""
+        """_public_key uses custom_functions path when program has no provider."""
         storage = FleetsLogsStorage(job)
         assert storage._public_key == (  # pylint: disable=protected-access
-            f"users/alice/provider_functions/default/my-program/jobs/{job.id}/logs.log"
+            f"users/alice/custom_functions/my-program/jobs/{job.id}/logs.log"
         )
 
     def test_public_key_provider_function(self, job_with_provider):
@@ -142,12 +142,11 @@ class TestFleetsLogsStorage:
 
         assert result is None
 
-    def test_get_private_logs_returns_none_for_custom_function(self, job):
-        """get_private_logs() returns None for non-provider jobs."""
+    def test_get_private_logs_raises_for_custom_function(self, job):
+        """get_private_logs() raises RuntimeError for non-provider jobs."""
         storage = FleetsLogsStorage(job)
-        with patch(_COS_MODULE):
-            result = storage.get_private_logs()
-        assert result is None
+        with pytest.raises(RuntimeError):
+            storage.get_private_logs()
 
     # ── factory ────────────────────────────────────────────────────────────────
 
