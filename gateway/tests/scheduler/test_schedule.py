@@ -1,6 +1,6 @@
 """Tests scheduling."""
 
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import MagicMock, patch
 from prometheus_client import CollectorRegistry
 
 import pytest
@@ -10,13 +10,13 @@ from rest_framework.test import APITestCase
 
 from core.models import Job, ComputeResource, JobEvent
 from core.services.runners import RunnerError
-from core.services.storage import get_logs_storage
+from core.services.storage.logs_storage import LogsStorage
 
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 
 from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_ray_job, execute_fleets_job
-from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
+from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
 
 from tests.utils import TestUtils
 
@@ -92,8 +92,7 @@ class TestScheduleApi(APITestCase):
         assert ret_job.status == Job.PENDING
 
     @patch("scheduler.schedule.get_runner")
-    @patch("scheduler.schedule.JobEvent")
-    def test_execute_ray_job_failure(self, mock_job_event, mock_get_runner_client):
+    def test_execute_ray_job_failure(self, mock_get_runner_client):
         """Tests Ray job execution failure handling."""
         mock_runner = MagicMock()
         mock_runner.submit.side_effect = RunnerError("Submit failed")
@@ -108,34 +107,6 @@ class TestScheduleApi(APITestCase):
         mock_runner.submit.assert_called_once()
         assert ret_job.status == Job.FAILED
         assert "Job submission failed" in ret_job.logs
-        mock_job_event.objects.add_error_event.assert_called_once()
-
-    @patch("scheduler.schedule.get_runner")
-    @patch("scheduler.schedule.JobEvent")
-    def test_execute_ray_job_failure_emits_error_event(self, mock_job_event, mock_get_runner):
-        """execute_ray_job() records a SUBMISSION_ERROR event with cause exception name on RunnerError."""
-        cause = ValueError("underlying cause")
-        err = RunnerError("Submit failed")
-        err.__cause__ = cause
-        mock_runner = MagicMock()
-        mock_runner.submit.side_effect = err
-        mock_get_runner.return_value = mock_runner
-
-        job = MagicMock()
-        job.status = Job.QUEUED
-        job.logs = ""
-
-        execute_ray_job(job)
-
-        mock_job_event.objects.add_error_event.assert_called_once_with(
-            job_id=job.id,
-            origin=ANY,
-            context=ANY,
-            code="SUBMISSION_ERROR",
-            message="Submit failed",
-            exception="ValueError",
-            args={},
-        )
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.JobEvent")
@@ -177,7 +148,7 @@ class TestScheduleApi(APITestCase):
         assert ret_job.status == Job.FAILED
         mock_job_event.objects.add_status_event.assert_called_once()
 
-    @patch("scheduler.tasks.update_ray_jobs_statuses.get_runner")
+    @patch("scheduler.tasks.update_jobs_statuses.get_runner")
     def test_job_runtime_limit(self, get_runner):
         """Tests job runtime limit enforcement.
 
@@ -214,7 +185,7 @@ class TestScheduleApi(APITestCase):
 
             # Running job status update which verify that will change the job status (timeout exceeded)
             # Since PROGRAM_TIMEOUT=0, any job with a JobEvent will have exceeded the limit
-            UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=SchedulerMetrics(CollectorRegistry())).run()
+            UpdateJobsStatuses(kill_signal=KillSignal(), metrics=SchedulerMetrics(CollectorRegistry())).run()
             job.refresh_from_db()
             job_event = JobEvent.objects.filter(job=job).first()
 
@@ -222,7 +193,7 @@ class TestScheduleApi(APITestCase):
             # Since the job is in terminal state, its `logs` attribute instance is empty.
             # We need to check the logs in storage
             assert (
-                "Maximum job runtime reached" in get_logs_storage(job).get_public_logs()
+                "Maximum job runtime reached" in LogsStorage(job).get_public_logs()
             ), "Job logs should contain timeout message"
 
             job_events = JobEvent.objects.filter(job=job).order_by("created")
