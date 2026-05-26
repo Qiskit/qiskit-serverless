@@ -20,6 +20,7 @@ from typing import Optional
 from ibm_botocore.exceptions import ClientError
 
 from core.ibm_cloud import get_cos_client
+from core.ibm_cloud.code_engine.fleets.utils import build_cos_paths
 from core.models import Job
 from core.services.storage.logs_storage import LogsStorage
 
@@ -47,27 +48,20 @@ class FleetsLogsStorage(LogsStorage):
             )
         self._user_bucket = user_bucket
 
-        username = job.author.username
-        provider_name = job.program.provider.name if job.program.provider else None
-        program_title = job.program.title
+        paths = build_cos_paths(job)
+        self._public_key = paths["user_log_key"]
 
-        if provider_name:
-            user_job_prefix = f"users/{username}/provider_functions/{provider_name}/{program_title}/jobs/{self._job_id}"
-            provider_job_prefix = f"providers/{provider_name}/{program_title}/jobs/{self._job_id}"
-
+        if job.program.provider:
             provider_bucket = job.code_engine_project.cos_bucket_provider_data_name
             if not provider_bucket:
                 raise ValueError(
                     f"CodeEngineProject '{self._project.project_name}' has no cos_bucket_provider_data_name configured"
                 )
             self._provider_bucket: Optional[str] = provider_bucket
-            self._private_key: Optional[str] = f"{provider_job_prefix}/{self.LOG_FILENAME}"
+            self._private_key: Optional[str] = paths["provider_log_key"]
         else:
-            user_job_prefix = f"users/{username}/custom_functions/{program_title}/jobs/{self._job_id}"
             self._provider_bucket = None
             self._private_key = None
-
-        self._public_key = f"{user_job_prefix}/{self.LOG_FILENAME}"
 
     def get_public_logs(self) -> Optional[str]:
         try:
