@@ -74,10 +74,10 @@ class TestFleetsLogsStorage:
             f"providers/good-partner/my-program/jobs/{job_with_provider.id}/logs.log"
         )
 
-    def test_private_key_is_none_for_custom_function(self, job):
-        """_private_key is None when program has no provider."""
+    def test_provider_bucket_is_none_for_custom_function(self, job):
+        """_provider_bucket is None when program has no provider."""
         storage = FleetsLogsStorage(job)
-        assert storage._private_key is None  # pylint: disable=protected-access
+        assert storage._provider_bucket is None  # pylint: disable=protected-access
 
     def test_no_project_raises(self):
         """ValueError raised when job has no CodeEngineProject."""

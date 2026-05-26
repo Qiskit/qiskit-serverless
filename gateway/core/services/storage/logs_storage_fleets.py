@@ -37,31 +37,33 @@ class FleetsLogsStorage(LogsStorage):
         if not job.code_engine_project:
             raise ValueError(f"Job '{job.id}' has no CodeEngineProject assigned")
 
+        paths = build_cos_paths(job)
         self._job_id = str(job.id)
         self._user_id = job.author.id
         self._project = job.code_engine_project
+        self._public_key = paths["user_log_key"]
+        self._private_key: Optional[str] = paths["provider_log_key"]
+        self._user_bucket = self._load_user_bucket(job)
+        self._provider_bucket = self._load_provider_bucket(job)
 
+    def _load_provider_bucket(self, job: Job):
+        if not job.program.provider:
+            return None
+
+        provider_bucket = job.code_engine_project.cos_bucket_provider_data_name
+        if not provider_bucket:
+            raise ValueError(
+                f"CodeEngineProject '{self._project.project_name}' has no cos_bucket_provider_data_name configured"
+            )
+        return provider_bucket
+
+    def _load_user_bucket(self, job: Job):
         user_bucket = job.code_engine_project.cos_bucket_user_data_name
         if not user_bucket:
             raise ValueError(
                 f"CodeEngineProject '{self._project.project_name}' has no cos_bucket_user_data_name configured"
             )
-        self._user_bucket = user_bucket
-
-        paths = build_cos_paths(job)
-        self._public_key = paths["user_log_key"]
-
-        if job.program.provider:
-            provider_bucket = job.code_engine_project.cos_bucket_provider_data_name
-            if not provider_bucket:
-                raise ValueError(
-                    f"CodeEngineProject '{self._project.project_name}' has no cos_bucket_provider_data_name configured"
-                )
-            self._provider_bucket: Optional[str] = provider_bucket
-            self._private_key: Optional[str] = paths["provider_log_key"]
-        else:
-            self._provider_bucket = None
-            self._private_key = None
+        return user_bucket
 
     def get_public_logs(self) -> Optional[str]:
         try:
@@ -97,7 +99,7 @@ class FleetsLogsStorage(LogsStorage):
             return None
 
     def get_private_logs(self) -> Optional[str]:
-        if self._private_key is None or self._provider_bucket is None:
+        if self._provider_bucket is None:
             raise RuntimeError("Private logs are only available for provider jobs")
         try:
             content_bytes = get_cos_client(self._project).get_object_bytes(
