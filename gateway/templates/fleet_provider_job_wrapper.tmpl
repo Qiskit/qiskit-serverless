@@ -36,53 +36,70 @@ LOCAL_PRIVATE="/tmp/private.log"
 # file used to recover the application's exit code (the app runs inside a
 # pipeline, so $? would refer to awk, not the app).
 PIPE="/tmp/app.pipe"
-STATUS_FILE="/tmp/app.status"
+EXIT_CODE_FILE="/tmp/app.status"
 
-# Clean up any leftovers from a previous run, reset the local logs, recreate
-# the FIFO and ensure both COS mount paths exist.
-rm -f "$PIPE" "$STATUS_FILE"
-: > "$LOCAL_PUBLIC"
-: > "$LOCAL_PRIVATE"
 mkfifo "$PIPE"
-mkdir -p "$PUBLIC_LOG_DIR" "$PRIVATE_LOG_DIR"
 
-# Splitter pipeline: a single awk reads every line from the FIFO and routes
-# it to one of the two local files, stripping the matching prefix. Indices
-# (10, 11) are 1-based and match the Python slice offsets (line[9:],
-# line[10:]) so the byte-for-byte output stays consistent with the existing
-# Python filter functions.
-awk -v pub="$LOCAL_PUBLIC" -v priv="$LOCAL_PRIVATE" '{
-  head8 = toupper(substr($0, 1, 8))
-  head9 = toupper(substr($0, 1, 9))
-  if (head8 == "[PUBLIC]") {
-    print substr($0, 10) >> pub; fflush(pub)
-  } else if (head9 == "[PRIVATE]") {
-    print substr($0, 11) >> priv; fflush(priv)
-  } else {
-    print $0 >> priv; fflush(priv)
-  }
-}' < "$PIPE" &
-LOGGER_PID=$!
+# Splits the app output into two pre-filtered files (served as-is by the endpoints):
+#
+#   PUBLIC_LOG_PATH  (/logs, visible to the job author):
+#     Only [PUBLIC] lines, with the prefix stripped.
+#     Equivalent to filter_logs_with_public_tags in core.domain.filter_logs.
+#
+#   PRIVATE_LOG_PATH  (/provider-logs, visible to the provider):
+#     [PRIVATE] lines (prefix stripped) + all unprefixed lines (print(), 3rd-party).
+#     [PUBLIC] lines are excluded to protect provider IP.
+#     Equivalent to filter_logs_with_non_public_tags in core.domain.filter_logs.
+#
+# Sets LOGGER_PID so we can wait for the splitter to drain after the app exits.
+start_log_splitter() {
+  awk -v pub="$LOCAL_PUBLIC" -v priv="$LOCAL_PRIVATE" '{
+    head8 = toupper(substr($0, 1, 8))
+    head9 = toupper(substr($0, 1, 9))
+    if (head8 == "[PUBLIC]") {
+      print substr($0, 10) >> pub
+      fflush(pub)
+    } else if (head9 == "[PRIVATE]") {
+      print substr($0, 11) >> priv
+      fflush(priv)
+    } else {
+      print $0 >> priv
+      fflush(priv)
+    }
+  }' < "$PIPE" &
+  LOGGER_PID=$!
+}
+start_log_splitter
 
-# Background uploader: every $INTERVAL seconds, copy each local log to COS,
-# but only if its size changed since the previous upload (skips no-op PUTs
-# when the app is silent or when no line has matched the public filter).
-(
-  last_pub=-1
-  last_priv=-1
-  while :; do
-    sleep "$INTERVAL"
-    cur_pub=$(wc -c < "$LOCAL_PUBLIC" 2>/dev/null || echo -1)
-    if [ "$cur_pub" != "$last_pub" ]; then
-      cp "$LOCAL_PUBLIC" "$PUBLIC_LOG_PATH" 2>/dev/null && last_pub=$cur_pub || true
-    fi
-    cur_priv=$(wc -c < "$LOCAL_PRIVATE" 2>/dev/null || echo -1)
-    if [ "$cur_priv" != "$last_priv" ]; then
-      cp "$LOCAL_PRIVATE" "$PRIVATE_LOG_PATH" 2>/dev/null && last_priv=$cur_priv || true
-    fi
-  done
-) &
-UPLOADER_PID=$!
+# Returns the file size in bytes via a single stat syscall (no file read).
+file_size() {
+  stat -c %s "$1" 2>/dev/null || echo -1
+}
+
+# Periodically copies both local logs to COS, skipping no-op PUTs when the
+# app is silent or no line has matched the public filter.
+# Sets UPLOADER_PID so flush_final can stop it on exit.
+start_uploader() {
+  (
+    last_public_log_size=-1
+    last_private_log_size=-1
+    while :; do
+      sleep "$INTERVAL"
+      cur=$(file_size "$LOCAL_PUBLIC")
+      if [ "$cur" != "$last_public_log_size" ]; then
+        # New public lines since last upload — push to COS.
+        cp "$LOCAL_PUBLIC" "$PUBLIC_LOG_PATH" 2>/dev/null && last_public_log_size=$cur || true
+      fi
+      cur=$(file_size "$LOCAL_PRIVATE")
+      if [ "$cur" != "$last_private_log_size" ]; then
+        # New private lines since last upload — push to COS.
+        cp "$LOCAL_PRIVATE" "$PRIVATE_LOG_PATH" 2>/dev/null && last_private_log_size=$cur || true
+      fi
+    done
+  ) &
+  UPLOADER_PID=$!
+}
+start_uploader
 
 # On exit (normal, SIGTERM, SIGINT) stop the uploader and force one final
 # unconditional copy of both logs, so COS reflects the very last lines.
@@ -93,12 +110,15 @@ flush_final() {
 }
 trap 'flush_final' EXIT TERM INT
 
-# Run the application: its stdout/stderr feed the FIFO, and its exit code
-# is recorded in $STATUS_FILE so we can propagate it after the pipeline.
-#
-# `set +e` inside the subshell is required so that a non-zero exit from the
-# app does not abort the subshell before the exit code is recorded.
-( set +e; {{ app_cmd }}; printf "%s\n" "$?" > "$STATUS_FILE" ) > "$PIPE" 2>&1
+# Runs the app and records its exit code to $EXIT_CODE_FILE.
+# Must run in a subshell so set+e does not leak to the outer script.
+run_app() {
+  set +e
+  {{ app_cmd }}
+  printf "%s\n" "$?" > "$EXIT_CODE_FILE"
+}
+
+( run_app ) > "$PIPE" 2>&1
 
 # Wait for the splitter to drain the remaining buffered lines.
 # A failure here must not mask the application's exit code.
@@ -106,11 +126,11 @@ wait "$LOGGER_PID" || true
 
 # Validate that we actually captured an exit code; if not, fail loudly so
 # the wrapper does not silently report success on a broken run.
-if [ ! -f "$STATUS_FILE" ]; then
+if [ ! -f "$EXIT_CODE_FILE" ]; then
   echo "logging wrapper error: status file was not created" >&2
   exit 1
 fi
-STATUS="$(cat "$STATUS_FILE")"
+STATUS="$(cat "$EXIT_CODE_FILE")"
 case "$STATUS" in
   ""|*[!0-9]*) echo "logging wrapper error: invalid status: $STATUS" >&2; exit 1 ;;
 esac

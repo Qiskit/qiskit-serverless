@@ -234,7 +234,7 @@ class FleetsRunner(AbstractRunner):
                 )
                 run_commands = build_run_commands(
                     app_run_commands=["python", f"{paths['provider_mount_path']}/{self.job.program.entrypoint}"],
-                    with_private_log=True,
+                    is_provider_function=self.job.program.provider is not None,
                 )
                 extra_fields.update(
                     {

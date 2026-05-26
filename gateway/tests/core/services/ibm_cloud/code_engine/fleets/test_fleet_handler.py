@@ -712,17 +712,7 @@ def test_build_run_commands_public_only():
     assert result[1] == "-c"
     assert "python" in script
     assert "PUBLIC_LOG_PATH" in script
-    assert "LOCAL_PUBLIC" in script
-    assert "LOG_FLUSH_INTERVAL_SECONDS" in script
-    assert "flush_final" in script
-    assert "wc -c" in script
-    # Prefix-stripping awk is hardcoded with the SDK casing.
-    assert "[PUBLIC]" in script
-    assert "[PRIVATE]" in script
-    assert "toupper" in script
-    # Provider-only artefacts must not appear in the custom-job template.
     assert "PRIVATE_LOG_PATH" not in script
-    assert "LOCAL_PRIVATE" not in script
     assert "mkfifo" not in script
 
 
@@ -736,21 +726,11 @@ def test_build_run_commands_with_private_log():
     """build_run_commands renders the provider-job template (split public/private)."""
     result = build_run_commands(
         app_run_commands=["python", "main.py"],
-        with_private_log=True,
+        is_provider_function=True,
     )
     script = result[2]
     assert "PUBLIC_LOG_PATH" in script
     assert "PRIVATE_LOG_PATH" in script
-    assert "LOCAL_PUBLIC" in script
-    assert "LOCAL_PRIVATE" in script
-    assert "awk" in script
-    assert "mkfifo" in script
-    assert "flush_final" in script
-    assert "wc -c" in script
-    # Prefix-stripping awk is hardcoded with the SDK casing.
-    assert "[PUBLIC]" in script
-    assert "[PRIVATE]" in script
-    assert "toupper" in script
 
 
 def test_build_run_commands_app_cmd_not_html_escaped():

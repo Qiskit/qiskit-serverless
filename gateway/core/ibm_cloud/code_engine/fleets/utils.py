@@ -136,6 +136,7 @@ def build_run_env_variables(
             "name": "LOG_FLUSH_INTERVAL_SECONDS",
             "value": str(flush_interval_seconds),
         },
+        zx,
     ]
 
     if private_mount_path is not None:
@@ -161,7 +162,7 @@ def build_run_commands(
     *,
     app_run_commands: list[str],
     app_run_arguments: list[str] | None = None,
-    with_private_log: bool = False,
+    is_provider_function: bool = False,
 ) -> list[str]:
     """
     Build wrapper commands for fleet execution and logging.
@@ -169,7 +170,7 @@ def build_run_commands(
     Args:
         app_run_commands: Command override for the application.
         app_run_arguments: Argument override for the application.
-        with_private_log: When True, the wrapper splits the application
+        is_provider_function: When True, the wrapper splits the application
             output into a public log and a private log (provider job). When
             False, the wrapper writes a single prefix-stripped public log
             (custom/user job).
@@ -186,7 +187,7 @@ def build_run_commands(
     app_parts = [*app_run_commands, *(app_run_arguments or [])]
     app_cmd = " ".join(shlex.quote(part) for part in app_parts)
 
-    template_name = "fleet_provider_job_wrapper.tmpl" if with_private_log else "fleet_custom_job_wrapper.tmpl"
+    template_name = "fleet_provider_job_wrapper.tmpl" if is_provider_function else "fleet_custom_job_wrapper.tmpl"
     script = get_template(template_name).render({"app_cmd": app_cmd})
 
     return ["sh", "-c", script]
