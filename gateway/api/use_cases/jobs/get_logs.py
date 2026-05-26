@@ -66,10 +66,6 @@ class GetJobLogsUseCase:
 
             logger.info("Getting logs from runner=%s job_id=%s", job.program.runner, job.id)
 
-            if job.program.runner == Program.FLEETS:
-                # Logs are pre-filtered by the in-container wrapper; no re-filtering needed
-                return logs
-
             if job.program.provider:
                 # Public logs from a provider job
                 return filter_logs_with_public_tags(logs)
