@@ -10,7 +10,7 @@ from api.domain.exceptions.provider_not_found_exception import ProviderNotFoundE
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 
 from api.repositories.providers import ProviderRepository
-from core.models import RUN_PROGRAM_PERMISSION
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import Program as Function
 from core.services.storage.file_storage import FileStorage, WorkingDir
 
@@ -25,20 +25,27 @@ class FilesProviderListUseCase:
     provider_repository = ProviderRepository()
     working_dir = WorkingDir.PROVIDER_STORAGE
 
-    def execute(self, user: AbstractUser, provider_name: str, function_title: str):
+    def execute(
+        self,
+        user: AbstractUser,
+        provider_name: str,
+        function_title: str,
+        accessible_functions: FunctionAccessResult,
+    ):
         """
         List all files on the provider storage.
         """
 
         provider = self.provider_repository.get_provider_by_name(name=provider_name)
         if provider is None or not ProviderAccessPolicy.can_read_files(
-            user=user, provider=provider, function_title=function_title
+            user=user,
+            provider=provider,
+            function_title=function_title,
+            accessible_functions=accessible_functions,
         ):
             raise ProviderNotFoundException(provider_name)
 
-        function = Function.objects.get_function_by_permission(
-            user=user,
-            legacy_permission_name=RUN_PROGRAM_PERMISSION,
+        function = Function.objects.get_function(
             function_title=function_title,
             provider_name=provider_name,
         )

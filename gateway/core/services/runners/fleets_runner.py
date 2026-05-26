@@ -14,7 +14,6 @@
 
 from __future__ import annotations
 
-import io
 import json
 import logging
 import re
@@ -36,7 +35,6 @@ from core.ibm_cloud.code_engine.fleets.utils import (
     build_run_env_variables,
     build_run_volume_mounts,
 )
-from core.services.storage import get_arguments_storage
 
 logger = logging.getLogger("FleetsRunner")
 
@@ -242,7 +240,6 @@ class FleetsRunner(AbstractRunner):
                         "run_commands": run_commands,
                     }
                 )
-                _retry_on_rate_limit(lambda: self._upload_arguments_to_cos(paths))
                 _retry_on_rate_limit(lambda: self._upload_artifact_to_cos(paths))
                 logger.info(
                     "COS configured for job [%s]: user_key=[%s] provider_key=[%s]",
@@ -541,40 +538,9 @@ class FleetsRunner(AbstractRunner):
             "provider_job_prefix": provider_job_prefix,
             "user_log_key": f"{user_job_prefix}/{LOG_FILENAME}",
             "provider_log_key": f"{provider_job_prefix}/{LOG_FILENAME}",
-            "user_arguments_key": f"{user_job_prefix}/arguments.json",
             "user_mount_path": "/data",
             "provider_mount_path": "/function_data",
         }
-
-    def _upload_arguments_to_cos(self, paths: dict[str, str]) -> None:
-        """Upload job arguments from local storage to the COS user bucket.
-
-        Reads from :class:`ArgumentsStorage` and uploads to
-        ``{user_job_prefix}/arguments.json`` so the SDK's
-        ``get_arguments()`` finds them at ``/data/arguments.json``
-        (via the ``ARGUMENTS_PATH`` env var).
-        Unwraps a single-key ``{"arguments": ...}`` envelope if present.
-
-        Args:
-            paths: Dict from :meth:`_build_cos_paths`.
-        """
-        storage = get_arguments_storage(self.job)
-        content = storage.get() or "{}"
-
-        try:
-            parsed = json.loads(content)
-            if isinstance(parsed, dict) and list(parsed.keys()) == ["arguments"]:
-                content = json.dumps(parsed["arguments"])
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-        user_bucket = self._project.cos_bucket_user_data_name
-        self._get_cos().upload_fileobj(
-            fileobj=io.BytesIO(content.encode("utf-8")),
-            bucket_name=user_bucket,
-            key=paths["user_arguments_key"],
-        )
-        logger.info("Uploaded arguments for job [%s] to %s/%s", self.job.id, user_bucket, paths["user_arguments_key"])
 
     def _upload_artifact_to_cos(self, paths: dict[str, str]) -> None:
         """Extract the program artifact tar and upload files to COS.

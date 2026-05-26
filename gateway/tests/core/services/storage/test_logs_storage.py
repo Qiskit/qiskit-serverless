@@ -1,11 +1,11 @@
-"""Tests for LogsStorage."""
+"""Tests for RayLogsStorage."""
 
 import os
 
 import pytest
 from unittest.mock import Mock
 
-from core.services.storage.logs_storage import LogsStorage
+from core.services.storage.logs_storage_ray import RayLogsStorage
 
 
 class TestLogsStorage:
@@ -42,19 +42,19 @@ class TestLogsStorage:
         job = self._create_job("auth1", provider=None)
 
         with pytest.raises(RuntimeError):
-            LogsStorage(job).get_private_logs()
+            RayLogsStorage(job).get_private_logs()
 
     def test_save_private_logs_not_allowed_for_user_job(self):
         """save_private_logs is not allowed for user jobs."""
         job = self._create_job("auth1", provider=None)
 
         with pytest.raises(RuntimeError):
-            LogsStorage(job).save_private_logs("some logs")
+            RayLogsStorage(job).save_private_logs("some logs")
 
     def test_get_public_logs_returns_none_if_not_found(self):
         """get_public_logs returns None if file doesn't exist."""
         job = self._create_job("auth1", job_id="nonexistent")
-        storage = LogsStorage(job)
+        storage = RayLogsStorage(job)
         logs = storage.get_public_logs()
 
         assert logs is None
@@ -62,7 +62,7 @@ class TestLogsStorage:
     def test_get_private_logs_returns_none_if_not_found(self):
         """get_public_logs returns None if file doesn't exist."""
         job = self._create_job("auth1", provider="prov1", job_id="nonexistent")
-        storage = LogsStorage(job)
+        storage = RayLogsStorage(job)
         logs = storage.get_private_logs()
 
         assert logs is None
@@ -71,7 +71,7 @@ class TestLogsStorage:
         """Test saving and retrieving public logs for a user job."""
         job = self._create_job("auth1", provider=None, job_id="job-123")
         expected_path = os.path.join(str(self.tmp_path), "auth1", "logs", "job-123.log")
-        storage = LogsStorage(job)
+        storage = RayLogsStorage(job)
         storage.save_public_logs("test log content")
         logs = storage.get_public_logs()
 
@@ -82,7 +82,7 @@ class TestLogsStorage:
         """Test saving and retrieving public logs for a provider job."""
         job = self._create_job("auth1", provider="prov1", job_id="id")
         path = os.path.join(str(self.tmp_path), "auth1", "prov1", "func1", "logs", "id.log")
-        storage = LogsStorage(job)
+        storage = RayLogsStorage(job)
         storage.save_public_logs("public log content")
         logs = storage.get_public_logs()
 
@@ -93,7 +93,7 @@ class TestLogsStorage:
         """Test saving and retrieving private logs for a provider job."""
         job = self._create_job("auth1", provider="prov1", job_id="id")
         expected_path = os.path.join(str(self.tmp_path), "prov1", "func1", "logs", "id.log")
-        storage = LogsStorage(job)
+        storage = RayLogsStorage(job)
         storage.save_private_logs("private log content")
         logs = storage.get_private_logs()
 

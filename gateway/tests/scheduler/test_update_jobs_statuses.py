@@ -10,35 +10,20 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Unit tests for UpdateJobsStatuses."""
+"""Unit tests for UpdateRayJobsStatuses."""
 
 from unittest.mock import MagicMock, patch
 
 from core.models import Job, Program
-from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
+from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
 
-_MOD = "scheduler.tasks.update_jobs_statuses"
+_MOD = "scheduler.tasks.update_ray_jobs_statuses"
 
 
 def _make_task():
     kill_signal = MagicMock()
     kill_signal.received = False
-    return UpdateJobsStatuses(kill_signal=kill_signal, metrics=MagicMock())
-
-
-def _make_fleets_job(status=Job.RUNNING, fleet_id="fleet-123"):
-    job = MagicMock(spec=Job)
-    job.runner = Program.FLEETS
-    job.fleet_id = fleet_id
-    job.status = status
-    job.result = None
-    job.logs = ""
-    job.env_vars = "{}"
-    job.sub_status = None
-    job.in_terminal_state.return_value = False
-    job.SUCCEEDED = Job.SUCCEEDED
-    job.FAILED = Job.FAILED
-    return job
+    return UpdateRayJobsStatuses(kill_signal=kill_signal, metrics=MagicMock())
 
 
 def _make_ray_job(status=Job.RUNNING):

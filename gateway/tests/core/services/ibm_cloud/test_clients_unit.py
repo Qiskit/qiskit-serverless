@@ -186,7 +186,7 @@ def test_get_cos_hmac_client_cache_hit_and_miss() -> None:
 def test_get_cos_hmac_client_uses_custom_endpoint_url() -> None:
     """When endpoint_url is supplied it is used as the S3 endpoint, not the region-derived URL."""
     with patched_provider() as provider:
-        custom_url = "https://s3.private.us-east.cloud-object-storage.appdomain.cloud"
+        custom_url = "https://s3.direct.us-east.cloud-object-storage.appdomain.cloud"
         provider.get_cos_hmac_client(
             access_key_id="ak",
             secret_access_key="sk",
@@ -199,11 +199,13 @@ def test_get_cos_hmac_client_cache_differentiates_by_endpoint_url() -> None:
     """Different endpoint URLs for the same credentials produce distinct cached clients."""
     with patched_provider() as provider:
         url_public = "https://s3.us-east.cloud-object-storage.appdomain.cloud"
-        url_private = "https://s3.private.us-east.cloud-object-storage.appdomain.cloud"
+        url_direct = "https://s3.direct.us-east.cloud-object-storage.appdomain.cloud"
 
         client_pub = provider.get_cos_hmac_client(access_key_id="ak", secret_access_key="sk", endpoint_url=url_public)
-        client_priv = provider.get_cos_hmac_client(access_key_id="ak", secret_access_key="sk", endpoint_url=url_private)
+        client_direct = provider.get_cos_hmac_client(
+            access_key_id="ak", secret_access_key="sk", endpoint_url=url_direct
+        )
         client_pub2 = provider.get_cos_hmac_client(access_key_id="ak", secret_access_key="sk", endpoint_url=url_public)
 
-        assert client_pub is not client_priv
+        assert client_pub is not client_direct
         assert client_pub is client_pub2

@@ -451,6 +451,7 @@ ERROR: Provider log
         assert event_data["code"] == "A123"
         assert event_data["message"] == "My error message"
         assert event_data["args"]["my-args"] == 123
+        assert expected_message == job.error_message().strip()
 
     def test_other_error_raise(self, serverless_client: ServerlessClient):
         """Integration test for submitting an error event within the function and retrieving it client-side."""
@@ -465,12 +466,11 @@ ERROR: Provider log
         events = job.events(type="ERROR")
         assert len(events) == 1
 
-        assert (
-            exc_info.value.args[0]
-            == "\n| Message: ValueError: This is not a ServerlessError\n| Code: 1\n| Exception: ValueError"
-        )
+        expected_message = "\n| Message: ValueError: This is not a ServerlessError\n| Code: 1\n| Exception: ValueError"
+        assert exc_info.value.args[0] == expected_message
 
         event_data = events[0].data
         assert event_data["code"] == "1"
         assert event_data["message"] == "ValueError: This is not a ServerlessError"
         assert event_data["exception"] == "ValueError"
+        assert expected_message == job.error_message()
