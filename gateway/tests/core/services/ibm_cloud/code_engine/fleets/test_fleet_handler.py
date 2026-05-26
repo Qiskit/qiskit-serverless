@@ -156,7 +156,7 @@ def test_submit_job_with_builder_extra_fields(mock_fleets_api_cls, project_id, b
 
     extra_fields = {
         "run_volume_mounts": build_run_volume_mounts(mounts=[("/output", "test-pds", "test_user/fleet-1")]),
-        "run_env_variables": build_run_env_variables(public_mount_path="/output"),
+        "run_env_variables": build_run_env_variables(public_log_path="/output/logs.log"),
         "run_commands": build_run_commands(app_run_commands=["python", "main.py"]),
     }
 
@@ -661,47 +661,43 @@ def test_build_run_volume_mounts_empty_raises():
 
 
 def test_build_run_env_variables_public_only():
-    """build_run_env_variables returns PUBLIC_LOG_DIR and PUBLIC_LOG_PATH."""
-    result = build_run_env_variables(public_mount_path="/output")
+    """build_run_env_variables returns PUBLIC_LOG_PATH without PRIVATE_LOG_PATH."""
+    result = build_run_env_variables(public_log_path="/output/logs.log")
     names = {e["name"] for e in result}
-    assert "PUBLIC_LOG_DIR" in names
     assert "PUBLIC_LOG_PATH" in names
     assert "LOG_FLUSH_INTERVAL_SECONDS" in names
-    assert "PRIVATE_LOG_DIR" not in names
     assert "PRIVATE_LOG_PATH" not in names
 
 
-def test_build_run_env_variables_with_private_mount():
-    """build_run_env_variables exposes PRIVATE_* when private_mount_path is given."""
+def test_build_run_env_variables_with_private_path():
+    """build_run_env_variables exposes PRIVATE_LOG_PATH when private_log_path is given."""
     result = build_run_env_variables(
-        public_mount_path="/public",
-        private_mount_path="/private",
+        public_log_path="/public/logs.log",
+        private_log_path="/private/logs.log",
     )
     by_name = {e["name"]: e["value"] for e in result}
-    assert by_name["PUBLIC_LOG_DIR"] == "/public"
     assert by_name["PUBLIC_LOG_PATH"] == "/public/logs.log"
-    assert by_name["PRIVATE_LOG_DIR"] == "/private"
     assert by_name["PRIVATE_LOG_PATH"] == "/private/logs.log"
 
 
 def test_build_run_env_variables_default_flush_interval():
     """build_run_env_variables defaults LOG_FLUSH_INTERVAL_SECONDS to 15."""
-    result = build_run_env_variables(public_mount_path="/output")
+    result = build_run_env_variables(public_log_path="/output/logs.log")
     interval = next(e for e in result if e["name"] == "LOG_FLUSH_INTERVAL_SECONDS")
     assert interval["value"] == "15"
 
 
 def test_build_run_env_variables_custom_flush_interval():
     """build_run_env_variables honors flush_interval_seconds override."""
-    result = build_run_env_variables(public_mount_path="/output", flush_interval_seconds=42)
+    result = build_run_env_variables(public_log_path="/output/logs.log", flush_interval_seconds=42)
     interval = next(e for e in result if e["name"] == "LOG_FLUSH_INTERVAL_SECONDS")
     assert interval["value"] == "42"
 
 
 def test_build_run_env_variables_missing_public_raises():
-    """build_run_env_variables raises when public_mount_path is missing."""
-    with pytest.raises(ValueError, match="public_mount_path is required"):
-        build_run_env_variables(public_mount_path="")
+    """build_run_env_variables raises when public_log_path is empty."""
+    with pytest.raises(ValueError, match="public_log_path is required"):
+        build_run_env_variables(public_log_path="")
 
 
 def test_build_run_commands_public_only():

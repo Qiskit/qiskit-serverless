@@ -216,10 +216,8 @@ class FleetsRunner(AbstractRunner):
                     ]
                 )
                 run_env_variables = build_run_env_variables(
-                    public_mount_path=paths["user_mount_path"],
-                    public_log_filename=LOG_FILENAME,
-                    private_mount_path=paths["provider_logs_mount_path"],
-                    private_log_filename=LOG_FILENAME,
+                    public_log_path=f"{paths['user_mount_path']}/{LOG_FILENAME}",
+                    private_log_path=f"{paths['provider_logs_mount_path']}/{LOG_FILENAME}",
                 )
 
                 gateway_env = self._build_gateway_env_vars()

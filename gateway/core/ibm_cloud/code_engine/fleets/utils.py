@@ -28,7 +28,7 @@ Example::
     mounts = build_run_volume_mounts(
         mounts=[("/output", "my-pds", "user/job-1")]
     )
-    env = build_run_env_variables(public_mount_path="/output")
+    env = build_run_env_variables(public_log_path="/output/logs.log")
     cmds = build_run_commands(app_run_commands=["python", "main.py"])
 """
 
@@ -90,28 +90,21 @@ def build_run_volume_mounts(
 
 def build_run_env_variables(
     *,
-    public_mount_path: str,
-    public_log_filename: str = "logs.log",
-    private_mount_path: str | None = None,
-    private_log_filename: str = "logs.log",
+    public_log_path: str,
+    private_log_path: str | None = None,
     flush_interval_seconds: int = 15,
 ) -> list[dict[str, str]]:
     """
     Build environment variables used by the logging wrapper command.
 
-    The mount path already points to the desired COS prefix, so no log subdir
-    is needed here.
-
     Args:
-        public_mount_path: Container path for the public log store. Always
+        public_log_path: Full container path for the public log file. Always
             present: it is the file served by ``/logs`` to the job's author
             (``filter_logs_with_public_tags`` for provider jobs, full output
             with prefixes stripped for custom jobs).
-        public_log_filename: File name for the public log.
-        private_mount_path: Container path for the private log store.
+        private_log_path: Full container path for the private log file.
             Required only for provider jobs that emit a separate private
             stream served by ``/provider-logs``.
-        private_log_filename: File name for the private log.
         flush_interval_seconds: Period (in seconds) between log uploads from
             the local working directory to the COS-backed mount.
 
@@ -119,21 +112,16 @@ def build_run_env_variables(
         Environment variable definitions for ``run_env_variables``.
 
     Raises:
-        ValueError: If the public log configuration is incomplete.
+        ValueError: If public_log_path is empty.
     """
-    if not public_mount_path:
-        raise ValueError("public_mount_path is required.")
+    if not public_log_path:
+        raise ValueError("public_log_path is required.")
 
     run_env_variables = [
         {
             "type": "literal",
-            "name": "PUBLIC_LOG_DIR",
-            "value": public_mount_path,
-        },
-        {
-            "type": "literal",
             "name": "PUBLIC_LOG_PATH",
-            "value": f"{public_mount_path}/{public_log_filename}",
+            "value": public_log_path,
         },
         {
             "type": "literal",
@@ -142,20 +130,13 @@ def build_run_env_variables(
         },
     ]
 
-    if private_mount_path is not None:
-        run_env_variables.extend(
-            [
-                {
-                    "type": "literal",
-                    "name": "PRIVATE_LOG_DIR",
-                    "value": private_mount_path,
-                },
-                {
-                    "type": "literal",
-                    "name": "PRIVATE_LOG_PATH",
-                    "value": f"{private_mount_path}/{private_log_filename}",
-                },
-            ]
+    if private_log_path is not None:
+        run_env_variables.append(
+            {
+                "type": "literal",
+                "name": "PRIVATE_LOG_PATH",
+                "value": private_log_path,
+            }
         )
 
     return run_env_variables
