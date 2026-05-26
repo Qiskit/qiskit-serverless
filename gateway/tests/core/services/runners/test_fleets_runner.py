@@ -226,7 +226,7 @@ def test_stop_returns_false_when_already_terminal():
 
 
 def test_build_cos_paths_custom_function():
-    """Full COS key paths for a custom function (provider=None → 'default')."""
+    """Full COS key paths for a custom function (no provider → custom_functions/)."""
     runner, _ = _make_runner()
     runner.job.author.username = "alice"
     runner.job.program.provider = None
@@ -235,9 +235,9 @@ def test_build_cos_paths_custom_function():
 
     paths = runner._build_cos_paths()  # pylint: disable=protected-access
 
-    assert paths["user_function_prefix"] == "users/alice/provider_functions/default/hello-world"
-    assert paths["user_job_prefix"] == "users/alice/provider_functions/default/hello-world/jobs/job-aaa-111"
-    assert paths["user_log_key"] == "users/alice/provider_functions/default/hello-world/jobs/job-aaa-111/logs.log"
+    assert paths["user_function_prefix"] == "users/alice/custom_functions/hello-world"
+    assert paths["user_job_prefix"] == "users/alice/custom_functions/hello-world/jobs/job-aaa-111"
+    assert paths["user_log_key"] == "users/alice/custom_functions/hello-world/jobs/job-aaa-111/logs.log"
     assert paths["provider_function_prefix"] == "providers/default/hello-world"
     assert paths["provider_job_prefix"] == "providers/default/hello-world/jobs/job-aaa-111"
     assert paths["provider_log_key"] == "providers/default/hello-world/jobs/job-aaa-111/logs.log"

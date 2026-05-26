@@ -207,12 +207,20 @@ def build_cos_paths(job: Job) -> dict[str, str]:
         container mount paths.
     """
     username = job.author.username
-    provider_name = job.program.provider.name if job.program and job.program.provider else "default"
+    provider = job.program.provider if job.program else None
+    provider_name = provider.name if provider else None
     program_title = job.program.title if job.program else "unknown"
     job_id = str(job.id)
 
-    user_function_prefix = f"users/{username}/provider_functions/{provider_name}/{program_title}"
-    provider_function_prefix = f"providers/{provider_name}/{program_title}"
+    if provider_name:
+        user_function_prefix = f"users/{username}/provider_functions/{provider_name}/{program_title}"
+    else:
+        user_function_prefix = f"users/{username}/custom_functions/{program_title}"
+
+    # provider_* prefixes use the literal provider name for provider jobs, or "default" as a
+    # placeholder for custom jobs — they are still needed for volume mounts even when unused.
+    provider_name_for_mount = provider_name or "default"
+    provider_function_prefix = f"providers/{provider_name_for_mount}/{program_title}"
     user_job_prefix = f"{user_function_prefix}/jobs/{job_id}"
     provider_job_prefix = f"{provider_function_prefix}/jobs/{job_id}"
 
