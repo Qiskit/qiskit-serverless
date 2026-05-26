@@ -61,7 +61,7 @@ class FleetsLogsStorage(LogsStorage):
 
     def _read(self, bucket: str, key: str) -> Optional[str]:
         try:
-            data = get_cos_client(self._project).get_object_bytes(bucket=bucket, key=key)
+            data = get_cos_client(self._project).get_object_bytes(bucket_name=bucket, key=key)
             logger.info(
                 "[logs-storage] job_id=%s bucket=%s key=%s | Log read from COS",
                 self._job_id,
