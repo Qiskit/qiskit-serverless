@@ -59,6 +59,7 @@ def _sync_project(project_id: str, data: dict) -> None:
 
     _, created = CodeEngineProject.objects.update_or_create(
         project_id=project_id,
+        zone=defaults["zone"],
         defaults=defaults,
     )
     action = "Created" if created else "Updated"
