@@ -3,7 +3,7 @@
 [![License](https://img.shields.io/github/license/qiskit-community/quantum-prototype-template?label=License)](https://github.com/qiskit-community/quantum-prototype-template/blob/main/LICENSE.txt)
 [![Code style: Black](https://img.shields.io/badge/Code%20style-Black-000.svg)](https://github.com/psf/black)
 [![Python](https://img.shields.io/badge/Python-3.10--3.13-informational)](https://www.python.org/)
-[![Qiskit](https://img.shields.io/badge/Qiskit-%E2%89%A5%200.39.0-6133BD)](https://github.com/Qiskit/qiskit)
+[![Qiskit](https://img.shields.io/badge/Qiskit-%E2%89%A5%201.4.0-6133BD)](https://github.com/Qiskit/qiskit)
 
 # Qiskit Serverless client
 
