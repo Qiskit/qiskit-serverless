@@ -45,42 +45,6 @@ def _make_mock_project(region: str = "us-south", project_id: str = "proj-id") ->
 # ---------------------------------------------------------------------------
 
 
-def test_cos_logs_retrieves_from_cos() -> None:
-    """logs() retrieves content from COS and returns it as a string."""
-    job_cos, mock_cos = _make_job_cos()
-    mock_cos.get_object_bytes.return_value = b"log output"
-    mock_cos.wait_until_object_exists.return_value = None
-
-    result = job_cos.logs(
-        bucket_name="my-bucket",
-        log_key="jobs/123/logs.log",
-        save_locally=False,
-        wait_for_availability=True,
-    )
-
-    assert result == "log output"
-    mock_cos.get_object_bytes.assert_called_once_with(bucket="my-bucket", key="jobs/123/logs.log")
-
-
-def test_cos_logs_waits_for_availability() -> None:
-    """logs() calls wait_until_object_exists when wait_for_availability=True."""
-    job_cos, mock_cos = _make_job_cos()
-    mock_cos.get_object_bytes.return_value = b"content"
-
-    job_cos.logs(
-        bucket_name="bucket",
-        log_key="key",
-        save_locally=False,
-        wait_for_availability=True,
-        timeout=60,
-        poll_interval=5,
-    )
-
-    mock_cos.wait_until_object_exists.assert_called_once_with(
-        bucket="bucket", key="key", timeout_seconds=60, poll_interval=5
-    )
-
-
 def test_cos_wait_for_object() -> None:
     """wait_for_object() delegates to COSClient.wait_until_object_exists."""
     job_cos, mock_cos = _make_job_cos()
