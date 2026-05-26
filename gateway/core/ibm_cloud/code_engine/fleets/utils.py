@@ -194,12 +194,15 @@ def build_custom_job_cos_paths(job: Job) -> dict[str, str]:
     provider_function_prefix = f"providers/default/{program_title}"
     user_job_prefix = f"{user_function_prefix}/jobs/{job_id}"
     return {
+        "user_mount_path": "/data",
         "user_function_prefix": user_function_prefix,
-        "provider_function_prefix": provider_function_prefix,
         "user_job_prefix": user_job_prefix,
         "user_log_key": f"{user_job_prefix}/{LOG_FILENAME}",
-        "user_mount_path": "/data",
+        "provider_function_prefix": provider_function_prefix,
+        "provider_job_prefix": None,
+        "provider_log_key": None,
         "provider_mount_path": "/function_data",
+        "provider_logs_mount_path": None,
     }
 
 
@@ -221,13 +224,13 @@ def build_provider_job_cos_paths(job: Job) -> dict[str, str]:
     user_job_prefix = f"{user_function_prefix}/jobs/{job_id}"
     provider_job_prefix = f"{provider_function_prefix}/jobs/{job_id}"
     return {
-        "user_function_prefix": user_function_prefix,
-        "provider_function_prefix": provider_function_prefix,
-        "user_job_prefix": user_job_prefix,
-        "provider_job_prefix": provider_job_prefix,
-        "user_log_key": f"{user_job_prefix}/{LOG_FILENAME}",
-        "provider_log_key": f"{provider_job_prefix}/{LOG_FILENAME}",
         "user_mount_path": "/data",
+        "user_function_prefix": user_function_prefix,
+        "user_job_prefix": user_job_prefix,
+        "user_log_key": f"{user_job_prefix}/{LOG_FILENAME}",
+        "provider_function_prefix": provider_function_prefix,
+        "provider_job_prefix": provider_job_prefix,
+        "provider_log_key": f"{provider_job_prefix}/{LOG_FILENAME}",
         "provider_mount_path": "/function_data",
         "provider_logs_mount_path": "/provider_logs",
     }
