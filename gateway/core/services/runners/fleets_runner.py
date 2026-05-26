@@ -513,7 +513,7 @@ class FleetsRunner(AbstractRunner):
     def _build_cos_paths(self) -> dict[str, str]:
         """Build COS key prefixes and container mount paths for the job.
 
-        Three PDS volume mounts provide job-level isolation:
+        Two PDS volume mounts provide job-level isolation:
           - /data          → user-data-bucket @ user_job_prefix (job level)
           - /function_data → provider-data-bucket @ provider_function_prefix (function level)
 

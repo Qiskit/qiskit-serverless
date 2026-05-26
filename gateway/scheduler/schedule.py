@@ -47,18 +47,6 @@ def execute_ray_job(job: Job) -> Job:
         except RunnerError as ex:
             logger.error("job_id=%s error=%s Job set as FAILED: compute resource or submission error", job.id, ex)
             job.status = Job.FAILED
-            job.logs += f"\nJob submission failed: {ex}"
-            job.save()
-            JobEvent.objects.add_error_event(
-                job_id=job.id,
-                origin=JobEventOrigin.SCHEDULER,
-                context=JobEventContext.SCHEDULE_JOBS,
-                code="SUBMISSION_ERROR",
-                message=str(ex),
-                exception=type(ex.__cause__ or ex).__name__,
-                args={},
-            )
-
         span.set_attribute("job.status", job.status)
     return job
 
