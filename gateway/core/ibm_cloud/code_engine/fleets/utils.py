@@ -177,34 +177,49 @@ def build_run_commands(
     return ["sh", "-c", script]
 
 
-def build_cos_paths(job: Job) -> dict[str, str]:
-    """Build COS key prefixes and container mount paths for a fleet job.
+def build_custom_job_cos_paths(job: Job) -> dict[str, str]:
+    """COS paths for a custom (non-provider) job.
+
+    The entrypoint is uploaded to the provider bucket at function level and run
+    from ``/function_data``. User data and public logs live in the user bucket.
+    There are no private logs, so no provider-job-level paths are included.
 
     Args:
-        job: Job instance.
-
-    Returns:
-        Dict with function/job prefixes, COS log/argument keys, and
-        container mount paths.
+        job: Job instance with no provider.
     """
     username = job.author.username
-    provider = job.program.provider if job.program else None
-    provider_name = provider.name if provider else None
     program_title = job.program.title if job.program else "unknown"
     job_id = str(job.id)
+    user_function_prefix = f"users/{username}/custom_functions/{program_title}"
+    provider_function_prefix = f"providers/default/{program_title}"
+    user_job_prefix = f"{user_function_prefix}/jobs/{job_id}"
+    return {
+        "user_function_prefix": user_function_prefix,
+        "provider_function_prefix": provider_function_prefix,
+        "user_job_prefix": user_job_prefix,
+        "user_log_key": f"{user_job_prefix}/{LOG_FILENAME}",
+        "user_mount_path": "/data",
+        "provider_mount_path": "/function_data",
+    }
 
-    if provider_name:
-        user_function_prefix = f"users/{username}/provider_functions/{provider_name}/{program_title}"
-    else:
-        user_function_prefix = f"users/{username}/custom_functions/{program_title}"
 
-    # provider_* prefixes use the literal provider name for provider jobs, or "default" as a
-    # placeholder for custom jobs — they are still needed for volume mounts even when unused.
-    provider_name_for_mount = provider_name or "default"
-    provider_function_prefix = f"providers/{provider_name_for_mount}/{program_title}"
+def build_provider_job_cos_paths(job: Job) -> dict[str, str]:
+    """COS paths for a provider job.
+
+    Both user bucket (public logs + data) and provider bucket (entrypoint at
+    function level, private logs at job level) are included.
+
+    Args:
+        job: Job instance with a provider assigned.
+    """
+    username = job.author.username
+    provider_name = job.program.provider.name
+    program_title = job.program.title if job.program else "unknown"
+    job_id = str(job.id)
+    user_function_prefix = f"users/{username}/provider_functions/{provider_name}/{program_title}"
+    provider_function_prefix = f"providers/{provider_name}/{program_title}"
     user_job_prefix = f"{user_function_prefix}/jobs/{job_id}"
     provider_job_prefix = f"{provider_function_prefix}/jobs/{job_id}"
-
     return {
         "user_function_prefix": user_function_prefix,
         "provider_function_prefix": provider_function_prefix,
@@ -216,3 +231,10 @@ def build_cos_paths(job: Job) -> dict[str, str]:
         "provider_mount_path": "/function_data",
         "provider_logs_mount_path": "/provider_logs",
     }
+
+
+def build_cos_paths(job: Job) -> dict[str, str]:
+    """Dispatcher: returns custom or provider COS paths depending on job type."""
+    if job.program and job.program.provider:
+        return build_provider_job_cos_paths(job)
+    return build_custom_job_cos_paths(job)

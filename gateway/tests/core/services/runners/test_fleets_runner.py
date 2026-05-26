@@ -226,7 +226,7 @@ def test_stop_returns_false_when_already_terminal():
 
 
 def test_build_cos_paths_custom_function():
-    """Full COS key paths for a custom function (no provider → custom_functions/)."""
+    """COS paths for a custom function — user + provider-function keys, no provider-job keys."""
     runner, _ = _make_runner()
     runner.job.author.username = "alice"
     runner.job.program.provider = None
@@ -238,12 +238,12 @@ def test_build_cos_paths_custom_function():
     assert paths["user_function_prefix"] == "users/alice/custom_functions/hello-world"
     assert paths["user_job_prefix"] == "users/alice/custom_functions/hello-world/jobs/job-aaa-111"
     assert paths["user_log_key"] == "users/alice/custom_functions/hello-world/jobs/job-aaa-111/logs.log"
-    assert paths["provider_function_prefix"] == "providers/default/hello-world"
-    assert paths["provider_job_prefix"] == "providers/default/hello-world/jobs/job-aaa-111"
-    assert paths["provider_log_key"] == "providers/default/hello-world/jobs/job-aaa-111/logs.log"
     assert paths["user_mount_path"] == "/data"
+    assert paths["provider_function_prefix"] == "providers/default/hello-world"
     assert paths["provider_mount_path"] == "/function_data"
-    assert paths["provider_logs_mount_path"] == "/provider_logs"
+    assert "provider_job_prefix" not in paths
+    assert "provider_log_key" not in paths
+    assert "provider_logs_mount_path" not in paths
 
 
 def test_build_cos_paths_provider_function():

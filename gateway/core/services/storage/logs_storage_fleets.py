@@ -42,7 +42,7 @@ class FleetsLogsStorage(LogsStorage):
         self._user_id = job.author.id
         self._project = job.code_engine_project
         self._public_key = paths["user_log_key"]
-        self._private_key: Optional[str] = paths["provider_log_key"]
+        self._private_key: Optional[str] = paths.get("provider_log_key")
         self._user_bucket = self._load_user_bucket(job)
         self._provider_bucket = self._load_provider_bucket(job)
 

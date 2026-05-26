@@ -200,24 +200,25 @@ class FleetsRunner(AbstractRunner):
             if self._is_cos_configured():
                 paths = self._build_cos_paths()
 
-                run_volume_mounts = build_run_volume_mounts(
-                    mounts=[
-                        (paths["user_mount_path"], self._project.pds_name_users, paths["user_job_prefix"]),
-                        (
-                            paths["provider_mount_path"],
-                            self._project.pds_name_providers,
-                            paths["provider_function_prefix"],
-                        ),
+                mounts = [
+                    (paths["user_mount_path"], self._project.pds_name_users, paths["user_job_prefix"]),
+                    (paths["provider_mount_path"], self._project.pds_name_providers, paths["provider_function_prefix"]),
+                ]
+                private_log_path = None
+                if self.job.program.provider:
+                    mounts.append(
                         (
                             paths["provider_logs_mount_path"],
                             self._project.pds_name_providers,
                             paths["provider_job_prefix"],
-                        ),
-                    ]
-                )
+                        )
+                    )
+                    private_log_path = f"{paths['provider_logs_mount_path']}/{LOG_FILENAME}"
+
+                run_volume_mounts = build_run_volume_mounts(mounts=mounts)
                 run_env_variables = build_run_env_variables(
                     public_log_path=f"{paths['user_mount_path']}/{LOG_FILENAME}",
-                    private_log_path=f"{paths['provider_logs_mount_path']}/{LOG_FILENAME}",
+                    private_log_path=private_log_path,
                 )
 
                 gateway_env = self._build_gateway_env_vars()
@@ -246,7 +247,7 @@ class FleetsRunner(AbstractRunner):
                     "COS configured for job [%s]: user_key=[%s] provider_key=[%s]",
                     self.job.id,
                     paths["user_log_key"],
-                    paths["provider_log_key"],
+                    paths.get("provider_log_key", "-"),
                 )
             else:
                 logger.info("COS not available for job [%s]", self.job.id)
