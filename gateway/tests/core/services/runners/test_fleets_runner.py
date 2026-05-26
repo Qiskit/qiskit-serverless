@@ -241,9 +241,9 @@ def test_build_cos_paths_custom_function():
     assert paths["user_mount_path"] == "/data"
     assert paths["provider_function_prefix"] == "providers/default/hello-world"
     assert paths["provider_mount_path"] == "/function_data"
-    assert "provider_job_prefix" not in paths
-    assert "provider_log_key" not in paths
-    assert "provider_logs_mount_path" not in paths
+    assert paths["provider_job_prefix"] is None
+    assert paths["provider_log_key"] is None
+    assert paths["provider_logs_mount_path"] is None
 
 
 def test_build_cos_paths_provider_function():

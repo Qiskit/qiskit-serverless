@@ -247,7 +247,7 @@ class FleetsRunner(AbstractRunner):
                     "COS configured for job [%s]: user_key=[%s] provider_key=[%s]",
                     self.job.id,
                     paths["user_log_key"],
-                    paths.get("provider_log_key", "-"),
+                    paths["provider_log_key"] or "-",
                 )
             else:
                 logger.info("COS not available for job [%s]", self.job.id)
