@@ -31,12 +31,15 @@ from core.utils import decrypt_env_vars
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
 from core.ibm_cloud.code_engine.fleets.cos import JobCOS
 from core.ibm_cloud.code_engine.fleets.utils import (
+    FUNCTION_MOUNT_PATH,
     LOG_FILENAME,
+    USER_MOUNT_PATH,
     build_cos_paths,
     build_run_commands,
     build_run_env_variables,
-    build_run_volume_mounts,
+    build_run_volume_mounts_for_job,
 )
+
 
 logger = logging.getLogger("FleetsRunner")
 
@@ -200,39 +203,24 @@ class FleetsRunner(AbstractRunner):
             if self._is_cos_configured():
                 paths = self._build_cos_paths()
 
-                mounts = [
-                    (paths["user_mount_path"], self._project.pds_name_users, paths["user_job_prefix"]),
-                    (paths["provider_mount_path"], self._project.pds_name_providers, paths["provider_function_prefix"]),
-                ]
-                private_log_path = None
-                if self.job.program.provider:
-                    mounts.append(
-                        (
-                            paths["provider_logs_mount_path"],
-                            self._project.pds_name_providers,
-                            paths["provider_job_prefix"],
-                        )
-                    )
-                    private_log_path = f"{paths['provider_logs_mount_path']}/{LOG_FILENAME}"
-
-                run_volume_mounts = build_run_volume_mounts(mounts=mounts)
+                run_volume_mounts = build_run_volume_mounts_for_job(self.job, self._project)
                 run_env_variables = build_run_env_variables(
-                    public_log_path=f"{paths['user_mount_path']}/{LOG_FILENAME}",
-                    private_log_path=private_log_path,
+                    public_log_path=paths["public_log_path"],
+                    private_log_path=paths["private_log_path"],
                 )
 
                 gateway_env = self._build_gateway_env_vars()
-                run_env_variables.extend(gateway_env)
+                run_env_variables.extend(e for e in gateway_env if e.get("name") != "ARGUMENTS_PATH")
 
                 run_env_variables.append(
                     {
                         "type": "literal",
                         "name": "ARGUMENTS_PATH",
-                        "value": f"{paths['user_mount_path']}/arguments.json",
+                        "value": f"{USER_MOUNT_PATH}/arguments.json",
                     },
                 )
                 run_commands = build_run_commands(
-                    app_run_commands=["python", f"{paths['provider_mount_path']}/{self.job.program.entrypoint}"],
+                    app_run_commands=["python", f"{FUNCTION_MOUNT_PATH}/{self.job.program.entrypoint}"],
                     is_provider_function=self.job.program.provider is not None,
                 )
                 extra_fields.update(
@@ -500,6 +488,7 @@ class FleetsRunner(AbstractRunner):
         """Extract job env vars so the container can call save_result() and use Qiskit Runtime."""
         env = json.loads(self.job.env_vars)
         env = decrypt_env_vars(env)
+        env["ENV_JOB_GATEWAY_HOST"] = settings.FLEETS_GATEWAY_HOST
 
         return [{"type": "literal", "name": k, "value": v} for k, v in env.items() if v]
 
@@ -509,11 +498,9 @@ class FleetsRunner(AbstractRunner):
     def _upload_artifact_to_cos(self, paths: dict[str, str]) -> None:
         """Extract the program artifact tar and upload files to COS.
 
-        Entrypoint → provider bucket (accessible at ``/function_data/{entrypoint}``).
-        All other files → user bucket at job level (accessible at ``/data/{filename}``).
-
-        Provider functions skip this — their files are pre-uploaded by the
-        provider admin.
+        Custom jobs: entrypoint → user bucket at function level; other files → user bucket at job level.
+        Provider jobs: entrypoint → provider bucket at function level; other files → user bucket at job level.
+        Provider functions skip this — their files are pre-uploaded by the provider admin.
 
         Args:
             paths: Dict from :meth:`_build_cos_paths`.
@@ -525,6 +512,7 @@ class FleetsRunner(AbstractRunner):
         provider_bucket = self._project.cos_bucket_provider_data_name
         user_bucket = self._project.cos_bucket_user_data_name
         entrypoint_name = program.entrypoint
+        is_provider = program.provider is not None
 
         try:
             with tarfile.open(program.artifact.path) as tar:
@@ -536,8 +524,8 @@ class FleetsRunner(AbstractRunner):
                         continue
 
                     if member.name == entrypoint_name:
-                        bucket_name = provider_bucket
-                        key = f"{paths['provider_function_prefix']}/{member.name}"
+                        bucket_name = provider_bucket if is_provider else user_bucket
+                        key = f"{paths['provider_function_prefix'] if is_provider else paths['user_function_prefix']}/{member.name}"
                     else:
                         bucket_name = user_bucket
                         key = f"{paths['user_job_prefix']}/{member.name}"

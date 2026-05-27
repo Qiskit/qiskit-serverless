@@ -38,9 +38,11 @@ import shlex
 
 from django.template.loader import get_template
 
-from core.models import Job
+from core.models import CodeEngineProject, Job
 
 LOG_FILENAME = "logs.log"
+USER_MOUNT_PATH = "/data"
+FUNCTION_MOUNT_PATH = "/function_data"
 
 
 def build_run_volume_mounts(
@@ -191,18 +193,17 @@ def build_custom_job_cos_paths(job: Job) -> dict[str, str]:
     program_title = job.program.title if job.program else "unknown"
     job_id = str(job.id)
     user_function_prefix = f"users/{username}/custom_functions/{program_title}"
-    provider_function_prefix = f"providers/default/{program_title}"
     user_job_prefix = f"{user_function_prefix}/jobs/{job_id}"
     return {
-        "user_mount_path": "/data",
         "user_function_prefix": user_function_prefix,
         "user_job_prefix": user_job_prefix,
         "user_log_key": f"{user_job_prefix}/{LOG_FILENAME}",
-        "provider_function_prefix": provider_function_prefix,
+        "public_log_path": f"{USER_MOUNT_PATH}/{LOG_FILENAME}",
+        "private_log_path": None,
+        "provider_function_prefix": None,
         "provider_job_prefix": None,
         "provider_log_key": None,
-        "provider_mount_path": "/function_data",
-        "provider_logs_mount_path": None,
+        "provider_mount_path": None,
     }
 
 
@@ -224,15 +225,15 @@ def build_provider_job_cos_paths(job: Job) -> dict[str, str]:
     user_job_prefix = f"{user_function_prefix}/jobs/{job_id}"
     provider_job_prefix = f"{provider_function_prefix}/jobs/{job_id}"
     return {
-        "user_mount_path": "/data",
         "user_function_prefix": user_function_prefix,
         "user_job_prefix": user_job_prefix,
         "user_log_key": f"{user_job_prefix}/{LOG_FILENAME}",
+        "public_log_path": f"{USER_MOUNT_PATH}/{LOG_FILENAME}",
+        "private_log_path": f"{FUNCTION_MOUNT_PATH}/jobs/{job_id}/{LOG_FILENAME}",
         "provider_function_prefix": provider_function_prefix,
         "provider_job_prefix": provider_job_prefix,
         "provider_log_key": f"{provider_job_prefix}/{LOG_FILENAME}",
-        "provider_mount_path": "/function_data",
-        "provider_logs_mount_path": "/provider_logs",
+        "provider_mount_path": FUNCTION_MOUNT_PATH,
     }
 
 
@@ -241,3 +242,22 @@ def build_cos_paths(job: Job) -> dict[str, str]:
     if job.program and job.program.provider:
         return build_provider_job_cos_paths(job)
     return build_custom_job_cos_paths(job)
+
+
+def build_run_volume_mounts_for_job(job: Job, project: CodeEngineProject) -> list[dict[str, str]]:
+    """Build the complete volume mounts list for a fleet job.
+
+    Args:
+        job: Job instance.
+        project: CodeEngineProject with PDS names.
+
+    Returns:
+        Volume mount definitions ready for ``run_volume_mounts``.
+    """
+    paths = build_cos_paths(job)
+    mounts = [(USER_MOUNT_PATH, project.pds_name_users, paths["user_job_prefix"])]
+    if job.program and job.program.provider:
+        mounts.append((FUNCTION_MOUNT_PATH, project.pds_name_providers, paths["provider_function_prefix"]))
+    else:
+        mounts.append((FUNCTION_MOUNT_PATH, project.pds_name_users, paths["user_function_prefix"]))
+    return build_run_volume_mounts(mounts=mounts)

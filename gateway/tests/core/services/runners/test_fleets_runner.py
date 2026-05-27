@@ -238,12 +238,12 @@ def test_build_cos_paths_custom_function():
     assert paths["user_function_prefix"] == "users/alice/custom_functions/hello-world"
     assert paths["user_job_prefix"] == "users/alice/custom_functions/hello-world/jobs/job-aaa-111"
     assert paths["user_log_key"] == "users/alice/custom_functions/hello-world/jobs/job-aaa-111/logs.log"
-    assert paths["user_mount_path"] == "/data"
-    assert paths["provider_function_prefix"] == "providers/default/hello-world"
-    assert paths["provider_mount_path"] == "/function_data"
+    assert paths["public_log_path"] == "/data/logs.log"
+    assert paths["private_log_path"] is None
+    assert paths["provider_function_prefix"] is None
+    assert paths["provider_mount_path"] is None
     assert paths["provider_job_prefix"] is None
     assert paths["provider_log_key"] is None
-    assert paths["provider_logs_mount_path"] is None
 
 
 def test_build_cos_paths_provider_function():
@@ -260,10 +260,11 @@ def test_build_cos_paths_provider_function():
     assert paths["user_function_prefix"] == "users/alice/provider_functions/good-partner/sampler-v2"
     assert paths["user_job_prefix"] == "users/alice/provider_functions/good-partner/sampler-v2/jobs/job-bbb-222"
     assert paths["user_log_key"] == "users/alice/provider_functions/good-partner/sampler-v2/jobs/job-bbb-222/logs.log"
+    assert paths["public_log_path"] == "/data/logs.log"
+    assert paths["private_log_path"] == "/function_data/jobs/job-bbb-222/logs.log"
     assert paths["provider_function_prefix"] == "providers/good-partner/sampler-v2"
     assert paths["provider_job_prefix"] == "providers/good-partner/sampler-v2/jobs/job-bbb-222"
     assert paths["provider_log_key"] == "providers/good-partner/sampler-v2/jobs/job-bbb-222/logs.log"
-    assert paths["user_mount_path"] == "/data"
     assert paths["provider_mount_path"] == "/function_data"
 
 
@@ -562,13 +563,11 @@ def test_build_gateway_env_vars_returns_formatted_list():
     runner, _ = _make_runner()
     runner.job.env_vars = '{"KEY1": "val1", "KEY2": "val2"}'
 
-    with patch(f"{_RUNNER_MOD}.decrypt_env_vars", side_effect=lambda e: e):
+    with _patch_settings(FLEETS_GATEWAY_HOST=None), patch(f"{_RUNNER_MOD}.decrypt_env_vars", side_effect=lambda e: e):
         result = runner._build_gateway_env_vars()  # pylint: disable=protected-access
 
-    assert result == [
-        {"type": "literal", "name": "KEY1", "value": "val1"},
-        {"type": "literal", "name": "KEY2", "value": "val2"},
-    ]
+    assert {"type": "literal", "name": "KEY1", "value": "val1"} in result
+    assert {"type": "literal", "name": "KEY2", "value": "val2"} in result
 
 
 def test_build_gateway_env_vars_decrypts_tokens():
@@ -577,7 +576,10 @@ def test_build_gateway_env_vars_decrypts_tokens():
     runner.job.env_vars = '{"QISKIT_IBM_TOKEN": "encrypted", "SOME_URL": "http://example.com"}'
 
     decrypted = {"QISKIT_IBM_TOKEN": "decrypted", "SOME_URL": "http://example.com"}
-    with patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value=decrypted) as mock_decrypt:
+    with (
+        _patch_settings(FLEETS_GATEWAY_HOST=None),
+        patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value=decrypted) as mock_decrypt,
+    ):
         result = runner._build_gateway_env_vars()  # pylint: disable=protected-access
 
     mock_decrypt.assert_called_once_with({"QISKIT_IBM_TOKEN": "encrypted", "SOME_URL": "http://example.com"})
@@ -593,21 +595,35 @@ def test_build_gateway_env_vars_filters_empty_values():
     def passthrough(e):
         return e
 
-    with patch(f"{_RUNNER_MOD}.decrypt_env_vars", side_effect=passthrough):
+    with _patch_settings(FLEETS_GATEWAY_HOST=None), patch(f"{_RUNNER_MOD}.decrypt_env_vars", side_effect=passthrough):
         result = runner._build_gateway_env_vars()  # pylint: disable=protected-access
 
     assert result == [{"type": "literal", "name": "KEEP", "value": "value"}]
 
 
 def test_build_gateway_env_vars_empty_env_vars():
-    """_build_gateway_env_vars() returns an empty list when job has no env vars."""
+    """_build_gateway_env_vars() returns an empty list when job has no env vars and no gateway host."""
     runner, _ = _make_runner()
     runner.job.env_vars = "{}"
 
-    with patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value={}):
+    with _patch_settings(FLEETS_GATEWAY_HOST=None), patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value={}):
         result = runner._build_gateway_env_vars()  # pylint: disable=protected-access
 
     assert result == []
+
+
+def test_build_gateway_env_vars_includes_gateway_host():
+    """_build_gateway_env_vars() injects ENV_JOB_GATEWAY_HOST from settings.FLEETS_GATEWAY_HOST."""
+    runner, _ = _make_runner()
+    runner.job.env_vars = "{}"
+
+    with (
+        _patch_settings(FLEETS_GATEWAY_HOST="https://gateway.example.com"),
+        patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value={}),
+    ):
+        result = runner._build_gateway_env_vars()  # pylint: disable=protected-access
+
+    assert {"type": "literal", "name": "ENV_JOB_GATEWAY_HOST", "value": "https://gateway.example.com"} in result
 
 
 def test_submit_includes_gateway_env_vars():
