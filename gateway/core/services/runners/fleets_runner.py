@@ -201,10 +201,7 @@ class FleetsRunner(AbstractRunner):
                 paths = build_job_paths(self.job)
 
                 run_volume_mounts = build_run_volume_mounts_for_job(paths, self._project)
-                run_env_variables = build_run_env_variables(
-                    paths=paths,
-                    extra=self._build_job_env_vars(),
-                )
+                run_env_variables = build_run_env_variables(paths, self._build_job_env_vars())
                 run_commands = build_run_commands(
                     app_run_commands=["python", paths.container_entrypoint],
                     is_provider_function=self.job.program.provider is not None,

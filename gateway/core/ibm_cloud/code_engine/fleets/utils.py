@@ -28,7 +28,7 @@ Example::
     mounts = build_run_volume_mounts(
         mounts=[("/output", "my-pds", "user/job-1")]
     )
-    env = build_run_env_variables(paths=paths)
+    env = build_run_env_variables(paths)
     cmds = build_run_commands(app_run_commands=["python", "main.py"])
 """
 
@@ -38,6 +38,7 @@ import shlex
 from dataclasses import dataclass
 from typing import Optional
 
+from django.conf import settings
 from django.template.loader import get_template
 
 from core.models import CodeEngineProject, Job
@@ -147,9 +148,7 @@ def build_run_volume_mounts(
 
 
 def build_run_env_variables(
-    *,
     paths: FleetJobPaths,
-    flush_interval_seconds: int = 15,
     extra: list[dict[str, str]] | None = None,
 ) -> list[dict[str, str]]:
     """
@@ -157,14 +156,13 @@ def build_run_env_variables(
 
     Args:
         paths: Pre-computed paths for the job (from :func:`build_job_paths`).
-        flush_interval_seconds: Period (in seconds) between log uploads from
-            the local working directory to the COS-backed mount.
         extra: Additional environment variable definitions appended after the
             ones built by this function.
 
     Returns:
         Environment variable definitions for ``run_env_variables``.
     """
+    flush_interval = getattr(settings, "FLEETS_LOG_FLUSH_INTERVAL_SECONDS", 15)
     system_vars = [
         {
             "type": "literal",
@@ -184,7 +182,7 @@ def build_run_env_variables(
         {
             "type": "literal",
             "name": "LOG_FLUSH_INTERVAL_SECONDS",
-            "value": str(flush_interval_seconds),
+            "value": str(flush_interval),
         },
     ]
 
