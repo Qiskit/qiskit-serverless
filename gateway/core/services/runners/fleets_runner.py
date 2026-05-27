@@ -203,7 +203,7 @@ class FleetsRunner(AbstractRunner):
                 run_volume_mounts = build_run_volume_mounts_for_job(paths, self._project)
                 run_env_variables = build_run_env_variables(
                     paths=paths,
-                    extra=self._build_gateway_env_vars(),
+                    extra=self._build_job_env_vars(),
                 )
                 run_commands = build_run_commands(
                     app_run_commands=["python", paths.container_entrypoint],
@@ -470,7 +470,7 @@ class FleetsRunner(AbstractRunner):
             self._cos = get_cos_client(self._project)
         return self._cos
 
-    def _build_gateway_env_vars(self) -> list[dict[str, str]]:
+    def _build_job_env_vars(self) -> list[dict[str, str]]:
         """Extract job env vars so the container can call save_result() and use Qiskit Runtime."""
         env = json.loads(self.job.env_vars)
         env = decrypt_env_vars(env)

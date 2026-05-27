@@ -182,9 +182,10 @@ def build_run_env_variables(
             }
         )
 
-    merged = {e["name"]: e for e in (extra or [])}
-    merged.update({e["name"]: e for e in system_vars})
-    return list(merged.values())
+    # Add the job env vars without overwriting the system vars
+    system_names = {v["name"] for v in system_vars}
+    user_vars = [e for e in (extra or []) if e["name"] not in system_names]
+    return system_vars + user_vars
 
 
 def build_run_commands(
