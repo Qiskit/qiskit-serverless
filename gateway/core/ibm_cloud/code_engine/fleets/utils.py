@@ -150,7 +150,7 @@ def build_run_env_variables(
     Returns:
         Environment variable definitions for ``run_env_variables``.
     """
-    run_env_variables = [
+    system_vars = [
         {
             "type": "literal",
             "name": "PUBLIC_LOG_PATH",
@@ -158,18 +158,23 @@ def build_run_env_variables(
         },
         {
             "type": "literal",
-            "name": "LOG_FLUSH_INTERVAL_SECONDS",
-            "value": str(flush_interval_seconds),
+            "name": "ARGUMENTS_PATH",
+            "value": paths.container_arguments_path,
         },
         {
             "type": "literal",
-            "name": "ARGUMENTS_PATH",
-            "value": paths.container_arguments_path,
+            "name": "RESULTS_PATH",
+            "value": paths.container_result_path,
+        },
+        {
+            "type": "literal",
+            "name": "LOG_FLUSH_INTERVAL_SECONDS",
+            "value": str(flush_interval_seconds),
         },
     ]
 
     if paths.container_private_log_path is not None:
-        run_env_variables.append(
+        system_vars.append(
             {
                 "type": "literal",
                 "name": "PRIVATE_LOG_PATH",
@@ -177,10 +182,9 @@ def build_run_env_variables(
             }
         )
 
-    if extra:
-        run_env_variables.extend(extra)
-
-    return run_env_variables
+    merged = {e["name"]: e for e in (extra or [])}
+    merged.update({e["name"]: e for e in system_vars})
+    return list(merged.values())
 
 
 def build_run_commands(

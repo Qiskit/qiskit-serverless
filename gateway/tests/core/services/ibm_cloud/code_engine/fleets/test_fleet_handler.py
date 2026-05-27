@@ -692,13 +692,14 @@ def _make_paths(public_log_path="/output/logs.log", private_log_path=None, argum
 
 
 def test_build_run_env_variables_public_only():
-    """build_run_env_variables returns PUBLIC_LOG_PATH and ARGUMENTS_PATH without PRIVATE_LOG_PATH."""
+    """build_run_env_variables returns PUBLIC_LOG_PATH, ARGUMENTS_PATH and RESULTS_PATH without PRIVATE_LOG_PATH."""
     result = build_run_env_variables(paths=_make_paths())
     names = {e["name"] for e in result}
-    assert "PUBLIC_LOG_PATH" in names
-    assert "LOG_FLUSH_INTERVAL_SECONDS" in names
-    assert "ARGUMENTS_PATH" in names
     assert "PRIVATE_LOG_PATH" not in names
+    assert "PUBLIC_LOG_PATH" in names
+    assert "ARGUMENTS_PATH" in names
+    assert "RESULTS_PATH" in names
+    assert "LOG_FLUSH_INTERVAL_SECONDS" in names
 
 
 def test_build_run_env_variables_with_private_path():
@@ -733,6 +734,13 @@ def test_build_run_env_variables_arguments_path():
     result = build_run_env_variables(paths=_make_paths(arguments_path="/data/arguments.json"))
     by_name = {e["name"]: e["value"] for e in result}
     assert by_name["ARGUMENTS_PATH"] == "/data/arguments.json"
+
+
+def test_build_run_env_variables_results_path():
+    """build_run_env_variables includes RESULTS_PATH from paths."""
+    result = build_run_env_variables(paths=_make_paths())
+    by_name = {e["name"]: e["value"] for e in result}
+    assert by_name["RESULTS_PATH"] == "/output/results.json"
 
 
 def test_build_run_commands_public_only():

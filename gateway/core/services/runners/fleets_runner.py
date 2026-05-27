@@ -474,6 +474,7 @@ class FleetsRunner(AbstractRunner):
         """Extract job env vars so the container can call save_result() and use Qiskit Runtime."""
         env = json.loads(self.job.env_vars)
         env = decrypt_env_vars(env)
+        env["ENV_JOB_GATEWAY_HOST"] = settings.FLEETS_GATEWAY_HOST
 
         return [{"type": "literal", "name": k, "value": v} for k, v in env.items() if v]
 
