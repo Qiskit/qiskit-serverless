@@ -6,9 +6,11 @@ def test_setup_gateway_tracing_does_nothing_when_disabled(monkeypatch):
     monkeypatch.setenv("OTEL_ENABLED", "0")
 
     from opentelemetry import trace as otel_trace
+
     original_provider = otel_trace.get_tracer_provider()
 
     from main.tracing import setup_gateway_tracing
+
     setup_gateway_tracing()
 
     assert otel_trace.get_tracer_provider() is original_provider
@@ -36,9 +38,11 @@ def test_setup_gateway_tracing_default_endpoint(monkeypatch):
     with patch("main.tracing.OTLPSpanExporter") as mock_exporter:
         mock_exporter.return_value = MagicMock()
         import sys
-        if 'main.tracing' in sys.modules:
-            del sys.modules['main.tracing']
+
+        if "main.tracing" in sys.modules:
+            del sys.modules["main.tracing"]
         from main import tracing
+
         tracing.setup_gateway_tracing()
         captured["endpoint"] = mock_exporter.call_args[1].get(
             "endpoint", mock_exporter.call_args[0][0] if mock_exporter.call_args[0] else None
@@ -54,9 +58,11 @@ def test_setup_gateway_tracing_no_insecure_param(monkeypatch):
     with patch("main.tracing.OTLPSpanExporter") as mock_exporter:
         mock_exporter.return_value = MagicMock()
         import sys
-        if 'main.tracing' in sys.modules:
-            del sys.modules['main.tracing']
+
+        if "main.tracing" in sys.modules:
+            del sys.modules["main.tracing"]
         from main import tracing
+
         tracing.setup_gateway_tracing()
         kwargs = mock_exporter.call_args[1] if mock_exporter.call_args else {}
 
