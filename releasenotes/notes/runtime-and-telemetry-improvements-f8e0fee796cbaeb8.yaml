@@ -1,0 +1,11 @@
+---
+upgrade:
+  - |
+    Qiskit Serverless is now compatible with ``qiskit-ibm-runtime<0.48.0``. Users can upgrade
+    their local installation before using this release::
+
+      pip install "qiskit-ibm-runtime==0.47.0"
+other:
+  - |
+    Internal improvements to telemetry collection and observability infrastructure,
+    including better integration of OpenTelemetry instrumentation across the API layer.
