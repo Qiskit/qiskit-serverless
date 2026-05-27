@@ -47,8 +47,8 @@ class JobRetrieveUseCase:
         can_read_result = JobAccessPolicies.can_read_result(user, job)
 
         if with_result and can_read_result:
-            result_store = ResultStorage(job.author.username)
-            result = result_store.get(str(job.id))
+            result_store = ResultStorage(job)
+            result = result_store.get()
             if result is not None:
                 job.result = result
         else:
