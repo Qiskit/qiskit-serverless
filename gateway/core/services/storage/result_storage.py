@@ -2,14 +2,10 @@
 This module handle the access to the result store
 """
 
-import json
 import os
 import logging
 from typing import Optional
 from django.conf import settings
-
-from core.constants import RESULTS_PATH
-from qiskit_serverless.exception import QiskitServerlessException
 
 logger = logging.getLogger("core.ResultStorage")
 
@@ -75,7 +71,7 @@ class ResultStorage:
         Returns:
             None
         """
-        result_path = self.__get_result_path()
+        result_path = self.__get_result_path(job_id)
 
         with open(result_path, "w", encoding=self.ENCODING) as result_file:
             result_file.write(result)

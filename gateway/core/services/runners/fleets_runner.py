@@ -227,17 +227,19 @@ class FleetsRunner(AbstractRunner):
                 gateway_env = self._build_gateway_env_vars()
                 run_env_variables.extend(gateway_env)
 
-                run_env_variables.append(
-                    {
-                        "type": "literal",
-                        "name": "ARGUMENTS_PATH",
-                        "value": f"{paths['user_mount_path']}/arguments.json",
-                    },
-                    {
-                        "type": "literal",
-                        "name": "RESULTS_PATH",
-                        "value": f"{paths['user_mount_path']}/results.json",
-                    },
+                run_env_variables.extend(
+                    [
+                        {
+                            "type": "literal",
+                            "name": "ARGUMENTS_PATH",
+                            "value": f"{paths['user_mount_path']}/arguments.json",
+                        },
+                        {
+                            "type": "literal",
+                            "name": "RESULTS_PATH",
+                            "value": f"{paths['user_mount_path']}/results.json",
+                        },
+                    ]
                 )
                 run_commands = build_run_commands(
                     app_run_commands=["python", f"{paths['provider_mount_path']}/{self.job.program.entrypoint}"],

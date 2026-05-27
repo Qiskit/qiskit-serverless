@@ -7,8 +7,6 @@ from core.services.storage.arguments_storage_ray import RayArgumentsStorage
 from core.services.storage.logs_storage import LogsStorage
 from core.services.storage.logs_storage_fleets import FleetsLogsStorage
 from core.services.storage.logs_storage_ray import RayLogsStorage
-from core.services.storage.result_storage import BaseResultStorage, ResultStorage
-from core.services.storage.result_storage import FleetsResultStorage
 
 
 def get_arguments_storage(job: Job) -> ArgumentsStorage:
