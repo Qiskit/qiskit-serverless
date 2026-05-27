@@ -436,7 +436,7 @@ def save_result(result: Dict[str, Any]):
             result_path,
         )
         return True
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         logging.warning("There was an error saving result via mounted path: %s", e)
         url = (
             f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
