@@ -50,18 +50,15 @@ FUNCTION_MOUNT_PATH = "/function_data"
 class FleetJobPaths:  # pylint: disable=too-many-instance-attributes
     """Computed paths for a fleet job.
 
-    ``cos_*`` fields are bucket-relative paths used by the gateway when
-    reading or writing objects in COS.  Fields ending in ``_prefix`` are
-    directory-scoped (no trailing slash, no filename) and serve two purposes:
-    as the ``sub_path`` argument of a PDS volume mount, and as the base for
-    building COS keys for files whose names are only known at runtime (e.g.
-    artifact members from a tarball).  Fields ending in ``_key`` are complete
-    COS object keys ready to be passed directly to the COS client.
+    ``cos_*`` fields are bucket relative paths. Used by the Gateway to read or write objects in COS.
 
-    ``container_*`` fields are absolute filesystem paths inside the running
-    container, exported to the wrapper script as environment variables.
-    ``None`` on any optional field means the concept does not apply to this
-    job type (e.g. no private log for custom jobs).
+    Fields ending in ``_key`` are complete, can be used with a S3 Client.
+
+    Fields ending in ``_prefix`` are directory-scoped (no trailing slash, no filename) and serve two purposes:
+       - As the ``sub_path`` argument of a PDS volume mount
+       - As the base for building COS keys for files whose names are only known at runtime
+
+    ``container_*`` fields are absolute paths inside the function
     """
 
     # COS side prefixes (volume-mount sub_path + artifact key base)

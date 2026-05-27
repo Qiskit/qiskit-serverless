@@ -19,7 +19,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
-from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths
+from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
 from core.models import Program
 from core.services.runners.abstract_runner import RunnerError
 from core.services.runners.fleets_runner import FleetsRunner
@@ -234,7 +234,7 @@ def test_build_job_paths_custom_function():
     runner.job.program.title = "hello-world"
     runner.job.id = "8be4df61-93ca"
 
-    paths = runner._build_job_paths()  # pylint: disable=protected-access
+    paths = build_job_paths(runner.job)
 
     assert paths.cos_user_function_prefix == "users/IBMid-50FJDA/custom_functions/hello-world"
     assert paths.cos_user_job_prefix == "users/IBMid-50FJDA/custom_functions/hello-world/jobs/8be4df61-93ca"
@@ -257,7 +257,7 @@ def test_build_job_paths_provider_function():
     runner.job.program.title = "sampler-v2"
     runner.job.id = "8be4df61-93ca"
 
-    paths = runner._build_job_paths()  # pylint: disable=protected-access
+    paths = build_job_paths(runner.job)
 
     assert paths.cos_user_function_prefix == "users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2"
     assert paths.cos_user_job_prefix == "users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca"
@@ -422,9 +422,8 @@ def test_get_result_from_cos_returns_json_string():
     with (
         patch.object(runner, "_is_cos_configured", return_value=True),
         patch.object(runner, "_get_fleet_name", return_value="fleet-name"),
-        patch.object(
-            runner,
-            "_build_job_paths",
+        patch(
+            f"{_RUNNER_MOD}.build_job_paths",
             return_value=FleetJobPaths(
                 cos_user_function_prefix="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2",
                 cos_user_job_prefix="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca",
