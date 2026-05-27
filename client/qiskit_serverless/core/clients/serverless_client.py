@@ -411,26 +411,14 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
 
     @_trace_job
     def result(self, job_id: str):
-        try:
-        # trying to save via mounted path
-            ENCODING = "utf-8"
-            response_data = safe_json_request_as_dict(
-                request=lambda: requests.get(
-                    f"{self.host}/api/{self.version}/jobs/{job_id}/",
-                    headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
-                    params={"with_result": "true"},
-                    timeout=REQUESTS_TIMEOUT,
-                )
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/jobs/{job_id}/",
+                headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
+                params={"with_result": "true"},
+                timeout=REQUESTS_TIMEOUT,
             )
-        except Exception as e:
-            response_data = safe_json_request_as_dict(
-                request=lambda: requests.get(
-                    f"{self.host}/api/{self.version}/jobs/{job_id}/",
-                    headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
-                    params={"with_result": "true"},
-                    timeout=REQUESTS_TIMEOUT,
-                )
-            )
+        )
         return json.loads(response_data.get("result", "{}") or "{}", cls=QiskitObjectsDecoder)
 
     @_trace_job

@@ -423,7 +423,6 @@ def save_result(result: Dict[str, Any]):
         return False
     try:
         # trying to save via mounted path
-        # result = json.loads(result)
         result_path = _get_result_path()
 
         with open(result_path, "w", encoding="utf-8") as result_file:

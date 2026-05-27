@@ -14,25 +14,7 @@ from qiskit_serverless.exception import QiskitServerlessException
 logger = logging.getLogger("core.ResultStorage")
 
 
-"""Abstract base class for arguments storage."""
-
-from abc import ABC, abstractmethod
-from typing import Optional
-
-
-class BaseResultStorage(ABC):
-    """Abstract interface for job arguments storage."""
-
-    @abstractmethod
-    def get(self) -> Optional[str]:
-        """Retrieve arguments for the job."""
-
-    @abstractmethod
-    def save(self, arguments: str) -> None:
-        """Persist arguments for the job."""
-
-
-class ResultStorage(BaseResultStorage):
+class ResultStorage:
     """Handles the storage and retrieval of user job results."""
 
     RESULT_FILE_EXTENSION = ".json"
@@ -43,21 +25,9 @@ class ResultStorage(BaseResultStorage):
         self.user_results_directory = os.path.join(settings.MEDIA_ROOT, username, "results")
         os.makedirs(self.user_results_directory, exist_ok=True)
 
-    def __get_result_path(self) -> str:
-        """Check if the file path specified by the ``RESULTS_PATH`` environment variable,
-        which is set by the runner (Ray or Fleets) at job submission, exists and legal."""
-        results_path = os.environ.get(RESULTS_PATH)
-        if not results_path:
-            raise QiskitServerlessException(
-                "Error getting arguments: RESULTS_PATH environment variable is missing or empty"
-            )
-
-        os.makedirs(os.path.dirname(results_path), exist_ok=True)
-
-        if not os.path.isfile(results_path):
-            raise QiskitServerlessException(f"Error saving results: {results_path} is not a file or doesn't exist")
-
-        return results_path
+    def __get_result_path(self, job_id: str) -> str:
+        """Construct the full path for a result file."""
+        return os.path.join(self.user_results_directory, f"{job_id}{self.RESULT_FILE_EXTENSION}")
 
     def get(self, job_id: str) -> Optional[str]:
         """
