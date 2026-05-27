@@ -14,7 +14,25 @@ from qiskit_serverless.exception import QiskitServerlessException
 logger = logging.getLogger("core.ResultStorage")
 
 
-class ResultStorage:
+"""Abstract base class for arguments storage."""
+
+from abc import ABC, abstractmethod
+from typing import Optional
+
+
+class BaseResultStorage(ABC):
+    """Abstract interface for job arguments storage."""
+
+    @abstractmethod
+    def get(self) -> Optional[str]:
+        """Retrieve arguments for the job."""
+
+    @abstractmethod
+    def save(self, arguments: str) -> None:
+        """Persist arguments for the job."""
+
+
+class ResultStorage(BaseResultStorage):
     """Handles the storage and retrieval of user job results."""
 
     RESULT_FILE_EXTENSION = ".json"
