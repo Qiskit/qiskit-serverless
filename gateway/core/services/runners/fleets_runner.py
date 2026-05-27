@@ -32,7 +32,6 @@ from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
 from core.ibm_cloud.code_engine.fleets.cos import JobCOS
 from core.ibm_cloud.code_engine.fleets.utils import (
     FUNCTION_MOUNT_PATH,
-    LOG_FILENAME,
     USER_MOUNT_PATH,
     build_cos_paths,
     build_run_commands,
@@ -524,7 +523,8 @@ class FleetsRunner(AbstractRunner):
 
                     if member.name == entrypoint_name:
                         bucket_name = provider_bucket if is_provider else user_bucket
-                        key = f"{paths['provider_function_prefix'] if is_provider else paths['user_function_prefix']}/{member.name}"
+                        prefix = paths["provider_function_prefix"] if is_provider else paths["user_function_prefix"]
+                        key = f"{prefix}/{member.name}"
                     else:
                         bucket_name = user_bucket
                         key = f"{paths['user_job_prefix']}/{member.name}"
