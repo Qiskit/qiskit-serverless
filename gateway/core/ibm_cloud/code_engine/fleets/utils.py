@@ -47,7 +47,7 @@ FUNCTION_MOUNT_PATH = "/function_data"
 
 
 @dataclass(frozen=True)
-class FleetJobPaths:
+class FleetJobPaths:  # pylint: disable=too-many-instance-attributes
     """Computed paths for a fleet job.
 
     ``cos_*`` fields are bucket-relative paths used by the gateway when
