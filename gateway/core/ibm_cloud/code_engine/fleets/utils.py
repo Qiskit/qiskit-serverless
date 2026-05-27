@@ -86,6 +86,24 @@ class FleetJobPaths:  # pylint: disable=too-many-instance-attributes
     container_result_path: str  # written by the function on completion (read back via cos_results_key)
 
 
+def build_run_volume_mounts_for_job(paths: FleetJobPaths, project: CodeEngineProject) -> list[dict[str, str]]:
+    """Build the complete volume mounts list for a fleet job.
+
+    Args:
+        paths: Pre-computed paths for the job (from :func:`build_job_paths`).
+        project: CodeEngineProject with PDS names.
+
+    Returns:
+        Volume mount definitions ready for ``run_volume_mounts``.
+    """
+    mounts = [(USER_MOUNT_PATH, project.pds_name_users, paths.cos_user_job_prefix)]
+    if paths.cos_provider_function_prefix:
+        mounts.append((FUNCTION_MOUNT_PATH, project.pds_name_providers, paths.cos_provider_function_prefix))
+    else:
+        mounts.append((FUNCTION_MOUNT_PATH, project.pds_name_users, paths.cos_user_function_prefix))
+    return build_run_volume_mounts(mounts=mounts)
+
+
 def build_run_volume_mounts(
     *,
     mounts: list[tuple[str, str, str | None]],
@@ -141,7 +159,7 @@ def build_run_env_variables(
     Build environment variables used by the logging wrapper command.
 
     Args:
-        paths: Pre-computed paths for the job (from :func:`build_cos_paths`).
+        paths: Pre-computed paths for the job (from :func:`build_job_paths`).
         flush_interval_seconds: Period (in seconds) between log uploads from
             the local working directory to the COS-backed mount.
         extra: Additional environment variable definitions appended after the
@@ -223,7 +241,7 @@ def build_run_commands(
     return ["sh", "-c", script]
 
 
-def build_custom_job_cos_paths(job: Job) -> FleetJobPaths:
+def build_custom_job_paths(job: Job) -> FleetJobPaths:
     """COS paths for a custom (non-provider) job.
 
     The entrypoint lives in the user bucket at function scope and runs from
@@ -255,7 +273,7 @@ def build_custom_job_cos_paths(job: Job) -> FleetJobPaths:
     )
 
 
-def build_provider_job_cos_paths(job: Job) -> FleetJobPaths:
+def build_provider_job_paths(job: Job) -> FleetJobPaths:
     """COS paths for a provider job.
 
     Both user bucket (public logs + data) and provider bucket (entrypoint at
@@ -289,26 +307,8 @@ def build_provider_job_cos_paths(job: Job) -> FleetJobPaths:
     )
 
 
-def build_cos_paths(job: Job) -> FleetJobPaths:
+def build_job_paths(job: Job) -> FleetJobPaths:
     """Dispatcher: returns custom or provider COS paths depending on job type."""
     if job.program.provider:
-        return build_provider_job_cos_paths(job)
-    return build_custom_job_cos_paths(job)
-
-
-def build_run_volume_mounts_for_job(paths: FleetJobPaths, project: CodeEngineProject) -> list[dict[str, str]]:
-    """Build the complete volume mounts list for a fleet job.
-
-    Args:
-        paths: Pre-computed paths for the job (from :func:`build_cos_paths`).
-        project: CodeEngineProject with PDS names.
-
-    Returns:
-        Volume mount definitions ready for ``run_volume_mounts``.
-    """
-    mounts = [(USER_MOUNT_PATH, project.pds_name_users, paths.cos_user_job_prefix)]
-    if paths.cos_provider_function_prefix:
-        mounts.append((FUNCTION_MOUNT_PATH, project.pds_name_providers, paths.cos_provider_function_prefix))
-    else:
-        mounts.append((FUNCTION_MOUNT_PATH, project.pds_name_users, paths.cos_user_function_prefix))
-    return build_run_volume_mounts(mounts=mounts)
+        return build_provider_job_paths(job)
+    return build_custom_job_paths(job)

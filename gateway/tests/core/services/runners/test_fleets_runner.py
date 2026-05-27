@@ -226,7 +226,7 @@ def test_stop_returns_false_when_already_terminal():
     mock_handler.cancel_job.assert_not_called()
 
 
-def test_build_cos_paths_custom_function():
+def test_build_job_paths_custom_function():
     """COS paths for a custom function — user + provider-function keys, no provider-job keys."""
     runner, _ = _make_runner()
     runner.job.author.username = "IBMid-50FJDA"
@@ -234,7 +234,7 @@ def test_build_cos_paths_custom_function():
     runner.job.program.title = "hello-world"
     runner.job.id = "8be4df61-93ca"
 
-    paths = runner._build_cos_paths()  # pylint: disable=protected-access
+    paths = runner._build_job_paths()  # pylint: disable=protected-access
 
     assert paths.cos_user_function_prefix == "users/IBMid-50FJDA/custom_functions/hello-world"
     assert paths.cos_user_job_prefix == "users/IBMid-50FJDA/custom_functions/hello-world/jobs/8be4df61-93ca"
@@ -248,7 +248,7 @@ def test_build_cos_paths_custom_function():
     assert paths.cos_provider_log_key is None
 
 
-def test_build_cos_paths_provider_function():
+def test_build_job_paths_provider_function():
     """Full COS key paths for a provider function."""
     runner, _ = _make_runner()
     runner.job.author.username = "IBMid-50FJDA"
@@ -257,7 +257,7 @@ def test_build_cos_paths_provider_function():
     runner.job.program.title = "sampler-v2"
     runner.job.id = "8be4df61-93ca"
 
-    paths = runner._build_cos_paths()  # pylint: disable=protected-access
+    paths = runner._build_job_paths()  # pylint: disable=protected-access
 
     assert paths.cos_user_function_prefix == "users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2"
     assert paths.cos_user_job_prefix == "users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca"
@@ -424,7 +424,7 @@ def test_get_result_from_cos_returns_json_string():
         patch.object(runner, "_get_fleet_name", return_value="fleet-name"),
         patch.object(
             runner,
-            "_build_cos_paths",
+            "_build_job_paths",
             return_value=FleetJobPaths(
                 cos_user_function_prefix="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2",
                 cos_user_job_prefix="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca",

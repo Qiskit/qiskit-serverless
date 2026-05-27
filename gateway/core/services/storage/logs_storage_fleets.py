@@ -20,7 +20,7 @@ from typing import Optional
 from ibm_botocore.exceptions import ClientError
 
 from core.ibm_cloud import get_cos_client
-from core.ibm_cloud.code_engine.fleets.utils import build_cos_paths
+from core.ibm_cloud.code_engine.fleets.utils import build_job_paths
 from core.models import Job
 from core.services.storage.logs_storage import LogsStorage
 
@@ -36,7 +36,7 @@ class FleetsLogsStorage(LogsStorage):
         if not job.code_engine_project:
             raise ValueError(f"Job '{job.id}' has no CodeEngineProject assigned")
 
-        paths = build_cos_paths(job)
+        paths = build_job_paths(job)
         self._job_id = str(job.id)
         self._user_id = job.author.id
         self._project = job.code_engine_project

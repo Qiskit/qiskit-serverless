@@ -32,7 +32,7 @@ from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
 from core.ibm_cloud.code_engine.fleets.cos import JobCOS
 from core.ibm_cloud.code_engine.fleets.utils import (
     FleetJobPaths,
-    build_cos_paths,
+    build_job_paths,
     build_run_commands,
     build_run_env_variables,
     build_run_volume_mounts_for_job,
@@ -198,7 +198,7 @@ class FleetsRunner(AbstractRunner):
                 extra_fields["scale_gpu"] = scale_gpu
 
             if self._is_cos_configured():
-                paths = self._build_cos_paths()
+                paths = build_job_paths(self.job)
 
                 run_volume_mounts = build_run_volume_mounts_for_job(paths, self._project)
                 run_env_variables = build_run_env_variables(
@@ -334,7 +334,7 @@ class FleetsRunner(AbstractRunner):
             return None
 
         try:
-            paths = self._build_cos_paths()
+            paths = build_job_paths(self.job)
             user_bucket = self._project.cos_bucket_user_data_name
             results_key = paths.cos_results_key
 
@@ -478,9 +478,6 @@ class FleetsRunner(AbstractRunner):
 
         return [{"type": "literal", "name": k, "value": v} for k, v in env.items() if v]
 
-    def _build_cos_paths(self) -> FleetJobPaths:
-        return build_cos_paths(self.job)
-
     def _upload_artifact_to_cos(self, paths: FleetJobPaths) -> None:
         """Extract the program artifact tar and upload files to COS.
 
@@ -489,7 +486,7 @@ class FleetsRunner(AbstractRunner):
         Provider functions skip this — their files are pre-uploaded by the provider admin.
 
         Args:
-            paths: Dict from :meth:`_build_cos_paths`.
+            paths: Dict from :meth:`_build_job_paths`.
         """
         program = self.job.program
         if not program.artifact:
