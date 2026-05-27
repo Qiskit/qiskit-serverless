@@ -352,6 +352,7 @@ def send_error(code: Union[str, int], message: str, exception: str, args: Option
 
     return response.ok
 
+
 def _get_result_path() -> str:
     """Check if the file path specified by the ``RESULTS_PATH`` environment variable,
     which is set by the runner (Ray or Fleets) at job submission, exists and legal."""
@@ -367,6 +368,7 @@ def _get_result_path() -> str:
         raise QiskitServerlessException(f"Error saving results: {results_path} is not a file or doesn't exist")
 
     return results_path
+
 
 def save_result(result: Dict[str, Any]):
     """Saves job results.
@@ -436,7 +438,10 @@ def save_result(result: Dict[str, Any]):
         return True
     except Exception as e:
         logging.warning("There was an error saving result via mounted path: %s", e)
-        url = f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/" f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/result/"
+        url = (
+            f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
+            f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/result/"
+        )
         response = requests.post(
             url,
             data={"result": json.dumps(result or {}, cls=QiskitObjectsEncoder)},
