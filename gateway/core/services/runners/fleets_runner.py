@@ -40,7 +40,6 @@ from core.ibm_cloud.code_engine.fleets.utils import (
     build_run_volume_mounts_for_job,
 )
 
-
 logger = logging.getLogger("FleetsRunner")
 
 
