@@ -32,7 +32,6 @@ from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
 from core.ibm_cloud.code_engine.fleets.cos import JobCOS
 from core.ibm_cloud.code_engine.fleets.utils import (
     FUNCTION_MOUNT_PATH,
-    USER_MOUNT_PATH,
     FleetJobPaths,
     build_cos_paths,
     build_run_commands,
@@ -215,7 +214,7 @@ class FleetsRunner(AbstractRunner):
                     {
                         "type": "literal",
                         "name": "ARGUMENTS_PATH",
-                        "value": f"{USER_MOUNT_PATH}/arguments.json",
+                        "value": paths.container_arguments_path,
                     },
                 )
                 run_commands = build_run_commands(

@@ -229,19 +229,21 @@ def test_stop_returns_false_when_already_terminal():
 def test_build_cos_paths_custom_function():
     """COS paths for a custom function — user + provider-function keys, no provider-job keys."""
     runner, _ = _make_runner()
-    runner.job.author.username = "IBMid-55000FJDA"
+    runner.job.author.username = "IBMid-50FJDA"
     runner.job.program.provider = None
     runner.job.program.title = "hello-world"
-    runner.job.id = "job-aaa-111"
+    runner.job.id = "8be4df61-93ca"
 
     paths = runner._build_cos_paths()  # pylint: disable=protected-access
 
-    assert paths.cos_user_function_prefix == "users/IBMid-55000FJDA/custom_functions/hello-world"
-    assert paths.cos_user_job_prefix == "users/IBMid-55000FJDA/custom_functions/hello-world/jobs/job-aaa-111"
-    assert paths.cos_user_log_key == "users/IBMid-55000FJDA/custom_functions/hello-world/jobs/job-aaa-111/logs.log"
-    assert paths.cos_results_key == "users/IBMid-55000FJDA/custom_functions/hello-world/jobs/job-aaa-111/results.json"
+    assert paths.cos_user_function_prefix == "users/IBMid-50FJDA/custom_functions/hello-world"
+    assert paths.cos_user_job_prefix == "users/IBMid-50FJDA/custom_functions/hello-world/jobs/8be4df61-93ca"
+    assert paths.cos_user_log_key == "users/IBMid-50FJDA/custom_functions/hello-world/jobs/8be4df61-93ca/logs.log"
+    assert paths.cos_results_key == "users/IBMid-50FJDA/custom_functions/hello-world/jobs/8be4df61-93ca/results.json"
     assert paths.container_public_log_path == "/data/logs.log"
     assert paths.container_private_log_path is None
+    assert paths.container_arguments_path == "/data/arguments.json"
+    assert paths.container_result_path == "/data/results.json"
     assert paths.cos_provider_function_prefix is None
     assert paths.cos_provider_log_key is None
 
@@ -249,27 +251,27 @@ def test_build_cos_paths_custom_function():
 def test_build_cos_paths_provider_function():
     """Full COS key paths for a provider function."""
     runner, _ = _make_runner()
-    runner.job.author.username = "IBMid-55000FJDA"
+    runner.job.author.username = "IBMid-50FJDA"
     runner.job.program.provider = MagicMock()
     runner.job.program.provider.name = "Q-CTRL"
-    runner.job.program.title = "sampler-v2"
-    runner.job.id = "job-bbb-222"
+    runner.job.program.title = "sampler"
+    runner.job.id = "8be4df61-93ca"
 
     paths = runner._build_cos_paths()  # pylint: disable=protected-access
 
-    assert paths.cos_user_function_prefix == "users/IBMid-55000FJDA/provider_functions/Q-CTRL/sampler-v2"
-    assert paths.cos_user_job_prefix == "users/IBMid-55000FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/job-bbb-222"
+    assert paths.cos_user_function_prefix == "users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler"
+    assert paths.cos_user_job_prefix == "users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler/jobs/8be4df61-93ca"
+    assert paths.cos_user_log_key == "users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler/jobs/8be4df61-93ca/logs.log"
     assert (
-        paths.cos_user_log_key == "users/IBMid-55000FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/job-bbb-222/logs.log"
+        paths.cos_results_key == "users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler/jobs/8be4df61-93ca/results.json"
     )
-    assert (
-        paths.cos_results_key
-        == "users/IBMid-55000FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/job-bbb-222/results.json"
-    )
+
     assert paths.container_public_log_path == "/data/logs.log"
-    assert paths.container_private_log_path == "/function_data/jobs/job-bbb-222/logs.log"
-    assert paths.cos_provider_function_prefix == "providers/Q-CTRL/sampler-v2"
-    assert paths.cos_provider_log_key == "providers/Q-CTRL/sampler-v2/jobs/job-bbb-222/logs.log"
+    assert paths.container_private_log_path == "/function_data/jobs/8be4df61-93ca/logs.log"
+    assert paths.container_arguments_path == "/data/arguments.json"
+    assert paths.container_result_path == "/data/results.json"
+    assert paths.cos_provider_function_prefix == "providers/Q-CTRL/sampler"
+    assert paths.cos_provider_log_key == "providers/Q-CTRL/sampler/jobs/8be4df61-93ca/logs.log"
 
 
 def test_submit_sets_fleet_id_without_cos():
@@ -426,14 +428,16 @@ def test_get_result_from_cos_returns_json_string():
             runner,
             "_build_cos_paths",
             return_value=FleetJobPaths(
-                cos_user_function_prefix="users/IBMid-55000FJDA/provider_functions/Q-CTRL/sampler-v2",
-                cos_user_job_prefix="users/IBMid-55000FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/job-bbb-222",
-                cos_user_log_key="users/IBMid-55000FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/job-bbb-222/logs.log",
-                cos_results_key="users/IBMid-55000FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/job-bbb-222/results.json",
-                cos_provider_function_prefix="providers/Q-CTRL/sampler-v2",
-                cos_provider_log_key="providers/Q-CTRL/sampler-v2/jobs/job-bbb-222/logs.log",
+                cos_user_function_prefix="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler",
+                cos_user_job_prefix="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler/jobs/8be4df61-93ca",
+                cos_user_log_key="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler/jobs/8be4df61-93ca/logs.log",
+                cos_results_key="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler/jobs/8be4df61-93ca/results.json",
+                cos_provider_function_prefix="providers/Q-CTRL/sampler",
+                cos_provider_log_key="providers/Q-CTRL/sampler/jobs/8be4df61-93ca/logs.log",
                 container_public_log_path="/data/logs.log",
-                container_private_log_path="/function_data/jobs/job-bbb-222/logs.log",
+                container_private_log_path="/function_data/jobs/8be4df61-93ca/logs.log",
+                container_arguments_path="/data/arguments.json",
+                container_result_path="/data/results.json",
             ),
         ),
     ):

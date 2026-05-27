@@ -79,8 +79,10 @@ class FleetJobPaths:
     cos_provider_log_key: Optional[str]  # private log in the provider bucket — None for custom jobs
 
     # Container side, used by the function
-    container_public_log_path: str
-    container_private_log_path: Optional[str]
+    container_public_log_path: str  # written by wrapper, served by /logs
+    container_private_log_path: Optional[str]  # written by wrapper, served by /provider-logs
+    container_arguments_path: str  # read by the function at startup (injected as ARGUMENTS_PATH)
+    container_result_path: str  # written by the function on completion (read back via cos_results_key)
 
 
 def build_run_volume_mounts(
@@ -233,14 +235,18 @@ def build_custom_job_cos_paths(job: Job) -> FleetJobPaths:
     cos_user_function_prefix = f"users/{username}/custom_functions/{program_title}"
     cos_user_job_prefix = f"{cos_user_function_prefix}/jobs/{job_id}"
     return FleetJobPaths(
+        # COS paths
         cos_user_function_prefix=cos_user_function_prefix,
         cos_user_job_prefix=cos_user_job_prefix,
         cos_user_log_key=f"{cos_user_job_prefix}/logs.log",
         cos_results_key=f"{cos_user_job_prefix}/results.json",
         cos_provider_function_prefix=None,
         cos_provider_log_key=None,
-        container_public_log_path=f"{USER_MOUNT_PATH}/logs.log",
+        # Mounting paths inside the function
         container_private_log_path=None,
+        container_public_log_path=f"{USER_MOUNT_PATH}/logs.log",
+        container_arguments_path=f"{USER_MOUNT_PATH}/arguments.json",
+        container_result_path=f"{USER_MOUNT_PATH}/results.json",
     )
 
 
@@ -262,14 +268,18 @@ def build_provider_job_cos_paths(job: Job) -> FleetJobPaths:
     cos_user_job_prefix = f"{cos_user_function_prefix}/jobs/{job_id}"
     cos_provider_job_prefix = f"{cos_provider_function_prefix}/jobs/{job_id}"
     return FleetJobPaths(
+        # COS paths
         cos_user_function_prefix=cos_user_function_prefix,
         cos_user_job_prefix=cos_user_job_prefix,
         cos_user_log_key=f"{cos_user_job_prefix}/logs.log",
         cos_results_key=f"{cos_user_job_prefix}/results.json",
         cos_provider_function_prefix=cos_provider_function_prefix,
         cos_provider_log_key=f"{cos_provider_job_prefix}/logs.log",
-        container_public_log_path=f"{USER_MOUNT_PATH}/logs.log",
+        # Mounting paths inside the function
         container_private_log_path=f"{FUNCTION_MOUNT_PATH}/jobs/{job_id}/logs.log",
+        container_public_log_path=f"{USER_MOUNT_PATH}/logs.log",
+        container_arguments_path=f"{USER_MOUNT_PATH}/arguments.json",
+        container_result_path=f"{USER_MOUNT_PATH}/results.json",
     )
 
 
