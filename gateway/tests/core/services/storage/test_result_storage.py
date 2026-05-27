@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from core.services.storage.result_storage import ResultStorage
+from core.services.storage.result_storage_ray import RayResultStorage as ResultStorage
 from tests.utils import TestUtils
 
 

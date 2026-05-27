@@ -8,7 +8,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ObjectDoesNotExist
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.access_policies.jobs import JobAccessPolicies
-from core.services.storage.result_storage import ResultStorage
+from core.services.storage import get_result_storage
 from core.models import Job
 
 logger = logging.getLogger("api.JobSaveResultUseCase")
@@ -42,7 +42,7 @@ class JobSaveResultUseCase:
         if not can_save_result:
             raise JobNotFoundException(job_id)
 
-        result_storage = ResultStorage(job)
+        result_storage = get_result_storage(job)
         result_storage.save(result)
         job.result = result
 

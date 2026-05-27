@@ -9,7 +9,7 @@ from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import Job
 from api.access_policies.jobs import JobAccessPolicies
-from core.services.storage.result_storage import ResultStorage
+from core.services.storage import get_result_storage
 
 logger = logging.getLogger("api.JobRetrieveUseCase")
 
@@ -47,7 +47,7 @@ class JobRetrieveUseCase:
         can_read_result = JobAccessPolicies.can_read_result(user, job)
 
         if with_result and can_read_result:
-            result_store = ResultStorage(job)
+            result_store = get_result_storage(job)
             result = result_store.get()
             if result is not None:
                 job.result = result
