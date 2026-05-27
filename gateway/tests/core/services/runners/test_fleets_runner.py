@@ -19,6 +19,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
+from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths
 from core.models import Program
 from core.services.runners.abstract_runner import RunnerError
 from core.services.runners.fleets_runner import FleetsRunner
@@ -228,44 +229,47 @@ def test_stop_returns_false_when_already_terminal():
 def test_build_cos_paths_custom_function():
     """COS paths for a custom function — user + provider-function keys, no provider-job keys."""
     runner, _ = _make_runner()
-    runner.job.author.username = "alice"
+    runner.job.author.username = "IBMid-55000FJDA"
     runner.job.program.provider = None
     runner.job.program.title = "hello-world"
     runner.job.id = "job-aaa-111"
 
     paths = runner._build_cos_paths()  # pylint: disable=protected-access
 
-    assert paths["user_function_prefix"] == "users/alice/custom_functions/hello-world"
-    assert paths["user_job_prefix"] == "users/alice/custom_functions/hello-world/jobs/job-aaa-111"
-    assert paths["user_log_key"] == "users/alice/custom_functions/hello-world/jobs/job-aaa-111/logs.log"
-    assert paths["public_log_path"] == "/data/logs.log"
-    assert paths["private_log_path"] is None
-    assert paths["provider_function_prefix"] is None
-    assert paths["provider_mount_path"] is None
-    assert paths["provider_job_prefix"] is None
-    assert paths["provider_log_key"] is None
+    assert paths.cos_user_function_prefix == "users/IBMid-55000FJDA/custom_functions/hello-world"
+    assert paths.cos_user_job_prefix == "users/IBMid-55000FJDA/custom_functions/hello-world/jobs/job-aaa-111"
+    assert paths.cos_user_log_key == "users/IBMid-55000FJDA/custom_functions/hello-world/jobs/job-aaa-111/logs.log"
+    assert paths.cos_results_key == "users/IBMid-55000FJDA/custom_functions/hello-world/jobs/job-aaa-111/results.json"
+    assert paths.container_public_log_path == "/data/logs.log"
+    assert paths.container_private_log_path is None
+    assert paths.cos_provider_function_prefix is None
+    assert paths.cos_provider_log_key is None
 
 
 def test_build_cos_paths_provider_function():
     """Full COS key paths for a provider function."""
     runner, _ = _make_runner()
-    runner.job.author.username = "alice"
+    runner.job.author.username = "IBMid-55000FJDA"
     runner.job.program.provider = MagicMock()
-    runner.job.program.provider.name = "good-partner"
+    runner.job.program.provider.name = "Q-CTRL"
     runner.job.program.title = "sampler-v2"
     runner.job.id = "job-bbb-222"
 
     paths = runner._build_cos_paths()  # pylint: disable=protected-access
 
-    assert paths["user_function_prefix"] == "users/alice/provider_functions/good-partner/sampler-v2"
-    assert paths["user_job_prefix"] == "users/alice/provider_functions/good-partner/sampler-v2/jobs/job-bbb-222"
-    assert paths["user_log_key"] == "users/alice/provider_functions/good-partner/sampler-v2/jobs/job-bbb-222/logs.log"
-    assert paths["public_log_path"] == "/data/logs.log"
-    assert paths["private_log_path"] == "/function_data/jobs/job-bbb-222/logs.log"
-    assert paths["provider_function_prefix"] == "providers/good-partner/sampler-v2"
-    assert paths["provider_job_prefix"] == "providers/good-partner/sampler-v2/jobs/job-bbb-222"
-    assert paths["provider_log_key"] == "providers/good-partner/sampler-v2/jobs/job-bbb-222/logs.log"
-    assert paths["provider_mount_path"] == "/function_data"
+    assert paths.cos_user_function_prefix == "users/IBMid-55000FJDA/provider_functions/Q-CTRL/sampler-v2"
+    assert paths.cos_user_job_prefix == "users/IBMid-55000FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/job-bbb-222"
+    assert (
+        paths.cos_user_log_key == "users/IBMid-55000FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/job-bbb-222/logs.log"
+    )
+    assert (
+        paths.cos_results_key
+        == "users/IBMid-55000FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/job-bbb-222/results.json"
+    )
+    assert paths.container_public_log_path == "/data/logs.log"
+    assert paths.container_private_log_path == "/function_data/jobs/job-bbb-222/logs.log"
+    assert paths.cos_provider_function_prefix == "providers/Q-CTRL/sampler-v2"
+    assert paths.cos_provider_log_key == "providers/Q-CTRL/sampler-v2/jobs/job-bbb-222/logs.log"
 
 
 def test_submit_sets_fleet_id_without_cos():
@@ -421,11 +425,16 @@ def test_get_result_from_cos_returns_json_string():
         patch.object(
             runner,
             "_build_cos_paths",
-            return_value={
-                "user_job_prefix": "users/1/provider_functions/p/t/jobs/j",
-                "user_function_prefix": "users/1/provider_functions/p/t",
-                "provider_function_prefix": "providers/p/t",
-            },
+            return_value=FleetJobPaths(
+                cos_user_function_prefix="users/IBMid-55000FJDA/provider_functions/Q-CTRL/sampler-v2",
+                cos_user_job_prefix="users/IBMid-55000FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/job-bbb-222",
+                cos_user_log_key="users/IBMid-55000FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/job-bbb-222/logs.log",
+                cos_results_key="users/IBMid-55000FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/job-bbb-222/results.json",
+                cos_provider_function_prefix="providers/Q-CTRL/sampler-v2",
+                cos_provider_log_key="providers/Q-CTRL/sampler-v2/jobs/job-bbb-222/logs.log",
+                container_public_log_path="/data/logs.log",
+                container_private_log_path="/function_data/jobs/job-bbb-222/logs.log",
+            ),
         ),
     ):
         result = runner.get_result_from_cos()

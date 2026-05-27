@@ -33,6 +33,7 @@ from core.ibm_cloud.code_engine.fleets.cos import JobCOS
 from core.ibm_cloud.code_engine.fleets.utils import (
     FUNCTION_MOUNT_PATH,
     USER_MOUNT_PATH,
+    FleetJobPaths,
     build_cos_paths,
     build_run_commands,
     build_run_env_variables,
@@ -201,10 +202,10 @@ class FleetsRunner(AbstractRunner):
             if self._is_cos_configured():
                 paths = self._build_cos_paths()
 
-                run_volume_mounts = build_run_volume_mounts_for_job(self.job, self._project)
+                run_volume_mounts = build_run_volume_mounts_for_job(paths, self._project)
                 run_env_variables = build_run_env_variables(
-                    public_log_path=paths["public_log_path"],
-                    private_log_path=paths["private_log_path"],
+                    public_log_path=paths.container_public_log_path,
+                    private_log_path=paths.container_private_log_path,
                 )
 
                 gateway_env = self._build_gateway_env_vars()
@@ -232,8 +233,8 @@ class FleetsRunner(AbstractRunner):
                 logger.info(
                     "COS configured for job [%s]: user_key=[%s] provider_key=[%s]",
                     self.job.id,
-                    paths["user_log_key"],
-                    paths["provider_log_key"] or "-",
+                    paths.cos_user_log_key,
+                    paths.cos_provider_log_key or "-",
                 )
             else:
                 logger.info("COS not available for job [%s]", self.job.id)
@@ -348,7 +349,7 @@ class FleetsRunner(AbstractRunner):
         try:
             paths = self._build_cos_paths()
             user_bucket = self._project.cos_bucket_user_data_name
-            results_key = f"{paths['user_job_prefix']}/results.json"
+            results_key = paths.cos_results_key
 
             logger.debug("Retrieving results for job [%s] from %s/%s", self.job.id, user_bucket, results_key)
 
@@ -490,7 +491,7 @@ class FleetsRunner(AbstractRunner):
 
         return [{"type": "literal", "name": k, "value": v} for k, v in env.items() if v]
 
-    def _build_cos_paths(self) -> dict[str, str]:
+    def _build_cos_paths(self) -> FleetJobPaths:
         return build_cos_paths(self.job)
 
     def _upload_artifact_to_cos(self, paths: dict[str, str]) -> None:
@@ -523,11 +524,11 @@ class FleetsRunner(AbstractRunner):
 
                     if member.name == entrypoint_name:
                         bucket_name = provider_bucket if is_provider else user_bucket
-                        prefix = paths["provider_function_prefix"] if is_provider else paths["user_function_prefix"]
+                        prefix = paths.cos_provider_function_prefix if is_provider else paths.cos_user_function_prefix
                         key = f"{prefix}/{member.name}"
                     else:
                         bucket_name = user_bucket
-                        key = f"{paths['user_job_prefix']}/{member.name}"
+                        key = f"{paths.cos_user_job_prefix}/{member.name}"
 
                     self._get_cos().upload_fileobj(fileobj=extracted, bucket_name=bucket_name, key=key)
                     logger.debug("Uploaded [%s] for job [%s] to %s/%s", member.name, self.job.id, bucket_name, key)

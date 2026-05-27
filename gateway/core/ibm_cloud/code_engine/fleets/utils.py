@@ -35,14 +35,52 @@ Example::
 from __future__ import annotations
 
 import shlex
+from dataclasses import dataclass
+from typing import Optional
 
 from django.template.loader import get_template
 
 from core.models import CodeEngineProject, Job
 
-LOG_FILENAME = "logs.log"
 USER_MOUNT_PATH = "/data"
 FUNCTION_MOUNT_PATH = "/function_data"
+
+
+@dataclass(frozen=True)
+class FleetJobPaths:
+    """Computed paths for a fleet job.
+
+    ``cos_*`` fields are bucket-relative paths used by the gateway when
+    reading or writing objects in COS.  Fields ending in ``_prefix`` are
+    directory-scoped (no trailing slash, no filename) and serve two purposes:
+    as the ``sub_path`` argument of a PDS volume mount, and as the base for
+    building COS keys for files whose names are only known at runtime (e.g.
+    artifact members from a tarball).  Fields ending in ``_key`` are complete
+    COS object keys ready to be passed directly to the COS client.
+
+    ``container_*`` fields are absolute filesystem paths inside the running
+    container, exported to the wrapper script as environment variables.
+    ``None`` on any optional field means the concept does not apply to this
+    job type (e.g. no private log for custom jobs).
+    """
+
+    # COS side prefixes (volume-mount sub_path + artifact key base)
+
+    # sub_path for /data mount; base for non-entrypoint artifact keys ({prefix}/{member})
+    cos_user_job_prefix: str
+    # sub_path for /function_data mount (custom jobs); base for entrypoint artifact key
+    cos_user_function_prefix: str
+    # sub_path for /function_data mount (provider jobs); base for entrypoint artifact key — None for custom jobs
+    cos_provider_function_prefix: Optional[str]
+
+    # COS side: complete object keys (passed directly to the COS client to read or write with the S3 client)
+    cos_user_log_key: str  # public log in the user bucket
+    cos_results_key: str  # results.json in the user bucket
+    cos_provider_log_key: Optional[str]  # private log in the provider bucket — None for custom jobs
+
+    # Container side, used by the function
+    container_public_log_path: str
+    container_private_log_path: Optional[str]
 
 
 def build_run_volume_mounts(
@@ -179,12 +217,12 @@ def build_run_commands(
     return ["sh", "-c", script]
 
 
-def build_custom_job_cos_paths(job: Job) -> dict[str, str]:
+def build_custom_job_cos_paths(job: Job) -> FleetJobPaths:
     """COS paths for a custom (non-provider) job.
 
-    The entrypoint is uploaded to the provider bucket at function level and run
-    from ``/function_data``. User data and public logs live in the user bucket.
-    There are no private logs, so no provider-job-level paths are included.
+    The entrypoint lives in the user bucket at function scope and runs from
+    ``/function_data``. User data and public logs live in the user bucket at
+    job scope. There are no private logs.
 
     Args:
         job: Job instance with no provider.
@@ -192,26 +230,25 @@ def build_custom_job_cos_paths(job: Job) -> dict[str, str]:
     username = job.author.username
     program_title = job.program.title if job.program else "unknown"
     job_id = str(job.id)
-    user_function_prefix = f"users/{username}/custom_functions/{program_title}"
-    user_job_prefix = f"{user_function_prefix}/jobs/{job_id}"
-    return {
-        "user_function_prefix": user_function_prefix,
-        "user_job_prefix": user_job_prefix,
-        "user_log_key": f"{user_job_prefix}/{LOG_FILENAME}",
-        "public_log_path": f"{USER_MOUNT_PATH}/{LOG_FILENAME}",
-        "private_log_path": None,
-        "provider_function_prefix": None,
-        "provider_job_prefix": None,
-        "provider_log_key": None,
-        "provider_mount_path": None,
-    }
+    cos_user_function_prefix = f"users/{username}/custom_functions/{program_title}"
+    cos_user_job_prefix = f"{cos_user_function_prefix}/jobs/{job_id}"
+    return FleetJobPaths(
+        cos_user_function_prefix=cos_user_function_prefix,
+        cos_user_job_prefix=cos_user_job_prefix,
+        cos_user_log_key=f"{cos_user_job_prefix}/logs.log",
+        cos_results_key=f"{cos_user_job_prefix}/results.json",
+        cos_provider_function_prefix=None,
+        cos_provider_log_key=None,
+        container_public_log_path=f"{USER_MOUNT_PATH}/logs.log",
+        container_private_log_path=None,
+    )
 
 
-def build_provider_job_cos_paths(job: Job) -> dict[str, str]:
+def build_provider_job_cos_paths(job: Job) -> FleetJobPaths:
     """COS paths for a provider job.
 
     Both user bucket (public logs + data) and provider bucket (entrypoint at
-    function level, private logs at job level) are included.
+    function scope, private logs at job scope) are used.
 
     Args:
         job: Job instance with a provider assigned.
@@ -220,44 +257,42 @@ def build_provider_job_cos_paths(job: Job) -> dict[str, str]:
     provider_name = job.program.provider.name
     program_title = job.program.title if job.program else "unknown"
     job_id = str(job.id)
-    user_function_prefix = f"users/{username}/provider_functions/{provider_name}/{program_title}"
-    provider_function_prefix = f"providers/{provider_name}/{program_title}"
-    user_job_prefix = f"{user_function_prefix}/jobs/{job_id}"
-    provider_job_prefix = f"{provider_function_prefix}/jobs/{job_id}"
-    return {
-        "user_function_prefix": user_function_prefix,
-        "user_job_prefix": user_job_prefix,
-        "user_log_key": f"{user_job_prefix}/{LOG_FILENAME}",
-        "public_log_path": f"{USER_MOUNT_PATH}/{LOG_FILENAME}",
-        "private_log_path": f"{FUNCTION_MOUNT_PATH}/jobs/{job_id}/{LOG_FILENAME}",
-        "provider_function_prefix": provider_function_prefix,
-        "provider_job_prefix": provider_job_prefix,
-        "provider_log_key": f"{provider_job_prefix}/{LOG_FILENAME}",
-        "provider_mount_path": FUNCTION_MOUNT_PATH,
-    }
+    cos_user_function_prefix = f"users/{username}/provider_functions/{provider_name}/{program_title}"
+    cos_provider_function_prefix = f"providers/{provider_name}/{program_title}"
+    cos_user_job_prefix = f"{cos_user_function_prefix}/jobs/{job_id}"
+    cos_provider_job_prefix = f"{cos_provider_function_prefix}/jobs/{job_id}"
+    return FleetJobPaths(
+        cos_user_function_prefix=cos_user_function_prefix,
+        cos_user_job_prefix=cos_user_job_prefix,
+        cos_user_log_key=f"{cos_user_job_prefix}/logs.log",
+        cos_results_key=f"{cos_user_job_prefix}/results.json",
+        cos_provider_function_prefix=cos_provider_function_prefix,
+        cos_provider_log_key=f"{cos_provider_job_prefix}/logs.log",
+        container_public_log_path=f"{USER_MOUNT_PATH}/logs.log",
+        container_private_log_path=f"{FUNCTION_MOUNT_PATH}/jobs/{job_id}/logs.log",
+    )
 
 
-def build_cos_paths(job: Job) -> dict[str, str]:
+def build_cos_paths(job: Job) -> FleetJobPaths:
     """Dispatcher: returns custom or provider COS paths depending on job type."""
     if job.program and job.program.provider:
         return build_provider_job_cos_paths(job)
     return build_custom_job_cos_paths(job)
 
 
-def build_run_volume_mounts_for_job(job: Job, project: CodeEngineProject) -> list[dict[str, str]]:
+def build_run_volume_mounts_for_job(paths: FleetJobPaths, project: CodeEngineProject) -> list[dict[str, str]]:
     """Build the complete volume mounts list for a fleet job.
 
     Args:
-        job: Job instance.
+        paths: Pre-computed paths for the job (from :func:`build_cos_paths`).
         project: CodeEngineProject with PDS names.
 
     Returns:
         Volume mount definitions ready for ``run_volume_mounts``.
     """
-    paths = build_cos_paths(job)
-    mounts = [(USER_MOUNT_PATH, project.pds_name_users, paths["user_job_prefix"])]
-    if job.program and job.program.provider:
-        mounts.append((FUNCTION_MOUNT_PATH, project.pds_name_providers, paths["provider_function_prefix"]))
+    mounts = [(USER_MOUNT_PATH, project.pds_name_users, paths.cos_user_job_prefix)]
+    if paths.cos_provider_function_prefix:
+        mounts.append((FUNCTION_MOUNT_PATH, project.pds_name_providers, paths.cos_provider_function_prefix))
     else:
-        mounts.append((FUNCTION_MOUNT_PATH, project.pds_name_users, paths["user_function_prefix"]))
+        mounts.append((FUNCTION_MOUNT_PATH, project.pds_name_users, paths.cos_user_function_prefix))
     return build_run_volume_mounts(mounts=mounts)
