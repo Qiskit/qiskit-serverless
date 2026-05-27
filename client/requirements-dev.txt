@@ -15,7 +15,7 @@ reno>=4.1.0
 black[jupyter]~=25.11
 requests-mock>=1.11.0
 # new versions of testcontainers don't support docker compose
-testcontainers>=4.7.2
+testcontainers>=4.14.2
 tox>=4.54.0
 pre-commit>=4.3.0
 setuptools>=80.0.0
