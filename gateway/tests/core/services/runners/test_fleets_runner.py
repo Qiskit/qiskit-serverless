@@ -453,7 +453,6 @@ def test_get_result_from_cos_returns_none_on_exception():
     with (
         patch.object(runner, "_is_cos_configured", return_value=True),
         patch.object(runner, "_get_fleet_name", return_value="fleet-name"),
-        patch.object(runner, "_build_cos_paths", return_value={"user_job_prefix": "u/jobs/j"}),
     ):
         result = runner.get_result_from_cos()
 

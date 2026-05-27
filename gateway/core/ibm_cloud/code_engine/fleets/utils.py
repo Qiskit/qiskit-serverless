@@ -230,7 +230,7 @@ def build_custom_job_cos_paths(job: Job) -> FleetJobPaths:
         job: Job instance with no provider.
     """
     username = job.author.username
-    program_title = job.program.title if job.program else "unknown"
+    program_title = job.program.title
     job_id = str(job.id)
     cos_user_function_prefix = f"users/{username}/custom_functions/{program_title}"
     cos_user_job_prefix = f"{cos_user_function_prefix}/jobs/{job_id}"
@@ -261,7 +261,7 @@ def build_provider_job_cos_paths(job: Job) -> FleetJobPaths:
     """
     username = job.author.username
     provider_name = job.program.provider.name
-    program_title = job.program.title if job.program else "unknown"
+    program_title = job.program.title
     job_id = str(job.id)
     cos_user_function_prefix = f"users/{username}/provider_functions/{provider_name}/{program_title}"
     cos_provider_function_prefix = f"providers/{provider_name}/{program_title}"
@@ -285,7 +285,7 @@ def build_provider_job_cos_paths(job: Job) -> FleetJobPaths:
 
 def build_cos_paths(job: Job) -> FleetJobPaths:
     """Dispatcher: returns custom or provider COS paths depending on job type."""
-    if job.program and job.program.provider:
+    if job.program.provider:
         return build_provider_job_cos_paths(job)
     return build_custom_job_cos_paths(job)
 

@@ -493,7 +493,7 @@ class FleetsRunner(AbstractRunner):
     def _build_cos_paths(self) -> FleetJobPaths:
         return build_cos_paths(self.job)
 
-    def _upload_artifact_to_cos(self, paths: dict[str, str]) -> None:
+    def _upload_artifact_to_cos(self, paths: FleetJobPaths) -> None:
         """Extract the program artifact tar and upload files to COS.
 
         Custom jobs: entrypoint → user bucket at function level; other files → user bucket at job level.
@@ -530,11 +530,12 @@ class FleetsRunner(AbstractRunner):
                         key = f"{paths.cos_user_job_prefix}/{member.name}"
 
                     self._get_cos().upload_fileobj(fileobj=extracted, bucket_name=bucket_name, key=key)
-                    logger.debug("Uploaded [%s] for job [%s] to %s/%s", member.name, self.job.id, bucket_name, key)
+                    logger.debug("Uploaded [%s] for job_id=%s to %s/%s", member.name, self.job.id, bucket_name, key)
         except tarfile.TarError as ex:
             raise RunnerError(f"Failed to read artifact for job [{self.job.id}]", ex) from ex
 
-        logger.info("Uploaded artifact for job [%s] (entrypoint→provider, data→user)", self.job.id)
+        dest = "provider" if is_provider else "user"
+        logger.info("Uploaded artifact for job_id=%s (entrypoint to %s, data to user)", self.job.id, dest)
 
     def _get_fleet_name(self) -> str:
         """Return the fleet name from the CE API, falling back to ``"job-{id}"``.
@@ -550,17 +551,29 @@ class FleetsRunner(AbstractRunner):
             return f"job-{self.job.id}"
 
     def _is_cos_configured(self) -> bool:
-        """Return ``True`` if all four COS project fields are set.
+        """Return ``True`` if the COS project fields required for this job type are set.
+
+        Provider jobs require both user and provider buckets. Custom jobs only
+        require the user bucket (the provider bucket is not used).
 
         Returns:
-            ``True`` when COS is fully configured.
+            ``True`` when COS is sufficiently configured for this job.
         """
         if not self._project:
             return False
+        if self.job.program.provider:
+            return all(
+                [
+                    self._project.cos_bucket_provider_data_name,
+                    self._project.cos_bucket_user_data_name,
+                    self._project.cos_instance_name,
+                    self._project.cos_key_name,
+                ]
+            )
+        # Custom functions don't use cos_bucket_provider_data_name
         return all(
             [
                 self._project.cos_bucket_user_data_name,
-                self._project.cos_bucket_provider_data_name,
                 self._project.cos_instance_name,
                 self._project.cos_key_name,
             ]
