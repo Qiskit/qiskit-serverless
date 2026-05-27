@@ -329,28 +329,20 @@ class FleetsRunner(AbstractRunner):
             raise RunnerError(f"Unable to get status for fleet [{self.job.fleet_id}]", ex) from ex
 
     def logs(self) -> str | None:
-        """Return user (``[public]``-filtered) logs from the user COS bucket.
-
-        Returns:
-            Log content or ``None``.
         """
-        return self._get_logs_from_cos(
-            bucket_field="cos_bucket_user_data_name",
-            log_key_field="user_log_key",
-            label="user",
-        )
+        logs and provider_logs don't require implementation because we always go to the
+        object storage directly to retrieve this information in fleets. So we use the logs
+        storage to work with this data.
+        """
+        raise NotImplementedError
 
     def provider_logs(self) -> str | None:
-        """Return provider (unfiltered) logs from the provider COS bucket.
-
-        Returns:
-            Log content or ``None``.
         """
-        return self._get_logs_from_cos(
-            bucket_field="cos_bucket_provider_data_name",
-            log_key_field="provider_log_key",
-            label="provider",
-        )
+        logs and provider_logs don't require implementation because we always go to the
+        object storage directly to retrieve this information in fleets. So we use the logs
+        storage to work with this data.
+        """
+        raise NotImplementedError
 
     def get_result_from_cos(self) -> str | None:
         """Retrieve job results from COS.
@@ -584,70 +576,6 @@ class FleetsRunner(AbstractRunner):
             raise RunnerError(f"Failed to read artifact for job [{self.job.id}]", ex) from ex
 
         logger.info("Uploaded artifact for job [%s] (entrypoint→provider, data→user)", self.job.id)
-
-    def _get_logs_from_cos(self, bucket_field: str, log_key_field: str, label: str) -> str | None:
-        """Retrieve logs from a COS bucket.
-
-        Args:
-            bucket_field: :class:`CodeEngineProject` attribute name for the bucket.
-            log_key_field: Key in :meth:`_build_cos_paths` for the COS object key.
-            label: Human-readable label (``"user"`` or ``"provider"``) for log messages.
-
-        Returns:
-            Log content string or ``None``.
-
-        Raises:
-            RunnerError: On API errors.
-        """
-        self._ensure_connected()
-        if not self.job.fleet_id:
-            raise RunnerError("Job has no fleet_id assigned")
-
-        try:
-            if not self._is_cos_configured():
-                return "Logs not available (COS logging not configured for this project)"
-
-            bucket_name = getattr(self._project, bucket_field, None)
-            if not bucket_name:
-                return f"Logs not available ({label} COS bucket not configured)"
-
-            paths = self._build_cos_paths()
-            log_key = paths[log_key_field]
-
-            logger.info(
-                "Retrieving %s logs for fleet [%s]: bucket=[%s] key=[%s]",
-                label,
-                self.job.fleet_id,
-                bucket_name,
-                log_key,
-            )
-
-            logs = self._get_cos().logs(
-                bucket_name=bucket_name,
-                log_key=log_key,
-                save_locally=False,
-                wait_for_availability=True,
-                timeout=60,
-            )
-
-            if logs:
-                logger.info("Retrieved %s logs for fleet [%s]", label, self.job.fleet_id)
-                return logs
-
-            return "Logs not yet available"
-
-        except ApiException as ex:
-            logger.error(
-                "CE API error getting %s logs for fleet [%s]: status=%s reason=%s",
-                label,
-                self.job.fleet_id,
-                ex.status,
-                ex.reason,
-            )
-            raise RunnerError(f"Code Engine API error: {ex.reason}", ex) from ex
-        except Exception as ex:
-            logger.error("Failed to get %s logs for fleet [%s]: %s", label, self.job.fleet_id, ex)
-            raise RunnerError(f"Unable to get {label} logs for fleet [{self.job.fleet_id}]", ex) from ex
 
     def _get_fleet_name(self) -> str:
         """Return the fleet name from the CE API, falling back to ``"job-{id}"``.
