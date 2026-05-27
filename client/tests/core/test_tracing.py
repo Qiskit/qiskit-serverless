@@ -7,6 +7,7 @@ def test_get_tracer_uses_http_exporter():
     from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
         OTLPSpanExporter as HttpExporter,
     )
+
     assert tracing_module.OTLPSpanExporter is HttpExporter
 
 
@@ -15,6 +16,7 @@ def test_get_tracer_builds_http_endpoint():
     with patch("qiskit_serverless.core.tracing.OTLPSpanExporter") as mock_exporter:
         mock_exporter.return_value = MagicMock()
         from qiskit_serverless.core.tracing import get_tracer
+
         get_tracer("test_module", agent_host="localhost", agent_port=4318)
 
         # Check that OTLPSpanExporter was called with the correct endpoint
@@ -28,6 +30,7 @@ def test_get_tracer_no_insecure_param():
     with patch("qiskit_serverless.core.tracing.OTLPSpanExporter") as mock_exporter:
         mock_exporter.return_value = MagicMock()
         from qiskit_serverless.core.tracing import get_tracer
+
         get_tracer("test_module", agent_host="localhost", agent_port=4318)
 
         # Check that insecure parameter is not passed
@@ -45,6 +48,7 @@ def test_setup_tracing_builds_http_endpoint(monkeypatch):
     with patch("qiskit_serverless.core.tracing.OTLPSpanExporter") as mock_exporter:
         mock_exporter.return_value = MagicMock()
         from qiskit_serverless.core.tracing import setup_tracing
+
         setup_tracing()
 
         # Check that OTLPSpanExporter was called with the correct endpoint
