@@ -275,7 +275,6 @@ FLEETS_DEFAULT_IMAGE = os.environ.get(
     "FLEETS_DEFAULT_IMAGE",
     "private.icr.io/qc-qiskit-functions-ce-staging/helloworld:latest",
 )
-FLEETS_GATEWAY_HOST = os.environ.get("FLEETS_GATEWAY_HOST", os.environ.get("SITE_HOST", ""))
 # Fleets / Code Engine credentials
 IBM_CLOUD_API_KEY = os.environ.get("IBM_CLOUD_API_KEY")
 CE_ICR_PULL_SECRET = os.environ.get("CE_ICR_PULL_SECRET")

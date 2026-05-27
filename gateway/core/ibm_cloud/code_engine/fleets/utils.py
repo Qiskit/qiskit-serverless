@@ -28,7 +28,7 @@ Example::
     mounts = build_run_volume_mounts(
         mounts=[("/output", "my-pds", "user/job-1")]
     )
-    env = build_run_env_variables(public_log_path="/output/logs.log")
+    env = build_run_env_variables(paths=paths)
     cmds = build_run_commands(app_run_commands=["python", "main.py"])
 """
 
@@ -79,6 +79,7 @@ class FleetJobPaths:  # pylint: disable=too-many-instance-attributes
     cos_provider_log_key: Optional[str]  # private log in the provider bucket — None for custom jobs
 
     # Container side, used by the function
+    container_entrypoint: str  # absolute path to the function script inside the container
     container_public_log_path: str  # written by wrapper, served by /logs
     container_private_log_path: Optional[str]  # written by wrapper, served by /provider-logs
     container_arguments_path: str  # read by the function at startup (injected as ARGUMENTS_PATH)
@@ -132,54 +133,52 @@ def build_run_volume_mounts(
 
 def build_run_env_variables(
     *,
-    public_log_path: str,
-    private_log_path: str | None = None,
+    paths: FleetJobPaths,
     flush_interval_seconds: int = 15,
+    extra: list[dict[str, str]] | None = None,
 ) -> list[dict[str, str]]:
     """
     Build environment variables used by the logging wrapper command.
 
     Args:
-        public_log_path: Full container path for the public log file. Always
-            present: it is the file served by ``/logs`` to the job's author
-            (``filter_logs_with_public_tags`` for provider jobs, full output
-            with prefixes stripped for custom jobs).
-        private_log_path: Full container path for the private log file.
-            Required only for provider jobs that emit a separate private
-            stream served by ``/provider-logs``.
+        paths: Pre-computed paths for the job (from :func:`build_cos_paths`).
         flush_interval_seconds: Period (in seconds) between log uploads from
             the local working directory to the COS-backed mount.
+        extra: Additional environment variable definitions appended after the
+            ones built by this function.
 
     Returns:
         Environment variable definitions for ``run_env_variables``.
-
-    Raises:
-        ValueError: If public_log_path is empty.
     """
-    if not public_log_path:
-        raise ValueError("public_log_path is required.")
-
     run_env_variables = [
         {
             "type": "literal",
             "name": "PUBLIC_LOG_PATH",
-            "value": public_log_path,
+            "value": paths.container_public_log_path,
         },
         {
             "type": "literal",
             "name": "LOG_FLUSH_INTERVAL_SECONDS",
             "value": str(flush_interval_seconds),
         },
+        {
+            "type": "literal",
+            "name": "ARGUMENTS_PATH",
+            "value": paths.container_arguments_path,
+        },
     ]
 
-    if private_log_path is not None:
+    if paths.container_private_log_path is not None:
         run_env_variables.append(
             {
                 "type": "literal",
                 "name": "PRIVATE_LOG_PATH",
-                "value": private_log_path,
+                "value": paths.container_private_log_path,
             }
         )
+
+    if extra:
+        run_env_variables.extend(extra)
 
     return run_env_variables
 
@@ -243,6 +242,7 @@ def build_custom_job_cos_paths(job: Job) -> FleetJobPaths:
         cos_provider_function_prefix=None,
         cos_provider_log_key=None,
         # Mounting paths inside the function
+        container_entrypoint=f"{FUNCTION_MOUNT_PATH}/{job.program.entrypoint}",
         container_private_log_path=None,
         container_public_log_path=f"{USER_MOUNT_PATH}/logs.log",
         container_arguments_path=f"{USER_MOUNT_PATH}/arguments.json",
@@ -276,6 +276,7 @@ def build_provider_job_cos_paths(job: Job) -> FleetJobPaths:
         cos_provider_function_prefix=cos_provider_function_prefix,
         cos_provider_log_key=f"{cos_provider_job_prefix}/logs.log",
         # Mounting paths inside the function
+        container_entrypoint=f"{FUNCTION_MOUNT_PATH}/{job.program.entrypoint}",
         container_private_log_path=f"{FUNCTION_MOUNT_PATH}/jobs/{job_id}/logs.log",
         container_public_log_path=f"{USER_MOUNT_PATH}/logs.log",
         container_arguments_path=f"{USER_MOUNT_PATH}/arguments.json",

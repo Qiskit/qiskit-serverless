@@ -432,6 +432,7 @@ def test_get_result_from_cos_returns_json_string():
                 cos_results_key="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca/results.json",  # fmt: skip
                 cos_provider_function_prefix="providers/Q-CTRL/sampler-v2",
                 cos_provider_log_key="providers/Q-CTRL/sampler-v2/jobs/8be4df61-93ca/logs.log",
+                container_entrypoint="/function_data/sampler_v2.py",
                 container_public_log_path="/data/logs.log",
                 container_private_log_path="/function_data/jobs/8be4df61-93ca/logs.log",
                 container_arguments_path="/data/arguments.json",
@@ -620,20 +621,6 @@ def test_build_gateway_env_vars_empty_env_vars():
         result = runner._build_gateway_env_vars()  # pylint: disable=protected-access
 
     assert result == []
-
-
-def test_build_gateway_env_vars_includes_gateway_host():
-    """_build_gateway_env_vars() injects ENV_JOB_GATEWAY_HOST from settings.FLEETS_GATEWAY_HOST."""
-    runner, _ = _make_runner()
-    runner.job.env_vars = "{}"
-
-    with (
-        _patch_settings(FLEETS_GATEWAY_HOST="https://gateway.example.com"),
-        patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value={}),
-    ):
-        result = runner._build_gateway_env_vars()  # pylint: disable=protected-access
-
-    assert {"type": "literal", "name": "ENV_JOB_GATEWAY_HOST", "value": "https://gateway.example.com"} in result
 
 
 def test_submit_includes_gateway_env_vars():

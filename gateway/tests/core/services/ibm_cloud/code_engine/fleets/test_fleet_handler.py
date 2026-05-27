@@ -27,6 +27,7 @@ from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
 from core.ibm_cloud.code_engine.fleets.utils import (
+    FleetJobPaths,
     build_run_commands,
     build_run_env_variables,
     build_run_volume_mounts,
@@ -156,7 +157,21 @@ def test_submit_job_with_builder_extra_fields(mock_fleets_api_cls, project_id, b
 
     extra_fields = {
         "run_volume_mounts": build_run_volume_mounts(mounts=[("/output", "test-pds", "test_user/fleet-1")]),
-        "run_env_variables": build_run_env_variables(public_log_path="/output/logs.log"),
+        "run_env_variables": build_run_env_variables(
+            paths=FleetJobPaths(
+                cos_user_job_prefix="test_user/fleet-1",
+                cos_user_function_prefix="test_user",
+                cos_provider_function_prefix=None,
+                cos_user_log_key="test_user/fleet-1/logs.log",
+                cos_results_key="test_user/fleet-1/results.json",
+                cos_provider_log_key=None,
+                container_entrypoint="/function_data/main.py",
+                container_public_log_path="/output/logs.log",
+                container_private_log_path=None,
+                container_arguments_path="/output/arguments.json",
+                container_result_path="/output/results.json",
+            )
+        ),
         "run_commands": build_run_commands(app_run_commands=["python", "main.py"]),
     }
 
@@ -660,20 +675,39 @@ def test_build_run_volume_mounts_empty_raises():
         build_run_volume_mounts(mounts=[])
 
 
+def _make_paths(public_log_path="/output/logs.log", private_log_path=None, arguments_path="/output/arguments.json"):
+    return FleetJobPaths(
+        cos_user_job_prefix="u/job-1",
+        cos_user_function_prefix="u/fn",
+        cos_provider_function_prefix=None,
+        cos_user_log_key="u/job-1/logs.log",
+        cos_results_key="u/job-1/results.json",
+        cos_provider_log_key=None,
+        container_entrypoint="/function_data/main.py",
+        container_public_log_path=public_log_path,
+        container_private_log_path=private_log_path,
+        container_arguments_path=arguments_path,
+        container_result_path="/output/results.json",
+    )
+
+
 def test_build_run_env_variables_public_only():
-    """build_run_env_variables returns PUBLIC_LOG_PATH without PRIVATE_LOG_PATH."""
-    result = build_run_env_variables(public_log_path="/output/logs.log")
+    """build_run_env_variables returns PUBLIC_LOG_PATH and ARGUMENTS_PATH without PRIVATE_LOG_PATH."""
+    result = build_run_env_variables(paths=_make_paths())
     names = {e["name"] for e in result}
     assert "PUBLIC_LOG_PATH" in names
     assert "LOG_FLUSH_INTERVAL_SECONDS" in names
+    assert "ARGUMENTS_PATH" in names
     assert "PRIVATE_LOG_PATH" not in names
 
 
 def test_build_run_env_variables_with_private_path():
-    """build_run_env_variables exposes PRIVATE_LOG_PATH when private_log_path is given."""
+    """build_run_env_variables exposes PRIVATE_LOG_PATH when container_private_log_path is set."""
     result = build_run_env_variables(
-        public_log_path="/public/logs.log",
-        private_log_path="/private/logs.log",
+        paths=_make_paths(
+            public_log_path="/public/logs.log",
+            private_log_path="/private/logs.log",
+        )
     )
     by_name = {e["name"]: e["value"] for e in result}
     assert by_name["PUBLIC_LOG_PATH"] == "/public/logs.log"
@@ -682,22 +716,23 @@ def test_build_run_env_variables_with_private_path():
 
 def test_build_run_env_variables_default_flush_interval():
     """build_run_env_variables defaults LOG_FLUSH_INTERVAL_SECONDS to 15."""
-    result = build_run_env_variables(public_log_path="/output/logs.log")
+    result = build_run_env_variables(paths=_make_paths())
     interval = next(e for e in result if e["name"] == "LOG_FLUSH_INTERVAL_SECONDS")
     assert interval["value"] == "15"
 
 
 def test_build_run_env_variables_custom_flush_interval():
     """build_run_env_variables honors flush_interval_seconds override."""
-    result = build_run_env_variables(public_log_path="/output/logs.log", flush_interval_seconds=42)
+    result = build_run_env_variables(paths=_make_paths(), flush_interval_seconds=42)
     interval = next(e for e in result if e["name"] == "LOG_FLUSH_INTERVAL_SECONDS")
     assert interval["value"] == "42"
 
 
-def test_build_run_env_variables_missing_public_raises():
-    """build_run_env_variables raises when public_log_path is empty."""
-    with pytest.raises(ValueError, match="public_log_path is required"):
-        build_run_env_variables(public_log_path="")
+def test_build_run_env_variables_arguments_path():
+    """build_run_env_variables includes ARGUMENTS_PATH from paths."""
+    result = build_run_env_variables(paths=_make_paths(arguments_path="/data/arguments.json"))
+    by_name = {e["name"]: e["value"] for e in result}
+    assert by_name["ARGUMENTS_PATH"] == "/data/arguments.json"
 
 
 def test_build_run_commands_public_only():

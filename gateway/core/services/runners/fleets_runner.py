@@ -31,7 +31,6 @@ from core.utils import decrypt_env_vars
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
 from core.ibm_cloud.code_engine.fleets.cos import JobCOS
 from core.ibm_cloud.code_engine.fleets.utils import (
-    FUNCTION_MOUNT_PATH,
     FleetJobPaths,
     build_cos_paths,
     build_run_commands,
@@ -178,7 +177,7 @@ class FleetsRunner(AbstractRunner):
             fleet_name = f"job-{self.job.id}-{timestamp}"
 
             logger.info(
-                "Submitting job [%s] as fleet [%s] to project [%s]",
+                "Submitting job_id=[%s] as fleet [%s] to project [%s]",
                 self.job.id,
                 fleet_name,
                 self._project.project_name,
@@ -188,7 +187,7 @@ class FleetsRunner(AbstractRunner):
 
             cpu_limit, memory_limit, scale_gpu = self._parse_compute_profile()
             logger.info(
-                "Job [%s] profile [%s] → cpu=%s memory=%s gpu=%s",
+                "job_id=[%s] profile [%s] → cpu=%s memory=%s gpu=%s",
                 self.job.id,
                 self.job.compute_profile or "default",
                 cpu_limit,
@@ -203,22 +202,11 @@ class FleetsRunner(AbstractRunner):
 
                 run_volume_mounts = build_run_volume_mounts_for_job(paths, self._project)
                 run_env_variables = build_run_env_variables(
-                    public_log_path=paths.container_public_log_path,
-                    private_log_path=paths.container_private_log_path,
-                )
-
-                gateway_env = self._build_gateway_env_vars()
-                run_env_variables.extend(e for e in gateway_env if e.get("name") != "ARGUMENTS_PATH")
-
-                run_env_variables.append(
-                    {
-                        "type": "literal",
-                        "name": "ARGUMENTS_PATH",
-                        "value": paths.container_arguments_path,
-                    },
+                    paths=paths,
+                    extra=self._build_gateway_env_vars(),
                 )
                 run_commands = build_run_commands(
-                    app_run_commands=["python", f"{FUNCTION_MOUNT_PATH}/{self.job.program.entrypoint}"],
+                    app_run_commands=["python", paths.container_entrypoint],
                     is_provider_function=self.job.program.provider is not None,
                 )
                 extra_fields.update(
@@ -230,13 +218,13 @@ class FleetsRunner(AbstractRunner):
                 )
                 _retry_on_rate_limit(lambda: self._upload_artifact_to_cos(paths))
                 logger.info(
-                    "COS configured for job [%s]: user_key=[%s] provider_key=[%s]",
+                    "COS configured for job_id [%s]: user_key=[%s] provider_key=[%s]",
                     self.job.id,
                     paths.cos_user_log_key,
-                    paths.cos_provider_log_key or "-",
+                    paths.cos_provider_log_key,
                 )
             else:
-                logger.info("COS not available for job [%s]", self.job.id)
+                logger.info("COS not available for job_id=[%s]", self.job.id)
 
             fleet = _retry_on_rate_limit(
                 lambda: handler.submit_job(
@@ -259,12 +247,12 @@ class FleetsRunner(AbstractRunner):
             if not fleet_id:
                 raise RunnerError("Fleet submission succeeded but no fleet ID returned")
 
-            logger.info("Submitted job [%s] as fleet [%s]", self.job.id, fleet_id)
+            logger.info("Submitted job_id=[%s] as fleet [%s]", self.job.id, fleet_id)
             self.job.fleet_id = fleet_id
 
         except ApiException as ex:
             logger.error(
-                "CE API error submitting job [%s]: status=%s reason=%s",
+                "CE API error submitting job_id=[%s]: status=%s reason=%s",
                 self.job.id,
                 ex.status,
                 ex.reason,
@@ -273,8 +261,8 @@ class FleetsRunner(AbstractRunner):
         except RunnerError:
             raise
         except Exception as ex:
-            logger.error("Failed to submit job [%s]: %s", self.job.id, ex)
-            raise RunnerError(f"Failed to submit job [{self.job.id}] to Code Engine Fleets", ex) from ex
+            logger.error("Failed to submit job_id=[%s]: %s", self.job.id, ex)
+            raise RunnerError(f"Failed to submit job_id=[{self.job.id}] to Code Engine Fleets", ex) from ex
 
     def status(self) -> str | None:
         """Return the job status mapped to :attr:`Job.STATUS`.
@@ -342,7 +330,7 @@ class FleetsRunner(AbstractRunner):
             JSON string or ``None`` if COS is not configured or the file is absent.
         """
         if not self._is_cos_configured():
-            logger.debug("COS not configured for job [%s]", self.job.id)
+            logger.debug("COS not configured for job_id=[%s]", self.job.id)
             return None
 
         try:
@@ -350,18 +338,18 @@ class FleetsRunner(AbstractRunner):
             user_bucket = self._project.cos_bucket_user_data_name
             results_key = paths.cos_results_key
 
-            logger.debug("Retrieving results for job [%s] from %s/%s", self.job.id, user_bucket, results_key)
+            logger.debug("Retrieving results for job_id=[%s] from %s/%s", self.job.id, user_bucket, results_key)
 
             results_bytes = self._get_cos().get_object_bytes(bucket_name=user_bucket, key=results_key)
             if results_bytes:
-                logger.info("Retrieved results for job [%s] (%d bytes)", self.job.id, len(results_bytes))
+                logger.info("Retrieved results for job_id=[%s] (%d bytes)", self.job.id, len(results_bytes))
                 return results_bytes.decode("utf-8")
 
-            logger.warning("No results found in COS for job [%s]", self.job.id)
+            logger.warning("No results found in COS for job_id=[%s]", self.job.id)
             return None
 
         except Exception as ex:  # pylint: disable=broad-exception-caught
-            logger.warning("Failed to retrieve results for job [%s]: %s", self.job.id, ex)
+            logger.warning("Failed to retrieve results for job_id=[%s]: %s", self.job.id, ex)
             return None
 
     def stop(self) -> bool:
@@ -411,7 +399,7 @@ class FleetsRunner(AbstractRunner):
         # NOTE: fleet deletion disabled to preserve fleets for post-run inspection.
         # Re-enable after the demo.
         # if not self.job.fleet_id:
-        #     logger.debug("No fleet_id to clean up for job [%s]", self.job.id)
+        #     logger.debug("No fleet_id to clean up for job_id=[%s]", self.job.id)
         #     return False
         #
         # try:
@@ -486,7 +474,6 @@ class FleetsRunner(AbstractRunner):
         """Extract job env vars so the container can call save_result() and use Qiskit Runtime."""
         env = json.loads(self.job.env_vars)
         env = decrypt_env_vars(env)
-        env["ENV_JOB_GATEWAY_HOST"] = settings.FLEETS_GATEWAY_HOST
 
         return [{"type": "literal", "name": k, "value": v} for k, v in env.items() if v]
 
@@ -532,7 +519,7 @@ class FleetsRunner(AbstractRunner):
                     self._get_cos().upload_fileobj(fileobj=extracted, bucket_name=bucket_name, key=key)
                     logger.debug("Uploaded [%s] for job_id=%s to %s/%s", member.name, self.job.id, bucket_name, key)
         except tarfile.TarError as ex:
-            raise RunnerError(f"Failed to read artifact for job [{self.job.id}]", ex) from ex
+            raise RunnerError(f"Failed to read artifact for job_id=[{self.job.id}]", ex) from ex
 
         dest = "provider" if is_provider else "user"
         logger.info("Uploaded artifact for job_id=%s (entrypoint to %s, data to user)", self.job.id, dest)
