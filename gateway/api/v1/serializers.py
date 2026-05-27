@@ -34,6 +34,7 @@ class ProgramSerializer(serializers.ProgramSerializer):
             "documentation_url",
             "type",
             "version",
+            "runner",
         ]
 
 
