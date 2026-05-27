@@ -6,6 +6,7 @@ import io
 import logging
 
 from core.ibm_cloud import get_cos_client
+from core.ibm_cloud.code_engine.fleets.utils import build_job_paths
 from core.models import Job
 from core.services.storage.arguments_storage import ArgumentsStorage
 
@@ -32,16 +33,8 @@ class FleetsArgumentsStorage(ArgumentsStorage):
             )
         self._bucket = bucket
 
-        username = job.author.username
-        provider_name = job.program.provider.name if job.program.provider else None
-        program_title = job.program.title
-
-        if provider_name:
-            path = f"users/{username}/provider_functions/{provider_name}/{program_title}/jobs/{self._job_id}"
-        else:
-            path = f"users/{username}/custom_functions/{program_title}/jobs/{self._job_id}"
-
-        self._arguments_key = f"{path}/{self.ARGUMENTS_FILENAME}"
+        paths = build_job_paths(job)
+        self._arguments_key = paths.cos_user_job_prefix + "/" + self.ARGUMENTS_FILENAME
 
     def save(self, arguments: str) -> None:
         get_cos_client(self._project).upload_fileobj(
