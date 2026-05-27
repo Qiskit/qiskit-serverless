@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    The :meth:`.Job.error_message` method now correctly returns error details for jobs
+    that use the events-based error reporting introduced in a previous release, while
+    remaining backward compatible with jobs whose errors were stored in the legacy format.
