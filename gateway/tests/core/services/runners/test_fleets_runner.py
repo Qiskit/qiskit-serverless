@@ -32,7 +32,14 @@ def _clear_is_active_cache():
 
 
 def _make_runner(fleet_id: str | None = None) -> tuple[FleetsRunner, MagicMock]:
-    """Build a FleetsRunner wired to mock Job and FleetHandler."""
+    """Build a FleetsRunner wired to mock Job and FleetHandler.
+
+    Args:
+        fleet_id: Optional fleet ID to pre-set on the job.
+
+    Returns:
+        Tuple of ``(runner, mock_handler)``.
+    """
     mock_job = MagicMock()
     mock_job.fleet_id = fleet_id
     mock_job.SUCCEEDED = "SUCCEEDED"
@@ -74,7 +81,12 @@ def _patch_settings(**overrides):
 
 
 def _make_submit_runner() -> tuple[FleetsRunner, MagicMock]:
-    """Build a FleetsRunner pre-wired for submit() without COS."""
+    """Build a FleetsRunner pre-wired for submit() without COS.
+
+    Returns:
+        Tuple of ``(runner, mock_handler)`` where handler.submit_job
+        returns a fleet with id="fleet-abc".
+    """
     mock_job = MagicMock()
     mock_job.fleet_id = None
     mock_job.id = "job-uuid"
@@ -679,11 +691,6 @@ def test_submit_arguments_path_set_exactly_once():
     arguments_path_entries = [e for e in env_list if e.get("name") == "ARGUMENTS_PATH"]
     assert len(arguments_path_entries) == 1
     assert arguments_path_entries[0]["value"] == "/data/arguments.json"
-
-
-# ---------------------------------------------------------------------------
-# _upload_provider_image_entrypoint
-# ---------------------------------------------------------------------------
 
 
 def test_upload_provider_image_entrypoint_uploads_to_provider_bucket():

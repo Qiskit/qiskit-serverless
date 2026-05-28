@@ -459,11 +459,6 @@ class FleetsRunner(AbstractRunner):
             raise RunnerError(f"Code Engine project '{project.project_name}' is not active")
         return project
 
-    def _ensure_connected(self) -> None:
-        """Ensure the runner is connected, calling connect() if needed."""
-        if not self._connected:
-            self.connect()
-
     def _get_handler(self) -> FleetHandler:
         """Return the :class:`FleetHandler`, creating it lazily on first use.
 
@@ -590,8 +585,8 @@ class FleetsRunner(AbstractRunner):
     def _upload_provider_image_entrypoint(self, paths: FleetJobPaths) -> None:
         """Render main.tmpl and upload it to the provider COS bucket as the job entrypoint.
 
-        Used for provider jobs where program.image is set but no artifact exists — the
-        rendered template becomes the job entrypoint at /function_data/main.py.
+        Used for provider jobs where program.image is set and no artifact (custom function entrypoint) exists.
+        The rendered template becomes the job entrypoint at /function_data/main.py.
 
         Args:
             paths: Pre-computed paths from :func:`build_job_paths`.
