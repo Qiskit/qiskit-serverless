@@ -188,8 +188,12 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 )
             program = serializer.retrieve_provider_function(title=title, provider_name=provider_name)
         else:
-            if ProgramAccessPolicies.can_create(user=author, accessible_functions=accessible_functions):
-                program = serializer.retrieve_private_function(title=title, author=author)
+            if not ProgramAccessPolicies.can_create(user=author, accessible_functions=accessible_functions):
+                return Response(
+                    {"message": f"Custom function [{title}] was not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            program = serializer.retrieve_private_function(title=title, author=author)
 
         if program is not None:
             serializer = self.get_serializer_upload_program(program, data=request.data)
