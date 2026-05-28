@@ -119,6 +119,7 @@ def build_env_variables(  # pylint: disable=too-many-positional-arguments
             "ENV_ACCESS_TRIAL": str(trial_mode),
             "DATA_PATH": data_path,
             "ARGUMENTS_PATH": f"{data_path}/arguments/{job.id}.json",
+            "RESULTS_PATH": f"{data_path}/results/{job.id}.json",
         },
         **extra,
     }
