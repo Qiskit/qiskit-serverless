@@ -20,11 +20,13 @@ import re
 import tarfile
 import time
 from collections import OrderedDict
+from io import BytesIO
 
 from django.conf import settings
+from django.template.loader import get_template
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
-from core.models import Job, CodeEngineProject
+from core.models import Job, CodeEngineProject, DEFAULT_PROGRAM_ENTRYPOINT
 from core.services.runners.abstract_runner import AbstractRunner, RunnerError
 from core.ibm_cloud import get_ce_auth, get_cos_client
 from core.utils import decrypt_env_vars
@@ -240,7 +242,10 @@ class FleetsRunner(AbstractRunner):
                         "run_commands": run_commands,
                     }
                 )
-                _retry_on_rate_limit(lambda: self._upload_artifact_to_cos(paths))
+                if self.job.program.artifact:
+                    _retry_on_rate_limit(lambda: self._upload_artifact_to_cos(paths))
+                elif self.job.program.image:
+                    _retry_on_rate_limit(lambda: self._upload_provider_image_entrypoint(paths))
                 logger.info(
                     "COS configured for job [%s]: user_key=[%s] provider_key=[%s]",
                     self.job.id,
@@ -454,6 +459,11 @@ class FleetsRunner(AbstractRunner):
             raise RunnerError(f"Code Engine project '{project.project_name}' is not active")
         return project
 
+    def _ensure_connected(self) -> None:
+        """Ensure the runner is connected, calling connect() if needed."""
+        if not self._connected:
+            self.connect()
+
     def _get_handler(self) -> FleetHandler:
         """Return the :class:`FleetHandler`, creating it lazily on first use.
 
@@ -576,6 +586,35 @@ class FleetsRunner(AbstractRunner):
             raise RunnerError(f"Failed to read artifact for job [{self.job.id}]", ex) from ex
 
         logger.info("Uploaded artifact for job [%s] (entrypoint→provider, data→user)", self.job.id)
+
+    def _upload_provider_image_entrypoint(self, paths: FleetJobPaths) -> None:
+        """Render main.tmpl and upload it to the provider COS bucket as the job entrypoint.
+
+        Used for provider jobs where program.image is set but no artifact exists — the
+        rendered template becomes the job entrypoint at /function_data/main.py.
+
+        Args:
+            paths: Pre-computed paths from :func:`build_job_paths`.
+
+        Raises:
+            RunnerError: If called for a non-provider job (program.provider is None).
+        """
+        if paths.cos_provider_function_prefix is None:
+            raise RunnerError(f"_upload_provider_image_entrypoint called for non-provider job [{self.job.id}]")
+        rendered = get_template("main.tmpl").render(
+            {
+                "mount_path": settings.CUSTOM_IMAGE_PACKAGE_PATH,
+                "package_name": settings.CUSTOM_IMAGE_PACKAGE_NAME,
+            }
+        )
+        bucket = self._project.cos_bucket_provider_data_name
+        key = f"{paths.cos_provider_function_prefix}/{DEFAULT_PROGRAM_ENTRYPOINT}"
+        self._get_cos().upload_fileobj(
+            fileobj=BytesIO(rendered.encode()),
+            bucket_name=bucket,
+            key=key,
+        )
+        logger.info("Uploaded template entrypoint for job_id=%s to %s/%s", self.job.id, bucket, key)
 
     def _get_fleet_name(self) -> str:
         """Return the fleet name from the CE API, falling back to ``"job-{id}"``.

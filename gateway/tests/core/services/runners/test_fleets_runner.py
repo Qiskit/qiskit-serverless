@@ -32,14 +32,7 @@ def _clear_is_active_cache():
 
 
 def _make_runner(fleet_id: str | None = None) -> tuple[FleetsRunner, MagicMock]:
-    """Build a FleetsRunner wired to mock Job and FleetHandler.
-
-    Args:
-        fleet_id: Optional fleet ID to pre-set on the job.
-
-    Returns:
-        Tuple of ``(runner, mock_handler)``.
-    """
+    """Build a FleetsRunner wired to mock Job and FleetHandler."""
     mock_job = MagicMock()
     mock_job.fleet_id = fleet_id
     mock_job.SUCCEEDED = "SUCCEEDED"
@@ -69,6 +62,9 @@ def _patch_settings(**overrides):
         "FLEETS_DEFAULT_MEMORY_LIMIT": "2G",
         "FLEETS_DEFAULT_MAX_INSTANCES": 1,
         "DEFAULT_COMPUTE_PROFILE": "cx3d-4x16",
+        "FLEETS_GATEWAY_HOST": None,
+        "CUSTOM_IMAGE_PACKAGE_PATH": "/runner",
+        "CUSTOM_IMAGE_PACKAGE_NAME": "runner",
     }
     defaults.update(overrides)
     with patch(f"{_RUNNER_MOD}.settings") as mock_settings:
@@ -78,12 +74,7 @@ def _patch_settings(**overrides):
 
 
 def _make_submit_runner() -> tuple[FleetsRunner, MagicMock]:
-    """Build a FleetsRunner pre-wired for submit() without COS.
-
-    Returns:
-        Tuple of ``(runner, mock_handler)`` where handler.submit_job
-        returns a fleet with id="fleet-abc".
-    """
+    """Build a FleetsRunner pre-wired for submit() without COS."""
     mock_job = MagicMock()
     mock_job.fleet_id = None
     mock_job.id = "job-uuid"
@@ -609,6 +600,20 @@ def test_build_gateway_env_vars_empty_env_vars():
     assert result == []
 
 
+def test_build_job_env_vars_includes_gateway_host():
+    """_build_job_env_vars() injects ENV_JOB_GATEWAY_HOST from settings.FLEETS_GATEWAY_HOST."""
+    runner, _ = _make_runner()
+    runner.job.env_vars = "{}"
+
+    with (
+        _patch_settings(FLEETS_GATEWAY_HOST="https://gateway.example.com"),
+        patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value={}),
+    ):
+        result = runner._build_job_env_vars()  # pylint: disable=protected-access
+
+    assert {"type": "literal", "name": "ENV_JOB_GATEWAY_HOST", "value": "https://gateway.example.com"} in result
+
+
 def test_submit_includes_gateway_env_vars():
     """submit() includes decrypted gateway env vars in the run_env_variables."""
     runner, mock_handler = _make_submit_runner()
@@ -674,3 +679,135 @@ def test_submit_arguments_path_set_exactly_once():
     arguments_path_entries = [e for e in env_list if e.get("name") == "ARGUMENTS_PATH"]
     assert len(arguments_path_entries) == 1
     assert arguments_path_entries[0]["value"] == "/data/arguments.json"
+
+
+# ---------------------------------------------------------------------------
+# _upload_provider_image_entrypoint
+# ---------------------------------------------------------------------------
+
+
+def test_upload_provider_image_entrypoint_uploads_to_provider_bucket():
+    """_upload_provider_image_entrypoint() uploads rendered template to provider bucket for provider jobs."""
+    runner, _ = _make_runner()
+    runner.job.author.username = "alice"
+    runner.job.program.provider = MagicMock()
+    runner.job.program.provider.name = "acme"
+    runner.job.program.title = "my-func"
+    runner.job.program.entrypoint = "main.py"
+    runner.job.id = "job-1"
+    runner._project.cos_bucket_provider_data_name = "provider-bucket"  # pylint: disable=protected-access
+    runner._project.cos_bucket_user_data_name = "user-bucket"  # pylint: disable=protected-access
+
+    paths = build_job_paths(runner.job)
+
+    mock_template = MagicMock()
+    mock_template.render.return_value = "rendered content"
+
+    with (
+        _patch_settings(),
+        patch(f"{_RUNNER_MOD}.get_template", return_value=mock_template),
+    ):
+        runner._upload_provider_image_entrypoint(paths)  # pylint: disable=protected-access
+
+    call = runner._cos.upload_fileobj.call_args  # pylint: disable=protected-access
+    assert call.kwargs["bucket_name"] == "provider-bucket"
+    assert call.kwargs["key"] == "providers/acme/my-func/main.py"
+    assert call.kwargs["fileobj"].read() == b"rendered content"
+
+
+def test_upload_provider_image_entrypoint_raises_for_non_provider_job():
+    """_upload_provider_image_entrypoint() raises RunnerError when called on a non-provider job."""
+    runner, _ = _make_runner()
+    runner.job.author.username = "alice"
+    runner.job.program.provider = None
+    runner.job.program.title = "my-func"
+    runner.job.program.entrypoint = "main.py"
+    runner.job.id = "job-1"
+
+    paths = build_job_paths(runner.job)
+
+    with pytest.raises(RunnerError, match="non-provider job"):
+        runner._upload_provider_image_entrypoint(paths)  # pylint: disable=protected-access
+
+
+def test_upload_provider_image_entrypoint_error_propagates():
+    """_upload_provider_image_entrypoint() does not swallow COS errors."""
+    runner, _ = _make_runner()
+    runner.job.author.username = "alice"
+    runner.job.program.provider = MagicMock()
+    runner.job.program.provider.name = "acme"
+    runner.job.program.title = "my-func"
+    runner.job.program.entrypoint = "main.py"
+    runner.job.id = "job-1"
+    runner._project.cos_bucket_provider_data_name = "provider-bucket"  # pylint: disable=protected-access
+
+    paths = build_job_paths(runner.job)
+
+    mock_template = MagicMock()
+    mock_template.render.return_value = "content"
+    runner._cos.upload_fileobj.side_effect = RuntimeError("COS error")  # pylint: disable=protected-access
+
+    with (
+        _patch_settings(),
+        patch(f"{_RUNNER_MOD}.get_template", return_value=mock_template),
+        pytest.raises(RuntimeError, match="COS error"),
+    ):
+        runner._upload_provider_image_entrypoint(paths)  # pylint: disable=protected-access
+
+
+def test_submit_uses_provider_image_entrypoint_upload_when_image_set():
+    """submit() calls _upload_provider_image_entrypoint when program.image is set but no artifact."""
+    runner, _ = _make_submit_runner()
+    runner.job.program.image = "custom:latest"
+    runner.job.program.artifact = None
+    runner.job.author.username = "user-1"
+    runner.job.program.provider = None
+    runner.job.program.title = "prog"
+    runner.job.env_vars = "{}"
+
+    runner._project.cos_bucket_user_data_name = "user-bucket"  # pylint: disable=protected-access
+    runner._project.cos_bucket_provider_data_name = "prov-bucket"  # pylint: disable=protected-access
+    runner._project.cos_instance_name = "cos-inst"  # pylint: disable=protected-access
+    runner._project.cos_key_name = "cos-key"  # pylint: disable=protected-access
+    runner._project.pds_name_users = "pds-users"  # pylint: disable=protected-access
+    runner._project.pds_name_providers = "pds-provs"  # pylint: disable=protected-access
+
+    with (
+        _patch_settings(),
+        patch.object(runner, "_upload_provider_image_entrypoint") as mock_tmpl,
+        patch.object(runner, "_upload_artifact_to_cos") as mock_art,
+        patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value={}),
+    ):
+        runner.submit()
+
+    mock_tmpl.assert_called_once()
+    mock_art.assert_not_called()
+
+
+def test_submit_uses_artifact_upload_when_artifact_set():
+    """submit() calls _upload_artifact_to_cos (not template) when program.artifact is set."""
+    runner, _ = _make_submit_runner()
+    runner.job.program.artifact = MagicMock()
+    runner.job.program.image = None
+    runner.job.author.username = "user-1"
+    runner.job.program.provider = None
+    runner.job.program.title = "prog"
+    runner.job.env_vars = "{}"
+
+    runner._project.cos_bucket_user_data_name = "user-bucket"  # pylint: disable=protected-access
+    runner._project.cos_bucket_provider_data_name = "prov-bucket"  # pylint: disable=protected-access
+    runner._project.cos_instance_name = "cos-inst"  # pylint: disable=protected-access
+    runner._project.cos_key_name = "cos-key"  # pylint: disable=protected-access
+    runner._project.pds_name_users = "pds-users"  # pylint: disable=protected-access
+    runner._project.pds_name_providers = "pds-provs"  # pylint: disable=protected-access
+
+    with (
+        _patch_settings(),
+        patch.object(runner, "_upload_artifact_to_cos") as mock_art,
+        patch.object(runner, "_upload_provider_image_entrypoint") as mock_tmpl,
+        patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value={}),
+    ):
+        runner.submit()
+
+    mock_art.assert_called_once()
+    mock_tmpl.assert_not_called()
