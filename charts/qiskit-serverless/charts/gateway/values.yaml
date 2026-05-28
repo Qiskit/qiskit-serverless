@@ -65,8 +65,7 @@ application:
 
 tracing:
   enabled: false
-  agentUrl: "http://otel-collector:4317"
-  insecure: false
+  agentUrl: "http://otel-collector:4318/v1/traces"
   metricsPort: 8081
   ray:
     enabled: false
