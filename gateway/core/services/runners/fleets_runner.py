@@ -582,19 +582,19 @@ class FleetsRunner(AbstractRunner):
 
         logger.info("Uploaded artifact for job [%s] (entrypoint→provider, data→user)", self.job.id)
 
-    def _upload_provider_image_entrypoint(self, paths: FleetJobPaths) -> None:
+    def _upload_provider_image_entrypoint(self, paths: dict) -> None:
         """Render main.tmpl and upload it to the provider COS bucket as the job entrypoint.
 
         Used for provider jobs where program.image is set and no artifact (custom function entrypoint) exists.
         The rendered template becomes the job entrypoint at /function_data/main.py.
 
         Args:
-            paths: Pre-computed paths from :func:`build_job_paths`.
+            paths: Pre-computed paths from :func:`_build_cos_paths`.
 
         Raises:
             RunnerError: If called for a non-provider job (program.provider is None).
         """
-        if paths.cos_provider_function_prefix is None:
+        if not paths.get("provider_function_prefix"):
             raise RunnerError(f"_upload_provider_image_entrypoint called for non-provider job [{self.job.id}]")
         rendered = get_template("main.tmpl").render(
             {
@@ -603,7 +603,7 @@ class FleetsRunner(AbstractRunner):
             }
         )
         bucket = self._project.cos_bucket_provider_data_name
-        key = f"{paths.cos_provider_function_prefix}/{DEFAULT_PROGRAM_ENTRYPOINT}"
+        key = f"{paths['provider_function_prefix']}/{DEFAULT_PROGRAM_ENTRYPOINT}"
         self._get_cos().upload_fileobj(
             fileobj=BytesIO(rendered.encode()),
             bucket_name=bucket,
