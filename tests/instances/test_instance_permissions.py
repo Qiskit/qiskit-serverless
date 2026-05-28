@@ -1,4 +1,4 @@
-# pylint: disable=import-error, invalid-name, line-too-long
+# pylint: disable=import-error, invalid-name, line-too-long, unused-argument
 """Integration tests for instance-based permission trough Runtime API /functions
 
 These tests verify that each implemented endpoint correctly grants or denies
