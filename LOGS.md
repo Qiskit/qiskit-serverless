@@ -20,16 +20,36 @@ During the function execution, the code could use `get_logger()` or `get_provide
 
 ## How are the logs obtained
 
-User gets the logs using the `logs()` and `provider_logs()` methods from the client (they will use `/logs` and `/provider-logs` respectively). Based on the log state, the endpoints will:
+User gets the logs using the `logs()` and `provider_logs()` methods from the client (they will use `/logs` and `/provider-logs` respectively). The flow depends on the runtime backend (Ray or Fleets) and on whether the job is still running.
 
-- During execution: logs are obtained from Ray's console while the job is running.
-- After execution: logs are obtained from COS (Cloud Object Storage). For legacy jobs, the logs are obtained from the database.
+### Ray jobs
+
+- During execution: logs are obtained from Ray's console while the job is running, and the filter functions are applied at read time.
+- After execution: logs are obtained from COS. The scheduler checks if the job has finished in the `update_job_statuses` and filter and upload the logs in COS. For legacy jobs, the logs are obtained from the database.
 
 To download from COS, the logs must be uploaded there first. So, the scheduler will check if the job has finished in the `update_job_statuses` step, and uploads logs to COS:
 - In user jobs: one file with all logs (removing the prefixes)
 - In provider jobs: two files (public and private) with different filtering rules:
   - Provider logs: all logs but the lines with the `[PUBLIC]` prefix.
   - Public logs: The lines with the `[PUBLIC]` prefix only.
+
+### Fleet jobs
+
+The gateway cannot read worker output in real time. A wrapper script inside the
+container filters the application output and ships it to COS directly:
+
+- During execution: filtered output is written to COS every `LOG_FLUSH_INTERVAL_SECONDS`
+  (default 15s), skipping the upload when content has not changed.
+- At termination: an `EXIT`/`TERM`/`INT` trap performs a final unconditional flush.
+
+Filtering rules mirror Ray post-execution:
+- In user jobs: one file (`PUBLIC_LOG_PATH`) with all output, `[PUBLIC]` and `[PRIVATE]`
+  prefixes stripped.
+- In provider jobs: two files:
+  - `PUBLIC_LOG_PATH`: only `[PUBLIC]` lines, prefix stripped.
+  - `PRIVATE_LOG_PATH`: `[PRIVATE]` lines (prefix stripped) and all unprefixed lines.
+
+Endpoints serve the COS files as-is, without re-applying any filter.
 
 ## Legacy logs
 
@@ -65,7 +85,7 @@ If it's a provider job:
 - Returns filtered logs containing `[PRIVATE]`, and 3rd party content (`[PUBLIC]` content and prefixes are removed)
 
 
-These are the behavior table for the endpoints.
+These are the behavior table for the endpoints. The `1-COS File` and `2-Ray` columns describe the Ray flow, where filtering is applied at read time. For Fleet jobs the COS file is pre-filtered by the in-container wrapper (see "Fleet jobs" above), so the endpoint streams it without applying any extra filter.
 
 | Job Type | Caller | Endpoint | 1-COS File | 2-Ray | 3-Db (legacy) |
 |----------|--------|----------|------------|-------|---------------|
