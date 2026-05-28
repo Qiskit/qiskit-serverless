@@ -28,6 +28,9 @@ set -eu
 # Upload period (seconds) between local -> COS copies. Defaults to 15s.
 INTERVAL="${LOG_FLUSH_INTERVAL_SECONDS:-15}"
 
+# Maximum bytes of log content uploaded to COS. Defaults to 50 MB.
+LOG_SIZE_LIMIT_BYTES="${LOG_SIZE_LIMIT_BYTES:-52428800}"
+
 # Local working files. Append-only, fast, never read by COS during the run.
 LOCAL_PUBLIC="/tmp/public.log"
 LOCAL_PRIVATE="/tmp/private.log"
@@ -76,6 +79,44 @@ file_size() {
   stat -c %s "$1" 2>/dev/null || echo -1
 }
 
+# Copies src to dst, capping output at LOG_SIZE_LIMIT_BYTES.
+# When the source exceeds the limit the last LOG_SIZE_LIMIT_BYTES bytes are
+# kept and a header line is prepended, mirroring check_logs in core.utils.
+# Optional third argument: already-known source size, to avoid a second stat.
+upload_log() {
+  local src="$1" dst="$2"
+  local size="${3:-$(file_size "$src")}"
+  [ "$size" -lt 0 ] && return 0
+  if [ "$size" -gt "$LOG_SIZE_LIMIT_BYTES" ]; then
+    local mb=$(( LOG_SIZE_LIMIT_BYTES / 1048576 ))
+    { printf '[Logs exceeded maximum allowed size (%s MB). Logs have been truncated, discarding the oldest entries first.]\n' "$mb"
+      tail -c "$LOG_SIZE_LIMIT_BYTES" "$src"
+    } > "$dst" 2>/dev/null
+  else
+    cp "$src" "$dst" 2>/dev/null
+  fi
+}
+
+# Shrinks a local log file in-place to the last LOG_SIZE_LIMIT_BYTES bytes,
+# keeping the same inode so any open write fd (awk) remains valid.
+#
+# Mechanism: `truncate -s 0` zeros the file without changing the inode; awk's
+# next O_APPEND write lands at offset 0. Then `cat >>` restores the saved tail.
+# The brief race window between the two operations is harmless: a few lines
+# written by awk may appear before the restored tail in the file, which is
+# acceptable for a log. This keeps /tmp bounded to ~2x LOG_SIZE_LIMIT_BYTES.
+truncate_local() {
+  local file="$1"
+  local size
+  size=$(file_size "$file")
+  [ "$size" -le "$LOG_SIZE_LIMIT_BYTES" ] && return 0
+  local tmp="${file}.shrink"
+  tail -c "$LOG_SIZE_LIMIT_BYTES" "$file" > "$tmp" 2>/dev/null || { rm -f "$tmp"; return 0; }
+  truncate -s 0 "$file" 2>/dev/null || { rm -f "$tmp"; return 0; }
+  cat "$tmp" >> "$file" 2>/dev/null || true
+  rm -f "$tmp"
+}
+
 # Periodically copies both local logs to COS, skipping no-op PUTs when the
 # app is silent or no line has matched the public filter.
 # Sets UPLOADER_PID so flush_final can stop it on exit.
@@ -87,13 +128,19 @@ start_uploader() {
       sleep "$INTERVAL"
       cur=$(file_size "$LOCAL_PUBLIC")
       if [ "$cur" != "$last_public_log_size" ]; then
-        # New public lines since last upload — push to COS.
-        cp "$LOCAL_PUBLIC" "$PUBLIC_LOG_PATH" 2>/dev/null && last_public_log_size=$cur || true
+        # New public lines since last upload — push to COS, then shrink local.
+        if upload_log "$LOCAL_PUBLIC" "$PUBLIC_LOG_PATH" "$cur"; then
+          truncate_local "$LOCAL_PUBLIC"
+          last_public_log_size=$(file_size "$LOCAL_PUBLIC")
+        fi
       fi
       cur=$(file_size "$LOCAL_PRIVATE")
       if [ "$cur" != "$last_private_log_size" ]; then
-        # New private lines since last upload — push to COS.
-        cp "$LOCAL_PRIVATE" "$PRIVATE_LOG_PATH" 2>/dev/null && last_private_log_size=$cur || true
+        # New private lines since last upload — push to COS, then shrink local.
+        if upload_log "$LOCAL_PRIVATE" "$PRIVATE_LOG_PATH" "$cur"; then
+          truncate_local "$LOCAL_PRIVATE"
+          last_private_log_size=$(file_size "$LOCAL_PRIVATE")
+        fi
       fi
     done
   ) &
@@ -105,13 +152,13 @@ start_uploader
 # unconditional copy of both logs, so COS reflects the very last lines.
 flush_final() {
   kill "$UPLOADER_PID" 2>/dev/null || true
-  cp "$LOCAL_PUBLIC" "$PUBLIC_LOG_PATH" 2>/dev/null || true
-  cp "$LOCAL_PRIVATE" "$PRIVATE_LOG_PATH" 2>/dev/null || true
+  upload_log "$LOCAL_PUBLIC" "$PUBLIC_LOG_PATH" || true
+  upload_log "$LOCAL_PRIVATE" "$PRIVATE_LOG_PATH" || true
 }
 trap 'flush_final' EXIT TERM INT
 
 # Runs the app and records its exit code to $EXIT_CODE_FILE.
-# Must run in a subshell so set+e does not leak to the outer script.
+# Must run in a subshell so set +e does not leak to the outer script.
 run_app() {
   set +e
   {{ app_cmd }}
