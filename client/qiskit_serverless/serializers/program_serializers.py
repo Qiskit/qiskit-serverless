@@ -34,7 +34,7 @@ from qiskit.primitives import SamplerResult, EstimatorResult
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_ibm_runtime.utils.json import RuntimeDecoder, RuntimeEncoder
 
-from qiskit_serverless.core.constants import ARGUMENTS_PATH
+from qiskit_serverless.core.constants import ARGUMENTS_PATH, ENV_JOB_ARGUMENTS
 from qiskit_serverless.exception import QiskitServerlessException
 
 

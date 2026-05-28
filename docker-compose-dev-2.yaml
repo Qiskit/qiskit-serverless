@@ -1,0 +1,203 @@
+# compose config for running images based on local files
+services:
+  ray-head:
+    user: "root"
+    container_name: ray-head
+    build:
+      context: ./
+      dockerfile: ray-node/Dockerfile
+    entrypoint: [
+      "env", "RAY_LOG_TO_STDERR=1", "ray", "start", "--head", "--port=6379",
+      "--dashboard-host=0.0.0.0", "--block"
+    ]
+    environment:
+      - OTEL_ENABLED=1
+      - OTEL_EXPORTER_OTLP_HOST=http://jaeger
+      - OTEL_EXPORTER_OTLP_PORT=4317
+      - OTEL_EXPORTER_OTLP_INSECURE=1
+      - QS_OT_RAY_TRACER=1
+    ports:
+      - 8265:8265
+    volumes:
+      - host-shm:/dev/shm
+      - program-artifacts:/data
+    networks:
+      - safe-tier
+  postgres:
+    image: postgres
+    environment:
+      POSTGRES_DB: serverlessdb
+      POSTGRES_USER: serverlessuser
+      POSTGRES_PASSWORD: serverlesspassword
+    networks:
+      - safe-tier
+    ports:
+      - 5432:5432
+    restart:
+      always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U serverlessuser -d serverlessdb"]
+      interval: 1s
+      timeout: 5s
+      retries: 5
+  gateway:
+    container_name: gateway
+    build:
+      context: ./
+      dockerfile: gateway/Dockerfile
+    command: python manage.py runserver 0.0.0.0:8000
+    ports:
+      - 8000:8000
+    user: "root" # root user is needed to write on volumes and sync files from local system (see the watch: section)
+    environment:
+      - DEBUG=1
+      - RAY_HOST=http://ray-head:8265
+      - RAY_CLUSTER_MODE_LOCAL=true
+      - DJANGO_SUPERUSER_USERNAME=admin
+      - DJANGO_SUPERUSER_PASSWORD=123
+      - DJANGO_SUPERUSER_EMAIL=admin@noemail.com
+      - SITE_HOST=http://gateway:8000
+      - SETTINGS_AUTH_MECHANISM=mock_token
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=serverlessdb
+      - DATABASE_USER=serverlessuser
+      - DATABASE_PASSWORD=serverlesspassword
+      - OTEL_ENABLED=1
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://jaeger:4317
+      - OTEL_EXPORTER_OTLP_TRACES_INSECURE=1
+      - IBM_CLOUD_API_KEY=${IBM_CLOUD_API_KEY}
+      - CE_PROJECT_ID=${CE_PROJECT_ID}
+      - CE_PROJECT_NAME=${CE_PROJECT_NAME}
+      - CE_REGION=${CE_REGION}
+      - CE_RESOURCE_GROUP_ID=${CE_RESOURCE_GROUP_ID}
+      - CE_SUBNET_POOL_ID=${CE_SUBNET_POOL_ID}
+      - CE_PDS_NAME_STATE=${CE_PDS_NAME_STATE}
+      - CE_PDS_NAME_USERS=${CE_PDS_NAME_USERS}
+      - CE_PDS_NAME_PROVIDERS=${CE_PDS_NAME_PROVIDERS}
+      - CE_HMAC_SECRET_NAME=${CE_HMAC_SECRET_NAME}
+      - CE_HMAC_SECRET_ACCESS_KEY_ID=${CE_HMAC_SECRET_ACCESS_KEY_ID}
+      - CE_HMAC_SECRET_ACCESS_KEY=${CE_HMAC_SECRET_ACCESS_KEY}
+      - CE_COS_INSTANCE_NAME=${CE_COS_INSTANCE_NAME}
+      - CE_COS_INSTANCE_ID=${CE_COS_INSTANCE_ID}
+      - CE_COS_KEY_NAME=${CE_COS_KEY_NAME}
+      - CE_COS_BUCKET_TASK_STORE_NAME=${CE_COS_BUCKET_TASK_STORE_NAME}
+      - CE_COS_BUCKET_USER_DATA_NAME=${CE_COS_BUCKET_USER_DATA_NAME}
+      - CE_COS_BUCKET_PROVIDER_DATA_NAME=${CE_COS_BUCKET_PROVIDER_DATA_NAME}
+      - CE_TEST_IMAGE=${CE_TEST_IMAGE}
+      - FLEETS_DEFAULT_IMAGE=${FLEETS_DEFAULT_IMAGE}
+      - CE_ICR_PULL_SECRET=${CE_ICR_PULL_SECRET}
+      - FLEETS_PROFILE_ZONE_MAP=${FLEETS_PROFILE_ZONE_MAP}
+      - CE_COS_USE_PUBLIC_ENDPOINT=true
+    networks:
+      - safe-tier
+    volumes:
+      - program-artifacts:/usr/src/app/media/
+    depends_on:
+      postgres:
+        condition: service_healthy
+    develop:
+      watch:
+        - path: ./gateway
+          action: sync
+          target: /usr/src/app
+  scheduler:
+    user: "root" # root user is needed to write on volumes
+    container_name: scheduler
+    build:
+      context: ./
+      dockerfile: gateway/Dockerfile
+    entrypoint: "./entrypoint-scheduler.sh"
+    environment:
+      - DEBUG=1
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=serverlessdb
+      - DATABASE_USER=serverlessuser
+      - DATABASE_PASSWORD=serverlesspassword
+      - RAY_LOCAL_HOST=http://ray-head:8265
+      - RAY_CLUSTER_MODE_LOCAL=true
+      - SETTINGS_AUTH_MECHANISM=mock_token
+      - IBM_CLOUD_API_KEY=${IBM_CLOUD_API_KEY}
+      - CE_PROJECT_ID=${CE_PROJECT_ID}
+      - CE_PROJECT_NAME=${CE_PROJECT_NAME}
+      - CE_REGION=${CE_REGION}
+      - CE_RESOURCE_GROUP_ID=${CE_RESOURCE_GROUP_ID}
+      - CE_SUBNET_POOL_ID=${CE_SUBNET_POOL_ID}
+      - CE_PDS_NAME_STATE=${CE_PDS_NAME_STATE}
+      - CE_PDS_NAME_USERS=${CE_PDS_NAME_USERS}
+      - CE_PDS_NAME_PROVIDERS=${CE_PDS_NAME_PROVIDERS}
+      - CE_HMAC_SECRET_NAME=${CE_HMAC_SECRET_NAME}
+      - CE_HMAC_SECRET_ACCESS_KEY_ID=${CE_HMAC_SECRET_ACCESS_KEY_ID}
+      - CE_HMAC_SECRET_ACCESS_KEY=${CE_HMAC_SECRET_ACCESS_KEY}
+      - CE_COS_INSTANCE_NAME=${CE_COS_INSTANCE_NAME}
+      - CE_COS_INSTANCE_ID=${CE_COS_INSTANCE_ID}
+      - CE_COS_KEY_NAME=${CE_COS_KEY_NAME}
+      - CE_COS_BUCKET_TASK_STORE_NAME=${CE_COS_BUCKET_TASK_STORE_NAME}
+      - CE_COS_BUCKET_USER_DATA_NAME=${CE_COS_BUCKET_USER_DATA_NAME}
+      - CE_COS_BUCKET_PROVIDER_DATA_NAME=${CE_COS_BUCKET_PROVIDER_DATA_NAME}
+      - CE_TEST_IMAGE=${CE_TEST_IMAGE}
+      - FLEETS_DEFAULT_IMAGE=${FLEETS_DEFAULT_IMAGE}
+      - FLEETS_PROFILE_ZONE_MAP=${FLEETS_PROFILE_ZONE_MAP}
+      - CE_ICR_PULL_SECRET=${CE_ICR_PULL_SECRET}
+      - CE_COS_USE_PUBLIC_ENDPOINT=true
+      - FLEETS_GATEWAY_HOST=http://gateway:8000
+      - OTEL_ENABLED=1
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://jaeger:4317
+      - OTEL_EXPORTER_OTLP_TRACES_INSECURE=1
+    networks:
+      - safe-tier
+    volumes:
+      - program-artifacts:/usr/src/app/media/
+    depends_on:
+      postgres:
+        condition: service_healthy
+    develop:
+      watch:
+        - path: ./gateway
+          action: sync
+          target: /usr/src/app
+  prometheus:
+    image: prom/prometheus:v2.44.0
+    profiles: [ "full" ]
+    ports:
+      - 9000:9090
+  loki:
+    image: grafana/loki:2.8.4
+    profiles: [ "full" ]
+    ports:
+      - 3100:3100
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - safe-tier
+  promtail:
+    image: grafana/promtail:2.8.4
+    profiles: [ "full" ]
+    volumes:
+      - host-log:/var/log
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - safe-tier
+  grafana:
+    image: grafana/grafana:latest
+    profiles: [ "full" ]
+    ports:
+      - 3000:3000
+    networks:
+      - safe-tier
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    profiles: [ "full" ]
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - 16686:16686
+      - 4317:4317
+    networks:
+      - safe-tier
+networks:
+  safe-tier:
+volumes:
+  program-artifacts:
+  host-shm:
+  host-log:

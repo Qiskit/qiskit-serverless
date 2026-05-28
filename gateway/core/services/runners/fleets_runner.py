@@ -242,6 +242,14 @@ class FleetsRunner(AbstractRunner):
                         "run_commands": run_commands,
                     }
                 )
+                arguments_key = f"{paths['user_job_prefix']}/arguments.json"
+                _retry_on_rate_limit(
+                    lambda: self._get_cos().upload_fileobj(
+                        fileobj=BytesIO(self.job.arguments.encode()),
+                        bucket_name=self._project.cos_bucket_user_data_name,
+                        key=arguments_key,
+                    )
+                )
                 if self.job.program.artifact:
                     _retry_on_rate_limit(lambda: self._upload_artifact_to_cos(paths))
                 elif self.job.program.image:
@@ -334,20 +342,42 @@ class FleetsRunner(AbstractRunner):
             raise RunnerError(f"Unable to get status for fleet [{self.job.fleet_id}]", ex) from ex
 
     def logs(self) -> str | None:
+        """Retrieve public (user-facing) logs from COS.
+
+        Returns:
+            Log string or ``None`` if not available.
         """
-        logs and provider_logs don't require implementation because we always go to the
-        object storage directly to retrieve this information in fleets. So we use the logs
-        storage to work with this data.
-        """
-        raise NotImplementedError
+        if not self._is_cos_configured():
+            return None
+        try:
+            paths = self._build_cos_paths()
+            data = self._get_cos().get_object_bytes(
+                bucket_name=self._project.cos_bucket_user_data_name,
+                key=paths["user_log_key"],
+            )
+            return data.decode("utf-8") if data else None
+        except Exception as ex:  # pylint: disable=broad-exception-caught
+            logger.warning("Failed to retrieve logs for job [%s]: %s", self.job.id, ex)
+            return None
 
     def provider_logs(self) -> str | None:
+        """Retrieve full provider logs from COS.
+
+        Returns:
+            Log string or ``None`` if not available.
         """
-        logs and provider_logs don't require implementation because we always go to the
-        object storage directly to retrieve this information in fleets. So we use the logs
-        storage to work with this data.
-        """
-        raise NotImplementedError
+        if not self._is_cos_configured():
+            return None
+        try:
+            paths = self._build_cos_paths()
+            data = self._get_cos().get_object_bytes(
+                bucket_name=self._project.cos_bucket_provider_data_name,
+                key=paths["provider_log_key"],
+            )
+            return data.decode("utf-8") if data else None
+        except Exception as ex:  # pylint: disable=broad-exception-caught
+            logger.warning("Failed to retrieve provider logs for job [%s]: %s", self.job.id, ex)
+            return None
 
     def get_result_from_cos(self) -> str | None:
         """Retrieve job results from COS.
