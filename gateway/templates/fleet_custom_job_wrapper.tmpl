@@ -1,0 +1,105 @@
+{% autoescape off %}# Fleet wrapper for custom (user) jobs.
+#
+# In Fleets the gateway cannot read logs in real time from the worker, so the
+# wrapper that runs inside the container is responsible for shipping the logs
+# to COS itself. To avoid hammering the COS-backed mount on every line, we
+# write the application output to a local file in /tmp (fast disk) and
+# periodically copy it to the mount. A trap guarantees a final flush on exit
+# so no buffered tail is lost when the container terminates.
+#
+# Custom jobs only have a public log: the single file served by /logs to the
+# job's author, with no [PUBLIC] / [PRIVATE] split. The endpoint expects
+# prefixes already stripped, so any leading [PUBLIC] or [PRIVATE] tag is
+# removed in streaming via awk (equivalent to remove_prefix_tags_in_logs in
+# core.domain.filter_logs).
+
+set -eu
+
+# Upload period (seconds) between local -> COS copies. Defaults to 15s.
+INTERVAL="${LOG_FLUSH_INTERVAL_SECONDS:-15}"
+
+# Local working file. Append-only, fast, never read by COS during the run.
+LOCAL_PUBLIC="/tmp/public.log"
+
+# Sidecar file used to recover the application's exit code: the app runs
+# inside a pipeline (... | awk), so $? would refer to awk, not the app.
+EXIT_CODE_FILE="/tmp/app.status"
+
+
+# Returns the file size in bytes via a single stat syscall (no file read).
+file_size() {
+  stat -c %s "$1" 2>/dev/null || echo -1
+}
+
+# Periodically copies the local log to COS, skipping no-op PUTs when the app
+# is silent. Sets UPLOADER_PID so flush_final can stop it on exit.
+start_uploader() {
+  (
+    last_log_size=-1
+    while :; do
+      sleep "$INTERVAL"
+      cur=$(file_size "$LOCAL_PUBLIC")
+      if [ "$cur" != "$last_log_size" ]; then
+        # New lines written since last upload — push to COS.
+        cp "$LOCAL_PUBLIC" "$PUBLIC_LOG_PATH" 2>/dev/null && last_log_size=$cur || true
+      fi
+    done
+  ) &
+  UPLOADER_PID=$!
+}
+start_uploader
+
+# On exit (normal, SIGTERM, SIGINT) stop the uploader and force one final
+# unconditional copy so the log on COS reflects the very last lines.
+flush_final() {
+  kill "$UPLOADER_PID" 2>/dev/null || true
+  cp "$LOCAL_PUBLIC" "$PUBLIC_LOG_PATH" 2>/dev/null || true
+}
+trap 'flush_final' EXIT TERM INT
+
+# Runs the app and records its exit code to $EXIT_CODE_FILE.
+# Must run in a subshell so set+e does not leak to the outer script.
+run_app() {
+  set +e
+  {{ app_cmd }} 2>&1
+  printf "%s\n" "$?" > "$EXIT_CODE_FILE"
+}
+
+# Filters the app output for PUBLIC_LOG_PATH (served by /logs to the job author):
+#   - All lines are kept (user jobs have no hidden output).
+#   - [PUBLIC] and [PRIVATE] prefixes are stripped for cleaner output.
+# Equivalent to remove_prefix_tags_in_logs in core.domain.filter_logs.
+strip_prefixes() {
+  awk '{
+    head8 = toupper(substr($0, 1, 8))
+    head9 = toupper(substr($0, 1, 9))
+    if (head8 == "[PUBLIC]") {
+      print substr($0, 10)
+      fflush()
+    } else if (head9 == "[PRIVATE]") {
+      print substr($0, 11)
+      fflush()
+    } else {
+      print $0
+      fflush()
+    }
+  }'
+}
+
+( run_app ) | strip_prefixes >> "$LOCAL_PUBLIC"
+
+# Validate that we actually captured an exit code; if not, fail loudly so
+# the wrapper does not silently report success on a broken run.
+if [ ! -f "$EXIT_CODE_FILE" ]; then
+  echo "logging wrapper error: status file was not created" >&2
+  exit 1
+fi
+STATUS="$(cat "$EXIT_CODE_FILE")"
+case "$STATUS" in
+  ""|*[!0-9]*) echo "logging wrapper error: invalid status: $STATUS" >&2; exit 1 ;;
+esac
+
+# Propagate the application's real exit code; the EXIT trap fires now and
+# performs the final flush before the script terminates.
+exit "$STATUS"
+{% endautoescape %}
