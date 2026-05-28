@@ -22,6 +22,11 @@ def setup_gateway_tracing(service_name: str = "QiskitServerless-Gateway") -> Non
         OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: collector endpoint (default: http://otel-collector:4318/v1/traces)
         OTEL_ENABLED: master on/off flag (default: 0)
     """
+    if not bool(int(os.environ.get("OTEL_ENABLED", "0"))):
+        DjangoInstrumentor().instrument()
+        Psycopg2Instrumentor().instrument()
+        return
+
     resource = Resource(attributes={SERVICE_NAME: service_name})
     provider = TracerProvider(resource=resource)
     otel_exporter = BatchSpanProcessor(
@@ -33,7 +38,6 @@ def setup_gateway_tracing(service_name: str = "QiskitServerless-Gateway") -> Non
         )
     )
     provider.add_span_processor(otel_exporter)
-    if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
-        trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
+    trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
     DjangoInstrumentor().instrument()
     Psycopg2Instrumentor().instrument()
