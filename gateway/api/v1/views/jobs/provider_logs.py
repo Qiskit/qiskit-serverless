@@ -20,6 +20,7 @@ from api.use_cases.jobs.provider_logs import GetProviderJobLogsUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
+from core.domain.authorization.function_access_result import FunctionAccessResult
 
 logger = logging.getLogger("api.api.v1.views.jobs.provider_logs")
 
@@ -69,6 +70,13 @@ def provider_logs(request: Request, job_id: UUID) -> Response:
         Response containing the serialized job logs.
     """
     user = cast(AbstractUser, request.user)
-    logs = GetProviderJobLogsUseCase().execute(job_id, user)
+    accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
+    logger.info(
+        "[jobs-provider-logs] user_id=%s job_id=%s accessible_functions=%s",
+        user.id,
+        job_id,
+        accessible_functions,
+    )
+    logs = GetProviderJobLogsUseCase().execute(job_id, user, accessible_functions=accessible_functions)
     logger.info("[jobs-provider-logs] user_id=%s job_id=%s | Provider logs retrieved ok", user.id, job_id)
     return Response(serialize_output(logs))

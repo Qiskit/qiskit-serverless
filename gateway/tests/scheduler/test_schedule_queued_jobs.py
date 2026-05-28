@@ -3,9 +3,9 @@
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
-from scheduler.tasks.schedule_queued_jobs import ScheduleRayJobs
+from scheduler.tasks.schedule_ray_jobs import ScheduleRayJobs
 
-_MOD = "scheduler.tasks.schedule_queued_jobs"
+_MOD = "scheduler.tasks.schedule_ray_jobs"
 
 
 def _make_task():

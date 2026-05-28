@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "qiskit-serverless"
 description = "An open-source SDK for resource management in quantum computing workflows."
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = {text = "Apache 2.0"}
 authors = [
     { name = "Qiskit Serverless Team", email = "qiskit@us.ibm.com" },
@@ -24,7 +24,6 @@ classifiers=[
     "Operating System :: MacOS",
     "Operating System :: POSIX :: Linux",
     "Operating System :: Microsoft :: Windows",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",

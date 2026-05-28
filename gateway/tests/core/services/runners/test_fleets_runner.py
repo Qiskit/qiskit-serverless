@@ -19,6 +19,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
+from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
 from core.models import Program
 from core.services.runners.abstract_runner import RunnerError
 from core.services.runners.fleets_runner import FleetsRunner
@@ -117,26 +118,6 @@ def _make_submit_runner() -> tuple[FleetsRunner, MagicMock]:
     mock_fleet.to_dict.return_value = {"id": "fleet-abc"}
     mock_handler.submit_job.return_value = mock_fleet
     runner._cos = MagicMock()  # pylint: disable=protected-access
-
-    return runner, mock_handler
-
-
-def _make_logs_runner() -> tuple[FleetsRunner, MagicMock]:
-    """Build a FleetsRunner pre-wired for logs()/provider_logs() tests.
-
-    Returns:
-        Tuple of ``(runner, mock_handler)`` with COS fully configured.
-    """
-    runner, mock_handler = _make_runner(fleet_id="fleet-123")
-    runner.job.author.username = "user-42"
-    runner.job.program.provider = None
-    runner.job.program.title = "my-program"
-    runner.job.id = "job-uuid"
-
-    runner._project.cos_bucket_user_data_name = "user-bucket"  # pylint: disable=protected-access
-    runner._project.cos_bucket_provider_data_name = "provider-bucket"  # pylint: disable=protected-access
-    runner._project.cos_instance_name = "cos-instance"  # pylint: disable=protected-access
-    runner._project.cos_key_name = "cos-key"  # pylint: disable=protected-access
 
     return runner, mock_handler
 
@@ -245,54 +226,50 @@ def test_stop_returns_false_when_already_terminal():
     mock_handler.cancel_job.assert_not_called()
 
 
-def test_build_cos_paths_custom_function():
-    """Full COS key paths for a custom function (provider=None → 'default')."""
+def test_build_job_paths_custom_function():
+    """COS paths for a custom function — user + provider-function keys, no provider-job keys."""
     runner, _ = _make_runner()
-    runner.job.author.username = "alice"
+    runner.job.author.username = "IBMid-50FJDA"
     runner.job.program.provider = None
     runner.job.program.title = "hello-world"
-    runner.job.id = "job-aaa-111"
+    runner.job.id = "8be4df61-93ca"
 
-    paths = runner._build_cos_paths()  # pylint: disable=protected-access
+    paths = build_job_paths(runner.job)
 
-    assert paths["user_function_prefix"] == "users/alice/provider_functions/default/hello-world"
-    assert paths["user_job_prefix"] == "users/alice/provider_functions/default/hello-world/jobs/job-aaa-111"
-    assert (
-        paths["user_arguments_key"]
-        == "users/alice/provider_functions/default/hello-world/jobs/job-aaa-111/arguments.json"
-    )
-    assert paths["user_log_key"] == "users/alice/provider_functions/default/hello-world/jobs/job-aaa-111/logs.log"
-    assert paths["provider_function_prefix"] == "providers/default/hello-world"
-    assert paths["provider_job_prefix"] == "providers/default/hello-world/jobs/job-aaa-111"
-    assert paths["provider_log_key"] == "providers/default/hello-world/jobs/job-aaa-111/logs.log"
-    assert paths["user_mount_path"] == "/data"
-    assert paths["provider_mount_path"] == "/function_data"
-    assert paths["provider_logs_mount_path"] == "/provider_logs"
+    assert paths.cos_user_function_prefix == "users/IBMid-50FJDA/custom_functions/hello-world"
+    assert paths.cos_user_job_prefix == "users/IBMid-50FJDA/custom_functions/hello-world/jobs/8be4df61-93ca"
+    assert paths.cos_user_log_key == "users/IBMid-50FJDA/custom_functions/hello-world/jobs/8be4df61-93ca/logs.log"
+    assert paths.cos_results_key == "users/IBMid-50FJDA/custom_functions/hello-world/jobs/8be4df61-93ca/results.json"
+    assert paths.container_public_log_path == "/data/logs.log"
+    assert paths.container_private_log_path is None
+    assert paths.container_arguments_path == "/data/arguments.json"
+    assert paths.container_result_path == "/data/results.json"
+    assert paths.cos_provider_function_prefix is None
+    assert paths.cos_provider_log_key is None
 
 
-def test_build_cos_paths_provider_function():
+def test_build_job_paths_provider_function():
     """Full COS key paths for a provider function."""
     runner, _ = _make_runner()
-    runner.job.author.username = "alice"
+    runner.job.author.username = "IBMid-50FJDA"
     runner.job.program.provider = MagicMock()
-    runner.job.program.provider.name = "good-partner"
+    runner.job.program.provider.name = "Q-CTRL"
     runner.job.program.title = "sampler-v2"
-    runner.job.id = "job-bbb-222"
+    runner.job.id = "8be4df61-93ca"
 
-    paths = runner._build_cos_paths()  # pylint: disable=protected-access
+    paths = build_job_paths(runner.job)
 
-    assert paths["user_function_prefix"] == "users/alice/provider_functions/good-partner/sampler-v2"
-    assert paths["user_job_prefix"] == "users/alice/provider_functions/good-partner/sampler-v2/jobs/job-bbb-222"
-    assert (
-        paths["user_arguments_key"]
-        == "users/alice/provider_functions/good-partner/sampler-v2/jobs/job-bbb-222/arguments.json"
-    )
-    assert paths["user_log_key"] == "users/alice/provider_functions/good-partner/sampler-v2/jobs/job-bbb-222/logs.log"
-    assert paths["provider_function_prefix"] == "providers/good-partner/sampler-v2"
-    assert paths["provider_job_prefix"] == "providers/good-partner/sampler-v2/jobs/job-bbb-222"
-    assert paths["provider_log_key"] == "providers/good-partner/sampler-v2/jobs/job-bbb-222/logs.log"
-    assert paths["user_mount_path"] == "/data"
-    assert paths["provider_mount_path"] == "/function_data"
+    assert paths.cos_user_function_prefix == "users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2"
+    assert paths.cos_user_job_prefix == "users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca"
+    assert paths.cos_user_log_key == "users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca/logs.log"  # fmt: skip
+    assert paths.cos_results_key == "users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca/results.json"  # fmt: skip
+
+    assert paths.container_public_log_path == "/data/logs.log"
+    assert paths.container_private_log_path == "/function_data/jobs/8be4df61-93ca/logs.log"
+    assert paths.container_arguments_path == "/data/arguments.json"
+    assert paths.container_result_path == "/data/results.json"
+    assert paths.cos_provider_function_prefix == "providers/Q-CTRL/sampler-v2"
+    assert paths.cos_provider_log_key == "providers/Q-CTRL/sampler-v2/jobs/8be4df61-93ca/logs.log"
 
 
 def test_submit_sets_fleet_id_without_cos():
@@ -425,54 +402,6 @@ def test_submit_uses_settings_max_instances_when_no_config():
     assert mock_handler.submit_job.call_args.kwargs["scale_max_instances"] == 5
 
 
-def test_logs_returns_content_from_cos():
-    """logs() retrieves user logs from the COS user bucket."""
-    runner, _ = _make_logs_runner()
-    runner._cos.logs.return_value = "log content"  # pylint: disable=protected-access
-
-    result = runner.logs()
-
-    assert result == "log content"
-    call_kwargs = runner._cos.logs.call_args.kwargs  # pylint: disable=protected-access
-    assert call_kwargs["bucket_name"] == "user-bucket"
-    assert call_kwargs["log_key"].endswith("/logs.log")
-
-
-def test_provider_logs_returns_content_from_cos():
-    """provider_logs() retrieves provider logs from the COS provider bucket."""
-    runner, _ = _make_logs_runner()
-    runner._cos.logs.return_value = "provider log"  # pylint: disable=protected-access
-
-    result = runner.provider_logs()
-
-    assert result == "provider log"
-    call_kwargs = runner._cos.logs.call_args.kwargs  # pylint: disable=protected-access
-    assert call_kwargs["bucket_name"] == "provider-bucket"
-    assert call_kwargs["log_key"].endswith("/logs.log")
-
-
-def test_logs_returns_not_configured_when_cos_missing():
-    """logs() returns a message when COS is not configured."""
-    runner, _ = _make_runner(fleet_id="fleet-123")
-    runner._project.cos_bucket_user_data_name = None  # pylint: disable=protected-access
-    runner._project.cos_bucket_provider_data_name = None  # pylint: disable=protected-access
-    runner._project.cos_instance_name = None  # pylint: disable=protected-access
-    runner._project.cos_key_name = None  # pylint: disable=protected-access
-
-    result = runner.logs()
-
-    assert "not configured" in result
-
-
-def test_logs_raises_runner_error_on_api_exception():
-    """logs() raises RunnerError when COS returns an API error."""
-    runner, _ = _make_logs_runner()
-    runner._cos.logs.side_effect = ApiException(status=403, reason="Forbidden")  # pylint: disable=protected-access
-
-    with pytest.raises(RunnerError):
-        runner.logs()
-
-
 def test_get_result_from_cos_returns_none_when_cos_not_configured():
     """get_result_from_cos() returns None when COS is not configured."""
     runner, _ = _make_runner(fleet_id="fleet-123")
@@ -493,14 +422,21 @@ def test_get_result_from_cos_returns_json_string():
     with (
         patch.object(runner, "_is_cos_configured", return_value=True),
         patch.object(runner, "_get_fleet_name", return_value="fleet-name"),
-        patch.object(
-            runner,
-            "_build_cos_paths",
-            return_value={
-                "user_job_prefix": "users/1/provider_functions/p/t/jobs/j",
-                "user_function_prefix": "users/1/provider_functions/p/t",
-                "provider_function_prefix": "providers/p/t",
-            },
+        patch(
+            f"{_RUNNER_MOD}.build_job_paths",
+            return_value=FleetJobPaths(
+                cos_user_function_prefix="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2",
+                cos_user_job_prefix="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca",
+                cos_user_log_key="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca/logs.log",
+                cos_results_key="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca/results.json",  # fmt: skip
+                cos_provider_function_prefix="providers/Q-CTRL/sampler-v2",
+                cos_provider_log_key="providers/Q-CTRL/sampler-v2/jobs/8be4df61-93ca/logs.log",
+                container_entrypoint="/function_data/sampler_v2.py",
+                container_public_log_path="/data/logs.log",
+                container_private_log_path="/function_data/jobs/8be4df61-93ca/logs.log",
+                container_arguments_path="/data/arguments.json",
+                container_result_path="/data/results.json",
+            ),
         ),
     ):
         result = runner.get_result_from_cos()
@@ -517,7 +453,6 @@ def test_get_result_from_cos_returns_none_on_exception():
     with (
         patch.object(runner, "_is_cos_configured", return_value=True),
         patch.object(runner, "_get_fleet_name", return_value="fleet-name"),
-        patch.object(runner, "_build_cos_paths", return_value={"user_job_prefix": "u/jobs/j"}),
     ):
         result = runner.get_result_from_cos()
 
@@ -540,8 +475,8 @@ def test_get_project_existing(active, raises):
         assert runner._get_project() is mock_project  # pylint: disable=protected-access
 
 
-def test_get_project_raises_when_unassigned():
-    """_get_project() raises RunnerError when no project is assigned to the job."""
+def test_get_project_raises_when_no_project_assigned():
+    """_get_project() raises RunnerError when job.code_engine_project is None."""
     runner, _ = _make_runner()
     runner.job.code_engine_project = None
     runner.job.id = "job-uuid"
@@ -633,74 +568,56 @@ def test_get_fleet_name_falls_back_on_exception():
     assert result == "job-job-uuid"
 
 
-def test_upload_arguments_to_cos_uploads_json():
-    """_upload_arguments_to_cos() reads ArgumentsStorage and uploads to COS."""
-    runner, mock_handler = _make_runner()
-    runner._project.cos_bucket_user_data_name = "user-bucket"  # pylint: disable=protected-access
-    runner.job.program.provider = None
-    runner.job.author.username = "testuser"
-
-    paths = {"user_arguments_key": "users/1/jobs/j/arguments.json"}
-
-    with patch(f"{_RUNNER_MOD}.get_arguments_storage") as mock_storage_cls:
-        mock_storage_cls.return_value.get.return_value = '{"backend_name": "ibm_sherbrooke"}'
-        runner._upload_arguments_to_cos(paths)  # pylint: disable=protected-access
-
-    runner._cos.upload_fileobj.assert_called_once()  # pylint: disable=protected-access
-    call_kwargs = runner._cos.upload_fileobj.call_args.kwargs  # pylint: disable=protected-access
-    assert call_kwargs["bucket_name"] == "user-bucket"
-    assert call_kwargs["key"] == "users/1/jobs/j/arguments.json"
-
-
-def test_build_gateway_env_vars_returns_formatted_list():
-    """_build_gateway_env_vars() returns env vars formatted for Code Engine."""
+def test_build_job_env_vars_returns_formatted_list():
+    """_build_job_env_vars() returns env vars formatted for Code Engine."""
     runner, _ = _make_runner()
     runner.job.env_vars = '{"KEY1": "val1", "KEY2": "val2"}'
 
-    with patch(f"{_RUNNER_MOD}.decrypt_env_vars", side_effect=lambda e: e):
-        result = runner._build_gateway_env_vars()  # pylint: disable=protected-access
+    with _patch_settings(FLEETS_GATEWAY_HOST=None), patch(f"{_RUNNER_MOD}.decrypt_env_vars", side_effect=lambda e: e):
+        result = runner._build_job_env_vars()  # pylint: disable=protected-access
 
-    assert result == [
-        {"type": "literal", "name": "KEY1", "value": "val1"},
-        {"type": "literal", "name": "KEY2", "value": "val2"},
-    ]
+    assert {"type": "literal", "name": "KEY1", "value": "val1"} in result
+    assert {"type": "literal", "name": "KEY2", "value": "val2"} in result
 
 
-def test_build_gateway_env_vars_decrypts_tokens():
-    """_build_gateway_env_vars() passes env vars through decrypt_env_vars."""
+def test_build_job_env_vars_decrypts_tokens():
+    """_build_job_env_vars() passes env vars through decrypt_env_vars."""
     runner, _ = _make_runner()
     runner.job.env_vars = '{"QISKIT_IBM_TOKEN": "encrypted", "SOME_URL": "http://example.com"}'
 
     decrypted = {"QISKIT_IBM_TOKEN": "decrypted", "SOME_URL": "http://example.com"}
-    with patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value=decrypted) as mock_decrypt:
-        result = runner._build_gateway_env_vars()  # pylint: disable=protected-access
+    with (
+        _patch_settings(FLEETS_GATEWAY_HOST=None),
+        patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value=decrypted) as mock_decrypt,
+    ):
+        result = runner._build_job_env_vars()  # pylint: disable=protected-access
 
     mock_decrypt.assert_called_once_with({"QISKIT_IBM_TOKEN": "encrypted", "SOME_URL": "http://example.com"})
     assert {"type": "literal", "name": "QISKIT_IBM_TOKEN", "value": "decrypted"} in result
     assert {"type": "literal", "name": "SOME_URL", "value": "http://example.com"} in result
 
 
-def test_build_gateway_env_vars_filters_empty_values():
-    """_build_gateway_env_vars() excludes entries with empty or None values."""
+def test_build_job_env_vars_filters_empty_values():
+    """_build_job_env_vars() excludes entries with empty or None values."""
     runner, _ = _make_runner()
     runner.job.env_vars = '{"KEEP": "value", "EMPTY": "", "NULL_VAL": null}'
 
     def passthrough(e):
         return e
 
-    with patch(f"{_RUNNER_MOD}.decrypt_env_vars", side_effect=passthrough):
-        result = runner._build_gateway_env_vars()  # pylint: disable=protected-access
+    with _patch_settings(FLEETS_GATEWAY_HOST=None), patch(f"{_RUNNER_MOD}.decrypt_env_vars", side_effect=passthrough):
+        result = runner._build_job_env_vars()  # pylint: disable=protected-access
 
     assert result == [{"type": "literal", "name": "KEEP", "value": "value"}]
 
 
-def test_build_gateway_env_vars_empty_env_vars():
-    """_build_gateway_env_vars() returns an empty list when job has no env vars."""
+def test_build_job_env_vars_empty_env_vars():
+    """_build_job_env_vars() returns an empty list when job has no env vars and no gateway host."""
     runner, _ = _make_runner()
     runner.job.env_vars = "{}"
 
-    with patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value={}):
-        result = runner._build_gateway_env_vars()  # pylint: disable=protected-access
+    with _patch_settings(FLEETS_GATEWAY_HOST=None), patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value={}):
+        result = runner._build_job_env_vars()  # pylint: disable=protected-access
 
     assert result == []
 
@@ -729,3 +646,44 @@ def test_submit_includes_gateway_env_vars():
     env_list = call_kwargs["extra_fields"]["run_env_variables"]
     assert {"type": "literal", "name": "MY_TOKEN", "value": "decrypted_secret"} in env_list
     assert {"type": "literal", "name": "MY_URL", "value": "http://example.com"} in env_list
+
+
+def test_build_job_env_vars_includes_gateway_host():
+    """_build_job_env_vars() injects ENV_JOB_GATEWAY_HOST from settings.FLEETS_GATEWAY_HOST."""
+    runner, _ = _make_runner()
+    runner.job.env_vars = "{}"
+
+    with (
+        _patch_settings(FLEETS_GATEWAY_HOST="https://gateway.example.com"),
+        patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value={}),
+    ):
+        result = runner._build_job_env_vars()  # pylint: disable=protected-access
+
+    assert {"type": "literal", "name": "ENV_JOB_GATEWAY_HOST", "value": "https://gateway.example.com"} in result
+
+
+def test_submit_arguments_path_set_exactly_once():
+    """submit() sets ARGUMENTS_PATH exactly once even when it appears in job env vars."""
+    runner, mock_handler = _make_submit_runner()
+    runner.job.env_vars = '{"ARGUMENTS_PATH": "/old/stale/path", "OTHER": "val"}'
+    runner.job.author.username = "user-1"
+    runner.job.program.provider = None
+    runner.job.program.title = "prog"
+    runner.job.program.runner = Program.FLEETS
+
+    runner._project.cos_bucket_user_data_name = "user-bucket"  # pylint: disable=protected-access
+    runner._project.cos_bucket_provider_data_name = "prov-bucket"  # pylint: disable=protected-access
+    runner._project.cos_instance_name = "cos-inst"  # pylint: disable=protected-access
+    runner._project.cos_key_name = "cos-key"  # pylint: disable=protected-access
+    runner._project.pds_name_users = "pds-users"  # pylint: disable=protected-access
+    runner._project.pds_name_providers = "pds-provs"  # pylint: disable=protected-access
+
+    decrypted = {"ARGUMENTS_PATH": "/old/stale/path", "OTHER": "val"}
+    with _patch_settings(), patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value=decrypted):
+        runner.submit()
+
+    call_kwargs = mock_handler.submit_job.call_args.kwargs
+    env_list = call_kwargs["extra_fields"]["run_env_variables"]
+    arguments_path_entries = [e for e in env_list if e.get("name") == "ARGUMENTS_PATH"]
+    assert len(arguments_path_entries) == 1
+    assert arguments_path_entries[0]["value"] == "/data/arguments.json"
