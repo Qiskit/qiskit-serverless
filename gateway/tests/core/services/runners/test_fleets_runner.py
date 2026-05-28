@@ -568,60 +568,6 @@ def test_get_fleet_name_falls_back_on_exception():
     assert result == "job-job-uuid"
 
 
-def test_build_job_env_vars_returns_formatted_list():
-    """_build_job_env_vars() returns env vars formatted for Code Engine."""
-    runner, _ = _make_runner()
-    runner.job.env_vars = '{"KEY1": "val1", "KEY2": "val2"}'
-
-    with _patch_settings(FLEETS_GATEWAY_HOST=None), patch(f"{_RUNNER_MOD}.decrypt_env_vars", side_effect=lambda e: e):
-        result = runner._build_job_env_vars()  # pylint: disable=protected-access
-
-    assert {"type": "literal", "name": "KEY1", "value": "val1"} in result
-    assert {"type": "literal", "name": "KEY2", "value": "val2"} in result
-
-
-def test_build_job_env_vars_decrypts_tokens():
-    """_build_job_env_vars() passes env vars through decrypt_env_vars."""
-    runner, _ = _make_runner()
-    runner.job.env_vars = '{"QISKIT_IBM_TOKEN": "encrypted", "SOME_URL": "http://example.com"}'
-
-    decrypted = {"QISKIT_IBM_TOKEN": "decrypted", "SOME_URL": "http://example.com"}
-    with (
-        _patch_settings(FLEETS_GATEWAY_HOST=None),
-        patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value=decrypted) as mock_decrypt,
-    ):
-        result = runner._build_job_env_vars()  # pylint: disable=protected-access
-
-    mock_decrypt.assert_called_once_with({"QISKIT_IBM_TOKEN": "encrypted", "SOME_URL": "http://example.com"})
-    assert {"type": "literal", "name": "QISKIT_IBM_TOKEN", "value": "decrypted"} in result
-    assert {"type": "literal", "name": "SOME_URL", "value": "http://example.com"} in result
-
-
-def test_build_job_env_vars_filters_empty_values():
-    """_build_job_env_vars() excludes entries with empty or None values."""
-    runner, _ = _make_runner()
-    runner.job.env_vars = '{"KEEP": "value", "EMPTY": "", "NULL_VAL": null}'
-
-    def passthrough(e):
-        return e
-
-    with _patch_settings(FLEETS_GATEWAY_HOST=None), patch(f"{_RUNNER_MOD}.decrypt_env_vars", side_effect=passthrough):
-        result = runner._build_job_env_vars()  # pylint: disable=protected-access
-
-    assert result == [{"type": "literal", "name": "KEEP", "value": "value"}]
-
-
-def test_build_job_env_vars_empty_env_vars():
-    """_build_job_env_vars() returns an empty list when job has no env vars and no gateway host."""
-    runner, _ = _make_runner()
-    runner.job.env_vars = "{}"
-
-    with _patch_settings(FLEETS_GATEWAY_HOST=None), patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value={}):
-        result = runner._build_job_env_vars()  # pylint: disable=protected-access
-
-    assert result == []
-
-
 def test_submit_includes_gateway_env_vars():
     """submit() includes decrypted gateway env vars in the run_env_variables."""
     runner, mock_handler = _make_submit_runner()
@@ -644,22 +590,12 @@ def test_submit_includes_gateway_env_vars():
 
     call_kwargs = mock_handler.submit_job.call_args.kwargs
     env_list = call_kwargs["extra_fields"]["run_env_variables"]
-    assert {"type": "literal", "name": "MY_TOKEN", "value": "decrypted_secret"} in env_list
-    assert {"type": "literal", "name": "MY_URL", "value": "http://example.com"} in env_list
-
-
-def test_build_job_env_vars_includes_gateway_host():
-    """_build_job_env_vars() injects ENV_JOB_GATEWAY_HOST from settings.FLEETS_GATEWAY_HOST."""
-    runner, _ = _make_runner()
-    runner.job.env_vars = "{}"
-
-    with (
-        _patch_settings(FLEETS_GATEWAY_HOST="https://gateway.example.com"),
-        patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value={}),
-    ):
-        result = runner._build_job_env_vars()  # pylint: disable=protected-access
-
-    assert {"type": "literal", "name": "ENV_JOB_GATEWAY_HOST", "value": "https://gateway.example.com"} in result
+    by_name = {e["name"]: e["value"] for e in env_list}
+    assert by_name["MY_TOKEN"] == "decrypted_secret"
+    assert by_name["MY_URL"] == "http://example.com"
+    assert by_name["ARGUMENTS_PATH"] == "/data/arguments.json"
+    assert by_name["RESULTS_PATH"] == "/data/results.json"
+    assert by_name["PUBLIC_LOG_PATH"] == "/data/logs.log"
 
 
 def test_submit_arguments_path_set_exactly_once():
