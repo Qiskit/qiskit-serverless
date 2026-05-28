@@ -180,6 +180,7 @@ def build_run_env_variables(
             "ARGUMENTS_PATH": paths.container_arguments_path,
             "RESULTS_PATH": paths.container_result_path,
             "LOG_FLUSH_INTERVAL_SECONDS": str(flush_interval),
+            "LOG_SIZE_LIMIT_BYTES": str(settings.FUNCTIONS_LOGS_SIZE_LIMIT),
         }
     )
     if paths.container_private_log_path is not None:
