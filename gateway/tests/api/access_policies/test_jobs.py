@@ -4,7 +4,14 @@ from django.contrib.auth.models import User, Group
 
 from api.access_policies.jobs import JobAccessPolicies
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import Program, Job, Provider, PLATFORM_PERMISSION_JOBS_READ, PLATFORM_PERMISSION_PROVIDER_LOGS
+from core.models import (
+    Program,
+    Job,
+    Provider,
+    PLATFORM_PERMISSION_JOBS_READ,
+    PLATFORM_PERMISSION_PROVIDER_LOGS,
+    PLATFORM_PERMISSION_CUSTOM_RUN,
+)
 from tests.utils import TestUtils, create_function_access_result
 
 pytestmark = pytest.mark.django_db
@@ -182,3 +189,35 @@ class TestCanReadProviderLogs:
                 JobAccessPolicies.can_read_provider_logs(admin, provider_job, accessible_functions=accessible)
                 is expected
             )
+
+
+class TestCanCreateJob:
+    class TestLegacyGroups:
+        def test_true_when_accessible_functions_is_none(self):
+            """Without runtime instances, custom function execution is always allowed."""
+            user = User.objects.create_user(username="legacy-run-none")
+            assert JobAccessPolicies.can_create_job(user) is True
+
+        def test_true_when_use_legacy_authorization(self):
+            """Falls back to allow-all when use_legacy_authorization=True."""
+            user = User.objects.create_user(username="legacy-run-true")
+            accessible = FunctionAccessResult(use_legacy_authorization=True)
+            assert JobAccessPolicies.can_create_job(user, accessible_functions=accessible) is True
+
+    class TestRuntimeInstances:
+        @pytest.mark.parametrize(
+            "permissions,expected",
+            [
+                ({PLATFORM_PERMISSION_CUSTOM_RUN}, True),
+                ({"other-permission"}, False),
+                (set(), False),
+            ],
+        )
+        def test_access_depends_on_custom_run_permission(self, permissions, expected):
+            """Access is granted only if custom_function_permissions includes PLATFORM_PERMISSION_CUSTOM_RUN."""
+            user = User.objects.create_user(username="runtime-run")
+            accessible = FunctionAccessResult(
+                use_legacy_authorization=False,
+                custom_function_permissions=permissions,
+            )
+            assert JobAccessPolicies.can_create_job(user, accessible_functions=accessible) is expected

@@ -14,6 +14,8 @@ from rest_framework.decorators import action
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 
+from api.access_policies.jobs import JobAccessPolicies
+from api.access_policies.programs import ProgramAccessPolicies
 from api.access_policies.providers import ProviderAccessPolicy
 from api.decorators.trace_decorator import trace_decorator_factory
 from api.domain.authentication.channel import Channel
@@ -170,6 +172,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
             accessible_functions,
         )
 
+        program = None
         if provider_name:
             provider_obj = Provider.objects.filter(name=provider_name).first()
             if provider_obj is None or not ProviderAccessPolicy.can_upload_function(
@@ -185,7 +188,8 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 )
             program = serializer.retrieve_provider_function(title=title, provider_name=provider_name)
         else:
-            program = serializer.retrieve_private_function(title=title, author=author)
+            if ProgramAccessPolicies.can_create(user=author, accessible_functions=accessible_functions):
+                program = serializer.retrieve_private_function(title=title, author=author)
 
         if program is not None:
             serializer = self.get_serializer_upload_program(program, data=request.data)
@@ -236,15 +240,21 @@ class ProgramViewSet(viewsets.GenericViewSet):
             accessible_functions,
         )
 
-        function = Function.objects.get_function_by_permission(
-            user=author,
-            function_title=function_title,
-            provider_name=provider_name,
-            # it uses permission for Runtime API /functions or legacy_permission_name for Django Groups
-            accessible_functions=accessible_functions,
-            permission=PLATFORM_PERMISSION_RUN,
-            legacy_permission_name=RUN_PROGRAM_PERMISSION,
-        )
+        function = None
+        if provider_name:
+            function = Function.objects.get_function_by_permission(
+                user=author,
+                function_title=function_title,
+                provider_name=provider_name,
+                # it uses permission for Runtime API /functions or legacy_permission_name for Django Groups
+                accessible_functions=accessible_functions,
+                permission=PLATFORM_PERMISSION_RUN,
+                legacy_permission_name=RUN_PROGRAM_PERMISSION,
+            )
+        else:
+            if JobAccessPolicies.can_create_job(user=author, accessible_functions=accessible_functions):
+                function = Function.objects.get_user_function(author, function_title)
+
         if function is None:
             logger.error("[programs-run] user_id=%s function not found: %s", author.id, function_title)
             return Response(

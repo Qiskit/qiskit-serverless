@@ -20,10 +20,12 @@ from core.models import (
     PLATFORM_PERMISSION_WRITE,
     PLATFORM_PERMISSION_READ,
     PLATFORM_PERMISSION_RUN,
+    PLATFORM_PERMISSION_CUSTOM_CREATE,
+    PLATFORM_PERMISSION_CUSTOM_RUN,
     Program,
 )
 from core.services.storage import get_arguments_storage
-from tests.utils import TestUtils, create_function_access_result
+from tests.utils import TestUtils, create_function_access_result, create_custom_access_result
 
 
 @pytest.mark.django_db
@@ -1175,6 +1177,27 @@ class TestProgramApiRuntimeInstances:
         @pytest.mark.parametrize(
             "permissions,expected_status",
             [
+                ({PLATFORM_PERMISSION_CUSTOM_RUN}, status.HTTP_200_OK),
+                (set(), status.HTTP_404_NOT_FOUND),
+            ],
+        )
+        def test_run_custom_function(self, client, authorize, permissions, expected_status):
+            """run() checks PLATFORM_PERMISSION_CUSTOM_RUN when running a custom function."""
+            user, _ = User.objects.get_or_create(username="runtime-user")
+            TestUtils.create_program(program_title="my-custom-func", author=user)
+            authorize("runtime-user", create_custom_access_result(permissions))
+
+            response = client.post(
+                "/api/v1/programs/run/",
+                data={"title": "my-custom-func", "arguments": "{}", "config": {"workers": 1}},
+                format="json",
+            )
+
+            assert response.status_code == expected_status
+
+        @pytest.mark.parametrize(
+            "permissions,expected_status",
+            [
                 ({PLATFORM_PERMISSION_RUN}, status.HTTP_200_OK),
                 (set(), status.HTTP_404_NOT_FOUND),
             ],
@@ -1270,6 +1293,24 @@ class TestProgramApiRuntimeInstances:
             response = client.post(
                 "/api/v1/programs/upload/",
                 data={"title": "my-func", "provider": "my-provider", "dependencies": "[]", "entrypoint": "main.py"},
+            )
+
+            assert response.status_code == expected_status
+
+        @pytest.mark.parametrize(
+            "permissions,expected_status",
+            [
+                ({PLATFORM_PERMISSION_CUSTOM_CREATE}, status.HTTP_200_OK),
+                (set(), status.HTTP_404_NOT_FOUND),
+            ],
+        )
+        def test_upload_custom_function(self, client, authorize, permissions, expected_status):
+            """upload() checks PLATFORM_PERMISSION_CUSTOM_CREATE when creating a custom function."""
+            authorize("runtime-user", create_custom_access_result(permissions))
+
+            response = client.post(
+                "/api/v1/programs/upload/",
+                data={"title": "my-custom-func", "dependencies": "[]", "entrypoint": "main.py"},
             )
 
             assert response.status_code == expected_status

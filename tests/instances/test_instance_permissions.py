@@ -49,7 +49,8 @@ In order to run the tests, this is the configuration you have to get from /funct
   {
     "instance_crn": "crn:v1:staging:public:quantum-computing:us-east:a/efb0dd39cdb64955b8f6e32d44290acf:f0e2a145-2282-4605-9f54-eafdb7ec68a1::",
     "entitlements": {
-      "functions": []
+      "functions": [],
+      "custom_functions": {"permissions": []}
     }
   },
   {
@@ -62,7 +63,8 @@ In order to run the tests, this is the configuration you have to get from /funct
           "business_model": "trial",
           "permissions": ["function.read", "function.run", "function-files.read", "function-files.write"]
         }
-      ]
+      ],
+      "custom_functions": {"permissions": ["function-custom.create", "function-custom.run"]}
     }
   },
   {
@@ -75,7 +77,8 @@ In order to run the tests, this is the configuration you have to get from /funct
           "business_model": "subsidized",
           "permissions": ["function.write", "function-job.read", "function-provider-logs.read", "function-provider-files.read", "function-provider-files.write"]
         }
-      ]
+      ],
+      "custom_functions": {"permissions": []}
     }
   },
   {
@@ -94,9 +97,10 @@ In order to run the tests, this is the configuration you have to get from /funct
           "business_model": "consumption",
           "permissions": ["function.read", "function.run", "function-files.read", "function-files.write", "function.write", "function-job.read", "function-provider-logs.read", "function-provider-files.read", "function-provider-files.write"]
         }
-      ]
+      ],
+      "custom_functions": {"permissions": ["function-custom.create", "function-custom.run"]}
     }
-  }
+  },
 ]
 ```
 """
@@ -155,6 +159,8 @@ class TestNoPermissionsInstance:
       - provider_file_upload → 404.
       - provider_file_download → 404.
       - provider_file_delete → 404.
+      - upload custom function → 404 (no function-custom.create).
+      - run custom function → 404 (no function-custom.run).
     """
 
     def test_list_catalog_excludes_function(self, none_client, provider_name, function_title):
@@ -267,6 +273,28 @@ class TestNoPermissionsInstance:
         fn = QiskitFunction(title=function_title, provider=provider_name)
         with pytest.raises(QiskitServerlessException) as exc:
             none_client.file_delete("nonexistent.txt", fn)
+        _assert_404(exc)
+
+    def test_upload_custom_function_raises_404(self, none_client, custom_function_title, tmp_path):
+        """upload() for a custom function is denied (404) when function-custom.create is absent."""
+        (tmp_path / "main.py").write_text('print("hello")\n')
+        fn = QiskitFunction(
+            title=custom_function_title,
+            entrypoint="main.py",
+            working_dir=str(tmp_path),
+        )
+        with pytest.raises(QiskitServerlessException) as exc:
+            none_client.upload(fn)
+        _assert_404(exc)
+
+    def test_run_custom_function_raises_404(self, none_client, custom_function_title):
+        """run() for a custom function is denied (404) when function-custom.run is absent.
+
+        The permission check happens before the function lookup, so the 404 is returned
+        even if the function does not yet exist in the DB.
+        """
+        with pytest.raises(QiskitServerlessException) as exc:
+            none_client.run(custom_function_title)
         _assert_404(exc)
 
 
@@ -843,3 +871,39 @@ class TestCombinedInstance:
         combined_client.file_delete("del_test.txt", fn)
         remaining = combined_client.files(fn)
         assert "del_test.txt" not in remaining
+
+
+class TestCustomFunctionInstance:
+    """
+    Verifies that function-custom.create and function-custom.run work correctly.
+    Uses user_client, which has both custom permissions alongside its user permissions.
+
+    Expected behaviour:
+      - upload() for a custom function succeeds (function-custom.create).
+      - run() for a custom function succeeds (function-custom.run).
+      - serverless list includes the uploaded custom function.
+    """
+
+    def test_upload_custom_function_succeeds(self, user_client, custom_function_title, tmp_path):
+        """upload() succeeds when function-custom.create is present."""
+        (tmp_path / "main.py").write_text('print("hello")\n')
+        fn = QiskitFunction(
+            title=custom_function_title,
+            entrypoint="main.py",
+            working_dir=str(tmp_path),
+        )
+        result = user_client.upload(fn)
+        assert result is not None
+        assert result.title == custom_function_title
+
+    def test_run_custom_function_succeeds(self, user_client, custom_function_title, seeded_custom_function):
+        """run() creates a job for the custom function when function-custom.run is present."""
+        job = user_client.run(custom_function_title)
+        assert job is not None
+        assert job.job_id is not None
+
+    def test_serverless_list_includes_custom_function(self, user_client, custom_function_title, seeded_custom_function):
+        """Serverless filter returns the custom function owned by the authenticated user."""
+        functions = user_client.functions(filter="serverless")
+        titles = [f.title for f in functions]
+        assert custom_function_title in titles, f"Expected {custom_function_title!r} in serverless list, got: {titles}"

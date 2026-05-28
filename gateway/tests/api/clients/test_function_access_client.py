@@ -5,7 +5,7 @@ import pytest
 from api.clients.function_access_client import FunctionAccessClient
 from api.domain.exceptions.runtime_api_exception import RuntimeFunctionsException
 from core.config_key import ConfigKey
-from core.models import PLATFORM_PERMISSION_RUN
+from core.models import PLATFORM_PERMISSION_RUN, PLATFORM_PERMISSION_CUSTOM_RUN, PLATFORM_PERMISSION_CUSTOM_CREATE
 
 
 @pytest.fixture(autouse=True)
@@ -18,6 +18,7 @@ def _enable_instances_api(monkeypatch):
 
 def test_returns_function_from_200_response(instances_server):
     instances_server.grant("ibm", "sampler", [PLATFORM_PERMISSION_RUN])
+    instances_server.grant_custom([PLATFORM_PERMISSION_CUSTOM_RUN, PLATFORM_PERMISSION_CUSTOM_CREATE])
 
     result = FunctionAccessClient().get_accessible_functions("crn:test:123", "test-api-key")
 
@@ -29,13 +30,16 @@ def test_returns_function_from_200_response(instances_server):
     assert entry.business_model == "SUBSIDIZED"
     assert PLATFORM_PERMISSION_RUN in entry.permissions
 
+    assert PLATFORM_PERMISSION_CUSTOM_RUN in result.custom_function_permissions
+    assert PLATFORM_PERMISSION_CUSTOM_CREATE in result.custom_function_permissions
 
-def test_returns_empty_list_on_200_with_no_functions(instances_server):
-    instances_server.reset()
 
-    result = FunctionAccessClient().get_accessible_functions("crn:test:456", "test-api-key")
+def test_returns_function_from_200_response_empty(instances_server):
+    """When custom_functions.permissions is [], custom_function_permissions is empty."""
+    result = FunctionAccessClient().get_accessible_functions("crn:custom:3", "test-api-key")
 
     assert result.use_legacy_authorization is False
+    assert result.custom_function_permissions == set()
     assert result.functions == []
 
 

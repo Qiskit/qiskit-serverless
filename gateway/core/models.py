@@ -35,6 +35,9 @@ PLATFORM_PERMISSION_JOBS_READ = "function-job.read"  # list or retrieve jobs fro
 PLATFORM_PERMISSION_PROVIDER_LOGS = "function-provider-logs.read"  # read provider-side logs of jobs from this function
 PLATFORM_PERMISSION_PROVIDER_FILES_READ = "function-provider-files.read"  # list and download files in provider space
 PLATFORM_PERMISSION_PROVIDER_FILES_WRITE = "function-provider-files.write"  # upload and delete files in provider space
+# Custom function permissions (user-owned, no provider)
+PLATFORM_PERMISSION_CUSTOM_CREATE = "function-custom.create"  # create or update a custom function
+PLATFORM_PERMISSION_CUSTOM_RUN = "function-custom.run"  # execute a custom function
 
 
 def get_upload_path(instance, filename):

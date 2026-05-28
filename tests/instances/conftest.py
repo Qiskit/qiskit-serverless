@@ -12,6 +12,7 @@ GATEWAY_CHANNEL = os.environ.get("GATEWAY_CHANNEL", "ibm_quantum_platform")
 
 PROVIDER_NAME = os.environ.get("TEST_PROVIDER_NAME", "ibm-dev")
 FUNCTION_TITLE = os.environ.get("TEST_FUNCTION_TITLE", "instances1-test")
+CUSTOM_FUNCTION_TITLE = os.environ.get("TEST_CUSTOM_FUNCTION_TITLE", "my-custom-func")
 
 
 @fixture(scope="session")
@@ -24,6 +25,12 @@ def provider_name():
 def function_title():
     """Title of the test function."""
     return FUNCTION_TITLE
+
+
+@fixture(scope="session")
+def custom_function_title():
+    """Title of the custom (serverless) function used to test function-custom.* permissions."""
+    return CUSTOM_FUNCTION_TITLE
 
 
 @fixture(scope="session")
@@ -61,7 +68,7 @@ def seeded_job_id(combined_client, provider_name, function_title, tmp_path_facto
 @fixture(scope="session")
 def none_client():
     """Client authenticated with an instance that has no permissions (empty functions list).
-    Permissions: (none)
+    Permissions: (none) | custom_functions: []
     """
     return ServerlessClient(
         token=GATEWAY_TOKEN,
@@ -78,6 +85,7 @@ def none_client():
 def user_client():
     """Client authenticated with a user permissions instance.
     Permissions: function.read, function.run, function-files.read, function-files.write
+    custom_functions: function-custom.create, function-custom.run
     """
     return ServerlessClient(
         token=GATEWAY_TOKEN,
@@ -95,6 +103,7 @@ def provider_client():
     """Client authenticated with a provider permissions instance.
     Permissions: function.write, function-job.read, function-provider-logs.read,
                  function-provider-files.read, function-provider-files.write
+    custom_functions: []
     """
     return ServerlessClient(
         token=GATEWAY_TOKEN,
@@ -130,11 +139,12 @@ def seeded_other_function(combined_client, provider_name, other_function_title, 
 
 @fixture(scope="session")
 def combined_client():
-    """Client authenticated with all permissions instance, entitled for both test functions.
+    """Client authenticated with all permissions for both test functions plus custom functions.
     Permissions for instances1-test and instances2-test:
       function.read, function.run, function-files.read, function-files.write,
       function.write, function-job.read, function-provider-logs.read,
       function-provider-files.read, function-provider-files.write
+    custom_functions: function-custom.create, function-custom.run
     """
     return ServerlessClient(
         token=GATEWAY_TOKEN,
@@ -145,3 +155,20 @@ def combined_client():
         ),
         channel=GATEWAY_CHANNEL,
     )
+
+
+@fixture(scope="session")
+def seeded_custom_function(user_client, custom_function_title, tmp_path_factory):
+    """Upload a custom function using custom_client so run tests have a function to execute.
+
+    Returns the function title so dependent tests can reference it.
+    """
+    tmp = tmp_path_factory.mktemp("custom_fn_seed")
+    (tmp / "main.py").write_text('print("custom function")\n')
+    fn = QiskitFunction(
+        title=custom_function_title,
+        entrypoint="main.py",
+        working_dir=str(tmp),
+    )
+    user_client.upload(fn)
+    return custom_function_title

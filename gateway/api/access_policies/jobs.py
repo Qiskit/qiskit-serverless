@@ -6,7 +6,7 @@ import logging
 from typing import Optional
 from django.contrib.auth.models import AbstractUser
 
-from core.models import Job
+from core.models import Job, PLATFORM_PERMISSION_CUSTOM_RUN
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from api.access_policies.providers import ProviderAccessPolicy
 
@@ -258,6 +258,36 @@ class JobAccessPolicies:
             job.author,
         )
         return False
+
+    @staticmethod
+    def can_create_job(
+        user: AbstractUser,
+        accessible_functions: Optional[FunctionAccessResult] = None,
+    ) -> bool:
+        """
+        Check if the user can run a custom function (i.e., create a job for it).
+
+        With legacy authorization (Django groups) this is always allowed.
+        With Runtime instances, the instance must grant function-custom.run.
+
+        Args:
+            user: Django user from the request
+            accessible_functions: Result from FunctionAccessClient; if None or
+                use_legacy_authorization=True, falls back to allowing all
+
+        Returns:
+            bool: True if the user can create a job for a custom function
+        """
+        if accessible_functions is None or accessible_functions.use_legacy_authorization:
+            return True
+
+        has_access = accessible_functions.has_custom_permission(PLATFORM_PERMISSION_CUSTOM_RUN)
+        if not has_access:
+            logger.warning(
+                "[can_create_job] user_id=%s | no permission to run custom function",
+                user.id,
+            )
+        return has_access
 
     @staticmethod
     def can_stop(user: AbstractUser, job: Job) -> bool:
