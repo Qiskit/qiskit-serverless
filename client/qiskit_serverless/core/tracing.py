@@ -30,7 +30,7 @@ import os
 from typing import Dict, Optional
 
 from opentelemetry import trace  # pylint: disable=duplicate-code
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -44,7 +44,6 @@ from qiskit_serverless.core.constants import (
     OTEL_EXPORTER_OTLP_PORT,
     QS_OT_TRACEPARENT_ID_KEY,
     QS_OT_RAY_TRACER,
-    OTEL_EXPORTER_OTLP_INSECURE,
     OTEL_ENABLED,
     OT_SPAN_DEFAULT_NAME,
     OT_LABEL_CALL_LOCATION,
@@ -74,8 +73,7 @@ def get_tracer(
     if agent_host is not None and agent_port is not None:
         otel_exporter = BatchSpanProcessor(
             OTLPSpanExporter(
-                endpoint=f"{agent_host}:{agent_port}",
-                insecure=bool(int(os.environ.get(OTEL_EXPORTER_OTLP_INSECURE, "0"))),
+                endpoint=f"http://{agent_host}:{agent_port}/v1/traces",
             )
         )
         provider.add_span_processor(otel_exporter)
@@ -100,7 +98,7 @@ def _trace_env_vars(env_vars: dict, location: Optional[str] = None):
         tracer = get_tracer(
             __name__,
             agent_host=os.environ.get(OTEL_EXPORTER_OTLP_HOST, None),
-            agent_port=int(os.environ.get(OTEL_EXPORTER_OTLP_PORT, 6831)),
+            agent_port=int(os.environ.get(OTEL_EXPORTER_OTLP_PORT, 4318)),
         )
     if env_vars.get(QS_OT_TRACEPARENT_ID_KEY, None) is not None:
         env_vars[QS_OT_TRACEPARENT_ID_KEY] = env_vars.get(QS_OT_TRACEPARENT_ID_KEY)
@@ -127,13 +125,12 @@ def setup_tracing() -> None:
     Passed as an argument at Ray start
     """
     agent_host = os.environ.get(OTEL_EXPORTER_OTLP_HOST, None)
-    agent_port = int(os.environ.get(OTEL_EXPORTER_OTLP_PORT, 6831))
+    agent_port = int(os.environ.get(OTEL_EXPORTER_OTLP_PORT, 4318))
     resource = Resource(attributes={SERVICE_NAME: "Qiskit-Serverless: Ray"})
     provider = TracerProvider(resource=resource)
     otel_exporter = BatchSpanProcessor(
         OTLPSpanExporter(
-            endpoint=f"{agent_host}:{agent_port}",
-            insecure=bool(int(os.environ.get(OTEL_EXPORTER_OTLP_INSECURE, "0"))),
+            endpoint=f"http://{agent_host}:{agent_port}/v1/traces",
         )
     )
     provider.add_span_processor(otel_exporter)

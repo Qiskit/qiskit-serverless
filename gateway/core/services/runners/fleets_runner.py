@@ -209,15 +209,10 @@ class FleetsRunner(AbstractRunner):
                             self._project.pds_name_providers,
                             paths["provider_function_prefix"],
                         ),
-                        (
-                            paths["provider_logs_mount_path"],
-                            self._project.pds_name_providers,
-                            paths["provider_job_prefix"],
-                        ),
                     ]
                 )
                 run_env_variables = build_run_env_variables(
-                    primary_mount_path=paths["provider_logs_mount_path"],
+                    primary_mount_path=f"{paths['provider_mount_path']}/jobs/{str(self.job.id)}",
                     primary_log_filename=LOG_FILENAME,
                     secondary_mount_path=paths["user_mount_path"],
                     secondary_log_filename=LOG_FILENAME,
@@ -225,7 +220,7 @@ class FleetsRunner(AbstractRunner):
                 )
 
                 gateway_env = self._build_gateway_env_vars()
-                run_env_variables.extend(gateway_env)
+                run_env_variables.extend(e for e in gateway_env if e.get("name") != "ARGUMENTS_PATH")
 
                 run_env_variables.extend(
                     [
@@ -510,16 +505,16 @@ class FleetsRunner(AbstractRunner):
         """Extract job env vars so the container can call save_result() and use Qiskit Runtime."""
         env = json.loads(self.job.env_vars)
         env = decrypt_env_vars(env)
+        env["ENV_JOB_GATEWAY_HOST"] = settings.FLEETS_GATEWAY_HOST
 
         return [{"type": "literal", "name": k, "value": v} for k, v in env.items() if v]
 
     def _build_cos_paths(self) -> dict[str, str]:
         """Build COS key prefixes and container mount paths for the job.
 
-        Three PDS volume mounts provide job-level isolation:
+        Two PDS volume mounts provide job-level isolation:
           - /data          → user-data-bucket @ user_job_prefix (job level)
           - /function_data → provider-data-bucket @ provider_function_prefix (function level)
-          - /provider_logs → provider-data-bucket @ provider_job_prefix (job level)
 
         Returns:
             Dict with function/job prefixes, COS log/argument keys, and
@@ -544,7 +539,6 @@ class FleetsRunner(AbstractRunner):
             "provider_log_key": f"{provider_job_prefix}/{LOG_FILENAME}",
             "user_mount_path": "/data",
             "provider_mount_path": "/function_data",
-            "provider_logs_mount_path": "/provider_logs",
         }
 
     def _upload_artifact_to_cos(self, paths: dict[str, str]) -> None:

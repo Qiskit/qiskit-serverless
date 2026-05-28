@@ -48,6 +48,17 @@ class UploadProgramSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Program
+        fields = [
+            "title",
+            "description",
+            "version",
+            "entrypoint",
+            "artifact",
+            "image",
+            "env_vars",
+            "dependencies",
+            "runner",
+        ]
 
     def get_validators(self):
         """Exclude UniqueConstraint validators.
@@ -234,6 +245,9 @@ class RunJobSerializer(serializers.ModelSerializer):
     Supports compute_profile parameter for specifying Code Engine Fleets machine profiles.
     Only used when runner=Fleets (code_engine_project is set).
     """
+
+    # Explicitly define compute_profile to ensure it's included in validated_data
+    compute_profile = serializers.CharField(required=False, allow_null=True, allow_blank=True, default=None)
 
     class Meta:
         model = Job

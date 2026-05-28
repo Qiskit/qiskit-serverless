@@ -69,7 +69,17 @@ class JobSerializer(api_serializers.JobSerializer):
     program = ProgramSerializer(many=False)
 
     class Meta(api_serializers.JobSerializer.Meta):
-        fields = ["id", "result", "status", "program", "created", "sub_status", "compute_profile", "business_model"]
+        fields = [
+            "id",
+            "result",
+            "status",
+            "program",
+            "created",
+            "sub_status",
+            "fleet_id",
+            "compute_profile",
+            "business_model",
+        ]
         ref_name = "JobsRetrieveJobSerializer"
 
 
@@ -88,7 +98,7 @@ class JobSerializerWithoutResult(api_serializers.JobSerializer):
     program = ProgramSummary(read_only=True)
 
     class Meta(api_serializers.JobSerializer.Meta):
-        fields = ["id", "status", "program", "created", "sub_status", "compute_profile", "business_model"]
+        fields = ["id", "status", "program", "created", "sub_status", "fleet_id", "compute_profile", "business_model"]
 
 
 def serialize_output(job: Job, with_result: bool) -> Job:
