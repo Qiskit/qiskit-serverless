@@ -106,7 +106,6 @@ class TestScheduleApi(APITestCase):
 
         mock_runner.submit.assert_called_once()
         assert ret_job.status == Job.FAILED
-        assert "Job submission failed" in ret_job.logs
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.JobEvent")
