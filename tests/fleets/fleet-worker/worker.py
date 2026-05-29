@@ -95,31 +95,44 @@ def mount_bucket(bucket, mount_point):
     logger.info("Mounted %s at %s", bucket, mount_point)
 
 
+def _bucket_to_mount(bucket):
+    """Map a bucket name to its local s3fs mount point.
+
+    Args:
+        bucket: The S3 bucket name.
+
+    Returns:
+        The local mount path for the bucket.
+    """
+    if bucket == PROVIDER_DATA_BUCKET:
+        return MOUNT_PROVIDER_DATA
+    return MOUNT_USER_DATA
+
+
 def resolve_symlink_targets(volume_mounts):
-    """Resolve symlink targets from volume_mounts based on mount_path.
+    """Resolve symlink targets from volume_mounts based on mount_path and bucket.
 
     Args:
         volume_mounts: List of volume mount dicts with mount_path, sub_path, and bucket keys.
 
     Returns:
-        A tuple of (data_target, function_data_target, provider_logs_target) paths,
+        A tuple of (data_target, function_data_target) paths,
         each of which may be None if the corresponding mount is not present.
     """
     data_target = None
     function_data_target = None
-    provider_logs_target = None
 
     for vm in volume_mounts:
         mount_path = vm.get("mount_path", "")
         sub_path = vm.get("sub_path", "")
+        bucket = vm.get("bucket", "")
+        base = _bucket_to_mount(bucket)
         if mount_path == "/data":
-            data_target = os.path.join(MOUNT_USER_DATA, sub_path)
+            data_target = os.path.join(base, sub_path)
         elif mount_path == "/function_data":
-            function_data_target = os.path.join(MOUNT_PROVIDER_DATA, sub_path)
-        elif mount_path == "/provider_logs":
-            provider_logs_target = os.path.join(MOUNT_PROVIDER_DATA, sub_path)
+            function_data_target = os.path.join(base, sub_path)
 
-    return data_target, function_data_target, provider_logs_target
+    return data_target, function_data_target
 
 
 def create_symlink(link_path, target_path):
@@ -206,18 +219,32 @@ def process_manifest(s3_client, key, manifest):  # pylint: disable=too-many-loca
     logger.info("Processing manifest for fleet_id=%s job_id=%s", fleet_id, manifest.get("job_id"))
 
     volume_mounts = manifest.get("volume_mounts", [])
-    data_target, function_data_target, provider_logs_target = resolve_symlink_targets(volume_mounts)
+    data_target, function_data_target = resolve_symlink_targets(volume_mounts)
 
     if data_target:
         create_symlink("/data", data_target)
     if function_data_target:
         create_symlink("/function_data", function_data_target)
-    if provider_logs_target:
-        create_symlink("/provider_logs", provider_logs_target)
 
     env_vars = manifest.get("env_vars", {})
     run_env = os.environ.copy()
     run_env.update(env_vars)
+
+    # Ensure parent directories for log paths exist on s3fs mounts.
+    # In real CE, PDS mounts expose the full tree; s3fs needs explicit mkdirs.
+    for path_var in ("PUBLIC_LOG_PATH", "PRIVATE_LOG_PATH"):
+        path = env_vars.get(path_var)
+        if path:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+
+    # Clean temp files from previous runs. The wrapper scripts append to
+    # /tmp/public.log and /tmp/private.log — without cleanup, logs from
+    # earlier jobs bleed into subsequent ones.
+    for tmp_file in ("/tmp/public.log", "/tmp/private.log", "/tmp/app.status", "/tmp/app.pipe"):
+        try:
+            os.unlink(tmp_file)
+        except OSError:
+            pass
 
     # Simulate Code Engine fleet startup. Real CE takes 1-2 minutes; trimmed
     # for CI and overridable via FLEET_WORKER_STARTUP_DELAY_SEC.
@@ -249,7 +276,6 @@ def process_manifest(s3_client, key, manifest):  # pylint: disable=too-many-loca
 
     remove_symlink("/data")
     remove_symlink("/function_data")
-    remove_symlink("/provider_logs")
 
     status = "succeeded" if exit_code == 0 else "failed"
     logger.info("Fleet %s completed with status: %s (exit_code=%d)", fleet_id, status, exit_code)
