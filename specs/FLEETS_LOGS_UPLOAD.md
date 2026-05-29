@@ -42,8 +42,9 @@ trap fires immediately after, performing the final flush before the process term
 COS files are capped at `LOG_SIZE_LIMIT_BYTES` (default: 50 MB, injected by the gateway
 from `settings.FUNCTIONS_LOGS_SIZE_LIMIT`). When the limit is exceeded:
 
-- The COS file contains a human-readable truncation header followed by the most recent
-  `LOG_SIZE_LIMIT_BYTES` bytes (oldest lines are discarded first).
+- The COS file contains this human-readable truncation header followed by the most recent
+  `LOG_SIZE_LIMIT_BYTES` bytes (oldest lines are discarded first)
+  "Logs exceeded maximum allowed size (%s MB). Logs have been truncated, discarding the oldest entries first"
 - The local `/tmp` file is shrunk in-place to the same limit so disk usage stays bounded.
 - Both operations share a single `tail -c` read — the tail is written to a temp file
   (`.upload`) and reused for the COS write and the local restore.
@@ -81,10 +82,10 @@ Every 15 seconds, if the local file changed:
 /tmp/public.log   10 MB   growing normally
 /tmp/.upload      —       does not exist
 
-upload_log: cp /tmp/public.log → COS/public.log
+upload_log: cp /tmp/public.log → s3://bucket/public.log
 
-COS/public.log    10 MB   exact copy, no header
-/tmp/public.log   10 MB   unchanged
+s3://bucket/public.log    10 MB   exact copy, no header
+/tmp/public.log           10 MB   unchanged
 ```
 
 ### Phase 2 — first flush that exceeds the limit
@@ -97,14 +98,14 @@ The local file has just crossed 50 MB (e.g. 51 MB at flush time):
 upload_log (over-limit path):
   step 1  tail -c 50MB /tmp/public.log → /tmp/public.log.upload
           disk peak: 51 MB + 50 MB = 101 MB
-  step 2  header + cat .upload → COS/public.log
+  step 2  header + cat .upload → s3://bucket/public.log
   step 3  truncate -s 0 /tmp/public.log          (0 MB, same inode)
   step 4  cat .upload >> /tmp/public.log          (50 MB restored)
   step 5  rm /tmp/public.log.upload
 
-COS/public.log    ~50 MB  truncation header + last 50 MB of filtered output
-/tmp/public.log   50 MB   shrunk to limit
-/tmp/.upload      —       removed
+s3://bucket/public.log    ~50 MB  truncation header + last 50 MB of filtered output
+/tmp/public.log            50 MB  shrunk to limit
+/tmp/.upload                0     removed
 ```
 
 ### Phase 3 — subsequent flushes after the limit has been reached
@@ -117,8 +118,8 @@ The application keeps writing N bytes per interval (e.g. 1 MB):
 upload_log: same as Phase 2
   disk peak: 51 MB + 50 MB = 101 MB during tail+cat
 
-COS/public.log    ~50 MB  header + latest 50 MB (updated every interval)
-/tmp/public.log   50 MB   shrunk again
+s3://bucket/public.log    ~50 MB  header + latest 50 MB (updated every interval)
+/tmp/public.log            50 MB   shrunk again
 ```
 
 The COS file always reflects the **most recent** lines within the limit.
