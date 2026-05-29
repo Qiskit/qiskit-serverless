@@ -107,17 +107,19 @@ def test_custom_wrapper_all_lines_reach_public_log():
     run_commands = build_run_commands(app_run_commands=["sh", "-c", _APP_SCRIPT])
 
     with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
+        public_log = f"{tmp}/cos/public/logs.log"
+        os.makedirs(os.path.dirname(public_log))
         result = _docker_run(
             run_commands,
             {
-                "PUBLIC_LOG_PATH": f"{tmp}/public.log",
+                "PUBLIC_LOG_PATH": public_log,
                 "LOG_FLUSH_INTERVAL_SECONDS": "999",
             },
             tmp,
         )
         assert result.returncode == 0, result.stderr
 
-        with open(f"{tmp}/public.log") as f:
+        with open(public_log) as f:
             public = f.read()
 
     for line in ("public line 1", "public line 2", "private line 1", "private line 2", "plain line 1", "plain line 2"):
@@ -143,20 +145,24 @@ def test_provider_wrapper_splits_public_and_private_logs():
     run_commands = build_run_commands(app_run_commands=["sh", "-c", _APP_SCRIPT], is_provider_function=True)
 
     with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
+        public_log = f"{tmp}/cos/public/logs.log"
+        private_log = f"{tmp}/cos/provider/logs.log"
+        os.makedirs(os.path.dirname(public_log))
+        os.makedirs(os.path.dirname(private_log))
         result = _docker_run(
             run_commands,
             {
-                "PUBLIC_LOG_PATH": f"{tmp}/public.log",
-                "PRIVATE_LOG_PATH": f"{tmp}/private.log",
+                "PUBLIC_LOG_PATH": public_log,
+                "PRIVATE_LOG_PATH": private_log,
                 "LOG_FLUSH_INTERVAL_SECONDS": "999",
             },
             tmp,
         )
         assert result.returncode == 0, result.stderr
 
-        with open(f"{tmp}/public.log") as f:
+        with open(public_log) as f:
             public = f.read()
-        with open(f"{tmp}/private.log") as f:
+        with open(private_log) as f:
             private = f.read()
 
     # Public log: only [PUBLIC]-prefixed lines, prefix stripped.
@@ -191,13 +197,15 @@ def test_wrapper_failure_propagates_exit_code_and_flushes_logs():
     run_commands = build_run_commands(app_run_commands=["sh", "-c", app])
 
     with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
+        public_log = f"{tmp}/cos/public/logs.log"
+        os.makedirs(os.path.dirname(public_log))
         result = _docker_run(
             run_commands,
-            {"PUBLIC_LOG_PATH": f"{tmp}/public.log", "LOG_FLUSH_INTERVAL_SECONDS": "999"},
+            {"PUBLIC_LOG_PATH": public_log, "LOG_FLUSH_INTERVAL_SECONDS": "999"},
             tmp,
         )
         assert result.returncode == 7
-        with open(f"{tmp}/public.log") as f:
+        with open(public_log) as f:
             content = f.read()
 
     assert "output before failure" in content
@@ -221,17 +229,19 @@ def test_custom_wrapper_truncates_log_when_limit_exceeded():
     run_commands = build_run_commands(app_run_commands=["sh", "-c", app])
 
     with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
+        public_log = f"{tmp}/cos/public/logs.log"
+        os.makedirs(os.path.dirname(public_log))
         result = _docker_run(
             run_commands,
             {
-                "PUBLIC_LOG_PATH": f"{tmp}/public.log",
+                "PUBLIC_LOG_PATH": public_log,
                 "LOG_FLUSH_INTERVAL_SECONDS": "999",
                 "LOG_SIZE_LIMIT_BYTES": str(_SMALL_LOG_LIMIT),
             },
             tmp,
         )
         assert result.returncode == 0, result.stderr
-        with open(f"{tmp}/public.log") as f:
+        with open(public_log) as f:
             content = f.read()
 
     assert "Logs exceeded maximum allowed size" in content
@@ -257,20 +267,24 @@ def test_provider_wrapper_truncates_both_logs_independently_when_limit_exceeded(
     run_commands = build_run_commands(app_run_commands=["sh", "-c", app], is_provider_function=True)
 
     with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
+        public_log = f"{tmp}/cos/public/logs.log"
+        private_log = f"{tmp}/cos/provider/logs.log"
+        os.makedirs(os.path.dirname(public_log))
+        os.makedirs(os.path.dirname(private_log))
         result = _docker_run(
             run_commands,
             {
-                "PUBLIC_LOG_PATH": f"{tmp}/public.log",
-                "PRIVATE_LOG_PATH": f"{tmp}/private.log",
+                "PUBLIC_LOG_PATH": public_log,
+                "PRIVATE_LOG_PATH": private_log,
                 "LOG_FLUSH_INTERVAL_SECONDS": "999",
                 "LOG_SIZE_LIMIT_BYTES": str(_SMALL_LOG_LIMIT),
             },
             tmp,
         )
         assert result.returncode == 0, result.stderr
-        with open(f"{tmp}/public.log") as f:
+        with open(public_log) as f:
             public = f.read()
-        with open(f"{tmp}/private.log") as f:
+        with open(private_log) as f:
             private = f.read()
 
     assert "Logs exceeded maximum allowed size" in public
@@ -295,7 +309,8 @@ def test_custom_wrapper_periodic_flush_during_run():
     run_commands = build_run_commands(app_run_commands=["sh", "-c", app])
 
     with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
-        public_log = f"{tmp}/public.log"
+        public_log = f"{tmp}/cos/public/logs.log"
+        os.makedirs(os.path.dirname(public_log))
         cmd = [
             "docker",
             "run",
