@@ -142,8 +142,6 @@ def _make_fake_jwt() -> str:
     payload_data = {
         "iam_id": "iam-mock-fleets-test",
         "account": {"bss": "mock-account-id"},
-        "sub": "mock-subject",
-        "iss": "https://iam.mock.cloud.ibm.com",
     }
     payload = base64.urlsafe_b64encode(json.dumps(payload_data).encode()).rstrip(b"=").decode()
     signature = base64.urlsafe_b64encode(b"mock-signature").rstrip(b"=").decode()
@@ -168,8 +166,7 @@ class _FakeTokenManager:  # pylint: disable=too-few-public-methods
 class _FakeIAMAuthenticator:
     """Drop-in replacement for ``ibm_cloud_sdk_core.authenticators.IAMAuthenticator``.
 
-    Accepts both ``apikey`` (keyword used by the real SDK and
-    ``ibm_quantum_platform.py``) and a positional first arg (used by
+    Accepts both ``apikey`` keyword and a positional first arg (used by
     ``IBMCloudClientProvider`` which passes the key positionally).
 
     Args:
@@ -190,29 +187,6 @@ class _FakeIAMAuthenticator:
         Args:
             req: The request object (ignored).
         """
-
-
-def _mock_get_cos_hmac_client(
-    self, *, access_key_id, secret_access_key, bucket_region=None, endpoint_url=None  # pylint: disable=unused-argument
-):
-    """Return an ibm_boto3 S3 client pointing at MinIO for user/provider data buckets.
-
-    Args:
-        self: The IBMCloudClientProvider instance (ignored).
-        access_key_id: HMAC access key (ignored, MinIO creds used instead).
-        secret_access_key: HMAC secret key (ignored, MinIO creds used instead).
-        bucket_region: COS bucket region (ignored).
-        endpoint_url: COS endpoint URL (ignored, MinIO endpoint used instead).
-
-    Returns:
-        An ibm_boto3 S3 client configured for the local MinIO instance.
-    """
-    return ibm_boto3_client(
-        "s3",
-        aws_access_key_id=_minio_access_key(),
-        aws_secret_access_key=_minio_secret_key(),
-        endpoint_url=_minio_endpoint(),
-    )
 
 
 def _mock_get_cos_client(project):  # pylint: disable=unused-argument
@@ -370,24 +344,22 @@ def install_mocks():
             "core.ibm_cloud.clients.IAMAuthenticator",
             _FakeIAMAuthenticator,
         ),
-        # Defensive: mock_token auth bypasses ibm_quantum_platform today,
-        # but custom_token would hit real IAM without this patch.
-        patch(
-            "api.services.authentication.ibm_quantum_platform.IAMAuthenticator",
-            _FakeIAMAuthenticator,
-        ),
-        patch(
-            "core.ibm_cloud.clients.IBMCloudClientProvider.get_cos_hmac_client",
-            _mock_get_cos_hmac_client,
-        ),
         patch(
             "core.ibm_cloud.get_cos_client",
             _mock_get_cos_client,
         ),
-        # Patch the bound reference in the runner module too — patching only
-        # the source module misses already-imported names.
+        # Patch already-bound references in modules that import get_cos_client
+        # at module level — patching only the source module misses them.
         patch(
             "core.services.runners.fleets_runner.get_cos_client",
+            _mock_get_cos_client,
+        ),
+        patch(
+            "core.services.storage.arguments_storage_fleets.get_cos_client",
+            _mock_get_cos_client,
+        ),
+        patch(
+            "core.services.storage.logs_storage_fleets.get_cos_client",
             _mock_get_cos_client,
         ),
         patch(

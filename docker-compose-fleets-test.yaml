@@ -29,6 +29,7 @@ x-gateway-env: &gateway-env
   CE_COS_BUCKET_TASK_STORE_NAME: task-store-bucket
   CE_COS_INSTANCE_NAME: test-cos-instance
   CE_COS_KEY_NAME: test-cos-key
+  FLEETS_GATEWAY_HOST: http://gateway:8000
   # Explicit opt-out of OTEL span export (default is "0" — set for clarity).
   OTEL_ENABLED: "0"
 
@@ -144,6 +145,7 @@ services:
       - TASK_STORE_BUCKET=task-store-bucket
       - USER_DATA_BUCKET=user-data-bucket
       - PROVIDER_DATA_BUCKET=provider-data-bucket
+      - FLEET_WORKER_STARTUP_DELAY_SEC=2
     networks:
       - safe-tier
     depends_on:
