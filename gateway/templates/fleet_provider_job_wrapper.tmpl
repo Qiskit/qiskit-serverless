@@ -79,9 +79,18 @@ file_size() {
   stat -c %s "$1" 2>/dev/null || echo -1
 }
 
-# Copies src to dst, capping output at LOG_SIZE_LIMIT_BYTES.
-# When the source exceeds the limit the last LOG_SIZE_LIMIT_BYTES bytes are
-# kept and a header line is prepended, mirroring check_logs in core.utils.
+# Copies src to dst, capping output at LOG_SIZE_LIMIT_BYTES, and shrinks src
+# in-place when the limit is exceeded — reading the tail only once for both.
+#
+# When the source is within the limit a plain cp is used. When it exceeds the
+# limit the last LOG_SIZE_LIMIT_BYTES bytes are saved to a temp file, written
+# to dst with a truncation header, then restored into src via truncate+cat so
+# the inode is preserved and any open write fd (awk) remains valid.
+#
+# The brief race between `truncate -s 0` and `cat >>` is harmless: a few lines
+# written by awk may appear before the restored tail, which is acceptable for a
+# log. This keeps /tmp bounded to ~2x LOG_SIZE_LIMIT_BYTES.
+#
 # Optional third argument: already-known source size, to avoid a second stat.
 upload_log() {
   local src="$1" dst="$2"
@@ -89,32 +98,17 @@ upload_log() {
   [ "$size" -lt 0 ] && return 0
   if [ "$size" -gt "$LOG_SIZE_LIMIT_BYTES" ]; then
     local mb=$(( LOG_SIZE_LIMIT_BYTES / 1048576 ))
+    local tmp="${src}.upload"
+    tail -c "$LOG_SIZE_LIMIT_BYTES" "$src" > "$tmp" 2>/dev/null || { rm -f "$tmp"; return 0; }
     { printf '[Logs exceeded maximum allowed size (%s MB). Logs have been truncated, discarding the oldest entries first.]\n' "$mb"
-      tail -c "$LOG_SIZE_LIMIT_BYTES" "$src"
+      cat "$tmp"
     } > "$dst" 2>/dev/null
+    truncate -s 0 "$src" 2>/dev/null || { rm -f "$tmp"; return 0; }
+    cat "$tmp" >> "$src" 2>/dev/null || true
+    rm -f "$tmp"
   else
     cp "$src" "$dst" 2>/dev/null
   fi
-}
-
-# Shrinks a local log file in-place to the last LOG_SIZE_LIMIT_BYTES bytes,
-# keeping the same inode so any open write fd (awk) remains valid.
-#
-# Mechanism: `truncate -s 0` zeros the file without changing the inode; awk's
-# next O_APPEND write lands at offset 0. Then `cat >>` restores the saved tail.
-# The brief race window between the two operations is harmless: a few lines
-# written by awk may appear before the restored tail in the file, which is
-# acceptable for a log. This keeps /tmp bounded to ~2x LOG_SIZE_LIMIT_BYTES.
-truncate_local() {
-  local file="$1"
-  local size
-  size=$(file_size "$file")
-  [ "$size" -le "$LOG_SIZE_LIMIT_BYTES" ] && return 0
-  local tmp="${file}.shrink"
-  tail -c "$LOG_SIZE_LIMIT_BYTES" "$file" > "$tmp" 2>/dev/null || { rm -f "$tmp"; return 0; }
-  truncate -s 0 "$file" 2>/dev/null || { rm -f "$tmp"; return 0; }
-  cat "$tmp" >> "$file" 2>/dev/null || true
-  rm -f "$tmp"
 }
 
 # Periodically copies both local logs to COS, skipping no-op PUTs when the
@@ -128,17 +122,15 @@ start_uploader() {
       sleep "$INTERVAL"
       cur=$(file_size "$LOCAL_PUBLIC")
       if [ "$cur" != "$last_public_log_size" ]; then
-        # New public lines since last upload — push to COS, then shrink local.
+        # New public lines since last upload — push to COS (upload_log shrinks local if needed).
         if upload_log "$LOCAL_PUBLIC" "$PUBLIC_LOG_PATH" "$cur"; then
-          truncate_local "$LOCAL_PUBLIC"
           last_public_log_size=$(file_size "$LOCAL_PUBLIC")
         fi
       fi
       cur=$(file_size "$LOCAL_PRIVATE")
       if [ "$cur" != "$last_private_log_size" ]; then
-        # New private lines since last upload — push to COS, then shrink local.
+        # New private lines since last upload — push to COS (upload_log shrinks local if needed).
         if upload_log "$LOCAL_PRIVATE" "$PRIVATE_LOG_PATH" "$cur"; then
-          truncate_local "$LOCAL_PRIVATE"
           last_private_log_size=$(file_size "$LOCAL_PRIVATE")
         fi
       fi
