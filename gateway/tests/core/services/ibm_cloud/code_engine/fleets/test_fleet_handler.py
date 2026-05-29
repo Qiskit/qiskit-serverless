@@ -703,13 +703,7 @@ def test_build_run_env_variables_passes_through_stored_vars():
 
 
 def test_build_run_env_variables_overlays_system_vars():
-    """build_run_env_variables injects all required system vars with correct values.
-
-    Verifies that PUBLIC_LOG_PATH, ARGUMENTS_PATH, and RESULTS_PATH come from the
-    paths object; LOG_FLUSH_INTERVAL_SECONDS defaults to 15 when not overridden in
-    settings; LOG_SIZE_LIMIT_BYTES is present and numeric; PRIVATE_LOG_PATH is absent
-    when container_private_log_path is None.
-    """
+    """build_run_env_variables includes system vars derived from paths."""
     result = build_run_env_variables(_make_paths(), {})
     by_name = {e["name"]: e["value"] for e in result}
     assert by_name["PUBLIC_LOG_PATH"] == "/output/logs.log"
