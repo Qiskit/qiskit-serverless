@@ -30,6 +30,7 @@ x-gateway-env: &gateway-env
   CE_COS_INSTANCE_NAME: test-cos-instance
   CE_COS_KEY_NAME: test-cos-key
   FLEETS_GATEWAY_HOST: http://gateway:8000
+  FUNCTIONS_LOGS_SIZE_LIMIT: "51200"  # 50 KB for log truncation tests
   # Explicit opt-out of OTEL span export (default is "0" — set for clarity).
   OTEL_ENABLED: "0"
 

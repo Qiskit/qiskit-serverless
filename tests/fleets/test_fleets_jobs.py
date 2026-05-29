@@ -124,6 +124,7 @@ def _assert_manifest(pg_conn, minio_client, job_id, is_provider=False):
     assert env["PUBLIC_LOG_PATH"] == "/data/logs.log"
     assert env["RESULTS_PATH"] == "/data/results.json"
     assert "LOG_FLUSH_INTERVAL_SECONDS" in env
+    assert "LOG_SIZE_LIMIT_BYTES" in env
 
     if is_provider:
         assert "PRIVATE_LOG_PATH" in env, "Provider jobs must have PRIVATE_LOG_PATH"
@@ -428,3 +429,58 @@ class TestFleetsJobs:
         result = job.result(wait=False)
         assert result["received_args"] == {}, f"Expected empty args, got {result['received_args']}"
         assert result["status"] == "completed"
+
+    def test_run_fleets_job_log_truncation(self, serverless_client, pg_conn, minio_client, unique_title):
+        """Submit a job that exceeds LOG_SIZE_LIMIT_BYTES and verify truncation."""
+        fn = QiskitFunction(
+            title=unique_title,
+            entrypoint="entrypoint_large_log.py",
+            working_dir=resources_path,
+            runner="fleets",
+        )
+        serverless_client.upload(fn)
+        fn = serverless_client.function(unique_title)
+        job = fn.run(target_bytes=150000)
+        logger.info("job_id=%s submitted (large log test)", job.job_id)
+        job_id, client_status = _wait_for_terminal(job, timeout=180)
+        logger.info("job %s terminal: %s", job_id, client_status)
+
+        assert client_status == "DONE", f"Expected DONE but got {client_status}"
+
+        user_logs = job.logs()
+        assert (
+            "[Logs exceeded maximum allowed size" in user_logs
+        ), f"Truncation header not found in logs (len={len(user_logs)})"
+        assert "discarding the oldest entries first.]" in user_logs
+        assert "FINAL_LINE" in user_logs, "Final output line should survive truncation"
+        assert "LOG_LINE_000001" not in user_logs, "First log line should have been truncated"
+
+        cur = pg_conn.cursor()
+        cur.execute(
+            "SELECT u.username FROM auth_user u " "JOIN api_job j ON j.author_id = u.id WHERE j.id = %s",
+            (job_id,),
+        )
+        username = cur.fetchone()[0]
+        cur.execute(
+            "SELECT title FROM api_program WHERE id = " "(SELECT program_id FROM api_job WHERE id = %s)",
+            (job_id,),
+        )
+        program_title = cur.fetchone()[0]
+        cur.close()
+
+        log_key = f"users/{username}/custom_functions/{program_title}/jobs/{job_id}/logs.log"
+        obj = wait_for_s3_object(minio_client, "user-data-bucket", log_key)
+        cos_log_content = obj["Body"].read().decode()
+        cos_log_size = len(cos_log_content)
+
+        limit = 51200
+        max_allowed = limit + 200
+        logger.info("COS log size: %d bytes (limit=%d)", cos_log_size, limit)
+        assert cos_log_size <= max_allowed, f"COS log ({cos_log_size} bytes) exceeds limit+overhead ({max_allowed})"
+        assert (
+            cos_log_size > limit * 0.9
+        ), f"COS log ({cos_log_size} bytes) unexpectedly small — truncation may not have occurred"
+
+        assert "[Logs exceeded maximum allowed size" in cos_log_content
+        assert "FINAL_LINE" in cos_log_content
+        assert "LOG_LINE_000001" not in cos_log_content
