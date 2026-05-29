@@ -62,13 +62,13 @@ def _wait_for_terminal(job, timeout=120):
     raise AssertionError(f"Job {job_id} did not reach terminal state within {timeout}s, last status: {client_status}")
 
 
-def _assert_client_api(job, expected_name="world", check_provider_logs=False):
+def _assert_client_api(job, expected_name="world", is_provider=False):
     """Verify result and logs via the client API.
 
     Args:
         job: A ServerlessJob instance in terminal state.
         expected_name: The name expected in the greeting result.
-        check_provider_logs: If True, also verify provider logs contain private output.
+        is_provider: If True, verify log splitting (public vs private).
     """
     result = job.result(wait=False)
     assert result["greeting"] == f"Hello, {expected_name}!"
@@ -77,21 +77,24 @@ def _assert_client_api(job, expected_name="world", check_provider_logs=False):
     user_logs = job.logs()
     logger.debug("user_logs: %r", user_logs[:200])
     assert "Hello from fleets!" in user_logs
-    assert "Processing internally" not in user_logs, "User logs should not contain private lines"
 
-    if check_provider_logs:
+    if is_provider:
+        assert "Processing internally" not in user_logs, "User logs should not contain private lines"
         provider_logs = job.provider_logs()
         logger.debug("provider_logs: %r", provider_logs[:200])
         assert "Processing internally" in provider_logs, "Provider logs should contain all output"
+    else:
+        assert "Processing internally" in user_logs, "Custom jobs should have all output in user logs"
 
 
-def _assert_manifest(pg_conn, minio_client, job_id):
+def _assert_manifest(pg_conn, minio_client, job_id, is_provider=False):
     """Verify the dispatch manifest in fleet-state-archive.
 
     Args:
         pg_conn: A psycopg2 connection.
         minio_client: A boto3 S3 client.
         job_id: The job ID to look up.
+        is_provider: If True, verify provider-specific env vars (PRIVATE_LOG_PATH).
     """
     row_for_fleet = wait_for_db_condition(
         pg_conn,
@@ -108,12 +111,26 @@ def _assert_manifest(pg_conn, minio_client, job_id):
     assert "volume_mounts" in manifest
     assert "env_vars" in manifest
     assert "run_commands" in manifest
-    assert len(manifest["volume_mounts"]) == 3
-    assert manifest["env_vars"]["ENV_JOB_ID_GATEWAY"] == str(job_id)
-    assert "ENV_JOB_GATEWAY_TOKEN" in manifest["env_vars"]
-    assert "ENV_JOB_GATEWAY_HOST" in manifest["env_vars"]
-    assert "ARGUMENTS_PATH" in manifest["env_vars"]
-    logger.debug("manifest env_vars keys: %s", sorted(manifest["env_vars"].keys()))
+
+    assert len(manifest["volume_mounts"]) == 2
+    mount_paths = {vm["mount_path"] for vm in manifest["volume_mounts"]}
+    assert mount_paths == {"/data", "/function_data"}, f"Unexpected mount paths: {mount_paths}"
+
+    env = manifest["env_vars"]
+    assert env["ENV_JOB_ID_GATEWAY"] == str(job_id)
+    assert "ENV_JOB_GATEWAY_TOKEN" in env
+    assert "ENV_JOB_GATEWAY_HOST" in env
+    assert env["ARGUMENTS_PATH"] == "/data/arguments.json"
+    assert env["PUBLIC_LOG_PATH"] == "/data/logs.log"
+    assert env["RESULTS_PATH"] == "/data/results.json"
+    assert "LOG_FLUSH_INTERVAL_SECONDS" in env
+
+    if is_provider:
+        assert "PRIVATE_LOG_PATH" in env, "Provider jobs must have PRIVATE_LOG_PATH"
+    else:
+        assert "PRIVATE_LOG_PATH" not in env, "Custom jobs should not have PRIVATE_LOG_PATH"
+
+    logger.debug("manifest env_vars keys: %s", sorted(env.keys()))
 
 
 def _assert_db_state(pg_conn, job_id, client_status):  # pylint: disable=too-many-locals
@@ -182,14 +199,17 @@ def _assert_db_state(pg_conn, job_id, client_status):  # pylint: disable=too-man
     logger.debug("events progression: %s", " -> ".join(events))
 
 
-def _assert_cos_objects(pg_conn, minio_client, job_id, provider_name="default"):  # pylint: disable=too-many-locals
+def _assert_cos_objects(
+    pg_conn, minio_client, job_id, provider_name=None, expected_name="world"
+):  # pylint: disable=too-many-locals,too-many-positional-arguments
     """Verify arguments, entrypoint, and log objects in MinIO.
 
     Args:
         pg_conn: A psycopg2 connection.
         minio_client: A boto3 S3 client.
         job_id: The job ID to verify.
-        provider_name: The provider name used in COS path prefixes.
+        provider_name: The provider name. None means custom (non-provider) job.
+        expected_name: The name argument that was passed to the job.
     """
     cur = pg_conn.cursor()
     cur.execute(
@@ -198,35 +218,49 @@ def _assert_cos_objects(pg_conn, minio_client, job_id, provider_name="default"):
     )
     username = cur.fetchone()[0]
     cur.execute(
-        "SELECT title FROM api_program WHERE id = (SELECT program_id FROM api_job WHERE id = %s)",
+        "SELECT title, entrypoint FROM api_program WHERE id = (SELECT program_id FROM api_job WHERE id = %s)",
         (job_id,),
     )
-    program_title = cur.fetchone()[0]
+    program_title, entrypoint = cur.fetchone()
     cur.close()
 
-    user_prefix = f"users/{username}/provider_functions/{provider_name}/{program_title}"
-    provider_prefix = f"providers/{provider_name}/{program_title}"
+    is_provider = provider_name is not None
 
-    args_key = f"{user_prefix}/jobs/{job_id}/arguments.json"
+    if is_provider:
+        user_prefix = f"users/{username}/provider_functions/{provider_name}/{program_title}"
+        function_prefix = f"providers/{provider_name}/{program_title}"
+        function_bucket = "provider-data-bucket"
+    else:
+        user_prefix = f"users/{username}/custom_functions/{program_title}"
+        function_prefix = user_prefix
+        function_bucket = "user-data-bucket"
+
+    job_prefix = f"{user_prefix}/jobs/{job_id}"
+
+    args_key = f"{job_prefix}/arguments.json"
     obj = wait_for_s3_object(minio_client, "user-data-bucket", args_key)
     args_content = json.loads(obj["Body"].read())
-    assert "name" in args_content or "arguments" in args_content
+    assert args_content.get("name") == expected_name, f"Expected arguments name={expected_name!r}, got {args_content}"
 
-    ep_key = f"{provider_prefix}/entrypoint.py"
-    obj = wait_for_s3_object(minio_client, "provider-data-bucket", ep_key)
+    ep_key = f"{function_prefix}/{entrypoint}"
+    obj = wait_for_s3_object(minio_client, function_bucket, ep_key)
     ep_content = obj["Body"].read().decode()
     assert "def main" in ep_content
 
-    user_logs_key = f"{user_prefix}/jobs/{job_id}/logs.log"
+    user_logs_key = f"{job_prefix}/logs.log"
     obj = wait_for_s3_object(minio_client, "user-data-bucket", user_logs_key)
     cos_user_logs = obj["Body"].read().decode()
     assert "Hello from fleets!" in cos_user_logs
-    assert "Processing internally" not in cos_user_logs
+    assert "Done" in cos_user_logs, "Final output missing — wrapper may not have flushed"
 
-    provider_logs_key = f"{provider_prefix}/jobs/{job_id}/logs.log"
-    obj = wait_for_s3_object(minio_client, "provider-data-bucket", provider_logs_key)
-    cos_provider_logs = obj["Body"].read().decode()
-    assert "Processing internally" in cos_provider_logs
+    if is_provider:
+        assert "Processing internally" not in cos_user_logs
+        provider_logs_key = f"{function_prefix}/jobs/{job_id}/logs.log"
+        obj = wait_for_s3_object(minio_client, "provider-data-bucket", provider_logs_key)
+        cos_provider_logs = obj["Body"].read().decode()
+        assert "Processing internally" in cos_provider_logs
+    else:
+        assert "Processing internally" in cos_user_logs
 
 
 @pytest.mark.fleets
@@ -287,10 +321,10 @@ class TestFleetsJobs:
 
         assert client_status == "DONE", f"Expected DONE but got {client_status} for job {job_id}"
 
-        _assert_client_api(job, expected_name="provider-world", check_provider_logs=True)
-        _assert_manifest(pg_conn, minio_client, job_id)
+        _assert_client_api(job, expected_name="provider-world", is_provider=True)
+        _assert_manifest(pg_conn, minio_client, job_id, is_provider=True)
         _assert_db_state(pg_conn, job_id, client_status)
-        _assert_cos_objects(pg_conn, minio_client, job_id, provider_name=test_provider)
+        _assert_cos_objects(pg_conn, minio_client, job_id, provider_name=test_provider, expected_name="provider-world")
 
         cur = pg_conn.cursor()
         cur.execute(
@@ -325,7 +359,7 @@ class TestFleetsJobs:
         assert client_status == "ERROR", f"Expected ERROR but got {client_status} for job {job_id}"
 
         # Guard against a timeout being misclassified as FAILED. Expected
-        # budget: startup_delay (~5s) + immediate RuntimeError + S3 visibility
+        # budget: startup_delay (2s) + immediate RuntimeError + S3 visibility
         # (<5s) + scheduler poll (~10-30s). 90s leaves CI headroom while still
         # catching regressions where failure detection slows significantly.
         assert elapsed < 90, f"Job took {elapsed:.1f}s — likely a timeout, not a real failure"
@@ -344,3 +378,53 @@ class TestFleetsJobs:
             timeout=30,
         )
         assert row[0] == "FAILED"
+
+    def test_fleets_job_status_transitions(self, serverless_client, unique_title):
+        """Verify that job.status() progresses through expected client states.
+
+        QUEUED should be observable because the fleet-worker startup delay
+        (FLEET_WORKER_STARTUP_DELAY_SEC) keeps the job in QUEUED/PENDING
+        longer than the 1s poll interval here.
+        """
+        fn = QiskitFunction(
+            title=unique_title,
+            entrypoint="entrypoint.py",
+            working_dir=resources_path,
+            runner="fleets",
+        )
+        serverless_client.upload(fn)
+        fn = serverless_client.function(unique_title)
+        job = fn.run(name="transitions")
+
+        observed = set()
+        deadline = time.time() + 120
+        while time.time() < deadline:
+            status = job.status()
+            observed.add(status)
+            if status in ("DONE", "ERROR", "CANCELED"):
+                break
+            time.sleep(1)
+
+        assert "QUEUED" in observed, f"Never saw QUEUED state, observed: {observed}"
+        assert "DONE" in observed, f"Job did not succeed, observed: {observed}"
+
+    def test_run_fleets_job_no_arguments(self, serverless_client, unique_title):
+        """Submit a fleets job without arguments and verify empty args flow."""
+        fn = QiskitFunction(
+            title=unique_title,
+            entrypoint="entrypoint_no_args.py",
+            working_dir=resources_path,
+            runner="fleets",
+        )
+        serverless_client.upload(fn)
+        fn = serverless_client.function(unique_title)
+        job = fn.run()
+
+        job_id, client_status = _wait_for_terminal(job)
+        logger.info("job %s no-args terminal: %s", job_id, client_status)
+
+        assert client_status == "DONE", f"Expected DONE but got {client_status} for job {job_id}"
+
+        result = job.result(wait=False)
+        assert result["received_args"] == {}, f"Expected empty args, got {result['received_args']}"
+        assert result["status"] == "completed"
