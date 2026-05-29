@@ -1,3 +1,15 @@
+# This code is part of a Qiskit project.
+#
+# (C) IBM 2026
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE.txt file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
 """Fleets implementation of logs storage."""
 
 from __future__ import annotations
@@ -8,6 +20,7 @@ from typing import Optional
 from ibm_botocore.exceptions import ClientError
 
 from core.ibm_cloud import get_cos_client
+from core.ibm_cloud.code_engine.fleets.utils import build_job_paths
 from core.models import Job
 from core.services.storage.logs_storage import LogsStorage
 
@@ -17,44 +30,39 @@ logger = logging.getLogger("core.FleetsLogsStorage")
 class FleetsLogsStorage(LogsStorage):
     """Handles the retrieval of logs for Fleets jobs via COS."""
 
-    LOG_FILENAME = "logs.log"
     NOT_FOUND_CODES = {"404", "NoSuchKey", "NotFound"}
 
     def __init__(self, job: Job) -> None:
         if not job.code_engine_project:
             raise ValueError(f"Job '{job.id}' has no CodeEngineProject assigned")
 
+        paths = build_job_paths(job)
         self._job_id = str(job.id)
         self._user_id = job.author.id
         self._project = job.code_engine_project
+        self._public_key = paths.cos_user_log_key
+        self._private_key: Optional[str] = paths.cos_provider_log_key
+        self._user_bucket = self._load_user_bucket(job)
+        self._provider_bucket = self._load_provider_bucket(job)
 
+    def _load_provider_bucket(self, job: Job):
+        if not job.program.provider:
+            return None
+
+        provider_bucket = job.code_engine_project.cos_bucket_provider_data_name
+        if not provider_bucket:
+            raise ValueError(
+                f"CodeEngineProject '{self._project.project_name}' has no cos_bucket_provider_data_name configured"
+            )
+        return provider_bucket
+
+    def _load_user_bucket(self, job: Job):
         user_bucket = job.code_engine_project.cos_bucket_user_data_name
         if not user_bucket:
             raise ValueError(
                 f"CodeEngineProject '{self._project.project_name}' has no cos_bucket_user_data_name configured"
             )
-        self._user_bucket = user_bucket
-
-        username = job.author.username
-        provider_name = job.program.provider.name if job.program.provider else None
-        program_title = job.program.title
-        if provider_name:
-            user_job_prefix = f"users/{username}/provider_functions/{provider_name}/{program_title}/jobs/{self._job_id}"
-            provider_job_prefix = f"providers/{provider_name}/{program_title}/jobs/{self._job_id}"
-
-            provider_bucket = job.code_engine_project.cos_bucket_provider_data_name
-            if not provider_bucket:
-                raise ValueError(
-                    f"CodeEngineProject '{self._project.project_name}' has no cos_bucket_provider_data_name configured"
-                )
-            self._provider_bucket: Optional[str] = provider_bucket
-            self._private_key: Optional[str] = f"{provider_job_prefix}/{self.LOG_FILENAME}"
-        else:
-            user_job_prefix = f"users/{username}/custom_functions/{program_title}/jobs/{self._job_id}"
-            self._provider_bucket = None
-            self._private_key = None
-
-        self._public_key = f"{user_job_prefix}/{self.LOG_FILENAME}"
+        return user_bucket
 
     def get_public_logs(self) -> Optional[str]:
         try:
@@ -90,7 +98,7 @@ class FleetsLogsStorage(LogsStorage):
             return None
 
     def get_private_logs(self) -> Optional[str]:
-        if self._private_key is None or self._provider_bucket is None:
+        if self._provider_bucket is None:
             raise RuntimeError("Private logs are only available for provider jobs")
         try:
             content_bytes = get_cos_client(self._project).get_object_bytes(

@@ -28,13 +28,78 @@ Example::
     mounts = build_run_volume_mounts(
         mounts=[("/output", "my-pds", "user/job-1")]
     )
-    env = build_run_env_variables(primary_mount_path="/output")
+    env = build_run_env_variables(paths, decrypted_env_vars)
     cmds = build_run_commands(app_run_commands=["python", "main.py"])
 """
 
 from __future__ import annotations
 
 import shlex
+from dataclasses import dataclass
+from typing import Optional
+
+from django.conf import settings
+from django.template.loader import get_template
+
+from core.models import CodeEngineProject, Job
+
+USER_MOUNT_PATH = "/data"
+FUNCTION_MOUNT_PATH = "/function_data"
+
+
+@dataclass(frozen=True)
+class FleetJobPaths:  # pylint: disable=too-many-instance-attributes
+    """Computed paths for a fleet job.
+
+    ``cos_*`` fields are bucket relative paths. Used by the Gateway to read or write objects in COS.
+
+    Fields ending in ``_key`` are complete, can be used with a S3 Client.
+
+    Fields ending in ``_prefix`` are directory-scoped (no trailing slash, no filename) and serve two purposes:
+       - As the ``sub_path`` argument of a PDS volume mount
+       - As the base for building COS keys for files whose names are only known at runtime
+
+    ``container_*`` fields are absolute paths inside the function
+    """
+
+    # COS side prefixes (volume-mount sub_path + artifact key base)
+
+    # sub_path for /data mount; base for non-entrypoint artifact keys ({prefix}/{member})
+    cos_user_job_prefix: str
+    # sub_path for /function_data mount (custom jobs); base for entrypoint artifact key
+    cos_user_function_prefix: str
+    # sub_path for /function_data mount (provider jobs); base for entrypoint artifact key — None for custom jobs
+    cos_provider_function_prefix: Optional[str]
+
+    # COS side: complete object keys (passed directly to the COS client to read or write with the S3 client)
+    cos_user_log_key: str  # public log in the user bucket
+    cos_results_key: str  # results.json in the user bucket
+    cos_provider_log_key: Optional[str]  # private log in the provider bucket — None for custom jobs
+
+    # Container side, used by the function
+    container_entrypoint: str  # absolute path to the function script inside the container
+    container_public_log_path: str  # written by wrapper, served by /logs
+    container_private_log_path: Optional[str]  # written by wrapper, served by /provider-logs
+    container_arguments_path: str  # read by the function at startup (injected as ARGUMENTS_PATH)
+    container_result_path: str  # written by the function on completion (read back via cos_results_key)
+
+
+def build_run_volume_mounts_for_job(paths: FleetJobPaths, project: CodeEngineProject) -> list[dict[str, str]]:
+    """Build the complete volume mounts list for a fleet job.
+
+    Args:
+        paths: Pre-computed paths for the job (from :func:`build_job_paths`).
+        project: CodeEngineProject with PDS names.
+
+    Returns:
+        Volume mount definitions ready for ``run_volume_mounts``.
+    """
+    mounts = [(USER_MOUNT_PATH, project.pds_name_users, paths.cos_user_job_prefix)]
+    if paths.cos_provider_function_prefix:
+        mounts.append((FUNCTION_MOUNT_PATH, project.pds_name_providers, paths.cos_provider_function_prefix))
+    else:
+        mounts.append((FUNCTION_MOUNT_PATH, project.pds_name_users, paths.cos_user_function_prefix))
+    return build_run_volume_mounts(mounts=mounts)
 
 
 def build_run_volume_mounts(
@@ -83,83 +148,51 @@ def build_run_volume_mounts(
 
 
 def build_run_env_variables(
-    *,
-    primary_mount_path: str,
-    primary_log_filename: str = "logs.log",
-    secondary_mount_path: str | None = None,
-    secondary_log_filename: str = "logs.log",
-    secondary_log_filter_key: str | None = None,
+    paths: FleetJobPaths,
+    stored_env_vars: dict[str, str | None],
 ) -> list[dict[str, str]]:
-    """
-    Build environment variables used by the logging wrapper command.
+    """Build the complete environment variable list for the Fleets container.
 
-    The mount path already points to the desired COS prefix, so no log subdir
-    is needed here.
+    Starts with decrypted stored job env vars as the base, then overlays
+    system vars derived from paths. System vars always win on collision since
+    they define the container's filesystem layout. New vars added at job
+    creation time flow through automatically.
 
     Args:
-        primary_mount_path: Container path for the primary log store.
-        primary_log_filename: File name for the primary log.
-        secondary_mount_path: Container path for the secondary log store.
-        secondary_log_filename: File name for the secondary log.
-        secondary_log_filter_key: Text filter used to route lines to the
-            secondary log.
+        paths: Pre-computed paths for the job (from :func:`build_job_paths`).
+        stored_env_vars: Decrypted env vars dict from ``job.env_vars``.
 
     Returns:
-        Environment variable definitions for ``run_env_variables``.
-
-    Raises:
-        ValueError: If the primary log configuration is incomplete, or if
-            secondary log filtering is requested without a complete secondary
-            log configuration.
+        List of env var dicts in Code Engine format
+        ``[{"type": "literal", "name": "...", "value": "..."}]``.
+        Empty values are excluded.
     """
-    if not primary_mount_path:
-        raise ValueError("primary_mount_path is required.")
+    env = dict(stored_env_vars)
 
-    run_env_variables = [
+    gateway_host = getattr(settings, "FLEETS_GATEWAY_HOST", None)
+    if gateway_host:
+        env["ENV_JOB_GATEWAY_HOST"] = gateway_host
+
+    flush_interval = getattr(settings, "FLEETS_LOG_FLUSH_INTERVAL_SECONDS", 15)
+    env.update(
         {
-            "type": "literal",
-            "name": "PRIMARY_LOG_DIR",
-            "value": primary_mount_path,
-        },
-        {
-            "type": "literal",
-            "name": "PRIMARY_LOG_PATH",
-            "value": f"{primary_mount_path}/{primary_log_filename}",
-        },
-    ]
+            "PUBLIC_LOG_PATH": paths.container_public_log_path,
+            "ARGUMENTS_PATH": paths.container_arguments_path,
+            "RESULTS_PATH": paths.container_result_path,
+            "LOG_FLUSH_INTERVAL_SECONDS": str(flush_interval),
+        }
+    )
+    if paths.container_private_log_path is not None:
+        env["PRIVATE_LOG_PATH"] = paths.container_private_log_path
 
-    if secondary_log_filter_key is not None:
-        if not secondary_mount_path:
-            raise ValueError("secondary_mount_path is required when secondary_log_filter_key is provided.")
-
-        run_env_variables.extend(
-            [
-                {
-                    "type": "literal",
-                    "name": "SECONDARY_LOG_DIR",
-                    "value": secondary_mount_path,
-                },
-                {
-                    "type": "literal",
-                    "name": "SECONDARY_LOG_PATH",
-                    "value": f"{secondary_mount_path}/{secondary_log_filename}",
-                },
-                {
-                    "type": "literal",
-                    "name": "SECONDARY_LOG_FILTER_KEY",
-                    "value": secondary_log_filter_key,
-                },
-            ]
-        )
-
-    return run_env_variables
+    return [{"type": "literal", "name": k, "value": v} for k, v in env.items() if v]
 
 
 def build_run_commands(
     *,
     app_run_commands: list[str],
     app_run_arguments: list[str] | None = None,
-    secondary_log_filter_key: str | None = None,
+    is_provider_function: bool = False,
 ) -> list[str]:
     """
     Build wrapper commands for fleet execution and logging.
@@ -167,8 +200,10 @@ def build_run_commands(
     Args:
         app_run_commands: Command override for the application.
         app_run_arguments: Argument override for the application.
-        secondary_log_filter_key: Text filter used to route lines to the
-            secondary log. If not provided, only the primary log is written.
+        is_provider_function: When True, the wrapper splits the application
+            output into a public log and a private log (provider job). When
+            False, the wrapper writes a single prefix-stripped public log
+            (custom/user job).
 
     Returns:
         Command definition for ``run_commands``.
@@ -182,37 +217,80 @@ def build_run_commands(
     app_parts = [*app_run_commands, *(app_run_arguments or [])]
     app_cmd = " ".join(shlex.quote(part) for part in app_parts)
 
-    if secondary_log_filter_key is not None:
-        script = (
-            "set -eu; "
-            'PIPE="/tmp/app.pipe"; '
-            'STATUS_FILE="/tmp/app.status"; '
-            'rm -f "$PIPE" "$STATUS_FILE"; '
-            'mkfifo "$PIPE"; '
-            'mkdir -p "$PRIMARY_LOG_DIR" "$SECONDARY_LOG_DIR"; '
-            'tee -a "$PRIMARY_LOG_PATH" < "$PIPE" | '
-            'awk -v pat="$SECONDARY_LOG_FILTER_KEY" '
-            '-v out="$SECONDARY_LOG_PATH" '
-            "'index($0, pat) { print >> out; fflush(out) }' & "
-            "LOGGER_PID=$!; "
-            f'( {app_cmd}; printf "%s\\n" "$?" > "$STATUS_FILE" ) > "$PIPE" 2>&1; '
-            'wait "$LOGGER_PID" || true; '
-            'if [ ! -f "$STATUS_FILE" ]; then '
-            '  echo "logging wrapper error: status file was not created" >&2; '
-            '  rm -f "$PIPE" "$STATUS_FILE"; '
-            "  exit 1; "
-            "fi; "
-            'STATUS="$(cat "$STATUS_FILE")"; '
-            'rm -f "$PIPE" "$STATUS_FILE"; '
-            'case "$STATUS" in '
-            '  ""|*[!0-9]*) '
-            '    echo "logging wrapper error: invalid status: $STATUS" >&2; '
-            "    exit 1 "
-            "    ;; "
-            "esac; "
-            'exit "$STATUS"'
-        )
-    else:
-        script = f'set -eu; mkdir -p "$PRIMARY_LOG_DIR"; exec {app_cmd} >> "$PRIMARY_LOG_PATH" 2>&1'
+    template_name = "fleet_provider_job_wrapper.tmpl" if is_provider_function else "fleet_custom_job_wrapper.tmpl"
+    script = get_template(template_name).render({"app_cmd": app_cmd})
 
     return ["sh", "-c", script]
+
+
+def build_custom_job_paths(job: Job) -> FleetJobPaths:
+    """COS paths for a custom (non-provider) job.
+
+    The entrypoint lives in the user bucket at function scope and runs from
+    ``/function_data``. User data and public logs live in the user bucket at
+    job scope. There are no private logs.
+
+    Args:
+        job: Job instance with no provider.
+    """
+    username = job.author.username
+    program_title = job.program.title
+    job_id = str(job.id)
+    cos_user_function_prefix = f"users/{username}/custom_functions/{program_title}"
+    cos_user_job_prefix = f"{cos_user_function_prefix}/jobs/{job_id}"
+    return FleetJobPaths(
+        # COS paths
+        cos_user_function_prefix=cos_user_function_prefix,
+        cos_user_job_prefix=cos_user_job_prefix,
+        cos_user_log_key=f"{cos_user_job_prefix}/logs.log",
+        cos_results_key=f"{cos_user_job_prefix}/results.json",
+        cos_provider_function_prefix=None,
+        cos_provider_log_key=None,
+        # Mounting paths inside the function
+        container_entrypoint=f"{FUNCTION_MOUNT_PATH}/{job.program.entrypoint}",
+        container_private_log_path=None,
+        container_public_log_path=f"{USER_MOUNT_PATH}/logs.log",
+        container_arguments_path=f"{USER_MOUNT_PATH}/arguments.json",
+        container_result_path=f"{USER_MOUNT_PATH}/results.json",
+    )
+
+
+def build_provider_job_paths(job: Job) -> FleetJobPaths:
+    """COS paths for a provider job.
+
+    Both user bucket (public logs + data) and provider bucket (entrypoint at
+    function scope, private logs at job scope) are used.
+
+    Args:
+        job: Job instance with a provider assigned.
+    """
+    username = job.author.username
+    provider_name = job.program.provider.name
+    program_title = job.program.title
+    job_id = str(job.id)
+    cos_user_function_prefix = f"users/{username}/provider_functions/{provider_name}/{program_title}"
+    cos_provider_function_prefix = f"providers/{provider_name}/{program_title}"
+    cos_user_job_prefix = f"{cos_user_function_prefix}/jobs/{job_id}"
+    cos_provider_job_prefix = f"{cos_provider_function_prefix}/jobs/{job_id}"
+    return FleetJobPaths(
+        # COS paths
+        cos_user_function_prefix=cos_user_function_prefix,
+        cos_user_job_prefix=cos_user_job_prefix,
+        cos_user_log_key=f"{cos_user_job_prefix}/logs.log",
+        cos_results_key=f"{cos_user_job_prefix}/results.json",
+        cos_provider_function_prefix=cos_provider_function_prefix,
+        cos_provider_log_key=f"{cos_provider_job_prefix}/logs.log",
+        # Mounting paths inside the function
+        container_entrypoint=f"{FUNCTION_MOUNT_PATH}/{job.program.entrypoint}",
+        container_private_log_path=f"{FUNCTION_MOUNT_PATH}/jobs/{job_id}/logs.log",
+        container_public_log_path=f"{USER_MOUNT_PATH}/logs.log",
+        container_arguments_path=f"{USER_MOUNT_PATH}/arguments.json",
+        container_result_path=f"{USER_MOUNT_PATH}/results.json",
+    )
+
+
+def build_job_paths(job: Job) -> FleetJobPaths:
+    """Dispatcher: returns custom or provider COS paths depending on job type."""
+    if job.program.provider:
+        return build_provider_job_paths(job)
+    return build_custom_job_paths(job)

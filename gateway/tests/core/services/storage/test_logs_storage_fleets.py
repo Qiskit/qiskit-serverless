@@ -6,6 +6,7 @@ import pytest
 from ibm_botocore.exceptions import ClientError
 
 from core.models import Program
+from core.services.storage import get_logs_storage
 from core.services.storage.logs_storage_fleets import FleetsLogsStorage
 from tests.utils import TestUtils
 
@@ -50,6 +51,8 @@ class TestFleetsLogsStorage:
         )
         return TestUtils.create_job(author="alice", program=program, code_engine_project=ce_project)
 
+    # ── path generation ────────────────────────────────────────────────────────
+
     def test_public_key_custom_function(self, job):
         """_public_key uses custom_functions path when program has no provider."""
         storage = FleetsLogsStorage(job)
@@ -58,23 +61,32 @@ class TestFleetsLogsStorage:
         )
 
     def test_public_key_provider_function(self, job_with_provider):
-        """_public_key uses provider_functions path when program has a provider."""
+        """_public_key uses provider_functions/<provider> path when program has a provider."""
         storage = FleetsLogsStorage(job_with_provider)
         assert storage._public_key == (  # pylint: disable=protected-access
             f"users/alice/provider_functions/good-partner/my-program/jobs/{job_with_provider.id}/logs.log"
         )
 
     def test_private_key_provider_function(self, job_with_provider):
-        """_private_key uses providers path."""
+        """_private_key uses providers/<provider> path."""
         storage = FleetsLogsStorage(job_with_provider)
         assert storage._private_key == (  # pylint: disable=protected-access
             f"providers/good-partner/my-program/jobs/{job_with_provider.id}/logs.log"
         )
 
-    def test_private_key_is_none_for_custom_function(self, job):
-        """_private_key is None when program has no provider."""
+    def test_provider_bucket_is_none_for_custom_function(self, job):
+        """_provider_bucket is None when program has no provider."""
         storage = FleetsLogsStorage(job)
-        assert storage._private_key is None  # pylint: disable=protected-access
+        assert storage._provider_bucket is None  # pylint: disable=protected-access
+
+    def test_no_project_raises(self):
+        """ValueError raised when job has no CodeEngineProject."""
+        program = TestUtils.create_program(program_title="orphan", author="bob", runner=Program.FLEETS)
+        job = TestUtils.create_job(author="bob", program=program)
+        with pytest.raises(ValueError, match="no CodeEngineProject"):
+            FleetsLogsStorage(job)
+
+    # ── get_public_logs ────────────────────────────────────────────────────────
 
     def test_get_public_logs_returns_content(self, job):
         """get_public_logs() returns decoded COS object content."""
@@ -91,6 +103,19 @@ class TestFleetsLogsStorage:
             key=storage._public_key,  # pylint: disable=protected-access
         )
 
+    def test_get_public_logs_returns_none_on_not_found(self, job):
+        """get_public_logs() returns None when COS object does not exist yet."""
+        storage = FleetsLogsStorage(job)
+        mock_cos = MagicMock()
+        mock_cos.get_object_bytes.side_effect = _make_client_error("NoSuchKey")
+
+        with patch(_COS_MODULE, return_value=mock_cos):
+            result = storage.get_public_logs()
+
+        assert result is None
+
+    # ── get_private_logs ───────────────────────────────────────────────────────
+
     def test_get_private_logs_returns_content(self, job_with_provider):
         """get_private_logs() returns decoded COS object content for provider jobs."""
         storage = FleetsLogsStorage(job_with_provider)
@@ -106,8 +131,26 @@ class TestFleetsLogsStorage:
             key=storage._private_key,  # pylint: disable=protected-access
         )
 
+    def test_get_private_logs_returns_none_on_not_found(self, job_with_provider):
+        """get_private_logs() returns None when COS object does not exist yet."""
+        storage = FleetsLogsStorage(job_with_provider)
+        mock_cos = MagicMock()
+        mock_cos.get_object_bytes.side_effect = _make_client_error("NoSuchKey")
+
+        with patch(_COS_MODULE, return_value=mock_cos):
+            result = storage.get_private_logs()
+
+        assert result is None
+
     def test_get_private_logs_raises_for_custom_function(self, job):
         """get_private_logs() raises RuntimeError for non-provider jobs."""
         storage = FleetsLogsStorage(job)
         with pytest.raises(RuntimeError):
             storage.get_private_logs()
+
+    # ── factory ────────────────────────────────────────────────────────────────
+
+    def test_factory_returns_fleets_storage_for_fleet_job(self, job):
+        """get_logs_storage returns FleetsLogsStorage for FLEETS runner jobs."""
+        storage = get_logs_storage(job)
+        assert isinstance(storage, FleetsLogsStorage)

@@ -19,6 +19,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
+from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
 from core.models import Program
 from core.services.runners.abstract_runner import RunnerError
 from core.services.runners.fleets_runner import FleetsRunner
@@ -225,45 +226,50 @@ def test_stop_returns_false_when_already_terminal():
     mock_handler.cancel_job.assert_not_called()
 
 
-def test_build_cos_paths_custom_function():
-    """Full COS key paths for a custom function (provider=None → 'default')."""
+def test_build_job_paths_custom_function():
+    """COS paths for a custom function — user + provider-function keys, no provider-job keys."""
     runner, _ = _make_runner()
-    runner.job.author.username = "alice"
+    runner.job.author.username = "IBMid-50FJDA"
     runner.job.program.provider = None
     runner.job.program.title = "hello-world"
-    runner.job.id = "job-aaa-111"
+    runner.job.id = "8be4df61-93ca"
 
-    paths = runner._build_cos_paths()  # pylint: disable=protected-access
+    paths = build_job_paths(runner.job)
 
-    assert paths["user_function_prefix"] == "users/alice/provider_functions/default/hello-world"
-    assert paths["user_job_prefix"] == "users/alice/provider_functions/default/hello-world/jobs/job-aaa-111"
-    assert paths["user_log_key"] == "users/alice/provider_functions/default/hello-world/jobs/job-aaa-111/logs.log"
-    assert paths["provider_function_prefix"] == "providers/default/hello-world"
-    assert paths["provider_job_prefix"] == "providers/default/hello-world/jobs/job-aaa-111"
-    assert paths["provider_log_key"] == "providers/default/hello-world/jobs/job-aaa-111/logs.log"
-    assert paths["user_mount_path"] == "/data"
-    assert paths["provider_mount_path"] == "/function_data"
+    assert paths.cos_user_function_prefix == "users/IBMid-50FJDA/custom_functions/hello-world"
+    assert paths.cos_user_job_prefix == "users/IBMid-50FJDA/custom_functions/hello-world/jobs/8be4df61-93ca"
+    assert paths.cos_user_log_key == "users/IBMid-50FJDA/custom_functions/hello-world/jobs/8be4df61-93ca/logs.log"
+    assert paths.cos_results_key == "users/IBMid-50FJDA/custom_functions/hello-world/jobs/8be4df61-93ca/results.json"
+    assert paths.container_public_log_path == "/data/logs.log"
+    assert paths.container_private_log_path is None
+    assert paths.container_arguments_path == "/data/arguments.json"
+    assert paths.container_result_path == "/data/results.json"
+    assert paths.cos_provider_function_prefix is None
+    assert paths.cos_provider_log_key is None
 
 
-def test_build_cos_paths_provider_function():
+def test_build_job_paths_provider_function():
     """Full COS key paths for a provider function."""
     runner, _ = _make_runner()
-    runner.job.author.username = "alice"
+    runner.job.author.username = "IBMid-50FJDA"
     runner.job.program.provider = MagicMock()
-    runner.job.program.provider.name = "good-partner"
+    runner.job.program.provider.name = "Q-CTRL"
     runner.job.program.title = "sampler-v2"
-    runner.job.id = "job-bbb-222"
+    runner.job.id = "8be4df61-93ca"
 
-    paths = runner._build_cos_paths()  # pylint: disable=protected-access
+    paths = build_job_paths(runner.job)
 
-    assert paths["user_function_prefix"] == "users/alice/provider_functions/good-partner/sampler-v2"
-    assert paths["user_job_prefix"] == "users/alice/provider_functions/good-partner/sampler-v2/jobs/job-bbb-222"
-    assert paths["user_log_key"] == "users/alice/provider_functions/good-partner/sampler-v2/jobs/job-bbb-222/logs.log"
-    assert paths["provider_function_prefix"] == "providers/good-partner/sampler-v2"
-    assert paths["provider_job_prefix"] == "providers/good-partner/sampler-v2/jobs/job-bbb-222"
-    assert paths["provider_log_key"] == "providers/good-partner/sampler-v2/jobs/job-bbb-222/logs.log"
-    assert paths["user_mount_path"] == "/data"
-    assert paths["provider_mount_path"] == "/function_data"
+    assert paths.cos_user_function_prefix == "users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2"
+    assert paths.cos_user_job_prefix == "users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca"
+    assert paths.cos_user_log_key == "users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca/logs.log"  # fmt: skip
+    assert paths.cos_results_key == "users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca/results.json"  # fmt: skip
+
+    assert paths.container_public_log_path == "/data/logs.log"
+    assert paths.container_private_log_path == "/function_data/jobs/8be4df61-93ca/logs.log"
+    assert paths.container_arguments_path == "/data/arguments.json"
+    assert paths.container_result_path == "/data/results.json"
+    assert paths.cos_provider_function_prefix == "providers/Q-CTRL/sampler-v2"
+    assert paths.cos_provider_log_key == "providers/Q-CTRL/sampler-v2/jobs/8be4df61-93ca/logs.log"
 
 
 def test_submit_sets_fleet_id_without_cos():
@@ -416,14 +422,21 @@ def test_get_result_from_cos_returns_json_string():
     with (
         patch.object(runner, "_is_cos_configured", return_value=True),
         patch.object(runner, "_get_fleet_name", return_value="fleet-name"),
-        patch.object(
-            runner,
-            "_build_cos_paths",
-            return_value={
-                "user_job_prefix": "users/1/provider_functions/p/t/jobs/j",
-                "user_function_prefix": "users/1/provider_functions/p/t",
-                "provider_function_prefix": "providers/p/t",
-            },
+        patch(
+            f"{_RUNNER_MOD}.build_job_paths",
+            return_value=FleetJobPaths(
+                cos_user_function_prefix="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2",
+                cos_user_job_prefix="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca",
+                cos_user_log_key="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca/logs.log",
+                cos_results_key="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca/results.json",  # fmt: skip
+                cos_provider_function_prefix="providers/Q-CTRL/sampler-v2",
+                cos_provider_log_key="providers/Q-CTRL/sampler-v2/jobs/8be4df61-93ca/logs.log",
+                container_entrypoint="/function_data/sampler_v2.py",
+                container_public_log_path="/data/logs.log",
+                container_private_log_path="/function_data/jobs/8be4df61-93ca/logs.log",
+                container_arguments_path="/data/arguments.json",
+                container_result_path="/data/results.json",
+            ),
         ),
     ):
         result = runner.get_result_from_cos()
@@ -440,7 +453,6 @@ def test_get_result_from_cos_returns_none_on_exception():
     with (
         patch.object(runner, "_is_cos_configured", return_value=True),
         patch.object(runner, "_get_fleet_name", return_value="fleet-name"),
-        patch.object(runner, "_build_cos_paths", return_value={"user_job_prefix": "u/jobs/j"}),
     ):
         result = runner.get_result_from_cos()
 
@@ -556,59 +568,6 @@ def test_get_fleet_name_falls_back_on_exception():
     assert result == "job-job-uuid"
 
 
-def test_build_gateway_env_vars_returns_formatted_list():
-    """_build_gateway_env_vars() returns env vars formatted for Code Engine."""
-    runner, _ = _make_runner()
-    runner.job.env_vars = '{"KEY1": "val1", "KEY2": "val2"}'
-
-    with _patch_settings(FLEETS_GATEWAY_HOST=None), patch(f"{_RUNNER_MOD}.decrypt_env_vars", side_effect=lambda e: e):
-        result = runner._build_gateway_env_vars()  # pylint: disable=protected-access
-
-    assert result == [
-        {"type": "literal", "name": "KEY1", "value": "val1"},
-        {"type": "literal", "name": "KEY2", "value": "val2"},
-    ]
-
-
-def test_build_gateway_env_vars_decrypts_tokens():
-    """_build_gateway_env_vars() passes env vars through decrypt_env_vars."""
-    runner, _ = _make_runner()
-    runner.job.env_vars = '{"QISKIT_IBM_TOKEN": "encrypted", "SOME_URL": "http://example.com"}'
-
-    decrypted = {"QISKIT_IBM_TOKEN": "decrypted", "SOME_URL": "http://example.com"}
-    with patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value=decrypted) as mock_decrypt:
-        result = runner._build_gateway_env_vars()  # pylint: disable=protected-access
-
-    mock_decrypt.assert_called_once_with({"QISKIT_IBM_TOKEN": "encrypted", "SOME_URL": "http://example.com"})
-    assert {"type": "literal", "name": "QISKIT_IBM_TOKEN", "value": "decrypted"} in result
-    assert {"type": "literal", "name": "SOME_URL", "value": "http://example.com"} in result
-
-
-def test_build_gateway_env_vars_filters_empty_values():
-    """_build_gateway_env_vars() excludes entries with empty or None values."""
-    runner, _ = _make_runner()
-    runner.job.env_vars = '{"KEEP": "value", "EMPTY": "", "NULL_VAL": null}'
-
-    def passthrough(e):
-        return e
-
-    with _patch_settings(FLEETS_GATEWAY_HOST=None), patch(f"{_RUNNER_MOD}.decrypt_env_vars", side_effect=passthrough):
-        result = runner._build_gateway_env_vars()  # pylint: disable=protected-access
-
-    assert result == [{"type": "literal", "name": "KEEP", "value": "value"}]
-
-
-def test_build_gateway_env_vars_empty_env_vars():
-    """_build_gateway_env_vars() returns an empty list when job has no env vars and no gateway host."""
-    runner, _ = _make_runner()
-    runner.job.env_vars = "{}"
-
-    with _patch_settings(FLEETS_GATEWAY_HOST=None), patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value={}):
-        result = runner._build_gateway_env_vars()  # pylint: disable=protected-access
-
-    assert result == []
-
-
 def test_submit_includes_gateway_env_vars():
     """submit() includes decrypted gateway env vars in the run_env_variables."""
     runner, mock_handler = _make_submit_runner()
@@ -631,22 +590,12 @@ def test_submit_includes_gateway_env_vars():
 
     call_kwargs = mock_handler.submit_job.call_args.kwargs
     env_list = call_kwargs["extra_fields"]["run_env_variables"]
-    assert {"type": "literal", "name": "MY_TOKEN", "value": "decrypted_secret"} in env_list
-    assert {"type": "literal", "name": "MY_URL", "value": "http://example.com"} in env_list
-
-
-def test_build_gateway_env_vars_includes_gateway_host():
-    """_build_gateway_env_vars() injects ENV_JOB_GATEWAY_HOST from settings.FLEETS_GATEWAY_HOST."""
-    runner, _ = _make_runner()
-    runner.job.env_vars = "{}"
-
-    with (
-        _patch_settings(FLEETS_GATEWAY_HOST="https://gateway.example.com"),
-        patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value={}),
-    ):
-        result = runner._build_gateway_env_vars()  # pylint: disable=protected-access
-
-    assert {"type": "literal", "name": "ENV_JOB_GATEWAY_HOST", "value": "https://gateway.example.com"} in result
+    by_name = {e["name"]: e["value"] for e in env_list}
+    assert by_name["MY_TOKEN"] == "decrypted_secret"
+    assert by_name["MY_URL"] == "http://example.com"
+    assert by_name["ARGUMENTS_PATH"] == "/data/arguments.json"
+    assert by_name["RESULTS_PATH"] == "/data/results.json"
+    assert by_name["PUBLIC_LOG_PATH"] == "/data/logs.log"
 
 
 def test_submit_arguments_path_set_exactly_once():
