@@ -7,8 +7,9 @@ from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ObjectDoesNotExist
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import Job
+from core.models import Job, Program
 from api.access_policies.jobs import JobAccessPolicies
+from core.services.runners.fleets_runner import FleetsRunner
 from core.services.storage.result_storage import ResultStorage
 
 logger = logging.getLogger("api.JobRetrieveUseCase")
@@ -49,6 +50,8 @@ class JobRetrieveUseCase:
         if with_result and can_read_result:
             result_store = ResultStorage(job.author.username)
             result = result_store.get(str(job.id))
+            if result is None and job.runner == Program.FLEETS:
+                result = FleetsRunner(job).get_result_from_cos()
             if result is not None:
                 job.result = result
         else:

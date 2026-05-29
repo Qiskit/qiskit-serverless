@@ -222,7 +222,9 @@ class FleetsRunner(AbstractRunner):
                 )
 
                 gateway_env = self._build_gateway_env_vars()
-                run_env_variables.extend(e for e in gateway_env if e.get("name") != "ARGUMENTS_PATH")
+                run_env_variables.extend(
+                    e for e in gateway_env if e.get("name") not in ("ARGUMENTS_PATH", "RESULTS_PATH")
+                )
 
                 run_env_variables.extend(
                     [
@@ -667,6 +669,8 @@ class FleetsRunner(AbstractRunner):
         Returns:
             ``True`` when COS is fully configured.
         """
+        if not self._project:
+            self._project = self._get_project()
         if not self._project:
             return False
         return all(
