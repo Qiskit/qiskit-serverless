@@ -1,5 +1,17 @@
 # Fleet Wrapper — COS Upload Specification
 
+## Relevant files
+
+| File | Role |
+|------|------|
+| `gateway/templates/fleet_custom_job_wrapper.tmpl` | Shell wrapper for custom (user) jobs — single public log |
+| `gateway/templates/fleet_provider_job_wrapper.tmpl` | Shell wrapper for provider jobs — public + private logs |
+| `gateway/core/ibm_cloud/code_engine/fleets/utils.py` | Injects `LOG_SIZE_LIMIT_BYTES` and `LOG_FLUSH_INTERVAL_SECONDS` as env vars via `build_run_env_variables` |
+| `gateway/tests/core/services/ibm_cloud/code_engine/fleets/test_fleet_template.py` | Integration tests (Docker) for filtering, truncation, exit-code propagation, periodic flush |
+| `gateway/tests/core/services/ibm_cloud/code_engine/fleets/test_fleet_handler.py` | Unit tests for the fleet handler |
+
+---
+
 ## Specification
 
 ### 1. Periodic upload to COS
@@ -43,8 +55,8 @@ COS files are capped at `LOG_SIZE_LIMIT_BYTES` (default: 50 MB, injected by the 
 from `settings.FUNCTIONS_LOGS_SIZE_LIMIT`). When the limit is exceeded:
 
 - The COS file contains this human-readable truncation header followed by the most recent
-  `LOG_SIZE_LIMIT_BYTES` bytes (oldest lines are discarded first)
-  "Logs exceeded maximum allowed size (%s MB). Logs have been truncated, discarding the oldest entries first"
+  `LOG_SIZE_LIMIT_BYTES` bytes (oldest lines are discarded first):
+  `[Logs exceeded maximum allowed size (%s MB). Logs have been truncated, discarding the oldest entries first.]`
 - The local `/tmp` file is shrunk in-place to the same limit so disk usage stays bounded.
 - Both operations share a single `tail -c` read — the tail is written to a temp file
   (`.upload`) and reused for the COS write and the local restore.
@@ -53,12 +65,20 @@ When the source is within the limit a plain `cp` is used; no header is added.
 
 ### 5. Minimal disk usage
 
-The local `/tmp` files are bounded to approximately `2 × LOG_SIZE_LIMIT_BYTES` at peak:
+**Custom job wrapper** (single log): peak is approximately `2 × LOG_SIZE_LIMIT_BYTES`:
 
 - The local file itself: up to `LOG_SIZE_LIMIT_BYTES + N` (where N is the bytes written
   during the current interval, typically small).
 - The `.upload` temp file: `LOG_SIZE_LIMIT_BYTES` (exists only during the `tail`/`cat`
   operations, removed immediately after).
+
+**Provider job wrapper** (two logs): peak is approximately `3 × LOG_SIZE_LIMIT_BYTES`.
+The uploader flushes public and private logs **sequentially**, so at most one `.upload`
+temp file exists at a time:
+
+- `/tmp/public.log`: up to `LOG_SIZE_LIMIT_BYTES + N`
+- `/tmp/private.log`: up to `LOG_SIZE_LIMIT_BYTES + M`
+- The `.upload` temp file: `LOG_SIZE_LIMIT_BYTES` (shared between the two upload calls).
 
 ### 6. Inode preservation during local truncation
 
