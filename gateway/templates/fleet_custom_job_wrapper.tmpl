@@ -1,105 +1,131 @@
-{% autoescape off %}# Fleet wrapper for custom (user) jobs.
+{% autoescape off %}# Fleet wrapper for custom (user) jobs — Python implementation.
 #
 # In Fleets the gateway cannot read logs in real time from the worker, so the
-# wrapper that runs inside the container is responsible for shipping the logs
-# to COS itself. To avoid hammering the COS-backed mount on every line, we
-# write the application output to a local file in /tmp (fast disk) and
-# periodically copy it to the mount. A trap guarantees a final flush on exit
-# so no buffered tail is lost when the container terminates.
+# wrapper that runs inside the container ships the logs to COS itself.  Output
+# is written to a local /tmp file (fast disk) and periodically copied to the
+# COS-backed mount.  A signal handler + try/finally guarantee a final flush so
+# no buffered output is lost when the container terminates.
 #
-# Custom jobs only have a public log: the single file served by /logs to the
-# job's author, with no [PUBLIC] / [PRIVATE] split. The endpoint expects
-# prefixes already stripped, so any leading [PUBLIC] or [PRIVATE] tag is
-# removed in streaming via awk (equivalent to remove_prefix_tags_in_logs in
-# core.domain.filter_logs).
+# Custom jobs only have a public log: all lines go to the single file served
+# by /logs to the job's author.  [PUBLIC] and [PRIVATE] prefixes are stripped
+# (equivalent to remove_prefix_tags_in_logs in core.domain.filter_logs).
+import os, shutil, signal, subprocess, sys, threading
 
-set -eu
+_INTERVAL = int(os.environ.get('LOG_FLUSH_INTERVAL_SECONDS', 15))
+_LIMIT    = int(os.environ.get('LOG_SIZE_LIMIT_BYTES', 52428800))
+_DST_PUB  = os.environ['PUBLIC_LOG_PATH']
+_LOC_PUB  = '/tmp/public.log'
 
-# Upload period (seconds) between local -> COS copies. Defaults to 15s.
-INTERVAL="${LOG_FLUSH_INTERVAL_SECONDS:-15}"
-
-# Local working file. Append-only, fast, never read by COS during the run.
-LOCAL_PUBLIC="/tmp/public.log"
-
-# Sidecar file used to recover the application's exit code: the app runs
-# inside a pipeline (... | awk), so $? would refer to awk, not the app.
-EXIT_CODE_FILE="/tmp/app.status"
+_stop = threading.Event()
+_proc = None
+_t    = None
 
 
-# Returns the file size in bytes via a single stat syscall (no file read).
-file_size() {
-  stat -c %s "$1" 2>/dev/null || echo -1
-}
+def _size(path):
+    try:
+        return os.path.getsize(path)
+    except OSError:
+        return -1
+
+
+# Copies src to dst, capping output at _LIMIT bytes and shrinking src in-place
+# when the limit is exceeded — reading the tail only once for both operations.
+#
+# When within the limit a plain copy is used.  When over, the last _LIMIT bytes
+# are saved to a variable, written to dst with a truncation header, then
+# restored to src via truncate+seek+write so the inode is preserved and any
+# open write fd (the line-reader loop) remains valid after truncation.
+def _upload(src, dst, size=None):
+    if size is None:
+        size = _size(src)
+    if size < 0:
+        return
+    if size > _LIMIT:
+        mb  = _LIMIT // 1048576
+        hdr = (
+            '[Logs exceeded maximum allowed size ({} MB). Logs have been '
+            'truncated, discarding the oldest entries first.]\n'
+        ).format(mb).encode()
+        try:
+            with open(src, 'rb') as f:
+                f.seek(-_LIMIT, 2)
+                tail = f.read()
+            with open(dst, 'wb') as f:
+                f.write(hdr)
+                f.write(tail)
+            with open(src, 'r+b') as f:
+                f.truncate(0)
+                f.seek(0)
+                f.write(tail)
+        except OSError:
+            pass
+    else:
+        try:
+            shutil.copy(src, dst)
+        except OSError:
+            pass
+
 
 # Periodically copies the local log to COS, skipping no-op PUTs when the app
-# is silent. Sets UPLOADER_PID so flush_final can stop it on exit.
-start_uploader() {
-  (
-    last_log_size=-1
-    while :; do
-      sleep "$INTERVAL"
-      cur=$(file_size "$LOCAL_PUBLIC")
-      if [ "$cur" != "$last_log_size" ]; then
-        # New lines written since last upload — push to COS.
-        cp "$LOCAL_PUBLIC" "$PUBLIC_LOG_PATH" 2>/dev/null && last_log_size=$cur || true
-      fi
-    done
-  ) &
-  UPLOADER_PID=$!
-}
-start_uploader
+# is silent.  Runs as a daemon thread so it is killed automatically on exit.
+def _run_uploader():
+    last = -1
+    while not _stop.wait(_INTERVAL):
+        cur = _size(_LOC_PUB)
+        if cur != last:
+            _upload(_LOC_PUB, _DST_PUB, cur)
+            last = _size(_LOC_PUB)
 
-# On exit (normal, SIGTERM, SIGINT) stop the uploader and force one final
-# unconditional copy so the log on COS reflects the very last lines.
-flush_final() {
-  kill "$UPLOADER_PID" 2>/dev/null || true
-  cp "$LOCAL_PUBLIC" "$PUBLIC_LOG_PATH" 2>/dev/null || true
-}
-trap 'flush_final' EXIT TERM INT
 
-# Runs the app and records its exit code to $EXIT_CODE_FILE.
-# Must run in a subshell so set+e does not leak to the outer script.
-run_app() {
-  set +e
-  {{ app_cmd }} 2>&1
-  printf "%s\n" "$?" > "$EXIT_CODE_FILE"
-}
+# Stops the uploader thread (waits for any in-progress upload to finish), then
+# performs one final unconditional upload so the log on COS reflects the very
+# last lines written by the application.
+def _flush():
+    _stop.set()
+    if _t is not None:
+        _t.join(timeout=5)
+    _upload(_LOC_PUB, _DST_PUB)
 
-# Filters the app output for PUBLIC_LOG_PATH (served by /logs to the job author):
-#   - All lines are kept (user jobs have no hidden output).
-#   - [PUBLIC] and [PRIVATE] prefixes are stripped for cleaner output.
-# Equivalent to remove_prefix_tags_in_logs in core.domain.filter_logs.
-strip_prefixes() {
-  awk '{
-    head8 = toupper(substr($0, 1, 8))
-    head9 = toupper(substr($0, 1, 9))
-    if (head8 == "[PUBLIC]") {
-      print substr($0, 10)
-      fflush()
-    } else if (head9 == "[PRIVATE]") {
-      print substr($0, 11)
-      fflush()
-    } else {
-      print $0
-      fflush()
-    }
-  }'
-}
 
-( run_app ) | strip_prefixes >> "$LOCAL_PUBLIC"
+def _on_signal(sig, _frame):
+    if _proc is not None:
+        _proc.terminate()
+    _flush()
+    sys.exit(128 + sig)
 
-# Validate that we actually captured an exit code; if not, fail loudly so
-# the wrapper does not silently report success on a broken run.
-if [ ! -f "$EXIT_CODE_FILE" ]; then
-  echo "logging wrapper error: status file was not created" >&2
-  exit 1
-fi
-STATUS="$(cat "$EXIT_CODE_FILE")"
-case "$STATUS" in
-  ""|*[!0-9]*) echo "logging wrapper error: invalid status: $STATUS" >&2; exit 1 ;;
-esac
 
-# Propagate the application's real exit code; the EXIT trap fires now and
-# performs the final flush before the script terminates.
-exit "$STATUS"
+signal.signal(signal.SIGTERM, _on_signal)
+signal.signal(signal.SIGINT, _on_signal)
+
+_t = threading.Thread(target=_run_uploader, daemon=True)
+_t.start()
+
+_proc = subprocess.Popen(
+    {{ app_cmd }},
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
+    text=True,
+    encoding='utf-8',
+    errors='replace',
+    bufsize=1,
+)
+try:
+    with open(_LOC_PUB, 'a', buffering=1) as _pub:
+        for _line in _proc.stdout:
+            _h8 = _line[:8].upper()
+            _h9 = _line[:9].upper()
+            if _h8 == '[PUBLIC]':
+                _pub.write(_line[9:])
+                _pub.flush()
+            elif _h9 == '[PRIVATE]':
+                _pub.write(_line[10:])
+                _pub.flush()
+            else:
+                _pub.write(_line)
+                _pub.flush()
+    _code = _proc.wait()
+finally:
+    _flush()
+
+sys.exit(_code)
 {% endautoescape %}

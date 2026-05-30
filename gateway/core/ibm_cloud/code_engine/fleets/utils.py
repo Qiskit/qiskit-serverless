@@ -34,7 +34,7 @@ Example::
 
 from __future__ import annotations
 
-import shlex
+import json
 from dataclasses import dataclass
 from typing import Optional
 
@@ -180,6 +180,7 @@ def build_run_env_variables(
             "ARGUMENTS_PATH": paths.container_arguments_path,
             "RESULTS_PATH": paths.container_result_path,
             "LOG_FLUSH_INTERVAL_SECONDS": str(flush_interval),
+            "LOG_SIZE_LIMIT_BYTES": str(settings.FUNCTIONS_LOGS_SIZE_LIMIT),
         }
     )
     if paths.container_private_log_path is not None:
@@ -215,12 +216,12 @@ def build_run_commands(
         raise ValueError("app_run_commands is required.")
 
     app_parts = [*app_run_commands, *(app_run_arguments or [])]
-    app_cmd = " ".join(shlex.quote(part) for part in app_parts)
+    app_cmd = json.dumps(app_parts)
 
     template_name = "fleet_provider_job_wrapper.tmpl" if is_provider_function else "fleet_custom_job_wrapper.tmpl"
     script = get_template(template_name).render({"app_cmd": app_cmd})
 
-    return ["sh", "-c", script]
+    return ["python3", "-c", script]
 
 
 def build_custom_job_paths(job: Job) -> FleetJobPaths:
