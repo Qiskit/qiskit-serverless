@@ -30,12 +30,19 @@ def test_setup_gateway_tracing_uses_http_exporter(monkeypatch):
 
 def test_setup_gateway_tracing_default_endpoint(monkeypatch):
     """Default endpoint is the OTLP/HTTP port 4318 with /v1/traces path."""
-    monkeypatch.setenv("OTEL_ENABLED", "0")
+    monkeypatch.setenv("OTEL_ENABLED", "1")
     monkeypatch.delenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", raising=False)
 
     captured = {}
 
-    with patch("main.tracing.OTLPSpanExporter") as mock_exporter:
+    with (
+        patch("main.tracing.OTLPSpanExporter") as mock_exporter,
+        patch("main.tracing.TracerProvider"),
+        patch("main.tracing.BatchSpanProcessor"),
+        patch("main.tracing.trace"),
+        patch("main.tracing.DjangoInstrumentor"),
+        patch("main.tracing.Psycopg2Instrumentor"),
+    ):
         mock_exporter.return_value = MagicMock()
         import sys
 
@@ -53,9 +60,16 @@ def test_setup_gateway_tracing_default_endpoint(monkeypatch):
 
 def test_setup_gateway_tracing_no_insecure_param(monkeypatch):
     """HTTP exporter does not accept insecure= — verify it is not passed."""
-    monkeypatch.setenv("OTEL_ENABLED", "0")
+    monkeypatch.setenv("OTEL_ENABLED", "1")
 
-    with patch("main.tracing.OTLPSpanExporter") as mock_exporter:
+    with (
+        patch("main.tracing.OTLPSpanExporter") as mock_exporter,
+        patch("main.tracing.TracerProvider"),
+        patch("main.tracing.BatchSpanProcessor"),
+        patch("main.tracing.trace"),
+        patch("main.tracing.DjangoInstrumentor"),
+        patch("main.tracing.Psycopg2Instrumentor"),
+    ):
         mock_exporter.return_value = MagicMock()
         import sys
 

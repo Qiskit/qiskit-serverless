@@ -28,7 +28,7 @@ Example::
     mounts = build_run_volume_mounts(
         mounts=[("/output", "my-pds", "user/job-1")]
     )
-    env = build_run_env_variables(paths)
+    env = build_run_env_variables(paths, decrypted_env_vars)
     cmds = build_run_commands(app_run_commands=["python", "main.py"])
 """
 
@@ -149,56 +149,43 @@ def build_run_volume_mounts(
 
 def build_run_env_variables(
     paths: FleetJobPaths,
-    extra: list[dict[str, str]] | None = None,
+    stored_env_vars: dict[str, str | None],
 ) -> list[dict[str, str]]:
-    """
-    Build environment variables used by the logging wrapper command.
+    """Build the complete environment variable list for the Fleets container.
+
+    Starts with decrypted stored job env vars as the base, then overlays
+    system vars derived from paths. System vars always win on collision since
+    they define the container's filesystem layout. New vars added at job
+    creation time flow through automatically.
 
     Args:
         paths: Pre-computed paths for the job (from :func:`build_job_paths`).
-        extra: Additional environment variable definitions appended after the
-            ones built by this function.
+        stored_env_vars: Decrypted env vars dict from ``job.env_vars``.
 
     Returns:
-        Environment variable definitions for ``run_env_variables``.
+        List of env var dicts in Code Engine format
+        ``[{"type": "literal", "name": "...", "value": "..."}]``.
+        Empty values are excluded.
     """
+    env = dict(stored_env_vars)
+
+    gateway_host = getattr(settings, "FLEETS_GATEWAY_HOST", None)
+    if gateway_host:
+        env["ENV_JOB_GATEWAY_HOST"] = gateway_host
+
     flush_interval = getattr(settings, "FLEETS_LOG_FLUSH_INTERVAL_SECONDS", 15)
-    system_vars = [
+    env.update(
         {
-            "type": "literal",
-            "name": "PUBLIC_LOG_PATH",
-            "value": paths.container_public_log_path,
-        },
-        {
-            "type": "literal",
-            "name": "ARGUMENTS_PATH",
-            "value": paths.container_arguments_path,
-        },
-        {
-            "type": "literal",
-            "name": "RESULTS_PATH",
-            "value": paths.container_result_path,
-        },
-        {
-            "type": "literal",
-            "name": "LOG_FLUSH_INTERVAL_SECONDS",
-            "value": str(flush_interval),
-        },
-    ]
-
+            "PUBLIC_LOG_PATH": paths.container_public_log_path,
+            "ARGUMENTS_PATH": paths.container_arguments_path,
+            "RESULTS_PATH": paths.container_result_path,
+            "LOG_FLUSH_INTERVAL_SECONDS": str(flush_interval),
+        }
+    )
     if paths.container_private_log_path is not None:
-        system_vars.append(
-            {
-                "type": "literal",
-                "name": "PRIVATE_LOG_PATH",
-                "value": paths.container_private_log_path,
-            }
-        )
+        env["PRIVATE_LOG_PATH"] = paths.container_private_log_path
 
-    # Add the job env vars without overwriting the system vars
-    system_names = {v["name"] for v in system_vars}
-    user_vars = [e for e in (extra or []) if e["name"] not in system_names]
-    return system_vars + user_vars
+    return [{"type": "literal", "name": k, "value": v} for k, v in env.items() if v]
 
 
 def build_run_commands(

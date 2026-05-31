@@ -170,7 +170,8 @@ def test_submit_job_with_builder_extra_fields(mock_fleets_api_cls, project_id, b
                 container_private_log_path=None,
                 container_arguments_path="/output/arguments.json",
                 container_result_path="/output/results.json",
-            )
+            ),
+            {},
         ),
         "run_commands": build_run_commands(app_run_commands=["python", "main.py"]),
     }
@@ -691,58 +692,100 @@ def _make_paths(public_log_path="/output/logs.log", private_log_path=None, argum
     )
 
 
-def test_build_run_env_variables_public_only():
-    """build_run_env_variables returns PUBLIC_LOG_PATH, ARGUMENTS_PATH and RESULTS_PATH without PRIVATE_LOG_PATH."""
-    result = build_run_env_variables(_make_paths())
-    names = {e["name"] for e in result}
-    assert "PRIVATE_LOG_PATH" not in names
-    assert "PUBLIC_LOG_PATH" in names
-    assert "ARGUMENTS_PATH" in names
-    assert "RESULTS_PATH" in names
-    assert "LOG_FLUSH_INTERVAL_SECONDS" in names
+def test_build_run_env_variables_passes_through_stored_vars():
+    """build_run_env_variables passes stored env vars through to output."""
+    stored = {"ENV_JOB_GATEWAY_TOKEN": "tok", "CUSTOM_VAR": "custom"}
+    result = build_run_env_variables(_make_paths(), stored)
+    by_name = {e["name"]: e["value"] for e in result}
+    assert by_name["ENV_JOB_GATEWAY_TOKEN"] == "tok"
+    assert by_name["CUSTOM_VAR"] == "custom"
+    assert all(e["type"] == "literal" for e in result)
 
 
-def test_build_run_env_variables_with_private_path():
-    """build_run_env_variables exposes PRIVATE_LOG_PATH when container_private_log_path is set."""
+def test_build_run_env_variables_overlays_system_vars():
+    """build_run_env_variables includes system vars derived from paths."""
+    result = build_run_env_variables(_make_paths(), {})
+    by_name = {e["name"]: e["value"] for e in result}
+    assert by_name["PUBLIC_LOG_PATH"] == "/output/logs.log"
+    assert by_name["ARGUMENTS_PATH"] == "/output/arguments.json"
+    assert by_name["RESULTS_PATH"] == "/output/results.json"
+    assert by_name["LOG_FLUSH_INTERVAL_SECONDS"] == "15"
+    assert "PRIVATE_LOG_PATH" not in by_name
+
+
+def test_build_run_env_variables_system_vars_override_stored():
+    """build_run_env_variables system vars override stored vars with the same name."""
+    stored = {"ARGUMENTS_PATH": "/old/stale/path", "RESULTS_PATH": "/old/results.json"}
+    result = build_run_env_variables(_make_paths(arguments_path="/data/arguments.json"), stored)
+    names = [e["name"] for e in result]
+    assert len(names) == len(set(names)), f"Duplicate env var names: {names}"
+    by_name = {e["name"]: e["value"] for e in result}
+    assert by_name["ARGUMENTS_PATH"] == "/data/arguments.json"
+    assert by_name["RESULTS_PATH"] == "/output/results.json"
+
+
+def test_build_run_env_variables_no_duplicates():
+    """build_run_env_variables produces no duplicate env var names."""
+    stored = {"PUBLIC_LOG_PATH": "/old", "RESULTS_PATH": "/old/r.json", "MY_VAR": "v"}
+    result = build_run_env_variables(_make_paths(), stored)
+    names = [e["name"] for e in result]
+    assert len(names) == len(set(names))
+
+
+def test_build_run_env_variables_excludes_empty_values():
+    """build_run_env_variables excludes entries with empty or falsy values."""
+    stored = {"KEEP": "yes", "DROP": "", "ALSO_DROP": None}
+    result = build_run_env_variables(_make_paths(), stored)
+    by_name = {e["name"]: e["value"] for e in result}
+    assert "KEEP" in by_name
+    assert "DROP" not in by_name
+    assert "ALSO_DROP" not in by_name
+
+
+def test_build_run_env_variables_with_private_log():
+    """build_run_env_variables includes PRIVATE_LOG_PATH when container_private_log_path is set."""
     result = build_run_env_variables(
-        _make_paths(
-            public_log_path="/public/logs.log",
-            private_log_path="/private/logs.log",
-        )
+        _make_paths(public_log_path="/public/logs.log", private_log_path="/private/logs.log"),
+        {},
     )
     by_name = {e["name"]: e["value"] for e in result}
     assert by_name["PUBLIC_LOG_PATH"] == "/public/logs.log"
     assert by_name["PRIVATE_LOG_PATH"] == "/private/logs.log"
 
 
-def test_build_run_env_variables_default_flush_interval():
-    """build_run_env_variables defaults LOG_FLUSH_INTERVAL_SECONDS to 15 when setting is absent."""
-    result = build_run_env_variables(_make_paths())
-    interval = next(e for e in result if e["name"] == "LOG_FLUSH_INTERVAL_SECONDS")
-    assert interval["value"] == "15"
+def test_build_run_env_variables_without_private_log():
+    """build_run_env_variables omits PRIVATE_LOG_PATH when container_private_log_path is None."""
+    result = build_run_env_variables(_make_paths(private_log_path=None), {})
+    names = {e["name"] for e in result}
+    assert "PRIVATE_LOG_PATH" not in names
+
+
+def test_build_run_env_variables_gateway_host_override():
+    """build_run_env_variables overrides ENV_JOB_GATEWAY_HOST from FLEETS_GATEWAY_HOST setting."""
+    stored = {"ENV_JOB_GATEWAY_HOST": "https://original.example.com"}
+    with patch("core.ibm_cloud.code_engine.fleets.utils.settings") as mock_settings:
+        mock_settings.FLEETS_GATEWAY_HOST = "https://fleets.example.com"
+        mock_settings.FLEETS_LOG_FLUSH_INTERVAL_SECONDS = 15
+        result = build_run_env_variables(_make_paths(), stored)
+    by_name = {e["name"]: e["value"] for e in result}
+    assert by_name["ENV_JOB_GATEWAY_HOST"] == "https://fleets.example.com"
+
+
+def test_build_run_env_variables_flush_interval_default():
+    """build_run_env_variables defaults LOG_FLUSH_INTERVAL_SECONDS to 15."""
+    result = build_run_env_variables(_make_paths(), {})
+    by_name = {e["name"]: e["value"] for e in result}
+    assert by_name["LOG_FLUSH_INTERVAL_SECONDS"] == "15"
 
 
 def test_build_run_env_variables_flush_interval_from_settings():
-    """build_run_env_variables reads LOG_FLUSH_INTERVAL_SECONDS from FLEETS_LOG_FLUSH_INTERVAL_SECONDS setting."""
+    """build_run_env_variables reads LOG_FLUSH_INTERVAL_SECONDS from settings."""
     with patch("core.ibm_cloud.code_engine.fleets.utils.settings") as mock_settings:
         mock_settings.FLEETS_LOG_FLUSH_INTERVAL_SECONDS = 42
-        result = build_run_env_variables(_make_paths())
-    interval = next(e for e in result if e["name"] == "LOG_FLUSH_INTERVAL_SECONDS")
-    assert interval["value"] == "42"
-
-
-def test_build_run_env_variables_arguments_path():
-    """build_run_env_variables includes ARGUMENTS_PATH from paths."""
-    result = build_run_env_variables(_make_paths(arguments_path="/data/arguments.json"))
+        mock_settings.FLEETS_GATEWAY_HOST = None
+        result = build_run_env_variables(_make_paths(), {})
     by_name = {e["name"]: e["value"] for e in result}
-    assert by_name["ARGUMENTS_PATH"] == "/data/arguments.json"
-
-
-def test_build_run_env_variables_results_path():
-    """build_run_env_variables includes RESULTS_PATH from paths."""
-    result = build_run_env_variables(_make_paths())
-    by_name = {e["name"]: e["value"] for e in result}
-    assert by_name["RESULTS_PATH"] == "/output/results.json"
+    assert by_name["LOG_FLUSH_INTERVAL_SECONDS"] == "42"
 
 
 def test_build_run_commands_public_only():

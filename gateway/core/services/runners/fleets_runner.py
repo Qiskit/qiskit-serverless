@@ -201,7 +201,9 @@ class FleetsRunner(AbstractRunner):
                 paths = build_job_paths(self.job)
 
                 run_volume_mounts = build_run_volume_mounts_for_job(paths, self._project)
-                run_env_variables = build_run_env_variables(paths, self._build_job_env_vars())
+                stored_env_vars = json.loads(self.job.env_vars)
+                stored_env_vars = decrypt_env_vars(stored_env_vars)
+                run_env_variables = build_run_env_variables(paths, stored_env_vars)
                 run_commands = build_run_commands(
                     app_run_commands=["python", paths.container_entrypoint],
                     is_provider_function=self.job.program.provider is not None,
@@ -466,14 +468,6 @@ class FleetsRunner(AbstractRunner):
         if self._cos is None:
             self._cos = get_cos_client(self._project)
         return self._cos
-
-    def _build_job_env_vars(self) -> list[dict[str, str]]:
-        """Extract job env vars so the container can call save_result() and use Qiskit Runtime."""
-        env = json.loads(self.job.env_vars)
-        env = decrypt_env_vars(env)
-        env["ENV_JOB_GATEWAY_HOST"] = settings.FLEETS_GATEWAY_HOST
-
-        return [{"type": "literal", "name": k, "value": v} for k, v in env.items() if v]
 
     def _upload_artifact_to_cos(self, paths: FleetJobPaths) -> None:
         """Extract the program artifact tar and upload files to COS.
