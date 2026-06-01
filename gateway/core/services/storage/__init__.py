@@ -4,6 +4,8 @@ from core.models import Job, Program
 from core.services.storage.arguments_storage import ArgumentsStorage
 from core.services.storage.arguments_storage_fleets import FleetsArgumentsStorage
 from core.services.storage.arguments_storage_ray import RayArgumentsStorage
+from core.services.storage.file_storage import FileStorage
+from core.services.storage.file_storage_ray import FileStorageRay
 from core.services.storage.logs_storage import LogsStorage
 from core.services.storage.logs_storage_fleets import FleetsLogsStorage
 from core.services.storage.logs_storage_ray import RayLogsStorage
@@ -45,3 +47,25 @@ def get_logs_storage(job: Job) -> LogsStorage:
     if job.program.runner == Program.FLEETS:
         return FleetsLogsStorage(job)
     raise ValueError(f"Unknown runner type: {job.program.runner}")
+
+
+def get_file_storage(
+    username: str,
+    function: Program,
+) -> FileStorage:
+    """Factory: return the appropriate FileStorage for the job's program runner.
+
+    Args:
+        job: The Job instance whose program runner determines the implementation.
+
+    Returns:
+        A FileStorage instance appropriate for the runner type.
+
+    Raises:
+        ValueError: If the runner type is unknown.
+    """
+    if function.runner == Program.RAY:
+        return FileStorageRay(username, function)
+    if function.runner == Program.FLEETS:
+        return FileStorageRay(username, function)
+    raise ValueError(f"Unknown runner type: {function.runner}")
