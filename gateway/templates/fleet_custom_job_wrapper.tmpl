@@ -14,13 +14,20 @@ import os, shutil, signal, subprocess, sys, threading
 
 class JobWrapper:
     def __init__(self):
-        self.interval         = int(os.environ.get('LOG_FLUSH_INTERVAL_SECONDS', 15))  # how often the logs are uploaded
-        self.limit            = int(os.environ.get('LOG_SIZE_LIMIT_BYTES', 52428800))  # max bytes kept in COS per log
-        self.cos_public_path  = os.environ['PUBLIC_LOG_PATH']   # local path to COS mounted volume for public logs
-        self.loc_pub          = '/tmp/public.log'               # fast local buffer; periodically synced to COS
-        self.stop             = threading.Event()               # signals the uploader thread to stop
-        self.user_process     = None                            # user process with the real function, source of logs and exit code
-        self.uploader_thread  = None                            # background thread that periodically copies logs to COS
+        # how often the logs are uploaded
+        self.interval = int(os.environ.get('LOG_FLUSH_INTERVAL_SECONDS', 15))
+        # max bytes kept in COS per log
+        self.limit = int(os.environ.get('LOG_SIZE_LIMIT_BYTES', 52428800))
+        # local path to COS mounted volume for public logs
+        self.cos_public_path = os.environ['PUBLIC_LOG_PATH']
+        # fast local buffer; periodically synced to COS
+        self.loc_pub = '/tmp/public.log'
+        # signals the uploader thread to stop
+        self.stop = threading.Event()
+        # user process with the real function, source of logs and exit code
+        self.user_process = None
+        # background thread that periodically copies logs to COS
+        self.uploader_thread = None
 
     def file_size(self, path):
         try:
