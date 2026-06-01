@@ -118,6 +118,7 @@ class JobWrapper:
         if self.user_process is not None:
             self.user_process.terminate()
         self.flush()
+        # POSIX convention: exit code for signal-terminated processes is 128 + signal number
         sys.exit(128 + sig)
 
     # Routes a log line to (pub, stripped_line) or (priv, stripped_or_verbatim_line).
@@ -152,6 +153,9 @@ class JobWrapper:
                 # Process changes line by line
                 for line in self.user_process.stdout:
                     out, cleaned = self.clean_line(line, pub, priv)
+                    # out could be private logs or public, based on the prefix (or the absence of)
+                    # [PRIVATE] or no prefix, return priv (removing the prefix)
+                    # [PUBLIC] returns pub (removing the prefix)
                     out.write(cleaned)
                     out.flush()
             code = self.user_process.wait()
