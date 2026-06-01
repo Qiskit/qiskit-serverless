@@ -405,3 +405,28 @@ class COSClient:
             ClientError: If retrieval fails.
         """
         return self.get_object_stream(bucket=bucket, key=key).read()
+
+    def head_object(self, *, bucket: str, key: str) -> None:
+        """Check that an object exists.
+
+        Raises:
+            ClientError: If the object does not exist or an error occurs.
+        """
+        self._s3_hmac.head_object(Bucket=bucket, Key=key)
+
+    def generate_presigned_url(self, *, bucket: str, key: str, expiry: int = 3600) -> str:
+        """Generate a presigned GET URL for an object.
+
+        Args:
+            bucket: Bucket name.
+            key: Object key.
+            expiry: URL validity in seconds (default 3600).
+
+        Returns:
+            Presigned URL string.
+        """
+        return self._s3_hmac.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": bucket, "Key": key},
+            ExpiresIn=expiry,
+        )
