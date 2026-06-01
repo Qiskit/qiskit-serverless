@@ -79,7 +79,7 @@ class JobWrapper:
 
     # Periodically copies the local log to COS, skipping no-op PUTs when the
     # app is silent.  Runs as a daemon thread so it is killed automatically on exit.
-    def run_uploader(self):
+    def run_uploader_thread(self):
         last_size = -1
         while not self.stop.wait(self.interval):
             current_size = self.file_size(self.loc_pub)
@@ -112,12 +112,14 @@ class JobWrapper:
         return line
 
     def run(self):
-        signal.signal(signal.SIGTERM, self.on_signal)
-        signal.signal(signal.SIGINT, self.on_signal)
+        signal.signal(signal.SIGTERM, self.on_signal)  # container shutdown / kill
+        signal.signal(signal.SIGINT, self.on_signal)   # Ctrl+C
 
-        self.uploader_thread = threading.Thread(target=self.run_uploader, daemon=True)
+		# daemon True=thread will die with the current process
+        self.uploader_thread = threading.Thread(target=self.run_uploader_thread, daemon=True)
         self.uploader_thread.start()
 
+		# execute the real user function as a new process, so we can get the logs. 1 byte buffer=no buffer actually
         self.user_process = subprocess.Popen(
             {{ app_cmd }},
             stdout=subprocess.PIPE,
