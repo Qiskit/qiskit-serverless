@@ -52,6 +52,19 @@ class JobWrapper:
         except OSError:
             return -1
 
+    # Read the last bytes from the file (seek from end of file)
+    def tail(self, path, size):
+        with open(path, 'rb') as f:
+            f.seek(-size, 2)  # 2 = start from the end of file
+            return f.read()
+
+    # Shrink the file in-place, preserving the inode so the line-reader loop can keep writing to it
+    def truncate_file(self, path, content):
+        with open(path, 'r+b') as f:
+            f.truncate(0)
+            f.seek(0)
+            f.write(content)
+
     # Copies temporal_log_path to cos_path, capping output at LIMIT bytes
     # and shrinking temporal_log_path in-place when the limit is exceeded —
     # reading the tail only once for both operations.
@@ -67,19 +80,12 @@ class JobWrapper:
             return
         if size > LIMIT:
             try:
-                # Read the last LIMIT bytes from the local file
-                with open(temporal_log_path, 'rb') as f:
-                    f.seek(-LIMIT, 2)
-                    tail = f.read()
-                # Write the truncation header followed by the tail to COS
+                log_tail = self.tail(temporal_log_path, LIMIT)
+                # Write (upload to COS) the truncation header + the log tail
                 with open(cos_path, 'wb') as f:
                     f.write(TRUNCATION_HEADER)
-                    f.write(tail)
-                # Shrink the local file to LIMIT, preserving the inode so the line-reader loop can keep writing to it
-                with open(temporal_log_path, 'r+b') as f:
-                    f.truncate(0)
-                    f.seek(0)
-                    f.write(tail)
+                    f.write(log_tail)
+                self.truncate_file(temporal_log_path, log_tail)
             except OSError:
                 pass
         else:
