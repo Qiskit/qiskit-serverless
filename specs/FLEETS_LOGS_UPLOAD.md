@@ -4,8 +4,8 @@
 
 | File | Role |
 |------|------|
-| `gateway/templates/fleet_custom_job_wrapper.tmpl` | Python wrapper for custom (user) jobs — single public log |
-| `gateway/templates/fleet_provider_job_wrapper.tmpl` | Python wrapper for provider jobs — public + private logs |
+| `gateway/templates/fleet_custom_job_wrapper.py` | Python wrapper for custom (user) jobs — single public log |
+| `gateway/templates/fleet_provider_job_wrapper.py` | Python wrapper for provider jobs — public + private logs |
 | `gateway/core/ibm_cloud/code_engine/fleets/utils.py` | Renders the wrapper template and returns `["python3", "-c", script]`; injects `LOG_SIZE_LIMIT_BYTES` and `LOG_FLUSH_INTERVAL_SECONDS` as env vars via `build_run_env_variables` |
 | `gateway/tests/core/services/ibm_cloud/code_engine/fleets/test_fleet_template.py` | Integration tests (Docker) for filtering, truncation, exit-code propagation, periodic flush |
 | `gateway/tests/core/services/ibm_cloud/code_engine/fleets/test_fleet_handler.py` | Unit tests for the fleet handler |
@@ -30,13 +30,13 @@ Filtering is applied in Python as each line is read from the subprocess stdout,
 before any data reaches the local `/tmp` files.
 The size limit and upload logic operate on the already-filtered content.
 
-**Custom job wrapper** (`fleet_custom_job_wrapper.tmpl`):
+**Custom job wrapper** (`fleet_custom_job_wrapper.py`):
 
 - All output lines go to the public log.
 - `[PUBLIC]` and `[PRIVATE]` prefixes (case-insensitive) are stripped.
 - No private log exists.
 
-**Provider job wrapper** (`fleet_provider_job_wrapper.tmpl`):
+**Provider job wrapper** (`fleet_provider_job_wrapper.py`):
 
 - **Public log**: only `[PUBLIC]`-tagged lines, prefix stripped.
 - **Private log**: `[PRIVATE]`-tagged lines (prefix stripped) + all untagged lines verbatim.
@@ -87,7 +87,7 @@ heap — also RAM. Both contributions must be counted together.
 
 ### 6. Inode preservation during local truncation
 
-Local truncation opens the file with `open(src, 'r+b')` (no replace), then calls
+Local truncation opens the file with `open(temporal_log_path, 'r+b')` (no replace), then calls
 `f.truncate(0)` followed by `f.seek(0)` and `f.write(tail)` rather than replacing
 the file. This preserves the inode so any open write file descriptor (the line-reader
 loop appending to the log) remains valid after truncation. The brief race window between
@@ -156,7 +156,7 @@ Older lines are permanently discarded once they fall outside the tail window.
 ### Final flush (job exit)
 
 ```
-try/finally block fires → _flush() → upload_log (no pre-computed size)
+try/finally block fires → flush() → upload_log
   same behaviour as Phase 2/3 depending on current file size
   guarantees the very last lines written by the app reach COS
 ```
