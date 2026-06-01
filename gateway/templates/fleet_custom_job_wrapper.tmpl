@@ -64,7 +64,7 @@ class JobWrapper:
                 with open(cos_path, 'wb') as f:
                     f.write(hdr)
                     f.write(tail)
-                # Shrink the local file to self.limit, preserving the inode
+                # Shrink the local file to self.limit, preserving the inode so the line-reader loop can keep writing to it
                 with open(temporal_log_path, 'r+b') as f:
                     f.truncate(0)
                     f.seek(0)
