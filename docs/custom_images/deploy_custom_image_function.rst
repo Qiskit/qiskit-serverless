@@ -55,7 +55,7 @@ image and adding your implementation:
 .. code-block::
    :caption: Dockerfile for custom function image
 
-   FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.30.0
+   FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.32.0
 
    USER 0
    WORKDIR /runner
