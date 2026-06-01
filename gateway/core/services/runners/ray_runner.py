@@ -26,7 +26,8 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 
 from core.models import ComputeResource, Job, JobConfig, DEFAULT_PROGRAM_ENTRYPOINT
 from core.services.runners.abstract_runner import AbstractRunner, RunnerError
-from core.services.storage.file_storage import FileStorage, WorkingDir
+from core.services.storage import get_file_storage
+from core.services.storage.file_storage_ray import FileStorageRay
 from core.utils import retry_function, decrypt_env_vars, sanitize_file_path
 
 logger = logging.getLogger("RayRunner")
@@ -493,25 +494,17 @@ def _create_cluster_data(cluster_name: str, job: Job):
     if job.program.provider is not None:
         node_image = job.program.image
 
-    user_file_storage = FileStorage(
+    file_storage: FileStorageRay = get_file_storage(
         username=user.username,
-        working_dir=WorkingDir.USER_STORAGE,
         function=job.program,
     )
-    provider_file_storage = user_file_storage
-    if job.program.provider is not None:
-        provider_file_storage = FileStorage(
-            username=user.username,
-            working_dir=WorkingDir.PROVIDER_STORAGE,
-            function=job.program,
-        )
 
     cluster = get_template("rayclustertemplate.yaml")
     manifest = cluster.render(
         {
             "cluster_name": cluster_name,
-            "user_data_folder": user_file_storage.sub_path,
-            "provider_data_folder": provider_file_storage.sub_path,
+            "user_data_folder": file_storage.public_path,
+            "provider_data_folder": file_storage.private_path,
             "node_image": node_image,
             "workers": job_config.workers,
             "min_workers": job_config.min_workers,

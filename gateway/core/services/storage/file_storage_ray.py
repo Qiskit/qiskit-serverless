@@ -41,14 +41,14 @@ class FileStorageRay(FileStorage):
         function_title = function.title
         provider_name = function.provider.name if function.provider else None
 
-        self._public_path = PathBuilder.absolute_path(
+        self.public_path = PathBuilder.absolute_path(
             working_dir=WorkingDir.USER_STORAGE,
             username=username,
             function_title=function_title,
             provider_name=provider_name,
             extra_sub_path=None,
         )
-        self._private_path = PathBuilder.absolute_path(
+        self.private_path = PathBuilder.absolute_path(
             working_dir=WorkingDir.PROVIDER_STORAGE,
             username=username,
             function_title=function_title,
@@ -66,7 +66,7 @@ class FileStorageRay(FileStorage):
             list[str]: list of file names
         """
 
-        return self._get_files_in_path(self._public_path)
+        return self._get_files_in_path(self.public_path)
 
     def get_private_files(self) -> list[str]:
         """
@@ -78,7 +78,7 @@ class FileStorageRay(FileStorage):
             list[str]: list of file names
         """
 
-        return self._get_files_in_path(self._private_path)
+        return self._get_files_in_path(self.private_path)
 
     def _get_files_in_path(self, folder_path: str) -> list[str]:
         """Auxiliary method for getting files"""
