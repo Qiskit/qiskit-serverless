@@ -1,25 +1,17 @@
-{% autoescape off %}# Fleet wrapper for provider jobs — Python implementation.
+{% autoescape off %}# Fleet wrapper for custom (user) jobs — Python implementation.
 #
 # In Fleets the gateway cannot read logs in real time from the worker, so the
 # wrapper that runs inside the container ships the logs to COS itself.  Output
-# is written to two local /tmp files (fast disk) and periodically copied to
-# the COS-backed mount.  A signal handler + try/finally guarantee a final flush
-# so no buffered output is lost when the container terminates.
+# is written to a local /tmp file (fast disk) and periodically copied to the
+# COS-backed mount.  A signal handler + try/finally guarantee a final flush so
+# no buffered output is lost when the container terminates.
 #
-# Provider jobs split output into two logs:
-#
-#   $PUBLIC_LOG_PATH  (/logs, visible to the job author):
-#     Only [PUBLIC]-tagged lines, with the prefix stripped.
-#     Equivalent to filter_logs_with_public_tags in core.domain.filter_logs.
-#
-#   $PRIVATE_LOG_PATH (/provider-logs, visible to the provider):
-#     [PRIVATE]-tagged lines (prefix stripped) + all untagged lines verbatim.
-#     [PUBLIC] lines are excluded to protect provider IP.
-#     Equivalent to filter_logs_with_non_public_tags in core.domain.filter_logs.
-#
-# Matching is case-insensitive to mirror the Python re.IGNORECASE used in
-# core.domain.filter_logs.
+# Custom jobs only have a public log: all lines go to the single file served
+# by /logs to the job's author. [PUBLIC] and [PRIVATE] prefixes are stripped
+# (equivalent to remove_prefix_tags_in_logs in core.domain.filter_logs).
 import os, shutil, signal, subprocess, sys, threading
+
+app_cmd = {{ app_cmd }}
 
 
 class JobWrapper:
@@ -34,14 +26,8 @@ class JobWrapper:
         # Local path to COS mounted volume for public logs
         self.cos_public_path = os.environ['PUBLIC_LOG_PATH']
 
-        # Local path to COS mounted volume for private logs
-        self.cos_private_path = os.environ['PRIVATE_LOG_PATH']
-
-        # Fast local buffer for public lines; periodically synced to COS
+        # Fast local buffer; periodically synced to COS
         self.loc_pub = '/tmp/public.log'
-
-        # Fast local buffer for private lines; periodically synced to COS
-        self.loc_priv = '/tmp/private.log'
 
         # Signals the uploader thread to stop
         self.stop = threading.Event()
@@ -100,28 +86,24 @@ class JobWrapper:
             except OSError:
                 pass
 
-    # Periodically copies both local logs to COS, skipping no-op PUTs when the
-    # app is silent or no line has matched a given filter.  Runs as a daemon thread.
+    # Periodically copies the local log to COS, skipping no-op PUTs when the
+    # app is silent.  Runs as a daemon thread so it is killed automatically on exit.
     def run_uploader_thread(self):
-        last_public_size = last_private_size = -1
+        last_size = -1
         while not self.stop.wait(self.interval):
-            current_public_size = self.file_size(self.loc_pub)
-            if current_public_size != last_public_size:
-                self.upload_log(self.loc_pub, self.cos_public_path, current_public_size)
-                last_public_size = self.file_size(self.loc_pub)
-            current_private_size = self.file_size(self.loc_priv)
-            if current_private_size != last_private_size:
-                self.upload_log(self.loc_priv, self.cos_private_path, current_private_size)
-                last_private_size = self.file_size(self.loc_priv)
+            current_size = self.file_size(self.loc_pub)
+            if current_size != last_size:
+                self.upload_log(self.loc_pub, self.cos_public_path, current_size)
+                last_size = self.file_size(self.loc_pub)
 
     # Stops the uploader thread (waits for any in-progress upload to finish),
-    # then performs one final unconditional upload of both logs.
+    # then performs one final unconditional upload so the log on COS reflects
+    # the very last lines written by the application.
     def flush(self):
         self.stop.set()
         if self.uploader_thread is not None:
             self.uploader_thread.join(timeout=5)
-        self.upload_log(self.loc_pub,  self.cos_public_path)
-        self.upload_log(self.loc_priv, self.cos_private_path)
+        self.upload_log(self.loc_pub, self.cos_public_path)
 
     def on_signal(self, sig, _frame):
         if self.user_process is not None:
@@ -130,14 +112,13 @@ class JobWrapper:
         # POSIX convention: exit code for signal-terminated processes is 128 + signal number
         sys.exit(128 + sig)
 
-    # Routes a log line to (pub, stripped_line) or (priv, stripped_or_verbatim_line).
-    # [PUBLIC] lines go to pub; [PRIVATE] and untagged lines go to priv.
-    def clean_line(self, line, pub, priv):
+    # Strips [PUBLIC] and [PRIVATE] prefixes (case-insensitive) from a log line.
+    def clean_line(self, line):
         if line[:8].upper() == '[PUBLIC]':
-            return pub, line[9:]
+            return line[9:]
         if line[:9].upper() == '[PRIVATE]':
-            return priv, line[10:]
-        return priv, line
+            return line[10:]
+        return line
 
     def run(self):
         signal.signal(signal.SIGTERM, self.on_signal)  # container shutdown / kill
@@ -149,7 +130,7 @@ class JobWrapper:
 
 		# execute the real user function as a new process, so we can get the logs. 1 byte buffer=no buffer actually
         self.user_process = subprocess.Popen(
-            {{ app_cmd }},
+            app_cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
@@ -158,17 +139,13 @@ class JobWrapper:
             bufsize=1,
         )
         try:
-            # Listen to changes in the local temporal log files
-            with open(self.loc_pub,  'a', buffering=1) as pub, \
-                 open(self.loc_priv, 'a', buffering=1) as priv:
+            # Listen to changes in the local temporal log file
+            with open(self.loc_pub, 'a', buffering=1) as pub:
                 # Process changes line by line
                 for line in self.user_process.stdout:
-                    out, cleaned = self.clean_line(line, pub, priv)
-                    # out could be private logs or public, based on the prefix (or the absence of)
-                    # [PRIVATE] or no prefix, return priv (removing the prefix)
-                    # [PUBLIC] returns pub (removing the prefix)
-                    out.write(cleaned)
-                    out.flush()
+                	# custom job logs are public, and it contains all the logs, just remove the prefixes
+                    pub.write(self.clean_line(line))
+                    pub.flush()
             code = self.user_process.wait()
         finally:
             self.flush()

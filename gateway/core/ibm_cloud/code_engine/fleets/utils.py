@@ -218,7 +218,7 @@ def build_run_commands(
     app_parts = [*app_run_commands, *(app_run_arguments or [])]
     app_cmd = json.dumps(app_parts)
 
-    template_name = "fleet_provider_job_wrapper.tmpl" if is_provider_function else "fleet_custom_job_wrapper.tmpl"
+    template_name = "fleet_provider_job_wrapper.py" if is_provider_function else "fleet_custom_job_wrapper.py"
     script = get_template(template_name).render({"app_cmd": app_cmd})
 
     return ["python3", "-c", script]
