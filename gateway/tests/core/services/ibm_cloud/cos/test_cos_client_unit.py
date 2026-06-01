@@ -222,3 +222,36 @@ def test_get_object_bytes_reads_body() -> None:
 
     assert data == b"payload"
     mock_s3.get_object.assert_called_once_with(Bucket="b", Key="k")
+
+
+def test_head_object_calls_s3_head_object() -> None:
+    """head_object() delegates to the underlying S3 head_object."""
+    client, mock_s3 = _make_client()
+    client.head_object(bucket="my-bucket", key="some/key")
+    mock_s3.head_object.assert_called_once_with(Bucket="my-bucket", Key="some/key")
+
+
+def test_generate_presigned_url_calls_s3_generate_presigned_url() -> None:
+    """generate_presigned_url() delegates to the underlying S3 client."""
+    client, mock_s3 = _make_client()
+    mock_s3.generate_presigned_url.return_value = "https://cos.example.com/key?sig=abc"
+
+    url = client.generate_presigned_url(bucket="my-bucket", key="some/key", expiry=1800)
+
+    mock_s3.generate_presigned_url.assert_called_once_with(
+        "get_object",
+        Params={"Bucket": "my-bucket", "Key": "some/key"},
+        ExpiresIn=1800,
+    )
+    assert url == "https://cos.example.com/key?sig=abc"
+
+
+def test_generate_presigned_url_default_expiry() -> None:
+    """generate_presigned_url() uses 3600s expiry by default."""
+    client, mock_s3 = _make_client()
+    mock_s3.generate_presigned_url.return_value = "https://cos.example.com/key?sig=abc"
+
+    client.generate_presigned_url(bucket="my-bucket", key="some/key")
+
+    _, kwargs = mock_s3.generate_presigned_url.call_args
+    assert kwargs["ExpiresIn"] == 3600
