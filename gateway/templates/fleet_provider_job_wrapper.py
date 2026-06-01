@@ -61,6 +61,8 @@ class JobWrapper:
         self.user_process = None
         # Background thread that periodically copies logs to COS
         self.uploader_thread = None
+        # Exit code set by signal handler; None means normal termination
+        self.exit_code = None
 
     def file_size(self, path):
         try:
@@ -106,7 +108,7 @@ class JobWrapper:
                 pass
         else:
             try:
-                shutil.copy(temporal_log_path, cos_path)
+                shutil.copyfile(temporal_log_path, cos_path)
             except OSError:
                 pass
 
@@ -136,9 +138,8 @@ class JobWrapper:
     def on_signal(self, sig, _frame):
         if self.user_process is not None:
             self.user_process.terminate()
-        self.flush()
         # POSIX convention: exit code for signal-terminated processes is 128 + signal number
-        sys.exit(128 + sig)
+        self.exit_code = 128 + sig
 
     # Routes a log line to (pub, stripped_line) or (priv, stripped_or_verbatim_line).
     # [PUBLIC] lines go to pub; [PRIVATE] and untagged lines go to priv.
@@ -183,7 +184,7 @@ class JobWrapper:
         finally:
             self.flush()
 
-        sys.exit(code)
+        sys.exit(self.exit_code if self.exit_code is not None else code)
 
 
 JobWrapper().run()

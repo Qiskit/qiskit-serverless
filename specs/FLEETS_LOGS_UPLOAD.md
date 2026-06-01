@@ -47,9 +47,11 @@ The size limit and upload logic operate on the already-filtered content.
 ### 3. Exit code propagation
 
 The wrapper launches the application via `subprocess.Popen` and captures its exit code
-with `proc.wait()`. The wrapper exits with the real application exit code. The
-`try/finally` block guarantees a final flush before the process terminates, regardless
-of whether the application exits normally or the container receives SIGTERM/SIGINT.
+with `proc.wait()`. The wrapper exits with the real application exit code, or `128 +
+signal_number` when terminated by a signal. The SIGTERM/SIGINT handler only terminates
+the child process and records the exit code; the `try/finally` block performs a single
+final flush before the process exits, regardless of whether the application exits
+normally or the container receives a signal.
 
 ### 4. Log size limit
 
