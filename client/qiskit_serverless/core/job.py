@@ -364,9 +364,6 @@ def _get_result_path() -> str:
 
     os.makedirs(os.path.dirname(results_path), exist_ok=True)
 
-    if not os.path.isfile(results_path):
-        raise QiskitServerlessException(f"Error saving results: {results_path} is not a file or doesn't exist")
-
     return results_path
 
 

@@ -1,8 +1,10 @@
 """Tests for utilities."""
 
 import pytest
+from typing import Union, Literal
 from unittest.mock import MagicMock
 
+from core.models import Job, Program
 from api.domain.authentication.channel import Channel
 from api.utils import (
     build_env_variables,
@@ -19,16 +21,62 @@ from core.utils import (
 class TestUtils:
     """TestUtils."""
 
+    @staticmethod
+    def _create_mock_job(
+        job_id: str,
+        job_author_username: str,
+        program_title: str,
+        program_provider: str = None,
+        arguments: dict = None,
+        runner: Literal[Program.FLEETS, Program.RAY] = Program.FLEETS,
+        instances: Union[str, list[str]] = None,
+        trial_instances: Union[str, list[str]] = None,
+        trial: bool = False,
+    ) -> Job:
+        """Create a mock job."""
+        job = MagicMock()
+        job.id = job_id
+        job.author.username = job_author_username
+        job.program.title = program_title
+        if program_provider is None:
+            job.program.provider = None
+        else:
+            job.program.provider.name = program_provider
+        job.trial = trial
+        job.runner = runner
+
+        if not arguments:
+            arguments = {}
+        job.arguments = arguments
+
+        if isinstance(instances, str):
+            instances = [instances]
+        if isinstance(instances, list):
+            job.instance_crn = instances
+
+        if isinstance(trial_instances, str):
+            trial_instances = [trial_instances]
+        if isinstance(instances, list):
+            job.trial_instances = trial_instances
+
+        return job
+
     def test_ibm_cloud_env_var_build(self, settings):
         """This test is to test the env_vars for an IBM Cloud authentication process."""
         settings.SETTINGS_AUTH_MECHANISM = "custom_token"
         channel = Channel.IBM_QUANTUM_PLATFORM
         token = "an_awesome_api_key"
-        job = MagicMock()
-        job.id = "42"
         trial = False
         arguments = "{}"
         instance = "an_awesome_crn"
+
+        job = TestUtils._create_mock_job(
+            job_id="42",
+            job_author_username="an_awesome_username",
+            program_title="an_awesome_program",
+            instances=["an_awesome_crn"],
+            trial=False,
+        )
 
         env_vars = build_env_variables(
             channel=channel,
@@ -48,7 +96,7 @@ class TestUtils:
             "ENV_ACCESS_TRIAL": "False",
             "DATA_PATH": "/data",
             "ARGUMENTS_PATH": "/data/arguments/42.json",
-            "RESULTS_PATH": "/data/results/42.json",
+            "RESULTS_PATH": "/data/results/42.json",  # This is the container result path.
             "QISKIT_IBM_TOKEN": "an_awesome_api_key",
             "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
             "QISKIT_IBM_INSTANCE": "an_awesome_crn",
@@ -61,13 +109,17 @@ class TestUtils:
         settings.RAY_CLUSTER_MODE_LOCAL = True
         channel = Channel.IBM_QUANTUM_PLATFORM
         token = "an_awesome_api_key"
-        job = MagicMock()
-        job.author.username = "IBMid-691000IC75"
-        job.program.provider = None
-        job.id = "42"
         trial = False
         arguments = "{}"
         instance = "an_awesome_crn"
+
+        job = TestUtils._create_mock_job(
+            job_id="42",
+            job_author_username="IBMid-691000IC75",
+            program_title="an_awesome_program",
+            instances=["an_awesome_crn"],
+            trial=False,
+        )
 
         env_vars = build_env_variables(
             channel=channel,
@@ -100,13 +152,13 @@ class TestUtils:
         settings.RAY_CLUSTER_MODE_LOCAL = True
         channel = Channel.LOCAL
         token = "mock_token"
-        job = MagicMock()
-        job.author.username = "IBMid-691000IC75"
-        job.program.provider = None
-        job.id = "42"
         trial = False
         arguments = "{}"
         instance = None
+
+        job = TestUtils._create_mock_job(
+            job_id="42", job_author_username="IBMid-691000IC75", program_title="an_awesome_program", trial=False
+        )
 
         env_vars = build_env_variables(
             channel=channel,
@@ -137,15 +189,18 @@ class TestUtils:
         settings.RAY_CLUSTER_MODE_LOCAL = True
         channel = Channel.IBM_QUANTUM_PLATFORM
         token = "an_awesome_api_key"
-        job = MagicMock()
-        job.author.username = "IBMid-691000IC75"
-        job.program.title = "my-function"
-        job.program.provider = MagicMock()
-        job.program.provider.name = "mockprovider"
-        job.id = "42"
         trial = False
         arguments = "{}"
         instance = "an_awesome_crn"
+
+        job = TestUtils._create_mock_job(
+            job_id="42",
+            job_author_username="IBMid-691000IC75",
+            program_title="my-function",
+            program_provider="mockprovider",
+            instances=["an_awesome_crn"],
+            trial=False,
+        )
 
         env_vars = build_env_variables(
             channel=channel,
@@ -178,15 +233,17 @@ class TestUtils:
         settings.RAY_CLUSTER_MODE_LOCAL = True
         channel = Channel.LOCAL
         token = "mock_token"
-        job = MagicMock()
-        job.author.username = "IBMid-691000IC75"
-        job.program.title = "my-function"
-        job.program.provider = MagicMock()
-        job.program.provider.name = "mockprovider"
-        job.id = "42"
         trial = False
         arguments = "{}"
         instance = None
+
+        job = TestUtils._create_mock_job(
+            job_id="42",
+            job_author_username="IBMid-691000IC75",
+            program_title="my-function",
+            program_provider="mockprovider",
+            trial=trial,
+        )
 
         env_vars = build_env_variables(
             channel=channel,
@@ -221,6 +278,10 @@ class TestUtils:
         trial = True
         arguments = "{}"
         instance = None
+
+        job = TestUtils._create_mock_job(
+            job_id="42", job_author_username="USER", program_title="my-function", instances=instance, trial=trial
+        )
 
         env_vars = build_env_variables(
             channel=channel,
