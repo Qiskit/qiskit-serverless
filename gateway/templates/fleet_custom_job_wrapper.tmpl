@@ -7,26 +7,33 @@
 # no buffered output is lost when the container terminates.
 #
 # Custom jobs only have a public log: all lines go to the single file served
-# by /logs to the job's author.  [PUBLIC] and [PRIVATE] prefixes are stripped
+# by /logs to the job's author. [PUBLIC] and [PRIVATE] prefixes are stripped
 # (equivalent to remove_prefix_tags_in_logs in core.domain.filter_logs).
 import os, shutil, signal, subprocess, sys, threading
 
 
 class JobWrapper:
     def __init__(self):
-        # how often the logs are uploaded
+
+        # How often the logs are uploaded
         self.interval = int(os.environ.get('LOG_FLUSH_INTERVAL_SECONDS', 15))
-        # max bytes kept in COS per log
+
+        # Max bytes kept in COS per log before truncating
         self.limit = int(os.environ.get('LOG_SIZE_LIMIT_BYTES', 52428800))
-        # local path to COS mounted volume for public logs
+
+        # Local path to COS mounted volume for public logs
         self.cos_public_path = os.environ['PUBLIC_LOG_PATH']
-        # fast local buffer; periodically synced to COS
+
+        # Fast local buffer; periodically synced to COS
         self.loc_pub = '/tmp/public.log'
-        # signals the uploader thread to stop
+
+        # Signals the uploader thread to stop
         self.stop = threading.Event()
-        # user process with the real function, source of logs and exit code
+
+        # User process with the real function, source of logs and exit code
         self.user_process = None
-        # background thread that periodically copies logs to COS
+
+        # Background thread that periodically copies logs to COS
         self.uploader_thread = None
 
     def file_size(self, path):

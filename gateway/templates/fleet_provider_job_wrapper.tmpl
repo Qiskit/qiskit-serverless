@@ -24,23 +24,32 @@ import os, shutil, signal, subprocess, sys, threading
 
 class JobWrapper:
     def __init__(self):
-        # how often the logs are uploaded
+
+        # How often the logs are uploaded
         self.interval = int(os.environ.get('LOG_FLUSH_INTERVAL_SECONDS', 15))
-        # max bytes kept in COS per log
+
+        # Max bytes kept in COS per log before truncating
         self.limit = int(os.environ.get('LOG_SIZE_LIMIT_BYTES', 52428800))
-        # local path to COS mounted volume for public logs
+
+        # Local path to COS mounted volume for public logs
         self.cos_public_path = os.environ['PUBLIC_LOG_PATH']
-        # local path to COS mounted volume for private logs
+
+        # Local path to COS mounted volume for private logs
         self.cos_private_path = os.environ['PRIVATE_LOG_PATH']
-        # fast local buffer for public lines; periodically synced to COS
+
+        # Fast local buffer for public lines; periodically synced to COS
         self.loc_pub = '/tmp/public.log'
-        # fast local buffer for private lines; periodically synced to COS
+
+        # Fast local buffer for private lines; periodically synced to COS
         self.loc_priv = '/tmp/private.log'
-        # signals the uploader thread to stop
+
+        # Signals the uploader thread to stop
         self.stop = threading.Event()
-        # user process with the real function, source of logs and exit code
+
+        # User process with the real function, source of logs and exit code
         self.user_process = None
-        # background thread that periodically copies logs to COS
+
+        # Background thread that periodically copies logs to COS
         self.uploader_thread = None
 
     def file_size(self, path):
