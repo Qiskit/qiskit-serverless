@@ -94,16 +94,16 @@ class JobWrapper:
     # Periodically copies both local logs to COS, skipping no-op PUTs when the
     # app is silent or no line has matched a given filter.  Runs as a daemon thread.
     def run_uploader(self):
-        last_pub = last_priv = -1
+        last_public_size = last_private_size = -1
         while not self.stop.wait(self.interval):
-            cur = self.file_size(self.loc_pub)
-            if cur != last_pub:
-                self.upload_log(self.loc_pub, self.cos_public_path, cur)
-                last_pub = self.file_size(self.loc_pub)
-            cur = self.file_size(self.loc_priv)
-            if cur != last_priv:
-                self.upload_log(self.loc_priv, self.cos_private_path, cur)
-                last_priv = self.file_size(self.loc_priv)
+            current_public_size = self.file_size(self.loc_pub)
+            if current_public_size != last_public_size:
+                self.upload_log(self.loc_pub, self.cos_public_path, current_public_size)
+                last_public_size = self.file_size(self.loc_pub)
+            current_private_size = self.file_size(self.loc_priv)
+            if current_private_size != last_private_size:
+                self.upload_log(self.loc_priv, self.cos_private_path, current_private_size)
+                last_private_size = self.file_size(self.loc_priv)
 
     # Stops the uploader thread (waits for any in-progress upload to finish),
     # then performs one final unconditional upload of both logs.
