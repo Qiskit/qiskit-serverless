@@ -30,11 +30,11 @@ LOCAL_PUBLIC_LOG = '/tmp/public.log'
 PUBLIC_TAG = '[PUBLIC]'
 PRIVATE_TAG = '[PRIVATE]'
 
-# Truncation header written to COS when the log exceeds LIMIT (filled with MB at upload time)
+# Truncation header written to COS when the log exceeds LIMIT
 TRUNCATION_HEADER = (
     '[Logs exceeded maximum allowed size ({} MB). Logs have been '
     'truncated, discarding the oldest entries first.]\n'
-)
+).format(LIMIT // 1048576).encode()
 
 
 class JobWrapper:
@@ -66,7 +66,6 @@ class JobWrapper:
         if size < 0:
             return
         if size > LIMIT:
-            hdr = TRUNCATION_HEADER.format(LIMIT // 1048576).encode()
             try:
                 # Read the last LIMIT bytes from the local file
                 with open(temporal_log_path, 'rb') as f:
@@ -74,7 +73,7 @@ class JobWrapper:
                     tail = f.read()
                 # Write the truncation header followed by the tail to COS
                 with open(cos_path, 'wb') as f:
-                    f.write(hdr)
+                    f.write(TRUNCATION_HEADER)
                     f.write(tail)
                 # Shrink the local file to LIMIT, preserving the inode so the line-reader loop can keep writing to it
                 with open(temporal_log_path, 'r+b') as f:
