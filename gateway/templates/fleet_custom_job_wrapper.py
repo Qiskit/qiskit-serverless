@@ -11,30 +11,38 @@
 # (equivalent to remove_prefix_tags_in_logs in core.domain.filter_logs).
 import os, shutil, signal, subprocess, sys, threading
 
+# Command to run (injected by the gateway template engine)
 app_cmd = {{ app_cmd }}
+
+# How often the logs are uploaded (seconds)
+INTERVAL = int(os.environ.get('LOG_FLUSH_INTERVAL_SECONDS', 15))
+
+# Max bytes kept in COS per log before truncating
+LIMIT = int(os.environ.get('LOG_SIZE_LIMIT_BYTES', 52428800))
+
+# Local path to COS mounted volume for public logs
+COS_PUBLIC_PATH = os.environ['PUBLIC_LOG_PATH']
+
+# Fast local buffer; periodically synced to COS
+LOCAL_PUBLIC_LOG = '/tmp/public.log'
+
+# Log prefix tags for line filtering (case-insensitive)
+PUBLIC_TAG = '[PUBLIC]'
+PRIVATE_TAG = '[PRIVATE]'
+
+# Truncation header written to COS when the log exceeds LIMIT (filled with MB at upload time)
+TRUNCATION_HEADER = (
+    '[Logs exceeded maximum allowed size ({} MB). Logs have been '
+    'truncated, discarding the oldest entries first.]\n'
+)
 
 
 class JobWrapper:
     def __init__(self):
-
-        # How often the logs are uploaded
-        self.interval = int(os.environ.get('LOG_FLUSH_INTERVAL_SECONDS', 15))
-
-        # Max bytes kept in COS per log before truncating
-        self.limit = int(os.environ.get('LOG_SIZE_LIMIT_BYTES', 52428800))
-
-        # Local path to COS mounted volume for public logs
-        self.cos_public_path = os.environ['PUBLIC_LOG_PATH']
-
-        # Fast local buffer; periodically synced to COS
-        self.loc_pub = '/tmp/public.log'
-
         # Signals the uploader thread to stop
         self.stop = threading.Event()
-
         # User process with the real function, source of logs and exit code
         self.user_process = None
-
         # Background thread that periodically copies logs to COS
         self.uploader_thread = None
 
@@ -44,36 +52,31 @@ class JobWrapper:
         except OSError:
             return -1
 
-    # Copies temporal_log_path to cos_path, capping output at self.limit bytes
+    # Copies temporal_log_path to cos_path, capping output at LIMIT bytes
     # and shrinking temporal_log_path in-place when the limit is exceeded —
     # reading the tail only once for both operations.
     #
     # When within the limit a plain copy is used.  When over, the last
-    # self.limit bytes are saved to a variable, written to cos_path with a
+    # LIMIT bytes are saved to a variable, written to cos_path with a
     # truncation header, then restored to temporal_log_path via
     # truncate+seek+write so the inode is preserved and any open write fd
     # (the line-reader loop) remains valid after truncation.
-    def upload_log(self, temporal_log_path, cos_path, size=None):
-        if size is None:
-            size = self.file_size(temporal_log_path)
+    def upload_log(self, temporal_log_path, cos_path):
+        size = self.file_size(temporal_log_path)
         if size < 0:
             return
-        if size > self.limit:
-            mb  = self.limit // 1048576
-            hdr = (
-                '[Logs exceeded maximum allowed size ({} MB). Logs have been '
-                'truncated, discarding the oldest entries first.]\n'
-            ).format(mb).encode()
+        if size > LIMIT:
+            hdr = TRUNCATION_HEADER.format(LIMIT // 1048576).encode()
             try:
-                # Read the last self.limit bytes from the local file
+                # Read the last LIMIT bytes from the local file
                 with open(temporal_log_path, 'rb') as f:
-                    f.seek(-self.limit, 2)
+                    f.seek(-LIMIT, 2)
                     tail = f.read()
                 # Write the truncation header followed by the tail to COS
                 with open(cos_path, 'wb') as f:
                     f.write(hdr)
                     f.write(tail)
-                # Shrink the local file to self.limit, preserving the inode so the line-reader loop can keep writing to it
+                # Shrink the local file to LIMIT, preserving the inode so the line-reader loop can keep writing to it
                 with open(temporal_log_path, 'r+b') as f:
                     f.truncate(0)
                     f.seek(0)
@@ -90,11 +93,11 @@ class JobWrapper:
     # app is silent.  Runs as a daemon thread so it is killed automatically on exit.
     def run_uploader_thread(self):
         last_size = -1
-        while not self.stop.wait(self.interval):
-            current_size = self.file_size(self.loc_pub)
+        while not self.stop.wait(INTERVAL):
+            current_size = self.file_size(LOCAL_PUBLIC_LOG)
             if current_size != last_size:
-                self.upload_log(self.loc_pub, self.cos_public_path, current_size)
-                last_size = self.file_size(self.loc_pub)
+                self.upload_log(LOCAL_PUBLIC_LOG, COS_PUBLIC_PATH)
+                last_size = self.file_size(LOCAL_PUBLIC_LOG)
 
     # Stops the uploader thread (waits for any in-progress upload to finish),
     # then performs one final unconditional upload so the log on COS reflects
@@ -103,7 +106,7 @@ class JobWrapper:
         self.stop.set()
         if self.uploader_thread is not None:
             self.uploader_thread.join(timeout=5)
-        self.upload_log(self.loc_pub, self.cos_public_path)
+        self.upload_log(LOCAL_PUBLIC_LOG, COS_PUBLIC_PATH)
 
     def on_signal(self, sig, _frame):
         if self.user_process is not None:
@@ -114,21 +117,21 @@ class JobWrapper:
 
     # Strips [PUBLIC] and [PRIVATE] prefixes (case-insensitive) from a log line.
     def clean_line(self, line):
-        if line[:8].upper() == '[PUBLIC]':
-            return line[9:]
-        if line[:9].upper() == '[PRIVATE]':
-            return line[10:]
+        if line[:len(PUBLIC_TAG)].upper() == PUBLIC_TAG:
+            return line[len(PUBLIC_TAG) + 1:]
+        if line[:len(PRIVATE_TAG)].upper() == PRIVATE_TAG:
+            return line[len(PRIVATE_TAG) + 1:]
         return line
 
     def run(self):
         signal.signal(signal.SIGTERM, self.on_signal)  # container shutdown / kill
         signal.signal(signal.SIGINT, self.on_signal)   # Ctrl+C
 
-		# daemon True=thread will die with the current process
+        # daemon=True: thread will die with the current process
         self.uploader_thread = threading.Thread(target=self.run_uploader_thread, daemon=True)
         self.uploader_thread.start()
 
-		# execute the real user function as a new process, so we can get the logs. 1 byte buffer=no buffer actually
+        # Execute the real user function as a new process, so we can capture the logs. bufsize=1: line-buffered
         self.user_process = subprocess.Popen(
             app_cmd,
             stdout=subprocess.PIPE,
@@ -140,10 +143,10 @@ class JobWrapper:
         )
         try:
             # Listen to changes in the local temporal log file
-            with open(self.loc_pub, 'a', buffering=1) as pub:
+            with open(LOCAL_PUBLIC_LOG, 'a', buffering=1) as pub:
                 # Process changes line by line
                 for line in self.user_process.stdout:
-                	# custom job logs are public, and it contains all the logs, just remove the prefixes
+                    # custom job logs are public, and it contains all the logs, just remove the prefixes
                     pub.write(self.clean_line(line))
                     pub.flush()
             code = self.user_process.wait()
