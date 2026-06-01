@@ -11,121 +11,123 @@
 # (equivalent to remove_prefix_tags_in_logs in core.domain.filter_logs).
 import os, shutil, signal, subprocess, sys, threading
 
-_INTERVAL = int(os.environ.get('LOG_FLUSH_INTERVAL_SECONDS', 15))
-_LIMIT    = int(os.environ.get('LOG_SIZE_LIMIT_BYTES', 52428800))
-_DST_PUB  = os.environ['PUBLIC_LOG_PATH']
-_LOC_PUB  = '/tmp/public.log'
 
-_stop = threading.Event()
-_proc = None
-_t    = None
+class JobWrapper:
+    def __init__(self):
+        self.interval  = int(os.environ.get('LOG_FLUSH_INTERVAL_SECONDS', 15))
+        self.limit     = int(os.environ.get('LOG_SIZE_LIMIT_BYTES', 52428800))
+        self.dst_pub   = os.environ['PUBLIC_LOG_PATH']
+        self.loc_pub   = '/tmp/public.log'
+        self.stop      = threading.Event()
+        self.proc      = None
+        self.uploader  = None
 
-
-def _size(path):
-    try:
-        return os.path.getsize(path)
-    except OSError:
-        return -1
-
-
-# Copies src to dst, capping output at _LIMIT bytes and shrinking src in-place
-# when the limit is exceeded — reading the tail only once for both operations.
-#
-# When within the limit a plain copy is used.  When over, the last _LIMIT bytes
-# are saved to a variable, written to dst with a truncation header, then
-# restored to src via truncate+seek+write so the inode is preserved and any
-# open write fd (the line-reader loop) remains valid after truncation.
-def _upload(src, dst, size=None):
-    if size is None:
-        size = _size(src)
-    if size < 0:
-        return
-    if size > _LIMIT:
-        mb  = _LIMIT // 1048576
-        hdr = (
-            '[Logs exceeded maximum allowed size ({} MB). Logs have been '
-            'truncated, discarding the oldest entries first.]\n'
-        ).format(mb).encode()
+    def file_size(self, path):
         try:
-            with open(src, 'rb') as f:
-                f.seek(-_LIMIT, 2)
-                tail = f.read()
-            with open(dst, 'wb') as f:
-                f.write(hdr)
-                f.write(tail)
-            with open(src, 'r+b') as f:
-                f.truncate(0)
-                f.seek(0)
-                f.write(tail)
+            return os.path.getsize(path)
         except OSError:
-            pass
-    else:
+            return -1
+
+    # Copies src to dst, capping output at self.limit bytes and shrinking src
+    # in-place when the limit is exceeded — reading the tail only once for both
+    # operations.
+    #
+    # When within the limit a plain copy is used.  When over, the last
+    # self.limit bytes are saved to a variable, written to dst with a truncation
+    # header, then restored to src via truncate+seek+write so the inode is
+    # preserved and any open write fd (the line-reader loop) remains valid after
+    # truncation.
+    def upload_log(self, src, dst, size=None):
+        if size is None:
+            size = self.file_size(src)
+        if size < 0:
+            return
+        if size > self.limit:
+            mb  = self.limit // 1048576
+            hdr = (
+                '[Logs exceeded maximum allowed size ({} MB). Logs have been '
+                'truncated, discarding the oldest entries first.]\n'
+            ).format(mb).encode()
+            try:
+                with open(src, 'rb') as f:
+                    f.seek(-self.limit, 2)
+                    tail = f.read()
+                with open(dst, 'wb') as f:
+                    f.write(hdr)
+                    f.write(tail)
+                with open(src, 'r+b') as f:
+                    f.truncate(0)
+                    f.seek(0)
+                    f.write(tail)
+            except OSError:
+                pass
+        else:
+            try:
+                shutil.copy(src, dst)
+            except OSError:
+                pass
+
+    # Periodically copies the local log to COS, skipping no-op PUTs when the
+    # app is silent.  Runs as a daemon thread so it is killed automatically on exit.
+    def run_uploader(self):
+        last = -1
+        while not self.stop.wait(self.interval):
+            cur = self.file_size(self.loc_pub)
+            if cur != last:
+                self.upload_log(self.loc_pub, self.dst_pub, cur)
+                last = self.file_size(self.loc_pub)
+
+    # Stops the uploader thread (waits for any in-progress upload to finish),
+    # then performs one final unconditional upload so the log on COS reflects
+    # the very last lines written by the application.
+    def flush(self):
+        self.stop.set()
+        if self.uploader is not None:
+            self.uploader.join(timeout=5)
+        self.upload_log(self.loc_pub, self.dst_pub)
+
+    def on_signal(self, sig, _frame):
+        if self.proc is not None:
+            self.proc.terminate()
+        self.flush()
+        sys.exit(128 + sig)
+
+    def run(self):
+        signal.signal(signal.SIGTERM, self.on_signal)
+        signal.signal(signal.SIGINT, self.on_signal)
+
+        self.uploader = threading.Thread(target=self.run_uploader, daemon=True)
+        self.uploader.start()
+
+        self.proc = subprocess.Popen(
+            {{ app_cmd }},
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            bufsize=1,
+        )
         try:
-            shutil.copy(src, dst)
-        except OSError:
-            pass
+            with open(self.loc_pub, 'a', buffering=1) as pub:
+                for line in self.proc.stdout:
+                    h8 = line[:8].upper()
+                    h9 = line[:9].upper()
+                    if h8 == '[PUBLIC]':
+                        pub.write(line[9:])
+                        pub.flush()
+                    elif h9 == '[PRIVATE]':
+                        pub.write(line[10:])
+                        pub.flush()
+                    else:
+                        pub.write(line)
+                        pub.flush()
+            code = self.proc.wait()
+        finally:
+            self.flush()
+
+        sys.exit(code)
 
 
-# Periodically copies the local log to COS, skipping no-op PUTs when the app
-# is silent.  Runs as a daemon thread so it is killed automatically on exit.
-def _run_uploader():
-    last = -1
-    while not _stop.wait(_INTERVAL):
-        cur = _size(_LOC_PUB)
-        if cur != last:
-            _upload(_LOC_PUB, _DST_PUB, cur)
-            last = _size(_LOC_PUB)
-
-
-# Stops the uploader thread (waits for any in-progress upload to finish), then
-# performs one final unconditional upload so the log on COS reflects the very
-# last lines written by the application.
-def _flush():
-    _stop.set()
-    if _t is not None:
-        _t.join(timeout=5)
-    _upload(_LOC_PUB, _DST_PUB)
-
-
-def _on_signal(sig, _frame):
-    if _proc is not None:
-        _proc.terminate()
-    _flush()
-    sys.exit(128 + sig)
-
-
-signal.signal(signal.SIGTERM, _on_signal)
-signal.signal(signal.SIGINT, _on_signal)
-
-_t = threading.Thread(target=_run_uploader, daemon=True)
-_t.start()
-
-_proc = subprocess.Popen(
-    {{ app_cmd }},
-    stdout=subprocess.PIPE,
-    stderr=subprocess.STDOUT,
-    text=True,
-    encoding='utf-8',
-    errors='replace',
-    bufsize=1,
-)
-try:
-    with open(_LOC_PUB, 'a', buffering=1) as _pub:
-        for _line in _proc.stdout:
-            _h8 = _line[:8].upper()
-            _h9 = _line[:9].upper()
-            if _h8 == '[PUBLIC]':
-                _pub.write(_line[9:])
-                _pub.flush()
-            elif _h9 == '[PRIVATE]':
-                _pub.write(_line[10:])
-                _pub.flush()
-            else:
-                _pub.write(_line)
-                _pub.flush()
-    _code = _proc.wait()
-finally:
-    _flush()
-
-sys.exit(_code)
+JobWrapper().run()
 {% endautoescape %}
