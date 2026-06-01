@@ -67,12 +67,23 @@ class QiskitObjectsDecoder(RuntimeDecoder):
         if "__type__" in obj:
             obj_type = obj["__type__"]
 
+            # Only reconstruct known types, and only from a well-formed mapping
+            # of string keys. This prevents a malicious/compromised gateway from
+            # splatting an arbitrarily-shaped "__value__" into these
+            # constructors (which would otherwise be attacker-controlled kwargs).
+            value = obj.get("__value__")
+
+            def _safe_kwargs() -> dict:
+                if not isinstance(value, dict) or not all(isinstance(k, str) for k in value):
+                    raise ValueError(f"Invalid '__value__' payload for type '{obj_type}'.")
+                return value
+
             if obj_type == "QiskitRuntimeService":
-                return QiskitRuntimeService(**obj["__value__"])
+                return QiskitRuntimeService(**_safe_kwargs())
             if obj_type == "SamplerResult":
-                return SamplerResult(**obj["__value__"])
+                return SamplerResult(**_safe_kwargs())
             if obj_type == "EstimatorResult":
-                return EstimatorResult(**obj["__value__"])
+                return EstimatorResult(**_safe_kwargs())
             return super().object_hook(obj)
         return obj
 

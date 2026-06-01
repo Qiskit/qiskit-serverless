@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import tarfile
 import time
@@ -493,17 +494,31 @@ class FleetsRunner(AbstractRunner):
                 for member in tar.getmembers():
                     if not member.isfile():
                         continue
+
+                    # Defend against path traversal: a crafted archive could use
+                    # member names like "../../other-user/results.json" to write
+                    # COS keys outside this job's prefix. Reject absolute paths
+                    # and any name that escapes via "..".
+                    normalized_name = os.path.normpath(member.name)
+                    if os.path.isabs(normalized_name) or normalized_name.startswith(".."):
+                        logger.warning(
+                            "Skipping unsafe artifact member [%s] for job_id=%s",
+                            member.name,
+                            self.job.id,
+                        )
+                        continue
+
                     extracted = tar.extractfile(member)
                     if extracted is None:
                         continue
 
-                    if member.name == entrypoint_name:
+                    if normalized_name == entrypoint_name:
                         bucket_name = provider_bucket if is_provider else user_bucket
                         prefix = paths.cos_provider_function_prefix if is_provider else paths.cos_user_function_prefix
-                        key = f"{prefix}/{member.name}"
+                        key = f"{prefix}/{normalized_name}"
                     else:
                         bucket_name = user_bucket
-                        key = f"{paths.cos_user_job_prefix}/{member.name}"
+                        key = f"{paths.cos_user_job_prefix}/{normalized_name}"
 
                     self._get_cos().upload_fileobj(fileobj=extracted, bucket_name=bucket_name, key=key)
                     logger.debug("Uploaded [%s] for job_id=%s to %s/%s", member.name, self.job.id, bucket_name, key)

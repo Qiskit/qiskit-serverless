@@ -24,6 +24,7 @@ from api.serializers import (
     JobConfigSerializer,
     RunJobSerializer,
     JobSerializer,
+    JobSerializerWithoutResult,
     RunProgramSerializer,
     UploadProgramSerializer,
 )
@@ -92,6 +93,15 @@ class ProgramViewSet(viewsets.GenericViewSet):
         """
 
         return JobSerializer(*args, **kwargs)
+
+    @staticmethod
+    def get_serializer_job_without_result(*args, **kwargs):
+        """
+        This method returns the job serializer that omits the (author-private)
+        result field, for listings that a provider can read across authors.
+        """
+
+        return JobSerializerWithoutResult(*args, **kwargs)
 
     def get_serializer_class(self):
         return self.serializer_class
@@ -425,10 +435,14 @@ class ProgramViewSet(viewsets.GenericViewSet):
             )
 
         if user_is_provider:
+            # A provider admin may list every author's jobs for the function,
+            # but results are author-private (gated by JobAccessPolicies
+            # everywhere else), so never serialize the `result` field here.
             jobs = Job.objects.filter(program=program)
+            serializer = self.get_serializer_job_without_result(jobs, many=True)
         else:
             jobs = Job.objects.filter(program=program, author=request.user)
-        serializer = self.get_serializer_job(jobs, many=True)
+            serializer = self.get_serializer_job(jobs, many=True)
         logger.info(
             "[programs-get-jobs] user_id=%s program_id=%s program=%s | Jobs listed ok",
             request.user.id,

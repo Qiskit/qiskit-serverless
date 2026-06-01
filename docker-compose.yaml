@@ -47,6 +47,9 @@ services:
     user: "root" # root user is needed to write on volumes
     environment:
       - DEBUG=0
+      # Local-only dev secret. With DEBUG=0 the app fails closed without this.
+      - DJANGO_SECRET_KEY=django-insecure-local-compose-only-change-me
+      - ALLOWED_HOSTS=*
       - RAY_HOST=http://ray-head:8265
       - RAY_CLUSTER_MODE_LOCAL=true
       - DJANGO_SUPERUSER_USERNAME=admin
@@ -76,6 +79,9 @@ services:
     entrypoint: "./entrypoint-scheduler.sh"
     environment:
       - DEBUG=0
+      # Local-only dev secret. With DEBUG=0 the app fails closed without this.
+      - DJANGO_SECRET_KEY=django-insecure-local-compose-only-change-me
+      - ALLOWED_HOSTS=*
       - DATABASE_HOST=postgres
       - DATABASE_PORT=5432
       - DATABASE_NAME=serverlessdb

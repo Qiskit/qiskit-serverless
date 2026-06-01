@@ -16,6 +16,9 @@ import os
 import os.path
 import sys
 from pathlib import Path
+
+from django.core.exceptions import ImproperlyConfigured
+
 from core.utils import sanitize_file_path
 
 RELEASE_VERSION = os.environ.get("VERSION", "UNKNOWN")
@@ -36,21 +39,34 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
+# SECURITY WARNING: don't run with debug turned on in production!
+# Defaults to off (0); set DEBUG=1 explicitly for local development only.
+DEBUG = int(os.environ.get("DEBUG", 0))
+
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get(
-    "DJANGO_SECRET_KEY",
-    "django-insecure-&)i3b5aue*#-i6k9i-03qm(d!0h&662lbhj12on_*gimn3x8p7",
-)
+# A hardcoded fallback is only allowed in development/tests. When DEBUG is off
+# (i.e. production) the process must fail closed if no key is provided, so we
+# never silently sign sessions/tokens with a publicly known key.
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+if not SECRET_KEY:
+    if DEBUG or IS_TEST:
+        SECRET_KEY = "django-insecure-&)i3b5aue*#-i6k9i-03qm(d!0h&662lbhj12on_*gimn3x8p7"
+    else:
+        raise ImproperlyConfigured("DJANGO_SECRET_KEY environment variable must be set when DEBUG is disabled.")
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = int(os.environ.get("DEBUG", 1))
+# Dedicated secret used to encrypt user tokens at rest. Falls back to
+# SECRET_KEY when unset; provision a distinct value to decouple token
+# encryption from session/CSRF signing. Rotating this value invalidates
+# previously encrypted env vars (they will be re-supplied on the next run).
+TOKENS_ENCRYPTION_KEY = os.environ.get("TOKENS_ENCRYPTION_KEY")
 
-# SECURITY WARNING: don't run with debug turned on in production!
-LOG_LEVEL = "DEBUG" if int(os.environ.get("DEBUG", 1)) else "INFO"
+LOG_LEVEL = "DEBUG" if DEBUG else "INFO"
 LOG_FORMAT = "json" if os.environ.get("LOG_FORMAT", "simple") == "json" else "simple"
 
 # It must be a full url without protocol: mydomain.com
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
+# In production (DEBUG off) require an explicit allowlist instead of "*", which
+# otherwise enables Host header attacks (cache poisoning, password-reset, etc.).
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*" if DEBUG else "localhost").split(",")
 
 # It must be a full url: https://mydomain.com
 CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", "http://localhost").split(",")
@@ -109,10 +125,16 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "main.urls"
 
+# Extra template directory (e.g. the ray cluster template delivered via a
+# configmap mount). Defaults to a non-world-writable path; do NOT point this at
+# a shared/world-writable location such as /tmp where a co-resident process
+# could drop a malicious template into Django's search path.
+GATEWAY_TEMPLATES_DIR = os.environ.get("GATEWAY_TEMPLATES_DIR", "/etc/gateway/templates")
+
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates", "/tmp/templates"],
+        "DIRS": [BASE_DIR / "templates", GATEWAY_TEMPLATES_DIR],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -227,9 +249,15 @@ ALL_AUTH_CLASSES_CONFIGURATION = {
         "api.authentication.MockTokenBackend",
     ],
 }
-DJR_DEFAULT_AUTHENTICATION_CLASSES = ALL_AUTH_CLASSES_CONFIGURATION.get(
-    SETTINGS_AUTH_MECHANISM, ALL_AUTH_CLASSES_CONFIGURATION["mock_token"]
-)
+# Fail closed on an unknown mechanism instead of silently falling back to the
+# insecure mock_token backend (which authenticates anyone presenting a static
+# shared token).
+if SETTINGS_AUTH_MECHANISM not in ALL_AUTH_CLASSES_CONFIGURATION:
+    raise ImproperlyConfigured(
+        f"Unknown SETTINGS_AUTH_MECHANISM '{SETTINGS_AUTH_MECHANISM}'. "
+        f"Valid values are: {list(ALL_AUTH_CLASSES_CONFIGURATION)}."
+    )
+DJR_DEFAULT_AUTHENTICATION_CLASSES = ALL_AUTH_CLASSES_CONFIGURATION[SETTINGS_AUTH_MECHANISM]
 # mock token value
 SETTINGS_AUTH_MOCK_TOKEN = os.environ.get("SETTINGS_AUTH_MOCK_TOKEN", "awesome_token")
 SETTINGS_AUTH_MOCKPROVIDER_REGISTRY = os.environ.get("SETTINGS_AUTH_MOCKPROVIDER_REGISTRY", None)

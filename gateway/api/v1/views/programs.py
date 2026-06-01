@@ -40,6 +40,10 @@ class ProgramViewSet(views.ProgramViewSet):
     def get_serializer_job(*args, **kwargs):
         return v1_serializers.JobSerializer(*args, **kwargs)
 
+    @staticmethod
+    def get_serializer_job_without_result(*args, **kwargs):
+        return v1_serializers.JobSerializerWithoutResult(*args, **kwargs)
+
     @swagger_auto_schema(
         operation_description="List author Qiskit Functions",
         manual_parameters=[
