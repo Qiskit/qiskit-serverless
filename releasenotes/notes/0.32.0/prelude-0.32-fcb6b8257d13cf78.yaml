@@ -1,0 +1,2 @@
+prelude: >
+    ``qiskit_serverless v0.32.0`` fixes a couple of bugs from 0.31.0, improves telemetry collection, updates dependencies and drops Python 3.9 support.
