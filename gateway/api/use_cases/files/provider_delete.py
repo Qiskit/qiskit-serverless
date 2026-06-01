@@ -13,7 +13,7 @@ from api.domain.exceptions.file_not_found_exception import FileNotFoundException
 from api.repositories.providers import ProviderRepository
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import Program as Function
-from core.services.storage.file_storage import FileStorage, WorkingDir
+from core.services.storage import get_file_storage
 
 logger = logging.getLogger("api.FilesProviderDeleteUseCase")
 
@@ -24,7 +24,6 @@ class FilesProviderDeleteUseCase:
     """
 
     provider_repository = ProviderRepository()
-    working_dir = WorkingDir.PROVIDER_STORAGE
 
     def execute(
         self,
@@ -56,12 +55,11 @@ class FilesProviderDeleteUseCase:
         if not function:
             raise FunctionNotFoundException(function=function_title, provider=provider_name)
 
-        file_storage = FileStorage(
+        file_storage = get_file_storage(
             username=user.username,
-            working_dir=self.working_dir,
             function=function,
         )
-        result = file_storage.remove_file(file_name=file_name)
+        result = file_storage.remove_private_file(file_name=file_name)
 
         if not result:
             raise FileNotFoundException()

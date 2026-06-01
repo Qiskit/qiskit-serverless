@@ -10,7 +10,7 @@ from api.domain.exceptions.function_not_found_exception import FunctionNotFoundE
 from api.domain.exceptions.file_not_found_exception import FileNotFoundException
 
 from core.models import RUN_PROGRAM_PERMISSION
-from core.services.storage.file_storage import FileStorage, WorkingDir
+from core.services.storage import get_file_storage
 from core.models import Program as Function
 
 logger = logging.getLogger("api.FilesDownloadUseCase")
@@ -20,8 +20,6 @@ class FilesDownloadUseCase:
     """
     Download a file from user storage use case.
     """
-
-    working_dir = WorkingDir.USER_STORAGE
 
     def execute(
         self,
@@ -43,12 +41,11 @@ class FilesDownloadUseCase:
         if not function:
             raise FunctionNotFoundException(function=function_title)
 
-        file_storage = FileStorage(
+        file_storage = get_file_storage(
             username=user.username,
-            working_dir=self.working_dir,
             function=function,
         )
-        result = file_storage.get_file_stream(file_name=requested_file_name)
+        result = file_storage.get_public_file_stream(file_name=requested_file_name)
 
         if result is None:
             raise FileNotFoundException()
