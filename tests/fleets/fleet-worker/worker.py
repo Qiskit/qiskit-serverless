@@ -1,13 +1,16 @@
 """Fleet worker that polls for job manifests in MinIO and executes them."""
 
+from __future__ import annotations
+
 import json
 import logging
 import os
 import subprocess
 import time
 
-import boto3
 from botocore.exceptions import ClientError
+
+from storage import StorageManager
 
 logging.basicConfig(
     level=logging.INFO,
@@ -16,295 +19,32 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-MINIO_ENDPOINT = os.environ["MINIO_ENDPOINT"]
-MINIO_ACCESS_KEY = os.environ["MINIO_ACCESS_KEY"]
-MINIO_SECRET_KEY = os.environ["MINIO_SECRET_KEY"]
 FLEET_STATE_BUCKET = os.environ["FLEET_STATE_BUCKET"]
 TASK_STORE_BUCKET = os.environ["TASK_STORE_BUCKET"]
-USER_DATA_BUCKET = os.environ["USER_DATA_BUCKET"]
-PROVIDER_DATA_BUCKET = os.environ["PROVIDER_DATA_BUCKET"]
-
-MOUNT_USER_DATA = "/mnt/user-data"
-MOUNT_PROVIDER_DATA = "/mnt/provider-data"
-S3FS_PASSWD_FILE = "/etc/s3fs-passwd"
 
 
-def create_s3_client():
-    """Create a boto3 S3 client connected to MinIO.
+class FleetWorker:
+    """Polls for job manifests and executes them locally."""
 
-    Returns:
-        A boto3 S3 client configured for the local MinIO instance.
-    """
-    return boto3.client(
-        "s3",
-        endpoint_url=MINIO_ENDPOINT,
-        aws_access_key_id=MINIO_ACCESS_KEY,
-        aws_secret_access_key=MINIO_SECRET_KEY,
-    )
+    def __init__(self, *, storage: StorageManager) -> None:
+        """Initialize the fleet worker.
 
+        Args:
+            storage: The storage manager handling S3 and s3fs operations.
+        """
+        self._storage = storage
 
-def setup_s3fs_mounts():
-    """Write s3fs credentials and mount user-data and provider-data buckets."""
-    with open(S3FS_PASSWD_FILE, "w", encoding="utf-8") as f:
-        f.write(f"{MINIO_ACCESS_KEY}:{MINIO_SECRET_KEY}")
-    os.chmod(S3FS_PASSWD_FILE, 0o600)
-
-    os.makedirs(MOUNT_USER_DATA, exist_ok=True)
-    os.makedirs(MOUNT_PROVIDER_DATA, exist_ok=True)
-
-    mount_bucket(USER_DATA_BUCKET, MOUNT_USER_DATA)
-    mount_bucket(PROVIDER_DATA_BUCKET, MOUNT_PROVIDER_DATA)
-
-    logger.info("Verifying user-data mount: %s", os.listdir(MOUNT_USER_DATA))
-    logger.info("Verifying provider-data mount: %s", os.listdir(MOUNT_PROVIDER_DATA))
-    print("s3fs mounts ready", flush=True)
-
-
-def mount_bucket(bucket, mount_point):
-    """Mount an S3 bucket via s3fs.
-
-    Args:
-        bucket: The S3 bucket name to mount.
-        mount_point: The local filesystem path to mount the bucket at.
-
-    Raises:
-        RuntimeError: If the s3fs mount command fails.
-    """
-    cmd = [
-        "s3fs",
-        bucket,
-        mount_point,
-        "-o",
-        f"url={MINIO_ENDPOINT}",
-        "-o",
-        f"passwd_file={S3FS_PASSWD_FILE}",
-        "-o",
-        "use_path_request_style",
-        "-o",
-        "stat_cache_expire=1",
-        "-o",
-        "allow_other",
-        "-o",
-        "nonempty",
-    ]
-    logger.info("Mounting %s -> %s", bucket, mount_point)
-    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    if result.returncode != 0:
-        logger.error("s3fs mount failed for %s: %s", bucket, result.stderr)
-        raise RuntimeError(f"s3fs mount failed for {bucket}: {result.stderr}")
-    logger.info("Mounted %s at %s", bucket, mount_point)
-
-
-def _bucket_to_mount(bucket):
-    """Map a bucket name to its local s3fs mount point.
-
-    Args:
-        bucket: The S3 bucket name.
-
-    Returns:
-        The local mount path for the bucket.
-    """
-    if bucket == PROVIDER_DATA_BUCKET:
-        return MOUNT_PROVIDER_DATA
-    return MOUNT_USER_DATA
-
-
-def resolve_symlink_targets(volume_mounts):
-    """Resolve symlink targets from volume_mounts based on mount_path and bucket.
-
-    Args:
-        volume_mounts: List of volume mount dicts with mount_path, sub_path, and bucket keys.
-
-    Returns:
-        A tuple of (data_target, function_data_target) paths,
-        each of which may be None if the corresponding mount is not present.
-    """
-    data_target = None
-    function_data_target = None
-
-    for vm in volume_mounts:
-        mount_path = vm.get("mount_path", "")
-        sub_path = vm.get("sub_path", "")
-        bucket = vm.get("bucket", "")
-        base = _bucket_to_mount(bucket)
-        if mount_path == "/data":
-            data_target = os.path.join(base, sub_path)
-        elif mount_path == "/function_data":
-            function_data_target = os.path.join(base, sub_path)
-
-    return data_target, function_data_target
-
-
-def create_symlink(link_path, target_path):
-    """Create a symlink, removing any existing one first.
-
-    Args:
-        link_path: The path where the symlink will be created.
-        target_path: The target directory the symlink will point to.
-    """
-    if os.path.islink(link_path) or os.path.exists(link_path):
-        os.unlink(link_path)
-    os.makedirs(target_path, exist_ok=True)
-    os.symlink(target_path, link_path)
-    logger.info("Symlink %s -> %s", link_path, target_path)
-
-
-def remove_symlink(link_path):
-    """Remove a symlink if it exists.
-
-    Args:
-        link_path: The symlink path to remove.
-    """
-    try:
-        if os.path.islink(link_path):
-            os.unlink(link_path)
-    except OSError:
-        pass
-
-
-def wait_for_s3_visibility(s3_client, volume_mounts, timeout=30):  # pylint: disable=too-many-locals
-    """Poll S3 until every file under each mount is visible on the backend.
-
-    s3fs flushes on close() but MinIO visibility is not guaranteed to be
-    synchronous. We walk each mount locally and wait for each file to appear
-    via list_objects_v2. Backstops the post-run ``sleep`` with a real check.
-
-    Args:
-        s3_client: A boto3 S3 client.
-        volume_mounts: List of volume mount dicts with mount_path, bucket, and sub_path keys.
-        timeout: Maximum seconds to wait for all files to become visible.
-    """
-    deadline = time.time() + timeout
-    for vm in volume_mounts:
-        mount_path = vm.get("mount_path", "")
-        bucket = vm.get("bucket")
-        sub_path = (vm.get("sub_path") or "").rstrip("/")
-        if not bucket or not mount_path or not os.path.isdir(mount_path):
-            continue
-
-        expected = set()
-        for root, _, files in os.walk(mount_path):
-            for name in files:
-                full = os.path.join(root, name)
-                expected.add(os.path.relpath(full, mount_path))
-        if not expected:
-            continue
-
-        prefix = f"{sub_path}/" if sub_path else ""
+    def run(self) -> None:
+        """Enter the infinite poll loop. Does not return."""
+        logger.info("Entering poll loop")
         while True:
-            resp = s3_client.list_objects_v2(Bucket=bucket, Prefix=prefix)
-            keys = {obj["Key"][len(prefix) :] for obj in resp.get("Contents", [])}
-            missing = expected - keys
-            if not missing:
-                break
-            if time.time() >= deadline:
-                logger.warning(
-                    "Timeout waiting for S3 visibility on %s: missing %s",
-                    mount_path,
-                    sorted(missing),
-                )
-                break
-            time.sleep(0.5)
+            self._poll_once()
+            time.sleep(1)
 
-
-def process_manifest(s3_client, key, manifest):  # pylint: disable=too-many-locals
-    """Execute a job manifest and report status.
-
-    Args:
-        s3_client: A boto3 S3 client.
-        key: The S3 object key of the manifest in the fleet-state bucket.
-        manifest: The parsed manifest dict containing volume_mounts, env_vars, and run_commands.
-    """
-    fleet_id = manifest.get("fleet_id") or key.replace(".json", "")
-    logger.info("Processing manifest for fleet_id=%s job_id=%s", fleet_id, manifest.get("job_id"))
-
-    volume_mounts = manifest.get("volume_mounts", [])
-    data_target, function_data_target = resolve_symlink_targets(volume_mounts)
-
-    if data_target:
-        create_symlink("/data", data_target)
-    if function_data_target:
-        create_symlink("/function_data", function_data_target)
-
-    env_vars = manifest.get("env_vars", {})
-    run_env = os.environ.copy()
-    run_env.update(env_vars)
-
-    # Ensure parent directories for log paths exist on s3fs mounts.
-    # In real CE, PDS mounts expose the full tree; s3fs needs explicit mkdirs.
-    for path_var in ("PUBLIC_LOG_PATH", "PRIVATE_LOG_PATH"):
-        path = env_vars.get(path_var)
-        if path:
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-
-    # Clean temp files from previous runs. The wrapper scripts append to
-    # /tmp/public.log and /tmp/private.log — without cleanup, logs from
-    # earlier jobs bleed into subsequent ones.
-    for tmp_file in ("/tmp/public.log", "/tmp/private.log", "/tmp/app.status", "/tmp/app.pipe"):
+    def _poll_once(self) -> None:
+        """List fleet-state bucket and process any manifest files found."""
         try:
-            os.unlink(tmp_file)
-        except OSError:
-            pass
-
-    # Simulate Code Engine fleet startup. Real CE takes 1-2 minutes; trimmed
-    # for CI and overridable via FLEET_WORKER_STARTUP_DELAY_SEC.
-    startup_delay = float(os.environ.get("FLEET_WORKER_STARTUP_DELAY_SEC", "5"))
-    if startup_delay > 0:
-        time.sleep(startup_delay)
-
-    run_commands = manifest.get("run_commands", [])
-    exit_code = 0
-
-    try:
-        # Do NOT capture output — the run_commands wrapper uses tee/awk to
-        # write logs to files via stdout. Let it flow to the s3fs mount.
-        result = subprocess.run(run_commands, env=run_env, check=False, timeout=300)
-        exit_code = result.returncode
-    except subprocess.TimeoutExpired:
-        logger.error("Job execution timed out for %s", fleet_id)
-        exit_code = 124
-    except OSError as e:
-        logger.error("Failed to execute run_commands for %s: %s", fleet_id, e)
-        exit_code = 1
-
-    # Flush s3fs caches, then wait for MinIO to actually have the files.
-    # NOTE: the sleep(2) also simulates post-run code execution tail — keep it
-    # even though wait_for_s3_visibility below provides the real sync barrier.
-    subprocess.run(["sync"], capture_output=True, check=False)
-    time.sleep(2)
-    wait_for_s3_visibility(s3_client, volume_mounts)
-
-    remove_symlink("/data")
-    remove_symlink("/function_data")
-
-    status = "succeeded" if exit_code == 0 else "failed"
-    logger.info("Fleet %s completed with status: %s (exit_code=%d)", fleet_id, status, exit_code)
-
-    # Status goes to the task-store bucket (mirrors CE persistent task state).
-    # The dispatch manifest in fleet-state is consumed and removed.
-    s3_client.put_object(
-        Bucket=TASK_STORE_BUCKET,
-        Key=f"{fleet_id}.status",
-        Body=status.encode("utf-8"),
-    )
-
-    s3_client.delete_object(Bucket=FLEET_STATE_BUCKET, Key=key)
-    logger.info("Manifest %s consumed and deleted", key)
-
-
-def poll_loop(s3_client):
-    """Continuously poll for new job manifests.
-
-    Assumes a single worker replica — manifests are not leased before
-    execution, so multiple workers would double-execute the same job.
-
-    Args:
-        s3_client: A boto3 S3 client.
-    """
-    logger.info("Entering poll loop")
-    while True:
-        try:
-            response = s3_client.list_objects_v2(Bucket=FLEET_STATE_BUCKET)
+            response = self._storage.client.list_objects_v2(Bucket=FLEET_STATE_BUCKET)
             contents = response.get("Contents", [])
 
             for obj in contents:
@@ -313,12 +53,12 @@ def poll_loop(s3_client):
                     continue
 
                 try:
-                    manifest_obj = s3_client.get_object(Bucket=FLEET_STATE_BUCKET, Key=key)
+                    manifest_obj = self._storage.client.get_object(Bucket=FLEET_STATE_BUCKET, Key=key)
                     manifest = json.loads(manifest_obj["Body"].read().decode("utf-8"))
-                    process_manifest(s3_client, key, manifest)
+                    self._process_manifest(key, manifest)
                 except (json.JSONDecodeError, KeyError) as e:
                     logger.error("Bad manifest %s (quarantining): %s", key, e)
-                    s3_client.delete_object(Bucket=FLEET_STATE_BUCKET, Key=key)
+                    self._storage.client.delete_object(Bucket=FLEET_STATE_BUCKET, Key=key)
                 except (ClientError, OSError, ValueError) as e:
                     logger.error("Error processing manifest %s: %s", key, e)
 
@@ -327,15 +67,123 @@ def poll_loop(s3_client):
         except OSError as e:
             logger.error("Unexpected error in poll loop: %s", e)
 
-        time.sleep(1)
+    def _process_manifest(self, key: str, manifest: dict) -> None:
+        """Execute a job manifest and report status.
+
+        Args:
+            key: The S3 object key of the manifest in the fleet-state bucket.
+            manifest: The parsed manifest dict containing volume_mounts,
+                env_vars, and run_commands.
+        """
+        fleet_id = manifest.get("fleet_id") or key.replace(".json", "")
+        logger.info("Processing manifest for fleet_id=%s job_id=%s", fleet_id, manifest.get("job_id"))
+
+        volume_mounts = manifest.get("volume_mounts", [])
+        self._setup_volume_mounts(volume_mounts)
+        self._clean_temp_files()
+        self._simulate_startup_delay()
+
+        env_vars = manifest.get("env_vars", {})
+        run_env = os.environ.copy()
+        run_env.update(env_vars)
+
+        for path_var in ("PUBLIC_LOG_PATH", "PRIVATE_LOG_PATH"):
+            path = env_vars.get(path_var)
+            if path:
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+
+        exit_code = self._execute_commands(manifest.get("run_commands", []), run_env, fleet_id)
+        self._cleanup()
+        self._report_status(fleet_id, key, exit_code)
+
+    def _setup_volume_mounts(self, volume_mounts: list[dict]) -> None:
+        """Create symlinks for /data and /function_data.
+
+        Args:
+            volume_mounts: The volume_mounts from the manifest.
+        """
+        data_target, function_data_target = self._storage.resolve_symlink_targets(volume_mounts)
+        if data_target:
+            self._storage.create_symlink("/data", data_target)
+        if function_data_target:
+            self._storage.create_symlink("/function_data", function_data_target)
+
+    def _execute_commands(self, run_commands: list[str], env: dict[str, str], fleet_id: str) -> int:
+        """Run the job commands via subprocess.
+
+        Args:
+            run_commands: The command list to execute.
+            env: The environment variables for the subprocess.
+            fleet_id: The fleet ID (for logging).
+
+        Returns:
+            The process exit code (124 for timeout).
+        """
+        if not run_commands:
+            return 0
+
+        try:
+            # Do NOT capture output — the wrapper uses tee/awk to write logs
+            # to files via stdout. Let it flow to the s3fs mount.
+            result = subprocess.run(run_commands, env=env, check=False, timeout=300)
+            return result.returncode
+        except subprocess.TimeoutExpired:
+            logger.error("Job execution timed out for %s", fleet_id)
+            return 124
+        except OSError as e:
+            logger.error("Failed to execute run_commands for %s: %s", fleet_id, e)
+            return 1
+
+    def _report_status(self, fleet_id: str, key: str, exit_code: int) -> None:
+        """Write status to task-store and delete the consumed manifest.
+
+        Args:
+            fleet_id: The fleet ID.
+            key: The manifest key to delete from fleet-state.
+            exit_code: The process exit code (0 = succeeded).
+        """
+        status = "succeeded" if exit_code == 0 else "failed"
+        logger.info("Fleet %s completed with status: %s (exit_code=%d)", fleet_id, status, exit_code)
+
+        self._storage.client.put_object(
+            Bucket=TASK_STORE_BUCKET,
+            Key=f"{fleet_id}.status",
+            Body=status.encode("utf-8"),
+        )
+
+        self._storage.client.delete_object(Bucket=FLEET_STATE_BUCKET, Key=key)
+        logger.info("Manifest %s consumed and deleted", key)
+
+    def _cleanup(self) -> None:
+        """Remove symlinks and flush s3fs caches after job execution."""
+        subprocess.run(["sync"], capture_output=True, check=False)
+        time.sleep(2)
+        self._storage.wait_for_visibility(["/data", "/function_data"])
+        self._storage.remove_symlink("/data")
+        self._storage.remove_symlink("/function_data")
+
+    def _clean_temp_files(self) -> None:
+        """Remove leftover temp files from previous job runs."""
+        for tmp_file in ("/tmp/public.log", "/tmp/private.log", "/tmp/app.status", "/tmp/app.pipe"):
+            try:
+                os.unlink(tmp_file)
+            except OSError:
+                pass
+
+    def _simulate_startup_delay(self) -> None:
+        """Sleep to simulate Code Engine fleet startup latency."""
+        startup_delay = float(os.environ.get("FLEET_WORKER_STARTUP_DELAY_SEC", "5"))
+        if startup_delay > 0:
+            time.sleep(startup_delay)
 
 
-def main():
+def main() -> None:
     """Entry point: mount buckets and start polling for job manifests."""
     logger.info("Fleet worker starting")
-    setup_s3fs_mounts()
-    s3_client = create_s3_client()
-    poll_loop(s3_client)
+    storage = StorageManager()
+    storage.setup_mounts()
+    worker = FleetWorker(storage=storage)
+    worker.run()
 
 
 if __name__ == "__main__":
