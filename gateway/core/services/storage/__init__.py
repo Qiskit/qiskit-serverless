@@ -7,6 +7,9 @@ from core.services.storage.arguments_storage_ray import RayArgumentsStorage
 from core.services.storage.logs_storage import LogsStorage
 from core.services.storage.logs_storage_fleets import FleetsLogsStorage
 from core.services.storage.logs_storage_ray import RayLogsStorage
+from core.services.storage.result_storage import ResultStorage
+from core.services.storage.result_storage_fleets import FleetsResultStorage
+from core.services.storage.result_storage_ray import RayResultStorage
 
 
 def get_arguments_storage(job: Job) -> ArgumentsStorage:
@@ -44,4 +47,23 @@ def get_logs_storage(job: Job) -> LogsStorage:
         return RayLogsStorage(job)
     if job.program.runner == Program.FLEETS:
         return FleetsLogsStorage(job)
+    raise ValueError(f"Unknown runner type: {job.program.runner}")
+
+
+def get_result_storage(job: Job) -> ResultStorage:
+    """Factory: return the appropriate ResultStorage for the job's program runner.
+
+    Args:
+        job: The Job instance whose program runner determines the implementation.
+
+    Returns:
+        A ResultStorage instance appropriate for the runner type.
+
+    Raises:
+        ValueError: If the runner type is unknown.
+    """
+    if job.program.runner == Program.RAY:
+        return RayResultStorage(job)
+    if job.program.runner == Program.FLEETS:
+        return RayResultStorage(job)
     raise ValueError(f"Unknown runner type: {job.program.runner}")
