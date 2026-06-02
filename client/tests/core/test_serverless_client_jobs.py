@@ -935,6 +935,33 @@ class TestFilteredLogsMethod:
             filtered = mock_client.filtered_logs("test-job", include=r"\d{4}-\d{2}-\d{2} ERROR")
             assert filtered == "2024-01-02 ERROR: problem\n"
 
+    def test_filtered_logs_returns_none_when_no_logs(self, mock_client):
+        """filtered_logs() returns None when the gateway returns 204 (Fleet job, no logs yet)."""
+        with requests_mock.Mocker() as mocker:
+            mocker.get(
+                "https://test-host.com/api/v1/jobs/test-job/logs/",
+                status_code=204,
+            )
+
+            assert mock_client.filtered_logs("test-job") is None
+
+    def test_filtered_logs_filters_raw_text_after_redirect(self, mock_client):
+        """filtered_logs() filters raw text received after a presigned URL redirect (Fleet job)."""
+        cos_content = "INFO: starting\nERROR: something failed\nINFO: done\n"
+        presigned_url = "https://cos.example.com/logs.log?sig=abc"
+
+        with requests_mock.Mocker() as mocker:
+            mocker.get(
+                "https://test-host.com/api/v1/jobs/test-job/logs/",
+                status_code=302,
+                headers={"Location": presigned_url},
+            )
+            mocker.get(presigned_url, text=cos_content)
+
+            filtered = mock_client.filtered_logs("test-job", include="ERROR")
+
+            assert filtered == "ERROR: something failed\n"
+
 
 class TestComputeProfile:
     """Test compute_profile functionality."""
