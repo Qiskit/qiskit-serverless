@@ -53,6 +53,7 @@ from qiskit_serverless.core.constants import (
     ENV_GATEWAY_PROVIDER_VERSION,
     GATEWAY_PROVIDER_VERSION_DEFAULT,
     ENV_ACCESS_TRIAL,
+    RESULTS_PATH,
 )
 from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.serializers.program_serializers import (
@@ -352,6 +353,20 @@ def send_error(code: Union[str, int], message: str, exception: str, args: Option
     return response.ok
 
 
+def _get_result_path() -> str:
+    """Check if the file path specified by the ``RESULTS_PATH`` environment variable,
+    which is set by the runner (Ray or Fleets) at job submission, exists and legal."""
+    results_path = os.environ.get(RESULTS_PATH)
+    if not results_path:
+        raise QiskitServerlessException(
+            "Error getting arguments: RESULTS_PATH environment variable is missing or empty"
+        )
+
+    os.makedirs(os.path.dirname(results_path), exist_ok=True)
+
+    return results_path
+
+
 def save_result(result: Dict[str, Any]):
     """Saves job results.
 
@@ -405,17 +420,34 @@ def save_result(result: Dict[str, Any]):
     if not is_jsonable(result, cls=QiskitObjectsEncoder):
         logging.warning("Object passed is not json serializable.")
         return False
+    try:
+        # trying to save via mounted path
+        result_path = _get_result_path()
 
-    url = f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/" f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/result/"
-    response = requests.post(
-        url,
-        data={"result": json.dumps(result or {}, cls=QiskitObjectsEncoder)},
-        headers=get_headers(token=token, instance=instance, channel=channel),
-        timeout=REQUESTS_TIMEOUT,
-    )
-    if not response.ok:
-        sanitized = response.text.replace("\n", "").replace("\r", "")
-        logging.warning("Something went wrong: %s", sanitized)
+        with open(result_path, "w", encoding="utf-8") as result_file:
+            result_file.write(json.dumps(result or {}, cls=QiskitObjectsEncoder))
+
+        logging.info(
+            "[save] job_id=%s | Result saved ok %s",
+            ENV_JOB_ID_GATEWAY,
+            result_path,
+        )
+        return True
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        logging.warning("There was an error saving result via mounted path: %s", e)
+        url = (
+            f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
+            f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/result/"
+        )
+        response = requests.post(
+            url,
+            data={"result": json.dumps(result or {}, cls=QiskitObjectsEncoder)},
+            headers=get_headers(token=token, instance=instance, channel=channel),
+            timeout=REQUESTS_TIMEOUT,
+        )
+        if not response.ok:
+            sanitized = response.text.replace("\n", "").replace("\r", "")
+            logging.warning("Something went wrong: %s", sanitized)
 
     return response.ok
 
