@@ -9,12 +9,12 @@ from typing import Any, cast
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
+from django.http import HttpResponseRedirect
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, serializers, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
-
 
 from api.use_cases.jobs.provider_logs import GetProviderJobLogsUseCase
 from api.v1.endpoint_decorator import endpoint
@@ -60,14 +60,16 @@ def serialize_output(logs: str) -> dict[str, Any]:
 @endpoint_handle_exceptions
 def provider_logs(request: Request, job_id: UUID) -> Response:
     """
-    Retrieve logs for a specific job.
+    Retrieve provider logs for a specific job.
 
     Args:
         request: The HTTP request object.
         job_id: The UUID of the job (path parameter).
 
     Returns:
-        Response containing the serialized job logs.
+        302 redirect to presigned COS URL (Fleet, logs ready),
+        204 No Content (Fleet, no logs yet),
+        or 200 JSON with logs field (Ray).
     """
     user = cast(AbstractUser, request.user)
     accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
@@ -77,6 +79,14 @@ def provider_logs(request: Request, job_id: UUID) -> Response:
         job_id,
         accessible_functions,
     )
-    logs = GetProviderJobLogsUseCase().execute(job_id, user, accessible_functions=accessible_functions)
+    result = GetProviderJobLogsUseCase().execute(job_id, user, accessible_functions=accessible_functions)
+
+    if result.redirect_url:
+        logger.info("[jobs-provider-logs] user_id=%s job_id=%s | Redirecting to presigned URL", user.id, job_id)
+        return HttpResponseRedirect(result.redirect_url)
+
+    if result.raw_log is None:
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     logger.info("[jobs-provider-logs] user_id=%s job_id=%s | Provider logs retrieved ok", user.id, job_id)
-    return Response(serialize_output(logs))
+    return Response(serialize_output(result.raw_log))
