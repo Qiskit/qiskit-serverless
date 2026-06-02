@@ -48,13 +48,16 @@ class FileStorageRay(FileStorage):
             provider_name=provider_name,
             extra_sub_path=None,
         )
-        self.private_path = PathBuilder.absolute_path(
-            working_dir=WorkingDir.PROVIDER_STORAGE,
-            username=username,
-            function_title=function_title,
-            provider_name=provider_name,
-            extra_sub_path=None,
-        )
+        if provider_name:
+            self.private_path = PathBuilder.absolute_path(
+                working_dir=WorkingDir.PROVIDER_STORAGE,
+                username=username,
+                function_title=function_title,
+                provider_name=provider_name,
+                extra_sub_path=None,
+            )
+        else:
+            self._private_path = None
 
     def get_public_files(self) -> list[str]:
         """
@@ -100,7 +103,7 @@ class FileStorageRay(FileStorage):
             int: with the size of the file
         """
 
-        return self._get_file_in_folder(WorkingDir.USER_STORAGE, file_name)
+        return self._get_file_in_folder(self.public_path, file_name)
 
     def get_private_file(self, file_name: str) -> Optional[Tuple[FileWrapper, str, int]]:
         """
@@ -118,7 +121,7 @@ class FileStorageRay(FileStorage):
             int: with the size of the file
         """
 
-        return self._get_file_in_folder(WorkingDir.PROVIDER_STORAGE, file_name)
+        return self._get_file_in_folder(self.private_path, file_name)
 
     def _get_file_in_folder(self, folder_path: str, file_name: str) -> Optional[Tuple[FileWrapper, str, int]]:
         """
@@ -159,7 +162,7 @@ class FileStorageRay(FileStorage):
             int: with the size of the file
         """
 
-        return self._get_file_stream_in_folder(WorkingDir.USER_STORAGE, file_name, chunk_size)
+        return self._get_file_stream_in_folder(self.public_path, file_name, chunk_size)
 
     def get_private_file_stream(
         self, file_name: str, chunk_size: int = 65536
@@ -177,7 +180,7 @@ class FileStorageRay(FileStorage):
             int: with the size of the file
         """
 
-        return self._get_file_stream_in_folder(WorkingDir.PROVIDER_STORAGE, file_name, chunk_size)
+        return self._get_file_stream_in_folder(self.private_path, file_name, chunk_size)
 
     def _get_file_stream_in_folder(
         self, folder_path: str, file_name: str, chunk_size: int = 65536
@@ -226,7 +229,7 @@ class FileStorageRay(FileStorage):
         Returns:
             str: the path where the file was stored
         """
-        return self._upload_file_to_folder(WorkingDir.USER_STORAGE, file)
+        return self._upload_file_to_folder(self.public_path, file)
 
     def upload_private_file(self, file: File) -> str:
         """
@@ -240,7 +243,7 @@ class FileStorageRay(FileStorage):
         Returns:
             str: the path where the file was stored
         """
-        return self._upload_file_to_folder(WorkingDir.PROVIDER_STORAGE, file)
+        return self._upload_file_to_folder(self.private_path, file)
 
     def _upload_file_to_folder(self, folder_path: str, file: File) -> str:
         """
@@ -277,7 +280,7 @@ class FileStorageRay(FileStorage):
             - True if it was deleted
             - False otherwise
         """
-        return self._remove_file_from_folder(WorkingDir.USER_STORAGE, file_name)
+        return self._remove_file_from_folder(self.public_path, file_name)
 
     def remove_private_file(self, file_name: str) -> bool:
         """
@@ -290,7 +293,7 @@ class FileStorageRay(FileStorage):
             - True if it was deleted
             - False otherwise
         """
-        return self._remove_file_from_folder(WorkingDir.PROVIDER_STORAGE, file_name)
+        return self._remove_file_from_folder(self.private_path, file_name)
 
     def _remove_file_from_folder(self, folder_path: str, file_name: str) -> bool:
         """
