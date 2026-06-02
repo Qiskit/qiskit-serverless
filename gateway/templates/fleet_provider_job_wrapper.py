@@ -132,6 +132,8 @@ class JobWrapper:
         self.stop.set()
         if self.uploader_thread is not None:
             self.uploader_thread.join(timeout=5)
+            if self.uploader_thread.is_alive():
+                self.uploader_thread.join()
         self.upload_log(LOCAL_PUBLIC_LOG,  COS_PUBLIC_PATH)
         self.upload_log(LOCAL_PRIVATE_LOG, COS_PRIVATE_PATH)
 
