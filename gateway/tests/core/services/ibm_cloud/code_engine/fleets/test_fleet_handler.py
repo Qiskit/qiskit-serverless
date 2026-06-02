@@ -784,6 +784,17 @@ def test_build_run_env_variables_flush_interval_from_settings():
     assert by_name["LOG_FLUSH_INTERVAL_SECONDS"] == "42"
 
 
+def test_build_run_env_variables_flush_interval_default():
+    """build_run_env_variables falls back to 15 when FLEETS_LOG_FLUSH_INTERVAL_SECONDS is absent from settings."""
+    with patch("core.ibm_cloud.code_engine.fleets.utils.settings") as mock_settings:
+        del mock_settings.FLEETS_LOG_FLUSH_INTERVAL_SECONDS
+        mock_settings.FLEETS_GATEWAY_HOST = None
+        mock_settings.FUNCTIONS_LOGS_SIZE_LIMIT = 52428800
+        result = build_run_env_variables(_make_paths(), {})
+    by_name = {e["name"]: e["value"] for e in result}
+    assert by_name["LOG_FLUSH_INTERVAL_SECONDS"] == "15"
+
+
 def test_build_run_env_variables_log_size_limit_from_settings():
     """build_run_env_variables converts settings.FUNCTIONS_LOGS_SIZE_LIMIT to LOG_SIZE_LIMIT_BYTES string."""
     with patch("core.ibm_cloud.code_engine.fleets.utils.settings") as mock_settings:
