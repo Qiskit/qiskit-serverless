@@ -153,9 +153,6 @@ class JobWrapper:
         return priv, line
 
     def run(self):
-        signal.signal(signal.SIGTERM, self.on_signal)  # container shutdown / kill
-        signal.signal(signal.SIGINT, self.on_signal)   # Ctrl+C
-
         # daemon=True: thread will die with the current process
         self.uploader_thread = threading.Thread(target=self.run_uploader_thread, daemon=True)
         self.uploader_thread.start()
@@ -170,6 +167,8 @@ class JobWrapper:
             errors='replace',
             bufsize=1,
         )
+        signal.signal(signal.SIGTERM, self.on_signal)  # container shutdown / kill
+        signal.signal(signal.SIGINT, self.on_signal)   # Ctrl+C
         try:
             # Listen to changes in the local temporal log files
             with open(LOCAL_PUBLIC_LOG,  'a', buffering=1) as pub, \
