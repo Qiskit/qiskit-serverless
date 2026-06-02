@@ -40,6 +40,9 @@ class GetJobLogsUseCase:
         if not JobAccessPolicies.can_read_user_logs(user, job):
             raise InvalidAccessException(f"You don't have access to read user logs of the job [{job_id}]")
 
+        # Logs stored in COS. They are already filtered
+        logs_storage = get_logs_storage(job)
+
         if job.program.runner == Program.FLEETS:
             logs_storage = get_logs_storage(job)
             url = logs_storage.get_public_logs_url()
@@ -49,7 +52,6 @@ class GetJobLogsUseCase:
             return LogsResult()
 
         # Ray path: try COS storage first, then active runner, then DB legacy
-        logs_storage = get_logs_storage(job)
         logs = logs_storage.get_public_logs()
         if logs:
             return LogsResult(raw_log=logs)

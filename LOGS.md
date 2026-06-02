@@ -40,7 +40,7 @@ container filters the application output and ships it to COS directly:
 
 - During execution: filtered output is written to COS every `LOG_FLUSH_INTERVAL_SECONDS`
   (default 15s), skipping the upload when content has not changed.
-- At termination: an `EXIT`/`TERM`/`INT` trap performs a final unconditional flush.
+- At termination: a signal handler + `try/finally` performs a final unconditional flush.
 
 Filtering rules mirror Ray post-execution:
 - In user jobs: one file (`PUBLIC_LOG_PATH`) with all output, `[PUBLIC]` and `[PRIVATE]`
@@ -50,6 +50,18 @@ Filtering rules mirror Ray post-execution:
   - `PRIVATE_LOG_PATH`: `[PRIVATE]` lines (prefix stripped) and all unprefixed lines.
 
 Endpoints serve the COS files as-is, without re-applying any filter.
+
+#### Reading logs (gateway to client)
+
+The gateway never buffers Fleet log content in memory. Instead, it generates a
+time-limited presigned URL via `ibm_boto3` and returns an HTTP redirect:
+
+- **Logs ready**: gateway returns `302 Location: <presigned_url>`. The client follows
+  the redirect automatically and receives raw log text directly from COS.
+- **No logs yet** (wrapper has not flushed yet): gateway returns `204 No Content`;
+  `logs()` and `provider_logs()` return `None`.
+
+Ray uses the regular way where logs are sent withing a json payload.
 
 ## Legacy logs
 
@@ -85,7 +97,11 @@ If it's a provider job:
 - Returns filtered logs containing `[PRIVATE]`, and 3rd party content (`[PUBLIC]` content and prefixes are removed)
 
 
-These are the behavior table for the endpoints. The `1-COS File` and `2-Ray` columns describe the Ray flow, where filtering is applied at read time. For Fleet jobs the COS file is pre-filtered by the in-container wrapper (see "Fleet jobs" above), so the endpoint streams it without applying any extra filter.
+These are the behavior tables for the endpoints.
+
+#### Ray jobs
+
+The `1-COS File` and `2-Ray` columns describe the Ray flow, where filtering is applied at read time.
 
 | Job Type | Caller | Endpoint | 1-COS File | 2-Ray | 3-Db (legacy) |
 |----------|--------|----------|------------|-------|---------------|
@@ -96,6 +112,21 @@ These are the behavior table for the endpoints. The `1-COS File` and `2-Ray` col
 | Provider | Provider | `/logs` | Permission error | Permission error | "No logs available." |
 | Provider | Provider | `/provider-logs` | `filter_logs_with_non_public_tags` | `filter_logs_with_non_public_tags` | job.logs |
 | Any | Other | `/logs` `/provider-logs` | Permission error | Permission error | - |
+
+#### Fleet jobs
+
+The COS files are pre-filtered by the in-container wrapper. The endpoint never re-applies
+any filter: it either redirects to the pre-filtered file or returns 204.
+
+| Job Type | Caller | Endpoint | Logs ready | No logs yet |
+|----------|--------|----------|------------|-------------|
+| User | Author | `/logs` | `302` → presigned URL (raw, prefixes stripped) | `204` |
+| User | Any | `/provider-logs` | Error (not provider) | - |
+| Provider | Author | `/logs` | `302` → presigned URL (`[PUBLIC]` lines only) | `204` |
+| Provider | Author | `/provider-logs` | Error (not provider) | - |
+| Provider | Provider | `/logs` | Permission error | - |
+| Provider | Provider | `/provider-logs` | `302` → presigned URL (`[PRIVATE]` + unprefixed) | `204` |
+| Any | Other | `/logs` `/provider-logs` | Permission error | - |
 
 Filters description:
 - `remove_prefix_tags_in_logs`: Removes `[PUBLIC]` and `[PRIVATE]` prefixes, keeps all lines
