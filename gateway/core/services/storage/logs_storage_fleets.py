@@ -137,3 +137,31 @@ class FleetsLogsStorage(LogsStorage):
 
     def save_private_logs(self, logs: str) -> None:
         raise NotImplementedError
+
+    def get_public_logs_url(self) -> Optional[str]:
+        if not self._object_exists(self._user_bucket, self._public_key):
+            return None
+        return get_cos_client(self._project).get_presigned_url(
+            bucket_name=self._user_bucket,
+            key=self._public_key,
+        )
+
+    def get_private_logs_url(self) -> Optional[str]:
+        if self._provider_bucket is None:
+            raise RuntimeError("Private logs are only available for provider jobs")
+        if not self._object_exists(self._provider_bucket, self._private_key):
+            return None
+        return get_cos_client(self._project).get_presigned_url(
+            bucket_name=self._provider_bucket,
+            key=self._private_key,
+        )
+
+    def _object_exists(self, bucket: str, key: str) -> bool:
+        try:
+            get_cos_client(self._project).head_object(bucket_name=bucket, key=key)
+            return True
+        except ClientError as e:
+            code = e.response.get("Error", {}).get("Code", "")
+            if code in self.NOT_FOUND_CODES:
+                return False
+            raise
