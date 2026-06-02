@@ -74,7 +74,6 @@ def get_file_storage(
     raise ValueError(f"Unknown runner type: {function.runner}")
 
 
-
 def get_result_storage(job: Job) -> ResultStorage:
     """Factory: return the appropriate ResultStorage for the job's program runner.
 
@@ -92,5 +91,3 @@ def get_result_storage(job: Job) -> ResultStorage:
     if job.program.runner == Program.FLEETS:
         return RayResultStorage(job)
     raise ValueError(f"Unknown runner type: {job.program.runner}")
-
-
