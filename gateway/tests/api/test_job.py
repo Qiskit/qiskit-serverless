@@ -11,7 +11,8 @@ from django.contrib.auth.models import User, Group
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
-from core.services.storage.result_storage import ResultStorage
+from core.services.storage import get_result_storage
+from core.services.storage.result_storage_ray import RayResultStorage
 
 from core.domain.authorization.function_access_entry import FunctionAccessEntry
 from core.domain.authorization.function_access_result import FunctionAccessResult
@@ -362,14 +363,17 @@ class TestJobApi:
         assert jobs_response.status_code == status.HTTP_200_OK
 
         # Verify result is saved in author's directory
-        result_storage = ResultStorage(job.author.username)
-        saved_result = result_storage.get(str(job.id))
+        result_storage = get_result_storage(job)
+        saved_result = result_storage.get()
         assert saved_result == test_result
 
         # If we incorrectly saved using a different user's username, we wouldn't find it there
         different_user = User.objects.get(username="test_user_2")
-        wrong_result_storage = ResultStorage(different_user.username)
-        wrong_result = wrong_result_storage.get(str(job.id))
+        wrong_job = MagicMock()
+        wrong_job.id = job.id
+        wrong_job.author.username = different_user.username
+        wrong_result_storage = RayResultStorage(wrong_job)
+        wrong_result = wrong_result_storage.get()
         assert wrong_result is None  # Should not find result in wrong path
 
     def test_job_arguments_storage_path_user(self, settings):
@@ -1057,12 +1061,15 @@ class TestRetrieveJob:
         job = Job.objects.get(pk="8317718f-5c0d-4fb6-9947-72e480b8a348")
         assert job.author.username == "test_user"
 
-        result_storage = ResultStorage(job.author.username)
-        assert result_storage.get(str(job.id)) is not None
+        result_storage = get_result_storage(job)
+        assert result_storage.get() is not None
 
         different_user = User.objects.get(username="test_user_2")
-        wrong_result_storage = ResultStorage(different_user.username)
-        assert wrong_result_storage.get(str(job.id)) is None
+        wrong_job = MagicMock()
+        wrong_job.id = job.id
+        wrong_job.author.username = different_user.username
+        wrong_result_storage = RayResultStorage(wrong_job)
+        assert wrong_result_storage.get() is None
 
     class TestLegacyGroups:
         def test_provider_admin_can_retrieve(self, authorize):
