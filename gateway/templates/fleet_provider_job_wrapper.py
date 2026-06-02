@@ -96,7 +96,7 @@ class JobWrapper:
         size = self.file_size(temporal_log_path)
         if size < 0:
             return
-        if size > LIMIT:
+        if size >= LIMIT:
             try:
                 log_tail = self.tail(temporal_log_path, LIMIT)
                 # Write (upload to COS) the truncation header + the log tail
