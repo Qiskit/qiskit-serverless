@@ -129,27 +129,32 @@ class TestGetJobLogsUseCaseFleet:
 
 
 class TestGetProviderJobLogsUseCaseFleet:
-    def _execute(self, job, user, cos_logs=None, accessible_functions=None):
+    def _execute(self, job, user, cos_url=None, accessible_functions=None):
         with patch(f"{_PROVIDER_LOGS_MOD}.get_logs_storage") as mock_storage:
-            mock_storage.return_value.get_private_logs.return_value = cos_logs
+            mock_storage.return_value.get_private_logs_url.return_value = cos_url
             return GetProviderJobLogsUseCase().execute(job.id, user, accessible_functions=accessible_functions)
 
-    def test_returns_cos_logs_when_available(self, fleet_provider_job, provider_admin):
-        """COS provider logs are served as-is; filter_non_public is not applied."""
-        pre_filtered = "private line\nthird-party output\n"
-        result = self._execute(fleet_provider_job, provider_admin, cos_logs=pre_filtered)
-        assert result == pre_filtered
+    def test_returns_redirect_url_when_logs_available(self, fleet_provider_job, provider_admin):
+        """When COS private log exists, returns LogsResult with redirect_url."""
+        url = "https://cos.example.com/private-logs.log?sig=xyz"
+        result = self._execute(fleet_provider_job, provider_admin, cos_url=url)
+        assert isinstance(result, LogsResult)
+        assert result.redirect_url == url
+        assert result.raw_log is None
 
-    def test_no_cos_logs_returns_no_logs_yet(self, fleet_provider_job, provider_admin):
-        """When COS has no provider logs yet, returns 'No logs yet.' — no runner fallback."""
-        result = self._execute(fleet_provider_job, provider_admin, cos_logs=None)
-        assert result == "No logs yet."
+    def test_no_cos_logs_returns_empty_logs_result(self, fleet_provider_job, provider_admin):
+        """When COS has no private logs yet, returns LogsResult() with both fields None."""
+        result = self._execute(fleet_provider_job, provider_admin, cos_url=None)
+        assert isinstance(result, LogsResult)
+        assert result.redirect_url is None
+        assert result.raw_log is None
 
     def test_accessible_functions_grant_access(self, fleet_provider_job, author):
         """Provider logs accessible via FunctionAccessResult with correct permission."""
         accessible = create_function_access_result(
             "fleet-provider", "fleet-provider-func", {PLATFORM_PERMISSION_PROVIDER_LOGS}
         )
-        pre_filtered = "granted logs\n"
-        result = self._execute(fleet_provider_job, author, cos_logs=pre_filtered, accessible_functions=accessible)
-        assert result == pre_filtered
+        url = "https://cos.example.com/private-logs.log?sig=granted"
+        result = self._execute(fleet_provider_job, author, cos_url=url, accessible_functions=accessible)
+        assert isinstance(result, LogsResult)
+        assert result.redirect_url == url
