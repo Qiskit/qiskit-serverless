@@ -23,6 +23,7 @@ import pytest
 from django.contrib.auth.models import Group, User
 
 from api.use_cases.jobs.get_logs import GetJobLogsUseCase
+from api.use_cases.jobs.logs_result import LogsResult
 from api.use_cases.jobs.provider_logs import GetProviderJobLogsUseCase
 from core.models import PLATFORM_PERMISSION_PROVIDER_LOGS, Program, Provider
 from tests.utils import TestUtils, create_function_access_result
@@ -89,32 +90,39 @@ def fleet_provider_job(author, provider, ce_project):
 
 
 class TestGetJobLogsUseCaseFleet:
-    def _execute(self, job, user, cos_logs=None):
+    def _execute(self, job, user, cos_url=None):
         with patch(f"{_GET_LOGS_MOD}.get_logs_storage") as mock_storage:
-            mock_storage.return_value.get_public_logs.return_value = cos_logs
+            mock_storage.return_value.get_public_logs_url.return_value = cos_url
             return GetJobLogsUseCase().execute(job.id, user)
 
-    def test_returns_cos_logs_when_available(self, fleet_custom_job, author):
-        """COS logs are served as-is; no filter function is applied."""
-        pre_filtered = "line one\nline two\n"
-        result = self._execute(fleet_custom_job, author, cos_logs=pre_filtered)
-        assert result == pre_filtered
+    def test_returns_redirect_url_when_logs_available(self, fleet_custom_job, author):
+        """When COS object exists, use case returns LogsResult with redirect_url."""
+        url = "https://cos.example.com/logs.log?sig=abc"
+        result = self._execute(fleet_custom_job, author, cos_url=url)
+        assert isinstance(result, LogsResult)
+        assert result.redirect_url == url
+        assert result.raw_log is None
 
-    def test_returns_cos_logs_for_provider_job(self, fleet_provider_job, author):
-        """COS logs for a provider Fleet job are served as-is (filter_with_public not applied)."""
-        pre_filtered = "exposed line\nanother exposed line\n"
-        result = self._execute(fleet_provider_job, author, cos_logs=pre_filtered)
-        assert result == pre_filtered
+    def test_returns_redirect_url_for_provider_job(self, fleet_provider_job, author):
+        """Provider Fleet job: use case returns LogsResult with redirect_url."""
+        url = "https://cos.example.com/provider-logs.log?sig=xyz"
+        result = self._execute(fleet_provider_job, author, cos_url=url)
+        assert isinstance(result, LogsResult)
+        assert result.redirect_url == url
 
-    def test_no_cos_logs_returns_no_logs_yet(self, fleet_custom_job, author):
-        """When COS has no logs yet, returns 'No logs yet.' — no runner or DB fallback."""
-        result = self._execute(fleet_custom_job, author, cos_logs=None)
-        assert result == "No logs yet."
+    def test_no_cos_logs_returns_empty_logs_result(self, fleet_custom_job, author):
+        """When COS has no logs yet, returns LogsResult() with both fields None."""
+        result = self._execute(fleet_custom_job, author, cos_url=None)
+        assert isinstance(result, LogsResult)
+        assert result.redirect_url is None
+        assert result.raw_log is None
 
-    def test_no_cos_logs_provider_job_returns_no_logs_yet(self, fleet_provider_job, author):
-        """Same for provider Fleet jobs: COS empty → 'No logs yet.'."""
-        result = self._execute(fleet_provider_job, author, cos_logs=None)
-        assert result == "No logs yet."
+    def test_no_cos_logs_provider_job_returns_empty_logs_result(self, fleet_provider_job, author):
+        """Provider Fleet job with no logs: returns LogsResult() with both fields None."""
+        result = self._execute(fleet_provider_job, author, cos_url=None)
+        assert isinstance(result, LogsResult)
+        assert result.redirect_url is None
+        assert result.raw_log is None
 
 
 # ── GetProviderJobLogsUseCase — Fleet ─────────────────────────────────────────
