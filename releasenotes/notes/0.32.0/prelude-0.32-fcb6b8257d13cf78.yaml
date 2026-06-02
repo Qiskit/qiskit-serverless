@@ -1,0 +1,2 @@
+prelude: >
+    ``qiskit_serverless v0.32.0`` is a feature release that improves telemetry collection, updates dependencies and drops Python 3.9 support. Additionally, it fixes a couple of bugs from 0.31.0.
