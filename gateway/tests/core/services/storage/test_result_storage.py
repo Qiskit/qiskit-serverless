@@ -4,26 +4,32 @@ import os
 
 import pytest
 
-from core.services.storage.result_storage import ResultStorage
+from core.services.storage.result_storage_ray import RayResultStorage as ResultStorage
+from tests.utils import TestUtils
 
 
+@pytest.mark.django_db
 class TestResultStorage:
     """Tests for ResultStorage path generation and file operations."""
 
-    def test_path_generation(self, tmp_path, settings):
+    @pytest.fixture
+    def job(self):
+        program = TestUtils.create_program(program_title="myfun", author="user1")
+        return TestUtils.create_job(author="user1", program=program)
+
+    def test_path_generation(self, tmp_path, settings, job):
         """Test path is {username}/results/"""
         settings.MEDIA_ROOT = str(tmp_path)
-        storage = ResultStorage(username="user1")
+        storage = ResultStorage(job=job)
         assert storage.user_results_directory == f"{tmp_path}/user1/results"
         assert os.path.exists(storage.user_results_directory)
 
-    def test_save_and_get(self, tmp_path, settings):
+    def test_save_and_get(self, tmp_path, settings, job):
         """Test saving and retrieving results."""
         settings.MEDIA_ROOT = str(tmp_path)
-        storage = ResultStorage(username="user1")
-        # file not found returns None
-        assert storage.get("id") is None
-        storage.save("id", "foo")
-        assert storage.get("id") == "foo"
-        storage.save("id", "overwrite")
-        assert storage.get("id") == "overwrite"
+        storage = ResultStorage(job=job)
+        assert storage.get() is None
+        storage.save("foo")
+        assert storage.get() == "foo"
+        storage.save("overwrite")
+        assert storage.get() == "overwrite"
