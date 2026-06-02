@@ -8,7 +8,6 @@ from django.contrib.auth.models import AbstractUser
 
 from core.models import Job, PLATFORM_PERMISSION_CUSTOM_RUN
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from api.access_policies.programs import _check_custom
 from api.access_policies.providers import ProviderAccessPolicy
 
 logger = logging.getLogger("api.JobAccessPolicies")
@@ -261,7 +260,7 @@ class JobAccessPolicies:
         return False
 
     @staticmethod
-    def can_create_job(
+    def can_create(
         user: AbstractUser,
         accessible_functions: Optional[FunctionAccessResult] = None,
     ) -> bool:
@@ -279,10 +278,12 @@ class JobAccessPolicies:
         Returns:
             bool: True if the user can create a job for a custom function
         """
-        has_access = _check_custom(accessible_functions, PLATFORM_PERMISSION_CUSTOM_RUN)
+        if accessible_functions is None or accessible_functions.use_legacy_authorization:
+            return True
+        has_access = accessible_functions.has_custom_permission(PLATFORM_PERMISSION_CUSTOM_RUN)
         if not has_access:
             logger.warning(
-                "[can_create_job] user_id=%s | no permission to run custom function",
+                "[can_create] user_id=%s | no permission to run custom function",
                 user.id,
             )
         return has_access

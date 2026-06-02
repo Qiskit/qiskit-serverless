@@ -2,7 +2,7 @@
 
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Dict, FrozenSet, List, Optional, Set
+from typing import Dict, FrozenSet, Optional, Set, Tuple
 
 from core.domain.authorization.function_access_entry import FunctionAccessEntry
 
@@ -13,10 +13,11 @@ class FunctionAccessResult:
 
     use_legacy_authorization: bool
     message: str = ""
-    functions: List[FunctionAccessEntry] = field(default_factory=list)
+    functions: Tuple[FunctionAccessEntry, ...] = field(default_factory=tuple)
     custom_function_permissions: FrozenSet[str] = field(default_factory=frozenset)
 
     def __post_init__(self):
+        self.functions = tuple(self.functions)
         self.custom_function_permissions = frozenset(self.custom_function_permissions)
 
     def get_function(self, provider_name: str, function_title: str) -> Optional[FunctionAccessEntry]:

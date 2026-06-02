@@ -20,7 +20,7 @@ from core.models import (
     PLATFORM_PERMISSION_WRITE,
     PLATFORM_PERMISSION_READ,
     PLATFORM_PERMISSION_RUN,
-    PLATFORM_PERMISSION_CUSTOM_CREATE,
+    PLATFORM_PERMISSION_CUSTOM_WRITE,
     PLATFORM_PERMISSION_CUSTOM_RUN,
     Program,
 )
@@ -1300,12 +1300,12 @@ class TestProgramApiRuntimeInstances:
         @pytest.mark.parametrize(
             "permissions,expected_status",
             [
-                ({PLATFORM_PERMISSION_CUSTOM_CREATE}, status.HTTP_200_OK),
+                ({PLATFORM_PERMISSION_CUSTOM_WRITE}, status.HTTP_200_OK),
                 (set(), status.HTTP_404_NOT_FOUND),
             ],
         )
         def test_upload_custom_function(self, client, authorize, permissions, expected_status):
-            """upload() checks PLATFORM_PERMISSION_CUSTOM_CREATE when creating a custom function."""
+            """upload() checks PLATFORM_PERMISSION_CUSTOM_WRITE when creating a custom function."""
             authorize("runtime-user", create_custom_access_result(permissions))
 
             response = client.post(

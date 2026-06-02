@@ -191,18 +191,18 @@ class TestCanReadProviderLogs:
             )
 
 
-class TestCanCreateJob:
+class TestCanCreate:
     class TestLegacyGroups:
         def test_true_when_accessible_functions_is_none(self):
             """Without runtime instances, custom function execution is always allowed."""
             user = User.objects.create_user(username="legacy-run-none")
-            assert JobAccessPolicies.can_create_job(user) is True
+            assert JobAccessPolicies.can_create(user) is True
 
         def test_true_when_use_legacy_authorization(self):
             """Falls back to allow-all when use_legacy_authorization=True."""
             user = User.objects.create_user(username="legacy-run-true")
             accessible = FunctionAccessResult(use_legacy_authorization=True)
-            assert JobAccessPolicies.can_create_job(user, accessible_functions=accessible) is True
+            assert JobAccessPolicies.can_create(user, accessible_functions=accessible) is True
 
     class TestRuntimeInstances:
         @pytest.mark.parametrize(
@@ -220,4 +220,4 @@ class TestCanCreateJob:
                 use_legacy_authorization=False,
                 custom_function_permissions=permissions,
             )
-            assert JobAccessPolicies.can_create_job(user, accessible_functions=accessible) is expected
+            assert JobAccessPolicies.can_create(user, accessible_functions=accessible) is expected

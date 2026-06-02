@@ -64,7 +64,7 @@ In order to run the tests, this is the configuration you have to get from /funct
           "permissions": ["function.read", "function.run", "function-files.read", "function-files.write"]
         }
       ],
-      "custom_functions": {"permissions": ["function-custom.create", "function-custom.run"]}
+      "custom_functions": {"permissions": ["function-custom.write", "function-custom.run"]}
     }
   },
   {
@@ -98,7 +98,7 @@ In order to run the tests, this is the configuration you have to get from /funct
           "permissions": ["function.read", "function.run", "function-files.read", "function-files.write", "function.write", "function-job.read", "function-provider-logs.read", "function-provider-files.read", "function-provider-files.write"]
         }
       ],
-      "custom_functions": {"permissions": ["function-custom.create", "function-custom.run"]}
+      "custom_functions": {"permissions": ["function-custom.write", "function-custom.run"]}
     }
   },
 ]
@@ -159,7 +159,7 @@ class TestNoPermissionsInstance:
       - provider_file_upload → 404.
       - provider_file_download → 404.
       - provider_file_delete → 404.
-      - upload custom function → 404 (no function-custom.create).
+      - upload custom function → 404 (no function-custom.write).
       - run custom function → 404 (no function-custom.run).
     """
 
@@ -276,7 +276,7 @@ class TestNoPermissionsInstance:
         _assert_404(exc)
 
     def test_upload_custom_function_raises_404(self, none_client, custom_function_title, tmp_path):
-        """upload() for a custom function is denied (404) when function-custom.create is absent."""
+        """upload() for a custom function is denied (404) when function-custom.write is absent."""
         (tmp_path / "main.py").write_text('print("hello")\n')
         fn = QiskitFunction(
             title=custom_function_title,
@@ -875,17 +875,17 @@ class TestCombinedInstance:
 
 class TestCustomFunctionInstance:
     """
-    Verifies that function-custom.create and function-custom.run work correctly.
+    Verifies that function-custom.write and function-custom.run work correctly.
     Uses user_client, which has both custom permissions alongside its user permissions.
 
     Expected behaviour:
-      - upload() for a custom function succeeds (function-custom.create).
+      - upload() for a custom function succeeds (function-custom.write).
       - run() for a custom function succeeds (function-custom.run).
       - serverless list includes the uploaded custom function.
     """
 
     def test_upload_custom_function_succeeds(self, user_client, custom_function_title, tmp_path):
-        """upload() succeeds when function-custom.create is present."""
+        """upload() succeeds when function-custom.write is present."""
         (tmp_path / "main.py").write_text('print("hello")\n')
         fn = QiskitFunction(
             title=custom_function_title,

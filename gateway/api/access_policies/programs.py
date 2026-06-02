@@ -8,23 +8,9 @@ from typing import Optional
 from django.contrib.auth.models import AbstractUser
 
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import PLATFORM_PERMISSION_CUSTOM_CREATE
+from core.models import PLATFORM_PERMISSION_CUSTOM_WRITE
 
 logger = logging.getLogger("api.ProgramAccessPolicies")
-
-
-def _check_custom(
-    accessible_functions: Optional[FunctionAccessResult],
-    permission: str,
-) -> bool:
-    """Core custom-function access logic shared by all custom-function policy methods.
-
-    Legacy auth: always allows (custom functions have no Django group restriction).
-    Runtime instances: checks custom_function_permissions for the given permission.
-    """
-    if accessible_functions is None or accessible_functions.use_legacy_authorization:
-        return True
-    return accessible_functions.has_custom_permission(permission)
 
 
 class ProgramAccessPolicies:
@@ -39,7 +25,7 @@ class ProgramAccessPolicies:
         Check if the user can create or update a custom function.
 
         With legacy authorization (Django groups) this is always allowed.
-        With Runtime instances, the instance must grant function-custom.create.
+        With Runtime instances, the instance must grant function-custom.write.
 
         Args:
             user: Django user from the request
@@ -49,7 +35,9 @@ class ProgramAccessPolicies:
         Returns:
             bool: True if the user can create a custom function
         """
-        has_access = _check_custom(accessible_functions, PLATFORM_PERMISSION_CUSTOM_CREATE)
+        if accessible_functions is None or accessible_functions.use_legacy_authorization:
+            return True
+        has_access = accessible_functions.has_custom_permission(PLATFORM_PERMISSION_CUSTOM_WRITE)
         if not has_access:
             logger.warning(
                 "[can_create] user_id=%s | no permission to create custom function",

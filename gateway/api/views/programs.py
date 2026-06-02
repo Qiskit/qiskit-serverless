@@ -258,7 +258,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 legacy_permission_name=RUN_PROGRAM_PERMISSION,
             )
         else:
-            if JobAccessPolicies.can_create_job(user=author, accessible_functions=accessible_functions):
+            if JobAccessPolicies.can_create(user=author, accessible_functions=accessible_functions):
                 function = Function.objects.get_user_function(author, function_title)
 
         if function is None:

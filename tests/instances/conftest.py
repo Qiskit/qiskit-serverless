@@ -85,7 +85,7 @@ def none_client():
 def user_client():
     """Client authenticated with a user permissions instance.
     Permissions: function.read, function.run, function-files.read, function-files.write
-    custom_functions: function-custom.create, function-custom.run
+    custom_functions: function-custom.write, function-custom.run
     """
     return ServerlessClient(
         token=GATEWAY_TOKEN,
@@ -144,7 +144,7 @@ def combined_client():
       function.read, function.run, function-files.read, function-files.write,
       function.write, function-job.read, function-provider-logs.read,
       function-provider-files.read, function-provider-files.write
-    custom_functions: function-custom.create, function-custom.run
+    custom_functions: function-custom.write, function-custom.run
     """
     return ServerlessClient(
         token=GATEWAY_TOKEN,

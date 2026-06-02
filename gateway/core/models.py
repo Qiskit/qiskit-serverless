@@ -36,7 +36,7 @@ PLATFORM_PERMISSION_PROVIDER_LOGS = "function-provider-logs.read"  # read provid
 PLATFORM_PERMISSION_PROVIDER_FILES_READ = "function-provider-files.read"  # list and download files in provider space
 PLATFORM_PERMISSION_PROVIDER_FILES_WRITE = "function-provider-files.write"  # upload and delete files in provider space
 # Custom function permissions (user-owned, no provider)
-PLATFORM_PERMISSION_CUSTOM_CREATE = "function-custom.create"  # create or update a custom function
+PLATFORM_PERMISSION_CUSTOM_WRITE = "function-custom.write"  # create or update a custom function
 PLATFORM_PERMISSION_CUSTOM_RUN = "function-custom.run"  # execute a custom function
 
 

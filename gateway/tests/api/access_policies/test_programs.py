@@ -6,7 +6,7 @@ from django.contrib.auth.models import User
 
 from api.access_policies.programs import ProgramAccessPolicies
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import PLATFORM_PERMISSION_CUSTOM_CREATE
+from core.models import PLATFORM_PERMISSION_CUSTOM_WRITE
 
 pytestmark = pytest.mark.django_db
 
@@ -28,13 +28,13 @@ class TestCanCreate:
         @pytest.mark.parametrize(
             "permissions,expected",
             [
-                ({PLATFORM_PERMISSION_CUSTOM_CREATE}, True),
+                ({PLATFORM_PERMISSION_CUSTOM_WRITE}, True),
                 ({"other-permission"}, False),
                 (set(), False),
             ],
         )
         def test_access_depends_on_custom_create_permission(self, permissions, expected):
-            """Access is granted only if custom_function_permissions includes PLATFORM_PERMISSION_CUSTOM_CREATE."""
+            """Access is granted only if custom_function_permissions includes PLATFORM_PERMISSION_CUSTOM_WRITE."""
             user = User.objects.create_user(username="runtime-create")
             accessible = FunctionAccessResult(
                 use_legacy_authorization=False,
