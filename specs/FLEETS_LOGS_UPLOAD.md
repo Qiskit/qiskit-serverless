@@ -60,7 +60,7 @@ from `settings.FUNCTIONS_LOGS_SIZE_LIMIT`). When the limit is exceeded:
 
 - The COS file contains this human-readable truncation header followed by the most recent
   `LOG_SIZE_LIMIT_BYTES` bytes (oldest lines are discarded first):
-  `[Logs exceeded maximum allowed size (%s MB). Logs have been truncated, discarding the oldest entries first.]`
+  `[Logs exceeded maximum allowed size (%s bytes). Logs have been truncated, discarding the oldest entries first.]`
 - The local `/tmp` file is shrunk in-place to the same limit so disk usage stays bounded.
 - Both operations share a single `f.seek(-LIMIT, 2); f.read()` — the tail bytes are held
   in memory and reused for the COS write and the local restore, then freed by the GC.

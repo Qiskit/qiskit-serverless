@@ -32,9 +32,9 @@ PRIVATE_TAG = '[PRIVATE]'
 
 # Truncation header written to COS when the log exceeds LIMIT
 TRUNCATION_HEADER = (
-    '[Logs exceeded maximum allowed size ({} MB). Logs have been '
+    '[Logs exceeded maximum allowed size ({} bytes). Logs have been '
     'truncated, discarding the oldest entries first.]\n'
-).format(LIMIT // 1048576).encode()
+).format(LIMIT).encode()
 
 
 class JobWrapper:
