@@ -118,6 +118,63 @@ def test_cos_get_object_bytes_raises_when_missing_args() -> None:
         job_cos.get_object_bytes(bucket_name="b", key="")
 
 
+def test_job_cos_head_object() -> None:
+    """head_object() delegates to COSClient.head_object."""
+    job_cos, mock_cos = _make_job_cos()
+    job_cos.head_object(bucket_name="my-bucket", key="some/key")
+    mock_cos.head_object.assert_called_once_with(bucket="my-bucket", key="some/key")
+
+
+def test_job_cos_head_object_raises_on_empty_bucket() -> None:
+    """head_object() raises ValueError when bucket_name is empty."""
+    job_cos, _ = _make_job_cos()
+    with pytest.raises(ValueError, match="bucket_name"):
+        job_cos.head_object(bucket_name="", key="some/key")
+
+
+def test_job_cos_head_object_raises_on_empty_key() -> None:
+    """head_object() raises ValueError when key is empty."""
+    job_cos, _ = _make_job_cos()
+    with pytest.raises(ValueError, match="key"):
+        job_cos.head_object(bucket_name="my-bucket", key="")
+
+
+def test_job_cos_get_presigned_url() -> None:
+    """get_presigned_url() delegates to COSClient.generate_presigned_url."""
+    job_cos, mock_cos = _make_job_cos()
+    mock_cos.generate_presigned_url.return_value = "https://cos.example.com/key?sig=abc"
+
+    url = job_cos.get_presigned_url(bucket_name="my-bucket", key="some/key", expiry=1800)
+
+    mock_cos.generate_presigned_url.assert_called_once_with(bucket="my-bucket", key="some/key", expiry=1800)
+    assert url == "https://cos.example.com/key?sig=abc"
+
+
+def test_job_cos_get_presigned_url_default_expiry() -> None:
+    """get_presigned_url() passes default expiry of 3600 to COSClient."""
+    job_cos, mock_cos = _make_job_cos()
+    mock_cos.generate_presigned_url.return_value = "https://cos.example.com/key?sig=abc"
+
+    job_cos.get_presigned_url(bucket_name="my-bucket", key="some/key")
+
+    _, kwargs = mock_cos.generate_presigned_url.call_args
+    assert kwargs["expiry"] == 3600
+
+
+def test_job_cos_get_presigned_url_raises_on_empty_bucket() -> None:
+    """get_presigned_url() raises ValueError when bucket_name is empty."""
+    job_cos, _ = _make_job_cos()
+    with pytest.raises(ValueError, match="bucket_name"):
+        job_cos.get_presigned_url(bucket_name="", key="some/key")
+
+
+def test_job_cos_get_presigned_url_raises_on_empty_key() -> None:
+    """get_presigned_url() raises ValueError when key is empty."""
+    job_cos, _ = _make_job_cos()
+    with pytest.raises(ValueError, match="key"):
+        job_cos.get_presigned_url(bucket_name="my-bucket", key="")
+
+
 # ---------------------------------------------------------------------------
 # get_cos_client tests
 # ---------------------------------------------------------------------------
