@@ -13,3 +13,7 @@ class LogsResult:
 
     raw_log: Optional[str] = field(default=None)
     redirect_url: Optional[str] = field(default=None)
+
+    def __post_init__(self):
+        if self.raw_log is not None and self.redirect_url is not None:
+            raise ValueError("Cannot set both raw_log and redirect_url")

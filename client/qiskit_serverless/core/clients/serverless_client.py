@@ -432,7 +432,10 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         if response.status_code == 204:
             return "No logs yet."
         if response.status_code == 302:
-            return requests.get(response.headers["Location"], timeout=REQUESTS_TIMEOUT).text
+            cos_response = requests.get(response.headers["Location"], timeout=REQUESTS_TIMEOUT)
+            if cos_response.ok:
+                return cos_response.text
+            return "Error fetching logs."
         return safe_json_request_as_dict(request=lambda: response).get("logs")
 
     @_trace_job
@@ -446,7 +449,10 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         if response.status_code == 204:
             return "No logs yet."
         if response.status_code == 302:
-            return requests.get(response.headers["Location"], timeout=REQUESTS_TIMEOUT).text
+            cos_response = requests.get(response.headers["Location"], timeout=REQUESTS_TIMEOUT)
+            if cos_response.ok:
+                return cos_response.text
+            return "Error fetching logs."
         return safe_json_request_as_dict(request=lambda: response).get("logs")
 
     @_trace_job
