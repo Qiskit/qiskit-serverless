@@ -498,13 +498,17 @@ def _create_cluster_data(cluster_name: str, job: Job):
         username=user.username,
         function=job.program,
     )
+    user_data_folder = file_storage.public_sub_path
+    provider_data_folder = file_storage.public_sub_path
+    if job.program.provider is not None:
+        provider_data_folder = file_storage.private_sub_path
 
     cluster = get_template("rayclustertemplate.yaml")
     manifest = cluster.render(
         {
             "cluster_name": cluster_name,
-            "user_data_folder": file_storage.public_sub_path,
-            "provider_data_folder": file_storage.private_sub_path,
+            "user_data_folder": user_data_folder,
+            "provider_data_folder": provider_data_folder,
             "node_image": node_image,
             "workers": job_config.workers,
             "min_workers": job_config.min_workers,
