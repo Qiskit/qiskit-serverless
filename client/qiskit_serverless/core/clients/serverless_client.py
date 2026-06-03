@@ -427,11 +427,12 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             f"{self.host}/api/{self.version}/jobs/{job_id}/logs/",
             headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
             timeout=REQUESTS_TIMEOUT,
+            allow_redirects=False,
         )
         if response.status_code == 204:
-            return None
-        if response.history:  # Followed a redirect to presigned COS URL
-            return response.text
+            return "No logs yet."
+        if response.status_code == 302:
+            return requests.get(response.headers["Location"], timeout=REQUESTS_TIMEOUT).text
         return safe_json_request_as_dict(request=lambda: response).get("logs")
 
     @_trace_job
@@ -440,11 +441,12 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             f"{self.host}/api/{self.version}/jobs/{job_id}/provider-logs/",
             headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
             timeout=REQUESTS_TIMEOUT,
+            allow_redirects=False,
         )
         if response.status_code == 204:
-            return None
-        if response.history:  # Followed a redirect to presigned COS URL
-            return response.text
+            return "No logs yet."
+        if response.status_code == 302:
+            return requests.get(response.headers["Location"], timeout=REQUESTS_TIMEOUT).text
         return safe_json_request_as_dict(request=lambda: response).get("logs")
 
     @_trace_job

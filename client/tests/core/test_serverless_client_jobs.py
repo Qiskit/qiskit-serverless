@@ -678,8 +678,8 @@ class TestLogsMethod:
 
             assert logs == log_content
 
-    def test_logs_returns_none_on_204(self, mock_client):
-        """logs() returns None when the gateway responds with 204 No Content."""
+    def test_logs_returns_no_logs_yet_on_204(self, mock_client):
+        """logs() returns 'No logs yet.' when the gateway responds with 204 No Content."""
         with requests_mock.Mocker() as mocker:
             mocker.get(
                 "https://test-host.com/api/v1/jobs/test-job/logs/",
@@ -688,7 +688,7 @@ class TestLogsMethod:
 
             logs = mock_client.logs("test-job")
 
-            assert logs is None
+            assert logs == "No logs yet."
 
 
 class TestProviderLogsMethod:
@@ -725,8 +725,8 @@ class TestProviderLogsMethod:
 
             assert logs == log_content
 
-    def test_provider_logs_returns_none_on_204(self, mock_client):
-        """provider_logs() returns None when the gateway responds with 204 No Content."""
+    def test_provider_logs_returns_no_logs_yet_on_204(self, mock_client):
+        """provider_logs() returns 'No logs yet.' when the gateway responds with 204 No Content."""
         with requests_mock.Mocker() as mocker:
             mocker.get(
                 "https://test-host.com/api/v1/jobs/test-job/provider-logs/",
@@ -735,7 +735,7 @@ class TestProviderLogsMethod:
 
             logs = mock_client.provider_logs("test-job")
 
-            assert logs is None
+            assert logs == "No logs yet."
 
 
 class TestRuntimeJobsMethod:
@@ -936,15 +936,15 @@ class TestFilteredLogsMethod:
             filtered = mock_client.filtered_logs("test-job", include=r"\d{4}-\d{2}-\d{2} ERROR")
             assert filtered == "2024-01-02 ERROR: problem\n"
 
-    def test_filtered_logs_returns_none_when_no_logs(self, mock_client):
-        """filtered_logs() returns None when the gateway returns 204 (Fleet job, no logs yet)."""
+    def test_filtered_logs_returns_no_logs_yet_when_204(self, mock_client):
+        """filtered_logs() returns 'No logs yet.' when the gateway returns 204 (Fleet job, no logs yet)."""
         with requests_mock.Mocker() as mocker:
             mocker.get(
                 "https://test-host.com/api/v1/jobs/test-job/logs/",
                 status_code=204,
             )
 
-            assert mock_client.filtered_logs("test-job") is None
+            assert mock_client.filtered_logs("test-job") == "No logs yet."
 
     def test_filtered_logs_filters_raw_text_after_redirect(self, mock_client):
         """filtered_logs() filters raw text received after a presigned URL redirect (Fleet job)."""
