@@ -34,6 +34,10 @@ from core.utils import retry_function, decrypt_env_vars, sanitize_file_path
 logger = logging.getLogger("RayRunner")
 
 
+_LOG_VALUE_MARKER = b'"logs": "'  # JSON key that opens the log string value
+_JSON_ENCODED_NL = b"\\n"  # JSON-encoded newline: 0x5C 0x6E
+
+
 def _decode_json_string(data: bytes) -> str:
     """Decode a segment of a JSON-encoded string (no surrounding quotes).
 
@@ -253,7 +257,7 @@ class RayRunner(AbstractRunner):
             )
             raise RunnerError(f"Unable to get logs for job [{self._job.ray_job_id}]", ex) from ex
 
-    def _stream_logs_from_ray(self) -> deque[str]:
+    def _stream_logs_from_ray(self) -> deque[str]:  # pylint: disable=too-many-branches,too-many-statements
         """Stream job logs from the Ray dashboard, decoding JSON line by line.
 
         Ray returns {"logs": "...content..."} where newlines inside the log are
@@ -279,9 +283,6 @@ class RayRunner(AbstractRunner):
         buf = bytearray()
         in_logs_value = False
 
-        _MARKER = b'"logs": "'  # 9 bytes: opening of the JSON string value
-        _JSON_NL = b"\\n"  # 2 bytes: 0x5C 0x6E -- JSON-encoded newline
-
         logger.info(
             "[_stream_logs_from_ray] job_id=%s ray_job_id=%s Streaming logs (limit=%d chars)",
             self._job.id,
@@ -300,19 +301,19 @@ class RayRunner(AbstractRunner):
                 buf.extend(chunk)
 
                 if not in_logs_value:
-                    idx = buf.find(_MARKER)
+                    idx = buf.find(_LOG_VALUE_MARKER)
                     if idx == -1:
                         # Trim to avoid unbounded growth while waiting for marker
-                        keep = len(_MARKER) - 1
+                        keep = len(_LOG_VALUE_MARKER) - 1
                         if len(buf) > keep:
                             buf = bytearray(buf[-keep:])
                         continue
-                    del buf[: idx + len(_MARKER)]
+                    del buf[: idx + len(_LOG_VALUE_MARKER)]
                     in_logs_value = True
 
                 # Drain all complete JSON-encoded lines from buf
                 while True:
-                    nl = buf.find(_JSON_NL)
+                    nl = buf.find(_JSON_ENCODED_NL)
                     if nl == -1:
                         break
                     line_bytes = bytes(buf[:nl])
