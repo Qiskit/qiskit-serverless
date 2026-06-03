@@ -71,7 +71,8 @@ class FileStorageRay(FileStorage):
                 extra_sub_path=None,
             )
         else:
-            self._private_path = None
+            self.private_path = None
+            self.private_sub_path = None
 
     def get_public_files(self) -> list[str]:
         """
