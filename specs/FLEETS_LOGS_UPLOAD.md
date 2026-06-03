@@ -7,7 +7,7 @@
 | `gateway/templates/fleet_custom_job_wrapper.py` | Python wrapper for custom (user) jobs — single public log |
 | `gateway/templates/fleet_provider_job_wrapper.py` | Python wrapper for provider jobs — public + private logs |
 | `gateway/core/ibm_cloud/code_engine/fleets/utils.py` | Renders the wrapper template and returns `["python3", "-c", script]`; injects `LOG_SIZE_LIMIT_BYTES` and `LOG_FLUSH_INTERVAL_SECONDS` as env vars via `build_run_env_variables` |
-| `gateway/tests/core/services/ibm_cloud/code_engine/fleets/test_fleet_template.py` | Integration tests (Docker) for filtering, truncation, exit-code propagation, periodic flush |
+| `gateway/tests/core/services/ibm_cloud/code_engine/fleets/test_fleet_template.py` | Tests (Docker) for filtering, truncation, exit-code propagation, periodic flush |
 | `gateway/tests/core/services/ibm_cloud/code_engine/fleets/test_fleet_handler.py` | Unit tests for the fleet handler |
 
 ---
