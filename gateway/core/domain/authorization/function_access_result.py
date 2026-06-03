@@ -2,7 +2,7 @@
 
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set
+from typing import Dict, FrozenSet, Optional, Set, Tuple
 
 from core.domain.authorization.function_access_entry import FunctionAccessEntry
 
@@ -13,7 +13,12 @@ class FunctionAccessResult:
 
     use_legacy_authorization: bool
     message: str = ""
-    functions: List[FunctionAccessEntry] = field(default_factory=list)
+    functions: Tuple[FunctionAccessEntry, ...] = field(default_factory=tuple)
+    custom_function_permissions: FrozenSet[str] = field(default_factory=frozenset)
+
+    def __post_init__(self):
+        self.functions = tuple(self.functions)
+        self.custom_function_permissions = frozenset(self.custom_function_permissions)
 
     def get_function(self, provider_name: str, function_title: str) -> Optional[FunctionAccessEntry]:
         """Return the entry matching provider_name and function_title, or None."""
@@ -39,9 +44,14 @@ class FunctionAccessResult:
                 by_provider[e.provider_name].add(e.function_title)
         return dict(by_provider)
 
+    def has_custom_permission(self, permission: str) -> bool:
+        """Return True if the instance grants the given permission for custom functions."""
+        return permission in self.custom_function_permissions
+
     def __str__(self) -> str:
         functions_str = ", ".join(f"{e.provider_name}.{e.function_title}" for e in self.functions)
         return (
             f"use_legacy_authorization={self.use_legacy_authorization}, "
-            f"message={self.message!r}, functions=[{functions_str}]"
+            f"message={self.message!r}, functions=[{functions_str}], "
+            f"custom_function_permissions={self.custom_function_permissions}"
         )

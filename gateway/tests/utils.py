@@ -620,3 +620,18 @@ def create_function_access_result(
         business_model=business_model,
     )
     return FunctionAccessResult(use_legacy_authorization=False, functions=[entry])
+
+
+def create_custom_access_result(permissions):
+    """Create a FunctionAccessResult for testing custom function authorization.
+
+    Args:
+        permissions: Iterable of permission strings (e.g. {PLATFORM_PERMISSION_CUSTOM_RUN}).
+
+    Returns:
+        FunctionAccessResult with no provider function entries and the given custom permissions.
+    """
+    return FunctionAccessResult(
+        use_legacy_authorization=False,
+        custom_function_permissions=set(permissions),
+    )
