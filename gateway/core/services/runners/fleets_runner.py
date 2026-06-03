@@ -303,22 +303,6 @@ class FleetsRunner(AbstractRunner):
             logger.error("Failed to get status for fleet [%s]: %s", self.job.fleet_id, ex)
             raise RunnerError(f"Unable to get status for fleet [{self.job.fleet_id}]", ex) from ex
 
-    def logs(self) -> str | None:
-        """
-        logs and provider_logs don't require implementation because we always go to the
-        object storage directly to retrieve this information in fleets. So we use the logs
-        storage to work with this data.
-        """
-        raise NotImplementedError
-
-    def provider_logs(self) -> str | None:
-        """
-        logs and provider_logs don't require implementation because we always go to the
-        object storage directly to retrieve this information in fleets. So we use the logs
-        storage to work with this data.
-        """
-        raise NotImplementedError
-
     def get_result_from_cos(self) -> str | None:
         """Retrieve job results from COS.
 
