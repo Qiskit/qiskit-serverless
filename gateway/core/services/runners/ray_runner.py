@@ -503,8 +503,8 @@ def _create_cluster_data(cluster_name: str, job: Job):
     manifest = cluster.render(
         {
             "cluster_name": cluster_name,
-            "user_data_folder": file_storage.public_path,
-            "provider_data_folder": file_storage.private_path,
+            "user_data_folder": file_storage.public_sub_path,
+            "provider_data_folder": file_storage.private_sub_path,
             "node_image": node_image,
             "workers": job_config.workers,
             "min_workers": job_config.min_workers,

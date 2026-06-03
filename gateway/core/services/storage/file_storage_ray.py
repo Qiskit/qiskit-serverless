@@ -48,8 +48,22 @@ class FileStorageRay(FileStorage):
             provider_name=provider_name,
             extra_sub_path=None,
         )
+        self.public_sub_path = PathBuilder.sub_path(
+            working_dir=WorkingDir.USER_STORAGE,
+            username=username,
+            function_title=function_title,
+            provider_name=provider_name,
+            extra_sub_path=None,
+        )
         if provider_name:
             self.private_path = PathBuilder.absolute_path(
+                working_dir=WorkingDir.PROVIDER_STORAGE,
+                username=username,
+                function_title=function_title,
+                provider_name=provider_name,
+                extra_sub_path=None,
+            )
+            self.private_sub_path = PathBuilder.sub_path(
                 working_dir=WorkingDir.PROVIDER_STORAGE,
                 username=username,
                 function_title=function_title,
