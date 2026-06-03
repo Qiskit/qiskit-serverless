@@ -1,6 +1,7 @@
 """Tests for commands."""
 
 import os
+from collections import deque
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -17,7 +18,7 @@ from core.services.runners import RunnerError
 from core.utils import check_logs
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
+from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses, save_logs_to_storage
 from scheduler.tasks.free_resources import FreeResources
 from scheduler.tasks.schedule_ray_jobs import ScheduleRayJobs
 from scheduler.schedule import get_jobs_to_schedule_fair_share
@@ -50,7 +51,7 @@ class TestCommands:
         # Test status change from PENDING to RUNNING
         runner = MagicMock()
         runner.status.return_value = JobStatus.RUNNING
-        runner.logs.return_value = "No logs yet."
+        runner.logs.return_value = deque(["No logs yet."])
         get_runner.return_value = runner
 
         job = self._create_test_job(ray_job_id="test_update_jobs_statuses")
@@ -70,7 +71,7 @@ class TestCommands:
 
         # Test job logs for FAILED job with empty logs
         runner.status.return_value = JobStatus.FAILED
-        runner.logs.return_value = ""
+        runner.logs.return_value = deque()
 
         UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
@@ -219,7 +220,7 @@ Ray internal log without marker
 
         runner = MagicMock()
         runner.status.return_value = JobStatus.SUCCEEDED
-        runner.logs.return_value = full_logs
+        runner.logs.return_value = deque(full_logs.splitlines())
         get_runner.return_value = runner
 
         UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
@@ -280,7 +281,7 @@ Internal system log
 
         runner = MagicMock()
         runner.status.return_value = JobStatus.SUCCEEDED
-        runner.logs.return_value = full_logs
+        runner.logs.return_value = deque(full_logs.splitlines())
         get_runner.return_value = runner
 
         UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
@@ -347,6 +348,22 @@ WARNING: Private warning
         assert job_events[0].data["status"] == Job.FAILED
         assert job_events[0].origin == JobEventOrigin.SCHEDULER
         assert job_events[0].context == JobEventContext.UPDATE_JOB_STATUS
+
+    def test_save_logs_to_storage_accepts_deque(self, settings):
+        """Tests that save_logs_to_storage works with deque[str] input."""
+        job = self._create_test_job(author="test_author", status=Job.SUCCEEDED)
+        lines = deque(["[PUBLIC] INFO: User log", "Plain untagged log line"])
+        save_logs_to_storage(job, lines)
+
+        user_log_file_path = os.path.join(
+            dj_settings.MEDIA_ROOT,
+            "test_author",
+            "logs",
+            f"{job.id}.log",
+        )
+        with open(user_log_file_path, "r", encoding="utf-8") as log_file:
+            saved_logs = log_file.read()
+        assert saved_logs == "INFO: User log\nPlain untagged log line\n"
 
     def _create_test_job(  # pylint: disable=too-many-positional-arguments
         self,
