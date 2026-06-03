@@ -59,12 +59,24 @@ class InstancesServer:
                 "permissions": list(permissions),
             }
         )
-        self._httpd.response_config = {"status": 200, "body": {"functions": functions}}
+        body = dict(self._httpd.response_config.get("body") or {})
+        body["functions"] = functions
+        self._httpd.response_config = {"status": 200, "body": body}
+        return self
+
+    def grant_custom(self, permissions: list) -> "InstancesServer":
+        """Set custom_functions permissions in the response body."""
+        body = dict(self._httpd.response_config.get("body") or {})
+        body["custom_functions"] = {"permissions": list(permissions)}
+        self._httpd.response_config = {"status": 200, "body": body}
         return self
 
     def reset(self) -> "InstancesServer":
         """Clear all grants (returns use_legacy_authorization=False with empty function list)."""
-        self._httpd.response_config = {"status": 200, "body": {"functions": []}}
+        self._httpd.response_config = {
+            "status": 200,
+            "body": {"functions": [], "custom_functions": {"permissions": []}},
+        }
         return self
 
     def error(self, status: int = 500) -> "InstancesServer":
