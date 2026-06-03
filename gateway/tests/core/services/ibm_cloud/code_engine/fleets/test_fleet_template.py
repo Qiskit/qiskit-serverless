@@ -11,7 +11,7 @@
 # that they have been altered from the originals.
 
 """
-Integration tests that run the fleet wrapper scripts inside a real Docker container.
+Tests that run the fleet wrapper scripts inside a real Docker container.
 
 These tests verify end-to-end wrapper behaviour:
   - custom-job wrapper:  all lines → public log, [PUBLIC]/[PRIVATE] prefixes stripped
