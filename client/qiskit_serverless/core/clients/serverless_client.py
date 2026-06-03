@@ -34,6 +34,7 @@ import re
 import tarfile
 import warnings
 from pathlib import Path
+from urllib.parse import urlparse
 from dataclasses import asdict
 from typing import Optional, List, Dict, Any, Union
 
@@ -423,36 +424,30 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
 
     @_trace_job
     def logs(self, job_id: str):
+        gateway_url = f"{self.host}/api/{self.version}/jobs/{job_id}/logs/"
         response = requests.get(
-            f"{self.host}/api/{self.version}/jobs/{job_id}/logs/",
+            gateway_url,
             headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
             timeout=REQUESTS_TIMEOUT,
-            allow_redirects=False,
         )
         if response.status_code == 204:
             return "No logs yet."
-        if response.status_code == 302:
-            cos_response = requests.get(response.headers["Location"], timeout=REQUESTS_TIMEOUT)
-            if cos_response.ok:
-                return cos_response.text
-            return "Error fetching logs."
+        if urlparse(response.url).hostname != urlparse(gateway_url).hostname:
+            return response.text if response.ok else "Error fetching logs."
         return safe_json_request_as_dict(request=lambda: response).get("logs")
 
     @_trace_job
     def provider_logs(self, job_id: str):
+        gateway_url = f"{self.host}/api/{self.version}/jobs/{job_id}/provider-logs/"
         response = requests.get(
-            f"{self.host}/api/{self.version}/jobs/{job_id}/provider-logs/",
+            gateway_url,
             headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
             timeout=REQUESTS_TIMEOUT,
-            allow_redirects=False,
         )
         if response.status_code == 204:
             return "No logs yet."
-        if response.status_code == 302:
-            cos_response = requests.get(response.headers["Location"], timeout=REQUESTS_TIMEOUT)
-            if cos_response.ok:
-                return cos_response.text
-            return "Error fetching logs."
+        if urlparse(response.url).hostname != urlparse(gateway_url).hostname:
+            return response.text if response.ok else "Error fetching logs."
         return safe_json_request_as_dict(request=lambda: response).get("logs")
 
     @_trace_job
