@@ -432,7 +432,10 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         )
         if response.status_code == 204:
             return "No logs yet."
-        if urlparse(response.url).hostname != urlparse(gateway_url).hostname:
+        # Not all redirects go to COS — HTTP→HTTPS redirects stay on the same host.
+        # Checking the hostname detects only redirects to an external host (COS/MinIO).
+        redirected_to_cos = urlparse(response.url).hostname != urlparse(gateway_url).hostname
+        if redirected_to_cos:
             return response.text if response.ok else "Error fetching logs."
         return safe_json_request_as_dict(request=lambda: response).get("logs")
 
@@ -446,7 +449,10 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         )
         if response.status_code == 204:
             return "No logs yet."
-        if urlparse(response.url).hostname != urlparse(gateway_url).hostname:
+        # Not all redirects go to COS — HTTP→HTTPS redirects stay on the same host.
+        # Checking the hostname detects only redirects to an external host (COS/MinIO).
+        redirected_to_cos = urlparse(response.url).hostname != urlparse(gateway_url).hostname
+        if redirected_to_cos:
             return response.text if response.ok else "Error fetching logs."
         return safe_json_request_as_dict(request=lambda: response).get("logs")
 
