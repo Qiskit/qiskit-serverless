@@ -151,10 +151,13 @@ class TestRayClientOperations(APITestCase):
         runner._connected = True
 
         with requests_mock.Mocker() as m:
-            m.get("http://test:8265/api/jobs/AwesomeJobId/logs", text="No logs yet.")
+            m.get(
+                "http://test:8265/api/jobs/AwesomeJobId/logs",
+                text='{"logs": "No logs yet."}',
+            )
             job_logs = runner.logs()
 
-        self.assertEqual(job_logs, "No logs yet.")
+        self.assertEqual(list(job_logs), ["No logs yet."])
 
     def test_job_stop(self):
         """Tests stopping of job."""

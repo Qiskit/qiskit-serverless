@@ -121,9 +121,12 @@ class TestRayRunner:
         """Tests job logs."""
         self.handler._job.ray_job_id = "AwesomeJobId"
         with requests_mock.Mocker() as m:
-            m.get("http://test:8265/api/jobs/AwesomeJobId/logs", text="No logs yet.")
+            m.get(
+                "http://test:8265/api/jobs/AwesomeJobId/logs",
+                text='{"logs": "No logs yet."}',
+            )
             job_logs = self.handler.logs()
-        assert job_logs == "No logs yet."
+        assert list(job_logs) == ["No logs yet."]
 
     def test_job_stop(self):
         """Tests stopping of job."""

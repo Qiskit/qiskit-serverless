@@ -34,6 +34,18 @@ from core.utils import retry_function, decrypt_env_vars, sanitize_file_path
 logger = logging.getLogger("RayRunner")
 
 
+def _decode_json_string(data: bytes) -> str:
+    """Decode a segment of a JSON-encoded string (no surrounding quotes).
+
+    Handles standard JSON escape sequences: \\n, \\t, \\\\, \\", \\uXXXX.
+    Falls back to UTF-8 decoding with replacement on parse error.
+    """
+    try:
+        return json.loads(b'"' + data + b'"')
+    except json.JSONDecodeError:
+        return data.decode("utf-8", errors="replace")
+
+
 class RayRunner(AbstractRunner):
     """Client for executing jobs on Ray/KubeRay clusters."""
 
@@ -216,22 +228,20 @@ class RayRunner(AbstractRunner):
         )
         return status
 
-    def logs(self) -> str | None:
-        """
-        Get job logs, streaming from Ray to avoid loading the full log into memory.
+    def logs(self) -> deque[str]:
+        """Get job logs as a deque of decoded lines.
 
-        Fetches the log stream in chunks and keeps only the last
-        ``FUNCTIONS_LOGS_SIZE_LIMIT`` bytes, so large logs (e.g. 1 GB) never
-        allocate more than ~50 MB of RAM.
+        Streams from the Ray dashboard HTTP endpoint with a rolling buffer so that
+        multi-GB log files never exceed FUNCTIONS_LOGS_SIZE_LIMIT in memory.
+        Lines retain their [PUBLIC] / [PRIVATE] prefix tags -- callers apply filters.
 
         Returns:
-            Job logs (tail up to the configured size limit) or None
+            deque of decoded log lines, empty if no logs are available.
 
         Raises:
-            RunnerError: If unable to get job logs
+            RunnerError: If unable to get job logs.
         """
         self._ensure_connected()
-
         try:
             return self._stream_logs_from_ray()
         except RuntimeError as ex:
@@ -243,74 +253,120 @@ class RayRunner(AbstractRunner):
             )
             raise RunnerError(f"Unable to get logs for job [{self._job.ray_job_id}]", ex) from ex
 
-    def _stream_logs_from_ray(self) -> str | None:
-        """Stream job logs from the Ray dashboard HTTP endpoint with a rolling buffer.
+    def _stream_logs_from_ray(self) -> deque[str]:
+        """Stream job logs from the Ray dashboard, decoding JSON line by line.
 
-        Reads the log response in 64 KB chunks and discards the oldest chunks
-        once the accumulated size exceeds ``FUNCTIONS_LOGS_SIZE_LIMIT``, so
-        memory usage is bounded regardless of total log size.
+        Ray returns {"logs": "...content..."} where newlines inside the log are
+        JSON-encoded as the two-byte sequence backslash-n. This method detects the
+        "logs" field marker in the byte stream, splits on JSON-encoded newlines,
+        decodes each line, and accumulates them in a rolling deque bounded by
+        FUNCTIONS_LOGS_SIZE_LIMIT (measured in characters).
 
         Returns:
-            The tail of the logs (up to the size limit) as a UTF-8 string,
-            ``None`` if the response body is empty, or raises ``RuntimeError``
-            on HTTP errors.
+            deque of decoded log lines with [PUBLIC]/[PRIVATE] prefixes intact.
+            Empty deque if the response body contains no log content.
+
+        Raises:
+            RuntimeError: on HTTP error responses.
         """
         host = self._client.get_address()
         url = f"{host.rstrip('/')}/api/jobs/{self._job.ray_job_id}/logs"
-        max_bytes = settings.FUNCTIONS_LOGS_SIZE_LIMIT
-        chunks: deque[bytes] = deque()
-        total_size = 0
+        max_chars = settings.FUNCTIONS_LOGS_SIZE_LIMIT
+
+        lines: deque[str] = deque()
+        total_chars = 0
         truncated = False
+        buf = bytearray()
+        in_logs_value = False
+
+        _MARKER = b'"logs": "'  # 9 bytes: opening of the JSON string value
+        _JSON_NL = b"\\n"  # 2 bytes: 0x5C 0x6E -- JSON-encoded newline
 
         logger.info(
-            "[_stream_logs_from_ray] job_id=%s ray_job_id=%s Streaming logs (limit=%d bytes)",
+            "[_stream_logs_from_ray] job_id=%s ray_job_id=%s Streaming logs (limit=%d chars)",
             self._job.id,
             self._job.ray_job_id,
-            max_bytes,
+            max_chars,
         )
 
         with requests.get(url, stream=True, timeout=(10, 300)) as response:
             if not response.ok:
                 raise RuntimeError(
-                    f"Ray dashboard returned HTTP {response.status_code} for job logs [{self._job.ray_job_id}]"
+                    f"Ray dashboard returned HTTP {response.status_code} " f"for job logs [{self._job.ray_job_id}]"
                 )
             for chunk in response.iter_content(chunk_size=65536):
                 if not chunk:
                     continue
-                chunks.append(chunk)
-                total_size += len(chunk)
-                while total_size > max_bytes and chunks:
-                    removed = chunks.popleft()
-                    total_size -= len(removed)
+                buf.extend(chunk)
+
+                if not in_logs_value:
+                    idx = buf.find(_MARKER)
+                    if idx == -1:
+                        # Trim to avoid unbounded growth while waiting for marker
+                        keep = len(_MARKER) - 1
+                        if len(buf) > keep:
+                            buf = bytearray(buf[-keep:])
+                        continue
+                    del buf[: idx + len(_MARKER)]
+                    in_logs_value = True
+
+                # Drain all complete JSON-encoded lines from buf
+                while True:
+                    nl = buf.find(_JSON_NL)
+                    if nl == -1:
+                        break
+                    line_bytes = bytes(buf[:nl])
+                    del buf[: nl + 2]
+                    line = _decode_json_string(line_bytes)
+                    lines.append(line)
+                    total_chars += len(line)
+                    while total_chars > max_chars and lines:
+                        old = lines.popleft()
+                        total_chars -= len(old)
+                        truncated = True
+
+        # Handle remaining bytes: the last line (if log doesn't end with \n)
+        # plus the closing JSON suffix: "}\n  (literal bytes: 0x22 0x7D 0x0A)
+        tail = bytes(buf)
+        tail = tail.rstrip(b"\r\n ")
+        if tail.endswith(b'"}'):
+            tail = tail[:-2]
+        elif tail.endswith(b'"'):
+            tail = tail[:-1]
+
+        if tail:
+            line = _decode_json_string(tail)
+            if line:
+                lines.append(line)
+                total_chars += len(line)
+                while total_chars > max_chars and lines:
+                    old = lines.popleft()
+                    total_chars -= len(old)
                     truncated = True
 
-        if not chunks:
-            return None
-
-        result = b"".join(chunks).decode("utf-8", errors="replace")
         if truncated:
             logger.warning(
-                "[_stream_logs_from_ray] job_id=%s ray_job_id=%s Logs truncated to last %d bytes",
+                "[_stream_logs_from_ray] job_id=%s ray_job_id=%s Logs truncated to last %d chars",
                 self._job.id,
                 self._job.ray_job_id,
-                max_bytes,
+                max_chars,
             )
-            result = (
-                "[Logs exceeded maximum allowed size ("
-                + str(max_bytes / (1024**2))
-                + " MB). Logs have been truncated, discarding the oldest entries first.]\n"
-                + result
+            warning = (
+                f"[Logs exceeded maximum allowed size ({max_chars / (1024 ** 2):.0f} MB). "
+                "Logs have been truncated, discarding the oldest entries first.]"
             )
-        return result
+            lines.appendleft(warning)
 
-    def provider_logs(self) -> str | None:
+        return lines
+
+    def provider_logs(self) -> deque[str]:
         """Return provider logs for this job.
 
         Ray has no distinction between user and provider logs, so this
-        delegates to ``logs()``.
+        delegates to logs().
 
         Returns:
-            Log content or ``None``.
+            deque of decoded log lines, empty if no logs are available.
 
         Raises:
             RunnerError: If unable to retrieve logs.
