@@ -1,5 +1,6 @@
 """Tests for job logs APIs."""
 
+from collections import deque
 from typing import Optional
 from unittest.mock import Mock, MagicMock, patch
 
@@ -143,7 +144,7 @@ Unprefixed message
 """
         runner_mock = Mock()
         runner_mock.status.return_value = Job.SUCCEEDED
-        runner_mock.logs.return_value = full_logs
+        runner_mock.logs.return_value = deque(full_logs.splitlines())
         get_runner_client_mock.return_value = runner_mock
 
         # Execute update_jobs_statuses to detect terminal state and save logs
@@ -173,15 +174,18 @@ Unprefixed message
         logs_storage_get_mock.return_value = None
 
         runner_mock = Mock()
-        runner_mock.logs.return_value = """
-[PUBLIC] INFO: Public log for user
-
-[PRIVATE] INFO: Private log for provider only
-[PUBLIC] INFO: Another public log
-Internal system log
-[PRIVATE] WARNING: Private warning
-[PUBLIC] INFO: Final public log
-"""
+        runner_mock.logs.return_value = deque(
+            [
+                "",
+                "[PUBLIC] INFO: Public log for user",
+                "",
+                "[PRIVATE] INFO: Private log for provider only",
+                "[PUBLIC] INFO: Another public log",
+                "Internal system log",
+                "[PRIVATE] WARNING: Private warning",
+                "[PUBLIC] INFO: Final public log",
+            ]
+        )
         expected_user_logs = """
 INFO: Public log for user
 
@@ -268,7 +272,7 @@ Unprefixed message
         # Mock RunnerClient to return logs (all logs saved for provider private logs)
         runner_mock = Mock()
         runner_mock.status.return_value = Job.SUCCEEDED
-        runner_mock.logs.return_value = full_logs
+        runner_mock.logs.return_value = deque(full_logs.splitlines())
         get_runner_client_mock.return_value = runner_mock
 
         # Execute update_jobs_statuses to detect terminal state and save logs
@@ -308,7 +312,7 @@ WARNING: Private warning
 """
 
         runner_mock = Mock()
-        runner_mock.provider_logs.return_value = full_logs
+        runner_mock.provider_logs.return_value = deque(full_logs.splitlines())
         get_runner_client_mock.return_value = runner_mock
 
         job = create_job(author="author", provider_admin="provider_admin")
