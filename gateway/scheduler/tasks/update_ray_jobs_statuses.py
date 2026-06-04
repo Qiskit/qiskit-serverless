@@ -72,6 +72,7 @@ class UpdateRayJobsStatuses(SchedulerTask):
             return True
 
         status_has_changed = False
+        lines = None
         if check_job_timeout(job):
             job_new_status = Job.STOPPED
 
