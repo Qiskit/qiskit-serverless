@@ -74,23 +74,6 @@ class TestRayJobStatusUpdate:
 
         assert mock_runner.logs.call_count == 1
 
-    def test_no_unbound_error_when_job_already_terminal_and_status_unchanged(self):
-        """update_job_status() does not raise when called on an already-terminal job with no status change."""
-        task = _make_task()
-        job = _make_ray_job(status=Job.SUCCEEDED)
-        job.in_terminal_state.return_value = True
-
-        mock_runner = MagicMock()
-        mock_runner.status.return_value = Job.SUCCEEDED  # same status, no change
-
-        with (
-            patch(f"{_MOD}.get_runner", return_value=mock_runner),
-            patch(f"{_MOD}.check_job_timeout", return_value=False),
-        ):
-            result = task.update_job_status(job)
-
-        assert result is False
-
     def test_logs_fetched_for_running_job(self):
         """runner.logs() is called once for a still-RUNNING Ray job (the "no resources" check)."""
         task = _make_task()

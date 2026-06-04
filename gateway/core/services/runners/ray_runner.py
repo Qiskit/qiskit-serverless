@@ -246,30 +246,16 @@ class RayRunner(AbstractRunner):
             RunnerError: If unable to get job logs.
         """
         self._ensure_connected()
-        # Retries cover HTTP 5xx responses (RuntimeError), server not responding
-        # (ConnectionError, Timeout), and mid-download failures (RequestException).
-        # Restarting the full download is safe because Ray log content is immutable
-        # once a job has reached a terminal state.
-        for attempt in range(3):
-            try:
-                return self._stream_logs_from_ray()
-            except (RuntimeError, requests.exceptions.RequestException) as ex:
-                if attempt == 2:
-                    logger.error(
-                        "[logs] job_id=%s ray_job_id=%s error=%s Get logs failed after 3 attempts",
-                        self._job.id,
-                        self._job.ray_job_id,
-                        ex,
-                    )
-                    raise RunnerError(f"Unable to get logs for job [{self._job.ray_job_id}]", ex) from ex
-                logger.warning(
-                    "[logs] job_id=%s ray_job_id=%s attempt=%d/3 error, retrying",
-                    self._job.id,
-                    self._job.ray_job_id,
-                    attempt + 1,
-                )
-                time.sleep(1)
-        raise RunnerError(f"Unable to get logs for job [{self._job.ray_job_id}]")
+        try:
+            return retry_function(
+                self._stream_logs_from_ray,
+                num_retries=3,
+                interval=1,
+                exceptions=[RuntimeError, requests.exceptions.RequestException],
+                function_name=f"logs(job_id={self._job.id} ray_job_id={self._job.ray_job_id})",
+            )
+        except (RuntimeError, requests.exceptions.RequestException) as ex:
+            raise RunnerError(f"Unable to get logs for job [{self._job.ray_job_id}]", ex) from ex
 
     def _stream_logs_from_ray(self) -> deque[str]:  # pylint: disable=too-many-branches,too-many-statements
         """Stream job logs from the Ray dashboard, decoding JSON line by line.
