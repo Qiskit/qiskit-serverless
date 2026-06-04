@@ -1,15 +1,3 @@
-# This code is part of a Qiskit project.
-#
-# (C) IBM 2026
-#
-# This code is licensed under the Apache License, Version 2.0. You may
-# obtain a copy of this license in the LICENSE.txt file in the root directory
-# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
-#
-# Any modifications or derivative works of this code must retain this
-# copyright notice, and modified files need to carry a notice indicating
-# that they have been altered from the originals.
-
 """Tests for FleetsResultStorage."""
 
 import logging
@@ -27,14 +15,7 @@ _COS_MODULE = "core.services.storage.result_storage_fleets.get_cos_client"
 
 
 def _make_client_error(code: str) -> ClientError:
-    """Create a ClientError with the given error code for testing.
-
-    Args:
-        code: The S3 error code (e.g. "NoSuchKey", "404", "AccessDenied").
-
-    Returns:
-        A ClientError instance with the specified code.
-    """
+    """Create a ClientError with the given error code for testing."""
     return ClientError({"Error": {"Code": code, "Message": ""}}, "GetObject")
 
 
@@ -56,24 +37,26 @@ class TestFleetsResultStorage:
 
     @pytest.fixture
     def job(self, ce_project):
-        """Create a fleets job with no provider (custom function)."""
+        """Create a fleets job with CE project on the program."""
         program = TestUtils.create_program(
             program_title="my-program",
             author="alice",
             runner=Program.FLEETS,
+            code_engine_project=ce_project,
         )
-        return TestUtils.create_job(author="alice", program=program, code_engine_project=ce_project)
+        return TestUtils.create_job(author="alice", program=program)
 
     @pytest.fixture
     def job_with_provider(self, ce_project):
-        """Create a fleets job with a provider (provider function)."""
+        """Create a fleets job with a provider."""
         program = TestUtils.create_program(
             program_title="my-program",
             author="alice",
             provider="good-partner",
             runner=Program.FLEETS,
+            code_engine_project=ce_project,
         )
-        return TestUtils.create_job(author="alice", program=program, code_engine_project=ce_project)
+        return TestUtils.create_job(author="alice", program=program)
 
     def test_results_key_custom_function(self, job):
         """_results_key uses custom_functions path when program has no provider."""
@@ -90,16 +73,17 @@ class TestFleetsResultStorage:
         )
 
     def test_user_bucket_from_project(self, job):
-        """_user_bucket comes from the CodeEngineProject."""
+        """_user_bucket comes from the program's CodeEngineProject."""
         storage = FleetsResultStorage(job)
         assert storage._user_bucket == "user-bucket"  # pylint: disable=protected-access
 
-    def test_no_project_raises_value_error(self):
-        """FleetsResultStorage raises ValueError when job has no CodeEngineProject."""
+    def test_no_project_does_not_raise(self):
+        """FleetsResultStorage does not raise when program has no CodeEngineProject."""
         program = TestUtils.create_program(program_title="orphan", author="bob", runner=Program.FLEETS)
         job = TestUtils.create_job(author="bob", program=program)
-        with pytest.raises(ValueError, match="has no CodeEngineProject assigned"):
-            FleetsResultStorage(job)
+        storage = FleetsResultStorage(job)
+        assert storage._results_key is None  # pylint: disable=protected-access
+        assert storage._user_bucket is None  # pylint: disable=protected-access
 
     def test_get_returns_content(self, job):
         """get() returns decoded COS object content."""
@@ -111,7 +95,7 @@ class TestFleetsResultStorage:
             result = storage.get()
 
         assert result == '{"result": 42}'
-        mock_get_cos.assert_called_once_with(job.code_engine_project)
+        mock_get_cos.assert_called_once_with(job.program.code_engine_project)
         mock_cos.get_object_bytes.assert_called_once_with(
             bucket_name="user-bucket",
             key=storage._results_key,  # pylint: disable=protected-access
@@ -151,6 +135,13 @@ class TestFleetsResultStorage:
 
         assert result is None
         assert any("COS error AccessDenied" in record.message for record in caplog.records)
+
+    def test_get_returns_none_when_no_project(self):
+        """get() returns None when program has no CodeEngineProject."""
+        program = TestUtils.create_program(program_title="orphan", author="bob", runner=Program.FLEETS)
+        job = TestUtils.create_job(author="bob", program=program)
+        storage = FleetsResultStorage(job)
+        assert storage.get() is None
 
     def test_save_raises_not_implemented(self, job):
         """save() raises NotImplementedError — results are written by the SDK."""

@@ -34,7 +34,7 @@ class JobSaveResultUseCase:
             Job: The updated job object with the stored result.
         """
         try:
-            job = Job.objects.get(id=job_id)
+            job = Job.objects.select_related("program__code_engine_project").get(id=job_id)
         except ObjectDoesNotExist:
             raise JobNotFoundException(job_id)
 

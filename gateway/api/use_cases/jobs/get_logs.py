@@ -33,7 +33,7 @@ class GetJobLogsUseCase:
             or LogsResult with raw_log set (Ray).
         """
         try:
-            job = Job.objects.get(id=job_id)
+            job = Job.objects.select_related("program__code_engine_project").get(id=job_id)
         except ObjectDoesNotExist:
             raise JobNotFoundException(job_id)
 

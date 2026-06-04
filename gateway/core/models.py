@@ -14,7 +14,6 @@ from django_prometheus.models import ExportModelOperationsMixin
 
 from core.config_key import ConfigKey
 from core.domain.business_models import BusinessModel
-from core.model_managers.code_engine_projects import CodeEngineProjectQuerySet
 from core.model_managers.functions import FunctionsQuerySet
 from core.model_managers.job_events import JobEventQuerySet
 from core.model_managers.jobs import JobQuerySet
@@ -168,6 +167,13 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         null=True,
         blank=True,
     )
+    code_engine_project = models.ForeignKey(
+        "CodeEngineProject",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Code Engine project for Fleets runner programs",
+    )
 
     objects: FunctionsQuerySet = FunctionsQuerySet.as_manager()
 
@@ -186,6 +192,21 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
                 name="unique_author_title_no_provider",
             ),
         ]
+
+    def ensure_code_engine_project(self) -> None:
+        """Assign a CodeEngineProject if this is a Fleets program without one.
+
+        Uses the first active CE project as the default.
+        No-op if the program already has a CE project or is not a Fleets program.
+        Logs a warning if no active project is available.
+        """
+        if self.runner != Program.FLEETS:
+            return
+        if self.code_engine_project:
+            return
+        self.code_engine_project = CodeEngineProject.objects.filter(active=True).order_by("pk").first()
+        if not self.code_engine_project:
+            logger.warning("No active CodeEngineProject — Fleets program will not be runnable until one is provisioned")
 
     def __str__(self):
         if self.provider:
@@ -284,13 +305,6 @@ class CodeEngineProject(models.Model):
 
     # Networking
     subnet_pool_id = models.CharField(max_length=255, help_text="Subnet pool ID for fleet networking")
-    zone = models.CharField(
-        max_length=64,
-        null=True,
-        blank=True,
-        unique=True,
-        help_text="Availability zone this project is pinned to (e.g. us-east-1)",
-    )
 
     # Storage and state management
     pds_name_state = models.CharField(max_length=255, help_text="Persistent Data Store name for task state")
@@ -332,7 +346,6 @@ class CodeEngineProject(models.Model):
     # Status and ownership
     active = models.BooleanField(default=True, help_text="Whether this project is available for job execution")
 
-    objects: CodeEngineProjectQuerySet = CodeEngineProjectQuerySet.as_manager()
 
     class Meta:
         app_label = "api"
@@ -428,13 +441,6 @@ class Job(models.Model):
     )
     compute_resource = models.ForeignKey(
         ComputeResource, on_delete=models.SET_NULL, null=True, blank=True, help_text="Ray cluster (for Ray runner)"
-    )
-    code_engine_project = models.ForeignKey(
-        CodeEngineProject,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        help_text="Code Engine project (for Fleets runner)",
     )
     config = models.ForeignKey(
         to=JobConfig,

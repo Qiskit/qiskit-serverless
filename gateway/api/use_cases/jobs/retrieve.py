@@ -37,7 +37,7 @@ class JobRetrieveUseCase:
         Returns:
             Job: job found
         """
-        job = Job.objects.get(id=job_id)
+        job = Job.objects.select_related("program__code_engine_project").get(id=job_id)
         if job is None:
             raise JobNotFoundException(str(job_id))
 

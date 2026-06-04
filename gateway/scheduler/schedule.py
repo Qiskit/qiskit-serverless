@@ -144,7 +144,7 @@ def get_jobs_to_schedule_fair_share(slots: int, gpu: bool, runner: str = Program
     for entry in author_date_list:
         job_filter |= Q(author=entry["author"]) & Q(created=entry["job_date"])
 
-    return Job.objects.filter(job_filter)
+    return Job.objects.select_related("program__code_engine_project").filter(job_filter)
 
 
 def check_job_timeout(job: Job):
