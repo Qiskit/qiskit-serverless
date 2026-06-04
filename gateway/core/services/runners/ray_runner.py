@@ -38,6 +38,46 @@ _LOG_VALUE_MARKER = b'"logs": "'  # JSON key that opens the log string value
 _JSON_ENCODED_NL = b"\\n"  # JSON-encoded newline: 0x5C 0x6E
 
 
+def _seek_log_marker(buffer: bytearray) -> bool:
+    """Advance buf to right after "logs": ". Returns True if found.
+
+    When the marker is not yet in buffer, trims buffer to the last N-1 bytes so it
+    cannot grow unboundedly while waiting for the opening of the log field.
+    """
+    idx = buffer.find(_LOG_VALUE_MARKER)
+    if idx == -1:
+        keep = len(_LOG_VALUE_MARKER) - 1
+        if len(buffer) > keep:
+            del buffer[: len(buffer) - keep]
+        return False
+    del buffer[: idx + len(_LOG_VALUE_MARKER)]
+    return True
+
+
+def _consume_logs(buffer: bytearray, lines: "deque[str]", total_chars: int, max_chars: int) -> "tuple[int, bool]":
+    """Extract all JSON-newline-terminated lines from buffer into lines.
+
+    Mutates buffer in-place by consuming each decoded line. Enforces the rolling
+    size limit, evicting oldest lines when total_chars exceeds max_chars.
+
+    Returns:
+        (total_chars, truncated) after processing all available lines.
+    """
+    truncated = False
+    while True:
+        nl = buffer.find(_JSON_ENCODED_NL)
+        if nl == -1:
+            break
+        line = _decode_json_string(bytes(buffer[:nl]))
+        del buffer[: nl + 2]
+        lines.append(line)
+        total_chars += len(line)
+        while total_chars > max_chars and lines:
+            total_chars -= len(lines.popleft())
+            truncated = True
+    return total_chars, truncated
+
+
 def _decode_json_string(data: bytes) -> str:
     """Decode a segment of a JSON-encoded string (no surrounding quotes).
 
@@ -257,7 +297,7 @@ class RayRunner(AbstractRunner):
         except (RuntimeError, requests.exceptions.RequestException) as ex:
             raise RunnerError(f"Unable to get logs for job [{self._job.ray_job_id}]", ex) from ex
 
-    def _stream_logs_from_ray(self) -> deque[str]:  # pylint: disable=too-many-branches,too-many-statements
+    def _stream_logs_from_ray(self) -> deque[str]:
         """Stream job logs from the Ray dashboard, decoding JSON line by line.
 
         Ray returns {"logs": "...content..."} where newlines inside the log are
@@ -280,7 +320,7 @@ class RayRunner(AbstractRunner):
         lines: deque[str] = deque()
         total_chars = 0
         truncated = False
-        buf = bytearray()
+        buffer = bytearray()
         in_logs_value = False
 
         logger.info(
@@ -298,38 +338,17 @@ class RayRunner(AbstractRunner):
             for chunk in response.iter_content(chunk_size=65536):
                 if not chunk:
                     continue
-                buf.extend(chunk)
-
+                buffer.extend(chunk)
                 if not in_logs_value:
-                    idx = buf.find(_LOG_VALUE_MARKER)
-                    if idx == -1:
-                        # Trim to avoid unbounded growth while waiting for marker
-                        keep = len(_LOG_VALUE_MARKER) - 1
-                        if len(buf) > keep:
-                            buf = bytearray(buf[-keep:])
+                    in_logs_value = _seek_log_marker(buffer)
+                    if not in_logs_value:
                         continue
-                    del buf[: idx + len(_LOG_VALUE_MARKER)]
-                    in_logs_value = True
+                total_chars, t = _consume_logs(buffer, lines, total_chars, max_chars)
+                truncated = truncated or t
 
-                # Drain all complete JSON-encoded lines from buf
-                while True:
-                    nl = buf.find(_JSON_ENCODED_NL)
-                    if nl == -1:
-                        break
-                    line_bytes = bytes(buf[:nl])
-                    del buf[: nl + 2]
-                    line = _decode_json_string(line_bytes)
-                    lines.append(line)
-                    total_chars += len(line)
-                    while total_chars > max_chars and lines:
-                        old = lines.popleft()
-                        total_chars -= len(old)
-                        truncated = True
-
-        # Handle remaining bytes: the last line (if log doesn't end with \n)
+        # Handle remaining bytes: last line (if log doesn't end with \n)
         # plus the closing JSON suffix: "}\n  (literal bytes: 0x22 0x7D 0x0A)
-        tail = bytes(buf)
-        tail = tail.rstrip(b"\r\n ")
+        tail = bytes(buffer).rstrip(b"\r\n ")
         if tail.endswith(b'"}'):
             tail = tail[:-2]
         elif tail.endswith(b'"'):
@@ -341,8 +360,7 @@ class RayRunner(AbstractRunner):
                 lines.append(line)
                 total_chars += len(line)
                 while total_chars > max_chars and lines:
-                    old = lines.popleft()
-                    total_chars -= len(old)
+                    total_chars -= len(lines.popleft())
                     truncated = True
 
         if truncated:
