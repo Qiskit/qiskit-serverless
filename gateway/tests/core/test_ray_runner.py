@@ -6,6 +6,7 @@ import shutil
 import tempfile
 from unittest.mock import MagicMock, patch
 
+import requests
 import requests_mock
 from django.conf import settings
 from kubernetes import client, config
@@ -158,6 +159,72 @@ class TestRayClientOperations(APITestCase):
             job_logs = runner.logs()
 
         self.assertEqual(list(job_logs), ["No logs yet."])
+
+    def _make_runner_with_mock_client(self, ray_job_id="AwesomeJobId", host="http://test:8265"):
+        job = Job.objects.first()
+        job.ray_job_id = ray_job_id
+        job.save()
+        mock_client = MagicMock()
+        mock_client.get_address.return_value = host
+        runner = get_runner(job)
+        runner._client = mock_client
+        runner._connected = True
+        return runner
+
+    def test_logs_retries_on_http_5xx_and_eventually_succeeds(self):
+        """logs() retries up to 3 times on HTTP 5xx and returns logs on success."""
+        runner = self._make_runner_with_mock_client()
+
+        with requests_mock.Mocker() as m, patch("time.sleep"):
+            m.get(
+                "http://test:8265/api/jobs/AwesomeJobId/logs",
+                response_list=[
+                    {"status_code": 500},
+                    {"status_code": 503},
+                    {"text": '{"logs": "hello\\nworld"}'},
+                ],
+            )
+            job_logs = runner.logs()
+
+        self.assertEqual(list(job_logs), ["hello", "world"])
+
+    def test_logs_raises_runner_error_after_all_retries_exhausted(self):
+        """logs() raises RunnerError after 3 consecutive HTTP 5xx responses."""
+        runner = self._make_runner_with_mock_client()
+
+        with requests_mock.Mocker() as m, patch("time.sleep"):
+            m.get(
+                "http://test:8265/api/jobs/AwesomeJobId/logs",
+                response_list=[
+                    {"status_code": 500},
+                    {"status_code": 500},
+                    {"status_code": 500},
+                ],
+            )
+            with self.assertRaises(RunnerError):
+                runner.logs()
+
+    def test_logs_retries_on_mid_download_failure_and_eventually_succeeds(self):
+        """logs() retries on mid-download failure and returns logs on success."""
+        from collections import deque  # pylint: disable=import-outside-toplevel
+
+        runner = self._make_runner_with_mock_client()
+
+        with (
+            patch.object(
+                runner,
+                "_stream_logs_from_ray",
+                side_effect=[
+                    requests.exceptions.ChunkedEncodingError("mid-download"),
+                    deque(["hello"]),
+                ],
+            ) as mock_stream,
+            patch("time.sleep"),
+        ):
+            job_logs = runner.logs()
+
+        self.assertEqual(list(job_logs), ["hello"])
+        self.assertEqual(mock_stream.call_count, 2)
 
     def test_job_stop(self):
         """Tests stopping of job."""
