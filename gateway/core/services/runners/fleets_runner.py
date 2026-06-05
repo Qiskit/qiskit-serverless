@@ -223,8 +223,7 @@ class FleetsRunner(AbstractRunner):
                     paths.cos_provider_log_key,
                 )
             else:
-                # Fallar aquí
-                logger.info("COS not available for job_id=[%s]", self.job.id)
+                raise RunnerError(f"COS is not configured for job_id=[{self.job.id}] — cannot submit Fleets job")
 
             fleet = _retry_on_rate_limit(
                 lambda: handler.submit_job(
@@ -318,6 +317,7 @@ class FleetsRunner(AbstractRunner):
         object storage directly to retrieve this information in fleets. So we use the logs
         storage to work with this data.
         """
+        raise NotImplementedError
 
     def get_result_from_cos(self) -> str | None:
         """Retrieve job results from COS.
@@ -535,7 +535,7 @@ class FleetsRunner(AbstractRunner):
             raise RunnerError(f"Failed to read artifact for job_id=[{self.job.id}]", ex) from ex
 
         if not entrypoint_found:
-            raise RunnerError("Missing entrypoint", ex) from ex
+            raise RunnerError(f"Entrypoint '{program.entrypoint}' not found in artifact for job_id=[{self.job.id}]")
 
     def _upload_provider_image_entrypoint(self, paths: FleetJobPaths) -> None:
         """Upload COS objects for a provider image job.

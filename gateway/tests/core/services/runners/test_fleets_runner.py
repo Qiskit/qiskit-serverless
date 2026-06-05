@@ -75,14 +75,21 @@ def _patch_settings(**overrides):
         "CUSTOM_IMAGE_PACKAGE_NAME": "runner",
     }
     defaults.update(overrides)
-    with patch(f"{_RUNNER_MOD}.settings") as mock_settings:
+    with (
+        patch(f"{_RUNNER_MOD}.settings") as mock_settings,
+        patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value={}),
+        patch(f"{_RUNNER_MOD}.get_arguments_storage"),
+    ):
         for key, value in defaults.items():
             setattr(mock_settings, key, value)
         yield mock_settings
 
 
 def _make_submit_runner() -> tuple[FleetsRunner, MagicMock]:
-    """Build a FleetsRunner pre-wired for submit() without COS.
+    """Build a FleetsRunner pre-wired for submit() with COS configured.
+
+    COS interactions are mocked: _upload_program_to_cos is patched to a no-op
+    so tests that verify fleet submission parameters don't need real COS credentials.
 
     Returns:
         Tuple of ``(runner, mock_handler)`` where handler.submit_job
@@ -101,6 +108,10 @@ def _make_submit_runner() -> tuple[FleetsRunner, MagicMock]:
     mock_job.program.image = None
     mock_job.program.artifact = None
     mock_job.program.entrypoint = "main.py"
+    mock_job.program.provider = None
+    mock_job.program.runner = Program.FLEETS
+    mock_job.env_vars = "{}"
+    mock_job.arguments = "{}"
 
     runner = FleetsRunner(mock_job)
     mock_handler = MagicMock()
@@ -110,10 +121,12 @@ def _make_submit_runner() -> tuple[FleetsRunner, MagicMock]:
     mock_project.subnet_pool_id = "subnet-1"
     mock_project.pds_name_state = "state-pds"
     mock_project.project_name = "test-project"
-    mock_project.cos_bucket_user_data_name = None
-    mock_project.cos_bucket_provider_data_name = None
-    mock_project.cos_instance_name = None
-    mock_project.cos_key_name = None
+    mock_project.cos_bucket_user_data_name = "user-bucket"
+    mock_project.cos_bucket_provider_data_name = "provider-bucket"
+    mock_project.cos_instance_name = "cos-instance"
+    mock_project.cos_key_name = "cos-key"
+    mock_project.pds_name_users = "user-pds"
+    mock_project.pds_name_providers = "provider-pds"
     runner._project = mock_project  # pylint: disable=protected-access
     runner._connected = True  # pylint: disable=protected-access
 
@@ -229,8 +242,8 @@ def test_stop_returns_false_when_already_terminal():
     mock_handler.cancel_job.assert_not_called()
 
 
-def test_submit_sets_fleet_id_without_cos():
-    """submit() sets job.fleet_id when COS is not configured."""
+def test_submit_sets_fleet_id_with_cos():
+    """submit() sets job.fleet_id when COS is configured."""
     runner, mock_handler = _make_submit_runner()
 
     with _patch_settings():
@@ -238,6 +251,17 @@ def test_submit_sets_fleet_id_without_cos():
 
     assert runner.job.fleet_id == "fleet-abc"
     mock_handler.submit_job.assert_called_once()
+
+
+def test_submit_raises_runner_error_when_cos_not_configured():
+    """submit() raises RunnerError when COS is not configured — Fleets requires COS."""
+    runner, _ = _make_submit_runner()
+    runner._project.cos_bucket_user_data_name = None  # pylint: disable=protected-access
+    runner._project.cos_instance_name = None  # pylint: disable=protected-access
+    runner._project.cos_key_name = None  # pylint: disable=protected-access
+
+    with _patch_settings(), pytest.raises(RunnerError, match="COS is not configured"):
+        runner.submit()
 
 
 def test_submit_raises_runner_error_on_api_exception():
@@ -301,7 +325,7 @@ def test_submit_parses_compute_profile_without_gpu():
     call_kwargs = mock_handler.submit_job.call_args.kwargs
     assert call_kwargs["scale_cpu_limit"] == "4"
     assert call_kwargs["scale_memory_limit"] == "16G"
-    assert call_kwargs.get("extra_fields") is None
+    assert "scale_gpu" not in (call_kwargs.get("extra_fields") or {})
 
 
 def test_submit_uses_default_profile_when_no_compute_profile():
@@ -321,7 +345,7 @@ def test_submit_uses_program_image():
     runner, mock_handler = _make_submit_runner()
     runner.job.program.image = "custom-image:latest"
 
-    with _patch_settings():
+    with _patch_settings(), patch.object(runner, "_upload_program_to_cos"):
         runner.submit()
 
     assert mock_handler.submit_job.call_args.kwargs["image_reference"] == "custom-image:latest"
