@@ -8,6 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 
 from core.services.storage import get_file_storage
 from core.models import Program
+from core.services.storage.file_storage_ray import FileStorageRay
 
 
 def create_function(title, provider_name=None, runner=Program.RAY):
@@ -35,7 +36,7 @@ def function_with_provider():
 def test_public_storage_without_provider(tmp_path, settings, function_without_provider):
     """User public storage without provider: path is {username}/"""
     settings.MEDIA_ROOT = str(tmp_path)
-    storage = get_file_storage(
+    storage: FileStorageRay = get_file_storage(
         username="user1",
         function=function_without_provider,
     )
@@ -45,6 +46,9 @@ def test_public_storage_without_provider(tmp_path, settings, function_without_pr
     uploaded_file = SimpleUploadedFile("public.txt", file_content)
     path = storage.upload_public_file(uploaded_file)
     assert os.path.exists(path)
+
+    assert storage.public_sub_path == "user1"
+    assert storage.public_path == f"{tmp_path}/user1"
 
     # Get public file
     file_wrapper, file_type, size = storage.get_public_file("public.txt")
@@ -63,10 +67,13 @@ def test_public_storage_without_provider(tmp_path, settings, function_without_pr
 def test_public_storage_with_provider(tmp_path, settings, function_with_provider):
     """User public storage with provider: path is {username}/{provider}/{function}/"""
     settings.MEDIA_ROOT = str(tmp_path)
-    storage = get_file_storage(
+    storage: FileStorageRay = get_file_storage(
         username="user1",
         function=function_with_provider,
     )
+
+    assert storage.public_sub_path == "user1/provider1/myfun"
+    assert storage.public_path == f"{tmp_path}/user1/provider1/myfun"
 
     # Upload a public file
     file_content = b"user public file"
