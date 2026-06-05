@@ -297,6 +297,19 @@ class TestNoPermissionsInstance:
             none_client.run(custom_function_title)
         _assert_404(exc)
 
+    def test_serverless_list_includes_custom_function(self, none_client, custom_function_title, seeded_custom_function):
+        """Serverless list is author-based; no custom permission is needed to see own functions.
+
+        seeded_custom_function was uploaded by user_client (same GATEWAY_TOKEN, same author).
+        none_client shares the same token, so the custom function must appear even though
+        none_client has no function-custom.* permissions.
+        """
+        functions = none_client.functions(filter="serverless")
+        titles = [f.title for f in functions]
+        assert (
+            custom_function_title in titles
+        ), f"Expected {custom_function_title!r} in serverless list (author-owned, no permission check), got: {titles}"
+
 
 class TestUserInstance:
     """
@@ -673,6 +686,43 @@ class TestProviderInstance:
             provider_client.file_delete("nonexistent.txt", fn)
         _assert_404(exc)
 
+    def test_upload_custom_function_raises_404(self, provider_client, custom_function_title, tmp_path):
+        """upload() for a custom function is denied (404) when function-custom.write is absent."""
+        (tmp_path / "main.py").write_text('print("hello")\n')
+        fn = QiskitFunction(
+            title=custom_function_title,
+            entrypoint="main.py",
+            working_dir=str(tmp_path),
+        )
+        with pytest.raises(QiskitServerlessException) as exc:
+            provider_client.upload(fn)
+        _assert_404(exc)
+
+    def test_run_custom_function_raises_404(self, provider_client, custom_function_title):
+        """run() for a custom function is denied (404) when function-custom.run is absent.
+
+        The permission check happens before the function lookup, so the 404 is returned
+        even if the function does not yet exist in the DB.
+        """
+        with pytest.raises(QiskitServerlessException) as exc:
+            provider_client.run(custom_function_title)
+        _assert_404(exc)
+
+    def test_serverless_list_includes_custom_function(
+        self, provider_client, custom_function_title, seeded_custom_function
+    ):
+        """Serverless list is author-based; no custom permission is needed to see own functions.
+
+        seeded_custom_function was uploaded by user_client (same GATEWAY_TOKEN, same author).
+        provider_client shares the same token, so the custom function must appear even though
+        provider_client has no function-custom.* permissions.
+        """
+        functions = provider_client.functions(filter="serverless")
+        titles = [f.title for f in functions]
+        assert (
+            custom_function_title in titles
+        ), f"Expected {custom_function_title!r} in serverless list (author-owned, no permission check), got: {titles}"
+
 
 class TestCombinedInstance:
     """
@@ -871,6 +921,32 @@ class TestCombinedInstance:
         combined_client.file_delete("del_test.txt", fn)
         remaining = combined_client.files(fn)
         assert "del_test.txt" not in remaining
+
+    def test_upload_custom_function_succeeds(self, combined_client, custom_function_title, tmp_path):
+        """upload() for a custom function succeeds when function-custom.write is present."""
+        (tmp_path / "main.py").write_text('print("hello")\n')
+        fn = QiskitFunction(
+            title=custom_function_title,
+            entrypoint="main.py",
+            working_dir=str(tmp_path),
+        )
+        result = combined_client.upload(fn)
+        assert result is not None
+        assert result.title == custom_function_title
+
+    def test_run_custom_function_succeeds(self, combined_client, custom_function_title, seeded_custom_function):
+        """run() creates a job for the custom function when function-custom.run is present."""
+        job = combined_client.run(custom_function_title)
+        assert job is not None
+        assert job.job_id is not None
+
+    def test_serverless_list_includes_custom_function(
+        self, combined_client, custom_function_title, seeded_custom_function
+    ):
+        """Serverless filter returns the custom function owned by the authenticated user."""
+        functions = combined_client.functions(filter="serverless")
+        titles = [f.title for f in functions]
+        assert custom_function_title in titles, f"Expected {custom_function_title!r} in serverless list, got: {titles}"
 
 
 class TestCustomFunctionInstance:
