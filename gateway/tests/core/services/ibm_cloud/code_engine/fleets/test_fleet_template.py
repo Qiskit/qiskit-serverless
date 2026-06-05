@@ -279,7 +279,7 @@ def test_provider_wrapper_truncates_both_logs_independently_when_limit_exceeded(
         "  i=$((i+1));"
         " done"
     )
-    run_commands = _render_wrapper(["sh", "-c", _APP_SCRIPT], is_provider_function=True)
+    run_commands = _render_wrapper(["sh", "-c", app], is_provider_function=True)
 
     with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
         cos_dir = f"{tmp}/cos"
