@@ -89,5 +89,5 @@ def get_result_storage(job: Job) -> ResultStorage:
     if job.program.runner == Program.RAY:
         return RayResultStorage(job)
     if job.program.runner == Program.FLEETS:
-        return RayResultStorage(job)
+        return FleetsResultStorage(job)
     raise ValueError(f"Unknown runner type: {job.program.runner}")

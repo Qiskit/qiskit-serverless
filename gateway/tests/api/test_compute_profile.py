@@ -3,6 +3,7 @@
 import pytest
 from django.test import override_settings
 from django.urls import reverse
+from ibm_botocore.exceptions import ClientError
 from rest_framework import status
 from rest_framework.test import APIClient
 from unittest.mock import patch
@@ -13,13 +14,24 @@ from tests.utils import TestUtils
 pytestmark = pytest.mark.django_db
 
 _STORAGE_MOD = "core.services.storage.arguments_storage_fleets.FleetsArgumentsStorage.save"
+_RESULT_COS_MOD = "core.services.storage.result_storage_fleets.get_cos_client"
 
 
 @pytest.fixture(autouse=True)
-def mock_fleets_arguments_storage_save():
-    """Prevent FleetsArgumentsStorage.save() from calling COS in unit tests."""
+def mock_fleets_storage(mock_cos_client):
+    """Prevent Fleets storage classes from calling COS in unit tests."""
     with patch(_STORAGE_MOD):
         yield
+
+
+@pytest.fixture(autouse=True)
+def mock_cos_client():
+    """Mock get_cos_client to avoid COS calls during result retrieval."""
+    with patch(_RESULT_COS_MOD) as mock:
+        mock.return_value.get_object_bytes.side_effect = ClientError(
+            {"Error": {"Code": "NoSuchKey", "Message": ""}}, "GetObject"
+        )
+        yield mock
 
 
 @pytest.fixture
@@ -149,13 +161,14 @@ def test_compute_profile_validation_invalid_formats(api_client, program, profile
     assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
-def test_job_list_includes_compute_profile(api_client, user, program):
+def test_job_list_includes_compute_profile(api_client, user, program, ce_project):
     """Test that job list endpoint includes compute_profile."""
     # Create a job with compute_profile
     job = TestUtils.create_job(
         author=user,
         program=program,
         compute_profile="gx3d-24x120x1a100p",
+        code_engine_project=ce_project,
     )
 
     url = reverse("v1:jobs-list")
@@ -171,13 +184,14 @@ def test_job_list_includes_compute_profile(api_client, user, program):
     assert job_data.get("compute_profile") == "gx3d-24x120x1a100p"
 
 
-def test_job_detail_includes_compute_profile(api_client, user, program):
+def test_job_detail_includes_compute_profile(api_client, user, program, ce_project):
     """Test that job detail endpoint includes compute_profile."""
     # Create a job with compute_profile
     job = TestUtils.create_job(
         author=user,
         program=program,
         compute_profile="gx3d-24x120x1a100p",
+        code_engine_project=ce_project,
     )
 
     url = reverse("v1:retrieve", kwargs={"job_id": job.id})
