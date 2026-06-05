@@ -594,6 +594,7 @@ def test_upload_provider_image_entrypoint_uploads_to_provider_bucket():
     runner.job.program.provider.name = "acme"
     runner.job.program.title = "my-func"
     runner.job.program.entrypoint = "main.py"
+    runner.job.program.runner = Program.FLEETS
     runner.job.id = "job-1"
     runner.job.arguments = "{}"
     runner._project.cos_bucket_provider_data_name = "provider-bucket"  # pylint: disable=protected-access
@@ -607,8 +608,10 @@ def test_upload_provider_image_entrypoint_uploads_to_provider_bucket():
     with (
         _patch_settings(),
         patch(f"{_RUNNER_MOD}.get_template", return_value=mock_template),
+        patch(f"{_RUNNER_MOD}.get_arguments_storage") as mock_args_storage,
     ):
         runner._upload_provider_image_entrypoint(paths)  # pylint: disable=protected-access
+        mock_args_storage.return_value.save.assert_called_once_with("{}")
 
     call = runner._cos.upload_fileobj.call_args  # pylint: disable=protected-access
     assert call.kwargs["bucket_name"] == "provider-bucket"
@@ -640,6 +643,7 @@ def test_upload_provider_image_entrypoint_error_propagates():
     runner.job.program.provider.name = "acme"
     runner.job.program.title = "my-func"
     runner.job.program.entrypoint = "main.py"
+    runner.job.program.runner = Program.FLEETS
     runner.job.id = "job-1"
     runner.job.arguments = "{}"
     runner._project.cos_bucket_provider_data_name = "provider-bucket"  # pylint: disable=protected-access
@@ -653,6 +657,7 @@ def test_upload_provider_image_entrypoint_error_propagates():
     with (
         _patch_settings(),
         patch(f"{_RUNNER_MOD}.get_template", return_value=mock_template),
+        patch(f"{_RUNNER_MOD}.get_arguments_storage"),
         pytest.raises(RuntimeError, match="COS error"),
     ):
         runner._upload_provider_image_entrypoint(paths)  # pylint: disable=protected-access
