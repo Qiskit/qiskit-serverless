@@ -184,7 +184,7 @@ def test_submit_job_with_builder_extra_fields(mock_fleets_api_cls, project_id, b
     assert mount["reference"] == "test-pds"
     assert mount["type"] == "persistent_data_store"
     assert mount["sub_path"] == "test_user/fleet-1"
-    assert body["run_commands"][0] == "sh"
+    assert body["run_commands"][0] == "python3"
     assert body["run_commands"][1] == "-c"
     assert "PUBLIC_LOG_PATH" in body["run_commands"][2]
 
@@ -710,6 +710,7 @@ def test_build_run_env_variables_overlays_system_vars():
     assert by_name["ARGUMENTS_PATH"] == "/output/arguments.json"
     assert by_name["RESULTS_PATH"] == "/output/results.json"
     assert by_name["LOG_FLUSH_INTERVAL_SECONDS"] == "15"
+    assert by_name["LOG_SIZE_LIMIT_BYTES"].isdigit()
     assert "PRIVATE_LOG_PATH" not in by_name
 
 
@@ -766,33 +767,50 @@ def test_build_run_env_variables_gateway_host_override():
     with patch("core.ibm_cloud.code_engine.fleets.utils.settings") as mock_settings:
         mock_settings.FLEETS_GATEWAY_HOST = "https://fleets.example.com"
         mock_settings.FLEETS_LOG_FLUSH_INTERVAL_SECONDS = 15
+        mock_settings.FUNCTIONS_LOGS_SIZE_LIMIT = 10485760
         result = build_run_env_variables(_make_paths(), stored)
     by_name = {e["name"]: e["value"] for e in result}
     assert by_name["ENV_JOB_GATEWAY_HOST"] == "https://fleets.example.com"
 
 
+def test_build_run_env_variables_flush_interval_from_settings():
+    """build_run_env_variables reads LOG_FLUSH_INTERVAL_SECONDS from FLEETS_LOG_FLUSH_INTERVAL_SECONDS setting."""
+    with patch("core.ibm_cloud.code_engine.fleets.utils.settings") as mock_settings:
+        mock_settings.FLEETS_LOG_FLUSH_INTERVAL_SECONDS = 42
+        mock_settings.FLEETS_GATEWAY_HOST = None
+        mock_settings.FUNCTIONS_LOGS_SIZE_LIMIT = 10485760
+        result = build_run_env_variables(_make_paths(), {})
+    by_name = {e["name"]: e["value"] for e in result}
+    assert by_name["LOG_FLUSH_INTERVAL_SECONDS"] == "42"
+
+
 def test_build_run_env_variables_flush_interval_default():
-    """build_run_env_variables defaults LOG_FLUSH_INTERVAL_SECONDS to 15."""
-    result = build_run_env_variables(_make_paths(), {})
+    """build_run_env_variables falls back to 15 when FLEETS_LOG_FLUSH_INTERVAL_SECONDS is absent from settings."""
+    with patch("core.ibm_cloud.code_engine.fleets.utils.settings") as mock_settings:
+        del mock_settings.FLEETS_LOG_FLUSH_INTERVAL_SECONDS
+        mock_settings.FLEETS_GATEWAY_HOST = None
+        mock_settings.FUNCTIONS_LOGS_SIZE_LIMIT = 52428800
+        result = build_run_env_variables(_make_paths(), {})
     by_name = {e["name"]: e["value"] for e in result}
     assert by_name["LOG_FLUSH_INTERVAL_SECONDS"] == "15"
 
 
-def test_build_run_env_variables_flush_interval_from_settings():
-    """build_run_env_variables reads LOG_FLUSH_INTERVAL_SECONDS from settings."""
+def test_build_run_env_variables_log_size_limit_from_settings():
+    """build_run_env_variables converts settings.FUNCTIONS_LOGS_SIZE_LIMIT to LOG_SIZE_LIMIT_BYTES string."""
     with patch("core.ibm_cloud.code_engine.fleets.utils.settings") as mock_settings:
-        mock_settings.FLEETS_LOG_FLUSH_INTERVAL_SECONDS = 42
+        mock_settings.FUNCTIONS_LOGS_SIZE_LIMIT = 1048576
+        mock_settings.FLEETS_LOG_FLUSH_INTERVAL_SECONDS = 15
         mock_settings.FLEETS_GATEWAY_HOST = None
         result = build_run_env_variables(_make_paths(), {})
     by_name = {e["name"]: e["value"] for e in result}
-    assert by_name["LOG_FLUSH_INTERVAL_SECONDS"] == "42"
+    assert by_name["LOG_SIZE_LIMIT_BYTES"] == "1048576"
 
 
 def test_build_run_commands_public_only():
     """build_run_commands renders the custom-job template (single public log)."""
     result = build_run_commands(app_run_commands=["python", "main.py"])
     script = result[2]
-    assert result[0] == "sh"
+    assert result[0] == "python3"
     assert result[1] == "-c"
     assert "python" in script
     assert "PUBLIC_LOG_PATH" in script
