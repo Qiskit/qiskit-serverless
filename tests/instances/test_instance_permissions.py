@@ -496,7 +496,7 @@ class TestUserInstance:
         assert "del_test.txt" not in remaining
 
 
-class TestProviderInstance:
+class TestProviderInstance:  # pylint: disable=too-many-public-methods
     """
     Instance with PROVIDER permissions only:
       function.write, function-job.read, function-provider-logs.read,
@@ -724,7 +724,7 @@ class TestProviderInstance:
         ), f"Expected {custom_function_title!r} in serverless list (author-owned, no permission check), got: {titles}"
 
 
-class TestCombinedInstance:
+class TestCombinedInstance:  # pylint: disable=too-many-public-methods
     """
     Instance with ALL permissions (USER + PROVIDER):
       function.read, function.run, function-files.read, function-files.write,
