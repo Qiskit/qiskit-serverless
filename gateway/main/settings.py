@@ -282,6 +282,7 @@ CE_HMAC_SECRET_NAME = os.environ.get("CE_HMAC_SECRET_NAME")
 # Fleets COS settings
 CE_COS_INSTANCE_NAME = os.environ.get("CE_COS_INSTANCE_NAME")
 CE_COS_KEY_NAME = os.environ.get("CE_COS_KEY_NAME")
+CE_COS_BUCKET_TASK_STORE_NAME = os.environ.get("CE_COS_BUCKET_TASK_STORE_NAME")
 CE_COS_BUCKET_USER_DATA_NAME = os.environ.get("CE_COS_BUCKET_USER_DATA_NAME")
 CE_COS_BUCKET_PROVIDER_DATA_NAME = os.environ.get("CE_COS_BUCKET_PROVIDER_DATA_NAME")
 # Code Engine project (set CE_PROJECT_ID to enable single-project auto-provisioning)

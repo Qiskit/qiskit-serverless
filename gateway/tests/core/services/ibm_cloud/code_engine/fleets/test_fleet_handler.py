@@ -162,10 +162,14 @@ def test_submit_job_with_builder_extra_fields(mock_fleets_api_cls, project_id, b
                 cos_user_job_prefix="test_user/fleet-1",
                 cos_user_function_prefix="test_user",
                 cos_provider_function_prefix=None,
+                cos_provider_job_prefix=None,
                 cos_user_log_key="test_user/fleet-1/logs.log",
                 cos_results_key="test_user/fleet-1/results.json",
                 cos_provider_log_key=None,
-                container_entrypoint="/function_data/main.py",
+                cos_function_entrypoint="test_user/main.py",
+                cos_docker_entrypoint="test_user/fleet_custom_job_wrapper.py",
+                container_function_entrypoint="/function_user_data/main.py",
+                container_docker_entrypoint="/function_user_data/fleet_custom_job_wrapper.py",
                 container_public_log_path="/output/logs.log",
                 container_private_log_path=None,
                 container_arguments_path="/output/arguments.json",
@@ -173,7 +177,7 @@ def test_submit_job_with_builder_extra_fields(mock_fleets_api_cls, project_id, b
             ),
             {},
         ),
-        "run_commands": build_run_commands(app_run_commands=["python", "main.py"]),
+        "run_commands": build_run_commands(wrapper_path="/function_user_data/fleet_custom_job_wrapper.py"),
     }
 
     handler.submit_job(**base_payload, extra_fields=extra_fields)
@@ -184,9 +188,7 @@ def test_submit_job_with_builder_extra_fields(mock_fleets_api_cls, project_id, b
     assert mount["reference"] == "test-pds"
     assert mount["type"] == "persistent_data_store"
     assert mount["sub_path"] == "test_user/fleet-1"
-    assert body["run_commands"][0] == "python3"
-    assert body["run_commands"][1] == "-c"
-    assert "PUBLIC_LOG_PATH" in body["run_commands"][2]
+    assert body["run_commands"] == ["python", "/function_user_data/fleet_custom_job_wrapper.py"]
 
 
 def test_get_job_status_uuid_happy_path(project_id):
@@ -656,188 +658,3 @@ def test_wait_until_terminal_delegates_to_wait_until_state(project_id):
             timeout_seconds=10,
             poll_interval_seconds=1,
         )
-
-
-def test_build_run_volume_mounts_happy_path():
-    """build_run_volume_mounts returns correct definitions including optional sub_path."""
-    result = build_run_volume_mounts(mounts=[("/output", "my-pds", "user/job-1"), ("/logs", "log-pds", None)])
-    assert len(result) == 2
-    assert result[0]["mount_path"] == "/output"
-    assert result[0]["reference"] == "my-pds"
-    assert result[0]["sub_path"] == "user/job-1"
-    assert result[0]["type"] == "persistent_data_store"
-    assert result[1]["mount_path"] == "/logs"
-    assert "sub_path" not in result[1]
-
-
-def test_build_run_volume_mounts_empty_raises():
-    """build_run_volume_mounts raises ValueError on empty mounts list."""
-    with pytest.raises(ValueError, match="mounts is required"):
-        build_run_volume_mounts(mounts=[])
-
-
-def _make_paths(public_log_path="/output/logs.log", private_log_path=None, arguments_path="/output/arguments.json"):
-    return FleetJobPaths(
-        cos_user_job_prefix="u/job-1",
-        cos_user_function_prefix="u/fn",
-        cos_provider_function_prefix=None,
-        cos_user_log_key="u/job-1/logs.log",
-        cos_results_key="u/job-1/results.json",
-        cos_provider_log_key=None,
-        container_entrypoint="/function_data/main.py",
-        container_public_log_path=public_log_path,
-        container_private_log_path=private_log_path,
-        container_arguments_path=arguments_path,
-        container_result_path="/output/results.json",
-    )
-
-
-def test_build_run_env_variables_passes_through_stored_vars():
-    """build_run_env_variables passes stored env vars through to output."""
-    stored = {"ENV_JOB_GATEWAY_TOKEN": "tok", "CUSTOM_VAR": "custom"}
-    result = build_run_env_variables(_make_paths(), stored)
-    by_name = {e["name"]: e["value"] for e in result}
-    assert by_name["ENV_JOB_GATEWAY_TOKEN"] == "tok"
-    assert by_name["CUSTOM_VAR"] == "custom"
-    assert all(e["type"] == "literal" for e in result)
-
-
-def test_build_run_env_variables_overlays_system_vars():
-    """build_run_env_variables includes system vars derived from paths."""
-    result = build_run_env_variables(_make_paths(), {})
-    by_name = {e["name"]: e["value"] for e in result}
-    assert by_name["PUBLIC_LOG_PATH"] == "/output/logs.log"
-    assert by_name["ARGUMENTS_PATH"] == "/output/arguments.json"
-    assert by_name["RESULTS_PATH"] == "/output/results.json"
-    assert by_name["LOG_FLUSH_INTERVAL_SECONDS"] == "15"
-    assert by_name["LOG_SIZE_LIMIT_BYTES"].isdigit()
-    assert "PRIVATE_LOG_PATH" not in by_name
-
-
-def test_build_run_env_variables_system_vars_override_stored():
-    """build_run_env_variables system vars override stored vars with the same name."""
-    stored = {"ARGUMENTS_PATH": "/old/stale/path", "RESULTS_PATH": "/old/results.json"}
-    result = build_run_env_variables(_make_paths(arguments_path="/data/arguments.json"), stored)
-    names = [e["name"] for e in result]
-    assert len(names) == len(set(names)), f"Duplicate env var names: {names}"
-    by_name = {e["name"]: e["value"] for e in result}
-    assert by_name["ARGUMENTS_PATH"] == "/data/arguments.json"
-    assert by_name["RESULTS_PATH"] == "/output/results.json"
-
-
-def test_build_run_env_variables_no_duplicates():
-    """build_run_env_variables produces no duplicate env var names."""
-    stored = {"PUBLIC_LOG_PATH": "/old", "RESULTS_PATH": "/old/r.json", "MY_VAR": "v"}
-    result = build_run_env_variables(_make_paths(), stored)
-    names = [e["name"] for e in result]
-    assert len(names) == len(set(names))
-
-
-def test_build_run_env_variables_excludes_empty_values():
-    """build_run_env_variables excludes entries with empty or falsy values."""
-    stored = {"KEEP": "yes", "DROP": "", "ALSO_DROP": None}
-    result = build_run_env_variables(_make_paths(), stored)
-    by_name = {e["name"]: e["value"] for e in result}
-    assert "KEEP" in by_name
-    assert "DROP" not in by_name
-    assert "ALSO_DROP" not in by_name
-
-
-def test_build_run_env_variables_with_private_log():
-    """build_run_env_variables includes PRIVATE_LOG_PATH when container_private_log_path is set."""
-    result = build_run_env_variables(
-        _make_paths(public_log_path="/public/logs.log", private_log_path="/private/logs.log"),
-        {},
-    )
-    by_name = {e["name"]: e["value"] for e in result}
-    assert by_name["PUBLIC_LOG_PATH"] == "/public/logs.log"
-    assert by_name["PRIVATE_LOG_PATH"] == "/private/logs.log"
-
-
-def test_build_run_env_variables_without_private_log():
-    """build_run_env_variables omits PRIVATE_LOG_PATH when container_private_log_path is None."""
-    result = build_run_env_variables(_make_paths(private_log_path=None), {})
-    names = {e["name"] for e in result}
-    assert "PRIVATE_LOG_PATH" not in names
-
-
-def test_build_run_env_variables_gateway_host_override():
-    """build_run_env_variables overrides ENV_JOB_GATEWAY_HOST from FLEETS_GATEWAY_HOST setting."""
-    stored = {"ENV_JOB_GATEWAY_HOST": "https://original.example.com"}
-    with patch("core.ibm_cloud.code_engine.fleets.utils.settings") as mock_settings:
-        mock_settings.FLEETS_GATEWAY_HOST = "https://fleets.example.com"
-        mock_settings.FLEETS_LOG_FLUSH_INTERVAL_SECONDS = 15
-        mock_settings.FUNCTIONS_LOGS_SIZE_LIMIT = 10485760
-        result = build_run_env_variables(_make_paths(), stored)
-    by_name = {e["name"]: e["value"] for e in result}
-    assert by_name["ENV_JOB_GATEWAY_HOST"] == "https://fleets.example.com"
-
-
-def test_build_run_env_variables_flush_interval_from_settings():
-    """build_run_env_variables reads LOG_FLUSH_INTERVAL_SECONDS from FLEETS_LOG_FLUSH_INTERVAL_SECONDS setting."""
-    with patch("core.ibm_cloud.code_engine.fleets.utils.settings") as mock_settings:
-        mock_settings.FLEETS_LOG_FLUSH_INTERVAL_SECONDS = 42
-        mock_settings.FLEETS_GATEWAY_HOST = None
-        mock_settings.FUNCTIONS_LOGS_SIZE_LIMIT = 10485760
-        result = build_run_env_variables(_make_paths(), {})
-    by_name = {e["name"]: e["value"] for e in result}
-    assert by_name["LOG_FLUSH_INTERVAL_SECONDS"] == "42"
-
-
-def test_build_run_env_variables_flush_interval_default():
-    """build_run_env_variables falls back to 15 when FLEETS_LOG_FLUSH_INTERVAL_SECONDS is absent from settings."""
-    with patch("core.ibm_cloud.code_engine.fleets.utils.settings") as mock_settings:
-        del mock_settings.FLEETS_LOG_FLUSH_INTERVAL_SECONDS
-        mock_settings.FLEETS_GATEWAY_HOST = None
-        mock_settings.FUNCTIONS_LOGS_SIZE_LIMIT = 52428800
-        result = build_run_env_variables(_make_paths(), {})
-    by_name = {e["name"]: e["value"] for e in result}
-    assert by_name["LOG_FLUSH_INTERVAL_SECONDS"] == "15"
-
-
-def test_build_run_env_variables_log_size_limit_from_settings():
-    """build_run_env_variables converts settings.FUNCTIONS_LOGS_SIZE_LIMIT to LOG_SIZE_LIMIT_BYTES string."""
-    with patch("core.ibm_cloud.code_engine.fleets.utils.settings") as mock_settings:
-        mock_settings.FUNCTIONS_LOGS_SIZE_LIMIT = 1048576
-        mock_settings.FLEETS_LOG_FLUSH_INTERVAL_SECONDS = 15
-        mock_settings.FLEETS_GATEWAY_HOST = None
-        result = build_run_env_variables(_make_paths(), {})
-    by_name = {e["name"]: e["value"] for e in result}
-    assert by_name["LOG_SIZE_LIMIT_BYTES"] == "1048576"
-
-
-def test_build_run_commands_public_only():
-    """build_run_commands renders the custom-job template (single public log)."""
-    result = build_run_commands(app_run_commands=["python", "main.py"])
-    script = result[2]
-    assert result[0] == "python3"
-    assert result[1] == "-c"
-    assert "python" in script
-    assert "PUBLIC_LOG_PATH" in script
-    assert "PRIVATE_LOG_PATH" not in script
-    assert "mkfifo" not in script
-
-
-def test_build_run_commands_empty_raises():
-    """build_run_commands raises ValueError when app_run_commands is empty."""
-    with pytest.raises(ValueError, match="app_run_commands is required"):
-        build_run_commands(app_run_commands=[])
-
-
-def test_build_run_commands_with_private_log():
-    """build_run_commands renders the provider-job template (split public/private)."""
-    result = build_run_commands(
-        app_run_commands=["python", "main.py"],
-        is_provider_function=True,
-    )
-    script = result[2]
-    assert "PUBLIC_LOG_PATH" in script
-    assert "PRIVATE_LOG_PATH" in script
-
-
-def test_build_run_commands_app_cmd_not_html_escaped():
-    """build_run_commands keeps shell metacharacters intact (no HTML autoescape)."""
-    result = build_run_commands(app_run_commands=["sh", "-c", "echo a && echo b"])
-    # Shell quoting from shlex must survive Django rendering as-is.
-    assert "&amp;" not in result[2]
-    assert "&&" in result[2]

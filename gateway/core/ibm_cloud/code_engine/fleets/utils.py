@@ -34,58 +34,71 @@ Example::
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from typing import Optional
 
 from django.conf import settings
-from django.template.loader import get_template
 
 from core.models import CodeEngineProject, Job
 
-USER_MOUNT_PATH = "/data"
-FUNCTION_MOUNT_PATH = "/function_data"
+FUNCTION_USER_DATA_PATH = "/function_user_data"  # user bucket  — function-scoped data (entrypoint, wrapper, user files)
+JOB_USER_DATA_PATH = "/job_user_data"  # user bucket  — job-scoped data (arguments, logs, results)
+FUNCTION_PROVIDER_DATA_PATH = "/function_provider_data"  # provider bucket — function-scoped data (provider only)
+JOB_PROVIDER_DATA_PATH = "/job_provider_data"  # provider bucket — job-scoped data (provider logs; provider only)
 
 
 @dataclass(frozen=True)
 class FleetJobPaths:  # pylint: disable=too-many-instance-attributes
     """Computed paths for a fleet job.
 
-    ``cos_*`` fields are bucket relative paths. Used by the Gateway to read or write objects in COS.
-
-    Fields ending in ``_key`` are complete, can be used with a S3 Client.
+    ``cos_*`` fields are bucket-relative paths used by the Gateway to read/write COS objects.
 
     Fields ending in ``_prefix`` are directory-scoped (no trailing slash, no filename) and serve two purposes:
        - As the ``sub_path`` argument of a PDS volume mount
        - As the base for building COS keys for files whose names are only known at runtime
 
-    ``container_*`` fields are absolute paths inside the function
+    Fields ending in ``_key`` are complete object keys, usable directly with the S3 client.
+
+    ``container_*`` fields are absolute paths inside the running container.
+
+    Mount layout (4 PDS volumes):
+      FUNCTION_USER_DATA_PATH   → user bucket   @ cos_user_function_prefix   (function-scoped user data)
+      JOB_USER_DATA_PATH        → user bucket   @ cos_user_job_prefix        (job-scoped user data)
+      FUNCTION_PROVIDER_DATA_PATH → provider bucket @ cos_provider_function_prefix  (provider only)
+      JOB_PROVIDER_DATA_PATH    → provider bucket @ cos_provider_job_prefix   (provider only)
     """
 
-    # COS side prefixes (volume-mount sub_path + artifact key base)
+    # COS prefixes — used as PDS volume mount sub_paths and as key bases
+    cos_user_function_prefix: str  # users/.../data/          — FUNCTION_USER_DATA_PATH sub_path
+    cos_user_job_prefix: str  # users/.../jobs/{id}/     — JOB_USER_DATA_PATH sub_path
+    cos_provider_function_prefix: Optional[
+        str
+    ]  # providers/.../data/  — FUNCTION_PROVIDER_DATA_PATH sub_path (None for custom)
+    cos_provider_job_prefix: Optional[
+        str
+    ]  # providers/.../jobs/{id}/ — JOB_PROVIDER_DATA_PATH sub_path (None for custom)
 
-    # sub_path for /data mount; base for non-entrypoint artifact keys ({prefix}/{member})
-    cos_user_job_prefix: str
-    # sub_path for /function_data mount (custom jobs); base for entrypoint artifact key
-    cos_user_function_prefix: str
-    # sub_path for /function_data mount (provider jobs); base for entrypoint artifact key — None for custom jobs
-    cos_provider_function_prefix: Optional[str]
-
-    # COS side: complete object keys (passed directly to the COS client to read or write with the S3 client)
+    # COS complete object keys
     cos_user_log_key: str  # public log in the user bucket
     cos_results_key: str  # results.json in the user bucket
     cos_provider_log_key: Optional[str]  # private log in the provider bucket — None for custom jobs
+    cos_function_entrypoint: str  # entrypoint script key in its respective function bucket
+    cos_docker_entrypoint: str  # wrapper script key alongside the entrypoint
 
-    # Container side, used by the function
-    container_entrypoint: str  # absolute path to the function script inside the container
+    # Container paths
+    container_function_entrypoint: str  # absolute path to the function entrypoint inside the container
+    container_docker_entrypoint: str  # absolute path to the wrapper script inside the container
     container_public_log_path: str  # written by wrapper, served by /logs
-    container_private_log_path: Optional[str]  # written by wrapper, served by /provider-logs
+    container_private_log_path: Optional[str]  # written by wrapper, served by /provider-logs (None for custom)
     container_arguments_path: str  # read by the function at startup (injected as ARGUMENTS_PATH)
     container_result_path: str  # written by the function on completion (read back via cos_results_key)
 
 
 def build_run_volume_mounts_for_job(paths: FleetJobPaths, project: CodeEngineProject) -> list[dict[str, str]]:
     """Build the complete volume mounts list for a fleet job.
+
+    Custom jobs get 2 mounts (user bucket only).
+    Provider jobs get 4 mounts (user + provider buckets).
 
     Args:
         paths: Pre-computed paths for the job (from :func:`build_job_paths`).
@@ -94,11 +107,13 @@ def build_run_volume_mounts_for_job(paths: FleetJobPaths, project: CodeEnginePro
     Returns:
         Volume mount definitions ready for ``run_volume_mounts``.
     """
-    mounts = [(USER_MOUNT_PATH, project.pds_name_users, paths.cos_user_job_prefix)]
+    mounts = [
+        (FUNCTION_USER_DATA_PATH, project.pds_name_users, paths.cos_user_function_prefix),
+        (JOB_USER_DATA_PATH, project.pds_name_users, paths.cos_user_job_prefix),
+    ]
     if paths.cos_provider_function_prefix:
-        mounts.append((FUNCTION_MOUNT_PATH, project.pds_name_providers, paths.cos_provider_function_prefix))
-    else:
-        mounts.append((FUNCTION_MOUNT_PATH, project.pds_name_users, paths.cos_user_function_prefix))
+        mounts.append((FUNCTION_PROVIDER_DATA_PATH, project.pds_name_providers, paths.cos_provider_function_prefix))
+        mounts.append((JOB_PROVIDER_DATA_PATH, project.pds_name_providers, paths.cos_provider_job_prefix))
     return build_run_volume_mounts(mounts=mounts)
 
 
@@ -189,47 +204,32 @@ def build_run_env_variables(
     return [{"type": "literal", "name": k, "value": v} for k, v in env.items() if v]
 
 
-def build_run_commands(
-    *,
-    app_run_commands: list[str],
-    app_run_arguments: list[str] | None = None,
-    is_provider_function: bool = False,
-) -> list[str]:
+def build_run_commands(*, wrapper_path: str) -> list[str]:
     """
     Build wrapper commands for fleet execution and logging.
 
+    Runs the pre-uploaded wrapper script directly from the PDS mount.
+    The script is uploaded to COS at submit time (already rendered with
+    the correct ``app_cmd``) and is available at ``wrapper_path`` inside
+    the container via the PDS volume mount.
+
     Args:
-        app_run_commands: Command override for the application.
-        app_run_arguments: Argument override for the application.
-        is_provider_function: When True, the wrapper splits the application
-            output into a public log and a private log (provider job). When
-            False, the wrapper writes a single prefix-stripped public log
-            (custom/user job).
+        wrapper_path: Absolute container path to the wrapper script
+            (``paths.container_docker_entrypoint``).
 
     Returns:
-        Command definition for ``run_commands``.
-
-    Raises:
-        ValueError: If ``app_run_commands`` is empty.
+        ``["python", "<wrapper_path>"]`` ready for ``run_commands``.
     """
-    if not app_run_commands:
-        raise ValueError("app_run_commands is required.")
-
-    app_parts = [*app_run_commands, *(app_run_arguments or [])]
-    app_cmd = json.dumps(app_parts)
-
-    template_name = "fleet_provider_job_wrapper.py" if is_provider_function else "fleet_custom_job_wrapper.py"
-    script = get_template(template_name).render({"app_cmd": app_cmd})
-
-    return ["python3", "-c", script]
+    return ["python", wrapper_path]
 
 
 def build_custom_job_paths(job: Job) -> FleetJobPaths:
     """COS paths for a custom (non-provider) job.
 
-    The entrypoint lives in the user bucket at function scope and runs from
-    ``/function_data``. User data and public logs live in the user bucket at
-    job scope. There are no private logs.
+    The entrypoint and wrapper live in the user bucket at function scope
+    (``FUNCTION_USER_DATA_PATH``). Arguments, logs, and results live in the
+    user bucket at job scope (``JOB_USER_DATA_PATH``). There are no private logs
+    and no provider bucket mounts.
 
     Args:
         job: Job instance with no provider.
@@ -237,30 +237,35 @@ def build_custom_job_paths(job: Job) -> FleetJobPaths:
     username = job.author.username
     program_title = job.program.title
     job_id = str(job.id)
-    cos_user_function_prefix = f"users/{username}/custom_functions/{program_title}"
-    cos_user_job_prefix = f"{cos_user_function_prefix}/jobs/{job_id}"
+    cos_user_function_data = f"users/{username}/custom_functions/{program_title}/data"
+    cos_user_job_prefix = f"users/{username}/custom_functions/{program_title}/jobs/{job_id}"
     return FleetJobPaths(
-        # COS paths
-        cos_user_function_prefix=cos_user_function_prefix,
+        cos_user_function_prefix=cos_user_function_data,
         cos_user_job_prefix=cos_user_job_prefix,
+        cos_provider_function_prefix=None,
+        cos_provider_job_prefix=None,
         cos_user_log_key=f"{cos_user_job_prefix}/logs.log",
         cos_results_key=f"{cos_user_job_prefix}/results.json",
-        cos_provider_function_prefix=None,
         cos_provider_log_key=None,
-        # Mounting paths inside the function
-        container_entrypoint=f"{FUNCTION_MOUNT_PATH}/{job.program.entrypoint}",
+        cos_function_entrypoint=f"{cos_user_function_data}/{job.program.entrypoint}",
+        cos_docker_entrypoint=f"{cos_user_function_data}/fleet_custom_job_wrapper.py",
+        container_function_entrypoint=f"{FUNCTION_USER_DATA_PATH}/{job.program.entrypoint}",
+        container_docker_entrypoint=f"{FUNCTION_USER_DATA_PATH}/fleet_custom_job_wrapper.py",
         container_private_log_path=None,
-        container_public_log_path=f"{USER_MOUNT_PATH}/logs.log",
-        container_arguments_path=f"{USER_MOUNT_PATH}/arguments.json",
-        container_result_path=f"{USER_MOUNT_PATH}/results.json",
+        container_public_log_path=f"{JOB_USER_DATA_PATH}/logs.log",
+        container_arguments_path=f"{JOB_USER_DATA_PATH}/arguments.json",
+        container_result_path=f"{JOB_USER_DATA_PATH}/results.json",
     )
 
 
 def build_provider_job_paths(job: Job) -> FleetJobPaths:
     """COS paths for a provider job.
 
-    Both user bucket (public logs + data) and provider bucket (entrypoint at
-    function scope, private logs at job scope) are used.
+    The entrypoint and wrapper live in the provider bucket at function scope
+    (``FUNCTION_PROVIDER_DATA_PATH``). User-facing data lives in the user bucket
+    at both function scope (``FUNCTION_USER_DATA_PATH``) and job scope
+    (``JOB_USER_DATA_PATH``). Private provider logs live in the provider bucket
+    at job scope (``JOB_PROVIDER_DATA_PATH``).
 
     Args:
         job: Job instance with a provider assigned.
@@ -269,24 +274,26 @@ def build_provider_job_paths(job: Job) -> FleetJobPaths:
     provider_name = job.program.provider.name
     program_title = job.program.title
     job_id = str(job.id)
-    cos_user_function_prefix = f"users/{username}/provider_functions/{provider_name}/{program_title}"
-    cos_provider_function_prefix = f"providers/{provider_name}/{program_title}"
-    cos_user_job_prefix = f"{cos_user_function_prefix}/jobs/{job_id}"
-    cos_provider_job_prefix = f"{cos_provider_function_prefix}/jobs/{job_id}"
+    cos_user_function_data = f"users/{username}/provider_functions/{provider_name}/{program_title}/data"
+    cos_user_job_prefix = f"users/{username}/provider_functions/{provider_name}/{program_title}/jobs/{job_id}"
+    cos_provider_function_data = f"providers/{provider_name}/{program_title}/data"
+    cos_provider_job_prefix = f"providers/{provider_name}/{program_title}/jobs/{job_id}"
     return FleetJobPaths(
-        # COS paths
-        cos_user_function_prefix=cos_user_function_prefix,
+        cos_user_function_prefix=cos_user_function_data,
         cos_user_job_prefix=cos_user_job_prefix,
+        cos_provider_function_prefix=cos_provider_function_data,
+        cos_provider_job_prefix=cos_provider_job_prefix,
         cos_user_log_key=f"{cos_user_job_prefix}/logs.log",
         cos_results_key=f"{cos_user_job_prefix}/results.json",
-        cos_provider_function_prefix=cos_provider_function_prefix,
         cos_provider_log_key=f"{cos_provider_job_prefix}/logs.log",
-        # Mounting paths inside the function
-        container_entrypoint=f"{FUNCTION_MOUNT_PATH}/{job.program.entrypoint}",
-        container_private_log_path=f"{FUNCTION_MOUNT_PATH}/jobs/{job_id}/logs.log",
-        container_public_log_path=f"{USER_MOUNT_PATH}/logs.log",
-        container_arguments_path=f"{USER_MOUNT_PATH}/arguments.json",
-        container_result_path=f"{USER_MOUNT_PATH}/results.json",
+        cos_function_entrypoint=f"{cos_provider_function_data}/{job.program.entrypoint}",
+        cos_docker_entrypoint=f"{cos_provider_function_data}/fleet_provider_job_wrapper.py",
+        container_function_entrypoint=f"{FUNCTION_PROVIDER_DATA_PATH}/{job.program.entrypoint}",
+        container_docker_entrypoint=f"{FUNCTION_PROVIDER_DATA_PATH}/fleet_provider_job_wrapper.py",
+        container_private_log_path=f"{JOB_PROVIDER_DATA_PATH}/logs.log",
+        container_public_log_path=f"{JOB_USER_DATA_PATH}/logs.log",
+        container_arguments_path=f"{JOB_USER_DATA_PATH}/arguments.json",
+        container_result_path=f"{JOB_USER_DATA_PATH}/results.json",
     )
 
 
