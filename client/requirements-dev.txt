@@ -8,7 +8,7 @@ mypy>=1.19.1
 mypy-extensions>=1.1.0
 jupyter-sphinx>=0.5.3
 nbsphinx>=0.9.8
-sphinx-autodoc-typehints>=1.24.0
+sphinx-autodoc-typehints>=3.0.1
 reno>=4.1.0
 # Black's formatting rules can change between major versions, so we use
 # the ~= specifier for it.
