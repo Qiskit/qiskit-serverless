@@ -231,6 +231,20 @@ def build_custom_job_paths(job: Job) -> FleetJobPaths:
     user bucket at job scope (``JOB_USER_DATA_PATH``). There are no private logs
     and no provider bucket mounts.
 
+    Field naming conventions:
+      - ``cos_*``       — bucket-relative COS object keys or key prefixes,
+                         used by the gateway to read/write objects via the S3 client.
+      - ``container_*`` — absolute paths inside the running container,
+                         injected as env vars (ARGUMENTS_PATH, RESULTS_PATH, etc.)
+                         or passed directly to the wrapper/entrypoint command.
+      - ``*_prefix``    — directory-scoped key (no trailing slash); doubles as the
+                         ``sub_path`` for the PDS volume mount and as the base for
+                         building object keys at runtime.
+      - ``*_key``       — complete object key, usable directly with the S3 client.
+      - ``*_entrypoint``— key or path to the script that CE runs as the job entry.
+      - ``*_docker_entrypoint`` — key or path to the fleet wrapper script that
+                                  handles log capture and invokes the entrypoint.
+
     Args:
         job: Job instance with no provider.
     """
@@ -266,6 +280,8 @@ def build_provider_job_paths(job: Job) -> FleetJobPaths:
     at both function scope (``FUNCTION_USER_DATA_PATH``) and job scope
     (``JOB_USER_DATA_PATH``). Private provider logs live in the provider bucket
     at job scope (``JOB_PROVIDER_DATA_PATH``).
+
+    See :func:`build_custom_job_paths` for field naming conventions.
 
     Args:
         job: Job instance with a provider assigned.
