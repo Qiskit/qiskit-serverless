@@ -552,7 +552,6 @@ class FleetsRunner(AbstractRunner):
         if not program.provider:
             raise RunnerError("_upload_provider_image_entrypoint called on non-provider job")
 
-        user_bucket = self._project.cos_bucket_user_data_name
         provider_bucket = self._project.cos_bucket_provider_data_name
 
         # upload arguments
