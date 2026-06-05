@@ -92,7 +92,8 @@ class JobWrapper:
                 pass
         else:
             try:
-                shutil.copyfile(temporal_log_path, cos_path)
+                with open(temporal_log_path, 'rb') as src, open(cos_path, 'wb') as dst:
+                    dst.write(src.read())
             except OSError:
                 pass
 

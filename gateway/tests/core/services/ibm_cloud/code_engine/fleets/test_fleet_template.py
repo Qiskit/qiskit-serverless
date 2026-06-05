@@ -34,13 +34,26 @@ import time
 
 import pytest
 
-from core.ibm_cloud.code_engine.fleets.utils import build_run_commands
+import json
+
+from django.template.loader import get_template
 
 # ---------------------------------------------------------------------------
 # Helpers / marks
 # ---------------------------------------------------------------------------
 
 _DOCKER_IMAGE = "python:3-alpine"
+
+
+def _render_wrapper(app_run_commands: list[str], *, is_provider_function: bool = False) -> list[str]:
+    """Render the fleet wrapper template and return a ['python', '-c', script] command.
+
+    In production the wrapper runs from the PDS-mounted file. In tests we pass the
+    rendered script inline via python -c so no filesystem mount is needed.
+    """
+    template_name = "fleet_provider_job_wrapper.py" if is_provider_function else "fleet_custom_job_wrapper.py"
+    script = get_template(template_name).render({"app_cmd": json.dumps(app_run_commands)})
+    return ["python", "-c", script]
 
 
 def _docker_available() -> bool:
@@ -107,7 +120,7 @@ def test_custom_wrapper_all_lines_reach_public_log():
     lowercase [private] tag in _APP_SCRIPT. The truncation header must be absent
     because the output is well under any reasonable size limit.
     """
-    run_commands = build_run_commands(app_run_commands=["sh", "-c", _APP_SCRIPT])
+    run_commands = _render_wrapper(["sh", "-c", _APP_SCRIPT])
 
     with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
         cos_dir = f"{tmp}/cos"
@@ -145,7 +158,7 @@ def test_provider_wrapper_splits_public_and_private_logs():
     the EXIT trap (periodic uploader is disabled). The truncation header must be absent
     because the output is well under any reasonable size limit.
     """
-    run_commands = build_run_commands(app_run_commands=["sh", "-c", _APP_SCRIPT], is_provider_function=True)
+    run_commands = _render_wrapper(["sh", "-c", _APP_SCRIPT], is_provider_function=True)
 
     with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
         cos_dir = f"{tmp}/cos"
@@ -196,7 +209,7 @@ def test_wrapper_failure_propagates_exit_code_and_flushes_logs():
     contains lines written before the failure.
     """
     app = "printf 'output before failure\\n'; exit 7"
-    run_commands = build_run_commands(app_run_commands=["sh", "-c", app])
+    run_commands = _render_wrapper(["sh", "-c", app])
 
     with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
         cos_dir = f"{tmp}/cos"
@@ -228,7 +241,7 @@ def test_custom_wrapper_truncates_log_when_limit_exceeded():
     mirroring the check_logs behaviour in core.utils.
     """
     app = "i=0; while [ $i -lt 50 ]; do printf 'line %04d: some padding text\\n' $i; i=$((i+1)); done"
-    run_commands = build_run_commands(app_run_commands=["sh", "-c", app])
+    run_commands = _render_wrapper(["sh", "-c", app])
 
     with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
         cos_dir = f"{tmp}/cos"
@@ -266,7 +279,7 @@ def test_provider_wrapper_truncates_both_logs_independently_when_limit_exceeded(
         "  i=$((i+1));"
         " done"
     )
-    run_commands = build_run_commands(app_run_commands=["sh", "-c", app], is_provider_function=True)
+    run_commands = _render_wrapper(["sh", "-c", _APP_SCRIPT], is_provider_function=True)
 
     with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
         cos_dir = f"{tmp}/cos"
@@ -307,7 +320,7 @@ def test_custom_wrapper_periodic_flush_during_run():
     exercises the start_uploader background loop, not the EXIT-trap final flush.
     """
     app = "printf 'early line\\n'; sleep 10"
-    run_commands = build_run_commands(app_run_commands=["sh", "-c", app])
+    run_commands = _render_wrapper(["sh", "-c", app])
 
     with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
         cos_dir = f"{tmp}/cos"
