@@ -12,7 +12,7 @@ from api.domain.exceptions.function_not_found_exception import FunctionNotFoundE
 from api.repositories.providers import ProviderRepository
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import Program as Function
-from core.services.storage.file_storage import FileStorage, WorkingDir
+from core.services.storage import get_file_storage
 
 logger = logging.getLogger("api.FilesProviderListUseCase")
 
@@ -23,7 +23,6 @@ class FilesProviderListUseCase:
     """
 
     provider_repository = ProviderRepository()
-    working_dir = WorkingDir.PROVIDER_STORAGE
 
     def execute(
         self,
@@ -53,10 +52,9 @@ class FilesProviderListUseCase:
         if not function:
             raise FunctionNotFoundException(function=function_title, provider=provider_name)
 
-        file_storage = FileStorage(
+        file_storage = get_file_storage(
             username=user.username,
-            working_dir=self.working_dir,
             function=function,
         )
 
-        return file_storage.get_files()
+        return file_storage.get_private_files()

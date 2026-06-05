@@ -70,8 +70,10 @@ def _no_access():
 class TestFilesProviderList:
     class TestLegacy:
         def test_admin_can_list_files(self, admin_user, provider_with_admin, function):
-            with patch("api.use_cases.files.provider_list.FileStorage") as mock_storage:
-                mock_storage.return_value.get_files.return_value = ["file1.txt"]
+            with patch("api.use_cases.files.provider_list.get_file_storage") as mock_factory:
+                mock_storage = MagicMock()
+                mock_storage.get_private_files.return_value = ["file1.txt"]
+                mock_factory.return_value = mock_storage
                 result = FilesProviderListUseCase().execute(admin_user, "my-provider", "my-function", _legacy())
             assert result == ["file1.txt"]
 
@@ -89,8 +91,10 @@ class TestFilesProviderList:
 
     class TestRuntimeInstances:
         def test_read_permission_grants_access(self, user, provider, function):
-            with patch("api.use_cases.files.provider_list.FileStorage") as mock_storage:
-                mock_storage.return_value.get_files.return_value = ["file1.txt"]
+            with patch("api.use_cases.files.provider_list.get_file_storage") as mock_factory:
+                mock_storage = MagicMock()
+                mock_storage.get_private_files.return_value = ["file1.txt"]
+                mock_factory.return_value = mock_storage
                 result = FilesProviderListUseCase().execute(user, "my-provider", "my-function", _read_access())
             assert result == ["file1.txt"]
 
@@ -108,8 +112,10 @@ class TestFilesProviderDownload:
     class TestLegacy:
         def test_admin_can_download_file(self, admin_user, provider_with_admin, function):
             stream = (b"data" for _ in range(1))
-            with patch("api.use_cases.files.provider_download.FileStorage") as mock_storage:
-                mock_storage.return_value.get_file_stream.return_value = (stream, "text/plain", 4)
+            with patch("api.use_cases.files.provider_download.get_file_storage") as mock_factory:
+                mock_storage = MagicMock()
+                mock_storage.get_private_file_stream.return_value = (stream, "text/plain", 4)
+                mock_factory.return_value = mock_storage
                 result = FilesProviderDownloadUseCase().execute(
                     admin_user, "my-provider", "my-function", "file.txt", accessible_functions=_legacy()
                 )
@@ -130,8 +136,10 @@ class TestFilesProviderDownload:
     class TestRuntimeInstances:
         def test_read_permission_grants_access(self, user, provider, function):
             stream = (b"data" for _ in range(1))
-            with patch("api.use_cases.files.provider_download.FileStorage") as mock_storage:
-                mock_storage.return_value.get_file_stream.return_value = (stream, "text/plain", 4)
+            with patch("api.use_cases.files.provider_download.get_file_storage") as mock_factory:
+                mock_storage = MagicMock()
+                mock_storage.get_private_file_stream.return_value = (stream, "text/plain", 4)
+                mock_factory.return_value = mock_storage
                 result = FilesProviderDownloadUseCase().execute(
                     user, "my-provider", "my-function", "file.txt", accessible_functions=_read_access()
                 )
@@ -148,8 +156,10 @@ class TestFilesProviderUpload:
     class TestLegacy:
         def test_admin_can_upload_file(self, admin_user, provider_with_admin, function):
             uploaded_file = MagicMock()
-            with patch("api.use_cases.files.provider_upload.FileStorage") as mock_storage:
-                mock_storage.return_value.upload_file.return_value = "path/to/file.txt"
+            with patch("api.use_cases.files.provider_upload.get_file_storage") as mock_factory:
+                mock_storage = MagicMock()
+                mock_storage.upload_private_file.return_value = "path/to/file.txt"
+                mock_factory.return_value = mock_storage
                 result = FilesProviderUploadUseCase().execute(
                     admin_user, "my-provider", "my-function", uploaded_file, accessible_functions=_legacy()
                 )
@@ -170,8 +180,10 @@ class TestFilesProviderUpload:
     class TestRuntimeInstances:
         def test_write_permission_grants_access(self, user, provider, function):
             uploaded_file = MagicMock()
-            with patch("api.use_cases.files.provider_upload.FileStorage") as mock_storage:
-                mock_storage.return_value.upload_file.return_value = "path/to/file.txt"
+            with patch("api.use_cases.files.provider_upload.get_file_storage") as mock_factory:
+                mock_storage = MagicMock()
+                mock_storage.upload_private_file.return_value = "path/to/file.txt"
+                mock_factory.return_value = mock_storage
                 result = FilesProviderUploadUseCase().execute(
                     user, "my-provider", "my-function", uploaded_file, accessible_functions=_write_access()
                 )
@@ -193,8 +205,10 @@ class TestFilesProviderUpload:
 class TestFilesProviderDelete:
     class TestLegacy:
         def test_admin_can_delete_file(self, admin_user, provider_with_admin, function):
-            with patch("api.use_cases.files.provider_delete.FileStorage") as mock_storage:
-                mock_storage.return_value.remove_file.return_value = True
+            with patch("api.use_cases.files.provider_delete.get_file_storage") as mock_factory:
+                mock_storage = MagicMock()
+                mock_storage.remove_private_file.return_value = True
+                mock_factory.return_value = mock_storage
                 FilesProviderDeleteUseCase().execute(
                     admin_user, "my-provider", "my-function", "file.txt", accessible_functions=_legacy()
                 )
@@ -213,8 +227,10 @@ class TestFilesProviderDelete:
 
     class TestRuntimeInstances:
         def test_write_permission_grants_access(self, user, provider, function):
-            with patch("api.use_cases.files.provider_delete.FileStorage") as mock_storage:
-                mock_storage.return_value.remove_file.return_value = True
+            with patch("api.use_cases.files.provider_delete.get_file_storage") as mock_factory:
+                mock_storage = MagicMock()
+                mock_storage.remove_private_file.return_value = True
+                mock_factory.return_value = mock_storage
                 FilesProviderDeleteUseCase().execute(
                     user, "my-provider", "my-function", "file.txt", accessible_functions=_write_access()
                 )
