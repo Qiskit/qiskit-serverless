@@ -388,8 +388,11 @@ class RunJobSerializer(serializers.ModelSerializer):
             )
         )
 
-        arguments_storage = get_arguments_storage(job)
-        arguments_storage.save(arguments)
+        # Fleets jobs upload arguments to COS at submit time (FleetsRunner._upload_program_to_cos),
+        # so doing it here would make a blocking IBM Cloud API call in the request handler.
+        if job.runner != Program.FLEETS:
+            arguments_storage = get_arguments_storage(job)
+            arguments_storage.save(arguments)
 
         try:
             env["traceparent"] = carrier["traceparent"]
