@@ -1,5 +1,5 @@
 """
-Save result for a job API endpoint
+Result endpoint: GET (fetch) and POST (save) for a job result.
 """
 
 # pylint: disable=duplicate-code, abstract-method
@@ -9,6 +9,7 @@ from typing import cast
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
+from django.http import HttpResponseRedirect
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, serializers, status
 from rest_framework.decorators import api_view, permission_classes
@@ -17,6 +18,7 @@ from rest_framework.response import Response
 
 
 from api import serializers as api_serializers
+from api.use_cases.jobs.get_result import GetJobResultUseCase
 from api.use_cases.jobs.save_result import JobSaveResultUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
@@ -84,39 +86,38 @@ def serialize_output(job: Job):
     return JobSerializer(job).data
 
 
-@swagger_auto_schema(
-    method="post",
-    operation_description="Save the result for a job.",
-    request_body=InputSerializer,
-    responses={
-        status.HTTP_200_OK: JobSerializer(many=False),
-        **standard_error_responses(
-            not_found_example="Job [XXXX] not found",
-        ),
-    },
-)
 @endpoint("jobs/<uuid:job_id>/result", name="jobs-result")
-@api_view(["POST"])
+@api_view(["GET", "POST"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
-def save_result(request: Request, job_id: UUID) -> Response:
+def result(request: Request, job_id: UUID) -> Response:
     """
-    Save a result payload into the specified job.
+    GET: Retrieve the result for a job.
+        Returns 302 redirect to a presigned COS URL (Fleet, result ready),
+        204 No Content (no result yet), or 200 JSON with result field (Ray).
+
+    POST: Save a result payload into the specified job.
 
     Args:
         request: The HTTP request.
         job_id: Job identifier (UUID path parameter).
-
-    Returns:
-        Response containing the updated serialized job.
     """
-    serializer = InputSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-
-    result = serializer.validated_data["result"]
     user = cast(AbstractUser, request.user)
 
-    job = JobSaveResultUseCase().execute(job_id, user, result)
+    if request.method == "GET":
+        fetch = GetJobResultUseCase().execute(job_id, user)
+        if fetch.redirect_url:
+            logger.info("[jobs-result] user_id=%s job_id=%s | Redirecting to presigned URL", user.id, job_id)
+            return HttpResponseRedirect(fetch.redirect_url)
+        if fetch.raw_result is None:
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        logger.info("[jobs-result] user_id=%s job_id=%s | Result retrieved ok", user.id, job_id)
+        return Response({"result": fetch.raw_result})
+
+    # POST
+    serializer = InputSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    job = JobSaveResultUseCase().execute(job_id, user, serializer.validated_data["result"])
     logger.info(
         "[jobs-save-result] user_id=%s job_id=%s program=%s | Result saved ok",
         user.id,

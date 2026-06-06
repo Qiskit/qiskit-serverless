@@ -1133,3 +1133,68 @@ class TestRetrieveJob:
 
             response = client.get(reverse("v1:retrieve", args=[job.id]), format="json")
             assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+class TestFleetJobResultEndpoint:
+    """Test GET /jobs/{id}/result/ view responses for Fleet jobs."""
+
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        self.client = APIClient()
+
+    def _authorize(self, username):
+        user, _ = User.objects.get_or_create(username=username)
+        token = MagicMock()
+        token.accessible_functions = FunctionAccessResult(use_legacy_authorization=True)
+        self.client.force_authenticate(user=user, token=token)
+        return user
+
+    def _make_fleet_job(self, author_username):
+        ce_project = TestUtils.get_or_create_ce_project(
+            project_name="result-test-project",
+            project_id="result-test-ce-project-id",
+            cos_bucket_user_data_name="user-bucket",
+            cos_bucket_provider_data_name="provider-bucket",
+            cos_instance_name="cos-instance",
+            cos_key_name="cos-key",
+        )
+        program = TestUtils.create_program(
+            program_title="fleet-result-func",
+            author=author_username,
+            runner=Program.FLEETS,
+        )
+        author, _ = User.objects.get_or_create(username=author_username)
+        return TestUtils.create_job(author=author, program=program, code_engine_project=ce_project)
+
+    @patch("api.use_cases.jobs.get_result.get_result_storage")
+    def test_fleet_result_returns_302_when_result_exists(self, mock_storage):
+        """Fleet GET /result/: 302 redirect when COS object exists."""
+        presigned_url = "https://cos.example.com/results.json?sig=abc"
+        mock_storage.return_value.get_url.return_value = presigned_url
+
+        job = self._make_fleet_job("result-author")
+        self._authorize("result-author")
+
+        response = self.client.get(
+            reverse("v1:jobs-result", args=[str(job.id)]),
+            format="json",
+        )
+
+        assert response.status_code == 302
+        assert response["Location"] == presigned_url
+
+    @patch("api.use_cases.jobs.get_result.get_result_storage")
+    def test_fleet_result_returns_204_when_no_result(self, mock_storage):
+        """Fleet GET /result/: 204 No Content when COS object does not exist yet."""
+        mock_storage.return_value.get_url.return_value = None
+
+        job = self._make_fleet_job("result-author-2")
+        self._authorize("result-author-2")
+
+        response = self.client.get(
+            reverse("v1:jobs-result", args=[str(job.id)]),
+            format="json",
+        )
+
+        assert response.status_code == 204

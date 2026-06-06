@@ -47,10 +47,14 @@ class JobRetrieveUseCase:
         can_read_result = JobAccessPolicies.can_read_result(user, job)
 
         if with_result and can_read_result:
-            result_store = get_result_storage(job)
-            result = result_store.get()
-            if result is not None:
-                job.result = result
+            try:
+                result_store = get_result_storage(job)
+                result = result_store.get()
+                if result is not None:
+                    job.result = result
+            except (ValueError, NotImplementedError) as e:
+                logger.warning("[jobs-retrieve] job_id=%s | Result unavailable: %s", job_id, e)
+                job.result = None
         else:
             job.result = None
 

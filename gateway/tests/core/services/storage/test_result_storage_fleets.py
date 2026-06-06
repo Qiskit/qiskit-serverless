@@ -152,11 +152,18 @@ class TestFleetsResultStorage:
         assert result is None
         assert any("COS error AccessDenied" in record.message for record in caplog.records)
 
-    def test_save_raises_not_implemented(self, job):
-        """save() raises NotImplementedError — results are written by the SDK."""
+    def test_save_uploads_to_cos(self, job):
+        """save() uploads the result to COS via upload_fileobj."""
         storage = FleetsResultStorage(job)
-        with pytest.raises(NotImplementedError):
-            storage.save("some result")
+        mock_cos = MagicMock()
+
+        with patch(_COS_MODULE, return_value=mock_cos):
+            storage.save('{"answer": 42}')
+
+        mock_cos.upload_fileobj.assert_called_once()
+        call_kwargs = mock_cos.upload_fileobj.call_args[1]
+        assert call_kwargs["bucket_name"] == "user-bucket"
+        assert call_kwargs["key"] == storage._results_key  # pylint: disable=protected-access
 
     def test_factory_returns_fleets_storage_for_fleet_job(self, job):
         """get_result_storage returns FleetsResultStorage for FLEETS runner jobs."""
