@@ -10,7 +10,6 @@ from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
 from django.http import HttpResponseRedirect
-from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, serializers, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
@@ -22,7 +21,6 @@ from api.use_cases.jobs.get_result import GetJobResultUseCase
 from api.use_cases.jobs.save_result import JobSaveResultUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
-from api.v1.views.swagger_utils import standard_error_responses
 from core.models import Job
 
 logger = logging.getLogger("api.api.v1.views.jobs.save_result")
