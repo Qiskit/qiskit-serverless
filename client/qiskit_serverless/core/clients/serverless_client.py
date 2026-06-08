@@ -412,7 +412,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         return response_data.get("message")
 
     @_trace_job
-    def result(self, job_id: str):
+    def result(self, job_id: str) -> Dict[str, Any]:
         gateway_url = f"{self.host}/api/{self.version}/jobs/{job_id}/result/"
         response = requests.get(
             gateway_url,
@@ -420,12 +420,12 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             timeout=REQUESTS_TIMEOUT,
         )
         if response.status_code == 204:
-            return None
+            return {}
         # Not all redirects go to COS — HTTP→HTTPS redirects stay on the same host.
         # Checking the hostname detects only redirects to an external host (COS/MinIO).
         redirected_to_cos = urlparse(response.url).hostname != urlparse(gateway_url).hostname
         if redirected_to_cos:
-            return json.loads(response.text, cls=QiskitObjectsDecoder) if response.ok else None
+            return json.loads(response.text, cls=QiskitObjectsDecoder) if response.ok else {}
         return json.loads(response.json().get("result", "{}") or "{}", cls=QiskitObjectsDecoder)
 
     @_trace_job

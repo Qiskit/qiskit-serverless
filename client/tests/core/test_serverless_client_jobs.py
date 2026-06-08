@@ -613,8 +613,8 @@ class TestResultMethod:
             assert mock_request.called
             assert "with_result" not in mock_request.last_request.qs
 
-    def test_result_returns_none_on_204(self, mock_client):
-        """result() returns None when the gateway responds with 204 No Content (no result yet)."""
+    def test_result_returns_empty_dict_on_204(self, mock_client):
+        """result() returns {} when the gateway responds with 204 No Content (no result yet)."""
         with requests_mock.Mocker() as mocker:
             mocker.get(
                 "https://test-host.com/api/v1/jobs/test-job/result/",
@@ -623,7 +623,7 @@ class TestResultMethod:
 
             result = mock_client.result("test-job")
 
-            assert result is None
+            assert result == {}
 
     def test_result_returns_decoded_object_after_redirect(self, mock_client):
         """result() fetches and decodes the COS object when the gateway redirects (Fleet job)."""
