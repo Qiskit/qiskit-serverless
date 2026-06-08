@@ -150,3 +150,40 @@ class JobCOS:
             List of object keys.
         """
         return self._cos.list_keys(bucket=bucket_name, prefix=prefix)
+
+    def head_object(self, *, bucket_name: str, key: str) -> None:
+        """Check that an object exists in COS.
+
+        Args:
+            bucket_name: COS bucket name.
+            key: Object key.
+
+        Raises:
+            ValueError: If bucket_name or key is missing.
+            ClientError: If the object does not exist or an unexpected error occurs.
+        """
+        if not bucket_name:
+            raise ValueError("bucket_name is required.")
+        if not key:
+            raise ValueError("key is required.")
+        self._cos.head_object(bucket=bucket_name, key=key)
+
+    def get_presigned_url(self, *, bucket_name: str, key: str, expiry: int = 3600) -> str:
+        """Generate a presigned GET URL for an object.
+
+        Args:
+            bucket_name: COS bucket name.
+            key: Object key.
+            expiry: URL validity in seconds (default 3600).
+
+        Returns:
+            Presigned URL string.
+
+        Raises:
+            ValueError: If bucket_name or key is missing.
+        """
+        if not bucket_name:
+            raise ValueError("bucket_name is required.")
+        if not key:
+            raise ValueError("key is required.")
+        return self._cos.generate_presigned_url(bucket=bucket_name, key=key, expiry=expiry)

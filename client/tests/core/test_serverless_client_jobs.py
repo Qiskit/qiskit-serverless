@@ -660,6 +660,36 @@ class TestLogsMethod:
 
             assert logs is None
 
+    def test_logs_returns_text_after_redirect(self, mock_client):
+        """logs() returns response.text when the gateway redirects to a presigned URL."""
+        log_content = "line one\nline two\n"
+
+        with requests_mock.Mocker() as mocker:
+            # The presigned URL endpoint returns plain text
+            presigned_url = "https://cos.example.com/logs.log?sig=abc"
+            mocker.get(
+                "https://test-host.com/api/v1/jobs/test-job/logs/",
+                status_code=302,
+                headers={"Location": presigned_url},
+            )
+            mocker.get(presigned_url, text=log_content)
+
+            logs = mock_client.logs("test-job")
+
+            assert logs == log_content
+
+    def test_logs_returns_no_logs_yet_on_204(self, mock_client):
+        """logs() returns 'No logs yet.' when the gateway responds with 204 No Content."""
+        with requests_mock.Mocker() as mocker:
+            mocker.get(
+                "https://test-host.com/api/v1/jobs/test-job/logs/",
+                status_code=204,
+            )
+
+            logs = mock_client.logs("test-job")
+
+            assert logs == "No logs yet."
+
 
 class TestProviderLogsMethod:
     """Test ServerlessClient.provider_logs() method."""
@@ -677,6 +707,35 @@ class TestProviderLogsMethod:
             logs = mock_client.provider_logs("test-job")
 
             assert logs == "Provider log 1\nProvider log 2"
+
+    def test_provider_logs_returns_text_after_redirect(self, mock_client):
+        """provider_logs() returns response.text when the gateway redirects."""
+        log_content = "private line one\n"
+
+        with requests_mock.Mocker() as mocker:
+            presigned_url = "https://cos.example.com/private.log?sig=xyz"
+            mocker.get(
+                "https://test-host.com/api/v1/jobs/test-job/provider-logs/",
+                status_code=302,
+                headers={"Location": presigned_url},
+            )
+            mocker.get(presigned_url, text=log_content)
+
+            logs = mock_client.provider_logs("test-job")
+
+            assert logs == log_content
+
+    def test_provider_logs_returns_no_logs_yet_on_204(self, mock_client):
+        """provider_logs() returns 'No logs yet.' when the gateway responds with 204 No Content."""
+        with requests_mock.Mocker() as mocker:
+            mocker.get(
+                "https://test-host.com/api/v1/jobs/test-job/provider-logs/",
+                status_code=204,
+            )
+
+            logs = mock_client.provider_logs("test-job")
+
+            assert logs == "No logs yet."
 
 
 class TestRuntimeJobsMethod:
@@ -876,6 +935,33 @@ class TestFilteredLogsMethod:
 
             filtered = mock_client.filtered_logs("test-job", include=r"\d{4}-\d{2}-\d{2} ERROR")
             assert filtered == "2024-01-02 ERROR: problem\n"
+
+    def test_filtered_logs_returns_no_logs_yet_when_204(self, mock_client):
+        """filtered_logs() returns 'No logs yet.' when the gateway returns 204 (Fleet job, no logs yet)."""
+        with requests_mock.Mocker() as mocker:
+            mocker.get(
+                "https://test-host.com/api/v1/jobs/test-job/logs/",
+                status_code=204,
+            )
+
+            assert mock_client.filtered_logs("test-job") == "No logs yet."
+
+    def test_filtered_logs_filters_raw_text_after_redirect(self, mock_client):
+        """filtered_logs() filters raw text received after a presigned URL redirect (Fleet job)."""
+        cos_content = "INFO: starting\nERROR: something failed\nINFO: done\n"
+        presigned_url = "https://cos.example.com/logs.log?sig=abc"
+
+        with requests_mock.Mocker() as mocker:
+            mocker.get(
+                "https://test-host.com/api/v1/jobs/test-job/logs/",
+                status_code=302,
+                headers={"Location": presigned_url},
+            )
+            mocker.get(presigned_url, text=cos_content)
+
+            filtered = mock_client.filtered_logs("test-job", include="ERROR")
+
+            assert filtered == "ERROR: something failed\n"
 
 
 class TestComputeProfile:
