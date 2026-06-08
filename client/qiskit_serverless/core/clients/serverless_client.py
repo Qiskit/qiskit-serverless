@@ -33,8 +33,8 @@ import os
 import re
 import tarfile
 import warnings
-from urllib.parse import urlparse
 from pathlib import Path
+from urllib.parse import urlparse
 from dataclasses import asdict
 from typing import Optional, List, Dict, Any, Union
 
