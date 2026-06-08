@@ -598,8 +598,8 @@ class TestResultMethod:
 
             assert result == {}
 
-    def test_result_uses_dedicated_result_endpoint(self, mock_client):
-        """result() calls /result/ without a with_result param."""
+    def test_result_includes_with_result_true_param(self, mock_client):
+        """result() calls /jobs/{id}/result/ and does not pass with_result (was /:id/?with_result=true)."""
         mock_response = {"result": "{}"}
 
         with requests_mock.Mocker() as mocker:
