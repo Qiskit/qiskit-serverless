@@ -268,46 +268,6 @@ LIMITS_MAX_FLEETS = int(os.environ.get("LIMITS_MAX_FLEETS", "1000"))  # Fleets P
 LIMITS_CPU_PER_TASK = int(os.environ.get("LIMITS_CPU_PER_TASK", "4"))
 LIMITS_GPU_PER_TASK = int(os.environ.get("LIMITS_GPU_PER_TASK", "1"))
 LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
-# Compute profile settings for Fleets runner
-DEFAULT_COMPUTE_PROFILE = os.environ.get("DEFAULT_COMPUTE_PROFILE", "cx3d-4x16")  # 4 CPU, 16GB RAM
-# Note: Update the default image with the default custom function ICR image
-FLEETS_DEFAULT_IMAGE = os.environ.get(
-    "FLEETS_DEFAULT_IMAGE",
-    "private.icr.io/qc-qiskit-functions-ce-staging/helloworld:latest",
-)
-# Fleets / Code Engine credentials
-IBM_CLOUD_API_KEY = os.environ.get("IBM_CLOUD_API_KEY")
-CE_ICR_PULL_SECRET = os.environ.get("CE_ICR_PULL_SECRET")
-CE_HMAC_SECRET_NAME = os.environ.get("CE_HMAC_SECRET_NAME")
-# Fleets COS settings
-CE_COS_INSTANCE_NAME = os.environ.get("CE_COS_INSTANCE_NAME")
-CE_COS_KEY_NAME = os.environ.get("CE_COS_KEY_NAME")
-CE_COS_BUCKET_USER_DATA_NAME = os.environ.get("CE_COS_BUCKET_USER_DATA_NAME")
-CE_COS_BUCKET_PROVIDER_DATA_NAME = os.environ.get("CE_COS_BUCKET_PROVIDER_DATA_NAME")
-# Code Engine project (set CE_PROJECT_ID to enable single-project auto-provisioning)
-CE_PROJECT_ID = os.environ.get("CE_PROJECT_ID")
-CE_PROJECT_NAME = os.environ.get("CE_PROJECT_NAME")
-CE_REGION = os.environ.get("CE_REGION")
-CE_RESOURCE_GROUP_ID = os.environ.get("CE_RESOURCE_GROUP_ID")
-CE_SUBNET_POOL_ID = os.environ.get("CE_SUBNET_POOL_ID")
-CE_PDS_NAME_STATE = os.environ.get("CE_PDS_NAME_STATE")
-CE_PDS_NAME_USERS = os.environ.get("CE_PDS_NAME_USERS")
-CE_PDS_NAME_PROVIDERS = os.environ.get("CE_PDS_NAME_PROVIDERS")
-# Optional zone for the single-project setup. For multi-project, use CE_PROJECTS instead.
-CE_ZONE = os.environ.get("CE_ZONE")
-# Multi-project setup: JSON array of project dicts, each with the same keys as the CE_* vars above
-# plus an optional "zone" field. When set, CE_PROJECT_ID / CE_* single-project vars are ignored.
-# Example: '[{"project_id": "...", "project_name": "...", "region": "us-east", "zone": "us-east-1", ...}]'
-CE_PROJECTS: list = json.loads(os.environ.get("CE_PROJECTS", "[]"))  # type: ignore[assignment]
-# Maps compute profiles to their availability zone. Populated at deploy time via FLEETS_PROFILE_ZONE_MAP
-# JSON env var, e.g. '{"gx2-8x64x1l40s": "us-east-1", "gx3d-24x120x1a100p": "us-east-2"}'.
-# Profiles absent from the map (or mapped to "any") fall back to the multi-zone project.
-# Reminder: review once automatic zone selection is supported in CE
-FLEETS_PROFILE_ZONE_MAP: dict = json.loads(os.environ.get("FLEETS_PROFILE_ZONE_MAP", "{}"))  # type: ignore[assignment]
-# Set to "true" to use the public COS endpoint instead of the private VPC endpoint.
-# Only needed for local testing outside IBM Cloud (e.g. docker-compose).
-CE_COS_USE_PUBLIC_ENDPOINT = os.environ.get("CE_COS_USE_PUBLIC_ENDPOINT", "false").lower() == "true"
-
 
 # ray cluster management
 RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
@@ -414,5 +374,64 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "Enable external Runtime instances API for function-level access control.",
     },
 }
+
+# Fleets / Code Engine credentials
+IBM_CLOUD_API_KEY = os.environ.get("IBM_CLOUD_API_KEY", None)
+CE_ICR_PULL_SECRET = os.environ.get("CE_ICR_PULL_SECRET", None)
+#######
+### Note: Update the default image with the default custom function ICR image
+#######
+FLEETS_DEFAULT_IMAGE = os.environ.get(
+    "FLEETS_DEFAULT_IMAGE",
+    "private.icr.io/qc-qiskit-functions-ce-staging/helloworld:latest",
+)
+# Compute profile settings for Fleets runner
+DEFAULT_COMPUTE_PROFILE = os.environ.get("DEFAULT_COMPUTE_PROFILE", "bx3d-24x120")  # 24 CPU, 120GB RAM
+# Default resource limits for fleet jobs (can be overridden per job)
+FLEETS_DEFAULT_CPU_LIMIT = os.environ.get("FLEETS_DEFAULT_CPU_LIMIT", "24")
+FLEETS_DEFAULT_MEMORY_LIMIT = os.environ.get("FLEETS_DEFAULT_MEMORY_LIMIT", "120G")
+FLEETS_DEFAULT_MAX_INSTANCES = int(os.environ.get("FLEETS_DEFAULT_MAX_INSTANCES", "1"))
+# GPU configuration
+FLEETS_DEFAULT_GPU_TYPE = os.environ.get("FLEETS_DEFAULT_GPU_TYPE", "v100")
+FLEETS_DEFAULT_GPU_COUNT = int(os.environ.get("FLEETS_DEFAULT_GPU_COUNT", "1"))
+# Fleet execution settings
+FLEETS_DEFAULT_RETRY_LIMIT = int(os.environ.get("FLEETS_DEFAULT_RETRY_LIMIT", "0"))
+FLEETS_MAX_EXECUTION_TIME = int(os.environ.get("FLEETS_MAX_EXECUTION_TIME", "3600"))  # seconds
+# Fleet monitoring and cleanup
+FLEETS_STATUS_CHECK_INTERVAL = int(os.environ.get("FLEETS_STATUS_CHECK_INTERVAL", "5"))  # seconds
+FLEETS_DELETE_ON_COMPLETE = os.environ.get("FLEETS_DELETE_ON_COMPLETE", "true").lower() == "true"
+FLEETS_KEEP_FAILED_FLEETS = os.environ.get("FLEETS_KEEP_FAILED_FLEETS", "true").lower() == "true"
+
+# Code Engine project (set CE_PROJECT_ID to enable single-project auto-provisioning)
+CE_PROJECT_ID = os.environ.get("CE_PROJECT_ID", None)
+CE_PROJECT_NAME = os.environ.get("CE_PROJECT_NAME", None)
+CE_REGION = os.environ.get("CE_REGION", None)
+CE_RESOURCE_GROUP_ID = os.environ.get("CE_RESOURCE_GROUP_ID", None)
+CE_SUBNET_POOL_ID = os.environ.get("CE_SUBNET_POOL_ID", None)
+CE_PDS_NAME_STATE = os.environ.get("CE_PDS_NAME_STATE", None)
+CE_PDS_NAME_USERS = os.environ.get("CE_PDS_NAME_USERS", None)
+CE_PDS_NAME_PROVIDERS = os.environ.get("CE_PDS_NAME_PROVIDERS", None)
+CE_HMAC_SECRET_NAME = os.environ.get("CE_HMAC_SECRET_NAME", None)
+CE_HMAC_SECRET_ACCESS_KEY = os.environ.get("CE_HMAC_SECRET_ACCESS_KEY", None)
+CE_HMAC_SECRET_ACCESS_KEY_ID = os.environ.get("CE_HMAC_SECRET_ACCESS_KEY_ID", None)
+# Set to "true" to use the public COS endpoint instead of the private VPC endpoint.
+# Only needed for local testing outside IBM Cloud (e.g. docker-compose).
+CE_COS_USE_PUBLIC_ENDPOINT = os.environ.get("CE_COS_USE_PUBLIC_ENDPOINT", "false").lower() == "true"
+CE_COS_INSTANCE_NAME = os.environ.get("CE_COS_INSTANCE_NAME", None)
+CE_COS_KEY_NAME = os.environ.get("CE_COS_KEY_NAME", None)
+CE_COS_BUCKET_TASK_STORE_NAME = os.environ.get("CE_COS_BUCKET_TASK_STORE_NAME", None)
+CE_COS_BUCKET_USER_DATA_NAME = os.environ.get("CE_COS_BUCKET_USER_DATA_NAME", None)
+CE_COS_BUCKET_PROVIDER_DATA_NAME = os.environ.get("CE_COS_BUCKET_PROVIDER_DATA_NAME", None)
+# Maps compute profiles to their availability zone. Populated at deploy time via FLEETS_PROFILE_ZONE_MAP
+# JSON env var, e.g. '{"gx2-8x64x1l40s": "us-east-1", "gx3d-24x120x1a100p": "us-east-2"}'.
+# Profiles absent from the map fall back to the first active CodeEngineProject.
+#######
+### Note: Remove environment variable as it's not needed now
+#######
+FLEETS_PROFILE_ZONE_MAP: dict = json.loads(os.environ.get("FLEETS_PROFILE_ZONE_MAP", "{}"))  # type: ignore[assignment]
+# Single-project zone pin (used by sync_ce_project in single-project mode)
+CE_ZONE = os.environ.get("CE_ZONE")
+# Multi-project configuration: JSON array of project dicts, each with the same keys as CE_* single-project vars
+CE_PROJECTS: list = json.loads(os.environ.get("CE_PROJECTS", "[]"))  # type: ignore[assignment]
 
 logging.getLogger("main").info("[BOOT] Settings.py: %s", "gunicorn" if IS_UNICORN else COMMAND)

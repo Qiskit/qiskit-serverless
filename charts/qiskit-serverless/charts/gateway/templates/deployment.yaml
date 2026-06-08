@@ -14,7 +14,7 @@ spec:
       {{- include "gateway.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
+      {{- with .Values.gateway.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -58,6 +58,46 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secrets.servicePsql.name }}
                   key: {{ .Values.secrets.servicePsql.key.userName }}
+        - name: setup-ce-project
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["python", "manage.py", "sync_ce_project"]
+          volumeMounts:
+            - mountPath: "/usr/src/app/media/"
+              name: gateway-pv-storage
+          env:
+            - name: CE_PROJECTS
+              value: {{ .Values.ce.projects | toJson | quote }}
+            - name: DJANGO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.secretKey.name }}
+                  key: {{ .Values.secrets.secretKey.key }}
+            - name: DATABASE_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.host }}
+            - name: DATABASE_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.port }}
+            - name: DATABASE_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.databaseName }}
+            - name: DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.userName }}
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.databasePassword }}
       volumes:
         - name: gateway-pv-storage
           persistentVolumeClaim:
@@ -115,6 +155,10 @@ spec:
                   key: {{ .Values.secrets.secretKey.key }}
             - name: SITE_HOST
               value: {{ .Values.application.siteHost | quote }}
+            {{- if .Values.application.fleetsGatewayHost }}
+            - name: FLEETS_GATEWAY_HOST
+              value: {{ .Values.application.fleetsGatewayHost | quote }}
+            {{- end }}
             - name: RAY_HOST
               value: {{ .Values.application.rayHost | quote }}
             - name: SETTINGS_AUTH_MECHANISM
@@ -225,6 +269,25 @@ spec:
               value: {{ .Values.application.limits.maxActiveJobsPerUser | quote }}
             - name: LOG_FORMAT
               value: {{ .Values.application.logFormat | quote }}
+            - name: IBM_CLOUD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.ibmCloudApiKey.name }}
+                  key: {{ .Values.secrets.ibmCloudApiKey.key }}
+            - name: CE_PROJECTS
+              value: {{ .Values.ce.projects | toJson | quote }}
+            - name: CE_HMAC_SECRET_ACCESS_KEY_ID
+              value: {{ .Values.ce.hmacSecretAccessKeyId | quote }}
+            - name: CE_HMAC_SECRET_NAME
+              value: {{ .Values.ce.hmacSecretName | quote }}
+            - name: FLEETS_DEFAULT_IMAGE
+              value: {{ .Values.ce.fleetsDefaultImage | quote }}
+            - name: CE_ICR_PULL_SECRET
+              value: {{ .Values.ce.icrPullSecret | quote }}
+            {{- if .Values.ce.cosEndpointUrl }}
+            - name: CE_COS_ENDPOINT_URL
+              value: {{ .Values.ce.cosEndpointUrl | quote }}
+            {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -263,7 +326,7 @@ spec:
       {{- include "scheduler.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
+      {{- with .Values.scheduler.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -411,6 +474,25 @@ spec:
               value: {{ .Values.application.logsMaximumSize | quote }}
             - name: LOG_FORMAT
               value: {{ .Values.application.logFormat | quote }}
+            - name: IBM_CLOUD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.ibmCloudApiKey.name }}
+                  key: {{ .Values.secrets.ibmCloudApiKey.key }}
+            - name: CE_PROJECTS
+              value: {{ .Values.ce.projects | toJson | quote }}
+            - name: CE_HMAC_SECRET_ACCESS_KEY_ID
+              value: {{ .Values.ce.hmacSecretAccessKeyId | quote }}
+            - name: CE_HMAC_SECRET_NAME
+              value: {{ .Values.ce.hmacSecretName | quote }}
+            - name: FLEETS_DEFAULT_IMAGE
+              value: {{ .Values.ce.fleetsDefaultImage | quote }}
+            - name: CE_ICR_PULL_SECRET
+              value: {{ .Values.ce.icrPullSecret | quote }}
+            {{- if .Values.ce.cosEndpointUrl }}
+            - name: CE_COS_ENDPOINT_URL
+              value: {{ .Values.ce.cosEndpointUrl | quote }}
+            {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
