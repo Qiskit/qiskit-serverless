@@ -44,12 +44,6 @@ class TestResultStorage:
         storage.save("overwrite")
         assert storage.get() == "overwrite"
 
-    def test_get_url_raises_not_implemented(self, tmp_path, settings, job):
-        """get_url() raises NotImplementedError for Ray jobs."""
-        settings.MEDIA_ROOT = str(tmp_path)
-        with pytest.raises(NotImplementedError):
-            ResultStorage(job=job).get_url()
-
 
 @pytest.mark.django_db
 class TestFleetsResultStorage:

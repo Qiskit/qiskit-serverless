@@ -266,7 +266,7 @@ class TestJobMethod:
         }
 
         with requests_mock.Mocker() as mocker:
-            mocker.get(
+            mock_request = mocker.get(
                 "https://test-host.com/api/v1/jobs/test-job-id/",
                 json=mock_response,
             )
@@ -276,6 +276,7 @@ class TestJobMethod:
             assert job is not None
             assert job.job_id == "test-job-id"
             assert isinstance(job, Job)
+            assert mock_request.last_request.qs["with_result"] == ["false"]
 
     def test_job_not_found_returns_none(self, mock_client):
         """Test job() returns None when job doesn't exist."""

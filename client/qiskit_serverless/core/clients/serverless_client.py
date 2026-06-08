@@ -35,7 +35,6 @@ import tarfile
 import warnings
 from urllib.parse import urlparse
 from pathlib import Path
-from urllib.parse import urlparse
 from dataclasses import asdict
 from typing import Optional, List, Dict, Any, Union
 
@@ -290,6 +289,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             request=lambda: requests.get(
                 url,
                 headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
+                params={"with_result": "false"},
                 timeout=REQUESTS_TIMEOUT,
             )
         )

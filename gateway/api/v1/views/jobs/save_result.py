@@ -27,6 +27,7 @@ from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
 from core.models import Job, Program
 from core.services.storage import get_result_storage
+from core.services.storage.result_storage_fleets import FleetsResultStorage
 
 logger = logging.getLogger("api.api.v1.views.jobs.save_result")
 
@@ -130,7 +131,7 @@ def save_result(request: Request, job_id: UUID) -> Response:
             raise JobNotFoundException(str(job_id))
         if job.program.runner == Program.FLEETS:
             try:
-                url = get_result_storage(job).get_url()
+                url = FleetsResultStorage(job).get_url()
             except (ValueError, NotImplementedError):
                 url = None
             if url:

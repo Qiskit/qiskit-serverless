@@ -54,9 +54,6 @@ class RayResultStorage(ResultStorage):
             )
             return None
 
-    def get_url(self) -> Optional[str]:
-        raise NotImplementedError("Presigned URLs are not supported for Ray jobs")
-
     def save(self, result: str) -> None:
         """Persist the result for this job."""
         result_path = self._get_result_path()
