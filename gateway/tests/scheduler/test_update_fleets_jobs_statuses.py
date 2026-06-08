@@ -14,7 +14,11 @@ _MOD = "scheduler.tasks.update_fleets_jobs_statuses"
 def _make_task():
     kill_signal = MagicMock()
     kill_signal.received = False
-    return UpdateFleetsJobsStatuses(kill_signal=kill_signal, metrics=MagicMock())
+    task = UpdateFleetsJobsStatuses.__new__(UpdateFleetsJobsStatuses)
+    task.kill_signal = kill_signal
+    task.metrics = MagicMock()
+    task._event_streams_client = MagicMock()
+    return task
 
 
 def _make_fleets_job(status=Job.RUNNING, fleet_id="fleet-123"):
@@ -308,3 +312,91 @@ class TestRun:
             task.run()
 
         mock_logger.info.assert_called_with("Updated %s Fleets jobs.", 2)
+
+
+class TestEventStreamsIntegration:
+    """Tests that emit methods are called at the right lifecycle points."""
+
+    def test_to_running_emits_job_started_before_db_update(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.PENDING)
+
+        call_order = []
+        task.event_streams_client.emit_job_started.side_effect = lambda j: call_order.append("publish")
+        job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db"))
+
+        with patch(f"{_MOD}.JobEvent"):
+            with patch(f"{_MOD}.django_timezone"):
+                task.to_running(job)
+
+        assert call_order == ["publish", "db"]
+        task.event_streams_client.emit_job_started.assert_called_once_with(job)
+
+    def test_to_running_db_update_happens_even_if_publish_fails(self):
+        task = _make_task()
+        task.event_streams_client.emit_job_started.side_effect = Exception("broker down")
+        job = _make_fleets_job(status=Job.PENDING)
+
+        with patch(f"{_MOD}.JobEvent"):
+            with patch(f"{_MOD}.django_timezone"):
+                task.to_running(job)
+
+        assert job.status == Job.RUNNING
+
+    def test_to_terminal_emits_job_ended_before_db_update(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        call_order = []
+        task.event_streams_client.emit_job_ended.side_effect = lambda j: call_order.append("publish")
+        job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db"))
+
+        with patch(f"{_MOD}.JobEvent"):
+            task.to_terminal(job, Job.SUCCEEDED)
+
+        assert call_order == ["publish", "db"]
+        task.event_streams_client.emit_job_ended.assert_called_once_with(job)
+
+    def test_to_terminal_db_update_happens_even_if_publish_fails(self):
+        task = _make_task()
+        task.event_streams_client.emit_job_ended.side_effect = Exception("broker down")
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        with patch(f"{_MOD}.JobEvent"):
+            task.to_terminal(job, Job.SUCCEEDED)
+
+        assert job.status == Job.SUCCEEDED
+
+    def test_run_emits_job_in_progress_for_running_jobs(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        with (
+            patch(f"{_MOD}.settings") as mock_settings,
+            patch(f"{_MOD}.Job") as mock_job_cls,
+            patch.object(task, "update_job_status", return_value=True),
+        ):
+            mock_settings.LIMITS_MAX_FLEETS = 10
+            mock_job_cls.objects.filter.return_value = [job]
+            mock_job_cls.RUNNING_STATUSES = Job.RUNNING_STATUSES
+            mock_job_cls.RUNNING = Job.RUNNING
+            task.run()
+
+        task.event_streams_client.emit_job_in_progress.assert_called_once_with(job)
+
+    def test_run_skips_emit_for_pending_jobs(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.PENDING)
+
+        with (
+            patch(f"{_MOD}.settings") as mock_settings,
+            patch(f"{_MOD}.Job") as mock_job_cls,
+            patch.object(task, "update_job_status", return_value=True),
+        ):
+            mock_settings.LIMITS_MAX_FLEETS = 10
+            mock_job_cls.objects.filter.return_value = [job]
+            mock_job_cls.RUNNING_STATUSES = Job.RUNNING_STATUSES
+            mock_job_cls.RUNNING = Job.RUNNING
+            task.run()
+
+        task.event_streams_client.emit_job_in_progress.assert_not_called()
