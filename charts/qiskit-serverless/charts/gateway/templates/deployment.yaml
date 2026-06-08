@@ -66,8 +66,10 @@ spec:
             - mountPath: "/usr/src/app/media/"
               name: gateway-pv-storage
           env:
+            {{- if .Values.ce }}
             - name: CE_PROJECTS
               value: {{ .Values.ce.projects | toJson | quote }}
+            {{- end }}
             - name: DJANGO_SECRET_KEY
               valueFrom:
                 secretKeyRef:
@@ -155,10 +157,6 @@ spec:
                   key: {{ .Values.secrets.secretKey.key }}
             - name: SITE_HOST
               value: {{ .Values.application.siteHost | quote }}
-            {{- if .Values.application.fleetsGatewayHost }}
-            - name: FLEETS_GATEWAY_HOST
-              value: {{ .Values.application.fleetsGatewayHost | quote }}
-            {{- end }}
             - name: RAY_HOST
               value: {{ .Values.application.rayHost | quote }}
             - name: SETTINGS_AUTH_MECHANISM
@@ -274,6 +272,9 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secrets.ibmCloudApiKey.name }}
                   key: {{ .Values.secrets.ibmCloudApiKey.key }}
+            {{- if .Values.ce }}
+            - name: FLEETS_GATEWAY_HOST
+              value: {{ .Values.ce.fleetsGatewayHost | quote }}
             - name: CE_PROJECTS
               value: {{ .Values.ce.projects | toJson | quote }}
             - name: CE_HMAC_SECRET_ACCESS_KEY_ID
@@ -284,14 +285,13 @@ spec:
               value: {{ .Values.ce.fleetsDefaultImage | quote }}
             - name: CE_ICR_PULL_SECRET
               value: {{ .Values.ce.icrPullSecret | quote }}
-            {{- if .Values.ce.cosEndpointUrl }}
             - name: CE_COS_ENDPOINT_URL
               value: {{ .Values.ce.cosEndpointUrl | quote }}
-            {{- end }}
             - name: DEFAULT_COMPUTE_PROFILE
-              value: {{ .Values.application.defaultComputeProfile | quote }}
+              value: {{ .Values.ce.defaultComputeProfile | quote }}
             - name: FLEETS_DEFAULT_MAX_INSTANCES
-              value: {{ .Values.application.fleetsDefaultMaxInstances | quote }}
+              value: {{ .Values.ce.fleetsDefaultMaxInstances | quote }}
+            {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -483,6 +483,7 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secrets.ibmCloudApiKey.name }}
                   key: {{ .Values.secrets.ibmCloudApiKey.key }}
+            {{- if .Values.ce }}
             - name: CE_PROJECTS
               value: {{ .Values.ce.projects | toJson | quote }}
             - name: CE_HMAC_SECRET_ACCESS_KEY_ID
@@ -493,14 +494,13 @@ spec:
               value: {{ .Values.ce.fleetsDefaultImage | quote }}
             - name: CE_ICR_PULL_SECRET
               value: {{ .Values.ce.icrPullSecret | quote }}
-            {{- if .Values.ce.cosEndpointUrl }}
             - name: CE_COS_ENDPOINT_URL
               value: {{ .Values.ce.cosEndpointUrl | quote }}
-            {{- end }}
             - name: DEFAULT_COMPUTE_PROFILE
-              value: {{ .Values.application.defaultComputeProfile | quote }}
+              value: {{ .Values.ce.defaultComputeProfile | quote }}
             - name: FLEETS_DEFAULT_MAX_INSTANCES
-              value: {{ .Values.application.fleetsDefaultMaxInstances | quote }}
+              value: {{ .Values.ce.fleetsDefaultMaxInstances | quote }}
+            {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

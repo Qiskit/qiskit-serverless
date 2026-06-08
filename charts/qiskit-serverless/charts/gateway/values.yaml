@@ -53,8 +53,6 @@ application:
   runtimeApi:
     url: "https://quantum.cloud.ibm.com"
     cacheTtl: "60"
-  defaultComputeProfile: "bx3d-24x120"
-  fleetsDefaultMaxInstances: 1
   allowedHosts: "*"
   trustedOrigins: "http://localhost"
   corsOrigins: "http://localhost"
@@ -75,6 +73,11 @@ tracing:
 
 cos:
   claimName: gateway-claim
+
+ce:
+  fleetsGatewayHost: "http://127.0.0.1:8000"
+  defaultComputeProfile: "bx3d-24x120"
+  fleetsDefaultMaxInstances: 1
 
 secrets:
   secretKey:
