@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import io
 import logging
 from typing import Optional
 
@@ -75,19 +74,8 @@ class FleetsResultStorage(ResultStorage):
             return None
 
     def save(self, result: str) -> None:
-        """Persist the result for this job to COS."""
-        get_cos_client(self._project).upload_fileobj(
-            fileobj=io.BytesIO(result.encode("utf-8")),
-            bucket_name=self._user_bucket,
-            key=self._results_key,
-        )
-        logger.info(
-            "[save] user_id=%s job_id=%s bucket=%s key=%s | Result saved to COS",
-            self._user_id,
-            self._job_id,
-            self._user_bucket,
-            self._results_key,
-        )
+        """Not implemented — Fleets results are written by the SDK via RESULTS_PATH."""
+        raise NotImplementedError("Fleets results are written by the SDK via RESULTS_PATH")
 
     def get_url(self) -> Optional[str]:
         """Return a presigned URL for the result, or None if the object does not exist."""
