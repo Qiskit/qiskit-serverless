@@ -26,6 +26,8 @@ def _make_fleets_job(status=Job.RUNNING, fleet_id="fleet-123"):
     job.logs = ""
     job.env_vars = "{}"
     job.sub_status = None
+    job.running_started_at = None
+    job.instance_crn = "crn:v1:bluemix:public:quantum-computing:us-east:a/abc:def::"
     job.in_terminal_state.return_value = status in Job.TERMINAL_STATUSES
 
     def _apply_update_fields(fields_map):
@@ -189,6 +191,23 @@ class TestToRunning:
             context=JobEventContext.UPDATE_JOB_STATUS,
             status=Job.RUNNING,
         )
+
+    def test_to_running_sets_running_started_at(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.PENDING)
+
+        with (
+            patch(f"{_MOD}.JobEvent"),
+            patch(f"{_MOD}.django_timezone") as mock_dt,
+        ):
+            fake_now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+            mock_dt.now.return_value = fake_now
+            task.to_running(job)
+
+        job.update_fields.assert_called_once_with({
+            "status": Job.RUNNING,
+            "running_started_at": fake_now,
+        })
 
 
 class TestStopJobIfTimeout:

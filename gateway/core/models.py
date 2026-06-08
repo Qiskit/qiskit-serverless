@@ -447,6 +447,7 @@ class Job(models.Model):
 
     account_id = models.CharField(max_length=255, null=True, blank=True)
     instance_crn = models.CharField(max_length=255, null=True, blank=True)
+    running_started_at = models.DateTimeField(null=True, blank=True)
 
     objects: JobQuerySet = JobQuerySet.as_manager()
 
