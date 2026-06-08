@@ -22,3 +22,11 @@ class LogsStorage(ABC):
     @abstractmethod
     def save_private_logs(self, logs: str) -> None:
         """Persist private logs for the job (provider jobs only)."""
+
+    @abstractmethod
+    def get_public_logs_url(self) -> Optional[str]:
+        """Return a presigned URL for public logs, or None if the object does not exist."""
+
+    @abstractmethod
+    def get_private_logs_url(self) -> Optional[str]:
+        """Return a presigned URL for private logs, or None if the object does not exist."""

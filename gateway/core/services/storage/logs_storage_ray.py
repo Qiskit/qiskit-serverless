@@ -65,6 +65,12 @@ class RayLogsStorage(LogsStorage):
             raise RuntimeError("Private logs are only available for provider jobs")
         self._write_logs(self._private_path, logs)
 
+    def get_public_logs_url(self) -> Optional[str]:
+        raise NotImplementedError("Presigned URLs are not supported for Ray jobs")
+
+    def get_private_logs_url(self) -> Optional[str]:
+        raise NotImplementedError("Presigned URLs are not supported for Ray jobs")
+
     def _get_file_path(self, base_path: str) -> str:
         return os.path.join(base_path, f"{self._job_id}{self.FILE_EXTENSION}")
 
