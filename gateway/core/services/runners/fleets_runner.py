@@ -28,7 +28,6 @@ from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
 from core.models import Job, CodeEngineProject
 from core.services.runners.abstract_runner import AbstractRunner, RunnerError
-from core.services.storage import get_arguments_storage
 from core.ibm_cloud import get_ce_auth, get_cos_client
 from core.utils import decrypt_env_vars
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
@@ -499,9 +498,6 @@ class FleetsRunner(AbstractRunner):
 
         user_bucket = self._project.cos_bucket_user_data_name
 
-        # upload arguments
-        get_arguments_storage(self.job).save(self.job.arguments)
-
         # upload template
         template_name = "fleet_custom_job_wrapper.py"
         script = get_template(template_name).render(
@@ -553,9 +549,6 @@ class FleetsRunner(AbstractRunner):
             raise RunnerError("_upload_provider_image_entrypoint called on non-provider job")
 
         provider_bucket = self._project.cos_bucket_provider_data_name
-
-        # upload arguments
-        get_arguments_storage(self.job).save(self.job.arguments)
 
         # upload wrapper script
         wrapper_script = get_template("fleet_provider_job_wrapper.py").render(

@@ -359,8 +359,12 @@ class RunJobSerializer(serializers.ModelSerializer):
         if program.runner == Program.FLEETS:
             code_engine_project = CodeEngineProject.objects.select_for_profile(compute_profile)
             if code_engine_project is None:
+                available = list(
+                    CodeEngineProject.objects.filter(active=True).values_list("project_name", "zone", flat=False)
+                )
                 raise serializers.ValidationError(
-                    f"No active Code Engine project available for compute profile {compute_profile}"
+                    f"No active Code Engine project available for compute profile {compute_profile}. "
+                    f"Active projects: {available}"
                 )
 
         job = Job(
@@ -388,11 +392,8 @@ class RunJobSerializer(serializers.ModelSerializer):
             )
         )
 
-        # Fleets jobs upload arguments to COS at submit time (FleetsRunner._upload_program_to_cos),
-        # so doing it here would make a blocking IBM Cloud API call in the request handler.
-        if job.runner != Program.FLEETS:
-            arguments_storage = get_arguments_storage(job)
-            arguments_storage.save(arguments)
+        arguments_storage = get_arguments_storage(job)
+        arguments_storage.save(arguments)
 
         try:
             env["traceparent"] = carrier["traceparent"]
