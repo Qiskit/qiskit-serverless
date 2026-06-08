@@ -267,11 +267,13 @@ spec:
               value: {{ .Values.application.limits.maxActiveJobsPerUser | quote }}
             - name: LOG_FORMAT
               value: {{ .Values.application.logFormat | quote }}
+            {{- if .Values.secrets.ibmCloudApiKey }}
             - name: IBM_CLOUD_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.secrets.ibmCloudApiKey.name }}
                   key: {{ .Values.secrets.ibmCloudApiKey.key }}
+            {{- end }}
             {{- if .Values.ce }}
             - name: FLEETS_GATEWAY_HOST
               value: {{ .Values.ce.fleetsGatewayHost | quote }}
@@ -478,11 +480,13 @@ spec:
               value: {{ .Values.application.logsMaximumSize | quote }}
             - name: LOG_FORMAT
               value: {{ .Values.application.logFormat | quote }}
+            {{- if .Values.secrets.ibmCloudApiKey }}
             - name: IBM_CLOUD_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.secrets.ibmCloudApiKey.name }}
                   key: {{ .Values.secrets.ibmCloudApiKey.key }}
+            {{- end }}
             {{- if .Values.ce }}
             - name: CE_PROJECTS
               value: {{ .Values.ce.projects | toJson | quote }}
