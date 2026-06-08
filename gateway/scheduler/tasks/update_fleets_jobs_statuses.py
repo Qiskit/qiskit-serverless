@@ -7,7 +7,7 @@ from typing import cast
 from django.conf import settings
 from django.utils import timezone as django_timezone
 
-from core.ibm_cloud.clients import IBMEventStreamsClient
+from core.ibm_cloud.event_streams.event_streams_client import IBMEventStreamsClient
 from core.models import Job, JobEvent, Program
 from core.services.runners import get_runner, RunnerError, FleetsRunner
 from core.model_managers.job_events import JobEventContext, JobEventOrigin

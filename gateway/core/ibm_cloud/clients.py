@@ -41,16 +41,8 @@ from __future__ import annotations
 import base64
 import json
 import logging
-import os
-import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from typing import Any
-
-try:
-    from confluent_kafka import Producer
-except ImportError:  # confluent-kafka is optional at import time
-    Producer = None  # type: ignore[assignment,misc]
 
 from ibm_boto3 import client as ibm_boto3_client
 from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
@@ -256,77 +248,3 @@ class IBMCloudClientProvider:
         )
         self.clients.cos_hmac[cache_key] = s3
         return s3
-
-
-class IBMEventStreamsClient:
-    """
-    Kafka producer client for IBM Cloud Event Streams.
-
-    Publishes CloudEvents 1.0 usage events for Fleets jobs.
-    Configured from environment variables:
-      EVENT_STREAMS_BOOTSTRAP_SERVERS — comma-separated broker list
-      EVENT_STREAMS_API_KEY           — SASL/PLAIN password
-      ENVIRONMENT                     — deployment environment (e.g. production, staging)
-    """
-
-    def __init__(self) -> None:
-        if Producer is None:
-            raise RuntimeError(
-                "confluent-kafka is not installed. "
-                "Add confluent-kafka>=2.6.0,<3 to your dependencies."
-            )
-
-        bootstrap_servers = os.environ["EVENT_STREAMS_BOOTSTRAP_SERVERS"]
-        api_key = os.environ["EVENT_STREAMS_API_KEY"]
-        environment = os.environ["ENVIRONMENT"]
-
-        self._producer = Producer({
-            "bootstrap.servers": bootstrap_servers,
-            "security.protocol": "SASL_SSL",
-            "sasl.mechanisms": "PLAIN",
-            "sasl.username": "token",
-            "sasl.password": api_key,
-        })
-        self.topic = f"quantum.{environment}.function-usage.v1"
-
-    def emit_job_started(self, job) -> None:
-        """Publish a job_started event (usage_nanoseconds=0)."""
-        self._publish(job, event_type="job_started", usage_nanoseconds=0)
-
-    def emit_job_in_progress(self, job) -> None:
-        """Publish a job_in_progress event with current usage."""
-        self._publish(job, event_type="job_in_progress", usage_nanoseconds=self._usage_ns(job))
-
-    def emit_job_ended(self, job) -> None:
-        """Publish a job_ended event with final usage."""
-        self._publish(job, event_type="job_ended", usage_nanoseconds=self._usage_ns(job))
-
-    def _usage_ns(self, job) -> int:
-        if job.running_started_at is None:
-            return 0
-        delta = datetime.now(timezone.utc) - job.running_started_at
-        return int(delta.total_seconds() * 1e9)
-
-    def _publish(self, job, *, event_type: str, usage_nanoseconds: int) -> None:
-        now = datetime.now(timezone.utc)
-        event = {
-            "specversion": "1.0",
-            "id": str(uuid.uuid4()),
-            "source": "qiskit-serverless/scheduler/fleets",
-            "type": self.topic,
-            "time": now.isoformat(),
-            "subject": str(job.id),
-            "datacontenttype": "application/json",
-            "data": {
-                "event_type": event_type,
-                "usage_nanoseconds": usage_nanoseconds,
-                "instance_crn": job.instance_crn,
-            },
-        }
-        self._producer.produce(
-            topic=self.topic,
-            value=json.dumps(event).encode("utf-8"),
-        )
-        remaining = self._producer.flush(timeout=5)
-        if remaining > 0:
-            logger.warning("IBMEventStreamsClient: %d message(s) not delivered after flush timeout", remaining)
