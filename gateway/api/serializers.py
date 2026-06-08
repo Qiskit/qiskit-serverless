@@ -359,12 +359,8 @@ class RunJobSerializer(serializers.ModelSerializer):
         if program.runner == Program.FLEETS:
             code_engine_project = CodeEngineProject.objects.select_for_profile(compute_profile)
             if code_engine_project is None:
-                available = list(
-                    CodeEngineProject.objects.filter(active=True).values_list("project_name", "zone", flat=False)
-                )
                 raise serializers.ValidationError(
-                    f"No active Code Engine project available for compute profile {compute_profile}. "
-                    f"Active projects: {available}"
+                    f"No active Code Engine project available for compute profile {compute_profile}"
                 )
 
         job = Job(
