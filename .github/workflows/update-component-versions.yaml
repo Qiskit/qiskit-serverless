@@ -42,13 +42,13 @@ jobs:
           sed -i "s/tag: \"${OLDNUM}\"/tag: \"${NEWNUM}\"/" charts/qiskit-serverless/values.yaml
           sed -i "s/ray-node:${OLDNUM}/ray-node:${NEWNUM}/" charts/qiskit-serverless/values.yaml
           sed -i "s/version: ${OLDNUM}/version: ${NEWNUM}/" charts/qiskit-serverless/values.yaml
-          sed -i "s/qiskit-serverless\/ray-node:${OLDNUM}/qiskit-serverless\/ray-node:${NEWNUM}/" docs/custom_images/custom_function/Sample-Dockerfile
-          sed -i "s/FROM icr.io\/quantum-public\/qiskit-serverless\/ray-node${OLDNUM}/FROM icr.io\/quantum-public\/qiskit-serverless\/ray-node${NEWNUM}/" docs/custom_images/deploy_custom_image_function.rst
-          sed -i "s/FROM icr.io\/quantum-public\/qiskit-serverless\/ray-node${OLDNUM}/FROM icr.io\/quantum-public\/qiskit-serverless\/ray-node${NEWNUM}/" docs/custom_images/custom_image_examples.rst
-          sed -i "s/qiskit-serverless\/ray-node:${OLDNUM}/qiskit-serverless\/ray-node:${NEWNUM}/" gateway/main/settings.py
           cd charts/qiskit-serverless
           helm dependency update
           cd -
+      - name: Update gateway
+        shell: bash
+        run: |
+          sed -i "s/qiskit-serverless\/ray-node:${OLDNUM}/qiskit-serverless\/ray-node:${NEWNUM}/" gateway/main/settings.py
       - name: Update client version
         shell: bash
         run: |
@@ -61,7 +61,17 @@ jobs:
         shell: bash
         run: |
           sed -i "s/${OLDNUM}/${NEWNUM}/g" docs/deployment/cloud.rst
-          sed -i "s/${OLDNUM}-py310/${NEWNUM}/g" docs/custom_images/deploy_custom_image_function.rst
+          sed -i "s/qiskit-serverless\/ray-node:${OLDNUM}/qiskit-serverless\/ray-node:${NEWNUM}/" docs/custom_images/custom_function/Sample-Dockerfile
+          sed -i "s/FROM icr.io\/quantum-public\/qiskit-serverless\/ray-node:${OLDNUM}/FROM icr.io\/quantum-public\/qiskit-serverless\/ray-node:${NEWNUM}/" docs/custom_images/deploy_custom_image_function.rst
+          sed -i "s/FROM icr.io\/quantum-public\/qiskit-serverless\/ray-node:${OLDNUM}/FROM icr.io\/quantum-public\/qiskit-serverless\/ray-node:${NEWNUM}/" docs/custom_images/custom_image_examples.rst
+      - name: Update CITATION.cff
+        shell: bash
+        run: |
+          sed -i "s/^version: ${OLDNUM}/version: ${NEWNUM}/" CITATION.cff
+      - name: Update issue templates
+        shell: bash
+        run: |
+          sed -i "s/placeholder: ${OLDNUM}/placeholder: ${NEWNUM}/" .github/ISSUE_TEMPLATE/pip_dependency_request.yaml
       - name: Create PR
         id: cpr
         uses: peter-evans/create-pull-request@v8

@@ -43,6 +43,7 @@ class ProviderAdmin(admin.ModelAdmin):
     """ProviderAdmin."""
 
     search_fields = ["name"]
+    filter_horizontal = ["admin_groups"]
 
 
 @admin.register(Program)
@@ -52,7 +53,8 @@ class ProgramAdmin(admin.ModelAdmin):
     search_fields = ["title", "author__username"]
     list_filter = ["provider", "type", "runner", "disabled"]
     exclude = ["env_vars"]
-    autocomplete_fields = ["author", "provider", "instances", "trial_instances"]
+    filter_horizontal = ["instances", "trial_instances"]
+    autocomplete_fields = ["author", "provider"]
     change_form_template = "program/change_form.html"
 
     list_display = [
