@@ -604,11 +604,12 @@ class FleetsRunner(AbstractRunner):
         # Parse: {cpu}x{memory}[x{count}{model}]
         parts = re.match(r"^(\d+)x(\d+)(?:x(\d+)([a-z]\w*))?$", resources)
         if not parts:
-            logger.warning("Could not parse compute_profile [%s], using defaults", profile)
-            return (
-                settings.FLEETS_DEFAULT_CPU_LIMIT,
-                settings.FLEETS_DEFAULT_MEMORY_LIMIT,
-                None,
+            logger.error(
+                "Could not parse compute_profile [%s]: expected format '{cpu}x{memory}[x{count}{model}]'",
+                profile,
+            )
+            raise RunnerError(
+                f"Could not parse compute_profile [{profile}]:" " expected format '{cpu}x{memory}[x{count}{model}]'"
             )
 
         cpu = parts.group(1)

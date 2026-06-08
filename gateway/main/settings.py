@@ -388,8 +388,6 @@ FLEETS_DEFAULT_IMAGE = os.environ.get(
 # Compute profile settings for Fleets runner
 DEFAULT_COMPUTE_PROFILE = os.environ.get("DEFAULT_COMPUTE_PROFILE", "bx3d-24x120")  # 24 CPU, 120GB RAM
 # Default resource limits for fleet jobs (can be overridden per job)
-FLEETS_DEFAULT_CPU_LIMIT = os.environ.get("FLEETS_DEFAULT_CPU_LIMIT", "24")
-FLEETS_DEFAULT_MEMORY_LIMIT = os.environ.get("FLEETS_DEFAULT_MEMORY_LIMIT", "120G")
 FLEETS_DEFAULT_MAX_INSTANCES = int(os.environ.get("FLEETS_DEFAULT_MAX_INSTANCES", "1"))
 # GPU configuration
 FLEETS_DEFAULT_GPU_TYPE = os.environ.get("FLEETS_DEFAULT_GPU_TYPE", "v100")
