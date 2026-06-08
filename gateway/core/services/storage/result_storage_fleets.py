@@ -87,11 +87,12 @@ class FleetsResultStorage(ResultStorage):
             code = e.response.get("Error", {}).get("Code", "")
             if code in self.NOT_FOUND_CODES:
                 logger.warning(
-                    "[get] user_id=%s job_id=%s | Result not found in COS at %s/%s",
+                    "[get] user_id=%s job_id=%s | Result not found in COS at %s/%s (code=%s)",
                     self._user_id,
                     self._job_id,
                     self._user_bucket,
                     self._results_key,
+                    code,
                 )
                 return None
             logger.error(
