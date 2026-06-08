@@ -5,7 +5,7 @@ from typing import Optional
 
 
 @dataclass
-class JobResult:
+class GetResultResponse:
     """Discriminated result from result use cases.
 
     Exactly one of raw_result or redirect_url will be set, or neither (Fleet, not ready yet).

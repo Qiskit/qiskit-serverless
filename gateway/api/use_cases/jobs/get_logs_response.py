@@ -5,7 +5,7 @@ from typing import Optional
 
 
 @dataclass
-class LogsResult:
+class GetLogsResponse:
     """Discriminated result from log use cases.
 
     Exactly one of raw_log or redirect_url will be set, or neither (no logs yet).

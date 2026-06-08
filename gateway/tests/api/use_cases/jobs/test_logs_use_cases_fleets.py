@@ -23,7 +23,7 @@ import pytest
 from django.contrib.auth.models import Group, User
 
 from api.use_cases.jobs.get_logs import GetJobLogsUseCase
-from api.use_cases.jobs.logs_result import LogsResult
+from api.use_cases.jobs.get_logs_response import GetLogsResponse
 from api.use_cases.jobs.provider_logs import GetProviderJobLogsUseCase
 from core.models import PLATFORM_PERMISSION_PROVIDER_LOGS, Program, Provider
 from tests.utils import TestUtils, create_function_access_result
@@ -96,31 +96,31 @@ class TestGetJobLogsUseCaseFleet:
             return GetJobLogsUseCase().execute(job.id, user)
 
     def test_returns_redirect_url_when_logs_available(self, fleet_custom_job, author):
-        """When COS object exists, use case returns LogsResult with redirect_url."""
+        """When COS object exists, use case returns GetLogsResponse with redirect_url."""
         url = "https://cos.example.com/logs.log?sig=abc"
         result = self._execute(fleet_custom_job, author, cos_url=url)
-        assert isinstance(result, LogsResult)
+        assert isinstance(result, GetLogsResponse)
         assert result.redirect_url == url
         assert result.raw_log is None
 
     def test_returns_redirect_url_for_provider_job(self, fleet_provider_job, author):
-        """Provider Fleet job: use case returns LogsResult with redirect_url."""
+        """Provider Fleet job: use case returns GetLogsResponse with redirect_url."""
         url = "https://cos.example.com/provider-logs.log?sig=xyz"
         result = self._execute(fleet_provider_job, author, cos_url=url)
-        assert isinstance(result, LogsResult)
+        assert isinstance(result, GetLogsResponse)
         assert result.redirect_url == url
 
-    def test_no_cos_logs_returns_empty_logs_result(self, fleet_custom_job, author):
-        """When COS has no logs yet, returns LogsResult() with both fields None."""
+    def test_no_cos_logs_returns_empty_get_logs_response(self, fleet_custom_job, author):
+        """When COS has no logs yet, returns GetLogsResponse() with both fields None."""
         result = self._execute(fleet_custom_job, author, cos_url=None)
-        assert isinstance(result, LogsResult)
+        assert isinstance(result, GetLogsResponse)
         assert result.redirect_url is None
         assert result.raw_log is None
 
-    def test_no_cos_logs_provider_job_returns_empty_logs_result(self, fleet_provider_job, author):
-        """Provider Fleet job with no logs: returns LogsResult() with both fields None."""
+    def test_no_cos_logs_provider_job_returns_empty_get_logs_response(self, fleet_provider_job, author):
+        """Provider Fleet job with no logs: returns GetLogsResponse() with both fields None."""
         result = self._execute(fleet_provider_job, author, cos_url=None)
-        assert isinstance(result, LogsResult)
+        assert isinstance(result, GetLogsResponse)
         assert result.redirect_url is None
         assert result.raw_log is None
 
@@ -135,17 +135,17 @@ class TestGetProviderJobLogsUseCaseFleet:
             return GetProviderJobLogsUseCase().execute(job.id, user, accessible_functions=accessible_functions)
 
     def test_returns_redirect_url_when_logs_available(self, fleet_provider_job, provider_admin):
-        """When COS private log exists, returns LogsResult with redirect_url."""
+        """When COS private log exists, returns GetLogsResponse with redirect_url."""
         url = "https://cos.example.com/private-logs.log?sig=xyz"
         result = self._execute(fleet_provider_job, provider_admin, cos_url=url)
-        assert isinstance(result, LogsResult)
+        assert isinstance(result, GetLogsResponse)
         assert result.redirect_url == url
         assert result.raw_log is None
 
-    def test_no_cos_logs_returns_empty_logs_result(self, fleet_provider_job, provider_admin):
-        """When COS has no private logs yet, returns LogsResult() with both fields None."""
+    def test_no_cos_logs_returns_empty_get_logs_response(self, fleet_provider_job, provider_admin):
+        """When COS has no private logs yet, returns GetLogsResponse() with both fields None."""
         result = self._execute(fleet_provider_job, provider_admin, cos_url=None)
-        assert isinstance(result, LogsResult)
+        assert isinstance(result, GetLogsResponse)
         assert result.redirect_url is None
         assert result.raw_log is None
 
@@ -156,5 +156,5 @@ class TestGetProviderJobLogsUseCaseFleet:
         )
         url = "https://cos.example.com/private-logs.log?sig=granted"
         result = self._execute(fleet_provider_job, author, cos_url=url, accessible_functions=accessible)
-        assert isinstance(result, LogsResult)
+        assert isinstance(result, GetLogsResponse)
         assert result.redirect_url == url
