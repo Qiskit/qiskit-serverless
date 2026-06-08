@@ -9,7 +9,6 @@ from typing import cast
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
-from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponseRedirect
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, serializers, status
@@ -19,15 +18,12 @@ from rest_framework.response import Response
 
 
 from api import serializers as api_serializers
-from api.access_policies.jobs import JobAccessPolicies
-from api.domain.exceptions.job_not_found_exception import JobNotFoundException
+from api.use_cases.jobs.get_result import GetJobResultUseCase
 from api.use_cases.jobs.save_result import JobSaveResultUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
-from core.models import Job, Program
-from core.services.storage import get_result_storage
-from core.services.storage.result_storage_fleets import FleetsResultStorage
+from core.models import Job
 
 logger = logging.getLogger("api.api.v1.views.jobs.save_result")
 
@@ -123,25 +119,12 @@ def save_result(request: Request, job_id: UUID) -> Response:
     user = cast(AbstractUser, request.user)
 
     if request.method == "GET":
-        try:
-            job = Job.objects.get(id=job_id)
-        except ObjectDoesNotExist as exc:
-            raise JobNotFoundException(str(job_id)) from exc
-        if not JobAccessPolicies.can_read_result(user, job):
-            raise JobNotFoundException(str(job_id))
-        if job.program.runner == Program.FLEETS:
-            try:
-                url = FleetsResultStorage(job).get_url()
-            except (ValueError, NotImplementedError):
-                url = None
-            if url:
-                logger.info("[jobs-result] user_id=%s job_id=%s | Redirecting to presigned URL", user.id, job_id)
-                return HttpResponseRedirect(url)
+        outcome = GetJobResultUseCase().execute(job_id, user)
+        if outcome.redirect_url:
+            return HttpResponseRedirect(outcome.redirect_url)
+        if not outcome.result_ready:
             return Response(status=status.HTTP_204_NO_CONTENT)
-        # Ray path
-        raw = get_result_storage(job).get()
-        logger.info("[jobs-result] user_id=%s job_id=%s | Result retrieved ok", user.id, job_id)
-        return Response({"result": raw})
+        return Response({"result": outcome.raw_result})
 
     # POST
     serializer = InputSerializer(data=request.data)

@@ -1167,7 +1167,7 @@ class TestFleetJobResultEndpoint:
         author, _ = User.objects.get_or_create(username=author_username)
         return TestUtils.create_job(author=author, program=program, code_engine_project=ce_project)
 
-    @patch("api.v1.views.jobs.save_result.FleetsResultStorage")
+    @patch("api.use_cases.jobs.get_result.FleetsResultStorage")
     def test_fleet_result_returns_302_when_result_exists(self, mock_storage):
         """Fleet GET /result/: 302 redirect when COS object exists."""
         presigned_url = "https://cos.example.com/results.json?sig=abc"
@@ -1184,7 +1184,7 @@ class TestFleetJobResultEndpoint:
         assert response.status_code == 302
         assert response["Location"] == presigned_url
 
-    @patch("api.v1.views.jobs.save_result.FleetsResultStorage")
+    @patch("api.use_cases.jobs.get_result.FleetsResultStorage")
     def test_fleet_result_returns_204_when_no_result(self, mock_storage):
         """Fleet GET /result/: 204 No Content when COS object does not exist yet."""
         mock_storage.return_value.get_url.return_value = None

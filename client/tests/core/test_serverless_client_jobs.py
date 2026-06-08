@@ -254,8 +254,8 @@ class TestProviderJobsMethod:
             assert mock_request.last_request.qs["provider"] == ["test-provider"]
 
 
-class TestJobMethod:
-    """Test ServerlessClient.job() method."""
+class TestRetrieveJobMethod:
+    """Test ServerlessClient.job() method (GET /jobs/{id}/)."""
 
     def test_job_retrieval_success(self, mock_client):
         """Test job() successfully retrieves a job."""
@@ -291,6 +291,21 @@ class TestJobMethod:
             job = mock_client.job("nonexistent-job")
 
             assert job is None
+
+    def test_result_uses_dedicated_result_endpoint(self, mock_client):
+        """result() calls /result/ independently of job(), without with_result param."""
+        mock_response = {"result": "{}"}
+
+        with requests_mock.Mocker() as mocker:
+            mock_request = mocker.get(
+                "https://test-host.com/api/v1/jobs/test-job/result/",
+                json=mock_response,
+            )
+
+            mock_client.result("test-job")
+
+            assert mock_request.called
+            assert "with_result" not in mock_request.last_request.qs
 
 
 class TestRunMethod:
@@ -597,21 +612,6 @@ class TestResultMethod:
             result = mock_client.result("test-job")
 
             assert result == {}
-
-    def test_result_uses_dedicated_result_endpoint(self, mock_client):
-        """Test result() calls /result/ and does not pass with_result param."""
-        mock_response = {"result": "{}"}
-
-        with requests_mock.Mocker() as mocker:
-            mock_request = mocker.get(
-                "https://test-host.com/api/v1/jobs/test-job/result/",
-                json=mock_response,
-            )
-
-            mock_client.result("test-job")
-
-            assert mock_request.called
-            assert "with_result" not in mock_request.last_request.qs
 
     def test_result_returns_none_on_204(self, mock_client):
         """result() returns None when the gateway responds with 204 No Content (no result yet)."""
