@@ -34,6 +34,7 @@ Example::
 
 from __future__ import annotations
 
+import base64
 import json
 from dataclasses import dataclass
 from typing import Optional
@@ -221,7 +222,12 @@ def build_run_commands(
     template_name = "fleet_provider_job_wrapper.py" if is_provider_function else "fleet_custom_job_wrapper.py"
     script = get_template(template_name).render({"app_cmd": app_cmd})
 
-    return ["python3", "-c", script]
+    # The Python wrapper is too large for CE's run_commands REGEXP validation.
+    # The bash wrappers that preceded it were short enough, but the Python
+    # implementation (#2181) exceeds the per-element limit. Base64-encode to
+    # produce a short, alphanumeric command string.
+    encoded = base64.b64encode(script.encode()).decode()
+    return ["python3", "-c", f"import base64;exec(base64.b64decode('{encoded}'))"]
 
 
 def build_custom_job_paths(job: Job) -> FleetJobPaths:

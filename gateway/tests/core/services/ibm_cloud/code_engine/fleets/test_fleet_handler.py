@@ -806,13 +806,22 @@ def test_build_run_env_variables_log_size_limit_from_settings():
     assert by_name["LOG_SIZE_LIMIT_BYTES"] == "1048576"
 
 
+def _decode_run_commands(result: list[str]) -> str:
+    """Decode the base64-encoded wrapper script from run_commands."""
+    import base64
+
+    assert result[0] == "python3"
+    assert result[1] == "-c"
+    # Extract base64 payload from: import base64;exec(base64.b64decode('...'))
+    cmd = result[2]
+    b64_payload = cmd.split("'")[1]
+    return base64.b64decode(b64_payload).decode()
+
+
 def test_build_run_commands_public_only():
     """build_run_commands renders the custom-job template (single public log)."""
     result = build_run_commands(app_run_commands=["python", "main.py"])
-    script = result[2]
-    assert result[0] == "python3"
-    assert result[1] == "-c"
-    assert "python" in script
+    script = _decode_run_commands(result)
     assert "PUBLIC_LOG_PATH" in script
     assert "PRIVATE_LOG_PATH" not in script
     assert "mkfifo" not in script
@@ -830,7 +839,7 @@ def test_build_run_commands_with_private_log():
         app_run_commands=["python", "main.py"],
         is_provider_function=True,
     )
-    script = result[2]
+    script = _decode_run_commands(result)
     assert "PUBLIC_LOG_PATH" in script
     assert "PRIVATE_LOG_PATH" in script
 
@@ -838,6 +847,6 @@ def test_build_run_commands_with_private_log():
 def test_build_run_commands_app_cmd_not_html_escaped():
     """build_run_commands keeps shell metacharacters intact (no HTML autoescape)."""
     result = build_run_commands(app_run_commands=["sh", "-c", "echo a && echo b"])
-    # Shell quoting from shlex must survive Django rendering as-is.
-    assert "&amp;" not in result[2]
-    assert "&&" in result[2]
+    script = _decode_run_commands(result)
+    assert "&amp;" not in script
+    assert "&&" in script
