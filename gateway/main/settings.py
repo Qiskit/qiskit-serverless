@@ -390,26 +390,12 @@ DEFAULT_COMPUTE_PROFILE = os.environ.get("DEFAULT_COMPUTE_PROFILE", "bx3d-24x120
 # Default resource limits for fleet jobs (can be overridden per job)
 FLEETS_DEFAULT_MAX_INSTANCES = int(os.environ.get("FLEETS_DEFAULT_MAX_INSTANCES", "1"))
 
-# Code Engine project (set CE_PROJECT_ID to enable single-project auto-provisioning)
-CE_PROJECT_ID = os.environ.get("CE_PROJECT_ID", None)
-CE_PROJECT_NAME = os.environ.get("CE_PROJECT_NAME", None)
-CE_REGION = os.environ.get("CE_REGION", None)
-CE_RESOURCE_GROUP_ID = os.environ.get("CE_RESOURCE_GROUP_ID", None)
-CE_SUBNET_POOL_ID = os.environ.get("CE_SUBNET_POOL_ID", None)
-CE_PDS_NAME_STATE = os.environ.get("CE_PDS_NAME_STATE", None)
-CE_PDS_NAME_USERS = os.environ.get("CE_PDS_NAME_USERS", None)
-CE_PDS_NAME_PROVIDERS = os.environ.get("CE_PDS_NAME_PROVIDERS", None)
 CE_HMAC_SECRET_NAME = os.environ.get("CE_HMAC_SECRET_NAME", None)
 CE_HMAC_SECRET_ACCESS_KEY = os.environ.get("CE_HMAC_SECRET_ACCESS_KEY", None)
 CE_HMAC_SECRET_ACCESS_KEY_ID = os.environ.get("CE_HMAC_SECRET_ACCESS_KEY_ID", None)
 # Set to "true" to use the public COS endpoint instead of the private VPC endpoint.
 # Only needed for local testing outside IBM Cloud (e.g. docker-compose).
 CE_COS_USE_PUBLIC_ENDPOINT = os.environ.get("CE_COS_USE_PUBLIC_ENDPOINT", "false").lower() == "true"
-CE_COS_INSTANCE_NAME = os.environ.get("CE_COS_INSTANCE_NAME", None)
-CE_COS_KEY_NAME = os.environ.get("CE_COS_KEY_NAME", None)
-CE_COS_BUCKET_TASK_STORE_NAME = os.environ.get("CE_COS_BUCKET_TASK_STORE_NAME", None)
-CE_COS_BUCKET_USER_DATA_NAME = os.environ.get("CE_COS_BUCKET_USER_DATA_NAME", None)
-CE_COS_BUCKET_PROVIDER_DATA_NAME = os.environ.get("CE_COS_BUCKET_PROVIDER_DATA_NAME", None)
 # Maps compute profiles to their availability zone. Populated at deploy time via FLEETS_PROFILE_ZONE_MAP
 # JSON env var, e.g. '{"gx2-8x64x1l40s": "us-east-1", "gx3d-24x120x1a100p": "us-east-2"}'.
 # Profiles absent from the map fall back to the first active CodeEngineProject.
@@ -417,9 +403,7 @@ CE_COS_BUCKET_PROVIDER_DATA_NAME = os.environ.get("CE_COS_BUCKET_PROVIDER_DATA_N
 ### Note: Remove environment variable as it's not needed now
 #######
 FLEETS_PROFILE_ZONE_MAP: dict = json.loads(os.environ.get("FLEETS_PROFILE_ZONE_MAP", "{}"))  # type: ignore[assignment]
-# Single-project zone pin (used by sync_ce_project in single-project mode)
-CE_ZONE = os.environ.get("CE_ZONE")
-# Multi-project configuration: JSON array of project dicts, each with the same keys as CE_* single-project vars
+# Multi-project configuration: JSON array of project dicts
 CE_PROJECTS: list = json.loads(os.environ.get("CE_PROJECTS", "[]"))  # type: ignore[assignment]
 
 logging.getLogger("main").info("[BOOT] Settings.py: %s", "gunicorn" if IS_UNICORN else COMMAND)
