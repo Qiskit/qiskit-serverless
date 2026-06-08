@@ -556,7 +556,7 @@ class TestStopMethod:
 class TestResultMethod:
     """Test ServerlessClient.result() method."""
 
-    def test_result_returns_decoded_json(self, mock_client):
+    def test_result_returns_decoded_json_result(self, mock_client):
         """Test result() returns decoded JSON result (Ray job, 200 response)."""
         mock_response = {"result": '{"key": "value", "number": 42}'}
 
@@ -570,7 +570,7 @@ class TestResultMethod:
 
             assert result == {"key": "value", "number": 42}
 
-    def test_result_with_empty_result(self, mock_client):
+    def test_result_handles_empty_result(self, mock_client):
         """Test result() handles empty result string."""
         mock_response = {"result": ""}
 
@@ -584,7 +584,7 @@ class TestResultMethod:
 
             assert result == {}
 
-    def test_result_with_null_result(self, mock_client):
+    def test_result_handles_null_result(self, mock_client):
         """Test result() handles null result field."""
         mock_response = {"result": None}
 
@@ -597,6 +597,21 @@ class TestResultMethod:
             result = mock_client.result("test-job")
 
             assert result == {}
+
+    def test_result_uses_dedicated_result_endpoint(self, mock_client):
+        """Test result() calls /result/ and does not pass with_result param."""
+        mock_response = {"result": "{}"}
+
+        with requests_mock.Mocker() as mocker:
+            mock_request = mocker.get(
+                "https://test-host.com/api/v1/jobs/test-job/result/",
+                json=mock_response,
+            )
+
+            mock_client.result("test-job")
+
+            assert mock_request.called
+            assert "with_result" not in mock_request.last_request.qs
 
     def test_result_returns_none_on_204(self, mock_client):
         """result() returns None when the gateway responds with 204 No Content (no result yet)."""
