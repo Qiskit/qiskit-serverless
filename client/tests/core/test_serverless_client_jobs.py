@@ -665,6 +665,7 @@ class TestLogsMethod:
         log_content = "line one\nline two\n"
 
         with requests_mock.Mocker() as mocker:
+            # The presigned URL endpoint returns plain text
             presigned_url = "https://cos.example.com/logs.log?sig=abc"
             mocker.get(
                 "https://test-host.com/api/v1/jobs/test-job/logs/",
