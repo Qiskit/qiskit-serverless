@@ -695,12 +695,7 @@ class IBMServerlessClient(ServerlessClient):
         """
 
         # Initialize QiskitRuntimeService
-        self._service = QiskitRuntimeService(
-            channel=channel,  # optional
-            token=token,
-            name=name,
-            instance=instance  # recommended
-        )
+        self._service = QiskitRuntimeService(channel=channel, token=token, name=name, instance=instance)
 
         # Use QiskitRuntimeService._discover_account to populate self.account
         self.account = self._service._discover_account(
@@ -717,17 +712,14 @@ class IBMServerlessClient(ServerlessClient):
                     channel=self.account.channel,
                     token=self.account.token,
                     instance=self.account.instance,
-                    url=getattr(self.account, 'url', None),
-                    name=getattr(self.account, 'name', None),
+                    url=getattr(self.account, "url", None),
                 )
 
         # Validate instance access via self.account.resolve_crn()
         try:
             self.account.resolve_crn()
         except Exception as ex:
-            raise QiskitServerlessException(
-                f"Failed to validate instance access: {ex}"
-            ) from ex
+            raise QiskitServerlessException(f"Failed to validate instance access: {ex}") from ex
 
         super().__init__(
             channel=self.account.channel,
