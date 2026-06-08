@@ -287,8 +287,7 @@ spec:
               value: {{ .Values.ce.fleetsDefaultImage | quote }}
             - name: CE_ICR_PULL_SECRET
               value: {{ .Values.ce.icrPullSecret | quote }}
-            - name: CE_COS_ENDPOINT_URL
-              value: {{ .Values.ce.cosEndpointUrl | quote }}
+
             - name: DEFAULT_COMPUTE_PROFILE
               value: {{ .Values.ce.defaultComputeProfile | quote }}
             - name: FLEETS_DEFAULT_MAX_INSTANCES
@@ -498,8 +497,7 @@ spec:
               value: {{ .Values.ce.fleetsDefaultImage | quote }}
             - name: CE_ICR_PULL_SECRET
               value: {{ .Values.ce.icrPullSecret | quote }}
-            - name: CE_COS_ENDPOINT_URL
-              value: {{ .Values.ce.cosEndpointUrl | quote }}
+
             - name: DEFAULT_COMPUTE_PROFILE
               value: {{ .Values.ce.defaultComputeProfile | quote }}
             - name: FLEETS_DEFAULT_MAX_INSTANCES
