@@ -1,6 +1,7 @@
 """Use case: retrieve job result."""
 
 import logging
+from typing import cast
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
@@ -35,9 +36,11 @@ class GetJobResultUseCase:
         if not JobAccessPolicies.can_read_result(user, job):
             raise JobNotFoundException(job_id)
 
+        storage = get_result_storage(job)
+
         if job.program.runner == Program.FLEETS:
             try:
-                url = FleetsResultStorage(job).get_url()
+                url = cast(FleetsResultStorage, storage).get_url()
             except (ValueError, NotImplementedError):
                 url = None
             if url:
@@ -45,6 +48,6 @@ class GetJobResultUseCase:
                 return GetResultResponse(redirect_url=url)
             return GetResultResponse()
 
-        raw = get_result_storage(job).get()
+        raw = storage.get()
         logger.info("[jobs-result] user_id=%s job_id=%s | Result retrieved ok", user.id, job_id)
         return GetResultResponse(raw_result=raw)
