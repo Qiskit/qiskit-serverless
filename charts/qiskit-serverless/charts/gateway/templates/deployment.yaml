@@ -290,6 +290,8 @@ spec:
             {{- end }}
             - name: DEFAULT_COMPUTE_PROFILE
               value: {{ .Values.application.defaultComputeProfile | quote }}
+            - name: FLEETS_DEFAULT_MAX_INSTANCES
+              value: {{ .Values.application.fleetsDefaultMaxInstances | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -497,6 +499,8 @@ spec:
             {{- end }}
             - name: DEFAULT_COMPUTE_PROFILE
               value: {{ .Values.application.defaultComputeProfile | quote }}
+            - name: FLEETS_DEFAULT_MAX_INSTANCES
+              value: {{ .Values.application.fleetsDefaultMaxInstances | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

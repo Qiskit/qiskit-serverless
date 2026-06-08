@@ -54,6 +54,7 @@ application:
     url: "https://quantum.cloud.ibm.com"
     cacheTtl: "60"
   defaultComputeProfile: "bx3d-24x120"
+  fleetsDefaultMaxInstances: 1
   allowedHosts: "*"
   trustedOrigins: "http://localhost"
   corsOrigins: "http://localhost"
