@@ -13,7 +13,6 @@ class GetResultResponse:
 
     raw_result: Optional[str] = field(default=None)
     redirect_url: Optional[str] = field(default=None)
-    result_ready: bool = field(default=True)
 
     def __post_init__(self):
         if self.raw_result is not None and self.redirect_url is not None:

@@ -122,7 +122,7 @@ def save_result(request: Request, job_id: UUID) -> Response:
         outcome = GetJobResultUseCase().execute(job_id, user)
         if outcome.redirect_url:
             return HttpResponseRedirect(outcome.redirect_url)
-        if not outcome.result_ready:
+        if outcome.raw_result is None:
             return Response(status=status.HTTP_204_NO_CONTENT)
         return Response({"result": outcome.raw_result})
 

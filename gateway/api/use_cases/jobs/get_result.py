@@ -43,7 +43,7 @@ class GetJobResultUseCase:
             if url:
                 logger.info("[jobs-result] user_id=%s job_id=%s | Redirecting to presigned URL", user.id, job_id)
                 return GetResultResponse(redirect_url=url)
-            return GetResultResponse(result_ready=False)
+            return GetResultResponse()
 
         raw = get_result_storage(job).get()
         logger.info("[jobs-result] user_id=%s job_id=%s | Result retrieved ok", user.id, job_id)
