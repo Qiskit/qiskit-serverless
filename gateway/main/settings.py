@@ -389,16 +389,6 @@ FLEETS_DEFAULT_IMAGE = os.environ.get(
 DEFAULT_COMPUTE_PROFILE = os.environ.get("DEFAULT_COMPUTE_PROFILE", "bx3d-24x120")  # 24 CPU, 120GB RAM
 # Default resource limits for fleet jobs (can be overridden per job)
 FLEETS_DEFAULT_MAX_INSTANCES = int(os.environ.get("FLEETS_DEFAULT_MAX_INSTANCES", "1"))
-# GPU configuration
-FLEETS_DEFAULT_GPU_TYPE = os.environ.get("FLEETS_DEFAULT_GPU_TYPE", "v100")
-FLEETS_DEFAULT_GPU_COUNT = int(os.environ.get("FLEETS_DEFAULT_GPU_COUNT", "1"))
-# Fleet execution settings
-FLEETS_DEFAULT_RETRY_LIMIT = int(os.environ.get("FLEETS_DEFAULT_RETRY_LIMIT", "0"))
-FLEETS_MAX_EXECUTION_TIME = int(os.environ.get("FLEETS_MAX_EXECUTION_TIME", "3600"))  # seconds
-# Fleet monitoring and cleanup
-FLEETS_STATUS_CHECK_INTERVAL = int(os.environ.get("FLEETS_STATUS_CHECK_INTERVAL", "5"))  # seconds
-FLEETS_DELETE_ON_COMPLETE = os.environ.get("FLEETS_DELETE_ON_COMPLETE", "true").lower() == "true"
-FLEETS_KEEP_FAILED_FLEETS = os.environ.get("FLEETS_KEEP_FAILED_FLEETS", "true").lower() == "true"
 
 # Code Engine project (set CE_PROJECT_ID to enable single-project auto-provisioning)
 CE_PROJECT_ID = os.environ.get("CE_PROJECT_ID", None)
