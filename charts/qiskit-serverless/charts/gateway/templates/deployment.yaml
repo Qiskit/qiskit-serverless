@@ -288,6 +288,8 @@ spec:
             - name: CE_COS_ENDPOINT_URL
               value: {{ .Values.ce.cosEndpointUrl | quote }}
             {{- end }}
+            - name: DEFAULT_COMPUTE_PROFILE
+              value: {{ .Values.application.defaultComputeProfile | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -493,6 +495,8 @@ spec:
             - name: CE_COS_ENDPOINT_URL
               value: {{ .Values.ce.cosEndpointUrl | quote }}
             {{- end }}
+            - name: DEFAULT_COMPUTE_PROFILE
+              value: {{ .Values.application.defaultComputeProfile | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
