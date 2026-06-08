@@ -15,7 +15,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from ibm_botocore.exceptions import ClientError
 
@@ -64,7 +63,7 @@ class FleetsResultStorage(ResultStorage):
             )
         return user_bucket
 
-    def get(self) -> Optional[str]:
+    def get(self) -> str | None:
         """Retrieve the result for this job from COS.
 
         Returns:
@@ -124,7 +123,7 @@ class FleetsResultStorage(ResultStorage):
         """
         raise NotImplementedError("Fleets results are written by the SDK via RESULTS_PATH")
 
-    def get_url(self) -> Optional[str]:
+    def get_url(self) -> str | None:
         """Return a presigned URL for the result, or None if the object does not exist."""
         if not self._object_exists(self._user_bucket, self._results_key):
             return None
