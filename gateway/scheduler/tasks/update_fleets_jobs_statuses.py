@@ -7,7 +7,7 @@ from typing import cast
 from django.conf import settings
 from django.utils import timezone as django_timezone
 
-from core.ibm_cloud.event_streams.event_streams_client import IBMEventStreamsClient
+from core.ibm_cloud.event_streams.event_streams_client import IBMEventStreamsClient, NoOpEventStreamsClient
 from core.models import Job, JobEvent, Program
 from core.services.runners import get_runner, RunnerError, FleetsRunner
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
@@ -28,9 +28,12 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         self._event_streams_client: IBMEventStreamsClient | None = None
 
     @property
-    def event_streams_client(self) -> "IBMEventStreamsClient":
+    def event_streams_client(self) -> "IBMEventStreamsClient | NoOpEventStreamsClient":
         if self._event_streams_client is None:
-            self._event_streams_client = IBMEventStreamsClient()
+            if settings.EVENT_STREAMS_ENABLED:
+                self._event_streams_client = IBMEventStreamsClient()
+            else:
+                self._event_streams_client = NoOpEventStreamsClient()
         return self._event_streams_client
 
     def update_job_status(self, job: Job) -> bool:

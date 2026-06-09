@@ -33,6 +33,23 @@ except ImportError:  # confluent-kafka is optional at import time
 logger = logging.getLogger("gateway.ibm_cloud.event_streams_client")
 
 
+class NoOpEventStreamsClient:
+    """
+    Drop-in replacement for IBMEventStreamsClient when EVENT_STREAMS_ENABLED is false.
+
+    Logs each emit call at DEBUG level instead of publishing to Kafka.
+    """
+
+    def emit_job_started(self, job) -> None:
+        logger.debug("job_id=%s [noop] emit_job_started", job.id)
+
+    def emit_job_in_progress(self, job) -> None:
+        logger.debug("job_id=%s [noop] emit_job_in_progress", job.id)
+
+    def emit_job_ended(self, job) -> None:
+        logger.debug("job_id=%s [noop] emit_job_ended", job.id)
+
+
 class IBMEventStreamsClient:
     """
     Kafka producer client for IBM Cloud Event Streams.
