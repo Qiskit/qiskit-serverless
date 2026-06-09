@@ -98,6 +98,7 @@ class TestIBMEventStreamsClient:
         assert published["data"]["event_type"] == "job_started"
         assert published["data"]["usage_nanoseconds"] == 0
         assert published["data"]["instance_crn"] == job.instance_crn
+        assert published["data"]["function_id"] == str(job.id)
         mock_producer.flush.assert_called_once()
 
     def test_emit_job_in_progress_computes_usage_nanoseconds(self):

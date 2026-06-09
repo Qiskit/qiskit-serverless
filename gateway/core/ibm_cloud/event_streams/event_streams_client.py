@@ -96,6 +96,7 @@ class IBMEventStreamsClient:
                 "event_type": event_type,
                 "usage_nanoseconds": usage_nanoseconds,
                 "instance_crn": job.instance_crn,
+                "function_id": str(job.id),
             },
         }
         self._producer.produce(
