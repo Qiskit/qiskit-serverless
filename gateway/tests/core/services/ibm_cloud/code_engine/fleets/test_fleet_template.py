@@ -37,6 +37,9 @@ import pytest
 import json
 
 from django.template.loader import get_template
+_DOCKER_TMP = "./tests/resources/tmp"
+
+from core.ibm_cloud.code_engine.fleets.utils import build_run_commands
 
 # ---------------------------------------------------------------------------
 # Helpers / marks
@@ -122,7 +125,7 @@ def test_custom_wrapper_all_lines_reach_public_log():
     """
     run_commands = _render_wrapper(["sh", "-c", _APP_SCRIPT])
 
-    with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
+    with tempfile.TemporaryDirectory(dir=_DOCKER_TMP) as tmp:
         cos_dir = f"{tmp}/cos"
         os.makedirs(f"{cos_dir}/public")
         result = _docker_run(
@@ -160,7 +163,7 @@ def test_provider_wrapper_splits_public_and_private_logs():
     """
     run_commands = _render_wrapper(["sh", "-c", _APP_SCRIPT], is_provider_function=True)
 
-    with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
+    with tempfile.TemporaryDirectory(dir=_DOCKER_TMP) as tmp:
         cos_dir = f"{tmp}/cos"
         os.makedirs(f"{cos_dir}/public")
         os.makedirs(f"{cos_dir}/provider")
@@ -211,7 +214,7 @@ def test_wrapper_failure_propagates_exit_code_and_flushes_logs():
     app = "printf 'output before failure\\n'; exit 7"
     run_commands = _render_wrapper(["sh", "-c", app])
 
-    with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
+    with tempfile.TemporaryDirectory(dir=_DOCKER_TMP) as tmp:
         cos_dir = f"{tmp}/cos"
         os.makedirs(f"{cos_dir}/public")
         result = _docker_run(
@@ -243,7 +246,7 @@ def test_custom_wrapper_truncates_log_when_limit_exceeded():
     app = "i=0; while [ $i -lt 50 ]; do printf 'line %04d: some padding text\\n' $i; i=$((i+1)); done"
     run_commands = _render_wrapper(["sh", "-c", app])
 
-    with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
+    with tempfile.TemporaryDirectory(dir=_DOCKER_TMP) as tmp:
         cos_dir = f"{tmp}/cos"
         os.makedirs(f"{cos_dir}/public")
         result = _docker_run(
@@ -281,7 +284,7 @@ def test_provider_wrapper_truncates_both_logs_independently_when_limit_exceeded(
     )
     run_commands = _render_wrapper(["sh", "-c", app], is_provider_function=True)
 
-    with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
+    with tempfile.TemporaryDirectory(dir=_DOCKER_TMP) as tmp:
         cos_dir = f"{tmp}/cos"
         os.makedirs(f"{cos_dir}/public")
         os.makedirs(f"{cos_dir}/provider")
@@ -322,7 +325,7 @@ def test_custom_wrapper_periodic_flush_during_run():
     app = "printf 'early line\\n'; sleep 10"
     run_commands = _render_wrapper(["sh", "-c", app])
 
-    with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
+    with tempfile.TemporaryDirectory(dir=_DOCKER_TMP) as tmp:
         cos_dir = f"{tmp}/cos"
         os.makedirs(f"{cos_dir}/public")
         cmd = [
