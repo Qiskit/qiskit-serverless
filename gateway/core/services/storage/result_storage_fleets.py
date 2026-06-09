@@ -12,8 +12,6 @@
 
 """Fleets implementation of result storage."""
 
-from __future__ import annotations
-
 import logging
 
 from ibm_botocore.exceptions import ClientError
