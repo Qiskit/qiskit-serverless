@@ -132,7 +132,7 @@ def serialize_output(job: Job, with_result: bool) -> Job:
             required=False,
             default="false",
             enum=["true", "false"],
-            description="Whether to include the `result` field in the response. Deprecated: use GET /jobs/{id}/result/ instead.",
+            description="Whether to include the `result` field. Deprecated: use GET /jobs/{id}/result/ instead.",
         ),
     ],
     responses={
