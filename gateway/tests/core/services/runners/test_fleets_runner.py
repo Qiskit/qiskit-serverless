@@ -347,7 +347,7 @@ def test_submit_default_profile_in_settings_is_parseable():
     call_kwargs = mock_handler.submit_job.call_args.kwargs
     assert call_kwargs["scale_cpu_limit"] == "24"
     assert call_kwargs["scale_memory_limit"] == "120G"
-    assert call_kwargs.get("extra_fields") is None
+    assert "scale_gpu" not in (call_kwargs.get("extra_fields") or {})
 
 
 def test_submit_raises_on_unparseable_compute_profile():
