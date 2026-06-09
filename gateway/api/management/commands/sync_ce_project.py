@@ -4,7 +4,7 @@ Django management command that syncs CodeEngineProject rows from environment var
 Set CE_PROJECTS to a JSON array of project dicts. Each dict must contain the
 keys: project_id, project_name, region, resource_group_id, subnet_pool_id,
 pds_name_state, pds_name_users, pds_name_providers, cos_instance_name,
-cos_key_name, cos_bucket_user_data_name, cos_bucket_provider_data_name, plus
+cos_key_name, cos_bucket_task_store_name, cos_bucket_user_data_name, cos_bucket_provider_data_name, plus
 an optional "zone" field.
 
 Run after migrations:
