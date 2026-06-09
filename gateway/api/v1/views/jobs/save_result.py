@@ -101,7 +101,7 @@ def serialize_output(job: Job):
 @api_view(["GET", "POST"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
-def save_result(request: Request, job_id: UUID) -> Response:
+def jobs_result(request: Request, job_id: UUID) -> Response:
     """
     GET: Retrieve the result for a job.
         Returns 302 redirect to a presigned COS URL (Fleet, result ready),
