@@ -204,25 +204,6 @@ def build_run_env_variables(
     return [{"type": "literal", "name": k, "value": v} for k, v in env.items() if v]
 
 
-def build_run_commands(*, wrapper_path: str) -> list[str]:
-    """
-    Build wrapper commands for fleet execution and logging.
-
-    Runs the pre-uploaded wrapper script directly from the PDS mount.
-    The script is uploaded to COS at submit time (already rendered with
-    the correct ``app_cmd``) and is available at ``wrapper_path`` inside
-    the container via the PDS volume mount.
-
-    Args:
-        wrapper_path: Absolute container path to the wrapper script
-            (``paths.container_docker_entrypoint``).
-
-    Returns:
-        ``["python", "<wrapper_path>"]`` ready for ``run_commands``.
-    """
-    return ["python", wrapper_path]
-
-
 def build_custom_job_paths(job: Job) -> FleetJobPaths:
     """COS paths for a custom (non-provider) job.
 

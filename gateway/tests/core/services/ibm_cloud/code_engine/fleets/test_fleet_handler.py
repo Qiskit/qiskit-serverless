@@ -28,7 +28,6 @@ from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
 from core.ibm_cloud.code_engine.fleets.utils import (
     FleetJobPaths,
-    build_run_commands,
     build_run_env_variables,
     build_run_volume_mounts,
 )
@@ -177,7 +176,7 @@ def test_submit_job_with_builder_extra_fields(mock_fleets_api_cls, project_id, b
             ),
             {},
         ),
-        "run_commands": build_run_commands(wrapper_path="/function_user_data/fleet_custom_job_wrapper.py"),
+        "run_commands": ["python", "/function_user_data/fleet_custom_job_wrapper.py"],
     }
 
     handler.submit_job(**base_payload, extra_fields=extra_fields)

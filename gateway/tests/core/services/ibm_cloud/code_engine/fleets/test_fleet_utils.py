@@ -20,7 +20,6 @@ import pytest
 from core.ibm_cloud.code_engine.fleets.utils import (
     FleetJobPaths,
     build_job_paths,
-    build_run_commands,
     build_run_env_variables,
     build_run_volume_mounts,
     build_run_volume_mounts_for_job,
@@ -295,13 +294,9 @@ def test_build_run_env_variables_flush_interval_from_settings():
     assert by_name["LOG_FLUSH_INTERVAL_SECONDS"] == "42"
 
 
-def test_build_run_commands_returns_python_with_wrapper_path():
-    """build_run_commands returns ['python', wrapper_path] to run the COS-mounted script directly."""
-    result = build_run_commands(wrapper_path="/function_user_data/fleet_custom_job_wrapper.py")
-    assert result == ["python", "/function_user_data/fleet_custom_job_wrapper.py"]
-
-
-def test_build_run_commands_provider_wrapper_path():
-    """build_run_commands with provider wrapper path returns correct command."""
-    result = build_run_commands(wrapper_path="/function_provider_data/fleet_provider_job_wrapper.py")
-    assert result == ["python", "/function_provider_data/fleet_provider_job_wrapper.py"]
+def test_run_commands_use_container_docker_entrypoint():
+    """run_commands is built inline as ['python', container_docker_entrypoint] from FleetJobPaths."""
+    job = _make_job()
+    paths = build_job_paths(job)
+    run_commands = ["python", paths.container_docker_entrypoint]
+    assert run_commands == ["python", f"{FUNCTION_USER_DATA_PATH}/fleet_custom_job_wrapper.py"]

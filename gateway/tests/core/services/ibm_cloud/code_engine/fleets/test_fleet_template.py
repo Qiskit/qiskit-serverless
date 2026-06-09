@@ -37,9 +37,9 @@ import pytest
 import json
 
 from django.template.loader import get_template
+
 _DOCKER_TMP = "./tests/resources/tmp"
 
-from core.ibm_cloud.code_engine.fleets.utils import build_run_commands
 
 # ---------------------------------------------------------------------------
 # Helpers / marks

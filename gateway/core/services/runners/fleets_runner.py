@@ -35,7 +35,6 @@ from core.ibm_cloud.code_engine.fleets.cos import JobCOS
 from core.ibm_cloud.code_engine.fleets.utils import (
     FleetJobPaths,
     build_job_paths,
-    build_run_commands,
     build_run_env_variables,
     build_run_volume_mounts_for_job,
 )
@@ -206,12 +205,11 @@ class FleetsRunner(AbstractRunner):
                 stored_env_vars = json.loads(self.job.env_vars)
                 stored_env_vars = decrypt_env_vars(stored_env_vars)
                 run_env_variables = build_run_env_variables(paths, stored_env_vars)
-                run_commands = build_run_commands(wrapper_path=paths.container_docker_entrypoint)
                 extra_fields.update(
                     {
                         "run_volume_mounts": run_volume_mounts,
                         "run_env_variables": run_env_variables,
-                        "run_commands": run_commands,
+                        "run_commands": ["python", paths.container_docker_entrypoint],
                     }
                 )
                 _retry_on_rate_limit(lambda: self._upload_program_to_cos(paths))
