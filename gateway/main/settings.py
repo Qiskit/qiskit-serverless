@@ -391,8 +391,7 @@ DEFAULT_COMPUTE_PROFILE = os.environ.get("DEFAULT_COMPUTE_PROFILE", "bx3d-24x120
 FLEETS_DEFAULT_MAX_INSTANCES = int(os.environ.get("FLEETS_DEFAULT_MAX_INSTANCES", "1"))
 
 CE_HMAC_SECRET_NAME = os.environ.get("CE_HMAC_SECRET_NAME", None)
-CE_HMAC_SECRET_ACCESS_KEY = os.environ.get("CE_HMAC_SECRET_ACCESS_KEY", None)
-CE_HMAC_SECRET_ACCESS_KEY_ID = os.environ.get("CE_HMAC_SECRET_ACCESS_KEY_ID", None)
+
 # Set to "true" to use the public COS endpoint instead of the private VPC endpoint.
 # Only needed for local testing outside IBM Cloud (e.g. docker-compose).
 CE_COS_USE_PUBLIC_ENDPOINT = os.environ.get("CE_COS_USE_PUBLIC_ENDPOINT", "false").lower() == "true"

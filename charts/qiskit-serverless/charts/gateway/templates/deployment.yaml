@@ -279,8 +279,7 @@ spec:
               value: {{ .Values.ce.fleetsGatewayHost | quote }}
             - name: CE_PROJECTS
               value: {{ .Values.ce.projects | toJson | quote }}
-            - name: CE_HMAC_SECRET_ACCESS_KEY_ID
-              value: {{ .Values.ce.hmacSecretAccessKeyId | quote }}
+
             - name: CE_HMAC_SECRET_NAME
               value: {{ .Values.ce.hmacSecretName | quote }}
             - name: FLEETS_DEFAULT_IMAGE
@@ -489,8 +488,7 @@ spec:
             {{- if .Values.ce }}
             - name: CE_PROJECTS
               value: {{ .Values.ce.projects | toJson | quote }}
-            - name: CE_HMAC_SECRET_ACCESS_KEY_ID
-              value: {{ .Values.ce.hmacSecretAccessKeyId | quote }}
+
             - name: CE_HMAC_SECRET_NAME
               value: {{ .Values.ce.hmacSecretName | quote }}
             - name: FLEETS_DEFAULT_IMAGE
