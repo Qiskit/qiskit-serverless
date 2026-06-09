@@ -65,8 +65,8 @@ class TestGetProviderJobLogsUseCase:
     class TestLegacyGroups:
         def test_provider_admin_can_read_logs(self, other_user, provider_job, provider_with_admin):
             """Provider admin (via Django groups) can read provider logs."""
-            logs = _execute_provider_logs_use_case(provider_job.id, other_user)
-            assert logs == "provider logs from COS"
+            result = _execute_provider_logs_use_case(provider_job.id, other_user)
+            assert result.raw_log == "provider logs from COS"
 
         def test_non_admin_cannot_read_logs(self, other_user, provider_job):
             """Non-admin user cannot read provider logs."""
@@ -87,8 +87,8 @@ class TestGetProviderJobLogsUseCase:
             accessible = create_function_access_result("my-provider", "my-function", permissions)
 
             if grant:
-                logs = _execute_provider_logs_use_case(provider_job.id, other_user, accessible_functions=accessible)
-                assert logs == "provider logs from COS"
+                result = _execute_provider_logs_use_case(provider_job.id, other_user, accessible_functions=accessible)
+                assert result.raw_log == "provider logs from COS"
             else:
                 with pytest.raises(InvalidAccessException):
                     _execute_provider_logs_use_case(provider_job.id, other_user, accessible_functions=accessible)

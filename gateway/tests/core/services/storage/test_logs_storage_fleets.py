@@ -148,6 +148,87 @@ class TestFleetsLogsStorage:
         with pytest.raises(RuntimeError):
             storage.get_private_logs()
 
+    # ── get_public_logs_url ────────────────────────────────────────────────────
+
+    def test_get_public_logs_url_returns_url_when_object_exists(self, job):
+        """get_public_logs_url() returns a presigned URL when the object exists."""
+        storage = FleetsLogsStorage(job)
+        mock_cos = MagicMock()
+        mock_cos.get_presigned_url.return_value = "https://cos.example.com/logs.log?sig=abc"
+
+        with patch(_COS_MODULE, return_value=mock_cos):
+            result = storage.get_public_logs_url()
+
+        assert result == "https://cos.example.com/logs.log?sig=abc"
+        mock_cos.head_object.assert_called_once_with(
+            bucket_name="user-bucket",
+            key=storage._public_key,  # pylint: disable=protected-access
+        )
+        mock_cos.get_presigned_url.assert_called_once_with(
+            bucket_name="user-bucket",
+            key=storage._public_key,  # pylint: disable=protected-access
+        )
+
+    def test_get_public_logs_url_returns_none_when_object_not_found(self, job):
+        """get_public_logs_url() returns None when the log object does not exist in COS."""
+        storage = FleetsLogsStorage(job)
+        mock_cos = MagicMock()
+        mock_cos.head_object.side_effect = _make_client_error("NoSuchKey")
+
+        with patch(_COS_MODULE, return_value=mock_cos):
+            result = storage.get_public_logs_url()
+
+        assert result is None
+        mock_cos.get_presigned_url.assert_not_called()
+
+    def test_get_public_logs_url_reraises_non_404_cos_error(self, job):
+        """get_public_logs_url() re-raises unexpected COS errors (e.g., 403)."""
+        storage = FleetsLogsStorage(job)
+        mock_cos = MagicMock()
+        mock_cos.head_object.side_effect = _make_client_error("AccessDenied")
+
+        with patch(_COS_MODULE, return_value=mock_cos):
+            with pytest.raises(ClientError):
+                storage.get_public_logs_url()
+
+    # ── get_private_logs_url ───────────────────────────────────────────────────
+
+    def test_get_private_logs_url_returns_url_when_object_exists(self, job_with_provider):
+        """get_private_logs_url() returns a presigned URL for provider jobs."""
+        storage = FleetsLogsStorage(job_with_provider)
+        mock_cos = MagicMock()
+        mock_cos.get_presigned_url.return_value = "https://cos.example.com/private.log?sig=xyz"
+
+        with patch(_COS_MODULE, return_value=mock_cos):
+            result = storage.get_private_logs_url()
+
+        assert result == "https://cos.example.com/private.log?sig=xyz"
+        mock_cos.head_object.assert_called_once_with(
+            bucket_name="provider-bucket",
+            key=storage._private_key,  # pylint: disable=protected-access
+        )
+        mock_cos.get_presigned_url.assert_called_once_with(
+            bucket_name="provider-bucket",
+            key=storage._private_key,  # pylint: disable=protected-access
+        )
+
+    def test_get_private_logs_url_returns_none_when_object_not_found(self, job_with_provider):
+        """get_private_logs_url() returns None when the log object does not exist in COS."""
+        storage = FleetsLogsStorage(job_with_provider)
+        mock_cos = MagicMock()
+        mock_cos.head_object.side_effect = _make_client_error("NotFound")
+
+        with patch(_COS_MODULE, return_value=mock_cos):
+            result = storage.get_private_logs_url()
+
+        assert result is None
+
+    def test_get_private_logs_url_raises_for_custom_function(self, job):
+        """get_private_logs_url() raises RuntimeError for non-provider jobs."""
+        storage = FleetsLogsStorage(job)
+        with pytest.raises(RuntimeError, match="provider jobs"):
+            storage.get_private_logs_url()
+
     # ── factory ────────────────────────────────────────────────────────────────
 
     def test_factory_returns_fleets_storage_for_fleet_job(self, job):

@@ -9,6 +9,7 @@ from typing import Any, cast
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
+from django.http import HttpResponseRedirect
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, serializers, status
 from rest_framework.decorators import api_view, permission_classes
@@ -65,9 +66,19 @@ def get_logs(request: Request, job_id: UUID) -> Response:
         job_id: The UUID of the job (path parameter).
 
     Returns:
-        Response containing the serialized job logs.
+        302 redirect to presigned COS URL (Fleet, logs ready),
+        204 No Content (Fleet, no logs yet),
+        or 200 JSON with logs field (Ray).
     """
     user = cast(AbstractUser, request.user)
-    logs = GetJobLogsUseCase().execute(job_id, user)
+    result = GetJobLogsUseCase().execute(job_id, user)
+
+    if result.redirect_url:
+        logger.info("[jobs-logs] user_id=%s job_id=%s | Redirecting to presigned URL", user.id, job_id)
+        return HttpResponseRedirect(result.redirect_url)
+
+    if result.raw_log is None:
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     logger.info("[jobs-logs] user_id=%s job_id=%s | Logs retrieved ok", user.id, job_id)
-    return Response(serialize_output(logs))
+    return Response(serialize_output(result.raw_log))
