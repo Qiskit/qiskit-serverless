@@ -204,6 +204,11 @@ def build_run_env_variables(
     return [{"type": "literal", "name": k, "value": v} for k, v in env.items() if v]
 
 
+def _paired(cos_prefix: str, mount_point: str, filename: str) -> tuple[str, str]:
+    """Return (cos_key, container_path) for a file at cos_prefix/filename mounted at mount_point."""
+    return f"{cos_prefix}/{filename}", f"{mount_point}/{filename}"
+
+
 def build_custom_job_paths(job: Job) -> FleetJobPaths:
     """COS paths for a custom (non-provider) job.
 
@@ -234,22 +239,32 @@ def build_custom_job_paths(job: Job) -> FleetJobPaths:
     job_id = str(job.id)
     cos_user_function_data = f"users/{username}/custom_functions/{program_title}/data"
     cos_user_job_prefix = f"users/{username}/custom_functions/{program_title}/jobs/{job_id}"
+
+    cos_function_entrypoint, container_function_entrypoint = _paired(
+        cos_user_function_data, FUNCTION_USER_DATA_PATH, job.program.entrypoint
+    )
+    cos_docker_entrypoint, container_docker_entrypoint = _paired(
+        cos_user_function_data, FUNCTION_USER_DATA_PATH, "fleet_custom_job_wrapper.py"
+    )
+    cos_user_log_key, container_public_log_path = _paired(cos_user_job_prefix, JOB_USER_DATA_PATH, "logs.log")
+    cos_results_key, container_result_path = _paired(cos_user_job_prefix, JOB_USER_DATA_PATH, "results.json")
+
     return FleetJobPaths(
         cos_user_function_prefix=cos_user_function_data,
         cos_user_job_prefix=cos_user_job_prefix,
         cos_provider_function_prefix=None,
         cos_provider_job_prefix=None,
-        cos_user_log_key=f"{cos_user_job_prefix}/logs.log",
-        cos_results_key=f"{cos_user_job_prefix}/results.json",
+        cos_user_log_key=cos_user_log_key,
+        cos_results_key=cos_results_key,
         cos_provider_log_key=None,
-        cos_function_entrypoint=f"{cos_user_function_data}/{job.program.entrypoint}",
-        cos_docker_entrypoint=f"{cos_user_function_data}/fleet_custom_job_wrapper.py",
-        container_function_entrypoint=f"{FUNCTION_USER_DATA_PATH}/{job.program.entrypoint}",
-        container_docker_entrypoint=f"{FUNCTION_USER_DATA_PATH}/fleet_custom_job_wrapper.py",
+        cos_function_entrypoint=cos_function_entrypoint,
+        cos_docker_entrypoint=cos_docker_entrypoint,
+        container_function_entrypoint=container_function_entrypoint,
+        container_docker_entrypoint=container_docker_entrypoint,
         container_private_log_path=None,
-        container_public_log_path=f"{JOB_USER_DATA_PATH}/logs.log",
+        container_public_log_path=container_public_log_path,
         container_arguments_path=f"{JOB_USER_DATA_PATH}/arguments.json",
-        container_result_path=f"{JOB_USER_DATA_PATH}/results.json",
+        container_result_path=container_result_path,
     )
 
 
@@ -275,22 +290,35 @@ def build_provider_job_paths(job: Job) -> FleetJobPaths:
     cos_user_job_prefix = f"users/{username}/provider_functions/{provider_name}/{program_title}/jobs/{job_id}"
     cos_provider_function_data = f"providers/{provider_name}/{program_title}/data"
     cos_provider_job_prefix = f"providers/{provider_name}/{program_title}/jobs/{job_id}"
+
+    cos_function_entrypoint, container_function_entrypoint = _paired(
+        cos_provider_function_data, FUNCTION_PROVIDER_DATA_PATH, job.program.entrypoint
+    )
+    cos_docker_entrypoint, container_docker_entrypoint = _paired(
+        cos_provider_function_data, FUNCTION_PROVIDER_DATA_PATH, "fleet_provider_job_wrapper.py"
+    )
+    cos_user_log_key, container_public_log_path = _paired(cos_user_job_prefix, JOB_USER_DATA_PATH, "logs.log")
+    cos_results_key, container_result_path = _paired(cos_user_job_prefix, JOB_USER_DATA_PATH, "results.json")
+    cos_provider_log_key, container_private_log_path = _paired(
+        cos_provider_job_prefix, JOB_PROVIDER_DATA_PATH, "logs.log"
+    )
+
     return FleetJobPaths(
         cos_user_function_prefix=cos_user_function_data,
         cos_user_job_prefix=cos_user_job_prefix,
         cos_provider_function_prefix=cos_provider_function_data,
         cos_provider_job_prefix=cos_provider_job_prefix,
-        cos_user_log_key=f"{cos_user_job_prefix}/logs.log",
-        cos_results_key=f"{cos_user_job_prefix}/results.json",
-        cos_provider_log_key=f"{cos_provider_job_prefix}/logs.log",
-        cos_function_entrypoint=f"{cos_provider_function_data}/{job.program.entrypoint}",
-        cos_docker_entrypoint=f"{cos_provider_function_data}/fleet_provider_job_wrapper.py",
-        container_function_entrypoint=f"{FUNCTION_PROVIDER_DATA_PATH}/{job.program.entrypoint}",
-        container_docker_entrypoint=f"{FUNCTION_PROVIDER_DATA_PATH}/fleet_provider_job_wrapper.py",
-        container_private_log_path=f"{JOB_PROVIDER_DATA_PATH}/logs.log",
-        container_public_log_path=f"{JOB_USER_DATA_PATH}/logs.log",
+        cos_user_log_key=cos_user_log_key,
+        cos_results_key=cos_results_key,
+        cos_provider_log_key=cos_provider_log_key,
+        cos_function_entrypoint=cos_function_entrypoint,
+        cos_docker_entrypoint=cos_docker_entrypoint,
+        container_function_entrypoint=container_function_entrypoint,
+        container_docker_entrypoint=container_docker_entrypoint,
+        container_private_log_path=container_private_log_path,
+        container_public_log_path=container_public_log_path,
         container_arguments_path=f"{JOB_USER_DATA_PATH}/arguments.json",
-        container_result_path=f"{JOB_USER_DATA_PATH}/results.json",
+        container_result_path=container_result_path,
     )
 
 
