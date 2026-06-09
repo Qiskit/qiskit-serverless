@@ -480,7 +480,7 @@ class TestJobApi:
         self._authorize("test_user")
 
         jobs_response = self.client.get(
-            reverse("v1:retrieve", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec87"]),
+            reverse("v1:retrieve", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec87"]) + "?with_result=true",
             format="json",
         )
         assert jobs_response.status_code == status.HTTP_200_OK
@@ -964,7 +964,9 @@ class TestRetrieveJob:
         shutil.copytree(self._fake_media_path, settings.MEDIA_ROOT, dirs_exist_ok=True)
         client = authorize("test_user")
 
-        response = client.get(reverse("v1:retrieve", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"]), format="json")
+        response = client.get(
+            reverse("v1:retrieve", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"]) + "?with_result=true", format="json"
+        )
         assert response.status_code == status.HTTP_200_OK
         assert response.data.get("result") == '{"ultimate": 42}'
         assert response.data.get("business_model") == BusinessModel.SUBSIDIZED
@@ -985,7 +987,9 @@ class TestRetrieveJob:
         """Author retrieves a job whose result is stored inline in the DB."""
         client = authorize("test_user")
 
-        response = client.get(reverse("v1:retrieve", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]), format="json")
+        response = client.get(
+            reverse("v1:retrieve", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]) + "?with_result=true", format="json"
+        )
         assert response.status_code == status.HTTP_200_OK
         assert response.data.get("result") == '{"somekey":1}'
 
