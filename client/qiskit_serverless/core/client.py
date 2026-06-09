@@ -74,6 +74,11 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
             instance: IBM Cloud CRN or IQP h/g/p
             channel: identifies the method to use to authenticate the user
         """
+        if name:
+            warnings.warn(
+                "The 'name' attribute is deprecated and will be removed in a future release.",
+                DeprecationWarning,
+            )
         self.name = name
         self.host = host
         self.token = token
