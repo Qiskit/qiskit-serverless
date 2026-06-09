@@ -118,7 +118,7 @@ def save_result(request: Request, job_id: UUID) -> Response:
     """
     user = cast(AbstractUser, request.user)
 
-    # GET for the Serverless client that submited the jo
+    # GET for the Serverless client that submited the job
     if request.method == "GET":
         outcome = GetJobResultUseCase().execute(job_id, user)
         if outcome.redirect_url:
