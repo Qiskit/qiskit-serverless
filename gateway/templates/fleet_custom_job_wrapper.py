@@ -9,7 +9,7 @@
 # Custom jobs only have a public log: all lines go to the single file served
 # by /logs to the job's author. [PUBLIC] and [PRIVATE] prefixes are stripped
 # (equivalent to remove_prefix_tags_in_logs in core.domain.filter_logs).
-import os, shutil, signal, subprocess, sys, threading
+import os, signal, subprocess, sys, threading
 
 # Command to run (injected by the gateway template engine)
 app_cmd = {{ app_cmd }}

@@ -19,7 +19,7 @@
 #
 # Matching is case-insensitive to mirror the Python re.IGNORECASE used in
 # core.domain.filter_logs.
-import os, shutil, signal, subprocess, sys, threading
+import os, signal, subprocess, sys, threading
 
 # Command to run (injected by the gateway template engine)
 app_cmd = {{ app_cmd }}
