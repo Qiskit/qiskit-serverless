@@ -99,3 +99,15 @@ class TestLogsStorage:
 
         assert logs == "private log content"
         assert os.path.exists(expected_path)
+
+    def test_get_public_logs_url_raises_not_implemented(self):
+        """get_public_logs_url() raises NotImplementedError for Ray jobs."""
+        job = self._create_job("auth1")
+        with pytest.raises(NotImplementedError):
+            RayLogsStorage(job).get_public_logs_url()
+
+    def test_get_private_logs_url_raises_not_implemented(self):
+        """get_private_logs_url() raises NotImplementedError for Ray provider jobs."""
+        job = self._create_job("auth1", provider="provider1")
+        with pytest.raises(NotImplementedError):
+            RayLogsStorage(job).get_private_logs_url()
