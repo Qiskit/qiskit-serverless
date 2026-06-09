@@ -709,30 +709,7 @@ class IBMServerlessClient(ServerlessClient):
 
         # Initialize QiskitRuntimeService
         self._service = QiskitRuntimeService(channel=channel, token=token, name=name, instance=instance)
-
-        # Use QiskitRuntimeService._discover_account to populate self.account
-        self.account = self._service._discover_account(
-            token=token,
-            instance=instance,
-            channel=channel,
-            name=name,
-        )
-
-        # Cast to CloudAccount if channel is ibm_cloud or ibm_quantum_platform as it has CRN validation method.
-        if self.account.channel in [Channel.IBM_CLOUD.value, Channel.IBM_QUANTUM_PLATFORM.value]:
-            if not isinstance(self.account, CloudAccount):
-                self.account = CloudAccount(
-                    channel=self.account.channel,
-                    token=self.account.token,
-                    instance=self.account.instance,
-                    url=getattr(self.account, "url", None),
-                )
-
-        # Validate instance access via self.account.resolve_crn()
-        try:
-            self.account.resolve_crn()
-        except Exception as ex:
-            raise QiskitServerlessException(f"Failed to validate instance access: {ex}") from ex
+        self.account = self._service._account
 
         super().__init__(
             channel=self.account.channel,
