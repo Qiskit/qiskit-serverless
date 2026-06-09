@@ -44,22 +44,27 @@ class JobRetrieveUseCase:
         if not JobAccessPolicies.can_access(user, job, accessible_functions=accessible_functions):
             raise JobNotFoundException(str(job_id))
 
+        # with_result is legacy, new clients will use the new GET /:id/results endpoints
         if with_result:
-            result = self.get_result(user, job)
-            if result is not None:
-                job.result = result
-            elif not JobAccessPolicies.can_read_result(user, job):
-                job.result = None
-            # else: keep DB value (can_read_result=True but storage has no file yet)
+            job.result = self.get_result(user, job)
+        else:
+            job.result = None
 
         return job
 
     @staticmethod
     def get_result(user, job) -> str | None:
-        if JobAccessPolicies.can_read_result(user, job):
-            try:
-                result_store = get_result_storage(job)
-                return result_store.get()
-            except (ValueError, NotImplementedError) as e:
-                logger.warning("[jobs-retrieve] job_id=%s | Result unavailable: %s", str(job.id), e)
-        return None
+        if not JobAccessPolicies.can_read_result(user, job):
+            # no access, no results
+            return None
+
+        try:
+            result_store = get_result_storage(job)
+            result = result_store.get()
+            # Fall back to inline DB value when storage has no file (legacy jobs)
+            return result if result is not None else job.result
+        except (ValueError, NotImplementedError) as e:
+            logger.warning("[jobs-retrieve] job_id=%s | Result unavailable: %s", str(job.id), e)
+
+            # Result wasn't in the COS, that means a legacy job, so return results from DB
+            return job.result
