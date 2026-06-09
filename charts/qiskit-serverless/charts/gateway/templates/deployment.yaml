@@ -330,7 +330,7 @@ spec:
           volumeMounts:
             - mountPath: "/usr/src/app/media/"
               name: gateway-pv-storage
-            - mountPath: "/tmp/templates/"
+            - mountPath: "/etc/gateway/templates/"
               name: ray-cluster-template
             - mountPath: "/tmp/gpujobs/"
               name: gpu-jobs

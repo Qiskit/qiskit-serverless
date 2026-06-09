@@ -4,6 +4,7 @@ Serializers api for V1.
 
 import json
 import logging
+import re
 from typing import Any
 
 from packaging.requirements import Requirement, InvalidRequirement
@@ -15,6 +16,30 @@ from api.utils import check_whitelisted
 from core.models import Provider
 
 logger = logging.getLogger("api.api.v1.serializers")
+
+# Strict OCI/Docker image reference grammar:
+#   [registry[:port]/]repository[:tag][@digest]
+# This rejects shell metacharacters, whitespace and otherwise malformed
+# references before they ever reach the runner / orchestration objects.
+IMAGE_REFERENCE_RE = re.compile(
+    r"^"
+    r"(?:(?P<registry>[a-z0-9]+(?:[.-][a-z0-9]+)*(?::[0-9]+)?)/)?"  # optional registry host[:port]/
+    r"(?P<repo>[a-z0-9]+(?:[._-][a-z0-9]+)*(?:/[a-z0-9]+(?:[._-][a-z0-9]+)*)*)"  # repository path
+    r"(?::(?P<tag>[A-Za-z0-9_][A-Za-z0-9._-]{0,127}))?"  # optional tag
+    r"(?:@(?P<digest>[A-Za-z0-9]+:[A-Fa-f0-9]{32,}))?"  # optional digest
+    r"$"
+)
+
+
+def _image_in_registry(image: str, registry: str) -> bool:
+    """Return True only when ``image`` is hosted under ``registry``.
+
+    Enforces a path boundary so that a registry of ``docker.io`` is NOT
+    satisfied by ``docker.io.attacker.com/evil`` (the bug a bare
+    ``str.startswith`` introduces).
+    """
+    registry = registry.rstrip("/")
+    return image == registry or image.startswith(registry + "/")
 
 
 class ProgramSerializer(serializers.ProgramSerializer):
@@ -52,9 +77,38 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
     UploadProgramSerializer is used by the /upload end-point
     """
 
+    def validate_entrypoint(self, value):
+        """Validate the entrypoint is a safe, relative ``.py`` file path.
+
+        The entrypoint is interpolated into the runner's execution command
+        (e.g. ``python {entrypoint}`` for Ray) and into COS/PDS object paths, so
+        it must not contain shell metacharacters, be absolute, or traverse
+        outside the function directory via ``..``.
+        """
+        if value is None:
+            return value
+        segments = value.split("/")
+        if (
+            not isinstance(value, str)
+            or not re.fullmatch(r"[A-Za-z0-9_./-]+\.py", value)
+            or value.startswith("/")
+            or ".." in segments
+        ):
+            raise ValidationError(
+                "Invalid entrypoint. It must be a relative path to a .py file "
+                "without '..' segments or shell characters."
+            )
+        return value
+
     def validate_image(self, value):
-        """Validates image."""
-        # place to add image validation
+        """Validate that the image is a well-formed container reference."""
+        if value is None:
+            return value
+        if not isinstance(value, str) or not IMAGE_REFERENCE_RE.match(value):
+            raise ValidationError(
+                "Invalid image reference. Expected format: "
+                "[registry[:port]/]repository[:tag][@digest]."
+            )
         return value
 
     def _parse_dependency(self, dep: Any):
@@ -139,7 +193,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             provider_instance = Provider.objects.filter(name=provider).first()
             if provider_instance is None:
                 raise ValidationError(f"{provider} is not valid provider.")
-            if provider_instance.registry and not image.startswith(provider_instance.registry):
+            if provider_instance.registry and not _image_in_registry(image, provider_instance.registry):
                 raise ValidationError(f"Custom images must be in {provider_instance.registry}.")
 
         # Validate `version` using packaging.version (PEP 440 compatible)

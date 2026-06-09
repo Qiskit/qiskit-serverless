@@ -27,6 +27,7 @@ Qiskit Serverless utilities
 """
 
 import base64
+import hashlib
 import json
 import logging
 import os
@@ -109,6 +110,20 @@ def retry_function(  # pylint:  disable=too-many-positional-arguments
     return None
 
 
+def _build_fernet() -> Fernet:
+    """Build a Fernet instance from a dedicated encryption secret.
+
+    The key is derived with SHA-256 (a full-entropy 32-byte digest) instead of
+    naively space-padding/truncating the raw secret, which produced a low
+    entropy key when the secret was short. A dedicated ``TOKENS_ENCRYPTION_KEY``
+    setting is preferred; we fall back to ``SECRET_KEY`` for backwards
+    compatibility.
+    """
+    secret = getattr(settings, "TOKENS_ENCRYPTION_KEY", None) or settings.SECRET_KEY
+    digest = hashlib.sha256(secret.encode("utf-8")).digest()
+    return Fernet(base64.urlsafe_b64encode(digest))
+
+
 def encrypt_string(string: str) -> str:
     """Encrypts string using symmetrical encryption.
 
@@ -118,9 +133,7 @@ def encrypt_string(string: str) -> str:
     Returns:
         encrypted string
     """
-    code_bytes = settings.SECRET_KEY.encode("utf-8")
-    fernet = Fernet(base64.urlsafe_b64encode(code_bytes.ljust(32)[:32]))
-    return fernet.encrypt(string.encode("utf-8")).decode("utf-8")
+    return _build_fernet().encrypt(string.encode("utf-8")).decode("utf-8")
 
 
 def decrypt_string(string: str) -> str:
@@ -132,9 +145,7 @@ def decrypt_string(string: str) -> str:
     Returns:
         decrypted string
     """
-    code_bytes = settings.SECRET_KEY.encode("utf-8")
-    fernet = Fernet(base64.urlsafe_b64encode(code_bytes.ljust(32)[:32]))
-    return fernet.decrypt(string.encode("utf-8")).decode("utf-8")
+    return _build_fernet().decrypt(string.encode("utf-8")).decode("utf-8")
 
 
 def encrypt_env_vars(env_vars: Dict[str, str]) -> Dict[str, str]:
@@ -161,12 +172,16 @@ def decrypt_env_vars(env_vars: Dict[str, str]) -> Dict[str, str]:
     Returns:
         decrypted env vars dict
     """
-    for key, value in env_vars.items():
+    for key, value in list(env_vars.items()):
         if "token" in key.lower():
             try:
                 env_vars[key] = decrypt_string(value)
             except Exception:  # pylint: disable=broad-exception-caught
-                logger.error("Cannot decrypt %s.", key)
+                # Fail closed: never inject the still-encrypted ciphertext into
+                # the runtime environment (it would mask a key-rotation issue
+                # and leak unusable secret material). Drop the variable instead.
+                logger.error("Cannot decrypt %s; dropping it from env vars.", key)
+                env_vars.pop(key, None)
     return env_vars
 
 

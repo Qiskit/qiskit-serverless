@@ -194,6 +194,22 @@ class ProgramSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Program
+        # Never serialize all fields implicitly: `env_vars` holds encrypted
+        # tokens. An explicit allowlist prevents credential leakage if this base
+        # serializer is ever used directly (subclasses override `fields`).
+        fields = [
+            "id",
+            "title",
+            "entrypoint",
+            "artifact",
+            "dependencies",
+            "provider",
+            "description",
+            "documentation_url",
+            "type",
+            "version",
+            "runner",
+        ]
 
 
 class JobSerializer(serializers.ModelSerializer):
@@ -203,6 +219,18 @@ class JobSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Job
+        # Explicit allowlist: never expose `env_vars` (encrypted token + args),
+        # `account_id` or `instance_crn` implicitly. Subclasses override.
+        fields = [
+            "id",
+            "result",
+            "status",
+            "program",
+            "created",
+            "sub_status",
+            "fleet_id",
+            "compute_profile",
+        ]
 
 
 class JobSerializerWithoutResult(serializers.ModelSerializer):
@@ -212,6 +240,15 @@ class JobSerializerWithoutResult(serializers.ModelSerializer):
 
     class Meta:
         model = Job
+        fields = [
+            "id",
+            "status",
+            "program",
+            "created",
+            "sub_status",
+            "fleet_id",
+            "compute_profile",
+        ]
 
 
 class RunProgramSerializer(serializers.Serializer):
