@@ -92,11 +92,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             new_status,
         )
-        try:
-            self.event_streams_client.emit_job_ended(job)
-        except Exception:  # pylint: disable=broad-exception-caught
-            logger.exception("job_id=%s Failed to publish job_ended event", job.id)
-
+        self.event_streams_client.emit_job_ended(job)
         job.update_fields({"status": new_status, "sub_status": None, "env_vars": "{}"})
         JobEvent.objects.add_status_event(
             job_id=job.id,
@@ -115,11 +111,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             Job.RUNNING,
         )
-        try:
-            self.event_streams_client.emit_job_started(job)
-        except Exception:  # pylint: disable=broad-exception-caught
-            logger.exception("job_id=%s Failed to publish job_started event", job.id)
-
+        self.event_streams_client.emit_job_started(job)
         # running_started_at is set only on first transition; already-RUNNING jobs picked up
         # after a scheduler restart will have running_started_at=None (usage_nanoseconds=0).
         job.update_fields({"status": Job.RUNNING, "running_started_at": django_timezone.now()})
@@ -169,16 +161,16 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         for job in jobs:
             if self.kill_signal.received:
                 return
-            # Emit in-progress before polling status: a job transitioning to terminal in
-            # this same tick will produce both job_in_progress and job_ended events.
-            # Consumers must handle this ordering by keying on event_type.
-            if job.status == Job.RUNNING:
-                try:
+            try:
+                # Emit in-progress before polling status: a job transitioning to terminal in
+                # this same tick will produce both job_in_progress and job_ended events.
+                # Consumers must handle this ordering by keying on event_type.
+                if job.status == Job.RUNNING:
                     self.event_streams_client.emit_job_in_progress(job)
-                except Exception:  # pylint: disable=broad-exception-caught
-                    logger.exception("job_id=%s Failed to publish job_in_progress event", job.id)
-            if self.update_job_status(job):
-                counter += 1
+                if self.update_job_status(job):
+                    counter += 1
+            except Exception:  # pylint: disable=broad-exception-caught
+                logger.exception("job_id=%s Failed to publish event, skipping DB update — will retry next iteration", job.id)
 
         if counter:
             logger.info("Updated %s Fleets jobs.", counter)

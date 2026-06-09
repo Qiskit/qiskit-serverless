@@ -3,6 +3,8 @@
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, Program
 from core.services.runners import RunnerError
@@ -332,16 +334,17 @@ class TestEventStreamsIntegration:
         assert call_order == ["publish", "db"]
         task.event_streams_client.emit_job_started.assert_called_once_with(job)
 
-    def test_to_running_db_update_happens_even_if_publish_fails(self):
+    def test_to_running_raises_if_publish_fails(self):
         task = _make_task()
         task.event_streams_client.emit_job_started.side_effect = Exception("broker down")
         job = _make_fleets_job(status=Job.PENDING)
 
         with patch(f"{_MOD}.JobEvent"):
             with patch(f"{_MOD}.django_timezone"):
-                task.to_running(job)
+                with pytest.raises(Exception, match="broker down"):
+                    task.to_running(job)
 
-        assert job.status == Job.RUNNING
+        job.update_fields.assert_not_called()
 
     def test_to_terminal_emits_job_ended_before_db_update(self):
         task = _make_task()
@@ -357,15 +360,16 @@ class TestEventStreamsIntegration:
         assert call_order == ["publish", "db"]
         task.event_streams_client.emit_job_ended.assert_called_once_with(job)
 
-    def test_to_terminal_db_update_happens_even_if_publish_fails(self):
+    def test_to_terminal_raises_if_publish_fails(self):
         task = _make_task()
         task.event_streams_client.emit_job_ended.side_effect = Exception("broker down")
         job = _make_fleets_job(status=Job.RUNNING)
 
         with patch(f"{_MOD}.JobEvent"):
-            task.to_terminal(job, Job.SUCCEEDED)
+            with pytest.raises(Exception, match="broker down"):
+                task.to_terminal(job, Job.SUCCEEDED)
 
-        assert job.status == Job.SUCCEEDED
+        job.update_fields.assert_not_called()
 
     def test_run_emits_job_in_progress_for_running_jobs(self):
         task = _make_task()
@@ -383,6 +387,28 @@ class TestEventStreamsIntegration:
             task.run()
 
         task.event_streams_client.emit_job_in_progress.assert_called_once_with(job)
+
+    def test_run_publish_failure_skips_db_update_and_continues_other_jobs(self):
+        task = _make_task()
+        job1 = _make_fleets_job(status=Job.RUNNING)
+        job2 = _make_fleets_job(status=Job.RUNNING)
+
+        task.event_streams_client.emit_job_in_progress.side_effect = [Exception("broker down"), None]
+
+        with (
+            patch(f"{_MOD}.settings") as mock_settings,
+            patch(f"{_MOD}.Job") as mock_job_cls,
+            patch.object(task, "update_job_status", return_value=True) as mock_update,
+        ):
+            mock_settings.LIMITS_MAX_FLEETS = 10
+            mock_job_cls.objects.filter.return_value = [job1, job2]
+            mock_job_cls.RUNNING_STATUSES = Job.RUNNING_STATUSES
+            mock_job_cls.RUNNING = Job.RUNNING
+            task.run()
+
+        # job1 publish failed — update_job_status called only once (for job2)
+        assert mock_update.call_count == 1
+        mock_update.assert_called_once_with(job2)
 
     def test_run_skips_emit_for_pending_jobs(self):
         task = _make_task()
