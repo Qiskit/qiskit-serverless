@@ -311,71 +311,6 @@ class TestJobApi:
         assert jobs_response.status_code == status.HTTP_404_NOT_FOUND
         assert jobs_response.data.get("message") == "Provider default doesn't exist."
 
-    def test_job_save_result(self, settings):
-        """Tests job results save."""
-        self._authorize("test_user")
-        job_id = "57fc2e4d-267f-40c6-91a3-38153272e764"
-        jobs_response = self.client.post(
-            reverse("v1:jobs-result", args=[job_id]),
-            format="json",
-            data={"result": json.dumps({"ultimate": 42})},
-        )
-        result_path = os.path.join(settings.MEDIA_ROOT, "test_user", "results", f"{job_id}.json")
-        assert os.path.exists(result_path)
-        assert jobs_response.status_code == status.HTTP_200_OK
-        assert jobs_response.data.get("result") == '{"ultimate": 42}'
-
-    def test_not_authorized_job_save_result(self):
-        """Tests job results save."""
-        self._authorize("test_user")
-        job_id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec84"
-        jobs_response = self.client.post(
-            reverse("v1:jobs-result", args=[job_id]),
-            format="json",
-            data={"result": json.dumps({"ultimate": 42})},
-        )
-
-        assert jobs_response.status_code == status.HTTP_404_NOT_FOUND
-        assert jobs_response.data.get("message") == f"Job [{job_id}] not found"
-
-    def test_job_save_result_uses_author_username(self):
-        """
-        Tests that job results are saved using job.author.username,
-        not the requesting user's username. This ensures results are written
-        to the correct storage path where they can be retrieved later.
-
-        Note: Currently can_save_result() only allows authors to save results,
-        but this test validates the correct behavior if permissions change in
-        the future to allow other users (e.g., system processes) to save results.
-        """
-        # Get a job created by test_user (author=1)
-        job = Job.objects.get(pk="57fc2e4d-267f-40c6-91a3-38153272e764")
-        assert job.author.username == "test_user"
-
-        # Save result as the author
-        self._authorize("test_user")
-        test_result = json.dumps({"test_save": "value"})
-        jobs_response = self.client.post(
-            reverse("v1:jobs-result", args=[str(job.id)]),
-            format="json",
-            data={"result": test_result},
-        )
-        assert jobs_response.status_code == status.HTTP_200_OK
-
-        # Verify result is saved in author's directory
-        result_storage = get_result_storage(job)
-        saved_result = result_storage.get()
-        assert saved_result == test_result
-
-        # If we incorrectly saved using a different user's username, we wouldn't find it there
-        different_user = User.objects.get(username="test_user_2")
-        wrong_job = MagicMock()
-        wrong_job.id = job.id
-        wrong_job.author.username = different_user.username
-        wrong_result_storage = RayResultStorage(wrong_job)
-        wrong_result = wrong_result_storage.get()
-        assert wrong_result is None  # Should not find result in wrong path
-
     def test_job_arguments_storage_path_user(self, settings):
         """
         Tests that job arguments for user functions (no provider) are saved to:
@@ -1136,8 +1071,8 @@ class TestRetrieveJob:
 
 
 @pytest.mark.django_db
-class TestFleetJobResultEndpoint:
-    """Test GET /jobs/{id}/result/ view responses for Fleet jobs."""
+class TestGetResult:
+    """Tests for GET /jobs/{id}/result/ — Fleet jobs return a presigned URL redirect."""
 
     @pytest.fixture(autouse=True)
     def _setup(self):
@@ -1171,9 +1106,7 @@ class TestFleetJobResultEndpoint:
     def test_fleet_result_returns_302_when_result_exists(self, mock_get_storage):
         """Fleet GET /result/: 302 redirect when COS object exists."""
         presigned_url = "https://cos.example.com/results.json?sig=abc"
-        mock_storage = MagicMock()
-        mock_storage.get_url.return_value = presigned_url
-        mock_get_storage.return_value = mock_storage
+        mock_get_storage.return_value.get_url.return_value = presigned_url
 
         job = self._make_fleet_job("result-author")
         self._authorize("result-author")
@@ -1189,9 +1122,7 @@ class TestFleetJobResultEndpoint:
     @patch("api.use_cases.jobs.get_result.get_result_storage")
     def test_fleet_result_returns_204_when_no_result(self, mock_get_storage):
         """Fleet GET /result/: 204 No Content when COS object does not exist yet."""
-        mock_storage = MagicMock()
-        mock_storage.get_url.return_value = None
-        mock_get_storage.return_value = mock_storage
+        mock_get_storage.return_value.get_url.return_value = None
 
         job = self._make_fleet_job("result-author-2")
         self._authorize("result-author-2")
@@ -1202,3 +1133,77 @@ class TestFleetJobResultEndpoint:
         )
 
         assert response.status_code == 204
+
+
+@pytest.mark.django_db
+class TestSaveResult:
+    """Tests for POST /jobs/{id}/result/.
+
+    DEPRECATED: clients now write results directly to COS. POST /result/ is no longer
+    the primary save path and will be removed in a future release.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _setup(self, tmp_path, settings, db):
+        from django.core.management import call_command
+
+        call_command("loaddata", "tests/fixtures/fixtures.json")
+        settings.MEDIA_ROOT = str(tmp_path)
+        self.client = APIClient()
+
+    def _authorize(self, username):
+        return TestUtils.authorize_client(
+            user=username,
+            client=self.client,
+            accessible_functions=FunctionAccessResult(use_legacy_authorization=True),
+        )
+
+    def test_job_save_result(self, settings):
+        """POST /result/ saves the result and returns the updated job."""
+        self._authorize("test_user")
+        job_id = "57fc2e4d-267f-40c6-91a3-38153272e764"
+        jobs_response = self.client.post(
+            reverse("v1:jobs-result", args=[job_id]),
+            format="json",
+            data={"result": json.dumps({"ultimate": 42})},
+        )
+        result_path = os.path.join(settings.MEDIA_ROOT, "test_user", "results", f"{job_id}.json")
+        assert os.path.exists(result_path)
+        assert jobs_response.status_code == status.HTTP_200_OK
+        assert jobs_response.data.get("result") == '{"ultimate": 42}'
+
+    def test_not_authorized_job_save_result(self):
+        """POST /result/ returns 404 when the user is not the job author."""
+        self._authorize("test_user")
+        job_id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec84"
+        jobs_response = self.client.post(
+            reverse("v1:jobs-result", args=[job_id]),
+            format="json",
+            data={"result": json.dumps({"ultimate": 42})},
+        )
+
+        assert jobs_response.status_code == status.HTTP_404_NOT_FOUND
+        assert jobs_response.data.get("message") == f"Job [{job_id}] not found"
+
+    def test_job_save_result_uses_author_username(self):
+        """Result is saved under the job author's path, not the requesting user's."""
+        job = Job.objects.get(pk="57fc2e4d-267f-40c6-91a3-38153272e764")
+        assert job.author.username == "test_user"
+
+        self._authorize("test_user")
+        test_result = json.dumps({"test_save": "value"})
+        jobs_response = self.client.post(
+            reverse("v1:jobs-result", args=[str(job.id)]),
+            format="json",
+            data={"result": test_result},
+        )
+        assert jobs_response.status_code == status.HTTP_200_OK
+
+        result_storage = get_result_storage(job)
+        assert result_storage.get() == test_result
+
+        different_user = User.objects.get(username="test_user_2")
+        wrong_job = MagicMock()
+        wrong_job.id = job.id
+        wrong_job.author.username = different_user.username
+        assert RayResultStorage(wrong_job).get() is None

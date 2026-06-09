@@ -45,7 +45,12 @@ class JobRetrieveUseCase:
             raise JobNotFoundException(str(job_id))
 
         if with_result:
-            job.result = self.get_result(user, job)
+            result = self.get_result(user, job)
+            if result is not None:
+                job.result = result
+            elif not JobAccessPolicies.can_read_result(user, job):
+                job.result = None
+            # else: keep DB value (can_read_result=True but storage has no file yet)
 
         return job
 
