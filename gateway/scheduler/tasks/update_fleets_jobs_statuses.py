@@ -68,6 +68,11 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             if job.status == Job.PENDING:
                 # Transition from PENDING to RUNNING
                 self.to_running(job)
+            else:
+                # Job already RUNNING — emit in-progress before checking timeout.
+                # A job transitioning to terminal via stop_job_if_timeout in this same tick
+                # will produce both job_in_progress and job_ended events; consumers key on event_type.
+                self.event_streams_client.emit_job_in_progress(job)
 
             self.stop_job_if_timeout(job)
 
@@ -162,11 +167,6 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             if self.kill_signal.received:
                 return
             try:
-                # Emit in-progress before polling status: a job transitioning to terminal in
-                # this same tick will produce both job_in_progress and job_ended events.
-                # Consumers must handle this ordering by keying on event_type.
-                if job.status == Job.RUNNING:
-                    self.event_streams_client.emit_job_in_progress(job)
                 if self.update_job_status(job):
                     counter += 1
             except Exception:  # pylint: disable=broad-exception-caught

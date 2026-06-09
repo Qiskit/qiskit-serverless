@@ -371,20 +371,18 @@ class TestEventStreamsIntegration:
 
         job.update_fields.assert_not_called()
 
-    def test_run_emits_job_in_progress_for_running_jobs(self):
+    def test_update_job_status_emits_job_in_progress_for_running_job(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
+        mock_runner = MagicMock()
+        mock_runner.status.return_value = Job.RUNNING
+
         with (
-            patch(f"{_MOD}.settings") as mock_settings,
-            patch(f"{_MOD}.Job") as mock_job_cls,
-            patch.object(task, "update_job_status", return_value=True),
+            patch(f"{_MOD}.get_runner", return_value=mock_runner),
+            patch.object(task, "stop_job_if_timeout"),
         ):
-            mock_settings.LIMITS_MAX_FLEETS = 10
-            mock_job_cls.objects.filter.return_value = [job]
-            mock_job_cls.RUNNING_STATUSES = Job.RUNNING_STATUSES
-            mock_job_cls.RUNNING = Job.RUNNING
-            task.run()
+            task.update_job_status(job)
 
         task.event_streams_client.emit_job_in_progress.assert_called_once_with(job)
 
@@ -393,36 +391,41 @@ class TestEventStreamsIntegration:
         job1 = _make_fleets_job(status=Job.RUNNING)
         job2 = _make_fleets_job(status=Job.RUNNING)
 
-        task.event_streams_client.emit_job_in_progress.side_effect = [Exception("broker down"), None]
-
         with (
             patch(f"{_MOD}.settings") as mock_settings,
             patch(f"{_MOD}.Job") as mock_job_cls,
-            patch.object(task, "update_job_status", return_value=True) as mock_update,
+            patch.object(task, "update_job_status", return_value=True) as mock_update_status,
         ):
             mock_settings.LIMITS_MAX_FLEETS = 10
             mock_job_cls.objects.filter.return_value = [job1, job2]
             mock_job_cls.RUNNING_STATUSES = Job.RUNNING_STATUSES
-            mock_job_cls.RUNNING = Job.RUNNING
+
+            # Simulate update_job_status raising for job1 (publish failure) but succeeding for job2
+            def fake_update(job):
+                if job is job1:
+                    raise Exception("broker down")
+                return True
+            mock_update_status.side_effect = fake_update
+
             task.run()
 
-        # job1 publish failed — update_job_status called only once (for job2)
-        assert mock_update.call_count == 1
-        mock_update.assert_called_once_with(job2)
+        # job1 raised — skipped; job2 processed normally
+        mock_update_status.assert_any_call(job1)
+        mock_update_status.assert_any_call(job2)
+        assert mock_update_status.call_count == 2
 
-    def test_run_skips_emit_for_pending_jobs(self):
+    def test_update_job_status_skips_emit_for_pending_to_running_transition(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.PENDING)
 
+        mock_runner = MagicMock()
+        mock_runner.status.return_value = Job.RUNNING
+
         with (
-            patch(f"{_MOD}.settings") as mock_settings,
-            patch(f"{_MOD}.Job") as mock_job_cls,
-            patch.object(task, "update_job_status", return_value=True),
+            patch(f"{_MOD}.get_runner", return_value=mock_runner),
+            patch.object(task, "to_running"),
+            patch.object(task, "stop_job_if_timeout"),
         ):
-            mock_settings.LIMITS_MAX_FLEETS = 10
-            mock_job_cls.objects.filter.return_value = [job]
-            mock_job_cls.RUNNING_STATUSES = Job.RUNNING_STATUSES
-            mock_job_cls.RUNNING = Job.RUNNING
-            task.run()
+            task.update_job_status(job)
 
         task.event_streams_client.emit_job_in_progress.assert_not_called()
