@@ -74,6 +74,11 @@ tracing:
 cos:
   claimName: gateway-claim
 
+ce:
+  fleetsGatewayHost: "http://127.0.0.1:8000"
+  defaultComputeProfile: "bx3d-24x120"
+  fleetsDefaultMaxInstances: 1
+
 secrets:
   secretKey:
     name: gateway-secret-key
