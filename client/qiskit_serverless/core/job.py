@@ -398,58 +398,20 @@ def save_result(result: Dict[str, Any]):
         result: data that will be accessible from job handler `.result()` method.
     """
 
-    version = os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
-    if version is None:
-        version = GATEWAY_PROVIDER_VERSION_DEFAULT
-
-    token = os.environ.get(ENV_JOB_GATEWAY_TOKEN)
-    if token is None:
-        logging.warning(
-            "Results will be saved as logs since "
-            "there is no information about the "
-            "authorization token in the environment."
-        )
-        logging.info("Result: %s", result)
-        result_record = json.dumps(result or {}, cls=QiskitObjectsEncoder)
-        print(f"\nSaved Result:{result_record}:End Saved Result\n")
-        return False
-
-    instance = os.environ.get(ENV_JOB_GATEWAY_INSTANCE, None)
-    channel = os.environ.get(QISKIT_IBM_CHANNEL, None)
-
     if not is_jsonable(result, cls=QiskitObjectsEncoder):
         logging.warning("Object passed is not json serializable.")
         return False
-    try:
-        # trying to save via mounted path
-        result_path = _get_result_path()
 
+    result_path = _get_result_path()
+    try:
         with open(result_path, "w", encoding="utf-8") as result_file:
             result_file.write(json.dumps(result or {}, cls=QiskitObjectsEncoder))
 
-        logging.info(
-            "[save] job_id=%s | Result saved ok %s",
-            ENV_JOB_ID_GATEWAY,
-            result_path,
-        )
+        logging.info("[save] job_id=%s | Result saved ok %s", ENV_JOB_ID_GATEWAY, result_path)
         return True
     except Exception as e:  # pylint: disable=broad-exception-caught
-        logging.warning("There was an error saving result via mounted path: %s", e)
-        url = (
-            f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
-            f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/result/"
-        )
-        response = requests.post(
-            url,
-            data={"result": json.dumps(result or {}, cls=QiskitObjectsEncoder)},
-            headers=get_headers(token=token, instance=instance, channel=channel),
-            timeout=REQUESTS_TIMEOUT,
-        )
-        if not response.ok:
-            sanitized = response.text.replace("\n", "").replace("\r", "")
-            logging.warning("Something went wrong: %s", sanitized)
-
-    return response.ok
+        logging.info("[save] job_id=%s | Error saving results %s: %ss", ENV_JOB_ID_GATEWAY, result_path, e)
+        return False
 
 
 def update_status(status: str):
