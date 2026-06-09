@@ -9,7 +9,7 @@ from tests.utils import TestUtils
 
 
 @pytest.mark.django_db
-class TestResultStorage:
+class TestRayResultStorage:
     """Tests for RayResultStorage path generation and file operations."""
 
     @pytest.fixture
