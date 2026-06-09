@@ -66,8 +66,6 @@ def _patch_settings(**overrides):
         "IBM_CLOUD_API_KEY": "test-api-key",
         "CE_ICR_PULL_SECRET": "test-pull-secret",
         "FLEETS_DEFAULT_IMAGE": "default-image:latest",
-        "FLEETS_DEFAULT_CPU_LIMIT": "1",
-        "FLEETS_DEFAULT_MEMORY_LIMIT": "2G",
         "FLEETS_DEFAULT_MAX_INSTANCES": 1,
         "DEFAULT_COMPUTE_PROFILE": "cx3d-4x16",
     }
@@ -357,6 +355,29 @@ def test_submit_uses_default_profile_when_no_compute_profile():
     call_kwargs = mock_handler.submit_job.call_args.kwargs
     assert call_kwargs["scale_cpu_limit"] == "8"
     assert call_kwargs["scale_memory_limit"] == "32G"
+
+
+def test_submit_default_profile_in_settings_is_parseable():
+    """DEFAULT_COMPUTE_PROFILE default value in settings.py parses without error."""
+    runner, mock_handler = _make_submit_runner()
+
+    with _patch_settings(DEFAULT_COMPUTE_PROFILE="bx3d-24x120"):
+        runner.submit()
+
+    call_kwargs = mock_handler.submit_job.call_args.kwargs
+    assert call_kwargs["scale_cpu_limit"] == "24"
+    assert call_kwargs["scale_memory_limit"] == "120G"
+    assert call_kwargs.get("extra_fields") is None
+
+
+def test_submit_raises_on_unparseable_compute_profile():
+    """submit() raises RunnerError when compute_profile cannot be parsed."""
+    runner, _ = _make_submit_runner()
+    runner.job.compute_profile = "not-a-valid-profile"
+
+    with _patch_settings():
+        with pytest.raises(RunnerError, match="Could not parse compute_profile"):
+            runner.submit()
 
 
 def test_submit_uses_program_image():
