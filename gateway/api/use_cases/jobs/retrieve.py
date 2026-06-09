@@ -44,18 +44,17 @@ class JobRetrieveUseCase:
         if not JobAccessPolicies.can_access(user, job, accessible_functions=accessible_functions):
             raise JobNotFoundException(str(job_id))
 
-        can_read_result = JobAccessPolicies.can_read_result(user, job)
-
-        if with_result and can_read_result:
-            try:
-                result_store = get_result_storage(job)
-                result = result_store.get()
-                if result is not None:
-                    job.result = result
-            except (ValueError, NotImplementedError) as e:
-                logger.warning("[jobs-retrieve] job_id=%s | Result unavailable: %s", job_id, e)
-                job.result = None
-        else:
-            job.result = None
+        if with_result:
+            job.result = self.get_result(user, job)
 
         return job
+
+    @staticmethod
+    def get_result(user, job) -> str | None:
+        if JobAccessPolicies.can_read_result(user, job):
+            try:
+                result_store = get_result_storage(job)
+                return result_store.get()
+            except (ValueError, NotImplementedError) as e:
+                logger.warning("[jobs-retrieve] job_id=%s | Result unavailable: %s", str(job.id), e)
+        return None

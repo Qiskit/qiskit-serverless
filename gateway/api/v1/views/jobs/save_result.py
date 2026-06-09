@@ -118,6 +118,7 @@ def save_result(request: Request, job_id: UUID) -> Response:
     """
     user = cast(AbstractUser, request.user)
 
+    # GET for the Serverless client that submited the jo
     if request.method == "GET":
         outcome = GetJobResultUseCase().execute(job_id, user)
         if outcome.redirect_url:
@@ -126,7 +127,7 @@ def save_result(request: Request, job_id: UUID) -> Response:
             return Response(status=status.HTTP_204_NO_CONTENT)
         return Response({"result": outcome.raw_result})
 
-    # POST
+    # POST for the Serverless client inside the function (deprecated, function now saves the file directly to COS)
     serializer = InputSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
