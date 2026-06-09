@@ -665,7 +665,7 @@ class FleetsRunner(AbstractRunner):
             is the V2GPUScalePrototype dict or ``None`` when no GPU is
             specified in the profile.
         """
-        profile = self.job.compute_profile or getattr(settings, "DEFAULT_COMPUTE_PROFILE", "cx3d-4x16")
+        profile = self.job.compute_profile or settings.DEFAULT_COMPUTE_PROFILE
 
         # Strip optional prefix (e.g. "gx3d-" or "cx3d-")
         match = re.match(r"^[a-z]+\d[a-z\d]*-(.+)$", profile)
@@ -674,11 +674,12 @@ class FleetsRunner(AbstractRunner):
         # Parse: {cpu}x{memory}[x{count}{model}]
         parts = re.match(r"^(\d+)x(\d+)(?:x(\d+)([a-z]\w*))?$", resources)
         if not parts:
-            logger.warning("Could not parse compute_profile [%s], using defaults", profile)
-            return (
-                str(getattr(settings, "FLEETS_DEFAULT_CPU_LIMIT", "24")),
-                str(getattr(settings, "FLEETS_DEFAULT_MEMORY_LIMIT", "120G")),
-                None,
+            logger.error(
+                "Could not parse compute_profile [%s]: expected format '{cpu}x{memory}[x{count}{model}]'",
+                profile,
+            )
+            raise RunnerError(
+                f"Could not parse compute_profile [{profile}]:" " expected format '{cpu}x{memory}[x{count}{model}]'"
             )
 
         cpu = parts.group(1)
@@ -701,7 +702,7 @@ class FleetsRunner(AbstractRunner):
         """
         if self.job.config and getattr(self.job.config, "workers", None):
             return int(self.job.config.workers)
-        return int(getattr(settings, "FLEETS_DEFAULT_MAX_INSTANCES", 1))
+        return settings.FLEETS_DEFAULT_MAX_INSTANCES
 
     def _map_fleet_status(self, fleet_status: str) -> str:
         """Map a CE fleet status string to a :attr:`Job.STATUS` constant.
