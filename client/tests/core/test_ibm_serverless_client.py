@@ -23,7 +23,7 @@ from qiskit_serverless.core.enums import Channel
 class TestIBMServerlessClient:
     """Unit tests for IBMServerlessClient."""
 
-    @patch("qiskit_ibm_runtime.accounts.CloudAccount.list_instances")
+    @patch("qiskit_ibm_runtime.accounts.account.CloudAccount.list_instances")
     @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
     @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
     def test_init(self, mock_file_path, mock_verify_credentials, mock_list_instances):
@@ -59,7 +59,7 @@ class TestIBMServerlessClient:
         assert client.instance == use_instance
         assert client.token == use_token
 
-    @patch("qiskit_ibm_runtime.accounts.CloudAccount.list_instances")
+    @patch("qiskit_ibm_runtime.accounts.account.CloudAccount.list_instances")
     @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
     @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
     def test_save_load_account(self, mock_file_path, mock_verify_credentials, mock_list_instances):
@@ -119,7 +119,7 @@ class TestIBMServerlessClient:
         with pytest.raises(ValueError, match=r"'channel' can only be 'ibm_cloud', or 'ibm_quantum_platform"):
             IBMServerlessClient(channel=use_channel, instance=use_instance, token=use_token)
 
-    @patch("qiskit_ibm_runtime.accounts.CloudAccount.list_instances")
+    @patch("qiskit_ibm_runtime.accounts.account.CloudAccount.list_instances")
     @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
     @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
     def test_channel_defaults_to_ibm_quantum_platform_when_none(self, mock_file_path, mock_verify, mock_list_instances):
@@ -148,7 +148,7 @@ class TestIBMServerlessClient:
             assert client.channel == Channel.IBM_QUANTUM_PLATFORM.value
             assert client.account.channel == Channel.IBM_QUANTUM_PLATFORM.value
 
-    @patch("qiskit_ibm_runtime.accounts.CloudAccount.list_instances")
+    @patch("qiskit_ibm_runtime.accounts.account.CloudAccount.list_instances")
     @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
     @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
     def test_channel_defaults_to_ibm_quantum_platform_when_omitted(
@@ -181,7 +181,7 @@ class TestIBMServerlessClient:
             assert client.channel == Channel.IBM_QUANTUM_PLATFORM.value
             assert client.account.channel == Channel.IBM_QUANTUM_PLATFORM.value
 
-    @patch("qiskit_ibm_runtime.accounts.CloudAccount.list_instances")
+    @patch("qiskit_ibm_runtime.accounts.account.CloudAccount.list_instances")
     @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
     @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
     def test_channel_respects_explicit_ibm_cloud_value(self, mock_file_path, mock_verify, mock_list_instances):
@@ -208,7 +208,7 @@ class TestIBMServerlessClient:
             assert client.channel == Channel.IBM_CLOUD.value
             assert client.account.channel == Channel.IBM_CLOUD.value
 
-    @patch("qiskit_ibm_runtime.accounts.CloudAccount.list_instances")
+    @patch("qiskit_ibm_runtime.accounts.account.CloudAccount.list_instances")
     @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
     @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
     def test_backward_compatibility_with_explicit_ibm_quantum_platform(
