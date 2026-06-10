@@ -209,4 +209,3 @@ def test_get_cos_hmac_client_cache_differentiates_by_endpoint_url() -> None:
 
         assert client_pub is not client_direct
         assert client_pub is client_pub2
-

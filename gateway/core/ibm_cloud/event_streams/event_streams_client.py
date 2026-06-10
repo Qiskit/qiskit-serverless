@@ -64,21 +64,22 @@ class IBMEventStreamsClient:
     def __init__(self) -> None:
         if Producer is None:
             raise RuntimeError(
-                "confluent-kafka is not installed. "
-                "Add confluent-kafka>=2.6.0,<3 to your dependencies."
+                "confluent-kafka is not installed. " "Add confluent-kafka>=2.6.0,<3 to your dependencies."
             )
 
         bootstrap_servers = os.environ["EVENT_STREAMS_BOOTSTRAP_SERVERS"]
         api_key = os.environ["EVENT_STREAMS_API_KEY"]
         environment = os.environ["ENVIRONMENT"]
 
-        self._producer = Producer({
-            "bootstrap.servers": bootstrap_servers,
-            "security.protocol": "SASL_SSL",
-            "sasl.mechanisms": "PLAIN",
-            "sasl.username": "token",
-            "sasl.password": api_key,
-        })
+        self._producer = Producer(
+            {
+                "bootstrap.servers": bootstrap_servers,
+                "security.protocol": "SASL_SSL",
+                "sasl.mechanisms": "PLAIN",
+                "sasl.username": "token",
+                "sasl.password": api_key,
+            }
+        )
         self.topic = f"quantum.{environment}.function-usage.v1"
 
     def emit_job_started(self, job) -> None:

@@ -210,10 +210,12 @@ class TestToRunning:
             mock_dt.now.return_value = fake_now
             task.to_running(job)
 
-        job.update_fields.assert_called_once_with({
-            "status": Job.RUNNING,
-            "running_started_at": fake_now,
-        })
+        job.update_fields.assert_called_once_with(
+            {
+                "status": Job.RUNNING,
+                "running_started_at": fake_now,
+            }
+        )
 
 
 class TestStopJobIfTimeout:
@@ -405,6 +407,7 @@ class TestEventStreamsIntegration:
                 if job is job1:
                     raise Exception("broker down")
                 return True
+
             mock_update_status.side_effect = fake_update
 
             task.run()

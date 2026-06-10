@@ -173,7 +173,9 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                 if self.update_job_status(job):
                     counter += 1
             except Exception:  # pylint: disable=broad-exception-caught
-                logger.exception("job_id=%s Failed to publish event, skipping DB update — will retry next iteration", job.id)
+                logger.exception(
+                    "job_id=%s Failed to publish event, skipping DB update — will retry next iteration", job.id
+                )
 
         if counter:
             logger.info("Updated %s Fleets jobs.", counter)

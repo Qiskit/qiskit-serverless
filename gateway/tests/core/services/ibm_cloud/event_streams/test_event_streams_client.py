@@ -50,21 +50,26 @@ class TestIBMEventStreamsClient:
             ):
                 IBMEventStreamsClient()
 
-        mock_producer_cls.assert_called_once_with({
-            "bootstrap.servers": "broker1:9093",
-            "security.protocol": "SASL_SSL",
-            "sasl.mechanisms": "PLAIN",
-            "sasl.username": "token",
-            "sasl.password": "my-key",
-        })
+        mock_producer_cls.assert_called_once_with(
+            {
+                "bootstrap.servers": "broker1:9093",
+                "security.protocol": "SASL_SSL",
+                "sasl.mechanisms": "PLAIN",
+                "sasl.username": "token",
+                "sasl.password": "my-key",
+            }
+        )
 
     def test_topic_constructed_from_environment(self):
         with patch(f"{_CLIENT_MOD}.Producer"):
-            with patch.dict(os.environ, {
-                "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
-                "EVENT_STREAMS_API_KEY": "k",
-                "ENVIRONMENT": "staging",
-            }):
+            with patch.dict(
+                os.environ,
+                {
+                    "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                    "EVENT_STREAMS_API_KEY": "k",
+                    "ENVIRONMENT": "staging",
+                },
+            ):
                 client = IBMEventStreamsClient()
 
         assert client.topic == "quantum.staging.function-usage.v1"
@@ -75,11 +80,14 @@ class TestIBMEventStreamsClient:
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
             with patch(f"{_CLIENT_MOD}.uuid") as mock_uuid_mod:
                 with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
-                    with patch.dict(os.environ, {
-                        "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
-                        "EVENT_STREAMS_API_KEY": "k",
-                        "ENVIRONMENT": "production",
-                    }):
+                    with patch.dict(
+                        os.environ,
+                        {
+                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                            "EVENT_STREAMS_API_KEY": "k",
+                            "ENVIRONMENT": "production",
+                        },
+                    ):
                         fake_event_id = uuid_module.UUID("00000000-0000-0000-0000-000000000001")
                         mock_uuid_mod.uuid4.return_value = fake_event_id
                         fake_now = datetime(2026, 1, 1, 12, 0, 1, tzinfo=timezone.utc)
@@ -108,11 +116,14 @@ class TestIBMEventStreamsClient:
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
             with patch(f"{_CLIENT_MOD}.uuid") as mock_uuid_mod:
                 with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
-                    with patch.dict(os.environ, {
-                        "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
-                        "EVENT_STREAMS_API_KEY": "k",
-                        "ENVIRONMENT": "production",
-                    }):
+                    with patch.dict(
+                        os.environ,
+                        {
+                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                            "EVENT_STREAMS_API_KEY": "k",
+                            "ENVIRONMENT": "production",
+                        },
+                    ):
                         mock_uuid_mod.uuid4.return_value = uuid_module.uuid4()
                         mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 5, tzinfo=timezone.utc)
 
@@ -132,11 +143,14 @@ class TestIBMEventStreamsClient:
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
             with patch(f"{_CLIENT_MOD}.uuid") as mock_uuid_mod:
                 with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
-                    with patch.dict(os.environ, {
-                        "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
-                        "EVENT_STREAMS_API_KEY": "k",
-                        "ENVIRONMENT": "production",
-                    }):
+                    with patch.dict(
+                        os.environ,
+                        {
+                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                            "EVENT_STREAMS_API_KEY": "k",
+                            "ENVIRONMENT": "production",
+                        },
+                    ):
                         mock_uuid_mod.uuid4.return_value = uuid_module.uuid4()
                         mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 30, tzinfo=timezone.utc)
 
@@ -156,11 +170,14 @@ class TestIBMEventStreamsClient:
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
             with patch(f"{_CLIENT_MOD}.uuid") as mock_uuid_mod:
                 with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
-                    with patch.dict(os.environ, {
-                        "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
-                        "EVENT_STREAMS_API_KEY": "k",
-                        "ENVIRONMENT": "production",
-                    }):
+                    with patch.dict(
+                        os.environ,
+                        {
+                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                            "EVENT_STREAMS_API_KEY": "k",
+                            "ENVIRONMENT": "production",
+                        },
+                    ):
                         mock_uuid_mod.uuid4.return_value = uuid_module.uuid4()
                         mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 5, tzinfo=timezone.utc)
 
