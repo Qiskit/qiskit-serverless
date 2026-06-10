@@ -41,12 +41,15 @@ class NoOpEventStreamsClient:
     """
 
     def emit_job_started(self, job) -> None:
+        """Log job_started at DEBUG level (no-op)."""
         logger.debug("job_id=%s [noop] emit_job_started", job.id)
 
     def emit_job_in_progress(self, job) -> None:
+        """Log job_in_progress at DEBUG level (no-op)."""
         logger.debug("job_id=%s [noop] emit_job_in_progress", job.id)
 
     def emit_job_ended(self, job) -> None:
+        """Log job_ended at DEBUG level (no-op)."""
         logger.debug("job_id=%s [noop] emit_job_ended", job.id)
 
 
@@ -64,7 +67,7 @@ class IBMEventStreamsClient:
     def __init__(self) -> None:
         if Producer is None:
             raise RuntimeError(
-                "confluent-kafka is not installed. " "Add confluent-kafka>=2.6.0,<3 to your dependencies."
+                "confluent-kafka is not installed. Add confluent-kafka>=2.6.0,<3 to your dependencies."
             )
 
         bootstrap_servers = os.environ["EVENT_STREAMS_BOOTSTRAP_SERVERS"]

@@ -29,6 +29,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
 
     @property
     def event_streams_client(self) -> "IBMEventStreamsClient | NoOpEventStreamsClient":
+        """Return the Event Streams client, instantiating it lazily on first access."""
         if self._event_streams_client is None:
             if settings.EVENT_STREAMS_ENABLED:
                 self._event_streams_client = IBMEventStreamsClient()
