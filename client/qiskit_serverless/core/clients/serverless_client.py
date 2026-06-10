@@ -41,7 +41,6 @@ from typing import Optional, List, Dict, Any, Union
 import requests
 from opentelemetry import trace
 from qiskit_ibm_runtime import QiskitRuntimeService
-from qiskit_ibm_runtime.accounts.account import CloudAccount
 from qiskit_ibm_runtime.accounts.exceptions import InvalidAccountError
 
 from qiskit_serverless.core.constants import (
