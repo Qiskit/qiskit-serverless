@@ -32,9 +32,9 @@ class TestIBMServerlessClient:
         # Mock list of instance crns in the IBM Cloud Global
         mock_list_instances.return_value = [
             {
-                "crn": "test-crn",
+                "crn": "my_instance",
                 "plan": "test_plan",
-                "name": "my_instance",
+                "name": "test_name",
                 "tags": "test_tags",
                 "pricing_type": "test_pricing_type",
             }
@@ -68,16 +68,16 @@ class TestIBMServerlessClient:
         # Mock list of instance crns in the IBM Cloud Global
         mock_list_instances.return_value = [
             {
-                "crn": "test-crn",
+                "crn": "dummy_hub/dummy_group/dummy_project",
                 "plan": "test_plan",
-                "name": "dummy_hub/dummy_group/dummy_project",
+                "name": "test_name_1",
                 "tags": "test_tags",
                 "pricing_type": "test_pricing_type",
             },
             {
-                "crn": "test-crn",
+                "crn": "dummy_crn",
                 "plan": "test_plan",
-                "name": "dummy_crn",
+                "name": "test_name_2",
                 "tags": "test_tags",
                 "pricing_type": "test_pricing_type",
             },
@@ -135,9 +135,9 @@ class TestIBMServerlessClient:
         # Mock list of instance crns in the IBM Cloud Global
         mock_list_instances.return_value = [
             {
-                "crn": "test-crn",
+                "crn": "test_instance",
                 "plan": "test_plan",
-                "name": "test_instance",
+                "name": "test_name",
                 "tags": "test_tags",
                 "pricing_type": "test_pricing_type",
             }
@@ -166,9 +166,9 @@ class TestIBMServerlessClient:
         # Mock list of instance crns in the IBM Cloud Global
         mock_list_instances.return_value = [
             {
-                "crn": "test-crn",
+                "crn": "test_instance",
                 "plan": "test_plan",
-                "name": "test_instance",
+                "name": "test_name",
                 "tags": "test_tags",
                 "pricing_type": "test_pricing_type",
             }
@@ -197,9 +197,9 @@ class TestIBMServerlessClient:
         # Mock list of instance crns in the IBM Cloud Global
         mock_list_instances.return_value = [
             {
-                "crn": "test-crn",
+                "crn": "test_instance",
                 "plan": "test_plan",
-                "name": "test_instance",
+                "name": "test_name",
                 "tags": "test_tags",
                 "pricing_type": "test_pricing_type",
             }
@@ -226,9 +226,9 @@ class TestIBMServerlessClient:
         # Mock list of instance crns in the IBM Cloud Global
         mock_list_instances.return_value = [
             {
-                "crn": "test-crn",
+                "crn": "test_instance",
                 "plan": "test_plan",
-                "name": "test_instance",
+                "name": "test_name",
                 "tags": "test_tags",
                 "pricing_type": "test_pricing_type",
             }
