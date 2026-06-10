@@ -17,7 +17,7 @@ from rest_framework.test import APITestCase
 from core.models import ComputeResource, Job, Program
 from core.services.runners import get_runner
 from core.services.runners.abstract_runner import RunnerError
-from core.services.runners.ray_runner import RayRunner
+from core.services.runners.ray_runner import FilteredLogs, RayRunner
 from core.utils import encrypt_string
 
 
@@ -158,7 +158,7 @@ class TestRayClientOperations(APITestCase):
             )
             job_logs = runner.logs()
 
-        self.assertEqual(list(job_logs), ["No logs yet."])
+        self.assertEqual(list(job_logs.public_logs), ["No logs yet."])
 
     def _make_runner_with_mock_client(self, ray_job_id="AwesomeJobId", host="http://test:8265"):
         job = Job.objects.first()
@@ -186,7 +186,7 @@ class TestRayClientOperations(APITestCase):
             )
             job_logs = runner.logs()
 
-        self.assertEqual(list(job_logs), ["hello", "world"])
+        self.assertEqual(list(job_logs.public_logs), ["hello", "world"])
 
     def test_logs_raises_runner_error_after_all_retries_exhausted(self):
         """logs() raises RunnerError after 3 consecutive HTTP 5xx responses."""
@@ -216,14 +216,14 @@ class TestRayClientOperations(APITestCase):
                 "_stream_logs_from_ray",
                 side_effect=[
                     requests.exceptions.ChunkedEncodingError("mid-download"),
-                    deque(["hello"]),
+                    FilteredLogs(public_logs=deque(["hello"]), private_logs=None),
                 ],
             ) as mock_stream,
             patch("time.sleep"),
         ):
             job_logs = runner.logs()
 
-        self.assertEqual(list(job_logs), ["hello"])
+        self.assertEqual(list(job_logs.public_logs), ["hello"])
         self.assertEqual(mock_stream.call_count, 2)
 
     def test_job_stop(self):

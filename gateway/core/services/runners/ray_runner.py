@@ -11,6 +11,8 @@ import tarfile
 import time
 import uuid
 from collections import deque
+from dataclasses import dataclass
+from typing import Callable
 
 import requests
 import yaml
@@ -25,6 +27,7 @@ from ray.dashboard.modules.job.sdk import JobSubmissionClient
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
+from core.domain.filter_logs import public_pattern, private_pattern
 from core.models import ComputeResource, Job, JobConfig, DEFAULT_PROGRAM_ENTRYPOINT
 from core.services.runners.abstract_runner import AbstractRunner, RunnerError
 from core.services.storage import get_file_storage
@@ -36,6 +39,18 @@ logger = logging.getLogger("RayRunner")
 
 _LOG_VALUE_MARKER = b'"logs": "'  # JSON key that opens the log string value
 _JSON_ENCODED_NL = b"\\n"  # JSON-encoded newline: 0x5C 0x6E
+
+
+@dataclass
+class FilteredLogs:
+    """Pre-filtered, prefix-stripped log streams from a Ray job.
+
+    public_logs: lines for the user-facing /logs endpoint.
+    private_logs: lines for the /provider-logs endpoint (None for user jobs).
+    """
+
+    public_logs: deque[str]
+    private_logs: deque[str] | None = None
 
 
 def _seek_log_marker(buffer: bytearray) -> bool:
@@ -54,28 +69,32 @@ def _seek_log_marker(buffer: bytearray) -> bool:
     return True
 
 
-def _consume_logs(buffer: bytearray, lines: "deque[str]", total_chars: int, max_chars: int) -> "tuple[int, bool]":
-    """Extract all JSON-newline-terminated lines from buffer into lines.
+def _consume_logs(buffer: bytearray, on_line: Callable[[str], None]) -> None:
+    """Extract JSON-newline-terminated lines from buffer, calling on_line for each.
 
-    Mutates buffer in-place by consuming each decoded line. Enforces the rolling
-    size limit, evicting oldest lines when total_chars exceeds max_chars.
-
-    Returns:
-        (total_chars, truncated) after processing all available lines.
+    Mutates buffer in-place by consuming each complete line.
     """
-    truncated = False
     while True:
         nl = buffer.find(_JSON_ENCODED_NL)
         if nl == -1:
             break
-        line = _decode_json_string(bytes(buffer[:nl]))
+        on_line(_decode_json_string(bytes(buffer[:nl])))
         del buffer[: nl + 2]
-        lines.append(line)
-        total_chars += len(line)
-        while total_chars > max_chars and lines:
-            total_chars -= len(lines.popleft())
-            truncated = True
-    return total_chars, truncated
+
+
+def _append_bounded(line: str, lines: deque[str], chars: int, max_chars: int) -> tuple[int, bool]:
+    """Append line to a rolling deque bounded by max_chars.
+
+    Returns:
+        (new_chars, truncated)
+    """
+    lines.append(line)
+    chars += len(line)
+    truncated = False
+    while chars > max_chars and lines:
+        chars -= len(lines.popleft())
+        truncated = True
+    return chars, truncated
 
 
 def _decode_json_string(data: bytes) -> str:
@@ -272,15 +291,16 @@ class RayRunner(AbstractRunner):
         )
         return status
 
-    def logs(self) -> deque[str]:
-        """Get job logs as a deque of decoded lines.
+    def logs(self) -> FilteredLogs:
+        """Get job logs, filtered and prefix-stripped, in a rolling bounded buffer.
 
-        Streams from the Ray dashboard HTTP endpoint with a rolling buffer so that
-        multi-GB log files never exceed FUNCTIONS_LOGS_SIZE_LIMIT in memory.
-        Lines retain their [PUBLIC] / [PRIVATE] prefix tags -- callers apply filters.
+        Streams the Ray dashboard HTTP endpoint, classifying each line into
+        public_logs or private_logs during streaming so that truncation is applied
+        independently to each stream. Callers receive ready-to-serve content with
+        no further filtering needed.
 
         Returns:
-            deque of decoded log lines, empty if no logs are available.
+            FilteredLogs with prefix-stripped deques, empty if no logs available.
 
         Raises:
             RunnerError: If unable to get job logs.
@@ -297,18 +317,20 @@ class RayRunner(AbstractRunner):
         except (RuntimeError, requests.exceptions.RequestException) as ex:
             raise RunnerError(f"Unable to get logs for job [{self._job.ray_job_id}]", ex) from ex
 
-    def _stream_logs_from_ray(self) -> deque[str]:
-        """Stream job logs from the Ray dashboard, decoding JSON line by line.
+    def _stream_logs_from_ray(self) -> FilteredLogs:
+        """Stream and filter job logs from the Ray dashboard.
 
-        Ray returns {"logs": "...content..."} where newlines inside the log are
-        JSON-encoded as the two-byte sequence backslash-n. This method detects the
-        "logs" field marker in the byte stream, splits on JSON-encoded newlines,
-        decodes each line, and accumulates them in a rolling deque bounded by
-        FUNCTIONS_LOGS_SIZE_LIMIT (measured in characters).
+        Ray returns {"logs": "...content..."} where newlines are JSON-encoded as
+        the two-byte sequence backslash-n. Each decoded line is immediately classified
+        and distributed into two independent rolling deques bounded by
+        FUNCTIONS_LOGS_SIZE_LIMIT.
+
+        Classification rules:
+          - user job : all lines → public_logs (prefixes stripped)
+          - provider job : [PUBLIC] lines → public_logs, all others → private_logs
 
         Returns:
-            deque of decoded log lines with [PUBLIC]/[PRIVATE] prefixes intact.
-            Empty deque if the response body contains no log content.
+            FilteredLogs with prefix-stripped, size-bounded deques.
 
         Raises:
             RuntimeError: on HTTP error responses.
@@ -316,19 +338,47 @@ class RayRunner(AbstractRunner):
         host = self._client.get_address()
         url = f"{host.rstrip('/')}/api/jobs/{self._job.ray_job_id}/logs"
         max_chars = settings.FUNCTIONS_LOGS_SIZE_LIMIT
+        is_provider = bool(self._job.program.provider)
 
-        lines: deque[str] = deque()
-        total_chars = 0
-        truncated = False
+        public_lines: deque[str] = deque()
+        private_lines: deque[str] | None = deque() if is_provider else None
+        public_chars = 0
+        private_chars = 0
+        public_truncated = False
+        private_truncated = False
         buffer = bytearray()
         in_logs_value = False
 
         logger.info(
-            "[_stream_logs_from_ray] job_id=%s ray_job_id=%s Streaming logs (limit=%d chars)",
+            "[_stream_logs_from_ray] job_id=%s ray_job_id=%s is_provider=%s Streaming logs (limit=%d chars)",
             self._job.id,
             self._job.ray_job_id,
+            is_provider,
             max_chars,
         )
+
+        def dispatch(raw_line: str) -> None:
+            nonlocal public_chars, private_chars, public_truncated, private_truncated
+            is_pub = bool(public_pattern.match(raw_line))
+            is_priv = bool(private_pattern.match(raw_line))
+            if is_provider:
+                if is_pub:
+                    line = raw_line[9:]
+                    public_chars, t = _append_bounded(line, public_lines, public_chars, max_chars)
+                    public_truncated = public_truncated or t
+                else:
+                    line = raw_line[10:] if is_priv else raw_line
+                    private_chars, t = _append_bounded(line, private_lines, private_chars, max_chars)
+                    private_truncated = private_truncated or t
+            else:
+                if is_pub:
+                    line = raw_line[9:]
+                elif is_priv:
+                    line = raw_line[10:]
+                else:
+                    line = raw_line
+                public_chars, t = _append_bounded(line, public_lines, public_chars, max_chars)
+                public_truncated = public_truncated or t
 
         with requests.get(url, stream=True, timeout=(10, 300)) as response:
             if not response.ok:
@@ -343,8 +393,7 @@ class RayRunner(AbstractRunner):
                     in_logs_value = _seek_log_marker(buffer)
                     if not in_logs_value:
                         continue
-                total_chars, t = _consume_logs(buffer, lines, total_chars, max_chars)
-                truncated = truncated or t
+                _consume_logs(buffer, dispatch)
 
         # Handle remaining bytes: last line (if log doesn't end with \n)
         # plus the closing JSON suffix: "}\n  (literal bytes: 0x22 0x7D 0x0A)
@@ -353,39 +402,42 @@ class RayRunner(AbstractRunner):
             tail = tail[:-2]
         elif tail.endswith(b'"'):
             tail = tail[:-1]
-
         if tail:
-            line = _decode_json_string(tail)
-            if line:
-                lines.append(line)
-                total_chars += len(line)
-                while total_chars > max_chars and lines:
-                    total_chars -= len(lines.popleft())
-                    truncated = True
+            raw_line = _decode_json_string(tail)
+            if raw_line:
+                dispatch(raw_line)
 
-        if truncated:
+        truncation_msg = (
+            f"[Logs exceeded maximum allowed size ({max_chars / (1024 ** 2):.0f} MB). "
+            "Logs have been truncated, discarding the oldest entries first.]"
+        )
+        if public_truncated:
             logger.warning(
-                "[_stream_logs_from_ray] job_id=%s ray_job_id=%s Logs truncated to last %d chars",
+                "[_stream_logs_from_ray] job_id=%s ray_job_id=%s Public logs truncated to last %d chars",
                 self._job.id,
                 self._job.ray_job_id,
                 max_chars,
             )
-            warning = (
-                f"[Logs exceeded maximum allowed size ({max_chars / (1024 ** 2):.0f} MB). "
-                "Logs have been truncated, discarding the oldest entries first.]"
+            public_lines.appendleft(truncation_msg)
+        if private_truncated:
+            logger.warning(
+                "[_stream_logs_from_ray] job_id=%s ray_job_id=%s Private logs truncated to last %d chars",
+                self._job.id,
+                self._job.ray_job_id,
+                max_chars,
             )
-            lines.appendleft(warning)
+            private_lines.appendleft(truncation_msg)
 
-        return lines
+        return FilteredLogs(public_logs=public_lines, private_logs=private_lines)
 
-    def provider_logs(self) -> deque[str]:
+    def provider_logs(self) -> FilteredLogs:
         """Return provider logs for this job.
 
         Ray has no distinction between user and provider logs, so this
         delegates to logs().
 
         Returns:
-            deque of decoded log lines, empty if no logs are available.
+            FilteredLogs with prefix-stripped deques.
 
         Raises:
             RunnerError: If unable to retrieve logs.

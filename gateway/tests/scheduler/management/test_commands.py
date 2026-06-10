@@ -15,6 +15,7 @@ from prometheus_client import CollectorRegistry
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import ComputeResource, Job, JobEvent, Config
 from core.services.runners import RunnerError
+from core.services.runners.ray_runner import FilteredLogs
 from core.utils import check_logs
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
@@ -51,7 +52,7 @@ class TestCommands:
         # Test status change from PENDING to RUNNING
         runner = MagicMock()
         runner.status.return_value = JobStatus.RUNNING
-        runner.logs.return_value = deque(["No logs yet."])
+        runner.logs.return_value = FilteredLogs(public_logs=deque(["No logs yet."]), private_logs=None)
         get_runner.return_value = runner
 
         job = self._create_test_job(ray_job_id="test_update_jobs_statuses")
@@ -71,7 +72,7 @@ class TestCommands:
 
         # Test job logs for FAILED job with empty logs
         runner.status.return_value = JobStatus.FAILED
-        runner.logs.return_value = deque()
+        runner.logs.return_value = FilteredLogs(public_logs=deque(), private_logs=None)
 
         UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
@@ -220,13 +221,27 @@ Ray internal log without marker
 
         runner = MagicMock()
         runner.status.return_value = JobStatus.SUCCEEDED
-        runner.logs.return_value = deque(full_logs.splitlines())
+        runner.logs.return_value = FilteredLogs(
+            public_logs=deque(
+                [
+                    "",
+                    "2026-01-06 10:00:00,000 INFO job_manager.py:568 -- Runtime env is setting up.",
+                    "",
+                    "INFO: Public user log",
+                    "INFO: Private provider log",
+                    "INFO: Another public log",
+                    "Ray internal log without marker",
+                    "INFO: Final public log",
+                ]
+            ),
+            private_logs=None,
+        )
         get_runner.return_value = runner
 
         UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
 
         # User logs are located in username/logs/
-        # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
+        # Verify user logs are filtered: all lines with prefixes stripped
         user_log_file_path = os.path.join(
             dj_settings.MEDIA_ROOT,
             "test_author",
@@ -281,7 +296,12 @@ Internal system log
 
         runner = MagicMock()
         runner.status.return_value = JobStatus.SUCCEEDED
-        runner.logs.return_value = deque(full_logs.splitlines())
+        runner.logs.return_value = FilteredLogs(
+            public_logs=deque(["INFO: Public log for user", "INFO: Another public log", "INFO: Final public log"]),
+            private_logs=deque(
+                ["", "", "INFO: Private log for provider only", "Internal system log", "WARNING: Private warning"]
+            ),
+        )
         get_runner.return_value = runner
 
         UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=self.metrics).run()
@@ -349,11 +369,14 @@ WARNING: Private warning
         assert job_events[0].origin == JobEventOrigin.SCHEDULER
         assert job_events[0].context == JobEventContext.UPDATE_JOB_STATUS
 
-    def test_save_logs_to_storage_accepts_deque(self, settings):
-        """Tests that save_logs_to_storage works with deque[str] input."""
+    def test_save_logs_to_storage_accepts_filtered_logs(self, settings):
+        """Tests that save_logs_to_storage works with FilteredLogs input."""
         job = self._create_test_job(author="test_author", status=Job.SUCCEEDED)
-        lines = deque(["[PUBLIC] INFO: User log", "Plain untagged log line"])
-        save_logs_to_storage(job, lines)
+        logs = FilteredLogs(
+            public_logs=deque(["INFO: User log", "Plain untagged log line"]),
+            private_logs=None,
+        )
+        save_logs_to_storage(job, logs)
 
         user_log_file_path = os.path.join(
             dj_settings.MEDIA_ROOT,

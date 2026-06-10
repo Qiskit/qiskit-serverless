@@ -126,7 +126,7 @@ class TestRayRunner:
                 text='{"logs": "No logs yet."}',
             )
             job_logs = self.handler.logs()
-        assert list(job_logs) == ["No logs yet."]
+        assert list(job_logs.public_logs) == ["No logs yet."]
 
     def test_job_stop(self):
         """Tests stopping of job."""

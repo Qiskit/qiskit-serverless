@@ -2,6 +2,8 @@
 
 from collections import deque
 from unittest.mock import MagicMock, patch
+
+from core.services.runners.ray_runner import FilteredLogs
 from prometheus_client import CollectorRegistry
 
 import pytest
@@ -157,7 +159,10 @@ class TestScheduleApi(APITestCase):
         """
         runner = MagicMock()
         runner.status.return_value = JobStatus.RUNNING
-        runner.logs.return_value = deque(["No logs yet.", "Maximum job runtime reached. Stopping the job."])
+        runner.logs.return_value = FilteredLogs(
+            public_logs=deque(["No logs yet.", "Maximum job runtime reached. Stopping the job."]),
+            private_logs=None,
+        )
         get_runner.return_value = runner
 
         # Override PROGRAM_TIMEOUT to 0 hours so job immediately exceeds limit
