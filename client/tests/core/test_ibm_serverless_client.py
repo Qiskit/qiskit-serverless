@@ -34,7 +34,7 @@ class TestIBMServerlessClient:
             {
                 "crn": "test-crn",
                 "plan": "test_plan",
-                "name": "test_name",
+                "name": "my_instance",
                 "tags": "test_tags",
                 "pricing_type": "test_pricing_type",
             }
@@ -70,10 +70,17 @@ class TestIBMServerlessClient:
             {
                 "crn": "test-crn",
                 "plan": "test_plan",
-                "name": "test_name",
+                "name": "dummy_hub/dummy_group/dummy_project",
                 "tags": "test_tags",
                 "pricing_type": "test_pricing_type",
-            }
+            },
+            {
+                "crn": "test-crn",
+                "plan": "test_plan",
+                "name": "dummy_crn",
+                "tags": "test_tags",
+                "pricing_type": "test_pricing_type",
+            },
         ]
 
         # Mock ServerlessClient credential verification
@@ -130,7 +137,7 @@ class TestIBMServerlessClient:
             {
                 "crn": "test-crn",
                 "plan": "test_plan",
-                "name": "test_name",
+                "name": "test_instance",
                 "tags": "test_tags",
                 "pricing_type": "test_pricing_type",
             }
@@ -161,7 +168,7 @@ class TestIBMServerlessClient:
             {
                 "crn": "test-crn",
                 "plan": "test_plan",
-                "name": "test_name",
+                "name": "test_instance",
                 "tags": "test_tags",
                 "pricing_type": "test_pricing_type",
             }
@@ -192,7 +199,7 @@ class TestIBMServerlessClient:
             {
                 "crn": "test-crn",
                 "plan": "test_plan",
-                "name": "test_name",
+                "name": "test_instance",
                 "tags": "test_tags",
                 "pricing_type": "test_pricing_type",
             }
@@ -221,7 +228,7 @@ class TestIBMServerlessClient:
             {
                 "crn": "test-crn",
                 "plan": "test_plan",
-                "name": "test_name",
+                "name": "test_instance",
                 "tags": "test_tags",
                 "pricing_type": "test_pricing_type",
             }
