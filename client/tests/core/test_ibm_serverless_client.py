@@ -32,9 +32,9 @@ class TestIBMServerlessClient:
         # Mock list of instance crns in the IBM Cloud Global
         mock_list_instances.return_value = [
             {
-                "crn": "my_instance",
+                "crn": "my_instance_crn",
                 "plan": "test_plan",
-                "name": "test_name",
+                "name": "my_instance_crn",
                 "tags": "test_tags",
                 "pricing_type": "test_pricing_type",
             }
@@ -45,7 +45,7 @@ class TestIBMServerlessClient:
 
         use_host = "http://other.host"
         use_token = "my_token"
-        use_instance = "my_instance"
+        use_instance = "my_instance_crn"
         use_channel = Channel.IBM_QUANTUM_PLATFORM.value
 
         # Replace the _DEFAULT_ACCOUNT_CONFIG_JSON_FILE path with a temporary file
@@ -70,14 +70,14 @@ class TestIBMServerlessClient:
             {
                 "crn": "dummy_hub/dummy_group/dummy_project",
                 "plan": "test_plan",
-                "name": "test_name_1",
+                "name": "dummy_hub/dummy_group/dummy_project",
                 "tags": "test_tags",
                 "pricing_type": "test_pricing_type",
             },
             {
                 "crn": "dummy_crn",
                 "plan": "test_plan",
-                "name": "test_name_2",
+                "name": "dummy_crn",
                 "tags": "test_tags",
                 "pricing_type": "test_pricing_type",
             },
@@ -137,7 +137,7 @@ class TestIBMServerlessClient:
             {
                 "crn": "test_instance",
                 "plan": "test_plan",
-                "name": "test_name",
+                "name": "test_instance",
                 "tags": "test_tags",
                 "pricing_type": "test_pricing_type",
             }
@@ -168,7 +168,7 @@ class TestIBMServerlessClient:
             {
                 "crn": "test_instance",
                 "plan": "test_plan",
-                "name": "test_name",
+                "name": "test_instance",
                 "tags": "test_tags",
                 "pricing_type": "test_pricing_type",
             }
@@ -199,7 +199,7 @@ class TestIBMServerlessClient:
             {
                 "crn": "test_instance",
                 "plan": "test_plan",
-                "name": "test_name",
+                "name": "test_instance",
                 "tags": "test_tags",
                 "pricing_type": "test_pricing_type",
             }
@@ -228,7 +228,7 @@ class TestIBMServerlessClient:
             {
                 "crn": "test_instance",
                 "plan": "test_plan",
-                "name": "test_name",
+                "name": "test_instance",
                 "tags": "test_tags",
                 "pricing_type": "test_pricing_type",
             }
@@ -240,7 +240,9 @@ class TestIBMServerlessClient:
             mock_file_path.return_value = temp_file.name
 
             # This is how users might have been calling it before
-            client = IBMServerlessClient(token="test_token", instance="test_instance", channel="ibm_quantum_platform")
+            client = IBMServerlessClient(
+                token="test_token", instance="test_instance", channel="ibm_quantum_platform"
+            )
 
             assert client.channel == Channel.IBM_QUANTUM_PLATFORM.value
             assert client.account.channel == Channel.IBM_QUANTUM_PLATFORM.value
