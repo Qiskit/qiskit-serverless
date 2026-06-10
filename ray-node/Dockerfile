@@ -19,8 +19,11 @@ RUN microdnf update -y && \
 
 USER 0
 # Create data directories and upgrade pip/setuptools
-RUN mkdir /data /function_data && \
-    chown 1000:1000 /data /function_data && \
+# /data and /function_data are used by the Ray runner as PDS mount points.
+# /function_user_data, /job_user_data, /function_provider_data and /job_provider_data
+# are used by the Fleets runner (4-mount COS path layout).
+RUN mkdir /data /function_data /function_user_data /job_user_data /function_provider_data /job_provider_data && \
+    chown 1000:1000 /data /function_data /function_user_data /job_user_data /function_provider_data /job_provider_data && \
     python3.11 -m ensurepip --upgrade && \
     pip install --upgrade --no-cache-dir \
         "pip>=24.2" \
