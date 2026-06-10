@@ -1,4 +1,4 @@
-cryptography>=47.0.0, <48
+cryptography>=48.0.1, <49
 djangorestframework>=3.17.1, <4
 django-allow-cidr>=0.8.0, <1
 django-csp>=3.8, <5
