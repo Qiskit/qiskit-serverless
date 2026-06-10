@@ -138,12 +138,18 @@ def _make_submit_runner() -> tuple[FleetsRunner, MagicMock]:
     return runner, mock_handler
 
 
-def test_is_active_true_when_fleet_exists():
-    """is_active() returns True when CE API confirms fleet exists."""
-    runner, mock_handler = _make_runner(fleet_id="fleet-123")
-    mock_handler.get_job_status.return_value = {"status": "running"}
+def test_is_active_true_when_running():
+    """is_active() returns True when COS shows running state."""
+    runner, _ = _make_runner(fleet_id="fleet-123")
+    runner._cos.list_keys.return_value = ["ce/test-project-id/fleet-123/v2/queue/running/fleet-123-0/..."]
     assert runner.is_active() is True
-    mock_handler.get_job_status.assert_called_once_with("fleet-123")
+
+
+def test_is_active_true_when_succeeded():
+    """is_active() returns True when COS shows succeeded state."""
+    runner, _ = _make_runner(fleet_id="fleet-123")
+    runner._cos.list_keys.return_value = ["ce/test-project-id/fleet-123/v2/queue/succeeded/0/fleet-123-0/..."]
+    assert runner.is_active() is True
 
 
 def test_is_active_false_when_no_fleet_id():
@@ -152,20 +158,30 @@ def test_is_active_false_when_no_fleet_id():
     assert runner.is_active() is False
 
 
-def test_is_active_false_when_fleet_not_found():
-    """is_active() returns False when CE API returns 404."""
-    runner, mock_handler = _make_runner(fleet_id="fleet-gone")
-    mock_handler.get_job_status.side_effect = ApiException(status=404, reason="Not Found")
+def test_is_active_false_when_pending():
+    """is_active() returns False when COS shows only pending state."""
+    runner, _ = _make_runner(fleet_id="fleet-123")
+    runner._cos.list_keys.return_value = ["ce/test-project-id/fleet-123/v2/queue/pending/000-00000-0/..."]
     assert runner.is_active() is False
 
 
-def test_is_active_false_on_connection_error():
-    """is_active() returns False when connection to CE fails."""
+def test_is_active_false_when_no_cos_keys():
+    """is_active() returns False when COS has no keys yet."""
     runner, _ = _make_runner(fleet_id="fleet-123")
-    runner._connected = False  # pylint: disable=protected-access
-    runner._handler = None  # pylint: disable=protected-access
-    with patch.object(runner, "connect", side_effect=Exception("connection failed")):
-        assert runner.is_active() is False
+    runner._cos.list_keys.return_value = []
+    assert runner.is_active() is False
+
+
+def test_is_active_uses_cache_on_second_call():
+    """is_active() uses cached result and doesn't call COS again."""
+    runner, _ = _make_runner(fleet_id="fleet-123")
+    runner._cos.list_keys.return_value = ["ce/test-project-id/fleet-123/v2/queue/running/fleet-123-0/..."]
+
+    assert runner.is_active() is True
+    runner._cos.list_keys.reset_mock()
+
+    assert runner.is_active() is True
+    runner._cos.list_keys.assert_not_called()
 
 
 def test_status_raises_runner_error_when_no_fleet_id():
