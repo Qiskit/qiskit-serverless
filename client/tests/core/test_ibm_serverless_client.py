@@ -23,10 +23,20 @@ from qiskit_serverless.core.enums import Channel
 class TestIBMServerlessClient:
     """Unit tests for IBMServerlessClient."""
 
+    @patch('qiskit_ibm_runtime.accounts.CloudAccount.list_instances')
     @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
     @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
-    def test_init(self, mock_file_path, mock_verify_credentials):
+    def test_init(self, mock_file_path, mock_verify_credentials, mock_list_instances):
         """Test __init__ with an explicit token, instance and host"""
+
+        # Mock list of instance crns in the IBM Cloud Global
+        mock_list_instances.return_value = [{
+            "crn": "test-crn",
+            "plan": "test_plan",
+            "name": "test_name",
+            "tags": "test_tags",
+            "pricing_type": "test_pricing_type",
+        }]
 
         # Mock ServerlessClient credential verification
         mock_verify_credentials.return_value = None
@@ -47,10 +57,20 @@ class TestIBMServerlessClient:
         assert client.instance == use_instance
         assert client.token == use_token
 
+    @patch('qiskit_ibm_runtime.accounts.CloudAccount.list_instances')
     @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
     @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
-    def test_save_load_account(self, mock_file_path, mock_verify_credentials):
+    def test_save_load_account(self, mock_file_path, mock_verify_credentials, mock_list_instances):
         """Test saving and loading accounts with the IBMServerlessClient."""
+
+        # Mock list of instance crns in the IBM Cloud Global
+        mock_list_instances.return_value = [{
+            "crn": "test-crn",
+            "plan": "test_plan",
+            "name": "test_name",
+            "tags": "test_tags",
+            "pricing_type": "test_pricing_type",
+        }]
 
         # Mock ServerlessClient credential verification
         mock_verify_credentials.return_value = None
@@ -91,13 +111,25 @@ class TestIBMServerlessClient:
         use_instance = "h/g/p"
         use_token = "save_token"
 
-        with pytest.raises(ValueError, match=r"Your channel value is not correct"):
+        # The error message miss a ' at the end but that is the message in qiskit ibm runtime
+        with pytest.raises(ValueError, match=r"'channel' can only be 'ibm_cloud', or 'ibm_quantum_platform"):
             IBMServerlessClient(channel=use_channel, instance=use_instance, token=use_token)
 
+    @patch('qiskit_ibm_runtime.accounts.CloudAccount.list_instances')
     @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
     @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
-    def test_channel_defaults_to_ibm_quantum_platform_when_none(self, mock_file_path, mock_verify):
+    def test_channel_defaults_to_ibm_quantum_platform_when_none(self, mock_file_path, mock_verify, mock_list_instances):
         """Test that channel defaults to IBM_QUANTUM_PLATFORM when None is provided."""
+
+        # Mock list of instance crns in the IBM Cloud Global
+        mock_list_instances.return_value = [{
+            "crn": "test-crn",
+            "plan": "test_plan",
+            "name": "test_name",
+            "tags": "test_tags",
+            "pricing_type": "test_pricing_type",
+        }]
+
         mock_verify.return_value = None
 
         with tempfile.NamedTemporaryFile() as temp_file:
@@ -110,10 +142,21 @@ class TestIBMServerlessClient:
             assert client.channel == Channel.IBM_QUANTUM_PLATFORM.value
             assert client.account.channel == Channel.IBM_QUANTUM_PLATFORM.value
 
+    @patch('qiskit_ibm_runtime.accounts.CloudAccount.list_instances')
     @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
     @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
-    def test_channel_defaults_to_ibm_quantum_platform_when_omitted(self, mock_file_path, mock_verify):
+    def test_channel_defaults_to_ibm_quantum_platform_when_omitted(self, mock_file_path, mock_verify, mock_list_instances):
         """Test that channel defaults to IBM_QUANTUM_PLATFORM when omitted."""
+
+        # Mock list of instance crns in the IBM Cloud Global
+        mock_list_instances.return_value = [{
+            "crn": "test-crn",
+            "plan": "test_plan",
+            "name": "test_name",
+            "tags": "test_tags",
+            "pricing_type": "test_pricing_type",
+        }]
+
         mock_verify.return_value = None
 
         with tempfile.NamedTemporaryFile() as temp_file:
@@ -128,10 +171,21 @@ class TestIBMServerlessClient:
             assert client.channel == Channel.IBM_QUANTUM_PLATFORM.value
             assert client.account.channel == Channel.IBM_QUANTUM_PLATFORM.value
 
+    @patch('qiskit_ibm_runtime.accounts.CloudAccount.list_instances')
     @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
     @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
-    def test_channel_respects_explicit_ibm_cloud_value(self, mock_file_path, mock_verify):
+    def test_channel_respects_explicit_ibm_cloud_value(self, mock_file_path, mock_verify, mock_list_instances):
         """Test that explicitly provided IBM_CLOUD channel is preserved."""
+
+        # Mock list of instance crns in the IBM Cloud Global
+        mock_list_instances.return_value = [{
+            "crn": "test-crn",
+            "plan": "test_plan",
+            "name": "test_name",
+            "tags": "test_tags",
+            "pricing_type": "test_pricing_type",
+        }]
+
         mock_verify.return_value = None
 
         with tempfile.NamedTemporaryFile() as temp_file:
@@ -142,10 +196,21 @@ class TestIBMServerlessClient:
             assert client.channel == Channel.IBM_CLOUD.value
             assert client.account.channel == Channel.IBM_CLOUD.value
 
+    @patch('qiskit_ibm_runtime.accounts.CloudAccount.list_instances')
     @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
     @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
-    def test_backward_compatibility_with_explicit_ibm_quantum_platform(self, mock_file_path, mock_verify):
+    def test_backward_compatibility_with_explicit_ibm_quantum_platform(self, mock_file_path, mock_verify, mock_list_instances):
         """Test backward compatibility when IBM_QUANTUM_PLATFORM is explicitly provided."""
+
+        # Mock list of instance crns in the IBM Cloud Global
+        mock_list_instances.return_value = [{
+            "crn": "test-crn",
+            "plan": "test_plan",
+            "name": "test_name",
+            "tags": "test_tags",
+            "pricing_type": "test_pricing_type",
+        }]
+
         mock_verify.return_value = None
 
         with tempfile.NamedTemporaryFile() as temp_file:
