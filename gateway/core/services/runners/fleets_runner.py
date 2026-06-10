@@ -129,13 +129,14 @@ class FleetsRunner(AbstractRunner):
         """No-op — FleetHandler is a stateless REST client."""
 
     def is_active(self) -> bool:
-        """Return ``True`` if the fleet exists in Code Engine.
+        """Return ``True`` if the fleet has moved past pending.
 
-        Results are cached for 30 seconds (class-level :class:`TTLCache`)
-        to avoid redundant API calls when the scheduler polls frequently.
+        A fleet is active once the worker has claimed the task — meaning
+        COS logs may start appearing. Uses ``status()`` which reads COS
+        task state without hitting the CE API.
 
         Returns:
-            ``True`` when the fleet is reachable, ``False`` otherwise.
+            ``True`` when the fleet is running or has completed, ``False`` otherwise.
         """
         if not self.job.fleet_id:
             return False
@@ -144,20 +145,11 @@ class FleetsRunner(AbstractRunner):
         if cached is not None:
             return cached
 
-        try:
-            self._ensure_connected()
-            self._get_handler().get_job_status(self.job.fleet_id)
+        current_status = self.status()
+        active = current_status is not None and current_status != Job.PENDING
+        if active:
             self._is_active_cache.put(self.job.fleet_id, True)
-            return True
-        except ApiException as ex:
-            if ex.status == 404:
-                self._is_active_cache.put(self.job.fleet_id, False)
-                return False
-            logger.warning("CE API error checking fleet [%s]: status=%s", self.job.fleet_id, ex.status)
-            return False
-        except Exception:  # pylint: disable=broad-exception-caught
-            logger.warning("Unable to verify fleet [%s] existence", self.job.fleet_id)
-            return False
+        return active
 
     def submit(self) -> None:
         """Submit the job as a Code Engine fleet.
