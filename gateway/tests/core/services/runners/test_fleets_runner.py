@@ -66,7 +66,6 @@ def _patch_settings(**overrides):
         "IBM_CLOUD_API_KEY": "test-api-key",
         "CE_ICR_PULL_SECRET": "test-pull-secret",
         "FLEETS_DEFAULT_IMAGE": "default-image:latest",
-        "FLEETS_DEFAULT_MAX_INSTANCES": 1,
         "DEFAULT_COMPUTE_PROFILE": "cx3d-4x16",
         "FLEETS_GATEWAY_HOST": None,
         "CUSTOM_IMAGE_PACKAGE_PATH": "/runner",
@@ -393,14 +392,13 @@ def test_submit_uses_config_workers_as_max_instances():
     assert mock_handler.submit_job.call_args.kwargs["scale_max_instances"] == 3
 
 
-def test_submit_uses_settings_max_instances_when_no_config():
-    """submit() falls back to FLEETS_DEFAULT_MAX_INSTANCES when config has no workers."""
+def test_submit_uses_default_max_instances_when_no_config():
+    """submit() falls back to 1 when config has no workers."""
     runner, mock_handler = _make_submit_runner()
 
-    with _patch_settings(FLEETS_DEFAULT_MAX_INSTANCES=5):
-        runner.submit()
+    runner.submit()
 
-    assert mock_handler.submit_job.call_args.kwargs["scale_max_instances"] == 5
+    assert mock_handler.submit_job.call_args.kwargs["scale_max_instances"] == 1
 
 
 def test_get_result_from_cos_returns_none_when_cos_not_configured():
@@ -471,7 +469,7 @@ def test_get_project_existing(active, raises):
     mock_project = MagicMock()
     mock_project.active = active
     mock_project.project_name = "my-project"
-    runner.job.code_engine_project = mock_project
+    runner.job.program.code_engine_project = mock_project
 
     if raises:
         with pytest.raises(RunnerError):
@@ -481,10 +479,10 @@ def test_get_project_existing(active, raises):
 
 
 def test_get_project_raises_when_no_project_assigned():
-    """_get_project() raises RunnerError when job.code_engine_project is None."""
+    """_get_project() raises RunnerError when program has no code_engine_project."""
     runner, _ = _make_runner()
-    runner.job.code_engine_project = None
-    runner.job.id = "job-uuid"
+    runner.job.program.code_engine_project = None
+    runner.job.program.title = "my-program"
 
     with pytest.raises(RunnerError, match="No Code Engine project assigned"):
         runner._get_project()  # pylint: disable=protected-access

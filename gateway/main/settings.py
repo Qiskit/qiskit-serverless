@@ -268,6 +268,27 @@ LIMITS_MAX_FLEETS = int(os.environ.get("LIMITS_MAX_FLEETS", "1000"))  # Fleets P
 LIMITS_CPU_PER_TASK = int(os.environ.get("LIMITS_CPU_PER_TASK", "4"))
 LIMITS_GPU_PER_TASK = int(os.environ.get("LIMITS_GPU_PER_TASK", "1"))
 LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
+# Fleets / Code Engine credentials
+IBM_CLOUD_API_KEY = os.environ.get("IBM_CLOUD_API_KEY", None)
+CE_ICR_PULL_SECRET = os.environ.get("CE_ICR_PULL_SECRET", None)
+FLEETS_DEFAULT_IMAGE = os.environ.get(
+    "FLEETS_DEFAULT_IMAGE",
+    "private.icr.io/qc-qiskit-functions-ce-staging/helloworld:latest",
+)
+# Compute profile settings for Fleets runner
+DEFAULT_COMPUTE_PROFILE = os.environ.get("DEFAULT_COMPUTE_PROFILE", "bx3d-24x120")  # 24 CPU, 120GB RAM
+# Default resource limits for fleet jobs (can be overridden per job)
+FLEETS_DEFAULT_MAX_INSTANCES = int(os.environ.get("FLEETS_DEFAULT_MAX_INSTANCES", "1"))
+
+CE_HMAC_SECRET_NAME = os.environ.get("CE_HMAC_SECRET_NAME", None)
+CE_DEFAULT_PROJECT_NAME = os.environ.get("CE_DEFAULT_PROJECT_NAME", "")
+
+# Set to "true" to use the public COS endpoint instead of the private VPC endpoint.
+# Only needed for local testing outside IBM Cloud (e.g. docker-compose).
+CE_COS_USE_PUBLIC_ENDPOINT = os.environ.get("CE_COS_USE_PUBLIC_ENDPOINT", "false").lower() == "true"
+# Multi-project configuration: JSON array of project dicts
+CE_PROJECTS: list = json.loads(os.environ.get("CE_PROJECTS", "[]"))  # type: ignore[assignment]
+
 
 # ray cluster management
 RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
@@ -374,35 +395,5 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "Enable external Runtime instances API for function-level access control.",
     },
 }
-
-# Fleets / Code Engine credentials
-IBM_CLOUD_API_KEY = os.environ.get("IBM_CLOUD_API_KEY", None)
-CE_ICR_PULL_SECRET = os.environ.get("CE_ICR_PULL_SECRET", None)
-#######
-### Note: Update the default image with the default custom function ICR image
-#######
-FLEETS_DEFAULT_IMAGE = os.environ.get(
-    "FLEETS_DEFAULT_IMAGE",
-    "private.icr.io/qc-qiskit-functions-ce-staging/helloworld:latest",
-)
-# Compute profile settings for Fleets runner
-DEFAULT_COMPUTE_PROFILE = os.environ.get("DEFAULT_COMPUTE_PROFILE", "bx3d-24x120")  # 24 CPU, 120GB RAM
-# Default resource limits for fleet jobs (can be overridden per job)
-FLEETS_DEFAULT_MAX_INSTANCES = int(os.environ.get("FLEETS_DEFAULT_MAX_INSTANCES", "1"))
-
-CE_HMAC_SECRET_NAME = os.environ.get("CE_HMAC_SECRET_NAME", None)
-
-# Set to "true" to use the public COS endpoint instead of the private VPC endpoint.
-# Only needed for local testing outside IBM Cloud (e.g. docker-compose).
-CE_COS_USE_PUBLIC_ENDPOINT = os.environ.get("CE_COS_USE_PUBLIC_ENDPOINT", "false").lower() == "true"
-# Maps compute profiles to their availability zone. Populated at deploy time via FLEETS_PROFILE_ZONE_MAP
-# JSON env var, e.g. '{"gx2-8x64x1l40s": "us-east-1", "gx3d-24x120x1a100p": "us-east-2"}'.
-# Profiles absent from the map fall back to the first active CodeEngineProject.
-#######
-### Note: Remove environment variable as it's not needed now
-#######
-FLEETS_PROFILE_ZONE_MAP: dict = json.loads(os.environ.get("FLEETS_PROFILE_ZONE_MAP", "{}"))  # type: ignore[assignment]
-# Multi-project configuration: JSON array of project dicts
-CE_PROJECTS: list = json.loads(os.environ.get("CE_PROJECTS", "[]"))  # type: ignore[assignment]
 
 logging.getLogger("main").info("[BOOT] Settings.py: %s", "gunicorn" if IS_UNICORN else COMMAND)

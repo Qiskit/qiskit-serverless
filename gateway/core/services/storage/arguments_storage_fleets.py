@@ -19,14 +19,14 @@ class FleetsArgumentsStorage(ArgumentsStorage):
     ARGUMENTS_FILENAME = "arguments.json"
 
     def __init__(self, job: Job) -> None:
-        if not job.code_engine_project:
-            raise ValueError(f"Job '{job.id}' has no CodeEngineProject assigned")
+        if not job.program.code_engine_project:
+            raise ValueError(f"Program '{job.program.title}' has no CodeEngineProject assigned")
 
         self._job_id = str(job.id)
         self._user_id = job.author.id
-        self._project = job.code_engine_project
+        self._project = job.program.code_engine_project
 
-        bucket = job.code_engine_project.cos_bucket_user_data_name
+        bucket = self._project.cos_bucket_user_data_name
         if not bucket:
             raise ValueError(
                 f"CodeEngineProject '{self._project.project_name}' has no cos_bucket_user_data_name configured"

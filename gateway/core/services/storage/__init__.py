@@ -26,6 +26,8 @@ def get_arguments_storage(job: Job) -> ArgumentsStorage:
     Raises:
         ValueError: If the runner type is unknown.
     """
+    if not job.program or not job.program.runner:
+        raise ValueError(f"Job '{job.id}' has no program or runner assigned")
     if job.program.runner == Program.RAY:
         return RayArgumentsStorage(job)
     if job.program.runner == Program.FLEETS:
@@ -45,6 +47,8 @@ def get_logs_storage(job: Job) -> LogsStorage:
     Raises:
         ValueError: If the runner type is unknown.
     """
+    if not job.program or not job.program.runner:
+        raise ValueError(f"Job '{job.id}' has no program or runner assigned")
     if job.program.runner == Program.RAY:
         return RayLogsStorage(job)
     if job.program.runner == Program.FLEETS:
@@ -86,6 +90,8 @@ def get_result_storage(job: Job) -> ResultStorage:
     Raises:
         ValueError: If the runner type is unknown.
     """
+    if not job.program or not job.program.runner:
+        raise ValueError(f"Job '{job.id}' has no program or runner assigned")
     if job.program.runner == Program.RAY:
         return RayResultStorage(job)
     if job.program.runner == Program.FLEETS:
