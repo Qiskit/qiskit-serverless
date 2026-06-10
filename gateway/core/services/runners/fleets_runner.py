@@ -408,9 +408,9 @@ class FleetsRunner(AbstractRunner):
         return False
 
     def _get_project(self) -> CodeEngineProject:
-        """Return the job's assigned Code Engine project.
+        """Return the program's assigned Code Engine project.
 
-        The project is selected at job creation time (in ``RunJobSerializer.create``).
+        The project is assigned at program upload time (in ``UploadProgramSerializer.create``).
         This method only validates that the assignment is present and active.
 
         Returns:
@@ -419,9 +419,11 @@ class FleetsRunner(AbstractRunner):
         Raises:
             RunnerError: If no project is assigned or the assigned project is inactive.
         """
-        project = self.job.code_engine_project
+        if not self.job.program:
+            raise RunnerError(f"Program for job '{self.job.id}' has been deleted")
+        project = self.job.program.code_engine_project
         if not project:
-            raise RunnerError(f"No Code Engine project assigned to job '{self.job.id}'")
+            raise RunnerError(f"No Code Engine project assigned to program '{self.job.program.title}'")
         if not project.active:
             raise RunnerError(f"Code Engine project '{project.project_name}' is not active")
         return project
@@ -695,7 +697,7 @@ class FleetsRunner(AbstractRunner):
         """Return the maximum number of fleet instances.
 
         Uses ``job.config.workers`` if set, otherwise falls back to
-        ``settings.FLEETS_DEFAULT_MAX_INSTANCES`` (default ``1``).
+        ``settings.FLEETS_DEFAULT_MAX_INSTANCES``.
 
         Returns:
             Max instances as integer.

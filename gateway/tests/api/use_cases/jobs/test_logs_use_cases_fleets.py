@@ -71,8 +71,9 @@ def fleet_custom_job(author, ce_project):
         program_title="fleet-func",
         author=author,
         runner=Program.FLEETS,
+        code_engine_project=ce_project,
     )
-    return TestUtils.create_job(author=author, program=program, code_engine_project=ce_project)
+    return TestUtils.create_job(author=author, program=program)
 
 
 @pytest.fixture
@@ -82,8 +83,9 @@ def fleet_provider_job(author, provider, ce_project):
         author=author,
         provider=provider,
         runner=Program.FLEETS,
+        code_engine_project=ce_project,
     )
-    return TestUtils.create_job(author=author, program=program, code_engine_project=ce_project)
+    return TestUtils.create_job(author=author, program=program)
 
 
 # ── GetJobLogsUseCase — Fleet ─────────────────────────────────────────────────

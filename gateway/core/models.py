@@ -168,6 +168,13 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         null=True,
         blank=True,
     )
+    code_engine_project = models.ForeignKey(
+        "CodeEngineProject",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Code Engine project for Fleets runner programs",
+    )
 
     objects: FunctionsQuerySet = FunctionsQuerySet.as_manager()
 
@@ -289,7 +296,7 @@ class CodeEngineProject(models.Model):
         null=True,
         blank=True,
         unique=True,
-        help_text="Availability zone this project is pinned to (e.g. us-east-1)",
+        help_text="[DEPRECATED] Kept for rollback compatibility — not used by current code",
     )
 
     # Storage and state management
@@ -332,7 +339,8 @@ class CodeEngineProject(models.Model):
     # Status and ownership
     active = models.BooleanField(default=True, help_text="Whether this project is available for job execution")
 
-    objects: CodeEngineProjectQuerySet = CodeEngineProjectQuerySet.as_manager()
+    objects = models.Manager()
+    projects: CodeEngineProjectQuerySet = CodeEngineProjectQuerySet.as_manager()
 
     class Meta:
         app_label = "api"
@@ -434,7 +442,7 @@ class Job(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        help_text="Code Engine project (for Fleets runner)",
+        help_text="[DEPRECATED] Kept for rollback compatibility — use program.code_engine_project instead",
     )
     config = models.ForeignKey(
         to=JobConfig,

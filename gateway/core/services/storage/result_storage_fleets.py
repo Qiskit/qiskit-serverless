@@ -1,15 +1,3 @@
-# This code is part of a Qiskit project.
-#
-# (C) IBM 2026
-#
-# This code is licensed under the Apache License, Version 2.0. You may
-# obtain a copy of this license in the LICENSE.txt file in the root directory
-# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
-#
-# Any modifications or derivative works of this code must retain this
-# copyright notice, and modified files need to carry a notice indicating
-# that they have been altered from the originals.
-
 """Fleets implementation of result storage."""
 
 import logging
@@ -34,30 +22,31 @@ class FleetsResultStorage(ResultStorage):
     NOT_FOUND_CODES = {"404", "NoSuchKey", "NotFound"}
 
     def __init__(self, job: Job) -> None:
-        """Initialize the storage with COS path information from the job.
+        """Initialize the storage with COS path information from the job's program.
 
         Args:
-            job: The Job instance to retrieve results for.
-
-        Raises:
-            ValueError: If the job has no CodeEngineProject assigned.
+            job: The Job instance to retrieve results for. If the program has no
+                CodeEngineProject assigned, get() will return None.
         """
-        if not job.code_engine_project:
-            raise ValueError(f"Job '{job.id}' has no CodeEngineProject assigned")
-
         self._job_id = str(job.id)
-        self._project = job.code_engine_project
-        paths = build_job_paths(job)
-        self._results_key = paths.cos_results_key
-        self._user_bucket = self._project.cos_bucket_user_data_name
+        self._project = job.program.code_engine_project
+        if self._project:
+            paths = build_job_paths(job)
+            self._results_key = paths.cos_results_key
+            self._user_bucket = self._project.cos_bucket_user_data_name
+        else:
+            self._results_key = None
+            self._user_bucket = None
 
     def get(self) -> str | None:
         """Retrieve the result for this job from COS.
 
         Returns:
             The UTF-8 decoded result string, or None if the result is not
-            available (not-found or COS error).
+            available (missing project, not-found, or COS error).
         """
+        if not self._project or not self._user_bucket or not self._results_key:
+            return None
         try:
             content_bytes = get_cos_client(self._project).get_object_bytes(
                 bucket_name=self._user_bucket, key=self._results_key
@@ -87,19 +76,9 @@ class FleetsResultStorage(ResultStorage):
                 e,
             )
             return None
-        except UnicodeDecodeError as e:
-            logger.error(
-                "[get] job_id=%s | Failed to decode result: %s",
-                self._job_id,
-                e,
-            )
-            return None
 
     def save(self, result: str) -> None:
         """Not implemented — Fleets results are written by the SDK via RESULTS_PATH.
-
-        Args:
-            result: Unused. Present only to satisfy the abstract interface.
 
         Raises:
             NotImplementedError: Always raised. Fleets results are written

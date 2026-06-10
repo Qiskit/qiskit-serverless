@@ -10,60 +10,64 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Tests for CodeEngineProjectQuerySet."""
+"""Tests for CodeEngineProjectQuerySet model manager."""
 
 import pytest
-from django.test import override_settings
 
-from core.models import CodeEngineProject
-
-pytestmark = pytest.mark.django_db
+from core.models import CodeEngineProject, Program
+from tests.utils import TestUtils
 
 
-def _make_project(**kwargs):
-    defaults = {
-        "project_id": "proj-id",
-        "project_name": "test-project",
-        "region": "us-east",
-        "resource_group_id": "rg-id",
-        "subnet_pool_id": "subnet-id",
-        "pds_name_state": "pds-state",
-        "pds_name_users": "pds-users",
-        "pds_name_providers": "pds-providers",
-        "active": True,
-    }
-    defaults.update(kwargs)
-    return CodeEngineProject.objects.create(**defaults)
+@pytest.mark.django_db
+class TestSelectDefault:
+    """Tests for CodeEngineProject.projects.select_default()."""
+
+    def test_returns_none_when_configured_name_not_found(self, settings):
+        """Returns None when CE_DEFAULT_PROJECT_NAME doesn't match any active project."""
+        settings.CE_DEFAULT_PROJECT_NAME = "nonexistent"
+        TestUtils.get_or_create_ce_project(project_name="other", project_id="p1")
+
+        assert CodeEngineProject.projects.select_default() is None
+
+    def test_skips_inactive_project(self, settings):
+        """Inactive project with matching name is not selected."""
+        settings.CE_DEFAULT_PROJECT_NAME = "my-project"
+        TestUtils.get_or_create_ce_project(project_name="my-project", project_id="p1", active=False)
+
+        assert CodeEngineProject.projects.select_default() is None
 
 
-@pytest.mark.parametrize(
-    "zone_map,profile,project_zone",
-    [
-        ({"gx2-8x64x1l40s": "us-east-1"}, "gx2-8x64x1l40s", "us-east-1"),  # zone match
-        ({}, "cx3d-4x16", None),  # profile not in map → fallback
-        ({"cx3d-4x16": "any"}, "cx3d-4x16", None),  # "any" → fallback
-        ({}, None, None),  # no profile → fallback
-    ],
-)
-def test_select_for_profile_zone_routing(zone_map, profile, project_zone):
-    """select_for_profile() routes to zone-specific or multi-zone project correctly."""
-    project = _make_project(zone=project_zone)
+@pytest.mark.django_db
+class TestAssignToProgram:
+    """Tests for CodeEngineProject.projects.assign_to_program()."""
 
-    with override_settings(FLEETS_PROFILE_ZONE_MAP=zone_map):
-        result = CodeEngineProject.objects.select_for_profile(profile)
+    @pytest.fixture(autouse=True)
+    def _configure_default(self, settings):
+        settings.CE_DEFAULT_PROJECT_NAME = "default-project"
 
-    assert result == project
+    @pytest.fixture
+    def ce_project(self):
+        return TestUtils.get_or_create_ce_project(project_name="default-project", project_id="proj-default")
 
+    def test_does_not_overwrite_existing_project(self, ce_project):
+        """Existing CE project assignment is preserved."""
+        other = TestUtils.get_or_create_ce_project(project_name="other-project", project_id="proj-other")
+        program = TestUtils.create_program(
+            program_title="pre-assigned",
+            author="user1",
+            runner=Program.FLEETS,
+            code_engine_project=other,
+        )
 
-def test_select_for_profile_returns_none_when_no_project_for_zone():
-    """select_for_profile() returns None when no active project matches the zone."""
-    _make_project(zone=None)  # exists but wrong zone
+        CodeEngineProject.projects.assign_to_program(program)
 
-    with override_settings(FLEETS_PROFILE_ZONE_MAP={"gx2-8x64x1l40s": "us-east-1"}):
-        assert CodeEngineProject.objects.select_for_profile("gx2-8x64x1l40s") is None
+        assert program.code_engine_project == other
 
+    def test_does_not_persist_to_db(self, ce_project):
+        """Caller is responsible for saving — assignment is in-memory only."""
+        program = TestUtils.create_program(program_title="unsaved", author="user1", runner=Program.FLEETS)
 
-def test_select_for_profile_returns_none_when_no_active_project():
-    """select_for_profile() returns None when no active project exists."""
-    with override_settings(FLEETS_PROFILE_ZONE_MAP={}):
-        assert CodeEngineProject.objects.select_for_profile(None) is None
+        CodeEngineProject.projects.assign_to_program(program)
+        program.refresh_from_db()
+
+        assert program.code_engine_project is None
