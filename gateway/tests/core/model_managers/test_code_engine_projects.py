@@ -20,26 +20,26 @@ from tests.utils import TestUtils
 
 @pytest.mark.django_db
 class TestSelectDefault:
-    """Tests for CodeEngineProject.projects.select_default()."""
+    """Tests for CodeEngineProject.objects.select_default()."""
 
     def test_returns_none_when_configured_name_not_found(self, settings):
         """Returns None when CE_DEFAULT_PROJECT_NAME doesn't match any active project."""
         settings.CE_DEFAULT_PROJECT_NAME = "nonexistent"
         TestUtils.get_or_create_ce_project(project_name="other", project_id="p1")
 
-        assert CodeEngineProject.projects.select_default() is None
+        assert CodeEngineProject.objects.select_default() is None
 
     def test_skips_inactive_project(self, settings):
         """Inactive project with matching name is not selected."""
         settings.CE_DEFAULT_PROJECT_NAME = "my-project"
         TestUtils.get_or_create_ce_project(project_name="my-project", project_id="p1", active=False)
 
-        assert CodeEngineProject.projects.select_default() is None
+        assert CodeEngineProject.objects.select_default() is None
 
 
 @pytest.mark.django_db
 class TestAssignToProgram:
-    """Tests for CodeEngineProject.projects.assign_to_program()."""
+    """Tests for CodeEngineProject.objects.assign_to_program()."""
 
     @pytest.fixture(autouse=True)
     def _configure_default(self, settings):
@@ -59,7 +59,7 @@ class TestAssignToProgram:
             code_engine_project=other,
         )
 
-        CodeEngineProject.projects.assign_to_program(program)
+        CodeEngineProject.objects.assign_to_program(program)
 
         assert program.code_engine_project == other
 
@@ -67,7 +67,7 @@ class TestAssignToProgram:
         """Caller is responsible for saving — assignment is in-memory only."""
         program = TestUtils.create_program(program_title="unsaved", author="user1", runner=Program.FLEETS)
 
-        CodeEngineProject.projects.assign_to_program(program)
+        CodeEngineProject.objects.assign_to_program(program)
         program.refresh_from_db()
 
         assert program.code_engine_project is None

@@ -122,7 +122,7 @@ class TestCEProjectResolutionViaSerializer:
         """select_default raises ValueError when CE_DEFAULT_PROJECT_NAME is empty."""
         settings.CE_DEFAULT_PROJECT_NAME = ""
         with pytest.raises(ValueError, match="CE_DEFAULT_PROJECT_NAME not configured"):
-            CodeEngineProject.projects.select_default()
+            CodeEngineProject.objects.select_default()
 
 
 @pytest.mark.django_db
@@ -163,6 +163,8 @@ class TestJobCreationValidation:
 
         assert job.program.code_engine_project == ce_project
         assert job.runner == Program.FLEETS
+        assert job.ce_project_name == ce_project.project_name
+        assert job.ce_region == ce_project.region
 
     def test_job_creation_fails_without_ce_project(self):
         """Job creation raises ValidationError when Fleets program lacks CE project."""

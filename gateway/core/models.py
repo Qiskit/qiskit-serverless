@@ -339,8 +339,7 @@ class CodeEngineProject(models.Model):
     # Status and ownership
     active = models.BooleanField(default=True, help_text="Whether this project is available for job execution")
 
-    objects = models.Manager()
-    projects: CodeEngineProjectQuerySet = CodeEngineProjectQuerySet.as_manager()
+    objects: CodeEngineProjectQuerySet = CodeEngineProjectQuerySet.as_manager()
 
     class Meta:
         app_label = "api"
@@ -455,6 +454,10 @@ class Job(models.Model):
 
     account_id = models.CharField(max_length=255, null=True, blank=True)
     instance_crn = models.CharField(max_length=255, null=True, blank=True)
+    ce_project_name = models.CharField(
+        max_length=255, null=True, blank=True, help_text="CE project name at execution time"
+    )
+    ce_region = models.CharField(max_length=50, null=True, blank=True, help_text="CE region at execution time")
 
     objects: JobQuerySet = JobQuerySet.as_manager()
 

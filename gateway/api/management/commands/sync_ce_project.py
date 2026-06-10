@@ -14,7 +14,7 @@ import logging
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from core.models import CodeEngineProject, Program
+from core.models import CodeEngineProject
 
 logger = logging.getLogger("sync_ce_project")
 
@@ -83,16 +83,3 @@ class Command(BaseCommand):
                 logger.error("CE_PROJECTS entry missing 'project_id': %s", entry)
                 continue
             _upsert_project(project_id, entry)
-
-        self._assign_to_fleets_programs()
-
-    def _assign_to_fleets_programs(self):
-        """Assign active CE project to Fleets programs that lack one."""
-        project = CodeEngineProject.objects.filter(active=True).order_by("pk").first()
-        if not project:
-            return
-        updated = Program.objects.filter(runner=Program.FLEETS, code_engine_project__isnull=True).update(
-            code_engine_project=project
-        )
-        if updated:
-            logger.info("Assigned CodeEngineProject [%s] to %d Fleets program(s)", project.project_name, updated)

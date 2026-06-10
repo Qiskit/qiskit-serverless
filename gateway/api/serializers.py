@@ -133,7 +133,7 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         validated_data["dependencies"] = json.dumps(normalized_dependencies)
 
         program = Program(**validated_data)
-        CodeEngineProject.projects.assign_to_program(program)
+        CodeEngineProject.objects.assign_to_program(program)
         if program.runner == Program.FLEETS and not program.code_engine_project:
             raise serializers.ValidationError("No active Code Engine project available. Contact administrator.")
         program.save()
@@ -160,7 +160,7 @@ class UploadProgramSerializer(serializers.ModelSerializer):
 
         instance.runner = validated_data.get("runner", Program.RAY)
 
-        CodeEngineProject.projects.assign_to_program(instance)
+        CodeEngineProject.objects.assign_to_program(instance)
 
         instance.save()
         return instance
@@ -377,6 +377,8 @@ class RunJobSerializer(serializers.ModelSerializer):
             compute_profile=compute_profile,
             instance_crn=instance,
             account_id=account_id,
+            ce_project_name=program.code_engine_project.project_name if program.code_engine_project else None,
+            ce_region=program.code_engine_project.region if program.code_engine_project else None,
         )
 
         env = encrypt_env_vars(
