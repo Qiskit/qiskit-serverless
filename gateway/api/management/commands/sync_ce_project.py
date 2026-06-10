@@ -1,11 +1,8 @@
 """
-Django management command that syncs CodeEngineProject rows from environment variables.
+Django management command that syncs CodeEngineProject rows from CE_PROJECTS.
 
-Set CE_PROJECTS to a JSON array of project dicts. Each dict must contain the
-keys: project_id, project_name, region, resource_group_id, subnet_pool_id,
-pds_name_state, pds_name_users, pds_name_providers, cos_instance_name,
-cos_key_name, cos_bucket_task_store_name, cos_bucket_user_data_name, cos_bucket_provider_data_name, plus
-an optional "zone" field.
+CE_PROJECTS is a JSON array of project dicts delivered via deployment manifest.
+Each dict must contain the keys listed in _REQUIRED_KEYS plus "project_id".
 
 Run after migrations:
 
@@ -37,53 +34,52 @@ _REQUIRED_KEYS = [
 ]
 
 
-def _sync_project(project_id: str, data: dict) -> None:
-    """Create or update a single CodeEngineProject row."""
+def _upsert_project(project_id: str, data: dict) -> bool:
+    """Create or update a single CodeEngineProject row.
+
+    Args:
+        project_id: The CE project UUID.
+        data: Dict with project configuration fields.
+
+    Returns:
+        True if upsert succeeded, False if required fields are missing.
+    """
     missing = [k for k in _REQUIRED_KEYS if not data.get(k)]
     if missing:
         logger.error("project_id=%s missing required fields: %s", project_id, ", ".join(missing))
-        return
+        return False
 
     defaults = {k: data[k] for k in _REQUIRED_KEYS}
-    defaults["zone"] = data.get("zone") or None
     defaults["active"] = True
 
     _, created = CodeEngineProject.objects.update_or_create(
         project_id=project_id,
-        zone=defaults["zone"],
         defaults=defaults,
     )
     action = "Created" if created else "Updated"
-    logger.info(
-        "%s CodeEngineProject [%s] region=[%s] zone=[%s]",
-        action,
-        data["project_name"],
-        data["region"],
-        defaults["zone"] or "any",
-    )
+    logger.info("%s CodeEngineProject [%s] region=[%s]", action, data["project_name"], data["region"])
+    return True
 
 
 class Command(BaseCommand):
-    """Create or update CodeEngineProject rows from the CE_PROJECTS environment variable."""
+    """Sync CodeEngineProject rows from CE_PROJECTS environment variable."""
 
-    help = "Sync CodeEngineProject from the CE_PROJECTS environment variable"
+    help = "Sync CodeEngineProject rows from CE_PROJECTS JSON array"
 
     def handle(self, *args, **options):
-        if settings.CE_PROJECTS:
-            self._sync_multi()
-        else:
-            logger.info("CE_PROJECTS not set — skipping CodeEngineProject sync")
-
-    def _sync_multi(self):
-        """Sync from the CE_PROJECTS JSON array."""
         projects = settings.CE_PROJECTS
+        if not projects:
+            logger.info("CE_PROJECTS not set or empty — skipping CodeEngineProject sync")
+            return
+
         if not isinstance(projects, list):
             logger.error("CE_PROJECTS must be a JSON array")
             return
+
         logger.info("Syncing %d Code Engine project(s) from CE_PROJECTS", len(projects))
         for entry in projects:
             project_id = entry.get("project_id")
             if not project_id:
                 logger.error("CE_PROJECTS entry missing 'project_id': %s", entry)
                 continue
-            _sync_project(project_id, entry)
+            _upsert_project(project_id, entry)
