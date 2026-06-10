@@ -317,7 +317,7 @@ class RayRunner(AbstractRunner):
         except (RuntimeError, requests.exceptions.RequestException) as ex:
             raise RunnerError(f"Unable to get logs for job [{self._job.ray_job_id}]", ex) from ex
 
-    def _stream_logs_from_ray(self) -> FilteredLogs:
+    def _stream_logs_from_ray(self) -> FilteredLogs:  # pylint: disable=too-many-statements
         """Stream and filter job logs from the Ray dashboard.
 
         Ray returns {"logs": "...content..."} where newlines are JSON-encoded as
