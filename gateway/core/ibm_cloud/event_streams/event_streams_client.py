@@ -66,9 +66,7 @@ class IBMEventStreamsClient:
 
     def __init__(self) -> None:
         if Producer is None:
-            raise RuntimeError(
-                "confluent-kafka is not installed. Add confluent-kafka>=2.6.0,<3 to your dependencies."
-            )
+            raise RuntimeError("confluent-kafka is not installed. Add confluent-kafka>=2.6.0,<3 to your dependencies.")
 
         bootstrap_servers = os.environ["EVENT_STREAMS_BOOTSTRAP_SERVERS"]
         api_key = os.environ["EVENT_STREAMS_API_KEY"]
