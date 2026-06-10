@@ -240,9 +240,7 @@ class TestIBMServerlessClient:
             mock_file_path.return_value = temp_file.name
 
             # This is how users might have been calling it before
-            client = IBMServerlessClient(
-                token="test_token", instance="test_instance", channel="ibm_quantum_platform"
-            )
+            client = IBMServerlessClient(token="test_token", instance="test_instance", channel="ibm_quantum_platform")
 
             assert client.channel == Channel.IBM_QUANTUM_PLATFORM.value
             assert client.account.channel == Channel.IBM_QUANTUM_PLATFORM.value
