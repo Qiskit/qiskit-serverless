@@ -697,7 +697,7 @@ class FleetsRunner(AbstractRunner):
         """Return the maximum number of fleet instances.
 
         Uses ``job.config.workers`` if set, otherwise falls back to
-        ``settings.FLEETS_DEFAULT_MAX_INSTANCES``.
+        ``settings.FLEETS_DEFAULT_MAX_INSTANCES`` (default ``1``).
 
         Returns:
             Max instances as integer.

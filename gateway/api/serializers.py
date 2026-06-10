@@ -134,6 +134,8 @@ class UploadProgramSerializer(serializers.ModelSerializer):
 
         program = Program(**validated_data)
         CodeEngineProject.projects.assign_to_program(program)
+        if program.runner == Program.FLEETS and not program.code_engine_project:
+            raise serializers.ValidationError("No active Code Engine project available. Contact administrator.")
         program.save()
         return program
 

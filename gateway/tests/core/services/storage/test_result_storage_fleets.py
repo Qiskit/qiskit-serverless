@@ -77,14 +77,6 @@ class TestFleetsResultStorage:
         storage = FleetsResultStorage(job)
         assert storage._user_bucket == "user-bucket"  # pylint: disable=protected-access
 
-    def test_no_project_does_not_raise(self):
-        """FleetsResultStorage does not raise when program has no CodeEngineProject."""
-        program = TestUtils.create_program(program_title="orphan", author="bob", runner=Program.FLEETS)
-        job = TestUtils.create_job(author="bob", program=program)
-        storage = FleetsResultStorage(job)
-        assert storage._results_key is None  # pylint: disable=protected-access
-        assert storage._user_bucket is None  # pylint: disable=protected-access
-
     def test_get_returns_content(self, job):
         """get() returns decoded COS object content."""
         storage = FleetsResultStorage(job)
@@ -135,13 +127,6 @@ class TestFleetsResultStorage:
 
         assert result is None
         assert any("COS error AccessDenied" in record.message for record in caplog.records)
-
-    def test_get_returns_none_when_no_project(self):
-        """get() returns None when program has no CodeEngineProject."""
-        program = TestUtils.create_program(program_title="orphan", author="bob", runner=Program.FLEETS)
-        job = TestUtils.create_job(author="bob", program=program)
-        storage = FleetsResultStorage(job)
-        assert storage.get() is None
 
     def test_save_raises_not_implemented(self, job):
         """save() raises NotImplementedError — results are written by the SDK."""
