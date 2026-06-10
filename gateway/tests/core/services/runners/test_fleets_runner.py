@@ -12,15 +12,13 @@
 
 """Unit tests for FleetsRunner."""
 
-from __future__ import annotations
-
 from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
 import pytest
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
-from core.models import Program
+from core.models import Job, Program
 from core.services.runners.abstract_runner import RunnerError
 from core.services.runners.fleets_runner import FleetsRunner
 
@@ -28,7 +26,7 @@ _RUNNER_MOD = "core.services.runners.fleets_runner"
 
 
 @pytest.fixture(autouse=True)
-def _clear_is_active_cache():
+def _clear_caches():
     FleetsRunner._is_active_cache._store.clear()
 
 
@@ -51,9 +49,14 @@ def _make_runner(fleet_id: str | None = None) -> tuple[FleetsRunner, MagicMock]:
 
     runner = FleetsRunner(mock_job)
     mock_handler = MagicMock()
+    mock_cos = MagicMock()
+    mock_cos.list_keys.return_value = []
+    mock_project = MagicMock()
+    mock_project.cos_bucket_task_store_name = "task-store-bucket"
+    mock_project.project_id = "test-project-id"
     runner._handler = mock_handler  # pylint: disable=protected-access
-    runner._project = MagicMock()  # pylint: disable=protected-access
-    runner._cos = MagicMock()  # pylint: disable=protected-access
+    runner._project = mock_project  # pylint: disable=protected-access
+    runner._cos = mock_cos  # pylint: disable=protected-access
     runner._connected = True  # pylint: disable=protected-access
     return runner, mock_handler
 
@@ -165,56 +168,111 @@ def test_is_active_false_on_connection_error():
         assert runner.is_active() is False
 
 
-@pytest.mark.parametrize(
-    "raw,expected",
-    [
-        ("pending", "PENDING"),
-        ("running", "RUNNING"),
-        ("succeeded", "SUCCEEDED"),
-        ("successful", "SUCCEEDED"),
-        ("failed", "FAILED"),
-        ("stopped", "STOPPED"),
-        ("cancelled", "STOPPED"),
-        ("canceled", "STOPPED"),
-        ("canceling", "STOPPED"),
-        ("unknown-status", "PENDING"),
-    ],
-)
-def test_status_maps_fleet_status(raw, expected):
-    """status() maps CE fleet statuses to Job.STATUS constants correctly."""
-    runner, mock_handler = _make_runner(fleet_id="fleet-123")
-    mock_handler.get_job_status.return_value = {"status": raw}
-
-    result = runner.status()
-
-    assert result == getattr(runner.job, expected)
-
-
-def test_status_returns_none_on_429():
-    """status() returns None on 429 to allow scheduler retry without failing the job."""
-    runner, mock_handler = _make_runner(fleet_id="fleet-123")
-    mock_handler.get_job_status.side_effect = ApiException(status=429, reason="Too Many Requests")
-
-    result = runner.status()
-
-    assert result is None
-
-
-def test_status_raises_runner_error_on_other_api_exception():
-    """status() raises RunnerError on non-429 ApiException."""
-    runner, mock_handler = _make_runner(fleet_id="fleet-123")
-    mock_handler.get_job_status.side_effect = ApiException(status=500, reason="Internal Error")
-
-    with pytest.raises(RunnerError):
-        runner.status()
-
-
 def test_status_raises_runner_error_when_no_fleet_id():
     """status() raises RunnerError when job has no fleet_id."""
     runner, _ = _make_runner(fleet_id=None)
 
     with pytest.raises(RunnerError, match="fleet_id"):
         runner.status()
+
+
+def test_status_returns_none_when_cos_empty():
+    """status() returns None when COS has no keys yet (fleet just created)."""
+    runner, _ = _make_runner(fleet_id="fleet-123")
+    runner._cos.list_keys.return_value = []
+
+    assert runner.status() is None
+
+
+class TestCosStatusDetection:
+    """Tests for COS-based fleet status detection."""
+
+    def test_cos_succeeded_returns_succeeded(self):
+        """status() returns SUCCEEDED when COS has a succeeded key."""
+        runner, mock_handler = _make_runner(fleet_id="fleet-123")
+        runner._cos.list_keys.return_value = [
+            "ce/test-project-id/fleet-123/v2/queue/succeeded/0/fleet-123-0/2026-01-01T00:00:00Z/..."
+        ]
+
+        result = runner.status()
+
+        assert result == Job.SUCCEEDED
+        mock_handler.get_job_status.assert_not_called()
+
+    def test_cos_failed_returns_failed(self):
+        """status() returns FAILED when COS has a failed key."""
+        runner, mock_handler = _make_runner(fleet_id="fleet-123")
+        runner._cos.list_keys.return_value = [
+            "ce/test-project-id/fleet-123/v2/queue/failed/1/fleet-123-0/2026-01-01T00:00:00Z/..."
+        ]
+
+        result = runner.status()
+
+        assert result == Job.FAILED
+        mock_handler.get_job_status.assert_not_called()
+
+    def test_cos_running_returns_running(self):
+        """status() returns RUNNING when COS has a running key."""
+        runner, mock_handler = _make_runner(fleet_id="fleet-123")
+        runner._cos.list_keys.return_value = [
+            "ce/test-project-id/fleet-123/v2/queue/running/fleet-123-0/2026-01-01T00:00:00Z/..."
+        ]
+
+        result = runner.status()
+
+        assert result == Job.RUNNING
+        mock_handler.get_job_status.assert_not_called()
+
+    def test_cos_pending_returns_pending(self):
+        """status() returns PENDING when COS has only a pending key."""
+        runner, mock_handler = _make_runner(fleet_id="fleet-123")
+        runner._cos.list_keys.return_value = [
+            "ce/test-project-id/fleet-123/v2/queue/pending/000-00000-0/2026-01-01T00:00:00Z/..."
+        ]
+
+        result = runner.status()
+
+        assert result == Job.PENDING
+        mock_handler.get_job_status.assert_not_called()
+
+    def test_cos_terminal_takes_priority_over_running(self):
+        """status() returns SUCCEEDED even if running key is also present."""
+        runner, mock_handler = _make_runner(fleet_id="fleet-123")
+        runner._cos.list_keys.return_value = [
+            "ce/test-project-id/fleet-123/v2/queue/running/fleet-123-0/...",
+            "ce/test-project-id/fleet-123/v2/queue/succeeded/0/fleet-123-0/...",
+        ]
+
+        result = runner.status()
+
+        assert result == Job.SUCCEEDED
+
+    def test_cos_unrecognized_keys_raises_runner_error(self):
+        """status() raises RunnerError when COS keys don't match any known pattern."""
+        runner, _ = _make_runner(fleet_id="fleet-123")
+        runner._cos.list_keys.return_value = ["ce/test-project-id/fleet-123/v2/queue/unknown-state/..."]
+
+        with pytest.raises(RunnerError, match="Unrecognized COS task state"):
+            runner.status()
+
+    def test_cos_exception_returns_none(self):
+        """status() returns None when COS list_keys raises."""
+        runner, _ = _make_runner(fleet_id="fleet-123")
+        runner._cos.list_keys.side_effect = Exception("connection error")
+
+        assert runner.status() is None
+
+    def test_cos_client_error_returns_none(self):
+        """status() returns None when COS raises ClientError."""
+        from ibm_botocore.exceptions import ClientError
+
+        runner, _ = _make_runner(fleet_id="fleet-123")
+        runner._cos.list_keys.side_effect = ClientError(
+            {"Error": {"Code": "NoSuchBucket", "Message": "not found"}},
+            "ListObjectsV2",
+        )
+
+        assert runner.status() is None
 
 
 def test_stop_deletes_fleet_when_running():

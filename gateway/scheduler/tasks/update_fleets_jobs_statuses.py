@@ -42,7 +42,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             return False
 
         if new_status is None:
-            logger.debug("job_id=%s status poll returned None (rate-limited), skipping update", job.id)
+            logger.debug("job_id=%s status poll returned None (no COS state yet), skipping update", job.id)
             return False
 
         if new_status == Job.SUCCEEDED:
