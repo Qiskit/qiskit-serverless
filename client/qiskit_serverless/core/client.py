@@ -183,16 +183,3 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
             DeprecationWarning,
         )
         return self.functions(**kwargs)
-
-    ######################
-    ####### Widget #######
-    ######################
-
-    def widget(self):
-        """Widget for information about provider and jobs."""
-        # prevent cyclic import
-        from qiskit_serverless.visualization import (  # pylint: disable=import-outside-toplevel
-            Widget,
-        )
-
-        return Widget(self).show()
