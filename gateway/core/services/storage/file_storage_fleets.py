@@ -2,6 +2,7 @@
 This module handle the access to the files store
 """
 
+from dataclasses import dataclass
 import logging
 from typing import Iterator, Optional, Tuple
 from wsgiref.util import FileWrapper
@@ -14,6 +15,32 @@ from core.models import Program
 from core.services.storage.enums.working_dir import WorkingDir
 
 logger = logging.getLogger("core.FileStorage")
+
+
+@dataclass(frozen=True)
+class FleetFunctionPaths:  # pylint: disable=too-many-instance-attributes
+    """Computed paths for a fleet function.
+
+    ``cos_*`` fields are bucket-relative paths used by the Gateway to read/write COS objects.
+
+    Fields ending in ``_prefix`` are directory-scoped (no trailing slash, no filename) and serve two purposes:
+       - As the ``sub_path`` argument of a PDS volume mount
+       - As the base for building COS keys for files whose names are only known at runtime
+
+    Fields ending in ``_key`` are complete object keys, usable directly with the S3 client.
+
+    ``container_*`` fields are absolute paths inside the running container.
+
+    Mount layout (4 PDS volumes):
+      FUNCTION_USER_DATA_PATH   → user bucket   @ cos_user_function_prefix   (function-scoped user data)
+      JOB_USER_DATA_PATH        → user bucket   @ cos_user_job_prefix        (job-scoped user data)
+      FUNCTION_PROVIDER_DATA_PATH → provider bucket @ cos_provider_function_prefix  (provider only)
+      JOB_PROVIDER_DATA_PATH    → provider bucket @ cos_provider_job_prefix   (provider only)
+    """
+
+    # COS prefixes — used as PDS volume mount sub_paths and as key bases
+    cos_user_files_prefix: str  # # providers/.../data/  — FUNCTION_USER_DATA_PATH sub_path (None for custom)
+    cos_provider_files_prefix: str  # providers/.../data/  — FUNCTION_PROVIDER_DATA_PATH sub_path (None for custom)
 
 
 class FileStorageFleets:
@@ -35,12 +62,12 @@ class FileStorageFleets:
             username: User's username
             function: Program model instance containing title and provider
         """
-        paths = build_function_paths(function)
+        paths = self._build_function_paths(function)
         self._function_id = str(function.id)
         self._user_id = username
         self._project = function.code_engine_project
-        self._public_folder_key = paths.cos_user_files_key
-        self._private_folder_key: Optional[str] = paths.cos_provider_files_key
+        self._public_folder_key = paths.cos_user_files_prefix
+        self._private_folder_key: Optional[str] = paths.cos_provider_files_prefix
         self._user_bucket = self._load_user_bucket(function)
         self._provider_bucket = self._load_provider_bucket(function)
 
@@ -495,3 +522,65 @@ class FileStorageFleets:
                 f"CodeEngineProject '{function.code_engine_project.project_name}' has no cos_bucket_provider_data_name configured"
             )
         return provider_bucket
+
+    def _build_custom_function_paths(self, function: Program, username: str) -> FleetFunctionPaths:
+        """COS paths for a custom (non-provider) job.
+
+        The entrypoint and wrapper live in the user bucket at function scope
+        (``FUNCTION_USER_DATA_PATH``). Arguments, logs, and results live in the
+        user bucket at job scope (``JOB_USER_DATA_PATH``). There are no private logs
+        and no provider bucket mounts.
+
+        Field naming conventions:
+        - ``cos_*``       — bucket-relative COS object keys or key prefixes,
+                            used by the gateway to read/write objects via the S3 client.
+        - ``container_*`` — absolute paths inside the running container,
+                            injected as env vars (ARGUMENTS_PATH, RESULTS_PATH, etc.)
+                            or passed directly to the wrapper/entrypoint command.
+        - ``*_prefix``    — directory-scoped key (no trailing slash); doubles as the
+                            ``sub_path`` for the PDS volume mount and as the base for
+                            building object keys at runtime.
+        - ``*_key``       — complete object key, usable directly with the S3 client.
+        - ``*_entrypoint``— key or path to the script that CE runs as the job entry.
+        - ``*_docker_entrypoint`` — key or path to the fleet wrapper script that
+                                    handles log capture and invokes the entrypoint.
+
+        Args:
+            function: Job instance with no provider.
+        """
+
+        program_title = function.title
+        cos_user_function_data = f"users/{username}/custom_functions/{program_title}/data"
+        return FleetFunctionPaths(
+            cos_user_files_prefix=cos_user_function_data,
+            cos_provider_files_prefix=None,
+        )
+
+    def _build_provider_function_paths(self, function: Program, username: str) -> FleetFunctionPaths:
+        """COS paths for a provider job.
+
+        The entrypoint and wrapper live in the provider bucket at function scope
+        (``FUNCTION_PROVIDER_DATA_PATH``). User-facing data lives in the user bucket
+        at both function scope (``FUNCTION_USER_DATA_PATH``) and job scope
+        (``JOB_USER_DATA_PATH``). Private provider logs live in the provider bucket
+        at job scope (``JOB_PROVIDER_DATA_PATH``).
+
+        See :func:`build_custom_job_paths` for field naming conventions.
+
+        Args:
+            job: Job instance with a provider assigned.
+        """
+
+        provider_name = function.provider.name
+        program_title = function.title
+        cos_user_function_data = f"users/{username}/provider_functions/{provider_name}/{program_title}/data"
+        cos_provider_function_data = f"providers/{provider_name}/{program_title}/data"
+        return FleetFunctionPaths(
+            cos_user_files_prefix=cos_user_function_data,
+            cos_provider_files_prefix=cos_provider_function_data,
+        )
+
+    def _build_function_paths(self, function: Program, username: str) -> FleetFunctionPaths:
+        if function.provider:
+            return self._build_provider_function_paths(function, username)
+        return self._build_custom_function_paths(function, username)
