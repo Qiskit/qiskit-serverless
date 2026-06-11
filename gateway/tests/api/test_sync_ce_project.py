@@ -13,9 +13,12 @@
 """Tests for sync_ce_project management command."""
 
 import pytest
+from django.contrib.auth import get_user_model
 
 from api.management.commands.sync_ce_project import _upsert_project
-from core.models import CodeEngineProject
+from core.models import CodeEngineProject, Program
+
+User = get_user_model()
 
 
 def _make_project_data(**overrides):
@@ -65,24 +68,41 @@ class TestUpsertProject:
         project = CodeEngineProject.objects.get(project_id="test-project-id")
         assert project.region == "eu-de"
 
-    def test_removes_duplicates_and_recreates(self):
-        """Removes all existing rows with same project_id and creates fresh."""
+    def test_preserves_rows_on_duplicates_and_updates(self):
+        """Preserves all existing rows with same project_id, updating their data."""
         data = _make_project_data()
-        CodeEngineProject.objects.create(
-            project_id="test-project-id", zone="us-east-1", **{k: data[k] for k in data if k != "project_id"}
-        )
-        CodeEngineProject.objects.create(
-            project_id="test-project-id", zone="us-east-2", **{k: data[k] for k in data if k != "project_id"}
-        )
+        project_data = {k: data[k] for k in data if k != "project_id"}
+        CodeEngineProject.objects.create(project_id="test-project-id", zone="us-east-1", **project_data)
+        CodeEngineProject.objects.create(project_id="test-project-id", zone="us-east-2", **project_data)
 
         assert CodeEngineProject.objects.filter(project_id="test-project-id").count() == 2
 
+        data["region"] = "eu-de"
         result = _upsert_project("test-project-id", data)
 
         assert result is True
-        assert CodeEngineProject.objects.filter(project_id="test-project-id").count() == 1
-        project = CodeEngineProject.objects.get(project_id="test-project-id")
-        assert project.zone is None
+        rows = CodeEngineProject.objects.filter(project_id="test-project-id")
+        assert rows.count() == 2
+        assert all(r.zone is None for r in rows)
+        assert all(r.region == "eu-de" for r in rows)
+
+    def test_fk_references_preserved_on_duplicate_rows(self):
+        """FK references from Programs are not nullified when syncing legacy per-zone rows."""
+        data = _make_project_data()
+        project_data = {k: data[k] for k in data if k != "project_id"}
+        ce1 = CodeEngineProject.objects.create(project_id="test-project-id", zone="us-east-1", **project_data)
+        ce2 = CodeEngineProject.objects.create(project_id="test-project-id", zone="us-east-2", **project_data)
+
+        user = User.objects.create_user(username="test-user", password="pw")
+        p1 = Program.objects.create(title="program-1", author=user, code_engine_project=ce1)
+        p2 = Program.objects.create(title="program-2", author=user, code_engine_project=ce2)
+
+        _upsert_project("test-project-id", data)
+
+        p1.refresh_from_db()
+        p2.refresh_from_db()
+        assert p1.code_engine_project_id == ce1.pk
+        assert p2.code_engine_project_id == ce2.pk
 
     def test_returns_false_on_missing_fields(self):
         """Returns False when required fields are missing."""

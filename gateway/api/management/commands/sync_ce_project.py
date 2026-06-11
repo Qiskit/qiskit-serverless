@@ -52,12 +52,14 @@ def _upsert_project(project_id: str, data: dict) -> bool:
     defaults = {k: data[k] for k in _REQUIRED_KEYS}
     defaults["active"] = True
 
-    deleted_count, _ = CodeEngineProject.objects.filter(project_id=project_id).delete()
-    if deleted_count:
-        logger.info("Removed %d existing row(s) for project_id=%s", deleted_count, project_id)
-
-    CodeEngineProject.objects.create(project_id=project_id, **defaults)
-    logger.info("Created CodeEngineProject [%s] region=[%s]", data["project_name"], data["region"])
+    updated = CodeEngineProject.objects.filter(project_id=project_id).update(zone=None, **defaults)
+    if updated:
+        logger.info(
+            "Updated %d CodeEngineProject row(s) [%s] region=[%s]", updated, data["project_name"], data["region"]
+        )
+    else:
+        CodeEngineProject.objects.create(project_id=project_id, zone=None, **defaults)
+        logger.info("Created CodeEngineProject [%s] region=[%s]", data["project_name"], data["region"])
     return True
 
 
