@@ -175,6 +175,35 @@ class JobAdmin(admin.ModelAdmin):
     ordering = ["-created"]
     inlines = [JobEventInline]
     autocomplete_fields = ["author", "program", "compute_resource", "config"]
+    readonly_fields = ["storage_files_link"]
+
+    fieldsets = [
+        (
+            None,
+            {
+                "fields": [
+                    "author",
+                    "program",
+                    "status",
+                    "sub_status",
+                    "runner",
+                    "fleet_id",
+                    "ray_job_id",
+                    "compute_resource",
+                    "compute_profile",
+                    "config",
+                    "trial",
+                    "business_model",
+                ]
+            },
+        ),
+        (
+            "Storage",
+            {
+                "fields": ["storage_files_link"],
+            },
+        ),
+    ]
 
     def get_urls(self):
         custom_urls = [
