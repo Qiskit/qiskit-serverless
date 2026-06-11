@@ -10,9 +10,7 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Code Engine project QuerySet."""
-
-from __future__ import annotations
+"""Code Engine project model manager."""
 
 import logging
 from typing import TYPE_CHECKING
@@ -21,42 +19,55 @@ from django.conf import settings
 from django.db.models import QuerySet
 
 if TYPE_CHECKING:
-    from core.models import CodeEngineProject
+    from core.models import CodeEngineProject, Program
 
 logger = logging.getLogger("core.model_managers.code_engine_projects")
 
 
 class CodeEngineProjectQuerySet(QuerySet):
-    """QuerySet for CodeEngineProject with project selection helpers."""
+    """QuerySet for CodeEngineProject with selection and assignment helpers."""
 
-    def select_for_profile(self, compute_profile: str | None) -> "CodeEngineProject | None":
-        """Select an active Code Engine project for the given compute profile.
+    def select_default(self) -> "CodeEngineProject | None":
+        """Select the default active Code Engine project.
 
-        Zone resolution: looks up the compute profile in ``FLEETS_PROFILE_ZONE_MAP``.
-        Profiles absent from the map (or mapped to ``"any"``) fall back to the
-        multi-zone project (zone is null/blank).
-
-        Args:
-            compute_profile: Compute profile string, e.g. ``"gx2-8x64x1l40s"``.
+        Requires ``settings.CE_DEFAULT_PROJECT_NAME`` to be configured.
 
         Returns:
-            Active :class:`~core.models.CodeEngineProject`, or ``None`` if not found.
+            Active CodeEngineProject, or None if no matching project is found.
+
+        Raises:
+            ValueError: If CE_DEFAULT_PROJECT_NAME is not configured.
         """
-        profile_zone_map: dict = settings.FLEETS_PROFILE_ZONE_MAP
-        zone = profile_zone_map.get(compute_profile or "")
-        qs = self.filter(active=True)
+        default_name: str = settings.CE_DEFAULT_PROJECT_NAME
+        if not default_name:
+            raise ValueError("CE_DEFAULT_PROJECT_NAME not configured")
 
-        if zone and zone != "any":
-            project = qs.filter(zone=zone).first()
-            if not project:
-                logger.warning(
-                    "No active Code Engine project for zone '%s' (compute profile: %s)", zone, compute_profile
-                )
-        else:
-            project = qs.filter(zone__isnull=True).first() or qs.filter(zone="").first() or qs.first()
-            if not project:
-                logger.warning("No active Code Engine project available (compute profile: %s)", compute_profile)
-
-        if project:
-            logger.info("Selected project [%s] for compute profile [%s]", project.project_name, compute_profile)
+        project = self.filter(active=True, project_name=default_name).first()
+        if not project:
+            logger.warning(
+                "CE_DEFAULT_PROJECT_NAME='%s' does not match any active project",
+                default_name,
+            )
         return project
+
+    def assign_to_program(self, program: "Program") -> None:
+        """Assign a CodeEngineProject to a Fleets program that lacks one.
+
+        No-op if the program already has a CE project or is not a Fleets runner.
+        Mutates ``program.code_engine_project`` in place — caller must save.
+
+        Args:
+            program: Program instance to check and potentially assign a project to.
+        """
+        if program.runner != program.FLEETS:
+            return
+        if program.code_engine_project:
+            return
+
+        program.code_engine_project = self.select_default()
+        if not program.code_engine_project:
+            logger.warning(
+                "program='%s' | No active CodeEngineProject — "
+                "Fleets program will not be runnable until one is provisioned",
+                program.title,
+            )

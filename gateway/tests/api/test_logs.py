@@ -377,3 +377,147 @@ WARNING: Private warning
 
         assert jobs_response.status_code == HTTP_200_OK
         assert jobs_response.data.get("logs") == f"Logs not available for job [{job.id}] during execution."
+
+
+@pytest.mark.django_db
+class TestFleetJobLogsEndpoint:
+    """Test /logs and /provider-logs view responses for Fleet jobs."""
+
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        self.client = APIClient()
+
+    def _authorize(self, username):
+        user, _ = User.objects.get_or_create(username=username)
+        token = MagicMock()
+        token.accessible_functions = FunctionAccessResult(use_legacy_authorization=True)
+        self.client.force_authenticate(user=user, token=token)
+        return user
+
+    def _make_fleet_job(self, author_username):
+        ce_project = TestUtils.get_or_create_ce_project(
+            project_name="test-project",
+            project_id="test-ce-project-id",
+            cos_bucket_user_data_name="user-bucket",
+            cos_bucket_provider_data_name="provider-bucket",
+            cos_instance_name="cos-instance",
+            cos_key_name="cos-key",
+        )
+        program = TestUtils.create_program(
+            program_title="fleet-func",
+            author=author_username,
+            runner=Program.FLEETS,
+            code_engine_project=ce_project,
+        )
+        author, _ = User.objects.get_or_create(username=author_username)
+        return TestUtils.create_job(author=author, program=program)
+
+    @patch("api.use_cases.jobs.get_logs.get_logs_storage")
+    def test_fleet_logs_returns_302_when_logs_exist(self, mock_storage):
+        """Fleet /logs: 302 redirect when COS object exists."""
+        presigned_url = "https://cos.example.com/logs.log?sig=abc"
+        mock_storage.return_value.get_public_logs_url.return_value = presigned_url
+
+        job = self._make_fleet_job("author")
+        self._authorize("author")
+
+        response = self.client.get(
+            reverse("v1:jobs-logs", args=[str(job.id)]),
+            format="json",
+        )
+
+        assert response.status_code == 302
+        assert response["Location"] == presigned_url
+
+    @patch("api.use_cases.jobs.get_logs.get_logs_storage")
+    def test_fleet_logs_returns_204_when_no_logs(self, mock_storage):
+        """Fleet /logs: 204 No Content when COS object does not exist yet."""
+        mock_storage.return_value.get_public_logs_url.return_value = None
+
+        job = self._make_fleet_job("author")
+        self._authorize("author")
+
+        response = self.client.get(
+            reverse("v1:jobs-logs", args=[str(job.id)]),
+            format="json",
+        )
+
+        assert response.status_code == 204
+
+    @patch("api.use_cases.jobs.provider_logs.get_logs_storage")
+    def test_fleet_provider_logs_returns_302_when_logs_exist(self, mock_storage):
+        """Fleet /provider-logs: 302 redirect when COS private log object exists."""
+        presigned_url = "https://cos.example.com/private.log?sig=xyz"
+        mock_storage.return_value.get_private_logs_url.return_value = presigned_url
+
+        ce_project = TestUtils.get_or_create_ce_project(
+            project_name="provider-project",
+            project_id="provider-ce-project-id",
+            cos_bucket_user_data_name="user-bucket",
+            cos_bucket_provider_data_name="provider-bucket",
+            cos_instance_name="cos-instance",
+            cos_key_name="cos-key",
+        )
+        provider = TestUtils.get_or_create_provider("fleet-provider", "fleet-provider-group")
+        program = TestUtils.create_program(
+            program_title="provider-fleet-func",
+            author="provider-author",
+            provider=provider,
+            runner=Program.FLEETS,
+            code_engine_project=ce_project,
+        )
+        author, _ = User.objects.get_or_create(username="provider-author")
+        job = TestUtils.create_job(author=author, program=program)
+
+        admin, _ = User.objects.get_or_create(username="provider-admin-user")
+        TestUtils.add_user_to_group("provider-admin-user", "fleet-provider-group")
+
+        token = MagicMock()
+        token.accessible_functions = FunctionAccessResult(use_legacy_authorization=True)
+        self.client.force_authenticate(user=admin, token=token)
+
+        response = self.client.get(
+            reverse("v1:jobs-provider-logs", args=[str(job.id)]),
+            format="json",
+        )
+
+        assert response.status_code == 302
+        assert response["Location"] == presigned_url
+
+    @patch("api.use_cases.jobs.provider_logs.get_logs_storage")
+    def test_fleet_provider_logs_returns_204_when_no_logs(self, mock_storage):
+        """Fleet /provider-logs: 204 No Content when COS private log does not exist yet."""
+        mock_storage.return_value.get_private_logs_url.return_value = None
+
+        ce_project = TestUtils.get_or_create_ce_project(
+            project_name="provider-project-2",
+            project_id="provider-ce-project-id-2",
+            cos_bucket_user_data_name="user-bucket",
+            cos_bucket_provider_data_name="provider-bucket",
+            cos_instance_name="cos-instance",
+            cos_key_name="cos-key",
+        )
+        provider = TestUtils.get_or_create_provider("fleet-provider-2", "fleet-provider-group-2")
+        program = TestUtils.create_program(
+            program_title="provider-fleet-func-2",
+            author="provider-author-2",
+            provider=provider,
+            runner=Program.FLEETS,
+            code_engine_project=ce_project,
+        )
+        author, _ = User.objects.get_or_create(username="provider-author-2")
+        job = TestUtils.create_job(author=author, program=program)
+
+        admin, _ = User.objects.get_or_create(username="provider-admin-user-2")
+        TestUtils.add_user_to_group("provider-admin-user-2", "fleet-provider-group-2")
+
+        token = MagicMock()
+        token.accessible_functions = FunctionAccessResult(use_legacy_authorization=True)
+        self.client.force_authenticate(user=admin, token=token)
+
+        response = self.client.get(
+            reverse("v1:jobs-provider-logs", args=[str(job.id)]),
+            format="json",
+        )
+
+        assert response.status_code == 204

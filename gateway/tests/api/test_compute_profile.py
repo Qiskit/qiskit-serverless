@@ -12,13 +12,14 @@ from tests.utils import TestUtils
 
 pytestmark = pytest.mark.django_db
 
-_STORAGE_MOD = "core.services.storage.arguments_storage_fleets.FleetsArgumentsStorage.save"
+_ARGS_STORAGE_MOD = "core.services.storage.arguments_storage_fleets.FleetsArgumentsStorage.save"
+_RESULT_STORAGE_MOD = "core.services.storage.result_storage_fleets.get_cos_client"
 
 
 @pytest.fixture(autouse=True)
-def mock_fleets_arguments_storage_save():
-    """Prevent FleetsArgumentsStorage.save() from calling COS in unit tests."""
-    with patch(_STORAGE_MOD):
+def mock_fleets_cos_clients():
+    """Prevent Fleets storage classes from calling COS in unit tests."""
+    with patch(_ARGS_STORAGE_MOD), patch(_RESULT_STORAGE_MOD):
         yield
 
 
@@ -48,17 +49,18 @@ def ce_project():
 
 
 @pytest.fixture
-def program(user):
+def program(user, ce_project):
     """Create a test program with Fleets runner for compute_profile testing."""
     return TestUtils.create_program(
         program_title="test-program",
         author=user,
         runner=Program.FLEETS,
+        code_engine_project=ce_project,
     )
 
 
 @override_settings(DEFAULT_COMPUTE_PROFILE="cx3d-4x16")
-def test_create_job_with_compute_profile(api_client, program, ce_project):
+def test_create_job_with_compute_profile(api_client, program):
     """Test creating a job with explicit compute_profile."""
     url = reverse("v1:programs-run")
     data = {
@@ -79,7 +81,7 @@ def test_create_job_with_compute_profile(api_client, program, ce_project):
 
 
 @override_settings(DEFAULT_COMPUTE_PROFILE="cx3d-4x16")
-def test_create_job_without_compute_profile_uses_default(api_client, program, ce_project):
+def test_create_job_without_compute_profile_uses_default(api_client, program):
     """Test creating a job without compute_profile uses system default."""
     url = reverse("v1:programs-run")
     data = {
@@ -107,7 +109,7 @@ def test_create_job_without_compute_profile_uses_default(api_client, program, ce
         "bx2d-2x8",
     ],
 )
-def test_compute_profile_validation_valid_formats(api_client, program, profile, ce_project):
+def test_compute_profile_validation_valid_formats(api_client, program, profile):
     """Test compute_profile validation accepts valid formats."""
     url = reverse("v1:programs-run")
     data = {

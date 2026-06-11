@@ -33,31 +33,31 @@ class FleetsLogsStorage(LogsStorage):
     NOT_FOUND_CODES = {"404", "NoSuchKey", "NotFound"}
 
     def __init__(self, job: Job) -> None:
-        if not job.code_engine_project:
-            raise ValueError(f"Job '{job.id}' has no CodeEngineProject assigned")
+        if not job.program.code_engine_project:
+            raise ValueError(f"Program '{job.program.title}' has no CodeEngineProject assigned")
 
         paths = build_job_paths(job)
         self._job_id = str(job.id)
         self._user_id = job.author.id
-        self._project = job.code_engine_project
+        self._project = job.program.code_engine_project
         self._public_key = paths.cos_user_log_key
         self._private_key: Optional[str] = paths.cos_provider_log_key
-        self._user_bucket = self._load_user_bucket(job)
+        self._user_bucket = self._load_user_bucket()
         self._provider_bucket = self._load_provider_bucket(job)
 
     def _load_provider_bucket(self, job: Job):
         if not job.program.provider:
             return None
 
-        provider_bucket = job.code_engine_project.cos_bucket_provider_data_name
+        provider_bucket = self._project.cos_bucket_provider_data_name
         if not provider_bucket:
             raise ValueError(
                 f"CodeEngineProject '{self._project.project_name}' has no cos_bucket_provider_data_name configured"
             )
         return provider_bucket
 
-    def _load_user_bucket(self, job: Job):
-        user_bucket = job.code_engine_project.cos_bucket_user_data_name
+    def _load_user_bucket(self):
+        user_bucket = self._project.cos_bucket_user_data_name
         if not user_bucket:
             raise ValueError(
                 f"CodeEngineProject '{self._project.project_name}' has no cos_bucket_user_data_name configured"
@@ -137,3 +137,31 @@ class FleetsLogsStorage(LogsStorage):
 
     def save_private_logs(self, logs: str) -> None:
         raise NotImplementedError
+
+    def get_public_logs_url(self) -> Optional[str]:
+        if not self._object_exists(self._user_bucket, self._public_key):
+            return None
+        return get_cos_client(self._project).get_presigned_url(
+            bucket_name=self._user_bucket,
+            key=self._public_key,
+        )
+
+    def get_private_logs_url(self) -> Optional[str]:
+        if self._provider_bucket is None:
+            raise RuntimeError("Private logs are only available for provider jobs")
+        if not self._object_exists(self._provider_bucket, self._private_key):
+            return None
+        return get_cos_client(self._project).get_presigned_url(
+            bucket_name=self._provider_bucket,
+            key=self._private_key,
+        )
+
+    def _object_exists(self, bucket: str, key: str) -> bool:
+        try:
+            get_cos_client(self._project).head_object(bucket_name=bucket, key=key)
+            return True
+        except ClientError as e:
+            code = e.response.get("Error", {}).get("Code", "")
+            if code in self.NOT_FOUND_CODES:
+                return False
+            raise

@@ -30,6 +30,7 @@ from qiskit_serverless.core.constants import (
     ENV_JOB_GATEWAY_TOKEN,
     ENV_JOB_GATEWAY_INSTANCE,
     ENV_ACCESS_TRIAL,
+    RESULTS_PATH,
 )
 from qiskit_serverless.core.job import (
     Job,
@@ -103,20 +104,21 @@ class ResponseMockWithRuntimeJobs:
 class TestJob:
     """TestJob."""
 
-    def test_save_result(self, job_env_variables):
+    def test_save_result(self, job_env_variables, tmp_path, monkeypatch):
         """Tests job save result."""
         _ = job_env_variables
 
-        url = f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/" f"api/v1/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/result/"
-        with requests_mock.Mocker() as mocker:
-            mocker.post(url)
-            result = save_result(
-                {
-                    "numpy_array": np.random.random((4, 2)),
-                    "quantum_circuit": random_circuit(3, 2),
-                }
-            )
-            assert result is True
+        result_file = tmp_path / "result.json"
+        monkeypatch.setenv(RESULTS_PATH, str(result_file))
+
+        result = save_result(
+            {
+                "numpy_array": np.random.random((4, 2)),
+                "quantum_circuit": random_circuit(3, 2),
+            }
+        )
+        assert result is True
+        assert result_file.exists()
 
     @patch("requests.patch", Mock(return_value=ResponseMock()))
     def test_update_sub_status(self, job_env_variables):

@@ -37,6 +37,8 @@ from typing import TYPE_CHECKING, Any
 from ibm_boto3.s3.transfer import TransferConfig
 from ibm_botocore.exceptions import ClientError
 
+from core.ibm_cloud.clients import COS_PUBLIC_URL_TEMPLATE
+
 if TYPE_CHECKING:
     from core.ibm_cloud.clients import IBMCloudClientProvider
 
@@ -85,6 +87,7 @@ class COSClient:
         self._endpoint_url = endpoint_url
         self._max_threads = max_threads
         self._s3: Any = None
+        self._s3_pub: Any = None
         self._transfer_config: TransferConfig | None = None
 
     @property
@@ -98,6 +101,23 @@ class COSClient:
                 endpoint_url=self._endpoint_url,
             )
         return self._s3
+
+    @property
+    def _s3_presigned(self) -> Any:
+        """Return cached S3 client configured with the public endpoint, for presigned URL generation.
+
+        Presigned URLs are handed to external callers who cannot reach private
+        (``s3.direct.*``) endpoints, so this client always uses the public URL.
+        """
+        if self._s3_pub is None:
+            public_url = COS_PUBLIC_URL_TEMPLATE.format(region=self._bucket_region)
+            self._s3_pub = self._provider.get_cos_hmac_client(
+                access_key_id=self._credentials.access_key_id,
+                secret_access_key=self._credentials.secret_access_key,
+                bucket_region=self._bucket_region,
+                endpoint_url=public_url,
+            )
+        return self._s3_pub
 
     @property
     def _transfer(self) -> TransferConfig:
@@ -405,3 +425,28 @@ class COSClient:
             ClientError: If retrieval fails.
         """
         return self.get_object_stream(bucket=bucket, key=key).read()
+
+    def head_object(self, *, bucket: str, key: str) -> None:
+        """Check that an object exists.
+
+        Raises:
+            ClientError: If the object does not exist or an error occurs.
+        """
+        self._s3_hmac.head_object(Bucket=bucket, Key=key)
+
+    def generate_presigned_url(self, *, bucket: str, key: str, expiry: int = 3600) -> str:
+        """Generate a presigned GET URL for an object.
+
+        Args:
+            bucket: Bucket name.
+            key: Object key.
+            expiry: URL validity in seconds (default 3600).
+
+        Returns:
+            Presigned URL string.
+        """
+        return self._s3_presigned.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": bucket, "Key": key},
+            ExpiresIn=expiry,
+        )
