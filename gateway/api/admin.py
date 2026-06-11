@@ -35,7 +35,7 @@ class CodeEngineProjectAdmin(admin.ModelAdmin):
     """CodeEngineProjectAdmin."""
 
     search_fields = ["project_name", "project_id", "region"]
-    list_display = ["project_name", "region", "zone"]
+    list_display = ["project_name", "region"]
 
 
 @admin.register(Provider)
@@ -54,7 +54,7 @@ class ProgramAdmin(admin.ModelAdmin):
     list_filter = ["provider", "type", "runner", "disabled"]
     exclude = ["env_vars"]
     filter_horizontal = ["instances", "trial_instances"]
-    autocomplete_fields = ["author", "provider"]
+    autocomplete_fields = ["author", "provider", "code_engine_project"]
     change_form_template = "program/change_form.html"
 
     list_display = [
@@ -169,7 +169,7 @@ class JobAdmin(admin.ModelAdmin):
     exclude = ["arguments", "env_vars", "logs", "result"]
     ordering = ["-created"]
     inlines = [JobEventInline]
-    autocomplete_fields = ["author", "program", "compute_resource", "code_engine_project", "config"]
+    autocomplete_fields = ["author", "program", "compute_resource", "config"]
 
     def save_model(self, request, obj, form, change):
         if change:

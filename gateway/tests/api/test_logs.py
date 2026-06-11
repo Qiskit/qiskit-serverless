@@ -431,9 +431,10 @@ class TestFleetJobLogsEndpoint:
             program_title="fleet-func",
             author=author_username,
             runner=Program.FLEETS,
+            code_engine_project=ce_project,
         )
         author, _ = User.objects.get_or_create(username=author_username)
-        return TestUtils.create_job(author=author, program=program, code_engine_project=ce_project)
+        return TestUtils.create_job(author=author, program=program)
 
     @patch("api.use_cases.jobs.get_logs.get_logs_storage")
     def test_fleet_logs_returns_302_when_logs_exist(self, mock_storage):
@@ -487,9 +488,10 @@ class TestFleetJobLogsEndpoint:
             author="provider-author",
             provider=provider,
             runner=Program.FLEETS,
+            code_engine_project=ce_project,
         )
         author, _ = User.objects.get_or_create(username="provider-author")
-        job = TestUtils.create_job(author=author, program=program, code_engine_project=ce_project)
+        job = TestUtils.create_job(author=author, program=program)
 
         admin, _ = User.objects.get_or_create(username="provider-admin-user")
         TestUtils.add_user_to_group("provider-admin-user", "fleet-provider-group")
@@ -525,9 +527,10 @@ class TestFleetJobLogsEndpoint:
             author="provider-author-2",
             provider=provider,
             runner=Program.FLEETS,
+            code_engine_project=ce_project,
         )
         author, _ = User.objects.get_or_create(username="provider-author-2")
-        job = TestUtils.create_job(author=author, program=program, code_engine_project=ce_project)
+        job = TestUtils.create_job(author=author, program=program)
 
         admin, _ = User.objects.get_or_create(username="provider-admin-user-2")
         TestUtils.add_user_to_group("provider-admin-user-2", "fleet-provider-group-2")

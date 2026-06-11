@@ -277,6 +277,8 @@ spec:
             {{- if .Values.ce }}
             - name: FLEETS_GATEWAY_HOST
               value: {{ .Values.ce.fleetsGatewayHost | quote }}
+            - name: CE_DEFAULT_PROJECT_NAME
+              value: {{ .Values.ce.defaultProjectName | quote }}
             - name: CE_PROJECTS
               value: {{ .Values.ce.projects | toJson | quote }}
 
@@ -486,6 +488,8 @@ spec:
                   key: {{ .Values.secrets.ibmCloudApiKey.key }}
             {{- end }}
             {{- if .Values.ce }}
+            - name: CE_DEFAULT_PROJECT_NAME
+              value: {{ .Values.ce.defaultProjectName | quote }}
             - name: CE_PROJECTS
               value: {{ .Values.ce.projects | toJson | quote }}
 

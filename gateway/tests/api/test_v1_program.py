@@ -1114,8 +1114,9 @@ class TestProgramApi(APITestCase):
         fake_file.name = "test_run.tar"
 
         TestUtils.authorize_client(user="test_user_2", client=self.client)
+        TestUtils.get_or_create_ce_project(project_name="test-project", project_id="test-id")
 
-        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT, CE_DEFAULT_PROJECT_NAME="test-project"):
             programs_response = self.client.post(
                 "/api/v1/programs/upload/",
                 data={

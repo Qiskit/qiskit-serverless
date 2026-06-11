@@ -20,7 +20,7 @@ from api.v1.serializers import (
     RunJobSerializer,
 )
 from core.domain.business_models import BusinessModel
-from core.models import CodeEngineProject, Job, JobConfig, Program
+from core.models import Job, JobConfig, Program
 from rest_framework.exceptions import ValidationError
 from tests.utils import TestUtils
 
@@ -455,9 +455,8 @@ class TestSerializers:
         assert "fleet_id" in data
         assert data["fleet_id"] == "fleet-xyz"
 
-    @patch.object(CodeEngineProject.objects, "select_for_profile", return_value=None)
-    def test_run_job_serializer_raises_validation_error_when_no_ce_project(self, _):
-        """RunJobSerializer.create() raises ValidationError when select_for_profile returns None."""
+    def test_run_job_serializer_raises_validation_error_when_no_ce_project(self):
+        """RunJobSerializer.create() raises ValidationError when program has no CE project."""
         user = models.User.objects.get(username="test_user")
         program = TestUtils.create_program(program_title="fleets-program", author=user, runner=Program.FLEETS)
 
