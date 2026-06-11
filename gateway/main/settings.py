@@ -391,17 +391,11 @@ DEFAULT_COMPUTE_PROFILE = os.environ.get("DEFAULT_COMPUTE_PROFILE", "bx3d-24x120
 FLEETS_DEFAULT_MAX_INSTANCES = int(os.environ.get("FLEETS_DEFAULT_MAX_INSTANCES", "1"))
 
 CE_HMAC_SECRET_NAME = os.environ.get("CE_HMAC_SECRET_NAME", None)
+CE_DEFAULT_PROJECT_NAME = os.environ.get("CE_DEFAULT_PROJECT_NAME", "")
 
 # Set to "true" to use the public COS endpoint instead of the private VPC endpoint.
 # Only needed for local testing outside IBM Cloud (e.g. docker-compose).
 CE_COS_USE_PUBLIC_ENDPOINT = os.environ.get("CE_COS_USE_PUBLIC_ENDPOINT", "false").lower() == "true"
-# Maps compute profiles to their availability zone. Populated at deploy time via FLEETS_PROFILE_ZONE_MAP
-# JSON env var, e.g. '{"gx2-8x64x1l40s": "us-east-1", "gx3d-24x120x1a100p": "us-east-2"}'.
-# Profiles absent from the map fall back to the first active CodeEngineProject.
-#######
-### Note: Remove environment variable as it's not needed now
-#######
-FLEETS_PROFILE_ZONE_MAP: dict = json.loads(os.environ.get("FLEETS_PROFILE_ZONE_MAP", "{}"))  # type: ignore[assignment]
 # Multi-project configuration: JSON array of project dicts
 CE_PROJECTS: list = json.loads(os.environ.get("CE_PROJECTS", "[]"))  # type: ignore[assignment]
 

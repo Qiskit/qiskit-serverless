@@ -12,8 +12,6 @@
 
 """Runner for executing jobs on IBM Code Engine Fleets."""
 
-from __future__ import annotations
-
 import json
 import logging
 import re
@@ -24,6 +22,7 @@ from io import BytesIO
 
 from django.conf import settings
 from django.template.loader import get_template
+from ibm_botocore.exceptions import ClientError
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
 from core.models import Job, CodeEngineProject
@@ -260,45 +259,77 @@ class FleetsRunner(AbstractRunner):
             logger.error("Failed to submit job_id=[%s]: %s", self.job.id, ex)
             raise RunnerError(f"Failed to submit job_id=[{self.job.id}] to Code Engine Fleets", ex) from ex
 
-    def status(self) -> str | None:
-        """Return the job status mapped to :attr:`Job.STATUS`.
+    _COS_STATUS_PRIORITY = [
+        ("/succeeded/", Job.SUCCEEDED),
+        ("/failed/", Job.FAILED),
+        ("/canceled/", Job.STOPPED),
+        ("/canceling/", Job.STOPPED),
+        ("/running/", Job.RUNNING),
+        ("/pending/", Job.PENDING),
+    ]
 
-        Returns ``None`` on a 429 rate-limit response so the scheduler keeps
-        the job in its current state and retries on the next poll cycle.
+    def status(self) -> str | None:
+        """Return the job status by checking COS task state PDS bucket.
+
+        Reads keys under ``ce/{project_id}/{fleet_id}/v2/queue/`` and matches
+        against known status patterns in priority order.
 
         Returns:
-            Mapped status string or ``None``.
+            Mapped status string or ``None`` when COS has no state yet.
 
         Raises:
-            RunnerError: On non-recoverable API errors.
+            RunnerError: On non-recoverable errors.
         """
-        self._ensure_connected()
         if not self.job.fleet_id:
             raise RunnerError("Job has no fleet_id assigned")
 
-        try:
-            fleet_status = self._get_handler().get_job_status(self.job.fleet_id)
-            raw = fleet_status.get("status")
-            mapped = self._map_fleet_status(raw) if raw else None
-            logger.debug("Fleet [%s] status: %s → %s", self.job.fleet_id, raw, mapped)
-            if mapped in (Job.FAILED, Job.STOPPED):
-                logger.warning("Fleet [%s] terminal status [%s] raw=[%s]", self.job.fleet_id, mapped, raw)
-            return mapped
+        if not self._project:
+            self._project = self._get_project()
 
-        except ApiException as ex:
-            if ex.status == 429:
-                logger.warning("Rate limit (429) for fleet [%s] — retrying next poll", self.job.fleet_id)
-                return None
-            logger.error(
-                "CE API error getting status for fleet [%s]: status=%s reason=%s",
-                self.job.fleet_id,
-                ex.status,
-                ex.reason,
+        bucket = self._project.cos_bucket_task_store_name
+        if not bucket:
+            raise RunnerError(
+                f"CodeEngineProject '{self._project.project_name}' has no cos_bucket_task_store_name configured"
             )
-            raise RunnerError(f"Code Engine API error: {ex.reason}", ex) from ex
-        except Exception as ex:
-            logger.error("Failed to get status for fleet [%s]: %s", self.job.fleet_id, ex)
-            raise RunnerError(f"Unable to get status for fleet [{self.job.fleet_id}]", ex) from ex
+
+        prefix = f"ce/{self._project.project_id}/{self.job.fleet_id}/v2/queue/"
+        keys = self._list_task_state_keys(bucket, prefix)
+        if not keys:
+            # CE takes 10-15s after fleet creation to write the first queue/ key.
+            # Scheduler retries on next cycle.
+            return None
+
+        for pattern, status in self._COS_STATUS_PRIORITY:
+            for key in keys:
+                if pattern in key:
+                    logger.debug("Fleet [%s] COS status: %s", self.job.fleet_id, status)
+                    return status
+
+        raise RunnerError(f"Unrecognized COS task state for fleet [{self.job.fleet_id}]: {keys}")
+
+    def _list_task_state_keys(self, bucket: str, prefix: str) -> list[str]:
+        """List task state keys from COS, returning empty list on failure.
+
+        Args:
+            bucket: COS bucket name to query.
+            prefix: Key prefix to filter results.
+
+        Returns:
+            List of matching key strings, or an empty list if the COS call fails.
+        """
+        try:
+            return self._get_cos().list_keys(bucket_name=bucket, prefix=prefix)
+        except ClientError as exc:
+            code = exc.response.get("Error", {}).get("Code", "unknown")
+            logger.warning(
+                "COS list_keys failed for fleet [%s] (code=%s); will retry on next cycle", self.job.fleet_id, code
+            )
+            return []
+        except ValueError:
+            raise
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            logger.warning("COS list_keys failed for fleet [%s]: %s; will retry on next cycle", self.job.fleet_id, exc)
+            return []
 
     def logs(self) -> str | None:
         """
@@ -408,9 +439,9 @@ class FleetsRunner(AbstractRunner):
         return False
 
     def _get_project(self) -> CodeEngineProject:
-        """Return the job's assigned Code Engine project.
+        """Return the program's assigned Code Engine project.
 
-        The project is selected at job creation time (in ``RunJobSerializer.create``).
+        The project is assigned at program upload time (in ``UploadProgramSerializer.create``).
         This method only validates that the assignment is present and active.
 
         Returns:
@@ -419,9 +450,11 @@ class FleetsRunner(AbstractRunner):
         Raises:
             RunnerError: If no project is assigned or the assigned project is inactive.
         """
-        project = self.job.code_engine_project
+        if not self.job.program:
+            raise RunnerError(f"Program for job '{self.job.id}' has been deleted")
+        project = self.job.program.code_engine_project
         if not project:
-            raise RunnerError(f"No Code Engine project assigned to job '{self.job.id}'")
+            raise RunnerError(f"No Code Engine project assigned to program '{self.job.program.title}'")
         if not project.active:
             raise RunnerError(f"Code Engine project '{project.project_name}' is not active")
         return project
@@ -703,25 +736,3 @@ class FleetsRunner(AbstractRunner):
         if self.job.config and getattr(self.job.config, "workers", None):
             return int(self.job.config.workers)
         return settings.FLEETS_DEFAULT_MAX_INSTANCES
-
-    def _map_fleet_status(self, fleet_status: str) -> str:
-        """Map a CE fleet status string to a :attr:`Job.STATUS` constant.
-
-        Args:
-            fleet_status: Raw fleet status from Code Engine.
-
-        Returns:
-            Corresponding ``Job.STATUS`` constant.
-        """
-        status_map = {
-            "pending": Job.PENDING,
-            "running": Job.RUNNING,
-            "succeeded": Job.SUCCEEDED,
-            "successful": Job.SUCCEEDED,
-            "failed": Job.FAILED,
-            "stopped": Job.STOPPED,
-            "cancelled": Job.STOPPED,
-            "canceled": Job.STOPPED,
-            "canceling": Job.STOPPED,
-        }
-        return status_map.get(fleet_status.lower(), Job.PENDING)

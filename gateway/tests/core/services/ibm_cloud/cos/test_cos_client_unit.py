@@ -255,3 +255,37 @@ def test_generate_presigned_url_default_expiry() -> None:
 
     _, kwargs = mock_s3.generate_presigned_url.call_args
     assert kwargs["ExpiresIn"] == 3600
+
+
+def test_generate_presigned_url_uses_public_endpoint() -> None:
+    """generate_presigned_url() embeds the public COS endpoint in the URL, even when the
+    client was initialized with a private endpoint."""
+    from ibm_boto3 import client as ibm_boto3_client
+    from core.ibm_cloud.clients import COS_PUBLIC_URL_TEMPLATE
+
+    public_url = COS_PUBLIC_URL_TEMPLATE.format(region="us-east")
+
+    def _make_real_s3(*, endpoint_url, **_kwargs):
+        return ibm_boto3_client(
+            "s3",
+            aws_access_key_id="AKIAIOSFODNN7EXAMPLE",
+            aws_secret_access_key="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+            endpoint_url=endpoint_url,
+            region_name="us-east",
+        )
+
+    mock_provider = MagicMock()
+    mock_provider.config.region = "us-east"
+    mock_provider.get_cos_hmac_client.side_effect = _make_real_s3
+
+    private_url = "https://s3.direct.us-east.cloud-object-storage.appdomain.cloud"
+    client = COSClient(
+        client_provider=mock_provider,
+        credentials=CosHmacCredentials(access_key_id="ak", secret_access_key="sk"),
+        bucket_region="us-east",
+        endpoint_url=private_url,
+    )
+
+    url = client.generate_presigned_url(bucket="my-bucket", key="some/key")
+
+    assert url.startswith(public_url)
