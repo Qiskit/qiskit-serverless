@@ -1,9 +1,11 @@
 """Admin module."""
 
 import json
+import logging
 
 from django.contrib import admin
 from django.utils.safestring import mark_safe
+from django.utils.html import format_html
 from django.urls import path
 from django.shortcuts import render, get_object_or_404
 from django.contrib.admin.views.main import PAGE_VAR
@@ -21,6 +23,9 @@ from core.models import (
     RuntimeJob,
 )
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
+from core.services.storage.job_file_explorer import JobFileExplorer
+
+logger = logging.getLogger("gateway.admin")
 
 
 @admin.register(JobConfig)
@@ -170,6 +175,42 @@ class JobAdmin(admin.ModelAdmin):
     ordering = ["-created"]
     inlines = [JobEventInline]
     autocomplete_fields = ["author", "program", "compute_resource", "config"]
+
+    def get_urls(self):
+        custom_urls = [
+            path(
+                "<uuid:job_id>/files/",
+                self.admin_site.admin_view(self.job_files_view),
+                name="job_files_view",
+            ),
+        ]
+        return custom_urls + super().get_urls()
+
+    def job_files_view(self, request, job_id):
+        """Dedicated page listing all storage files for a job."""
+        job = get_object_or_404(Job, pk=job_id)
+        error = None
+        groups = []
+        try:
+            groups = JobFileExplorer().explore(job)
+        except Exception as exc:
+            logger.error("Error loading storage files for job %s: %s", job_id, exc, exc_info=True)
+            error = str(exc)
+
+        context = {
+            **self.admin_site.each_context(request),
+            "job": job,
+            "groups": groups,
+            "error": error,
+            "opts": self.model._meta,
+            "app_label": self.model._meta.app_label,
+        }
+        return render(request, "admin/api/job/files.html", context)
+
+    @admin.display(description="Storage")
+    def storage_files_link(self, obj):
+        url = f"/admin/api/job/{obj.id}/files/"
+        return format_html('<a href="{}" target="_blank">Ver ficheros de storage</a>', url)
 
     def save_model(self, request, obj, form, change):
         if change:
