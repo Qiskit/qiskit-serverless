@@ -32,9 +32,9 @@ class TestIBMServerlessClient:
         # Mock list of instance crns in the IBM Cloud Global
         mock_list_instances.return_value = [
             {
-                "crn": "my_instance_crn",
+                "crn": "my_instance",
                 "plan": "test_plan",
-                "name": "my_instance_crn",
+                "name": "my_instance",
                 "tags": "test_tags",
                 "pricing_type": "test_pricing_type",
             }
@@ -45,7 +45,7 @@ class TestIBMServerlessClient:
 
         use_host = "http://other.host"
         use_token = "my_token"
-        use_instance = "my_instance_crn"
+        use_instance = "my_instance"
         use_channel = Channel.IBM_QUANTUM_PLATFORM.value
 
         # Replace the _DEFAULT_ACCOUNT_CONFIG_JSON_FILE path with a temporary file
