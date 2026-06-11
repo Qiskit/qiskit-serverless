@@ -74,12 +74,17 @@ def associate_runtime_job_with_serverless_job(runtime_job_id: str, session_id: O
         f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/runtime_jobs/"
     )
 
-    response = requests.post(
-        url,
-        json={"runtime_job": runtime_job_id, "runtime_session": session_id},
-        headers=get_headers(token=token, instance=instance, channel=channel),
-        timeout=REQUESTS_TIMEOUT,
-    )
+    try:
+        response = requests.post(
+            url,
+            json={"runtime_job": runtime_job_id, "runtime_session": session_id},
+            headers=get_headers(token=token, instance=instance, channel=channel),
+            timeout=REQUESTS_TIMEOUT,
+        )
+    except requests.exceptions.RequestException as exc:
+        logging.warning("Could not associate runtime job with serverless job: %s", exc)
+        return False
+
     if not response.ok:
         sanitized = response.text.replace("\n", "").replace("\r", "")
         logging.warning("Something went wrong: %s", sanitized)
