@@ -168,6 +168,13 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         null=True,
         blank=True,
     )
+    code_engine_project = models.ForeignKey(
+        "CodeEngineProject",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Code Engine project for Fleets runner programs",
+    )
 
     objects: FunctionsQuerySet = FunctionsQuerySet.as_manager()
 
@@ -289,7 +296,7 @@ class CodeEngineProject(models.Model):
         null=True,
         blank=True,
         unique=True,
-        help_text="Availability zone this project is pinned to (e.g. us-east-1)",
+        help_text="[DEPRECATED] Kept for rollback compatibility — not used by current code",
     )
 
     # Storage and state management
@@ -434,7 +441,7 @@ class Job(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        help_text="Code Engine project (for Fleets runner)",
+        help_text="[DEPRECATED] Kept for rollback compatibility — use program.code_engine_project instead",
     )
     config = models.ForeignKey(
         to=JobConfig,
@@ -448,6 +455,10 @@ class Job(models.Model):
     account_id = models.CharField(max_length=255, null=True, blank=True)
     instance_crn = models.CharField(max_length=255, null=True, blank=True)
     running_started_at = models.DateTimeField(null=True, blank=True)
+    ce_project_name = models.CharField(
+        max_length=255, null=True, blank=True, help_text="CE project name at execution time"
+    )
+    ce_region = models.CharField(max_length=50, null=True, blank=True, help_text="CE region at execution time")
 
     objects: JobQuerySet = JobQuerySet.as_manager()
 

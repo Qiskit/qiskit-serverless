@@ -54,6 +54,10 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             self.to_terminal(job, Job.FAILED)
             return False
 
+        if new_status is None:
+            logger.debug("job_id=%s status poll returned None (no COS state yet), skipping update", job.id)
+            return False
+
         if new_status == Job.SUCCEEDED:
             self.to_terminal(job, Job.SUCCEEDED)
             self._record_execution_duration(job)

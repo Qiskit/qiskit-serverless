@@ -40,8 +40,9 @@ class TestFleetsArgumentsStorage:
             program_title="my-program",
             author="alice",
             runner=Program.FLEETS,
+            code_engine_project=ce_project,
         )
-        return TestUtils.create_job(author="alice", program=program, code_engine_project=ce_project)
+        return TestUtils.create_job(author="alice", program=program)
 
     @pytest.fixture
     def job_with_provider(self, ce_project):
@@ -50,8 +51,9 @@ class TestFleetsArgumentsStorage:
             author="alice",
             provider="good-partner",
             runner=Program.FLEETS,
+            code_engine_project=ce_project,
         )
-        return TestUtils.create_job(author="alice", program=program, code_engine_project=ce_project)
+        return TestUtils.create_job(author="alice", program=program)
 
     def test_arguments_key_custom_function(self, job):
         """_arguments_key uses custom_functions path when program has no provider."""
