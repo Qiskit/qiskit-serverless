@@ -3,6 +3,7 @@ This module handle the access to the files store
 """
 
 from dataclasses import dataclass
+from io import BytesIO
 import logging
 from typing import Iterator, Optional, Tuple
 from wsgiref.util import FileWrapper
@@ -12,9 +13,10 @@ from django.core.files import File
 
 from core.ibm_cloud import get_cos_client
 from core.models import Program
-from core.services.storage.enums.working_dir import WorkingDir
 
 logger = logging.getLogger("core.FileStorage")
+
+# BytesIO is used for streaming file chunks from COS bytes
 
 
 @dataclass(frozen=True)
@@ -62,7 +64,7 @@ class FileStorageFleets:
             username: User's username
             function: Program model instance containing title and provider
         """
-        paths = self._build_function_paths(function)
+        paths = self._build_function_paths(function, username)
         self._function_id = str(function.id)
         self._user_id = username
         self._project = function.code_engine_project
@@ -268,12 +270,15 @@ class FileStorageFleets:
         """
         key = f"{self._public_folder_key}/{file_name}"
         try:
-            response = get_cos_client(self._project).get_object(bucket_name=self._user_bucket, key=key)
-            file_size = response.get("ContentLength", 0)
-            content_type = response.get("ContentType", "application/octet-stream")
+            content_bytes = get_cos_client(self._project).get_object_bytes(bucket_name=self._user_bucket, key=key)
+            file_size = len(content_bytes)
+            file_obj = BytesIO(content_bytes)
 
             def stream_generator():
-                for chunk in iter(lambda: response["Body"].read(chunk_size), b""):
+                while True:
+                    chunk = file_obj.read(chunk_size)
+                    if not chunk:
+                        break
                     yield chunk
 
             logger.info(
@@ -283,7 +288,7 @@ class FileStorageFleets:
                 self._user_bucket,
                 key,
             )
-            return (stream_generator(), content_type, file_size)
+            return (stream_generator(), "application/octet-stream", file_size)
         except ClientError as e:
             code = e.response.get("Error", {}).get("Code", "")
             if code in self.NOT_FOUND_CODES:
@@ -324,12 +329,15 @@ class FileStorageFleets:
 
         key = f"{self._private_folder_key}/{file_name}"
         try:
-            response = get_cos_client(self._project).get_object(bucket_name=self._provider_bucket, key=key)
-            file_size = response.get("ContentLength", 0)
-            content_type = response.get("ContentType", "application/octet-stream")
+            content_bytes = get_cos_client(self._project).get_object_bytes(bucket_name=self._provider_bucket, key=key)
+            file_size = len(content_bytes)
+            file_obj = BytesIO(content_bytes)
 
             def stream_generator():
-                for chunk in iter(lambda: response["Body"].read(chunk_size), b""):
+                while True:
+                    chunk = file_obj.read(chunk_size)
+                    if not chunk:
+                        break
                     yield chunk
 
             logger.info(
@@ -339,7 +347,7 @@ class FileStorageFleets:
                 self._provider_bucket,
                 key,
             )
-            return (stream_generator(), content_type, file_size)
+            return (stream_generator(), "application/octet-stream", file_size)
         except ClientError as e:
             code = e.response.get("Error", {}).get("Code", "")
             if code in self.NOT_FOUND_CODES:
@@ -374,7 +382,7 @@ class FileStorageFleets:
         """
         key = f"{self._public_folder_key}/{file.name}"
         try:
-            get_cos_client(self._project).put_object(bucket_name=self._user_bucket, key=key, body=file.read())
+            get_cos_client(self._project).upload_fileobj(fileobj=file, bucket_name=self._user_bucket, key=key)
             logger.info(
                 "[upload-public-file] user_id=%s function_id=%s bucket=%s key=%s File uploaded",
                 self._user_id,
@@ -410,7 +418,7 @@ class FileStorageFleets:
 
         key = f"{self._private_folder_key}/{file.name}"
         try:
-            get_cos_client(self._project).put_object(bucket_name=self._provider_bucket, key=key, body=file.read())
+            get_cos_client(self._project).upload_fileobj(fileobj=file, bucket_name=self._provider_bucket, key=key)
             logger.info(
                 "[upload-private-file] user_id=%s function_id=%s bucket=%s key=%s File uploaded",
                 self._user_id,
@@ -503,9 +511,8 @@ class FileStorageFleets:
 
         user_bucket = function.code_engine_project.cos_bucket_user_data_name
         if not user_bucket:
-            raise ValueError(
-                f"CodeEngineProject '{function.code_engine_project.project_name}' has no cos_bucket_user_data_name configured"
-            )
+            project_name = function.code_engine_project.project_name
+            raise ValueError(f"CodeEngineProject '{project_name}' has no " "cos_bucket_user_data_name configured")
         return user_bucket
 
     def _load_provider_bucket(self, function: Program) -> Optional[str]:
@@ -518,9 +525,8 @@ class FileStorageFleets:
 
         provider_bucket = function.code_engine_project.cos_bucket_provider_data_name
         if not provider_bucket:
-            raise ValueError(
-                f"CodeEngineProject '{function.code_engine_project.project_name}' has no cos_bucket_provider_data_name configured"
-            )
+            project_name = function.code_engine_project.project_name
+            raise ValueError(f"CodeEngineProject '{project_name}' has no " "cos_bucket_provider_data_name configured")
         return provider_bucket
 
     def _build_custom_function_paths(self, function: Program, username: str) -> FleetFunctionPaths:
