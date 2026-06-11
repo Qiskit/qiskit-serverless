@@ -84,10 +84,13 @@ class TestFileStorageFleets:
     # ── get_public_files ───────────────────────────────────────────────────────
 
     def test_get_public_files_returns_list(self, function):
-        """get_public_files() returns list of file names."""
+        """get_public_files() returns bare file names stripped of the COS key prefix."""
         storage = FileStorageFleets("alice", function)
         mock_cos = MagicMock()
-        mock_cos.list_keys.return_value = ["file1.txt", "file2.txt"]
+        mock_cos.list_keys.return_value = [
+            "users/alice/custom_functions/my-program/data/file1.txt",
+            "users/alice/custom_functions/my-program/data/file2.txt",
+        ]
 
         with patch(_COS_MODULE, return_value=mock_cos):
             result = storage.get_public_files()
@@ -112,10 +115,13 @@ class TestFileStorageFleets:
     # ── get_private_files ──────────────────────────────────────────────────────
 
     def test_get_private_files_returns_list(self, function_with_provider):
-        """get_private_files() returns list of file names for provider functions."""
+        """get_private_files() returns bare file names stripped of the COS key prefix."""
         storage = FileStorageFleets("alice", function_with_provider)
         mock_cos = MagicMock()
-        mock_cos.list_keys.return_value = ["private1.txt", "private2.txt"]
+        mock_cos.list_keys.return_value = [
+            "providers/good-partner/my-program/data/private1.txt",
+            "providers/good-partner/my-program/data/private2.txt",
+        ]
 
         with patch(_COS_MODULE, return_value=mock_cos):
             result = storage.get_private_files()
