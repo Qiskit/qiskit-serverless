@@ -388,6 +388,34 @@ class COSClient:
                     keys.append(obj_key)
         return keys
 
+    def list_with_metadata(self, *, bucket: str, prefix: str) -> list[dict]:
+        """List objects under a prefix, returning key, size and last_modified.
+
+        Uses a single paginated list_objects_v2 call — no per-object head_object.
+
+        Args:
+            bucket: Bucket name.
+            prefix: Key prefix to filter results.
+
+        Returns:
+            List of dicts with keys ``key`` (str), ``size`` (int),
+            ``last_modified`` (datetime | None).
+        """
+        paginator = self._s3_hmac.get_paginator("list_objects_v2")
+        result: list[dict] = []
+        for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+            for obj in page.get("Contents") or []:
+                key = obj.get("Key")
+                if isinstance(key, str):
+                    result.append(
+                        {
+                            "key": key,
+                            "size": obj.get("Size", 0),
+                            "last_modified": obj.get("LastModified"),
+                        }
+                    )
+        return result
+
     def get_object_stream(self, *, bucket: str, key: str) -> Any:
         """
         Retrieve object as a streaming body.
