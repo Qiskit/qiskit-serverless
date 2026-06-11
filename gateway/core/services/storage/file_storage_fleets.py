@@ -5,6 +5,7 @@ This module handle the access to the files store
 from dataclasses import dataclass
 from io import BytesIO
 import logging
+import os
 from typing import Iterator, Optional, Tuple
 from wsgiref.util import FileWrapper
 
@@ -93,7 +94,7 @@ class FileStorageFleets:
                 self._user_bucket,
                 self._public_folder_key,
             )
-            return files
+            return [os.path.basename(f) for f in files]
         except ClientError as e:
             code = e.response.get("Error", {}).get("Code", "")
             if code in self.NOT_FOUND_CODES:
@@ -137,7 +138,7 @@ class FileStorageFleets:
                 self._provider_bucket,
                 self._private_folder_key,
             )
-            return files
+            return [os.path.basename(f) for f in files]
         except ClientError as e:
             code = e.response.get("Error", {}).get("Code", "")
             if code in self.NOT_FOUND_CODES:
