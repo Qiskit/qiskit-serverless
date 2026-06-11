@@ -5,6 +5,7 @@ from core.services.storage.arguments_storage import ArgumentsStorage
 from core.services.storage.arguments_storage_fleets import FleetsArgumentsStorage
 from core.services.storage.arguments_storage_ray import RayArgumentsStorage
 from core.services.storage.file_storage import FileStorage
+from core.services.storage.file_storage_fleets import FileStorageFleets
 from core.services.storage.file_storage_ray import FileStorageRay
 from core.services.storage.logs_storage import LogsStorage
 from core.services.storage.logs_storage_fleets import FleetsLogsStorage
@@ -70,7 +71,7 @@ def get_file_storage(
     if function.runner == Program.RAY:
         return FileStorageRay(username, function)
     if function.runner == Program.FLEETS:
-        return FileStorageRay(username, function)
+        return FileStorageFleets(username, function)
     raise ValueError(f"Unknown runner type: {function.runner}")
 
 
