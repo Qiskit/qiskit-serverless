@@ -70,10 +70,9 @@ class TestIBMServerlessClient:
         https://cloud.ibm.com/docs/account?topic=account-crn#format-crn)
         """
 
-
         instance_dic = {
             "crn": "crn:v1:bluemix:public:cloud-object-storage:global:a/59bcbfa6ea2f006b4ed7094c1a08dcdd:"
-                   "1a0ec336-f391-4091-a6fb-5e084a4c56f4:bucket:mybucket",
+            "1a0ec336-f391-4091-a6fb-5e084a4c56f4:bucket:mybucket",
             "plan": "test_plan",
             "name": "my_instance_crn",
             "tags": "test_tags",
@@ -88,7 +87,6 @@ class TestIBMServerlessClient:
         use_host = "http://other.host"
         use_token = "my_token"
         use_instance = "my_instance_crn"
-        # use_instance = instance_dic["crn"]
         use_channel = Channel.IBM_QUANTUM_PLATFORM.value
 
         # Replace the _DEFAULT_ACCOUNT_CONFIG_JSON_FILE path with a temporary file
@@ -99,7 +97,6 @@ class TestIBMServerlessClient:
 
         assert client.host == use_host
         assert client.channel == use_channel
-        # assert client.instance == use_instance
         assert client.instance == instance_dic["crn"]
         assert client.token == use_token
 
