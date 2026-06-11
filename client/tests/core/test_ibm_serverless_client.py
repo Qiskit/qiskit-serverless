@@ -62,6 +62,50 @@ class TestIBMServerlessClient:
     @patch("qiskit_ibm_runtime.accounts.account.CloudAccount.list_instances")
     @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
     @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
+    def test_init_with_crn(self, mock_file_path, mock_verify_credentials, mock_list_instances):
+        """
+        Test __init__ with an explicit IBM instance crn in the format:
+        crn:version:cname:ctype:service-name:location:scope:service-instance:resource-type:resource
+        Source:
+        https://cloud.ibm.com/docs/account?topic=account-crn#format-crn)
+        """
+
+
+        instance_dic = {
+            "crn": "crn:v1:bluemix:public:cloud-object-storage:global:a/59bcbfa6ea2f006b4ed7094c1a08dcdd:"
+                   "1a0ec336-f391-4091-a6fb-5e084a4c56f4:bucket:mybucket",
+            "plan": "test_plan",
+            "name": "my_instance_crn",
+            "tags": "test_tags",
+            "pricing_type": "test_pricing_type",
+        }
+        # Mock list of instance crns in the IBM Cloud Global
+        mock_list_instances.return_value = [instance_dic]
+
+        # Mock ServerlessClient credential verification
+        mock_verify_credentials.return_value = None
+
+        use_host = "http://other.host"
+        use_token = "my_token"
+        use_instance = "my_instance_crn"
+        # use_instance = instance_dic["crn"]
+        use_channel = Channel.IBM_QUANTUM_PLATFORM.value
+
+        # Replace the _DEFAULT_ACCOUNT_CONFIG_JSON_FILE path with a temporary file
+        with tempfile.NamedTemporaryFile() as temp_file:
+            mock_file_path.return_value = temp_file.name
+
+        client = IBMServerlessClient(token=use_token, instance=use_instance, channel=use_channel, host=use_host)
+
+        assert client.host == use_host
+        assert client.channel == use_channel
+        # assert client.instance == use_instance
+        assert client.instance == instance_dic["crn"]
+        assert client.token == use_token
+
+    @patch("qiskit_ibm_runtime.accounts.account.CloudAccount.list_instances")
+    @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
+    @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
     def test_save_load_account(self, mock_file_path, mock_verify_credentials, mock_list_instances):
         """Test saving and loading accounts with the IBMServerlessClient."""
 
