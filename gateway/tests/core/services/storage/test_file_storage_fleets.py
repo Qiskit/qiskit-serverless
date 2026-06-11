@@ -208,19 +208,14 @@ class TestFileStorageFleets:
         """get_public_file_stream() returns (generator, content_type, size) tuple."""
         storage = FileStorageFleets("alice", function)
         mock_cos = MagicMock()
-        mock_response = {
-            "Body": BytesIO(b"chunk1chunk2"),
-            "ContentLength": 12,
-            "ContentType": "text/plain",
-        }
-        mock_cos.get_object.return_value = mock_response
+        mock_cos.get_object_bytes.return_value = b"chunk1chunk2"
 
         with patch(_COS_MODULE, return_value=mock_cos):
             result = storage.get_public_file_stream("test.txt", chunk_size=6)
 
         assert result is not None
         generator, content_type, size = result
-        assert content_type == "text/plain"
+        assert content_type == "application/octet-stream"
         assert size == 12
         chunks = list(generator)
         assert chunks == [b"chunk1", b"chunk2"]
@@ -229,7 +224,7 @@ class TestFileStorageFleets:
         """get_public_file_stream() returns None when file not found."""
         storage = FileStorageFleets("alice", function)
         mock_cos = MagicMock()
-        mock_cos.get_object.side_effect = _make_client_error("NoSuchKey")
+        mock_cos.get_object_bytes.side_effect = _make_client_error("NoSuchKey")
 
         with patch(_COS_MODULE, return_value=mock_cos):
             result = storage.get_public_file_stream("missing.txt")
@@ -242,19 +237,14 @@ class TestFileStorageFleets:
         """get_private_file_stream() returns (generator, content_type, size) tuple."""
         storage = FileStorageFleets("alice", function_with_provider)
         mock_cos = MagicMock()
-        mock_response = {
-            "Body": BytesIO(b"privchunk1privchunk2"),
-            "ContentLength": 20,
-            "ContentType": "application/pdf",
-        }
-        mock_cos.get_object.return_value = mock_response
+        mock_cos.get_object_bytes.return_value = b"privchunk1privchunk2"
 
         with patch(_COS_MODULE, return_value=mock_cos):
             result = storage.get_private_file_stream("private.pdf", chunk_size=10)
 
         assert result is not None
         generator, content_type, size = result
-        assert content_type == "application/pdf"
+        assert content_type == "application/octet-stream"
         assert size == 20
         chunks = list(generator)
         assert chunks == [b"privchunk1", b"privchunk2"]
@@ -269,7 +259,7 @@ class TestFileStorageFleets:
         """get_private_file_stream() returns None when file not found."""
         storage = FileStorageFleets("alice", function_with_provider)
         mock_cos = MagicMock()
-        mock_cos.get_object.side_effect = _make_client_error("NoSuchKey")
+        mock_cos.get_object_bytes.side_effect = _make_client_error("NoSuchKey")
 
         with patch(_COS_MODULE, return_value=mock_cos):
             result = storage.get_private_file_stream("missing.txt")
@@ -288,13 +278,13 @@ class TestFileStorageFleets:
             key = storage.upload_public_file(file)
 
         assert "test.txt" in key
-        mock_cos.put_object.assert_called_once()
+        mock_cos.upload_fileobj.assert_called_once()
 
     def test_upload_public_file_raises_on_error(self, function):
         """upload_public_file() raises on COS error."""
         storage = FileStorageFleets("alice", function)
         mock_cos = MagicMock()
-        mock_cos.put_object.side_effect = _make_client_error("AccessDenied")
+        mock_cos.upload_fileobj.side_effect = _make_client_error("AccessDenied")
         file = ContentFile(b"test content", name="test.txt")
 
         with patch(_COS_MODULE, return_value=mock_cos):
@@ -313,7 +303,7 @@ class TestFileStorageFleets:
             key = storage.upload_private_file(file)
 
         assert "private.txt" in key
-        mock_cos.put_object.assert_called_once()
+        mock_cos.upload_fileobj.assert_called_once()
 
     def test_upload_private_file_raises_for_custom_function(self, function):
         """upload_private_file() raises for non-provider functions."""
@@ -327,7 +317,7 @@ class TestFileStorageFleets:
         """upload_private_file() raises on COS error."""
         storage = FileStorageFleets("alice", function_with_provider)
         mock_cos = MagicMock()
-        mock_cos.put_object.side_effect = _make_client_error("AccessDenied")
+        mock_cos.upload_fileobj.side_effect = _make_client_error("AccessDenied")
         file = ContentFile(b"private content", name="private.txt")
 
         with patch(_COS_MODULE, return_value=mock_cos):
