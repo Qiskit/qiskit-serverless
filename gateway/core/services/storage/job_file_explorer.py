@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 from django.conf import settings
 
 from core.ibm_cloud import get_cos_client
+from core.models import Program
 from core.services.storage.enums.working_dir import WorkingDir
 from core.services.storage.path_builder import PathBuilder
 
@@ -34,6 +35,8 @@ logger = logging.getLogger("gateway.job_file_explorer")
 
 @dataclass
 class FileEntry:
+    """A single storage file with metadata."""
+
     name: str
     full_key: str
     size_bytes: int
@@ -43,6 +46,8 @@ class FileEntry:
 
 @dataclass
 class FileGroup:
+    """A named category of storage files."""
+
     category: str
     files: list[FileEntry]
 
@@ -51,8 +56,7 @@ class JobFileExplorer:
     """Return all storage files for a Job, grouped by category."""
 
     def explore(self, job: Job) -> list[FileGroup]:
-        from core.models import Program
-
+        """Return all storage files for the given job, grouped by category."""
         if job.program.runner == Program.FLEETS:
             return self._explore_fleets(job)
         return self._explore_ray(job)
@@ -65,34 +69,20 @@ class JobFileExplorer:
         project = job.program.code_engine_project
         cos = get_cos_client(project)
         user_bucket = project.cos_bucket_user_data_name
-        username = job.author.username
-        program_title = job.program.title
         job_id = str(job.id)
-        provider = job.program.provider
-
         groups: list[FileGroup] = []
 
-        if provider:
-            provider_name = provider.name
-            data_prefix = f"users/{username}/provider_functions/{provider_name}/{program_title}/data"
-            job_prefix = f"users/{username}/provider_functions/{provider_name}/{program_title}/jobs/{job_id}/"
-            provider_data_prefix = f"providers/{provider_name}/{program_title}/data"
-            provider_job_prefix = f"providers/{provider_name}/{program_title}/jobs/{job_id}/"
-        else:
-            data_prefix = f"users/{username}/custom_functions/{program_title}/data"
-            job_prefix = f"users/{username}/custom_functions/{program_title}/jobs/{job_id}/"
-            provider_data_prefix = None
-            provider_job_prefix = None
+        data_prefix, job_prefix, provider_data_prefix, provider_job_prefix = self._build_fleets_prefixes(
+            job.author.username, job.program.title, job_id, job.program.provider
+        )
 
-        # Data files
         group = self._list_cos_group("Data Files", cos, user_bucket, data_prefix)
         if group:
             groups.append(group)
 
-        # Job artifacts — one prefix, split by filename suffix
         try:
             artifacts = cos.list_with_metadata(bucket_name=user_bucket, prefix=job_prefix)
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             logger.error(
                 "[job-file-explorer] job_id=%s | Failed to list job artifacts at %s/%s",
                 job.id,
@@ -111,7 +101,6 @@ class JobFileExplorer:
             if files:
                 groups.append(FileGroup(category=category, files=files))
 
-        # Provider data and private logs
         if provider_data_prefix:
             provider_bucket = project.cos_bucket_provider_data_name
             group = self._list_cos_group("Provider Data", cos, provider_bucket, provider_data_prefix)
@@ -126,10 +115,30 @@ class JobFileExplorer:
 
         return groups
 
+    @staticmethod
+    def _build_fleets_prefixes(
+        username: str, program_title: str, job_id: str, provider
+    ) -> tuple[str, str, str | None, str | None]:
+        """Return (data_prefix, job_prefix, provider_data_prefix, provider_job_prefix)."""
+        if provider:
+            pname = provider.name
+            return (
+                f"users/{username}/provider_functions/{pname}/{program_title}/data",
+                f"users/{username}/provider_functions/{pname}/{program_title}/jobs/{job_id}/",
+                f"providers/{pname}/{program_title}/data",
+                f"providers/{pname}/{program_title}/jobs/{job_id}/",
+            )
+        return (
+            f"users/{username}/custom_functions/{program_title}/data",
+            f"users/{username}/custom_functions/{program_title}/jobs/{job_id}/",
+            None,
+            None,
+        )
+
     def _list_cos_group(self, category: str, cos, bucket: str, prefix: str) -> FileGroup | None:
         try:
             objects = cos.list_with_metadata(bucket_name=bucket, prefix=prefix)
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             logger.error(
                 "[job-file-explorer] Failed to list %s at %s/%s",
                 category,

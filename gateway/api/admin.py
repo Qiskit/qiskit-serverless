@@ -222,7 +222,7 @@ class JobAdmin(admin.ModelAdmin):
         groups = []
         try:
             groups = JobFileExplorer().explore(job)
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.error("Error loading storage files for job %s: %s", job_id, exc, exc_info=True)
             error = str(exc)
 
@@ -238,6 +238,7 @@ class JobAdmin(admin.ModelAdmin):
 
     @admin.display(description="Storage")
     def storage_files_link(self, obj):
+        """Return a link to the storage files page for this job."""
         url = f"/admin/api/job/{obj.id}/files/"
         return format_html('<a href="{}" target="_blank">Ver ficheros de storage</a>', url)
 
