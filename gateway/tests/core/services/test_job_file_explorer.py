@@ -120,3 +120,83 @@ class TestJobFileExplorerFleets(TestCase):
         assert "Data Files" in categories
         assert "Results" not in categories
         assert "Logs" not in categories
+
+
+class TestJobFileExplorerRay(TestCase):
+    def _make_ray_job(self, has_provider=False):
+        return _make_job(runner="ray", has_provider=has_provider)
+
+    @patch("core.services.storage.job_file_explorer.os.path.isfile")
+    @patch("core.services.storage.job_file_explorer.os.stat")
+    @patch("core.services.storage.job_file_explorer.os.path.isdir")
+    @patch("core.services.storage.job_file_explorer.os.scandir")
+    @patch("core.services.storage.job_file_explorer.settings")
+    def test_ray_job_returns_results_group(self, mock_settings, mock_scandir, mock_isdir, mock_stat, mock_isfile):
+        job = self._make_ray_job()
+        mock_settings.MEDIA_ROOT = "/media"
+        mock_isdir.return_value = False
+        mock_scandir.return_value.__enter__ = MagicMock(return_value=iter([]))
+        mock_scandir.return_value.__exit__ = MagicMock(return_value=False)
+
+        stat_result = MagicMock()
+        stat_result.st_size = 512
+        stat_result.st_mtime = 1715350320.0
+
+        expected_result_path = f"/media/alice/results/{job.id}.json"
+
+        def isfile_side(path):
+            return path == expected_result_path
+
+        mock_isfile.side_effect = isfile_side
+        mock_stat.return_value = stat_result
+
+        groups = JobFileExplorer().explore(job)
+
+        results_group = next((g for g in groups if g.category == "Results"), None)
+        assert results_group is not None
+        assert results_group.files[0].name == f"{job.id}.json"
+        assert results_group.files[0].size_bytes == 512
+        assert results_group.files[0].bucket_or_path == "alice/results"
+
+    @patch("core.services.storage.job_file_explorer.os.path.isfile")
+    @patch("core.services.storage.job_file_explorer.os.path.isdir")
+    @patch("core.services.storage.job_file_explorer.os.scandir")
+    @patch("core.services.storage.job_file_explorer.settings")
+    def test_ray_missing_files_return_empty(self, mock_settings, mock_scandir, mock_isdir, mock_isfile):
+        job = self._make_ray_job()
+        mock_settings.MEDIA_ROOT = "/media"
+        mock_isdir.return_value = False
+        mock_isfile.return_value = False
+
+        groups = JobFileExplorer().explore(job)
+
+        assert groups == []
+
+    @patch("core.services.storage.job_file_explorer.os.path.isfile")
+    @patch("core.services.storage.job_file_explorer.os.stat")
+    @patch("core.services.storage.job_file_explorer.os.path.isdir")
+    @patch("core.services.storage.job_file_explorer.os.scandir")
+    @patch("core.services.storage.job_file_explorer.settings")
+    def test_ray_data_files_listed_from_scandir(self, mock_settings, mock_scandir, mock_isdir, mock_stat, mock_isfile):
+        job = self._make_ray_job()
+        mock_settings.MEDIA_ROOT = "/media"
+        mock_isfile.return_value = False
+
+        mock_isdir.return_value = True
+        dir_entry = MagicMock()
+        dir_entry.name = "circuit.py"
+        dir_entry.is_file.return_value = True
+        dir_entry.path = "/media/alice/circuit.py"
+        dir_stat = MagicMock()
+        dir_stat.st_size = 800
+        dir_stat.st_mtime = 1715350320.0
+        dir_entry.stat.return_value = dir_stat
+
+        mock_scandir.return_value.__enter__ = MagicMock(return_value=iter([dir_entry]))
+        mock_scandir.return_value.__exit__ = MagicMock(return_value=False)
+
+        groups = JobFileExplorer().explore(job)
+
+        data_group = next((g for g in groups if g.category == "Data Files"), None)
+        assert data_group is not None
+        assert data_group.files[0].name == "circuit.py"
