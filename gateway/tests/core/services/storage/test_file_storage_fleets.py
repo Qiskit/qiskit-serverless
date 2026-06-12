@@ -283,7 +283,7 @@ class TestFileStorageFleets:
         with patch(_COS_MODULE, return_value=mock_cos):
             key = storage.upload_public_file(file)
 
-        assert "test.txt" in key
+        assert "test.txt" == key
         mock_cos.upload_fileobj.assert_called_once()
 
     def test_upload_public_file_raises_on_error(self, function):
@@ -308,7 +308,7 @@ class TestFileStorageFleets:
         with patch(_COS_MODULE, return_value=mock_cos):
             key = storage.upload_private_file(file)
 
-        assert "private.txt" in key
+        assert "private.txt" == key
         mock_cos.upload_fileobj.assert_called_once()
 
     def test_upload_private_file_raises_for_custom_function(self, function):
