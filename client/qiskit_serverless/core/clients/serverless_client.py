@@ -289,6 +289,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             request=lambda: requests.get(
                 url,
                 headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
+                params={"with_result": "false"},
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -411,16 +412,21 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         return response_data.get("message")
 
     @_trace_job
-    def result(self, job_id: str):
-        response_data = safe_json_request_as_dict(
-            request=lambda: requests.get(
-                f"{self.host}/api/{self.version}/jobs/{job_id}/",
-                headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
-                params={"with_result": "true"},
-                timeout=REQUESTS_TIMEOUT,
-            )
+    def result(self, job_id: str) -> Dict[str, Any]:
+        gateway_url = f"{self.host}/api/{self.version}/jobs/{job_id}/result/"
+        response = requests.get(
+            gateway_url,
+            headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
+            timeout=REQUESTS_TIMEOUT,
         )
-        return json.loads(response_data.get("result", "{}") or "{}", cls=QiskitObjectsDecoder)
+        if response.status_code == 204:
+            return {}
+        # Not all redirects go to COS — HTTP→HTTPS redirects stay on the same host.
+        # Checking the hostname detects only redirects to an external host (COS/MinIO).
+        redirected_to_cos = urlparse(response.url).hostname != urlparse(gateway_url).hostname
+        if redirected_to_cos:
+            return json.loads(response.text, cls=QiskitObjectsDecoder) if response.ok else {}
+        return json.loads(response.json().get("result", "{}") or "{}", cls=QiskitObjectsDecoder)
 
     @_trace_job
     def logs(self, job_id: str):
