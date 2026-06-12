@@ -391,7 +391,7 @@ class FileStorageFleets:
                 self._user_bucket,
                 key,
             )
-            return key
+            return file.name
         except ClientError as e:
             logger.error(
                 "[upload-public-file] user_id=%s function_id=%s | COS error %s: %s",
@@ -427,7 +427,7 @@ class FileStorageFleets:
                 self._provider_bucket,
                 key,
             )
-            return key
+            return file.name
         except ClientError as e:
             logger.error(
                 "[upload-private-file] user_id=%s function_id=%s | COS error %s: %s",
