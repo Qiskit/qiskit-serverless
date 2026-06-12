@@ -375,18 +375,7 @@ class COSClient:
         Returns:
             List of object keys.
         """
-        paginator = self._s3_hmac.get_paginator("list_objects_v2")
-        paginate_kwargs: dict = {"Bucket": bucket}
-        if prefix:
-            paginate_kwargs["Prefix"] = prefix
-
-        keys: list[str] = []
-        for page in paginator.paginate(**paginate_kwargs):
-            for obj in page.get("Contents") or []:
-                obj_key = obj.get("Key")
-                if isinstance(obj_key, str):
-                    keys.append(obj_key)
-        return keys
+        return [obj["key"] for obj in self.list_with_metadata(bucket=bucket, prefix=prefix or "")]
 
     def list_with_metadata(self, *, bucket: str, prefix: str) -> list[dict]:
         """List objects under a prefix, returning key, size and last_modified.

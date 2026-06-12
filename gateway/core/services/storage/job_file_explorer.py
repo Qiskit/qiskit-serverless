@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 from django.conf import settings
 
 from core.ibm_cloud import get_cos_client
+from core.ibm_cloud.code_engine.fleets.utils import build_job_paths
 from core.models import Program
 from core.services.storage.enums.working_dir import WorkingDir
 from core.services.storage.path_builder import PathBuilder
@@ -61,79 +62,34 @@ class JobFileExplorer:
             return self._explore_fleets(job)
         return self._explore_ray(job)
 
-    # ------------------------------------------------------------------
-    # Fleets (COS)
-    # ------------------------------------------------------------------
-
     def _explore_fleets(self, job: Job) -> list[FileGroup]:
+        paths = build_job_paths(job)
         project = job.program.code_engine_project
         cos = get_cos_client(project)
         user_bucket = project.cos_bucket_user_data_name
-        job_id = str(job.id)
         groups: list[FileGroup] = []
 
-        data_prefix, job_prefix, provider_data_prefix, provider_job_prefix = self._build_fleets_prefixes(
-            job.author.username, job.program.title, job_id, job.program.provider
-        )
-
-        group = self._list_cos_group("Data Files", cos, user_bucket, data_prefix)
+        group = self._list_cos_group("Data Files", cos, user_bucket, paths.cos_user_function_prefix)
         if group:
             groups.append(group)
 
-        try:
-            artifacts = cos.list_with_metadata(bucket_name=user_bucket, prefix=job_prefix)
-        except Exception:  # pylint: disable=broad-exception-caught
-            logger.error(
-                "[job-file-explorer] job_id=%s | Failed to list job artifacts at %s/%s",
-                job.id,
-                user_bucket,
-                job_prefix,
-                exc_info=True,
-            )
-            artifacts = []
+        group = self._list_cos_group("Job Files", cos, user_bucket, paths.cos_user_job_prefix)
+        if group:
+            groups.append(group)
 
-        for category, suffix in [
-            ("Results", "results.json"),
-            ("Logs", "logs.log"),
-            ("Arguments", "arguments.json"),
-        ]:
-            files = [self._cos_entry(obj, user_bucket) for obj in artifacts if obj["key"].endswith(suffix)]
-            if files:
-                groups.append(FileGroup(category=category, files=files))
-
-        if provider_data_prefix:
+        if paths.cos_provider_function_prefix:
             provider_bucket = project.cos_bucket_provider_data_name
-            group = self._list_cos_group("Provider Data", cos, provider_bucket, provider_data_prefix)
+            group = self._list_cos_group("Provider Data", cos, provider_bucket, paths.cos_provider_function_prefix)
             if group:
                 groups.append(group)
 
-        if provider_job_prefix:
+        if paths.cos_provider_job_prefix:
             provider_bucket = project.cos_bucket_provider_data_name
-            group = self._list_cos_group("Private Logs", cos, provider_bucket, provider_job_prefix)
+            group = self._list_cos_group("Provider Job Files", cos, provider_bucket, paths.cos_provider_job_prefix)
             if group:
                 groups.append(group)
 
         return groups
-
-    @staticmethod
-    def _build_fleets_prefixes(
-        username: str, program_title: str, job_id: str, provider
-    ) -> tuple[str, str, str | None, str | None]:
-        """Return (data_prefix, job_prefix, provider_data_prefix, provider_job_prefix)."""
-        if provider:
-            pname = provider.name
-            return (
-                f"users/{username}/provider_functions/{pname}/{program_title}/data",
-                f"users/{username}/provider_functions/{pname}/{program_title}/jobs/{job_id}/",
-                f"providers/{pname}/{program_title}/data",
-                f"providers/{pname}/{program_title}/jobs/{job_id}/",
-            )
-        return (
-            f"users/{username}/custom_functions/{program_title}/data",
-            f"users/{username}/custom_functions/{program_title}/jobs/{job_id}/",
-            None,
-            None,
-        )
 
     def _list_cos_group(self, category: str, cos, bucket: str, prefix: str) -> FileGroup | None:
         try:
@@ -162,10 +118,6 @@ class JobFileExplorer:
             last_modified=obj.get("last_modified"),
             bucket_or_path=bucket,
         )
-
-    # ------------------------------------------------------------------
-    # Ray (filesystem)
-    # ------------------------------------------------------------------
 
     def _explore_ray(self, job: Job) -> list[FileGroup]:
         username = job.author.username

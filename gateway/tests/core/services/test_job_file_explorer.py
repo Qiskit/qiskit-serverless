@@ -68,15 +68,15 @@ class TestJobFileExplorerFleets(TestCase):
         assert data_group.files[0].bucket_or_path == "user-bucket"
 
     @patch("core.services.storage.job_file_explorer.get_cos_client")
-    def test_job_artifacts_split_into_groups(self, mock_get_cos):
+    def test_job_artifacts_listed_as_job_files(self, mock_get_cos):
         job = _make_job(runner="fleets", has_provider=False)
         cos = MagicMock()
         mock_get_cos.return_value = cos
-        job_prefix = f"users/alice/custom_functions/my-fn/jobs/{job.id}/"
+        job_prefix = f"users/alice/custom_functions/my-fn/jobs/{job.id}"
         artifact_objects = [
-            {"key": f"{job_prefix}results.json", "size": 500, "last_modified": TS},
-            {"key": f"{job_prefix}logs.log", "size": 1200, "last_modified": TS},
-            {"key": f"{job_prefix}arguments.json", "size": 80, "last_modified": TS},
+            {"key": f"{job_prefix}/results.json", "size": 500, "last_modified": TS},
+            {"key": f"{job_prefix}/logs.log", "size": 1200, "last_modified": TS},
+            {"key": f"{job_prefix}/arguments.json", "size": 80, "last_modified": TS},
         ]
         cos.list_with_metadata.side_effect = lambda *, bucket_name, prefix: (
             artifact_objects if prefix == job_prefix else []
@@ -85,9 +85,9 @@ class TestJobFileExplorerFleets(TestCase):
         groups = JobFileExplorer().explore(job)
 
         categories = {g.category for g in groups}
-        assert "Results" in categories
-        assert "Logs" in categories
-        assert "Arguments" in categories
+        assert "Job Files" in categories
+        job_group = next(g for g in groups if g.category == "Job Files")
+        assert len(job_group.files) == 3
 
     @patch("core.services.storage.job_file_explorer.get_cos_client")
     def test_empty_groups_are_omitted(self, mock_get_cos):
@@ -105,7 +105,7 @@ class TestJobFileExplorerFleets(TestCase):
         job = _make_job(runner="fleets", has_provider=False)
         cos = MagicMock()
         mock_get_cos.return_value = cos
-        job_prefix = f"users/alice/custom_functions/my-fn/jobs/{job.id}/"
+        job_prefix = f"users/alice/custom_functions/my-fn/jobs/{job.id}"
 
         def side_effect(*, bucket_name, prefix):
             if prefix == job_prefix:
@@ -118,8 +118,7 @@ class TestJobFileExplorerFleets(TestCase):
 
         categories = {g.category for g in groups}
         assert "Data Files" in categories
-        assert "Results" not in categories
-        assert "Logs" not in categories
+        assert "Job Files" not in categories
 
 
 class TestJobFileExplorerRay(TestCase):
