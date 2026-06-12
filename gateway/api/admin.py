@@ -162,6 +162,8 @@ class JobEventInline(admin.TabularInline):
 
 
 class JobProgramFilter(admin.SimpleListFilter):
+    """Filter jobs by provider / program."""
+
     title = "Program"
     parameter_name = "job_program"
 
@@ -214,6 +216,7 @@ class JobAdmin(admin.ModelAdmin):
 
     @admin.display(description="Program")
     def get_program(self, obj):
+        """Return provider / program label for list display."""
         if obj.program is None:
             return "-"
         provider = obj.program.provider
