@@ -121,6 +121,25 @@ class TestJobFileExplorerFleets(TestCase):
         assert "Job Files" not in categories
 
 
+def _setup_ray_services(mock_file_storage, mock_result, mock_logs, mock_args, job):
+    mock_file_storage.return_value.public_path = "/media/alice/data"
+    mock_file_storage.return_value.public_sub_path = "alice/data"
+    mock_result.return_value.result_file_path = f"/media/alice/results/{job.id}.json"
+    mock_logs.return_value.public_log_dir = "/media/alice/logs"
+    mock_logs.return_value.private_log_dir = None
+    mock_logs.return_value.log_file_path.side_effect = lambda d: f"{d}/{job.id}.log"
+    mock_args.return_value.absolute_path = "/media/alice/arguments"
+    mock_args.return_value.sub_path = "alice/arguments"
+
+
+RAY_SERVICE_PATCHES = [
+    "core.services.storage.job_file_explorer.RayResultStorage",
+    "core.services.storage.job_file_explorer.RayLogsStorage",
+    "core.services.storage.job_file_explorer.RayArgumentsStorage",
+    "core.services.storage.job_file_explorer.FileStorageRay",
+]
+
+
 class TestJobFileExplorerRay(TestCase):
     def _make_ray_job(self, has_provider=False):
         return _make_job(runner="ray", has_provider=has_provider)
@@ -129,10 +148,15 @@ class TestJobFileExplorerRay(TestCase):
     @patch("core.services.storage.job_file_explorer.os.stat")
     @patch("core.services.storage.job_file_explorer.os.path.isdir")
     @patch("core.services.storage.job_file_explorer.os.scandir")
-    @patch("core.services.storage.job_file_explorer.settings")
-    def test_ray_job_returns_results_group(self, mock_settings, mock_scandir, mock_isdir, mock_stat, mock_isfile):
+    @patch(RAY_SERVICE_PATCHES[3])
+    @patch(RAY_SERVICE_PATCHES[2])
+    @patch(RAY_SERVICE_PATCHES[1])
+    @patch(RAY_SERVICE_PATCHES[0])
+    def test_ray_job_returns_results_group(
+        self, mock_result, mock_logs, mock_args, mock_file_storage, mock_scandir, mock_isdir, mock_stat, mock_isfile
+    ):
         job = self._make_ray_job()
-        mock_settings.MEDIA_ROOT = "/media"
+        _setup_ray_services(mock_file_storage, mock_result, mock_logs, mock_args, job)
         mock_isdir.return_value = False
         mock_scandir.return_value.__enter__ = MagicMock(return_value=iter([]))
         mock_scandir.return_value.__exit__ = MagicMock(return_value=False)
@@ -143,10 +167,7 @@ class TestJobFileExplorerRay(TestCase):
 
         expected_result_path = f"/media/alice/results/{job.id}.json"
 
-        def isfile_side(path):
-            return path == expected_result_path
-
-        mock_isfile.side_effect = isfile_side
+        mock_isfile.side_effect = lambda path: path == expected_result_path
         mock_stat.return_value = stat_result
 
         groups = JobFileExplorer().explore(job)
@@ -160,10 +181,15 @@ class TestJobFileExplorerRay(TestCase):
     @patch("core.services.storage.job_file_explorer.os.path.isfile")
     @patch("core.services.storage.job_file_explorer.os.path.isdir")
     @patch("core.services.storage.job_file_explorer.os.scandir")
-    @patch("core.services.storage.job_file_explorer.settings")
-    def test_ray_missing_files_return_empty(self, mock_settings, mock_scandir, mock_isdir, mock_isfile):
+    @patch(RAY_SERVICE_PATCHES[3])
+    @patch(RAY_SERVICE_PATCHES[2])
+    @patch(RAY_SERVICE_PATCHES[1])
+    @patch(RAY_SERVICE_PATCHES[0])
+    def test_ray_missing_files_return_empty(
+        self, mock_result, mock_logs, mock_args, mock_file_storage, mock_scandir, mock_isdir, mock_isfile
+    ):
         job = self._make_ray_job()
-        mock_settings.MEDIA_ROOT = "/media"
+        _setup_ray_services(mock_file_storage, mock_result, mock_logs, mock_args, job)
         mock_isdir.return_value = False
         mock_isfile.return_value = False
 
@@ -175,17 +201,22 @@ class TestJobFileExplorerRay(TestCase):
     @patch("core.services.storage.job_file_explorer.os.stat")
     @patch("core.services.storage.job_file_explorer.os.path.isdir")
     @patch("core.services.storage.job_file_explorer.os.scandir")
-    @patch("core.services.storage.job_file_explorer.settings")
-    def test_ray_data_files_listed_from_scandir(self, mock_settings, mock_scandir, mock_isdir, mock_stat, mock_isfile):
+    @patch(RAY_SERVICE_PATCHES[3])
+    @patch(RAY_SERVICE_PATCHES[2])
+    @patch(RAY_SERVICE_PATCHES[1])
+    @patch(RAY_SERVICE_PATCHES[0])
+    def test_ray_data_files_listed_from_scandir(
+        self, mock_result, mock_logs, mock_args, mock_file_storage, mock_scandir, mock_isdir, mock_stat, mock_isfile
+    ):
         job = self._make_ray_job()
-        mock_settings.MEDIA_ROOT = "/media"
+        _setup_ray_services(mock_file_storage, mock_result, mock_logs, mock_args, job)
         mock_isfile.return_value = False
 
         mock_isdir.return_value = True
         dir_entry = MagicMock()
         dir_entry.name = "circuit.py"
         dir_entry.is_file.return_value = True
-        dir_entry.path = "/media/alice/circuit.py"
+        dir_entry.path = "/media/alice/data/circuit.py"
         dir_stat = MagicMock()
         dir_stat.st_size = 800
         dir_stat.st_mtime = 1715350320.0

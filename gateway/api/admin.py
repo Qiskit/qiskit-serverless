@@ -217,7 +217,7 @@ class JobAdmin(admin.ModelAdmin):
     def storage_files_link(self, obj):
         """Return a link to the storage files page for this job."""
         url = f"/admin/api/job/{obj.id}/files/"
-        return format_html('<a href="{}" target="_blank">Ver ficheros de storage</a>', url)
+        return format_html('<a href="{}" target="_blank">COS files</a>', url)
 
     def save_model(self, request, obj, form, change):
         if change:

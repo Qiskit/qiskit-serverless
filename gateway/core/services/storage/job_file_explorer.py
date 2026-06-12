@@ -20,13 +20,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from django.conf import settings
-
 from core.ibm_cloud import get_cos_client
 from core.ibm_cloud.code_engine.fleets.utils import build_job_paths
 from core.models import Program
-from core.services.storage.enums.working_dir import WorkingDir
-from core.services.storage.path_builder import PathBuilder
+from core.services.storage.arguments_storage_ray import RayArgumentsStorage
+from core.services.storage.file_storage_ray import FileStorageRay
+from core.services.storage.logs_storage_ray import RayLogsStorage
+from core.services.storage.result_storage_ray import RayResultStorage
 
 if TYPE_CHECKING:
     from core.models import Job
@@ -121,69 +121,34 @@ class JobFileExplorer:
 
     def _explore_ray(self, job: Job) -> list[FileGroup]:
         username = job.author.username
-        function_title = job.program.title
-        provider_name = job.program.provider.name if job.program.provider else None
-        job_id = str(job.id)
-        media_root = settings.MEDIA_ROOT
+        file_storage = FileStorageRay(username, job.program)
+        result_storage = RayResultStorage(job)
+        logs_storage = RayLogsStorage(job)
+        args_storage = RayArgumentsStorage(job)
 
         groups: list[FileGroup] = []
 
-        # Data files — user storage root for this function
-        data_sub = PathBuilder.sub_path(
-            working_dir=WorkingDir.USER_STORAGE,
-            username=username,
-            function_title=function_title,
-            provider_name=provider_name,
-            extra_sub_path=None,
-        )
-        data_dir = os.path.join(media_root, data_sub)
-        data_files = self._scan_dir(data_dir, data_sub)
+        data_files = self._scan_dir(file_storage.public_path, file_storage.public_sub_path)
         if data_files:
             groups.append(FileGroup(category="Data Files", files=data_files))
 
-        # Results — hardcoded path used by RayResultStorage
-        results_path = os.path.join(media_root, username, "results", f"{job_id}.json")
-        entry = self._stat_entry(results_path, os.path.join(username, "results"))
+        entry = self._stat_entry(result_storage.result_file_path, os.path.join(username, "results"))
         if entry:
             groups.append(FileGroup(category="Results", files=[entry]))
 
-        # Logs — PathBuilder USER_STORAGE with extra_sub_path="logs"
-        logs_sub = PathBuilder.sub_path(
-            working_dir=WorkingDir.USER_STORAGE,
-            username=username,
-            function_title=function_title,
-            provider_name=provider_name,
-            extra_sub_path="logs",
-        )
-        logs_path = os.path.join(media_root, logs_sub, f"{job_id}.log")
-        entry = self._stat_entry(logs_path, logs_sub)
+        log_path = logs_storage.log_file_path(logs_storage.public_log_dir)
+        entry = self._stat_entry(log_path, logs_storage.public_log_dir)
         if entry:
             groups.append(FileGroup(category="Logs", files=[entry]))
 
-        # Arguments — PathBuilder USER_STORAGE with extra_sub_path="arguments"
-        args_sub = PathBuilder.sub_path(
-            working_dir=WorkingDir.USER_STORAGE,
-            username=username,
-            function_title=function_title,
-            provider_name=provider_name,
-            extra_sub_path="arguments",
-        )
-        args_path = os.path.join(media_root, args_sub, f"{job_id}.json")
-        entry = self._stat_entry(args_path, args_sub)
+        args_path = os.path.join(args_storage.absolute_path, f"{job.id}.json")
+        entry = self._stat_entry(args_path, args_storage.sub_path)
         if entry:
             groups.append(FileGroup(category="Arguments", files=[entry]))
 
-        # Private logs for provider jobs
-        if provider_name:
-            priv_sub = PathBuilder.sub_path(
-                working_dir=WorkingDir.PROVIDER_STORAGE,
-                username=username,
-                function_title=function_title,
-                provider_name=provider_name,
-                extra_sub_path="logs",
-            )
-            priv_path = os.path.join(media_root, priv_sub, f"{job_id}.log")
-            entry = self._stat_entry(priv_path, priv_sub)
+        if logs_storage.private_log_dir:
+            priv_log_path = logs_storage.log_file_path(logs_storage.private_log_dir)
+            entry = self._stat_entry(priv_log_path, logs_storage.private_log_dir)
             if entry:
                 groups.append(FileGroup(category="Private Logs", files=[entry]))
 
