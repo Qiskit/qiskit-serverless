@@ -56,6 +56,28 @@ class TestFileStorageFleets:
         program.save()
         return program
 
+    # ── path generation ────────────────────────────────────────────────────────
+
+    def test_public_folder_key_custom_function(self, function):
+        """_public_folder_key uses custom_functions path when program has no provider."""
+        storage = FileStorageFleets("alice", function)
+        assert storage._public_folder_key == "users/alice/custom_functions/my-program/data"
+
+    def test_public_folder_key_provider_function(self, function_with_provider):
+        """_public_folder_key uses provider_functions path when program has a provider."""
+        storage = FileStorageFleets("alice", function_with_provider)
+        assert storage._public_folder_key == "users/alice/provider_functions/good-partner/my-program/data"
+
+    def test_private_folder_key_provider_function(self, function_with_provider):
+        """_private_folder_key uses providers path when program has a provider."""
+        storage = FileStorageFleets("alice", function_with_provider)
+        assert storage._private_folder_key == "providers/good-partner/my-program/data"
+
+    def test_private_folder_key_is_none_for_custom_function(self, function):
+        """_private_folder_key is None when program has no provider."""
+        storage = FileStorageFleets("alice", function)
+        assert storage._private_folder_key is None
+
     # ── initialization ─────────────────────────────────────────────────────────
 
     def test_initialization_succeeds(self, function):
@@ -84,10 +106,13 @@ class TestFileStorageFleets:
     # ── get_public_files ───────────────────────────────────────────────────────
 
     def test_get_public_files_returns_list(self, function):
-        """get_public_files() returns list of file names."""
+        """get_public_files() returns bare file names stripped of the COS key prefix."""
         storage = FileStorageFleets("alice", function)
         mock_cos = MagicMock()
-        mock_cos.list_keys.return_value = ["file1.txt", "file2.txt"]
+        mock_cos.list_keys.return_value = [
+            "users/alice/custom_functions/my-program/data/file1.txt",
+            "users/alice/custom_functions/my-program/data/file2.txt",
+        ]
 
         with patch(_COS_MODULE, return_value=mock_cos):
             result = storage.get_public_files()
@@ -95,7 +120,7 @@ class TestFileStorageFleets:
         assert result == ["file1.txt", "file2.txt"]
         mock_cos.list_keys.assert_called_once_with(
             bucket_name="user-bucket",
-            prefix=storage._public_folder_key,
+            prefix="users/alice/custom_functions/my-program/data",
         )
 
     def test_get_public_files_returns_empty_on_not_found(self, function):
@@ -112,10 +137,13 @@ class TestFileStorageFleets:
     # ── get_private_files ──────────────────────────────────────────────────────
 
     def test_get_private_files_returns_list(self, function_with_provider):
-        """get_private_files() returns list of file names for provider functions."""
+        """get_private_files() returns bare file names stripped of the COS key prefix."""
         storage = FileStorageFleets("alice", function_with_provider)
         mock_cos = MagicMock()
-        mock_cos.list_keys.return_value = ["private1.txt", "private2.txt"]
+        mock_cos.list_keys.return_value = [
+            "providers/good-partner/my-program/data/private1.txt",
+            "providers/good-partner/my-program/data/private2.txt",
+        ]
 
         with patch(_COS_MODULE, return_value=mock_cos):
             result = storage.get_private_files()
@@ -123,7 +151,7 @@ class TestFileStorageFleets:
         assert result == ["private1.txt", "private2.txt"]
         mock_cos.list_keys.assert_called_once_with(
             bucket_name="provider-bucket",
-            prefix=storage._private_folder_key,
+            prefix="providers/good-partner/my-program/data",
         )
 
     def test_get_private_files_returns_none_for_custom_function(self, function):
@@ -277,7 +305,7 @@ class TestFileStorageFleets:
         with patch(_COS_MODULE, return_value=mock_cos):
             key = storage.upload_public_file(file)
 
-        assert "test.txt" in key
+        assert "test.txt" == key
         mock_cos.upload_fileobj.assert_called_once()
 
     def test_upload_public_file_raises_on_error(self, function):
@@ -302,7 +330,7 @@ class TestFileStorageFleets:
         with patch(_COS_MODULE, return_value=mock_cos):
             key = storage.upload_private_file(file)
 
-        assert "private.txt" in key
+        assert "private.txt" == key
         mock_cos.upload_fileobj.assert_called_once()
 
     def test_upload_private_file_raises_for_custom_function(self, function):
