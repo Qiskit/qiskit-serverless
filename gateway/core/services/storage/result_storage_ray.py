@@ -39,13 +39,13 @@ class RayResultStorage(ResultStorage):
         self.user_results_directory = os.path.join(settings.MEDIA_ROOT, job.author.username, "results")
         os.makedirs(self.user_results_directory, exist_ok=True)
 
-    def _get_result_path(self) -> str:
-        """Construct the full filesystem path for this job's result file.
-
-        Returns:
-            The absolute path to the result JSON file.
-        """
+    @property
+    def result_file_path(self) -> str:
+        """Absolute path to this job's result JSON file."""
         return os.path.join(self.user_results_directory, f"{self._job_id}{self.RESULT_FILE_EXTENSION}")
+
+    def _get_result_path(self) -> str:
+        return self.result_file_path
 
     def get(self) -> str | None:
         """Retrieve the result for this job from the local filesystem.
