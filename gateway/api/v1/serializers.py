@@ -57,6 +57,13 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
         # place to add image validation
         return value
 
+    def validate_arguments_schema(self, value):
+        try:
+            json.loads(value)
+        except (json.JSONDecodeError, ValueError) as exc:
+            raise ValidationError("arguments_schema must be valid JSON.") from exc
+        return value
+
     def _parse_dependency(self, dep: Any):
         if not isinstance(dep, dict) and not isinstance(dep, str):
             raise ValidationError("'dependencies' should be an array with strings or dict.")
@@ -165,6 +172,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             "type",
             "version",
             "runner",
+            "arguments_schema",
         ]
 
 

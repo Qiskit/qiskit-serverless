@@ -45,6 +45,7 @@ class UploadProgramSerializer(serializers.ModelSerializer):
     image = serializers.CharField(required=False)
     provider = serializers.CharField(required=False)
     runner = serializers.CharField(required=False)
+    arguments_schema = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
         model = Program
@@ -58,6 +59,7 @@ class UploadProgramSerializer(serializers.ModelSerializer):
             "env_vars",
             "dependencies",
             "runner",
+            "arguments_schema",
         ]
 
     def get_validators(self):
@@ -154,6 +156,7 @@ class UploadProgramSerializer(serializers.ModelSerializer):
             instance.version = version
 
         instance.runner = validated_data.get("runner", Program.RAY)
+        instance.arguments_schema = validated_data.get("arguments_schema", instance.arguments_schema)
 
         instance.save()
         return instance
