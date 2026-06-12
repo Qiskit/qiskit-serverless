@@ -1,10 +1,8 @@
 """Verifica que api/static sombrea los iconos de django.contrib.admin."""
 
-import pytest
 from django.contrib.staticfiles.finders import find
 
 
-@pytest.mark.django_db
 def test_api_icons_shadow_django_admin():
     """Los iconos Carbon en api/static deben resolverse antes que los de Django."""
     path = find("admin/img/icon-addlink.svg")
