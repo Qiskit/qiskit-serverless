@@ -34,20 +34,14 @@ class FleetsResultStorage(ResultStorage):
     NOT_FOUND_CODES = {"404", "NoSuchKey", "NotFound"}
 
     def __init__(self, job: Job) -> None:
-        """Initialize the storage with COS path information from the job.
+        """Initialize the storage with COS path information from the job's program.
 
         Args:
             job: The Job instance to retrieve results for.
-
-        Raises:
-            ValueError: If the job has no CodeEngineProject assigned.
         """
-        if not job.code_engine_project:
-            raise ValueError(f"Job '{job.id}' has no CodeEngineProject assigned")
-
         self._job_id = str(job.id)
         self._user_id = job.author.id
-        self._project = job.code_engine_project
+        self._project = job.program.code_engine_project
         paths = build_job_paths(job)
         self._results_key = paths.cos_results_key
         self._user_bucket = self._load_user_bucket(job)
@@ -66,7 +60,7 @@ class FleetsResultStorage(ResultStorage):
 
         Returns:
             The UTF-8 decoded result string, or None if the result is not
-            available (not-found or COS error).
+            available (missing project, not-found, or COS error).
         """
         try:
             content_bytes = get_cos_client(self._project).get_object_bytes(
