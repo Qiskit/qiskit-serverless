@@ -45,7 +45,7 @@ class UploadProgramSerializer(serializers.ModelSerializer):
     image = serializers.CharField(required=False)
     provider = serializers.CharField(required=False)
     runner = serializers.CharField(required=False)
-    arguments_schema = serializers.CharField(required=False, allow_blank=True)
+    arguments_schema = serializers.CharField(required=False)
 
     class Meta:
         model = Program
