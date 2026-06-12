@@ -67,7 +67,7 @@ ALLOWED_CIDR_NETS = ["10.0.0.0/8"]
 # Application definition
 
 INSTALLED_APPS = [
-    "api",  # <-- sube aqui para que api/static tome prioridad
+    "api",  # must be first so api/static shadows django.contrib.admin static files
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",

@@ -1,14 +1,12 @@
-"""Verifica que api/static sombrea los iconos de django.contrib.admin."""
+"""Verify that api/static shadows django.contrib.admin icons."""
 
 from django.contrib.staticfiles.finders import find
 
 
 def test_api_icons_shadow_django_admin():
-    """Los iconos Carbon en api/static deben resolverse antes que los de Django."""
+    """Carbon icons in api/static must resolve before Django's built-in ones."""
     path = find("admin/img/icon-addlink.svg")
-    assert path is not None, "icon-addlink.svg no encontrado"
-    # Después de crear los SVGs en api/static, este assert debe pasar:
+    assert path is not None, "icon-addlink.svg not found"
     assert "api" in path, (
-        f"icon-addlink.svg se resolvió desde {path!r}, "
-        "esperaba que viniera de api/static (revisa el orden de INSTALLED_APPS)"
+        f"icon-addlink.svg resolved to {path!r}, " "expected it to come from api/static (check INSTALLED_APPS order)"
     )
