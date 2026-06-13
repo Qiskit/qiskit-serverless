@@ -1250,6 +1250,7 @@ class TestProgramApi(APITestCase):
             )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "message" in response.data
+        assert "path" in response.data
         assert Job.objects.count() == job_count_before
 
 

@@ -281,6 +281,15 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 status=status.HTTP_423_LOCKED,
             )
 
+        arguments = serializer.data.get("arguments")
+        try:
+            validate_arguments(function, arguments)
+        except jsonschema.ValidationError as exc:
+            return Response(
+                {"message": exc.message, "path": list(exc.path)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         jobconfig = None
         config_json = serializer.data.get("config")
         if config_json:
@@ -296,14 +305,6 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
         carrier = {}
         TraceContextTextMapPropagator().inject(carrier)
-        arguments = serializer.data.get("arguments")
-        try:
-            validate_arguments(function, arguments)
-        except jsonschema.ValidationError as exc:
-            return Response(
-                {"message": exc.message, "path": list(exc.path)},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
         channel = Channel.IBM_QUANTUM_PLATFORM
         token = ""
         instance = None
