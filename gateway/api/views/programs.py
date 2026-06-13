@@ -8,6 +8,10 @@ import logging
 import re
 from typing import cast
 
+import jsonschema
+
+from api.use_cases.validate_arguments import validate_arguments
+
 from django.conf import settings
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from rest_framework.decorators import action
@@ -293,6 +297,13 @@ class ProgramViewSet(viewsets.GenericViewSet):
         carrier = {}
         TraceContextTextMapPropagator().inject(carrier)
         arguments = serializer.data.get("arguments")
+        try:
+            validate_arguments(function, arguments)
+        except jsonschema.ValidationError as exc:
+            return Response(
+                {"message": exc.message, "path": list(exc.path)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         channel = Channel.IBM_QUANTUM_PLATFORM
         token = ""
         instance = None

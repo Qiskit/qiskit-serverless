@@ -1221,6 +1221,37 @@ class TestProgramApi(APITestCase):
         program = Program.objects.get(title="preserve-schema-func", author=user)
         assert program.arguments_schema == schema
 
+    def test_run_with_invalid_arguments_returns_400_no_job_created(self):
+        """Run with arguments that violate the schema returns 400 and no job is created."""
+        schema = json.dumps(
+            {
+                "type": "object",
+                "required": ["shots"],
+                "properties": {"shots": {"type": "integer"}},
+            }
+        )
+        user = TestUtils.authorize_client(user="test_user", client=self.client)
+        TestUtils.create_program(
+            program_title="validated-func",
+            author=user,
+            arguments_schema=schema,
+        )
+        job_count_before = Job.objects.count()
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            response = self.client.post(
+                "/api/v1/programs/run/",
+                data={
+                    "title": "validated-func",
+                    "arguments": json.dumps({"shots": "wrong-type"}),
+                    "config": {},
+                },
+                format="json",
+            )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "message" in response.data
+        assert Job.objects.count() == job_count_before
+
 
 @pytest.mark.django_db
 class TestProgramApiRuntimeInstances:
