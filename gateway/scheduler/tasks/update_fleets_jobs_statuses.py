@@ -5,7 +5,9 @@ from datetime import datetime, timedelta, timezone
 from typing import cast
 
 from django.conf import settings
+from django.utils import timezone as django_timezone
 
+from core.ibm_cloud.event_streams.event_streams_client import IBMEventStreamsClient, NoOpEventStreamsClient
 from core.models import Job, JobEvent, Program
 from core.services.runners import get_runner, RunnerError, FleetsRunner
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
@@ -23,6 +25,17 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
     def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
         self.kill_signal = kill_signal
         self.metrics = metrics
+        self._event_streams_client: IBMEventStreamsClient | None = None
+
+    @property
+    def event_streams_client(self) -> "IBMEventStreamsClient | NoOpEventStreamsClient":
+        """Return the Event Streams client, instantiating it lazily on first access."""
+        if self._event_streams_client is None:
+            if settings.EVENT_STREAMS_ENABLED:
+                self._event_streams_client = IBMEventStreamsClient()
+            else:
+                self._event_streams_client = NoOpEventStreamsClient()
+        return self._event_streams_client
 
     def update_job_status(self, job: Job) -> bool:
         """Update status of one Fleets job. Returns True if status changed."""
@@ -63,6 +76,11 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             if job.status == Job.PENDING:
                 # Transition from PENDING to RUNNING
                 self.to_running(job)
+            else:
+                # Job already RUNNING — emit in-progress before checking timeout.
+                # A job transitioning to terminal via stop_job_if_timeout in this same tick
+                # will produce both job_in_progress and job_ended events; consumers key on event_type.
+                self.event_streams_client.emit_job_in_progress(job)
 
             self.stop_job_if_timeout(job)
 
@@ -87,6 +105,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             new_status,
         )
+        self.event_streams_client.emit_job_ended(job)
         job.update_fields({"status": new_status, "sub_status": None, "env_vars": "{}"})
         JobEvent.objects.add_status_event(
             job_id=job.id,
@@ -105,7 +124,10 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             Job.RUNNING,
         )
-        job.update_fields({"status": Job.RUNNING})
+        self.event_streams_client.emit_job_started(job)
+        # running_started_at is set only on first transition; already-RUNNING jobs picked up
+        # after a scheduler restart will have running_started_at=None (usage_nanoseconds=0).
+        job.update_fields({"status": Job.RUNNING, "running_started_at": django_timezone.now()})
         JobEvent.objects.add_status_event(
             job_id=job.id,
             origin=JobEventOrigin.SCHEDULER,
@@ -152,8 +174,13 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         for job in jobs:
             if self.kill_signal.received:
                 return
-            if self.update_job_status(job):
-                counter += 1
+            try:
+                if self.update_job_status(job):
+                    counter += 1
+            except Exception:  # pylint: disable=broad-exception-caught
+                logger.exception(
+                    "job_id=%s Failed to publish event, skipping DB update — will retry next iteration", job.id
+                )
 
         if counter:
             logger.info("Updated %s Fleets jobs.", counter)
