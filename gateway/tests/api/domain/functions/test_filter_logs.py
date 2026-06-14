@@ -48,7 +48,7 @@ sim_entrypoint.run_function:INFO:2024-11-15 11:30:32,124: Backend = {
 sim_entrypoint.run_function:INFO:2024-11-15 11:30:32,124: Starting
 """
 
-        output_log = filter_logs_with_public_tags(log)
+        output_log = filter_logs_with_public_tags(log.splitlines())
 
         assert output_log == expected_output
 
@@ -102,7 +102,7 @@ sim_entrypoint.run_function:INFO:2024-11-15 11:30:32,124: Private information
 
 """
 
-        output_log = filter_logs_with_non_public_tags(log)
+        output_log = filter_logs_with_non_public_tags(log.splitlines())
 
         assert output_log == expected_output
 
@@ -127,6 +127,24 @@ Another private line
 Regular print statement
 """
 
-        output_log = remove_prefix_tags_in_logs(log)
+        output_log = remove_prefix_tags_in_logs(log.splitlines())
 
         assert output_log == expected_output
+
+
+def test_filter_logs_with_public_tags_from_list():
+    lines = ["[PUBLIC] hello", "[PRIVATE] secret", "untagged", "[PUBLIC] world"]
+    result = filter_logs_with_public_tags(lines)
+    assert result == "hello\nworld\n"
+
+
+def test_filter_logs_with_non_public_tags_from_list():
+    lines = ["[PUBLIC] hello", "[PRIVATE] secret", "untagged"]
+    result = filter_logs_with_non_public_tags(lines)
+    assert result == "secret\nuntagged\n"
+
+
+def test_remove_prefix_tags_in_logs_from_list():
+    lines = ["[PUBLIC] hello", "[PRIVATE] secret", "untagged"]
+    result = remove_prefix_tags_in_logs(lines)
+    assert result == "hello\nsecret\nuntagged\n"

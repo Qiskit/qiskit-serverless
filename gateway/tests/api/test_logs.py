@@ -1,7 +1,10 @@
 """Tests for job logs APIs."""
 
+from collections import deque
 from typing import Optional
 from unittest.mock import Mock, MagicMock, patch
+
+from core.services.runners.ray_runner import FilteredLogs
 
 import pytest
 from django.contrib.auth.models import User, Group
@@ -74,8 +77,12 @@ class TestJobLogsPermissions:
         """Test permissions for /logs and /provider-logs endpoints."""
         # Mock the runner clients to prevent hanging on Ray connection
         mock_handler = Mock()
-        mock_handler.logs.return_value = "Test logs"
-        mock_handler.provider_logs.return_value = "Test logs"
+        mock_handler.logs.return_value = FilteredLogs(
+            public_logs=deque(["Test logs"]), private_logs=deque(["Test logs"])
+        )
+        mock_handler.provider_logs.return_value = FilteredLogs(
+            public_logs=deque(["Test logs"]), private_logs=deque(["Test logs"])
+        )
         mock_get_logs_handler.return_value = mock_handler
         mock_provider_logs_handler.return_value = mock_handler
 
@@ -143,7 +150,10 @@ Unprefixed message
 """
         runner_mock = Mock()
         runner_mock.status.return_value = Job.SUCCEEDED
-        runner_mock.logs.return_value = full_logs
+        runner_mock.logs.return_value = FilteredLogs(
+            public_logs=deque(["", "Public message", "Private message", "", "Unprefixed message"]),
+            private_logs=None,
+        )
         get_runner_client_mock.return_value = runner_mock
 
         # Execute update_jobs_statuses to detect terminal state and save logs
@@ -173,15 +183,21 @@ Unprefixed message
         logs_storage_get_mock.return_value = None
 
         runner_mock = Mock()
-        runner_mock.logs.return_value = """
-[PUBLIC] INFO: Public log for user
-
-[PRIVATE] INFO: Private log for provider only
-[PUBLIC] INFO: Another public log
-Internal system log
-[PRIVATE] WARNING: Private warning
-[PUBLIC] INFO: Final public log
-"""
+        runner_mock.logs.return_value = FilteredLogs(
+            public_logs=deque(
+                [
+                    "",
+                    "INFO: Public log for user",
+                    "",
+                    "INFO: Private log for provider only",
+                    "INFO: Another public log",
+                    "Internal system log",
+                    "WARNING: Private warning",
+                    "INFO: Final public log",
+                ]
+            ),
+            private_logs=None,
+        )
         expected_user_logs = """
 INFO: Public log for user
 
@@ -268,7 +284,10 @@ Unprefixed message
         # Mock RunnerClient to return logs (all logs saved for provider private logs)
         runner_mock = Mock()
         runner_mock.status.return_value = Job.SUCCEEDED
-        runner_mock.logs.return_value = full_logs
+        runner_mock.logs.return_value = FilteredLogs(
+            public_logs=deque(["Public message", "Another public message"]),
+            private_logs=deque(["Private message", "Unprefixed message", ""]),
+        )
         get_runner_client_mock.return_value = runner_mock
 
         # Execute update_jobs_statuses to detect terminal state and save logs
@@ -308,7 +327,12 @@ WARNING: Private warning
 """
 
         runner_mock = Mock()
-        runner_mock.provider_logs.return_value = full_logs
+        runner_mock.provider_logs.return_value = FilteredLogs(
+            public_logs=deque(["INFO: Public log for user", "INFO: Another public log", "INFO: Final public log"]),
+            private_logs=deque(
+                ["", "", "INFO: Private log for provider only", "Internal system log", "WARNING: Private warning"]
+            ),
+        )
         get_runner_client_mock.return_value = runner_mock
 
         job = create_job(author="author", provider_admin="provider_admin")

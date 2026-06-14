@@ -6,6 +6,7 @@ import shutil
 import tempfile
 from unittest.mock import MagicMock, patch
 
+import requests
 import requests_mock
 from django.conf import settings
 from kubernetes import client, config
@@ -16,7 +17,7 @@ from rest_framework.test import APITestCase
 from core.models import ComputeResource, Job, Program
 from core.services.runners import get_runner
 from core.services.runners.abstract_runner import RunnerError
-from core.services.runners.ray_runner import RayRunner
+from core.services.runners.ray_runner import FilteredLogs, RayRunner
 from core.utils import encrypt_string
 
 
@@ -141,21 +142,89 @@ class TestRayClientOperations(APITestCase):
         """Tests job logs."""
         job = Job.objects.first()
         job.ray_job_id = "AwesomeJobId"
-        job.compute_resource = ComputeResource.objects.create(
-            title="test_cluster", host="http://test:8265/", owner=job.author
-        )
         job.save()
 
         mock_client = MagicMock()
-        mock_client.get_job_logs.return_value = "No logs yet."
+        mock_client.get_address.return_value = "http://test:8265"
 
         runner = get_runner(job)
         runner._client = mock_client
         runner._connected = True
 
-        job_logs = runner.logs()
-        self.assertEqual(job_logs, "No logs yet.")
-        mock_client.get_job_logs.assert_called_once_with("AwesomeJobId")
+        with requests_mock.Mocker() as m:
+            m.get(
+                "http://test:8265/api/jobs/AwesomeJobId/logs",
+                text='{"logs": "No logs yet."}',
+            )
+            job_logs = runner.logs()
+
+        self.assertEqual(list(job_logs.public_logs), ["No logs yet."])
+
+    def _make_runner_with_mock_client(self, ray_job_id="AwesomeJobId", host="http://test:8265"):
+        job = Job.objects.first()
+        job.ray_job_id = ray_job_id
+        job.save()
+        mock_client = MagicMock()
+        mock_client.get_address.return_value = host
+        runner = get_runner(job)
+        runner._client = mock_client
+        runner._connected = True
+        return runner
+
+    def test_logs_retries_on_http_5xx_and_eventually_succeeds(self):
+        """logs() retries up to 3 times on HTTP 5xx and returns logs on success."""
+        runner = self._make_runner_with_mock_client()
+
+        with requests_mock.Mocker() as m, patch("time.sleep"):
+            m.get(
+                "http://test:8265/api/jobs/AwesomeJobId/logs",
+                response_list=[
+                    {"status_code": 500},
+                    {"status_code": 503},
+                    {"text": '{"logs": "hello\\nworld"}'},
+                ],
+            )
+            job_logs = runner.logs()
+
+        self.assertEqual(list(job_logs.public_logs), ["hello", "world"])
+
+    def test_logs_raises_runner_error_after_all_retries_exhausted(self):
+        """logs() raises RunnerError after 3 consecutive HTTP 5xx responses."""
+        runner = self._make_runner_with_mock_client()
+
+        with requests_mock.Mocker() as m, patch("time.sleep"):
+            m.get(
+                "http://test:8265/api/jobs/AwesomeJobId/logs",
+                response_list=[
+                    {"status_code": 500},
+                    {"status_code": 500},
+                    {"status_code": 500},
+                ],
+            )
+            with self.assertRaises(RunnerError):
+                runner.logs()
+
+    def test_logs_retries_on_mid_download_failure_and_eventually_succeeds(self):
+        """logs() retries on mid-download failure and returns logs on success."""
+        from collections import deque  # pylint: disable=import-outside-toplevel
+
+        runner = self._make_runner_with_mock_client()
+
+        with (
+            patch.object(
+                runner,
+                "_stream_logs_from_ray",
+                side_effect=[
+                    requests.exceptions.ChunkedEncodingError("mid-download"),
+                    FilteredLogs(public_logs=deque(["hello"]), private_logs=None),
+                ],
+            ) as mock_stream,
+            patch("time.sleep"),
+        ):
+            job_logs = runner.logs()
+
+        self.assertEqual(list(job_logs.public_logs), ["hello"])
+        self.assertEqual(mock_stream.call_count, 2)
 
     def test_job_stop(self):
         """Tests stopping of job."""

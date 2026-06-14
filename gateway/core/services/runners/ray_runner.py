@@ -10,6 +10,9 @@ import shutil
 import tarfile
 import time
 import uuid
+from collections import deque
+from dataclasses import dataclass
+from typing import Callable
 
 import requests
 import yaml
@@ -24,6 +27,7 @@ from ray.dashboard.modules.job.sdk import JobSubmissionClient
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
+from core.domain.filter_logs import public_pattern, private_pattern
 from core.models import ComputeResource, Job, JobConfig, DEFAULT_PROGRAM_ENTRYPOINT
 from core.services.runners.abstract_runner import AbstractRunner, RunnerError
 from core.services.storage import get_file_storage
@@ -31,6 +35,78 @@ from core.services.storage.file_storage_ray import FileStorageRay
 from core.utils import retry_function, decrypt_env_vars, sanitize_file_path
 
 logger = logging.getLogger("RayRunner")
+
+
+_LOG_VALUE_MARKER = b'"logs": "'  # JSON key that opens the log string value
+_JSON_ENCODED_NL = b"\\n"  # JSON-encoded newline: 0x5C 0x6E
+
+
+@dataclass
+class FilteredLogs:
+    """Pre-filtered, prefix-stripped log streams from a Ray job.
+
+    public_logs: lines for the user-facing /logs endpoint.
+    private_logs: lines for the /provider-logs endpoint (None for user jobs).
+    """
+
+    public_logs: deque[str]
+    private_logs: deque[str] | None = None
+
+
+def _seek_log_marker(buffer: bytearray) -> bool:
+    """Advance buf to right after "logs": ". Returns True if found.
+
+    When the marker is not yet in buffer, trims buffer to the last N-1 bytes so it
+    cannot grow unboundedly while waiting for the opening of the log field.
+    """
+    idx = buffer.find(_LOG_VALUE_MARKER)
+    if idx == -1:
+        keep = len(_LOG_VALUE_MARKER) - 1
+        if len(buffer) > keep:
+            del buffer[: len(buffer) - keep]
+        return False
+    del buffer[: idx + len(_LOG_VALUE_MARKER)]
+    return True
+
+
+def _consume_logs(buffer: bytearray, on_line: Callable[[str], None]) -> None:
+    """Extract JSON-newline-terminated lines from buffer, calling on_line for each.
+
+    Mutates buffer in-place by consuming each complete line.
+    """
+    while True:
+        nl = buffer.find(_JSON_ENCODED_NL)
+        if nl == -1:
+            break
+        on_line(_decode_json_string(bytes(buffer[:nl])))
+        del buffer[: nl + 2]
+
+
+def _append_bounded(line: str, lines: deque[str], chars: int, max_chars: int) -> tuple[int, bool]:
+    """Append line to a rolling deque bounded by max_chars.
+
+    Returns:
+        (new_chars, truncated)
+    """
+    lines.append(line)
+    chars += len(line)
+    truncated = False
+    while chars > max_chars and lines:
+        chars -= len(lines.popleft())
+        truncated = True
+    return chars, truncated
+
+
+def _decode_json_string(data: bytes) -> str:
+    """Decode a segment of a JSON-encoded string (no surrounding quotes).
+
+    Handles standard JSON escape sequences: \\n, \\t, \\\\, \\", \\uXXXX.
+    Falls back to UTF-8 decoding with replacement on parse error.
+    """
+    try:
+        return json.loads(b'"' + data + b'"')
+    except json.JSONDecodeError:
+        return data.decode("utf-8", errors="replace")
 
 
 class RayRunner(AbstractRunner):
@@ -215,40 +291,153 @@ class RayRunner(AbstractRunner):
         )
         return status
 
-    def logs(self) -> str | None:
-        """
-        Get job logs.
+    def logs(self) -> FilteredLogs:
+        """Get job logs, filtered and prefix-stripped, in a rolling bounded buffer.
+
+        Streams the Ray dashboard HTTP endpoint, classifying each line into
+        public_logs or private_logs during streaming so that truncation is applied
+        independently to each stream. Callers receive ready-to-serve content with
+        no further filtering needed.
 
         Returns:
-            Job logs or None
+            FilteredLogs with prefix-stripped deques, empty if no logs available.
 
         Raises:
-            RunnerError: If unable to get job logs
+            RunnerError: If unable to get job logs.
         """
         self._ensure_connected()
-
         try:
             return retry_function(
-                callback=lambda: self._client.get_job_logs(self._job.ray_job_id),
-                error_message=f"Runtime error during logs fetching from ray job [{self._job.ray_job_id}]",
+                self._stream_logs_from_ray,
+                num_retries=3,
+                interval=1,
+                exceptions=[RuntimeError, requests.exceptions.RequestException],
+                function_name=f"logs(job_id={self._job.id} ray_job_id={self._job.ray_job_id})",
             )
-        except RuntimeError as ex:
-            logger.error(
-                "[logs] job_id=%s ray_job_id=%s error=%s Get logs failed",
-                self._job.id,
-                self._job.ray_job_id,
-                ex,
-            )
+        except (RuntimeError, requests.exceptions.RequestException) as ex:
             raise RunnerError(f"Unable to get logs for job [{self._job.ray_job_id}]", ex) from ex
 
-    def provider_logs(self) -> str | None:
+    def _stream_logs_from_ray(self) -> FilteredLogs:  # pylint: disable=too-many-statements
+        """Stream and filter job logs from the Ray dashboard.
+
+        Ray returns {"logs": "...content..."} where newlines are JSON-encoded as
+        the two-byte sequence backslash-n. Each decoded line is immediately classified
+        and distributed into two independent rolling deques bounded by
+        FUNCTIONS_LOGS_SIZE_LIMIT.
+
+        Classification rules:
+          - user job : all lines → public_logs (prefixes stripped)
+          - provider job : [PUBLIC] lines → public_logs, all others → private_logs
+
+        Returns:
+            FilteredLogs with prefix-stripped, size-bounded deques.
+
+        Raises:
+            RuntimeError: on HTTP error responses.
+        """
+        host = self._client.get_address()
+        url = f"{host.rstrip('/')}/api/jobs/{self._job.ray_job_id}/logs"
+        max_chars = settings.FUNCTIONS_LOGS_SIZE_LIMIT
+        is_provider = bool(self._job.program.provider)
+
+        public_lines: deque[str] = deque()
+        private_lines: deque[str] | None = deque() if is_provider else None
+        public_chars = 0
+        private_chars = 0
+        public_truncated = False
+        private_truncated = False
+        buffer = bytearray()
+        in_logs_value = False
+
+        logger.info(
+            "[_stream_logs_from_ray] job_id=%s ray_job_id=%s is_provider=%s Streaming logs (limit=%d chars)",
+            self._job.id,
+            self._job.ray_job_id,
+            is_provider,
+            max_chars,
+        )
+
+        def dispatch(raw_line: str) -> None:
+            nonlocal public_chars, private_chars, public_truncated, private_truncated
+            is_pub = bool(public_pattern.match(raw_line))
+            is_priv = bool(private_pattern.match(raw_line))
+            if is_provider:
+                if is_pub:
+                    line = raw_line[9:]
+                    public_chars, t = _append_bounded(line, public_lines, public_chars, max_chars)
+                    public_truncated = public_truncated or t
+                else:
+                    line = raw_line[10:] if is_priv else raw_line
+                    private_chars, t = _append_bounded(line, private_lines, private_chars, max_chars)
+                    private_truncated = private_truncated or t
+            else:
+                if is_pub:
+                    line = raw_line[9:]
+                elif is_priv:
+                    line = raw_line[10:]
+                else:
+                    line = raw_line
+                public_chars, t = _append_bounded(line, public_lines, public_chars, max_chars)
+                public_truncated = public_truncated or t
+
+        with requests.get(url, stream=True, timeout=(10, 300)) as response:
+            if not response.ok:
+                raise RuntimeError(
+                    f"Ray dashboard returned HTTP {response.status_code} " f"for job logs [{self._job.ray_job_id}]"
+                )
+            for chunk in response.iter_content(chunk_size=65536):
+                if not chunk:
+                    continue
+                buffer.extend(chunk)
+                if not in_logs_value:
+                    in_logs_value = _seek_log_marker(buffer)
+                    if not in_logs_value:
+                        continue
+                _consume_logs(buffer, dispatch)
+
+        # Handle remaining bytes: last line (if log doesn't end with \n)
+        # plus the closing JSON suffix: "}\n  (literal bytes: 0x22 0x7D 0x0A)
+        tail = bytes(buffer).rstrip(b"\r\n ")
+        if tail.endswith(b'"}'):
+            tail = tail[:-2]
+        elif tail.endswith(b'"'):
+            tail = tail[:-1]
+        if tail:
+            raw_line = _decode_json_string(tail)
+            if raw_line:
+                dispatch(raw_line)
+
+        truncation_msg = (
+            f"[Logs exceeded maximum allowed size ({max_chars / (1024 ** 2):.0f} MB). "
+            "Logs have been truncated, discarding the oldest entries first.]"
+        )
+        if public_truncated:
+            logger.warning(
+                "[_stream_logs_from_ray] job_id=%s ray_job_id=%s Public logs truncated to last %d chars",
+                self._job.id,
+                self._job.ray_job_id,
+                max_chars,
+            )
+            public_lines.appendleft(truncation_msg)
+        if private_truncated:
+            logger.warning(
+                "[_stream_logs_from_ray] job_id=%s ray_job_id=%s Private logs truncated to last %d chars",
+                self._job.id,
+                self._job.ray_job_id,
+                max_chars,
+            )
+            private_lines.appendleft(truncation_msg)
+
+        return FilteredLogs(public_logs=public_lines, private_logs=private_lines)
+
+    def provider_logs(self) -> FilteredLogs:
         """Return provider logs for this job.
 
         Ray has no distinction between user and provider logs, so this
-        delegates to ``logs()``.
+        delegates to logs().
 
         Returns:
-            Log content or ``None``.
+            FilteredLogs with prefix-stripped deques.
 
         Raises:
             RunnerError: If unable to retrieve logs.
