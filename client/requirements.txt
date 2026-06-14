@@ -11,7 +11,6 @@ opentelemetry-api>=1.41.1, <1.42
 opentelemetry-sdk>=1.41.0, <1.42
 opentelemetry-exporter-otlp-proto-http>=1.41.1, <1.42
 opentelemetry-instrumentation-requests>=0.62b1
-ipywidgets>=8.1.8, <9
 ipython>=8.39.0, <9
 numpy>=2.2.6, <3
 # Minimum version of pyarrow to support the major version from numpy
