@@ -204,7 +204,7 @@ class JobAdmin(admin.ModelAdmin):
 
     search_fields = ["id", "author__username", "program__title"]
     list_filter = ["status", "runner", JobProgramFilter]
-    list_display = ["runner", "author", "get_program", "status", "created", "updated"]
+    list_display = ["runner", "author", "get_program", "status_badge", "created", "updated"]
     list_select_related = ["author", "program", "program__provider"]
     exclude = ["arguments", "env_vars", "logs", "result"]
     ordering = ["-created"]
@@ -213,6 +213,11 @@ class JobAdmin(admin.ModelAdmin):
 
     class Media:
         js = ["admin/js/clickable_rows.js"]
+
+    @admin.display(description="Status")
+    def status_badge(self, obj):
+        """Render status as a colored badge."""
+        return mark_safe(f'<span class="qs-status-badge" data-status="{obj.status}">{obj.status}</span>')
 
     @admin.display(description="Program")
     def get_program(self, obj):

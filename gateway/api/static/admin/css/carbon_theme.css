@@ -886,6 +886,63 @@ pre, code {
     color: #a2191f;
 }
 
+/* IBM LOGO — header: invert to white on dark background */
+
+.qs-ibm-logo {
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 12px;
+    filter: brightness(0) invert(1);
+}
+
+/* LOGIN — IBM logo + bigger title */
+
+.qs-login-logo {
+    margin-bottom: 20px;
+}
+
+body.login #content h1 {
+    font-size: 2rem;
+    font-weight: 300;
+    letter-spacing: -0.01em;
+    margin: 0 0 24px;
+}
+
+/* JOB LIST — status badges (same palette as event-badge inline) */
+
+.qs-status-badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 100px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.32px;
+    text-transform: uppercase;
+    color: #ffffff;
+    background-color: var(--qs-badge-bg, #6f6f6f);
+}
+
+.qs-status-badge[data-status="QUEUED"],
+.qs-status-badge[data-status="PENDING"] {
+    --qs-badge-bg: #f0ad4e;
+    color: #1c1c1c;
+}
+
+.qs-status-badge[data-status="RUNNING"] {
+    --qs-badge-bg: #5bc0de;
+    color: #1c1c1c;
+}
+
+.qs-status-badge[data-status="SUCCEEDED"] { --qs-badge-bg: #00aa00; }
+.qs-status-badge[data-status="STOPPED"]   { --qs-badge-bg: #888888; }
+.qs-status-badge[data-status="FAILED"]    { --qs-badge-bg: #cc0000; }
+
+/* NAV SIDEBAR — hide +Add links */
+
+#nav-sidebar .addlink {
+    display: none;
+}
+
 /* MOTION */
 
 @media (prefers-reduced-motion: reduce) {
