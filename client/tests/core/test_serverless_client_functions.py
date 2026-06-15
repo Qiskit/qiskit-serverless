@@ -760,3 +760,129 @@ class TestArgumentsSchemaField:
         _, kwargs = mock_post.call_args
         data = kwargs["data"]
         assert data["arguments_schema"] == "{}"
+
+
+class TestValidateArgumentsMethod:
+    """Tests for ServerlessClient.validate_arguments() and RunnableQiskitFunction.validate_arguments()."""
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_validate_arguments_calls_correct_endpoint(self, mock_post, mock_client):
+        """validate_arguments() POSTs to the validate_arguments endpoint."""
+        mock_response = Mock()
+        mock_response.ok = True
+        mock_response.text = '{"valid": true}'
+        mock_response.json.return_value = {"valid": True}
+        mock_post.return_value = mock_response
+
+        result = mock_client.validate_arguments(
+            title="my-function",
+            arguments={"shots": 1024},
+        )
+
+        mock_post.assert_called_once()
+        call_url = mock_post.call_args[0][0] if mock_post.call_args[0] else mock_post.call_args[1]["url"]
+        assert "validate_arguments" in call_url
+        assert result == {"valid": True}
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_validate_arguments_sends_title_and_arguments(self, mock_post, mock_client):
+        """validate_arguments() includes title and arguments in the request body."""
+        mock_response = Mock()
+        mock_response.ok = True
+        mock_response.text = '{"valid": true}'
+        mock_response.json.return_value = {"valid": True}
+        mock_post.return_value = mock_response
+
+        mock_client.validate_arguments(
+            title="my-function",
+            arguments={"shots": 1024},
+            provider="my-provider",
+        )
+
+        mock_post.assert_called_once()
+        call_kwargs = mock_post.call_args[1]
+        body = call_kwargs["json"]
+        assert body["title"] == "my-function"
+        assert body["provider"] == "my-provider"
+        assert json.loads(body["arguments"]) == {"shots": 1024}
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_validate_arguments_with_provider_in_title(self, mock_post, mock_client):
+        """validate_arguments() parses provider/title format correctly."""
+        mock_response = Mock()
+        mock_response.ok = True
+        mock_response.text = '{"valid": true}'
+        mock_response.json.return_value = {"valid": True}
+        mock_post.return_value = mock_response
+
+        mock_client.validate_arguments(
+            title="my-provider/my-function",
+            arguments={"shots": 1024},
+        )
+
+        mock_post.assert_called_once()
+        call_kwargs = mock_post.call_args[1]
+        body = call_kwargs["json"]
+        assert body["title"] == "my-function"
+        assert body["provider"] == "my-provider"
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_validate_arguments_raises_on_error_response(self, mock_post, mock_client):
+        """validate_arguments() raises QiskitServerlessException on error response."""
+        mock_response = Mock()
+        mock_response.ok = False
+        mock_response.text = "{\"error\": \"'shots' is not of type 'integer'\"}"
+        mock_response.json.return_value = {"error": "'shots' is not of type 'integer'"}
+        mock_post.return_value = mock_response
+
+        with pytest.raises(QiskitServerlessException):
+            mock_client.validate_arguments(
+                title="my-function",
+                arguments={"shots": "wrong"},
+            )
+
+
+class TestRunnableQiskitFunctionValidateArguments:
+    """Tests for RunnableQiskitFunction.validate_arguments() method."""
+
+    def test_validate_arguments_returns_valid_on_200(self):
+        """RunnableQiskitFunction.validate_arguments delegates to client and returns response."""
+        client = MagicMock()
+        client.validate_arguments.return_value = {"valid": True}
+        fn = RunnableQiskitFunction(client=client, title="my-fn")
+
+        result = fn.validate_arguments({"shots": 1024})
+
+        assert result == {"valid": True}
+        client.validate_arguments.assert_called_once_with(title="my-fn", arguments={"shots": 1024}, provider=None)
+
+    def test_validate_arguments_raises_on_error(self):
+        """RunnableQiskitFunction.validate_arguments propagates exceptions from client."""
+        client = MagicMock()
+        client.validate_arguments.side_effect = QiskitServerlessException("'shots' is not of type 'integer'")
+        fn = RunnableQiskitFunction(client=client, title="my-fn")
+
+        with pytest.raises(QiskitServerlessException):
+            fn.validate_arguments({"shots": "wrong"})
+
+    def test_validate_arguments_passes_provider(self):
+        """RunnableQiskitFunction.validate_arguments passes provider to the client."""
+        client = MagicMock()
+        client.validate_arguments.return_value = {"valid": True}
+        fn = RunnableQiskitFunction(client=client, title="my-fn", provider="my-provider")
+
+        fn.validate_arguments({"shots": 1024})
+
+        client.validate_arguments.assert_called_once_with(
+            title="my-fn", arguments={"shots": 1024}, provider="my-provider"
+        )
+
+    def test_validate_arguments_raises_when_no_client(self):
+        """RunnableQiskitFunction.validate_arguments raises ValueError when no client."""
+        fn = RunnableQiskitFunction.__new__(RunnableQiskitFunction)
+        fn._run_service = None
+        fn.title = "my-fn"
+        fn.provider = None
+
+        with pytest.raises(ValueError, match="No client"):
+            fn.validate_arguments({"shots": 1024})

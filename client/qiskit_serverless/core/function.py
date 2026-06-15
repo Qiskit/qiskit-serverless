@@ -242,6 +242,26 @@ class RunnableQiskitFunction(QiskitFunction):
         jobs = self._run_service.jobs(function=self, **kwargs)
         return jobs
 
+    def validate_arguments(self, arguments: dict) -> dict:
+        """Validate arguments against the function's schema without creating a job.
+
+        Args:
+            arguments: arguments dict to validate against the function's schema
+
+        Returns:
+            dict: {"valid": True} if arguments are valid.
+
+        Raises:
+            QiskitServerlessException: if arguments are invalid or function not found.
+        """
+        if self._run_service is None:
+            raise ValueError("No client specified for this function.")
+        return self._run_service.validate_arguments(
+            title=self.title,
+            arguments=arguments,
+            provider=self.provider,
+        )
+
 
 # pylint: disable=abstract-method
 # pylint: disable=too-few-public-methods

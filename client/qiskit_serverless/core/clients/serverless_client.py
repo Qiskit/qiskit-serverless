@@ -600,6 +600,40 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         the_function = RunnableQiskitFunction.from_json(response_data)
         return the_function
 
+    def validate_arguments(
+        self,
+        title: str,
+        arguments: dict,
+        provider: Optional[str] = None,
+    ) -> dict:
+        """Validate arguments against a function's schema without creating a job.
+
+        Args:
+            title: function title, optionally in "provider/title" format
+            arguments: arguments dict to validate
+            provider: optional provider name
+
+        Returns:
+            dict: response from the gateway, e.g. {"valid": True}
+
+        Raises:
+            QiskitServerlessException: if arguments are invalid or function not found.
+        """
+        provider_name, function_title = format_provider_name_and_title(request_provider=provider, title=title)
+        response = safe_json_request_as_dict(
+            request=lambda: requests.post(
+                f"{self.host}/api/{self.version}/programs/validate_arguments/",
+                json={
+                    "title": function_title,
+                    "arguments": json.dumps(arguments),
+                    "provider": provider_name,
+                },
+                headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
+                timeout=REQUESTS_TIMEOUT,
+            )
+        )
+        return response
+
     #####################
     ####### FILES #######
     #####################
