@@ -5,6 +5,7 @@ RouteRegistry Module
 from typing import Callable, Dict, List, Optional, Tuple
 from django.urls import path
 from django.urls.resolvers import URLPattern
+from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.views import APIView
 
 
@@ -47,7 +48,7 @@ class RouteRegistry:
 
         http_names = [m.lower() for m in all_methods] + ["options"]
 
-        def _stub_handler(self, request, *args, **kwargs):
+        def _stub_handler(self, request, *args, **kwargs):  # pylint: disable=unused-argument
             pass
 
         combined_attrs = {"http_method_names": http_names}
@@ -59,15 +60,13 @@ class RouteRegistry:
             handler = handlers.get(request.method.upper())
             if handler:
                 return handler(request, *args, **kwargs)
-            from rest_framework.exceptions import MethodNotAllowed
-
             raise MethodNotAllowed(request.method)
 
         combined.cls = CombinedView
         combined.initkwargs = {}
         combined.__name__ = name
         if merged_swagger:
-            combined._swagger_auto_schema = merged_swagger
+            combined._swagger_auto_schema = merged_swagger  # pylint: disable=protected-access
 
         return path(url_path, combined, name=name)
 

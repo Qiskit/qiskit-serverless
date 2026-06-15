@@ -30,6 +30,7 @@ class RuntimeJobSerializer(api_serializers.RuntimeJobSerializer):
 
 
 def serialize_output(out_runtime_jobs: Any) -> dict[str, Any]:
+    """Build the response payload with serialized runtime jobs."""
     return {"runtime_jobs": RuntimeJobSerializer(out_runtime_jobs, many=True).data}
 
 

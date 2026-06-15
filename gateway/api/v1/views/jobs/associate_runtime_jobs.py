@@ -21,7 +21,7 @@ from api.v1.views.swagger_utils import standard_error_responses
 logger = logging.getLogger("api.api.v1.views.jobs.associate_runtime_jobs")
 
 
-class InputSerializer(serializers.Serializer):
+class InputSerializer(serializers.Serializer):  # pylint: disable=abstract-method
     """Validates the request body for associating runtime jobs to a serverless job."""
 
     runtime_job = serializers.CharField(required=True)
