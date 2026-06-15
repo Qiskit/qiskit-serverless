@@ -71,7 +71,7 @@ class TestIBMServerlessClient:
         """
 
         instance_dic = {
-            "crn": "crn:v1:bluemix:public:cloud-object-storage:global:a/59bcbfa6ea2f006b4ed7094c1a08dcdd:"
+            "crn": "crn:v1:bluemix:public:quantum-computing:us-east:a/my-crn::"
             "1a0ec336-f391-4091-a6fb-5e084a4c56f4:bucket:mybucket",
             "plan": "test_plan",
             "name": "my_instance_crn",
@@ -109,9 +109,9 @@ class TestIBMServerlessClient:
         # Mock list of instance crns in the IBM Cloud Global
         mock_list_instances.return_value = [
             {
-                "crn": "dummy_hub/dummy_group/dummy_project",
+                "crn": "test_name",
                 "plan": "test_plan",
-                "name": "dummy_hub/dummy_group/dummy_project",
+                "name": "test_name",
                 "tags": "test_tags",
                 "pricing_type": "test_pricing_type",
             },
@@ -137,7 +137,7 @@ class TestIBMServerlessClient:
         ]
 
         instances_to_test = [
-            "dummy_hub/dummy_group/dummy_project",
+            "test_name",
             "dummy_crn",
             "dummy_crn",
         ]

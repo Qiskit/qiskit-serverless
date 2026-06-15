@@ -706,7 +706,7 @@ class IBMServerlessClient(ServerlessClient):
             channel: identifies the method to use to authenticate the user
         """
 
-        channel = channel or Channel.IBM_QUANTUM_PLATFORM.value
+        channel = channel or Channel.IBM_QUANTUM_PLATFORM.value  # For backwards compatibility
 
         # Initialize QiskitRuntimeService
         self._service = QiskitRuntimeService(channel=channel, token=token, name=name, instance=instance)
