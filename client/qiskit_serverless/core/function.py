@@ -142,6 +142,15 @@ class RunService(ABC):
     ) -> Job:
         """Run a function and return its job."""
 
+    @abstractmethod
+    def validate_arguments(
+        self,
+        title: str,
+        arguments: Optional[Dict[str, Any]] = None,
+        provider: Optional[str] = None,
+    ) -> dict:
+        """Validate arguments against a function's schema without creating a job."""
+
 
 class RunnableQiskitFunction(QiskitFunction):
     """Serverless QiskitPattern.

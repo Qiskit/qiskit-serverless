@@ -625,7 +625,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 f"{self.host}/api/{self.version}/programs/validate_arguments/",
                 json={
                     "title": function_title,
-                    "arguments": json.dumps(arguments),
+                    "arguments": json.dumps(arguments or {}, cls=QiskitObjectsEncoder),
                     "provider": provider_name,
                 },
                 headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
