@@ -14,11 +14,14 @@ from kubernetes.dynamic.client import DynamicClient
 from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 
+from django.contrib.auth.models import User
+
 from core.models import ComputeResource, Job, Program
 from core.services.runners import get_runner
 from core.services.runners.abstract_runner import RunnerError
 from core.services.runners.ray_runner import FilteredLogs, RayRunner
 from core.utils import encrypt_string
+from tests.utils import TestUtils
 
 
 class response:
@@ -305,3 +308,81 @@ class TestGetRunner(APITestCase):
             get_runner(job)
 
         self.assertEqual(str(ctx.exception), "Unknown runner type: unknown-runner")
+
+
+class TestStreamLogsFromRay(APITestCase):
+    """Tests that _stream_logs_from_ray classifies [PUBLIC]/[PRIVATE] lines correctly.
+
+    These tests verify the filter logic that used to live in filter_logs.py:
+    given a raw byte stream from Ray, the runner must strip prefixes and route
+    each line to the correct deque (public_logs vs private_logs).
+    """
+
+    fixtures = ["tests/fixtures/schedule_fixtures.json"]
+
+    def _make_runner(self, job, host="http://test:8265"):
+        mock_client = MagicMock()
+        mock_client.get_address.return_value = host
+        runner = RayRunner(job)
+        runner._client = mock_client
+        runner._connected = True
+        return runner
+
+    def _ray_response(self, content):
+        """Build the JSON body that Ray dashboard returns for a log request.
+
+        Ray JSON-encodes newlines as the two-byte sequence backslash-n inside
+        the string value, so actual newlines in content are replaced accordingly.
+        """
+        return '{"logs": "' + content.replace("\n", "\\n") + '"}'
+
+    def test_user_job_all_lines_go_to_public_prefixes_stripped(self):
+        """User jobs: [PUBLIC], [PRIVATE], and untagged lines all go to public_logs, prefixes stripped."""
+        job = Job.objects.first()
+        job.ray_job_id = "ray-id"
+        job.save()
+        runner = self._make_runner(job)
+        raw_logs = """
+[PUBLIC] Public message
+[PRIVATE] Private message
+
+Unprefixed message
+"""
+        with requests_mock.Mocker() as m:
+            m.get("http://test:8265/api/jobs/ray-id/logs", text=self._ray_response(raw_logs))
+            result = runner.logs()
+
+        self.assertEqual(list(result.public_logs), ["", "Public message", "Private message", "", "Unprefixed message"])
+        self.assertIsNone(result.private_logs)
+
+    def test_provider_job_classifies_public_and_private_correctly(self):
+        """Provider jobs: [PUBLIC] → public_logs, [PRIVATE] and untagged → private_logs, prefixes stripped."""
+        provider = TestUtils.get_or_create_provider("stream-test-provider")
+        program = TestUtils.create_program(
+            program_title="stream-test-program",
+            author="stream-test-author",
+            provider=provider,
+        )
+        job = TestUtils.create_job(author="stream-test-author", program=program, ray_job_id="ray-provider-id")
+        runner = self._make_runner(job)
+        raw_logs = """
+[PUBLIC] INFO: Public log for user
+
+[PRIVATE] INFO: Private log for provider only
+[PUBLIC] INFO: Another public log
+Internal system log
+[PRIVATE] WARNING: Private warning
+[PUBLIC] INFO: Final public log
+"""
+        with requests_mock.Mocker() as m:
+            m.get("http://test:8265/api/jobs/ray-provider-id/logs", text=self._ray_response(raw_logs))
+            result = runner.logs()
+
+        self.assertEqual(
+            list(result.public_logs),
+            ["INFO: Public log for user", "INFO: Another public log", "INFO: Final public log"],
+        )
+        self.assertEqual(
+            list(result.private_logs),
+            ["", "", "INFO: Private log for provider only", "Internal system log", "WARNING: Private warning"],
+        )

@@ -25,6 +25,10 @@ from .task import SchedulerTask
 logger = logging.getLogger("scheduler.UpdateRayJobsStatuses")
 
 
+def _deque_from_str(text: str) -> deque:
+    return deque(text.split("\n"))
+
+
 class UpdateRayJobsStatuses(SchedulerTask):
     """Update status of Ray jobs."""
 
@@ -90,7 +94,7 @@ class UpdateRayJobsStatuses(SchedulerTask):
                 try:
                     lines = runner.logs()
                 except RunnerError:
-                    lines = FilteredLogs(public_logs=deque(), private_logs=None)
+                    lines = FilteredLogs(public_logs=_deque_from_str("Error getting logs"), private_logs=None)
                 save_logs_to_storage(job, lines)
                 if job.status == Job.SUCCEEDED:
                     self._record_execution_duration(job)
@@ -99,7 +103,7 @@ class UpdateRayJobsStatuses(SchedulerTask):
             try:
                 lines = runner.logs()
             except RunnerError:
-                lines = FilteredLogs(public_logs=deque(), private_logs=None)
+                lines = FilteredLogs(public_logs=_deque_from_str("Error getting logs"), private_logs=None)
 
         if lines is not None:
             # check if job is resource constrained

@@ -77,12 +77,8 @@ class TestJobLogsPermissions:
         """Test permissions for /logs and /provider-logs endpoints."""
         # Mock the runner clients to prevent hanging on Ray connection
         mock_handler = Mock()
-        mock_handler.logs.return_value = FilteredLogs(
-            public_logs=deque(["Test logs"]), private_logs=deque(["Test logs"])
-        )
-        mock_handler.provider_logs.return_value = FilteredLogs(
-            public_logs=deque(["Test logs"]), private_logs=deque(["Test logs"])
-        )
+        mock_handler.logs.return_value = FilteredLogs(public_logs=deque(), private_logs=None)
+        mock_handler.provider_logs.return_value = FilteredLogs(public_logs=deque(), private_logs=None)
         mock_get_logs_handler.return_value = mock_handler
         mock_provider_logs_handler.return_value = mock_handler
 
@@ -141,17 +137,10 @@ class TestJobLogsCoverage:
         """
         job = create_job(author="author")  # User job (no provider)
 
-        # Mock RunnerClient to return logs with all types
-        full_logs = """
-[PUBLIC] Public message
-[PRIVATE] Private message
-
-Unprefixed message
-"""
         runner_mock = Mock()
         runner_mock.status.return_value = Job.SUCCEEDED
         runner_mock.logs.return_value = FilteredLogs(
-            public_logs=deque(["", "Public message", "Private message", "", "Unprefixed message"]),
+            public_logs=deque(["public1", "public2"]),
             private_logs=None,
         )
         get_runner_client_mock.return_value = runner_mock
@@ -167,14 +156,7 @@ Unprefixed message
         )
 
         assert jobs_response.status_code == HTTP_200_OK
-        # User jobs: all logs shown, prefixes removed
-        expected_logs = """
-Public message
-Private message
-
-Unprefixed message
-"""
-        assert jobs_response.data.get("logs") == expected_logs
+        assert jobs_response.data.get("logs") == "public1\npublic2\n"
 
     @patch("api.use_cases.jobs.get_logs.get_runner")
     @patch("core.services.storage.logs_storage_ray.RayLogsStorage.get_public_logs")
@@ -184,29 +166,9 @@ Unprefixed message
 
         runner_mock = Mock()
         runner_mock.logs.return_value = FilteredLogs(
-            public_logs=deque(
-                [
-                    "",
-                    "INFO: Public log for user",
-                    "",
-                    "INFO: Private log for provider only",
-                    "INFO: Another public log",
-                    "Internal system log",
-                    "WARNING: Private warning",
-                    "INFO: Final public log",
-                ]
-            ),
+            public_logs=deque(["public1", "public2"]),
             private_logs=None,
         )
-        expected_user_logs = """
-INFO: Public log for user
-
-INFO: Private log for provider only
-INFO: Another public log
-Internal system log
-WARNING: Private warning
-INFO: Final public log
-"""
         get_runner_client_mock.return_value = runner_mock
 
         job = create_job(author="author")
@@ -219,7 +181,7 @@ INFO: Final public log
         )
 
         assert jobs_response.status_code == HTTP_200_OK
-        assert jobs_response.data.get("logs") == expected_user_logs
+        assert jobs_response.data.get("logs") == "public1\npublic2\n"
 
     @patch("core.services.storage.logs_storage_ray.RayLogsStorage.get_public_logs")
     def test_job_logs_in_db(self, logs_storage_get_mock):
@@ -267,26 +229,13 @@ INFO: Final public log
 
         For provider jobs, /provider-logs shows all logs unfiltered (with prefixes).
         """
-        # All log types with prefixes maintained
-        full_logs = """[PUBLIC] Public message
-[PRIVATE] Private message
-Unprefixed message
-
-[PUBLIC] Another public message
-"""
-        expected_provider_logs = """Private message
-Unprefixed message
-
-"""
-
         job = create_job(author="author", provider_admin="provider_admin")
 
-        # Mock RunnerClient to return logs (all logs saved for provider private logs)
         runner_mock = Mock()
         runner_mock.status.return_value = Job.SUCCEEDED
         runner_mock.logs.return_value = FilteredLogs(
-            public_logs=deque(["Public message", "Another public message"]),
-            private_logs=deque(["Private message", "Unprefixed message", ""]),
+            public_logs=deque(["public1"]),
+            private_logs=deque(["private1", "private2"]),
         )
         get_runner_client_mock.return_value = runner_mock
 
@@ -301,8 +250,7 @@ Unprefixed message
         )
 
         assert jobs_response.status_code == HTTP_200_OK
-        # /provider-logs returns all logs unfiltered (with prefixes)
-        assert jobs_response.data.get("logs") == expected_provider_logs
+        assert jobs_response.data.get("logs") == "private1\nprivate2\n"
 
     @patch("api.use_cases.jobs.provider_logs.get_runner")
     @patch("core.services.storage.logs_storage_ray.RayLogsStorage.get_private_logs")
@@ -310,28 +258,10 @@ Unprefixed message
         """Tests /provider-logs with provider job from Ray."""
         logs_storage_get_mock.return_value = None
 
-        full_logs = """
-[PUBLIC] INFO: Public log for user
-
-[PRIVATE] INFO: Private log for provider only
-[PUBLIC] INFO: Another public log
-Internal system log
-[PRIVATE] WARNING: Private warning
-[PUBLIC] INFO: Final public log
-"""
-        expected_provider_logs = """
-
-INFO: Private log for provider only
-Internal system log
-WARNING: Private warning
-"""
-
         runner_mock = Mock()
         runner_mock.provider_logs.return_value = FilteredLogs(
-            public_logs=deque(["INFO: Public log for user", "INFO: Another public log", "INFO: Final public log"]),
-            private_logs=deque(
-                ["", "", "INFO: Private log for provider only", "Internal system log", "WARNING: Private warning"]
-            ),
+            public_logs=deque(["public1"]),
+            private_logs=deque(["private1", "private2"]),
         )
         get_runner_client_mock.return_value = runner_mock
 
@@ -345,7 +275,7 @@ WARNING: Private warning
         )
 
         assert jobs_response.status_code == HTTP_200_OK
-        assert jobs_response.data.get("logs") == expected_provider_logs
+        assert jobs_response.data.get("logs") == "private1\nprivate2\n"
 
     @patch("core.services.storage.logs_storage_ray.RayLogsStorage.get_private_logs")
     def test_job_provider_logs_in_db(self, logs_storage_get_mock):
