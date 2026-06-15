@@ -48,6 +48,7 @@ class GetJobResultUseCase:
                 return GetResultResponse(redirect_url=url)
             return GetResultResponse()
 
+        # Ray only
         raw = storage.get()
         logger.info("[jobs-result] user_id=%s job_id=%s | Result retrieved ok", user.id, job_id)
         return GetResultResponse(raw_result=raw)
