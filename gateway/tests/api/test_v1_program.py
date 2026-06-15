@@ -1457,3 +1457,84 @@ class TestProgramApiRuntimeInstances:
 
             assert response.status_code == status.HTTP_200_OK
             assert len(response.data) == expected_job_count
+
+    class TestValidateArguments:
+        def test_validate_arguments_valid_returns_200(self, client, authorize):
+            """validate_arguments returns 200 when arguments match the schema."""
+            schema = json.dumps(
+                {
+                    "type": "object",
+                    "required": ["shots"],
+                    "properties": {"shots": {"type": "integer"}},
+                }
+            )
+            user = authorize("test_user", create_custom_access_result({PLATFORM_PERMISSION_CUSTOM_RUN}))
+            TestUtils.create_program(
+                program_title="validate-endpoint-func",
+                author=user,
+                arguments_schema=schema,
+            )
+            response = client.post(
+                "/api/v1/programs/validate_arguments/",
+                data={
+                    "title": "validate-endpoint-func",
+                    "arguments": json.dumps({"shots": 1024}),
+                },
+                format="json",
+            )
+            assert response.status_code == status.HTTP_200_OK
+            assert response.data == {"valid": True}
+
+        def test_validate_arguments_invalid_returns_400(self, client, authorize):
+            """validate_arguments returns 400 when arguments violate the schema."""
+            schema = json.dumps(
+                {
+                    "type": "object",
+                    "required": ["shots"],
+                    "properties": {"shots": {"type": "integer"}},
+                }
+            )
+            user = authorize("test_user", create_custom_access_result({PLATFORM_PERMISSION_CUSTOM_RUN}))
+            TestUtils.create_program(
+                program_title="validate-endpoint-func-bad",
+                author=user,
+                arguments_schema=schema,
+            )
+            response = client.post(
+                "/api/v1/programs/validate_arguments/",
+                data={
+                    "title": "validate-endpoint-func-bad",
+                    "arguments": json.dumps({"shots": "wrong"}),
+                },
+                format="json",
+            )
+            assert response.status_code == status.HTTP_400_BAD_REQUEST
+            assert "message" in response.data
+            assert "path" in response.data
+
+        def test_validate_arguments_no_schema_returns_200(self, client, authorize):
+            """validate_arguments returns 200 for any arguments when function has no schema."""
+            user = authorize("test_user", create_custom_access_result({PLATFORM_PERMISSION_CUSTOM_RUN}))
+            TestUtils.create_program(program_title="no-schema-func", author=user)
+            response = client.post(
+                "/api/v1/programs/validate_arguments/",
+                data={
+                    "title": "no-schema-func",
+                    "arguments": json.dumps({"anything": "goes"}),
+                },
+                format="json",
+            )
+            assert response.status_code == status.HTTP_200_OK
+
+        def test_validate_arguments_unknown_function_returns_404(self, client, authorize):
+            """validate_arguments returns 404 when function is not found."""
+            authorize("test_user", create_custom_access_result({PLATFORM_PERMISSION_CUSTOM_RUN}))
+            response = client.post(
+                "/api/v1/programs/validate_arguments/",
+                data={
+                    "title": "does-not-exist",
+                    "arguments": json.dumps({}),
+                },
+                format="json",
+            )
+            assert response.status_code == status.HTTP_404_NOT_FOUND

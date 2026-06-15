@@ -8,7 +8,11 @@ from typing import Any
 
 from packaging.requirements import Requirement, InvalidRequirement
 from packaging.version import Version, InvalidVersion
-from rest_framework.serializers import ValidationError
+from rest_framework.serializers import (
+    CharField,
+    Serializer,
+    ValidationError,
+)
 
 from api import serializers
 from api.utils import check_whitelisted
@@ -180,6 +184,23 @@ class RunProgramSerializer(serializers.RunProgramSerializer):
     """
     RunExistingProgramSerializer is used by the /run end-point
     """
+
+
+class ValidateArgumentsSerializer(Serializer):
+    """
+    Serializer for the /validate_arguments end-point.
+    Only title, arguments, and an optional provider are needed.
+    """
+
+    title = CharField(max_length=255)
+    arguments = CharField()
+    provider = CharField(required=False, allow_null=True)
+
+    def update(self, instance, validated_data):
+        pass
+
+    def create(self, validated_data):
+        pass
 
 
 class JobConfigSerializer(serializers.JobConfigSerializer):
