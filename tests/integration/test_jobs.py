@@ -474,3 +474,39 @@ ERROR: Provider log
         assert event_data["message"] == "ValueError: This is not a ServerlessError"
         assert event_data["exception"] == "ValueError"
         assert expected_message == job.error_message()
+
+    def test_arguments_validation(self, serverless_client: ServerlessClient):
+        """Integration: upload function with schema, validate correct and incorrect arguments."""
+        schema = {
+            "type": "object",
+            "required": ["shots"],
+            "properties": {"shots": {"type": "integer"}},
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            entrypoint = os.path.join(tmp, "main.py")
+            with open(entrypoint, "w", encoding="utf-8") as f:
+                f.write(
+                    "from qiskit_serverless import get_arguments, save_result\n"
+                    "args = get_arguments()\nsave_result(args)\n"
+                )
+
+            fn = QiskitFunction(
+                title="validation-test-fn",
+                entrypoint="main.py",
+                working_dir=tmp,
+                arguments_schema=schema,
+            )
+            runnable = serverless_client.upload(fn)
+
+        # Valid arguments
+        result = runnable.validate_arguments({"shots": 1024})
+        assert result.get("valid") is True
+
+        # Invalid arguments (wrong type)
+        with raises(Exception):
+            runnable.validate_arguments({"shots": "wrong-type"})
+
+        # Run with invalid arguments - should also be rejected
+        with raises(Exception):
+            runnable.run(shots="wrong-type")
