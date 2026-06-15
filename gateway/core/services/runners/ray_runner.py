@@ -27,7 +27,6 @@ from ray.dashboard.modules.job.sdk import JobSubmissionClient
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from core.domain.filter_logs import public_pattern, private_pattern
 from core.models import ComputeResource, Job, JobConfig, DEFAULT_PROGRAM_ENTRYPOINT
 from core.services.runners.abstract_runner import AbstractRunner, RunnerError
 from core.services.storage import get_file_storage
@@ -35,6 +34,8 @@ from core.services.storage.file_storage_ray import FileStorageRay
 from core.utils import retry_function, decrypt_env_vars, sanitize_file_path
 
 logger = logging.getLogger("RayRunner")
+public_pattern = re.compile(r"^\[PUBLIC\]", re.IGNORECASE)
+private_pattern = re.compile(r"^\[PRIVATE\]", re.IGNORECASE)
 
 
 _LOG_VALUE_MARKER = b'"logs": "'  # JSON key that opens the log string value
