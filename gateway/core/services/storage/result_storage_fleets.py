@@ -44,11 +44,11 @@ class FleetsResultStorage(ResultStorage):
         self._project = job.program.code_engine_project
         paths = build_job_paths(job)
         self._results_key = paths.cos_results_key
-        self._user_bucket = self._load_user_bucket(job)
+        self._user_bucket = self._load_user_bucket()
 
-    def _load_user_bucket(self, job: Job) -> str:
+    def _load_user_bucket(self) -> str:
         """Return the user data bucket name, raising ValueError if not configured."""
-        user_bucket = job.code_engine_project.cos_bucket_user_data_name
+        user_bucket = self._project.cos_bucket_user_data_name
         if not user_bucket:
             raise ValueError(
                 f"CodeEngineProject '{self._project.project_name}' has no cos_bucket_user_data_name configured"
