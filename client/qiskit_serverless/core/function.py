@@ -57,6 +57,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
         working_dir: directory where entrypoint file is located (max size 50MB)
         description: description of a program
         version: version of a program
+        arguments_schema: JSON Schema dict describing valid arguments for this function
     """
 
     GENERIC: ClassVar[GenericType] = "GENERIC"
@@ -76,7 +77,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
     image: Optional[str] = None
     runner: str = "ray"
     validate: bool = True
-    schema: Optional[str] = None
+    arguments_schema: Optional[Dict[str, Any]] = None
     type: Union[GenericType, ApplicationType, CircuitType] = GENERIC
 
     def __post_init__(self):
