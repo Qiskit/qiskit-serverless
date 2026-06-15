@@ -208,17 +208,6 @@ class TestCommands:
         assert len(job_events) == 2  # the events are: creation (QUEUED), running
         assert len(running_jobs) == 1
 
-        # Mock Ray to return unfiltered logs with PUBLIC and PRIVATE markers
-        full_logs = """
-2026-01-06 10:00:00,000 INFO job_manager.py:568 -- Runtime env is setting up.
-
-[PUBLIC] INFO: Public user log
-[PRIVATE] INFO: Private provider log
-[PUBLIC] INFO: Another public log
-Ray internal log without marker
-[PUBLIC] INFO: Final public log
-"""
-
         runner = MagicMock()
         runner.status.return_value = JobStatus.SUCCEEDED
         runner.logs.return_value = FilteredLogs(
@@ -282,17 +271,6 @@ INFO: Final public log
             compute_resource=compute_resource,
             ray_job_id="test-ray-job-id-with-provider",
         )
-
-        # Mock Ray to return unfiltered logs
-        full_logs = """
-[PUBLIC] INFO: Public log for user
-
-[PRIVATE] INFO: Private log for provider only
-[PUBLIC] INFO: Another public log
-Internal system log
-[PRIVATE] WARNING: Private warning
-[PUBLIC] INFO: Final public log
-"""
 
         runner = MagicMock()
         runner.status.return_value = JobStatus.SUCCEEDED
