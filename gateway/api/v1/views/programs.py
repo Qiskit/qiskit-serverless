@@ -2,6 +2,9 @@
 Programs view api for V1.
 """
 
+import json
+import logging
+
 import jsonschema
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -15,12 +18,15 @@ from api.access_policies.jobs import JobAccessPolicies
 from api.use_cases.validate_arguments import validate_arguments as validate_arguments_use_case
 from api.utils import sanitize_name
 from api.v1 import serializers as v1_serializers
+from api.v1.exception_handler import endpoint_handle_exceptions
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import (
     PLATFORM_PERMISSION_RUN,
     RUN_PROGRAM_PERMISSION,
     Program as Function,
 )
+
+logger = logging.getLogger("api.api.views.programs")
 
 
 class ProgramViewSet(views.ProgramViewSet):
@@ -109,6 +115,7 @@ class ProgramViewSet(views.ProgramViewSet):
     def get_by_title(self, request, title):
         return super().get_by_title(request, title)
 
+    @endpoint_handle_exceptions
     @swagger_auto_schema(
         operation_description="Validate arguments against a Qiskit Function schema without creating a job",
         request_body=v1_serializers.ValidateArgumentsSerializer,
@@ -128,6 +135,13 @@ class ProgramViewSet(views.ProgramViewSet):
         provider_name = sanitize_name(serializer.data.get("provider"))
         function_title = sanitize_name(serializer.data.get("title"))
         accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
+        logger.info(
+            "[programs-validate-arguments] user_id=%s program=%s provider=%s accessible_functions=%s",
+            author.id,
+            function_title,
+            provider_name,
+            accessible_functions,
+        )
 
         function = None
         if provider_name:
@@ -157,5 +171,16 @@ class ProgramViewSet(views.ProgramViewSet):
                 {"message": exc.message, "path": list(exc.path)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        except json.JSONDecodeError as exc:
+            return Response(
+                {"message": f"arguments is not valid JSON: {exc.msg}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
+        logger.info(
+            "[programs-validate-arguments] user_id=%s program=%s provider=%s | Arguments validated ok",
+            author.id,
+            function_title,
+            provider_name,
+        )
         return Response({"valid": True}, status=status.HTTP_200_OK)
