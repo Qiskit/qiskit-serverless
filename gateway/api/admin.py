@@ -325,3 +325,17 @@ class JobEventAdmin(admin.ModelAdmin):
 
     list_display = ("created", "job", "event_type", "origin", "context")
     date_hierarchy = "created"
+
+
+class QiskitAdminSite(admin.AdminSite):
+    """AdminSite subclass that injects dashboard stats into the index view."""
+
+    def index(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context["dashboard_stats"] = get_dashboard_stats()
+        return super().index(request, extra_context)
+
+
+# Swap the class of the default site so all existing registrations are kept
+# (including django.contrib.auth models registered by Django itself).
+admin.site.__class__ = QiskitAdminSite
