@@ -12,10 +12,8 @@ from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.domain.exceptions.invalid_access_exception import InvalidAccessException
 from api.use_cases.jobs.logs_result import LogsResult
-from core.domain.filter_logs import remove_prefix_tags_in_logs, filter_logs_with_public_tags
 from core.models import Job, Program
 from core.services.runners import get_runner, RunnerError
-from core.utils import check_logs
 from core.services.storage import get_logs_storage
 
 logger = logging.getLogger("api.GetJobLogsUseCase")
@@ -57,17 +55,19 @@ class GetJobLogsUseCase:
         runner = get_runner(job)
         if runner.is_active():
             try:
-                logs = runner.logs()
+                lines = runner.logs()
             except RunnerError:
                 return LogsResult(raw_log="Logs not available for this job during execution.")
 
-            logs = check_logs(logs, job)
+            if not lines.public_logs:
+                return LogsResult(raw_log="")
+
             logger.info("Getting logs from runner=%s job_id=%s", job.program.runner, job.id)
 
-            if job.program.provider:
-                return LogsResult(raw_log=filter_logs_with_public_tags(logs))
-            return LogsResult(raw_log=remove_prefix_tags_in_logs(logs))
+            raw_log = "\n".join(lines.public_logs) + "\n"
+            return LogsResult(raw_log=raw_log)
 
+        # Legacy: Get from db.
         if job.program.provider:
             return LogsResult(raw_log="No logs available.")
         return LogsResult(raw_log=job.logs)
