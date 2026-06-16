@@ -5,7 +5,6 @@ from django.contrib.auth.models import User
 
 from api.admin import get_dashboard_stats
 from core.models import CodeEngineProject, Job, Program, Provider
-from tests.utils import TestUtils
 
 
 @pytest.mark.django_db
