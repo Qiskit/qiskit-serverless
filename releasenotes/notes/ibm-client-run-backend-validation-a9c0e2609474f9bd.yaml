@@ -1,0 +1,29 @@
+---
+features:
+  - |
+    ``IBMServerlessClient`` now exposes a ``backends(**kwargs)`` method that lists the IBM Quantum
+    backends accessible through the configured instance. Results are cached per client instance so
+    repeated calls within a session are inexpensive.
+  - |
+    ``IBMServerlessClient.run()`` performs three pre-flight checks before submitting a job to the
+    gateway, providing early and clear error messages instead of silent queue waits:
+
+    * **Usage quota** — raises ``QiskitServerlessException`` when the instance has no remaining
+      runtime quota (within ``USAGE_ZERO_EPSILON_SECONDS``); emits a ``UserWarning`` when quota is
+      low (below ``USAGE_LOW_THRESHOLD_SECONDS``). Transient failures of the usage endpoint produce
+      a warning rather than blocking the run.
+    * **Backend access** — when ``arguments["backend_name"]`` is set, validates access via a
+      single-backend lookup. Raises ``QiskitServerlessException`` if the backend is not found or
+      is inaccessible.
+    * **Instance has backends** — when no ``backend_name`` is given, verifies the instance exposes
+      at least one backend (result cached). Raises ``QiskitServerlessException`` if none are found.
+upgrade:
+  - |
+    Two environment variables control the usage quota thresholds used by
+    ``IBMServerlessClient.run()``. Their defaults are provisional and may be adjusted in a future
+    release:
+
+    * ``USAGE_LOW_THRESHOLD_SECONDS`` (default ``600`` s) — warn when remaining quota falls below
+      this value.
+    * ``USAGE_ZERO_EPSILON_SECONDS`` (default ``1`` s) — treat remaining quota at or below this
+      as zero and raise an error.
