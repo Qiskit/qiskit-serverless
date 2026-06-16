@@ -134,7 +134,12 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         normalized_dependencies = [self._normalize_dependency(dep) for dep in raw_dependencies]
         validated_data["dependencies"] = json.dumps(normalized_dependencies)
 
-        return Program.objects.create(**validated_data)
+        program = Program(**validated_data)
+        CodeEngineProject.objects.assign_to_program(program)
+        if program.runner == Program.FLEETS and not program.code_engine_project:
+            raise serializers.ValidationError("No active Code Engine project available. Contact administrator.")
+        program.save()
+        return program
 
     def update(self, instance, validated_data):
         logger.info("user_id=%s program=%s | Updating function", instance.author_id, instance.title)
@@ -157,6 +162,8 @@ class UploadProgramSerializer(serializers.ModelSerializer):
 
         instance.runner = validated_data.get("runner", Program.RAY)
         instance.arguments_schema = validated_data.get("arguments_schema", instance.arguments_schema)
+
+        CodeEngineProject.objects.assign_to_program(instance)
 
         instance.save()
         return instance
@@ -358,13 +365,8 @@ class RunJobSerializer(serializers.ModelSerializer):
         # Get runner-specific configuration (compute_profile for Fleets, GPU for Ray)
         compute_profile, gpu = self._get_runner_config(program, compute_profile_requested)
 
-        code_engine_project = None
-        if program.runner == Program.FLEETS:
-            code_engine_project = CodeEngineProject.objects.select_for_profile(compute_profile)
-            if code_engine_project is None:
-                raise serializers.ValidationError(
-                    f"No active Code Engine project available for compute profile {compute_profile}"
-                )
+        if program.runner == Program.FLEETS and not program.code_engine_project:
+            raise serializers.ValidationError("Program has no Code Engine project assigned. Contact administrator.")
 
         job = Job(
             trial=trial,
@@ -376,9 +378,10 @@ class RunJobSerializer(serializers.ModelSerializer):
             gpu=gpu,
             runner=program.runner,
             compute_profile=compute_profile,
-            code_engine_project=code_engine_project,
             instance_crn=instance,
             account_id=account_id,
+            ce_project_name=program.code_engine_project.project_name if program.code_engine_project else None,
+            ce_region=program.code_engine_project.region if program.code_engine_project else None,
         )
 
         env = encrypt_env_vars(

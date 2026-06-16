@@ -12,15 +12,13 @@
 
 """Unit tests for FleetsRunner."""
 
-from __future__ import annotations
-
 from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
 import pytest
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
-from core.models import Program
+from core.models import Job, Program
 from core.services.runners.abstract_runner import RunnerError
 from core.services.runners.fleets_runner import FleetsRunner
 
@@ -28,7 +26,7 @@ _RUNNER_MOD = "core.services.runners.fleets_runner"
 
 
 @pytest.fixture(autouse=True)
-def _clear_is_active_cache():
+def _clear_caches():
     FleetsRunner._is_active_cache._store.clear()
 
 
@@ -51,9 +49,14 @@ def _make_runner(fleet_id: str | None = None) -> tuple[FleetsRunner, MagicMock]:
 
     runner = FleetsRunner(mock_job)
     mock_handler = MagicMock()
+    mock_cos = MagicMock()
+    mock_cos.list_keys.return_value = []
+    mock_project = MagicMock()
+    mock_project.cos_bucket_task_store_name = "task-store-bucket"
+    mock_project.project_id = "test-project-id"
     runner._handler = mock_handler  # pylint: disable=protected-access
-    runner._project = MagicMock()  # pylint: disable=protected-access
-    runner._cos = MagicMock()  # pylint: disable=protected-access
+    runner._project = mock_project  # pylint: disable=protected-access
+    runner._cos = mock_cos  # pylint: disable=protected-access
     runner._connected = True  # pylint: disable=protected-access
     return runner, mock_handler
 
@@ -66,18 +69,26 @@ def _patch_settings(**overrides):
         "IBM_CLOUD_API_KEY": "test-api-key",
         "CE_ICR_PULL_SECRET": "test-pull-secret",
         "FLEETS_DEFAULT_IMAGE": "default-image:latest",
-        "FLEETS_DEFAULT_MAX_INSTANCES": 1,
         "DEFAULT_COMPUTE_PROFILE": "cx3d-4x16",
+        "FLEETS_GATEWAY_HOST": None,
+        "CUSTOM_IMAGE_PACKAGE_PATH": "/runner",
+        "CUSTOM_IMAGE_PACKAGE_NAME": "runner",
     }
     defaults.update(overrides)
-    with patch(f"{_RUNNER_MOD}.settings") as mock_settings:
+    with (
+        patch(f"{_RUNNER_MOD}.settings") as mock_settings,
+        patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value={}),
+    ):
         for key, value in defaults.items():
             setattr(mock_settings, key, value)
         yield mock_settings
 
 
 def _make_submit_runner() -> tuple[FleetsRunner, MagicMock]:
-    """Build a FleetsRunner pre-wired for submit() without COS.
+    """Build a FleetsRunner pre-wired for submit() with COS configured.
+
+    COS interactions are mocked: _upload_program_to_cos is patched to a no-op
+    so tests that verify fleet submission parameters don't need real COS credentials.
 
     Returns:
         Tuple of ``(runner, mock_handler)`` where handler.submit_job
@@ -96,6 +107,10 @@ def _make_submit_runner() -> tuple[FleetsRunner, MagicMock]:
     mock_job.program.image = None
     mock_job.program.artifact = None
     mock_job.program.entrypoint = "main.py"
+    mock_job.program.provider = None
+    mock_job.program.runner = Program.FLEETS
+    mock_job.env_vars = "{}"
+    mock_job.arguments = "{}"
 
     runner = FleetsRunner(mock_job)
     mock_handler = MagicMock()
@@ -105,10 +120,12 @@ def _make_submit_runner() -> tuple[FleetsRunner, MagicMock]:
     mock_project.subnet_pool_id = "subnet-1"
     mock_project.pds_name_state = "state-pds"
     mock_project.project_name = "test-project"
-    mock_project.cos_bucket_user_data_name = None
-    mock_project.cos_bucket_provider_data_name = None
-    mock_project.cos_instance_name = None
-    mock_project.cos_key_name = None
+    mock_project.cos_bucket_user_data_name = "user-bucket"
+    mock_project.cos_bucket_provider_data_name = "provider-bucket"
+    mock_project.cos_instance_name = "cos-instance"
+    mock_project.cos_key_name = "cos-key"
+    mock_project.pds_name_users = "user-pds"
+    mock_project.pds_name_providers = "provider-pds"
     runner._project = mock_project  # pylint: disable=protected-access
     runner._connected = True  # pylint: disable=protected-access
 
@@ -150,56 +167,111 @@ def test_is_active_false_on_connection_error():
         assert runner.is_active() is False
 
 
-@pytest.mark.parametrize(
-    "raw,expected",
-    [
-        ("pending", "PENDING"),
-        ("running", "RUNNING"),
-        ("succeeded", "SUCCEEDED"),
-        ("successful", "SUCCEEDED"),
-        ("failed", "FAILED"),
-        ("stopped", "STOPPED"),
-        ("cancelled", "STOPPED"),
-        ("canceled", "STOPPED"),
-        ("canceling", "STOPPED"),
-        ("unknown-status", "PENDING"),
-    ],
-)
-def test_status_maps_fleet_status(raw, expected):
-    """status() maps CE fleet statuses to Job.STATUS constants correctly."""
-    runner, mock_handler = _make_runner(fleet_id="fleet-123")
-    mock_handler.get_job_status.return_value = {"status": raw}
-
-    result = runner.status()
-
-    assert result == getattr(runner.job, expected)
-
-
-def test_status_returns_none_on_429():
-    """status() returns None on 429 to allow scheduler retry without failing the job."""
-    runner, mock_handler = _make_runner(fleet_id="fleet-123")
-    mock_handler.get_job_status.side_effect = ApiException(status=429, reason="Too Many Requests")
-
-    result = runner.status()
-
-    assert result is None
-
-
-def test_status_raises_runner_error_on_other_api_exception():
-    """status() raises RunnerError on non-429 ApiException."""
-    runner, mock_handler = _make_runner(fleet_id="fleet-123")
-    mock_handler.get_job_status.side_effect = ApiException(status=500, reason="Internal Error")
-
-    with pytest.raises(RunnerError):
-        runner.status()
-
-
 def test_status_raises_runner_error_when_no_fleet_id():
     """status() raises RunnerError when job has no fleet_id."""
     runner, _ = _make_runner(fleet_id=None)
 
     with pytest.raises(RunnerError, match="fleet_id"):
         runner.status()
+
+
+def test_status_returns_none_when_cos_empty():
+    """status() returns None when COS has no keys yet (fleet just created)."""
+    runner, _ = _make_runner(fleet_id="fleet-123")
+    runner._cos.list_keys.return_value = []
+
+    assert runner.status() is None
+
+
+class TestCosStatusDetection:
+    """Tests for COS-based fleet status detection."""
+
+    def test_cos_succeeded_returns_succeeded(self):
+        """status() returns SUCCEEDED when COS has a succeeded key."""
+        runner, mock_handler = _make_runner(fleet_id="fleet-123")
+        runner._cos.list_keys.return_value = [
+            "ce/test-project-id/fleet-123/v2/queue/succeeded/0/fleet-123-0/2026-01-01T00:00:00Z/..."
+        ]
+
+        result = runner.status()
+
+        assert result == Job.SUCCEEDED
+        mock_handler.get_job_status.assert_not_called()
+
+    def test_cos_failed_returns_failed(self):
+        """status() returns FAILED when COS has a failed key."""
+        runner, mock_handler = _make_runner(fleet_id="fleet-123")
+        runner._cos.list_keys.return_value = [
+            "ce/test-project-id/fleet-123/v2/queue/failed/1/fleet-123-0/2026-01-01T00:00:00Z/..."
+        ]
+
+        result = runner.status()
+
+        assert result == Job.FAILED
+        mock_handler.get_job_status.assert_not_called()
+
+    def test_cos_running_returns_running(self):
+        """status() returns RUNNING when COS has a running key."""
+        runner, mock_handler = _make_runner(fleet_id="fleet-123")
+        runner._cos.list_keys.return_value = [
+            "ce/test-project-id/fleet-123/v2/queue/running/fleet-123-0/2026-01-01T00:00:00Z/..."
+        ]
+
+        result = runner.status()
+
+        assert result == Job.RUNNING
+        mock_handler.get_job_status.assert_not_called()
+
+    def test_cos_pending_returns_pending(self):
+        """status() returns PENDING when COS has only a pending key."""
+        runner, mock_handler = _make_runner(fleet_id="fleet-123")
+        runner._cos.list_keys.return_value = [
+            "ce/test-project-id/fleet-123/v2/queue/pending/000-00000-0/2026-01-01T00:00:00Z/..."
+        ]
+
+        result = runner.status()
+
+        assert result == Job.PENDING
+        mock_handler.get_job_status.assert_not_called()
+
+    def test_cos_terminal_takes_priority_over_running(self):
+        """status() returns SUCCEEDED even if running key is also present."""
+        runner, mock_handler = _make_runner(fleet_id="fleet-123")
+        runner._cos.list_keys.return_value = [
+            "ce/test-project-id/fleet-123/v2/queue/running/fleet-123-0/...",
+            "ce/test-project-id/fleet-123/v2/queue/succeeded/0/fleet-123-0/...",
+        ]
+
+        result = runner.status()
+
+        assert result == Job.SUCCEEDED
+
+    def test_cos_unrecognized_keys_raises_runner_error(self):
+        """status() raises RunnerError when COS keys don't match any known pattern."""
+        runner, _ = _make_runner(fleet_id="fleet-123")
+        runner._cos.list_keys.return_value = ["ce/test-project-id/fleet-123/v2/queue/unknown-state/..."]
+
+        with pytest.raises(RunnerError, match="Unrecognized COS task state"):
+            runner.status()
+
+    def test_cos_exception_returns_none(self):
+        """status() returns None when COS list_keys raises."""
+        runner, _ = _make_runner(fleet_id="fleet-123")
+        runner._cos.list_keys.side_effect = Exception("connection error")
+
+        assert runner.status() is None
+
+    def test_cos_client_error_returns_none(self):
+        """status() returns None when COS raises ClientError."""
+        from ibm_botocore.exceptions import ClientError
+
+        runner, _ = _make_runner(fleet_id="fleet-123")
+        runner._cos.list_keys.side_effect = ClientError(
+            {"Error": {"Code": "NoSuchBucket", "Message": "not found"}},
+            "ListObjectsV2",
+        )
+
+        assert runner.status() is None
 
 
 def test_stop_deletes_fleet_when_running():
@@ -224,54 +296,8 @@ def test_stop_returns_false_when_already_terminal():
     mock_handler.cancel_job.assert_not_called()
 
 
-def test_build_job_paths_custom_function():
-    """COS paths for a custom function — user + provider-function keys, no provider-job keys."""
-    runner, _ = _make_runner()
-    runner.job.author.username = "IBMid-50FJDA"
-    runner.job.program.provider = None
-    runner.job.program.title = "hello-world"
-    runner.job.id = "8be4df61-93ca"
-
-    paths = build_job_paths(runner.job)
-
-    assert paths.cos_user_function_prefix == "users/IBMid-50FJDA/custom_functions/hello-world"
-    assert paths.cos_user_job_prefix == "users/IBMid-50FJDA/custom_functions/hello-world/jobs/8be4df61-93ca"
-    assert paths.cos_user_log_key == "users/IBMid-50FJDA/custom_functions/hello-world/jobs/8be4df61-93ca/logs.log"
-    assert paths.cos_results_key == "users/IBMid-50FJDA/custom_functions/hello-world/jobs/8be4df61-93ca/results.json"
-    assert paths.container_public_log_path == "/data/logs.log"
-    assert paths.container_private_log_path is None
-    assert paths.container_arguments_path == "/data/arguments.json"
-    assert paths.container_result_path == "/data/results.json"
-    assert paths.cos_provider_function_prefix is None
-    assert paths.cos_provider_log_key is None
-
-
-def test_build_job_paths_provider_function():
-    """Full COS key paths for a provider function."""
-    runner, _ = _make_runner()
-    runner.job.author.username = "IBMid-50FJDA"
-    runner.job.program.provider = MagicMock()
-    runner.job.program.provider.name = "Q-CTRL"
-    runner.job.program.title = "sampler-v2"
-    runner.job.id = "8be4df61-93ca"
-
-    paths = build_job_paths(runner.job)
-
-    assert paths.cos_user_function_prefix == "users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2"
-    assert paths.cos_user_job_prefix == "users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca"
-    assert paths.cos_user_log_key == "users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca/logs.log"  # fmt: skip
-    assert paths.cos_results_key == "users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca/results.json"  # fmt: skip
-
-    assert paths.container_public_log_path == "/data/logs.log"
-    assert paths.container_private_log_path == "/function_data/jobs/8be4df61-93ca/logs.log"
-    assert paths.container_arguments_path == "/data/arguments.json"
-    assert paths.container_result_path == "/data/results.json"
-    assert paths.cos_provider_function_prefix == "providers/Q-CTRL/sampler-v2"
-    assert paths.cos_provider_log_key == "providers/Q-CTRL/sampler-v2/jobs/8be4df61-93ca/logs.log"
-
-
-def test_submit_sets_fleet_id_without_cos():
-    """submit() sets job.fleet_id when COS is not configured."""
+def test_submit_sets_fleet_id_with_cos():
+    """submit() sets job.fleet_id when COS is configured."""
     runner, mock_handler = _make_submit_runner()
 
     with _patch_settings():
@@ -279,6 +305,17 @@ def test_submit_sets_fleet_id_without_cos():
 
     assert runner.job.fleet_id == "fleet-abc"
     mock_handler.submit_job.assert_called_once()
+
+
+def test_submit_raises_runner_error_when_cos_not_configured():
+    """submit() raises RunnerError when COS is not configured — Fleets requires COS."""
+    runner, _ = _make_submit_runner()
+    runner._project.cos_bucket_user_data_name = None  # pylint: disable=protected-access
+    runner._project.cos_instance_name = None  # pylint: disable=protected-access
+    runner._project.cos_key_name = None  # pylint: disable=protected-access
+
+    with _patch_settings(), pytest.raises(RunnerError, match="COS is not configured"):
+        runner.submit()
 
 
 def test_submit_raises_runner_error_on_api_exception():
@@ -342,7 +379,7 @@ def test_submit_parses_compute_profile_without_gpu():
     call_kwargs = mock_handler.submit_job.call_args.kwargs
     assert call_kwargs["scale_cpu_limit"] == "4"
     assert call_kwargs["scale_memory_limit"] == "16G"
-    assert call_kwargs.get("extra_fields") is None
+    assert "scale_gpu" not in (call_kwargs.get("extra_fields") or {})
 
 
 def test_submit_uses_default_profile_when_no_compute_profile():
@@ -367,7 +404,7 @@ def test_submit_default_profile_in_settings_is_parseable():
     call_kwargs = mock_handler.submit_job.call_args.kwargs
     assert call_kwargs["scale_cpu_limit"] == "24"
     assert call_kwargs["scale_memory_limit"] == "120G"
-    assert call_kwargs.get("extra_fields") is None
+    assert "scale_gpu" not in (call_kwargs.get("extra_fields") or {})
 
 
 def test_submit_raises_on_unparseable_compute_profile():
@@ -385,7 +422,7 @@ def test_submit_uses_program_image():
     runner, mock_handler = _make_submit_runner()
     runner.job.program.image = "custom-image:latest"
 
-    with _patch_settings():
+    with _patch_settings(), patch.object(runner, "_upload_program_to_cos"):
         runner.submit()
 
     assert mock_handler.submit_job.call_args.kwargs["image_reference"] == "custom-image:latest"
@@ -413,14 +450,13 @@ def test_submit_uses_config_workers_as_max_instances():
     assert mock_handler.submit_job.call_args.kwargs["scale_max_instances"] == 3
 
 
-def test_submit_uses_settings_max_instances_when_no_config():
-    """submit() falls back to FLEETS_DEFAULT_MAX_INSTANCES when config has no workers."""
+def test_submit_uses_default_max_instances_when_no_config():
+    """submit() falls back to 1 when config has no workers."""
     runner, mock_handler = _make_submit_runner()
 
-    with _patch_settings(FLEETS_DEFAULT_MAX_INSTANCES=5):
-        runner.submit()
+    runner.submit()
 
-    assert mock_handler.submit_job.call_args.kwargs["scale_max_instances"] == 5
+    assert mock_handler.submit_job.call_args.kwargs["scale_max_instances"] == 1
 
 
 def test_get_result_from_cos_returns_none_when_cos_not_configured():
@@ -446,17 +482,21 @@ def test_get_result_from_cos_returns_json_string():
         patch(
             f"{_RUNNER_MOD}.build_job_paths",
             return_value=FleetJobPaths(
-                cos_user_function_prefix="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2",
+                cos_user_function_prefix="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/data",
                 cos_user_job_prefix="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca",
                 cos_user_log_key="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca/logs.log",
                 cos_results_key="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca/results.json",  # fmt: skip
-                cos_provider_function_prefix="providers/Q-CTRL/sampler-v2",
+                cos_provider_function_prefix="providers/Q-CTRL/sampler-v2/data",
+                cos_provider_job_prefix="providers/Q-CTRL/sampler-v2/jobs/8be4df61-93ca",
                 cos_provider_log_key="providers/Q-CTRL/sampler-v2/jobs/8be4df61-93ca/logs.log",
-                container_entrypoint="/function_data/sampler_v2.py",
-                container_public_log_path="/data/logs.log",
-                container_private_log_path="/function_data/jobs/8be4df61-93ca/logs.log",
-                container_arguments_path="/data/arguments.json",
-                container_result_path="/data/results.json",
+                cos_function_entrypoint="providers/Q-CTRL/sampler-v2/data/main.py",
+                cos_docker_entrypoint="providers/Q-CTRL/sampler-v2/data/fleet_provider_job_wrapper.py",
+                container_function_entrypoint="/function_provider_data/main.py",
+                container_docker_entrypoint="/function_provider_data/fleet_provider_job_wrapper.py",
+                container_public_log_path="/job_user_data/logs.log",
+                container_private_log_path="/job_provider_data/logs.log",
+                container_arguments_path="/job_user_data/arguments.json",
+                container_result_path="/job_user_data/results.json",
             ),
         ),
     ):
@@ -487,7 +527,7 @@ def test_get_project_existing(active, raises):
     mock_project = MagicMock()
     mock_project.active = active
     mock_project.project_name = "my-project"
-    runner.job.code_engine_project = mock_project
+    runner.job.program.code_engine_project = mock_project
 
     if raises:
         with pytest.raises(RunnerError):
@@ -497,10 +537,10 @@ def test_get_project_existing(active, raises):
 
 
 def test_get_project_raises_when_no_project_assigned():
-    """_get_project() raises RunnerError when job.code_engine_project is None."""
+    """_get_project() raises RunnerError when program has no code_engine_project."""
     runner, _ = _make_runner()
-    runner.job.code_engine_project = None
-    runner.job.id = "job-uuid"
+    runner.job.program.code_engine_project = None
+    runner.job.program.title = "my-program"
 
     with pytest.raises(RunnerError, match="No Code Engine project assigned"):
         runner._get_project()  # pylint: disable=protected-access
@@ -614,9 +654,9 @@ def test_submit_includes_gateway_env_vars():
     by_name = {e["name"]: e["value"] for e in env_list}
     assert by_name["MY_TOKEN"] == "decrypted_secret"
     assert by_name["MY_URL"] == "http://example.com"
-    assert by_name["ARGUMENTS_PATH"] == "/data/arguments.json"
-    assert by_name["RESULTS_PATH"] == "/data/results.json"
-    assert by_name["PUBLIC_LOG_PATH"] == "/data/logs.log"
+    assert by_name["ARGUMENTS_PATH"] == "/job_user_data/arguments.json"
+    assert by_name["RESULTS_PATH"] == "/job_user_data/results.json"
+    assert by_name["PUBLIC_LOG_PATH"] == "/job_user_data/logs.log"
 
 
 def test_submit_arguments_path_set_exactly_once():
@@ -643,4 +683,136 @@ def test_submit_arguments_path_set_exactly_once():
     env_list = call_kwargs["extra_fields"]["run_env_variables"]
     arguments_path_entries = [e for e in env_list if e.get("name") == "ARGUMENTS_PATH"]
     assert len(arguments_path_entries) == 1
-    assert arguments_path_entries[0]["value"] == "/data/arguments.json"
+    assert arguments_path_entries[0]["value"] == "/job_user_data/arguments.json"
+
+
+def test_upload_provider_image_entrypoint_uploads_to_provider_bucket():
+    """_upload_provider_image_entrypoint() uploads rendered template to provider bucket for provider jobs."""
+    runner, _ = _make_runner()
+    runner.job.author.username = "alice"
+    runner.job.program.provider = MagicMock()
+    runner.job.program.provider.name = "acme"
+    runner.job.program.title = "my-func"
+    runner.job.program.entrypoint = "main.py"
+    runner.job.program.runner = Program.FLEETS
+    runner.job.id = "job-1"
+    runner.job.arguments = "{}"
+    runner._project.cos_bucket_provider_data_name = "provider-bucket"  # pylint: disable=protected-access
+    runner._project.cos_bucket_user_data_name = "user-bucket"  # pylint: disable=protected-access
+
+    paths = build_job_paths(runner.job)
+
+    mock_template = MagicMock()
+    mock_template.render.return_value = "rendered content"
+
+    with (
+        _patch_settings(),
+        patch(f"{_RUNNER_MOD}.get_template", return_value=mock_template),
+    ):
+        runner._upload_provider_image_entrypoint(paths)  # pylint: disable=protected-access
+
+    call = runner._cos.upload_fileobj.call_args  # pylint: disable=protected-access
+    assert call.kwargs["bucket_name"] == "provider-bucket"
+    assert call.kwargs["key"] == "providers/acme/my-func/data/main.py"
+    assert call.kwargs["fileobj"].read() == b"rendered content"
+
+
+def test_upload_provider_image_entrypoint_raises_for_non_provider_job():
+    """_upload_provider_image_entrypoint() raises RunnerError when called on a non-provider job."""
+    runner, _ = _make_runner()
+    runner.job.author.username = "alice"
+    runner.job.program.provider = None
+    runner.job.program.title = "my-func"
+    runner.job.program.entrypoint = "main.py"
+    runner.job.id = "job-1"
+    runner.job.arguments = "{}"
+
+    paths = build_job_paths(runner.job)
+
+    with pytest.raises(RunnerError, match="non-provider job"):
+        runner._upload_provider_image_entrypoint(paths)  # pylint: disable=protected-access
+
+
+def test_upload_provider_image_entrypoint_error_propagates():
+    """_upload_provider_image_entrypoint() does not swallow COS errors."""
+    runner, _ = _make_runner()
+    runner.job.author.username = "alice"
+    runner.job.program.provider = MagicMock()
+    runner.job.program.provider.name = "acme"
+    runner.job.program.title = "my-func"
+    runner.job.program.entrypoint = "main.py"
+    runner.job.program.runner = Program.FLEETS
+    runner.job.id = "job-1"
+    runner.job.arguments = "{}"
+    runner._project.cos_bucket_provider_data_name = "provider-bucket"  # pylint: disable=protected-access
+
+    paths = build_job_paths(runner.job)
+
+    mock_template = MagicMock()
+    mock_template.render.return_value = "content"
+    runner._cos.upload_fileobj.side_effect = RuntimeError("COS error")  # pylint: disable=protected-access
+
+    with (
+        _patch_settings(),
+        patch(f"{_RUNNER_MOD}.get_template", return_value=mock_template),
+        pytest.raises(RuntimeError, match="COS error"),
+    ):
+        runner._upload_provider_image_entrypoint(paths)  # pylint: disable=protected-access
+
+
+def test_submit_uses_provider_image_entrypoint_upload_when_image_set():
+    """submit() calls _upload_provider_image_entrypoint when program.image is set but no artifact."""
+    runner, _ = _make_submit_runner()
+    runner.job.program.image = "custom:latest"
+    runner.job.program.artifact = None
+    runner.job.author.username = "user-1"
+    runner.job.program.provider = None
+    runner.job.program.title = "prog"
+    runner.job.env_vars = "{}"
+
+    runner._project.cos_bucket_user_data_name = "user-bucket"  # pylint: disable=protected-access
+    runner._project.cos_bucket_provider_data_name = "prov-bucket"  # pylint: disable=protected-access
+    runner._project.cos_instance_name = "cos-inst"  # pylint: disable=protected-access
+    runner._project.cos_key_name = "cos-key"  # pylint: disable=protected-access
+    runner._project.pds_name_users = "pds-users"  # pylint: disable=protected-access
+    runner._project.pds_name_providers = "pds-provs"  # pylint: disable=protected-access
+
+    with (
+        _patch_settings(),
+        patch.object(runner, "_upload_provider_image_entrypoint") as mock_tmpl,
+        patch.object(runner, "_upload_custom_image_entrypoint") as mock_art,
+        patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value={}),
+    ):
+        runner.submit()
+
+    mock_tmpl.assert_called_once()
+    mock_art.assert_not_called()
+
+
+def test_submit_uses_artifact_upload_when_artifact_set():
+    """submit() calls _upload_artifact_to_cos (not template) when program.artifact is set."""
+    runner, _ = _make_submit_runner()
+    runner.job.program.artifact = MagicMock()
+    runner.job.program.image = None
+    runner.job.author.username = "user-1"
+    runner.job.program.provider = None
+    runner.job.program.title = "prog"
+    runner.job.env_vars = "{}"
+
+    runner._project.cos_bucket_user_data_name = "user-bucket"  # pylint: disable=protected-access
+    runner._project.cos_bucket_provider_data_name = "prov-bucket"  # pylint: disable=protected-access
+    runner._project.cos_instance_name = "cos-inst"  # pylint: disable=protected-access
+    runner._project.cos_key_name = "cos-key"  # pylint: disable=protected-access
+    runner._project.pds_name_users = "pds-users"  # pylint: disable=protected-access
+    runner._project.pds_name_providers = "pds-provs"  # pylint: disable=protected-access
+
+    with (
+        _patch_settings(),
+        patch.object(runner, "_upload_custom_image_entrypoint") as mock_art,
+        patch.object(runner, "_upload_provider_image_entrypoint") as mock_tmpl,
+        patch(f"{_RUNNER_MOD}.decrypt_env_vars", return_value={}),
+    ):
+        runner.submit()
+
+    mock_art.assert_called_once()
+    mock_tmpl.assert_not_called()

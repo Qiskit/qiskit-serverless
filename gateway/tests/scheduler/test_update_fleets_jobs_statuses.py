@@ -114,6 +114,42 @@ class TestUpdateJobStatus:
 
         mock_running.assert_not_called()
 
+    def test_none_status_skips_update_and_returns_false(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        mock_runner = MagicMock()
+        mock_runner.status.return_value = None
+
+        with (
+            patch(f"{_MOD}.get_runner", return_value=mock_runner),
+            patch.object(task, "to_terminal") as mock_terminal,
+            patch.object(task, "to_running") as mock_running,
+        ):
+            result = task.update_job_status(job)
+
+        assert result is False
+        mock_terminal.assert_not_called()
+        mock_running.assert_not_called()
+        assert job.status == Job.RUNNING
+
+    def test_none_status_preserves_pending_state(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.PENDING)
+
+        mock_runner = MagicMock()
+        mock_runner.status.return_value = None
+
+        with (
+            patch(f"{_MOD}.get_runner", return_value=mock_runner),
+            patch.object(task, "to_terminal") as mock_terminal,
+        ):
+            result = task.update_job_status(job)
+
+        assert result is False
+        mock_terminal.assert_not_called()
+        assert job.status == Job.PENDING
+
     def test_unknown_status_calls_to_terminal_failed(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)

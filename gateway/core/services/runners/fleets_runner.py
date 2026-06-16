@@ -12,16 +12,17 @@
 
 """Runner for executing jobs on IBM Code Engine Fleets."""
 
-from __future__ import annotations
-
 import json
 import logging
 import re
 import tarfile
 import time
 from collections import OrderedDict
+from io import BytesIO
 
 from django.conf import settings
+from django.template.loader import get_template
+from ibm_botocore.exceptions import ClientError
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
 from core.models import Job, CodeEngineProject
@@ -33,7 +34,6 @@ from core.ibm_cloud.code_engine.fleets.cos import JobCOS
 from core.ibm_cloud.code_engine.fleets.utils import (
     FleetJobPaths,
     build_job_paths,
-    build_run_commands,
     build_run_env_variables,
     build_run_volume_mounts_for_job,
 )
@@ -204,18 +204,14 @@ class FleetsRunner(AbstractRunner):
                 stored_env_vars = json.loads(self.job.env_vars)
                 stored_env_vars = decrypt_env_vars(stored_env_vars)
                 run_env_variables = build_run_env_variables(paths, stored_env_vars)
-                run_commands = build_run_commands(
-                    app_run_commands=["python", paths.container_entrypoint],
-                    is_provider_function=self.job.program.provider is not None,
-                )
                 extra_fields.update(
                     {
                         "run_volume_mounts": run_volume_mounts,
                         "run_env_variables": run_env_variables,
-                        "run_commands": run_commands,
+                        "run_commands": ["python", paths.container_docker_entrypoint],
                     }
                 )
-                _retry_on_rate_limit(lambda: self._upload_artifact_to_cos(paths))
+                _retry_on_rate_limit(lambda: self._upload_program_to_cos(paths))
                 logger.info(
                     "COS configured for job_id [%s]: user_key=[%s] provider_key=[%s]",
                     self.job.id,
@@ -223,7 +219,7 @@ class FleetsRunner(AbstractRunner):
                     paths.cos_provider_log_key,
                 )
             else:
-                logger.info("COS not available for job_id=[%s]", self.job.id)
+                raise RunnerError(f"COS is not configured for job_id=[{self.job.id}] — cannot submit Fleets job")
 
             fleet = _retry_on_rate_limit(
                 lambda: handler.submit_job(
@@ -263,45 +259,77 @@ class FleetsRunner(AbstractRunner):
             logger.error("Failed to submit job_id=[%s]: %s", self.job.id, ex)
             raise RunnerError(f"Failed to submit job_id=[{self.job.id}] to Code Engine Fleets", ex) from ex
 
-    def status(self) -> str | None:
-        """Return the job status mapped to :attr:`Job.STATUS`.
+    _COS_STATUS_PRIORITY = [
+        ("/succeeded/", Job.SUCCEEDED),
+        ("/failed/", Job.FAILED),
+        ("/canceled/", Job.STOPPED),
+        ("/canceling/", Job.STOPPED),
+        ("/running/", Job.RUNNING),
+        ("/pending/", Job.PENDING),
+    ]
 
-        Returns ``None`` on a 429 rate-limit response so the scheduler keeps
-        the job in its current state and retries on the next poll cycle.
+    def status(self) -> str | None:
+        """Return the job status by checking COS task state PDS bucket.
+
+        Reads keys under ``ce/{project_id}/{fleet_id}/v2/queue/`` and matches
+        against known status patterns in priority order.
 
         Returns:
-            Mapped status string or ``None``.
+            Mapped status string or ``None`` when COS has no state yet.
 
         Raises:
-            RunnerError: On non-recoverable API errors.
+            RunnerError: On non-recoverable errors.
         """
-        self._ensure_connected()
         if not self.job.fleet_id:
             raise RunnerError("Job has no fleet_id assigned")
 
-        try:
-            fleet_status = self._get_handler().get_job_status(self.job.fleet_id)
-            raw = fleet_status.get("status")
-            mapped = self._map_fleet_status(raw) if raw else None
-            logger.debug("Fleet [%s] status: %s → %s", self.job.fleet_id, raw, mapped)
-            if mapped in (Job.FAILED, Job.STOPPED):
-                logger.warning("Fleet [%s] terminal status [%s] raw=[%s]", self.job.fleet_id, mapped, raw)
-            return mapped
+        if not self._project:
+            self._project = self._get_project()
 
-        except ApiException as ex:
-            if ex.status == 429:
-                logger.warning("Rate limit (429) for fleet [%s] — retrying next poll", self.job.fleet_id)
-                return None
-            logger.error(
-                "CE API error getting status for fleet [%s]: status=%s reason=%s",
-                self.job.fleet_id,
-                ex.status,
-                ex.reason,
+        bucket = self._project.cos_bucket_task_store_name
+        if not bucket:
+            raise RunnerError(
+                f"CodeEngineProject '{self._project.project_name}' has no cos_bucket_task_store_name configured"
             )
-            raise RunnerError(f"Code Engine API error: {ex.reason}", ex) from ex
-        except Exception as ex:
-            logger.error("Failed to get status for fleet [%s]: %s", self.job.fleet_id, ex)
-            raise RunnerError(f"Unable to get status for fleet [{self.job.fleet_id}]", ex) from ex
+
+        prefix = f"ce/{self._project.project_id}/{self.job.fleet_id}/v2/queue/"
+        keys = self._list_task_state_keys(bucket, prefix)
+        if not keys:
+            # CE takes 10-15s after fleet creation to write the first queue/ key.
+            # Scheduler retries on next cycle.
+            return None
+
+        for pattern, status in self._COS_STATUS_PRIORITY:
+            for key in keys:
+                if pattern in key:
+                    logger.debug("Fleet [%s] COS status: %s", self.job.fleet_id, status)
+                    return status
+
+        raise RunnerError(f"Unrecognized COS task state for fleet [{self.job.fleet_id}]: {keys}")
+
+    def _list_task_state_keys(self, bucket: str, prefix: str) -> list[str]:
+        """List task state keys from COS, returning empty list on failure.
+
+        Args:
+            bucket: COS bucket name to query.
+            prefix: Key prefix to filter results.
+
+        Returns:
+            List of matching key strings, or an empty list if the COS call fails.
+        """
+        try:
+            return self._get_cos().list_keys(bucket_name=bucket, prefix=prefix)
+        except ClientError as exc:
+            code = exc.response.get("Error", {}).get("Code", "unknown")
+            logger.warning(
+                "COS list_keys failed for fleet [%s] (code=%s); will retry on next cycle", self.job.fleet_id, code
+            )
+            return []
+        except ValueError:
+            raise
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            logger.warning("COS list_keys failed for fleet [%s]: %s; will retry on next cycle", self.job.fleet_id, exc)
+            return []
 
     def logs(self) -> str | None:
         """
@@ -411,9 +439,9 @@ class FleetsRunner(AbstractRunner):
         return False
 
     def _get_project(self) -> CodeEngineProject:
-        """Return the job's assigned Code Engine project.
+        """Return the program's assigned Code Engine project.
 
-        The project is selected at job creation time (in ``RunJobSerializer.create``).
+        The project is assigned at program upload time (in ``UploadProgramSerializer.create``).
         This method only validates that the assignment is present and active.
 
         Returns:
@@ -422,9 +450,11 @@ class FleetsRunner(AbstractRunner):
         Raises:
             RunnerError: If no project is assigned or the assigned project is inactive.
         """
-        project = self.job.code_engine_project
+        if not self.job.program:
+            raise RunnerError(f"Program for job '{self.job.id}' has been deleted")
+        project = self.job.program.code_engine_project
         if not project:
-            raise RunnerError(f"No Code Engine project assigned to job '{self.job.id}'")
+            raise RunnerError(f"No Code Engine project assigned to program '{self.job.program.title}'")
         if not project.active:
             raise RunnerError(f"Code Engine project '{project.project_name}' is not active")
         return project
@@ -469,25 +499,49 @@ class FleetsRunner(AbstractRunner):
             self._cos = get_cos_client(self._project)
         return self._cos
 
-    def _upload_artifact_to_cos(self, paths: FleetJobPaths) -> None:
+    def _upload_program_to_cos(self, paths: FleetJobPaths) -> None:
+        """Dispatcher: uploads COS objects for the job before fleet submission.
+
+        Dispatches to the appropriate upload method based on job type:
+        - artifact set → :meth:`_upload_custom_image_entrypoint`
+        - image set (no artifact) → :meth:`_upload_provider_image_entrypoint`
+
+        Args:
+            paths: Pre-computed paths from :func:`build_job_paths`.
+        """
+        if self.job.program.artifact:
+            self._upload_custom_image_entrypoint(paths)
+        elif self.job.program.image:
+            self._upload_provider_image_entrypoint(paths)
+
+    def _upload_custom_image_entrypoint(self, paths: FleetJobPaths) -> None:
         """Extract the program artifact tar and upload files to COS.
 
         Custom jobs: entrypoint → user bucket at function level; other files → user bucket at job level.
-        Provider jobs: entrypoint → provider bucket at function level; other files → user bucket at job level.
         Provider functions skip this — their files are pre-uploaded by the provider admin.
 
         Args:
-            paths: Dict from :meth:`_build_job_paths`.
+            paths: Pre-computed paths from :func:`build_job_paths`.
         """
         program = self.job.program
         if not program.artifact:
             return
 
-        provider_bucket = self._project.cos_bucket_provider_data_name
         user_bucket = self._project.cos_bucket_user_data_name
-        entrypoint_name = program.entrypoint
-        is_provider = program.provider is not None
 
+        # upload template
+        template_name = "fleet_custom_job_wrapper.py"
+        script = get_template(template_name).render(
+            {"app_cmd": json.dumps(["python", paths.container_function_entrypoint])}
+        )
+        self._get_cos().upload_fileobj(
+            fileobj=BytesIO(script.encode()),
+            bucket_name=user_bucket,
+            key=paths.cos_docker_entrypoint,
+        )
+
+        # upload user source files (including entrypoint)
+        entrypoint_found = False
         try:
             with tarfile.open(program.artifact.path) as tar:
                 for member in tar.getmembers():
@@ -497,21 +551,70 @@ class FleetsRunner(AbstractRunner):
                     if extracted is None:
                         continue
 
-                    if member.name == entrypoint_name:
-                        bucket_name = provider_bucket if is_provider else user_bucket
-                        prefix = paths.cos_provider_function_prefix if is_provider else paths.cos_user_function_prefix
-                        key = f"{prefix}/{member.name}"
-                    else:
-                        bucket_name = user_bucket
-                        key = f"{paths.cos_user_job_prefix}/{member.name}"
+                    if member.name == program.entrypoint:
+                        entrypoint_found = True
 
-                    self._get_cos().upload_fileobj(fileobj=extracted, bucket_name=bucket_name, key=key)
-                    logger.debug("Uploaded [%s] for job_id=%s to %s/%s", member.name, self.job.id, bucket_name, key)
+                    key = f"{paths.cos_user_function_prefix}/{member.name}"
+
+                    self._get_cos().upload_fileobj(fileobj=extracted, bucket_name=user_bucket, key=key)
+                    logger.debug("Uploaded [%s] for job_id=%s to %s/%s", member.name, self.job.id, user_bucket, key)
         except tarfile.TarError as ex:
             raise RunnerError(f"Failed to read artifact for job_id=[{self.job.id}]", ex) from ex
 
-        dest = "provider" if is_provider else "user"
-        logger.info("Uploaded artifact for job_id=%s (entrypoint to %s, data to user)", self.job.id, dest)
+        if not entrypoint_found:
+            raise RunnerError(f"Entrypoint '{program.entrypoint}' not found in artifact for job_id=[{self.job.id}]")
+
+    def _upload_provider_image_entrypoint(self, paths: FleetJobPaths) -> None:
+        """Upload COS objects for a provider image job.
+
+        Provider jobs: entrypoint (rendered from main.tmpl) and wrapper script →
+        provider bucket at function scope; arguments → user bucket at job scope.
+
+        Args:
+            paths: Pre-computed paths from :func:`build_job_paths`.
+        """
+        program = self.job.program
+        if not program.image:
+            return
+        if not program.provider:
+            raise RunnerError("_upload_provider_image_entrypoint called on non-provider job")
+
+        provider_bucket = self._project.cos_bucket_provider_data_name
+
+        # upload wrapper script
+        wrapper_script = get_template("fleet_provider_job_wrapper.py").render(
+            {"app_cmd": json.dumps(["python", paths.container_function_entrypoint])}
+        )
+        self._get_cos().upload_fileobj(
+            fileobj=BytesIO(wrapper_script.encode()),
+            bucket_name=provider_bucket,
+            key=paths.cos_docker_entrypoint,
+        )
+        logger.debug(
+            "Uploaded provider wrapper for job_id=%s to %s/%s",
+            self.job.id,
+            provider_bucket,
+            paths.cos_docker_entrypoint,
+        )
+
+        # upload rendered entrypoint template
+        rendered = get_template("main.tmpl").render(
+            {
+                "mount_path": settings.CUSTOM_IMAGE_PACKAGE_PATH,
+                "package_name": settings.CUSTOM_IMAGE_PACKAGE_NAME,
+            }
+        )
+        self._get_cos().upload_fileobj(
+            fileobj=BytesIO(rendered.encode()),
+            bucket_name=provider_bucket,
+            key=paths.cos_function_entrypoint,
+        )
+        logger.debug(
+            "Uploaded template entrypoint for job_id=%s to %s/%s",
+            self.job.id,
+            provider_bucket,
+            paths.cos_function_entrypoint,
+        )
 
     def _get_fleet_name(self) -> str:
         """Return the fleet name from the CE API, falling back to ``"job-{id}"``.
@@ -633,25 +736,3 @@ class FleetsRunner(AbstractRunner):
         if self.job.config and getattr(self.job.config, "workers", None):
             return int(self.job.config.workers)
         return settings.FLEETS_DEFAULT_MAX_INSTANCES
-
-    def _map_fleet_status(self, fleet_status: str) -> str:
-        """Map a CE fleet status string to a :attr:`Job.STATUS` constant.
-
-        Args:
-            fleet_status: Raw fleet status from Code Engine.
-
-        Returns:
-            Corresponding ``Job.STATUS`` constant.
-        """
-        status_map = {
-            "pending": Job.PENDING,
-            "running": Job.RUNNING,
-            "succeeded": Job.SUCCEEDED,
-            "successful": Job.SUCCEEDED,
-            "failed": Job.FAILED,
-            "stopped": Job.STOPPED,
-            "cancelled": Job.STOPPED,
-            "canceled": Job.STOPPED,
-            "canceling": Job.STOPPED,
-        }
-        return status_map.get(fleet_status.lower(), Job.PENDING)
