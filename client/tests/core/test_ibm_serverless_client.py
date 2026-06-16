@@ -402,6 +402,7 @@ class TestIBMServerlessClientBackends:
         with pytest.raises(QiskitServerlessException, match="Failed to retrieve backends"):
             client.backends()
 
+
 # ---------------------------------------------------------------------------
 # Tests for _get_backend()
 # ---------------------------------------------------------------------------
@@ -503,7 +504,7 @@ class TestIBMServerlessClientCheckUsage:
     def test_check_usage_raises_when_zero(self, mock_file_path, mock_verify, mock_list_instances):
         """remaining_seconds <= USAGE_ZERO_EPSILON_SECONDS → QiskitServerlessException."""
         client = _make_client(mock_file_path, mock_verify, mock_list_instances)
-        remaining_usage_seconds = float(USAGE_ZERO_EPSILON_SECONDS)/2 # below epsilon
+        remaining_usage_seconds = float(USAGE_ZERO_EPSILON_SECONDS) / 2 # below epsilon
         client._service.usage = MagicMock(return_value={"usage_remaining_seconds": remaining_usage_seconds})
 
         with pytest.raises(
@@ -530,7 +531,7 @@ class TestIBMServerlessClientCheckUsage:
         """remaining_seconds below USAGE_LOW_THRESHOLD_SECONDS → UserWarning."""
         client = _make_client(mock_file_path, mock_verify, mock_list_instances)
         # if epsilon< low_threshold, their avg is greater than epsilon and smaller than low_threshold
-        remaining_usage_seconds = (float(USAGE_LOW_THRESHOLD_SECONDS+USAGE_ZERO_EPSILON_SECONDS))/2
+        remaining_usage_seconds = (float(USAGE_LOW_THRESHOLD_SECONDS+USAGE_ZERO_EPSILON_SECONDS)) / 2
         client._service.usage = MagicMock(return_value={"usage_remaining_seconds": remaining_usage_seconds})
 
         with pytest.warns(UserWarning, match="low remaining runtime quota"):
