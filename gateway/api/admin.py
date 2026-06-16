@@ -3,7 +3,7 @@
 import json
 
 from django.contrib import admin
-from django.db.models import Q
+from django.db.models import Count, F, Q
 from django.utils.safestring import mark_safe
 from django.urls import path
 from django.shortcuts import render, get_object_or_404
@@ -22,6 +22,44 @@ from core.models import (
     RuntimeJob,
 )
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
+
+
+def get_dashboard_stats():
+    """Return platform-wide stats for the admin dashboard."""
+    total_jobs = Job.objects.count()
+
+    status_rows = Job.objects.values("status").annotate(count=Count("id")).order_by("-count")
+    jobs_by_status = [
+        {
+            "status": row["status"],
+            "count": row["count"],
+            "pct": round(row["count"] * 100 / total_jobs) if total_jobs else 0,
+        }
+        for row in status_rows
+    ]
+
+    provider_rows = Job.objects.values(name=F("program__provider__name")).annotate(count=Count("id")).order_by("-count")
+    jobs_by_provider = [
+        {
+            "name": row["name"] or "Custom",
+            "count": row["count"],
+            "pct": round(row["count"] * 100 / total_jobs) if total_jobs else 0,
+        }
+        for row in provider_rows
+    ]
+
+    return {
+        "providers_count": Provider.objects.count(),
+        "providers_active": Provider.objects.filter(program__disabled=False).distinct().count(),
+        "programs_count": Program.objects.count(),
+        "programs_disabled": Program.objects.filter(disabled=True).count(),
+        "jobs_count": total_jobs,
+        "jobs_active": Job.objects.filter(status__in=Job.ACTIVE_STATUSES).count(),
+        "ce_projects_count": CodeEngineProject.objects.count(),
+        "ce_projects_active": CodeEngineProject.objects.filter(active=True).count(),
+        "jobs_by_status": jobs_by_status,
+        "jobs_by_provider": jobs_by_provider,
+    }
 
 
 @admin.register(JobConfig)
