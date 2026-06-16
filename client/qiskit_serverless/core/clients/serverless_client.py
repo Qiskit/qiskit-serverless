@@ -26,7 +26,7 @@ Qiskit Serverless provider
     ServerlessClient
 """
 
-# pylint: disable=duplicate-code
+# pylint: disable=duplicate-code,too-many-lines
 import json
 import os.path
 import os
@@ -42,6 +42,7 @@ import requests
 from opentelemetry import trace
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_ibm_runtime.accounts.exceptions import InvalidAccountError
+from qiskit.providers.exceptions import QiskitBackendNotFoundError
 
 from qiskit_serverless.core.constants import (
     REQUESTS_TIMEOUT,
@@ -51,6 +52,8 @@ from qiskit_serverless.core.constants import (
     GATEWAY_PROVIDER_VERSION_DEFAULT,
     IBM_SERVERLESS_HOST_URL,
     MAX_ARTIFACT_FILE_SIZE_MB,
+    USAGE_LOW_THRESHOLD_SECONDS,
+    USAGE_ZERO_EPSILON_SECONDS,
 )
 from qiskit_serverless.core.client import BaseClient
 from qiskit_serverless.core.decorators import trace_decorator_factory
@@ -712,6 +715,10 @@ class IBMServerlessClient(ServerlessClient):
         self._service = QiskitRuntimeService(channel=channel, token=token, name=name, instance=instance)
         self.account = self._service._account
 
+        # Per-instance cache keyed by backend name; populated lazily by backends() or _get_backend().
+        # Instance-level (not class-level) to avoid cross-client leakage.
+        self._backends_cache: Dict[str, Any] = {}
+
         super().__init__(
             channel=self.account.channel,
             token=self.account.token,
@@ -747,6 +754,175 @@ class IBMServerlessClient(ServerlessClient):
             )
         except InvalidAccountError as ex:
             raise QiskitServerlessException(f"Invalid format in account inputs - {ex}") from ex
+
+    def backends(self, **kwargs) -> List[Any]:
+        """Return backends accessible through this instance and warm the cache.
+
+        Args:
+            **kwargs: Forwarded to ``QiskitRuntimeService.backends()`` (e.g.
+                ``min_num_qubits``, ``filters``, ``operational``).
+
+        Returns:
+            List of ``IBMBackend`` objects.
+
+        Raises:
+            QiskitServerlessException: If the listing call fails.
+        """
+        try:
+            backend_list = self._service.backends(instance=self.instance, **kwargs)
+        except Exception as exc:
+            raise QiskitServerlessException(
+                f"Failed to retrieve backends for instance '{self.instance}': {exc}"
+            ) from exc
+
+        # deleting cached backends as they could have unavailable backends and update with new accessible backends
+        self._backends_cache = {}
+
+        for backend in backend_list:
+            self._backends_cache[backend.name] = backend
+
+        return backend_list
+
+    def _get_backend(self, name: str) -> Any:
+        """Fetch a single backend by name and update the cache.
+
+        Uses ``QiskitRuntimeService.backend(name)`` — one targeted lookup — rather than the full
+        instance listing. This keeps ``run()`` fast and simultaneously validates that the caller
+        can access the requested backend. The cache is updated on every call so access revocations
+        are caught on the next run.
+
+        Args:
+            name: Backend name (e.g. ``"ibm_torino"``).
+
+        Returns:
+            The ``IBMBackend`` object, also stored in ``self._backends_cache``.
+
+        Raises:
+            QiskitServerlessException: If the backend is not found or is inaccessible.
+        """
+        try:
+            backend = self._service.backend(name)
+        except QiskitBackendNotFoundError as exc:
+            raise QiskitServerlessException(
+                f"Backend '{name}' is not available or you do not have access to it "
+                f"with instance '{self.instance}'. "
+                f"Call client.backends() to list accessible backends."
+            ) from exc
+        except Exception as exc:
+            raise QiskitServerlessException(f"Failed to retrieve backend '{name}': {exc}") from exc
+
+        self._backends_cache[name] = backend
+        return backend
+
+    def _check_usage(self) -> None:
+        """Check instance runtime quota and warn or raise accordingly.
+
+        Reads ``usage_remaining_seconds`` from ``QiskitRuntimeService.usage()``. If the key is
+        absent the plan is unlimited and no action is taken. Transient errors from the usage
+        endpoint are downgraded to a warning so they don't block job submission.
+
+        Thresholds are tunable via environment variables (see constants.py):
+        - ``USAGE_ZERO_EPSILON_SECONDS`` (default 1 s): raises when remaining time is at or below
+          this — a fraction of a second cannot complete a job.
+        - ``USAGE_LOW_THRESHOLD_SECONDS`` (default 600 s): warns when remaining time is low.
+
+        Raises:
+            QiskitServerlessException: When remaining quota is at or below
+                ``USAGE_ZERO_EPSILON_SECONDS``, or ``usage_limit_reached`` is True with no
+                remaining time recorded.
+        """
+        try:
+            usage = self._service.usage()
+        except Exception as exc:  # pylint: disable=broad-except
+            warnings.warn(
+                f"Could not retrieve usage information for instance '{self.instance}': {exc}. "
+                "Proceeding with job submission; verify your instance quota manually."
+            )
+            return
+
+        remaining = usage.get("usage_remaining_seconds")
+        limit_reached = usage.get("usage_limit_reached", False)
+
+        if remaining is None and not limit_reached:
+            return
+
+        # usage_limit_reached without a recorded remaining value → treat as zero.
+        if limit_reached and remaining is None:
+            remaining = 0.0
+
+        if remaining is not None and remaining <= USAGE_ZERO_EPSILON_SECONDS:
+            raise QiskitServerlessException(
+                f"Instance '{self.instance}' has no remaining runtime quota "
+                f"(remaining: {remaining:.2f}s). "
+                "The job would wait indefinitely for runtime resources. "
+                "Check your instance quota at https://quantum.cloud.ibm.com/instances."
+            )
+
+        if remaining is not None and remaining <= USAGE_LOW_THRESHOLD_SECONDS:
+            warnings.warn(
+                f"Instance '{self.instance}' has low remaining runtime quota "
+                f"({remaining:.0f}s remaining, threshold: {USAGE_LOW_THRESHOLD_SECONDS:.0f}s). "
+                "Consider checking your quota before submitting long-running jobs. "
+                "Check https://quantum.cloud.ibm.com/instances for details."
+            )
+
+    def run(  # pylint: disable=too-many-positional-arguments
+        self,
+        program: Union[QiskitFunction, str],
+        arguments: Optional[Dict[str, Any]] = None,
+        config: Optional["Configuration"] = None,
+        provider: Optional[str] = None,
+        *,
+        compute_profile: Optional[str] = None,
+    ) -> "Job":
+        """Run a Qiskit Function with pre-flight validation before submitting to the gateway.
+
+        Checks are performed in order before delegating to ``ServerlessClient.run``:
+
+        1. **Usage quota**: raises when the instance has no remaining runtime; warns when low.
+        2. **Backend access** (when ``arguments["backend_name"]`` is set): validates via a
+           single-backend lookup — cheaper than a full listing, and sufficient to confirm access.
+        3. **Instance has backends** (when no ``backend_name`` is given): calls ``backends()``
+           (cached after the first invocation) to ensure the instance is not empty.
+
+        Args:
+            program: ``QiskitFunction`` object or function title string.
+            arguments: Runtime arguments. The optional ``backend_name`` key is inspected for
+                the backend access check but forwarded unchanged.
+            config: Optional execution configuration.
+            provider: Optional provider name override.
+            compute_profile: Optional compute-profile name.
+
+        Returns:
+            :class:`~qiskit_serverless.core.job.Job` handle for the submitted run.
+
+        Raises:
+            QiskitServerlessException: If quota is exhausted, the backend is inaccessible, or
+                the instance has no available backends.
+        """
+        backend_name = (arguments or {}).get("backend_name")
+
+        self._check_usage()
+
+        if backend_name:
+            # Single-backend lookup — fast and confirms access without a full instance listing.
+            self._get_backend(backend_name)
+        else:
+            # No specific backend requested; verify the instance exposes at least one.
+            if not self.backends():
+                raise QiskitServerlessException(
+                    f"Instance '{self.instance}' has no backends available. "
+                    "Cannot run a Qiskit Function without an accessible backend. "
+                    "Check your instance configuration at https://quantum.cloud.ibm.com/instances."
+                )
+
+        return super().run(
+            program=program,
+            arguments=arguments,
+            config=config,
+            provider=provider,
+            compute_profile=compute_profile,
+        )
 
 
 def _upload_with_docker_image(  # pylint: disable=too-many-positional-arguments
