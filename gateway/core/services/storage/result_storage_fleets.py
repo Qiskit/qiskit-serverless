@@ -40,10 +40,20 @@ class FleetsResultStorage(ResultStorage):
             job: The Job instance to retrieve results for.
         """
         self._job_id = str(job.id)
+        self._user_id = job.author.id
         self._project = job.program.code_engine_project
         paths = build_job_paths(job)
         self._results_key = paths.cos_results_key
-        self._user_bucket = self._project.cos_bucket_user_data_name
+        self._user_bucket = self._load_user_bucket()
+
+    def _load_user_bucket(self) -> str:
+        """Return the user data bucket name, raising ValueError if not configured."""
+        user_bucket = self._project.cos_bucket_user_data_name
+        if not user_bucket:
+            raise ValueError(
+                f"CodeEngineProject '{self._project.project_name}' has no cos_bucket_user_data_name configured"
+            )
+        return user_bucket
 
     def get(self) -> str | None:
         """Retrieve the result for this job from COS.
@@ -57,7 +67,8 @@ class FleetsResultStorage(ResultStorage):
                 bucket_name=self._user_bucket, key=self._results_key
             )
             logger.info(
-                "[get] job_id=%s | Result retrieved from COS at %s/%s",
+                "[get] user_id=%s job_id=%s bucket=%s key=%s | Result retrieved from COS",
+                self._user_id,
                 self._job_id,
                 self._user_bucket,
                 self._results_key,
@@ -67,7 +78,8 @@ class FleetsResultStorage(ResultStorage):
             code = e.response.get("Error", {}).get("Code", "")
             if code in self.NOT_FOUND_CODES:
                 logger.warning(
-                    "[get] job_id=%s | Result not found in COS at %s/%s (code=%s)",
+                    "[get] user_id=%s job_id=%s | Result not found in COS at %s/%s (code=%s)",
+                    self._user_id,
                     self._job_id,
                     self._user_bucket,
                     self._results_key,
@@ -75,7 +87,8 @@ class FleetsResultStorage(ResultStorage):
                 )
                 return None
             logger.error(
-                "[get] job_id=%s | COS error %s: %s",
+                "[get] user_id=%s job_id=%s | COS error %s: %s",
+                self._user_id,
                 self._job_id,
                 code,
                 e,
@@ -83,7 +96,8 @@ class FleetsResultStorage(ResultStorage):
             return None
         except UnicodeDecodeError as e:
             logger.error(
-                "[get] job_id=%s | Failed to decode result: %s",
+                "[get] user_id=%s job_id=%s | Failed to decode result: %s",
+                self._user_id,
                 self._job_id,
                 e,
             )
@@ -100,3 +114,23 @@ class FleetsResultStorage(ResultStorage):
                 directly to COS by the SDK at RESULTS_PATH.
         """
         raise NotImplementedError("Fleets results are written by the SDK via RESULTS_PATH")
+
+    def get_url(self) -> str | None:
+        """Return a presigned URL for the result, or None if the object does not exist."""
+        if not self._object_exists(self._user_bucket, self._results_key):
+            return None
+        return get_cos_client(self._project).get_presigned_url(
+            bucket_name=self._user_bucket,
+            key=self._results_key,
+        )
+
+    def _object_exists(self, bucket: str, key: str) -> bool:
+        """Return True if the COS object exists, False on 404/NoSuchKey, re-raise on other errors."""
+        try:
+            get_cos_client(self._project).head_object(bucket_name=bucket, key=key)
+            return True
+        except ClientError as e:
+            code = e.response.get("Error", {}).get("Code", "")
+            if code in self.NOT_FOUND_CODES:
+                return False
+            raise

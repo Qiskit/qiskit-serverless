@@ -6,10 +6,12 @@ from uuid import UUID
 import logging
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ObjectDoesNotExist
+
+from api.domain.exceptions.invalid_access_exception import InvalidAccessException
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.access_policies.jobs import JobAccessPolicies
 from core.services.storage import get_result_storage
-from core.models import Job
+from core.models import Job, Program
 
 logger = logging.getLogger("api.JobSaveResultUseCase")
 
@@ -41,6 +43,9 @@ class JobSaveResultUseCase:
         can_save_result = JobAccessPolicies.can_save_result(user, job)
         if not can_save_result:
             raise JobNotFoundException(job_id)
+
+        if job.program.runner == Program.FLEETS:
+            raise InvalidAccessException("Fleets results are written by the SDK via RESULTS_PATH")
 
         result_storage = get_result_storage(job)
         result_storage.save(result)
