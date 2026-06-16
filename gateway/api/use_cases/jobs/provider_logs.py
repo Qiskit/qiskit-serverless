@@ -14,9 +14,7 @@ from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.domain.exceptions.invalid_access_exception import InvalidAccessException
 from api.use_cases.jobs.logs_result import LogsResult
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.domain.filter_logs import filter_logs_with_non_public_tags
 from core.models import Job, Program
-from core.utils import check_logs
 from core.services.runners import get_runner, RunnerError
 from core.services.storage import get_logs_storage
 
@@ -68,7 +66,7 @@ class GetProviderJobLogsUseCase:
         runner = get_runner(job)
         if runner.is_active():
             try:
-                logs = runner.provider_logs()
+                lines = runner.provider_logs()
             except RunnerError:
                 logger.warning(
                     "[get-provider-logs] job_id=%s user_id=%s runner=%s | Failed to get provider logs",
@@ -78,13 +76,15 @@ class GetProviderJobLogsUseCase:
                 )
                 return LogsResult(raw_log=f"Logs not available for job [{job_id}] during execution.")
 
+            if not lines.private_logs:
+                return LogsResult(raw_log="")
+
             logger.info(
                 "[get-provider-logs] job_id=%s user_id=%s runner=%s | Got provider logs from runner",
                 job.id,
                 user.id,
                 job.program.runner,
             )
-            logs = check_logs(logs, job)
-            return LogsResult(raw_log=filter_logs_with_non_public_tags(logs))
+            return LogsResult(raw_log="\n".join(lines.private_logs) + "\n")
 
         return LogsResult(raw_log=job.logs)
