@@ -10,13 +10,13 @@
 
 {% block content %}
 <p style="color:var(--body-quiet-color);font-size:0.75rem;margin-bottom:1.5rem">
-  Qiskit Serverless &middot; estado global de la plataforma
+  Qiskit Serverless &middot; platform overview
 </p>
 
 <!-- KPI CARDS -->
 <div class="qs-kpi-grid">
 
-  <div class="qs-kpi-card">
+  <a class="qs-kpi-card" href="{% url 'admin:api_provider_changelist' %}">
     <div class="qs-kpi-header">
       <span class="qs-kpi-label">Providers</span>
       <svg class="qs-kpi-icon" viewBox="0 0 32 32" aria-hidden="true">
@@ -25,10 +25,10 @@
       </svg>
     </div>
     <div class="qs-kpi-number">{{ dashboard_stats.providers_count }}</div>
-    <div class="qs-kpi-footer">{{ dashboard_stats.providers_active }} con programas activos</div>
-  </div>
+    <div class="qs-kpi-footer">{{ dashboard_stats.providers_active }} with active programs</div>
+  </a>
 
-  <div class="qs-kpi-card">
+  <a class="qs-kpi-card" href="{% url 'admin:api_program_changelist' %}">
     <div class="qs-kpi-header">
       <span class="qs-kpi-label">Programs</span>
       <svg class="qs-kpi-icon" viewBox="0 0 32 32" aria-hidden="true">
@@ -36,10 +36,10 @@
       </svg>
     </div>
     <div class="qs-kpi-number">{{ dashboard_stats.programs_count }}</div>
-    <div class="qs-kpi-footer">{{ dashboard_stats.programs_disabled }} deshabilitados</div>
-  </div>
+    <div class="qs-kpi-footer">{{ dashboard_stats.programs_disabled }} disabled</div>
+  </a>
 
-  <div class="qs-kpi-card">
+  <a class="qs-kpi-card" href="{% url 'admin:api_job_changelist' %}">
     <div class="qs-kpi-header">
       <span class="qs-kpi-label">Jobs</span>
       <svg class="qs-kpi-icon" viewBox="0 0 32 32" aria-hidden="true">
@@ -47,10 +47,10 @@
       </svg>
     </div>
     <div class="qs-kpi-number">{{ dashboard_stats.jobs_count }}</div>
-    <div class="qs-kpi-footer">{{ dashboard_stats.jobs_active }} activos ahora</div>
-  </div>
+    <div class="qs-kpi-footer">{{ dashboard_stats.jobs_active }} active now</div>
+  </a>
 
-  <div class="qs-kpi-card">
+  <a class="qs-kpi-card" href="{% url 'admin:api_codeengineproject_changelist' %}">
     <div class="qs-kpi-header">
       <span class="qs-kpi-label">CE Projects</span>
       <svg class="qs-kpi-icon" viewBox="0 0 32 32" aria-hidden="true">
@@ -59,8 +59,8 @@
       </svg>
     </div>
     <div class="qs-kpi-number">{{ dashboard_stats.ce_projects_count }}</div>
-    <div class="qs-kpi-footer">{{ dashboard_stats.ce_projects_active }} activos</div>
-  </div>
+    <div class="qs-kpi-footer">{{ dashboard_stats.ce_projects_active }} active</div>
+  </a>
 
 </div>
 
@@ -68,8 +68,8 @@
 <div class="qs-breakdown-grid">
 
   <div class="qs-breakdown-panel">
-    <div class="qs-breakdown-title">Jobs por estado</div>
-    <div class="qs-breakdown-desc">Distribución de los {{ dashboard_stats.jobs_count }} jobs totales</div>
+    <div class="qs-breakdown-title">Jobs by status</div>
+    <div class="qs-breakdown-desc">Distribution of {{ dashboard_stats.jobs_count }} total jobs</div>
     {% for row in dashboard_stats.jobs_by_status %}
     <div class="qs-bar-row">
       <span class="qs-bar-label">{{ row.status|capfirst }}</span>
@@ -81,13 +81,13 @@
       <span class="qs-bar-pct">{{ row.pct }}%</span>
     </div>
     {% empty %}
-    <p style="color:var(--body-quiet-color);font-size:0.75rem">Sin datos</p>
+    <p style="color:var(--body-quiet-color);font-size:0.75rem">No data</p>
     {% endfor %}
   </div>
 
   <div class="qs-breakdown-panel">
-    <div class="qs-breakdown-title">Jobs por provider</div>
-    <div class="qs-breakdown-desc">Total agrupado por proveedor del programa</div>
+    <div class="qs-breakdown-title">Jobs by provider</div>
+    <div class="qs-breakdown-desc">Total grouped by program provider</div>
     {% for row in dashboard_stats.jobs_by_provider %}
     <div class="qs-bar-row">
       <span class="qs-bar-label">{{ row.name }}</span>
@@ -99,7 +99,7 @@
       <span class="qs-bar-pct">{{ row.pct }}%</span>
     </div>
     {% empty %}
-    <p style="color:var(--body-quiet-color);font-size:0.75rem">Sin datos</p>
+    <p style="color:var(--body-quiet-color);font-size:0.75rem">No data</p>
     {% endfor %}
   </div>
 

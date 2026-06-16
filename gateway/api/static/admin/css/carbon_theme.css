@@ -234,6 +234,8 @@ button:focus-visible {
     color: var(--header-color);
     padding: 0 16px;
     min-height: 48px;
+    display: flex;
+    justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid #393939;
 }
@@ -941,6 +943,31 @@ body.login #content h1 {
 
 #nav-sidebar .addlink {
     display: none;
+}
+
+/* OVERVIEW LINK IN NAV SIDEBAR */
+
+.qs-nav-overview {
+    border-bottom: 1px solid var(--hairline-color);
+    margin-bottom: 0.25rem;
+}
+
+.qs-nav-overview a {
+    display: block;
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--body-fg);
+    text-decoration: none;
+}
+
+.qs-nav-overview a:hover {
+    background: var(--darkened-bg);
+}
+
+.qs-nav-overview.active a {
+    background: var(--selected-bg);
+    color: var(--primary);
 }
 
 /* MOTION */

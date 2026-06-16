@@ -17,6 +17,12 @@
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    text-decoration: none;
+    color: inherit;
+}
+
+.qs-kpi-card:hover {
+    background: var(--darkened-bg);
 }
 
 .qs-kpi-header {
@@ -131,35 +137,4 @@
     flex-shrink: 0;
 }
 
-/* ── Overview link in nav sidebar ── */
-.qs-nav-overview {
-    border-bottom: 1px solid var(--hairline-color);
-    margin-bottom: 0.25rem;
-}
-
-.qs-nav-overview a {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: var(--body-fg);
-    text-decoration: none;
-}
-
-.qs-nav-overview a:hover {
-    background: var(--darkened-bg);
-}
-
-.qs-nav-overview.active a {
-    background: var(--selected-bg);
-    color: var(--primary);
-}
-
-.qs-nav-overview svg {
-    width: 14px;
-    height: 14px;
-    fill: currentColor;
-    flex-shrink: 0;
-}
+/* ── Overview link styles live in carbon_theme.css (loaded globally) ── */
