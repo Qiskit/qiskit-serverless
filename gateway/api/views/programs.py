@@ -32,7 +32,6 @@ from api.serializers import (
 from api.utils import active_jobs_limit_reached, sanitize_name
 from api.v1.exception_handler import endpoint_handle_exceptions
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.enums.type_filter import TypeFilter
 from core.models import (
     PLATFORM_PERMISSION_READ,
     PLATFORM_PERMISSION_RUN,
@@ -100,50 +99,6 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
     def get_object(self):
         logger.warning("ProgramViewSet.get_object not implemented")
-
-    @_trace
-    def list(self, request):
-        """List programs:"""
-        author = self.request.user
-        type_filter = self.request.query_params.get("filter")
-        accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
-        logger.info(
-            "[programs-list] user_id=%s filter=%s accessible_functions=%s",
-            author.id,
-            type_filter,
-            accessible_functions,
-        )
-
-        if type_filter == TypeFilter.SERVERLESS:
-            # Serverless filter only returns functions created by the author
-            # with the next criterias:
-            # - user is the author of the function and there is no provider
-            functions = Function.objects.user_functions(author)
-        elif type_filter == TypeFilter.CATALOG:
-            # Catalog filter only returns provider functions that user has access:
-            # author has run permissions and the function has a provider assigned
-            functions = Function.objects.provider_functions().with_permission(
-                author,
-                accessible_functions=accessible_functions,
-                legacy_permission_name=RUN_PROGRAM_PERMISSION,
-                permission=PLATFORM_PERMISSION_READ,
-            )
-        else:
-            # If filter is not applied we return author + providers functions together
-            functions = Function.objects.with_permission(
-                author,
-                accessible_functions=accessible_functions,
-                legacy_permission_name=VIEW_PROGRAM_PERMISSION,
-                permission=PLATFORM_PERMISSION_READ,
-            )
-
-        serializer = self.get_serializer(list(functions), many=True)
-        logger.info(
-            "[programs-list] user_id=%s filter=%s | Functions listed ok",
-            author.id,
-            type_filter,
-        )
-        return Response(serializer.data)
 
     @_trace
     @action(methods=["POST"], detail=False)
