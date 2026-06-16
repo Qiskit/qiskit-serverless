@@ -300,3 +300,77 @@ def test_run_commands_use_container_docker_entrypoint():
     paths = build_job_paths(job)
     run_commands = ["python", paths.container_docker_entrypoint]
     assert run_commands == ["python", f"{FUNCTION_USER_DATA_PATH}/fleet_custom_job_wrapper.py"]
+
+
+def test_cos_to_container_mount_invariant():
+    """Every (cos_key, cos_prefix) pair resolves to the expected container path after PDS mounting."""
+    custom = build_job_paths(_make_job(title="my-func", entrypoint="main.py", job_id="job-001"))
+
+    prov_mock = MagicMock()
+    prov_mock.name = "acme"
+    prov = build_job_paths(_make_job(title="sampler", entrypoint="main.py", job_id="job-002", provider=prov_mock))
+
+    cases = [
+        #  label, cos_key, cos_prefix, mount_point and container_path
+        (
+            "custom entrypoint",
+            custom.cos_function_entrypoint,
+            custom.cos_user_function_prefix,
+            FUNCTION_USER_DATA_PATH,
+            custom.container_function_entrypoint,
+        ),
+        (
+            "custom wrapper",
+            custom.cos_docker_entrypoint,
+            custom.cos_user_function_prefix,
+            FUNCTION_USER_DATA_PATH,
+            custom.container_docker_entrypoint,
+        ),
+        (
+            "custom log",
+            custom.cos_user_log_key,
+            custom.cos_user_job_prefix,
+            JOB_USER_DATA_PATH,
+            custom.container_public_log_path,
+        ),
+        (
+            "custom result",
+            custom.cos_results_key,
+            custom.cos_user_job_prefix,
+            JOB_USER_DATA_PATH,
+            custom.container_result_path,
+        ),
+        (
+            "prov entrypoint",
+            prov.cos_function_entrypoint,
+            prov.cos_provider_function_prefix,
+            FUNCTION_PROVIDER_DATA_PATH,
+            prov.container_function_entrypoint,
+        ),
+        (
+            "prov wrapper",
+            prov.cos_docker_entrypoint,
+            prov.cos_provider_function_prefix,
+            FUNCTION_PROVIDER_DATA_PATH,
+            prov.container_docker_entrypoint,
+        ),
+        (
+            "prov public log",
+            prov.cos_user_log_key,
+            prov.cos_user_job_prefix,
+            JOB_USER_DATA_PATH,
+            prov.container_public_log_path,
+        ),
+        ("prov result", prov.cos_results_key, prov.cos_user_job_prefix, JOB_USER_DATA_PATH, prov.container_result_path),
+        (
+            "prov private log",
+            prov.cos_provider_log_key,
+            prov.cos_provider_job_prefix,
+            JOB_PROVIDER_DATA_PATH,
+            prov.container_private_log_path,
+        ),
+    ]
+
+    for label, cos_key, prefix, mount, container in cases:
+        relative = cos_key.removeprefix(prefix + "/")
+        assert container == f"{mount}/{relative}", f"mount invariant failed for '{label}'"
