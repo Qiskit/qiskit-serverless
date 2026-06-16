@@ -123,36 +123,6 @@ class AbstractRunner(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def logs(self) -> str | None:
-        """
-        Get job logs.
-        Automatically connects if not connected.
-
-        Returns:
-            Job logs or None
-
-        Raises:
-            RunnerError: If unable to get job logs
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def provider_logs(self) -> str | None:
-        """
-        Get provider (unfiltered) job logs.
-
-        Engines that support dual-log routing (e.g. Fleets with PDS mounts)
-        return the full provider log. Other engines may return the same as logs().
-
-        Returns:
-            Provider log content or None
-
-        Raises:
-            RunnerError: If unable to get logs
-        """
-        raise NotImplementedError
-
-    @abstractmethod
     def stop(self) -> bool:
         """
         Stop the job.
