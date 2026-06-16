@@ -504,9 +504,9 @@ ERROR: Provider log
         assert result.get("valid") is True
 
         # Invalid arguments (wrong type)
-        with raises(Exception):
+        with raises(QiskitServerlessException):
             runnable.validate_arguments({"shots": "wrong-type"})
 
         # Run with invalid arguments - should also be rejected
-        with raises(Exception):
+        with raises(QiskitServerlessException):
             runnable.run(shots="wrong-type")
