@@ -33,10 +33,8 @@ from api.utils import active_jobs_limit_reached, sanitize_name
 from api.v1.exception_handler import endpoint_handle_exceptions
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import (
-    PLATFORM_PERMISSION_READ,
     PLATFORM_PERMISSION_RUN,
     RUN_PROGRAM_PERMISSION,
-    VIEW_PROGRAM_PERMISSION,
     Job,
     Provider,
 )
@@ -304,66 +302,6 @@ class ProgramViewSet(viewsets.GenericViewSet):
         job = job_serializer.save(**save_kwargs)
         logger.info("[programs-run] user_id=%s job_id=%s program=%s | Job queued ok", author.id, job.id, function_title)
         return Response(job_serializer.data)
-
-    @action(methods=["GET"], detail=False, url_path="get_by_title/(?P<title>[^/.]+)")
-    def get_by_title(self, request, title):
-        """Returns programs by title."""
-        author = self.request.user
-        function_title = sanitize_name(title)
-        provider_name = sanitize_name(request.query_params.get("provider", None))
-
-        serializer = self.get_serializer_upload_program(data=self.request.data)
-        provider_name, function_title = serializer.get_provider_name_and_title(provider_name, function_title)
-
-        accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
-        logger.info(
-            "[programs-get-by-title] user_id=%s program=%s provider=%s accessible_functions=%s",
-            author.id,
-            function_title,
-            provider_name,
-            accessible_functions,
-        )
-
-        if provider_name:
-            function = Function.objects.get_function_by_permission(
-                user=author,
-                function_title=function_title,
-                provider_name=provider_name,
-                # it uses permission for Runtime API /functions or legacy_permission_name for Django Groups
-                accessible_functions=accessible_functions,
-                permission=PLATFORM_PERMISSION_READ,
-                legacy_permission_name=VIEW_PROGRAM_PERMISSION,
-            )
-            if function is None:
-                return Response(
-                    {
-                        "message": (
-                            f"Program '{function_title}' for provider '{provider_name}' "
-                            "was not found or you do not have permission to view it."
-                        )
-                    },
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-        else:
-            function = Function.objects.get_user_function(author, function_title)
-            if function is None:
-                return Response(
-                    {
-                        "message": (
-                            f"User program '{function_title}' was not found or "
-                            "you do not have permission to view it."
-                        )
-                    },
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-
-        logger.info(
-            "[programs-get-by-title] user_id=%s program=%s provider=%s | Function retrieved ok",
-            author.id,
-            function_title,
-            provider_name,
-        )
-        return Response(self.get_serializer(function).data)
 
     # This end-point is deprecated and we need to confirm if we can remove it
     @_trace
