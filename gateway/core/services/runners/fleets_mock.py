@@ -10,7 +10,16 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Fleets mock layer for local integration tests (FLEETS_MOCK_ENABLED=1)."""
+"""Fleets mock layer for local integration tests (FLEETS_MOCK_ENABLED=1).
+
+This file lives in the production tree (not under tests/) because it must be
+importable at Django boot time — apps.py:ready() conditionally imports
+install_mocks() when FLEETS_MOCK_ENABLED=1. The .dockerignore excludes tests/
+from the production image, which is reused by the integration-test compose
+stack, so a tests/-resident mock would not be available at runtime.
+
+The env gate in apps.py ensures this code is never executed in production.
+"""
 
 import base64
 import json

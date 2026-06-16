@@ -1,3 +1,15 @@
+# This code is part of a Qiskit project.
+#
+# (C) IBM 2026
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE.txt file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
 """Shared helpers and constants for fleets integration tests.
 
 Imports belong here (not in conftest.py) so test modules don't violate the
@@ -5,6 +17,7 @@ pytest idiom of treating conftest as fixtures-only.
 """
 
 import time
+import uuid
 
 from botocore.exceptions import ClientError
 
@@ -21,6 +34,47 @@ VALID_DB_STATUS_ORDER = ["QUEUED", "PENDING", "RUNNING", "SUCCEEDED", "FAILED", 
 
 FLEET_STATE_BUCKETS = ["fleet-state", "fleet-state-archive", "task-store-bucket"]
 DATA_BUCKETS = ["user-data-bucket", "provider-data-bucket"]
+
+
+def is_valid_uuid(value: str) -> bool:
+    """Return True if value is a valid UUID string.
+
+    Args:
+        value: The string to validate.
+
+    Returns:
+        True if the string is a valid UUID, False otherwise.
+    """
+    try:
+        uuid.UUID(value)
+        return True
+    except (ValueError, AttributeError):
+        return False
+
+
+def wait_for_terminal(job, timeout=120):
+    """Poll job.status() until a terminal state is reached.
+
+    Args:
+        job: A ServerlessJob instance.
+        timeout: Maximum seconds to wait.
+
+    Returns:
+        A tuple of (job_id, client_status) where client_status is one of
+        DONE, ERROR, or CANCELED.
+
+    Raises:
+        AssertionError: If the job does not reach a terminal state within timeout.
+    """
+    job_id = job.job_id
+    deadline = time.time() + timeout
+    client_status = None
+    while time.time() < deadline:
+        client_status = job.status()
+        if client_status in ("DONE", "ERROR", "CANCELED"):
+            return job_id, client_status
+        time.sleep(2)
+    raise AssertionError(f"Job {job_id} did not reach terminal state within {timeout}s, last status: {client_status}")
 
 
 def wait_for_s3_object(minio_client, bucket, key, timeout=30):

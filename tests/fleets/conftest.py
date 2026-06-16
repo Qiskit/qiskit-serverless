@@ -1,3 +1,15 @@
+# This code is part of a Qiskit project.
+#
+# (C) IBM 2026
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE.txt file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
 """Fixtures for fleets integration tests."""
 
 import os
@@ -71,6 +83,22 @@ def cleanup_minio(minio_client):  # pylint: disable=redefined-outer-name
                 minio_client.delete_object(Bucket=bucket, Key=obj["Key"])
         except ClientError:
             pass
+
+
+@pytest.fixture(autouse=True)
+def cleanup_fleet_state_after_test(minio_client):  # pylint: disable=redefined-outer-name
+    """Clear fleet-state bucket after each test to prevent orphaned manifests.
+
+    Only clears the manifest bucket (fleet-state) — that's the one the
+    fleet-worker polls. Archive and task-store don't cause re-processing.
+    """
+    yield
+    try:
+        resp = minio_client.list_objects_v2(Bucket="fleet-state")
+        for obj in resp.get("Contents", []):
+            minio_client.delete_object(Bucket="fleet-state", Key=obj["Key"])
+    except ClientError:
+        pass
 
 
 @pytest.fixture()
