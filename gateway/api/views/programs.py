@@ -4,6 +4,7 @@ Django Rest framework Program views for api application:
 Version views inherit from the different views.
 """
 
+import json
 import logging
 import re
 from typing import cast
@@ -281,12 +282,17 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 status=status.HTTP_423_LOCKED,
             )
 
-        arguments = serializer.data.get("arguments")
+        arguments = serializer.data.get("arguments") or "{}"
         try:
             validate_arguments(function, arguments)
         except jsonschema.ValidationError as exc:
             return Response(
                 {"message": exc.message, "path": list(exc.path)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except json.JSONDecodeError as exc:
+            return Response(
+                {"message": f"arguments is not valid JSON: {exc.msg}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

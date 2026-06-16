@@ -16,5 +16,5 @@ def validate_arguments(program, arguments_str: str) -> None:
     schema = json.loads(schema_str)
     if not schema:
         return
-    arguments = json.loads(arguments_str)
+    arguments = json.loads(arguments_str or "{}")
     jsonschema.validate(instance=arguments, schema=schema)
