@@ -1,0 +1,19 @@
+{% load i18n %}
+<button class="sticky toggle-nav-sidebar" id="toggle-nav-sidebar" aria-label="{% translate 'Toggle navigation' %}"></button>
+<nav class="sticky" id="nav-sidebar" aria-label="{% translate 'Sidebar' %}">
+  <input type="search" id="nav-filter"
+         placeholder="{% translate 'Start typing to filter…' %}"
+         aria-label="{% translate 'Filter navigation items' %}">
+
+  <div class="qs-nav-overview{% if request.resolver_match.url_name == 'index' %} active{% endif %}">
+    <a href="{% url 'admin:index' %}">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M16 2a14 14 0 1 0 14 14A14 14 0 0 0 16 2zm0 26a12 12 0 1 1 12-12 12 12 0 0 1-12 12z"/>
+        <circle cx="16" cy="16" r="3"/>
+      </svg>
+      Overview
+    </a>
+  </div>
+
+  {% include 'admin/app_list.html' with app_list=available_apps show_changelinks=False %}
+</nav>
