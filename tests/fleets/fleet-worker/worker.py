@@ -1,6 +1,16 @@
-"""Fleet worker that polls for job manifests in MinIO and executes them."""
+# This code is part of a Qiskit project.
+#
+# (C) IBM 2026
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE.txt file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
 
-from __future__ import annotations
+"""Fleet worker that polls for job manifests in MinIO and executes them."""
 
 import json
 import logging
@@ -19,11 +29,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Must match fleets_mock.py FLEET_STATE_BUCKET and docker-compose-fleets-test.yaml
 FLEET_STATE_BUCKET = os.environ["FLEET_STATE_BUCKET"]
+# Must match CE_PROJECTS.cos_bucket_task_store_name in docker-compose-fleets-test.yaml
 TASK_STORE_BUCKET = os.environ["TASK_STORE_BUCKET"]
 
 
-class FleetWorker:
+class FleetWorker:  # pylint: disable=too-few-public-methods
     """Polls for job manifests and executes them locally."""
 
     def __init__(self, *, storage: StorageManager) -> None:
@@ -76,12 +88,17 @@ class FleetWorker:
                 env_vars, and run_commands.
         """
         fleet_id = manifest.get("fleet_id") or key.replace(".json", "")
+        project_id = manifest.get("project_id", "")
         logger.info("Processing manifest for fleet_id=%s job_id=%s", fleet_id, manifest.get("job_id"))
+
+        self._write_cos_queue_key(project_id, fleet_id, "pending")
 
         volume_mounts = manifest.get("volume_mounts", [])
         self._setup_volume_mounts(volume_mounts)
         self._clean_temp_files()
         self._simulate_startup_delay()
+
+        self._write_cos_queue_key(project_id, fleet_id, "running")
 
         env_vars = manifest.get("env_vars", {})
         run_env = os.environ.copy()
@@ -94,19 +111,23 @@ class FleetWorker:
 
         exit_code = self._execute_commands(manifest.get("run_commands", []), run_env, fleet_id)
         self._cleanup()
+
+        if self._is_canceled(project_id, fleet_id):
+            logger.info("Fleet %s was canceled during execution — skipping final status write", fleet_id)
+        else:
+            status = "succeeded" if exit_code == 0 else "failed"
+            self._write_cos_queue_key(project_id, fleet_id, f"{status}/{exit_code}")
         self._report_status(fleet_id, key, exit_code)
 
     def _setup_volume_mounts(self, volume_mounts: list[dict]) -> None:
-        """Create symlinks for /data and /function_data.
+        """Create symlinks for each volume mount path.
 
         Args:
             volume_mounts: The volume_mounts from the manifest.
         """
-        data_target, function_data_target = self._storage.resolve_symlink_targets(volume_mounts)
-        if data_target:
-            self._storage.create_symlink("/data", data_target)
-        if function_data_target:
-            self._storage.create_symlink("/function_data", function_data_target)
+        targets = self._storage.resolve_symlink_targets(volume_mounts)
+        for mount_path, target in targets.items():
+            self._storage.create_symlink(mount_path, target)
 
     def _execute_commands(self, run_commands: list[str], env: dict[str, str], fleet_id: str) -> int:
         """Run the job commands via subprocess.
@@ -134,8 +155,46 @@ class FleetWorker:
             logger.error("Failed to execute run_commands for %s: %s", fleet_id, e)
             return 1
 
+    def _is_canceled(self, project_id: str, fleet_id: str) -> bool:
+        """Check if a canceled queue key exists for this job.
+
+        Real Code Engine stops execution on cancel — here we check after
+        execution completes and skip writing a terminal status key if
+        cancellation was already signaled.
+
+        Args:
+            project_id: The CE project UUID.
+            fleet_id: The fleet UUID.
+
+        Returns:
+            True if a canceled key exists in the task-store bucket.
+        """
+        prefix = f"ce/{project_id}/{fleet_id}/v2/queue/canceled/"
+        try:
+            response = self._storage.client.list_objects_v2(Bucket=TASK_STORE_BUCKET, Prefix=prefix, MaxKeys=1)
+            return response.get("KeyCount", 0) > 0
+        except ClientError:
+            return False
+
+    def _write_cos_queue_key(self, project_id: str, fleet_id: str, status_path: str) -> None:
+        """Write a COS task state queue key to simulate CE behavior.
+
+        Args:
+            project_id: The CE project UUID.
+            fleet_id: The fleet UUID.
+            status_path: The status segment (e.g. "pending", "running", "succeeded/0").
+        """
+        timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ")
+        queue_key = f"ce/{project_id}/{fleet_id}/v2/queue/{status_path}/{fleet_id}-0/{timestamp}/000-00000-0/task-0"
+        self._storage.client.put_object(
+            Bucket=TASK_STORE_BUCKET,
+            Key=queue_key,
+            Body=b"",
+        )
+        logger.info("Wrote COS queue key: %s", queue_key)
+
     def _report_status(self, fleet_id: str, key: str, exit_code: int) -> None:
-        """Write status to task-store and delete the consumed manifest.
+        """Delete the consumed manifest after job execution.
 
         Args:
             fleet_id: The fleet ID.
@@ -145,22 +204,19 @@ class FleetWorker:
         status = "succeeded" if exit_code == 0 else "failed"
         logger.info("Fleet %s completed with status: %s (exit_code=%d)", fleet_id, status, exit_code)
 
-        self._storage.client.put_object(
-            Bucket=TASK_STORE_BUCKET,
-            Key=f"{fleet_id}.status",
-            Body=status.encode("utf-8"),
-        )
-
         self._storage.client.delete_object(Bucket=FLEET_STATE_BUCKET, Key=key)
         logger.info("Manifest %s consumed and deleted", key)
+
+    _MOUNT_PATHS = ["/function_user_data", "/job_user_data", "/function_provider_data", "/job_provider_data"]
 
     def _cleanup(self) -> None:
         """Remove symlinks and flush s3fs caches after job execution."""
         subprocess.run(["sync"], capture_output=True, check=False)
         time.sleep(2)
-        self._storage.wait_for_visibility(["/data", "/function_data"])
-        self._storage.remove_symlink("/data")
-        self._storage.remove_symlink("/function_data")
+        active_mounts = [p for p in self._MOUNT_PATHS if os.path.islink(p)]
+        self._storage.wait_for_visibility(active_mounts)
+        for mount_path in active_mounts:
+            self._storage.remove_symlink(mount_path)
 
     def _clean_temp_files(self) -> None:
         """Remove leftover temp files from previous job runs."""

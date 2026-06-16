@@ -1,6 +1,16 @@
-"""S3 storage and s3fs mount management for the fleet worker."""
+# This code is part of a Qiskit project.
+#
+# (C) IBM 2026
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE.txt file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
 
-from __future__ import annotations
+"""S3 storage and s3fs mount management for the fleet worker."""
 
 import logging
 import os
@@ -107,7 +117,7 @@ class StorageManager:
             return MOUNT_PROVIDER_DATA
         return MOUNT_USER_DATA
 
-    def resolve_symlink_targets(self, volume_mounts: list[dict]) -> tuple[str | None, str | None]:
+    def resolve_symlink_targets(self, volume_mounts: list[dict]) -> dict[str, str]:
         """Resolve symlink targets from volume_mounts based on mount_path and bucket.
 
         Args:
@@ -115,23 +125,17 @@ class StorageManager:
                 and bucket keys.
 
         Returns:
-            A tuple of (data_target, function_data_target) paths,
-            each of which may be None if the corresponding mount is not present.
+            Dict mapping mount_path to resolved local filesystem path.
         """
-        data_target = None
-        function_data_target = None
-
+        targets = {}
         for vm in volume_mounts:
             mount_path = vm.get("mount_path", "")
             sub_path = vm.get("sub_path", "")
             bucket = vm.get("bucket", "")
             base = self._bucket_to_mount(bucket)
-            if mount_path == "/data":
-                data_target = os.path.join(base, sub_path)
-            elif mount_path == "/function_data":
-                function_data_target = os.path.join(base, sub_path)
+            targets[mount_path] = os.path.join(base, sub_path)
 
-        return data_target, function_data_target
+        return targets
 
     def create_symlink(self, link_path: str, target_path: str) -> None:
         """Create a symlink, removing any existing one first.
@@ -158,65 +162,13 @@ class StorageManager:
         except OSError:
             pass
 
-    def _resolve_bucket_and_prefix(self, symlink_path: str) -> tuple[str, str] | None:
-        """Resolve a symlink to its bucket and prefix by checking the real path.
+    def wait_for_visibility(self, symlink_paths: list[str], *, delay: float = 3) -> None:
+        """Wait for s3fs writes to become visible on the S3 backend.
 
         Args:
-            symlink_path: A symlink path (e.g. /data, /function_data) that points
-                into an s3fs mount.
-
-        Returns:
-            A (bucket, prefix) tuple, or None if the path doesn't resolve to
-            a known mount.
+            symlink_paths: Symlink paths pointing into s3fs mounts (used only
+                for logging).
+            delay: Seconds to wait after sync.
         """
-        if not os.path.islink(symlink_path):
-            return None
-        real = os.path.realpath(symlink_path)
-        if real == MOUNT_USER_DATA or real.startswith(MOUNT_USER_DATA + "/"):
-            return USER_DATA_BUCKET, real[len(MOUNT_USER_DATA):].lstrip("/")
-        if real == MOUNT_PROVIDER_DATA or real.startswith(MOUNT_PROVIDER_DATA + "/"):
-            return PROVIDER_DATA_BUCKET, real[len(MOUNT_PROVIDER_DATA):].lstrip("/")
-        return None
-
-    def wait_for_visibility(self, symlink_paths: list[str], *, timeout: int = 30) -> None:
-        """Poll S3 until every file under each symlink is visible on the backend.
-
-        s3fs flushes on close() but MinIO visibility is not guaranteed to be
-        synchronous. Resolves each symlink to its bucket and prefix, walks the
-        local tree, and waits for each file to appear via list_objects_v2.
-
-        Args:
-            symlink_paths: Symlink paths pointing into s3fs mounts (e.g.
-                ["/data", "/function_data"]).
-            timeout: Maximum seconds to wait for all files to become visible.
-        """
-        deadline = time.time() + timeout
-        for path in symlink_paths:
-            resolved = self._resolve_bucket_and_prefix(path)
-            if not resolved or not os.path.isdir(path):
-                continue
-            bucket, prefix = resolved
-
-            expected = set()
-            for root, _, files in os.walk(path):
-                for name in files:
-                    full = os.path.join(root, name)
-                    expected.add(os.path.relpath(full, path))
-            if not expected:
-                continue
-
-            key_prefix = f"{prefix}/" if prefix else ""
-            while True:
-                resp = self.client.list_objects_v2(Bucket=bucket, Prefix=key_prefix)
-                keys = {obj["Key"][len(key_prefix):] for obj in resp.get("Contents", [])}
-                missing = expected - keys
-                if not missing:
-                    break
-                if time.time() >= deadline:
-                    logger.warning(
-                        "Timeout waiting for S3 visibility on %s: missing %s",
-                        path,
-                        sorted(missing),
-                    )
-                    break
-                time.sleep(0.5)
+        logger.info("Waiting %.1fs for S3 visibility on %s", delay, symlink_paths)
+        time.sleep(delay)
