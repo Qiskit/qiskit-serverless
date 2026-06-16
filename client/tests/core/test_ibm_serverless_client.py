@@ -369,6 +369,7 @@ class TestIBMServerlessClientBackends:
         fake_b2 = MagicMock()
         fake_b2.name = "ibm_brussels"
         client._service.backends = MagicMock(return_value=[fake_b2])
+        result = client.backends()
         assert result == [fake_b2]
 
         # Cache should be populated with backend
