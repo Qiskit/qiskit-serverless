@@ -41,22 +41,6 @@ class ProgramViewSet(views.ProgramViewSet):
         return v1_serializers.JobSerializer(*args, **kwargs)
 
     @swagger_auto_schema(
-        operation_description="List author Qiskit Functions",
-        manual_parameters=[
-            openapi.Parameter(
-                "filter",
-                openapi.IN_QUERY,
-                description="Filters that you can apply for list: serverless, catalog or empty",
-                type=openapi.TYPE_STRING,
-                required=False,
-            ),
-        ],
-        responses={status.HTTP_200_OK: v1_serializers.ProgramSerializer(many=True)},
-    )
-    def list(self, request):
-        return super().list(request)
-
-    @swagger_auto_schema(
         operation_description="Upload a Qiskit Function",
         request_body=v1_serializers.UploadProgramSerializer,
         responses={status.HTTP_200_OK: v1_serializers.UploadProgramSerializer},
