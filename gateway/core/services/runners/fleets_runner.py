@@ -331,22 +331,6 @@ class FleetsRunner(AbstractRunner):
             logger.warning("COS list_keys failed for fleet [%s]: %s; will retry on next cycle", self.job.fleet_id, exc)
             return []
 
-    def logs(self) -> str | None:
-        """
-        logs and provider_logs don't require implementation because we always go to the
-        object storage directly to retrieve this information in fleets. So we use the logs
-        storage to work with this data.
-        """
-        raise NotImplementedError
-
-    def provider_logs(self) -> str | None:
-        """
-        logs and provider_logs don't require implementation because we always go to the
-        object storage directly to retrieve this information in fleets. So we use the logs
-        storage to work with this data.
-        """
-        raise NotImplementedError
-
     def get_result_from_cos(self) -> str | None:
         """Retrieve job results from COS.
 
