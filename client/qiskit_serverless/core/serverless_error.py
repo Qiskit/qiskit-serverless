@@ -13,6 +13,7 @@
 """
 ServerlessError exception for function developers
 """
+
 from typing import Any, Optional
 
 
