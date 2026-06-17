@@ -13,7 +13,7 @@ from django.http import HttpResponseRedirect
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, serializers, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -115,6 +115,27 @@ def serialize_output(job: Job):
         **standard_error_responses(not_found_example="Job [XXXX] not found"),
     },
 )
+@endpoint("jobs/<uuid:job_id>/result", method="GET", name="jobs-result")
+@permission_classes([permissions.IsAuthenticated])
+@endpoint_handle_exceptions
+def get_result(request: Request, job_id: UUID) -> Response:
+    """
+    Retrieve the result for a job.
+
+    Returns 302 redirect to a presigned COS URL (Fleet, result ready),
+    204 No Content (no result yet), or 200 JSON with result field (Ray).
+    """
+    user = cast(AbstractUser, request.user)
+    outcome = GetJobResultUseCase().execute(job_id, user)
+    if outcome.redirect_url:
+        logger.info("[jobs-get-result] user_id=%s job_id=%s | Redirecting to presigned URL", user.id, job_id)
+        return HttpResponseRedirect(outcome.redirect_url)
+    if outcome.raw_result is None:
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    logger.info("[jobs-get-result] user_id=%s job_id=%s | Result retrieved ok", user.id, job_id)
+    return Response({"result": outcome.raw_result})
+
+
 @swagger_auto_schema(
     method="post",
     operation_description="Save the result for a job. Deprecated: functions now write results directly to COS.",
@@ -126,37 +147,16 @@ def serialize_output(job: Job):
         ),
     },
 )
-@endpoint("jobs/<uuid:job_id>/result", name="jobs-result")
-@api_view(["GET", "POST"])
+@endpoint("jobs/<uuid:job_id>/result", method="POST", name="jobs-result")
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
-def jobs_result(request: Request, job_id: UUID) -> Response:
+def save_result(request: Request, job_id: UUID) -> Response:
     """
-    GET: Retrieve the result for a job.
-        Returns 302 redirect to a presigned COS URL (Fleet, result ready),
-        204 No Content (no result yet), or 200 JSON with result field (Ray).
+    Save a result payload into the specified job.
 
-    POST: Save a result payload into the specified job.
-
-    Args:
-        request: The HTTP request.
-        job_id: Job identifier (UUID path parameter).
-
-    Returns:
-        Response containing the updated serialized job (POST) or the result (GET).
+    Deprecated: functions now write results directly to COS.
     """
     user = cast(AbstractUser, request.user)
-
-    # GET for the Serverless client that submited the job
-    if request.method == "GET":
-        outcome = GetJobResultUseCase().execute(job_id, user)
-        if outcome.redirect_url:
-            return HttpResponseRedirect(outcome.redirect_url)
-        if outcome.raw_result is None:
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        return Response({"result": outcome.raw_result})
-
-    # POST for the Serverless client inside the function (deprecated, function now saves the file directly to COS)
     serializer = InputSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
