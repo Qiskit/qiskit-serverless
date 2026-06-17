@@ -9,7 +9,7 @@ from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
 from rest_framework import serializers, permissions, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
@@ -61,8 +61,7 @@ def serialize_output(message: str) -> StopJobOutputSerializer:
         ),
     },
 )
-@endpoint("jobs/<uuid:job_id>/stop", name="jobs-stop")
-@api_view(["POST"])
+@endpoint("jobs/<uuid:job_id>/stop", method="POST", name="jobs-stop")
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
 def stop(request: Request, job_id: UUID):
