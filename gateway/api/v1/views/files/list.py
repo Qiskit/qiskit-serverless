@@ -10,7 +10,7 @@ from drf_yasg.utils import swagger_auto_schema
 from django.contrib.auth.models import AbstractUser
 from rest_framework import permissions, status
 from rest_framework.response import Response
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import permission_classes
 from rest_framework.request import Request
 from rest_framework import serializers
 
@@ -86,8 +86,7 @@ class InputSerializer(serializers.Serializer):
         ),
     },
 )
-@endpoint("files")
-@api_view(["GET"])
+@endpoint("files", method="GET")
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
 def files_list(request: Request) -> Response:
