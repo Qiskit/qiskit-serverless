@@ -18,6 +18,7 @@ import json
 import os
 import uuid as uuid_module
 from datetime import datetime, timezone
+import pytest
 from unittest.mock import MagicMock, patch
 
 from core.ibm_cloud.event_streams.event_streams_client import IBMEventStreamsClient
@@ -182,7 +183,6 @@ class TestIBMEventStreamsClient:
                         mock_producer = mock_producer_cls.return_value
                         mock_producer.flush.return_value = 1  # 1 message undelivered
 
-                        import pytest
                         with pytest.raises(RuntimeError, match="not delivered after flush timeout"):
                             client.emit_job_started(job)
 
