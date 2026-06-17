@@ -9,7 +9,7 @@ from uuid import UUID
 from django.contrib.auth.models import AbstractUser
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, serializers, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -45,7 +45,6 @@ class InputSerializer(serializers.Serializer):  # pylint: disable=abstract-metho
     },
 )
 @endpoint("jobs/<uuid:job_id>/runtime_jobs", method="POST", name="jobs-runtime-jobs")
-@api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
 def associate_runtime_jobs(request: Request, job_id: UUID) -> Response:
