@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("api", "0052_job_account_id_job_instance_crn"),
+        ("api", "0053_add_code_engine_project_to_program_and_job_snapshots"),
     ]
 
     operations = [
