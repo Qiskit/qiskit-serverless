@@ -124,4 +124,4 @@ class IBMEventStreamsClient:
         )
         remaining = self._producer.flush(timeout=5)
         if remaining > 0:
-            logger.warning("IBMEventStreamsClient: %d message(s) not delivered after flush timeout", remaining)
+            raise RuntimeError(f"IBMEventStreamsClient: {remaining} message(s) not delivered after flush timeout")

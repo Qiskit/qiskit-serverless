@@ -163,6 +163,29 @@ class TestIBMEventStreamsClient:
         assert published["data"]["event_type"] == "job_ended"
         assert published["data"]["usage_nanoseconds"] == 30_000_000_000
 
+    def test_emit_raises_when_flush_times_out(self):
+        job = _make_job()
+
+        with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
+            with patch(f"{_CLIENT_MOD}.uuid"):
+                with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
+                    with patch.dict(
+                        os.environ,
+                        {
+                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                            "EVENT_STREAMS_API_KEY": "k",
+                            "ENVIRONMENT": "production",
+                        },
+                    ):
+                        mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+                        client = IBMEventStreamsClient()
+                        mock_producer = mock_producer_cls.return_value
+                        mock_producer.flush.return_value = 1  # 1 message undelivered
+
+                        import pytest
+                        with pytest.raises(RuntimeError, match="not delivered after flush timeout"):
+                            client.emit_job_started(job)
+
     def test_emit_job_in_progress_returns_zero_usage_when_running_started_at_is_none(self):
         job = _make_job(running_started_at=None)
         job.running_started_at = None  # override the default
