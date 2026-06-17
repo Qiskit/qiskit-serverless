@@ -2,9 +2,7 @@
 Programs view api for V1.
 """
 
-from drf_yasg.utils import swagger_auto_schema
-from rest_framework import permissions, status
-from rest_framework.decorators import action
+from rest_framework import permissions
 
 from api import views
 from api.v1 import serializers as v1_serializers
@@ -38,12 +36,3 @@ class ProgramViewSet(views.ProgramViewSet):
     @staticmethod
     def get_serializer_job(*args, **kwargs):
         return v1_serializers.JobSerializer(*args, **kwargs)
-
-    @swagger_auto_schema(
-        operation_description="Run an existing Qiskit Function",
-        request_body=v1_serializers.RunProgramSerializer,
-        responses={status.HTTP_200_OK: v1_serializers.RunJobSerializer},
-    )
-    @action(methods=["POST"], detail=False)
-    def run(self, request):
-        return super().run(request)

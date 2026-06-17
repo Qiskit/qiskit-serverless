@@ -11,6 +11,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework import status
 
 from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
+from api.domain.exceptions.function_disabled_exception import FunctionDisabledException
 from api.domain.exceptions.invalid_access_exception import InvalidAccessException
 from api.domain.exceptions.not_found_exception import NotFoundError
 from api.domain.exceptions.runtime_api_exception import RuntimeFunctionsException
@@ -68,6 +69,11 @@ def endpoint_handle_exceptions(view_func: Callable):
             return Response(
                 {"message": _first_error_message(error.detail)},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+        except FunctionDisabledException as error:
+            return Response(
+                {"message": error.message},
+                status=status.HTTP_423_LOCKED,
             )
         except ActiveJobLimitExceeded as error:
             return Response(
