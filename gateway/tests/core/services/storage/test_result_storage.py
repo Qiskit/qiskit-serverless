@@ -1,4 +1,4 @@
-"""Tests for ResultStorage service."""
+"""Tests for RayResultStorage."""
 
 import os
 
@@ -9,8 +9,8 @@ from tests.utils import TestUtils
 
 
 @pytest.mark.django_db
-class TestResultStorage:
-    """Tests for ResultStorage path generation and file operations."""
+class TestRayResultStorage:
+    """Tests for RayResultStorage path generation and file operations."""
 
     @pytest.fixture
     def job(self):

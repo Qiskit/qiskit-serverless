@@ -12,7 +12,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.domain.exceptions.invalid_access_exception import InvalidAccessException
-from api.use_cases.jobs.logs_result import LogsResult
+from api.use_cases.jobs.get_logs_response import GetLogsResponse
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import Job, Program
 from core.services.runners import get_runner, RunnerError
@@ -29,13 +29,13 @@ class GetProviderJobLogsUseCase:
         job_id: UUID,
         user: AbstractUser,
         accessible_functions: Optional[FunctionAccessResult] = None,
-    ) -> LogsResult:
+    ) -> GetLogsResponse:
         """Return the provider logs of a job if the user has access.
 
         Returns:
-            LogsResult with redirect_url set (Fleet, logs ready),
-            LogsResult() with both fields None (Fleet, no logs yet),
-            or LogsResult with raw_log set (Ray).
+            GetLogsResponse with redirect_url set (Fleet, logs ready),
+            GetLogsResponse() with both fields None (Fleet, no logs yet),
+            or GetLogsResponse with raw_log set (Ray).
         """
         try:
             job = Job.objects.get(id=job_id)
@@ -54,14 +54,14 @@ class GetProviderJobLogsUseCase:
                     user.id,
                     job_id,
                 )
-                return LogsResult(redirect_url=url)
-            return LogsResult()
+                return GetLogsResponse(redirect_url=url)
+            return GetLogsResponse()
 
         # Ray path
         logs_storage = get_logs_storage(job)
         logs = logs_storage.get_private_logs()
         if logs:
-            return LogsResult(raw_log=logs)
+            return GetLogsResponse(raw_log=logs)
 
         runner = get_runner(job)
         if runner.is_active():
@@ -74,10 +74,10 @@ class GetProviderJobLogsUseCase:
                     user.id,
                     job.program.runner,
                 )
-                return LogsResult(raw_log=f"Logs not available for job [{job_id}] during execution.")
+                return GetLogsResponse(raw_log=f"Logs not available for job [{job_id}] during execution.")
 
             if not lines.private_logs:
-                return LogsResult(raw_log="")
+                return GetLogsResponse(raw_log="")
 
             logger.info(
                 "[get-provider-logs] job_id=%s user_id=%s runner=%s | Got provider logs from runner",
@@ -85,6 +85,6 @@ class GetProviderJobLogsUseCase:
                 user.id,
                 job.program.runner,
             )
-            return LogsResult(raw_log="\n".join(lines.private_logs) + "\n")
+            return GetLogsResponse(raw_log="\n".join(lines.private_logs) + "\n")
 
-        return LogsResult(raw_log=job.logs)
+        return GetLogsResponse(raw_log=job.logs)
