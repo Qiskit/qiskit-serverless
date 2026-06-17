@@ -12,10 +12,13 @@
 
 """Test IBMServerlessClient."""
 
+# Tests reach into client internals (_service, _backends_cache, _check_usage) by design.
+# pylint: disable=protected-access
+
 import uuid
 import tempfile
 import warnings
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 
 import pytest
 from qiskit.providers.exceptions import QiskitBackendNotFoundError
@@ -452,7 +455,7 @@ class TestIBMServerlessClientGetBackend:
         fake_backend = MagicMock()
         client._service.backend = MagicMock(return_value=fake_backend)
 
-        assert client._backends_cache == {}  # cache is empty on initialization
+        assert not client._backends_cache  # cache is empty on initialization
 
         result = client.backend("ibm_torino")
 

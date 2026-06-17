@@ -783,7 +783,7 @@ class IBMServerlessClient(ServerlessClient):
                 f"Failed to retrieve usage information for instance '{self.instance}': {exc}"
             ) from exc
 
-    def backends(
+    def backends(  # pylint: disable=too-many-positional-arguments
         self,
         refresh_cache: bool = False,
         name: str | None = None,
