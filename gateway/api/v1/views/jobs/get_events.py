@@ -11,7 +11,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, serializers, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -86,8 +86,7 @@ def serialize_output(events: list[JobEvent]) -> list[dict[str, Any]]:
         **standard_error_responses(not_found_example="Job [XXXX] not found"),
     },
 )
-@endpoint("jobs/<uuid:job_id>/events")
-@api_view(["GET"])
+@endpoint("jobs/<uuid:job_id>/events", method="GET")
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
 def get_events(request: Request, job_id: UUID) -> Response:
