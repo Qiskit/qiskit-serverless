@@ -76,6 +76,7 @@ class RouteRegistry:
 
         dispatch.cls = CombinedView  # required by DRF middleware for auth/permissions
         dispatch.initkwargs = {}
+        dispatch.csrf_exempt = True  # api_view sets this via @csrf_exempt; our dispatcher must do the same
         dispatch.__name__ = name
         if merged_swagger:
             dispatch._swagger_auto_schema = merged_swagger  # pylint: disable=protected-access
