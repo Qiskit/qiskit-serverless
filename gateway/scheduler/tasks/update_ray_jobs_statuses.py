@@ -1,18 +1,15 @@
 """Update Ray jobs statuses service."""
 
+import itertools
 import logging
+from collections import deque
 from datetime import datetime, timezone
 
 from django.conf import settings
 from django.db.models import F
 
-from core.domain.filter_logs import (
-    filter_logs_with_non_public_tags,
-    filter_logs_with_public_tags,
-    remove_prefix_tags_in_logs,
-)
+from core.services.runners.ray_runner import FilteredLogs
 from core.services.storage import get_logs_storage
-from core.utils import check_logs
 from core.models import Job, JobEvent, Program
 from core.services.runners import get_runner, RunnerError
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
@@ -26,6 +23,10 @@ from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
 
 logger = logging.getLogger("scheduler.UpdateRayJobsStatuses")
+
+
+def _deque_from_str(text: str) -> deque:
+    return deque(text.split("\n"))
 
 
 class UpdateRayJobsStatuses(SchedulerTask):
@@ -72,6 +73,7 @@ class UpdateRayJobsStatuses(SchedulerTask):
             return True
 
         status_has_changed = False
+        lines: FilteredLogs | None = None
         if check_job_timeout(job):
             job_new_status = Job.STOPPED
 
@@ -88,25 +90,26 @@ class UpdateRayJobsStatuses(SchedulerTask):
             if job.in_terminal_state():
                 job.sub_status = None
                 job.env_vars = "{}"
-                # Ray logs need fetching and persisting when the finishes
+                # Ray logs need fetching and persisting when the job finishes
                 try:
-                    logs = runner.logs() or ""
+                    lines = runner.logs()
                 except RunnerError:
-                    logs = ""
-                save_logs_to_storage(job, logs)
+                    lines = FilteredLogs(public_logs=_deque_from_str("Error getting logs"), private_logs=None)
+                save_logs_to_storage(job, lines)
                 if job.status == Job.SUCCEEDED:
                     self._record_execution_duration(job)
 
         if not job.in_terminal_state():
             try:
-                logs = runner.logs()
+                lines = runner.logs()
             except RunnerError:
-                logs = None
+                lines = FilteredLogs(public_logs=_deque_from_str("Error getting logs"), private_logs=None)
 
-        if logs:
+        if lines is not None:
             # check if job is resource constrained
             no_resources_log = "No available node types can fulfill resource request"
-            if no_resources_log in logs:
+            all_lines = itertools.chain(lines.public_logs, lines.private_logs or [])
+            if any(no_resources_log in line for line in all_lines):
                 job_new_status = fail_job_insufficient_resources(job)
                 logger.info(
                     "job_id=%s user_id=%s Changing status from %s to %s because Ray error: insufficient resources",
@@ -115,17 +118,22 @@ class UpdateRayJobsStatuses(SchedulerTask):
                     job.status,
                     job_new_status,
                 )
-                logs = (
-                    "Insufficient resources available to the run job in this "
-                    "configuration.\nMax resources allowed are "
-                    f"{settings.LIMITS_CPU_PER_TASK} CPUs and "
-                    f"{settings.LIMITS_MEMORY_PER_TASK} GB of RAM per job."
+                lines = FilteredLogs(
+                    public_logs=deque(
+                        [
+                            "Insufficient resources available to the run job in this "
+                            "configuration.\nMax resources allowed are "
+                            f"{settings.LIMITS_CPU_PER_TASK} CPUs and "
+                            f"{settings.LIMITS_MEMORY_PER_TASK} GB of RAM per job."
+                        ]
+                    ),
+                    private_logs=None,
                 )
                 job.status = job_new_status
                 # cleanup env vars
                 job.env_vars = "{}"
                 status_has_changed = True
-                save_logs_to_storage(job, logs)
+                save_logs_to_storage(job, lines)
 
         if status_has_changed:
             Job.objects.filter(pk=job.id).update(
@@ -186,31 +194,25 @@ class UpdateRayJobsStatuses(SchedulerTask):
             logger.info("Updated %s GPU jobs.", gpu_counter)
 
 
-def save_logs_to_storage(job: Job, logs: str):
+def save_logs_to_storage(job: Job, logs: FilteredLogs):
     """Save Ray job logs to the local filesystem (COS-mounted volume).
 
-    Called once when a Ray job transitions to a terminal state. Filters the
-    combined log stream into public (user) and private (provider) logs.
-
-    This function is only used for Ray jobs. Fleets logs are written directly
-    to COS by the PDS shell wrapper during execution.
+    Called once when a Ray job transitions to a terminal state. The logs are
+    already filtered and prefix-stripped inside FilteredLogs; this function
+    only joins the lines and writes them to storage.
 
     Args:
         job: Job that has reached a terminal state.
-        logs: Combined log stream from Ray.
+        logs: FilteredLogs from _stream_logs_from_ray(), already filtered.
     """
-
-    logs = check_logs(logs, job)
-
     logs_storage = get_logs_storage(job)
+    public_content = "\n".join(logs.public_logs) + "\n" if logs.public_logs else ""
     if job.program.provider:
-        public_logs = filter_logs_with_public_tags(logs)
-        logs_storage.save_public_logs(public_logs)
+        logs_storage.save_public_logs(public_content)
         logger.info("job_id=%s Provider function. Public logs saved to storage", job.id)
-        private_logs = filter_logs_with_non_public_tags(logs)
-        logs_storage.save_private_logs(private_logs)
+        private_content = "\n".join(logs.private_logs) + "\n" if logs.private_logs else ""
+        logs_storage.save_private_logs(private_content)
         logger.info("job_id=%s Provider function. Private logs saved to storage", job.id)
     else:
-        filtered_logs = remove_prefix_tags_in_logs(logs)
-        logs_storage.save_public_logs(filtered_logs)
+        logs_storage.save_public_logs(public_content)
         logger.info("job_id=%s Custom function. Public logs saved to storage", job.id)
