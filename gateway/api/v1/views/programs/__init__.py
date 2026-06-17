@@ -40,15 +40,6 @@ class ProgramViewSet(views.ProgramViewSet):
         return v1_serializers.JobSerializer(*args, **kwargs)
 
     @swagger_auto_schema(
-        operation_description="Upload a Qiskit Function",
-        request_body=v1_serializers.UploadProgramSerializer,
-        responses={status.HTTP_200_OK: v1_serializers.UploadProgramSerializer},
-    )
-    @action(methods=["POST"], detail=False)
-    def upload(self, request):
-        return super().upload(request)
-
-    @swagger_auto_schema(
         operation_description="Run an existing Qiskit Function",
         request_body=v1_serializers.RunProgramSerializer,
         responses={status.HTTP_200_OK: v1_serializers.RunJobSerializer},
