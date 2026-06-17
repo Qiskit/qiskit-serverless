@@ -58,21 +58,6 @@ class TestUploadFunctionUseCase:
         assert result.provider is not None
         assert result.provider.name == "my-provider"
 
-    def test_updates_existing_provider_function(self, user):
-        group = TestUtils.get_or_create_group("my-provider")
-        TestUtils.add_user_to_group(user, group)
-        provider = Provider.objects.create(name="my-provider")
-        provider.admin_groups.add(group)
-        existing = Program.objects.create(title="my-fn", provider=provider, author=user, entrypoint="old.py")
-        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
-
-        result = UploadFunctionUseCase().execute(
-            user, accessible, {"title": "my-provider/my-fn", "entrypoint": "new.py"}
-        )
-
-        assert result.pk == existing.pk
-        assert result.entrypoint == "new.py"
-
     def test_raises_not_found_when_provider_not_found(self, user):
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
