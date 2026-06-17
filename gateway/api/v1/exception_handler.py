@@ -50,6 +50,11 @@ def endpoint_handle_exceptions(view_func: Callable):
     def wrapped_view(*args, **kwargs):  # pylint: disable=too-many-return-statements
         try:
             return view_func(*args, **kwargs)
+        except FunctionDisabledException as error:
+            return Response(
+                {"message": error.message},
+                status=status.HTTP_423_LOCKED,
+            )
         except NotFoundError as error:
             return Response(
                 {"message": error.message},
@@ -69,11 +74,6 @@ def endpoint_handle_exceptions(view_func: Callable):
             return Response(
                 {"message": _first_error_message(error.detail)},
                 status=status.HTTP_400_BAD_REQUEST,
-            )
-        except FunctionDisabledException as error:
-            return Response(
-                {"message": error.message},
-                status=status.HTTP_423_LOCKED,
             )
         except ActiveJobLimitExceeded as error:
             return Response(

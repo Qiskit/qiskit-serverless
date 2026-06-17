@@ -24,7 +24,7 @@ def user():
 
 class TestRunFunctionUseCase:
     def test_creates_job_for_own_function(self, user):
-        Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
+        function = Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
         carrier = {}
 
@@ -40,6 +40,7 @@ class TestRunFunctionUseCase:
         )
 
         assert job.program.title == "my-fn"
+        assert job.program.id == function.id
         assert job.author == user
 
     def test_raises_not_found_when_function_does_not_exist(self, user):
