@@ -11,4 +11,4 @@ pytest-cov>=4.0.0
 responses>=0.26.1
 tox>=4.54.0
 pre-commit>=4.6.0
-import-linter>=2.0
+import-linter>=2.11
