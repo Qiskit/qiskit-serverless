@@ -7,7 +7,7 @@ from django.contrib.auth.models import AbstractUser
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -34,8 +34,7 @@ logger = logging.getLogger("api.api.v1.views.programs.list")
     ],
     responses={status.HTTP_200_OK: v1_serializers.ProgramSerializer(many=True)},
 )
-@endpoint("programs", name="programs-list")
-@api_view(["GET"])
+@endpoint("programs", method="GET", name="programs-list")
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
 def list_programs(request: Request) -> Response:

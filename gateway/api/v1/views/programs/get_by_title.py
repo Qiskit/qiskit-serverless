@@ -7,7 +7,7 @@ from django.contrib.auth.models import AbstractUser
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -55,8 +55,7 @@ def _parse_title_and_provider(title: str, provider: str | None) -> tuple[str, st
         **standard_error_responses(not_found_example="Qiskit Function [XXX] doesn't exist."),
     },
 )
-@endpoint("programs/get_by_title/<str:title>", name="programs-get-by-title")
-@api_view(["GET"])
+@endpoint("programs/get_by_title/<str:title>", method="GET", name="programs-get-by-title")
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
 def get_by_title(request: Request, title: str) -> Response:
