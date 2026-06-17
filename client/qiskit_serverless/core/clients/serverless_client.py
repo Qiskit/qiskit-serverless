@@ -41,7 +41,6 @@ from typing import Optional, List, Dict, Any, Union
 import requests
 from opentelemetry import trace
 from qiskit_ibm_runtime import QiskitRuntimeService
-from qiskit_ibm_runtime.accounts import AccountManager, Account
 from qiskit_ibm_runtime.accounts.exceptions import InvalidAccountError
 
 from qiskit_serverless.core.constants import (
@@ -289,6 +288,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             request=lambda: requests.get(
                 url,
                 headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
+                params={"with_result": "false"},
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -411,16 +411,21 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         return response_data.get("message")
 
     @_trace_job
-    def result(self, job_id: str):
-        response_data = safe_json_request_as_dict(
-            request=lambda: requests.get(
-                f"{self.host}/api/{self.version}/jobs/{job_id}/",
-                headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
-                params={"with_result": "true"},
-                timeout=REQUESTS_TIMEOUT,
-            )
+    def result(self, job_id: str) -> Dict[str, Any]:
+        gateway_url = f"{self.host}/api/{self.version}/jobs/{job_id}/result/"
+        response = requests.get(
+            gateway_url,
+            headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
+            timeout=REQUESTS_TIMEOUT,
         )
-        return json.loads(response_data.get("result", "{}") or "{}", cls=QiskitObjectsDecoder)
+        if response.status_code == 204:
+            return {}
+        # Not all redirects go to COS — HTTP→HTTPS redirects stay on the same host.
+        # Checking the hostname detects only redirects to an external host (COS/MinIO).
+        redirected_to_cos = urlparse(response.url).hostname != urlparse(gateway_url).hostname
+        if redirected_to_cos:
+            return json.loads(response.text, cls=QiskitObjectsDecoder) if response.ok else {}
+        return json.loads(response.json().get("result", "{}") or "{}", cls=QiskitObjectsDecoder)
 
     @_trace_job
     def logs(self, job_id: str):
@@ -706,12 +711,12 @@ class IBMServerlessClient(ServerlessClient):
             instance: IBM Cloud CRN
             channel: identifies the method to use to authenticate the user
         """
-        self.account = self._discover_account(
-            token=token,
-            instance=instance,
-            channel=channel,
-            name=name,
-        )
+
+        channel = channel or Channel.IBM_QUANTUM_PLATFORM.value  # For backwards compatibility
+
+        # Initialize QiskitRuntimeService
+        self._service = QiskitRuntimeService(channel=channel, token=token, name=name, instance=instance)
+        self.account = self._service._account
 
         super().__init__(
             channel=self.account.channel,
@@ -719,59 +724,6 @@ class IBMServerlessClient(ServerlessClient):
             instance=self.account.instance,
             host=host if host else IBM_SERVERLESS_HOST_URL,
         )
-
-    def _discover_account(
-        self,
-        token: Optional[str] = None,
-        instance: Optional[str] = None,
-        channel: Optional[str] = None,
-        name: Optional[str] = None,
-    ) -> Account:
-        """Discover account for ibm_cloud and ibm_quantum_platform channels.
-
-        Args:
-            token: IBM Quantum API token
-            name: Name of the account to load
-            instance: IBM Cloud CRN
-            channel: Identifies the method to use to authenticate the user
-        """
-
-        account = None
-        if name:
-            account = AccountManager.get(name=name)
-        else:
-            channel = channel or Channel.IBM_QUANTUM_PLATFORM.value
-            try:
-                Channel(channel)
-            except ValueError as error:
-                raise ValueError(
-                    "Your channel value is not correct. Use one of the available channels: "
-                    f"{Channel.LOCAL.value}, "
-                    f"{Channel.IBM_CLOUD.value}, {Channel.IBM_QUANTUM_PLATFORM.value}"
-                ) from error
-
-            if token:
-                account = Account.create_account(
-                    channel=channel,
-                    token=token,
-                    instance=instance,
-                )
-            else:
-                account = AccountManager.get(channel=channel)
-
-        # channel is not defined yet, get it from the AccountManager
-        if account is None:
-            account = AccountManager.get()
-        if instance:
-            account.instance = instance
-
-        # ensure account is valid, fail early if not
-        try:
-            account.validate()
-        except InvalidAccountError as ex:
-            raise QiskitServerlessException(f"Invalid format in account inputs - {ex}") from ex
-
-        return account
 
     @staticmethod
     def save_account(

@@ -254,8 +254,8 @@ class TestProviderJobsMethod:
             assert mock_request.last_request.qs["provider"] == ["test-provider"]
 
 
-class TestJobMethod:
-    """Test ServerlessClient.job() method."""
+class TestRetrieveJobMethod:
+    """Test ServerlessClient.job() method (GET /jobs/{id}/)."""
 
     def test_job_retrieval_success(self, mock_client):
         """Test job() successfully retrieves a job."""
@@ -266,7 +266,7 @@ class TestJobMethod:
         }
 
         with requests_mock.Mocker() as mocker:
-            mocker.get(
+            mock_request = mocker.get(
                 "https://test-host.com/api/v1/jobs/test-job-id/",
                 json=mock_response,
             )
@@ -276,6 +276,7 @@ class TestJobMethod:
             assert job is not None
             assert job.job_id == "test-job-id"
             assert isinstance(job, Job)
+            assert mock_request.last_request.qs["with_result"] == ["false"]
 
     def test_job_not_found_returns_none(self, mock_client):
         """Test job() returns None when job doesn't exist."""
@@ -555,16 +556,13 @@ class TestStopMethod:
 class TestResultMethod:
     """Test ServerlessClient.result() method."""
 
-    def test_result_returns_decoded_json(self, mock_client):
-        """Test result() returns decoded JSON result."""
-        mock_response = {
-            "id": "test-job",
-            "result": '{"key": "value", "number": 42}',
-        }
+    def test_result_returns_decoded_json_result(self, mock_client):
+        """Test result() returns decoded JSON result (Ray job, 200 response)."""
+        mock_response = {"result": '{"key": "value", "number": 42}'}
 
         with requests_mock.Mocker() as mocker:
             mocker.get(
-                "https://test-host.com/api/v1/jobs/test-job/",
+                "https://test-host.com/api/v1/jobs/test-job/result/",
                 json=mock_response,
             )
 
@@ -572,13 +570,13 @@ class TestResultMethod:
 
             assert result == {"key": "value", "number": 42}
 
-    def test_result_with_empty_result(self, mock_client):
-        """Test result() handles empty result."""
-        mock_response = {"id": "test-job", "result": ""}
+    def test_result_handles_empty_result(self, mock_client):
+        """Test result() handles empty result string."""
+        mock_response = {"result": ""}
 
         with requests_mock.Mocker() as mocker:
             mocker.get(
-                "https://test-host.com/api/v1/jobs/test-job/",
+                "https://test-host.com/api/v1/jobs/test-job/result/",
                 json=mock_response,
             )
 
@@ -586,13 +584,13 @@ class TestResultMethod:
 
             assert result == {}
 
-    def test_result_with_null_result(self, mock_client):
-        """Test result() handles null result."""
-        mock_response = {"id": "test-job", "result": None}
+    def test_result_handles_null_result(self, mock_client):
+        """Test result() handles null result field."""
+        mock_response = {"result": None}
 
         with requests_mock.Mocker() as mocker:
             mocker.get(
-                "https://test-host.com/api/v1/jobs/test-job/",
+                "https://test-host.com/api/v1/jobs/test-job/result/",
                 json=mock_response,
             )
 
@@ -601,18 +599,48 @@ class TestResultMethod:
             assert result == {}
 
     def test_result_includes_with_result_true_param(self, mock_client):
-        """Test result() includes with_result=true parameter."""
-        mock_response = {"id": "test-job", "result": "{}"}
+        """result() calls /jobs/{id}/result/ and does not pass with_result (was /:id/?with_result=true)."""
+        mock_response = {"result": "{}"}
 
         with requests_mock.Mocker() as mocker:
             mock_request = mocker.get(
-                "https://test-host.com/api/v1/jobs/test-job/",
+                "https://test-host.com/api/v1/jobs/test-job/result/",
                 json=mock_response,
             )
 
             mock_client.result("test-job")
 
-            assert mock_request.last_request.qs["with_result"] == ["true"]
+            assert mock_request.called
+            assert "with_result" not in mock_request.last_request.qs
+
+    def test_result_returns_empty_dict_on_204(self, mock_client):
+        """result() returns {} when the gateway responds with 204 No Content (no result yet)."""
+        with requests_mock.Mocker() as mocker:
+            mocker.get(
+                "https://test-host.com/api/v1/jobs/test-job/result/",
+                status_code=204,
+            )
+
+            result = mock_client.result("test-job")
+
+            assert result == {}
+
+    def test_result_returns_decoded_object_after_redirect(self, mock_client):
+        """result() fetches and decodes the COS object when the gateway redirects (Fleet job)."""
+        cos_content = '{"answer": 42}'
+        presigned_url = "https://cos.example.com/results.json?sig=abc"
+
+        with requests_mock.Mocker() as mocker:
+            mocker.get(
+                "https://test-host.com/api/v1/jobs/test-job/result/",
+                status_code=302,
+                headers={"Location": presigned_url},
+            )
+            mocker.get(presigned_url, text=cos_content)
+
+            result = mock_client.result("test-job")
+
+            assert result == {"answer": 42}
 
 
 class TestLogsMethod:

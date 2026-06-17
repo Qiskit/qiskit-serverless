@@ -33,7 +33,7 @@ class InputSerializer(serializers.Serializer):
     Validates query parameters for job retrieval.
     """
 
-    with_result = serializers.BooleanField(required=False, default=True)
+    with_result = serializers.BooleanField(required=False, default=False)
 
     class Meta:
         """Meta class to define input serializer name"""
@@ -130,9 +130,9 @@ def serialize_output(job: Job, with_result: bool) -> Job:
             in_=openapi.IN_QUERY,
             type=openapi.TYPE_STRING,
             required=False,
-            default="true",
+            default="false",
             enum=["true", "false"],
-            description="Whether to include the `result` field in the response.",
+            description="Whether to include the `result` field. Deprecated: use GET /jobs/{id}/result/ instead.",
         ),
     ],
     responses={
