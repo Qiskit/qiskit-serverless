@@ -28,7 +28,6 @@ from qiskit_serverless.core.constants import (
 from qiskit_serverless.core.enums import Channel
 from qiskit_serverless.exception import QiskitServerlessException
 
-
 _LIST_INSTANCES = "qiskit_ibm_runtime.accounts.account.CloudAccount.list_instances"
 _VERIFY_CREDS = "qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials"
 _CONFIG_FILE = "qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE"
@@ -345,8 +344,16 @@ class TestIBMServerlessClientBackends:
         # Cache should be populated for both backends
         assert client._backends_cache["ibm_torino"] is fake_b1
         assert client._backends_cache["ibm_brussels"] is fake_b2
-        # Called with the client's instance so the listing is properly scoped
-        client._service.backends.assert_called_once_with(instance="test_instance")
+        # Called with named parameters
+        client._service.backends.assert_called_once_with(
+            name=None,
+            min_num_qubits=None,
+            instance=None,
+            dynamic_circuits=None,
+            filters=None,
+            use_fractional_gates=False,
+            calibration_id=None,
+        )
 
     @patch(_LIST_INSTANCES)
     @patch(_VERIFY_CREDS)
@@ -369,16 +376,31 @@ class TestIBMServerlessClientBackends:
         fake_b2 = MagicMock()
         fake_b2.name = "ibm_brussels"
         client._service.backends = MagicMock(return_value=[fake_b2])
-        result = client.backends()
+
+        # Calling '.backends()' so cash is not cleared
+        result = client.backends(refresh_cache=False)
+        assert client._backends_cache.get("ibm_torino", None) is fake_b1
+        assert result == [fake_b1]
+
+        # Calling '.backends()' and refreshing cash
+        result = client.backends(refresh_cache=True)
         assert result == [fake_b2]
 
         # Cache should be populated with backend
-        assert client._backends_cache["ibm_brussels"] is fake_b2
+        assert client._backends_cache.get("ibm_brussels") is fake_b2
         # Cache should be refreshed
         assert client._backends_cache.get("ibm_torino", None) is None
 
-        # Called with the client's instance so the listing is properly scoped
-        client._service.backends.assert_called_once_with(instance="test_instance")
+        # Called with named parameters
+        client._service.backends.assert_called_with(
+            name=None,
+            min_num_qubits=None,
+            instance=None,
+            dynamic_circuits=None,
+            filters=None,
+            use_fractional_gates=False,
+            calibration_id=None,
+        )
 
     @patch(_LIST_INSTANCES)
     @patch(_VERIFY_CREDS)
@@ -390,7 +412,16 @@ class TestIBMServerlessClientBackends:
 
         client.backends(min_num_qubits=127, operational=True)
 
-        client._service.backends.assert_called_once_with(instance="test_instance", min_num_qubits=127, operational=True)
+        client._service.backends.assert_called_once_with(
+            name=None,
+            min_num_qubits=127,
+            instance=None,
+            dynamic_circuits=None,
+            filters=None,
+            use_fractional_gates=False,
+            calibration_id=None,
+            operational=True,
+        )
 
     @patch(_LIST_INSTANCES)
     @patch(_VERIFY_CREDS)
@@ -423,11 +454,13 @@ class TestIBMServerlessClientGetBackend:
 
         assert client._backends_cache == {}  # cache is empty on initialization
 
-        result = client._get_backend("ibm_torino")
+        result = client.backend("ibm_torino")
 
         assert result is fake_backend
         assert client._backends_cache["ibm_torino"] is fake_backend
-        client._service.backend.assert_called_once_with("ibm_torino")
+        client._service.backend.assert_called_once_with(
+            name="ibm_torino", use_fractional_gates=False, calibration_id=None
+        )
 
     @patch(_LIST_INSTANCES)
     @patch(_VERIFY_CREDS)
@@ -444,13 +477,15 @@ class TestIBMServerlessClientGetBackend:
         fresh_backend.name = "ibm_torino"
         client._service.backend = MagicMock(return_value=fresh_backend)
 
-        result = client._get_backend("ibm_torino")
+        result = client.backend("ibm_torino")
 
         # Returns the freshly fetched object, not the stale cached one
         assert result is fresh_backend
         # Cache is updated with the fresh object
         assert client._backends_cache["ibm_torino"] is fresh_backend
-        client._service.backend.assert_called_once_with("ibm_torino")
+        client._service.backend.assert_called_once_with(
+            name="ibm_torino", use_fractional_gates=False, calibration_id=None
+        )
 
     @patch(_LIST_INSTANCES)
     @patch(_VERIFY_CREDS)
@@ -465,7 +500,7 @@ class TestIBMServerlessClientGetBackend:
             QiskitServerlessException,
             match="Backend 'nope' is not available or you do not have access",
         ):
-            client._get_backend("nope")
+            client.backend("nope")
 
     @patch(_LIST_INSTANCES)
     @patch(_VERIFY_CREDS)
@@ -476,7 +511,7 @@ class TestIBMServerlessClientGetBackend:
         client._service.backend = MagicMock(side_effect=RuntimeError("timeout"))
 
         with pytest.raises(QiskitServerlessException, match="Failed to retrieve backend 'ibm_torino'"):
-            client._get_backend("ibm_torino")
+            client.backend("ibm_torino")
 
 
 # ---------------------------------------------------------------------------
@@ -537,6 +572,20 @@ class TestIBMServerlessClientCheckUsage:
 
         with pytest.warns(UserWarning, match="low remaining runtime quota"):
             client._check_usage()
+
+    @patch(_LIST_INSTANCES)
+    @patch(_VERIFY_CREDS)
+    @patch(_CONFIG_FILE)
+    def test_check_usage_suppresses_low_warning_when_requested(self, mock_file_path, mock_verify, mock_list_instances):
+        """remaining_seconds below USAGE_LOW_THRESHOLD_SECONDS but supress_low_usage_warning=True → no warning."""
+        client = _make_client(mock_file_path, mock_verify, mock_list_instances)
+        # if epsilon< low_threshold, their avg is greater than epsilon and smaller than low_threshold
+        remaining_usage_seconds = (float(USAGE_LOW_THRESHOLD_SECONDS + USAGE_ZERO_EPSILON_SECONDS)) / 2
+        client._service.usage = MagicMock(return_value={"usage_remaining_seconds": remaining_usage_seconds})
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # Turn warnings into errors
+            client._check_usage(supress_low_usage_warning=True)  # Should not raise
 
     @patch(_LIST_INSTANCES)
     @patch(_VERIFY_CREDS)
@@ -604,7 +653,9 @@ class TestIBMServerlessClientRun:
 
         result = client.run("my_function", arguments={"backend_name": "ibm_torino"})
 
-        client._service.backend.assert_called_once_with("ibm_torino")
+        client._service.backend.assert_called_once_with(
+            name="ibm_torino", use_fractional_gates=False, calibration_id=None
+        )
         mock_super_run.assert_called_once()
         assert result is fake_job
 
