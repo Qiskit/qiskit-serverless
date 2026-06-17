@@ -1,9 +1,23 @@
 ---
 features:
   - |
-    ``IBMServerlessClient`` now exposes a ``backends(**kwargs)`` method that lists the IBM Quantum
-    backends accessible through the configured instance. Results are cached per client instance so
-    repeated calls within a session are inexpensive.
+    ``IBMServerlessClient`` now exposes several methods that wrap the Qiskit IBM Runtime
+    ``QiskitRuntimeService`` API to interact with IBM Quantum backends:
+    
+    * ``backends(**kwargs)`` — Lists IBM Quantum backends accessible through the configured instance.
+      Results are cached per client instance, making repeated calls within a session inexpensive.
+      Use ``refresh_cache=True`` to force a refresh. Wraps ``QiskitRuntimeService.backends()``.
+    * ``backend(name, use_fractional_gates=False, calibration_id=None)`` — Fetches a single backend
+      by name and updates the cache. More efficient than listing all backends and validates access.
+      Wraps ``QiskitRuntimeService.backend()``.
+    * ``least_busy(min_num_qubits=None, instance=None, filters=None, **kwargs)`` — Returns the
+      backend with the fewest pending jobs that matches the specified criteria. Result is cached.
+      Wraps ``QiskitRuntimeService.least_busy()``.
+    * ``usage()`` — Returns runtime usage information for the active instance, including
+      ``usage_remaining_seconds`` and ``usage_limit_reached``. Wraps ``QiskitRuntimeService.usage()``.
+    
+    All methods include comprehensive error handling and raise ``QiskitServerlessException`` with
+    clear error messages when operations fail.
   - |
     ``IBMServerlessClient.run()`` performs three pre-flight checks before submitting a job to the
     gateway, providing early and clear error messages instead of silent queue waits:
@@ -11,7 +25,8 @@ features:
     * **Usage quota** — raises ``QiskitServerlessException`` when the instance has no remaining
       runtime quota (within ``USAGE_ZERO_EPSILON_SECONDS``); emits a ``UserWarning`` when quota is
       low (below ``USAGE_LOW_THRESHOLD_SECONDS``). Transient failures of the usage endpoint produce
-      a warning rather than blocking the run.
+      a warning rather than blocking the run. The low quota warning can be suppressed by passing
+      ``supress_low_usage_warning=True`` to the ``run()`` method.
     * **Backend access** — when ``arguments["backend_name"]`` is set, validates access via a
       single-backend lookup. Raises ``QiskitServerlessException`` if the backend is not found or
       is inaccessible.
@@ -27,3 +42,8 @@ upgrade:
       this value.
     * ``USAGE_ZERO_EPSILON_SECONDS`` (default ``1`` s) — treat remaining quota at or below this
       as zero and raise an error.
+  - |
+    Improved docstrings for ``IBMServerlessClient`` methods (``usage``, ``backends``, ``backend``,
+    ``least_busy``, and ``_check_usage``) to provide clearer descriptions and better examples.
+    All methods now use named parameters when calling the underlying Qiskit IBM Runtime
+    ``QiskitRuntimeService`` methods for improved code clarity and maintainability.
