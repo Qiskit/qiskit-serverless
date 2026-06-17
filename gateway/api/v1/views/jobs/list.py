@@ -12,7 +12,7 @@ from django.contrib.auth.models import AbstractUser
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, serializers, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -184,8 +184,7 @@ def serialize_output(
         ),
     },
 )
-@endpoint("jobs", name="jobs-list")
-@api_view(["GET"])
+@endpoint("jobs", method="GET", name="jobs-list")
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
 def get_jobs(request: Request) -> Response:
