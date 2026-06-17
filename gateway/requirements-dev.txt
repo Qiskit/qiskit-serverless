@@ -5,7 +5,7 @@ pylint-django>=2.7.0
 # Black's formatting rules can change between major versions, so we use
 # the ~= specifier for it.
 black~=26.3
-requests-mock>=1.11.0
+requests-mock>=1.12.1
 coverage>=7.14.1
 pytest-cov>=4.0.0
 responses>=0.26.1
