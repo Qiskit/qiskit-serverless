@@ -41,8 +41,8 @@ def endpoint(url_path: str, method: str, name: str = None):
         drf_view = api_view([method])(wrapped_view)
         # Copy .cls/.initkwargs so @swagger_auto_schema(method=...) applied to wrapped_view
         # (which we return) recognises it as an api_view function.
-        wrapped_view.cls = drf_view.cls
-        wrapped_view.initkwargs = drf_view.initkwargs
+        wrapped_view.cls = drf_view.cls  # pylint: disable=no-member
+        wrapped_view.initkwargs = drf_view.initkwargs  # pylint: disable=no-member
         # Store back-ref so _build_combined_view can find _swagger_auto_schema,
         # which is set on wrapped_view (returned to callers) after this decorator runs.
         drf_view.__endpoint_wrapped__ = wrapped_view
