@@ -24,10 +24,6 @@ class ProgramViewSet(views.ProgramViewSet):
         return v1_serializers.JobConfigSerializer(*args, **kwargs)
 
     @staticmethod
-    def get_serializer_upload_program(*args, **kwargs):
-        return v1_serializers.UploadProgramSerializer(*args, **kwargs)
-
-    @staticmethod
     def get_serializer_run_program(*args, **kwargs):
         return v1_serializers.RunProgramSerializer(*args, **kwargs)
 
