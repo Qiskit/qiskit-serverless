@@ -12,7 +12,7 @@ from django.contrib.auth.models import AbstractUser
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, serializers, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -33,7 +33,7 @@ class InputSerializer(serializers.Serializer):
     Validates query parameters for job retrieval.
     """
 
-    with_result = serializers.BooleanField(required=False, default=True)
+    with_result = serializers.BooleanField(required=False, default=False)
 
     class Meta:
         """Meta class to define input serializer name"""
@@ -130,9 +130,9 @@ def serialize_output(job: Job, with_result: bool) -> Job:
             in_=openapi.IN_QUERY,
             type=openapi.TYPE_STRING,
             required=False,
-            default="true",
+            default="false",
             enum=["true", "false"],
-            description="Whether to include the `result` field in the response.",
+            description="Whether to include the `result` field. Deprecated: use GET /jobs/{id}/result/ instead.",
         ),
     ],
     responses={
@@ -140,8 +140,7 @@ def serialize_output(job: Job, with_result: bool) -> Job:
         **standard_error_responses(not_found_example="Job [XXXX] not found"),
     },
 )
-@endpoint("jobs/<uuid:job_id>", name="retrieve")
-@api_view(["GET"])
+@endpoint("jobs/<uuid:job_id>", method="GET", name="retrieve")
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
 def retrieve(request: Request, job_id: UUID) -> Response:

@@ -12,9 +12,11 @@
 
 """Unit tests for UpdateRayJobsStatuses."""
 
+from collections import deque
 from unittest.mock import MagicMock, patch
 
 from core.models import Job, Program
+from core.services.runners.ray_runner import FilteredLogs
 from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
 
 _MOD = "scheduler.tasks.update_ray_jobs_statuses"
@@ -61,7 +63,7 @@ class TestRayJobStatusUpdate:
 
         mock_runner = MagicMock()
         mock_runner.status.return_value = Job.SUCCEEDED
-        mock_runner.logs.return_value = "some logs"
+        mock_runner.logs.return_value = FilteredLogs(public_logs=deque(["some logs"]), private_logs=None)
 
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
@@ -82,7 +84,7 @@ class TestRayJobStatusUpdate:
 
         mock_runner = MagicMock()
         mock_runner.status.return_value = Job.RUNNING
-        mock_runner.logs.return_value = "some logs"
+        mock_runner.logs.return_value = FilteredLogs(public_logs=deque(["some logs"]), private_logs=None)
 
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),

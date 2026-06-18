@@ -382,10 +382,7 @@ ERROR: Provider log
         )
 
         expected_message = (
-            "\n| Message: Http bad request.\n"
-            "| Code: 404\n"
-            "| Details: User program 'wrong-title' was not found or you do not "
-            "have permission to view it."
+            "\n| Message: Http bad request.\n| Code: 404\n| Details: Qiskit Function wrong-title doesn't exist."
         )
 
         serverless_client.upload(arguments_function)
@@ -510,3 +507,34 @@ ERROR: Provider log
         # Run with invalid arguments - should also be rejected
         with raises(QiskitServerlessException):
             runnable.run(shots="wrong-type")
+
+    @mark.skipif(
+        os.environ.get("LARGE_LOGS_TEST") != "1",
+        reason="Load test for large log volumes -- enable with LARGE_LOGS_TEST=1",
+    )
+    def test_large_logs(self, serverless_client: ServerlessClient):
+        """Stress test: verify gateway handles large log volumes without OOM.
+
+        The rolling deque in _stream_logs_from_ray() bounds memory usage; this test
+        confirms the job completes and the most-recent logs are still retrievable.
+
+        Control the log volume with LOGS_SIZE_MB (default 500).
+        """
+        logs_size_mb = int(os.environ.get("LOGS_SIZE_MB", "500"))
+
+        function = QiskitFunction(
+            title="large-logs-function",
+            entrypoint="large_logs_generator.py",
+            working_dir=resources_path,
+            env_vars={"LOGS_SIZE_MB": str(logs_size_mb)},
+        )
+        function = serverless_client.upload(function)
+        job = function.run()
+
+        wait_for_terminal_state(job, timeout=60 * 30)
+
+        assert job.status() == "DONE"
+        logs = job.logs()
+        assert isinstance(logs, str)
+        assert "LARGE_LOGS_DONE" in logs
+        print(f"Retrieved {len(logs)} chars of logs for a {logs_size_mb} MB job")
