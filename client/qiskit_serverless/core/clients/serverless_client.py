@@ -608,7 +608,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
     def validate_arguments(
         self,
         title: str,
-        arguments: dict,
+        arguments: Optional[Dict[str, Any]] = None,
         provider: Optional[str] = None,
     ) -> dict:
         """Validate arguments against a function's schema without creating a job.

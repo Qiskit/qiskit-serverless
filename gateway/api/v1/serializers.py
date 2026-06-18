@@ -62,6 +62,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
         return value
 
     def validate_arguments_schema(self, value):
+        """Validates that arguments_schema is valid JSON."""
         try:
             json.loads(value)
         except (json.JSONDecodeError, ValueError) as exc:
