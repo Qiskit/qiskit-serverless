@@ -62,6 +62,8 @@ application:
     hstsSeconds: 0  # 0 means disabled
     hstsIncludeSubdomains: false
     hstsPreload: false
+  eventStreams:
+    enabled: false
 
 tracing:
   enabled: false
