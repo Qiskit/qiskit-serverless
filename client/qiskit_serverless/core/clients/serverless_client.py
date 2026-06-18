@@ -919,6 +919,7 @@ class IBMServerlessClient(ServerlessClient):
         min_num_qubits: int | None = None,
         instance: str | None = None,
         filters: Callable[[IBMBackend], bool] | None = None,
+        use_fractional_gates: bool | None = False,
         **kwargs: Any,
     ) -> IBMBackend:
         """Return the least busy backend matching the specified criteria.
@@ -934,6 +935,7 @@ class IBMServerlessClient(ServerlessClient):
 
                     client.least_busy(min_num_qubits=5, operational=True)
 
+            use_fractional_gates: If ``True``, include fractional gates.
             **kwargs: Additional filters for backend configuration or status attributes.
 
         Returns:
@@ -944,7 +946,11 @@ class IBMServerlessClient(ServerlessClient):
         """
         try:
             backend = self._service.least_busy(
-                min_num_qubits=min_num_qubits, instance=instance, filters=filters, **kwargs
+                min_num_qubits=min_num_qubits,
+                instance=instance,
+                use_fractional_gates=use_fractional_gates,
+                filters=filters,
+                **kwargs,
             )
         except QiskitBackendNotFoundError as exc:
             raise QiskitServerlessException(
