@@ -1,0 +1,19 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | Qiskit Serverless{% endblock %}
+
+{% block extrahead %}{{ block.super }}
+    <link rel="stylesheet" href="{% static 'admin/css/carbon_theme.css' %}">
+{% endblock %}
+
+{% block branding %}
+<div id="site-name">
+    <a href="{% url 'admin:index' %}">
+        <img src="{% static 'admin/img/ibm-logo.svg' %}" alt="IBM" class="qs-ibm-logo" width="48" height="19">
+        <span class="qs-brand-prefix">Qiskit</span> <span class="qs-brand-name">Serverless</span><span class="qs-brand-tag">Backoffice</span>
+    </a>
+</div>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
