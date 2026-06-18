@@ -507,6 +507,25 @@ spec:
             - name: FLEETS_DEFAULT_MAX_INSTANCES
               value: {{ .Values.ce.fleetsDefaultMaxInstances | quote }}
             {{- end }}
+            - name: EVENT_STREAMS_ENABLED
+              value: {{ .Values.application.eventStreams.enabled | default false | quote }}
+            {{- if .Values.secrets.kafka }}
+            - name: EVENT_STREAMS_BOOTSTRAP_SERVERS
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-credentials
+                  key: bootstrap_servers
+            - name: EVENT_STREAMS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-credentials
+                  key: api_key
+            - name: EVENT_STREAMS_USER
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-credentials
+                  key: user
+            {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
