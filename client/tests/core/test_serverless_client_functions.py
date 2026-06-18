@@ -662,8 +662,8 @@ class TestArgumentsSchemaField:
         assert data["arguments_schema"] == json.dumps(schema)
 
     @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
-    def test_docker_upload_sends_empty_object_when_no_schema(self, mock_post):
-        """_upload_with_docker_image sends '{}' for arguments_schema when not set."""
+    def test_docker_upload_omits_arguments_schema_when_not_set(self, mock_post):
+        """_upload_with_docker_image omits arguments_schema from payload when not set."""
         mock_response = MagicMock()
         mock_response.ok = True
         payload = {"title": "my-function", "provider": None, "id": "abc-123"}
@@ -685,7 +685,7 @@ class TestArgumentsSchemaField:
 
         _, kwargs = mock_post.call_args
         data = kwargs["data"]
-        assert data["arguments_schema"] == "{}"
+        assert "arguments_schema" not in data
 
     @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
     def test_artifact_upload_sends_arguments_schema(self, mock_post):
@@ -727,8 +727,8 @@ class TestArgumentsSchemaField:
         assert data["arguments_schema"] == json.dumps(schema)
 
     @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
-    def test_artifact_upload_sends_empty_object_when_no_schema(self, mock_post):
-        """_upload_with_artifact sends '{}' for arguments_schema when not set."""
+    def test_artifact_upload_omits_arguments_schema_when_not_set(self, mock_post):
+        """_upload_with_artifact omits arguments_schema from payload when not set."""
         mock_response = MagicMock()
         mock_response.ok = True
         payload = {"title": "my-function", "provider": None, "id": "abc-123"}
@@ -759,7 +759,7 @@ class TestArgumentsSchemaField:
 
         _, kwargs = mock_post.call_args
         data = kwargs["data"]
-        assert data["arguments_schema"] == "{}"
+        assert "arguments_schema" not in data
 
 
 class TestValidateArgumentsMethod:

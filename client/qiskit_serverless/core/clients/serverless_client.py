@@ -817,7 +817,11 @@ def _upload_with_docker_image(  # pylint: disable=too-many-positional-arguments
                 "env_vars": json.dumps(program.env_vars or {}),
                 "description": program.description,
                 "version": program.version,
-                "arguments_schema": json.dumps(program.arguments_schema) if program.arguments_schema else "{}",
+                **(
+                    {"arguments_schema": json.dumps(program.arguments_schema)}
+                    if program.arguments_schema is not None
+                    else {}
+                ),
             },
             headers=get_headers(token=token, instance=instance, channel=channel),
             timeout=REQUESTS_TIMEOUT,
@@ -892,7 +896,11 @@ def _upload_with_artifact(  # pylint:  disable=too-many-positional-arguments, to
                         "env_vars": json.dumps(program.env_vars or {}),
                         "description": program.description,
                         "version": program.version,
-                        "arguments_schema": json.dumps(program.arguments_schema) if program.arguments_schema else "{}",
+                        **(
+                            {"arguments_schema": json.dumps(program.arguments_schema)}
+                            if program.arguments_schema is not None
+                            else {}
+                        ),
                     },
                     files={"artifact": file},
                     headers=get_headers(token=token, instance=instance, channel=channel),

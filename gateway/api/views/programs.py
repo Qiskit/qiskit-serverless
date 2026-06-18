@@ -210,15 +210,17 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 )
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        runner = serializer.validated_data.get("runner", Function.RAY)
-        serializer.save(author=author, title=title, provider=provider_name, runner=runner)
+        save_kwargs = {"author": author, "title": title, "provider": provider_name}
+        if "runner" in serializer.validated_data:
+            save_kwargs["runner"] = serializer.validated_data["runner"]
+        serializer.save(**save_kwargs)
 
         logger.info(
             "[programs-upload] user_id=%s program=%s provider=%s runner=%s | Function uploaded ok",
             author.id,
             title,
             provider_name,
-            runner,
+            serializer.instance.runner,
         )
         return Response(serializer.data)
 

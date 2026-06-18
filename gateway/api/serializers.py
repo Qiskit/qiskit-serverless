@@ -144,10 +144,15 @@ class UploadProgramSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         logger.info("user_id=%s program=%s | Updating function", instance.author_id, instance.title)
         instance.entrypoint = validated_data.get("entrypoint", DEFAULT_PROGRAM_ENTRYPOINT)
-        raw_dependencies = json.loads(validated_data.get("dependencies", "[]"))
-        normalized_dependencies = [self._normalize_dependency(dep) for dep in raw_dependencies]
-        instance.dependencies = json.dumps(normalized_dependencies)
-        instance.env_vars = validated_data.get("env_vars", {})
+
+        if "dependencies" in validated_data:
+            raw_dependencies = json.loads(validated_data["dependencies"])
+            normalized_dependencies = [self._normalize_dependency(dep) for dep in raw_dependencies]
+            instance.dependencies = json.dumps(normalized_dependencies)
+
+        if "env_vars" in validated_data:
+            instance.env_vars = validated_data["env_vars"]
+
         instance.artifact = validated_data.get("artifact")
         instance.author = validated_data.get("author")
         instance.image = validated_data.get("image")
@@ -160,7 +165,7 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         if version is not None:
             instance.version = version
 
-        instance.runner = validated_data.get("runner", Program.RAY)
+        instance.runner = validated_data.get("runner", instance.runner)
         instance.arguments_schema = validated_data.get("arguments_schema", instance.arguments_schema)
 
         CodeEngineProject.objects.assign_to_program(instance)
