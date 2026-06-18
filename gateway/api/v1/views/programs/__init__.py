@@ -18,21 +18,5 @@ class ProgramViewSet(views.ProgramViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     @staticmethod
-    def get_serializer_job_config(*args, **kwargs):
-        return v1_serializers.JobConfigSerializer(*args, **kwargs)
-
-    @staticmethod
-    def get_serializer_upload_program(*args, **kwargs):
-        return v1_serializers.UploadProgramSerializer(*args, **kwargs)
-
-    @staticmethod
-    def get_serializer_run_program(*args, **kwargs):
-        return v1_serializers.RunProgramSerializer(*args, **kwargs)
-
-    @staticmethod
-    def get_serializer_run_job(*args, **kwargs):
-        return v1_serializers.RunJobSerializer(*args, **kwargs)
-
-    @staticmethod
     def get_serializer_job(*args, **kwargs):
         return v1_serializers.JobSerializer(*args, **kwargs)
