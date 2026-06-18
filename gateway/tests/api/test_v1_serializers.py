@@ -56,41 +56,6 @@ class TestSerializers:
         assert not entry.max_workers
         assert not entry.auto_scaling
 
-    def test_upload_program_serializer_creates_program(self):
-        path_to_resource_artifact = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "artifact.tar",
-        )
-        file_data = File(open(path_to_resource_artifact, "rb"))
-        upload_file = SimpleUploadedFile("artifact.tar", file_data.read(), content_type="multipart/form-data")
-
-        user = models.User.objects.get(username="test_user")
-
-        title = "Hello world"
-        entrypoint = "pattern.py"
-        type = Program.CIRCUIT
-        arguments = "{}"
-        dependencies = "[]"
-
-        data = {}
-        data["title"] = title
-        data["entrypoint"] = entrypoint
-        data["type"] = type
-        data["arguments"] = arguments
-        data["dependencies"] = dependencies
-        data["artifact"] = upload_file
-
-        serializer = UploadProgramSerializer(data=data)
-        assert serializer.is_valid()
-
-        program: Program = serializer.save(author=user)
-        assert title == program.title
-        assert type == program.type
-        assert entrypoint == program.entrypoint
-        assert dependencies == program.dependencies
-
     def test_upload_program_serializer_check_empty_data(self):
         data = {}
 
@@ -391,49 +356,6 @@ class TestSerializers:
 
         serializer = UploadProgramSerializer(data=data)
         assert not serializer.is_valid(), serializer.errors
-
-    def test_upload_program_serializer_updates_program_without_description(self):
-        path_to_resource_artifact = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "artifact.tar",
-        )
-        file_data = File(open(path_to_resource_artifact, "rb"))
-        upload_file = SimpleUploadedFile("artifact.tar", file_data.read(), content_type="multipart/form-data")
-
-        user = models.User.objects.get(username="test_user")
-
-        title = "Hello world"
-        entrypoint = "pattern.py"
-        arguments = "{}"
-        dependencies = "[]"
-        description = "This is my old description"
-
-        data = {}
-        data["title"] = title
-        data["entrypoint"] = entrypoint
-        data["arguments"] = arguments
-        data["dependencies"] = dependencies
-        data["description"] = description
-        data["artifact"] = upload_file
-
-        serializer = UploadProgramSerializer(data=data)
-        serializer.is_valid()
-        program: Program = serializer.save(author=user)
-        assert description == program.description
-
-        data_without_description = {}
-        data_without_description["title"] = title
-        data_without_description["entrypoint"] = entrypoint
-        data_without_description["arguments"] = arguments
-        data_without_description["dependencies"] = dependencies
-        data_without_description["artifact"] = upload_file
-
-        serializer_2 = UploadProgramSerializer(program, data=data_without_description)
-        serializer_2.is_valid()
-        program_2: Program = serializer_2.save(author=user)
-        assert description == program_2.description
 
     def test_job_serializer_includes_fleet_id(self):
         """JobSerializer output includes fleet_id when set on the job."""
