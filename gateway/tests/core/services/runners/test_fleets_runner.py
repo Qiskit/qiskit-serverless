@@ -25,11 +25,6 @@ from core.services.runners.fleets_runner import FleetsRunner
 _RUNNER_MOD = "core.services.runners.fleets_runner"
 
 
-@pytest.fixture(autouse=True)
-def _clear_caches():
-    FleetsRunner._is_active_cache._store.clear()
-
-
 def _make_runner(fleet_id: str | None = None) -> tuple[FleetsRunner, MagicMock]:
     """Build a FleetsRunner wired to mock Job and FleetHandler.
 
@@ -137,17 +132,9 @@ def _make_submit_runner() -> tuple[FleetsRunner, MagicMock]:
     return runner, mock_handler
 
 
-def test_is_active_true_when_running():
-    """is_active() returns True when COS shows running state."""
+def test_is_active_true_when_fleet_id_set():
+    """is_active() returns True when job has a fleet_id."""
     runner, _ = _make_runner(fleet_id="fleet-123")
-    runner._cos.list_keys.return_value = ["ce/test-project-id/fleet-123/v2/queue/running/fleet-123-0/..."]
-    assert runner.is_active() is True
-
-
-def test_is_active_true_when_succeeded():
-    """is_active() returns True when COS shows succeeded state."""
-    runner, _ = _make_runner(fleet_id="fleet-123")
-    runner._cos.list_keys.return_value = ["ce/test-project-id/fleet-123/v2/queue/succeeded/0/fleet-123-0/..."]
     assert runner.is_active() is True
 
 
@@ -155,32 +142,6 @@ def test_is_active_false_when_no_fleet_id():
     """is_active() returns False when job.fleet_id is None."""
     runner, _ = _make_runner(fleet_id=None)
     assert runner.is_active() is False
-
-
-def test_is_active_false_when_pending():
-    """is_active() returns False when COS shows only pending state."""
-    runner, _ = _make_runner(fleet_id="fleet-123")
-    runner._cos.list_keys.return_value = ["ce/test-project-id/fleet-123/v2/queue/pending/000-00000-0/..."]
-    assert runner.is_active() is False
-
-
-def test_is_active_false_when_no_cos_keys():
-    """is_active() returns False when COS has no keys yet."""
-    runner, _ = _make_runner(fleet_id="fleet-123")
-    runner._cos.list_keys.return_value = []
-    assert runner.is_active() is False
-
-
-def test_is_active_uses_cache_on_second_call():
-    """is_active() uses cached result and doesn't call COS again."""
-    runner, _ = _make_runner(fleet_id="fleet-123")
-    runner._cos.list_keys.return_value = ["ce/test-project-id/fleet-123/v2/queue/running/fleet-123-0/..."]
-
-    assert runner.is_active() is True
-    runner._cos.list_keys.reset_mock()
-
-    assert runner.is_active() is True
-    runner._cos.list_keys.assert_not_called()
 
 
 def test_status_raises_runner_error_when_no_fleet_id():
