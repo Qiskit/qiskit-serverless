@@ -382,10 +382,7 @@ ERROR: Provider log
         )
 
         expected_message = (
-            "\n| Message: Http bad request.\n"
-            "| Code: 404\n"
-            "| Details: User program 'wrong-title' was not found or you do not "
-            "have permission to view it."
+            "\n| Message: Http bad request.\n| Code: 404\n| Details: Qiskit Function wrong-title doesn't exist."
         )
 
         serverless_client.upload(arguments_function)
