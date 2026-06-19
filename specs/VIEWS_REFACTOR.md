@@ -324,11 +324,16 @@ New pattern: raise in the use case, let `@endpoint_handle_exceptions` respond.
 **No business logic in views.**
 The view reads request fields, passes them to the use case, and returns the serialized result. Branching on domain state (checking permissions, deciding which ORM method to call) lives in the use case.
 
+**Delete `create()` and `update()` from serializers after migrating persistence.**
+Once the use case owns persistence, `create()`, `update()`, and any private helpers (e.g. `_normalize_dependency`) left on the serializer become dead code. Delete them. Also delete any imports that were only needed by those methods (`Provider`, `CodeEngineProject`, `DEFAULT_PROGRAM_ENTRYPOINT`, etc.). Leaving them in place is misleading — it implies the serializer still saves data.
+
+Tests that called `serializer.create({...})` or `serializer.update(instance, {...})` directly must be migrated to call the use case's internal methods (`UseCase()._create(...)`, `UseCase()._update(...)`) or deleted if the same scenario is covered by API-level tests.
+
 ---
 
 ## Migration Checklist
 
-When migrating an existing ViewSet action to this pattern:
+### Per-action (repeat for each ViewSet action)
 
 - [ ] Create `api/use_cases/<resource>/<action>.py` with `execute(self, user, accessible_functions, ...)`.
 - [ ] Write unit tests in `tests/api/use_cases/<resource>/test_<action>.py` (TDD — tests first).
@@ -337,3 +342,12 @@ When migrating an existing ViewSet action to this pattern:
 - [ ] Remove the override from the v1 ViewSet (`api/v1/views/<resource>/__init__.py`).
 - [ ] Run `python manage.py check` — no issues.
 - [ ] Run `python -m pytest tests/api/test_v1_<resource>.py tests/api/use_cases/<resource>/` — all passing.
+
+### When all actions on a ViewSet are migrated
+
+- [ ] Delete `create()`, `update()`, and any persistence helpers from the serializer class. Update its imports.
+- [ ] Migrate or delete tests that called those serializer methods directly.
+- [ ] Empty `api/v1/views/<resource>/__init__.py` — just the module docstring, no class.
+- [ ] Remove the `router.register(...)` entry from `api/v1/urls.py`. If it was the last registration, remove the `SimpleRouter` import too.
+- [ ] Empty `api/v1/views/__init__.py` of any ViewSet class that only existed to serve the router. The reference end state is `api/v1/views/jobs/__init__.py`: empty file, all endpoints via `RouteRegistry`, no ViewSet, no router.
+- [ ] Run the full test suite — all passing.
