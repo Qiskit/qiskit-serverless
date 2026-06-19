@@ -21,3 +21,4 @@ This is an advanced feature typically used by function providers who need full c
 
    deploy_custom_image_function
    custom_image_examples
+   run_on_apple_silicon
