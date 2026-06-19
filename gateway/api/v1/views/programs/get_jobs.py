@@ -4,20 +4,19 @@ import logging
 import uuid
 from typing import cast
 
+from django.contrib.auth.models import AbstractUser
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, status
 from rest_framework.decorators import permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from api.access_policies.providers import ProviderAccessPolicy
+from api.use_cases.programs.get_jobs import GetJobsUseCase
 from api.v1 import serializers as v1_serializers
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import Job
-from core.models import Program as Function
 
 logger = logging.getLogger("api.api.v1.views.programs.get_jobs")
 
@@ -27,7 +26,7 @@ logger = logging.getLogger("api.api.v1.views.programs.get_jobs")
     operation_description="[Deprecated] List jobs for a Qiskit Function",
     responses={
         status.HTTP_200_OK: v1_serializers.JobSerializer(many=True),
-        **standard_error_responses(not_found_example="program [xxx] was not found."),
+        **standard_error_responses(not_found_example="Qiskit Function [xxx] doesn't exist."),
     },
 )
 @endpoint("programs/<uuid:pk>/get_jobs", method="GET", name="programs-get-jobs")
@@ -35,41 +34,15 @@ logger = logging.getLogger("api.api.v1.views.programs.get_jobs")
 @endpoint_handle_exceptions
 def get_jobs(request: Request, pk: uuid.UUID) -> Response:
     """Return jobs for a program."""
-    program = Function.objects.filter(id=pk).first()
-    if not program:
-        return Response(
-            {"message": f"program [{pk}] was not found."},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
+    user = cast(AbstractUser, request.user)
     accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
     logger.info(
-        "[programs-get-jobs] user_id=%s program_id=%s program=%s accessible_functions=%s",
-        request.user.id,
+        "[programs-get-jobs] user_id=%s program_id=%s accessible_functions=%s",
+        user.id,
         pk,
-        program.title,
         accessible_functions,
     )
 
-    user_is_provider = False
-    if program.provider:
-        user_is_provider = ProviderAccessPolicy.can_list_jobs(
-            user=request.user,
-            provider=program.provider,
-            function_title=program.title,
-            accessible_functions=accessible_functions,
-        )
-
-    jobs = (
-        Job.objects.filter(program=program)
-        if user_is_provider
-        else Job.objects.filter(program=program, author=request.user)
-    )
-
-    logger.info(
-        "[programs-get-jobs] user_id=%s program_id=%s program=%s | Jobs listed ok",
-        request.user.id,
-        pk,
-        program.title,
-    )
+    jobs = GetJobsUseCase().execute(user, accessible_functions, pk)
+    logger.info("[programs-get-jobs] user_id=%s program_id=%s | Jobs listed ok", user.id, pk)
     return Response(v1_serializers.JobSerializer(jobs, many=True).data)
