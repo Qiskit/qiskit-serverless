@@ -11,7 +11,7 @@ from packaging.version import Version, InvalidVersion
 from rest_framework.serializers import ValidationError
 
 from api import serializers
-from api.utils import check_whitelisted
+from api.utils import check_whitelisted, sanitize_name
 from core.models import Provider
 
 logger = logging.getLogger("api.api.v1.serializers")
@@ -172,6 +172,12 @@ class RunProgramSerializer(serializers.RunProgramSerializer):
     """
     RunExistingProgramSerializer is used by the /run end-point
     """
+
+    def validate_title(self, value):
+        return sanitize_name(value)
+
+    def validate_provider(self, value):
+        return sanitize_name(value) if value else value
 
 
 class JobConfigSerializer(serializers.JobConfigSerializer):

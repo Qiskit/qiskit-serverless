@@ -17,7 +17,7 @@ from api.domain.authentication.channel import Channel
 from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
 from api.use_cases.programs.run import RunFunctionUseCase
 from api.use_cases.programs.run_input import RunFunctionInput
-from api.utils import active_jobs_limit_reached, sanitize_name
+from api.utils import active_jobs_limit_reached
 from api.v1 import serializers as v1_serializers
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
@@ -45,8 +45,8 @@ def run_program(request: Request) -> Response:
     serializer = v1_serializers.RunProgramSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
-    title = sanitize_name(serializer.data.get("title"))
-    provider_name = sanitize_name(serializer.data.get("provider"))
+    title = serializer.validated_data.get("title")
+    provider_name = serializer.validated_data.get("provider")
     arguments = serializer.data.get("arguments")
     compute_profile = serializer.data.get("compute_profile")
 
