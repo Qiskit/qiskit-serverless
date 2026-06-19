@@ -1,11 +1,13 @@
 """Input dataclass for UploadFunctionUseCase."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 
-@dataclass
+@dataclass  # pylint: disable=too-many-instance-attributes
 class UploadFunctionInput:
+    """Typed, pre-validated input for UploadFunctionUseCase."""
+
     title: str
     provider: str | None = None
     entrypoint: str | None = None
@@ -20,6 +22,7 @@ class UploadFunctionInput:
 
     @classmethod
     def from_validated_data(cls, data: dict) -> "UploadFunctionInput":
+        """Construct from a DRF serializer's validated_data dict."""
         return cls(
             title=data.get("title", ""),
             provider=data.get("provider"),
