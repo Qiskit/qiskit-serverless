@@ -174,9 +174,11 @@ class RunProgramSerializer(serializers.RunProgramSerializer):
     """
 
     def validate_title(self, value):
+        """Sanitize title to remove characters invalid for function names."""
         return sanitize_name(value)
 
     def validate_provider(self, value):
+        """Sanitize provider name."""
         return sanitize_name(value) if value else value
 
 
