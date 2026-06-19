@@ -1,8 +1,8 @@
 .. _run_on_apple_silicon:
 
-=========================================
+==========================================
 Local development on Apple Silicon (arm64)
-=========================================
+==========================================
 
 The published ``ray-node`` image is built for ``linux/amd64`` only and with the latest Ray versions
 (>2.55) it can show issues for local development on Apple Silicon Macs, where Ray startup times can get
