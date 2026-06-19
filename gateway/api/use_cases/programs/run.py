@@ -118,17 +118,15 @@ class RunFunctionUseCase:
                 instance=data.instance,
             )
         )
-
-        get_arguments_storage(job).save(data.arguments)
-
         try:
             env["traceparent"] = data.carrier["traceparent"]
         except KeyError:
             pass
         if function.env_vars:
             env.update(json.loads(function.env_vars))
-
         job.env_vars = json.dumps(env)
+
+        get_arguments_storage(job).save(data.arguments)
         job.save()
         JobEvent.objects.add_status_event(
             job_id=job.id,
