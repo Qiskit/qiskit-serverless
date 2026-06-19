@@ -10,15 +10,6 @@ from core.domain.authorization.function_access_result import FunctionAccessResul
 from core.models import Program as Function, Provider
 
 
-def _parse_provider_and_title(provider_raw: str | None, title_raw: str) -> tuple[str | None, str]:
-    if provider_raw:
-        return provider_raw, title_raw
-    parts = title_raw.split("/")
-    if len(parts) == 1:
-        return None, parts[0]
-    return parts[0], parts[1]
-
-
 class UploadFunctionUseCase:
     """Use case for uploading (creating or updating) a Qiskit Function."""
 
@@ -32,26 +23,25 @@ class UploadFunctionUseCase:
 
         Raises FunctionNotFoundException when the user lacks permission.
         """
-        provider_name, title = _parse_provider_and_title(data.provider, data.title)
-
-        if provider_name:
-            provider = Provider.objects.filter(name=provider_name).first()
-            if provider is None or not ProviderAccessPolicy.can_upload_function(
-                user, provider, title, accessible_functions
+        provider_obj = None
+        if data.provider:
+            provider_obj = Provider.objects.filter(name=data.provider).first()
+            if provider_obj is None or not ProviderAccessPolicy.can_upload_function(
+                user, provider_obj, data.title, accessible_functions
             ):
-                raise FunctionNotFoundException(function=title, provider=provider_name)
-            existing = Function.objects.filter(title=title, provider__name=provider_name).first()
+                raise FunctionNotFoundException(function=data.title, provider=data.provider)
+            existing = Function.objects.filter(title=data.title, provider__name=data.provider).first()
         else:
             if not ProgramAccessPolicies.can_create(user, accessible_functions):
-                raise FunctionNotFoundException(function=title, provider=None)
-            existing = Function.objects.filter(title=title, author=user).first()
+                raise FunctionNotFoundException(function=data.title, provider=None)
+            existing = Function.objects.filter(title=data.title, author=user).first()
 
         if existing is None:
-            return self._create(data, user=user, title=title, provider=provider_obj)
+            return self._create(data, user=user, provider=provider_obj)
         return self._update(existing, data, user=user)
 
-    def _create(self, data: UploadFunctionInput, user, title: str, provider) -> Function:
-        logger.info("user_id=%s program=%s | Creating function", user.id, title)
+    def _create(self, data: UploadFunctionInput, user, provider) -> Function:
+        logger.info("user_id=%s program=%s | Creating function", user.id, data.title)
 
         env_vars = data.env_vars
         if env_vars:
@@ -61,7 +51,7 @@ class UploadFunctionUseCase:
         dependencies = json.dumps([_normalize_dependency(d) for d in raw_deps])
 
         function = Function(
-            title=title,
+            title=data.title,
             author=user,
             provider=provider,
             runner=data.runner,

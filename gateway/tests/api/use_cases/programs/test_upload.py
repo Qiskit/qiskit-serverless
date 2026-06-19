@@ -54,7 +54,7 @@ class TestUploadFunctionUseCase:
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
         result = UploadFunctionUseCase().execute(
-            user, accessible, UploadFunctionInput(title="my-provider/my-fn", entrypoint="main.py")
+            user, accessible, UploadFunctionInput(title="my-fn", provider="my-provider", entrypoint="main.py")
         )
 
         assert result.title == "my-fn"
@@ -70,7 +70,7 @@ class TestUploadFunctionUseCase:
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
         result = UploadFunctionUseCase().execute(
-            user, accessible, UploadFunctionInput(title="my-provider/my-fn", entrypoint="new.py")
+            user, accessible, UploadFunctionInput(title="my-fn", provider="my-provider", entrypoint="new.py")
         )
 
         assert result.pk == existing.pk
@@ -81,5 +81,7 @@ class TestUploadFunctionUseCase:
 
         with pytest.raises(FunctionNotFoundException):
             UploadFunctionUseCase().execute(
-                user, accessible, UploadFunctionInput(title="nonexistent-provider/my-fn", entrypoint="main.py")
+                user,
+                accessible,
+                UploadFunctionInput(title="my-fn", provider="nonexistent-provider", entrypoint="main.py"),
             )

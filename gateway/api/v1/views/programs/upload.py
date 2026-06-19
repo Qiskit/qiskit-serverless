@@ -20,6 +20,15 @@ from core.domain.authorization.function_access_result import FunctionAccessResul
 logger = logging.getLogger("api.api.v1.views.programs.upload")
 
 
+def _parse_provider_and_title(provider_raw: str | None, title_raw: str) -> tuple[str | None, str]:
+    if provider_raw:
+        return provider_raw, title_raw
+    parts = title_raw.split("/")
+    if len(parts) == 1:
+        return None, parts[0]
+    return parts[0], parts[1]
+
+
 @swagger_auto_schema(
     method="post",
     operation_description="Upload a Qiskit Function",
@@ -36,17 +45,34 @@ def upload_program(request: Request) -> Response:
 
     serializer = v1_serializers.UploadProgramSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
+    vd = serializer.validated_data
+
+    provider, title = _parse_provider_and_title(vd.get("provider"), vd.get("title", ""))
 
     logger.info(
         "[programs-upload] user_id=%s title=%s provider=%s accessible_functions=%s",
         user.id,
-        serializer.validated_data.get("title"),
-        serializer.validated_data.get("provider"),
+        title,
+        provider,
         accessible_functions,
     )
 
     function = UploadFunctionUseCase().execute(
-        user, accessible_functions, UploadFunctionInput.from_validated_data(serializer.validated_data)
+        user,
+        accessible_functions,
+        UploadFunctionInput(
+            title=title,
+            provider=provider,
+            entrypoint=vd.get("entrypoint"),
+            artifact=vd.get("artifact"),
+            image=vd.get("image"),
+            env_vars=vd.get("env_vars"),
+            dependencies=vd.get("dependencies", "[]"),
+            runner=vd.get("runner", "ray"),
+            description=vd.get("description"),
+            version=vd.get("version"),
+            type=vd.get("type"),
+        ),
     )
     logger.info("[programs-upload] user_id=%s program=%s | Function uploaded ok", user.id, function.title)
     return Response(v1_serializers.UploadProgramSerializer(function).data)
