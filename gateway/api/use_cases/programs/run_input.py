@@ -3,8 +3,8 @@
 from dataclasses import dataclass, field
 
 
-@dataclass  # pylint: disable=too-many-instance-attributes
-class RunFunctionInput:
+@dataclass
+class RunFunctionInput:  # pylint: disable=too-many-instance-attributes
     """Typed, pre-validated input for RunFunctionUseCase."""
 
     title: str

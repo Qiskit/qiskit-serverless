@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from typing import Any
 
 
-@dataclass  # pylint: disable=too-many-instance-attributes
-class UploadFunctionInput:
+@dataclass
+class UploadFunctionInput:  # pylint: disable=too-many-instance-attributes
     """Typed, pre-validated input for UploadFunctionUseCase."""
 
     title: str
