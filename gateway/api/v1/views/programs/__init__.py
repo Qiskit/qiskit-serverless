@@ -24,10 +24,6 @@ class ProgramViewSet(views.ProgramViewSet):
         return v1_serializers.JobConfigSerializer(*args, **kwargs)
 
     @staticmethod
-    def get_serializer_upload_program(*args, **kwargs):
-        return v1_serializers.UploadProgramSerializer(*args, **kwargs)
-
-    @staticmethod
     def get_serializer_run_program(*args, **kwargs):
         return v1_serializers.RunProgramSerializer(*args, **kwargs)
 
@@ -38,15 +34,6 @@ class ProgramViewSet(views.ProgramViewSet):
     @staticmethod
     def get_serializer_job(*args, **kwargs):
         return v1_serializers.JobSerializer(*args, **kwargs)
-
-    @swagger_auto_schema(
-        operation_description="Upload a Qiskit Function",
-        request_body=v1_serializers.UploadProgramSerializer,
-        responses={status.HTTP_200_OK: v1_serializers.UploadProgramSerializer},
-    )
-    @action(methods=["POST"], detail=False)
-    def upload(self, request):
-        return super().upload(request)
 
     @swagger_auto_schema(
         operation_description="Run an existing Qiskit Function",
