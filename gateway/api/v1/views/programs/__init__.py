@@ -16,7 +16,3 @@ class ProgramViewSet(views.ProgramViewSet):
     serializer_class = v1_serializers.ProgramSerializer
     pagination_class = None
     permission_classes = [permissions.IsAuthenticated]
-
-    @staticmethod
-    def get_serializer_job(*args, **kwargs):
-        return v1_serializers.JobSerializer(*args, **kwargs)

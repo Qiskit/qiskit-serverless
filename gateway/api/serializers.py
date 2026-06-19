@@ -135,6 +135,7 @@ class JobSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Job
+        fields = "__all__"
 
 
 class JobSerializerWithoutResult(serializers.ModelSerializer):
@@ -144,6 +145,7 @@ class JobSerializerWithoutResult(serializers.ModelSerializer):
 
     class Meta:
         model = Job
+        fields = "__all__"
 
 
 class RunProgramSerializer(serializers.Serializer):
