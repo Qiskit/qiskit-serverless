@@ -6,7 +6,6 @@ import logging
 from django.contrib import admin
 from django.db.models import Count, F, Q
 from django.utils.safestring import mark_safe
-from django.utils.html import format_html
 from django.urls import path
 from django.shortcuts import render, get_object_or_404
 from django.contrib.admin.views.main import PAGE_VAR
@@ -249,23 +248,61 @@ class JobAdmin(admin.ModelAdmin):
     list_filter = ["status", "runner", JobProgramFilter]
     list_display = ["runner", "author", "get_program", "status_badge", "created", "updated"]
     list_select_related = ["author", "program", "program__provider"]
-    exclude = ["arguments", "env_vars", "logs", "result"]
     ordering = ["-created"]
-    inlines = [JobEventInline]
+    inlines = []
     autocomplete_fields = ["author", "program", "compute_resource", "config"]
-    readonly_fields = ["storage_files_link"]
+    change_form_template = "admin/api/job/change_form.html"
+    fieldsets = [
+        (
+            "Info",
+            {
+                "fields": [
+                    "program",
+                    "author",
+                    "runner",
+                    "status",
+                    "sub_status",
+                    "running_started_at",
+                    "trial",
+                    "business_model",
+                    "account_id",
+                    "instance_crn",
+                    "version",
+                ]
+            },
+        ),
+        (
+            "Fleets",
+            {
+                "fields": [
+                    "fleet_id",
+                    "compute_profile",
+                    "ce_project_name",
+                    "ce_region",
+                    "code_engine_project",
+                ]
+            },
+        ),
+        ("Ray", {"fields": ["ray_job_id", "compute_resource", "gpu", "config"]}),
+    ]
 
-    def get_fieldsets(self, request, obj=None):
-        """Append Storage section to auto-generated fieldsets."""
-        fieldsets = super().get_fieldsets(request, obj)
-        return list(fieldsets) + [("Storage", {"fields": ["storage_files_link"]})]
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        formfield = super().formfield_for_foreignkey(db_field, request, **kwargs)
+        if db_field.name == "program" and hasattr(formfield.widget, "can_delete_related"):
+            formfield.widget.can_delete_related = False
+        return formfield
 
     def get_urls(self):
         custom_urls = [
             path(
-                "<uuid:job_id>/files/",
+                "<path:job_id>/files/",
                 self.admin_site.admin_view(self.job_files_view),
                 name="job_files_view",
+            ),
+            path(
+                "<path:job_id>/events/",
+                self.admin_site.admin_view(self.job_events_view),
+                name="job_events_view",
             ),
         ]
         return custom_urls + super().get_urls()
@@ -291,11 +328,33 @@ class JobAdmin(admin.ModelAdmin):
         }
         return render(request, "admin/api/job/files.html", context)
 
-    @admin.display(description="Storage")
-    def storage_files_link(self, obj):
-        """Return a link to the storage files page for this job."""
-        url = f"/admin/api/job/{obj.id}/files/"
-        return format_html('<a href="{}" target="_blank">COS files</a>', url)
+    def job_events_view(self, request, job_id):
+        """Dedicated page listing all events for a job."""
+        job = get_object_or_404(Job, pk=job_id)
+        raw_events = job.job_events.all()
+        events = []
+        for event in raw_events:
+            if event.event_type == JobEventType.STATUS_CHANGE:
+                display_status = event.data.get("status", "")
+            elif event.event_type == JobEventType.SUB_STATUS_CHANGE:
+                display_status = event.data.get("sub_status", "")
+            else:
+                display_status = ""
+            events.append(
+                {
+                    "obj": event,
+                    "display_status": display_status,
+                    "pretty_json": json.dumps(event.data, indent=2) if event.data else "",
+                }
+            )
+        context = {
+            **self.admin_site.each_context(request),
+            "job": job,
+            "events": events,
+            "opts": self.model._meta,
+            "app_label": self.model._meta.app_label,
+        }
+        return render(request, "admin/api/job/events.html", context)
 
     class Media:
         js = ["admin/js/clickable_rows.js"]
