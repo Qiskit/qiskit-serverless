@@ -1,24 +1,47 @@
 """Use case: run (enqueue a job for) a Qiskit Function."""
 
-import re
+import json
+import logging
 
-from django.contrib.auth.models import AbstractUser
+from django.conf import settings
+from django.contrib.auth.models import AbstractUser, Group
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from api.access_policies.jobs import JobAccessPolicies
-from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
 from api.domain.exceptions.function_disabled_exception import FunctionDisabledException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.use_cases.programs.run_input import RunFunctionInput
-from api.utils import active_jobs_limit_reached
-from api.v1.serializers import JobConfigSerializer, RunJobSerializer
+from api.utils import build_env_variables
 from core.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.business_models import BusinessModel
+from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import (
     Job,
+    JobConfig,
+    JobEvent,
     Program as Function,
     PLATFORM_PERMISSION_RUN,
     RUN_PROGRAM_PERMISSION,
 )
+from core.services.storage import get_arguments_storage
+from core.utils import create_gpujob_allowlist, encrypt_env_vars
+
+logger = logging.getLogger("api.api.use_cases.programs.run")
+
+
+def _is_trial(function: Function, user) -> bool:
+    trial_groups = function.trial_instances.all()
+    user_run_groups = Group.objects.filter(user=user, permissions__codename=RUN_PROGRAM_PERMISSION)
+    return any(group in trial_groups for group in user_run_groups)
+
+
+def _runner_config(function: Function, compute_profile_requested: str | None) -> tuple[str | None, bool]:
+    if function.runner == Function.FLEETS:
+        profile = compute_profile_requested or getattr(settings, "DEFAULT_COMPUTE_PROFILE", "cx3d-4x16")
+        return profile, False
+    if function.provider and function.provider.name in create_gpujob_allowlist().get("gpu-functions", {}):
+        return None, True
+    return None, False
 
 
 class RunFunctionUseCase:
@@ -32,8 +55,7 @@ class RunFunctionUseCase:
     ) -> Job:
         """Enqueue a job for the specified Qiskit Function.
 
-        Raises FunctionNotFoundException, FunctionDisabledException, or ActiveJobLimitExceeded
-        as appropriate.
+        Raises FunctionNotFoundException or FunctionDisabledException as appropriate.
         """
         function = None
         if data.provider_name:
@@ -55,38 +77,63 @@ class RunFunctionUseCase:
             message = function.disabled_message if function.disabled_message else Function.DEFAULT_DISABLED_MESSAGE
             raise FunctionDisabledException(message=message)
 
-        jobconfig = None
-        if data.config_json:
-            job_config_serializer = JobConfigSerializer(data=data.config_json)
-            job_config_serializer.is_valid(raise_exception=True)
-            jobconfig = job_config_serializer.save()
+        jobconfig = JobConfig.objects.create(**data.config_data) if data.config_data else None
 
-        if data.compute_profile:
-            if not re.match(r"^[a-z]+\d+[a-z]?-\d+x\d+(?:x\d+[a-z0-9]+)?$", data.compute_profile):
-                error_msg = (
-                    f"Invalid compute profile format: '{data.compute_profile}'. "
-                    f"Expected format: [type]-[cpu]x[memory] or [type]-[cpu]x[memory]x[gpu_count][gpu_type] "
-                    f"(lowercase only, e.g., 'cx3d-4x16' or 'gx3d-24x120x1a100p')"
-                )
-                raise DRFValidationError({"compute_profile": [error_msg]})
+        compute_profile, gpu = _runner_config(function, data.compute_profile)
 
-        if active_jobs_limit_reached(user):
-            raise ActiveJobLimitExceeded()
+        if function.runner == Function.FLEETS and not function.code_engine_project:
+            raise DRFValidationError("Program has no Code Engine project assigned. Contact administrator.")
 
-        business_model = None
-        if data.provider_name and not accessible_functions.use_legacy_authorization:
-            business_model = accessible_functions.get_function(data.provider_name, data.title).business_model
+        business_model = data.business_model
+        if business_model is None:
+            trial = _is_trial(function, user)
+            business_model = BusinessModel.TRIAL if trial else BusinessModel.SUBSIDIZED
+        else:
+            trial = business_model == BusinessModel.TRIAL
 
-        job_serializer = RunJobSerializer(data={"arguments": data.arguments, "program": function.id})
-        job_serializer.is_valid(raise_exception=True)
-        return job_serializer.save(
-            author=user,
-            carrier=data.carrier,
-            channel=data.channel,
-            token=data.token,
-            config=jobconfig,
-            instance=data.instance,
-            account_id=data.account_id,
-            compute_profile=data.compute_profile,
+        logger.info("user_id=%s program=%s | Creating job", user.id, function.title)
+
+        job = Job(
+            trial=trial,
             business_model=business_model,
+            status=Job.QUEUED,
+            program=function,
+            author=user,
+            config=jobconfig,
+            gpu=gpu,
+            runner=function.runner,
+            compute_profile=compute_profile,
+            instance_crn=data.instance,
+            account_id=data.account_id,
+            ce_project_name=function.code_engine_project.project_name if function.code_engine_project else None,
+            ce_region=function.code_engine_project.region if function.code_engine_project else None,
         )
+
+        env = encrypt_env_vars(
+            build_env_variables(
+                channel=data.channel,
+                token=data.token,
+                job=job,
+                trial_mode=trial,
+                instance=data.instance,
+            )
+        )
+
+        get_arguments_storage(job).save(data.arguments)
+
+        try:
+            env["traceparent"] = data.carrier["traceparent"]
+        except KeyError:
+            pass
+        if function.env_vars:
+            env.update(json.loads(function.env_vars))
+
+        job.env_vars = json.dumps(env)
+        job.save()
+        JobEvent.objects.add_status_event(
+            job_id=job.id,
+            origin=JobEventOrigin.API,
+            context=JobEventContext.RUN_PROGRAM,
+            status=job.status,
+        )
+        return job

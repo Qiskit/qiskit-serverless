@@ -2,9 +2,6 @@
 
 import pytest
 from django.contrib.auth.models import User
-from unittest.mock import patch
-
-from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
 from api.domain.exceptions.function_disabled_exception import FunctionDisabledException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.domain.authentication.channel import Channel
@@ -21,7 +18,7 @@ def make_input(**overrides) -> RunFunctionInput:
         title="my-fn",
         provider_name=None,
         arguments="{}",
-        config_json={},
+        config_data=None,
         compute_profile=None,
         channel=Channel.IBM_QUANTUM_PLATFORM,
         token="tok",
@@ -66,14 +63,6 @@ class TestRunFunctionUseCase:
 
         with pytest.raises(FunctionDisabledException):
             RunFunctionUseCase().execute(user, accessible, make_input())
-
-    def test_raises_active_job_limit_exceeded(self, user):
-        Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
-        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
-
-        with patch("api.use_cases.programs.run.active_jobs_limit_reached", return_value=True):
-            with pytest.raises(ActiveJobLimitExceeded):
-                RunFunctionUseCase().execute(user, accessible, make_input())
 
     def test_raises_not_found_when_no_permission_for_custom_function(self, user):
         accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[])
