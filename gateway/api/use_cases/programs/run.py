@@ -23,7 +23,7 @@ from core.models import (
 class RunFunctionUseCase:
     """Use case for running (enqueueing a job for) a Qiskit Function."""
 
-    def execute(  # pylint: disable=too-many-positional-arguments,too-many-locals
+    def execute(  # pylint: disable=too-many-positional-arguments,too-many-locals,too-many-arguments
         self,
         user: AbstractUser,
         accessible_functions: FunctionAccessResult,
