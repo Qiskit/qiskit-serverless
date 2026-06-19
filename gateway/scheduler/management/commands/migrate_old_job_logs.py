@@ -31,6 +31,23 @@ def save_job_logs_to_storage(job: Job):
     logger.info("Logs saved to storage for job [%s]", job.id)
 
 
+def check_storage_logs(job: Job):
+    """
+    Check that te logs ar correctly storaged.
+
+    Args:
+        job: Job that has reached a terminal state and has `logs != ""`
+    """
+
+    logs_storage = get_logs_storage(job)
+    if job.program.provider:
+        assert logs_storage.get_private_logs() in job.logs
+    else:
+        assert logs_storage.get_public_logs() in job.logs
+
+    logger.info("Logs checked on storage [%s]", job.id)
+
+
 class Command(BaseCommand):
     """Cleanup resources."""
 
@@ -61,8 +78,9 @@ class Command(BaseCommand):
             for job in jobs:
                 save_job_logs_to_storage(job)
 
-                job.logs = ""
-                job.save(update_fields=["logs"])
+                if check_storage_logs(job):
+                    job.logs = ""
+                    job.save(update_fields=["logs"])
 
                 count += 1
                 if max_jobs > 0 and count >= max_jobs:
