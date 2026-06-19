@@ -6,7 +6,8 @@ import pytest
 from rest_framework.exceptions import ValidationError
 
 from api.domain.authentication.channel import Channel
-from api.serializers import RunJobSerializer, UploadProgramSerializer
+from api.serializers import RunJobSerializer
+from api.use_cases.programs.upload import UploadFunctionUseCase
 from core.models import CodeEngineProject, Program
 from core.services.runners import RunnerError
 from core.services.runners.fleets_runner import FleetsRunner
@@ -59,8 +60,8 @@ class TestCEProjectAssignmentAtUpload:
 
 
 @pytest.mark.django_db
-class TestCEProjectResolutionViaSerializer:
-    """Verify CE project resolution via the serializer create/update paths."""
+class TestCEProjectResolutionViaUseCase:
+    """Verify CE project resolution via the use case create/update paths."""
 
     @pytest.fixture
     def ce_project(self):
@@ -80,17 +81,14 @@ class TestCEProjectResolutionViaSerializer:
         settings.CE_DEFAULT_PROJECT_NAME = "default-project"
 
     def test_create_fleets_program_gets_default_project(self, ce_project):
-        """Fleets program created via serializer gets the active CE project."""
+        """Fleets program created via use case gets the active CE project."""
         user, _ = TestUtils.get_user_and_username("uploader")
-        serializer = UploadProgramSerializer()
-        program = serializer.create(
-            {
-                "title": "fleets-func",
-                "author": user,
-                "runner": Program.FLEETS,
-                "entrypoint": "main.py",
-                "dependencies": "[]",
-            }
+        program = UploadFunctionUseCase()._create(  # pylint: disable=protected-access
+            {"entrypoint": "main.py", "dependencies": "[]"},
+            user=user,
+            title="fleets-func",
+            provider=None,
+            runner=Program.FLEETS,
         )
 
         assert program.code_engine_project == ce_project
@@ -105,15 +103,11 @@ class TestCEProjectResolutionViaSerializer:
         )
         assert program.code_engine_project is None
 
-        serializer = UploadProgramSerializer()
-        updated = serializer.update(
+        updated = UploadFunctionUseCase()._update(  # pylint: disable=protected-access
             program,
-            {
-                "entrypoint": "main.py",
-                "dependencies": "[]",
-                "runner": Program.FLEETS,
-                "author": user,
-            },
+            {"entrypoint": "main.py", "dependencies": "[]"},
+            user=user,
+            runner=Program.FLEETS,
         )
 
         assert updated.code_engine_project == ce_project

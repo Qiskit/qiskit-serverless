@@ -425,7 +425,7 @@ class FleetsRunner(AbstractRunner):
     def _get_project(self) -> CodeEngineProject:
         """Return the program's assigned Code Engine project.
 
-        The project is assigned at program upload time (in ``UploadProgramSerializer.create``).
+        The project is assigned at program upload time (in ``UploadFunctionUseCase._create``).
         This method only validates that the assignment is present and active.
 
         Returns:
