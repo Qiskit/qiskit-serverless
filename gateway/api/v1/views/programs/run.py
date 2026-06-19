@@ -13,6 +13,7 @@ from rest_framework.response import Response
 
 from api.domain.authentication.channel import Channel
 from api.use_cases.programs.run import RunFunctionUseCase
+from api.utils import sanitize_name
 from api.v1 import serializers as v1_serializers
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
@@ -35,6 +36,15 @@ def run_program(request: Request) -> Response:
     user = cast(AbstractUser, request.user)
     accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
 
+    serializer = v1_serializers.RunProgramSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    title = sanitize_name(serializer.data.get("title"))
+    provider_name = sanitize_name(serializer.data.get("provider"))
+    arguments = serializer.data.get("arguments")
+    config_json = serializer.data.get("config")
+    compute_profile = serializer.data.get("compute_profile")
+
     channel = Channel.IBM_QUANTUM_PLATFORM
     token = ""
     instance = None
@@ -51,24 +61,24 @@ def run_program(request: Request) -> Response:
     logger.info(
         "[programs-run] user_id=%s title=%s provider=%s accessible_functions=%s",
         user.id,
-        request.data.get("title"),
-        request.data.get("provider"),
+        title,
+        provider_name,
         accessible_functions,
     )
 
     job = RunFunctionUseCase().execute(
         user,
         accessible_functions,
-        request.data,
+        title=title,
+        provider_name=provider_name,
+        arguments=arguments,
+        config_json=config_json,
+        compute_profile=compute_profile,
         channel=channel,
         token=token,
         instance=instance,
         account_id=account_id,
         carrier=carrier,
     )
-    logger.info(
-        "[programs-run] user_id=%s job_id=%s | Job queued ok",
-        user.id,
-        job.id,
-    )
+    logger.info("[programs-run] user_id=%s job_id=%s | Job queued ok", user.id, job.id)
     return Response(v1_serializers.RunJobSerializer(job).data)

@@ -32,18 +32,18 @@ def upload_program(request: Request) -> Response:
     """Upload or update a Qiskit Function."""
     user = cast(AbstractUser, request.user)
     accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
+
+    serializer = v1_serializers.UploadProgramSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
     logger.info(
         "[programs-upload] user_id=%s title=%s provider=%s accessible_functions=%s",
         user.id,
-        request.data.get("title"),
-        request.data.get("provider"),
+        serializer.validated_data.get("title"),
+        serializer.validated_data.get("provider"),
         accessible_functions,
     )
 
-    function = UploadFunctionUseCase().execute(user, accessible_functions, request.data)
-    logger.info(
-        "[programs-upload] user_id=%s program=%s | Function uploaded ok",
-        user.id,
-        function.title,
-    )
+    function = UploadFunctionUseCase().execute(user, accessible_functions, serializer.validated_data)
+    logger.info("[programs-upload] user_id=%s program=%s | Function uploaded ok", user.id, function.title)
     return Response(v1_serializers.UploadProgramSerializer(function).data)
