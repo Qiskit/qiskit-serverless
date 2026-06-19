@@ -13,6 +13,7 @@ from rest_framework.response import Response
 
 from api.domain.authentication.channel import Channel
 from api.use_cases.programs.run import RunFunctionUseCase
+from api.use_cases.programs.run_input import RunFunctionInput
 from api.utils import sanitize_name
 from api.v1 import serializers as v1_serializers
 from api.v1.endpoint_decorator import endpoint
@@ -69,16 +70,18 @@ def run_program(request: Request) -> Response:
     job = RunFunctionUseCase().execute(
         user,
         accessible_functions,
-        title=title,
-        provider_name=provider_name,
-        arguments=arguments,
-        config_json=config_json,
-        compute_profile=compute_profile,
-        channel=channel,
-        token=token,
-        instance=instance,
-        account_id=account_id,
-        carrier=carrier,
+        RunFunctionInput(
+            title=title,
+            provider_name=provider_name,
+            arguments=arguments,
+            config_json=config_json,
+            compute_profile=compute_profile,
+            channel=channel,
+            token=token,
+            instance=instance,
+            account_id=account_id,
+            carrier=carrier,
+        ),
     )
     logger.info("[programs-run] user_id=%s job_id=%s | Job queued ok", user.id, job.id)
     return Response(v1_serializers.RunJobSerializer(job).data)

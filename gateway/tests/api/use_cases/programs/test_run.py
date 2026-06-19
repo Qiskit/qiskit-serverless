@@ -9,23 +9,27 @@ from api.domain.exceptions.function_disabled_exception import FunctionDisabledEx
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.domain.authentication.channel import Channel
 from api.use_cases.programs.run import RunFunctionUseCase
+from api.use_cases.programs.run_input import RunFunctionInput
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import Program
 
 pytestmark = pytest.mark.django_db
 
-RUN_KWARGS = dict(
-    title="my-fn",
-    provider_name=None,
-    arguments="{}",
-    config_json={},
-    compute_profile=None,
-    channel=Channel.IBM_QUANTUM_PLATFORM,
-    token="tok",
-    instance=None,
-    account_id=None,
-    carrier={},
-)
+
+def make_input(**overrides) -> RunFunctionInput:
+    defaults = dict(
+        title="my-fn",
+        provider_name=None,
+        arguments="{}",
+        config_json={},
+        compute_profile=None,
+        channel=Channel.IBM_QUANTUM_PLATFORM,
+        token="tok",
+        instance=None,
+        account_id=None,
+        carrier={},
+    )
+    return RunFunctionInput(**{**defaults, **overrides})
 
 
 @pytest.fixture
@@ -38,7 +42,7 @@ class TestRunFunctionUseCase:
         function = Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
-        job = RunFunctionUseCase().execute(user, accessible, **RUN_KWARGS)
+        job = RunFunctionUseCase().execute(user, accessible, make_input())
 
         assert job.program.title == "my-fn"
         assert job.program.id == function.id
@@ -48,7 +52,7 @@ class TestRunFunctionUseCase:
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
         with pytest.raises(FunctionNotFoundException):
-            RunFunctionUseCase().execute(user, accessible, **{**RUN_KWARGS, "title": "nonexistent-fn"})
+            RunFunctionUseCase().execute(user, accessible, make_input(title="nonexistent-fn"))
 
     def test_raises_function_disabled(self, user):
         Program.objects.create(
@@ -61,7 +65,7 @@ class TestRunFunctionUseCase:
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
         with pytest.raises(FunctionDisabledException):
-            RunFunctionUseCase().execute(user, accessible, **RUN_KWARGS)
+            RunFunctionUseCase().execute(user, accessible, make_input())
 
     def test_raises_active_job_limit_exceeded(self, user):
         Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
@@ -69,10 +73,10 @@ class TestRunFunctionUseCase:
 
         with patch("api.use_cases.programs.run.active_jobs_limit_reached", return_value=True):
             with pytest.raises(ActiveJobLimitExceeded):
-                RunFunctionUseCase().execute(user, accessible, **RUN_KWARGS)
+                RunFunctionUseCase().execute(user, accessible, make_input())
 
     def test_raises_not_found_when_no_permission_for_custom_function(self, user):
         accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[])
 
         with pytest.raises(FunctionNotFoundException):
-            RunFunctionUseCase().execute(user, accessible, **RUN_KWARGS)
+            RunFunctionUseCase().execute(user, accessible, make_input())

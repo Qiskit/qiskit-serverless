@@ -11,6 +11,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from api.use_cases.programs.upload import UploadFunctionUseCase
+from api.use_cases.programs.upload_input import UploadFunctionInput
 from api.v1 import serializers as v1_serializers
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
@@ -44,6 +45,8 @@ def upload_program(request: Request) -> Response:
         accessible_functions,
     )
 
-    function = UploadFunctionUseCase().execute(user, accessible_functions, serializer.validated_data)
+    function = UploadFunctionUseCase().execute(
+        user, accessible_functions, UploadFunctionInput.from_validated_data(serializer.validated_data)
+    )
     logger.info("[programs-upload] user_id=%s program=%s | Function uploaded ok", user.id, function.title)
     return Response(v1_serializers.UploadProgramSerializer(function).data)
