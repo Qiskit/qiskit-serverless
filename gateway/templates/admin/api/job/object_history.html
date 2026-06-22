@@ -1,0 +1,20 @@
+{% extends "admin/object_history.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'admin/css/job_admin.css' %}">
+{% endblock %}
+
+{% block content_title %}<h1>{% translate "Change history" %}</h1>{% endblock %}
+
+{% block content %}
+<div class="job-nav">
+    <a href="{% url opts|admin_urlname:'change' object.pk|admin_urlquote %}">{% translate "Edit Job" %}</a>
+    <a href="{% url 'admin:job_events_view' object.pk %}">{% translate "Events" %}</a>
+    <a href="{% url 'admin:job_files_view' object.pk %}">{% translate "Storage Files" %}</a>
+    <a class="active">{% translate "History" %}</a>
+</div>
+{% include "admin/api/job/_job_subtitle.html" with job_instance=object %}
+{{ block.super }}
+{% endblock %}

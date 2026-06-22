@@ -1,0 +1,24 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'admin/css/job_admin.css' %}">
+{% endblock %}
+
+{% block content_subtitle %}{% endblock %}
+
+{% block object-tools %}
+{% if change and not is_popup %}
+    {% if original %}
+    {% url opts|admin_urlname:'history' original.pk|admin_urlquote as history_url %}
+    <div class="job-nav">
+        <a class="active">{% translate "Edit Job" %}</a>
+        <a href="{% url 'admin:job_events_view' original.pk %}">{% translate "Events" %}</a>
+        <a href="{% url 'admin:job_files_view' original.pk %}">{% translate "Storage Files" %}</a>
+        <a href="{% add_preserved_filters history_url %}">{% translate "History" %}</a>
+    </div>
+    {% include "admin/api/job/_job_subtitle.html" with job_instance=original %}
+    {% endif %}
+{% endif %}
+{% endblock %}
