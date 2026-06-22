@@ -11,18 +11,21 @@ from django.core.files import File
 from django.core.management import call_command
 
 from api.domain.authentication.channel import Channel
+from api.use_cases.programs.run import RunFunctionUseCase
+from api.use_cases.programs.run_input import RunFunctionInput
 from api.v1.serializers import (
     JobConfigSerializer,
     JobSerializer,
     JobSerializerWithoutResult,
     UploadProgramSerializer,
     RunProgramSerializer,
-    RunJobSerializer,
 )
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.business_models import BusinessModel
 from core.models import Job, JobConfig, Program
 from rest_framework.exceptions import ValidationError
-from tests.utils import TestUtils
+from core.models import PLATFORM_PERMISSION_RUN
+from tests.utils import TestUtils, create_function_access_result
 
 
 class TestSerializers:
@@ -192,29 +195,22 @@ class TestSerializers:
     def test_run_job_serializer_creates_job(self):
         user = models.User.objects.get(username="test_user")
         program_instance = Program.objects.get(id="1a7947f9-6ae8-4e3d-ac1e-e7d608deec82")
-        arguments = "{}"
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
-        config_data = {
-            "workers": None,
-            "min_workers": 1,
-            "max_workers": 5,
-            "auto_scaling": True,
-        }
-        config_serializer = JobConfigSerializer(data=config_data)
-        config_serializer.is_valid()
-        jobconfig = config_serializer.save()
-
-        job_data = {"arguments": arguments, "program": program_instance.id}
-        job_serializer = RunJobSerializer(data=job_data)
-        job_serializer.is_valid()
-
-        job = job_serializer.save(
-            channel=Channel.IBM_QUANTUM_PLATFORM,
-            author=user,
-            carrier={},
-            token="my_token",
-            config=jobconfig,
-            account_id="1234-5678-9012",
+        job = RunFunctionUseCase().execute(
+            user,
+            accessible,
+            RunFunctionInput(
+                title=program_instance.title,
+                provider_name=None,
+                arguments="{}",
+                config_data={"workers": None, "min_workers": 1, "max_workers": 5, "auto_scaling": True},
+                compute_profile=None,
+                channel=Channel.IBM_QUANTUM_PLATFORM,
+                token="my_token",
+                instance=None,
+                account_id="1234-5678-9012",
+            ),
         )
         env_vars = json.loads(job.env_vars)
 
@@ -230,23 +226,29 @@ class TestSerializers:
         assert env_vars["PROGRAM_ENV2"] == "VALUE2"
         assert job.account_id == "1234-5678-9012"
 
-    @patch("api.serializers.create_gpujob_allowlist")
+    @patch("api.use_cases.programs.run.create_gpujob_allowlist")
     def test_run_job_serializer_sets_gpu_flag_for_gpu_provider(self, mock_gpujob_allowlist):
         """Tests that gpu flag is True when program's provider is in GPU allowlist."""
         mock_gpujob_allowlist.return_value = {"gpu-functions": {"gpu_provider": []}}
 
         user = models.User.objects.get(username="test_user")
-        program = TestUtils.create_program(program_title="Default-Program", author=user, provider="gpu_provider")
+        program = TestUtils.create_program(program_title="gpu-func", author=user, provider="gpu_provider")
+        accessible = create_function_access_result("gpu_provider", "gpu-func", {PLATFORM_PERMISSION_RUN})
 
-        job_data = {"program": program.id}
-        job_serializer = RunJobSerializer(data=job_data)
-        job_serializer.is_valid()
-
-        job = job_serializer.save(
-            channel=Channel.IBM_QUANTUM_PLATFORM,
-            author=user,
-            carrier={},
-            token="my_token",
+        job = RunFunctionUseCase().execute(
+            user,
+            accessible,
+            RunFunctionInput(
+                title="gpu-func",
+                provider_name="gpu_provider",
+                arguments="{}",
+                config_data=None,
+                compute_profile=None,
+                channel=Channel.IBM_QUANTUM_PLATFORM,
+                token="my_token",
+                instance=None,
+                account_id=None,
+            ),
         )
 
         assert job.gpu
@@ -377,18 +379,25 @@ class TestSerializers:
         assert "fleet_id" in data
         assert data["fleet_id"] == "fleet-xyz"
 
-    def test_run_job_serializer_raises_validation_error_when_no_ce_project(self):
-        """RunJobSerializer.create() raises ValidationError when program has no CE project."""
+    def test_run_job_raises_validation_error_when_no_ce_project(self):
+        """RunFunctionUseCase raises ValidationError when Fleets program has no CE project."""
         user = models.User.objects.get(username="test_user")
-        program = TestUtils.create_program(program_title="fleets-program", author=user, runner=Program.FLEETS)
-
-        job_serializer = RunJobSerializer(data={"program": program.id})
-        job_serializer.is_valid()
+        TestUtils.create_program(program_title="fleets-program", author=user, runner=Program.FLEETS)
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
         with pytest.raises(ValidationError):
-            job_serializer.save(
-                channel=Channel.IBM_QUANTUM_PLATFORM,
-                author=user,
-                carrier={},
-                token="my_token",
+            RunFunctionUseCase().execute(
+                user,
+                accessible,
+                RunFunctionInput(
+                    title="fleets-program",
+                    provider_name=None,
+                    arguments="{}",
+                    config_data=None,
+                    compute_profile=None,
+                    channel=Channel.IBM_QUANTUM_PLATFORM,
+                    token="my_token",
+                    instance=None,
+                    account_id=None,
+                ),
             )

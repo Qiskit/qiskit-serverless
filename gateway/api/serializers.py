@@ -6,31 +6,18 @@ Django Rest framework serializers for api application:
 Version serializers inherit from the different serializers.
 """
 
-import json
-import logging
 from typing import Tuple, Union
 
 from django.conf import settings
-from django.contrib.auth.models import Group
 from rest_framework import serializers
 from rest_framework import validators as validators_module
 
-from api.utils import build_env_variables
-from core.domain.business_models import BusinessModel
-from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.services.storage import get_arguments_storage
-from core.utils import encrypt_env_vars, create_gpujob_allowlist
-
 from core.models import (
-    JobEvent,
     Program,
     Job,
     JobConfig,
     RuntimeJob,
-    RUN_PROGRAM_PERMISSION,
 )
-
-logger = logging.getLogger("api.api.serializers")
 
 
 class UploadProgramSerializer(serializers.ModelSerializer):
@@ -180,165 +167,11 @@ class RunJobSerializer(serializers.ModelSerializer):
     Only used when runner=Fleets (code_engine_project is set).
     """
 
-    # Explicitly define compute_profile to ensure it's included in validated_data
     compute_profile = serializers.CharField(required=False, allow_null=True, allow_blank=True, default=None)
 
     class Meta:
         model = Job
-        fields = [
-            "id",
-            "status",
-            "created",
-            "compute_profile",
-            "fleet_id",
-            "arguments",
-            "program",
-        ]
-
-    def is_trial(self, function: Program, author) -> bool:
-        """
-        This method checks if a group with run permissions from the author
-            is assigned to a trial instance in a function
-        """
-
-        trial_groups = function.trial_instances.all()
-        user_run_groups = Group.objects.filter(user=author, permissions__codename=RUN_PROGRAM_PERMISSION)
-
-        return any(group in trial_groups for group in user_run_groups)
-
-    def _get_runner_config(self, program: Program, compute_profile_requested: str = None):
-        """
-        Get runner-specific configuration based on program's runner type.
-
-        Returns:
-            tuple: (compute_profile, gpu) where:
-                - For Fleets: (compute_profile_string, False) - GPU determined from profile
-                - For Ray: (None, gpu_boolean) - GPU determined from provider allowlist
-        """
-        if program.runner == Program.FLEETS:
-            # Fleets: Use compute_profile, GPU comes from the profile itself
-            compute_profile = self._get_fleets_compute_profile(compute_profile_requested)
-            return (compute_profile, False)
-
-        # Ray: No compute_profile, GPU from provider allowlist
-        gpu = self._should_ray_use_gpu(program)
-        return (None, gpu)
-
-    def _get_fleets_compute_profile(self, compute_profile_requested: str = None) -> str:
-        """
-        Determine compute profile for Fleets jobs using 2-tier priority.
-
-        Priority:
-        1. Client-requested compute_profile (already validated)
-        2. System default (DEFAULT_COMPUTE_PROFILE setting)
-
-        Args:
-            compute_profile_requested: Compute profile requested by client (e.g., "gx3d-24x120x1a100p")
-
-        Returns:
-            Compute profile string
-        """
-        if compute_profile_requested:
-            logger.info("Fleets job will use client-requested compute profile: %s", compute_profile_requested)
-            return compute_profile_requested
-
-        default = getattr(settings, "DEFAULT_COMPUTE_PROFILE", "cx3d-4x16")
-        logger.info("Fleets job will use system default compute profile: %s", default)
-        return default
-
-    def _should_ray_use_gpu(self, program: Program) -> bool:
-        """
-        Determine if Ray job should use GPU based on provider allowlist.
-
-        For Fleets jobs, GPU is determined from the compute_profile, not this method.
-        """
-        gpujobs = create_gpujob_allowlist()
-        if program.provider and program.provider.name in gpujobs["gpu-functions"].keys():
-            logger.debug("Ray job [%s] will run on GPU nodes", program.title)
-            return True
-        return False
-
-    def create(self, validated_data):  # pylint: disable=too-many-locals
-        status = Job.QUEUED
-        program = validated_data.get("program")
-        arguments = validated_data.get("arguments", "{}")
-        author = validated_data.get("author")
-        logger.info(
-            "user_id=%s program=%s | Creating job",
-            author.id if author else None,
-            program.title if program else None,
-        )
-        config = validated_data.get("config", None)
-
-        channel = validated_data.pop("channel")
-        token = validated_data.pop("token")
-        instance = validated_data.pop("instance", None)
-        account_id = validated_data.pop("account_id", None)
-        carrier = validated_data.pop("carrier")
-        compute_profile_requested = validated_data.get("compute_profile", None)
-
-        business_model = validated_data.pop("business_model", None)
-        if business_model is None:
-            # Django legacy: set the business_model from the trial flag that comes from the legacy Django Groups
-            trial = self.is_trial(program, author)
-            business_model = BusinessModel.TRIAL if trial else BusinessModel.SUBSIDIZED
-        else:
-            # Runtime API /functions: set trial from the Runtime
-            trial = business_model == BusinessModel.TRIAL
-
-        # Get runner-specific configuration (compute_profile for Fleets, GPU for Ray)
-        compute_profile, gpu = self._get_runner_config(program, compute_profile_requested)
-
-        if program.runner == Program.FLEETS and not program.code_engine_project:
-            raise serializers.ValidationError("Program has no Code Engine project assigned. Contact administrator.")
-
-        job = Job(
-            trial=trial,
-            business_model=business_model,
-            status=status,
-            program=program,
-            author=author,
-            config=config,
-            gpu=gpu,
-            runner=program.runner,
-            compute_profile=compute_profile,
-            instance_crn=instance,
-            account_id=account_id,
-            ce_project_name=program.code_engine_project.project_name if program.code_engine_project else None,
-            ce_region=program.code_engine_project.region if program.code_engine_project else None,
-        )
-
-        env = encrypt_env_vars(
-            build_env_variables(
-                channel=channel,
-                token=token,
-                job=job,
-                trial_mode=trial,
-                instance=instance,
-            )
-        )
-
-        arguments_storage = get_arguments_storage(job)
-        arguments_storage.save(arguments)
-
-        try:
-            env["traceparent"] = carrier["traceparent"]
-        except KeyError:
-            pass
-        if program.env_vars:
-            program_env = json.loads(program.env_vars)
-            env.update(program_env)
-
-        job.env_vars = json.dumps(env)
-        job.save()
-        JobEvent.objects.add_status_event(
-            job_id=job.id,
-            origin=JobEventOrigin.API,
-            context=JobEventContext.RUN_PROGRAM,
-            status=job.status,
-        )
-
-        return job
+        fields = ["id", "status", "created", "compute_profile", "fleet_id", "arguments", "program"]
 
 
 class RuntimeJobSerializer(serializers.ModelSerializer):

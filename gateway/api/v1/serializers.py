@@ -8,11 +8,12 @@ from typing import Any
 
 from packaging.requirements import Requirement, InvalidRequirement
 from packaging.version import Version, InvalidVersion
+from rest_framework import serializers as drf_serializers
 from rest_framework.serializers import ValidationError
 
 from api import serializers
 from api.utils import check_whitelisted, sanitize_name
-from core.models import Provider
+from core.models import Job, Provider
 
 logger = logging.getLogger("api.api.v1.serializers")
 
@@ -196,12 +197,15 @@ class JobConfigSerializer(serializers.JobConfigSerializer):
         ]
 
 
-class RunJobSerializer(serializers.RunJobSerializer):
+class RunJobSerializer(drf_serializers.ModelSerializer):
     """
     RunJobSerializer is used by the /run end-point
     """
 
-    class Meta(serializers.RunJobSerializer.Meta):
+    compute_profile = drf_serializers.CharField(required=False, allow_null=True, allow_blank=True, default=None)
+
+    class Meta:
+        model = Job
         fields = ["id", "result", "status", "program", "created", "arguments", "compute_profile"]
 
 
