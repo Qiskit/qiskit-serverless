@@ -94,6 +94,12 @@ Run it:
 
    docker-compose up
 
+.. note::
+
+   On Apple Silicon (M-series) Macs, build your custom image on the native arm64 base and start
+   the stack with the arm64 override — see :ref:`run_on_apple_silicon`. Otherwise jobs may hang
+   in ``QUEUED``.
+
 If using **Kubernetes in local development**, create the cluster and load the image:
 
 .. code-block::
