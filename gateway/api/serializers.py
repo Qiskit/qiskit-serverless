@@ -104,7 +104,7 @@ class JobSerializerWithoutResult(serializers.ModelSerializer):
         model = Job
 
 
-class RunProgramSerializer(serializers.Serializer):
+class RunProgramSerializer(serializers.Serializer):  # pylint: disable=abstract-method
     """
     Program serializer for the /run end-point
     """

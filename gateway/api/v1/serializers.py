@@ -169,7 +169,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
         ]
 
 
-class RunProgramSerializer(serializers.RunProgramSerializer):
+class RunProgramSerializer(serializers.RunProgramSerializer):  # pylint: disable=abstract-method
     """
     RunExistingProgramSerializer is used by the /run end-point
     """
