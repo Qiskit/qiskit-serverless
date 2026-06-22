@@ -144,6 +144,49 @@ The view inspects the dataclass and builds the appropriate HTTP response.
 
 ---
 
+## Input Dataclasses
+
+For write operations (create, run) where the view must pass multiple validated fields to the use case, define an input dataclass in `api/use_cases/<resource>/<action>_input.py`. The dataclass owns the conversion from serializer validated data.
+
+```python
+# api/use_cases/programs/upload_input.py
+from dataclasses import dataclass
+
+from api.utils import sanitize_name
+
+
+@dataclass
+class UploadFunctionInput:
+    title: str
+    provider: str | None
+    # ... other fields
+
+    @classmethod
+    def from_validated_data(cls, data: dict) -> "UploadFunctionInput":
+        title, provider = _parse_provider_and_title(data["title"])
+        return cls(title=title, provider=provider, ...)
+
+
+def _parse_provider_and_title(raw: str) -> tuple[str, str | None]:
+    parts = raw.split("/")
+    if len(parts) == 1:
+        return sanitize_name(raw), None
+    return sanitize_name(parts[1]), sanitize_name(parts[0])
+```
+
+The view calls `from_validated_data` after `serializer.is_valid()` and passes the dataclass to the use case:
+
+```python
+input_data = UploadFunctionInput.from_validated_data(serializer.validated_data)
+result = UploadFunctionUseCase().execute(user, accessible_functions, input_data)
+```
+
+The use case receives a fully-typed, clean dataclass — no raw dicts, no HTTP concerns.
+
+**When to use:** any endpoint where more than two or three fields flow from the view to the use case. Simple lookups (title + provider) can use plain keyword arguments.
+
+---
+
 ## Exception Handling
 
 `@endpoint_handle_exceptions` maps exception types to HTTP status codes automatically:
