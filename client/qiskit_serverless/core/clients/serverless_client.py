@@ -994,7 +994,7 @@ class IBMServerlessClient(ServerlessClient):
     ) -> "Job":
         """Run a Qiskit Function with pre-flight validation before submitting to the gateway.
 
-        Checks are performed before delegating to ``ServerlessClient.run``. checks include  instance has no
+        Checks are performed before delegating to ``ServerlessClient.run``. Checks include instance has no
         remaining runtime; warns when low and check accessibility to the backed
         Args:
             program: ``QiskitFunction`` object or function title string.
