@@ -1,13 +1,41 @@
 """Use case: upload (create or update) a Qiskit Function."""
 
+import json
+import logging
+
 from django.contrib.auth.models import AbstractUser
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from api.access_policies.programs import ProgramAccessPolicies
 from api.access_policies.providers import ProviderAccessPolicy
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.use_cases.programs.upload_input import UploadFunctionInput
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import Program as Function, Provider
+from core.models import (
+    CodeEngineProject,
+    DEFAULT_PROGRAM_ENTRYPOINT,
+    Program as Function,
+    Provider,
+)
+from core.utils import encrypt_env_vars
+
+logger = logging.getLogger("api.api.use_cases.programs.upload")
+
+
+def _normalize_dependency(raw_dependency) -> str:
+    if isinstance(raw_dependency, str):
+        return raw_dependency
+
+    dependency_name = list(raw_dependency.keys())[0]
+    dependency_version = str(list(raw_dependency.values())[0])
+
+    try:
+        if int(dependency_version[0]) >= 0:
+            dependency_version = f"=={dependency_version}"
+    except ValueError:
+        pass
+
+    return dependency_name + dependency_version
 
 
 class UploadFunctionUseCase:
