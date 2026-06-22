@@ -95,10 +95,28 @@ class ProgramAdmin(admin.ModelAdmin):
 
     search_fields = ["title", "author__username"]
     list_filter = ["provider", "type", "runner", "disabled"]
-    exclude = ["env_vars"]
     filter_horizontal = ["instances", "trial_instances"]
     autocomplete_fields = ["author", "provider", "code_engine_project"]
     change_form_template = "program/change_form.html"
+    fieldsets = [
+        (
+            "Info",
+            {
+                "fields": [
+                    "readable_title",
+                    "type",
+                    "description",
+                    "version",
+                    "documentation_url",
+                    "additional_info",
+                ]
+            },
+        ),
+        ("Status", {"fields": ["disabled", "disabled_message"]}),
+        ("Execution", {"fields": ["runner", "entrypoint", "artifact", "image", "dependencies"]}),
+        ("Fleets", {"fields": ["default_compute_profile", "code_engine_project"]}),
+        ("Ownership", {"fields": ["author", "provider", "instances", "trial_instances"]}),
+    ]
 
     list_display = [
         "title",
