@@ -347,16 +347,6 @@ class TestIBMServerlessClientBackends:
         # Cache should be populated for both backends
         assert client._backends_cache["ibm_torino"] is fake_b1
         assert client._backends_cache["ibm_brussels"] is fake_b2
-        # Called with named parameters
-        client._service.backends.assert_called_once_with(
-            name=None,
-            min_num_qubits=None,
-            instance=None,
-            dynamic_circuits=None,
-            filters=None,
-            use_fractional_gates=False,
-            calibration_id=None,
-        )
 
     @patch(_LIST_INSTANCES)
     @patch(_VERIFY_CREDS)
@@ -394,17 +384,6 @@ class TestIBMServerlessClientBackends:
         # Cache should be refreshed
         assert client._backends_cache.get("ibm_torino", None) is None
 
-        # Called with named parameters
-        client._service.backends.assert_called_with(
-            name=None,
-            min_num_qubits=None,
-            instance=None,
-            dynamic_circuits=None,
-            filters=None,
-            use_fractional_gates=False,
-            calibration_id=None,
-        )
-
     @patch(_LIST_INSTANCES)
     @patch(_VERIFY_CREDS)
     @patch(_CONFIG_FILE)
@@ -413,18 +392,9 @@ class TestIBMServerlessClientBackends:
         client = _make_client(mock_file_path, mock_verify, mock_list_instances)
         client._service.backends = MagicMock(return_value=[])
 
-        client.backends(min_num_qubits=127, operational=True)
+        client.backends(min_num_qubits=127)
 
-        client._service.backends.assert_called_once_with(
-            name=None,
-            min_num_qubits=127,
-            instance=None,
-            dynamic_circuits=None,
-            filters=None,
-            use_fractional_gates=False,
-            calibration_id=None,
-            operational=True,
-        )
+        client._service.backends.assert_called_once_with(name=None, min_num_qubits=127, filters=None)
 
     @patch(_LIST_INSTANCES)
     @patch(_VERIFY_CREDS)
@@ -461,9 +431,7 @@ class TestIBMServerlessClientGetBackend:
 
         assert result is fake_backend
         assert client._backends_cache["ibm_torino"] is fake_backend
-        client._service.backend.assert_called_once_with(
-            name="ibm_torino", use_fractional_gates=False, calibration_id=None
-        )
+        client._service.backend.assert_called_once_with(name="ibm_torino")
 
     @patch(_LIST_INSTANCES)
     @patch(_VERIFY_CREDS)
@@ -486,9 +454,7 @@ class TestIBMServerlessClientGetBackend:
         assert result is fresh_backend
         # Cache is updated with the fresh object
         assert client._backends_cache["ibm_torino"] is fresh_backend
-        client._service.backend.assert_called_once_with(
-            name="ibm_torino", use_fractional_gates=False, calibration_id=None
-        )
+        client._service.backend.assert_called_once_with(name="ibm_torino")
 
     @patch(_LIST_INSTANCES)
     @patch(_VERIFY_CREDS)
@@ -656,9 +622,7 @@ class TestIBMServerlessClientRun:
 
         result = client.run("my_function", arguments={"backend_name": "ibm_torino"})
 
-        client._service.backend.assert_called_once_with(
-            name="ibm_torino", use_fractional_gates=False, calibration_id=None
-        )
+        client._service.backend.assert_called_once_with(name="ibm_torino")
         mock_super_run.assert_called_once()
         assert result is fake_job
 

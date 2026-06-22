@@ -788,12 +788,7 @@ class IBMServerlessClient(ServerlessClient):
         refresh_cache: bool = False,
         name: str | None = None,
         min_num_qubits: int | None = None,
-        instance: str | None = None,
-        dynamic_circuits: bool | None = None,
         filters: Callable[[IBMBackend], bool] | None = None,
-        *,
-        use_fractional_gates: bool | None = False,
-        calibration_id: str | None = None,
         **kwargs: Any,
     ) -> list[IBMBackend]:
         """Return backends accessible through this instance.
@@ -806,33 +801,18 @@ class IBMServerlessClient(ServerlessClient):
             refresh_cache: If ``True``, refresh the cache by fetching backends from the service.
             name: Backend name to filter by.
             min_num_qubits: Minimum number of qubits the backend must have.
-            instance: IBM Cloud account CRN.
-            dynamic_circuits: Filter by whether the backend supports dynamic circuits.
             filters: More complex filters, such as lambda functions.
                 For example::
 
                     client.backends(filters=lambda b: b.max_shots > 50000)
                     client.backends(filters=lambda x: "rz" in x.basis_gates)
 
-            use_fractional_gates: If ``True``, include backends with fractional gates.
-                Note that backends now support dynamic circuits and fractional gates
-                simultaneously. Control flow instructions are not removed when this
-                flag is set to ``True``. If ``None``, both fractional gates and
-                control flow operations are included.
-            calibration_id: The calibration ID for instantiating the backend. Should only
-                be used when selecting a single backend.
             **kwargs: Simple filters that require a specific value for an attribute in
                 backend configuration or status.
                 Examples::
 
-                    # Get operational real backends
-                    client.backends(simulator=False, operational=True)
-
                     # Get backends with at least 127 qubits
                     client.backends(min_num_qubits=127)
-
-                    # Get backends that support OpenPulse
-                    client.backends(open_pulse=True)
 
                 For the full list of backend attributes, see the `IBMBackend class documentation
                 <https://quantum.cloud.ibm.com/docs/api/qiskit-ibm-runtime>`_
@@ -850,11 +830,7 @@ class IBMServerlessClient(ServerlessClient):
             backend_list = self._service.backends(
                 name=name,
                 min_num_qubits=min_num_qubits,
-                instance=instance,
-                dynamic_circuits=dynamic_circuits,
                 filters=filters,
-                use_fractional_gates=use_fractional_gates,
-                calibration_id=calibration_id,
                 **kwargs,
             )
         except Exception as exc:
@@ -870,12 +846,7 @@ class IBMServerlessClient(ServerlessClient):
 
         return backend_list
 
-    def backend(
-        self,
-        name: str,
-        use_fractional_gates: bool | None = False,
-        calibration_id: str | None = None,
-    ) -> Backend:
+    def backend(self, name: str, **kwargs: Any) -> Backend:
         """Fetch a single backend by name and update the cache.
 
         Exposes the underlying :meth:`QiskitRuntimeService.backend` method to perform
@@ -885,12 +856,10 @@ class IBMServerlessClient(ServerlessClient):
 
         Args:
             name: Name of the backend (e.g., ``"ibm_torino"``).
-            use_fractional_gates: If ``True``, include fractional gates. Currently this
-                feature cannot be used simultaneously with dynamic circuits, PEC, PEA,
-                or gate twirling. When this flag is set, control flow instructions are
-                automatically removed from the backend. If ``None``, both fractional
-                gates and control flow operations are included.
-            calibration_id: The calibration ID for instantiating the backend.
+            **kwargs: Simple filters that require a specific value for an attribute in
+                backend configuration or status.
+                For the full list of backend attributes, see the `IBMBackend class documentation
+                <https://quantum.cloud.ibm.com/docs/api/qiskit-ibm-runtime>`_
 
         Returns:
             Backend matching the specified name.
@@ -899,9 +868,7 @@ class IBMServerlessClient(ServerlessClient):
             QiskitServerlessException: If the backend is not found or is inaccessible.
         """
         try:
-            backend = self._service.backend(
-                name=name, use_fractional_gates=use_fractional_gates, calibration_id=calibration_id
-            )
+            backend = self._service.backend(name=name, **kwargs)
         except QiskitBackendNotFoundError as exc:
             raise QiskitServerlessException(
                 f"Backend '{name}' is not available or you do not have access to it "
@@ -917,9 +884,7 @@ class IBMServerlessClient(ServerlessClient):
     def least_busy(
         self,
         min_num_qubits: int | None = None,
-        instance: str | None = None,
         filters: Callable[[IBMBackend], bool] | None = None,
-        use_fractional_gates: bool | None = False,
         **kwargs: Any,
     ) -> IBMBackend:
         """Return the least busy backend matching the specified criteria.
@@ -929,13 +894,11 @@ class IBMServerlessClient(ServerlessClient):
 
         Args:
             min_num_qubits: Minimum number of qubits the backend must have.
-            instance: IBM Cloud account CRN.
             filters: Filters can be defined as for the :meth:`backends` method.
                 Example::
 
                     client.least_busy(min_num_qubits=5, operational=True)
 
-            use_fractional_gates: If ``True``, include fractional gates.
             **kwargs: Additional filters for backend configuration or status attributes.
 
         Returns:
@@ -947,8 +910,6 @@ class IBMServerlessClient(ServerlessClient):
         try:
             backend = self._service.least_busy(
                 min_num_qubits=min_num_qubits,
-                instance=instance,
-                use_fractional_gates=use_fractional_gates,
                 filters=filters,
                 **kwargs,
             )
@@ -1033,14 +994,8 @@ class IBMServerlessClient(ServerlessClient):
     ) -> "Job":
         """Run a Qiskit Function with pre-flight validation before submitting to the gateway.
 
-        Checks are performed in order before delegating to ``ServerlessClient.run``:
-
-        1. **Usage quota**: raises when the instance has no remaining runtime; warns when low.
-        2. **Backend access** (when ``arguments["backend_name"]`` is set): validates via a
-           single-backend lookup — cheaper than a full listing, and sufficient to confirm access.
-        3. **Instance has backends** (when no ``backend_name`` is given): calls ``backends()``
-           (cached after the first invocation) to ensure the instance is not empty.
-
+        Checks are performed before delegating to ``ServerlessClient.run``. checks include  instance has no
+        remaining runtime; warns when low and check accessibility to the backed
         Args:
             program: ``QiskitFunction`` object or function title string.
             arguments: Runtime arguments. The optional ``backend_name`` key is inspected for
