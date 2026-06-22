@@ -4,6 +4,7 @@ Serializers for V1 of the API.
 
 import json
 import logging
+import re
 from typing import Any
 
 from django.conf import settings
@@ -195,6 +196,8 @@ class RunProgramSerializer(drf_serializers.Serializer):  # pylint: disable=abstr
     provider = drf_serializers.CharField(required=False, allow_null=True)
     compute_profile = drf_serializers.CharField(required=False, allow_null=True)
 
+    _COMPUTE_PROFILE_RE = re.compile(r"^[a-z]+\d+[a-z]?-\d+x\d+(?:x\d+[a-z0-9]+)?$")
+
     def validate_title(self, value):
         """Sanitize title to remove characters invalid for function names."""
         return sanitize_name(value)
@@ -202,6 +205,16 @@ class RunProgramSerializer(drf_serializers.Serializer):  # pylint: disable=abstr
     def validate_provider(self, value):
         """Sanitize provider name."""
         return sanitize_name(value) if value else value
+
+    def validate_compute_profile(self, value):
+        """Validate compute profile format (e.g. 'cx3d-4x16' or 'gx3d-24x120x1a100p')."""
+        if value and not self._COMPUTE_PROFILE_RE.match(value):
+            raise drf_serializers.ValidationError(
+                f"Invalid compute profile format: '{value}'. "
+                f"Expected format: [type]-[cpu]x[memory] or [type]-[cpu]x[memory]x[gpu_count][gpu_type] "
+                f"(lowercase only, e.g., 'cx3d-4x16' or 'gx3d-24x120x1a100p')"
+            )
+        return value
 
 
 class JobConfigSerializer(drf_serializers.ModelSerializer):

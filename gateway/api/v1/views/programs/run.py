@@ -1,7 +1,6 @@
 """API endpoint for running a Qiskit Function."""
 
 import logging
-import re
 from typing import cast
 
 from django.contrib.auth.models import AbstractUser
@@ -9,7 +8,6 @@ from drf_yasg.utils import swagger_auto_schema
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from rest_framework import permissions, status
 from rest_framework.decorators import permission_classes
-from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -24,8 +22,6 @@ from api.v1.exception_handler import endpoint_handle_exceptions
 from core.domain.authorization.function_access_result import FunctionAccessResult
 
 logger = logging.getLogger("api.api.v1.views.programs.run")
-
-_COMPUTE_PROFILE_RE = re.compile(r"^[a-z]+\d+[a-z]?-\d+x\d+(?:x\d+[a-z0-9]+)?$")
 
 
 @swagger_auto_schema(
@@ -47,26 +43,15 @@ def run_program(request: Request) -> Response:
 
     title = serializer.validated_data.get("title")
     provider_name = serializer.validated_data.get("provider")
-    arguments = serializer.data.get("arguments")
-    compute_profile = serializer.data.get("compute_profile")
-
-    if compute_profile and not _COMPUTE_PROFILE_RE.match(compute_profile):
-        raise DRFValidationError(
-            {
-                "compute_profile": [
-                    f"Invalid compute profile format: '{compute_profile}'. "
-                    f"Expected format: [type]-[cpu]x[memory] or [type]-[cpu]x[memory]x[gpu_count][gpu_type] "
-                    f"(lowercase only, e.g., 'cx3d-4x16' or 'gx3d-24x120x1a100p')"
-                ]
-            }
-        )
+    arguments = serializer.validated_data.get("arguments")
+    compute_profile = serializer.validated_data.get("compute_profile")
 
     if active_jobs_limit_reached(user):
         raise ActiveJobLimitExceeded()
 
     config_data = None
-    if serializer.data.get("config"):
-        config_serializer = v1_serializers.JobConfigSerializer(data=serializer.data["config"])
+    if serializer.validated_data.get("config"):
+        config_serializer = v1_serializers.JobConfigSerializer(data=serializer.validated_data["config"])
         config_serializer.is_valid(raise_exception=True)
         config_data = dict(config_serializer.validated_data)
 
