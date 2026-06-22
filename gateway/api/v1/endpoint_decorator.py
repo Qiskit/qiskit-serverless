@@ -7,8 +7,6 @@ from typing import Callable
 
 from rest_framework.decorators import api_view
 
-from rest_framework.decorators import api_view
-
 from api.v1.route_registry import RouteRegistry
 
 
