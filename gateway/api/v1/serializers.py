@@ -1,29 +1,33 @@
 """
-Serializers api for V1.
+Serializers for V1 of the API.
 """
 
 import json
 import logging
 from typing import Any
 
+from django.conf import settings
 from packaging.requirements import Requirement, InvalidRequirement
 from packaging.version import Version, InvalidVersion
 from rest_framework import serializers as drf_serializers
+from rest_framework import validators as validators_module
 from rest_framework.serializers import ValidationError
 
-from api import serializers
 from api.utils import check_whitelisted, sanitize_name
-from core.models import Job, Provider
+from core.models import Job, JobConfig, Program, Provider, RuntimeJob
 
 logger = logging.getLogger("api.api.v1.serializers")
 
 
-class ProgramSerializer(serializers.ProgramSerializer):
+class ProgramSerializer(drf_serializers.ModelSerializer):
     """
     Program serializer first version. Include basic fields from the initial model.
     """
 
-    class Meta(serializers.ProgramSerializer.Meta):
+    provider = drf_serializers.CharField(source="provider.name", read_only=True)
+
+    class Meta:
+        model = Program
         fields = [
             "id",
             "title",
@@ -39,23 +43,52 @@ class ProgramSerializer(serializers.ProgramSerializer):
         ]
 
 
-class ProgramSummarySerializer(serializers.ProgramSerializer):
+class ProgramSummarySerializer(drf_serializers.ModelSerializer):
     """
     Program serializer with summary fields for job listings.
     """
 
-    class Meta(serializers.ProgramSerializer.Meta):
+    provider = drf_serializers.CharField(source="provider.name", read_only=True)
+
+    class Meta:
+        model = Program
         fields = ["id", "title", "provider"]
 
 
-class UploadProgramSerializer(serializers.UploadProgramSerializer):
+class UploadProgramSerializer(drf_serializers.ModelSerializer):
     """
-    UploadProgramSerializer is used by the /upload end-point
+    Program serializer for the /upload end-point.
     """
+
+    entrypoint = drf_serializers.CharField(required=False)
+    image = drf_serializers.CharField(required=False)
+    provider = drf_serializers.CharField(required=False)
+    runner = drf_serializers.CharField(required=False)
+
+    class Meta:
+        model = Program
+        fields = [
+            "title",
+            "entrypoint",
+            "artifact",
+            "dependencies",
+            "env_vars",
+            "image",
+            "provider",
+            "description",
+            "type",
+            "version",
+            "runner",
+        ]
+
+    def get_validators(self):
+        """Exclude UniqueConstraint validators.
+        Uniqueness is enforced at DB level; the upload view handles
+        upsert logic (find-or-create) before saving."""
+        return [v for v in super().get_validators() if not isinstance(v, validators_module.UniqueTogetherValidator)]
 
     def validate_image(self, value):
         """Validates image."""
-        # place to add image validation
         return value
 
     def _parse_dependency(self, dep: Any):
@@ -71,7 +104,6 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             dep_name = str(dep_name[0])
             dep_version = str(list(dep.values())[0])
 
-            # if starts with a number then prefix ==
             try:
                 if int(dep_version[0]) >= 0:
                     dep_version = f"=={dep_version}"
@@ -113,7 +145,6 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
         if entrypoint is None and image is None:
             raise ValidationError("At least one of attributes (entrypoint, image) is required.")
         try:
-            # validate dependencies
             deps = json.loads(attrs.get("dependencies", "[]"))
         except (json.JSONDecodeError, UnicodeDecodeError) as exc:
             raise ValidationError(
@@ -143,7 +174,6 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             if provider_instance.registry and not image.startswith(provider_instance.registry):
                 raise ValidationError(f"Custom images must be in {provider_instance.registry}.")
 
-        # Validate `version` using packaging.version (PEP 440 compatible)
         version = attrs.get("version", None)
         if version is not None:
             try:
@@ -153,26 +183,17 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
 
         return super().validate(attrs)
 
-    class Meta(serializers.UploadProgramSerializer.Meta):
-        fields = [
-            "title",
-            "entrypoint",
-            "artifact",
-            "dependencies",
-            "env_vars",
-            "image",
-            "provider",
-            "description",
-            "type",
-            "version",
-            "runner",
-        ]
 
+class RunProgramSerializer(drf_serializers.Serializer):  # pylint: disable=abstract-method
+    """
+    Program serializer for the /run end-point.
+    """
 
-class RunProgramSerializer(serializers.RunProgramSerializer):  # pylint: disable=abstract-method
-    """
-    RunExistingProgramSerializer is used by the /run end-point
-    """
+    title = drf_serializers.CharField(max_length=255)
+    arguments = drf_serializers.CharField()
+    config = drf_serializers.JSONField()
+    provider = drf_serializers.CharField(required=False, allow_null=True)
+    compute_profile = drf_serializers.CharField(required=False, allow_null=True)
 
     def validate_title(self, value):
         """Sanitize title to remove characters invalid for function names."""
@@ -183,23 +204,36 @@ class RunProgramSerializer(serializers.RunProgramSerializer):  # pylint: disable
         return sanitize_name(value) if value else value
 
 
-class JobConfigSerializer(serializers.JobConfigSerializer):
+class JobConfigSerializer(drf_serializers.ModelSerializer):
     """
     JobConfig serializer first version. Include basic fields from the initial model.
     """
 
-    class Meta(serializers.JobConfigSerializer.Meta):
-        fields = [
-            "workers",
-            "min_workers",
-            "max_workers",
-            "auto_scaling",
-        ]
+    class Meta:
+        model = JobConfig
+        fields = ["workers", "min_workers", "max_workers", "auto_scaling"]
+
+    workers = drf_serializers.IntegerField(
+        max_value=settings.RAY_CLUSTER_WORKER_REPLICAS_MAX,
+        required=False,
+        allow_null=True,
+    )
+    min_workers = drf_serializers.IntegerField(
+        max_value=settings.RAY_CLUSTER_WORKER_MIN_REPLICAS_MAX,
+        required=False,
+        allow_null=True,
+    )
+    max_workers = drf_serializers.IntegerField(
+        max_value=settings.RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX,
+        required=False,
+        allow_null=True,
+    )
+    auto_scaling = drf_serializers.BooleanField(default=False, required=False, allow_null=True)
 
 
 class RunJobSerializer(drf_serializers.ModelSerializer):
     """
-    RunJobSerializer is used by the /run end-point
+    RunJobSerializer is used by the /run end-point.
     """
 
     compute_profile = drf_serializers.CharField(required=False, allow_null=True, allow_blank=True, default=None)
@@ -209,23 +243,25 @@ class RunJobSerializer(drf_serializers.ModelSerializer):
         fields = ["id", "result", "status", "program", "created", "arguments", "compute_profile"]
 
 
-class RuntimeJobSerializer(serializers.RuntimeJobSerializer):
+class RuntimeJobSerializer(drf_serializers.ModelSerializer):
     """
-    Runtime job serializer first version. Serializer for the runtime job model.
+    Runtime job serializer first version.
     """
 
-    class Meta(serializers.RuntimeJobSerializer.Meta):
+    class Meta:
+        model = RuntimeJob
         fields = ["runtime_job", "runtime_session"]
 
 
-class JobSerializer(serializers.JobSerializer):
+class JobSerializer(drf_serializers.ModelSerializer):
     """
     Job serializer first version. Include basic fields from the initial model.
     """
 
     program = ProgramSerializer(many=False)
 
-    class Meta(serializers.JobSerializer.Meta):
+    class Meta:
+        model = Job
         fields = [
             "id",
             "result",
@@ -238,12 +274,13 @@ class JobSerializer(serializers.JobSerializer):
         ]
 
 
-class JobSerializerWithoutResult(serializers.JobSerializer):
+class JobSerializerWithoutResult(drf_serializers.ModelSerializer):
     """
     Job serializer first version. Include basic fields from the initial model.
     """
 
     program = ProgramSummarySerializer(many=False)
 
-    class Meta(serializers.JobSerializer.Meta):
+    class Meta:
+        model = Job
         fields = ["id", "status", "program", "created", "sub_status", "fleet_id", "compute_profile"]

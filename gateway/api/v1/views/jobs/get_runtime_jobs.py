@@ -13,7 +13,7 @@ from rest_framework.decorators import permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from api import serializers as api_serializers
+from api.v1 import serializers as api_serializers
 from api.use_cases.jobs.get_runtime_jobs import GetRuntimeJobsUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
