@@ -46,6 +46,7 @@ def check_storage_logs(job: Job):
         assert logs_storage.get_public_logs() in job.logs
 
     logger.info("Logs checked on storage [%s]", job.id)
+    return True
 
 
 class Command(BaseCommand):
