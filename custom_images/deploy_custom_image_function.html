@@ -218,6 +218,7 @@
 <li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">Custom Images</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle navigation of Custom Images</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
 <li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Deploy a Custom Function Image</a></li>
 <li class="toctree-l2"><a class="reference internal" href="custom_image_examples.html">Example entrypoint and Dockerfile</a></li>
+<li class="toctree-l2"><a class="reference internal" href="run_on_apple_silicon.html">Local development on Apple Silicon (arm64)</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../deployment/index.html">Deployment</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><div class="visually-hidden">Toggle navigation of Deployment</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -398,6 +399,12 @@ the newly built image:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">docker</span><span class="o">-</span><span class="n">compose</span> <span class="n">up</span>
 </pre></div>
 </div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>On Apple Silicon (M-series) Macs, build your custom image on the native arm64 base and start
+the stack with the arm64 override — see <a class="reference internal" href="run_on_apple_silicon.html#run-on-apple-silicon"><span class="std std-ref">Local development on Apple Silicon (arm64)</span></a>. Otherwise jobs may hang
+in <code class="docutils literal notranslate"><span class="pre">QUEUED</span></code>.</p>
 </div>
 <p>If using <strong>Kubernetes in local development</strong>, create the cluster and load the image:</p>
 <div class="literal-block-wrapper docutils container" id="id7">

@@ -77,6 +77,12 @@ Step 2: Install and Configure Docker Runtime
 
 Both deployment methods (Docker Compose and Kind) require a Docker runtime. We recommend **Colima**, especially for macOS with ARM processors, as it provides better performance and avoids architecture-related issues.
 
+.. note::
+
+   On Apple Silicon (M-series) Macs, the published ``amd64`` ``ray-node`` image runs under
+   emulation and can cause locally-submitted jobs to hang in ``QUEUED``. If you hit this, see
+   :ref:`run_on_apple_silicon` for a native arm64 local-development path.
+
 2.1: Install Docker Runtime
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

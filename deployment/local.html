@@ -218,6 +218,7 @@
 <li class="toctree-l1 has-children"><a class="reference internal" href="../custom_images/index.html">Custom Images</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle navigation of Custom Images</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="../custom_images/deploy_custom_image_function.html">Deploy a Custom Function Image</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../custom_images/custom_image_examples.html">Example entrypoint and Dockerfile</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../custom_images/run_on_apple_silicon.html">Local development on Apple Silicon (arm64)</a></li>
 </ul>
 </li>
 <li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">Deployment</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><div class="visually-hidden">Toggle navigation of Deployment</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
@@ -380,6 +381,12 @@ git<span class="w"> </span>clone<span class="w"> </span>git@github.com:Qiskit/qi
 <section id="step-2-install-and-configure-docker-runtime">
 <h2>Step 2: Install and Configure Docker Runtime<a class="headerlink" href="#step-2-install-and-configure-docker-runtime" title="Permalink to this heading">¶</a></h2>
 <p>Both deployment methods (Docker Compose and Kind) require a Docker runtime. We recommend <strong>Colima</strong>, especially for macOS with ARM processors, as it provides better performance and avoids architecture-related issues.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>On Apple Silicon (M-series) Macs, the published <code class="docutils literal notranslate"><span class="pre">amd64</span></code> <code class="docutils literal notranslate"><span class="pre">ray-node</span></code> image runs under
+emulation and can cause locally-submitted jobs to hang in <code class="docutils literal notranslate"><span class="pre">QUEUED</span></code>. If you hit this, see
+<a class="reference internal" href="../custom_images/run_on_apple_silicon.html#run-on-apple-silicon"><span class="std std-ref">Local development on Apple Silicon (arm64)</span></a> for a native arm64 local-development path.</p>
+</div>
 <section id="install-docker-runtime">
 <h3>2.1: Install Docker Runtime<a class="headerlink" href="#install-docker-runtime" title="Permalink to this heading">¶</a></h3>
 <p><strong>Recommended: Colima</strong></p>
