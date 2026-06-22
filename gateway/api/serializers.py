@@ -15,21 +15,18 @@ from django.contrib.auth.models import Group
 from rest_framework import serializers
 from rest_framework import validators as validators_module
 
-from api.utils import build_env_variables, sanitize_name
+from api.utils import build_env_variables
 from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.services.storage import get_arguments_storage
 from core.utils import encrypt_env_vars, create_gpujob_allowlist
 
 from core.models import (
-    CodeEngineProject,
     JobEvent,
-    Provider,
     Program,
     Job,
     JobConfig,
     RuntimeJob,
-    DEFAULT_PROGRAM_ENTRYPOINT,
     RUN_PROGRAM_PERMISSION,
 )
 
@@ -66,27 +63,6 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         upsert logic (find-or-create) before saving."""
         return [v for v in super().get_validators() if not isinstance(v, validators_module.UniqueTogetherValidator)]
 
-    def _normalize_dependency(self, raw_dependency):
-        if isinstance(raw_dependency, str):
-            return raw_dependency
-
-        dependency_name = list(raw_dependency.keys())[0]
-        dependency_version = str(list(raw_dependency.values())[0])
-
-        # if starts with a number then prefix ==
-        try:
-            if int(dependency_version[0]) >= 0:
-                dependency_version = f"=={dependency_version}"
-        except ValueError:
-            logger.debug(
-                "Dependency (%s) version (%s) does not start with a number, "
-                "assuming an operator (==, >=, ~=...) or empty",
-                dependency_name,
-                dependency_version,
-            )
-
-        return dependency_name + dependency_version
-
     def get_provider_name_and_title(self, request_provider, title) -> Tuple[Union[str, None], str]:
         """
         This method returns provider_name and title from a title with / if it contains it
@@ -113,57 +89,6 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         This method returns a Program entry searching by the title and provider, if not None
         """
         return Program.objects.filter(title=title, provider__name=provider_name).first()
-
-    def create(self, validated_data):
-        title = sanitize_name(validated_data.get("title"))
-        author = validated_data.get("author")
-        logger.info("user_id=%s program=%s | Creating function", author.id if author else None, title)
-
-        provider_name = sanitize_name(validated_data.get("provider", None))
-        if provider_name:
-            validated_data["provider"] = Provider.objects.filter(name=provider_name).first()
-
-        env_vars = validated_data.get("env_vars")
-        if env_vars:
-            encrypted_env_vars = encrypt_env_vars(json.loads(env_vars))
-            validated_data["env_vars"] = json.dumps(encrypted_env_vars)
-
-        raw_dependencies = json.loads(validated_data.get("dependencies", "[]"))
-        normalized_dependencies = [self._normalize_dependency(dep) for dep in raw_dependencies]
-        validated_data["dependencies"] = json.dumps(normalized_dependencies)
-
-        program = Program(**validated_data)
-        CodeEngineProject.objects.assign_to_program(program)
-        if program.runner == Program.FLEETS and not program.code_engine_project:
-            raise serializers.ValidationError("No active Code Engine project available. Contact administrator.")
-        program.save()
-        return program
-
-    def update(self, instance, validated_data):
-        logger.info("user_id=%s program=%s | Updating function", instance.author_id, instance.title)
-        instance.entrypoint = validated_data.get("entrypoint", DEFAULT_PROGRAM_ENTRYPOINT)
-        raw_dependencies = json.loads(validated_data.get("dependencies", "[]"))
-        normalized_dependencies = [self._normalize_dependency(dep) for dep in raw_dependencies]
-        instance.dependencies = json.dumps(normalized_dependencies)
-        instance.env_vars = validated_data.get("env_vars", {})
-        instance.artifact = validated_data.get("artifact")
-        instance.author = validated_data.get("author")
-        instance.image = validated_data.get("image")
-
-        description = validated_data.get("description")
-        if description is not None:
-            instance.description = description
-
-        version = validated_data.get("version")
-        if version is not None:
-            instance.version = version
-
-        instance.runner = validated_data.get("runner", Program.RAY)
-
-        CodeEngineProject.objects.assign_to_program(instance)
-
-        instance.save()
-        return instance
 
 
 class JobConfigSerializer(serializers.ModelSerializer):

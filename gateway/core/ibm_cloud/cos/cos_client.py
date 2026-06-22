@@ -375,18 +375,35 @@ class COSClient:
         Returns:
             List of object keys.
         """
-        paginator = self._s3_hmac.get_paginator("list_objects_v2")
-        paginate_kwargs: dict = {"Bucket": bucket}
-        if prefix:
-            paginate_kwargs["Prefix"] = prefix
+        return [obj["key"] for obj in self.list_with_metadata(bucket=bucket, prefix=prefix or "")]
 
-        keys: list[str] = []
-        for page in paginator.paginate(**paginate_kwargs):
+    def list_with_metadata(self, *, bucket: str, prefix: str) -> list[dict]:
+        """List objects under a prefix, returning key, size and last_modified.
+
+        Uses a single paginated list_objects_v2 call — no per-object head_object.
+
+        Args:
+            bucket: Bucket name.
+            prefix: Key prefix to filter results.
+
+        Returns:
+            List of dicts with keys ``key`` (str), ``size`` (int),
+            ``last_modified`` (datetime | None).
+        """
+        paginator = self._s3_hmac.get_paginator("list_objects_v2")
+        result: list[dict] = []
+        for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
             for obj in page.get("Contents") or []:
-                obj_key = obj.get("Key")
-                if isinstance(obj_key, str):
-                    keys.append(obj_key)
-        return keys
+                key = obj.get("Key")
+                if isinstance(key, str):
+                    result.append(
+                        {
+                            "key": key,
+                            "size": obj.get("Size", 0),
+                            "last_modified": obj.get("LastModified"),
+                        }
+                    )
+        return result
 
     def get_object_stream(self, *, bucket: str, key: str) -> Any:
         """
