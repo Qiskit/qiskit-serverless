@@ -329,7 +329,7 @@ environment, you must be registered as a <code class="docutils literal notransla
 </ol>
 <section id="implement-function-entrypoint-and-define-dockerfile">
 <h2>1. Implement function entrypoint and define Dockerfile<a class="headerlink" href="#implement-function-entrypoint-and-define-dockerfile" title="Permalink to this heading">¶</a></h2>
-<p>The source code from this section is available in <code class="docutils literal notranslate"><span class="pre">docs/deployment/custom_function</span></code> containing
+<p>The source code from this section is available in <code class="docutils literal notranslate"><span class="pre">docs/custom_images/custom_function</span></code> containing
 <code class="docutils literal notranslate"><span class="pre">Sample-Dockerfile</span></code> and <code class="docutils literal notranslate"><span class="pre">runner.py</span></code>:</p>
 <div class="literal-block-wrapper docutils container" id="id1">
 <div class="code-block-caption"><span class="caption-text">Custom image folder structure</span><a class="headerlink" href="#id1" title="Permalink to this code">¶</a></div>
@@ -382,13 +382,15 @@ image and adding your implementation:</p>
 </section>
 <section id="upload-the-image">
 <h2>3. Upload the image<a class="headerlink" href="#upload-the-image" title="Permalink to this heading">¶</a></h2>
-<p>For <strong>local development using Docker</strong>, update your <code class="docutils literal notranslate"><span class="pre">docker-compose.yaml</span></code> to use
-the newly built image:</p>
+<p>For <strong>local development using Docker</strong>, point the <code class="docutils literal notranslate"><span class="pre">ray-head</span></code> service in your
+<code class="docutils literal notranslate"><span class="pre">docker-compose.yaml</span></code> at the newly built image. Change <strong>only</strong> the <code class="docutils literal notranslate"><span class="pre">image:</span></code> line and
+keep the rest of the existing <code class="docutils literal notranslate"><span class="pre">ray-head</span></code> definition (<code class="docutils literal notranslate"><span class="pre">user</span></code>, <code class="docutils literal notranslate"><span class="pre">entrypoint</span></code>,
+<code class="docutils literal notranslate"><span class="pre">environment</span></code>, <code class="docutils literal notranslate"><span class="pre">ports</span></code>, <code class="docutils literal notranslate"><span class="pre">volumes</span></code>, <code class="docutils literal notranslate"><span class="pre">networks</span></code>) as-is:</p>
 <div class="literal-block-wrapper docutils container" id="id5">
-<div class="code-block-caption"><span class="caption-text">Modify Docker Compose</span><a class="headerlink" href="#id5" title="Permalink to this code">¶</a></div>
+<div class="code-block-caption"><span class="caption-text">Modify Docker Compose (only the image changes)</span><a class="headerlink" href="#id5" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">services</span><span class="p">:</span>
   <span class="n">ray</span><span class="o">-</span><span class="n">head</span><span class="p">:</span>
-    <span class="n">container_name</span><span class="p">:</span> <span class="n">ray</span><span class="o">-</span><span class="n">head</span>
+    <span class="c1"># keep the existing ray-head keys; only override the image</span>
     <span class="n">image</span><span class="p">:</span> <span class="n">test</span><span class="o">-</span><span class="n">local</span><span class="o">-</span><span class="n">provider</span><span class="o">-</span><span class="n">function</span><span class="p">:</span><span class="n">latest</span>
 </pre></div>
 </div>
@@ -427,7 +429,7 @@ define a <code class="docutils literal notranslate"><span class="pre">QiskitFunc
 
 <span class="n">serverless</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
     <span class="n">token</span><span class="o">=</span><span class="s2">&quot;awesome_token&quot;</span><span class="p">,</span>
-    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;awesome_crn&quot;</span><span class="p">,</span>
+    <span class="n">instance</span><span class="o">=</span><span class="s2">&quot;awesome_crn&quot;</span><span class="p">,</span>
     <span class="n">host</span><span class="o">=</span><span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">,</span> <span class="c1"># Use http://localhost when using Kubernetes</span>
 <span class="p">)</span>
 
@@ -438,7 +440,7 @@ define a <code class="docutils literal notranslate"><span class="pre">QiskitFunc
 <span class="p">)</span>
 
 <span class="n">serverless</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">function</span><span class="p">)</span>
-<span class="n">my_function</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;custom-image-function&quot;</span><span class="p">)</span>
+<span class="n">my_function</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;custom-image-function&quot;</span><span class="p">,</span> <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;mockprovider&quot;</span><span class="p">)</span>
 
 <span class="n">job</span> <span class="o">=</span> <span class="n">my_function</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">test_argument_one</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">test_argument_two</span><span class="o">=</span><span class="s2">&quot;two&quot;</span><span class="p">)</span>
 <span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
