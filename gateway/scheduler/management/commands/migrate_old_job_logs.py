@@ -33,7 +33,7 @@ def save_job_logs_to_storage(job: Job):
 
 def check_storage_logs(job: Job):
     """
-    Check that te logs ar correctly storaged.
+    Check that the logs are correctly stored.
 
     Args:
         job: Job that has reached a terminal state and has `logs != ""`
