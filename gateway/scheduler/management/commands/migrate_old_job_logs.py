@@ -56,7 +56,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--max-jobs",
             type=int,
-            default=0,
+            default=1,
             help="Maximum number of jobs to process. Default 0 (means unlimited)",
         )
 
