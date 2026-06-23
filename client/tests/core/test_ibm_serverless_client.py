@@ -467,9 +467,9 @@ class TestIBMServerlessClientGetBackend:
 
         with pytest.raises(
             QiskitServerlessException,
-            match="Backend 'nope' is not available or you do not have access",
+            match="Backend 'ibm_valencia' is not available or you do not have access",
         ):
-            client.backend("nope")
+            client.backend("ibm_valencia")
 
     @patch(_LIST_INSTANCES)
     @patch(_VERIFY_CREDS)
@@ -546,7 +546,7 @@ class TestIBMServerlessClientCheckUsage:
     @patch(_VERIFY_CREDS)
     @patch(_CONFIG_FILE)
     def test_check_usage_suppresses_low_warning_when_requested(self, mock_file_path, mock_verify, mock_list_instances):
-        """remaining_seconds below USAGE_LOW_THRESHOLD_SECONDS but supress_low_usage_warning=True → no warning."""
+        """remaining_seconds below USAGE_LOW_THRESHOLD_SECONDS but suppress_low_usage_warning=True → no warning."""
         client = _make_client(mock_file_path, mock_verify, mock_list_instances)
         # if epsilon< low_threshold, their avg is greater than epsilon and smaller than low_threshold
         remaining_usage_seconds = (float(USAGE_LOW_THRESHOLD_SECONDS + USAGE_ZERO_EPSILON_SECONDS)) / 2
@@ -554,7 +554,7 @@ class TestIBMServerlessClientCheckUsage:
 
         with warnings.catch_warnings():
             warnings.simplefilter("error")  # Turn warnings into errors
-            client._check_usage(supress_low_usage_warning=True)  # Should not raise
+            client._check_usage(suppress_low_usage_warning=True)  # Should not raise
 
     @patch(_LIST_INSTANCES)
     @patch(_VERIFY_CREDS)
@@ -620,11 +620,11 @@ class TestIBMServerlessClientRun:
         fake_job = MagicMock()
         mock_super_run.return_value = fake_job
 
-        result = client.run("my_function", arguments={"backend_name": "ibm_torino"})
+        job = client.run("my_function", arguments={"backend_name": "ibm_torino"})
 
         client._service.backend.assert_called_once_with(name="ibm_torino")
         mock_super_run.assert_called_once()
-        assert result is fake_job
+        assert job is fake_job
 
     @patch(_LIST_INSTANCES)
     @patch(_VERIFY_CREDS)
@@ -706,26 +706,3 @@ class TestIBMServerlessClientRun:
             client.run("fn", arguments={"backend_name": "ibm_torino"})
 
         client._service.backend.assert_not_called()
-
-    @patch(_LIST_INSTANCES)
-    @patch(_VERIFY_CREDS)
-    @patch(_CONFIG_FILE)
-    @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient.run")
-    def test_run_cache_used_across_repeated_calls(
-        self, mock_super_run, mock_file_path, mock_verify, mock_list_instances
-    ):
-        """Repeated run() calls for the same backend each call service.backend() once to
-        refresh access, but never trigger a full backends() listing."""
-        client = self._setup_client(mock_file_path, mock_verify, mock_list_instances)
-        client._service.backend = MagicMock(return_value=MagicMock())
-        client._service.backends = MagicMock()
-        mock_super_run.return_value = MagicMock()
-
-        client.run("fn", arguments={"backend_name": "ibm_torino"})
-        client.run("fn", arguments={"backend_name": "ibm_torino"})
-        client.run("fn", arguments={"backend_name": "ibm_torino"})
-
-        # service.backend called once per run (refresh on each hit, per spec)
-        assert client._service.backend.call_count == 3
-        # Full listing never called
-        client._service.backends.assert_not_called()

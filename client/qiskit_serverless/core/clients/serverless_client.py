@@ -815,7 +815,7 @@ class IBMServerlessClient(ServerlessClient):
                     client.backends(min_num_qubits=127)
 
                 For the full list of backend attributes, see the `IBMBackend class documentation
-                <https://quantum.cloud.ibm.com/docs/api/qiskit-ibm-runtime>`_
+                <https://quantum.cloud.ibm.com/docs/en/api/qiskit-ibm-runtime/qiskit-runtime-service#backends>`_
 
         Returns:
             List of available backends that match the filter criteria.
@@ -859,7 +859,7 @@ class IBMServerlessClient(ServerlessClient):
             **kwargs: Simple filters that require a specific value for an attribute in
                 backend configuration or status.
                 For the full list of backend attributes, see the `IBMBackend class documentation
-                <https://quantum.cloud.ibm.com/docs/api/qiskit-ibm-runtime>`_
+                <https://quantum.cloud.ibm.com/docs/en/api/qiskit-ibm-runtime/qiskit-runtime-service#backends>`_
 
         Returns:
             Backend matching the specified name.
@@ -923,7 +923,7 @@ class IBMServerlessClient(ServerlessClient):
         self._backends_cache[backend.name] = backend
         return backend
 
-    def _check_usage(self, supress_low_usage_warning: bool = False) -> None:
+    def _check_usage(self, suppress_low_usage_warning: bool = False) -> None:
         """Check instance runtime quota and warn or raise if insufficient.
 
         Retrieves ``usage_remaining_seconds`` from :meth:`usage`. If the key is absent,
@@ -938,7 +938,7 @@ class IBMServerlessClient(ServerlessClient):
           remaining time is below this threshold (unless suppressed).
 
         Args:
-            supress_low_usage_warning: If ``True``, suppress the warning when remaining
+            suppress_low_usage_warning: If ``True``, suppress the warning when remaining
                 quota is below ``USAGE_LOW_THRESHOLD_SECONDS``. The exception for
                 exhausted quota (at or below ``USAGE_ZERO_EPSILON_SECONDS``) is still raised.
 
@@ -974,7 +974,7 @@ class IBMServerlessClient(ServerlessClient):
                 "Check your instance quota at https://quantum.cloud.ibm.com/instances."
             )
 
-        if not supress_low_usage_warning and remaining is not None and remaining <= USAGE_LOW_THRESHOLD_SECONDS:
+        if not suppress_low_usage_warning and remaining is not None and remaining <= USAGE_LOW_THRESHOLD_SECONDS:
             warnings.warn(
                 f"Instance '{self.instance}' has low remaining runtime quota "
                 f"({remaining:.0f}s remaining, threshold: {USAGE_LOW_THRESHOLD_SECONDS:.0f}s). "
@@ -990,7 +990,7 @@ class IBMServerlessClient(ServerlessClient):
         provider: Optional[str] = None,
         *,
         compute_profile: Optional[str] = None,
-        supress_low_usage_warning: bool = False,
+        suppress_low_usage_warning: bool = False,
     ) -> "Job":
         """Run a Qiskit Function with pre-flight validation before submitting to the gateway.
 
@@ -1003,7 +1003,7 @@ class IBMServerlessClient(ServerlessClient):
             config: Optional execution configuration.
             provider: Optional provider name override.
             compute_profile: Optional compute-profile name.
-            supress_low_usage_warning: If ``True``, suppress the warning when remaining runtime
+            suppress_low_usage_warning: If ``True``, suppress the warning when remaining runtime
                 quota is below ``USAGE_LOW_THRESHOLD_SECONDS``. The exception for exhausted quota
                 (at or below ``USAGE_ZERO_EPSILON_SECONDS``) is still raised.
 
@@ -1016,7 +1016,7 @@ class IBMServerlessClient(ServerlessClient):
         """
         backend_name = (arguments or {}).get("backend_name")
 
-        self._check_usage(supress_low_usage_warning)
+        self._check_usage(suppress_low_usage_warning)
 
         if backend_name:
             # Single-backend lookup — fast and confirms access without a full instance listing.

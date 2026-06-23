@@ -7,12 +7,12 @@ features:
     * ``backends(**kwargs)`` — Lists IBM Quantum backends accessible through the configured instance.
       Results are cached per client instance, making repeated calls within a session inexpensive.
       Use ``refresh_cache=True`` to force a refresh. Wraps ``QiskitRuntimeService.backends()``.
-    * ``backend(name, use_fractional_gates=False, calibration_id=None)`` — Fetches a single backend
+    * ``backend(name)`` — Fetches a single backend
       by name and updates the cache. More efficient than listing all backends and validates access.
       Wraps ``QiskitRuntimeService.backend()``.
-    * ``least_busy(min_num_qubits=None, instance=None, filters=None, **kwargs)`` — Returns the
-      backend with the fewest pending jobs that matches the specified criteria. Result is cached.
-      Wraps ``QiskitRuntimeService.least_busy()``.
+    * ``least_busy(min_num_qubits=None, filters=None, **kwargs)`` — Returns the
+      backend with the fewest pending jobs that matches the specified criteria. This update the cache  
+      with the retrieved backend. Wraps ``QiskitRuntimeService.least_busy()``.
     * ``usage()`` — Returns runtime usage information for the active instance, including
       ``usage_remaining_seconds`` and ``usage_limit_reached``. Wraps ``QiskitRuntimeService.usage()``.
     
