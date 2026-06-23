@@ -40,12 +40,15 @@ class InputSerializer(drf_serializers.Serializer):  # pylint: disable=abstract-m
         ref_name = "ProgramsRunInput"
 
     def validate_title(self, value):
+        """Sanitize title."""
         return sanitize_name(value)
 
     def validate_provider(self, value):
+        """Sanitize provider name."""
         return sanitize_name(value) if value else value
 
     def validate_compute_profile(self, value):
+        """Validate compute profile format (e.g. 'cx3d-4x16')."""
         if value and not self._COMPUTE_PROFILE_RE.match(value):
             raise drf_serializers.ValidationError(
                 f"Invalid compute profile format: '{value}'. "

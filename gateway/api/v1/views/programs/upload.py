@@ -56,12 +56,15 @@ class ProgramSerializer(drf_serializers.ModelSerializer):
         return [v for v in super().get_validators() if not isinstance(v, validators_module.UniqueTogetherValidator)]
 
     def validate_title(self, value):
+        """Sanitize title."""
         return sanitize_name(value)
 
     def validate_provider(self, value):
+        """Sanitize provider name."""
         return sanitize_name(value) if value else value
 
     def validate_image(self, value):
+        """Validate image."""
         return value
 
     def _parse_dependency(self, dep: Any):
