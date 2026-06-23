@@ -815,7 +815,7 @@ class IBMServerlessClient(ServerlessClient):
                     client.backends(min_num_qubits=127)
 
                 For the full list of backend attributes, see the `IBMBackend class documentation
-                <https://quantum.cloud.ibm.com/docs/en/api/qiskit-ibm-runtime/qiskit-runtime-service#backends>`_
+                <https://quantum.cloud.ibm.com/docs/api/qiskit-ibm-runtime/qiskit-runtime-service#backends>`_
 
         Returns:
             List of available backends that match the filter criteria.
