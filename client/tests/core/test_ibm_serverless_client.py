@@ -573,7 +573,7 @@ class TestIBMServerlessClientCheckUsage:
     @patch(_VERIFY_CREDS)
     @patch(_CONFIG_FILE)
     def test_check_usage_limit_reached_with_no_remaining_key(self, mock_file_path, mock_verify, mock_list_instances):
-        """usage_limit_reached=True but no remaining key → treated as zero → raises."""
+        """usage_limit_reached=True but there is no `remain_usage` key in the return dict → treated as zero → raises."""
         client = _make_client(mock_file_path, mock_verify, mock_list_instances)
         client._service.usage = MagicMock(return_value={"usage_limit_reached": True})
 
