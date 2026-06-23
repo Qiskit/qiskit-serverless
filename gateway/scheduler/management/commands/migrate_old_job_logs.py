@@ -25,12 +25,17 @@ def save_job_logs_to_storage(job: Job):
     logs_storage = get_logs_storage(job)
     if job.program.provider:
         logs_storage.save_private_logs(logs)
-        assert logs_storage.get_private_logs() in job.logs
+        if not logs_storage.get_private_logs() in job.logs:
+            logger.error("Logs NOT saved to storage for job [%s]", job.id)
+            return False
     else:
         logs_storage.save_public_logs(logs)
-        assert logs_storage.get_public_logs() in job.logs
+        if not logs_storage.get_public_logs() in job.logs:
+            logger.error("Logs NOT saved to storage for job [%s]", job.id)
+            return False
 
     logger.info("Logs saved to storage for job [%s]", job.id)
+    return True
 
 
 class Command(BaseCommand):
@@ -61,10 +66,9 @@ class Command(BaseCommand):
 
             logger.info("Processing [%s] jobs", len(jobs))
             for job in jobs:
-                save_job_logs_to_storage(job)
-
-                job.logs = ""
-                job.save(update_fields=["logs"])
+                if save_job_logs_to_storage(job):
+                    job.logs = ""
+                    job.save(update_fields=["logs"])
 
                 count += 1
                 if max_jobs > 0 and count >= max_jobs:
