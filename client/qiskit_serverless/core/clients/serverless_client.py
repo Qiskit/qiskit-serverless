@@ -986,7 +986,7 @@ class IBMServerlessClient(ServerlessClient):
         self,
         program: Union[QiskitFunction, str],
         arguments: Optional[Dict[str, Any]] = None,
-        config: Optional["Configuration"] = None,
+        config: Optional[Configuration] = None,
         provider: Optional[str] = None,
         *,
         compute_profile: Optional[str] = None,
