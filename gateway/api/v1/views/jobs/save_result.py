@@ -18,13 +18,12 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 
-from api.v1 import serializers as api_serializers
 from api.use_cases.jobs.get_result import GetJobResultUseCase
 from api.use_cases.jobs.save_result import JobSaveResultUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
-from core.models import Job
+from core.models import Job, Program
 
 logger = logging.getLogger("api.api.v1.views.jobs.save_result")
 
@@ -42,12 +41,15 @@ class InputSerializer(serializers.Serializer):
         ref_name = "JobsSaveResultInputSerializer"
 
 
-class ProgramSerializer(api_serializers.ProgramSerializer):
+class ProgramSerializer(serializers.ModelSerializer):
     """
     Program serializer first version. Include basic fields from the initial model.
     """
 
-    class Meta(api_serializers.ProgramSerializer.Meta):
+    provider = serializers.CharField(source="provider.name", read_only=True)
+
+    class Meta:
+        model = Program
         fields = [
             "id",
             "title",
@@ -62,14 +64,15 @@ class ProgramSerializer(api_serializers.ProgramSerializer):
         ref_name = "JobsSaveResultProgramSerializer"
 
 
-class JobSerializer(api_serializers.JobSerializer):
+class OutputSerializer(serializers.ModelSerializer):
     """
     Job serializer first version. Include basic fields from the initial model.
     """
 
     program = ProgramSerializer(many=False)
 
-    class Meta(api_serializers.JobSerializer.Meta):
+    class Meta:
+        model = Job
         fields = ["id", "result", "status", "program", "created", "sub_status"]
         ref_name = "JobsSaveResultJobSerializer"
 
@@ -84,7 +87,7 @@ def serialize_output(job: Job):
     Returns:
         Serialized job as a dictionary.
     """
-    return JobSerializer(job).data
+    return OutputSerializer(job).data
 
 
 @swagger_auto_schema(
@@ -141,7 +144,7 @@ def get_result(request: Request, job_id: UUID) -> Response:
     operation_description="Save the result for a job. Deprecated: functions now write results directly to COS.",
     request_body=InputSerializer,
     responses={
-        status.HTTP_200_OK: JobSerializer(many=False),
+        status.HTTP_200_OK: OutputSerializer(many=False),
         **standard_error_responses(
             not_found_example="Job [XXXX] not found",
         ),

@@ -8,7 +8,7 @@ from django.contrib.auth.models import AbstractUser
 from drf_yasg.utils import swagger_auto_schema
 from packaging.requirements import Requirement, InvalidRequirement
 from packaging.version import Version, InvalidVersion
-from rest_framework import permissions, serializers as drf_serializers, status
+from rest_framework import permissions, serializers, status
 from rest_framework import validators as validators_module
 from rest_framework.decorators import permission_classes
 from rest_framework.request import Request
@@ -26,13 +26,13 @@ from core.models import Program, Provider
 logger = logging.getLogger("api.api.v1.views.programs.upload")
 
 
-class ProgramSerializer(drf_serializers.ModelSerializer):
+class ProgramSerializer(serializers.ModelSerializer):
     """Serializer for uploading (creating or updating) a Qiskit Function."""
 
-    entrypoint = drf_serializers.CharField(required=False)
-    image = drf_serializers.CharField(required=False)
-    provider = drf_serializers.CharField(required=False)
-    runner = drf_serializers.CharField(required=False)
+    entrypoint = serializers.CharField(required=False)
+    image = serializers.CharField(required=False)
+    provider = serializers.CharField(required=False)
+    runner = serializers.CharField(required=False)
 
     class Meta:
         model = Program

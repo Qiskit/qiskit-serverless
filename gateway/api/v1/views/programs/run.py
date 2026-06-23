@@ -8,7 +8,7 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from drf_yasg.utils import swagger_auto_schema
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-from rest_framework import permissions, serializers as drf_serializers, status
+from rest_framework import permissions, serializers, status
 from rest_framework.decorators import permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -25,14 +25,14 @@ from core.models import Job, JobConfig
 logger = logging.getLogger("api.api.v1.views.programs.run")
 
 
-class InputSerializer(drf_serializers.Serializer):  # pylint: disable=abstract-method
+class InputSerializer(serializers.Serializer):  # pylint: disable=abstract-method
     """Request body for the /programs/run endpoint."""
 
-    title = drf_serializers.CharField(max_length=255)
-    arguments = drf_serializers.CharField()
-    config = drf_serializers.JSONField()
-    provider = drf_serializers.CharField(required=False, allow_null=True)
-    compute_profile = drf_serializers.CharField(required=False, allow_null=True)
+    title = serializers.CharField(max_length=255)
+    arguments = serializers.CharField()
+    config = serializers.JSONField()
+    provider = serializers.CharField(required=False, allow_null=True)
+    compute_profile = serializers.CharField(required=False, allow_null=True)
 
     _COMPUTE_PROFILE_RE = re.compile(r"^[a-z]+\d+[a-z]?-\d+x\d+(?:x\d+[a-z0-9]+)?$")
 
@@ -50,7 +50,7 @@ class InputSerializer(drf_serializers.Serializer):  # pylint: disable=abstract-m
     def validate_compute_profile(self, value):
         """Validate compute profile format (e.g. 'cx3d-4x16')."""
         if value and not self._COMPUTE_PROFILE_RE.match(value):
-            raise drf_serializers.ValidationError(
+            raise serializers.ValidationError(
                 f"Invalid compute profile format: '{value}'. "
                 f"Expected format: [type]-[cpu]x[memory] or [type]-[cpu]x[memory]x[gpu_count][gpu_type] "
                 f"(lowercase only, e.g., 'cx3d-4x16' or 'gx3d-24x120x1a100p')"
@@ -58,25 +58,25 @@ class InputSerializer(drf_serializers.Serializer):  # pylint: disable=abstract-m
         return value
 
 
-class JobConfigSerializer(drf_serializers.ModelSerializer):
+class JobConfigSerializer(serializers.ModelSerializer):
     """Config sub-serializer for Ray cluster settings."""
 
-    workers = drf_serializers.IntegerField(
+    workers = serializers.IntegerField(
         max_value=settings.RAY_CLUSTER_WORKER_REPLICAS_MAX,
         required=False,
         allow_null=True,
     )
-    min_workers = drf_serializers.IntegerField(
+    min_workers = serializers.IntegerField(
         max_value=settings.RAY_CLUSTER_WORKER_MIN_REPLICAS_MAX,
         required=False,
         allow_null=True,
     )
-    max_workers = drf_serializers.IntegerField(
+    max_workers = serializers.IntegerField(
         max_value=settings.RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX,
         required=False,
         allow_null=True,
     )
-    auto_scaling = drf_serializers.BooleanField(default=False, required=False, allow_null=True)
+    auto_scaling = serializers.BooleanField(default=False, required=False, allow_null=True)
 
     class Meta:
         model = JobConfig
@@ -84,10 +84,10 @@ class JobConfigSerializer(drf_serializers.ModelSerializer):
         ref_name = "ProgramsRunJobConfig"
 
 
-class OutputSerializer(drf_serializers.ModelSerializer):
+class OutputSerializer(serializers.ModelSerializer):
     """Response serializer for a queued job."""
 
-    compute_profile = drf_serializers.CharField(required=False, allow_null=True, allow_blank=True, default=None)
+    compute_profile = serializers.CharField(required=False, allow_null=True, allow_blank=True, default=None)
 
     class Meta:
         model = Job
