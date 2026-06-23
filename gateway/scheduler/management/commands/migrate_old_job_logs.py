@@ -25,28 +25,12 @@ def save_job_logs_to_storage(job: Job):
     logs_storage = get_logs_storage(job)
     if job.program.provider:
         logs_storage.save_private_logs(logs)
-    else:
-        logs_storage.save_public_logs(logs)
-
-    logger.info("Logs saved to storage for job [%s]", job.id)
-
-
-def check_storage_logs(job: Job):
-    """
-    Check that the logs are correctly stored.
-
-    Args:
-        job: Job that has reached a terminal state and has `logs != ""`
-    """
-
-    logs_storage = get_logs_storage(job)
-    if job.program.provider:
         assert logs_storage.get_private_logs() in job.logs
     else:
+        logs_storage.save_public_logs(logs)
         assert logs_storage.get_public_logs() in job.logs
 
-    logger.info("Logs checked on storage [%s]", job.id)
-    return True
+    logger.info("Logs saved to storage for job [%s]", job.id)
 
 
 class Command(BaseCommand):
@@ -79,9 +63,8 @@ class Command(BaseCommand):
             for job in jobs:
                 save_job_logs_to_storage(job)
 
-                if check_storage_logs(job):
-                    job.logs = ""
-                    job.save(update_fields=["logs"])
+                job.logs = ""
+                job.save(update_fields=["logs"])
 
                 count += 1
                 if max_jobs > 0 and count >= max_jobs:
