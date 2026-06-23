@@ -38,24 +38,33 @@ from typing import cast
 
 from django.contrib.auth.models import AbstractUser
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import permissions, status
+from rest_framework import permissions, serializers, status
 from rest_framework.decorators import permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
 from api.use_cases.<resource>.<action> import <XxxUseCase>
-from api.v1 import serializers as v1_serializers
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
 from core.domain.authorization.function_access_result import FunctionAccessResult
+from core.models import <Resource>
 
 logger = logging.getLogger("api.api.v1.views.<resource>.<action>")
+
+
+class OutputSerializer(serializers.ModelSerializer):
+    """Response body for the /<resource>/<action> endpoint."""
+
+    class Meta:
+        model = <Resource>
+        fields = [...]
+        ref_name = "<Resource><Action>Output"
 
 
 @swagger_auto_schema(
     method="get",
     operation_description="<Description>",
-    responses={status.HTTP_200_OK: v1_serializers.XxxSerializer(many=True)},
+    responses={status.HTTP_200_OK: OutputSerializer(many=True)},
 )
 @endpoint("<resource>", method="GET", name="<resource>-<action>")
 @permission_classes([permissions.IsAuthenticated])
@@ -72,8 +81,107 @@ def <action>_<resource>(request: Request) -> Response:
 
     result = <XxxUseCase>().execute(user, accessible_functions, ...)
     logger.info("[<resource>-<action>] user_id=%s | <Resource> <action> ok", user.id)
-    return Response(v1_serializers.XxxSerializer(result, many=True).data)
+    return Response(OutputSerializer(result, many=True).data)
 ```
+
+---
+
+## Serializers
+
+### Rules
+
+1. **Each view owns its serializers.** There is no central `api/v1/serializers.py`. Every serializer is defined in the view file that uses it — no cross-file imports of serializers.
+
+2. **Import `serializers` without alias** — `from rest_framework import serializers`. There is no `api.v1.serializers` module to conflict with, so no alias is needed.
+
+3. **Naming convention:**
+   - `InputSerializer` — validates and sanitizes the request body or query params.
+   - `OutputSerializer` — serializes the response object when there is a single output shape.
+   - When output branches across multiple shapes (e.g. with/without `result`), use descriptive names (`JobSerializer`, `JobSerializerWithoutResult`) and a `serialize_output` function that picks the right one.
+
+4. **Use `ref_name` in `Meta`** for every serializer so Swagger can disambiguate across views:
+   ```python
+   class Meta:
+       model = Job
+       fields = [...]
+       ref_name = "JobsRetrieveOutput"
+   ```
+
+5. **`serialize_output` function** — when the response can't be expressed as a single `return Response(OutputSerializer(obj).data)`, define a standalone function:
+   ```python
+   def serialize_output(job: Job, with_result: bool):
+       if with_result:
+           return JobSerializer(job).data
+       return JobSerializerWithoutResult(job).data
+   ```
+   The view then calls `return Response(serialize_output(job, with_result))`.
+
+6. **Nested serializers stay in the same file.** A nested `ProgramSerializer` used only inside `OutputSerializer` is defined above it in the same file.
+
+### Patterns
+
+**Simple read (single output shape):**
+```python
+class OutputSerializer(serializers.ModelSerializer):
+    provider = serializers.CharField(source="provider.name", read_only=True)
+
+    class Meta:
+        model = Program
+        fields = ["id", "title", "provider", ...]
+        ref_name = "ProgramsListOutput"
+
+# In the view function:
+return Response(OutputSerializer(result, many=True).data)
+```
+
+**Write with input validation:**
+```python
+class InputSerializer(serializers.Serializer):  # pylint: disable=abstract-method
+    title = serializers.CharField(max_length=255)
+    provider = serializers.CharField(required=False, allow_null=True)
+
+    class Meta:
+        ref_name = "ProgramsRunInput"
+
+    def validate_title(self, value):
+        """Sanitize title."""
+        return sanitize_name(value)
+
+# In the view function:
+serializer = InputSerializer(data=request.data)
+serializer.is_valid(raise_exception=True)
+```
+
+**Multiple output shapes:**
+```python
+class JobSerializer(serializers.ModelSerializer):
+    program = ProgramSerializer(many=False)
+
+    class Meta:
+        model = Job
+        fields = ["id", "result", "status", "program", ...]
+        ref_name = "JobsRetrieveOutput"
+
+
+class JobSerializerWithoutResult(serializers.ModelSerializer):
+    program = ProgramSummary(read_only=True)
+
+    class Meta:
+        model = Job
+        fields = ["id", "status", "program", ...]
+
+
+def serialize_output(job: Job, with_result: bool):
+    """Pick the right serializer based on the with_result flag."""
+    if with_result:
+        return JobSerializer(job).data
+    return JobSerializerWithoutResult(job).data
+
+# In the view function:
+return Response(serialize_output(job, with_result))
+```
+
+---
 
 ### Decorator order
 
