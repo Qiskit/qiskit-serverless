@@ -1,12 +1,14 @@
 """API endpoint for running a Qiskit Function."""
 
 import logging
+import re
 from typing import cast
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from drf_yasg.utils import swagger_auto_schema
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-from rest_framework import permissions, status
+from rest_framework import permissions, serializers as drf_serializers, status
 from rest_framework.decorators import permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -14,19 +16,87 @@ from rest_framework.response import Response
 from api.domain.authentication.channel import Channel
 from api.use_cases.programs.run import RunFunctionUseCase
 from api.use_cases.programs.run_input import RunFunctionInput
-from api.v1 import serializers as v1_serializers
+from api.utils import sanitize_name
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
 from core.domain.authorization.function_access_result import FunctionAccessResult
+from core.models import Job, JobConfig
 
 logger = logging.getLogger("api.api.v1.views.programs.run")
+
+
+class InputSerializer(drf_serializers.Serializer):  # pylint: disable=abstract-method
+    """Request body for the /programs/run endpoint."""
+
+    title = drf_serializers.CharField(max_length=255)
+    arguments = drf_serializers.CharField()
+    config = drf_serializers.JSONField()
+    provider = drf_serializers.CharField(required=False, allow_null=True)
+    compute_profile = drf_serializers.CharField(required=False, allow_null=True)
+
+    _COMPUTE_PROFILE_RE = re.compile(r"^[a-z]+\d+[a-z]?-\d+x\d+(?:x\d+[a-z0-9]+)?$")
+
+    class Meta:
+        ref_name = "ProgramsRunInput"
+
+    def validate_title(self, value):
+        return sanitize_name(value)
+
+    def validate_provider(self, value):
+        return sanitize_name(value) if value else value
+
+    def validate_compute_profile(self, value):
+        if value and not self._COMPUTE_PROFILE_RE.match(value):
+            raise drf_serializers.ValidationError(
+                f"Invalid compute profile format: '{value}'. "
+                f"Expected format: [type]-[cpu]x[memory] or [type]-[cpu]x[memory]x[gpu_count][gpu_type] "
+                f"(lowercase only, e.g., 'cx3d-4x16' or 'gx3d-24x120x1a100p')"
+            )
+        return value
+
+
+class JobConfigSerializer(drf_serializers.ModelSerializer):
+    """Config sub-serializer for Ray cluster settings."""
+
+    workers = drf_serializers.IntegerField(
+        max_value=settings.RAY_CLUSTER_WORKER_REPLICAS_MAX,
+        required=False,
+        allow_null=True,
+    )
+    min_workers = drf_serializers.IntegerField(
+        max_value=settings.RAY_CLUSTER_WORKER_MIN_REPLICAS_MAX,
+        required=False,
+        allow_null=True,
+    )
+    max_workers = drf_serializers.IntegerField(
+        max_value=settings.RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX,
+        required=False,
+        allow_null=True,
+    )
+    auto_scaling = drf_serializers.BooleanField(default=False, required=False, allow_null=True)
+
+    class Meta:
+        model = JobConfig
+        fields = ["workers", "min_workers", "max_workers", "auto_scaling"]
+        ref_name = "ProgramsRunJobConfig"
+
+
+class OutputSerializer(drf_serializers.ModelSerializer):
+    """Response serializer for a queued job."""
+
+    compute_profile = drf_serializers.CharField(required=False, allow_null=True, allow_blank=True, default=None)
+
+    class Meta:
+        model = Job
+        fields = ["id", "result", "status", "program", "created", "arguments", "compute_profile"]
+        ref_name = "ProgramsRunOutput"
 
 
 @swagger_auto_schema(
     method="post",
     operation_description="Run an existing Qiskit Function",
-    request_body=v1_serializers.RunProgramSerializer,
-    responses={status.HTTP_200_OK: v1_serializers.RunJobSerializer},
+    request_body=InputSerializer,
+    responses={status.HTTP_200_OK: OutputSerializer},
 )
 @endpoint("programs/run", method="POST", name="programs-run")
 @permission_classes([permissions.IsAuthenticated])
@@ -36,7 +106,7 @@ def run_program(request: Request) -> Response:
     user = cast(AbstractUser, request.user)
     accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
 
-    serializer = v1_serializers.RunProgramSerializer(data=request.data)
+    serializer = InputSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
     title = serializer.validated_data.get("title")
@@ -46,7 +116,7 @@ def run_program(request: Request) -> Response:
 
     config_data = None
     if serializer.validated_data.get("config"):
-        config_serializer = v1_serializers.JobConfigSerializer(data=serializer.validated_data["config"])
+        config_serializer = JobConfigSerializer(data=serializer.validated_data["config"])
         config_serializer.is_valid(raise_exception=True)
         config_data = dict(config_serializer.validated_data)
 
@@ -88,4 +158,4 @@ def run_program(request: Request) -> Response:
         ),
     )
     logger.info("[programs-run] user_id=%s job_id=%s | Job queued ok", user.id, job.id)
-    return Response(v1_serializers.RunJobSerializer(job).data)
+    return Response(OutputSerializer(job).data)

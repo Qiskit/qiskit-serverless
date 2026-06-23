@@ -13,13 +13,9 @@ from django.core.management import call_command
 from api.domain.authentication.channel import Channel
 from api.use_cases.programs.run import RunFunctionUseCase
 from api.use_cases.programs.run_input import RunFunctionInput
-from api.v1.serializers import (
-    JobConfigSerializer,
-    JobSerializer,
-    JobSerializerWithoutResult,
-    UploadProgramSerializer,
-    RunProgramSerializer,
-)
+from api.v1.serializers import JobSerializer, JobSerializerWithoutResult
+from api.v1.views.programs.run import InputSerializer as RunProgramSerializer, JobConfigSerializer
+from api.v1.views.programs.upload import ProgramSerializer as UploadProgramSerializer
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.business_models import BusinessModel
 from core.models import Job, JobConfig, Program
