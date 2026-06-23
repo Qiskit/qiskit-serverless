@@ -859,7 +859,7 @@ class IBMServerlessClient(ServerlessClient):
             **kwargs: Simple filters that require a specific value for an attribute in
                 backend configuration or status.
                 For the full list of backend attributes, see the `IBMBackend class documentation
-                <https://quantum.cloud.ibm.com/docs/en/api/qiskit-ibm-runtime/qiskit-runtime-service#backends>`_
+                <https://quantum.cloud.ibm.com/docs/api/qiskit-ibm-runtime/qiskit-runtime-service#backend>`_
 
         Returns:
             Backend matching the specified name.
