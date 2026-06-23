@@ -194,11 +194,14 @@ The use case receives a fully-typed, clean dataclass — no raw dicts, no HTTP c
 | Exception | HTTP |
 |-----------|------|
 | `FunctionNotFoundException`, `JobNotFoundException`, other `NotFoundError` subclasses | 404 |
+| `FunctionDisabledException` | 423 |
 | `InvalidAccessException` | 403 |
 | `ValidationError` (DRF) | 400 |
 | `ActiveJobLimitExceeded` | 429 |
 | `RuntimeFunctionsException` | 401 |
 | Any other `Exception` | 500 |
+
+`FunctionDisabledException` does **not** inherit from `NotFoundError` — it is a standalone `Exception` subclass. Do not change its base class or it will silently fall through to 500.
 
 The view never catches exceptions. It lets them reach `@endpoint_handle_exceptions`.
 
@@ -234,6 +237,16 @@ def _parse_title_and_provider(title: str, provider: str | None) -> tuple[str, st
         return sanitize_name(title), None
     return sanitize_name(parts[1]), sanitize_name(parts[0])
 ```
+
+### View vs use case: where does validation belong?
+
+| Validation type | Where |
+|---|---|
+| Format/parsing (sanitize, regex, type coercion) | View (serializer validators or `_parse_*` helper) |
+| Sub-object shape (e.g. `JobConfigSerializer`) | View (serializer) |
+| Business rules (quota limits, existence checks, permissions) | Use case |
+
+Concretely: `sanitize_name` on `title` and `provider` must be applied symmetrically in **every** serializer that accepts those fields (`UploadProgramSerializer`, `RunProgramSerializer`, etc.) — an asymmetry causes functions to become unreachable via one endpoint even though they exist. Quota checks (`active_jobs_limit_reached`) go in the use case, after the function is resolved, so that non-existent or unauthorized functions return 404/403 rather than leaking quota state.
 
 ---
 
