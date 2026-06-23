@@ -359,6 +359,20 @@ class TestSerializers:
         serializer = UploadProgramSerializer(data=data)
         assert not serializer.is_valid(), serializer.errors
 
+    def test_upload_program_serializer_sanitizes_title(self):
+        data = {"title": "my fn!", "entrypoint": "main.py"}
+
+        serializer = UploadProgramSerializer(data=data)
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data["title"] == "myfn"
+
+    def test_upload_program_serializer_sanitizes_provider(self):
+        data = {"title": "my-fn", "entrypoint": "main.py", "provider": "my provider!"}
+
+        serializer = UploadProgramSerializer(data=data)
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data["provider"] == "myprovider"
+
     def test_job_serializer_includes_fleet_id(self):
         """JobSerializer output includes fleet_id when set on the job."""
         user = models.User.objects.get(username="test_user")

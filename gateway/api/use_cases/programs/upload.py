@@ -106,7 +106,10 @@ class UploadFunctionUseCase:
         instance.entrypoint = data.entrypoint or DEFAULT_PROGRAM_ENTRYPOINT
         raw_deps = json.loads(data.dependencies)
         instance.dependencies = json.dumps([_normalize_dependency(d) for d in raw_deps])
-        instance.env_vars = data.env_vars or {}
+        env_vars = data.env_vars
+        if env_vars:
+            env_vars = json.dumps(encrypt_env_vars(json.loads(env_vars)))
+        instance.env_vars = env_vars or {}
         instance.artifact = data.artifact
         instance.author = user
         instance.image = data.image

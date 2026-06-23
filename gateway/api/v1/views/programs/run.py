@@ -12,10 +12,8 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from api.domain.authentication.channel import Channel
-from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
 from api.use_cases.programs.run import RunFunctionUseCase
 from api.use_cases.programs.run_input import RunFunctionInput
-from api.utils import active_jobs_limit_reached
 from api.v1 import serializers as v1_serializers
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
@@ -46,18 +44,11 @@ def run_program(request: Request) -> Response:
     arguments = serializer.validated_data.get("arguments")
     compute_profile = serializer.validated_data.get("compute_profile")
 
-    if active_jobs_limit_reached(user):
-        raise ActiveJobLimitExceeded()
-
     config_data = None
     if serializer.validated_data.get("config"):
         config_serializer = v1_serializers.JobConfigSerializer(data=serializer.validated_data["config"])
         config_serializer.is_valid(raise_exception=True)
         config_data = dict(config_serializer.validated_data)
-
-    business_model = None
-    if provider_name and not accessible_functions.use_legacy_authorization:
-        business_model = accessible_functions.get_function(provider_name, title).business_model
 
     channel = Channel.IBM_QUANTUM_PLATFORM
     token = ""
@@ -93,7 +84,6 @@ def run_program(request: Request) -> Response:
             token=token,
             instance=instance,
             account_id=account_id,
-            business_model=business_model,
             carrier=carrier,
         ),
     )

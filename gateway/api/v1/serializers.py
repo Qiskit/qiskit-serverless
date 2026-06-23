@@ -88,6 +88,14 @@ class UploadProgramSerializer(drf_serializers.ModelSerializer):
         upsert logic (find-or-create) before saving."""
         return [v for v in super().get_validators() if not isinstance(v, validators_module.UniqueTogetherValidator)]
 
+    def validate_title(self, value):
+        """Sanitize title to remove characters invalid for function names."""
+        return sanitize_name(value)
+
+    def validate_provider(self, value):
+        """Sanitize provider name."""
+        return sanitize_name(value) if value else value
+
     def validate_image(self, value):
         """Validates image."""
         return value

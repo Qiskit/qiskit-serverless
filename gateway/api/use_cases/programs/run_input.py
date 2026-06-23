@@ -16,5 +16,4 @@ class RunFunctionInput:  # pylint: disable=too-many-instance-attributes
     token: str
     instance: str | None
     account_id: str | None
-    business_model: object | None = None
     carrier: dict = field(default_factory=dict)

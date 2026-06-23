@@ -85,3 +85,18 @@ class TestUploadFunctionUseCase:
                 accessible,
                 UploadFunctionInput(title="my-fn", provider="nonexistent-provider", entrypoint="main.py"),
             )
+
+    def test_update_encrypts_env_vars(self, user):
+        import json
+
+        Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        result = UploadFunctionUseCase().execute(
+            user,
+            accessible,
+            UploadFunctionInput(title="my-fn", entrypoint="main.py", env_vars='{"my_token": "plaintext-secret"}'),
+        )
+
+        stored = json.loads(result.env_vars) if isinstance(result.env_vars, str) else result.env_vars
+        assert stored["my_token"] != "plaintext-secret"

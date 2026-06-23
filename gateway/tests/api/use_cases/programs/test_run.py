@@ -2,13 +2,15 @@
 
 import pytest
 from django.contrib.auth.models import User
+from django.test import override_settings
+from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
 from api.domain.exceptions.function_disabled_exception import FunctionDisabledException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.domain.authentication.channel import Channel
 from api.use_cases.programs.run import RunFunctionUseCase
 from api.use_cases.programs.run_input import RunFunctionInput
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import Program
+from core.models import Job, Program
 
 pytestmark = pytest.mark.django_db
 
@@ -69,3 +71,22 @@ class TestRunFunctionUseCase:
 
         with pytest.raises(FunctionNotFoundException):
             RunFunctionUseCase().execute(user, accessible, make_input())
+
+    @override_settings(LIMITS_ACTIVE_JOBS_PER_USER=1)
+    def test_raises_active_job_limit_after_function_resolved(self, user):
+        function = Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
+        Job.objects.create(program=function, author=user, status=Job.QUEUED)
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        with pytest.raises(ActiveJobLimitExceeded):
+            RunFunctionUseCase().execute(user, accessible, make_input())
+
+    @override_settings(LIMITS_ACTIVE_JOBS_PER_USER=1)
+    def test_raises_not_found_not_limit_when_function_missing(self, user):
+        other = User.objects.create_user(username="other")
+        other_fn = Program.objects.create(title="other-fn", author=other, entrypoint="main.py")
+        Job.objects.create(program=other_fn, author=user, status=Job.QUEUED)
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        with pytest.raises(FunctionNotFoundException):
+            RunFunctionUseCase().execute(user, accessible, make_input(title="nonexistent-fn"))

@@ -8,10 +8,11 @@ from django.contrib.auth.models import AbstractUser, Group
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from api.access_policies.jobs import JobAccessPolicies
+from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
 from api.domain.exceptions.function_disabled_exception import FunctionDisabledException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.use_cases.programs.run_input import RunFunctionInput
-from api.utils import build_env_variables
+from api.utils import active_jobs_limit_reached, build_env_variables
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
@@ -30,9 +31,10 @@ logger = logging.getLogger("api.api.use_cases.programs.run")
 
 
 def _is_trial(function: Function, user) -> bool:
-    trial_groups = function.trial_instances.all()
+    # Single EXISTS query instead of N+1: iterating two unevaluated QuerySets
+    # triggers one query per group membership check.
     user_run_groups = Group.objects.filter(user=user, permissions__codename=RUN_PROGRAM_PERMISSION)
-    return any(group in trial_groups for group in user_run_groups)
+    return function.trial_instances.filter(pk__in=user_run_groups).exists()
 
 
 def _runner_config(function: Function, compute_profile_requested: str | None) -> tuple[str | None, bool]:
@@ -70,6 +72,7 @@ class RunFunctionUseCase:
         else:
             if JobAccessPolicies.can_create(user=user, accessible_functions=accessible_functions):
                 function = Function.objects.get_user_function(user, data.title)
+
         if function is None:
             raise FunctionNotFoundException(function=data.title, provider=data.provider_name)
 
@@ -77,22 +80,26 @@ class RunFunctionUseCase:
             message = function.disabled_message if function.disabled_message else Function.DEFAULT_DISABLED_MESSAGE
             raise FunctionDisabledException(message=message)
 
-        jobconfig = JobConfig.objects.create(**data.config_data) if data.config_data else None
-
-        compute_profile, gpu = _runner_config(function, data.compute_profile)
+        if active_jobs_limit_reached(user):
+            raise ActiveJobLimitExceeded()
 
         if function.runner == Function.FLEETS and not function.code_engine_project:
             raise DRFValidationError("Program has no Code Engine project assigned. Contact administrator.")
 
-        business_model = data.business_model
+        logger.info("user_id=%s program=%s | Creating job", user.id, function.title)
+
+        business_model = None
+        if data.provider_name and not accessible_functions.use_legacy_authorization:
+            business_model = accessible_functions.get_function(data.provider_name, data.title).business_model
+
         if business_model is None:
             trial = _is_trial(function, user)
             business_model = BusinessModel.TRIAL if trial else BusinessModel.SUBSIDIZED
         else:
             trial = business_model == BusinessModel.TRIAL
 
-        logger.info("user_id=%s program=%s | Creating job", user.id, function.title)
-
+        compute_profile, gpu = _runner_config(function, data.compute_profile)
+        jobconfig = JobConfig.objects.create(**data.config_data) if data.config_data else None
         job = Job(
             trial=trial,
             business_model=business_model,
