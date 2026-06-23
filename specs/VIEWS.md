@@ -201,8 +201,6 @@ The use case receives a fully-typed, clean dataclass — no raw dicts, no HTTP c
 | `RuntimeFunctionsException` | 401 |
 | Any other `Exception` | 500 |
 
-`FunctionDisabledException` does **not** inherit from `NotFoundError` — it is a standalone `Exception` subclass. Do not change its base class or it will silently fall through to 500.
-
 The view never catches exceptions. It lets them reach `@endpoint_handle_exceptions`.
 
 ---
