@@ -58,48 +58,49 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secrets.servicePsql.name }}
                   key: {{ .Values.secrets.servicePsql.key.userName }}
-        - name: setup-ce-project
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["python", "manage.py", "sync_ce_project"]
-          volumeMounts:
-            - mountPath: "/usr/src/app/media/"
-              name: gateway-pv-storage
-          env:
-            {{- if .Values.ce }}
-            - name: CE_PROJECTS
-              value: {{ .Values.ce.projects | toJson | quote }}
-            {{- end }}
-            - name: DJANGO_SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.secretKey.name }}
-                  key: {{ .Values.secrets.secretKey.key }}
-            - name: DATABASE_HOST
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.servicePsql.name }}
-                  key: {{ .Values.secrets.servicePsql.key.host }}
-            - name: DATABASE_PORT
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.servicePsql.name }}
-                  key: {{ .Values.secrets.servicePsql.key.port }}
-            - name: DATABASE_NAME
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.servicePsql.name }}
-                  key: {{ .Values.secrets.servicePsql.key.databaseName }}
-            - name: DATABASE_USER
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.servicePsql.name }}
-                  key: {{ .Values.secrets.servicePsql.key.userName }}
-            - name: DATABASE_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.servicePsql.name }}
-                  key: {{ .Values.secrets.servicePsql.key.databasePassword }}
+        # Current implementation is not working
+        # - name: setup-ce-project
+        #   image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        #   imagePullPolicy: {{ .Values.image.pullPolicy }}
+        #   command: ["python", "manage.py", "sync_ce_project"]
+        #   volumeMounts:
+        #     - mountPath: "/usr/src/app/media/"
+        #       name: gateway-pv-storage
+        #   env:
+        #     {{- if .Values.ce }}
+        #     - name: CE_PROJECTS
+        #       value: {{ .Values.ce.projects | toJson | quote }}
+        #     {{- end }}
+        #     - name: DJANGO_SECRET_KEY
+        #       valueFrom:
+        #         secretKeyRef:
+        #           name: {{ .Values.secrets.secretKey.name }}
+        #           key: {{ .Values.secrets.secretKey.key }}
+        #     - name: DATABASE_HOST
+        #       valueFrom:
+        #         secretKeyRef:
+        #           name: {{ .Values.secrets.servicePsql.name }}
+        #           key: {{ .Values.secrets.servicePsql.key.host }}
+        #     - name: DATABASE_PORT
+        #       valueFrom:
+        #         secretKeyRef:
+        #           name: {{ .Values.secrets.servicePsql.name }}
+        #           key: {{ .Values.secrets.servicePsql.key.port }}
+        #     - name: DATABASE_NAME
+        #       valueFrom:
+        #         secretKeyRef:
+        #           name: {{ .Values.secrets.servicePsql.name }}
+        #           key: {{ .Values.secrets.servicePsql.key.databaseName }}
+        #     - name: DATABASE_USER
+        #       valueFrom:
+        #         secretKeyRef:
+        #           name: {{ .Values.secrets.servicePsql.name }}
+        #           key: {{ .Values.secrets.servicePsql.key.userName }}
+        #     - name: DATABASE_PASSWORD
+        #       valueFrom:
+        #         secretKeyRef:
+        #           name: {{ .Values.secrets.servicePsql.name }}
+        #           key: {{ .Values.secrets.servicePsql.key.databasePassword }}
       volumes:
         - name: gateway-pv-storage
           persistentVolumeClaim:
@@ -506,6 +507,25 @@ spec:
               value: {{ .Values.ce.defaultComputeProfile | quote }}
             - name: FLEETS_DEFAULT_MAX_INSTANCES
               value: {{ .Values.ce.fleetsDefaultMaxInstances | quote }}
+            {{- end }}
+            - name: EVENT_STREAMS_ENABLED
+              value: {{ .Values.application.eventStreams.enabled | default false | quote }}
+            {{- if .Values.secrets.kafka }}
+            - name: EVENT_STREAMS_BOOTSTRAP_SERVERS
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-credentials
+                  key: bootstrap_servers
+            - name: EVENT_STREAMS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-credentials
+                  key: api_key
+            - name: EVENT_STREAMS_USER
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-credentials
+                  key: user
             {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

@@ -1,0 +1,6 @@
+{% load i18n %}
+{% if job_instance.program and job_instance.program.provider %}
+<p class="job-subtitle">{{ job_instance.program.provider.name }}/{{ job_instance.program.title }} ({{ job_instance.get_runner_display }}) {{ job_instance.id }} by {{ job_instance.author.username }}</p>
+{% else %}
+<p class="job-subtitle">{% translate "Custom job" %} ({{ job_instance.get_runner_display }}) {{ job_instance.id }} by {{ job_instance.author.username }}</p>
+{% endif %}

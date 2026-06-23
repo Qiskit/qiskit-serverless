@@ -1,0 +1,45 @@
+.job-nav {
+    display: flex;
+    gap: 6px;
+    margin: 8px 0 20px 0;
+}
+
+.job-nav a:link,
+.job-nav a:visited,
+.job-nav a.active {
+    display: inline-block;
+    padding: 6px 18px;
+    text-decoration: none;
+    font-size: 0.75rem;
+    font-weight: 400;
+    letter-spacing: 0.32px;
+    border: 1px solid var(--object-tools-fg, #0f62fe);
+    border-radius: 4px;
+    background: var(--object-tools-bg, transparent);
+    color: var(--object-tools-fg, #0f62fe);
+}
+
+.job-nav a:hover {
+    background: var(--object-tools-hover-bg, #0f62fe);
+    color: var(--primary-fg, #fff);
+    text-decoration: none;
+}
+
+.job-nav a.active {
+    background: var(--object-tools-hover-bg, #0f62fe);
+    color: var(--primary-fg, #fff);
+    cursor: default;
+    pointer-events: none;
+}
+
+.field-instance_crn input {
+    width: 100%;
+    max-width: 600px;
+}
+
+.job-subtitle {
+    margin: 0 0 16px 0;
+    font-size: 0.8rem;
+    color: var(--secondary, #525252);
+    font-family: monospace;
+}

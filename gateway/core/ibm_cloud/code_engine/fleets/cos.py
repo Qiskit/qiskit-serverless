@@ -151,6 +151,28 @@ class JobCOS:
         """
         return self._cos.list_keys(bucket=bucket_name, prefix=prefix)
 
+    def list_with_metadata(
+        self,
+        *,
+        bucket_name: str,
+        prefix: str,
+    ) -> list[dict]:
+        """List objects under a prefix with size and last_modified metadata.
+
+        Args:
+            bucket_name: COS bucket name.
+            prefix: Key prefix to filter results.
+
+        Returns:
+            List of dicts with keys ``key``, ``size``, ``last_modified``.
+
+        Raises:
+            ValueError: If bucket_name is missing.
+        """
+        if not bucket_name:
+            raise ValueError("bucket_name is required.")
+        return self._cos.list_with_metadata(bucket=bucket_name, prefix=prefix)
+
     def head_object(self, *, bucket_name: str, key: str) -> None:
         """Check that an object exists in COS.
 

@@ -15,10 +15,10 @@
 import logging
 import os
 
-from django.conf import settings
-
 from core.models import Job
 from core.services.storage.result_storage import ResultStorage
+from core.services.storage.path_builder import PathBuilder
+from core.services.storage.enums.working_dir import WorkingDir
 
 logger = logging.getLogger("core.RayResultStorage")
 
@@ -27,25 +27,42 @@ class RayResultStorage(ResultStorage):
     """Handles the storage and retrieval of user job results for Ray jobs."""
 
     RESULT_FILE_EXTENSION = ".json"
+    PATH = "results"
     ENCODING = "utf-8"
 
     def __init__(self, job: Job) -> None:
-        """Initialize the storage with the user's results directory.
+        """Initialize the storage with this job's results directory.
+
+        The directory must match the location the running function writes to via the
+        ``RESULTS_PATH`` environment variable (see ``build_env_variables``). That path is
+        provider-aware for provider (custom-image) functions, so the read side here must be
+        provider-aware too — otherwise results written by a provider function under
+        ``{username}/{provider}/{title}/results`` would never be found by the username-only
+        read path. This mirrors :class:`RayArgumentsStorage`.
 
         Args:
             job: The Job instance to store/retrieve results for.
         """
         self._job_id = str(job.id)
-        self.user_results_directory = os.path.join(settings.MEDIA_ROOT, job.author.username, "results")
-        os.makedirs(self.user_results_directory, exist_ok=True)
+        username = job.author.username
+        function_title = job.program.title
+        provider_name = job.program.provider.name if job.program.provider else None
+
+        self.results_directory = PathBuilder.absolute_path(
+            working_dir=WorkingDir.USER_STORAGE,
+            username=username,
+            function_title=function_title,
+            provider_name=provider_name,
+            extra_sub_path=self.PATH,
+        )
+
+    @property
+    def result_file_path(self) -> str:
+        """Absolute path to this job's result JSON file."""
+        return os.path.join(self.results_directory, f"{self._job_id}{self.RESULT_FILE_EXTENSION}")
 
     def _get_result_path(self) -> str:
-        """Construct the full filesystem path for this job's result file.
-
-        Returns:
-            The absolute path to the result JSON file.
-        """
-        return os.path.join(self.user_results_directory, f"{self._job_id}{self.RESULT_FILE_EXTENSION}")
+        return self.result_file_path
 
     def get(self) -> str | None:
         """Retrieve the result for this job from the local filesystem.

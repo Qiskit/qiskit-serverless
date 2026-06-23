@@ -11,7 +11,7 @@ from uuid import UUID
 from django.contrib.auth.models import AbstractUser
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, serializers, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -95,8 +95,7 @@ def serialize_output(job: Job) -> dict[str, Any]:
         ),
     },
 )
-@endpoint("jobs/<uuid:job_id>/sub_status", name="jobs-sub-status")
-@api_view(["PATCH"])
+@endpoint("jobs/<uuid:job_id>/sub_status", method="PATCH", name="jobs-sub-status")
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
 def set_sub_status(request: Request, job_id: UUID) -> Response:

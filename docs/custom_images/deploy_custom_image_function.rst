@@ -22,7 +22,7 @@ Both local and remote workflows follow four steps:
 1. Implement function entrypoint and define Dockerfile
 ------------------------------------------------------
 
-The source code from this section is available in ``docs/deployment/custom_function`` containing
+The source code from this section is available in ``docs/custom_images/custom_function`` containing
 ``Sample-Dockerfile`` and ``runner.py``:
 
 .. code-block::
@@ -76,15 +76,17 @@ For more complete examples, visit the :ref:`image_examples` section.
 3. Upload the image
 -------------------
 
-For **local development using Docker**, update your ``docker-compose.yaml`` to use
-the newly built image:
+For **local development using Docker**, point the ``ray-head`` service in your
+``docker-compose.yaml`` at the newly built image. Change **only** the ``image:`` line and
+keep the rest of the existing ``ray-head`` definition (``user``, ``entrypoint``,
+``environment``, ``ports``, ``volumes``, ``networks``) as-is:
 
 .. code-block::
-   :caption: Modify Docker Compose
+   :caption: Modify Docker Compose (only the image changes)
 
    services:
      ray-head:
-       container_name: ray-head
+       # keep the existing ray-head keys; only override the image
        image: test-local-provider-function:latest
 
 Run it:
@@ -93,6 +95,12 @@ Run it:
    :caption: Start Docker Compose
 
    docker-compose up
+
+.. note::
+
+   On Apple Silicon (M-series) Macs, build your custom image on the native arm64 base and start
+   the stack with the arm64 override — see :ref:`run_on_apple_silicon`. Otherwise jobs may hang
+   in ``QUEUED``.
 
 If using **Kubernetes in local development**, create the cluster and load the image:
 
@@ -118,7 +126,7 @@ define a ``QiskitFunction`` that will use the custom image, upload it, and invok
 
    serverless = ServerlessClient(
        token="awesome_token",
-       image="awesome_crn",
+       instance="awesome_crn",
        host="http://localhost:8000", # Use http://localhost when using Kubernetes
    )
 
@@ -129,7 +137,7 @@ define a ``QiskitFunction`` that will use the custom image, upload it, and invok
    )
 
    serverless.upload(function)
-   my_function = serverless.get("custom-image-function")
+   my_function = serverless.get("custom-image-function", provider="mockprovider")
 
    job = my_function.run(test_argument_one=1, test_argument_two="two")
    job.result()
