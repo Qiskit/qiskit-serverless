@@ -9,12 +9,11 @@ from rest_framework import exceptions
 
 from api.access_policies.users import UserAccessPolicies
 from api.domain.authentication.channel import Channel
-from api.repositories.providers import ProviderRepository
 from api.repositories.users import UserRepository
 from api.services.authentication.authentication_base import AuthenticationBase
 from api.services.authentication.ibm_quantum_platform import IBMQuantumPlatform
 from api.services.authentication.local_authentication import LocalAuthenticationService
-from core.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
+from core.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Provider
 
 logger = logging.getLogger("api.AuthenticationUseCase")
 
@@ -25,7 +24,6 @@ class AuthenticationUseCase:
     """
 
     user_repository = UserRepository()
-    provider_repository = ProviderRepository()
 
     def __init__(
         self,
@@ -74,11 +72,13 @@ class AuthenticationUseCase:
                 authentication_groups=access_groups,
                 permission_names=permission_names,
             )
-            self.provider_repository.get_or_create_by_name(
+            provider, created = Provider.objects.get_or_create(
                 name="mockprovider",
                 registry=settings.SETTINGS_AUTH_MOCKPROVIDER_REGISTRY,
-                admin_groups=groups,
             )
+            if created:
+                for admin_group in groups:
+                    provider.admin_groups.add(admin_group)
         else:
             permission_names = [VIEW_PROGRAM_PERMISSION]
             self.user_repository.restart_user_groups(
