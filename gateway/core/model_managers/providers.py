@@ -8,7 +8,7 @@ from django.db.models import QuerySet
 if TYPE_CHECKING:
     from core.models import Provider
 
-logger = logging.getLogger("api.ProviderRepository")
+logger = logging.getLogger("core.providers")
 
 
 class ProviderQuerySet(QuerySet):
