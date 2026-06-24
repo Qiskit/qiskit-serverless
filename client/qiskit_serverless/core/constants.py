@@ -71,3 +71,20 @@ MAX_ARTIFACT_FILE_SIZE_MB = int(
     )
 )
 IBM_SERVERLESS_HOST_URL = os.getenv(IBM_SERVERLESS_HOST_URL_OVERRIDE, default=IBM_SERVERLESS_HOST_URL_DEFAULT)
+
+# Usage thresholds for IBMServerlessClient.run() pre-flight checks (seconds).
+# LOW: remaining runtime below this value triggers a warning so the user can plan ahead.
+# ZERO_EPSILON: remaining runtime at or below this value is treated as effectively zero
+#   and raises an error, because even a fraction of a second cannot run a real job.
+# Both are tunable via environment variables without requiring a code change.
+ENV_USAGE_LOW_THRESHOLD_SECONDS = "USAGE_LOW_THRESHOLD_SECONDS"
+USAGE_LOW_THRESHOLD_SECONDS_DEFAULT: float = 600.0  # 10 minutes
+USAGE_ZERO_EPSILON_SECONDS_DEFAULT: float = 1.0  # sub-second counts as zero
+ENV_USAGE_ZERO_EPSILON_SECONDS = "USAGE_ZERO_EPSILON_SECONDS"
+
+USAGE_LOW_THRESHOLD_SECONDS = float(
+    os.getenv(ENV_USAGE_LOW_THRESHOLD_SECONDS, default=str(USAGE_LOW_THRESHOLD_SECONDS_DEFAULT))
+)
+USAGE_ZERO_EPSILON_SECONDS = float(
+    os.getenv(ENV_USAGE_ZERO_EPSILON_SECONDS, default=str(USAGE_ZERO_EPSILON_SECONDS_DEFAULT))
+)
