@@ -715,7 +715,7 @@ class TestProgramApi(APITestCase):
             assert programs_response.status_code == status.HTTP_200_OK
             assert programs_response.data.get("provider") == "default"
             assert programs_response.data.get("entrypoint") == "test_user_3_program.py"
-            assert programs_response.data.get("title") == "Provider Function"
+            assert programs_response.data.get("title") == "ProviderFunction"
 
             # Verify that program with full title doesn't exist
             try:
@@ -793,7 +793,7 @@ class TestProgramApi(APITestCase):
             assert len(programs_response.data) == 2
             found = False
             for resp_data in programs_response.data:
-                if resp_data.get("title") == "Provider Function":
+                if resp_data.get("title") == "ProviderFunction":
                     assert resp_data.get("description") == description
                     found = True
             assert found
@@ -1129,7 +1129,7 @@ class TestProgramApi(APITestCase):
             )
             assert programs_response.status_code == status.HTTP_200_OK
 
-        program = Program.objects.get(title="Fleets function")
+        program = Program.objects.get(title="Fleetsfunction")
         assert program.runner == Program.FLEETS
 
     def test_upload_without_runner_defaults_to_ray(self):
@@ -1151,7 +1151,7 @@ class TestProgramApi(APITestCase):
             )
             assert response.status_code == status.HTTP_200_OK
 
-        program = Program.objects.get(title="Default runner function")
+        program = Program.objects.get(title="Defaultrunnerfunction")
         assert program.runner == Program.RAY
 
 

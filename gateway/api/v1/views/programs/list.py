@@ -6,18 +6,41 @@ from typing import cast
 from django.contrib.auth.models import AbstractUser
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import permissions, status
+from rest_framework import permissions, serializers, status
 from rest_framework.decorators import permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
 from api.use_cases.programs.list import ListFunctionsUseCase
-from api.v1 import serializers as v1_serializers
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
 from core.domain.authorization.function_access_result import FunctionAccessResult
+from core.models import Program
 
 logger = logging.getLogger("api.api.v1.views.programs.list")
+
+
+class OutputSerializer(serializers.ModelSerializer):
+    """Qiskit Function representation for list responses."""
+
+    provider = serializers.CharField(source="provider.name", read_only=True)
+
+    class Meta:
+        model = Program
+        fields = [
+            "id",
+            "title",
+            "entrypoint",
+            "artifact",
+            "dependencies",
+            "provider",
+            "description",
+            "documentation_url",
+            "type",
+            "version",
+            "runner",
+        ]
+        ref_name = "ProgramsListOutput"
 
 
 @swagger_auto_schema(
@@ -32,7 +55,7 @@ logger = logging.getLogger("api.api.v1.views.programs.list")
             required=False,
         ),
     ],
-    responses={status.HTTP_200_OK: v1_serializers.ProgramSerializer(many=True)},
+    responses={status.HTTP_200_OK: OutputSerializer(many=True)},
 )
 @endpoint("programs", method="GET", name="programs-list")
 @permission_classes([permissions.IsAuthenticated])
@@ -51,4 +74,4 @@ def list_programs(request: Request) -> Response:
 
     functions = ListFunctionsUseCase().execute(user, accessible_functions, type_filter)
     logger.info("[programs-list] user_id=%s filter=%s | Functions listed ok", user.id, type_filter)
-    return Response(v1_serializers.ProgramSerializer(functions, many=True).data)
+    return Response(OutputSerializer(functions, many=True).data)
