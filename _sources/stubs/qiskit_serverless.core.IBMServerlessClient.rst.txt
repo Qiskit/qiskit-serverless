@@ -14,6 +14,8 @@
    .. autosummary::
    
       ~IBMServerlessClient.__init__
+      ~IBMServerlessClient.backend
+      ~IBMServerlessClient.backends
       ~IBMServerlessClient.dependencies_versions
       ~IBMServerlessClient.events
       ~IBMServerlessClient.file_delete
@@ -30,6 +32,7 @@
       ~IBMServerlessClient.get_jobs
       ~IBMServerlessClient.job
       ~IBMServerlessClient.jobs
+      ~IBMServerlessClient.least_busy
       ~IBMServerlessClient.list
       ~IBMServerlessClient.logs
       ~IBMServerlessClient.provider_file_delete
@@ -47,6 +50,7 @@
       ~IBMServerlessClient.stop
       ~IBMServerlessClient.to_dict
       ~IBMServerlessClient.upload
+      ~IBMServerlessClient.usage
       ~IBMServerlessClient.widget
    
    

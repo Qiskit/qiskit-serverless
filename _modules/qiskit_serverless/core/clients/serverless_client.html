@@ -335,7 +335,7 @@
 <span class="sd">    ServerlessClient</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="c1"># pylint: disable=duplicate-code</span>
+<span class="c1"># pylint: disable=duplicate-code,too-many-lines</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os.path</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
@@ -346,10 +346,13 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">urllib.parse</span><span class="w"> </span><span class="kn">import</span> <span class="n">urlparse</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">asdict</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">opentelemetry</span><span class="w"> </span><span class="kn">import</span> <span class="n">trace</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_ibm_runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitRuntimeService</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit.providers.backend</span><span class="w"> </span><span class="kn">import</span> <span class="n">BackendV2</span> <span class="k">as</span> <span class="n">Backend</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit.providers.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitBackendNotFoundError</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_ibm_runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitRuntimeService</span><span class="p">,</span> <span class="n">IBMBackend</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_ibm_runtime.accounts.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">InvalidAccountError</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.core.constants</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
@@ -360,6 +363,8 @@
     <span class="n">GATEWAY_PROVIDER_VERSION_DEFAULT</span><span class="p">,</span>
     <span class="n">IBM_SERVERLESS_HOST_URL</span><span class="p">,</span>
     <span class="n">MAX_ARTIFACT_FILE_SIZE_MB</span><span class="p">,</span>
+    <span class="n">USAGE_LOW_THRESHOLD_SECONDS</span><span class="p">,</span>
+    <span class="n">USAGE_ZERO_EPSILON_SECONDS</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.core.client</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseClient</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.core.decorators</span><span class="w"> </span><span class="kn">import</span> <span class="n">trace_decorator_factory</span>
@@ -1027,6 +1032,10 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_service</span> <span class="o">=</span> <span class="n">QiskitRuntimeService</span><span class="p">(</span><span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">,</span> <span class="n">token</span><span class="o">=</span><span class="n">token</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="n">instance</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">account</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_service</span><span class="o">.</span><span class="n">_account</span>
 
+        <span class="c1"># Per-instance cache keyed by backend name; populated lazily by backends() or _get_backend().</span>
+        <span class="c1"># Instance-level (not class-level) to avoid cross-client leakage.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_backends_cache</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
             <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">account</span><span class="o">.</span><span class="n">channel</span><span class="p">,</span>
             <span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">account</span><span class="o">.</span><span class="n">token</span><span class="p">,</span>
@@ -1061,7 +1070,282 @@
                 <span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="k">except</span> <span class="n">InvalidAccountError</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid format in account inputs - </span><span class="si">{</span><span class="n">ex</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">ex</span></div>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid format in account inputs - </span><span class="si">{</span><span class="n">ex</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">ex</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">usage</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return runtime usage information for the active instance.</span>
+
+<span class="sd">        Exposes the underlying :meth:`QiskitRuntimeService.usage` method to retrieve</span>
+<span class="sd">        the instance&#39;s runtime quota information, including ``usage_remaining_seconds``</span>
+<span class="sd">        and ``usage_limit_reached``.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A dictionary containing usage information as reported by the runtime service.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            QiskitServerlessException: If the usage information cannot be retrieved.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_service</span><span class="o">.</span><span class="n">usage</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>  <span class="c1"># pylint: disable=broad-except</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Failed to retrieve usage information for instance &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">backends</span><span class="p">(</span>  <span class="c1"># pylint: disable=too-many-positional-arguments</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">refresh_cache</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">min_num_qubits</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">filters</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">IBMBackend</span><span class="p">],</span> <span class="nb">bool</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">IBMBackend</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return backends accessible through this instance.</span>
+
+<span class="sd">        Exposes the underlying :meth:`QiskitRuntimeService.backends` method with</span>
+<span class="sd">        per-instance caching. Results are cached after the first call; use</span>
+<span class="sd">        ``refresh_cache=True`` to force a refresh.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            refresh_cache: If ``True``, refresh the cache by fetching backends from the service.</span>
+<span class="sd">            name: Backend name to filter by.</span>
+<span class="sd">            min_num_qubits: Minimum number of qubits the backend must have.</span>
+<span class="sd">            filters: More complex filters, such as lambda functions.</span>
+<span class="sd">                For example::</span>
+
+<span class="sd">                    client.backends(filters=lambda b: b.max_shots &gt; 50000)</span>
+<span class="sd">                    client.backends(filters=lambda x: &quot;rz&quot; in x.basis_gates)</span>
+
+<span class="sd">            **kwargs: Simple filters that require a specific value for an attribute in</span>
+<span class="sd">                backend configuration or status.</span>
+<span class="sd">                Examples::</span>
+
+<span class="sd">                    # Get backends with at least 127 qubits</span>
+<span class="sd">                    client.backends(min_num_qubits=127)</span>
+
+<span class="sd">                For the full list of backend attributes, see the `IBMBackend class documentation</span>
+<span class="sd">                &lt;https://quantum.cloud.ibm.com/docs/api/qiskit-ibm-runtime/qiskit-runtime-service#backends&gt;`_</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List of available backends that match the filter criteria.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            QiskitServerlessException: If the backend listing call fails.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">refresh_cache</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_backends_cache</span><span class="p">:</span>
+            <span class="c1"># cache is available and refresh flag is false</span>
+            <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_backends_cache</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">backend_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_service</span><span class="o">.</span><span class="n">backends</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">min_num_qubits</span><span class="o">=</span><span class="n">min_num_qubits</span><span class="p">,</span>
+                <span class="n">filters</span><span class="o">=</span><span class="n">filters</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Failed to retrieve backends for instance &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+
+        <span class="c1"># deleting cached backends as they could have unavailable backends and update with new accessible backends</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_backends_cache</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">for</span> <span class="n">backend</span> <span class="ow">in</span> <span class="n">backend_list</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_backends_cache</span><span class="p">[</span><span class="n">backend</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">backend</span>
+
+        <span class="k">return</span> <span class="n">backend_list</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">backend</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Backend</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fetch a single backend by name and update the cache.</span>
+
+<span class="sd">        Exposes the underlying :meth:`QiskitRuntimeService.backend` method to perform</span>
+<span class="sd">        a targeted backend lookup. This is more efficient than listing all backends</span>
+<span class="sd">        and validates that the caller has access to the requested backend. The cache</span>
+<span class="sd">        is updated on every call to reflect current access permissions.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name: Name of the backend (e.g., ``&quot;ibm_torino&quot;``).</span>
+<span class="sd">            **kwargs: Simple filters that require a specific value for an attribute in</span>
+<span class="sd">                backend configuration or status.</span>
+<span class="sd">                For the full list of backend attributes, see the `IBMBackend class documentation</span>
+<span class="sd">                &lt;https://quantum.cloud.ibm.com/docs/api/qiskit-ibm-runtime/qiskit-runtime-service#backend&gt;`_</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Backend matching the specified name.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            QiskitServerlessException: If the backend is not found or is inaccessible.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">backend</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_service</span><span class="o">.</span><span class="n">backend</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">QiskitBackendNotFoundError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Backend &#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; is not available or you do not have access to it &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;with instance &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="si">}</span><span class="s2">&#39;. &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Call client.backends() to list accessible backends.&quot;</span>
+            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to retrieve backend &#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_backends_cache</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">backend</span>
+        <span class="k">return</span> <span class="n">backend</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">least_busy</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">min_num_qubits</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">filters</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">IBMBackend</span><span class="p">],</span> <span class="nb">bool</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">IBMBackend</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the least busy backend matching the specified criteria.</span>
+
+<span class="sd">        Exposes the underlying :meth:`QiskitRuntimeService.least_busy` method to find</span>
+<span class="sd">        the backend with the fewest pending jobs. The result is cached in the instance.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            min_num_qubits: Minimum number of qubits the backend must have.</span>
+<span class="sd">            filters: Filters can be defined as for the :meth:`backends` method.</span>
+<span class="sd">                Example::</span>
+
+<span class="sd">                    client.least_busy(min_num_qubits=5, operational=True)</span>
+
+<span class="sd">            **kwargs: Additional filters for backend configuration or status attributes.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The backend with the fewest number of pending jobs that matches the criteria.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            QiskitServerlessException: If no backend matches the criteria or the call fails.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">backend</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_service</span><span class="o">.</span><span class="n">least_busy</span><span class="p">(</span>
+                <span class="n">min_num_qubits</span><span class="o">=</span><span class="n">min_num_qubits</span><span class="p">,</span>
+                <span class="n">filters</span><span class="o">=</span><span class="n">filters</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="n">QiskitBackendNotFoundError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;No available backend matches the criteria with instance &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="si">}</span><span class="s2">&#39;. &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Call client.backends() to list accessible backends.&quot;</span>
+            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to retrieve backend: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_backends_cache</span><span class="p">[</span><span class="n">backend</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">backend</span>
+        <span class="k">return</span> <span class="n">backend</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_check_usage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">suppress_low_usage_warning</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check instance runtime quota and warn or raise if insufficient.</span>
+
+<span class="sd">        Retrieves ``usage_remaining_seconds`` from :meth:`usage`. If the key is absent,</span>
+<span class="sd">        the plan is unlimited and no action is taken. Transient errors from the usage</span>
+<span class="sd">        endpoint are downgraded to a warning to avoid blocking job submission.</span>
+
+<span class="sd">        Thresholds are configurable via environment variables (see constants.py):</span>
+
+<span class="sd">        - ``USAGE_ZERO_EPSILON_SECONDS`` (default 1 s): Raises an exception when</span>
+<span class="sd">          remaining time is at or below this threshold.</span>
+<span class="sd">        - ``USAGE_LOW_THRESHOLD_SECONDS`` (default 600 s): Emits a warning when</span>
+<span class="sd">          remaining time is below this threshold (unless suppressed).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            suppress_low_usage_warning: If ``True``, suppress the warning when remaining</span>
+<span class="sd">                quota is below ``USAGE_LOW_THRESHOLD_SECONDS``. The exception for</span>
+<span class="sd">                exhausted quota (at or below ``USAGE_ZERO_EPSILON_SECONDS``) is still raised.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            QiskitServerlessException: When remaining quota is at or below</span>
+<span class="sd">                ``USAGE_ZERO_EPSILON_SECONDS``, or when ``usage_limit_reached`` is</span>
+<span class="sd">                ``True`` with no remaining time recorded.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">usage</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">usage</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>  <span class="c1"># pylint: disable=broad-except</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Could not retrieve usage information for instance &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">. &quot;</span>
+                <span class="s2">&quot;Proceeding with job submission; verify your instance quota manually.&quot;</span>
+            <span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">remaining</span> <span class="o">=</span> <span class="n">usage</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;usage_remaining_seconds&quot;</span><span class="p">)</span>
+        <span class="n">limit_reached</span> <span class="o">=</span> <span class="n">usage</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;usage_limit_reached&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">remaining</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">limit_reached</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c1"># usage_limit_reached without a recorded remaining value → treat as zero.</span>
+        <span class="k">if</span> <span class="n">limit_reached</span> <span class="ow">and</span> <span class="n">remaining</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">remaining</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+        <span class="k">if</span> <span class="n">remaining</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">remaining</span> <span class="o">&lt;=</span> <span class="n">USAGE_ZERO_EPSILON_SECONDS</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Instance &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="si">}</span><span class="s2">&#39; has no remaining runtime quota &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;(remaining: </span><span class="si">{</span><span class="n">remaining</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">s). &quot;</span>
+                <span class="s2">&quot;The job would wait indefinitely for runtime resources. &quot;</span>
+                <span class="s2">&quot;Check your instance quota at https://quantum.cloud.ibm.com/instances.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">suppress_low_usage_warning</span> <span class="ow">and</span> <span class="n">remaining</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">remaining</span> <span class="o">&lt;=</span> <span class="n">USAGE_LOW_THRESHOLD_SECONDS</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Instance &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="si">}</span><span class="s2">&#39; has low remaining runtime quota &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="n">remaining</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">s remaining, threshold: </span><span class="si">{</span><span class="n">USAGE_LOW_THRESHOLD_SECONDS</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">s). &quot;</span>
+                <span class="s2">&quot;Consider checking your quota before submitting long-running jobs. &quot;</span>
+                <span class="s2">&quot;Check https://quantum.cloud.ibm.com/instances for details.&quot;</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>  <span class="c1"># pylint: disable=too-many-positional-arguments</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">program</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">QiskitFunction</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Configuration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">provider</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">compute_profile</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">suppress_low_usage_warning</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Job&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run a Qiskit Function with pre-flight validation before submitting to the gateway.</span>
+
+<span class="sd">        Checks are performed before delegating to ``ServerlessClient.run``. Checks include instance has no</span>
+<span class="sd">        remaining runtime; warns when low and check accessibility to the backed</span>
+<span class="sd">        Args:</span>
+<span class="sd">            program: ``QiskitFunction`` object or function title string.</span>
+<span class="sd">            arguments: Runtime arguments. The optional ``backend_name`` key is inspected for</span>
+<span class="sd">                the backend access check but forwarded unchanged.</span>
+<span class="sd">            config: Optional execution configuration.</span>
+<span class="sd">            provider: Optional provider name override.</span>
+<span class="sd">            compute_profile: Optional compute-profile name.</span>
+<span class="sd">            suppress_low_usage_warning: If ``True``, suppress the warning when remaining runtime</span>
+<span class="sd">                quota is below ``USAGE_LOW_THRESHOLD_SECONDS``. The exception for exhausted quota</span>
+<span class="sd">                (at or below ``USAGE_ZERO_EPSILON_SECONDS``) is still raised.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            :class:`~qiskit_serverless.core.job.Job` handle for the submitted run.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            QiskitServerlessException: If quota is exhausted, the backend is inaccessible, or</span>
+<span class="sd">                the instance has no available backends.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">backend_name</span> <span class="o">=</span> <span class="p">(</span><span class="n">arguments</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;backend_name&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_usage</span><span class="p">(</span><span class="n">suppress_low_usage_warning</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">backend_name</span><span class="p">:</span>
+            <span class="c1"># Single-backend lookup — fast and confirms access without a full instance listing.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">backend</span><span class="p">(</span><span class="n">backend_name</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># No specific backend requested; verify the instance exposes at least one.</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">backends</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Instance &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="si">}</span><span class="s2">&#39; has no backends available. &quot;</span>
+                    <span class="s2">&quot;Cannot run a Qiskit Function without an accessible backend. &quot;</span>
+                    <span class="s2">&quot;Check your instance configuration at https://quantum.cloud.ibm.com/instances.&quot;</span>
+                <span class="p">)</span>
+
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+            <span class="n">program</span><span class="o">=</span><span class="n">program</span><span class="p">,</span>
+            <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
+            <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
+            <span class="n">provider</span><span class="o">=</span><span class="n">provider</span><span class="p">,</span>
+            <span class="n">compute_profile</span><span class="o">=</span><span class="n">compute_profile</span><span class="p">,</span>
+        <span class="p">)</span></div>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_upload_with_docker_image</span><span class="p">(</span>  <span class="c1"># pylint: disable=too-many-positional-arguments</span>
