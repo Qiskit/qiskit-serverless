@@ -1,7 +1,7 @@
 """Authentication use case to manage the authentication process in the api."""
 
 import logging
-from typing import Optional, List
+from typing import List
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -11,7 +11,6 @@ from rest_framework import exceptions
 from api.access_policies.users import UserAccessPolicies
 from api.domain.authentication.authentication_group import AuthenticationGroup
 from api.domain.authentication.channel import Channel
-from api.services.authentication.authentication_base import AuthenticationBase
 from api.services.authentication.ibm_quantum_platform import IBMQuantumPlatform
 from api.services.authentication.local_authentication import LocalAuthenticationService
 from core.models import GroupMetadata, RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Provider
