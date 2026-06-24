@@ -1,10 +1,30 @@
 # pylint: disable=import-error, invalid-name, line-too-long, redefined-outer-name
-"""Fixtures for instance permission tests."""
+"""Fixtures for instance permission tests.
+
+These tests run against a SINGLE service instance whose entitlements are reconfigured
+on the fly through the NTC admin/resource-controller APIs (see ntc_client.py). The
+instance is taken to NONE/USER/PROVIDER/ALL states before each test so the same battery
+of /functions assertions (permission_checks.py) can be reused.
+
+Required environment variables (the whole module is skipped if any is missing):
+  - NTC_TOKEN              bearer token with admin access to NTC (account + resource-controller)
+  - NTC_ACCOUNT_ID         account id (without the "a/" prefix)
+  - TEST_RECONFIG_INSTANCE CRN of the instance to reconfigure
+
+Optional:
+  - NTC_ADMIN_BASE         default https://quantum.test.cloud.ibm.com
+  - NTC_RC_BASE            default https://resource-controller.test.cloud.ibm.com
+  - NTC_SUBSCRIPTION_NAME  account plan subscription_name to edit (default "flex")
+  - GATEWAY_HOST / GATEWAY_TOKEN / GATEWAY_CHANNEL  serverless client config
+  - TEST_PROVIDER_NAME / TEST_FUNCTION_TITLE / TEST_OTHER_FUNCTION_TITLE / TEST_CUSTOM_FUNCTION_TITLE
+"""
 
 import os
 
-from pytest import fixture
+from pytest import fixture, skip
 from qiskit_serverless import QiskitFunction, ServerlessClient
+
+from instances.ntc_client import NtcAdminClient
 
 GATEWAY_HOST = os.environ.get("GATEWAY_HOST", "http://localhost:8000")
 GATEWAY_TOKEN = os.environ.get("GATEWAY_TOKEN", "awesome_token")
@@ -12,7 +32,90 @@ GATEWAY_CHANNEL = os.environ.get("GATEWAY_CHANNEL", "ibm_quantum_platform")
 
 PROVIDER_NAME = os.environ.get("TEST_PROVIDER_NAME", "ibm-dev")
 FUNCTION_TITLE = os.environ.get("TEST_FUNCTION_TITLE", "instances1-test")
+OTHER_FUNCTION_TITLE = os.environ.get("TEST_OTHER_FUNCTION_TITLE", "instances2-test")
 CUSTOM_FUNCTION_TITLE = os.environ.get("TEST_CUSTOM_FUNCTION_TITLE", "my-custom-func")
+
+NTC_TOKEN = os.environ.get("NTC_TOKEN")
+NTC_ACCOUNT_ID = os.environ.get("NTC_ACCOUNT_ID")
+RECONFIG_CRN = os.environ.get("TEST_RECONFIG_INSTANCE")
+NTC_ADMIN_BASE = os.environ.get("NTC_ADMIN_BASE", "https://quantum.test.cloud.ibm.com")
+NTC_RC_BASE = os.environ.get("NTC_RC_BASE", "https://resource-controller.test.cloud.ibm.com")
+NTC_SUBSCRIPTION_NAME = os.environ.get("NTC_SUBSCRIPTION_NAME", "flex")
+
+# --- permission sets -------------------------------------------------------------------
+
+USER_PERMISSIONS = ["function.read", "function.run", "function-files.read", "function-files.write"]
+PROVIDER_PERMISSIONS = [
+    "function.write",
+    "function-job.read",
+    "function-provider-logs.read",
+    "function-provider-files.read",
+    "function-provider-files.write",
+]
+ALL_PERMISSIONS = [
+    "function.read",
+    "function.run",
+    "function-files.read",
+    "function-files.write",
+    "function.write",
+    "function-job.read",
+    "function-provider-logs.read",
+    "function-provider-files.read",
+    "function-provider-files.write",
+]
+CUSTOM_PERMISSIONS = ["function-custom.write", "function-custom.run"]
+
+
+def _fn(name, business_model, permissions):
+    """Build a function entitlement entry."""
+    return {
+        "name": name,
+        "provider": PROVIDER_NAME,
+        "business_model": business_model,
+        "permissions": list(permissions),
+    }
+
+
+# Instance entitlements per level. business_model must match the values the reused
+# checks expect: TRIAL for user, CONSUMPTION for combined.
+NONE_FUNCTIONS = []
+NONE_CUSTOM = []
+
+USER_FUNCTIONS = [_fn(FUNCTION_TITLE, "trial", USER_PERMISSIONS)]
+USER_CUSTOM = CUSTOM_PERMISSIONS
+
+PROVIDER_FUNCTIONS = [_fn(FUNCTION_TITLE, "consumption", PROVIDER_PERMISSIONS)]
+PROVIDER_CUSTOM = []
+
+ALL_FUNCTIONS = [
+    _fn(FUNCTION_TITLE, "consumption", ALL_PERMISSIONS),
+    _fn(OTHER_FUNCTION_TITLE, "consumption", ALL_PERMISSIONS),
+]
+ALL_CUSTOM = CUSTOM_PERMISSIONS
+
+# Account superset: must grant, by (provider, name, business_model) key, a superset of
+# every instance level so the broker accepts the instance PATCH (validateFunctions) and
+# the account->instance sync never narrows the configured level.
+SUPERSET_FUNCTIONS = [
+    _fn(FUNCTION_TITLE, "trial", ALL_PERMISSIONS),
+    _fn(FUNCTION_TITLE, "consumption", ALL_PERMISSIONS),
+    _fn(OTHER_FUNCTION_TITLE, "consumption", ALL_PERMISSIONS),
+]
+SUPERSET_CUSTOM = CUSTOM_PERMISSIONS
+
+
+def ensure_account_superset(ntc):
+    """Set the account plan to the superset so every instance PATCH is accepted."""
+    ntc.set_account_entitlements(SUPERSET_FUNCTIONS, SUPERSET_CUSTOM)
+
+
+def apply_level(ntc, functions, custom_permissions):
+    """Put the reconfigurable instance into the given level (account stays at superset)."""
+    ensure_account_superset(ntc)
+    ntc.set_instance_entitlements(RECONFIG_CRN, functions, custom_permissions)
+
+
+# --- shared metadata fixtures ----------------------------------------------------------
 
 
 @fixture(scope="session")
@@ -35,23 +138,53 @@ def custom_function_title():
 
 @fixture(scope="session")
 def other_function_title():
-    """Title of a second function that exists in the DB but is NOT in any test CRN's entitlements.
+    """Title of a second function that exists in the DB but is NOT in every level's entitlements."""
+    return OTHER_FUNCTION_TITLE
 
-    This function must be pre-seeded in the test environment (e.g. via the gateway admin panel
-    or a management command) and must NOT appear in any of the four test CRN entitlements.
-    Override with TEST_OTHER_FUNCTION_TITLE env var.
-    """
-    return os.environ.get("TEST_OTHER_FUNCTION_TITLE", "instances2-test")
+
+# --- NTC client and serverless client --------------------------------------------------
 
 
 @fixture(scope="session")
-def seeded_job_id(combined_client, provider_name, function_title, tmp_path_factory):
-    """Ensure at least one known job exists for the test function at session start.
+def ntc():
+    """NTC admin client. Skips the whole module if NTC credentials are not configured."""
+    if not (NTC_TOKEN and NTC_ACCOUNT_ID and RECONFIG_CRN):
+        skip("NTC_TOKEN, NTC_ACCOUNT_ID and TEST_RECONFIG_INSTANCE are required for reconfigurable instance tests")
+    return NtcAdminClient(
+        account_id=NTC_ACCOUNT_ID,
+        token=NTC_TOKEN,
+        admin_base=NTC_ADMIN_BASE,
+        rc_base=NTC_RC_BASE,
+        subscription_name=NTC_SUBSCRIPTION_NAME,
+    )
 
-    Uploads the function (idempotent) and runs a job using combined_client, which has all
-    required permissions. Returns the job_id so tests can reference a known job without
-    relying on pre-existing environment state.
+
+@fixture(scope="session")
+def reconfig_client():
+    """ServerlessClient bound to the reconfigurable instance CRN.
+
+    The same client object is reused at every level; only the server-side entitlements
+    change (via apply_level), so the client does not encode the permission level.
     """
+    return ServerlessClient(
+        token=GATEWAY_TOKEN,
+        host=GATEWAY_HOST,
+        instance=RECONFIG_CRN,
+        channel=GATEWAY_CHANNEL,
+    )
+
+
+# --- seeds (run once, with the instance temporarily at ALL) -----------------------------
+
+
+@fixture(scope="session")
+def seeded_job_id(ntc, reconfig_client, provider_name, function_title, tmp_path_factory):
+    """Ensure a known job exists for the test function.
+
+    Puts the instance at ALL, uploads the function and runs a job. The job belongs to the
+    function/author, so it persists even after the instance is later degraded to a lower level.
+    """
+    apply_level(ntc, ALL_FUNCTIONS, ALL_CUSTOM)
     tmp = tmp_path_factory.mktemp("job_seed")
     (tmp / "main.py").write_text('print("seeded job")\n')
     fn = QiskitFunction(
@@ -60,71 +193,19 @@ def seeded_job_id(combined_client, provider_name, function_title, tmp_path_facto
         entrypoint="main.py",
         working_dir=str(tmp),
     )
-    combined_client.upload(fn)
-    job = combined_client.run(function_title, provider=provider_name)
+    reconfig_client.upload(fn)
+    job = reconfig_client.run(function_title, provider=provider_name)
     return job.job_id
 
 
 @fixture(scope="session")
-def none_client():
-    """Client authenticated with an instance that has no permissions (empty functions list).
-    Permissions: (none) | custom_functions: []
+def seeded_other_function(ntc, reconfig_client, provider_name, other_function_title, tmp_path_factory):
+    """Create other_function_title in the DB (instance temporarily at ALL).
+
+    This makes isolation tests meaningful: the function exists in the DB but lower levels
+    do not list it because it is not in their entitlements.
     """
-    return ServerlessClient(
-        token=GATEWAY_TOKEN,
-        host=GATEWAY_HOST,
-        instance=os.environ.get(
-            "TEST_NONE_INSTANCE",
-            "crn:v1:staging:public:quantum-computing:us-east:a/efb0dd39cdb64955b8f6e32d44290acf:f0e2a145-2282-4605-9f54-eafdb7ec68a1::",
-        ),
-        channel=GATEWAY_CHANNEL,
-    )
-
-
-@fixture(scope="session")
-def user_client():
-    """Client authenticated with a user permissions instance.
-    Permissions: function.read, function.run, function-files.read, function-files.write
-    custom_functions: function-custom.write, function-custom.run
-    """
-    return ServerlessClient(
-        token=GATEWAY_TOKEN,
-        host=GATEWAY_HOST,
-        instance=os.environ.get(
-            "TEST_USER_INSTANCE",
-            "crn:v1:staging:public:quantum-computing:us-east:a/efb0dd39cdb64955b8f6e32d44290acf:6f3d655d-796c-43b9-9d03-a765ab3f6f62::",
-        ),
-        channel=GATEWAY_CHANNEL,
-    )
-
-
-@fixture(scope="session")
-def provider_client():
-    """Client authenticated with a provider permissions instance.
-    Permissions: function.write, function-job.read, function-provider-logs.read,
-                 function-provider-files.read, function-provider-files.write
-    custom_functions: []
-    """
-    return ServerlessClient(
-        token=GATEWAY_TOKEN,
-        host=GATEWAY_HOST,
-        instance=os.environ.get(
-            "TEST_PROVIDER_INSTANCE",
-            "crn:v1:staging:public:quantum-computing:us-east:a/efb0dd39cdb64955b8f6e32d44290acf:aad85243-d34e-4374-b22a-ba59fa11e12f::",
-        ),
-        channel=GATEWAY_CHANNEL,
-    )
-
-
-@fixture(scope="session")
-def seeded_other_function(combined_client, provider_name, other_function_title, tmp_path_factory):
-    """Create other_function_title in the DB using combined_client.
-
-    combined_client has function.write for both instances1-test and instances2-test (requires the
-    Runtime API to be configured accordingly). This makes isolation tests meaningful: the function
-    exists in the DB but user_client and provider_client cannot see it because it is not in their
-    CRN entitlements.
-    """
+    apply_level(ntc, ALL_FUNCTIONS, ALL_CUSTOM)
     tmp = tmp_path_factory.mktemp("other_fn_seed")
     (tmp / "main.py").write_text('print("other function")\n')
     fn = QiskitFunction(
@@ -133,36 +214,14 @@ def seeded_other_function(combined_client, provider_name, other_function_title, 
         entrypoint="main.py",
         working_dir=str(tmp),
     )
-    combined_client.upload(fn)
+    reconfig_client.upload(fn)
     return other_function_title
 
 
 @fixture(scope="session")
-def combined_client():
-    """Client authenticated with all permissions for both test functions plus custom functions.
-    Permissions for instances1-test and instances2-test:
-      function.read, function.run, function-files.read, function-files.write,
-      function.write, function-job.read, function-provider-logs.read,
-      function-provider-files.read, function-provider-files.write
-    custom_functions: function-custom.write, function-custom.run
-    """
-    return ServerlessClient(
-        token=GATEWAY_TOKEN,
-        host=GATEWAY_HOST,
-        instance=os.environ.get(
-            "TEST_ALL_INSTANCE",
-            "crn:v1:staging:public:quantum-computing:us-east:a/efb0dd39cdb64955b8f6e32d44290acf:e862a3cb-ff3b-49c7-9d80-20be5656e550::",
-        ),
-        channel=GATEWAY_CHANNEL,
-    )
-
-
-@fixture(scope="session")
-def seeded_custom_function(user_client, custom_function_title, tmp_path_factory):
-    """Upload a custom function using custom_client so run tests have a function to execute.
-
-    Returns the function title so dependent tests can reference it.
-    """
+def seeded_custom_function(ntc, reconfig_client, custom_function_title, tmp_path_factory):
+    """Upload a custom (serverless) function so run/list tests have something to reference."""
+    apply_level(ntc, ALL_FUNCTIONS, ALL_CUSTOM)
     tmp = tmp_path_factory.mktemp("custom_fn_seed")
     (tmp / "main.py").write_text('print("custom function")\n')
     fn = QiskitFunction(
@@ -170,5 +229,5 @@ def seeded_custom_function(user_client, custom_function_title, tmp_path_factory)
         entrypoint="main.py",
         working_dir=str(tmp),
     )
-    user_client.upload(fn)
+    reconfig_client.upload(fn)
     return custom_function_title

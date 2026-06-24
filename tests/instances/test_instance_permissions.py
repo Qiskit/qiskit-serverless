@@ -1,985 +1,128 @@
-# pylint: disable=import-error, invalid-name, line-too-long, unused-argument
-"""Integration tests for instance-based permission trough Runtime API /functions
+# pylint: disable=import-error, invalid-name, line-too-long, unused-argument, attribute-defined-outside-init, too-few-public-methods, too-many-arguments, too-many-positional-arguments
+"""Instance-based permission tests through the Runtime API /functions endpoint.
 
-These tests verify that each implemented endpoint correctly grants or denies
-access depending on the permissions associated with the CRN instance used
-to authenticate.
+These tests verify that each implemented endpoint correctly grants or denies access
+depending on the effective permissions of the instance CRN used to authenticate.
 
-Endpoints covered:
-  - programs/list (catalog, unfiltered, serverless)
-  - programs/get_by_title
-  - programs/run        (also validates business_model on the created job)
-  - programs/upload
-  - jobs/provider-list  (provider_jobs)
-  - jobs/retrieve       (non-author access via function-job.read)
-  - files/list (files)
-  - files/upload (file_upload)
-  - files/download (file_download)
-  - files/delete (file_delete)
-  - files/provider-list (provider_files)
-  - files/provider-upload (provider_file_upload)
-  - files/provider-download (provider_file_download)
-  - files/provider-delete (provider_file_delete)
+Unlike the original suite (which depended on four pre-configured CRNs), this version uses
+a SINGLE reconfigurable instance: each test class reconfigures the instance to its level
+(NONE / USER / PROVIDER / ALL) right before each test via the NTC APIs, and reuses the
+shared assertion battery from permission_checks.py.
 
-- By default, these tests are executed against localhost:8000, but it can be configured against staging with:
-GATEWAY_HOST=https://qiskit-serverless-dev.quantum.ibm.com
+Setup (see conftest.py for the full list):
+  - GATEWAY_HOST/GATEWAY_TOKEN/GATEWAY_CHANNEL for the serverless client.
+  - NTC_TOKEN, NTC_ACCOUNT_ID, TEST_RECONFIG_INSTANCE to configure the instance via NTC.
+  - Feature gateway.runtime_instances_api.enabled must be true and the /functions cache disabled.
 
-- Feature must be enabled: gateway.runtime_instances_api.enabled should be true in the api_config table
-
-- Runtime API /functions endpoint must be defined with:
-  - RUNTIME_API_BASE_URL=https://quantum.test.cloud.ibm.com # staging
-  - RUNTIME_API_BASE_URL=https://quantum.cloud.ibm.com # production
-
-All tests use the function: ibm-dev/instances1-test. You can override it with TEST_PROVIDER_NAME and TEST_FUNCTION_TITLE env var.
-
-A second function (TEST_OTHER_FUNCTION_TITLE, default instances2-test) must be pre-seeded in the DB
-with the same provider and must NOT appear in any of the four test CRN entitlements. It is used to
-verify that the list endpoints only return functions that the instance is explicitly entitled to see.
-
-- There are four kinds of tests, all of them use the same token GATEWAY_TOKEN
-  - None tests expect a CRN with no permissions at all. Env var TEST_NONE_INSTANCE
-  - User tests expect a CRN with only user permissions enabled. Env var TEST_USER_INSTANCE
-  - Provider tests expect a CRN with only provider permissions enabled. Env var TEST_PROVIDER_INSTANCE
-  - Combined tests expect a CRN with all permissions enabled. Env var TEST_ALL_INSTANCE
-
-In order to run the tests, this is the configuration you have to get from /functions api:
-
-```json
-[
-  {
-    "instance_crn": "crn:v1:staging:public:quantum-computing:us-east:a/efb0dd39cdb64955b8f6e32d44290acf:f0e2a145-2282-4605-9f54-eafdb7ec68a1::",
-    "entitlements": {
-      "functions": [],
-      "custom_functions": {"permissions": []}
-    }
-  },
-  {
-    "instance_crn": "crn:v1:staging:public:quantum-computing:us-east:a/efb0dd39cdb64955b8f6e32d44290acf:6f3d655d-796c-43b9-9d03-a765ab3f6f62::",
-    "entitlements": {
-      "functions": [
-        {
-          "name": "instances1-test",
-          "provider": "ibm-dev",
-          "business_model": "trial",
-          "permissions": ["function.read", "function.run", "function-files.read", "function-files.write"]
-        }
-      ],
-      "custom_functions": {"permissions": ["function-custom.write", "function-custom.run"]}
-    }
-  },
-  {
-    "instance_crn": "crn:v1:staging:public:quantum-computing:us-east:a/efb0dd39cdb64955b8f6e32d44290acf:aad85243-d34e-4374-b22a-ba59fa11e12f::",
-    "entitlements": {
-      "functions": [
-        {
-          "name": "instances1-test",
-          "provider": "ibm-dev",
-          "business_model": "subsidized",
-          "permissions": ["function.write", "function-job.read", "function-provider-logs.read", "function-provider-files.read", "function-provider-files.write"]
-        }
-      ],
-      "custom_functions": {"permissions": []}
-    }
-  },
-  {
-    "instance_crn": "crn:v1:staging:public:quantum-computing:us-east:a/efb0dd39cdb64955b8f6e32d44290acf:e862a3cb-ff3b-49c7-9d80-20be5656e550::",
-    "entitlements": {
-      "functions": [
-        {
-          "name": "instances1-test",
-          "provider": "ibm-dev",
-          "business_model": "consumption",
-          "permissions": ["function.read", "function.run", "function-files.read", "function-files.write", "function.write", "function-job.read", "function-provider-logs.read", "function-provider-files.read", "function-provider-files.write"]
-        },
-        {
-          "name": "instances2-test",
-          "provider": "ibm-dev",
-          "business_model": "consumption",
-          "permissions": ["function.read", "function.run", "function-files.read", "function-files.write", "function.write", "function-job.read", "function-provider-logs.read", "function-provider-files.read", "function-provider-files.write"]
-        }
-      ],
-      "custom_functions": {"permissions": ["function-custom.write", "function-custom.run"]}
-    }
-  },
-]
-```
+Effective-permissions model (confirmed in the ntc repo):
+  - GET /functions returns the INSTANCE entitlements as-is (it never intersects the account
+    at read time).
+  - Saving the account narrows the instance entitlements (account->instance sync; only narrows).
+  - The broker rejects an instance PATCH that exceeds the account plan.
+The account is kept at a superset before each test so the configured level is exactly what
+/functions returns. The account->instance propagation itself is covered in
+test_instance_propagation.py.
 """
 
-import requests
 import pytest
-from qiskit_serverless import QiskitFunction
-from qiskit_serverless.exception import QiskitServerlessException
 
-# Expected business_model per CRN (must match REQUEST.md and the Runtime API configuration).
-# These come from core.domain.business_models.BusinessModel constants.
-BUSINESS_MODEL_USER = "TRIAL"
-BUSINESS_MODEL_ALL = "CONSUMPTION"
-
-
-def _assert_404(exc_info):
-    """Assert the exception is an HTTP 404 from the gateway."""
-    assert "| Code: 404" in str(exc_info.value)
-
-
-def _assert_download_404(exc_info):
-    """Assert the download was denied with a 404.
-
-    provider_file_download uses raise_for_status() so it raises
-    requests.exceptions.HTTPError instead of QiskitServerlessException.
-    """
-    assert "404" in str(exc_info.value)
-
-
-def _assert_403(exc_info):
-    """Assert the exception is an HTTP 403 from the gateway."""
-    assert "| Code: 403" in str(exc_info.value)
-
-
-def _function_in_list(functions, provider_name, function_title):
-    """Return True if the provider function appears in the list."""
-    return any(f.title == function_title and f.provider == provider_name for f in functions)
-
-
-class TestNoPermissionsInstance:
-    """
-    Instance with NO permissions (empty functions list).
-
-    Expected behaviour:
-      - catalog: provider function excluded (no function.read).
-      - unfiltered: provider function excluded (no function.read).
-      - get_by_title → 404.
-      - run → 404.
-      - upload → 404.
-      - provider_jobs → 404.
-      - files → 404 (no function-files.read).
-      - file_upload → 404 (no function-files.write).
-      - file_download → 404 (no function-files.read).
-      - file_delete → 404 (no function-files.write).
-      - provider_files → 404.
-      - provider_file_upload → 404.
-      - provider_file_download → 404.
-      - provider_file_delete → 404.
-      - upload custom function → 404 (no function-custom.write).
-      - run custom function → 404 (no function-custom.run).
-    """
-
-    def test_list_catalog_excludes_function(self, none_client, provider_name, function_title):
-        """Catalog list excludes the function when no permissions are present."""
-        functions = none_client.functions(filter="catalog")
-        assert not _function_in_list(
-            functions, provider_name, function_title
-        ), f"Expected {provider_name}/{function_title} NOT in catalog list (no permissions)"
-
-    def test_list_all_excludes_function(self, none_client, provider_name, function_title):
-        """Unfiltered list excludes the provider function when no permissions are present."""
-        functions = none_client.functions()
-        assert not _function_in_list(
-            functions, provider_name, function_title
-        ), f"Expected {provider_name}/{function_title} NOT in unfiltered list (no permissions)"
-
-    def test_get_by_title_raises_404(self, none_client, provider_name, function_title):
-        """get_by_title is denied (404) when no permissions are present."""
-        with pytest.raises(QiskitServerlessException) as exc:
-            none_client.function(function_title, provider=provider_name)
-        _assert_404(exc)
-
-    def test_run_raises_404(self, none_client, provider_name, function_title):
-        """run() is denied (404) when no permissions are present."""
-        with pytest.raises(QiskitServerlessException) as exc:
-            none_client.run(function_title, provider=provider_name)
-        _assert_404(exc)
-
-    def test_upload_raises_404(self, none_client, provider_name, function_title, tmp_path):
-        """upload() is denied (404) when no permissions are present."""
-        (tmp_path / "main.py").write_text('print("hello")\n')
-        fn = QiskitFunction(
-            title=function_title,
-            provider=provider_name,
-            entrypoint="main.py",
-            working_dir=str(tmp_path),
-        )
-        with pytest.raises(QiskitServerlessException) as exc:
-            none_client.upload(fn)
-        _assert_404(exc)
-
-    def test_provider_jobs_raises_404(self, none_client, provider_name, function_title):
-        """provider_jobs() is denied (404) when no permissions are present."""
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        with pytest.raises(QiskitServerlessException) as exc:
-            none_client.provider_jobs(fn)
-        _assert_404(exc)
-
-    def test_provider_files_list_raises_404(self, none_client, provider_name, function_title):
-        """provider_files() is denied (404) when no permissions are present."""
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        with pytest.raises(QiskitServerlessException) as exc:
-            none_client.provider_files(fn)
-        _assert_404(exc)
-
-    def test_provider_file_upload_raises_404(self, none_client, provider_name, function_title, tmp_path):
-        """provider_file_upload() is denied (404) when no permissions are present."""
-        file = tmp_path / "data.txt"
-        file.write_text("content")
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        with pytest.raises(QiskitServerlessException) as exc:
-            none_client.provider_file_upload(str(file), fn)
-        _assert_404(exc)
-
-    def test_provider_file_download_raises_404(self, none_client, provider_name, function_title, tmp_path):
-        """provider_file_download() is denied (404) when no permissions are present."""
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        with pytest.raises(requests.exceptions.HTTPError) as exc:
-            none_client.provider_file_download("nonexistent.txt", fn, download_location=str(tmp_path))
-        _assert_download_404(exc)
-
-    def test_provider_file_delete_raises_404(self, none_client, provider_name, function_title):
-        """provider_file_delete() is denied (404) when no permissions are present."""
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        with pytest.raises(QiskitServerlessException) as exc:
-            none_client.provider_file_delete("nonexistent.txt", fn)
-        _assert_404(exc)
-
-    def test_provider_logs_raises_403(self, none_client, seeded_job_id):
-        """provider_logs() is denied (403) when no permissions are present."""
-        with pytest.raises(QiskitServerlessException) as exc:
-            none_client.provider_logs(seeded_job_id)
-        _assert_403(exc)
-
-    def test_files_list_raises_404(self, none_client, provider_name, function_title):
-        """files() is denied (404) when function-files.read is absent."""
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        with pytest.raises(QiskitServerlessException) as exc:
-            none_client.files(fn)
-        _assert_404(exc)
-
-    def test_file_upload_raises_404(self, none_client, provider_name, function_title, tmp_path):
-        """file_upload() is denied (404) when function-files.write is absent."""
-        file = tmp_path / "data.txt"
-        file.write_text("content")
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        with pytest.raises(QiskitServerlessException) as exc:
-            none_client.file_upload(str(file), fn)
-        _assert_404(exc)
-
-    def test_file_download_raises_404(self, none_client, provider_name, function_title, tmp_path):
-        """file_download() is denied (404) when function-files.read is absent."""
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        with pytest.raises(requests.exceptions.HTTPError) as exc:
-            none_client.file_download("nonexistent.txt", fn, download_location=str(tmp_path))
-        _assert_download_404(exc)
-
-    def test_file_delete_raises_404(self, none_client, provider_name, function_title):
-        """file_delete() is denied (404) when function-files.write is absent."""
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        with pytest.raises(QiskitServerlessException) as exc:
-            none_client.file_delete("nonexistent.txt", fn)
-        _assert_404(exc)
-
-    def test_upload_custom_function_raises_404(self, none_client, custom_function_title, tmp_path):
-        """upload() for a custom function is denied (404) when function-custom.write is absent."""
-        (tmp_path / "main.py").write_text('print("hello")\n')
-        fn = QiskitFunction(
-            title=custom_function_title,
-            entrypoint="main.py",
-            working_dir=str(tmp_path),
-        )
-        with pytest.raises(QiskitServerlessException) as exc:
-            none_client.upload(fn)
-        _assert_404(exc)
-
-    def test_run_custom_function_raises_404(self, none_client, custom_function_title):
-        """run() for a custom function is denied (404) when function-custom.run is absent.
-
-        The permission check happens before the function lookup, so the 404 is returned
-        even if the function does not yet exist in the DB.
-        """
-        with pytest.raises(QiskitServerlessException) as exc:
-            none_client.run(custom_function_title)
-        _assert_404(exc)
-
-    def test_serverless_list_includes_custom_function(self, none_client, custom_function_title, seeded_custom_function):
-        """Serverless list is author-based; no custom permission is needed to see own functions.
-
-        seeded_custom_function was uploaded by user_client (same GATEWAY_TOKEN, same author).
-        none_client shares the same token, so the custom function must appear even though
-        none_client has no function-custom.* permissions.
-        """
-        functions = none_client.functions(filter="serverless")
-        titles = [f.title for f in functions]
-        assert (
-            custom_function_title in titles
-        ), f"Expected {custom_function_title!r} in serverless list (author-owned, no permission check), got: {titles}"
-
-
-class TestUserInstance:
-    """
-    Instance with USER permissions only:
-      function.read, function.run, function-files.read, function-files.write
-      business_model: TRIAL
-
-    Expected behaviour:
-      - catalog: provider function appears (function.read).
-      - unfiltered: provider function appears (function.read).
-      - serverless: provider function never appears (serverless ignores permissions, only own functions).
-      - Can run (function.run); job is created with business_model=TRIAL.
-      - Cannot upload → 404 (no function.write).
-      - Cannot list provider jobs → 404 (no function-job.read).
-      - Can always retrieve own jobs (author check, no permission needed).
-      - Can list user files (function-files.read).
-      - Can upload user files (function-files.write).
-      - Can download user files (function-files.read).
-      - Can delete user files (function-files.write).
-      - provider_files → 404 (no function-provider-files.read).
-      - provider_file_upload → 404 (no function-provider-files.write).
-      - provider_file_download → 404 (no function-provider-files.read).
-      - provider_file_delete → 404 (no function-provider-files.write).
-    """
-
-    def test_list_catalog_includes_function(self, user_client, provider_name, function_title):
-        """Catalog list includes the provider function when function.read is present."""
-        functions = user_client.functions(filter="catalog")
-        assert _function_in_list(functions, provider_name, function_title), (
-            f"Expected {provider_name}/{function_title} in catalog list, got: "
-            f"{[(f.provider, f.title) for f in functions]}"
-        )
-
-    def test_list_all_includes_function(self, user_client, provider_name, function_title):
-        """Unfiltered list includes the provider function when function.read is present."""
-        functions = user_client.functions()
-        assert _function_in_list(
-            functions, provider_name, function_title
-        ), f"Expected {provider_name}/{function_title} in unfiltered list"
-
-    def test_list_catalog_excludes_other_function(self, user_client, provider_name, seeded_other_function):
-        """Catalog list only shows functions explicitly in the instance entitlements.
-
-        instances2-test exists in the DB (seeded via combined_client) but is not in the
-        user_instance CRN entitlements, so it must not appear.
-        """
-        functions = user_client.functions(filter="catalog")
-        assert not _function_in_list(
-            functions, provider_name, seeded_other_function
-        ), f"Expected {provider_name}/{seeded_other_function} NOT in catalog list (not in CRN entitlements)"
-
-    def test_list_all_excludes_other_function(self, user_client, provider_name, seeded_other_function):
-        """Unfiltered list only shows functions explicitly in the instance entitlements.
-
-        instances2-test exists in the DB but is not entitled for user_instance.
-        """
-        functions = user_client.functions()
-        assert not _function_in_list(
-            functions, provider_name, seeded_other_function
-        ), f"Expected {provider_name}/{seeded_other_function} NOT in unfiltered list (not in CRN entitlements)"
-
-    def test_list_serverless_excludes_provider_function(self, user_client, provider_name, function_title):
-        """Serverless filter never returns provider functions regardless of permissions.
-
-        filter=serverless returns only Function.objects.user_functions(author), which
-        filters provider__isnull=True, so provider functions are always excluded.
-        """
-        functions = user_client.functions(filter="serverless")
-        assert not _function_in_list(
-            functions, provider_name, function_title
-        ), f"Expected {provider_name}/{function_title} NOT in serverless list (has provider)"
-
-    def test_get_by_title_returns_function(self, user_client, provider_name, function_title):
-        """get_by_title returns the provider function when function.read is present."""
-        fn = user_client.function(function_title, provider=provider_name)
-        assert fn is not None
-        assert fn.title == function_title
-        assert fn.provider == provider_name
-
-    def test_run_creates_job_with_business_model(self, user_client, provider_name, function_title):
-        """run() creates a job with the business_model from the instance plan (TRIAL)."""
-        job = user_client.run(function_title, provider=provider_name)
-        assert job is not None
-        assert job.job_id is not None
-
-        job_data = user_client.get_job_data(job.job_id)
-        assert (
-            job_data.get("business_model") == BUSINESS_MODEL_USER
-        ), f"Expected business_model={BUSINESS_MODEL_USER}, got {job_data.get('business_model')}"
-
-    def test_upload_raises_404(self, user_client, provider_name, function_title, tmp_path):
-        """upload() is denied (404) when function.write is absent."""
-        (tmp_path / "main.py").write_text('print("hello")\n')
-        fn = QiskitFunction(
-            title=function_title,
-            provider=provider_name,
-            entrypoint="main.py",
-            working_dir=str(tmp_path),
-        )
-        with pytest.raises(QiskitServerlessException) as exc:
-            user_client.upload(fn)
-        _assert_404(exc)
-
-    def test_provider_jobs_raises_404(self, user_client, provider_name, function_title):
-        """provider_jobs() is denied (404) when function-job.read is absent."""
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        with pytest.raises(QiskitServerlessException) as exc:
-            user_client.provider_jobs(fn)
-        _assert_404(exc)
-
-    def test_provider_files_list_raises_404(self, user_client, provider_name, function_title):
-        """provider_files() is denied (404) when function-provider-files.read is absent.
-
-        user_instance has function-files.read/write but not function-provider-files.read.
-        """
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        with pytest.raises(QiskitServerlessException) as exc:
-            user_client.provider_files(fn)
-        _assert_404(exc)
-
-    def test_provider_file_upload_raises_404(self, user_client, provider_name, function_title, tmp_path):
-        """provider_file_upload() is denied (404) when function-provider-files.write is absent."""
-        file = tmp_path / "data.txt"
-        file.write_text("content")
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        with pytest.raises(QiskitServerlessException) as exc:
-            user_client.provider_file_upload(str(file), fn)
-        _assert_404(exc)
-
-    def test_provider_file_download_raises_404(self, user_client, provider_name, function_title, tmp_path):
-        """provider_file_download() is denied (404) when function-provider-files.read is absent."""
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        with pytest.raises(requests.exceptions.HTTPError) as exc:
-            user_client.provider_file_download("nonexistent.txt", fn, download_location=str(tmp_path))
-        _assert_download_404(exc)
-
-    def test_provider_file_delete_raises_404(self, user_client, provider_name, function_title):
-        """provider_file_delete() is denied (404) when function-provider-files.write is absent."""
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        with pytest.raises(QiskitServerlessException) as exc:
-            user_client.provider_file_delete("nonexistent.txt", fn)
-        _assert_404(exc)
-
-    def test_provider_logs_raises_403(self, user_client, seeded_job_id):
-        """provider_logs() is denied (403) when function-provider-logs.read is absent."""
-        with pytest.raises(QiskitServerlessException) as exc:
-            user_client.provider_logs(seeded_job_id)
-        _assert_403(exc)
-
-    def test_files_list_returns_list(self, user_client, provider_name, function_title):
-        """files() succeeds when function-files.read is present."""
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        result = user_client.files(fn)
-        assert isinstance(result, list)
-
-    def test_file_upload_succeeds(self, user_client, provider_name, function_title, tmp_path):
-        """file_upload() succeeds when function-files.write is present."""
-        file = tmp_path / "data.txt"
-        file.write_text("user content")
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        result = user_client.file_upload(str(file), fn)
-        assert result is not None
-
-    def test_file_download_succeeds(self, user_client, provider_name, function_title, tmp_path):
-        """file_download() succeeds when function-files.read is present."""
-        file = tmp_path / "dl_test.txt"
-        file.write_text("download content")
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        user_client.file_upload(str(file), fn)
-        result = user_client.file_download(
-            "dl_test.txt", fn, download_location=str(tmp_path), target_name="dl_result.txt"
-        )
-        assert result is not None
-        assert (tmp_path / "dl_result.txt").exists()
-
-    def test_file_delete_succeeds(self, user_client, provider_name, function_title, tmp_path):
-        """file_delete() succeeds when function-files.write is present."""
-        file = tmp_path / "del_test.txt"
-        file.write_text("delete content")
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        user_client.file_upload(str(file), fn)
-        user_client.file_delete("del_test.txt", fn)
-        remaining = user_client.files(fn)
-        assert "del_test.txt" not in remaining
-
-
-class TestProviderInstance:  # pylint: disable=too-many-public-methods
-    """
-    Instance with PROVIDER permissions only:
-      function.write, function-job.read, function-provider-logs.read,
-      function-provider-files.read, function-provider-files.write
-
-    Expected behavior:
-      - catalog: provider function excluded (no function.read).
-      - unfiltered: provider function excluded (no function.read).
-      - serverless: provider function never appears (serverless ignores permissions).
-      - get_by_title → 404, run → 404.
-      - Can upload (function.write).
-      - Can list provider jobs (function-job.read).
-      - Can retrieve a specific job (function-job.read covers both list and retrieve).
-      - Can list provider files (function-provider-files.read).
-      - Can upload provider files (function-provider-files.write).
-      - Can download provider files (function-provider-files.read).
-      - Can delete provider files (function-provider-files.write).
-      - files → 404 (no function-files.read).
-      - file_upload → 404 (no function-files.write).
-      - file_download → 404 (no function-files.read).
-      - file_delete → 404 (no function-files.write).
-    """
-
-    def test_list_catalog_excludes_function(self, provider_client, provider_name, function_title):
-        """Catalog list excludes the function when function.read is absent."""
-        functions = provider_client.functions(filter="catalog")
-        assert not _function_in_list(
-            functions, provider_name, function_title
-        ), f"Expected {provider_name}/{function_title} NOT in catalog list (no function.read)"
-
-    def test_list_all_excludes_provider_function(self, provider_client, provider_name, function_title):
-        """Unfiltered list excludes the provider function when function.read is absent.
-
-        Note: the list may still contain the user's own serverless functions; we only
-        assert that the specific provider function is not present.
-        """
-        functions = provider_client.functions()
-        assert not _function_in_list(
-            functions, provider_name, function_title
-        ), f"Expected {provider_name}/{function_title} NOT in unfiltered list (no function.read)"
-
-    def test_list_catalog_excludes_other_function(self, provider_client, provider_name, seeded_other_function):
-        """Catalog list excludes functions not in the instance entitlements.
-
-        instances2-test exists in the DB (seeded via combined_client) but is not in the
-        provider_instance CRN entitlements.
-        """
-        functions = provider_client.functions(filter="catalog")
-        assert not _function_in_list(
-            functions, provider_name, seeded_other_function
-        ), f"Expected {provider_name}/{seeded_other_function} NOT in catalog list (not in CRN entitlements)"
-
-    def test_list_all_excludes_other_function(self, provider_client, provider_name, seeded_other_function):
-        """Unfiltered list excludes functions not in the instance entitlements.
-
-        instances2-test exists in the DB but is not entitled for provider_instance.
-        """
-        functions = provider_client.functions()
-        assert not _function_in_list(
-            functions, provider_name, seeded_other_function
-        ), f"Expected {provider_name}/{seeded_other_function} NOT in unfiltered list (not in CRN entitlements)"
-
-    def test_get_by_title_raises_404(self, provider_client, provider_name, function_title):
-        """get_by_title is denied (404) when function.read is absent."""
-        with pytest.raises(QiskitServerlessException) as exc:
-            provider_client.function(function_title, provider=provider_name)
-        _assert_404(exc)
-
-    def test_run_raises_404(self, provider_client, provider_name, function_title):
-        """run() is denied (404) when function.run is absent."""
-        with pytest.raises(QiskitServerlessException) as exc:
-            provider_client.run(function_title, provider=provider_name)
-        _assert_404(exc)
-
-    def test_upload_succeeds(self, provider_client, provider_name, function_title, tmp_path):
-        """upload() succeeds when function.write is present."""
-        (tmp_path / "main.py").write_text('print("hello")\n')
-        fn = QiskitFunction(
-            title=function_title,
-            provider=provider_name,
-            entrypoint="main.py",
-            working_dir=str(tmp_path),
-        )
-        result = provider_client.upload(fn)
-        assert result is not None
-        assert result.title == function_title
-
-    def test_provider_jobs_contains_seeded_job(self, provider_client, provider_name, function_title, seeded_job_id):
-        """provider_jobs() returns the expected jobs when function-job.read is present.
-
-        Verifies that the seeded job appears in the list, confirming the endpoint filters
-        correctly by function and that function-job.read grants access.
-        """
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        jobs = provider_client.provider_jobs(fn)
-        assert isinstance(jobs, list)
-        assert any(
-            j.job_id == seeded_job_id for j in jobs
-        ), f"Seeded job {seeded_job_id} not found in provider_jobs. Got: {[j.job_id for j in jobs]}"
-
-    def test_retrieve_job_succeeds(self, provider_client, seeded_job_id):
-        """retrieve() succeeds when function-job.read is present.
-
-        Note: since all test clients share the same GATEWAY_TOKEN, the seeded job is
-        authored by the same user and the author check alone would grant access. The
-        non-author code path (function-job.read only) requires a separate user token.
-        """
-        job_data = provider_client.get_job_data(seeded_job_id)
-        assert job_data is not None
-        assert "status" in job_data
-
-    def test_list_serverless_excludes_provider_function(self, provider_client, provider_name, function_title):
-        """Serverless filter never returns provider functions regardless of permissions."""
-        functions = provider_client.functions(filter="serverless")
-        assert not _function_in_list(
-            functions, provider_name, function_title
-        ), f"Expected {provider_name}/{function_title} NOT in serverless list (has provider)"
-
-    def test_provider_files_list_returns_list(self, provider_client, provider_name, function_title):
-        """provider_files() succeeds when function-provider-files.read is present."""
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        result = provider_client.provider_files(fn)
-        assert isinstance(result, list)
-
-    def test_provider_file_upload_succeeds(self, provider_client, provider_name, function_title, tmp_path):
-        """provider_file_upload() succeeds when function-provider-files.write is present."""
-        file = tmp_path / "data.txt"
-        file.write_text("provider content")
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        result = provider_client.provider_file_upload(str(file), fn)
-        assert result is not None
-
-    def test_provider_file_download_succeeds(self, provider_client, provider_name, function_title, tmp_path):
-        """provider_file_download() succeeds when function-provider-files.read is present."""
-        file = tmp_path / "dl_test.txt"
-        file.write_text("download content")
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        provider_client.provider_file_upload(str(file), fn)
-        result = provider_client.provider_file_download(
-            "dl_test.txt", fn, download_location=str(tmp_path), target_name="dl_result.txt"
-        )
-        assert result is not None
-        assert (tmp_path / "dl_result.txt").exists()
-
-    def test_provider_file_delete_succeeds(self, provider_client, provider_name, function_title, tmp_path):
-        """provider_file_delete() succeeds when function-provider-files.write is present."""
-        file = tmp_path / "del_test.txt"
-        file.write_text("delete content")
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        provider_client.provider_file_upload(str(file), fn)
-        provider_client.provider_file_delete("del_test.txt", fn)
-        remaining = provider_client.provider_files(fn)
-        assert "del_test.txt" not in remaining
-
-    def test_provider_logs_succeeds(self, provider_client, seeded_job_id):
-        """provider_logs() succeeds when function-provider-logs.read is present."""
-        logs = provider_client.provider_logs(seeded_job_id)
-        assert logs is not None
-
-    def test_files_list_raises_404(self, provider_client, provider_name, function_title):
-        """files() is denied (404) when function-files.read is absent."""
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        with pytest.raises(QiskitServerlessException) as exc:
-            provider_client.files(fn)
-        _assert_404(exc)
-
-    def test_file_upload_raises_404(self, provider_client, provider_name, function_title, tmp_path):
-        """file_upload() is denied (404) when function-files.write is absent."""
-        file = tmp_path / "data.txt"
-        file.write_text("content")
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        with pytest.raises(QiskitServerlessException) as exc:
-            provider_client.file_upload(str(file), fn)
-        _assert_404(exc)
-
-    def test_file_download_raises_404(self, provider_client, provider_name, function_title, tmp_path):
-        """file_download() is denied (404) when function-files.read is absent."""
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        with pytest.raises(requests.exceptions.HTTPError) as exc:
-            provider_client.file_download("nonexistent.txt", fn, download_location=str(tmp_path))
-        _assert_download_404(exc)
-
-    def test_file_delete_raises_404(self, provider_client, provider_name, function_title):
-        """file_delete() is denied (404) when function-files.write is absent."""
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        with pytest.raises(QiskitServerlessException) as exc:
-            provider_client.file_delete("nonexistent.txt", fn)
-        _assert_404(exc)
-
-    def test_upload_custom_function_raises_404(self, provider_client, custom_function_title, tmp_path):
-        """upload() for a custom function is denied (404) when function-custom.write is absent."""
-        (tmp_path / "main.py").write_text('print("hello")\n')
-        fn = QiskitFunction(
-            title=custom_function_title,
-            entrypoint="main.py",
-            working_dir=str(tmp_path),
-        )
-        with pytest.raises(QiskitServerlessException) as exc:
-            provider_client.upload(fn)
-        _assert_404(exc)
-
-    def test_run_custom_function_raises_404(self, provider_client, custom_function_title):
-        """run() for a custom function is denied (404) when function-custom.run is absent.
-
-        The permission check happens before the function lookup, so the 404 is returned
-        even if the function does not yet exist in the DB.
-        """
-        with pytest.raises(QiskitServerlessException) as exc:
-            provider_client.run(custom_function_title)
-        _assert_404(exc)
-
-    def test_serverless_list_includes_custom_function(
-        self, provider_client, custom_function_title, seeded_custom_function
+from instances.conftest import (
+    apply_level,
+    ALL_CUSTOM,
+    ALL_FUNCTIONS,
+    NONE_CUSTOM,
+    NONE_FUNCTIONS,
+    PROVIDER_CUSTOM,
+    PROVIDER_FUNCTIONS,
+    USER_CUSTOM,
+    USER_FUNCTIONS,
+)
+from instances.permission_checks import (
+    CombinedPermissionChecks,
+    CustomFunctionChecks,
+    NonePermissionChecks,
+    ProviderPermissionChecks,
+    UserPermissionChecks,
+)
+
+
+class TestNoPermissionsInstance(NonePermissionChecks):
+    """Instance reconfigured to NONE (empty functions list)."""
+
+    @pytest.fixture(autouse=True)
+    def _bind(self, ntc, reconfig_client, provider_name, function_title, custom_function_title, seeded_job_id):
+        self.provider_name = provider_name
+        self.function_title = function_title
+        self.custom_function_title = custom_function_title
+        self.seeded_job_id = seeded_job_id
+        apply_level(ntc, NONE_FUNCTIONS, NONE_CUSTOM)
+        self.client = reconfig_client
+
+
+class TestUserInstance(UserPermissionChecks):
+    """Instance reconfigured to USER permissions (business_model TRIAL)."""
+
+    @pytest.fixture(autouse=True)
+    def _bind(self, ntc, reconfig_client, provider_name, function_title, seeded_other_function, seeded_job_id):
+        self.provider_name = provider_name
+        self.function_title = function_title
+        self.other_function_title = seeded_other_function
+        self.seeded_job_id = seeded_job_id
+        apply_level(ntc, USER_FUNCTIONS, USER_CUSTOM)
+        self.client = reconfig_client
+
+
+class TestProviderInstance(ProviderPermissionChecks):
+    """Instance reconfigured to PROVIDER permissions."""
+
+    @pytest.fixture(autouse=True)
+    def _bind(
+        self,
+        ntc,
+        reconfig_client,
+        provider_name,
+        function_title,
+        custom_function_title,
+        seeded_other_function,
+        seeded_job_id,
     ):
-        """Serverless list is author-based; no custom permission is needed to see own functions.
-
-        seeded_custom_function was uploaded by user_client (same GATEWAY_TOKEN, same author).
-        provider_client shares the same token, so the custom function must appear even though
-        provider_client has no function-custom.* permissions.
-        """
-        functions = provider_client.functions(filter="serverless")
-        titles = [f.title for f in functions]
-        assert (
-            custom_function_title in titles
-        ), f"Expected {custom_function_title!r} in serverless list (author-owned, no permission check), got: {titles}"
+        self.provider_name = provider_name
+        self.function_title = function_title
+        self.custom_function_title = custom_function_title
+        self.other_function_title = seeded_other_function
+        self.seeded_job_id = seeded_job_id
+        apply_level(ntc, PROVIDER_FUNCTIONS, PROVIDER_CUSTOM)
+        self.client = reconfig_client
 
 
-class TestCombinedInstance:  # pylint: disable=too-many-public-methods
-    """
-    Instance with ALL permissions (USER + PROVIDER):
-      function.read, function.run, function-files.read, function-files.write,
-      function.write, function-job.read, function-provider-logs.read,
-      function-provider-files.read, function-provider-files.write
-      business_model: CONSUMPTION
+class TestCombinedInstance(CombinedPermissionChecks):
+    """Instance reconfigured to ALL permissions (business_model CONSUMPTION), two functions."""
 
-    Expected behaviour:
-      - catalog: provider function appears.
-      - unfiltered: provider function appears.
-      - serverless: provider function never appears (serverless ignores permissions).
-      - All other endpoints work correctly.
-      - Can list provider jobs and retrieve individual jobs (function-job.read).
-      - Can list provider files (function-provider-files.read).
-      - Can upload provider files (function-provider-files.write).
-      - Can download provider files (function-provider-files.read).
-      - Can delete provider files (function-provider-files.write).
-      - Can list user files (function-files.read).
-      - Can upload user files (function-files.write).
-      - Can download user files (function-files.read).
-      - Can delete user files (function-files.write).
-    """
-
-    def test_list_catalog_includes_function(self, combined_client, provider_name, function_title):
-        """Catalog list includes the provider function."""
-        functions = combined_client.functions(filter="catalog")
-        assert _function_in_list(
-            functions, provider_name, function_title
-        ), f"Expected {provider_name}/{function_title} in catalog list"
-
-    def test_list_all_includes_function(self, combined_client, provider_name, function_title):
-        """Unfiltered list includes the provider function."""
-        functions = combined_client.functions()
-        assert _function_in_list(
-            functions, provider_name, function_title
-        ), f"Expected {provider_name}/{function_title} in unfiltered list"
-
-    def test_list_catalog_includes_both_functions(
-        self, combined_client, provider_name, function_title, seeded_other_function
+    @pytest.fixture(autouse=True)
+    def _bind(
+        self,
+        ntc,
+        reconfig_client,
+        provider_name,
+        function_title,
+        custom_function_title,
+        seeded_other_function,
+        seeded_job_id,
     ):
-        """Catalog includes both functions entitled for this CRN.
-
-        combined_instance has function.read for instances1-test and instances2-test.
-        Both must appear, confirming that multi-function entitlements work correctly.
-        The isolation guarantee (user/provider cannot see instances2-test) is verified
-        in TestUserInstance and TestProviderInstance.
-        """
-        functions = combined_client.functions(filter="catalog")
-        assert _function_in_list(
-            functions, provider_name, function_title
-        ), f"Expected {provider_name}/{function_title} in catalog list"
-        assert _function_in_list(
-            functions, provider_name, seeded_other_function
-        ), f"Expected {provider_name}/{seeded_other_function} in catalog list (entitled for combined_instance)"
-
-    def test_list_all_includes_both_functions(
-        self, combined_client, provider_name, function_title, seeded_other_function
-    ):
-        """Unfiltered list includes both functions entitled for this CRN."""
-        functions = combined_client.functions()
-        assert _function_in_list(
-            functions, provider_name, function_title
-        ), f"Expected {provider_name}/{function_title} in unfiltered list"
-        assert _function_in_list(
-            functions, provider_name, seeded_other_function
-        ), f"Expected {provider_name}/{seeded_other_function} in unfiltered list (entitled for combined_instance)"
-
-    def test_list_serverless_excludes_provider_function(self, combined_client, provider_name, function_title):
-        """Serverless filter never returns provider functions regardless of permissions."""
-        functions = combined_client.functions(filter="serverless")
-        assert not _function_in_list(
-            functions, provider_name, function_title
-        ), f"Expected {provider_name}/{function_title} NOT in serverless list (has provider)"
-
-    def test_get_by_title_returns_function(self, combined_client, provider_name, function_title):
-        """get_by_title returns the provider function."""
-        fn = combined_client.function(function_title, provider=provider_name)
-        assert fn is not None
-        assert fn.title == function_title
-        assert fn.provider == provider_name
-
-    def test_run_creates_job_with_business_model(self, combined_client, provider_name, function_title):
-        """run() creates a job with the business_model from the instance plan (CONSUMPTION)."""
-        job = combined_client.run(function_title, provider=provider_name)
-        assert job is not None
-        assert job.job_id is not None
-
-        job_data = combined_client.get_job_data(job.job_id)
-        assert (
-            job_data.get("business_model") == BUSINESS_MODEL_ALL
-        ), f"Expected business_model={BUSINESS_MODEL_ALL}, got {job_data.get('business_model')}"
-
-    def test_upload_succeeds(self, combined_client, provider_name, function_title, tmp_path):
-        """upload() succeeds with full permissions."""
-        (tmp_path / "main.py").write_text('print("hello")\n')
-        fn = QiskitFunction(
-            title=function_title,
-            provider=provider_name,
-            entrypoint="main.py",
-            working_dir=str(tmp_path),
-        )
-        result = combined_client.upload(fn)
-        assert result is not None
-        assert result.title == function_title
-
-    def test_provider_jobs_contains_seeded_job(self, combined_client, provider_name, function_title, seeded_job_id):
-        """provider_jobs() returns the expected jobs with full permissions."""
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        jobs = combined_client.provider_jobs(fn)
-        assert isinstance(jobs, list)
-        assert any(
-            j.job_id == seeded_job_id for j in jobs
-        ), f"Seeded job {seeded_job_id} not found in provider_jobs. Got: {[j.job_id for j in jobs]}"
-
-    def test_retrieve_job_succeeds(self, combined_client, seeded_job_id):
-        """retrieve() succeeds with full permissions."""
-        job_data = combined_client.get_job_data(seeded_job_id)
-        assert job_data is not None
-        assert "status" in job_data
-
-    def test_provider_logs_succeeds(self, combined_client, seeded_job_id):
-        """provider_logs() succeeds with full permissions."""
-        logs = combined_client.provider_logs(seeded_job_id)
-        assert logs is not None
-
-    def test_provider_files_list_returns_list(self, combined_client, provider_name, function_title):
-        """provider_files() succeeds with full permissions."""
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        result = combined_client.provider_files(fn)
-        assert isinstance(result, list)
-
-    def test_provider_file_upload_succeeds(self, combined_client, provider_name, function_title, tmp_path):
-        """provider_file_upload() succeeds with full permissions."""
-        file = tmp_path / "data.txt"
-        file.write_text("combined content")
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        result = combined_client.provider_file_upload(str(file), fn)
-        assert result is not None
-
-    def test_provider_file_download_succeeds(self, combined_client, provider_name, function_title, tmp_path):
-        """provider_file_download() succeeds with full permissions."""
-        file = tmp_path / "dl_test.txt"
-        file.write_text("download content")
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        combined_client.provider_file_upload(str(file), fn)
-        result = combined_client.provider_file_download(
-            "dl_test.txt", fn, download_location=str(tmp_path), target_name="dl_result.txt"
-        )
-        assert result is not None
-        assert (tmp_path / "dl_result.txt").exists()
-
-    def test_provider_file_delete_succeeds(self, combined_client, provider_name, function_title, tmp_path):
-        """provider_file_delete() succeeds with full permissions."""
-        file = tmp_path / "del_test.txt"
-        file.write_text("delete content")
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        combined_client.provider_file_upload(str(file), fn)
-        combined_client.provider_file_delete("del_test.txt", fn)
-        remaining = combined_client.provider_files(fn)
-        assert "del_test.txt" not in remaining
-
-    def test_files_list_returns_list(self, combined_client, provider_name, function_title):
-        """files() succeeds with full permissions."""
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        result = combined_client.files(fn)
-        assert isinstance(result, list)
-
-    def test_file_upload_succeeds(self, combined_client, provider_name, function_title, tmp_path):
-        """file_upload() succeeds with full permissions."""
-        file = tmp_path / "data.txt"
-        file.write_text("combined content")
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        result = combined_client.file_upload(str(file), fn)
-        assert result is not None
-
-    def test_file_download_succeeds(self, combined_client, provider_name, function_title, tmp_path):
-        """file_download() succeeds with full permissions."""
-        file = tmp_path / "dl_test.txt"
-        file.write_text("download content")
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        combined_client.file_upload(str(file), fn)
-        result = combined_client.file_download(
-            "dl_test.txt", fn, download_location=str(tmp_path), target_name="dl_result.txt"
-        )
-        assert result is not None
-        assert (tmp_path / "dl_result.txt").exists()
-
-    def test_file_delete_succeeds(self, combined_client, provider_name, function_title, tmp_path):
-        """file_delete() succeeds with full permissions."""
-        file = tmp_path / "del_test.txt"
-        file.write_text("delete content")
-        fn = QiskitFunction(title=function_title, provider=provider_name)
-        combined_client.file_upload(str(file), fn)
-        combined_client.file_delete("del_test.txt", fn)
-        remaining = combined_client.files(fn)
-        assert "del_test.txt" not in remaining
-
-    def test_upload_custom_function_succeeds(self, combined_client, custom_function_title, tmp_path):
-        """upload() for a custom function succeeds when function-custom.write is present."""
-        (tmp_path / "main.py").write_text('print("hello")\n')
-        fn = QiskitFunction(
-            title=custom_function_title,
-            entrypoint="main.py",
-            working_dir=str(tmp_path),
-        )
-        result = combined_client.upload(fn)
-        assert result is not None
-        assert result.title == custom_function_title
-
-    def test_run_custom_function_succeeds(self, combined_client, custom_function_title, seeded_custom_function):
-        """run() creates a job for the custom function when function-custom.run is present."""
-        job = combined_client.run(custom_function_title)
-        assert job is not None
-        assert job.job_id is not None
-
-    def test_serverless_list_includes_custom_function(
-        self, combined_client, custom_function_title, seeded_custom_function
-    ):
-        """Serverless filter returns the custom function owned by the authenticated user."""
-        functions = combined_client.functions(filter="serverless")
-        titles = [f.title for f in functions]
-        assert custom_function_title in titles, f"Expected {custom_function_title!r} in serverless list, got: {titles}"
+        self.provider_name = provider_name
+        self.function_title = function_title
+        self.custom_function_title = custom_function_title
+        self.other_function_title = seeded_other_function
+        self.seeded_job_id = seeded_job_id
+        apply_level(ntc, ALL_FUNCTIONS, ALL_CUSTOM)
+        self.client = reconfig_client
 
 
-class TestCustomFunctionInstance:
-    """
-    Verifies that function-custom.write and function-custom.run work correctly.
-    Uses user_client, which has both custom permissions alongside its user permissions.
+class TestCustomFunctionInstance(CustomFunctionChecks):
+    """Instance reconfigured to USER permissions (which include function-custom.write/run)."""
 
-    Expected behaviour:
-      - upload() for a custom function succeeds (function-custom.write).
-      - run() for a custom function succeeds (function-custom.run).
-      - serverless list includes the uploaded custom function.
-    """
-
-    def test_upload_custom_function_succeeds(self, user_client, custom_function_title, tmp_path):
-        """upload() succeeds when function-custom.write is present."""
-        (tmp_path / "main.py").write_text('print("hello")\n')
-        fn = QiskitFunction(
-            title=custom_function_title,
-            entrypoint="main.py",
-            working_dir=str(tmp_path),
-        )
-        result = user_client.upload(fn)
-        assert result is not None
-        assert result.title == custom_function_title
-
-    def test_run_custom_function_succeeds(self, user_client, custom_function_title, seeded_custom_function):
-        """run() creates a job for the custom function when function-custom.run is present."""
-        job = user_client.run(custom_function_title)
-        assert job is not None
-        assert job.job_id is not None
-
-    def test_serverless_list_includes_custom_function(self, user_client, custom_function_title, seeded_custom_function):
-        """Serverless filter returns the custom function owned by the authenticated user."""
-        functions = user_client.functions(filter="serverless")
-        titles = [f.title for f in functions]
-        assert custom_function_title in titles, f"Expected {custom_function_title!r} in serverless list, got: {titles}"
+    @pytest.fixture(autouse=True)
+    def _bind(self, ntc, reconfig_client, custom_function_title):
+        self.custom_function_title = custom_function_title
+        apply_level(ntc, USER_FUNCTIONS, USER_CUSTOM)
+        self.client = reconfig_client
