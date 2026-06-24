@@ -1,0 +1,11 @@
+---
+fixes:
+  - |
+    Fixed result retrieval for provider (custom-image) functions running on the Ray
+    runner. The function writes its result to a provider-scoped path
+    (``{username}/{provider}/{title}/results/{job_id}.json``, via the ``RESULTS_PATH``
+    environment variable), but the gateway read the result from a username-only path
+    (``{username}/results/{job_id}.json``). As a result, ``job.result()`` could return
+    an empty result for a provider function even though the job completed successfully.
+    ``RayResultStorage`` is now provider-aware, mirroring ``RayArgumentsStorage``, so the
+    read path matches where the function writes.

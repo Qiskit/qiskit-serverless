@@ -6,7 +6,11 @@ import pytest
 from rest_framework.exceptions import ValidationError
 
 from api.domain.authentication.channel import Channel
-from api.serializers import RunJobSerializer, UploadProgramSerializer
+from api.use_cases.programs.run import RunFunctionUseCase
+from api.use_cases.programs.run_input import RunFunctionInput
+from api.use_cases.programs.upload import UploadFunctionUseCase
+from api.use_cases.programs.upload_input import UploadFunctionInput
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import CodeEngineProject, Program
 from core.services.runners import RunnerError
 from core.services.runners.fleets_runner import FleetsRunner
@@ -59,8 +63,8 @@ class TestCEProjectAssignmentAtUpload:
 
 
 @pytest.mark.django_db
-class TestCEProjectResolutionViaSerializer:
-    """Verify CE project resolution via the serializer create/update paths."""
+class TestCEProjectResolutionViaUseCase:
+    """Verify CE project resolution via the use case create/update paths."""
 
     @pytest.fixture
     def ce_project(self):
@@ -80,17 +84,12 @@ class TestCEProjectResolutionViaSerializer:
         settings.CE_DEFAULT_PROJECT_NAME = "default-project"
 
     def test_create_fleets_program_gets_default_project(self, ce_project):
-        """Fleets program created via serializer gets the active CE project."""
+        """Fleets program created via use case gets the active CE project."""
         user, _ = TestUtils.get_user_and_username("uploader")
-        serializer = UploadProgramSerializer()
-        program = serializer.create(
-            {
-                "title": "fleets-func",
-                "author": user,
-                "runner": Program.FLEETS,
-                "entrypoint": "main.py",
-                "dependencies": "[]",
-            }
+        program = UploadFunctionUseCase()._create(  # pylint: disable=protected-access
+            UploadFunctionInput(title="fleets-func", entrypoint="main.py", runner=Program.FLEETS),
+            user=user,
+            provider=None,
         )
 
         assert program.code_engine_project == ce_project
@@ -105,15 +104,10 @@ class TestCEProjectResolutionViaSerializer:
         )
         assert program.code_engine_project is None
 
-        serializer = UploadProgramSerializer()
-        updated = serializer.update(
+        updated = UploadFunctionUseCase()._update(  # pylint: disable=protected-access
             program,
-            {
-                "entrypoint": "main.py",
-                "dependencies": "[]",
-                "runner": Program.FLEETS,
-                "author": user,
-            },
+            UploadFunctionInput(title=program.title, entrypoint="main.py", runner=Program.FLEETS),
+            user=user,
         )
 
         assert updated.code_engine_project == ce_project
@@ -141,7 +135,7 @@ class TestJobCreationValidation:
             cos_key_name="cos-key",
         )
 
-    @patch("api.serializers.get_arguments_storage")
+    @patch("api.use_cases.programs.run.get_arguments_storage")
     def test_job_creation_succeeds_with_ce_project(self, mock_storage, ce_project):
         """Job creation succeeds when Fleets program has a CE project."""
         user, _ = TestUtils.get_user_and_username("runner")
@@ -151,14 +145,22 @@ class TestJobCreationValidation:
             runner=Program.FLEETS,
             code_engine_project=ce_project,
         )
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
-        serializer = RunJobSerializer(data={"program": program.id})
-        serializer.is_valid(raise_exception=True)
-        job = serializer.save(
-            channel=Channel.IBM_QUANTUM_PLATFORM,
-            author=user,
-            carrier={},
-            token="my_token",
+        job = RunFunctionUseCase().execute(
+            user,
+            accessible,
+            RunFunctionInput(
+                title="good-func",
+                provider_name=None,
+                arguments="{}",
+                config_data=None,
+                compute_profile=None,
+                channel=Channel.IBM_QUANTUM_PLATFORM,
+                token="my_token",
+                instance=None,
+                account_id=None,
+            ),
         )
 
         assert job.program.code_engine_project == ce_project
@@ -169,39 +171,47 @@ class TestJobCreationValidation:
     def test_job_creation_fails_without_ce_project(self):
         """Job creation raises ValidationError when Fleets program lacks CE project."""
         user, _ = TestUtils.get_user_and_username("runner")
-        program = TestUtils.create_program(
-            program_title="orphan-func",
-            author=user,
-            runner=Program.FLEETS,
-        )
-
-        serializer = RunJobSerializer(data={"program": program.id})
-        serializer.is_valid(raise_exception=True)
+        TestUtils.create_program(program_title="orphan-func", author=user, runner=Program.FLEETS)
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
         with pytest.raises(ValidationError, match="no Code Engine project assigned"):
-            serializer.save(
-                channel=Channel.IBM_QUANTUM_PLATFORM,
-                author=user,
-                carrier={},
-                token="my_token",
+            RunFunctionUseCase().execute(
+                user,
+                accessible,
+                RunFunctionInput(
+                    title="orphan-func",
+                    provider_name=None,
+                    arguments="{}",
+                    config_data=None,
+                    compute_profile=None,
+                    channel=Channel.IBM_QUANTUM_PLATFORM,
+                    token="my_token",
+                    instance=None,
+                    account_id=None,
+                ),
             )
 
-    def test_ray_job_creation_does_not_require_ce_project(self):
+    @patch("api.use_cases.programs.run.get_arguments_storage")
+    def test_ray_job_creation_does_not_require_ce_project(self, mock_storage):
         """Ray jobs do not need a CE project and create successfully without one."""
         user, _ = TestUtils.get_user_and_username("runner")
-        program = TestUtils.create_program(
-            program_title="ray-func",
-            author=user,
-            runner=Program.RAY,
-        )
+        TestUtils.create_program(program_title="ray-func", author=user, runner=Program.RAY)
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
-        serializer = RunJobSerializer(data={"program": program.id})
-        serializer.is_valid(raise_exception=True)
-        job = serializer.save(
-            channel=Channel.IBM_QUANTUM_PLATFORM,
-            author=user,
-            carrier={},
-            token="my_token",
+        job = RunFunctionUseCase().execute(
+            user,
+            accessible,
+            RunFunctionInput(
+                title="ray-func",
+                provider_name=None,
+                arguments="{}",
+                config_data=None,
+                compute_profile=None,
+                channel=Channel.IBM_QUANTUM_PLATFORM,
+                token="my_token",
+                instance=None,
+                account_id=None,
+            ),
         )
 
         assert job.runner == Program.RAY

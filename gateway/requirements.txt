@@ -30,5 +30,5 @@ python-magic>=0.4.27, <1
 python-json-logger>=4.0.0
 PyJWT>=2.13.0, <3
 ibm-cos-sdk>=2.16.2, <3
-ibm-cloud-sdk-core>=3.24.4, <4
+ibm-cloud-sdk-core>=3.25.0, <4
 jsonschema>=4.0.0,<5

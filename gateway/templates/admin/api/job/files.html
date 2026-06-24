@@ -1,0 +1,81 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block title %}Storage Files -- Job {{ job.id }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'change' job.pk|admin_urlquote %}">{{ job|truncatewords:"18" }}</a>
+&rsaquo; {% translate 'Storage Files' %}
+</div>
+{% endblock %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'admin/css/job_admin.css' %}">
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+<h1>Storage Files</h1>
+
+<div class="job-nav">
+    <a href="{% url opts|admin_urlname:'change' job.id|admin_urlquote %}">{% translate "Edit Job" %}</a>
+    <a href="{% url 'admin:job_events_view' job.id %}">{% translate "Events" %}</a>
+    <a class="active">{% translate "Storage Files" %}</a>
+    <a href="{% url opts|admin_urlname:'history' job.id|admin_urlquote %}">{% translate "History" %}</a>
+</div>
+{% include "admin/api/job/_job_subtitle.html" with job_instance=job %}
+
+{% if error %}
+  <p style="color: #b94a48; background: #f2dede; padding: 10px; border-radius: 4px;">
+    Error loading files: {{ error }}
+  </p>
+{% endif %}
+
+{% if not groups and not error %}
+  <p>No files found for this job.</p>
+{% endif %}
+
+{% for group in groups %}
+  <h2 style="margin-top: 24px; font-size: 1em; text-transform: uppercase;
+             letter-spacing: 0.5px; color: #333; border-bottom: 2px solid #ddd;
+             padding-bottom: 4px;">
+    {{ group.category }}
+    <span style="font-weight: normal; font-size: 0.85em; color: #888; text-transform: none;">
+      ({{ group.files|length }} file{{ group.files|length|pluralize }})
+    </span>
+  </h2>
+
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 0.875em;">
+    <thead>
+      <tr style="background: #f5f5f5; border-bottom: 2px solid #ccc;">
+        <th style="padding: 6px 12px; text-align: left;">Name</th>
+        <th style="padding: 6px 12px; text-align: right; width: 100px;">Size</th>
+        <th style="padding: 6px 12px; text-align: left; width: 180px;">Date</th>
+        <th style="padding: 6px 12px; text-align: left;">Bucket / Path</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in group.files %}
+      <tr style="border-bottom: 1px solid #eee; {% cycle '' 'background: #fafafa;' %}">
+        <td style="padding: 6px 12px; font-family: monospace;">{{ f.name }}</td>
+        <td style="padding: 6px 12px; text-align: right; color: #555;">
+          {% if f.size_bytes %}{{ f.size_bytes|filesizeformat }}{% else %}&mdash;{% endif %}
+        </td>
+        <td style="padding: 6px 12px; color: #555;">
+          {% if f.last_modified %}{{ f.last_modified|date:"Y-m-d H:i" }}{% else %}&mdash;{% endif %}
+        </td>
+        <td style="padding: 6px 12px; font-family: monospace; color: #888; font-size: 0.9em;">
+          {{ f.bucket_or_path }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endfor %}
+</div>
+{% endblock %}
