@@ -3,8 +3,6 @@
 from dataclasses import dataclass
 from typing import Any
 
-from core.models import Program as Function
-
 
 def _parse_provider_and_title(provider_raw: str | None, title_raw: str) -> tuple[str | None, str]:
     if provider_raw:
