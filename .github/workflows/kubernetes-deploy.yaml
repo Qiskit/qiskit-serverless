@@ -19,7 +19,7 @@ jobs:
     env:
       KIND_CLUSTER_NAME: kind
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup Kind and kubectl
         uses: helm/kind-action@v1
         with:

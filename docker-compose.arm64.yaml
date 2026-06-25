@@ -1,0 +1,22 @@
+# Local-dev override for Apple Silicon (M-series) Macs.
+#
+# Use together with the base docker-compose.yaml:
+#
+#   docker build --platform linux/arm64 \
+#     -t custom-ray-node:0.32.0-arm64 -f ray-node/Dockerfile.arm64 .
+#   VERSION=0.32.0 docker compose -f docker-compose.yaml -f docker-compose.arm64.yaml up
+#
+# Runs ray-head as a NATIVE arm64 image (no QEMU) so Ray 2.55 startup is fast enough that its
+# default timeouts are satisfied and jobs no longer hang in QUEUED. gateway/scheduler/postgres
+# stay amd64 (Django/DB only, no Ray) and run under emulation; they reach ray-head over HTTP, so
+# the mixed architecture is fine. See docs/custom_images/run_on_apple_silicon.rst.
+services:
+  ray-head:
+    platform: linux/arm64
+    image: custom-ray-node:0.32.0-arm64
+  gateway:
+    platform: linux/amd64
+  scheduler:
+    platform: linux/amd64
+  postgres:
+    platform: linux/amd64

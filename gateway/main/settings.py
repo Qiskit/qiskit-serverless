@@ -67,6 +67,7 @@ ALLOWED_CIDR_NETS = ["10.0.0.0/8"]
 # Application definition
 
 INSTALLED_APPS = [
+    "api",  # must be first so api/static shadows django.contrib.admin static files
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -80,7 +81,6 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "pgactivity",
     "pglock",
-    "api",
     "core",
     "scheduler",
     "psycopg2",

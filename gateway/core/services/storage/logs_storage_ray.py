@@ -65,6 +65,20 @@ class RayLogsStorage(LogsStorage):
             raise RuntimeError("Private logs are only available for provider jobs")
         self._write_logs(self._private_path, logs)
 
+    @property
+    def public_log_dir(self) -> str:
+        """Absolute path to the directory containing public log files."""
+        return self._public_path
+
+    @property
+    def private_log_dir(self) -> Optional[str]:
+        """Absolute path to the directory containing private log files, or None."""
+        return self._private_path
+
+    def log_file_path(self, base_dir: str) -> str:
+        """Return the absolute path to the log file under base_dir."""
+        return self._get_file_path(base_dir)
+
     def get_public_logs_url(self) -> Optional[str]:
         raise NotImplementedError("Presigned URLs are not supported for Ray jobs")
 

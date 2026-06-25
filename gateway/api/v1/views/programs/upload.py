@@ -1,60 +1,70 @@
-"""
-Serializers api for V1.
-"""
+"""API endpoint for uploading a Qiskit Function."""
 
 import json
 import logging
-from typing import Any
+from typing import Any, cast
 
+from django.contrib.auth.models import AbstractUser
+from drf_yasg.utils import swagger_auto_schema
 from packaging.requirements import Requirement, InvalidRequirement
 from packaging.version import Version, InvalidVersion
+from rest_framework import permissions, serializers, status
+from rest_framework import validators as validators_module
+from rest_framework.decorators import permission_classes
+from rest_framework.request import Request
+from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 
-from api import serializers
-from api.utils import check_whitelisted
-from core.models import Provider
+from api.use_cases.programs.upload import UploadFunctionUseCase
+from api.use_cases.programs.upload_input import UploadFunctionInput
+from api.utils import check_whitelisted, sanitize_name
+from api.v1.endpoint_decorator import endpoint
+from api.v1.exception_handler import endpoint_handle_exceptions
+from core.domain.authorization.function_access_result import FunctionAccessResult
+from core.models import Program, Provider
 
-logger = logging.getLogger("api.api.v1.serializers")
+logger = logging.getLogger("api.api.v1.views.programs.upload")
 
 
-class ProgramSerializer(serializers.ProgramSerializer):
-    """
-    Program serializer first version. Include basic fields from the initial model.
-    """
+class ProgramSerializer(serializers.ModelSerializer):
+    """Serializer for uploading (creating or updating) a Qiskit Function."""
 
-    class Meta(serializers.ProgramSerializer.Meta):
+    entrypoint = serializers.CharField(required=False)
+    image = serializers.CharField(required=False)
+    provider = serializers.CharField(required=False)
+    runner = serializers.CharField(required=False)
+
+    class Meta:
+        model = Program
         fields = [
-            "id",
             "title",
             "entrypoint",
             "artifact",
             "dependencies",
+            "env_vars",
+            "image",
             "provider",
             "description",
-            "documentation_url",
             "type",
             "version",
             "runner",
         ]
+        ref_name = "ProgramsUploadProgram"
 
+    def get_validators(self):
+        """Exclude UniqueConstraint validators — upsert logic lives in the use case."""
+        return [v for v in super().get_validators() if not isinstance(v, validators_module.UniqueTogetherValidator)]
 
-class ProgramSummarySerializer(serializers.ProgramSerializer):
-    """
-    Program serializer with summary fields for job listings.
-    """
+    def validate_title(self, value):
+        """Sanitize title."""
+        return sanitize_name(value)
 
-    class Meta(serializers.ProgramSerializer.Meta):
-        fields = ["id", "title", "provider"]
-
-
-class UploadProgramSerializer(serializers.UploadProgramSerializer):
-    """
-    UploadProgramSerializer is used by the /upload end-point
-    """
+    def validate_provider(self, value):
+        """Sanitize provider name."""
+        return sanitize_name(value) if value else value
 
     def validate_image(self, value):
-        """Validates image."""
-        # place to add image validation
+        """Validate image."""
         return value
 
     def _parse_dependency(self, dep: Any):
@@ -70,7 +80,6 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             dep_name = str(dep_name[0])
             dep_version = str(list(dep.values())[0])
 
-            # if starts with a number then prefix ==
             try:
                 if int(dep_version[0]) >= 0:
                     dep_version = f"=={dep_version}"
@@ -112,7 +121,6 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
         if entrypoint is None and image is None:
             raise ValidationError("At least one of attributes (entrypoint, image) is required.")
         try:
-            # validate dependencies
             deps = json.loads(attrs.get("dependencies", "[]"))
         except (json.JSONDecodeError, UnicodeDecodeError) as exc:
             raise ValidationError(
@@ -142,7 +150,6 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             if provider_instance.registry and not image.startswith(provider_instance.registry):
                 raise ValidationError(f"Custom images must be in {provider_instance.registry}.")
 
-        # Validate `version` using packaging.version (PEP 440 compatible)
         version = attrs.get("version", None)
         if version is not None:
             try:
@@ -152,86 +159,33 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
 
         return super().validate(attrs)
 
-    class Meta(serializers.UploadProgramSerializer.Meta):
-        fields = [
-            "title",
-            "entrypoint",
-            "artifact",
-            "dependencies",
-            "env_vars",
-            "image",
-            "provider",
-            "description",
-            "type",
-            "version",
-            "runner",
-        ]
 
+@swagger_auto_schema(
+    method="post",
+    operation_description="Upload a Qiskit Function",
+    request_body=ProgramSerializer,
+    responses={status.HTTP_200_OK: ProgramSerializer},
+)
+@endpoint("programs/upload", method="POST", name="programs-upload")
+@permission_classes([permissions.IsAuthenticated])
+@endpoint_handle_exceptions
+def upload_program(request: Request) -> Response:
+    """Upload or update a Qiskit Function."""
+    user = cast(AbstractUser, request.user)
+    accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
 
-class RunProgramSerializer(serializers.RunProgramSerializer):
-    """
-    RunExistingProgramSerializer is used by the /run end-point
-    """
+    serializer = ProgramSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    data = UploadFunctionInput.from_validated_data(serializer.validated_data)
 
+    logger.info(
+        "[programs-upload] user_id=%s title=%s provider=%s accessible_functions=%s",
+        user.id,
+        data.title,
+        data.provider,
+        accessible_functions,
+    )
 
-class JobConfigSerializer(serializers.JobConfigSerializer):
-    """
-    JobConfig serializer first version. Include basic fields from the initial model.
-    """
-
-    class Meta(serializers.JobConfigSerializer.Meta):
-        fields = [
-            "workers",
-            "min_workers",
-            "max_workers",
-            "auto_scaling",
-        ]
-
-
-class RunJobSerializer(serializers.RunJobSerializer):
-    """
-    RunJobSerializer is used by the /run end-point
-    """
-
-    class Meta(serializers.RunJobSerializer.Meta):
-        fields = ["id", "result", "status", "program", "created", "arguments", "compute_profile"]
-
-
-class RuntimeJobSerializer(serializers.RuntimeJobSerializer):
-    """
-    Runtime job serializer first version. Serializer for the runtime job model.
-    """
-
-    class Meta(serializers.RuntimeJobSerializer.Meta):
-        fields = ["runtime_job", "runtime_session"]
-
-
-class JobSerializer(serializers.JobSerializer):
-    """
-    Job serializer first version. Include basic fields from the initial model.
-    """
-
-    program = ProgramSerializer(many=False)
-
-    class Meta(serializers.JobSerializer.Meta):
-        fields = [
-            "id",
-            "result",
-            "status",
-            "program",
-            "created",
-            "sub_status",
-            "fleet_id",
-            "compute_profile",
-        ]
-
-
-class JobSerializerWithoutResult(serializers.JobSerializer):
-    """
-    Job serializer first version. Include basic fields from the initial model.
-    """
-
-    program = ProgramSummarySerializer(many=False)
-
-    class Meta(serializers.JobSerializer.Meta):
-        fields = ["id", "status", "program", "created", "sub_status", "fleet_id", "compute_profile"]
+    function = UploadFunctionUseCase().execute(user, accessible_functions, data)
+    logger.info("[programs-upload] user_id=%s program=%s | Function uploaded ok", user.id, function.title)
+    return Response(ProgramSerializer(function).data)
