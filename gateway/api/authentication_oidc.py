@@ -3,9 +3,10 @@
 This backend is only wired into ``AUTHENTICATION_BACKENDS`` when
 ``SETTINGS_W3ID_SSO_ENABLED`` is true. It authenticates IBMers against w3id SSO
 and maps them to a Django user keyed by their email address (used both as the
-username and the email), creating the user on first login (``get_or_create``
-semantics). Created users get no permissions, so they reach an empty backoffice
-until an administrator grants them access.
+username and the email). On first login the user is created; it is never
+granted or stripped of any flag (``is_staff``, ``is_superuser``, ``is_active``)
+or permission, so a brand-new user has the Django defaults and an administrator
+decides what access they get.
 
 The email lookup is case-insensitive because usernames in the database may be
 stored with different casing (e.g. ``Alberto@ibm.com``) than what w3id returns
@@ -15,7 +16,6 @@ stored with different casing (e.g. ``Alberto@ibm.com``) than what w3id returns
 import logging
 from typing import Optional
 
-from django.conf import settings
 from mozilla_django_oidc.auth import OIDCAuthenticationBackend
 
 logger = logging.getLogger("api.W3IDSSOAuthenticationBackend")
@@ -54,18 +54,21 @@ class W3IDSSOAuthenticationBackend(OIDCAuthenticationBackend):
         return self.UserModel.objects.filter(username__iexact=email)
 
     def create_user(self, claims):
-        """Create a new backoffice user on first SSO login."""
+        """Create a new backoffice user on first SSO login.
+
+        Only the username and email are set; no flag or permission is touched,
+        so the user is created with Django defaults (no staff, no superuser).
+        """
         email = extract_email(claims)
-        is_staff = getattr(settings, "SETTINGS_W3ID_SSO_NEW_USER_IS_STAFF", True)
         user = self.UserModel.objects.create_user(username=email, email=email)
-        if is_staff and not user.is_staff:
-            user.is_staff = True
-            user.save(update_fields=["is_staff"])
-        logger.info("New backoffice user created via w3id SSO: %s (is_staff=%s)", email, is_staff)
+        logger.info("New backoffice user created via w3id SSO: %s", email)
         return user
 
     def update_user(self, user, claims):
-        """Normalize the stored email to lowercase on every login."""
+        """Normalize the stored email to lowercase on every login.
+
+        No flag is modified, only the email field is kept in sync.
+        """
         email = extract_email(claims)
         if email and user.email != email:
             user.email = email
