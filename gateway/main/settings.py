@@ -251,11 +251,11 @@ SETTINGS_AUTH_MOCKPROVIDER_REGISTRY = os.environ.get("SETTINGS_AUTH_MOCKPROVIDER
 # ==========================================
 # W3ID SSO (OIDC) - optional backoffice login
 # ==========================================
-# This feature is OPTIONAL and does not replace the existing username/password
-# login. It turns itself on only when a client id is configured: with no
-# W3ID_SSO_CLIENT_ID nothing changes (no button, no urls, no extra auth backend).
-# When configured, a "Login IBM SSO" button appears on the backoffice login page
-# that starts an OIDC authorization-code flow against IBM w3id SSO.
+# The OIDC backend, urls and provider settings are always wired in. The feature
+# is effectively "off" until a client id is configured: with no W3ID_SSO_CLIENT_ID
+# the login template does not render the "Login IBM SSO" button and the SSO entry
+# view (api.authentication_oidc.w3id_sso_login) falls back to the normal login,
+# so nothing changes for the user.
 #
 # Only three environment variables are needed:
 #   W3ID_SSO_CLIENT_ID      credentials of the registered w3id connector
@@ -265,39 +265,33 @@ SETTINGS_AUTH_MOCKPROVIDER_REGISTRY = os.environ.get("SETTINGS_AUTH_MOCKPROVIDER
 W3ID_SSO_CLIENT_ID = os.environ.get("W3ID_SSO_CLIENT_ID", "")
 W3ID_SSO_CLIENT_SECRET = os.environ.get("W3ID_SSO_CLIENT_SECRET", "")
 W3ID_SSO_BASE_URL = os.environ.get("W3ID_SSO_BASE_URL", "https://test.login.w3.ibm.com")
-W3ID_SSO_ENABLED = bool(W3ID_SSO_CLIENT_ID)
 
-# Django session/admin login backends. The default ModelBackend keeps the
-# classic username/password login working; the OIDC backend is only added when
-# the SSO feature is turned on.
-AUTHENTICATION_BACKENDS = (
-    [
-        "api.authentication_oidc.W3IDSSOAuthenticationBackend",
-        "django.contrib.auth.backends.ModelBackend",
-    ]
-    if W3ID_SSO_ENABLED
-    else ["django.contrib.auth.backends.ModelBackend"]
-)
+INSTALLED_APPS.append("mozilla_django_oidc")
 
-if W3ID_SSO_ENABLED:
-    INSTALLED_APPS.append("mozilla_django_oidc")
+# Django session/admin login backends. ModelBackend keeps the classic
+# username/password login working; the OIDC backend only activates on the SSO
+# callback, so it is harmless when no client id is configured.
+AUTHENTICATION_BACKENDS = [
+    "api.authentication_oidc.W3IDSSOAuthenticationBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]
 
-    OIDC_RP_CLIENT_ID = W3ID_SSO_CLIENT_ID
-    OIDC_RP_CLIENT_SECRET = W3ID_SSO_CLIENT_SECRET
-    OIDC_RP_SIGN_ALGO = "RS256"
-    OIDC_RP_SCOPES = "openid email"
+OIDC_RP_CLIENT_ID = W3ID_SSO_CLIENT_ID
+OIDC_RP_CLIENT_SECRET = W3ID_SSO_CLIENT_SECRET
+OIDC_RP_SIGN_ALGO = "RS256"
+OIDC_RP_SCOPES = "openid email"
 
-    # Provider endpoints, all derived from the base url.
-    OIDC_OP_AUTHORIZATION_ENDPOINT = f"{W3ID_SSO_BASE_URL}/v1.0/endpoint/default/authorize"
-    OIDC_OP_TOKEN_ENDPOINT = f"{W3ID_SSO_BASE_URL}/v1.0/endpoint/default/token"
-    OIDC_OP_USER_ENDPOINT = f"{W3ID_SSO_BASE_URL}/v1.0/endpoint/default/userinfo"
-    OIDC_OP_JWKS_ENDPOINT = f"{W3ID_SSO_BASE_URL}/v1.0/endpoint/default/jwks"
+# Provider endpoints, all derived from the base url.
+OIDC_OP_AUTHORIZATION_ENDPOINT = f"{W3ID_SSO_BASE_URL}/v1.0/endpoint/default/authorize"
+OIDC_OP_TOKEN_ENDPOINT = f"{W3ID_SSO_BASE_URL}/v1.0/endpoint/default/token"
+OIDC_OP_USER_ENDPOINT = f"{W3ID_SSO_BASE_URL}/v1.0/endpoint/default/userinfo"
+OIDC_OP_JWKS_ENDPOINT = f"{W3ID_SSO_BASE_URL}/v1.0/endpoint/default/jwks"
 
-    # The redirect_uri registered in the w3id connector is the callback url named
-    # below (mounted at /auth/callback without a trailing slash in main/urls.py).
-    OIDC_AUTHENTICATION_CALLBACK_URL = "oidc_authentication_callback"
-    LOGIN_REDIRECT_URL = "/backoffice/"
-    LOGIN_REDIRECT_URL_FAILURE = "/backoffice/login/"
+# The redirect_uri registered in the w3id connector is the callback url named
+# below (mounted at /auth/callback without a trailing slash in main/urls.py).
+OIDC_AUTHENTICATION_CALLBACK_URL = "oidc_authentication_callback"
+LOGIN_REDIRECT_URL = "/backoffice/"
+LOGIN_REDIRECT_URL_FAILURE = "/backoffice/login/"
 # =============
 
 REST_FRAMEWORK = {
