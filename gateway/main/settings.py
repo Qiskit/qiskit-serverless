@@ -244,7 +244,7 @@ SETTINGS_AUTH_MOCKPROVIDER_REGISTRY = os.environ.get("SETTINGS_AUTH_MOCKPROVIDER
 # extra authentication backend are wired in. When enabled, an extra
 # "Login IBM SSO" button appears on the backoffice login page that starts an
 # OIDC authorization-code flow against IBM w3id SSO.
-SETTINGS_W3ID_SSO_ENABLED = os.environ.get("SETTINGS_W3ID_SSO_ENABLED", "false").lower() == "true"
+SETTINGS_W3ID_SSO_ENABLED = os.environ.get("SETTINGS_W3ID_SSO_ENABLED", "true").lower() == "true"
 
 # Django session/admin login backends. The default ModelBackend keeps the
 # classic username/password login working; the OIDC backend is only added when
@@ -262,8 +262,8 @@ if SETTINGS_W3ID_SSO_ENABLED:
     INSTALLED_APPS.append("mozilla_django_oidc")
 
     # Credentials for the registered w3id SSO connector (provided per environment).
-    OIDC_RP_CLIENT_ID = os.environ.get("SETTINGS_W3ID_SSO_CLIENT_ID", "")
-    OIDC_RP_CLIENT_SECRET = os.environ.get("SETTINGS_W3ID_SSO_CLIENT_SECRET", "")
+    OIDC_RP_CLIENT_ID = os.environ.get("SETTINGS_W3ID_SSO_CLIENT_ID", "ZTZkYzg0YWUtZTM1MS00")
+    OIDC_RP_CLIENT_SECRET = os.environ.get("SETTINGS_W3ID_SSO_CLIENT_SECRET", "MjExZjFmZjEtZTUwNC00")
     OIDC_RP_SIGN_ALGO = os.environ.get("SETTINGS_W3ID_SSO_SIGN_ALGO", "RS256")
     OIDC_RP_SCOPES = os.environ.get("SETTINGS_W3ID_SSO_SCOPES", "openid email")
 
@@ -293,6 +293,14 @@ if SETTINGS_W3ID_SSO_ENABLED:
     SETTINGS_W3ID_SSO_NEW_USER_IS_STAFF = (
         os.environ.get("SETTINGS_W3ID_SSO_NEW_USER_IS_STAFF", "true").lower() == "true"
     )
+
+    # The Django username is built from this claim (the IBM id, e.g. the "uid"
+    # claim holding the employee serial). An optional prefix can be prepended to
+    # reproduce the full IBMid format (e.g. prefix "IBMid-" + uid "691000IC75"
+    # -> "IBMid-691000IC75"). The email always goes into the email field.
+    # If the claim is missing, the username falls back to the email.
+    SETTINGS_W3ID_SSO_USERNAME_CLAIM = os.environ.get("SETTINGS_W3ID_SSO_USERNAME_CLAIM", "uid")
+    SETTINGS_W3ID_SSO_USERNAME_PREFIX = os.environ.get("SETTINGS_W3ID_SSO_USERNAME_PREFIX", "")
 
     # The redirect_uri registered in the w3id connector is the callback url named
     # below (mounted at /auth/callback without a trailing slash in main/urls.py).
