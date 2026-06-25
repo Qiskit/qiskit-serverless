@@ -32,7 +32,7 @@ from typing import Dict, Optional
 
 import requests
 from qiskit_ibm_runtime import QiskitRuntimeService
-from qiskit_ibm_runtime.runtime_job_v2 import RuntimeJobV2
+from qiskit_ibm_runtime import RuntimeJobV2
 
 from qiskit_serverless.core.constants import (
     ENV_JOB_GATEWAY_INSTANCE,
