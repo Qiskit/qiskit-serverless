@@ -132,6 +132,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "api.context_processors.w3id_sso",
             ],
         },
     },
@@ -245,6 +246,71 @@ DJR_DEFAULT_AUTHENTICATION_CLASSES = ALL_AUTH_CLASSES_CONFIGURATION.get(
 # mock token value
 SETTINGS_AUTH_MOCK_TOKEN = os.environ.get("SETTINGS_AUTH_MOCK_TOKEN", "awesome_token")
 SETTINGS_AUTH_MOCKPROVIDER_REGISTRY = os.environ.get("SETTINGS_AUTH_MOCKPROVIDER_REGISTRY", None)
+# =============
+
+# ==========================================
+# W3ID SSO (OIDC) - optional backoffice login
+# ==========================================
+# This feature is OPTIONAL and does not replace the existing username/password
+# login. When disabled (the default) nothing changes: no button, no urls and no
+# extra authentication backend are wired in. When enabled, an extra
+# "Login IBM SSO" button appears on the backoffice login page that starts an
+# OIDC authorization-code flow against IBM w3id SSO.
+SETTINGS_W3ID_SSO_ENABLED = os.environ.get("SETTINGS_W3ID_SSO_ENABLED", "false").lower() == "true"
+
+# Django session/admin login backends. The default ModelBackend keeps the
+# classic username/password login working; the OIDC backend is only added when
+# the SSO feature is turned on.
+AUTHENTICATION_BACKENDS = (
+    [
+        "api.authentication_oidc.W3IDSSOAuthenticationBackend",
+        "django.contrib.auth.backends.ModelBackend",
+    ]
+    if SETTINGS_W3ID_SSO_ENABLED
+    else ["django.contrib.auth.backends.ModelBackend"]
+)
+
+if SETTINGS_W3ID_SSO_ENABLED:
+    INSTALLED_APPS.append("mozilla_django_oidc")
+
+    # Credentials for the registered w3id SSO connector (provided per environment).
+    OIDC_RP_CLIENT_ID = os.environ.get("SETTINGS_W3ID_SSO_CLIENT_ID", "")
+    OIDC_RP_CLIENT_SECRET = os.environ.get("SETTINGS_W3ID_SSO_CLIENT_SECRET", "")
+    OIDC_RP_SIGN_ALGO = os.environ.get("SETTINGS_W3ID_SSO_SIGN_ALGO", "RS256")
+    OIDC_RP_SCOPES = os.environ.get("SETTINGS_W3ID_SSO_SCOPES", "openid email")
+
+    # Provider endpoints. Defaults point to the w3id SSO test/staging environment
+    # (https://test.login.w3.ibm.com). Override per environment when going live.
+    SETTINGS_W3ID_SSO_BASE_URL = os.environ.get("SETTINGS_W3ID_SSO_BASE_URL", "https://test.login.w3.ibm.com")
+    OIDC_OP_AUTHORIZATION_ENDPOINT = os.environ.get(
+        "SETTINGS_W3ID_SSO_AUTHORIZATION_ENDPOINT",
+        f"{SETTINGS_W3ID_SSO_BASE_URL}/v1.0/endpoint/default/authorize",
+    )
+    OIDC_OP_TOKEN_ENDPOINT = os.environ.get(
+        "SETTINGS_W3ID_SSO_TOKEN_ENDPOINT",
+        f"{SETTINGS_W3ID_SSO_BASE_URL}/v1.0/endpoint/default/token",
+    )
+    OIDC_OP_USER_ENDPOINT = os.environ.get(
+        "SETTINGS_W3ID_SSO_USER_ENDPOINT",
+        f"{SETTINGS_W3ID_SSO_BASE_URL}/v1.0/endpoint/default/userinfo",
+    )
+    OIDC_OP_JWKS_ENDPOINT = os.environ.get(
+        "SETTINGS_W3ID_SSO_JWKS_ENDPOINT",
+        f"{SETTINGS_W3ID_SSO_BASE_URL}/v1.0/endpoint/default/jwks",
+    )
+
+    # New backoffice users created on first SSO login can reach the admin shell
+    # (is_staff) but get no model permissions, so they see an empty backoffice
+    # until an administrator grants them access.
+    SETTINGS_W3ID_SSO_NEW_USER_IS_STAFF = (
+        os.environ.get("SETTINGS_W3ID_SSO_NEW_USER_IS_STAFF", "true").lower() == "true"
+    )
+
+    # The redirect_uri registered in the w3id connector is the callback url named
+    # below (mounted at /auth/callback without a trailing slash in main/urls.py).
+    OIDC_AUTHENTICATION_CALLBACK_URL = "oidc_authentication_callback"
+    LOGIN_REDIRECT_URL = os.environ.get("SETTINGS_W3ID_SSO_LOGIN_REDIRECT_URL", "/backoffice/")
+    LOGIN_REDIRECT_URL_FAILURE = "/backoffice/login/"
 # =============
 
 REST_FRAMEWORK = {
