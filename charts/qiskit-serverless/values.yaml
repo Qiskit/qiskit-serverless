@@ -73,6 +73,9 @@ gateway:
   cos:
     claimName: gateway-claim
 
+  kafkaCredentials:
+    create: false
+
   secrets:
     secretKey:
       name: gateway-secret-key
