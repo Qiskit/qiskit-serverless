@@ -101,5 +101,30 @@ urlpatterns += [
     re_path(r"^redoc/$", schema.with_ui("redoc", cache_timeout=0), name="schema-redoc"),
 ]
 urlpatterns += [path("", include("django_prometheus.urls"))]
+
+# Optional IBM w3id SSO (OIDC) login for the backoffice. Only wired in when the
+# feature is enabled. The callback path is registered without a trailing slash
+# to match the redirect_uri configured in the w3id connector (/auth/callback).
+if settings.SETTINGS_W3ID_SSO_ENABLED:
+    from mozilla_django_oidc.views import (  # pylint: disable=ungrouped-imports
+        OIDCAuthenticationCallbackView,
+        OIDCAuthenticationRequestView,
+        OIDCLogoutView,
+    )
+
+    urlpatterns += [
+        path(
+            "auth/login",
+            OIDCAuthenticationRequestView.as_view(),
+            name="oidc_authentication_init",
+        ),
+        path(
+            "auth/callback",
+            OIDCAuthenticationCallbackView.as_view(),
+            name="oidc_authentication_callback",
+        ),
+        path("auth/logout", OIDCLogoutView.as_view(), name="oidc_logout"),
+    ]
+
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
