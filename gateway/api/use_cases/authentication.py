@@ -1,7 +1,7 @@
 """Authentication use case to manage the authentication process in the api."""
 
 import logging
-from typing import List
+from typing import List, Optional
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -20,9 +20,17 @@ logger = logging.getLogger("api.AuthenticationUseCase")
 
 
 class AuthenticationUseCase:
-    """This class will manage the authentication flow for the api."""
+    """
+    This class will manage the authentication flow for the api.
+    """
 
-    def __init__(self, channel, authorization_token, crn, public_access=False):
+    def __init__(
+        self,
+        channel: Channel,
+        authorization_token: str,
+        crn: Optional[str],
+        public_access=False,
+    ):
         self.channel = channel
         self.authorization_token = authorization_token
         self.crn = crn
@@ -31,13 +39,17 @@ class AuthenticationUseCase:
     def _get_authentication_service_instance(self):
         if self.channel in (Channel.IBM_CLOUD, Channel.IBM_QUANTUM_PLATFORM):
             return IBMQuantumPlatform(api_key=self.authorization_token, crn=self.crn)
+
         return LocalAuthenticationService(authorization_token=self.authorization_token)
 
-    def execute(self):
-        """This contains the logic to authenticate and validate the user."""
+    def execute(self) -> tuple[Optional[type[AbstractUser]], Optional[str]]:
+        """
+        This contains the logic to authenticate and validate the user
+        that is doing the request.
+        """
         authentication_service = self._get_authentication_service_instance()
 
-        user_id = authentication_service.authenticate()
+        username = authentication_service.authenticate()
         account_id = authentication_service.get_account_id()
 
         if self.public_access is False:
@@ -46,9 +58,9 @@ class AuthenticationUseCase:
                 raise exceptions.AuthenticationFailed("Sorry, you don't have access to the service.")
 
         access_groups = authentication_service.get_groups()
-        quantum_user, created = User.objects.get_or_create(username=user_id)
+        quantum_user, created = User.objects.get_or_create(username=username)
         if created:
-            logger.debug("New user [%s] created", user_id)
+            logger.debug("New user [%s] created", username)
         if not UserAccessPolicies.can_access(quantum_user):
             raise exceptions.AuthenticationFailed(
                 "Your user was deactivated. Please contact to IBM support for reactivaton."
@@ -78,6 +90,7 @@ class AuthenticationUseCase:
 
         return quantum_user, account_id
 
+    # Deprecate this when login through instances migration was completed
     def _restart_user_groups(
         self,
         user: type[AbstractUser],
