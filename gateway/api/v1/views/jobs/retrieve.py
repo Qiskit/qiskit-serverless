@@ -17,13 +17,12 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 
-from api import serializers as api_serializers
 from api.use_cases.jobs.retrieve import JobRetrieveUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import Job
+from core.models import Job, Program
 
 logger = logging.getLogger("api.api.v1.views.jobs.retrieve")
 
@@ -41,12 +40,15 @@ class InputSerializer(serializers.Serializer):
         ref_name = "JobsRetrieveInputSerializer"
 
 
-class ProgramSerializer(api_serializers.ProgramSerializer):
+class ProgramSerializer(serializers.ModelSerializer):
     """
     Program fields for detailed job responses.
     """
 
-    class Meta(api_serializers.ProgramSerializer.Meta):
+    provider = serializers.CharField(source="provider.name", read_only=True)
+
+    class Meta:
+        model = Program
         fields = [
             "id",
             "title",
@@ -61,14 +63,15 @@ class ProgramSerializer(api_serializers.ProgramSerializer):
         ref_name = "JobsRetrieveProgramSerializer"
 
 
-class JobSerializer(api_serializers.JobSerializer):
+class JobSerializer(serializers.ModelSerializer):
     """
     Job representation including the `result` and full `program`.
     """
 
     program = ProgramSerializer(many=False)
 
-    class Meta(api_serializers.JobSerializer.Meta):
+    class Meta:
+        model = Job
         fields = [
             "id",
             "result",
@@ -86,18 +89,19 @@ class JobSerializer(api_serializers.JobSerializer):
 class ProgramSummary(ProgramSerializer):
     """Minimal representation of a program"""
 
-    class Meta(api_serializers.ProgramSerializer.Meta):
+    class Meta(ProgramSerializer.Meta):
         fields = ["id", "title", "provider"]
 
 
-class JobSerializerWithoutResult(api_serializers.JobSerializer):
+class JobSerializerWithoutResult(serializers.ModelSerializer):
     """
     Minimal job representation without `result`, keeping nested `program`.
     """
 
     program = ProgramSummary(read_only=True)
 
-    class Meta(api_serializers.JobSerializer.Meta):
+    class Meta:
+        model = Job
         fields = ["id", "status", "program", "created", "sub_status", "fleet_id", "compute_profile", "business_model"]
 
 
