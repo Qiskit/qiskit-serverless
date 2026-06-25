@@ -294,14 +294,6 @@ if SETTINGS_W3ID_SSO_ENABLED:
         os.environ.get("SETTINGS_W3ID_SSO_NEW_USER_IS_STAFF", "true").lower() == "true"
     )
 
-    # The Django username is built from this claim (the IBM id, e.g. the "uid"
-    # claim holding the employee serial). An optional prefix can be prepended to
-    # reproduce the full IBMid format (e.g. prefix "IBMid-" + uid "691000IC75"
-    # -> "IBMid-691000IC75"). The email always goes into the email field.
-    # If the claim is missing, the username falls back to the email.
-    SETTINGS_W3ID_SSO_USERNAME_CLAIM = os.environ.get("SETTINGS_W3ID_SSO_USERNAME_CLAIM", "uid")
-    SETTINGS_W3ID_SSO_USERNAME_PREFIX = os.environ.get("SETTINGS_W3ID_SSO_USERNAME_PREFIX", "")
-
     # The redirect_uri registered in the w3id connector is the callback url named
     # below (mounted at /auth/callback without a trailing slash in main/urls.py).
     OIDC_AUTHENTICATION_CALLBACK_URL = "oidc_authentication_callback"
