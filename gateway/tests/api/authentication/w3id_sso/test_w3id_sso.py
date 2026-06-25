@@ -17,7 +17,6 @@ def _oidc_settings(settings):
     settings.OIDC_OP_TOKEN_ENDPOINT = "https://test.login.w3.ibm.com/token"
     settings.OIDC_OP_USER_ENDPOINT = "https://test.login.w3.ibm.com/userinfo"
     settings.OIDC_OP_JWKS_ENDPOINT = "https://test.login.w3.ibm.com/jwks"
-    settings.SETTINGS_W3ID_SSO_NEW_USER_IS_STAFF = True
     return settings
 
 
@@ -35,29 +34,21 @@ def test_extract_email_returns_none_when_absent():
     assert extract_email({}) is None
 
 
-def test_create_user_keyed_by_email_with_staff(oidc_settings):
-    """A new user is created with the (lowercased) email as username and staff access."""
+def test_create_user_keyed_by_email_without_touching_flags(oidc_settings):
+    """A new user gets the lowercased email as username/email and Django defaults.
+
+    No flag is set: the user is not staff, not superuser, and gets no permission.
+    """
     backend = W3IDSSOAuthenticationBackend()
 
     user = backend.create_user({"email": "NewUser@ibm.com"})
 
     assert user.username == "newuser@ibm.com"
     assert user.email == "newuser@ibm.com"
-    assert user.is_staff is True
+    assert user.is_staff is False
     assert user.is_superuser is False
     assert list(user.groups.all()) == []
     assert user.get_all_permissions() == set()
-
-
-def test_create_user_without_staff_when_disabled(oidc_settings):
-    """When the staff flag is off, created users cannot reach the backoffice."""
-    oidc_settings.SETTINGS_W3ID_SSO_NEW_USER_IS_STAFF = False
-    backend = W3IDSSOAuthenticationBackend()
-
-    user = backend.create_user({"emailAddress": "noaccess@ibm.com"})
-
-    assert user.username == "noaccess@ibm.com"
-    assert user.is_staff is False
 
 
 def test_filter_users_by_claims_is_case_insensitive(oidc_settings):
@@ -76,17 +67,22 @@ def test_filter_users_by_claims_empty_without_email(oidc_settings):
     assert list(backend.filter_users_by_claims({"sub": "12345"})) == []
 
 
-def test_update_user_lowercases_stored_email(oidc_settings):
-    """On login, a mixed-case stored email is normalized to lowercase."""
+def test_update_user_lowercases_email_without_touching_flags(oidc_settings):
+    """On login, a mixed-case stored email is normalized to lowercase only."""
     backend = W3IDSSOAuthenticationBackend()
     user = backend.UserModel.objects.create_user(username="Alberto@ibm.com", email="Alberto@ibm.com")
+    user.is_staff = True
+    user.is_superuser = True
+    user.save()
 
     updated = backend.update_user(user, {"email": "alberto@ibm.com"})
     updated.refresh_from_db()
 
     assert updated.email == "alberto@ibm.com"
-    # The username is intentionally left untouched to avoid renaming accounts.
+    # The username and every flag are intentionally left untouched.
     assert updated.username == "Alberto@ibm.com"
+    assert updated.is_staff is True
+    assert updated.is_superuser is True
 
 
 def test_verify_claims(oidc_settings):

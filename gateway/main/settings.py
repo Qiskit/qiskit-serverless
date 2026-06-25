@@ -287,13 +287,6 @@ if SETTINGS_W3ID_SSO_ENABLED:
         f"{SETTINGS_W3ID_SSO_BASE_URL}/v1.0/endpoint/default/jwks",
     )
 
-    # New backoffice users created on first SSO login can reach the admin shell
-    # (is_staff) but get no model permissions, so they see an empty backoffice
-    # until an administrator grants them access.
-    SETTINGS_W3ID_SSO_NEW_USER_IS_STAFF = (
-        os.environ.get("SETTINGS_W3ID_SSO_NEW_USER_IS_STAFF", "true").lower() == "true"
-    )
-
     # The redirect_uri registered in the w3id connector is the callback url named
     # below (mounted at /auth/callback without a trailing slash in main/urls.py).
     OIDC_AUTHENTICATION_CALLBACK_URL = "oidc_authentication_callback"
