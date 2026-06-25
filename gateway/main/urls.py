@@ -105,7 +105,7 @@ urlpatterns += [path("", include("django_prometheus.urls"))]
 # Optional IBM w3id SSO (OIDC) login for the backoffice. Only wired in when the
 # feature is enabled. The callback path is registered without a trailing slash
 # to match the redirect_uri configured in the w3id connector (/auth/callback).
-if settings.SETTINGS_W3ID_SSO_ENABLED:
+if settings.W3ID_SSO_ENABLED:
     from mozilla_django_oidc.views import (  # pylint: disable=ungrouped-imports
         OIDCAuthenticationCallbackView,
         OIDCAuthenticationRequestView,

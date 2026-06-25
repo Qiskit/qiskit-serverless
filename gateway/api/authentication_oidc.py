@@ -1,7 +1,7 @@
 """OIDC authentication backend for the optional IBM w3id SSO backoffice login.
 
 This backend is only wired into ``AUTHENTICATION_BACKENDS`` when
-``SETTINGS_W3ID_SSO_ENABLED`` is true. It authenticates IBMers against w3id SSO
+``W3ID_SSO_ENABLED`` is true. It authenticates IBMers against w3id SSO
 and maps them to a Django user keyed by their email address (used both as the
 username and the email). On first login the user is created; it is never
 granted or stripped of any flag (``is_staff``, ``is_superuser``, ``is_active``)
