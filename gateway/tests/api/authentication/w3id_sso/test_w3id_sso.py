@@ -90,3 +90,39 @@ def test_verify_claims(oidc_settings):
     backend = W3IDSSOAuthenticationBackend()
     assert backend.verify_claims({"email": "ok@ibm.com"}) is True
     assert backend.verify_claims({"sub": "12345"}) is False
+
+
+def test_login_view_falls_back_to_normal_login_without_client_id(client, settings):
+    """With no client id configured, the SSO entry view sends users to the normal login."""
+    settings.W3ID_SSO_CLIENT_ID = ""
+
+    response = client.get("/auth/login")
+
+    assert response.status_code == 302
+    assert response.url == "/backoffice/login/"
+
+
+def test_login_view_starts_flow_when_client_id_configured(client, settings):
+    """With a client id configured, the SSO entry view redirects to the provider."""
+    settings.W3ID_SSO_CLIENT_ID = "a-client-id"
+    settings.OIDC_RP_CLIENT_ID = "a-client-id"
+    settings.OIDC_OP_AUTHORIZATION_ENDPOINT = "https://test.login.w3.ibm.com/authorize"
+
+    response = client.get("/auth/login")
+
+    assert response.status_code == 302
+    assert response.url.startswith("https://test.login.w3.ibm.com/authorize")
+
+
+def test_login_button_hidden_without_client_id(client, settings):
+    """The backoffice login page hides the SSO button when no client id is set."""
+    settings.W3ID_SSO_CLIENT_ID = ""
+    html = client.get("/backoffice/login/").content.decode()
+    assert "Login IBM SSO" not in html
+
+
+def test_login_button_shown_with_client_id(client, settings):
+    """The backoffice login page shows the SSO button when a client id is set."""
+    settings.W3ID_SSO_CLIENT_ID = "a-client-id"
+    html = client.get("/backoffice/login/").content.decode()
+    assert "Login IBM SSO" in html

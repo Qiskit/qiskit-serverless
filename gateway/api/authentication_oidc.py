@@ -1,7 +1,7 @@
 """OIDC authentication backend for the optional IBM w3id SSO backoffice login.
 
-This backend is only wired into ``AUTHENTICATION_BACKENDS`` when
-``W3ID_SSO_ENABLED`` is true. It authenticates IBMers against w3id SSO
+The backend is always present in ``AUTHENTICATION_BACKENDS`` but only activates
+on the SSO callback. It authenticates IBMers against w3id SSO
 and maps them to a Django user keyed by their email address (used both as the
 username and the email). On first login the user is created; it is never
 granted or stripped of any flag (``is_staff``, ``is_superuser``, ``is_active``)
@@ -16,9 +16,29 @@ stored with different casing (e.g. ``Alberto@ibm.com``) than what w3id returns
 import logging
 from typing import Optional
 
+from django.conf import settings
+from django.shortcuts import redirect
 from mozilla_django_oidc.auth import OIDCAuthenticationBackend
+from mozilla_django_oidc.views import OIDCAuthenticationRequestView
 
 logger = logging.getLogger("api.W3IDSSOAuthenticationBackend")
+
+# Where to send the user when SSO is not usable (no client id) or after a failure.
+NORMAL_LOGIN_URL = "/backoffice/login/"
+
+
+def w3id_sso_login(request):
+    """Entry point for the w3id SSO flow (one of our own urls).
+
+    The SSO login is started from our own view, so we can decide here whether
+    to contact the provider at all. When no client id is configured we never
+    start a broken flow: the user is sent back to the standard backoffice login.
+    Failures during the callback are handled by mozilla-django-oidc, which
+    redirects to ``LOGIN_REDIRECT_URL_FAILURE`` (also the normal login).
+    """
+    if not settings.W3ID_SSO_CLIENT_ID:
+        return redirect(NORMAL_LOGIN_URL)
+    return OIDCAuthenticationRequestView.as_view()(request)
 
 
 def extract_email(claims: dict) -> Optional[str]:
