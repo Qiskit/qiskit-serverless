@@ -69,7 +69,7 @@ def test_migrate_jobs_logs_to_storage_active():
     job_queued_active = _create_test_job(status=Job.QUEUED, compute_resource=compute_resource_active, logs=test_logs)
     job_running_active = _create_test_job(status=Job.RUNNING, compute_resource=compute_resource_active, logs=test_logs)
 
-    call_command("migrate_old_job_logs")
+    call_command("migrate_old_job_logs", max_jobs=0)
 
     for job in [job_succeeded_active, job_failed_active, job_stopped_active, job_queued_active, job_running_active]:
         job.refresh_from_db()
@@ -90,7 +90,7 @@ def test_migrate_jobs_logs_to_storage_active_with_provider():
         for i, status in enumerate([Job.SUCCEEDED, Job.FAILED, Job.STOPPED, Job.QUEUED, Job.RUNNING], 1)
     ]
 
-    call_command("migrate_old_job_logs")
+    call_command("migrate_old_job_logs", max_jobs=0)
 
     for job in jobs:
         job.refresh_from_db()
@@ -112,7 +112,7 @@ def test_migrate_jobs_logs_to_storage_not_active(settings):
     job_queued = _create_test_job(status=Job.QUEUED, compute_resource=compute_resource, logs=test_logs)
     job_running = _create_test_job(status=Job.RUNNING, compute_resource=compute_resource, logs=test_logs)
 
-    call_command("migrate_old_job_logs")
+    call_command("migrate_old_job_logs", max_jobs=0)
 
     for job, expected_logs, expected_storage in [
         (job_succeeded, "", test_logs),
@@ -149,7 +149,7 @@ def test_migrate_jobs_logs_to_storage_not_active_with_provider(settings):
         status=Job.RUNNING, compute_resource=compute_resource, logs=test_logs, provider_admin="test_provider_5"
     )
 
-    call_command("migrate_old_job_logs")
+    call_command("migrate_old_job_logs", max_jobs=0)
 
     for job, expected_logs, expected_public, expected_private in [
         (job_succeeded, "", None, test_logs),
@@ -175,7 +175,7 @@ def test_migrate_jobs_logs_to_storage_too_much_elements(settings):
         _create_test_job(status=Job.SUCCEEDED, compute_resource=compute_resource, logs=test_logs) for _ in range(15)
     ]
 
-    call_command("migrate_old_job_logs")
+    call_command("migrate_old_job_logs", max_jobs=0)
 
     for job in jobs:
         job.refresh_from_db()
