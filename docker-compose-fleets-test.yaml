@@ -9,6 +9,9 @@ x-gateway-env: &gateway-env
   DATABASE_PASSWORD: serverlesspassword
   FLEETS_MOCK_ENABLED: "1"
   MINIO_ENDPOINT: http://minio:9000
+  # Host-relative: only valid for presigned URLs handed back to the host-side
+  # pytest client (where 127.0.0.1:9000 is the published MinIO port). The
+  # gateway itself must never fetch this — internal access uses MINIO_ENDPOINT.
   MINIO_PUBLIC_ENDPOINT: http://127.0.0.1:9000
   MINIO_ACCESS_KEY: minioadmin
   MINIO_SECRET_KEY: minioadmin
@@ -97,7 +100,7 @@ services:
       minio-init:
         condition: service_completed_successfully
     develop:
-      watch:
+      watch: &gateway-watch
         - path: ./gateway
           action: sync
           target: /usr/src/app
@@ -122,6 +125,11 @@ services:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
+    # The scheduler runs the same code and drives status transitions, so it must
+    # live-sync too; otherwise `docker compose watch` updates the gateway while
+    # the scheduler keeps running stale code.
+    develop:
+      watch: *gateway-watch
   fleet-worker:
     container_name: fleet-worker
     build:

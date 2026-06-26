@@ -149,11 +149,12 @@ def assert_db_state(pg_conn, job_id, client_status):
     assert len(events) >= 2, f"Expected at least 2 events, got {len(events)}: {events}"
     assert events[0] == "QUEUED", f"First event should be QUEUED, got: {events[0]}"
 
+    for event in events:
+        assert event in VALID_DB_STATUS_ORDER, f"Unrecognized event status {event!r} (full: {events})"
+
     for i in range(1, len(events)):
-        prev_idx = VALID_DB_STATUS_ORDER.index(events[i - 1]) if events[i - 1] in VALID_DB_STATUS_ORDER else -1
-        curr_idx = VALID_DB_STATUS_ORDER.index(events[i]) if events[i] in VALID_DB_STATUS_ORDER else -1
-        if prev_idx < 0 or curr_idx < 0:
-            continue
+        prev_idx = VALID_DB_STATUS_ORDER.index(events[i - 1])
+        curr_idx = VALID_DB_STATUS_ORDER.index(events[i])
         assert curr_idx >= prev_idx, f"Invalid status transition: {events[i-1]} -> {events[i]} (full: {events})"
 
 
@@ -293,10 +294,13 @@ class TestFleetsJobs:
         job = fn.run(name="cancel-me", sleep_seconds=120)
 
         deadline = time.time() + 30
+        observed_running = False
         while time.time() < deadline:
             if job.status() == "RUNNING":
+                observed_running = True
                 break
             time.sleep(0.5)
+        assert observed_running, "job never reached RUNNING within 30s — cancel would not exercise mid-execution"
         job.stop()
 
         job_id, client_status = wait_for_terminal(job)

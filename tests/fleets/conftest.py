@@ -87,18 +87,21 @@ def cleanup_minio(minio_client):  # pylint: disable=redefined-outer-name
 
 @pytest.fixture(autouse=True)
 def cleanup_fleet_state_after_test(minio_client):  # pylint: disable=redefined-outer-name
-    """Clear fleet-state bucket after each test to prevent orphaned manifests.
+    """Clear the fleet-state buckets after each test.
 
-    Only clears the manifest bucket (fleet-state) — that's the one the
-    fleet-worker polls. Archive and task-store don't cause re-processing.
+    Clears the manifest bucket (fleet-state, which the worker polls) plus the
+    archive and task-store buckets so COS queue keys do not accumulate
+    unbounded across a session (each job uses a fresh fleet_id, so clearing is
+    safe and keeps the harness from depending on fleet_id uniqueness alone).
     """
     yield
-    try:
-        resp = minio_client.list_objects_v2(Bucket="fleet-state")
-        for obj in resp.get("Contents", []):
-            minio_client.delete_object(Bucket="fleet-state", Key=obj["Key"])
-    except ClientError:
-        pass
+    for bucket in FLEET_STATE_BUCKETS:
+        try:
+            resp = minio_client.list_objects_v2(Bucket=bucket)
+            for obj in resp.get("Contents", []):
+                minio_client.delete_object(Bucket=bucket, Key=obj["Key"])
+        except ClientError:
+            pass
 
 
 @pytest.fixture()
@@ -114,6 +117,11 @@ def unique_title():
 @pytest.fixture(scope="session")
 def test_provider(pg_conn):  # pylint: disable=redefined-outer-name
     """Create a Provider linked to mockgroup so provider function uploads succeed.
+
+    Intentionally a persistent, idempotent seed (no teardown): all three inserts
+    use ON CONFLICT, the provider name is a fixed constant reused across runs,
+    and provider programs/jobs FK-reference it, so deleting it on teardown would
+    be FK-fragile. It is seeded once per session and left in place.
 
     Raw SQL is used because tests run out-of-process from Django. Coupled
     tables/columns: auth_group(name), api_provider(id, created, updated, name),

@@ -32,6 +32,11 @@ CLIENT_TO_DB_STATUS = {
 
 VALID_DB_STATUS_ORDER = ["QUEUED", "PENDING", "RUNNING", "SUCCEEDED", "FAILED", "STOPPED"]
 
+# Guard against the two lists silently drifting apart.
+assert set(VALID_DB_STATUS_ORDER) == set(
+    CLIENT_TO_DB_STATUS.values()
+), "VALID_DB_STATUS_ORDER must contain exactly the DB statuses in CLIENT_TO_DB_STATUS"
+
 FLEET_STATE_BUCKETS = ["fleet-state", "fleet-state-archive", "task-store-bucket"]
 DATA_BUCKETS = ["user-data-bucket", "provider-data-bucket"]
 
