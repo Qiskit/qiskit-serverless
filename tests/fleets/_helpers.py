@@ -107,6 +107,44 @@ def wait_for_s3_object(minio_client, bucket, key, timeout=30):
     raise AssertionError(f"S3 object s3://{bucket}/{key} not found after {timeout}s") from last_err
 
 
+def fetch_one(pg_conn, query, params):
+    """Run a query and return its first row, handling cursor lifecycle.
+
+    Args:
+        pg_conn: A psycopg2 connection.
+        query: SQL query string.
+        params: Query parameters tuple.
+
+    Returns:
+        The first row tuple, or None if there are no rows.
+    """
+    cur = pg_conn.cursor()
+    try:
+        cur.execute(query, params)
+        return cur.fetchone()
+    finally:
+        cur.close()
+
+
+def fetch_all(pg_conn, query, params):
+    """Run a query and return all rows, handling cursor lifecycle.
+
+    Args:
+        pg_conn: A psycopg2 connection.
+        query: SQL query string.
+        params: Query parameters tuple.
+
+    Returns:
+        A list of row tuples.
+    """
+    cur = pg_conn.cursor()
+    try:
+        cur.execute(query, params)
+        return cur.fetchall()
+    finally:
+        cur.close()
+
+
 def wait_for_db_condition(pg_conn, query, params, predicate, timeout=30):
     """Retry a DB query until predicate(row) is True, or raise after timeout.
 

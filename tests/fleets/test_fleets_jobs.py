@@ -23,6 +23,8 @@ from qiskit_serverless import QiskitFunction
 from _helpers import (
     CLIENT_TO_DB_STATUS,
     VALID_DB_STATUS_ORDER,
+    fetch_all,
+    fetch_one,
     is_valid_uuid,
     wait_for_db_condition,
     wait_for_s3_object,
@@ -127,23 +129,22 @@ def assert_db_state(pg_conn, job_id, client_status):
     assert db_runner == "fleets"
     assert is_valid_uuid(db_fleet_id)
 
-    cur = pg_conn.cursor()
-    cur.execute(
+    prog = fetch_one(
+        pg_conn,
         "SELECT runner, code_engine_project_id "
         "FROM api_program WHERE id = (SELECT program_id FROM api_job WHERE id = %s)",
         (job_id,),
     )
-    prog = cur.fetchone()
     assert prog is not None
     assert prog[0] == "fleets"
     assert prog[1] is not None
 
-    cur.execute(
+    event_rows = fetch_all(
+        pg_conn,
         "SELECT data->>'status' FROM api_jobevent WHERE job_id = %s ORDER BY created",
         (job_id,),
     )
-    events = [r[0] for r in cur.fetchall() if r[0] is not None]
-    cur.close()
+    events = [r[0] for r in event_rows if r[0] is not None]
 
     assert len(events) >= 2, f"Expected at least 2 events, got {len(events)}: {events}"
     assert events[0] == "QUEUED", f"First event should be QUEUED, got: {events[0]}"
@@ -222,15 +223,13 @@ class TestFleetsJobs:
         assert_manifest(pg_conn, minio_client, job_id, is_provider=True)
         assert_db_state(pg_conn, job_id, client_status)
 
-        cur = pg_conn.cursor()
-        cur.execute(
+        row = fetch_one(
+            pg_conn,
             "SELECT p.name FROM api_provider p "
             "JOIN api_program prog ON prog.provider_id = p.id "
             "WHERE prog.id = (SELECT program_id FROM api_job WHERE id = %s)",
             (job_id,),
         )
-        row = cur.fetchone()
-        cur.close()
         assert row is not None
         assert row[0] == test_provider
 
