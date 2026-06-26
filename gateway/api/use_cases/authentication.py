@@ -99,17 +99,14 @@ class AuthenticationUseCase:
     ) -> List[Group]:
         new_groups = []
 
-        permissions = []
-        for permission_name in permission_names:
-            permissions.append(Permission.objects.get(codename=permission_name))
+        permissions = Permission.objects.filter(codename__in=permission_names)
 
         user.groups.clear()
 
         for authentication_group in authentication_groups:
             group, created = Group.objects.get_or_create(name=authentication_group.group_name)
             if created:
-                for permission in permissions:
-                    group.permissions.add(permission)
+                group.permissions.add(*permissions)
             if authentication_group.account is not None:
                 GroupMetadata.objects.update_or_create(group=group, defaults={"account": authentication_group.account})
             group.user_set.add(user)
