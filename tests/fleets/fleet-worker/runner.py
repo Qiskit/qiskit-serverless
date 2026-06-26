@@ -19,7 +19,7 @@ image. The rendered main.tmpl does:
     Runner().run(arguments)
 """
 
-from qiskit_serverless import save_result
+from qiskit_serverless import get_logger, get_provider_logger, save_result
 
 
 class Runner:  # pylint: disable=too-few-public-methods
@@ -35,10 +35,15 @@ class Runner:  # pylint: disable=too-few-public-methods
             Result dict.
         """
         name = arguments.get("name", "world")
-        print("[public] Hello from fleets!", flush=True)
-        print(f"[public] Name: {name}", flush=True)
-        print("Processing internally", flush=True)
-        print("[public] Done", flush=True)
+
+        # Provider job: public logger ([PUBLIC]) is visible to the job author;
+        # provider logger ([PRIVATE]) stays in the provider-only log.
+        public = get_logger()
+        provider = get_provider_logger()
+        public.info("Hello from fleets!")
+        public.info("Name: %s", name)
+        provider.info("Processing internally")
+        public.info("Done")
 
         result = {"greeting": f"Hello, {name}!", "status": "completed"}
         save_result(result)

@@ -14,15 +14,18 @@
 
 import time
 
-from qiskit_serverless import get_arguments, save_result
+from qiskit_serverless import get_arguments, get_logger, save_result
 
 
 def main():
     """Load job arguments via SDK, process them, and save the result."""
     args = get_arguments()
 
-    print(f"[public] Hello from fleets! name={args.get('name', 'world')}", flush=True)
-    print(f"Processing internally: {args}", flush=True)
+    # Custom (non-provider) job: all output is user-facing, so use the public
+    # logger (it emits the [PUBLIC] tag the wrapper routes to the user log).
+    logger = get_logger()
+    logger.info("Hello from fleets! name=%s", args.get("name", "world"))
+    logger.info("Processing internally: %s", args)
 
     # Configurable so the cancel test can keep the job RUNNING well beyond the
     # cancel-propagation latency; defaults to a short delay for the happy path.
@@ -31,7 +34,7 @@ def main():
     result = {"greeting": f"Hello, {args.get('name', 'world')}!", "status": "completed"}
     save_result(result)
 
-    print("[public] Done", flush=True)
+    logger.info("Done")
 
 
 if __name__ == "__main__":
