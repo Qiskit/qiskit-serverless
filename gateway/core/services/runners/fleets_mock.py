@@ -78,13 +78,26 @@ def _minio_secret_key() -> str:
     return os.environ["MINIO_SECRET_KEY"]
 
 
-def _task_store_bucket() -> str:
+def _task_store_bucket(project_id: str | None = None) -> str:
     """Return the task-store bucket name from the CodeEngineProject DB row.
 
+    Resolves the project the job actually belongs to (by ``project_id``) to
+    mirror ``FleetsRunner.status()``, which reads ``self._project``'s bucket —
+    rather than guessing the first active project, which would read the wrong
+    bucket once more than one project exists.
+
+    Args:
+        project_id: The CE project UUID to resolve; falls back to the first
+            active project when not provided.
+
     Returns:
-        The cos_bucket_task_store_name from the first active project.
+        The cos_bucket_task_store_name for the resolved project, or the
+        TASK_STORE_BUCKET env fallback.
     """
-    project = CodeEngineProject.objects.filter(active=True).first()
+    if project_id:
+        project = CodeEngineProject.objects.filter(project_id=project_id).first()
+    else:
+        project = CodeEngineProject.objects.filter(active=True).first()
     if project and project.cos_bucket_task_store_name:
         return project.cos_bucket_task_store_name
     return os.environ.get("TASK_STORE_BUCKET", "task-store-bucket")
@@ -324,10 +337,17 @@ def _mock_get_job_status(self, identifier):  # pylint: disable=unused-argument
         error_code = exc.response.get("Error", {}).get("Code", "")
         if error_code in ("404", "NoSuchKey", "NotFound"):
             raise ApiException(status=404, reason="Fleet not found") from exc
+        # Any other COS error (403, NoSuchBucket, connectivity) is a real
+        # failure the real get_job_status would surface — don't fall through and
+        # fabricate a live 'pending' fleet, which would defeat is_active()/stop().
+        raise ApiException(status=502, reason=f"COS error checking fleet existence: {error_code}") from exc
 
-    bucket = _task_store_bucket()
+    bucket = _task_store_bucket(self.project_id)
     prefix = f"ce/{self.project_id}/{fleet_id}/v2/queue/"
 
+    # Status segments the worker writes, in priority order. No '/canceling/':
+    # the harness never produces a canceling key (cancel writes '/canceled/'
+    # directly), so a branch for it would be dead code.
     status = "pending"
     try:
         resp = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
@@ -336,7 +356,6 @@ def _mock_get_job_status(self, identifier):  # pylint: disable=unused-argument
             ("/succeeded/", "successful"),
             ("/failed/", "failed"),
             ("/canceled/", "canceled"),
-            ("/canceling/", "canceling"),
             ("/running/", "running"),
             ("/pending/", "pending"),
         ]:

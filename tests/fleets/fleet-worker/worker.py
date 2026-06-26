@@ -48,10 +48,21 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
         self._storage = storage
 
     def run(self) -> None:
-        """Enter the infinite poll loop. Does not return."""
+        """Enter the infinite poll loop. Does not return.
+
+        Manifests are processed one at a time, inline — this worker is
+        deliberately single-job-at-a-time (unlike real CE, which runs fleets in
+        parallel). A long-running job blocks the queue for its duration, so
+        tests must not submit overlapping long jobs.
+        """
         logger.info("Entering poll loop")
         while True:
-            self._poll_once()
+            try:
+                self._poll_once()
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                # Never let a single bad cycle terminate the worker — a dead
+                # worker stops processing all future jobs.
+                logger.error("Unexpected error in poll loop (continuing): %s", e)
             time.sleep(1)
 
     def _poll_once(self) -> None:
@@ -72,10 +83,10 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
                 except (json.JSONDecodeError, KeyError) as e:
                     logger.error("Bad manifest %s (quarantining): %s", key, e)
                     self._storage.client.delete_object(Bucket=FLEET_STATE_BUCKET, Key=key)
-                except (ClientError, OSError, ValueError) as e:
+                except (ClientError, BotoCoreError, OSError, ValueError) as e:
                     logger.error("Error processing manifest %s: %s", key, e)
 
-        except ClientError as e:
+        except (ClientError, BotoCoreError) as e:
             logger.error("Error listing fleet-state bucket: %s", e)
         except OSError as e:
             logger.error("Unexpected error in poll loop: %s", e)
@@ -92,47 +103,72 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
         project_id = manifest.get("project_id", "")
         logger.info("Processing manifest for fleet_id=%s job_id=%s", fleet_id, manifest.get("job_id"))
 
+        # Claim the manifest by deleting it before executing, so a crash or
+        # transient error mid-run cannot make the next poll re-run the user job
+        # (at-most-once execution, mirroring CE's single dispatch).
+        self._storage.client.delete_object(Bucket=FLEET_STATE_BUCKET, Key=key)
+
         self._write_cos_queue_key(project_id, fleet_id, "pending")
 
-        volume_mounts = manifest.get("volume_mounts", [])
-        self._setup_volume_mounts(volume_mounts)
-        self._clean_temp_files()
-        self._simulate_startup_delay()
+        exit_code = 1
+        status = "failed"
+        created_links: list[str] = []
+        try:
+            created_links = self._setup_volume_mounts(manifest.get("volume_mounts", []))
+            self._clean_temp_files()
+            self._simulate_startup_delay()
 
-        self._write_cos_queue_key(project_id, fleet_id, "running")
+            self._write_cos_queue_key(project_id, fleet_id, "running")
 
-        env_vars = manifest.get("env_vars", {})
-        run_env = os.environ.copy()
-        run_env.update(env_vars)
+            env_vars = manifest.get("env_vars", {})
+            run_env = os.environ.copy()
+            run_env.update(env_vars)
 
-        for path_var in ("PUBLIC_LOG_PATH", "PRIVATE_LOG_PATH"):
-            path = env_vars.get(path_var)
-            if path:
-                os.makedirs(os.path.dirname(path), exist_ok=True)
+            for path_var in ("PUBLIC_LOG_PATH", "PRIVATE_LOG_PATH"):
+                path = env_vars.get(path_var)
+                if path:
+                    os.makedirs(os.path.dirname(path), exist_ok=True)
 
-        exit_code, canceled = self._execute_commands(manifest.get("run_commands", []), run_env, project_id, fleet_id)
-        self._cleanup()
+            exit_code, canceled = self._execute_commands(
+                manifest.get("run_commands", []), run_env, project_id, fleet_id
+            )
+            self._cleanup(created_links)
 
-        # `canceled` is authoritative when the worker killed the process on
-        # cancel. The post-execution recheck covers the race where the process
-        # finished on its own just as cancel was signaled.
-        if canceled or self._is_canceled(project_id, fleet_id):
-            status = "canceled"
-            logger.info("Fleet %s was canceled during execution — skipping final status write", fleet_id)
-        else:
-            status = "succeeded" if exit_code == 0 else "failed"
-            self._write_cos_queue_key(project_id, fleet_id, f"{status}/{exit_code}")
-        self._report_status(fleet_id, key, status, exit_code)
+            # `canceled` is authoritative when the worker killed the process on
+            # cancel. The post-execution recheck covers the race where the
+            # process finished on its own just as cancel was signaled.
+            if canceled or self._is_canceled(project_id, fleet_id):
+                status = "canceled"
+                logger.info("Fleet %s was canceled during execution — skipping final status write", fleet_id)
+            else:
+                status = "succeeded" if exit_code == 0 else "failed"
+                self._write_cos_queue_key(project_id, fleet_id, f"{status}/{exit_code}")
+        except (ClientError, BotoCoreError, OSError, ValueError) as e:
+            # The manifest is already consumed, so a failure here must still
+            # produce a terminal state rather than leaving the job stuck RUNNING.
+            logger.error("Fleet %s failed during processing: %s", fleet_id, e)
+            status = "failed"
+            try:
+                self._write_cos_queue_key(project_id, fleet_id, f"{status}/{exit_code}")
+            except (ClientError, BotoCoreError) as write_err:
+                logger.error("Failed to write terminal status for %s: %s", fleet_id, write_err)
 
-    def _setup_volume_mounts(self, volume_mounts: list[dict]) -> None:
+        self._log_completion(fleet_id, status, exit_code)
+
+    def _setup_volume_mounts(self, volume_mounts: list[dict]) -> list[str]:
         """Create symlinks for each volume mount path.
 
         Args:
             volume_mounts: The volume_mounts from the manifest.
+
+        Returns:
+            The list of symlink paths created (used to clean up exactly what was
+            set up, rather than a hardcoded list that can drift).
         """
         targets = self._storage.resolve_symlink_targets(volume_mounts)
         for mount_path, target in targets.items():
             self._storage.create_symlink(mount_path, target)
+        return list(targets)
 
     _EXECUTION_TIMEOUT_SEC = 300
     _CANCEL_POLL_INTERVAL_SEC = 1.0
@@ -163,7 +199,10 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
             authoritative and skips writing a terminal status key.
         """
         if not run_commands:
-            return 0, False
+            # An empty command list is a malformed manifest — flag it as failed
+            # rather than reporting a success that executed no user code.
+            logger.error("No run_commands for %s — treating as failed", fleet_id)
+            return 1, False
 
         deadline = time.monotonic() + self._EXECUTION_TIMEOUT_SEC
         try:
@@ -172,22 +211,26 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
             # start_new_session puts the child in its own process group so a
             # cancel/timeout can signal the whole tree, not just a wrapper that
             # may not forward the signal to the Python it spawned.
-            with subprocess.Popen(run_commands, env=env, start_new_session=True) as proc:
-                while True:
-                    try:
-                        return proc.wait(timeout=self._CANCEL_POLL_INTERVAL_SEC), False
-                    except subprocess.TimeoutExpired:
-                        pass
+            #
+            # Deliberately NOT using `with Popen(...)`: its __exit__ calls
+            # wait() with no timeout, which would re-hang the single-threaded
+            # poll loop on a wedged child. All waits below are bounded instead.
+            # pylint: disable=consider-using-with
+            proc = subprocess.Popen(run_commands, env=env, start_new_session=True)
+            while True:
+                try:
+                    return proc.wait(timeout=self._CANCEL_POLL_INTERVAL_SEC), False
+                except subprocess.TimeoutExpired:
+                    pass
 
-                    if self._is_canceled(project_id, fleet_id):
-                        logger.info("Fleet %s canceled during execution — terminating subprocess", fleet_id)
-                        return self._terminate(proc), True
+                if self._is_canceled(project_id, fleet_id):
+                    logger.info("Fleet %s canceled during execution — terminating subprocess", fleet_id)
+                    return self._terminate(proc), True
 
-                    if time.monotonic() >= deadline:
-                        logger.error("Job execution timed out for %s", fleet_id)
-                        self._signal_group(proc, signal.SIGKILL)
-                        proc.wait()
-                        return 124, False
+                if time.monotonic() >= deadline:
+                    logger.error("Job execution timed out for %s", fleet_id)
+                    self._signal_group(proc, signal.SIGKILL)
+                    return self._reap(proc, 124), False
         except OSError as e:
             logger.error("Failed to execute run_commands for %s: %s", fleet_id, e)
             return 1, False
@@ -209,7 +252,26 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
             return proc.wait(timeout=self._TERMINATE_GRACE_SEC)
         except subprocess.TimeoutExpired:
             self._signal_group(proc, signal.SIGKILL)
-            return proc.wait()
+            return self._reap(proc, -signal.SIGKILL)
+
+    def _reap(self, proc: subprocess.Popen, default_code: int) -> int:
+        """Wait (bounded) for an already-killed process, abandoning if wedged.
+
+        A child stuck in uninterruptible sleep can ignore even SIGKILL; without
+        a bounded wait the single-threaded poll loop would hang forever.
+
+        Args:
+            proc: The killed subprocess to reap.
+            default_code: Exit code to report if the process never reaps.
+
+        Returns:
+            The real exit code, or ``default_code`` if reaping timed out.
+        """
+        try:
+            return proc.wait(timeout=self._TERMINATE_GRACE_SEC)
+        except subprocess.TimeoutExpired:
+            logger.error("Subprocess %s did not exit after SIGKILL; abandoning", proc.pid)
+            return default_code
 
     @staticmethod
     def _signal_group(proc: subprocess.Popen, sig: int) -> None:
@@ -228,6 +290,23 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
             pass
         except OSError:
             proc.send_signal(sig)
+
+    @staticmethod
+    def _queue_prefix(project_id: str, fleet_id: str) -> str:
+        """Build the COS task-state queue key prefix for a fleet.
+
+        Single source for the ``ce/{project}/{fleet}/v2/queue/`` layout so the
+        cancel reader and the status writer cannot drift apart. Must stay in
+        sync with the gateway FleetsRunner prefix.
+
+        Args:
+            project_id: The CE project UUID.
+            fleet_id: The fleet UUID.
+
+        Returns:
+            The queue key prefix, ending in a trailing slash.
+        """
+        return f"ce/{project_id}/{fleet_id}/v2/queue/"
 
     def _is_canceled(self, project_id: str, fleet_id: str) -> bool:
         """Check if a canceled queue key exists for this job.
@@ -251,7 +330,7 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
         Returns:
             True if a canceled key exists in the task-store bucket.
         """
-        prefix = f"ce/{project_id}/{fleet_id}/v2/queue/canceled/"
+        prefix = self._queue_prefix(project_id, fleet_id) + "canceled/"
         try:
             response = self._storage.client.list_objects_v2(Bucket=TASK_STORE_BUCKET, Prefix=prefix, MaxKeys=1)
             return response.get("KeyCount", 0) > 0
@@ -267,7 +346,8 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
             status_path: The status segment (e.g. "pending", "running", "succeeded/0").
         """
         timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ")
-        queue_key = f"ce/{project_id}/{fleet_id}/v2/queue/{status_path}/{fleet_id}-0/{timestamp}/000-00000-0/task-0"
+        prefix = self._queue_prefix(project_id, fleet_id)
+        queue_key = f"{prefix}{status_path}/{fleet_id}-0/{timestamp}/000-00000-0/task-0"
         self._storage.client.put_object(
             Bucket=TASK_STORE_BUCKET,
             Key=queue_key,
@@ -275,27 +355,29 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
         )
         logger.info("Wrote COS queue key: %s", queue_key)
 
-    def _report_status(self, fleet_id: str, key: str, status: str, exit_code: int) -> None:
-        """Delete the consumed manifest after job execution.
+    def _log_completion(self, fleet_id: str, status: str, exit_code: int) -> None:
+        """Log the final job outcome.
+
+        The manifest is already consumed at claim time (see _process_manifest),
+        so this only records the resolved terminal state.
 
         Args:
             fleet_id: The fleet ID.
-            key: The manifest key to delete from fleet-state.
             status: The resolved job outcome ("succeeded", "failed", or "canceled").
             exit_code: The process exit code (0 = succeeded).
         """
         logger.info("Fleet %s completed with status: %s (exit_code=%d)", fleet_id, status, exit_code)
 
-        self._storage.client.delete_object(Bucket=FLEET_STATE_BUCKET, Key=key)
-        logger.info("Manifest %s consumed and deleted", key)
+    def _cleanup(self, link_paths: list[str]) -> None:
+        """Remove the job's symlinks and flush s3fs caches after execution.
 
-    _MOUNT_PATHS = ["/function_user_data", "/job_user_data", "/function_provider_data", "/job_provider_data"]
-
-    def _cleanup(self) -> None:
-        """Remove symlinks and flush s3fs caches after job execution."""
+        Args:
+            link_paths: The symlink paths created for this job (from
+                _setup_volume_mounts), so cleanup matches exactly what was set up.
+        """
         subprocess.run(["sync"], capture_output=True, check=False)
         time.sleep(2)
-        active_mounts = [p for p in self._MOUNT_PATHS if os.path.islink(p)]
+        active_mounts = [p for p in link_paths if os.path.islink(p)]
         self._storage.wait_for_visibility(active_mounts)
         for mount_path in active_mounts:
             self._storage.remove_symlink(mount_path)
