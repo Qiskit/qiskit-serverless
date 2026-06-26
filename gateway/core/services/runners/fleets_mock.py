@@ -25,7 +25,6 @@ import base64
 import json
 import logging
 import os
-import sys
 import types
 import uuid
 from unittest.mock import patch
@@ -373,26 +372,6 @@ def _mock_cancel_job(self, identifier, **kwargs):  # pylint: disable=unused-argu
     s3.put_object(Bucket=bucket, Key=cancel_key, Body=b"")
 
 
-def _cos_client_patches() -> list:
-    """Build patches redirecting every reachable ``get_cos_client`` to the mock.
-
-    Returns a patch for the source module (``core.ibm_cloud``) plus one for each
-    already-imported module that bound the real ``get_cos_client`` via
-    ``from core.ibm_cloud import get_cos_client``. The source patch also catches
-    modules imported after :func:`install_mocks` runs, so no module is missed
-    regardless of import timing — and there is no hardcoded list to maintain.
-
-    Returns:
-        A list of ``unittest.mock`` patch objects (not yet started).
-    """
-    real_get_cos_client = sys.modules["core.ibm_cloud"].get_cos_client
-    return [
-        patch(f"{name}.get_cos_client", _mock_get_cos_client)
-        for name, module in list(sys.modules.items())
-        if module is not None and getattr(module, "get_cos_client", None) is real_get_cos_client
-    ]
-
-
 def install_mocks():
     """Apply all fleet mock patches at module level.
 
@@ -409,11 +388,14 @@ def install_mocks():
             "core.ibm_cloud.clients.IAMAuthenticator",
             _FakeIAMAuthenticator,
         ),
-        # Replace get_cos_client everywhere it is reachable, in one pass
-        # (source module + every module that already bound it). See
-        # _cos_client_patches for why this is dynamic rather than a hardcoded
-        # list that silently drifts when a new module imports get_cos_client.
-        *_cos_client_patches(),
+        # get_cos_client delegates to the private core.ibm_cloud._create_cos_client,
+        # which is never imported elsewhere. Patching that single seam redirects
+        # every caller (each holds the real get_cos_client, which resolves the
+        # private helper at call time) — no per-module patch list to maintain.
+        patch(
+            "core.ibm_cloud._create_cos_client",
+            _mock_get_cos_client,
+        ),
         patch(
             "core.ibm_cloud.cos.cos_client.COS_PUBLIC_URL_TEMPLATE",
             os.environ.get("MINIO_PUBLIC_ENDPOINT", "http://127.0.0.1:9000"),
