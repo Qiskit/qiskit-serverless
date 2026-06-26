@@ -386,7 +386,9 @@ def _mock_cancel_job(self, identifier, **kwargs):  # pylint: disable=unused-argu
         **kwargs: Additional arguments (ignored).
     """
     s3 = _get_mock_s3()
-    bucket = _task_store_bucket()
+    # Resolve the job's own project bucket (like _mock_get_job_status), not the
+    # first active project, so cancel writes where status() reads.
+    bucket = _task_store_bucket(self.project_id)
     cancel_key = f"ce/{self.project_id}/{identifier}/v2/queue/canceled/0/{identifier}-0/canceled"
     s3.put_object(Bucket=bucket, Key=cancel_key, Body=b"")
 

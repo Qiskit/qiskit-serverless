@@ -105,34 +105,35 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
 
         # Claim the manifest by deleting it before executing, so a crash or
         # transient error mid-run cannot make the next poll re-run the user job
-        # (at-most-once execution, mirroring CE's single dispatch).
+        # (at-most-once execution, mirroring CE's single dispatch). Kept OUTSIDE
+        # the try below: if the claim itself fails, nothing ran, so the manifest
+        # should remain for a clean retry rather than be marked failed.
         self._storage.client.delete_object(Bucket=FLEET_STATE_BUCKET, Key=key)
-
-        self._write_cos_queue_key(project_id, fleet_id, "pending")
 
         exit_code = 1
         status = "failed"
+        canceled = False
         created_links: list[str] = []
         try:
+            self._write_cos_queue_key(project_id, fleet_id, "pending")
             created_links = self._setup_volume_mounts(manifest.get("volume_mounts", []))
             self._clean_temp_files()
             self._simulate_startup_delay()
 
             self._write_cos_queue_key(project_id, fleet_id, "running")
 
-            env_vars = manifest.get("env_vars", {})
-            run_env = os.environ.copy()
-            run_env.update(env_vars)
-
-            for path_var in ("PUBLIC_LOG_PATH", "PRIVATE_LOG_PATH"):
-                path = env_vars.get(path_var)
-                if path:
-                    os.makedirs(os.path.dirname(path), exist_ok=True)
-
+            run_env = self._prepare_run_env(manifest)
             exit_code, canceled = self._execute_commands(
                 manifest.get("run_commands", []), run_env, project_id, fleet_id
             )
-            self._cleanup(created_links)
+
+            # Flush s3fs before writing the terminal key so the gateway can read
+            # results/logs. Isolated: a cleanup hiccup must not flip a succeeded
+            # or canceled job to failed via the outer except.
+            try:
+                self._cleanup(created_links)
+            except OSError as cleanup_err:
+                logger.error("Cleanup failed for %s: %s", fleet_id, cleanup_err)
 
             # `canceled` is authoritative when the worker killed the process on
             # cancel. The post-execution recheck covers the race where the
@@ -143,17 +144,41 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
             else:
                 status = "succeeded" if exit_code == 0 else "failed"
                 self._write_cos_queue_key(project_id, fleet_id, f"{status}/{exit_code}")
-        except (ClientError, BotoCoreError, OSError, ValueError) as e:
-            # The manifest is already consumed, so a failure here must still
-            # produce a terminal state rather than leaving the job stuck RUNNING.
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            # The manifest is already consumed, so ANY failure (including a
+            # TypeError from a malformed manifest) must still produce a terminal
+            # state rather than leaving the job stuck. Respect an already-signaled
+            # cancel so a late bug can't mask it as failed.
             logger.error("Fleet %s failed during processing: %s", fleet_id, e)
-            status = "failed"
-            try:
-                self._write_cos_queue_key(project_id, fleet_id, f"{status}/{exit_code}")
-            except (ClientError, BotoCoreError) as write_err:
-                logger.error("Failed to write terminal status for %s: %s", fleet_id, write_err)
+            if canceled:
+                status = "canceled"
+            else:
+                status = "failed"
+                try:
+                    self._write_cos_queue_key(project_id, fleet_id, f"{status}/{exit_code}")
+                except (ClientError, BotoCoreError) as write_err:
+                    logger.error("Failed to write terminal status for %s: %s", fleet_id, write_err)
 
         self._log_completion(fleet_id, status, exit_code)
+
+    @staticmethod
+    def _prepare_run_env(manifest: dict) -> dict[str, str]:
+        """Build the subprocess environment and create log directories.
+
+        Args:
+            manifest: The parsed manifest dict (its env_vars are merged in).
+
+        Returns:
+            The merged environment for the job subprocess.
+        """
+        env_vars = manifest.get("env_vars", {})
+        run_env = os.environ.copy()
+        run_env.update(env_vars)
+        for path_var in ("PUBLIC_LOG_PATH", "PRIVATE_LOG_PATH"):
+            path = env_vars.get(path_var)
+            if path:
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+        return run_env
 
     def _setup_volume_mounts(self, volume_mounts: list[dict]) -> list[str]:
         """Create symlinks for each volume mount path.
@@ -230,7 +255,8 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
                 if time.monotonic() >= deadline:
                     logger.error("Job execution timed out for %s", fleet_id)
                     self._signal_group(proc, signal.SIGKILL)
-                    return self._reap(proc, 124), False
+                    self._reap(proc, 124)  # reap to avoid a zombie; report timeout as 124
+                    return 124, False
         except OSError as e:
             logger.error("Failed to execute run_commands for %s: %s", fleet_id, e)
             return 1, False
