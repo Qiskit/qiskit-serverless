@@ -2,10 +2,14 @@
 """Client for configuring NTC accounts and service instances in acceptance tests.
 
 This is a Python port of the bash workflow used to seed the permission tests. It talks to
-two NTC hosts with a single bearer token:
+two NTC hosts, each with a DIFFERENT authorization scheme, both derived from a single API key:
 
-  - the account admin API (``quantum.test.cloud.ibm.com``) for account plan entitlements, and
-  - the resource-controller (``resource-controller.test.cloud.ibm.com``) for instance entitlements.
+  - the account admin API (``quantum.test.cloud.ibm.com``) authenticates with
+    ``Authorization: apikey <API_KEY>`` and configures account plan entitlements, and
+  - the resource-controller (``resource-controller.test.cloud.ibm.com``) authenticates with
+    ``Authorization: Bearer <BEARER>`` and configures instance entitlements. The bearer is
+    obtained by exchanging the API key at the IAM token endpoint
+    (``iam.test.cloud.ibm.com/identity/token``) and is cached for the life of the client.
 
 All write methods use read-modify-write: they fetch the current document, replace only the
 ``functions`` / ``custom_functions`` keys, and send the rest back untouched, so existing fields
@@ -40,28 +44,55 @@ def _check(response):
     return response
 
 
-class NtcAdminClient:
+class NtcAdminClient:  # pylint: disable=too-many-instance-attributes
     """Configures account plans and instance entitlements in NTC.
 
-    A single bearer token authenticates against both the account admin API and the
-    resource-controller. ``subscription_name`` selects which account plan to mutate.
+    Authentication is derived from a single API key: the account admin API uses
+    ``apikey <API_KEY>`` directly, while the resource-controller uses a ``Bearer`` token
+    exchanged from the API key at the IAM token endpoint. ``subscription_name`` selects
+    which account plan to mutate.
     """
 
     def __init__(  # pylint: disable=too-many-arguments, too-many-positional-arguments
         self,
         account_id,
-        token,
+        api_key,
         admin_base="https://quantum.test.cloud.ibm.com",
         rc_base="https://resource-controller.test.cloud.ibm.com",
+        iam_base="https://iam.test.cloud.ibm.com",
         subscription_name="flex",
         timeout=30,
     ):
         self.account_id = account_id
-        self.token = token
+        self.api_key = api_key
         self.admin_base = admin_base.rstrip("/")
         self.rc_base = rc_base.rstrip("/")
+        self.iam_base = iam_base.rstrip("/")
         self.subscription_name = subscription_name
         self.timeout = timeout
+        self._bearer = None
+
+    # --- IAM token exchange ------------------------------------------------------------------
+
+    def _iam_bearer(self):
+        """Exchange the API key for an IAM bearer token (cached for the client's lifetime)."""
+        if self._bearer is None:
+            response = _check(
+                requests.post(
+                    f"{self.iam_base}/identity/token",
+                    params={
+                        "apikey": self.api_key,
+                        "grant_type": "urn:ibm:params:oauth:grant-type:apikey",
+                    },
+                    headers={
+                        "Content-Type": "application/x-www-form-urlencoded",
+                        "Accept": "application/json",
+                    },
+                    timeout=self.timeout,
+                )
+            )
+            self._bearer = response.json()["access_token"]
+        return self._bearer
 
     # --- account (account plans = maximum limit) ---------------------------------------------
 
@@ -69,8 +100,8 @@ class NtcAdminClient:
         return f"{self.admin_base}/api/v1/accounts/{self.account_id}"
 
     def _account_headers(self):
-        # The bash script uses a lowercase "bearer" scheme for the account admin API.
-        return {"Authorization": f"bearer {self.token}", "Content-Type": "application/json"}
+        # The account admin API authenticates with the API key directly ("apikey" scheme).
+        return {"Authorization": f"apikey {self.api_key}", "Content-Type": "application/json"}
 
     def get_account(self):
         """Return the account configuration as parsed JSON."""
@@ -120,8 +151,8 @@ class NtcAdminClient:
         return f"{self.rc_base}/v2/resource_instances/{encoded}"
 
     def _instance_headers(self):
-        # The resource-controller uses the capitalized "Bearer" scheme.
-        return {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
+        # The resource-controller uses a Bearer token exchanged from the API key via IAM.
+        return {"Authorization": f"Bearer {self._iam_bearer()}", "Content-Type": "application/json"}
 
     def get_instance(self, crn):
         """Return the service instance document as parsed JSON."""

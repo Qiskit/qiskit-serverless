@@ -9,11 +9,13 @@ import requests_mock
 from instances.ntc_client import NtcAdminClient, NtcApiError
 
 ACCOUNT_ID = "efb0dd39cdb64955b8f6e32d44290acf"
-TOKEN = "ntc-secret-token"
+API_KEY = "ntc-api-key"
+BEARER = "iam-bearer-token"
 CRN = "crn:v1:staging:public:quantum-computing:us-east:a/efb0dd39cdb64955b8f6e32d44290acf:6f3d655d-796c-43b9-9d03-a765ab3f6f62::"
 
 ADMIN_URL = f"https://quantum.test.cloud.ibm.com/api/v1/accounts/{ACCOUNT_ID}"
 RC_URL = f"https://resource-controller.test.cloud.ibm.com/v2/resource_instances/{urllib.parse.quote(CRN, safe='')}"
+IAM_URL = "https://iam.test.cloud.ibm.com/identity/token"
 
 FUNCTIONS = [
     {
@@ -27,7 +29,7 @@ FUNCTIONS = [
 
 @pytest.fixture
 def client():
-    return NtcAdminClient(account_id=ACCOUNT_ID, token=TOKEN)
+    return NtcAdminClient(account_id=ACCOUNT_ID, api_key=API_KEY)
 
 
 def _account_doc():
@@ -55,12 +57,12 @@ def _account_doc():
     }
 
 
-def test_get_account_returns_json_and_uses_lowercase_bearer(client):
+def test_get_account_returns_json_and_uses_apikey_scheme(client):
     with requests_mock.Mocker() as m:
         m.get(ADMIN_URL, json=_account_doc())
         result = client.get_account()
         assert result["account_id"] == f"a/{ACCOUNT_ID}"
-        assert m.last_request.headers["Authorization"] == f"bearer {TOKEN}"
+        assert m.last_request.headers["Authorization"] == f"apikey {API_KEY}"
 
 
 def test_set_account_entitlements_replaces_flex_plan_only(client):
@@ -69,6 +71,7 @@ def test_set_account_entitlements_replaces_flex_plan_only(client):
         m.put(ADMIN_URL, json={}, status_code=200)
         client.set_account_entitlements(FUNCTIONS, ["function-custom.run"])
 
+        assert m.last_request.headers["Authorization"] == f"apikey {API_KEY}"
         body = m.last_request.json()
         assert body["account_id"] == f"a/{ACCOUNT_ID}"
         flex = next(p for p in body["plans"] if p["subscription_name"] == "flex")
@@ -104,21 +107,28 @@ def test_set_account_entitlements_raises_when_plan_missing(client):
         assert "flex" in str(exc.value)
 
 
-def test_get_instance_encodes_crn_and_uses_capitalized_bearer(client):
+def test_get_instance_encodes_crn_and_exchanges_bearer(client):
     with requests_mock.Mocker() as m:
+        m.post(IAM_URL, json={"access_token": BEARER})
         m.get(RC_URL, json={"parameters": {}})
         client.get_instance(CRN)
-        assert "%3A" in m.last_request.url  # ':' got percent-encoded
-        assert m.last_request.headers["Authorization"] == f"Bearer {TOKEN}"
+        assert "%3A" in m.request_history[-1].url  # ':' got percent-encoded
+        assert m.request_history[-1].headers["Authorization"] == f"Bearer {BEARER}"
+        # the IAM token endpoint was called with the api key and apikey grant type
+        iam_req = next(r for r in m.request_history if r.url.startswith(IAM_URL))
+        assert iam_req.qs["apikey"] == [API_KEY]
+        assert iam_req.qs["grant_type"] == ["urn:ibm:params:oauth:grant-type:apikey"]
 
 
 def test_set_instance_entitlements_preserves_other_parameters(client):
     with requests_mock.Mocker() as m:
+        m.post(IAM_URL, json={"access_token": BEARER})
         m.get(RC_URL, json={"parameters": {"backends": ["ANY"], "functions": [{"name": "old"}]}})
         m.patch(RC_URL, json={}, status_code=200)
         client.set_instance_entitlements(CRN, FUNCTIONS, ["function-custom.run"])
 
-        params = m.last_request.json()["parameters"]
+        assert m.request_history[-1].headers["Authorization"] == f"Bearer {BEARER}"
+        params = m.request_history[-1].json()["parameters"]
         assert params["backends"] == ["ANY"]  # preserved
         assert params["functions"] == FUNCTIONS
         assert params["custom_functions"] == {"permissions": ["function-custom.run"]}
@@ -126,12 +136,23 @@ def test_set_instance_entitlements_preserves_other_parameters(client):
 
 def test_set_instance_entitlements_none_custom_leaves_it_untouched(client):
     with requests_mock.Mocker() as m:
+        m.post(IAM_URL, json={"access_token": BEARER})
         m.get(RC_URL, json={"parameters": {"backends": ["ANY"]}})
         m.patch(RC_URL, json={}, status_code=200)
         client.set_instance_entitlements(CRN, FUNCTIONS, None)
-        params = m.last_request.json()["parameters"]
+        params = m.request_history[-1].json()["parameters"]
         assert "custom_functions" not in params
         assert params["functions"] == FUNCTIONS
+
+
+def test_iam_bearer_is_cached_across_instance_calls(client):
+    with requests_mock.Mocker() as m:
+        m.post(IAM_URL, json={"access_token": BEARER})
+        m.get(RC_URL, json={"parameters": {}})
+        client.get_instance(CRN)
+        client.get_instance(CRN)
+        iam_calls = [r for r in m.request_history if r.url.startswith(IAM_URL)]
+        assert len(iam_calls) == 1  # exchanged once, then cached
 
 
 def test_non_2xx_raises_ntc_api_error_with_status_and_body(client):

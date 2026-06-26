@@ -7,13 +7,16 @@ instance is taken to NONE/USER/PROVIDER/ALL states before each test so the same 
 of /functions assertions (permission_checks.py) can be reused.
 
 Required environment variables (the whole module is skipped if any is missing):
-  - NTC_TOKEN              bearer token with admin access to NTC (account + resource-controller)
+  - NTC_API_KEY            API key with admin access to NTC. The account admin API uses it
+                           directly ("apikey" scheme); the resource-controller uses a Bearer
+                           token exchanged from it via IAM.
   - NTC_ACCOUNT_ID         account id (without the "a/" prefix)
   - TEST_RECONFIG_INSTANCE CRN of the instance to reconfigure
 
 Optional:
   - NTC_ADMIN_BASE         default https://quantum.test.cloud.ibm.com
   - NTC_RC_BASE            default https://resource-controller.test.cloud.ibm.com
+  - NTC_IAM_BASE           default https://iam.test.cloud.ibm.com
   - NTC_SUBSCRIPTION_NAME  account plan subscription_name to edit (default "flex")
   - GATEWAY_HOST / GATEWAY_TOKEN / GATEWAY_CHANNEL  serverless client config
   - TEST_PROVIDER_NAME / TEST_FUNCTION_TITLE / TEST_OTHER_FUNCTION_TITLE / TEST_CUSTOM_FUNCTION_TITLE
@@ -35,11 +38,12 @@ FUNCTION_TITLE = os.environ.get("TEST_FUNCTION_TITLE", "instances1-test")
 OTHER_FUNCTION_TITLE = os.environ.get("TEST_OTHER_FUNCTION_TITLE", "instances2-test")
 CUSTOM_FUNCTION_TITLE = os.environ.get("TEST_CUSTOM_FUNCTION_TITLE", "my-custom-func")
 
-NTC_TOKEN = os.environ.get("NTC_TOKEN")
+NTC_API_KEY = os.environ.get("NTC_API_KEY")
 NTC_ACCOUNT_ID = os.environ.get("NTC_ACCOUNT_ID")
 RECONFIG_CRN = os.environ.get("TEST_RECONFIG_INSTANCE")
 NTC_ADMIN_BASE = os.environ.get("NTC_ADMIN_BASE", "https://quantum.test.cloud.ibm.com")
 NTC_RC_BASE = os.environ.get("NTC_RC_BASE", "https://resource-controller.test.cloud.ibm.com")
+NTC_IAM_BASE = os.environ.get("NTC_IAM_BASE", "https://iam.test.cloud.ibm.com")
 NTC_SUBSCRIPTION_NAME = os.environ.get("NTC_SUBSCRIPTION_NAME", "flex")
 
 # --- permission sets -------------------------------------------------------------------
@@ -148,13 +152,14 @@ def other_function_title():
 @fixture(scope="session")
 def ntc():
     """NTC admin client. Skips the whole module if NTC credentials are not configured."""
-    if not (NTC_TOKEN and NTC_ACCOUNT_ID and RECONFIG_CRN):
-        skip("NTC_TOKEN, NTC_ACCOUNT_ID and TEST_RECONFIG_INSTANCE are required for reconfigurable instance tests")
+    if not (NTC_API_KEY and NTC_ACCOUNT_ID and RECONFIG_CRN):
+        skip("NTC_API_KEY, NTC_ACCOUNT_ID and TEST_RECONFIG_INSTANCE are required for reconfigurable instance tests")
     return NtcAdminClient(
         account_id=NTC_ACCOUNT_ID,
-        token=NTC_TOKEN,
+        api_key=NTC_API_KEY,
         admin_base=NTC_ADMIN_BASE,
         rc_base=NTC_RC_BASE,
+        iam_base=NTC_IAM_BASE,
         subscription_name=NTC_SUBSCRIPTION_NAME,
     )
 

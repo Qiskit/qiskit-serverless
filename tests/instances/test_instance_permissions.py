@@ -11,7 +11,7 @@ shared assertion battery from permission_checks.py.
 
 Setup (see conftest.py for the full list):
   - GATEWAY_HOST/GATEWAY_TOKEN/GATEWAY_CHANNEL for the serverless client.
-  - NTC_TOKEN, NTC_ACCOUNT_ID, TEST_RECONFIG_INSTANCE to configure the instance via NTC.
+  - NTC_API_KEY, NTC_ACCOUNT_ID, TEST_RECONFIG_INSTANCE to configure the instance via NTC.
   - Feature gateway.runtime_instances_api.enabled must be true and the /functions cache disabled.
 
 Effective-permissions model (confirmed in the ntc repo):
