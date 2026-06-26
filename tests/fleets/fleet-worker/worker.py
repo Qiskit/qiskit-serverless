@@ -117,11 +117,12 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
         # cancel. The post-execution recheck covers the race where the process
         # finished on its own just as cancel was signaled.
         if canceled or self._is_canceled(project_id, fleet_id):
+            status = "canceled"
             logger.info("Fleet %s was canceled during execution — skipping final status write", fleet_id)
         else:
             status = "succeeded" if exit_code == 0 else "failed"
             self._write_cos_queue_key(project_id, fleet_id, f"{status}/{exit_code}")
-        self._report_status(fleet_id, key, exit_code)
+        self._report_status(fleet_id, key, status, exit_code)
 
     def _setup_volume_mounts(self, volume_mounts: list[dict]) -> None:
         """Create symlinks for each volume mount path.
@@ -274,15 +275,15 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
         )
         logger.info("Wrote COS queue key: %s", queue_key)
 
-    def _report_status(self, fleet_id: str, key: str, exit_code: int) -> None:
+    def _report_status(self, fleet_id: str, key: str, status: str, exit_code: int) -> None:
         """Delete the consumed manifest after job execution.
 
         Args:
             fleet_id: The fleet ID.
             key: The manifest key to delete from fleet-state.
+            status: The resolved job outcome ("succeeded", "failed", or "canceled").
             exit_code: The process exit code (0 = succeeded).
         """
-        status = "succeeded" if exit_code == 0 else "failed"
         logger.info("Fleet %s completed with status: %s (exit_code=%d)", fleet_id, status, exit_code)
 
         self._storage.client.delete_object(Bucket=FLEET_STATE_BUCKET, Key=key)
