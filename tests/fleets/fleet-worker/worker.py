@@ -15,10 +15,11 @@
 import json
 import logging
 import os
+import signal
 import subprocess
 import time
 
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 
 from storage import StorageManager
 
@@ -109,10 +110,13 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
             if path:
                 os.makedirs(os.path.dirname(path), exist_ok=True)
 
-        exit_code = self._execute_commands(manifest.get("run_commands", []), run_env, fleet_id)
+        exit_code, canceled = self._execute_commands(manifest.get("run_commands", []), run_env, project_id, fleet_id)
         self._cleanup()
 
-        if self._is_canceled(project_id, fleet_id):
+        # `canceled` is authoritative when the worker killed the process on
+        # cancel. The post-execution recheck covers the race where the process
+        # finished on its own just as cancel was signaled.
+        if canceled or self._is_canceled(project_id, fleet_id):
             logger.info("Fleet %s was canceled during execution — skipping final status write", fleet_id)
         else:
             status = "succeeded" if exit_code == 0 else "failed"
@@ -129,38 +133,115 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
         for mount_path, target in targets.items():
             self._storage.create_symlink(mount_path, target)
 
-    def _execute_commands(self, run_commands: list[str], env: dict[str, str], fleet_id: str) -> int:
-        """Run the job commands via subprocess.
+    _EXECUTION_TIMEOUT_SEC = 300
+    _CANCEL_POLL_INTERVAL_SEC = 1.0
+    _TERMINATE_GRACE_SEC = 5
+
+    def _execute_commands(
+        self, run_commands: list[str], env: dict[str, str], project_id: str, fleet_id: str
+    ) -> tuple[int, bool]:
+        """Run the job commands via subprocess, terminating early on cancel.
+
+        Uses Popen + a wait/poll loop (rather than a blocking subprocess.run)
+        so the worker can detect a canceled queue key *during* execution and
+        kill the subprocess — mirroring real Code Engine, which stops the
+        workload on cancel. This also keeps the sequential poll loop from
+        blocking on a long-running orphaned process.
 
         Args:
             run_commands: The command list to execute.
             env: The environment variables for the subprocess.
-            fleet_id: The fleet ID (for logging).
+            project_id: The CE project UUID (for cancel detection).
+            fleet_id: The fleet UUID (for cancel detection and logging).
 
         Returns:
-            The process exit code (124 for timeout).
+            A ``(exit_code, canceled)`` tuple. ``exit_code`` is the process exit
+            code (124 for timeout; negative signal number if terminated on
+            cancel). ``canceled`` is True only when the worker killed the
+            process in response to a cancel signal — the caller treats this as
+            authoritative and skips writing a terminal status key.
         """
         if not run_commands:
-            return 0
+            return 0, False
 
+        deadline = time.monotonic() + self._EXECUTION_TIMEOUT_SEC
         try:
             # Do NOT capture output — the wrapper uses tee/awk to write logs
             # to files via stdout. Let it flow to the s3fs mount.
-            result = subprocess.run(run_commands, env=env, check=False, timeout=300)
-            return result.returncode
-        except subprocess.TimeoutExpired:
-            logger.error("Job execution timed out for %s", fleet_id)
-            return 124
+            # start_new_session puts the child in its own process group so a
+            # cancel/timeout can signal the whole tree, not just a wrapper that
+            # may not forward the signal to the Python it spawned.
+            with subprocess.Popen(run_commands, env=env, start_new_session=True) as proc:
+                while True:
+                    try:
+                        return proc.wait(timeout=self._CANCEL_POLL_INTERVAL_SEC), False
+                    except subprocess.TimeoutExpired:
+                        pass
+
+                    if self._is_canceled(project_id, fleet_id):
+                        logger.info("Fleet %s canceled during execution — terminating subprocess", fleet_id)
+                        return self._terminate(proc), True
+
+                    if time.monotonic() >= deadline:
+                        logger.error("Job execution timed out for %s", fleet_id)
+                        self._signal_group(proc, signal.SIGKILL)
+                        proc.wait()
+                        return 124, False
         except OSError as e:
             logger.error("Failed to execute run_commands for %s: %s", fleet_id, e)
-            return 1
+            return 1, False
+
+    def _terminate(self, proc: subprocess.Popen) -> int:
+        """Terminate a subprocess group gracefully, escalating to kill if needed.
+
+        Signals the whole process group (the child was started with
+        start_new_session) so any process the wrapper spawned is stopped too.
+
+        Args:
+            proc: The running subprocess to stop.
+
+        Returns:
+            The process exit code after termination.
+        """
+        self._signal_group(proc, signal.SIGTERM)
+        try:
+            return proc.wait(timeout=self._TERMINATE_GRACE_SEC)
+        except subprocess.TimeoutExpired:
+            self._signal_group(proc, signal.SIGKILL)
+            return proc.wait()
+
+    @staticmethod
+    def _signal_group(proc: subprocess.Popen, sig: int) -> None:
+        """Send a signal to the subprocess's whole process group.
+
+        Falls back to signalling just the process if the group has already
+        gone away (e.g. the process exited between poll and signal).
+
+        Args:
+            proc: The subprocess whose group to signal.
+            sig: The signal to send (e.g. signal.SIGTERM).
+        """
+        try:
+            os.killpg(os.getpgid(proc.pid), sig)
+        except ProcessLookupError:
+            pass
+        except OSError:
+            proc.send_signal(sig)
 
     def _is_canceled(self, project_id: str, fleet_id: str) -> bool:
         """Check if a canceled queue key exists for this job.
 
-        Real Code Engine stops execution on cancel — here we check after
-        execution completes and skip writing a terminal status key if
-        cancellation was already signaled.
+        Real Code Engine stops execution on cancel — the worker polls this
+        during execution (to terminate the subprocess) and rechecks it after
+        execution (to skip writing a terminal status key when cancellation was
+        already signaled).
+
+        Any COS error is treated as "not canceled" so a transient listing
+        failure never escapes the in-execution poll loop: escaping would crash
+        the worker and force ``Popen.__exit__`` to block on the still-running
+        subprocess. ``ClientError`` covers HTTP-level errors and ``BotoCoreError``
+        covers connectivity errors (e.g. ``EndpointConnectionError``); a missed
+        cancel is simply retried on the next poll.
 
         Args:
             project_id: The CE project UUID.
@@ -173,7 +254,7 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
         try:
             response = self._storage.client.list_objects_v2(Bucket=TASK_STORE_BUCKET, Prefix=prefix, MaxKeys=1)
             return response.get("KeyCount", 0) > 0
-        except ClientError:
+        except (ClientError, BotoCoreError):
             return False
 
     def _write_cos_queue_key(self, project_id: str, fleet_id: str, status_path: str) -> None:

@@ -23,7 +23,10 @@ def main():
 
     print(f"[public] Hello from fleets! name={args.get('name', 'world')}", flush=True)
     print(f"Processing internally: {args}", flush=True)
-    time.sleep(2)
+
+    # Configurable so the cancel test can keep the job RUNNING well beyond the
+    # cancel-propagation latency; defaults to a short delay for the happy path.
+    time.sleep(int(args.get("sleep_seconds", 2)))
 
     result = {"greeting": f"Hello, {args.get('name', 'world')}!", "status": "completed"}
     save_result(result)

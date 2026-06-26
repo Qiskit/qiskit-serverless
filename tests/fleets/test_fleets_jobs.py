@@ -276,7 +276,13 @@ class TestFleetsJobs:
         assert row[0] == "FAILED"
 
     def test_cancel_running_job(self, serverless_client, pg_conn, unique_title):
-        """Submit a job and cancel it before completion — verify CANCELED status."""
+        """Submit a long-running job and cancel it mid-execution — verify CANCELED status.
+
+        ``sleep_seconds`` keeps the job RUNNING well beyond the cancel-propagation
+        latency (test -> gateway -> scheduler -> mock -> COS) so the test reliably
+        observes RUNNING and ``stop()`` always sees a cancellable state. The
+        fleet-worker terminates the subprocess as soon as it sees the canceled key.
+        """
         fn = QiskitFunction(
             title=unique_title,
             entrypoint="entrypoint.py",
@@ -285,7 +291,7 @@ class TestFleetsJobs:
         )
         serverless_client.upload(fn)
         fn = serverless_client.function(unique_title)
-        job = fn.run(name="cancel-me")
+        job = fn.run(name="cancel-me", sleep_seconds=120)
 
         deadline = time.time() + 30
         while time.time() < deadline:
