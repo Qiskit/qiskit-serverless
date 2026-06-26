@@ -35,6 +35,7 @@ from ibm_boto3 import client as ibm_boto3_client
 from ibm_botocore.exceptions import ClientError as BotoClientError
 
 from core.ibm_cloud.clients import IBMCloudClientProvider
+from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.code_engine.fleets.cos import JobCOS
 from core.ibm_cloud.cos.cos_client import COSClient, CosHmacCredentials
 from core.models import CodeEngineProject
@@ -297,6 +298,12 @@ def _mock_get_job_status(self, identifier):  # pylint: disable=unused-argument
     the main status polling path (``FleetsRunner.status()``) reads COS queue
     keys directly via ``_get_cos().list_keys()`` without calling this method.
 
+    Mirrors real CE by raising ``ApiException(404)`` for a fleet that was never
+    created. The archived manifest (written by ``_mock_submit_job`` and never
+    deleted by the worker) is the fleet's existence signal, so ``is_active()``
+    and ``stop()`` can detect orphaned/missing fleets instead of always seeing
+    a live fleet.
+
     Args:
         self: The FleetHandler instance.
         identifier: The fleet ID to look up.
@@ -304,9 +311,20 @@ def _mock_get_job_status(self, identifier):  # pylint: disable=unused-argument
     Returns:
         A dict with keys: id, name, status, desired_instances, running_instances,
         created_at, updated_at, raw.
+
+    Raises:
+        ApiException: With status 404 when no fleet exists for the identifier.
     """
     s3 = _get_mock_s3()
     fleet_id = identifier
+
+    try:
+        s3.head_object(Bucket=FLEET_STATE_ARCHIVE_BUCKET, Key=f"{fleet_id}.json")
+    except BotoClientError as exc:
+        error_code = exc.response.get("Error", {}).get("Code", "")
+        if error_code in ("404", "NoSuchKey", "NotFound"):
+            raise ApiException(status=404, reason="Fleet not found") from exc
+
     bucket = _task_store_bucket()
     prefix = f"ce/{self.project_id}/{fleet_id}/v2/queue/"
 
