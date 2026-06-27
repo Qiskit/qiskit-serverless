@@ -127,9 +127,8 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
                 manifest.get("run_commands", []), run_env, project_id, fleet_id
             )
 
-            # Flush s3fs before writing the terminal key so the gateway can read
-            # results/logs. Isolated: a cleanup hiccup must not flip a succeeded
-            # or canceled job to failed via the outer except.
+            # Flush s3fs before reporting terminal so the gateway can read
+            # results/logs. Isolated: a cleanup hiccup must not change the outcome.
             try:
                 self._cleanup(created_links)
             except OSError as cleanup_err:
@@ -140,24 +139,27 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
             # process finished on its own just as cancel was signaled.
             if canceled or self._is_canceled(project_id, fleet_id):
                 status = "canceled"
-                logger.info("Fleet %s was canceled during execution — skipping final status write", fleet_id)
             else:
                 status = "succeeded" if exit_code == 0 else "failed"
-                self._write_cos_queue_key(project_id, fleet_id, f"{status}/{exit_code}")
         except Exception as e:  # pylint: disable=broad-exception-caught
             # The manifest is already consumed, so ANY failure (including a
             # TypeError from a malformed manifest) must still produce a terminal
             # state rather than leaving the job stuck. Respect an already-signaled
             # cancel so a late bug can't mask it as failed.
             logger.error("Fleet %s failed during processing: %s", fleet_id, e)
-            if canceled:
-                status = "canceled"
-            else:
-                status = "failed"
-                try:
-                    self._write_cos_queue_key(project_id, fleet_id, f"{status}/{exit_code}")
-                except (ClientError, BotoCoreError) as write_err:
-                    logger.error("Failed to write terminal status for %s: %s", fleet_id, write_err)
+            status = "canceled" if canceled else "failed"
+
+        # Write the resolved terminal status exactly once, after the outcome is
+        # decided. Done outside the try so a write failure is logged rather than
+        # reclassifying a succeeded job as failed. Canceled writes nothing — the
+        # cancel key already exists and "cancel wins" is the intended semantics.
+        if status == "canceled":
+            logger.info("Fleet %s canceled — leaving the cancel key as terminal state", fleet_id)
+        else:
+            try:
+                self._write_cos_queue_key(project_id, fleet_id, f"{status}/{exit_code}")
+            except (ClientError, BotoCoreError) as write_err:
+                logger.error("Failed to write terminal status for %s: %s", fleet_id, write_err)
 
         self._log_completion(fleet_id, status, exit_code)
 
