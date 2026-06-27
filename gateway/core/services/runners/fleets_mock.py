@@ -36,7 +36,7 @@ from ibm_botocore.exceptions import ClientError as BotoClientError
 
 from core.ibm_cloud.clients import IBMCloudClientProvider
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
-from core.ibm_cloud.code_engine.fleets.cos import JobCOS
+from core.ibm_cloud.code_engine.fleets.cos import JobCOS, queue_prefix
 from core.ibm_cloud.cos.cos_client import COSClient, CosHmacCredentials
 from core.models import CodeEngineProject
 
@@ -343,7 +343,7 @@ def _mock_get_job_status(self, identifier):  # pylint: disable=unused-argument
         raise ApiException(status=502, reason=f"COS error checking fleet existence: {error_code}") from exc
 
     bucket = _task_store_bucket(self.project_id)
-    prefix = f"ce/{self.project_id}/{fleet_id}/v2/queue/"
+    prefix = queue_prefix(self.project_id, fleet_id)
 
     # Status segments the worker writes, in priority order. No '/canceling/':
     # the harness never produces a canceling key (cancel writes '/canceled/'
@@ -389,7 +389,7 @@ def _mock_cancel_job(self, identifier, **kwargs):  # pylint: disable=unused-argu
     # Resolve the job's own project bucket (like _mock_get_job_status), not the
     # first active project, so cancel writes where status() reads.
     bucket = _task_store_bucket(self.project_id)
-    cancel_key = f"ce/{self.project_id}/{identifier}/v2/queue/canceled/0/{identifier}-0/canceled"
+    cancel_key = f"{queue_prefix(self.project_id, identifier)}canceled/0/{identifier}-0/canceled"
     s3.put_object(Bucket=bucket, Key=cancel_key, Body=b"")
 
 
