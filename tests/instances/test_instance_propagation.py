@@ -19,6 +19,7 @@ from instances.conftest import (
     ALL_FUNCTIONS,
     apply_level,
     ensure_account_superset,
+    wait_for_propagation,
     RECONFIG_CRN,
     _fn,
 )
@@ -49,6 +50,7 @@ def test_account_narrows_instance_and_does_not_restore(ntc, reconfig_client, pro
 
     # 2) remove functions from the account -> the sync narrows the instance to empty
     ntc.set_account_entitlements([], [])
+    wait_for_propagation()
     assert not _function_in_list(
         reconfig_client.functions(filter="catalog"), provider_name, function_title
     ), "Step 2: expected the function to disappear after removing it from the account"
@@ -58,6 +60,7 @@ def test_account_narrows_instance_and_does_not_restore(ntc, reconfig_client, pro
 
     # 3) re-add functions to the account -> the instance is NOT restored (sync only narrows)
     ensure_account_superset(ntc)
+    wait_for_propagation()
     assert not _function_in_list(
         reconfig_client.functions(filter="catalog"), provider_name, function_title
     ), "Step 3: re-adding functions to the account must NOT restore the instance"

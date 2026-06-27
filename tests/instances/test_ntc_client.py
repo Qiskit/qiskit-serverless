@@ -40,6 +40,7 @@ def _account_doc():
                 "plan_id": "53bde9d3-cdbb-46f5-a98f-60ebcadf7260",
                 "usage_limit_seconds": 10800,
                 "subscription_name": "flex",
+                "unallocated_usage_seconds": 999,  # server-computed: must be stripped on PUT
                 "functions": [
                     {"name": "old", "provider": "ibm", "business_model": "consumption", "permissions": ["x"]}
                 ],
@@ -65,7 +66,7 @@ def test_get_account_returns_json_and_uses_apikey_scheme(client):
         assert m.last_request.headers["Authorization"] == f"apikey {API_KEY}"
 
 
-def test_set_account_entitlements_replaces_flex_plan_only(client):
+def test_set_account_entitlements_sends_only_target_plan(client):
     with requests_mock.Mocker() as m:
         m.get(ADMIN_URL, json=_account_doc())
         m.put(ADMIN_URL, json={}, status_code=200)
@@ -74,28 +75,50 @@ def test_set_account_entitlements_replaces_flex_plan_only(client):
         assert m.last_request.headers["Authorization"] == f"apikey {API_KEY}"
         body = m.last_request.json()
         assert body["account_id"] == f"a/{ACCOUNT_ID}"
-        flex = next(p for p in body["plans"] if p["subscription_name"] == "flex")
-        premium = next(p for p in body["plans"] if p["subscription_name"] == "premium")
-
+        # only the target plan (flex) is sent, not the whole plan list (avoids server HTTP 500)
+        assert len(body["plans"]) == 1
+        flex = body["plans"][0]
+        assert flex["subscription_name"] == "flex"
         assert flex["functions"] == FUNCTIONS
         assert flex["custom_functions"] == {"permissions": ["function-custom.run"]}
         # preserved fields on the flex plan
         assert flex["plan_id"] == "53bde9d3-cdbb-46f5-a98f-60ebcadf7260"
         assert flex["usage_limit_seconds"] == 10800
-        # the other plan is untouched
-        assert premium["functions"] == [
-            {"name": "keep", "provider": "ibm", "business_model": "trial", "permissions": ["keep.read"]}
-        ]
+        # server-computed field is stripped
+        assert "unallocated_usage_seconds" not in flex
 
 
-def test_set_account_entitlements_none_custom_means_empty(client):
+def test_set_account_entitlements_none_custom_clears_with_null(client):
     with requests_mock.Mocker() as m:
         m.get(ADMIN_URL, json=_account_doc())
         m.put(ADMIN_URL, json={}, status_code=200)
         client.set_account_entitlements([], None)
-        flex = next(p for p in m.last_request.json()["plans"] if p["subscription_name"] == "flex")
+        plans = m.last_request.json()["plans"]
+        assert len(plans) == 1
+        flex = plans[0]
         assert flex["functions"] == []
-        assert flex["custom_functions"] == {"permissions": []}
+        # None clears by nulling the whole field (both [] and {"permissions": null} return HTTP 422)
+        assert flex["custom_functions"] is None
+
+
+def test_set_account_entitlements_empty_list_clears_with_null(client):
+    with requests_mock.Mocker() as m:
+        m.get(ADMIN_URL, json=_account_doc())
+        m.put(ADMIN_URL, json={}, status_code=200)
+        client.set_account_entitlements([], [])
+        flex = m.last_request.json()["plans"][0]
+        assert flex["custom_functions"] is None
+
+
+def test_set_account_entitlements_preserve_keeps_existing_custom(client):
+    with requests_mock.Mocker() as m:
+        m.get(ADMIN_URL, json=_account_doc())
+        m.put(ADMIN_URL, json={}, status_code=200)
+        client.set_account_entitlements(FUNCTIONS)  # custom_permissions defaults to PRESERVE
+        flex = m.last_request.json()["plans"][0]
+        assert flex["functions"] == FUNCTIONS
+        # the field is left untouched: the round-tripped existing value is kept verbatim
+        assert flex["custom_functions"] == {"permissions": ["old.write"]}
 
 
 def test_set_account_entitlements_raises_when_plan_missing(client):
@@ -134,14 +157,26 @@ def test_set_instance_entitlements_preserves_other_parameters(client):
         assert params["custom_functions"] == {"permissions": ["function-custom.run"]}
 
 
-def test_set_instance_entitlements_none_custom_leaves_it_untouched(client):
+def test_set_instance_entitlements_preserve_leaves_it_untouched(client):
+    with requests_mock.Mocker() as m:
+        m.post(IAM_URL, json={"access_token": BEARER})
+        m.get(RC_URL, json={"parameters": {"backends": ["ANY"]}})
+        m.patch(RC_URL, json={}, status_code=200)
+        client.set_instance_entitlements(CRN, FUNCTIONS)  # custom_permissions defaults to PRESERVE
+        params = m.request_history[-1].json()["parameters"]
+        assert "custom_functions" not in params
+        assert params["functions"] == FUNCTIONS
+
+
+def test_set_instance_entitlements_none_custom_clears_with_null(client):
     with requests_mock.Mocker() as m:
         m.post(IAM_URL, json={"access_token": BEARER})
         m.get(RC_URL, json={"parameters": {"backends": ["ANY"]}})
         m.patch(RC_URL, json={}, status_code=200)
         client.set_instance_entitlements(CRN, FUNCTIONS, None)
         params = m.request_history[-1].json()["parameters"]
-        assert "custom_functions" not in params
+        # None clears by nulling the whole field (both [] and {"permissions": null} return HTTP 422)
+        assert params["custom_functions"] is None
         assert params["functions"] == FUNCTIONS
 
 
@@ -162,3 +197,24 @@ def test_non_2xx_raises_ntc_api_error_with_status_and_body(client):
             client.get_account()
         assert exc.value.status == 500
         assert exc.value.body == "boom"
+
+
+def test_rc_api_key_used_for_iam_only_account_uses_api_key():
+    rc_api_key = "rc-only-key"
+    client = NtcAdminClient(account_id=ACCOUNT_ID, api_key=API_KEY, rc_api_key=rc_api_key)
+    with requests_mock.Mocker() as m:
+        m.post(IAM_URL, json={"access_token": BEARER})
+        m.get(ADMIN_URL, json={"account_id": f"a/{ACCOUNT_ID}", "plans": []})
+        m.get(RC_URL, json={"parameters": {}})
+
+        client.get_account()  # account admin path -> apikey API_KEY
+        client.get_instance(CRN)  # instance path -> IAM exchange with rc_api_key, then Bearer
+
+        acct_req = next(r for r in m.request_history if r.url.startswith(ADMIN_URL))
+        assert acct_req.headers["Authorization"] == f"apikey {API_KEY}"
+
+        iam_req = next(r for r in m.request_history if r.url.startswith(IAM_URL))
+        assert iam_req.qs["apikey"] == [rc_api_key]
+
+        rc_req = next(r for r in m.request_history if r.url.startswith(RC_URL))
+        assert rc_req.headers["Authorization"] == f"Bearer {BEARER}"

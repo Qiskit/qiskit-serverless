@@ -133,3 +133,137 @@ A separate permission for retrieving individual jobs (`job.retrieve`) was consid
 ### `accessible_functions` is mandatory at every integration point
 
 The `accessible_functions` parameter is required (not optional) in all use cases and policy methods that need it. This prevents accidentally omitting it, which would silently fall back to legacy behavior in cases where the caller should have been using the external result.
+
+## Acceptance tests: reconfigurable-instance suite
+
+The `tests/instances/` suite exercises the instance-based authorization end to end against a real
+staging deployment. Instead of standing up a fixed instance per permission level, it drives a
+**single reconfigurable service instance** through the NTC APIs and reuses the same battery of
+`/functions` assertions at every level (NONE / USER / PROVIDER / ALL). The relevant pieces:
+
+- `instances/ntc_client.py` (`NtcAdminClient`): the HTTP client that mutates account plans and
+  instance entitlements in NTC.
+- `instances/conftest.py`: the fixtures, the per-level entitlement sets, and the `apply_level` /
+  `ensure_account_superset` helpers.
+- `instances/test_instance_propagation.py`: black-box tests of the account -> instance sync.
+- `instances/permission_checks.py`: the shared `/functions` assertions reused at every level.
+
+The whole module is **skipped** unless `NTC_API_KEY`, `NTC_ACCOUNT_ID` and `TEST_RECONFIG_INSTANCE`
+are set, so the suite is inert in CI without staging credentials.
+
+### Two NTC endpoints, two authorization schemes
+
+A single API key drives two different NTC hosts, each with its own auth header:
+
+| Concern | Host | Auth header | What it configures |
+|---------|------|-------------|--------------------|
+| Account plan (the maximum grant) | `quantum.test.cloud.ibm.com` (account admin API) | `Authorization: apikey <API_KEY>` | The account plan entitlements (`functions`, `custom_functions`) per `subscription_name` (default `flex`). |
+| Instance entitlements | `resource-controller.test.cloud.ibm.com` | `Authorization: Bearer <BEARER>` | The per-instance entitlements, stored under `parameters.functions` / `parameters.custom_functions` of the resource instance. |
+
+The bearer is **not** the API key: it is obtained by exchanging the API key (`rc_api_key`, falling
+back to `api_key`) at the IAM token endpoint (`iam.test.cloud.ibm.com/identity/token`, grant type
+`urn:ibm:params:oauth:grant-type:apikey`) and cached for the life of the client. The split exists
+because the instance may live in a different IBM Cloud account than the admin key, so the
+resource-controller path can use a distinct credential (`NTC_RC_API_KEY`).
+
+All write methods are **read-modify-write**: they GET the current document, replace only the
+`functions` / `custom_functions` keys, and send the rest back untouched, so unrelated fields
+(`plan_id`, `usage_limit_seconds`, `backends`, ...) are preserved.
+
+### Account PUT peculiarities
+
+The account `PUT` has two non-obvious requirements, both learned from staging:
+
+1. **Send only the target plan, not the whole plan list.** The replace endpoint upserts per plan, so
+   sending only the `flex` plan preserves the others. Echoing back the full plan list makes the
+   server return **HTTP 500**.
+2. **Strip server-computed fields.** Fields like `unallocated_usage_seconds` are computed by the
+   server; echoing them back on the PUT also triggers an error, so they are removed before sending
+   (`_COMPUTED_PLAN_FIELDS`).
+
+### The three-state `custom_functions` contract
+
+`custom_functions` (the holder of `function-custom.write` / `function-custom.run`) cannot be sent as
+an empty collection. Both `custom_functions: []` **and** `custom_functions: {"permissions": null}`
+are rejected with **HTTP 422 "custom_functions permissions must not be empty"**. To support
+"clear it" without hitting that error, the client models three distinct intents through the
+`custom_permissions` argument:
+
+| Intent | Argument value | Payload sent | Meaning |
+|--------|----------------|--------------|---------|
+| Set | a non-empty list | `custom_functions: {"permissions": [...]}` | Grant exactly these custom permissions. |
+| Clear | `None` or `[]` | `custom_functions: null` | Remove all custom permissions by nulling the **whole** field (not the inner list). |
+| Preserve | omitted (default `PRESERVE` sentinel) | the key is not sent at all | Leave whatever the server currently has untouched. |
+
+`PRESERVE` is a module-level sentinel object distinct from `None`, so "do not touch" and "clear"
+never collapse into the same request. The instance PATCH follows the same contract over
+`parameters.custom_functions`.
+
+### Account -> instance sync is narrow-only
+
+Saving the account runs a **synchronous** sync that NARROWS each instance's entitlements to the
+intersection with the account, keyed by `(provider, name, business_model)`. It is critical to
+understand that this sync **only ever narrows; it never re-adds**:
+
+- Removing a function from the account immediately removes it from every instance.
+- Re-adding it to the account does **not** restore it on the instance; the instance must be
+  reconfigured directly via the resource-controller PATCH.
+- The broker rejects an instance PATCH that asks for more than the account currently grants, so the
+  account must hold a **superset** of every instance level before each instance change. This is why
+  `apply_level` always calls `ensure_account_superset` before patching the instance.
+
+`GET /functions` returns the instance entitlements as-is, with no account intersection applied at
+read time; the intersection only happens at account-save time.
+
+### Empty instance (204) vs. configured-empty (200): the legacy fallback
+
+This is the most important peculiarity for interpreting test results. The gateway reads the
+per-CRN entitlements from the Runtime API, and the two "no functions" cases are **not equivalent**:
+
+- **Instance has no entitlements configured at all** -> Runtime API responds **HTTP 204**. The
+  gateway interprets 204 as "this account/instance has not been migrated to the new system" and
+  **falls back to the legacy Django authorization** (`use_legacy_authorization=True`). Under legacy,
+  a function can still be visible/usable through Django group membership. This 204 path is the
+  expected, correct behavior for not-yet-migrated accounts and must keep working.
+- **Instance configured with an explicit empty list** (`functions: []`) -> Runtime API responds
+  **HTTP 200** with an empty functions list. The gateway treats this as NTC authorization with zero
+  entitlements: a **clean deny**, no legacy fallback.
+
+The practical consequence for the suite: emptying an instance **through the account** (narrow to
+empty) lands on the 204 + legacy path, so the function may remain visible. Setting the instance's
+own `functions` to `[]` lands on the 200 + clean-deny path. The propagation test relies on this
+distinction, and the NONE level is built by PATCHing the instance to `functions: []` (not by
+emptying the account).
+
+### Gateway entitlements cache and propagation waits
+
+The gateway caches the per-CRN `/functions` result for `RUNTIME_API_CACHE_TTL` seconds
+(`function_access_client.py`; 1s on staging) under a key derived from `(instance_crn, api_key_hash)`.
+Because every level reuses the **same CRN and token**, the cache key is identical across levels, so a
+reconfiguration is only observed by the next gateway read once that entry expires. Every NTC change
+that a subsequent gateway read must observe is therefore followed by `wait_for_propagation()`, which
+sleeps `TEST_CACHE_WAIT_SECONDS` (default 2s, a little above the TTL). On top of the gateway cache,
+the NTC -> Runtime API propagation itself is eventually-consistent, so the wait also absorbs that
+lag.
+
+> Operational caution: because the account save narrows every instance synchronously, clearing the
+> account while debugging will empty the reconfigurable instance's effective entitlements, and a
+> resource-controller PATCH alone may not immediately re-populate the Runtime API view. Always
+> restore the account to its superset (and re-apply the instance level) after any manual experiment.
+
+### Per-level entitlement sets
+
+`conftest.py` defines the entitlements applied at each level. `business_model` must match what the
+reused checks expect (`trial` for the user level, `consumption` for the combined/provider levels):
+
+| Level | Instance functions | Custom permissions |
+|-------|--------------------|--------------------|
+| NONE | `[]` (clean deny via 200) | cleared |
+| USER | `instances1-test@trial` with user permissions | `function-custom.{write,run}` |
+| PROVIDER | `instances1-test@consumption` with provider permissions | cleared |
+| ALL | `instances1-test@consumption` + `instances2-test@consumption`, all permissions | `function-custom.{write,run}` |
+
+The **account superset** grants, by `(provider, name, business_model)` key, a superset of every
+level (`instances1-test` at both `trial` and `consumption`, `instances2-test` at `consumption`, plus
+the custom permissions), so the broker accepts every instance PATCH and the sync never narrows the
+configured level.

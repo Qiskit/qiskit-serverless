@@ -7,13 +7,14 @@ instance is taken to NONE/USER/PROVIDER/ALL states before each test so the same 
 of /functions assertions (permission_checks.py) can be reused.
 
 Required environment variables (the whole module is skipped if any is missing):
-  - NTC_API_KEY            API key with admin access to NTC. The account admin API uses it
-                           directly ("apikey" scheme); the resource-controller uses a Bearer
-                           token exchanged from it via IAM.
+  - NTC_API_KEY            API key for the NTC account admin API ("apikey" scheme).
   - NTC_ACCOUNT_ID         account id (without the "a/" prefix)
   - TEST_RECONFIG_INSTANCE CRN of the instance to reconfigure
 
 Optional:
+  - NTC_RC_API_KEY         API key for the resource-controller (instance) path; exchanged for an
+                           IAM Bearer. Defaults to NTC_API_KEY when not set. Use this when the
+                           instance lives in a different IBM Cloud account than the admin key.
   - NTC_ADMIN_BASE         default https://quantum.test.cloud.ibm.com
   - NTC_RC_BASE            default https://resource-controller.test.cloud.ibm.com
   - NTC_IAM_BASE           default https://iam.test.cloud.ibm.com
@@ -22,12 +23,16 @@ Optional:
   - TEST_PROVIDER_NAME / TEST_FUNCTION_TITLE / TEST_OTHER_FUNCTION_TITLE / TEST_CUSTOM_FUNCTION_TITLE
 """
 
+import logging
 import os
+import time
 
 from pytest import fixture, skip
 from qiskit_serverless import QiskitFunction, ServerlessClient
 
-from instances.ntc_client import NtcAdminClient
+from instances.ntc_client import NtcAdminClient, mask_secret
+
+logger = logging.getLogger("instances.conftest")
 
 GATEWAY_HOST = os.environ.get("GATEWAY_HOST", "http://localhost:8000")
 GATEWAY_TOKEN = os.environ.get("GATEWAY_TOKEN", "awesome_token")
@@ -39,12 +44,19 @@ OTHER_FUNCTION_TITLE = os.environ.get("TEST_OTHER_FUNCTION_TITLE", "instances2-t
 CUSTOM_FUNCTION_TITLE = os.environ.get("TEST_CUSTOM_FUNCTION_TITLE", "my-custom-func")
 
 NTC_API_KEY = os.environ.get("NTC_API_KEY")
+NTC_RC_API_KEY = os.environ.get("NTC_RC_API_KEY")
 NTC_ACCOUNT_ID = os.environ.get("NTC_ACCOUNT_ID")
 RECONFIG_CRN = os.environ.get("TEST_RECONFIG_INSTANCE")
 NTC_ADMIN_BASE = os.environ.get("NTC_ADMIN_BASE", "https://quantum.test.cloud.ibm.com")
 NTC_RC_BASE = os.environ.get("NTC_RC_BASE", "https://resource-controller.test.cloud.ibm.com")
 NTC_IAM_BASE = os.environ.get("NTC_IAM_BASE", "https://iam.test.cloud.ibm.com")
 NTC_SUBSCRIPTION_NAME = os.environ.get("NTC_SUBSCRIPTION_NAME", "flex")
+
+# The gateway caches the per-CRN /functions entitlements for RUNTIME_API_CACHE_TTL seconds
+# (1s on staging; see gateway/api/clients/function_access_client.py). Since every level reuses
+# the same CRN + token, the cache key is identical, so a reconfiguration is only visible to the
+# next gateway read once that entry expires. Wait a little longer than the TTL after each change.
+CACHE_WAIT_SECONDS = float(os.environ.get("TEST_CACHE_WAIT_SECONDS", "2"))
 
 # --- permission sets -------------------------------------------------------------------
 
@@ -108,15 +120,35 @@ SUPERSET_FUNCTIONS = [
 SUPERSET_CUSTOM = CUSTOM_PERMISSIONS
 
 
+def wait_for_propagation():
+    """Sleep long enough for the gateway per-CRN entitlements cache to expire.
+
+    Call this after any NTC reconfiguration that a subsequent gateway read must observe.
+    """
+    logger.info("apply: waiting %.1fs for the gateway entitlements cache to expire", CACHE_WAIT_SECONDS)
+    time.sleep(CACHE_WAIT_SECONDS)
+
+
 def ensure_account_superset(ntc):
     """Set the account plan to the superset so every instance PATCH is accepted."""
+    logger.info("apply: account superset -> functions=%d custom=%d", len(SUPERSET_FUNCTIONS), len(SUPERSET_CUSTOM))
     ntc.set_account_entitlements(SUPERSET_FUNCTIONS, SUPERSET_CUSTOM)
 
 
 def apply_level(ntc, functions, custom_permissions):
-    """Put the reconfigurable instance into the given level (account stays at superset)."""
+    """Put the reconfigurable instance into the given level (account stays at superset).
+
+    Waits for the gateway entitlements cache to expire so the next gateway read sees this level.
+    """
+    logger.info(
+        "apply: level on instance %s -> functions=%d custom=%s",
+        RECONFIG_CRN,
+        len(functions),
+        list(custom_permissions) if custom_permissions else "<clear>",
+    )
     ensure_account_superset(ntc)
     ntc.set_instance_entitlements(RECONFIG_CRN, functions, custom_permissions)
+    wait_for_propagation()
 
 
 # --- shared metadata fixtures ----------------------------------------------------------
@@ -157,6 +189,7 @@ def ntc():
     return NtcAdminClient(
         account_id=NTC_ACCOUNT_ID,
         api_key=NTC_API_KEY,
+        rc_api_key=NTC_RC_API_KEY,
         admin_base=NTC_ADMIN_BASE,
         rc_base=NTC_RC_BASE,
         iam_base=NTC_IAM_BASE,
@@ -171,6 +204,13 @@ def reconfig_client():
     The same client object is reused at every level; only the server-side entitlements
     change (via apply_level), so the client does not encode the permission level.
     """
+    logger.info(
+        "ServerlessClient: host=%s channel=%s instance=%s token=%s",
+        GATEWAY_HOST,
+        GATEWAY_CHANNEL,
+        RECONFIG_CRN,
+        mask_secret(GATEWAY_TOKEN),
+    )
     return ServerlessClient(
         token=GATEWAY_TOKEN,
         host=GATEWAY_HOST,
