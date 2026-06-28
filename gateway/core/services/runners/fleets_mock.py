@@ -47,57 +47,31 @@ logger = logging.getLogger("FleetsMock")
 FLEET_STATE_BUCKET = "fleet-state"
 FLEET_STATE_ARCHIVE_BUCKET = "fleet-state-archive"
 
+# Read at import — this module is only imported when FLEETS_MOCK_ENABLED=1
+# (apps.py:ready), where these are always set, so a missing var fails fast.
+MINIO_ENDPOINT = os.environ["MINIO_ENDPOINT"]
+MINIO_ACCESS_KEY = os.environ["MINIO_ACCESS_KEY"]
+MINIO_SECRET_KEY = os.environ["MINIO_SECRET_KEY"]
+
 _patches: list = []
 _MOCK_S3: tuple[int, object] | None = None
 
 
-def _minio_endpoint() -> str:
-    """Return the MinIO endpoint URL from environment.
+def _task_store_bucket(project_id: str) -> str:
+    """Return the task-store bucket name for the job's CodeEngineProject.
 
-    Returns:
-        The MINIO_ENDPOINT environment variable value.
-    """
-    return os.environ["MINIO_ENDPOINT"]
-
-
-def _minio_access_key() -> str:
-    """Return the MinIO access key from environment.
-
-    Returns:
-        The MINIO_ACCESS_KEY environment variable value.
-    """
-    return os.environ["MINIO_ACCESS_KEY"]
-
-
-def _minio_secret_key() -> str:
-    """Return the MinIO secret key from environment.
-
-    Returns:
-        The MINIO_SECRET_KEY environment variable value.
-    """
-    return os.environ["MINIO_SECRET_KEY"]
-
-
-def _task_store_bucket(project_id: str | None = None) -> str:
-    """Return the task-store bucket name from the CodeEngineProject DB row.
-
-    Resolves the project the job actually belongs to (by ``project_id``) to
-    mirror ``FleetsRunner.status()``, which reads ``self._project``'s bucket —
-    rather than guessing the first active project, which would read the wrong
-    bucket once more than one project exists.
+    Resolves by ``project_id`` to mirror ``FleetsRunner.status()`` (which reads
+    ``self._project``'s bucket), so the mock reads the same bucket the runner
+    writes/reads even with more than one project.
 
     Args:
-        project_id: The CE project UUID to resolve; falls back to the first
-            active project when not provided.
+        project_id: The CE project UUID to resolve.
 
     Returns:
-        The cos_bucket_task_store_name for the resolved project, or the
-        TASK_STORE_BUCKET env fallback.
+        The cos_bucket_task_store_name for the project, or the TASK_STORE_BUCKET
+        env fallback.
     """
-    if project_id:
-        project = CodeEngineProject.objects.filter(project_id=project_id).first()
-    else:
-        project = CodeEngineProject.objects.filter(active=True).first()
+    project = CodeEngineProject.objects.filter(project_id=project_id).first()
     if project and project.cos_bucket_task_store_name:
         return project.cos_bucket_task_store_name
     return os.environ.get("TASK_STORE_BUCKET", "task-store-bucket")
@@ -126,20 +100,6 @@ def _pds_reference_to_bucket(reference: str) -> str:
     raise ValueError(f"Unknown PDS reference {reference!r} — no matching CodeEngineProject")
 
 
-def _make_mock_s3_client():
-    """Create an ibm_boto3 S3 client pointing at MinIO.
-
-    Returns:
-        An ibm_boto3 S3 client configured for the local MinIO instance.
-    """
-    return ibm_boto3_client(
-        "s3",
-        aws_access_key_id=_minio_access_key(),
-        aws_secret_access_key=_minio_secret_key(),
-        endpoint_url=_minio_endpoint(),
-    )
-
-
 def _get_mock_s3():
     """Return a per-process MinIO S3 client for FleetHandler mock operations.
 
@@ -155,7 +115,13 @@ def _get_mock_s3():
     global _MOCK_S3  # pylint: disable=global-statement
     pid = os.getpid()
     if _MOCK_S3 is None or _MOCK_S3[0] != pid:
-        _MOCK_S3 = (pid, _make_mock_s3_client())
+        client = ibm_boto3_client(
+            "s3",
+            aws_access_key_id=MINIO_ACCESS_KEY,
+            aws_secret_access_key=MINIO_SECRET_KEY,
+            endpoint_url=MINIO_ENDPOINT,
+        )
+        _MOCK_S3 = (pid, client)
     return _MOCK_S3[1]
 
 
@@ -234,11 +200,11 @@ def _mock_get_cos_client(project):  # pylint: disable=unused-argument
     cos_client = COSClient(
         client_provider=client_provider,
         credentials=CosHmacCredentials(
-            access_key_id=_minio_access_key(),
-            secret_access_key=_minio_secret_key(),
+            access_key_id=MINIO_ACCESS_KEY,
+            secret_access_key=MINIO_SECRET_KEY,
         ),
         bucket_region=project.region,
-        endpoint_url=_minio_endpoint(),
+        endpoint_url=MINIO_ENDPOINT,
     )
     return JobCOS(cos_client)
 
@@ -442,5 +408,5 @@ def install_mocks():
     logger.info(
         "Fleets mock installed: %d patches active (MinIO endpoint=%s)",
         len(_patches),
-        _minio_endpoint(),
+        MINIO_ENDPOINT,
     )
