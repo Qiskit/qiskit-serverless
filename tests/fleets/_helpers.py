@@ -41,6 +41,22 @@ FLEET_STATE_BUCKETS = ["fleet-state", "fleet-state-archive", "task-store-bucket"
 DATA_BUCKETS = ["user-data-bucket", "provider-data-bucket"]
 
 
+def clear_buckets(minio_client, buckets):
+    """Delete all objects in each bucket, ignoring buckets that don't exist.
+
+    Args:
+        minio_client: A boto3 S3 client.
+        buckets: Iterable of bucket names to empty.
+    """
+    for bucket in buckets:
+        try:
+            resp = minio_client.list_objects_v2(Bucket=bucket)
+            for obj in resp.get("Contents", []):
+                minio_client.delete_object(Bucket=bucket, Key=obj["Key"])
+        except ClientError:
+            pass
+
+
 def is_valid_uuid(value: str) -> bool:
     """Return True if value is a valid UUID string.
 

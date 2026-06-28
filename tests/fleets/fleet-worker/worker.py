@@ -66,30 +66,27 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
             time.sleep(1)
 
     def _poll_once(self) -> None:
-        """List fleet-state bucket and process any manifest files found."""
-        try:
-            response = self._storage.client.list_objects_v2(Bucket=FLEET_STATE_BUCKET)
-            contents = response.get("Contents", [])
+        """List fleet-state bucket and process any manifest files found.
 
-            for obj in contents:
-                key = obj["Key"]
-                if not key.endswith(".json"):
-                    continue
+        A failure of the list call itself propagates to run(), which logs it and
+        retries on the next cycle. Per-manifest errors are isolated in the inner
+        try so one bad manifest doesn't skip the rest of the batch.
+        """
+        response = self._storage.client.list_objects_v2(Bucket=FLEET_STATE_BUCKET)
+        for obj in response.get("Contents", []):
+            key = obj["Key"]
+            if not key.endswith(".json"):
+                continue
 
-                try:
-                    manifest_obj = self._storage.client.get_object(Bucket=FLEET_STATE_BUCKET, Key=key)
-                    manifest = json.loads(manifest_obj["Body"].read().decode("utf-8"))
-                    self._process_manifest(key, manifest)
-                except (json.JSONDecodeError, KeyError) as e:
-                    logger.error("Bad manifest %s (quarantining): %s", key, e)
-                    self._storage.client.delete_object(Bucket=FLEET_STATE_BUCKET, Key=key)
-                except (ClientError, BotoCoreError, OSError, ValueError) as e:
-                    logger.error("Error processing manifest %s: %s", key, e)
-
-        except (ClientError, BotoCoreError) as e:
-            logger.error("Error listing fleet-state bucket: %s", e)
-        except OSError as e:
-            logger.error("Unexpected error in poll loop: %s", e)
+            try:
+                manifest_obj = self._storage.client.get_object(Bucket=FLEET_STATE_BUCKET, Key=key)
+                manifest = json.loads(manifest_obj["Body"].read().decode("utf-8"))
+                self._process_manifest(key, manifest)
+            except (json.JSONDecodeError, KeyError) as e:
+                logger.error("Bad manifest %s (quarantining): %s", key, e)
+                self._storage.client.delete_object(Bucket=FLEET_STATE_BUCKET, Key=key)
+            except (ClientError, BotoCoreError, OSError, ValueError) as e:
+                logger.error("Error processing manifest %s: %s", key, e)
 
     def _process_manifest(self, key: str, manifest: dict) -> None:
         """Execute a job manifest and report status.
@@ -161,7 +158,7 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
             except (ClientError, BotoCoreError) as write_err:
                 logger.error("Failed to write terminal status for %s: %s", fleet_id, write_err)
 
-        self._log_completion(fleet_id, status, exit_code)
+        logger.info("Fleet %s completed with status: %s (exit_code=%d)", fleet_id, status, exit_code)
 
     @staticmethod
     def _prepare_run_env(manifest: dict) -> dict[str, str]:
@@ -382,19 +379,6 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
             Body=b"",
         )
         logger.info("Wrote COS queue key: %s", queue_key)
-
-    def _log_completion(self, fleet_id: str, status: str, exit_code: int) -> None:
-        """Log the final job outcome.
-
-        The manifest is already consumed at claim time (see _process_manifest),
-        so this only records the resolved terminal state.
-
-        Args:
-            fleet_id: The fleet ID.
-            status: The resolved job outcome ("succeeded", "failed", or "canceled").
-            exit_code: The process exit code (0 = succeeded).
-        """
-        logger.info("Fleet %s completed with status: %s (exit_code=%d)", fleet_id, status, exit_code)
 
     def _cleanup(self, link_paths: list[str]) -> None:
         """Remove the job's symlinks and flush s3fs caches after execution.

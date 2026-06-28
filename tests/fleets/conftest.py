@@ -18,10 +18,9 @@ import uuid
 import boto3
 import psycopg2
 import pytest
-from botocore.exceptions import ClientError
 from qiskit_serverless import ServerlessClient
 
-from _helpers import DATA_BUCKETS, FLEET_STATE_BUCKETS
+from _helpers import DATA_BUCKETS, FLEET_STATE_BUCKETS, clear_buckets
 
 
 @pytest.fixture(scope="session")
@@ -76,13 +75,7 @@ def minio_client():
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_minio(minio_client):  # pylint: disable=redefined-outer-name
     """Clear fleet-state and data buckets at the start of each test run."""
-    for bucket in FLEET_STATE_BUCKETS + DATA_BUCKETS:
-        try:
-            resp = minio_client.list_objects_v2(Bucket=bucket)
-            for obj in resp.get("Contents", []):
-                minio_client.delete_object(Bucket=bucket, Key=obj["Key"])
-        except ClientError:
-            pass
+    clear_buckets(minio_client, FLEET_STATE_BUCKETS + DATA_BUCKETS)
 
 
 @pytest.fixture(autouse=True)
@@ -95,13 +88,7 @@ def cleanup_fleet_state_after_test(minio_client):  # pylint: disable=redefined-o
     safe and keeps the harness from depending on fleet_id uniqueness alone).
     """
     yield
-    for bucket in FLEET_STATE_BUCKETS:
-        try:
-            resp = minio_client.list_objects_v2(Bucket=bucket)
-            for obj in resp.get("Contents", []):
-                minio_client.delete_object(Bucket=bucket, Key=obj["Key"])
-        except ClientError:
-            pass
+    clear_buckets(minio_client, FLEET_STATE_BUCKETS)
 
 
 @pytest.fixture()
