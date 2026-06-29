@@ -60,7 +60,7 @@ def test_runtime_none_level_is_empty_not_204(ntc, runtime):
     is meant to be an explicit per-function deny that still reports 200 with an empty list.
     """
     apply_level(ntc, NONE_FUNCTIONS, NONE_CUSTOM)
-    # Poll until the catalog has drained to empty, then inspect the raw result.
+    # Poll the Runtime API directly until it reports the empty list, then inspect the raw result.
     assert_runtime_matches(runtime, NONE_FUNCTIONS, NONE_CUSTOM)
     result = runtime.get_functions(RECONFIG_CRN)
     assert not result.not_configured, (

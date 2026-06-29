@@ -6,7 +6,9 @@ on the fly through the NTC admin/resource-controller APIs (see ntc_client.py). T
 instance is taken to NONE/USER/PROVIDER/ALL states before each test so the same battery
 of /functions assertions (permission_checks.py) can be reused.
 
-Required environment variables (the whole module is skipped if any is missing):
+Required environment variables for the STAGING tests (those that talk to NTC are skipped if any is
+missing; the offline client tests in test_ntc_client.py / test_runtime_api_client.py do not use these
+and always run):
   - NTC_API_KEY            API key for the NTC account admin API ("apikey" scheme).
   - NTC_ACCOUNT_ID         account id (without the "a/" prefix)
   - TEST_RECONFIG_INSTANCE CRN of the instance to reconfigure
@@ -282,7 +284,9 @@ def assert_runtime_matches(runtime, expected_functions, expected_custom, timeout
         if reason is None:
             return result
         if time.monotonic() >= deadline:
-            assert reason is None, f"Runtime API {reason} (after polling {timeout:.0f}s); last: {result.summary()}"
+            # raise explicitly (not `assert`) so the failure survives `python -O`, where assert is a
+            # no-op and the loop would otherwise spin forever.
+            raise AssertionError(f"Runtime API {reason} (after polling {timeout:.0f}s); last: {result.summary()}")
         logger.info("runtime: not matching yet (%s), retrying in %.1fs", reason, CACHE_WAIT_SECONDS)
         time.sleep(CACHE_WAIT_SECONDS)
 

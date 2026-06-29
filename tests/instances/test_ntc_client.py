@@ -6,7 +6,7 @@ import urllib.parse
 import pytest
 import requests_mock
 
-from instances.ntc_client import NtcAdminClient, NtcApiError
+from instances.ntc_client import NtcAdminClient, NtcApiError, _parse_ts
 
 ACCOUNT_ID = "efb0dd39cdb64955b8f6e32d44290acf"
 API_KEY = "ntc-api-key"
@@ -193,7 +193,9 @@ def test_set_instance_entitlements_sends_advancing_timestamp(client):
         client.set_instance_entitlements(CRN, FUNCTIONS, [])
 
         body = m.last_request.json()
-        assert body["timestamp"] > existing
+        # Compare as parsed instants, not as raw strings: the new timestamp must represent a moment
+        # strictly after the existing one, regardless of fractional-digit formatting.
+        assert _parse_ts(body["timestamp"]) > _parse_ts(existing)
         assert body["parameters"]["timestamp"] == body["timestamp"]
 
 

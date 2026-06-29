@@ -153,8 +153,10 @@ staging deployment. Instead of standing up a fixed instance per permission level
 - `instances/test_instance_propagation.py`: black-box tests of the account -> instance sync.
 - `instances/permission_checks.py`: the shared `/functions` assertions reused at every level.
 
-The whole module is **skipped** unless `NTC_API_KEY`, `NTC_ACCOUNT_ID` and `TEST_RECONFIG_INSTANCE`
-are set, so the suite is inert in CI without staging credentials.
+The **staging tests** (everything that talks to NTC) are **skipped** unless `NTC_API_KEY`,
+`NTC_ACCOUNT_ID` and `TEST_RECONFIG_INSTANCE` are set, so they are inert in CI without staging
+credentials. The offline client tests (`test_ntc_client.py`, `test_runtime_api_client.py`) do not
+use those credentials and run in every CI job.
 
 ### Two NTC endpoints, two authorization schemes
 
@@ -283,6 +285,12 @@ Headers:  Service-CRN: <crn>   Authorization: apikey <user_token>
 with the **same token the user presented to the gateway** (for channel `ibm_quantum_platform` that
 is the IBM Cloud API key, i.e. our `GATEWAY_TOKEN`). A `204` means "instance not configured" (legacy
 fallback); a `200` returns `{"functions": [{provider, name, permissions[], business_model}], "custom_functions": {"permissions": []}}`.
+
+Note that `custom_functions` may also come back as `null` (not just `{"permissions": []}`): an
+instance whose custom grants were cleared is stored with `custom_functions: null` (see the
+three-state contract above), and the Runtime API echoes that shape back on the read. Both the
+`RuntimeApiClient` here and the gateway's `FunctionAccessClient` must coalesce a `null`
+`custom_functions` to an empty permission set rather than dereferencing it.
 
 `runtime_api_client.py` (`RuntimeApiClient`) reproduces this exact call so the tests can read the
 ground truth **directly, before the gateway cache**. This is used for two things:
