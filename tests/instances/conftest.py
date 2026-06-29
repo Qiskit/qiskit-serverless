@@ -246,20 +246,26 @@ def _runtime_mismatch(result, expected_functions, expected_custom):
     if result.not_configured:
         return f"Runtime API returned 204 (not configured); expected {len(expected_functions)} functions"
 
-    expected_by_key = {(f["provider"], f["name"]): f for f in expected_functions}
-    got_keys = {(f["provider"], f["name"]) for f in result.functions}
-    if got_keys != set(expected_by_key):
-        return f"functions mismatch: expected {sorted(expected_by_key)}, got {sorted(got_keys)}"
+    # Key by (provider, name, business_model) so two entries that differ only in business_model are
+    # distinct (business_model is compared case-insensitively, as the Runtime API may echo a
+    # different case). Folding it into the key also makes the business_model mismatch show up as a
+    # key-set difference instead of being silently collapsed onto one (provider, name).
+    def _key(f):
+        return (f["provider"], f["name"], (f.get("business_model") or "").lower())
 
-    for (provider, name), expected in expected_by_key.items():
-        got = result.entry(provider, name)
+    expected_by_key = {_key(f): f for f in expected_functions}
+    got_by_key = {_key(f): f for f in result.functions}
+    if set(got_by_key) != set(expected_by_key):
+        return f"functions mismatch: expected {sorted(expected_by_key)}, got {sorted(got_by_key)}"
+
+    for key, expected in expected_by_key.items():
+        got = got_by_key[key]
         if set(got["permissions"]) != set(expected["permissions"]):
+            provider, name, _ = key
             return (
                 f"{provider}/{name} permissions mismatch: expected {sorted(expected['permissions'])}, "
                 f"got {sorted(got['permissions'])}"
             )
-        if (got.get("business_model") or "").lower() != expected["business_model"].lower():
-            return f"{provider}/{name} business_model mismatch: expected {expected['business_model']}, got {got.get('business_model')}"
 
     if result.custom_permissions != set(expected_custom or []):
         return (

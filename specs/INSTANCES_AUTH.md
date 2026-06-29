@@ -360,6 +360,13 @@ the DB but is only entitled at the ALL level, so it doubles as an isolation chec
 | Upload custom (serverless) function | `function-custom.write` | 404 | succeeds | 404 | succeeds |
 | Run custom (serverless) function | `function-custom.run` | 404 | succeeds | 404 | succeeds |
 
+The matrix is organized by permission level, not one-to-one with the test classes. The two custom
+rows under **USER** are not checked by `TestUserInstance` (`UserPermissionChecks` has no custom
+tests); they are checked by `TestCustomFunctionInstance` (`CustomFunctionChecks`), which reconfigures
+the instance to the **same** USER level (its entitlements include `function-custom.{write,run}`). The
+NONE, PROVIDER and ALL custom rows are checked inside their own per-level classes. So every cell is
+verified at the stated level, but the USER custom cells live in a dedicated class.
+
 Note on "Retrieve a specific job": the test asserts that `retrieve` succeeds when `function-job.read`
 is present, but because every test client shares the same `GATEWAY_TOKEN`, the seeded job is authored
 by that same user, so the author check alone would already grant access. The test therefore does not
@@ -389,12 +396,12 @@ through `/functions`, rather than a single level:
 | Test | Sequence | What it verifies |
 |------|----------|------------------|
 | `test_account_narrows_instance_and_does_not_restore` | (1) account superset + instance ALL → (2) narrow the **account** to a sibling function only → (3) re-add the function to the **account** → (4) re-add it to the **instance** | (1) the function is usable; (2) narrowing it out of the account removes it from the instance while the sibling remains, so the function disappears (run → 404) and the sibling stays visible — proving a per-function narrow on the 200 path, not a 204 wipe; (3) re-adding to the account does **not** restore it (sync only narrows); (4) only a direct instance PATCH brings it back. |
+| `test_instance_patch_rejected_when_exceeding_account` | account grants only `function.read`; instance PATCH asks for `function.read` + `function.run` | the broker rejects an instance PATCH that exceeds the account grant with a `4xx` validation error. |
 
 > The step-2 narrow deliberately keeps the instance non-empty (the sibling stays). Clearing the
 > account entirely would narrow the instance to zero entitlements, which returns 204 and falls back
 > to legacy Django authorization, under which the function can remain visible — so an empty-account
 > narrow cannot be observed reliably through `/functions`.
-| `test_instance_patch_rejected_when_exceeding_account` | account grants only `function.read`; instance PATCH asks for `function.read` + `function.run` | the broker rejects an instance PATCH that exceeds the account grant with a `4xx` validation error. |
 
 ### Offline client tests
 
