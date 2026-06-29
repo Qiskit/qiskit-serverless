@@ -7,7 +7,7 @@ boto3>=1.34.0
 psycopg2-binary>=2.9.9
 # new versions of testcontainers don't support docker compose
 testcontainers>=4.14.2
-tox>=4.55.1
+tox>=4.56.0
 black[jupyter]~=26.5
 requests-mock>=1.12.1
 pylint>=4.0.6
