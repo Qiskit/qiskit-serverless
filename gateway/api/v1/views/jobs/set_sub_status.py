@@ -16,12 +16,11 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 
-from api import serializers as api_serializers
 from api.use_cases.jobs.set_sub_status import SetJobSubStatusUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
-from core.models import Job
+from core.models import Job, Program
 
 logger = logging.getLogger("api.api.v1.views.jobs.set_sub_status")
 
@@ -48,23 +47,27 @@ class InputSerializer(serializers.Serializer):
         ref_name = "JobsSetSubStatusInputSerializer"
 
 
-class ProgramSummarySerializer(api_serializers.ProgramSerializer):
+class ProgramSummarySerializer(serializers.ModelSerializer):
     """
     Program serializer with summary fields for job listings.
     """
 
-    class Meta(api_serializers.ProgramSerializer.Meta):
+    provider = serializers.CharField(source="provider.name", read_only=True)
+
+    class Meta:
+        model = Program
         fields = ["id", "title", "provider"]
 
 
-class JobSerializerWithoutResult(api_serializers.JobSerializer):
+class OutputSerializer(serializers.ModelSerializer):
     """
     Job representation without `result`.
     """
 
     program = ProgramSummarySerializer(many=False)
 
-    class Meta(api_serializers.JobSerializer.Meta):
+    class Meta:
+        model = Job
         fields = ["id", "status", "program", "created", "sub_status"]
 
 
@@ -78,7 +81,7 @@ def serialize_output(job: Job) -> dict[str, Any]:
     Returns:
         A dictionary containing the serialized job under the 'job' key.
     """
-    return {"job": JobSerializerWithoutResult(job).data}
+    return {"job": OutputSerializer(job).data}
 
 
 @swagger_auto_schema(
@@ -86,7 +89,7 @@ def serialize_output(job: Job) -> dict[str, Any]:
     operation_description="Update the sub status of a job",
     request_body=InputSerializer,
     responses={
-        status.HTTP_200_OK: JobSerializerWithoutResult(many=False),
+        status.HTTP_200_OK: OutputSerializer(many=False),
         **standard_error_responses(
             bad_request_example="'sub_status' not provided or is not valid",
             forbidden_example="Cannot update 'sub_status' when job is not RUNNING.",
