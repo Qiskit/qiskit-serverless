@@ -8,7 +8,6 @@ from django.core.exceptions import ObjectDoesNotExist
 
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
-from api.repositories.runtime_job import RuntimeJobRepository
 from core.models import Job, RuntimeJob
 
 logger = logging.getLogger("api.GetRuntimeJobsUseCase")
@@ -16,8 +15,6 @@ logger = logging.getLogger("api.GetRuntimeJobsUseCase")
 
 class GetRuntimeJobsUseCase:
     """Retrieve all RuntimeJob objects associated to a given Job."""
-
-    runtime_job_repository = RuntimeJobRepository()
 
     def execute(self, job_id: UUID, user: AbstractUser) -> list[RuntimeJob]:
         """
@@ -41,4 +38,4 @@ class GetRuntimeJobsUseCase:
         if not JobAccessPolicies.can_manage_runtime_jobs(user, job):
             raise JobNotFoundException(job_id)
 
-        return self.runtime_job_repository.get_runtime_job(job)
+        return RuntimeJob.objects.filter(job=job)
