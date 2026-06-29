@@ -242,9 +242,21 @@ The gateway caches the per-CRN `/functions` result for `RUNTIME_API_CACHE_TTL` s
 Because every level reuses the **same CRN and token**, the cache key is identical across levels, so a
 reconfiguration is only observed by the next gateway read once that entry expires. Every NTC change
 that a subsequent gateway read must observe is therefore followed by `wait_for_propagation()`, which
-sleeps `TEST_CACHE_WAIT_SECONDS` (default 2s, a little above the TTL). On top of the gateway cache,
+sleeps `TEST_CACHE_WAIT_SECONDS` (default 3s, a little above the TTL). On top of the gateway cache,
 the NTC -> Runtime API propagation itself is eventually-consistent, so the wait also absorbs that
 lag.
+
+A fixed sleep is not always enough, because that NTC -> Runtime API propagation has no upper bound
+the test controls, and **adding** an entitlement (re-adding a function to the instance) is the slow
+case while unchanged functions are already visible. Two helpers make the suite robust to this:
+
+- `upload_seed_with_retry` retries the **session-scoped seed uploads** until the write entitlement
+  propagates (up to `TEST_SEED_UPLOAD_TIMEOUT_SECONDS`, default 60s). A seed upload that 404s once
+  on a propagation lag would otherwise poison every dependent test for the whole session.
+- `wait_for_catalog` **polls** the catalog until a function reaches the expected visibility (up to
+  `TEST_PROPAGATION_TIMEOUT_SECONDS`, default 30s) instead of reading once after a fixed sleep. The
+  propagation test uses it so that, for example, re-adding the function to the instance in step 4 is
+  observed reliably rather than racing the propagation.
 
 > Operational caution: because the account save narrows every instance synchronously, clearing the
 > account while debugging will empty the reconfigurable instance's effective entitlements, and a

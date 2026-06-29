@@ -21,6 +21,7 @@ from instances.conftest import (
     SUPERSET_CUSTOM,
     apply_level,
     ensure_account_superset,
+    wait_for_catalog,
     wait_for_propagation,
     RECONFIG_CRN,
     _fn,
@@ -54,17 +55,21 @@ def test_account_narrows_instance_and_does_not_restore(
     """
     sibling_title = seeded_other_function
 
+    # Each visibility change is observed by polling (wait_for_catalog) rather than a single read after
+    # a fixed sleep: NTC -> Runtime API propagation is eventually-consistent, and re-adding a function
+    # (step 4) is the slow case, so a one-shot read can race ahead of propagation.
+
     # 1) account superset + instance ALL -> works
     apply_level(ntc, ALL_FUNCTIONS, ALL_CUSTOM)
+    listed = wait_for_catalog(reconfig_client, provider_name, function_title, present=True)
     assert _function_in_list(
-        reconfig_client.functions(filter="catalog"), provider_name, function_title
+        listed, provider_name, function_title
     ), "Step 1: expected the function to be present with account+instance configured"
 
     # 2) narrow the account to the sibling only -> the sync drops the function from the instance,
     #    but the instance stays non-empty (the sibling remains), so we stay on the 200 path.
     ntc.set_account_entitlements(NARROW_ACCOUNT_FUNCTIONS, SUPERSET_CUSTOM)
-    wait_for_propagation()
-    remaining = reconfig_client.functions(filter="catalog")
+    remaining = wait_for_catalog(reconfig_client, provider_name, function_title, present=False)
     assert not _function_in_list(
         remaining, provider_name, function_title
     ), "Step 2: expected the function to disappear after narrowing it out of the account"
@@ -84,8 +89,9 @@ def test_account_narrows_instance_and_does_not_restore(
 
     # 4) re-add the function to the instance -> usable again
     apply_level(ntc, ALL_FUNCTIONS, ALL_CUSTOM)
+    listed = wait_for_catalog(reconfig_client, provider_name, function_title, present=True)
     assert _function_in_list(
-        reconfig_client.functions(filter="catalog"), provider_name, function_title
+        listed, provider_name, function_title
     ), "Step 4: expected the function to be usable again after reconfiguring the instance"
 
 

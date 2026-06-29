@@ -67,6 +67,12 @@ CACHE_WAIT_SECONDS = float(os.environ.get("TEST_CACHE_WAIT_SECONDS", "3"))
 # entitlement propagates (or this timeout elapses).
 SEED_UPLOAD_TIMEOUT_SECONDS = float(os.environ.get("TEST_SEED_UPLOAD_TIMEOUT_SECONDS", "60"))
 
+# Same eventual consistency applies to visibility changes in the catalog: after a reconfiguration,
+# a function may take a moment to (dis)appear from /functions. A change that ADDS a function (e.g.
+# re-adding it to the instance) is the slow case; functions that did not change are already visible.
+# A single fixed sleep can lose that race, so the propagation tests poll up to this timeout.
+PROPAGATION_TIMEOUT_SECONDS = float(os.environ.get("TEST_PROPAGATION_TIMEOUT_SECONDS", "30"))
+
 # --- permission sets -------------------------------------------------------------------
 
 USER_PERMISSIONS = ["function.read", "function.run", "function-files.read", "function-files.write"]
@@ -142,6 +148,41 @@ def wait_for_propagation():
     """
     logger.info("apply: waiting %.1fs for the gateway entitlements cache to expire", CACHE_WAIT_SECONDS)
     time.sleep(CACHE_WAIT_SECONDS)
+
+
+def wait_for_catalog(client, provider_name, title, present, timeout=PROPAGATION_TIMEOUT_SECONDS):
+    """Poll the catalog until ``title`` reaches the desired visibility, or the timeout elapses.
+
+    NTC -> Runtime API propagation is eventually-consistent and the gateway caches /functions, so a
+    visibility change is not observable immediately after a reconfiguration; a single fixed sleep can
+    lose the race (notably when a function is RE-ADDED to the instance). Returns the last catalog
+    list either way, so the caller can assert on it and still produce a useful failure message.
+    """
+    # Imported lazily to avoid a circular import: permission_checks is fixture-agnostic and does not
+    # depend on conftest, so importing it here (not at module load) keeps that direction one-way.
+    from instances.permission_checks import _function_in_list  # pylint: disable=import-outside-toplevel
+
+    deadline = time.monotonic() + timeout
+    attempt = 0
+    while True:
+        attempt += 1
+        functions = client.functions(filter="catalog")
+        if _function_in_list(functions, provider_name, title) == present:
+            return functions
+        if time.monotonic() >= deadline:
+            logger.warning(
+                "catalog: %s/%s still %s after %.0fs", provider_name, title, "absent" if present else "present", timeout
+            )
+            return functions
+        logger.info(
+            "catalog: waiting for %s/%s to become %s (attempt %d), retrying in %.1fs",
+            provider_name,
+            title,
+            "visible" if present else "hidden",
+            attempt,
+            CACHE_WAIT_SECONDS,
+        )
+        time.sleep(CACHE_WAIT_SECONDS)
 
 
 def upload_seed_with_retry(client, fn, what):
