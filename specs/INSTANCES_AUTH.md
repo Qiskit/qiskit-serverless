@@ -143,8 +143,13 @@ staging deployment. Instead of standing up a fixed instance per permission level
 
 - `instances/ntc_client.py` (`NtcAdminClient`): the HTTP client that mutates account plans and
   instance entitlements in NTC.
+- `instances/runtime_api_client.py` (`RuntimeApiClient`): a read-only client for the Runtime API
+  `/functions` endpoint, the same ground truth the gateway authorizes against.
 - `instances/conftest.py`: the fixtures, the per-level entitlement sets, and the `apply_level` /
   `ensure_account_superset` helpers.
+- `instances/test_instance_permissions.py`: the per-level test classes (NONE / USER / PROVIDER / ALL
+  and the custom-function variant) that run the shared assertion battery.
+- `instances/test_runtime_api.py`: asserts the Runtime API reflects each configured level exactly.
 - `instances/test_instance_propagation.py`: black-box tests of the account -> instance sync.
 - `instances/permission_checks.py`: the shared `/functions` assertions reused at every level.
 
@@ -168,7 +173,9 @@ resource-controller path can use a distinct credential (`NTC_RC_API_KEY`).
 
 All write methods are **read-modify-write**: they GET the current document, replace only the
 `functions` / `custom_functions` keys, and send the rest back untouched, so unrelated fields
-(`plan_id`, `usage_limit_seconds`, `backends`, ...) are preserved.
+(`plan_id`, `usage_limit_seconds`, `backends`, ...) are preserved. The instance PATCH additionally
+stamps an advancing `timestamp` so the Runtime API re-syncs (see the Runtime API ground truth
+section below).
 
 ### Account PUT peculiarities
 
