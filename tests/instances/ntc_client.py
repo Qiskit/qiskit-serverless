@@ -25,6 +25,7 @@ NTC source. They must be validated against staging; adjust here if NTC's contrac
 
 import logging
 import urllib.parse
+from datetime import datetime, timedelta, timezone
 
 import requests
 
@@ -87,6 +88,55 @@ class NtcApiError(Exception):
         super().__init__(message)
         self.status = status
         self.body = body
+
+
+def _format_ts(dt):
+    """Format a datetime as RFC3339 with nanosecond precision, e.g. '2026-06-23T22:45:49.560466000Z'.
+    Python only has microsecond resolution, so the last three nanosecond digits are zero-padded."""
+    return dt.strftime("%Y-%m-%dT%H:%M:%S.") + f"{dt.microsecond:06d}000Z"
+
+
+def _parse_ts(value):
+    """Best-effort parse of an RFC3339 timestamp string into an aware UTC datetime, or None.
+
+    Tolerates a trailing 'Z' and more fractional digits than microseconds (nanoseconds are
+    truncated to microseconds, which is enough to compare ordering).
+    """
+    if not isinstance(value, str) or not value.strip():
+        return None
+    text = value.strip()
+    if text.endswith("Z"):
+        text = text[:-1]
+    if "." in text:
+        head, frac = text.split(".", 1)
+        text = f"{head}.{(frac + '000000')[:6]}"
+        fmt = "%Y-%m-%dT%H:%M:%S.%f"
+    else:
+        fmt = "%Y-%m-%dT%H:%M:%S"
+    try:
+        return datetime.strptime(text, fmt).replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def _next_timestamp(*existing):
+    """An RFC3339 nano timestamp that is >= now and STRICTLY greater than every ``existing`` value.
+
+    The resource-controller PATCH must carry a ``timestamp`` that advances on every write: it is the
+    signal the Runtime API uses to invalidate its per-instance cache and re-sync (without it a PATCH
+    that returns 200 and is stored is not reflected by ``/functions``).
+
+    Crucially, saving the account triggers a server-side narrow-sync that rewrites the instance with
+    the SERVER's clock. To make a re-add (account narrows the instance, then we PATCH it back) win the
+    last-write-wins comparison even if this machine's clock lags the server, the new timestamp is
+    forced above any timestamp already present on the instance, not merely set to ``now``.
+    """
+    candidate = datetime.now(timezone.utc)
+    for value in existing:
+        parsed = _parse_ts(value)
+        if parsed is not None and parsed >= candidate:
+            candidate = parsed + timedelta(milliseconds=1)
+    return _format_ts(candidate)
 
 
 def _check(response):
@@ -272,10 +322,20 @@ class NtcAdminClient:  # pylint: disable=too-many-instance-attributes
         """
         instance = self.get_instance(crn)
         params = instance.get("parameters") or {}
+        # Capture any timestamp already on the instance BEFORE we overwrite it, so the new one can be
+        # forced strictly above it (the account narrow-sync may have stamped it with the server clock).
+        previous_ts = (instance.get("timestamp"), params.get("timestamp"))
         params["functions"] = functions
         if custom_permissions is not PRESERVE:
             params["custom_functions"] = _custom_functions_value(custom_permissions)
+        # The timestamp must advance on every write: it is what makes the Runtime API invalidate its
+        # per-instance cache and re-sync. Without it the PATCH is stored but /functions keeps serving
+        # the previous (or empty) view. It is sent both at the top level and inside parameters so it
+        # takes effect regardless of where the server reads it from.
+        timestamp = _next_timestamp(*previous_ts)
+        params["timestamp"] = timestamp
         headers = self._instance_headers()
+        body = {"parameters": params, "timestamp": timestamp}
         logger.info(
             "NTC -> PATCH %s (instance) auth=%s crn=%s functions=%d custom_permissions=%s",
             self._instance_url(crn),
@@ -288,7 +348,7 @@ class NtcAdminClient:  # pylint: disable=too-many-instance-attributes
             requests.patch(
                 self._instance_url(crn),
                 headers=headers,
-                json={"parameters": params},
+                json=body,
                 timeout=self.timeout,
             )
         )

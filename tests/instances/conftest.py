@@ -1,4 +1,4 @@
-# pylint: disable=import-error, invalid-name, line-too-long, redefined-outer-name
+# pylint: disable=import-error, invalid-name, line-too-long, redefined-outer-name, too-many-arguments, too-many-positional-arguments
 """Fixtures for instance permission tests.
 
 These tests run against a SINGLE service instance whose entitlements are reconfigured
@@ -27,11 +27,12 @@ import logging
 import os
 import time
 
-from pytest import fixture, skip
+from pytest import exit as pytest_exit, fixture, skip
 from qiskit_serverless import QiskitFunction, ServerlessClient
 from qiskit_serverless.exception import QiskitServerlessException
 
-from instances.ntc_client import NtcAdminClient, mask_secret
+from instances.ntc_client import NtcAdminClient, NtcApiError, mask_secret
+from instances.runtime_api_client import RuntimeApiClient, RuntimeApiError
 
 logger = logging.getLogger("instances.conftest")
 
@@ -52,6 +53,16 @@ NTC_ADMIN_BASE = os.environ.get("NTC_ADMIN_BASE", "https://quantum.test.cloud.ib
 NTC_RC_BASE = os.environ.get("NTC_RC_BASE", "https://resource-controller.test.cloud.ibm.com")
 NTC_IAM_BASE = os.environ.get("NTC_IAM_BASE", "https://iam.test.cloud.ibm.com")
 NTC_SUBSCRIPTION_NAME = os.environ.get("NTC_SUBSCRIPTION_NAME", "flex")
+
+# The Runtime API /functions endpoint is the gateway's ground truth (see
+# gateway/api/clients/function_access_client.py): the gateway reads it with the user's token as
+# "apikey" and the instance CRN as "Service-CRN". We query the SAME endpoint directly from the
+# tests to observe propagation before the gateway cache and to verify what NTC actually stored.
+# RUNTIME_API_BASE_URL defaults to the gateway's own default (the NTC admin host); RUNTIME_API_KEY
+# defaults to GATEWAY_TOKEN, which for channel=ibm_quantum_platform IS the IBM Cloud API key the
+# gateway forwards to the Runtime API.
+RUNTIME_API_BASE_URL = os.environ.get("RUNTIME_API_BASE_URL", NTC_ADMIN_BASE)
+RUNTIME_API_KEY = os.environ.get("RUNTIME_API_KEY", GATEWAY_TOKEN)
 
 # The gateway caches the per-CRN /functions entitlements for RUNTIME_API_CACHE_TTL seconds
 # (1s on staging; see gateway/api/clients/function_access_client.py). Since every level reuses
@@ -185,32 +196,157 @@ def wait_for_catalog(client, provider_name, title, present, timeout=PROPAGATION_
         time.sleep(CACHE_WAIT_SECONDS)
 
 
-def upload_seed_with_retry(client, fn, what):
-    """Upload a seed function, retrying while the NTC -> Runtime API entitlement propagates.
+def wait_for_runtime(runtime, title, present, require_permissions=None, timeout=PROPAGATION_TIMEOUT_SECONDS):
+    """Poll the Runtime API (the gateway's ground truth) until ``title`` reaches the desired state.
 
-    ``apply_level`` waits for the gateway cache, but the NTC -> Runtime API propagation itself is
-    eventually-consistent, so right after raising the instance to ALL the upload may still 404 with
-    "doesn't exist" until /functions grants the write permission. Because the seed fixtures are
-    session-scoped, a single such failure would cascade to every dependent test; retrying makes the
-    seeds robust to that lag. Re-raises the last error if it does not succeed within the timeout.
+    This reads the SAME endpoint the gateway uses, so it observes propagation before the gateway
+    cache. ``present`` is the desired visibility; ``require_permissions`` (optional) is a set/list
+    of permissions that must ALL be granted for ``title`` before we consider it ready (used by the
+    seeds, which need function.write to exist before uploading). Returns the last RuntimeFunctions
+    read either way, so the caller can assert and still get a useful message.
     """
-    deadline = time.monotonic() + SEED_UPLOAD_TIMEOUT_SECONDS
+    required = set(require_permissions or [])
+    deadline = time.monotonic() + timeout
     attempt = 0
     while True:
         attempt += 1
+        result = runtime.get_functions(RECONFIG_CRN)
+        has = result.has_function(PROVIDER_NAME, title)
+        perms_ok = required.issubset(result.permissions(PROVIDER_NAME, title)) if required else True
+        if has == present and perms_ok:
+            return result
+        if time.monotonic() >= deadline:
+            logger.warning(
+                "runtime: %s/%s still not in desired state after %.0fs (present=%s perms=%s): %s",
+                PROVIDER_NAME,
+                title,
+                timeout,
+                present,
+                sorted(required),
+                result.summary(),
+            )
+            return result
+        logger.info(
+            "runtime: waiting for %s/%s present=%s perms=%s (attempt %d), retrying in %.1fs: %s",
+            PROVIDER_NAME,
+            title,
+            present,
+            sorted(required),
+            attempt,
+            CACHE_WAIT_SECONDS,
+            result.summary(),
+        )
+        time.sleep(CACHE_WAIT_SECONDS)
+
+
+def _runtime_mismatch(result, expected_functions, expected_custom):
+    """Return a human-readable reason the Runtime API result differs from expected, or None if OK."""
+    if result.not_configured:
+        return f"Runtime API returned 204 (not configured); expected {len(expected_functions)} functions"
+
+    expected_by_key = {(f["provider"], f["name"]): f for f in expected_functions}
+    got_keys = {(f["provider"], f["name"]) for f in result.functions}
+    if got_keys != set(expected_by_key):
+        return f"functions mismatch: expected {sorted(expected_by_key)}, got {sorted(got_keys)}"
+
+    for (provider, name), expected in expected_by_key.items():
+        got = result.entry(provider, name)
+        if set(got["permissions"]) != set(expected["permissions"]):
+            return (
+                f"{provider}/{name} permissions mismatch: expected {sorted(expected['permissions'])}, "
+                f"got {sorted(got['permissions'])}"
+            )
+        if (got.get("business_model") or "").lower() != expected["business_model"].lower():
+            return f"{provider}/{name} business_model mismatch: expected {expected['business_model']}, got {got.get('business_model')}"
+
+    if result.custom_permissions != set(expected_custom or []):
+        return (
+            f"custom permissions mismatch: expected {sorted(set(expected_custom or []))}, "
+            f"got {sorted(result.custom_permissions)}"
+        )
+    return None
+
+
+def assert_runtime_matches(runtime, expected_functions, expected_custom, timeout=PROPAGATION_TIMEOUT_SECONDS):
+    """Assert the Runtime API exposes exactly ``expected_functions``/``expected_custom`` for the CRN.
+
+    ``expected_functions`` is the same list shape used to configure the instance (``_fn`` entries).
+    Permissions are compared as sets; business_model is compared case-insensitively (the Runtime API
+    may echo a different case). Polls until the state matches (propagation is eventually-consistent)
+    or the timeout elapses, then asserts on the last read.
+    """
+    deadline = time.monotonic() + timeout
+    while True:
+        result = runtime.get_functions(RECONFIG_CRN)
+        reason = _runtime_mismatch(result, expected_functions, expected_custom)
+        if reason is None:
+            return result
+        if time.monotonic() >= deadline:
+            assert reason is None, f"Runtime API {reason} (after polling {timeout:.0f}s); last: {result.summary()}"
+        logger.info("runtime: not matching yet (%s), retrying in %.1fs", reason, CACHE_WAIT_SECONDS)
+        time.sleep(CACHE_WAIT_SECONDS)
+
+
+def dump_propagation_state(ntc, runtime):
+    """Log the stored instance entitlements (resource-controller) vs the Runtime API view.
+
+    Useful when a seed lags: it shows whether the instance document already has the function while the
+    Runtime API has not caught up yet. Returns a one-line summary for inline logging.
+    """
+    runtime_summary = "<unavailable>"
+    stored = "<unavailable>"
+    try:
+        params = (ntc.get_instance(RECONFIG_CRN).get("parameters") or {}).get("functions")
+        stored = [f.get("name") for f in params] if params else params
+    except NtcApiError as exc:
+        logger.warning("diagnose: could not read instance document: %s", exc)
+    try:
+        result = runtime.get_functions(RECONFIG_CRN)
+        runtime_summary = result.summary()
+    except RuntimeApiError as exc:
+        logger.warning("diagnose: could not read Runtime API functions: %s", exc)
+    logger.info("diagnose: instance stored functions=%s | runtime /functions: %s", stored, runtime_summary)
+    return f"stored={stored} runtime={runtime_summary}"
+
+
+def seed_with_recovery(attempt, what, diagnose=None):
+    """Run ``attempt`` (e.g. a seed upload), retrying through NTC -> Runtime API propagation lag.
+
+    The seeds are session-scoped, so a single failed setup would cascade into dozens of failures.
+    Retry ``attempt`` until it succeeds or ``SEED_UPLOAD_TIMEOUT_SECONDS`` elapses; on timeout call
+    ``pytest.exit`` to abort the whole session instead of running a battery of tests that all depend
+    on the missing seed.
+
+    ``diagnose`` is an optional callable returning a short string (e.g. the Runtime API state) that
+    is logged on each failure to make the cause visible.
+    """
+    deadline = time.monotonic() + SEED_UPLOAD_TIMEOUT_SECONDS
+    attempts = 0
+    while True:
         try:
-            client.upload(fn)
-            return
+            return attempt()
         except QiskitServerlessException as exc:
+            attempts += 1
+            ground_truth = f" | runtime: {diagnose()}" if diagnose else ""
             if time.monotonic() >= deadline:
-                logger.error("seed: upload of %s still failing after %.0fs", what, SEED_UPLOAD_TIMEOUT_SECONDS)
-                raise
+                logger.error(
+                    "seed: %s never succeeded after %.0fs; aborting the session.%s",
+                    what,
+                    SEED_UPLOAD_TIMEOUT_SECONDS,
+                    ground_truth,
+                )
+                pytest_exit(
+                    f"Seed setup for {what} failed: not ready within {SEED_UPLOAD_TIMEOUT_SECONDS:.0f}s. "
+                    f"Last error: {exc}",
+                    returncode=1,
+                )
             logger.info(
-                "seed: upload of %s not ready yet (attempt %d), retrying in %.1fs: %s",
+                "seed: %s not ready (attempt %d), retrying in %.1fs: %s%s",
                 what,
-                attempt,
+                attempts,
                 CACHE_WAIT_SECONDS,
                 exc,
+                ground_truth,
             )
             time.sleep(CACHE_WAIT_SECONDS)
 
@@ -305,60 +441,104 @@ def reconfig_client():
     )
 
 
+@fixture(scope="session")
+def runtime():
+    """Read-only client for the Runtime API /functions endpoint (the gateway's ground truth).
+
+    Lets the tests observe what NTC actually propagated (before the gateway cache) and verify the
+    entitlement content. Uses RUNTIME_API_KEY (defaults to GATEWAY_TOKEN), the token the gateway
+    forwards to the Runtime API for channel=ibm_quantum_platform.
+    """
+    logger.info(
+        "RuntimeApiClient: base=%s key=%s crn=%s",
+        RUNTIME_API_BASE_URL,
+        mask_secret(RUNTIME_API_KEY),
+        RECONFIG_CRN,
+    )
+    return RuntimeApiClient(RUNTIME_API_BASE_URL, RUNTIME_API_KEY)
+
+
 # --- seeds (run once, with the instance temporarily at ALL) -----------------------------
 
 
+def _seed_provider_function(ntc, runtime, reconfig_client, provider_name, title, working_dir, body):
+    """Upload a provider function as a seed, made resilient to NTC -> Runtime API propagation lag.
+
+    Puts the instance at ALL, waits on the Runtime API ground truth until function.write is actually
+    granted for ``title``, then uploads with ``seed_with_recovery`` so a transient lag retries (and
+    ultimately aborts the session instead of cascading). Returns nothing; callers use the uploaded
+    function afterwards.
+    """
+    (working_dir / "main.py").write_text(body)
+    fn = QiskitFunction(title=title, provider=provider_name, entrypoint="main.py", working_dir=str(working_dir))
+
+    apply_level(ntc, ALL_FUNCTIONS, ALL_CUSTOM)
+    # Ground truth: wait until the Runtime API grants function.write before even attempting to upload.
+    wait_for_runtime(runtime, title, present=True, require_permissions=["function.write"])
+    seed_with_recovery(
+        attempt=lambda: reconfig_client.upload(fn),
+        what=f"{provider_name}/{title}",
+        diagnose=lambda: dump_propagation_state(ntc, runtime),
+    )
+
+
 @fixture(scope="session")
-def seeded_job_id(ntc, reconfig_client, provider_name, function_title, tmp_path_factory):
+def seeded_job_id(ntc, runtime, reconfig_client, provider_name, function_title, tmp_path_factory):
     """Ensure a known job exists for the test function.
 
     Puts the instance at ALL, uploads the function and runs a job. The job belongs to the
     function/author, so it persists even after the instance is later degraded to a lower level.
     """
-    apply_level(ntc, ALL_FUNCTIONS, ALL_CUSTOM)
-    tmp = tmp_path_factory.mktemp("job_seed")
-    (tmp / "main.py").write_text('print("seeded job")\n')
-    fn = QiskitFunction(
-        title=function_title,
-        provider=provider_name,
-        entrypoint="main.py",
-        working_dir=str(tmp),
+    _seed_provider_function(
+        ntc,
+        runtime,
+        reconfig_client,
+        provider_name,
+        function_title,
+        tmp_path_factory.mktemp("job_seed"),
+        'print("seeded job")\n',
     )
-    upload_seed_with_retry(reconfig_client, fn, f"{provider_name}/{function_title}")
     job = reconfig_client.run(function_title, provider=provider_name)
     return job.job_id
 
 
 @fixture(scope="session")
-def seeded_other_function(ntc, reconfig_client, provider_name, other_function_title, tmp_path_factory):
+def seeded_other_function(ntc, runtime, reconfig_client, provider_name, other_function_title, tmp_path_factory):
     """Create other_function_title in the DB (instance temporarily at ALL).
 
     This makes isolation tests meaningful: the function exists in the DB but lower levels
     do not list it because it is not in their entitlements.
     """
-    apply_level(ntc, ALL_FUNCTIONS, ALL_CUSTOM)
-    tmp = tmp_path_factory.mktemp("other_fn_seed")
-    (tmp / "main.py").write_text('print("other function")\n')
-    fn = QiskitFunction(
-        title=other_function_title,
-        provider=provider_name,
-        entrypoint="main.py",
-        working_dir=str(tmp),
+    _seed_provider_function(
+        ntc,
+        runtime,
+        reconfig_client,
+        provider_name,
+        other_function_title,
+        tmp_path_factory.mktemp("other_fn_seed"),
+        'print("other function")\n',
     )
-    upload_seed_with_retry(reconfig_client, fn, f"{provider_name}/{other_function_title}")
     return other_function_title
 
 
 @fixture(scope="session")
-def seeded_custom_function(ntc, reconfig_client, custom_function_title, tmp_path_factory):
+def seeded_custom_function(ntc, runtime, reconfig_client, custom_function_title, tmp_path_factory):
     """Upload a custom (serverless) function so run/list tests have something to reference."""
-    apply_level(ntc, ALL_FUNCTIONS, ALL_CUSTOM)
     tmp = tmp_path_factory.mktemp("custom_fn_seed")
     (tmp / "main.py").write_text('print("custom function")\n')
-    fn = QiskitFunction(
-        title=custom_function_title,
-        entrypoint="main.py",
-        working_dir=str(tmp),
+    fn = QiskitFunction(title=custom_function_title, entrypoint="main.py", working_dir=str(tmp))
+
+    apply_level(ntc, ALL_FUNCTIONS, ALL_CUSTOM)
+    # Custom functions need function-custom.write on the instance, exposed under custom_functions.
+    deadline = time.monotonic() + PROPAGATION_TIMEOUT_SECONDS
+    while "function-custom.write" not in runtime.get_functions(RECONFIG_CRN).custom_permissions:
+        if time.monotonic() >= deadline:
+            logger.warning("runtime: function-custom.write still not granted after %.0fs", PROPAGATION_TIMEOUT_SECONDS)
+            break
+        time.sleep(CACHE_WAIT_SECONDS)
+    seed_with_recovery(
+        attempt=lambda: reconfig_client.upload(fn),
+        what=custom_function_title,
+        diagnose=lambda: dump_propagation_state(ntc, runtime),
     )
-    upload_seed_with_retry(reconfig_client, fn, custom_function_title)
     return custom_function_title

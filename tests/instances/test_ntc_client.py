@@ -150,8 +150,9 @@ def test_set_instance_entitlements_preserves_other_parameters(client):
         m.patch(RC_URL, json={}, status_code=200)
         client.set_instance_entitlements(CRN, FUNCTIONS, ["function-custom.run"])
 
-        assert m.request_history[-1].headers["Authorization"] == f"Bearer {BEARER}"
-        params = m.request_history[-1].json()["parameters"]
+        patch_req = m.last_request
+        assert patch_req.headers["Authorization"] == f"Bearer {BEARER}"
+        params = patch_req.json()["parameters"]
         assert params["backends"] == ["ANY"]  # preserved
         assert params["functions"] == FUNCTIONS
         assert params["custom_functions"] == {"permissions": ["function-custom.run"]}
@@ -163,7 +164,7 @@ def test_set_instance_entitlements_preserve_leaves_it_untouched(client):
         m.get(RC_URL, json={"parameters": {"backends": ["ANY"]}})
         m.patch(RC_URL, json={}, status_code=200)
         client.set_instance_entitlements(CRN, FUNCTIONS)  # custom_permissions defaults to PRESERVE
-        params = m.request_history[-1].json()["parameters"]
+        params = m.last_request.json()["parameters"]
         assert "custom_functions" not in params
         assert params["functions"] == FUNCTIONS
 
@@ -174,10 +175,26 @@ def test_set_instance_entitlements_none_custom_clears_with_null(client):
         m.get(RC_URL, json={"parameters": {"backends": ["ANY"]}})
         m.patch(RC_URL, json={}, status_code=200)
         client.set_instance_entitlements(CRN, FUNCTIONS, None)
-        params = m.request_history[-1].json()["parameters"]
+        params = m.last_request.json()["parameters"]
         # None clears by nulling the whole field (both [] and {"permissions": null} return HTTP 422)
         assert params["custom_functions"] is None
         assert params["functions"] == FUNCTIONS
+
+
+def test_set_instance_entitlements_sends_advancing_timestamp(client):
+    # The instance already carries a timestamp in the FUTURE (as if the server narrow-sync stamped it
+    # with a clock ahead of ours). The PATCH must send a timestamp strictly greater than it, both at
+    # the top level and inside parameters, so a re-add wins the last-write-wins comparison.
+    existing = "2099-01-01T00:00:00.123456789Z"
+    with requests_mock.Mocker() as m:
+        m.post(IAM_URL, json={"access_token": BEARER})
+        m.get(RC_URL, json={"parameters": {"timestamp": existing}})
+        m.patch(RC_URL, json={}, status_code=200)
+        client.set_instance_entitlements(CRN, FUNCTIONS, [])
+
+        body = m.last_request.json()
+        assert body["timestamp"] > existing
+        assert body["parameters"]["timestamp"] == body["timestamp"]
 
 
 def test_iam_bearer_is_cached_across_instance_calls(client):

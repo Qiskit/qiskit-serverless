@@ -248,20 +248,59 @@ lag.
 
 A fixed sleep is not always enough, because that NTC -> Runtime API propagation has no upper bound
 the test controls, and **adding** an entitlement (re-adding a function to the instance) is the slow
-case while unchanged functions are already visible. Two helpers make the suite robust to this:
+case while unchanged functions are already visible. Several helpers make the suite robust to this:
 
-- `upload_seed_with_retry` retries the **session-scoped seed uploads** until the write entitlement
-  propagates (up to `TEST_SEED_UPLOAD_TIMEOUT_SECONDS`, default 60s). A seed upload that 404s once
-  on a propagation lag would otherwise poison every dependent test for the whole session.
-- `wait_for_catalog` **polls** the catalog until a function reaches the expected visibility (up to
-  `TEST_PROPAGATION_TIMEOUT_SECONDS`, default 30s) instead of reading once after a fixed sleep. The
-  propagation test uses it so that, for example, re-adding the function to the instance in step 4 is
-  observed reliably rather than racing the propagation.
+- `wait_for_catalog` **polls** the gateway catalog until a function reaches the expected visibility
+  (up to `TEST_PROPAGATION_TIMEOUT_SECONDS`, default 30s) instead of reading once after a fixed
+  sleep. The propagation test uses it so that, for example, re-adding the function to the instance
+  in step 4 is observed reliably rather than racing the propagation.
+- `wait_for_runtime` polls the **Runtime API directly** (see below) for the ground truth, before the
+  gateway cache. The seeds use it to wait until `function.write` is actually granted before
+  attempting an upload.
+- `seed_with_recovery` wraps the **session-scoped seed uploads**: it retries the upload through the
+  propagation lag until it succeeds, and if nothing works within `TEST_SEED_UPLOAD_TIMEOUT_SECONDS`
+  (default 60s) it calls `pytest.exit` to **abort the whole session**, so one un-propagated seed does
+  not cascade into dozens of failures. Each failed attempt logs the current Runtime API state for
+  diagnosis.
+
+### Runtime API ground truth (`/functions`)
+
+When the serverless client calls the gateway, the gateway asks the Runtime API which functions the
+caller's instance is entitled to (`function_access_client.py`):
+
+```
+GET {RUNTIME_API_BASE_URL}/api/v1/functions
+Headers:  Service-CRN: <crn>   Authorization: apikey <user_token>
+```
+
+with the **same token the user presented to the gateway** (for channel `ibm_quantum_platform` that
+is the IBM Cloud API key, i.e. our `GATEWAY_TOKEN`). A `204` means "instance not configured" (legacy
+fallback); a `200` returns `{"functions": [{provider, name, permissions[], business_model}], "custom_functions": {"permissions": []}}`.
+
+`runtime_api_client.py` (`RuntimeApiClient`) reproduces this exact call so the tests can read the
+ground truth **directly, before the gateway cache**. This is used for two things:
+
+- **Authoritative waits**: `wait_for_runtime` / `assert_runtime_matches` poll the real source of
+  truth, so we no longer rely solely on a fixed sleep tuned to the cache TTL.
+- **Content verification**: `test_runtime_api.py` configures the instance at each level and asserts
+  the Runtime API exposes **exactly** the functions, permissions and custom permissions that were
+  written (and that `functions: []` is the clean `200`-empty deny path, not a `204` fallback). The
+  parsed entitlements are logged on every read for diagnosis.
+
+`RUNTIME_API_BASE_URL` defaults to `NTC_ADMIN_BASE` (the gateway's own default,
+`https://quantum.test.cloud.ibm.com`) and `RUNTIME_API_KEY` defaults to `GATEWAY_TOKEN`; both can be
+overridden via environment.
 
 > Operational caution: because the account save narrows every instance synchronously, clearing the
-> account while debugging will empty the reconfigurable instance's effective entitlements, and a
-> resource-controller PATCH alone may not immediately re-populate the Runtime API view. Always
+> account while debugging will empty the reconfigurable instance's effective entitlements. Always
 > restore the account to its superset (and re-apply the instance level) after any manual experiment.
+
+The resource-controller PATCH must carry an **advancing `timestamp`** (see `ntc_client.py`,
+`_next_timestamp`): it is the signal the Runtime API uses to invalidate its per-instance cache and
+re-sync. `set_instance_entitlements` reads any timestamp already on the instance and writes one
+strictly greater (sent both at the top level and inside `parameters`), so a re-add wins the
+account narrow-sync's last-write-wins even if this machine's clock lags the server. Without it a
+PATCH that returns `200` and is stored is not reflected by `/functions`.
 
 ### Per-level entitlement sets
 
@@ -339,3 +378,7 @@ auth schemes (`apikey` for the account, IAM-exchanged `Bearer` for the instance,
 cached across calls), the read-modify-write that preserves unrelated fields, the "send only the
 target plan" rule, the stripping of server-computed fields, and the three-state `custom_functions`
 contract (set / clear-with-null / preserve). These run in CI without staging credentials.
+
+`test_runtime_api_client.py` covers `RuntimeApiClient` the same way: the `Service-CRN` + `apikey`
+headers, parsing of the `200` payload (functions, permissions, custom permissions), the `204`
+not-configured case, the `200`-with-empty-list case, and a non-200/204 raising `RuntimeApiError`.
