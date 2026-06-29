@@ -351,7 +351,7 @@ the DB but is only entitled at the ALL level, so it doubles as an isolation chec
 | Run function | `function.run` | 404 | runs, job `business_model=TRIAL` | 404 | runs, job `business_model=CONSUMPTION` |
 | Upload provider function | `function.write` | 404 | 404 | succeeds | succeeds |
 | List provider jobs | `function-job.read` | 404 | 404 | succeeds (sees seeded job) | succeeds |
-| Retrieve a specific job (non-author) | `function-job.read` | n/a | n/a | succeeds | succeeds |
+| Retrieve a specific job | `function-job.read` | n/a | n/a | succeeds | succeeds |
 | Read provider logs | `function-provider-logs.read` | 403 | 403 | succeeds | succeeds |
 | List / download provider files | `function-provider-files.read` | 404 | 404 | succeeds | succeeds |
 | Upload / delete provider files | `function-provider-files.write` | 404 | 404 | succeeds | succeeds |
@@ -360,16 +360,26 @@ the DB but is only entitled at the ALL level, so it doubles as an isolation chec
 | Upload custom (serverless) function | `function-custom.write` | 404 | succeeds | 404 | succeeds |
 | Run custom (serverless) function | `function-custom.run` | 404 | succeeds | 404 | succeeds |
 
-Cross-cutting checks that hold at every level:
+Note on "Retrieve a specific job": the test asserts that `retrieve` succeeds when `function-job.read`
+is present, but because every test client shares the same `GATEWAY_TOKEN`, the seeded job is authored
+by that same user, so the author check alone would already grant access. The test therefore does not
+isolate the pure non-author path (`function-job.read` without authorship); that would require a
+second user token.
 
-- **Provider isolation**: `instances2-test` is excluded from catalog/unfiltered listings at every
-  level except ALL, even though it exists in the DB. Function-level granularity means access to
-  `instances1-test` never implies access to `instances2-test`.
+Cross-cutting checks:
+
+- **Provider isolation**: `instances2-test` exists in the DB but is excluded from the
+  catalog/unfiltered listings unless it is in the instance entitlements. This is asserted explicitly
+  at the USER and PROVIDER levels (where only `instances1-test` is entitled) and the ALL level
+  asserts both functions appear. Function-level granularity means access to `instances1-test` never
+  implies access to `instances2-test`.
 - **Serverless listing ignores platform permissions**: the serverless (own-functions) listing never
-  shows a provider function, regardless of `function.read`; it only ever returns the caller's own
-  functions. This is the `programs/list` author-only path.
-- **Author always wins**: retrieving your own jobs works with no platform permission, because the
-  author check short-circuits the client lookup.
+  shows a provider function; it only ever returns the caller's own functions. This is asserted at the
+  USER, PROVIDER and ALL levels (the `programs/list` author-only path), independently of whether the
+  level grants `function.read`.
+- **Author always wins** (behaviour, observed indirectly): retrieving your own jobs works through the
+  author check, which short-circuits the client lookup. It is exercised via `run` + `get_job_data` at
+  the USER and ALL levels rather than by a dedicated no-permission retrieval test.
 
 ### Propagation tests (account -> instance)
 
