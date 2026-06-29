@@ -267,3 +267,63 @@ The **account superset** grants, by `(provider, name, business_model)` key, a su
 level (`instances1-test` at both `trial` and `consumption`, `instances2-test` at `consumption`, plus
 the custom permissions), so the broker accepts every instance PATCH and the sync never narrows the
 configured level.
+
+### What each test verifies (functional matrix)
+
+Each test class in `test_instance_permissions.py` reconfigures the instance to one level and then
+runs the shared assertion battery from `permission_checks.py`. The point is to confirm that the
+gateway honors the **exact** set of platform permissions configured on the instance: every endpoint
+that the level grants must succeed, and every endpoint it does not grant must be denied with the
+expected status (404 for not-visible/not-authorized resources, 403 for provider logs without the
+log permission). The function `instances1-test` is the one under test; `instances2-test` exists in
+the DB but is only entitled at the ALL level, so it doubles as an isolation check.
+
+| Operation (endpoint) | Required permission | NONE | USER (trial) | PROVIDER | ALL (consumption) |
+|----------------------|---------------------|------|--------------|----------|-------------------|
+| List in catalog / unfiltered | `function.read` | excluded | listed | excluded | listed |
+| Get function by title | `function.read` | 404 | returns it | 404 | returns it |
+| Run function | `function.run` | 404 | runs, job `business_model=TRIAL` | 404 | runs, job `business_model=CONSUMPTION` |
+| Upload provider function | `function.write` | 404 | 404 | succeeds | succeeds |
+| List provider jobs | `function-job.read` | 404 | 404 | succeeds (sees seeded job) | succeeds |
+| Retrieve a specific job (non-author) | `function-job.read` | n/a | n/a | succeeds | succeeds |
+| Read provider logs | `function-provider-logs.read` | 403 | 403 | succeeds | succeeds |
+| List / download provider files | `function-provider-files.read` | 404 | 404 | succeeds | succeeds |
+| Upload / delete provider files | `function-provider-files.write` | 404 | 404 | succeeds | succeeds |
+| List / download user files | `function-files.read` | 404 | succeeds | 404 | succeeds |
+| Upload / delete user files | `function-files.write` | 404 | succeeds | 404 | succeeds |
+| Upload custom (serverless) function | `function-custom.write` | 404 | succeeds | 404 | succeeds |
+| Run custom (serverless) function | `function-custom.run` | 404 | succeeds | 404 | succeeds |
+
+Cross-cutting checks that hold at every level:
+
+- **Provider isolation**: `instances2-test` is excluded from catalog/unfiltered listings at every
+  level except ALL, even though it exists in the DB. Function-level granularity means access to
+  `instances1-test` never implies access to `instances2-test`.
+- **Serverless listing ignores platform permissions**: the serverless (own-functions) listing never
+  shows a provider function, regardless of `function.read`; it only ever returns the caller's own
+  functions. This is the `programs/list` author-only path.
+- **Author always wins**: retrieving your own jobs works with no platform permission, because the
+  author check short-circuits the client lookup.
+
+### Propagation tests (account -> instance)
+
+`test_instance_propagation.py` is black-box and exercises the narrow-only sync semantics directly
+through `/functions`, rather than a single level:
+
+| Test | Sequence | What it verifies |
+|------|----------|------------------|
+| `test_account_narrows_instance_and_does_not_restore` | (1) account superset + instance ALL → (2) narrow the **account** to a sibling function only → (3) re-add the function to the **account** → (4) re-add it to the **instance** | (1) the function is usable; (2) narrowing it out of the account removes it from the instance while the sibling remains, so the function disappears (run → 404) and the sibling stays visible — proving a per-function narrow on the 200 path, not a 204 wipe; (3) re-adding to the account does **not** restore it (sync only narrows); (4) only a direct instance PATCH brings it back. |
+
+> The step-2 narrow deliberately keeps the instance non-empty (the sibling stays). Clearing the
+> account entirely would narrow the instance to zero entitlements, which returns 204 and falls back
+> to legacy Django authorization, under which the function can remain visible — so an empty-account
+> narrow cannot be observed reliably through `/functions`.
+| `test_instance_patch_rejected_when_exceeding_account` | account grants only `function.read`; instance PATCH asks for `function.read` + `function.run` | the broker rejects an instance PATCH that exceeds the account grant with a `4xx` validation error. |
+
+### Offline client tests
+
+`test_ntc_client.py` covers `NtcAdminClient` in isolation with `requests_mock` (no network): the two
+auth schemes (`apikey` for the account, IAM-exchanged `Bearer` for the instance, with the bearer
+cached across calls), the read-modify-write that preserves unrelated fields, the "send only the
+target plan" rule, the stripping of server-computed fields, and the three-state `custom_functions`
+contract (set / clear-with-null / preserve). These run in CI without staging credentials.

@@ -29,6 +29,7 @@ import time
 
 from pytest import fixture, skip
 from qiskit_serverless import QiskitFunction, ServerlessClient
+from qiskit_serverless.exception import QiskitServerlessException
 
 from instances.ntc_client import NtcAdminClient, mask_secret
 
@@ -56,7 +57,15 @@ NTC_SUBSCRIPTION_NAME = os.environ.get("NTC_SUBSCRIPTION_NAME", "flex")
 # (1s on staging; see gateway/api/clients/function_access_client.py). Since every level reuses
 # the same CRN + token, the cache key is identical, so a reconfiguration is only visible to the
 # next gateway read once that entry expires. Wait a little longer than the TTL after each change.
-CACHE_WAIT_SECONDS = float(os.environ.get("TEST_CACHE_WAIT_SECONDS", "2"))
+# (Measured propagation on staging is ~2s, so the default leaves a margin above the gateway TTL.)
+CACHE_WAIT_SECONDS = float(os.environ.get("TEST_CACHE_WAIT_SECONDS", "3"))
+
+# On top of the gateway cache, the NTC -> Runtime API propagation is eventually-consistent: right
+# after raising the instance to ALL, /functions may not yet grant function.write for a function, so
+# a seed upload can 404 ("doesn't exist"). The seed fixtures are session-scoped, so a single such
+# failure would poison every dependent test for the whole session. Retry the seed uploads until the
+# entitlement propagates (or this timeout elapses).
+SEED_UPLOAD_TIMEOUT_SECONDS = float(os.environ.get("TEST_SEED_UPLOAD_TIMEOUT_SECONDS", "60"))
 
 # --- permission sets -------------------------------------------------------------------
 
@@ -119,6 +128,12 @@ SUPERSET_FUNCTIONS = [
 ]
 SUPERSET_CUSTOM = CUSTOM_PERMISSIONS
 
+# Account narrowed to a SIBLING function only (excludes FUNCTION_TITLE but keeps OTHER_FUNCTION_TITLE).
+# Used by the propagation test to narrow FUNCTION_TITLE out of the instance while keeping the instance
+# non-empty: an empty instance returns 204 (legacy Django fallback, the function may stay visible),
+# whereas a non-empty instance stays on the 200 path where the narrow is a clean per-function deny.
+NARROW_ACCOUNT_FUNCTIONS = [_fn(OTHER_FUNCTION_TITLE, "consumption", ALL_PERMISSIONS)]
+
 
 def wait_for_propagation():
     """Sleep long enough for the gateway per-CRN entitlements cache to expire.
@@ -127,6 +142,36 @@ def wait_for_propagation():
     """
     logger.info("apply: waiting %.1fs for the gateway entitlements cache to expire", CACHE_WAIT_SECONDS)
     time.sleep(CACHE_WAIT_SECONDS)
+
+
+def upload_seed_with_retry(client, fn, what):
+    """Upload a seed function, retrying while the NTC -> Runtime API entitlement propagates.
+
+    ``apply_level`` waits for the gateway cache, but the NTC -> Runtime API propagation itself is
+    eventually-consistent, so right after raising the instance to ALL the upload may still 404 with
+    "doesn't exist" until /functions grants the write permission. Because the seed fixtures are
+    session-scoped, a single such failure would cascade to every dependent test; retrying makes the
+    seeds robust to that lag. Re-raises the last error if it does not succeed within the timeout.
+    """
+    deadline = time.monotonic() + SEED_UPLOAD_TIMEOUT_SECONDS
+    attempt = 0
+    while True:
+        attempt += 1
+        try:
+            client.upload(fn)
+            return
+        except QiskitServerlessException as exc:
+            if time.monotonic() >= deadline:
+                logger.error("seed: upload of %s still failing after %.0fs", what, SEED_UPLOAD_TIMEOUT_SECONDS)
+                raise
+            logger.info(
+                "seed: upload of %s not ready yet (attempt %d), retrying in %.1fs: %s",
+                what,
+                attempt,
+                CACHE_WAIT_SECONDS,
+                exc,
+            )
+            time.sleep(CACHE_WAIT_SECONDS)
 
 
 def ensure_account_superset(ntc):
@@ -238,7 +283,7 @@ def seeded_job_id(ntc, reconfig_client, provider_name, function_title, tmp_path_
         entrypoint="main.py",
         working_dir=str(tmp),
     )
-    reconfig_client.upload(fn)
+    upload_seed_with_retry(reconfig_client, fn, f"{provider_name}/{function_title}")
     job = reconfig_client.run(function_title, provider=provider_name)
     return job.job_id
 
@@ -259,7 +304,7 @@ def seeded_other_function(ntc, reconfig_client, provider_name, other_function_ti
         entrypoint="main.py",
         working_dir=str(tmp),
     )
-    reconfig_client.upload(fn)
+    upload_seed_with_retry(reconfig_client, fn, f"{provider_name}/{other_function_title}")
     return other_function_title
 
 
@@ -274,5 +319,5 @@ def seeded_custom_function(ntc, reconfig_client, custom_function_title, tmp_path
         entrypoint="main.py",
         working_dir=str(tmp),
     )
-    reconfig_client.upload(fn)
+    upload_seed_with_retry(reconfig_client, fn, custom_function_title)
     return custom_function_title

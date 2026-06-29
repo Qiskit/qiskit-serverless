@@ -17,6 +17,8 @@ from qiskit_serverless.exception import QiskitServerlessException
 from instances.conftest import (
     ALL_CUSTOM,
     ALL_FUNCTIONS,
+    NARROW_ACCOUNT_FUNCTIONS,
+    SUPERSET_CUSTOM,
     apply_level,
     ensure_account_superset,
     wait_for_propagation,
@@ -34,38 +36,53 @@ def restore_account(ntc):
     ensure_account_superset(ntc)
 
 
-def test_account_narrows_instance_and_does_not_restore(ntc, reconfig_client, provider_name, function_title):
-    """The 4-step propagation flow:
+def test_account_narrows_instance_and_does_not_restore(
+    ntc, reconfig_client, provider_name, function_title, seeded_other_function
+):
+    """The 4-step propagation flow (kept on the NTC 200 path throughout):
 
-    1. account superset + instance ALL          -> function is usable
-    2. remove functions from the ACCOUNT         -> instance is narrowed -> function gone
-    3. re-add functions to the ACCOUNT           -> NOT restored (sync only narrows)
-    4. re-add functions to the INSTANCE          -> usable again
+    1. account superset + instance ALL           -> function is usable
+    2. narrow the ACCOUNT to a sibling only       -> instance narrowed -> function gone
+    3. re-add the function to the ACCOUNT         -> NOT restored (sync only narrows)
+    4. re-add the function to the INSTANCE        -> usable again
+
+    Step 2 narrows the account to a DIFFERENT function (the sibling is kept) instead of clearing it,
+    so the instance keeps a non-empty entitlement set. An empty instance makes the Runtime API
+    return 204, which the gateway treats as "not migrated" and falls back to legacy Django
+    authorization (the function may stay visible); a non-empty instance stays on the 200 path, where
+    the narrow is a clean per-function deny we can observe through /functions.
     """
+    sibling_title = seeded_other_function
+
     # 1) account superset + instance ALL -> works
     apply_level(ntc, ALL_FUNCTIONS, ALL_CUSTOM)
     assert _function_in_list(
         reconfig_client.functions(filter="catalog"), provider_name, function_title
     ), "Step 1: expected the function to be present with account+instance configured"
 
-    # 2) remove functions from the account -> the sync narrows the instance to empty
-    ntc.set_account_entitlements([], [])
+    # 2) narrow the account to the sibling only -> the sync drops the function from the instance,
+    #    but the instance stays non-empty (the sibling remains), so we stay on the 200 path.
+    ntc.set_account_entitlements(NARROW_ACCOUNT_FUNCTIONS, SUPERSET_CUSTOM)
     wait_for_propagation()
+    remaining = reconfig_client.functions(filter="catalog")
     assert not _function_in_list(
-        reconfig_client.functions(filter="catalog"), provider_name, function_title
-    ), "Step 2: expected the function to disappear after removing it from the account"
+        remaining, provider_name, function_title
+    ), "Step 2: expected the function to disappear after narrowing it out of the account"
+    assert _function_in_list(
+        remaining, provider_name, sibling_title
+    ), "Step 2: the sibling function must remain (proves a per-function narrow, not a 204 wipe)"
     with pytest.raises(QiskitServerlessException) as exc:
         reconfig_client.run(function_title, provider=provider_name)
     _assert_404(exc)
 
-    # 3) re-add functions to the account -> the instance is NOT restored (sync only narrows)
+    # 3) re-add the function to the account -> the instance is NOT restored (sync only narrows)
     ensure_account_superset(ntc)
     wait_for_propagation()
     assert not _function_in_list(
         reconfig_client.functions(filter="catalog"), provider_name, function_title
-    ), "Step 3: re-adding functions to the account must NOT restore the instance"
+    ), "Step 3: re-adding the function to the account must NOT restore the instance"
 
-    # 4) re-add functions to the instance -> usable again
+    # 4) re-add the function to the instance -> usable again
     apply_level(ntc, ALL_FUNCTIONS, ALL_CUSTOM)
     assert _function_in_list(
         reconfig_client.functions(filter="catalog"), provider_name, function_title
