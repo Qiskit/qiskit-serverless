@@ -78,7 +78,7 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
             warnings.warn(
                 "The 'name' attribute is deprecated and will be removed in a future release.",
                 DeprecationWarning,
-                stacklevel=2
+                stacklevel=2,
             )
         self.name = name
         self.host = host
