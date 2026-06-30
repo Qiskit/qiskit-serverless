@@ -10,12 +10,7 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""
-IBM Event Streams client module.
-
-Provides :class:`IBMEventStreamsClient` for publishing CloudEvents 1.0 usage
-events to IBM Cloud Event Streams (Kafka).
-"""
+"""Kafka-backed Event Streams client for IBM Cloud Event Streams."""
 
 from __future__ import annotations
 
@@ -25,35 +20,14 @@ import os
 import uuid
 from datetime import datetime, timezone
 
-try:
-    from confluent_kafka import Producer
-except ImportError:  # confluent-kafka is optional at import time
-    Producer = None  # type: ignore[assignment,misc]
+from confluent_kafka import Producer
+
+from .abstract_event_streams_client import EventStreamsClient
 
 logger = logging.getLogger("gateway.ibm_cloud.event_streams_client")
 
 
-class NoOpEventStreamsClient:
-    """
-    Drop-in replacement for IBMEventStreamsClient when EVENT_STREAMS_ENABLED is false.
-
-    Logs each emit call at DEBUG level instead of publishing to Kafka.
-    """
-
-    def emit_job_started(self, job) -> None:
-        """Log job_started at DEBUG level (no-op)."""
-        logger.debug("job_id=%s [noop] emit_job_started", job.id)
-
-    def emit_job_in_progress(self, job) -> None:
-        """Log job_in_progress at DEBUG level (no-op)."""
-        logger.debug("job_id=%s [noop] emit_job_in_progress", job.id)
-
-    def emit_job_ended(self, job) -> None:
-        """Log job_ended at DEBUG level (no-op)."""
-        logger.debug("job_id=%s [noop] emit_job_ended", job.id)
-
-
-class IBMEventStreamsClient:
+class KafkaEventStreamsClient(EventStreamsClient):
     """
     Kafka producer client for IBM Cloud Event Streams.
 
@@ -65,9 +39,6 @@ class IBMEventStreamsClient:
     """
 
     def __init__(self) -> None:
-        if Producer is None:
-            raise RuntimeError("confluent-kafka is not installed. Add confluent-kafka>=2.6.0,<3 to your dependencies.")
-
         bootstrap_servers = os.environ["EVENT_STREAMS_BOOTSTRAP_SERVERS"]
         api_key = os.environ["EVENT_STREAMS_API_KEY"]
         environment = os.environ["ENVIRONMENT"]
@@ -125,4 +96,4 @@ class IBMEventStreamsClient:
         )
         remaining = self._producer.flush(timeout=5)
         if remaining > 0:
-            raise RuntimeError(f"IBMEventStreamsClient: {remaining} message(s) not delivered after flush timeout")
+            raise RuntimeError(f"KafkaEventStreamsClient: {remaining} message(s) not delivered after flush timeout")

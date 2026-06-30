@@ -7,7 +7,9 @@ from typing import cast
 from django.conf import settings
 from django.utils import timezone as django_timezone
 
-from core.ibm_cloud.event_streams.event_streams_client import IBMEventStreamsClient, NoOpEventStreamsClient
+from core.ibm_cloud.event_streams.abstract_event_streams_client import EventStreamsClient
+from core.ibm_cloud.event_streams.kafka_event_streams_client import KafkaEventStreamsClient
+from core.ibm_cloud.event_streams.noop_event_streams_client import NoOpEventStreamsClient
 from core.models import Job, JobEvent, Program
 from core.services.runners import get_runner, RunnerError, FleetsRunner
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
@@ -25,14 +27,14 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
     def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
         self.kill_signal = kill_signal
         self.metrics = metrics
-        self._event_streams_client: IBMEventStreamsClient | None = None
+        self._event_streams_client: EventStreamsClient | None = None
 
     @property
-    def event_streams_client(self) -> "IBMEventStreamsClient | NoOpEventStreamsClient":
+    def event_streams_client(self) -> EventStreamsClient:
         """Return the Event Streams client, instantiating it lazily on first access."""
         if self._event_streams_client is None:
             if settings.EVENT_STREAMS_ENABLED:
-                self._event_streams_client = IBMEventStreamsClient()
+                self._event_streams_client = KafkaEventStreamsClient()
             else:
                 self._event_streams_client = NoOpEventStreamsClient()
         return self._event_streams_client

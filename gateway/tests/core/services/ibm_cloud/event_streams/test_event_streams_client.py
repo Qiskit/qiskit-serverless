@@ -10,7 +10,7 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Unit tests for IBMEventStreamsClient."""
+"""Unit tests for KafkaEventStreamsClient."""
 
 from __future__ import annotations
 
@@ -21,9 +21,9 @@ from datetime import datetime, timezone
 import pytest
 from unittest.mock import MagicMock, patch
 
-from core.ibm_cloud.event_streams.event_streams_client import IBMEventStreamsClient
+from core.ibm_cloud.event_streams.kafka_event_streams_client import KafkaEventStreamsClient
 
-_CLIENT_MOD = "core.ibm_cloud.event_streams.event_streams_client"
+_CLIENT_MOD = "core.ibm_cloud.event_streams.kafka_event_streams_client"
 
 
 def _make_job(
@@ -38,7 +38,7 @@ def _make_job(
     return job
 
 
-class TestIBMEventStreamsClient:
+class TestKafkaEventStreamsClient:
     def test_producer_configured_with_sasl_plain_tls(self):
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
             with patch.dict(
@@ -49,7 +49,7 @@ class TestIBMEventStreamsClient:
                     "ENVIRONMENT": "staging",
                 },
             ):
-                IBMEventStreamsClient()
+                KafkaEventStreamsClient()
 
         mock_producer_cls.assert_called_once_with(
             {
@@ -71,7 +71,7 @@ class TestIBMEventStreamsClient:
                     "ENVIRONMENT": "staging",
                 },
             ):
-                client = IBMEventStreamsClient()
+                client = KafkaEventStreamsClient()
 
         assert client.topic == "quantum.staging.function-usage.v1"
 
@@ -94,7 +94,7 @@ class TestIBMEventStreamsClient:
                         fake_now = datetime(2026, 1, 1, 12, 0, 1, tzinfo=timezone.utc)
                         mock_dt.now.return_value = fake_now
 
-                        client = IBMEventStreamsClient()
+                        client = KafkaEventStreamsClient()
                         mock_producer = mock_producer_cls.return_value
                         mock_producer.flush.return_value = 0
                         client.emit_job_started(job)
@@ -130,7 +130,7 @@ class TestIBMEventStreamsClient:
                         mock_uuid_mod.uuid4.return_value = uuid_module.uuid4()
                         mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 5, tzinfo=timezone.utc)
 
-                        client = IBMEventStreamsClient()
+                        client = KafkaEventStreamsClient()
                         mock_producer = mock_producer_cls.return_value
                         mock_producer.flush.return_value = 0
                         client.emit_job_in_progress(job)
@@ -157,7 +157,7 @@ class TestIBMEventStreamsClient:
                         mock_uuid_mod.uuid4.return_value = uuid_module.uuid4()
                         mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 30, tzinfo=timezone.utc)
 
-                        client = IBMEventStreamsClient()
+                        client = KafkaEventStreamsClient()
                         mock_producer = mock_producer_cls.return_value
                         mock_producer.flush.return_value = 0
                         client.emit_job_ended(job)
@@ -181,7 +181,7 @@ class TestIBMEventStreamsClient:
                         },
                     ):
                         mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-                        client = IBMEventStreamsClient()
+                        client = KafkaEventStreamsClient()
                         mock_producer = mock_producer_cls.return_value
                         mock_producer.flush.return_value = 1  # 1 message undelivered
 
@@ -206,7 +206,7 @@ class TestIBMEventStreamsClient:
                         mock_uuid_mod.uuid4.return_value = uuid_module.uuid4()
                         mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 5, tzinfo=timezone.utc)
 
-                        client = IBMEventStreamsClient()
+                        client = KafkaEventStreamsClient()
                         mock_producer = mock_producer_cls.return_value
                         mock_producer.flush.return_value = 0
                         client.emit_job_in_progress(job)
