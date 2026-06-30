@@ -2,7 +2,7 @@
 deprecations:
   - |
     The ``name`` parameter in ``BaseClient``, ``ServerlessClient``, and
-    ``IBMServerlessClient`` is deprecated and will be removed in version 0.x.x
+    ``IBMServerlessClient`` is deprecated and will be removed in a future release.
     The parameter is no longer used for client functionality. Users should
     remove this parameter from their client instantiation code.
 
