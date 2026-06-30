@@ -120,6 +120,7 @@ class IBMEventStreamsClient:
         }
         self._producer.produce(
             topic=self.topic,
+            key=str(job.id).encode("utf-8"),
             value=json.dumps(event).encode("utf-8"),
         )
         remaining = self._producer.flush(timeout=5)
