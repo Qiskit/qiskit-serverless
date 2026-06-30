@@ -426,14 +426,20 @@
 <span class="sd">        Initializes the ServerlessClient instance.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            name: name of client</span>
+<span class="sd">            name: (deprecated) name of client - will be removed in a future release</span>
 <span class="sd">            host: host of gateway. If None, it uses the ENV_GATEWAY_PROVIDER_HOST env var</span>
 <span class="sd">            version: version of gateway</span>
 <span class="sd">            token: authorization token</span>
 <span class="sd">            instance: IBM Cloud CRN</span>
 <span class="sd">            channel: identifies the method to use to authenticate the user</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">name</span> <span class="o">=</span> <span class="n">name</span> <span class="ow">or</span> <span class="s2">&quot;gateway-client&quot;</span>
+        <span class="k">if</span> <span class="n">name</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;The &#39;name&#39; attribute is deprecated and will be removed in a future release.&quot;</span><span class="p">,</span>
+                <span class="ne">DeprecationWarning</span><span class="p">,</span>
+                <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="n">resolved_name</span> <span class="o">=</span> <span class="n">name</span> <span class="ow">or</span> <span class="s2">&quot;gateway-client&quot;</span>
         <span class="n">host</span> <span class="o">=</span> <span class="n">host</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ENV_GATEWAY_PROVIDER_HOST</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">host</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="s2">&quot;Please provide `host` of gateway.&quot;</span><span class="p">)</span>
@@ -464,7 +470,10 @@
                 <span class="s2">&quot;Authentication with IBM Quantum Platform requires to pass the CRN as an instance.&quot;</span>
             <span class="p">)</span>
 
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="p">)</span>
+        <span class="c1"># Pass name=None so BaseClient does not emit a second deprecation</span>
+        <span class="c1"># warning; the warning above is the single one users should see.</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">resolved_name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">version</span> <span class="o">=</span> <span class="n">version</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_verify_credentials</span><span class="p">()</span>
 

@@ -377,12 +377,18 @@
 <span class="sd">        Initialize a BaseClient instance.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            name: name of client</span>
+<span class="sd">            name: (deprecated) name of client - will be removed in a future release</span>
 <span class="sd">            host: host of client a.k.a managers host</span>
 <span class="sd">            token: authentication token for manager</span>
 <span class="sd">            instance: IBM Cloud CRN or IQP h/g/p</span>
 <span class="sd">            channel: identifies the method to use to authenticate the user</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">name</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;The &#39;name&#39; attribute is deprecated and will be removed in a future release.&quot;</span><span class="p">,</span>
+                <span class="ne">DeprecationWarning</span><span class="p">,</span>
+                <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+            <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">host</span> <span class="o">=</span> <span class="n">host</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">token</span> <span class="o">=</span> <span class="n">token</span>
@@ -498,7 +504,19 @@
     <span class="c1">######################</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">widget</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Widget for information about provider and jobs.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Widget for information about provider and jobs.</span>
+
+<span class="sd">        .. deprecated:: 0.33.0</span>
+<span class="sd">            The ``widget()`` method is deprecated and will be removed in a future release.</span>
+<span class="sd">            The Jupyter widget interface is no longer maintained. Use ``jobs()`` and</span>
+<span class="sd">            ``functions()`` directly, or the IBM Quantum web dashboard instead.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="s2">&quot;The `widget()` method is deprecated and will be removed in a future release. &quot;</span>
+            <span class="s2">&quot;Use `jobs()` and `functions()` directly, or the IBM Quantum web dashboard instead.&quot;</span><span class="p">,</span>
+            <span class="ne">DeprecationWarning</span><span class="p">,</span>
+            <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+        <span class="p">)</span>
         <span class="c1"># prevent cyclic import</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.visualization</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>  <span class="c1"># pylint: disable=import-outside-toplevel</span>
             <span class="n">Widget</span><span class="p">,</span>

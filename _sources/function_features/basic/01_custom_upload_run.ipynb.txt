@@ -356,7 +356,8 @@
    "id": "9784597b-9377-4d26-8ab9-a8a9b363c924",
    "metadata": {},
    "source": [
-    "`ServerlessClient` object has method `.widget` which renders Jupyter widget to see list of executed programs."
+    "`ServerlessClient` object has method `.widget` which renders Jupyter widget to see list of executed programs. <br>\n",
+    "This method is **deprecated** and will be removed in a future release. Use `client.jobs()` and `client.functions()` directly, or visit the IBM Quantum web dashboard instead."
    ]
   },
   {
