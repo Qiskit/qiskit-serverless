@@ -117,14 +117,20 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         Initializes the ServerlessClient instance.
 
         Args:
-            name: name of client
+            name: (deprecated) name of client - will be removed in a future release
             host: host of gateway. If None, it uses the ENV_GATEWAY_PROVIDER_HOST env var
             version: version of gateway
             token: authorization token
             instance: IBM Cloud CRN
             channel: identifies the method to use to authenticate the user
         """
-        name = name or "gateway-client"
+        if name:
+            warnings.warn(
+                "The 'name' attribute is deprecated and will be removed in a future release.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        resolved_name = name or "gateway-client"
         host = host or os.environ.get(ENV_GATEWAY_PROVIDER_HOST)
         if host is None:
             raise QiskitServerlessException("Please provide `host` of gateway.")
@@ -155,7 +161,10 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 "Authentication with IBM Quantum Platform requires to pass the CRN as an instance."
             )
 
-        super().__init__(name, host, token, instance, channel)
+        # Pass name=None so BaseClient does not emit a second deprecation
+        # warning; the warning above is the single one users should see.
+        super().__init__(None, host, token, instance, channel)
+        self.name = resolved_name
         self.version = version
         self._verify_credentials()
 
