@@ -26,7 +26,6 @@ test_instance_propagation.py.
 import pytest
 
 from instances.conftest import (
-    apply_level,
     ALL_CUSTOM,
     ALL_FUNCTIONS,
     NONE_CUSTOM,
@@ -49,12 +48,12 @@ class TestNoPermissionsInstance(NonePermissionChecks):
     """Instance reconfigured to NONE (empty functions list)."""
 
     @pytest.fixture(autouse=True)
-    def _bind(self, ntc, reconfig_client, provider_name, function_title, custom_function_title, seeded_job_id):
+    def _bind(self, instance, reconfig_client, provider_name, function_title, custom_function_title, seeded_job_id):
         self.provider_name = provider_name
         self.function_title = function_title
         self.custom_function_title = custom_function_title
         self.seeded_job_id = seeded_job_id
-        apply_level(ntc, NONE_FUNCTIONS, NONE_CUSTOM)
+        instance.set_entitlements(NONE_FUNCTIONS, NONE_CUSTOM)
         self.client = reconfig_client
 
 
@@ -62,12 +61,12 @@ class TestUserInstance(UserPermissionChecks):
     """Instance reconfigured to USER permissions (business_model TRIAL)."""
 
     @pytest.fixture(autouse=True)
-    def _bind(self, ntc, reconfig_client, provider_name, function_title, seeded_other_function, seeded_job_id):
+    def _bind(self, instance, reconfig_client, provider_name, function_title, seeded_other_function, seeded_job_id):
         self.provider_name = provider_name
         self.function_title = function_title
         self.other_function_title = seeded_other_function
         self.seeded_job_id = seeded_job_id
-        apply_level(ntc, USER_FUNCTIONS, USER_CUSTOM)
+        instance.set_entitlements(USER_FUNCTIONS, USER_CUSTOM)
         self.client = reconfig_client
 
 
@@ -77,7 +76,7 @@ class TestProviderInstance(ProviderPermissionChecks):
     @pytest.fixture(autouse=True)
     def _bind(
         self,
-        ntc,
+        instance,
         reconfig_client,
         provider_name,
         function_title,
@@ -90,7 +89,7 @@ class TestProviderInstance(ProviderPermissionChecks):
         self.custom_function_title = custom_function_title
         self.other_function_title = seeded_other_function
         self.seeded_job_id = seeded_job_id
-        apply_level(ntc, PROVIDER_FUNCTIONS, PROVIDER_CUSTOM)
+        instance.set_entitlements(PROVIDER_FUNCTIONS, PROVIDER_CUSTOM)
         self.client = reconfig_client
 
 
@@ -100,7 +99,7 @@ class TestCombinedInstance(CombinedPermissionChecks):
     @pytest.fixture(autouse=True)
     def _bind(
         self,
-        ntc,
+        instance,
         reconfig_client,
         provider_name,
         function_title,
@@ -113,7 +112,7 @@ class TestCombinedInstance(CombinedPermissionChecks):
         self.custom_function_title = custom_function_title
         self.other_function_title = seeded_other_function
         self.seeded_job_id = seeded_job_id
-        apply_level(ntc, ALL_FUNCTIONS, ALL_CUSTOM)
+        instance.set_entitlements(ALL_FUNCTIONS, ALL_CUSTOM)
         self.client = reconfig_client
 
 
@@ -121,7 +120,7 @@ class TestCustomFunctionInstance(CustomFunctionChecks):
     """Instance reconfigured to USER permissions (which include function-custom.write/run)."""
 
     @pytest.fixture(autouse=True)
-    def _bind(self, ntc, reconfig_client, custom_function_title):
+    def _bind(self, instance, reconfig_client, custom_function_title):
         self.custom_function_title = custom_function_title
-        apply_level(ntc, USER_FUNCTIONS, USER_CUSTOM)
+        instance.set_entitlements(USER_FUNCTIONS, USER_CUSTOM)
         self.client = reconfig_client

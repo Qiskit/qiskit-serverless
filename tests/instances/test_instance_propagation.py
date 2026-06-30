@@ -2,14 +2,17 @@
 """Account -> instance propagation tests (black-box) over a single reconfigurable instance.
 
 Confirmed NTC behaviour (see the ntc repo, apps/api/repositories/account_plans.go):
-  - Saving the account runs a synchronous sync that NARROWS each instance's entitlements to
-    the intersection with the account, by (provider, name, business_model) key. It only ever
-    narrows; it never re-adds.
-  - GET /functions returns the instance entitlements as-is (no account intersection at read).
+  - Saving the account NARROWS each instance's effective entitlements to the intersection with the
+    account, by (provider, name, business_model) key. It only ever narrows; it never re-adds. The
+    narrow propagates to the Runtime API asynchronously, so step 2 below polls until it lands.
+  - GET /functions returns the effective entitlements as-is (no account intersection at read), which
+    is why re-widening the account (step 3) does not restore a previously narrowed function.
   - The broker rejects an instance PATCH that exceeds the account plan grants.
 
 These tests exercise that semantics end-to-end through the serverless /functions endpoint.
 """
+
+import time
 
 import pytest
 from qiskit_serverless.exception import QiskitServerlessException
@@ -19,24 +22,31 @@ from instances.conftest import (
     ALL_FUNCTIONS,
     NARROW_ACCOUNT_FUNCTIONS,
     SUPERSET_CUSTOM,
-    apply_level,
-    ensure_account_superset,
-    RECONFIG_CRN,
     _fn,
 )
 from instances.ntc_client import NtcApiError
 from instances.permission_checks import _assert_404, _function_in_list
 
 
+def _poll_functions(client, predicate, timeout=15, interval=0.5):
+    """Re-read /functions until predicate(list) holds or timeout elapses; return the last list read."""
+    deadline = time.monotonic() + timeout
+    listed = client.functions(filter="catalog")
+    while not predicate(listed) and time.monotonic() < deadline:
+        time.sleep(interval)
+        listed = client.functions(filter="catalog")
+    return listed
+
+
 @pytest.fixture(autouse=True)
-def restore_account(ntc):
+def restore_account(instance):
     """Restore the account to the superset after each test to avoid cross-test contamination."""
     yield
-    ensure_account_superset(ntc)
+    instance.widen_account_to_superset()
 
 
 def test_account_narrows_instance_and_does_not_restore(
-    ntc, reconfig_client, provider_name, function_title, seeded_other_function
+    instance, reconfig_client, provider_name, function_title, seeded_other_function
 ):
     """The 4-step propagation flow (kept on the NTC 200 path throughout):
 
@@ -53,12 +63,12 @@ def test_account_narrows_instance_and_does_not_restore(
     """
     sibling_title = seeded_other_function
 
-    # Each visibility change is read back immediately (no polling, no sleep): the account narrow-sync
-    # is synchronous and the instance PATCH carries an advancing timestamp that makes the Runtime API
-    # re-sync at once, so a single read after each change reflects the new state.
+    # Instance PATCHes carry an advancing timestamp, so those transitions (steps 1 and 4) are read back
+    # immediately. The account narrow-sync (step 2) instead propagates to the Runtime API
+    # asynchronously, so that one read is polled until it lands.
 
     # 1) account superset + instance ALL -> works
-    apply_level(ntc, ALL_FUNCTIONS, ALL_CUSTOM)
+    instance.set_entitlements(ALL_FUNCTIONS, ALL_CUSTOM)
     listed = reconfig_client.functions(filter="catalog")
     assert _function_in_list(
         listed, provider_name, function_title
@@ -66,8 +76,9 @@ def test_account_narrows_instance_and_does_not_restore(
 
     # 2) narrow the account to the sibling only -> the sync drops the function from the instance,
     #    but the instance stays non-empty (the sibling remains), so we stay on the 200 path.
-    ntc.set_account_entitlements(NARROW_ACCOUNT_FUNCTIONS, SUPERSET_CUSTOM)
-    remaining = reconfig_client.functions(filter="catalog")
+    #    The account->Runtime sync is asynchronous, so poll until the function disappears.
+    instance.set_account_entitlements(NARROW_ACCOUNT_FUNCTIONS, SUPERSET_CUSTOM)
+    remaining = _poll_functions(reconfig_client, lambda fns: not _function_in_list(fns, provider_name, function_title))
     assert not _function_in_list(
         remaining, provider_name, function_title
     ), "Step 2: expected the function to disappear after narrowing it out of the account"
@@ -79,31 +90,31 @@ def test_account_narrows_instance_and_does_not_restore(
     _assert_404(exc)
 
     # 3) re-add the function to the account -> the instance is NOT restored (sync only narrows).
-    #    The narrow-sync is synchronous, so once ensure_account_superset returns the (non-)effect on
-    #    the instance is already settled and a direct read cannot pass by racing ahead of it.
-    ensure_account_superset(ntc)
+    #    The effective Runtime view is already {sibling}; re-widening the account can only narrow it
+    #    further, never re-add, so a direct read here is stable and cannot race into a false pass.
+    instance.widen_account_to_superset()
     assert not _function_in_list(
         reconfig_client.functions(filter="catalog"), provider_name, function_title
     ), "Step 3: re-adding the function to the account must NOT restore the instance"
 
     # 4) re-add the function to the instance -> usable again
-    apply_level(ntc, ALL_FUNCTIONS, ALL_CUSTOM)
+    instance.set_entitlements(ALL_FUNCTIONS, ALL_CUSTOM)
     listed = reconfig_client.functions(filter="catalog")
     assert _function_in_list(
         listed, provider_name, function_title
     ), "Step 4: expected the function to be usable again after reconfiguring the instance"
 
 
-def test_instance_patch_rejected_when_exceeding_account(ntc, function_title):
+def test_instance_patch_rejected_when_exceeding_account(instance, function_title):
     """The broker rejects an instance PATCH that asks for more than the account grants.
 
     The account grants only function.read for the function; requesting function.run on the
-    instance must be rejected with a 4xx validation error.
+    instance must be rejected with a 4xx validation error. Uses the low-level passthroughs
+    (no superset widening) so the account stays deliberately narrow for the broker check.
     """
-    ntc.set_account_entitlements([_fn(function_title, "trial", ["function.read"])], [])
+    instance.set_account_entitlements([_fn(function_title, "trial", ["function.read"])], [])
     with pytest.raises(NtcApiError) as exc:
-        ntc.set_instance_entitlements(
-            RECONFIG_CRN,
+        instance.patch_instance(
             [_fn(function_title, "trial", ["function.read", "function.run"])],
             [],
         )

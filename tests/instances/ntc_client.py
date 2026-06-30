@@ -126,10 +126,9 @@ def _next_timestamp(*existing):
     signal the Runtime API uses to invalidate its per-instance cache and re-sync (without it a PATCH
     that returns 200 and is stored is not reflected by ``/functions``).
 
-    Crucially, saving the account triggers a server-side narrow-sync that rewrites the instance with
-    the SERVER's clock. To make a re-add (account narrows the instance, then we PATCH it back) win the
-    last-write-wins comparison even if this machine's clock lags the server, the new timestamp is
-    forced above any timestamp already present on the instance, not merely set to ``now``.
+    To make every PATCH win the last-write-wins comparison even if this machine's clock lags the
+    timestamp already stored on the instance, the new timestamp is forced strictly above it, not merely
+    set to ``now``.
     """
     candidate = datetime.now(timezone.utc)
     for value in existing:
@@ -323,7 +322,7 @@ class NtcAdminClient:  # pylint: disable=too-many-instance-attributes
         instance = self.get_instance(crn)
         params = instance.get("parameters") or {}
         # Capture any timestamp already on the instance BEFORE we overwrite it, so the new one can be
-        # forced strictly above it (the account narrow-sync may have stamped it with the server clock).
+        # forced strictly above it (a previous PATCH may have stamped it ahead of this machine's clock).
         previous_ts = (instance.get("timestamp"), params.get("timestamp"))
         params["functions"] = functions
         if custom_permissions is not PRESERVE:

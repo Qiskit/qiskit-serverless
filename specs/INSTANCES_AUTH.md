@@ -141,12 +141,18 @@ staging deployment. Instead of standing up a fixed instance per permission level
 **single reconfigurable service instance** through the NTC APIs and reuses the same battery of
 `/functions` assertions at every level (NONE / USER / PROVIDER / ALL). The relevant pieces:
 
-- `instances/ntc_client.py` (`NtcAdminClient`): the HTTP client that mutates account plans and
-  instance entitlements in NTC.
+- `instances/ntc_client.py` (`NtcAdminClient`): the generic HTTP client that mutates account plans
+  and instance entitlements in NTC. It knows nothing about this suite (no CRN, no superset, no levels).
+- `instances/reconfigurable_instance.py` (`ReconfigurableInstance`): wraps `NtcAdminClient` with the
+  two suite-specific facts the raw client lacks (the CRN under test and the account superset).
+  Exposes `set_entitlements(functions, custom)` — the normal "put the instance into this level" path,
+  which widens the account to the superset first — and `widen_account_to_superset()`. Low-level
+  passthroughs (`set_account_entitlements`, `patch_instance`) skip the widening for the propagation
+  tests.
 - `instances/runtime_api_client.py` (`RuntimeApiClient`): a read-only client for the Runtime API
   `/functions` endpoint, the same ground truth the gateway authorizes against.
-- `instances/conftest.py`: the fixtures, the per-level entitlement sets, and the `apply_level` /
-  `ensure_account_superset` helpers.
+- `instances/conftest.py`: the fixtures (including `instance`, a `ReconfigurableInstance`) and the
+  per-level entitlement sets.
 - `instances/test_instance_permissions.py`: the per-level test classes (NONE / USER / PROVIDER / ALL
   and the custom-function variant) that run the shared assertion battery.
 - `instances/test_runtime_api.py`: asserts the Runtime API reflects each configured level exactly.
@@ -219,7 +225,8 @@ understand that this sync **only ever narrows; it never re-adds**:
   reconfigured directly via the resource-controller PATCH.
 - The broker rejects an instance PATCH that asks for more than the account currently grants, so the
   account must hold a **superset** of every instance level before each instance change. This is why
-  `apply_level` always calls `ensure_account_superset` before patching the instance.
+  `ReconfigurableInstance.set_entitlements` always widens the account to the superset before patching
+  the instance.
 
 `GET /functions` returns the instance entitlements as-is, with no account intersection applied at
 read time; the intersection only happens at account-save time.
@@ -255,8 +262,8 @@ read reflects the current instance state.
 
 Given that, the suite reads back every change **immediately**, with no sleep and no polling:
 
-- `apply_level` sets the account superset and PATCHes the instance, then returns; the permission
-  tests read the gateway right after.
+- `instance.set_entitlements` widens the account to the superset and PATCHes the instance, then
+  returns; the permission tests read the gateway right after.
 - `assert_runtime_matches` reads the Runtime API once and asserts the entitlements match.
 - The propagation test reads the catalog directly after each account/instance change.
 

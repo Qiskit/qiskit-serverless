@@ -32,6 +32,7 @@ from pytest import fixture, skip
 from qiskit_serverless import QiskitFunction, ServerlessClient
 
 from instances.ntc_client import NtcAdminClient, mask_secret
+from instances.reconfigurable_instance import ReconfigurableInstance
 from instances.runtime_api_client import RuntimeApiClient
 
 logger = logging.getLogger("instances.conftest")
@@ -178,7 +179,7 @@ def assert_runtime_matches(runtime, expected_functions, expected_custom):
     ``expected_functions`` is the same list shape used to configure the instance (``_fn`` entries).
     Permissions are compared as sets; business_model is compared case-insensitively (the Runtime API
     may echo a different case). Reads once (no polling): the PATCH timestamp makes the Runtime API
-    re-sync immediately, so the state is expected to match right after apply_level.
+    re-sync immediately, so the state is expected to match right after the instance is reconfigured.
     """
     result = runtime.get_functions(RECONFIG_CRN)
     reason = _runtime_mismatch(result, expected_functions, expected_custom)
@@ -186,29 +187,6 @@ def assert_runtime_matches(runtime, expected_functions, expected_custom):
         # raise explicitly (not `assert`) so the failure survives `python -O`.
         raise AssertionError(f"Runtime API {reason}; got: {result.summary()}")
     return result
-
-
-def ensure_account_superset(ntc):
-    """Set the account plan to the superset so every instance PATCH is accepted."""
-    logger.info("apply: account superset -> functions=%d custom=%d", len(SUPERSET_FUNCTIONS), len(SUPERSET_CUSTOM))
-    ntc.set_account_entitlements(SUPERSET_FUNCTIONS, SUPERSET_CUSTOM)
-
-
-def apply_level(ntc, functions, custom_permissions):
-    """Put the reconfigurable instance into the given level (account stays at superset).
-
-    Does not wait afterwards: the permission tests read the gateway immediately, which assumes the
-    gateway /functions cache is disabled on the test deployment (see test_instance_permissions.py).
-    The runtime/propagation tests that must observe eventual consistency poll on their own.
-    """
-    logger.info(
-        "apply: level on instance %s -> functions=%d custom=%s",
-        RECONFIG_CRN,
-        len(functions),
-        list(custom_permissions) if custom_permissions else "<clear>",
-    )
-    ensure_account_superset(ntc)
-    ntc.set_instance_entitlements(RECONFIG_CRN, functions, custom_permissions)
 
 
 # --- shared metadata fixtures ----------------------------------------------------------
@@ -258,11 +236,22 @@ def ntc():
 
 
 @fixture(scope="session")
+def instance(ntc):
+    """The single reconfigurable instance + its account plan, driven through NTC.
+
+    Tests call instance.set_entitlements(functions, custom) to put it into a level (which widens the
+    account to the superset first), instead of poking the raw NtcAdminClient. See
+    reconfigurable_instance.py for the low-level passthroughs used by the propagation tests.
+    """
+    return ReconfigurableInstance(ntc, RECONFIG_CRN, SUPERSET_FUNCTIONS, SUPERSET_CUSTOM)
+
+
+@fixture(scope="session")
 def reconfig_client():
     """ServerlessClient bound to the reconfigurable instance CRN.
 
     The same client object is reused at every level; only the server-side entitlements
-    change (via apply_level), so the client does not encode the permission level.
+    change (via instance.set_entitlements), so the client does not encode the permission level.
     """
     logger.info(
         "ServerlessClient: host=%s channel=%s instance=%s token=%s",
@@ -299,7 +288,7 @@ def runtime():
 # --- seeds (run once, with the instance temporarily at ALL) -----------------------------
 
 
-def _seed_provider_function(ntc, reconfig_client, provider_name, title, working_dir, body):
+def _seed_provider_function(instance, reconfig_client, provider_name, title, working_dir, body):
     """Upload a provider function as a seed.
 
     Puts the instance at ALL and uploads. Returns nothing; callers use the uploaded function
@@ -308,19 +297,19 @@ def _seed_provider_function(ntc, reconfig_client, provider_name, title, working_
     (working_dir / "main.py").write_text(body)
     fn = QiskitFunction(title=title, provider=provider_name, entrypoint="main.py", working_dir=str(working_dir))
 
-    apply_level(ntc, ALL_FUNCTIONS, ALL_CUSTOM)
+    instance.set_entitlements(ALL_FUNCTIONS, ALL_CUSTOM)
     reconfig_client.upload(fn)
 
 
 @fixture(scope="session")
-def seeded_job_id(ntc, reconfig_client, provider_name, function_title, tmp_path_factory):
+def seeded_job_id(instance, reconfig_client, provider_name, function_title, tmp_path_factory):
     """Ensure a known job exists for the test function.
 
     Puts the instance at ALL, uploads the function and runs a job. The job belongs to the
     function/author, so it persists even after the instance is later degraded to a lower level.
     """
     _seed_provider_function(
-        ntc,
+        instance,
         reconfig_client,
         provider_name,
         function_title,
@@ -332,14 +321,14 @@ def seeded_job_id(ntc, reconfig_client, provider_name, function_title, tmp_path_
 
 
 @fixture(scope="session")
-def seeded_other_function(ntc, reconfig_client, provider_name, other_function_title, tmp_path_factory):
+def seeded_other_function(instance, reconfig_client, provider_name, other_function_title, tmp_path_factory):
     """Create other_function_title in the DB (instance temporarily at ALL).
 
     This makes isolation tests meaningful: the function exists in the DB but lower levels
     do not list it because it is not in their entitlements.
     """
     _seed_provider_function(
-        ntc,
+        instance,
         reconfig_client,
         provider_name,
         other_function_title,
@@ -350,12 +339,12 @@ def seeded_other_function(ntc, reconfig_client, provider_name, other_function_ti
 
 
 @fixture(scope="session")
-def seeded_custom_function(ntc, reconfig_client, custom_function_title, tmp_path_factory):
+def seeded_custom_function(instance, reconfig_client, custom_function_title, tmp_path_factory):
     """Upload a custom (serverless) function so run/list tests have something to reference."""
     tmp = tmp_path_factory.mktemp("custom_fn_seed")
     (tmp / "main.py").write_text('print("custom function")\n')
     fn = QiskitFunction(title=custom_function_title, entrypoint="main.py", working_dir=str(tmp))
 
-    apply_level(ntc, ALL_FUNCTIONS, ALL_CUSTOM)
+    instance.set_entitlements(ALL_FUNCTIONS, ALL_CUSTOM)
     reconfig_client.upload(fn)
     return custom_function_title
