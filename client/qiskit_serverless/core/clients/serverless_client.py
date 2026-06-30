@@ -117,7 +117,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         Initializes the ServerlessClient instance.
 
         Args:
-            name: name of client
+            name: (deprecated) name of client - will be removed in a future release
             host: host of gateway. If None, it uses the ENV_GATEWAY_PROVIDER_HOST env var
             version: version of gateway
             token: authorization token
