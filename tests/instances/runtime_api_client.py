@@ -26,7 +26,7 @@ from instances.ntc_client import mask_secret
 logger = logging.getLogger("instances.runtime_api_client")
 
 
-class RuntimeFunctions:
+class RuntimeFunctionsResult:
     """Parsed result of a Runtime API ``/functions`` read.
 
     Mirrors what the gateway computes from the same response:
@@ -41,7 +41,7 @@ class RuntimeFunctions:
         self.functions = functions
         self.custom_permissions = custom_permissions
 
-    def entry(self, provider, name):
+    def find(self, provider, name):
         """Return the entitlement entry for ``provider/name`` (or None)."""
         for fn in self.functions:
             if fn["provider"] == provider and fn["name"] == name:
@@ -50,11 +50,11 @@ class RuntimeFunctions:
 
     def has_function(self, provider, name):
         """Whether ``provider/name`` is present in the entitlements."""
-        return self.entry(provider, name) is not None
+        return self.find(provider, name) is not None
 
     def permissions(self, provider, name):
         """Permissions granted to ``provider/name`` (empty set if absent)."""
-        entry = self.entry(provider, name)
+        entry = self.find(provider, name)
         return set(entry["permissions"]) if entry else set()
 
     def summary(self):
@@ -89,7 +89,7 @@ class RuntimeApiClient:  # pylint: disable=too-few-public-methods
     def get_functions(self, crn):
         """Read the entitlements the Runtime API exposes for ``crn`` (the gateway's ground truth).
 
-        Returns a RuntimeFunctions (including the 204 "not configured" case). Raises RuntimeApiError
+        Returns a RuntimeFunctionsResult (including the 204 "not configured" case). Raises RuntimeApiError
         for any other non-200 status.
         """
         url = f"{self.base_url}/api/v1/functions"
@@ -105,7 +105,7 @@ class RuntimeApiClient:  # pylint: disable=too-few-public-methods
             logger.info(
                 "RuntimeAPI <- HTTP 204 (instance not configured) for crn=%s body=%s", crn, response.text or "<empty>"
             )
-            return RuntimeFunctions(status_code=204, functions=[], custom_permissions=set())
+            return RuntimeFunctionsResult(status_code=204, functions=[], custom_permissions=set())
 
         if response.status_code != 200:
             logger.warning("RuntimeAPI <- HTTP %s from %s: %s", response.status_code, url, response.text[:500])
@@ -127,6 +127,6 @@ class RuntimeApiClient:  # pylint: disable=too-few-public-methods
                 }
             )
         custom_permissions = set((payload.get("custom_functions") or {}).get("permissions", []) or [])
-        result = RuntimeFunctions(status_code=200, functions=functions, custom_permissions=custom_permissions)
+        result = RuntimeFunctionsResult(status_code=200, functions=functions, custom_permissions=custom_permissions)
         logger.info("RuntimeAPI parsed for crn=%s: %s", crn, result.summary())
         return result

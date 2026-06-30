@@ -143,15 +143,16 @@ staging deployment. Instead of standing up a fixed instance per permission level
 
 - `instances/ntc_client.py` (`NtcAdminClient`): the generic HTTP client that mutates account plans
   and instance entitlements in NTC. It knows nothing about this suite (no CRN, no superset, no levels).
-- `instances/reconfigurable_instance.py` (`ReconfigurableInstance`): wraps `NtcAdminClient` with the
-  two suite-specific facts the raw client lacks (the CRN under test and the account superset).
-  Exposes `set_entitlements(functions, custom)` — the normal "put the instance into this level" path,
-  which widens the account to the superset first — and `widen_account_to_superset()`. Low-level
-  passthroughs (`set_account_entitlements`, `patch_instance`) skip the widening for the propagation
-  tests.
+- `instances/instance_client.py` (`InstanceClient`): wraps `NtcAdminClient` with the two
+  suite-specific facts the raw client lacks (the CRN under test and the account superset). Putting the
+  instance into a level is two explicit writes at the call site: `reset_account_with_all_functions()`
+  (widen the account to the superset so the broker accepts the grant) then
+  `set_entitlements(functions, custom)` (PATCH the instance). `set_account_entitlements(functions,
+  custom)` writes the account to an arbitrary set, which the propagation tests use to narrow it below
+  the superset.
 - `instances/runtime_api_client.py` (`RuntimeApiClient`): a read-only client for the Runtime API
   `/functions` endpoint, the same ground truth the gateway authorizes against.
-- `instances/conftest.py`: the fixtures (including `instance`, a `ReconfigurableInstance`) and the
+- `instances/conftest.py`: the fixtures (including `instance`, an `InstanceClient`) and the
   per-level entitlement sets.
 - `instances/test_instance_permissions.py`: the per-level test classes (NONE / USER / PROVIDER / ALL
   and the custom-function variant) that run the shared assertion battery.
@@ -216,17 +217,21 @@ never collapse into the same request. The instance PATCH follows the same contra
 
 ### Account -> instance sync is narrow-only
 
-Saving the account runs a **synchronous** sync that NARROWS each instance's entitlements to the
-intersection with the account, keyed by `(provider, name, business_model)`. It is critical to
-understand that this sync **only ever narrows; it never re-adds**:
+Saving the account runs a sync that NARROWS each instance's effective entitlements to the
+intersection with the account, keyed by `(provider, name, business_model)`. The narrow is applied in
+the Runtime API's effective view (it does **not** rewrite the resource-controller instance document),
+and that propagation is **asynchronous**: it is not guaranteed to be visible on `/functions` the
+instant the account save returns. It is critical to understand that this sync **only ever narrows; it
+never re-adds**:
 
-- Removing a function from the account immediately removes it from every instance.
+- Removing a function from the account removes it from every instance (asynchronously, see the cache
+  section below).
 - Re-adding it to the account does **not** restore it on the instance; the instance must be
   reconfigured directly via the resource-controller PATCH.
 - The broker rejects an instance PATCH that asks for more than the account currently grants, so the
   account must hold a **superset** of every instance level before each instance change. This is why
-  `ReconfigurableInstance.set_entitlements` always widens the account to the superset before patching
-  the instance.
+  every test calls `reset_account_with_all_functions()` (widen the account to the superset) right
+  before `set_entitlements` (PATCH the instance) — two explicit writes, in that order.
 
 `GET /functions` returns the instance entitlements as-is, with no account intersection applied at
 read time; the intersection only happens at account-save time.
@@ -260,23 +265,28 @@ would make a gateway read return the previous level. The suite therefore assumes
 runs with the gateway `/functions` cache **disabled** (`RUNTIME_API_CACHE_TTL=0`), so each gateway
 read reflects the current instance state.
 
-Given that, the suite reads back every change **immediately**, with no sleep and no polling:
+Given that, an **instance** change is read back **immediately**, with no sleep and no polling:
 
-- `instance.set_entitlements` widens the account to the superset and PATCHes the instance, then
-  returns; the permission tests read the gateway right after.
+- `instance.set_entitlements` PATCHes the instance and returns; the permission tests read the gateway
+  right after. (The account is widened separately, via `reset_account_with_all_functions`, before the
+  PATCH.)
 - `assert_runtime_matches` reads the Runtime API once and asserts the entitlements match.
-- The propagation test reads the catalog directly after each account/instance change.
 
 This is sound because the instance PATCH carries an **advancing `timestamp`** (see the Runtime API
 ground truth section): it forces the Runtime API to invalidate its per-instance cache and re-sync at
-once, so a stored PATCH is reflected by `/functions` immediately. The account narrow-sync is itself
-synchronous, so a narrow is observable as soon as the account save returns.
+once, so a stored PATCH is reflected by `/functions` immediately.
 
-> Earlier revisions of the suite carried fixed sleeps, catalog/Runtime-API polling and a seed-upload
-> retry-with-abort to absorb propagation lag. Those were all compensating for the missing PATCH
-> timestamp: a stored instance PATCH was not reflected by `/functions`, so reads had to wait and
-> retry for a re-sync that never reliably came. Once the advancing timestamp made the re-sync
-> deterministic, all of that machinery was removed in favor of direct reads.
+An **account narrow** is different: it has no such timestamp signal, so its propagation to the Runtime
+API is asynchronous. The propagation test therefore **polls** `/functions` after the one account
+narrow it performs (step 2), until the narrowed function disappears, instead of reading once.
+
+> Earlier revisions of the suite carried fixed sleeps, broad catalog/Runtime-API polling and a
+> function-upload retry-with-abort to absorb propagation lag on **instance** changes. Those were
+> compensating for the missing PATCH timestamp: a stored instance PATCH was not reflected by
+> `/functions`, so reads had to wait and retry for a re-sync that never reliably came. Once the
+> advancing timestamp made the instance re-sync deterministic, that machinery was removed in favor of
+> direct reads. The single remaining poll is for the asynchronous account narrow in the propagation
+> test.
 
 ### Runtime API ground truth (`/functions`)
 
@@ -353,7 +363,7 @@ the DB but is only entitled at the ALL level, so it doubles as an isolation chec
 | Get function by title | `function.read` | 404 | returns it | 404 | returns it |
 | Run function | `function.run` | 404 | runs, job `business_model=TRIAL` | 404 | runs, job `business_model=CONSUMPTION` |
 | Upload provider function | `function.write` | 404 | 404 | succeeds | succeeds |
-| List provider jobs | `function-job.read` | 404 | 404 | succeeds (sees seeded job) | succeeds |
+| List provider jobs | `function-job.read` | 404 | 404 | succeeds (sees populated job) | succeeds |
 | Retrieve a specific job | `function-job.read` | n/a | n/a | succeeds | succeeds |
 | Read provider logs | `function-provider-logs.read` | 403 | 403 | succeeds | succeeds |
 | List / download provider files | `function-provider-files.read` | 404 | 404 | succeeds | succeeds |
@@ -371,7 +381,7 @@ NONE, PROVIDER and ALL custom rows are checked inside their own per-level classe
 verified at the stated level, but the USER custom cells live in a dedicated class.
 
 Note on "Retrieve a specific job": the test asserts that `retrieve` succeeds when `function-job.read`
-is present, but because every test client shares the same `GATEWAY_TOKEN`, the seeded job is authored
+is present, but because every test client shares the same `GATEWAY_TOKEN`, the populated job is authored
 by that same user, so the author check alone would already grant access. The test therefore does not
 isolate the pure non-author path (`function-job.read` without authorship); that would require a
 second user token.

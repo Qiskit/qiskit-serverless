@@ -9,7 +9,7 @@ class must provide via an autouse binding fixture:
   - self.provider_name          provider of the test function
   - self.function_title         title of the test function
   - self.custom_function_title  title of the custom (serverless) function (where used)
-  - self.seeded_job_id          id of a pre-seeded job (where used)
+  - self.populated_job_id          id of a pre-populated job (where used)
   - self.other_function_title   title of a second function not in the entitlements (where used)
 
 This lets the same battery run at every permission level against the single reconfigurable
@@ -46,7 +46,7 @@ def _assert_403(exc_info):
     assert "| Code: 403" in str(exc_info.value)
 
 
-def _function_in_list(functions, provider_name, function_title):
+def contains_function(functions, provider_name, function_title):
     """Return True if the provider function appears in the list."""
     return any(f.title == function_title and f.provider == provider_name for f in functions)
 
@@ -77,14 +77,14 @@ class NonePermissionChecks:
     def test_list_catalog_excludes_function(self):
         """Catalog list excludes the function when no permissions are present."""
         functions = self.client.functions(filter="catalog")
-        assert not _function_in_list(
+        assert not contains_function(
             functions, self.provider_name, self.function_title
         ), f"Expected {self.provider_name}/{self.function_title} NOT in catalog list (no permissions)"
 
     def test_list_all_excludes_function(self):
         """Unfiltered list excludes the provider function when no permissions are present."""
         functions = self.client.functions()
-        assert not _function_in_list(
+        assert not contains_function(
             functions, self.provider_name, self.function_title
         ), f"Expected {self.provider_name}/{self.function_title} NOT in unfiltered list (no permissions)"
 
@@ -153,7 +153,7 @@ class NonePermissionChecks:
     def test_provider_logs_raises_403(self):
         """provider_logs() is denied (403) when no permissions are present."""
         with pytest.raises(QiskitServerlessException) as exc:
-            self.client.provider_logs(self.seeded_job_id)
+            self.client.provider_logs(self.populated_job_id)
         _assert_403(exc)
 
     def test_files_list_raises_404(self):
@@ -208,10 +208,10 @@ class NonePermissionChecks:
             self.client.run(self.custom_function_title)
         _assert_404(exc)
 
-    def test_serverless_list_includes_custom_function(self, seeded_custom_function):
+    def test_serverless_list_includes_custom_function(self, populated_custom_function):
         """Serverless list is author-based; no custom permission is needed to see own functions.
 
-        seeded_custom_function was uploaded with the same GATEWAY_TOKEN (same author), so the
+        populated_custom_function was uploaded with the same GATEWAY_TOKEN (same author), so the
         custom function must appear even though this instance has no function-custom.* permissions.
         """
         functions = self.client.functions(filter="serverless")
@@ -248,7 +248,7 @@ class UserPermissionChecks:
     def test_list_catalog_includes_function(self):
         """Catalog list includes the provider function when function.read is present."""
         functions = self.client.functions(filter="catalog")
-        assert _function_in_list(functions, self.provider_name, self.function_title), (
+        assert contains_function(functions, self.provider_name, self.function_title), (
             f"Expected {self.provider_name}/{self.function_title} in catalog list, got: "
             f"{[(f.provider, f.title) for f in functions]}"
         )
@@ -256,7 +256,7 @@ class UserPermissionChecks:
     def test_list_all_includes_function(self):
         """Unfiltered list includes the provider function when function.read is present."""
         functions = self.client.functions()
-        assert _function_in_list(
+        assert contains_function(
             functions, self.provider_name, self.function_title
         ), f"Expected {self.provider_name}/{self.function_title} in unfiltered list"
 
@@ -267,14 +267,14 @@ class UserPermissionChecks:
         so it must not appear.
         """
         functions = self.client.functions(filter="catalog")
-        assert not _function_in_list(
+        assert not contains_function(
             functions, self.provider_name, self.other_function_title
         ), f"Expected {self.provider_name}/{self.other_function_title} NOT in catalog list (not in CRN entitlements)"
 
     def test_list_all_excludes_other_function(self):
         """Unfiltered list only shows functions explicitly in the instance entitlements."""
         functions = self.client.functions()
-        assert not _function_in_list(
+        assert not contains_function(
             functions, self.provider_name, self.other_function_title
         ), f"Expected {self.provider_name}/{self.other_function_title} NOT in unfiltered list (not in CRN entitlements)"
 
@@ -285,7 +285,7 @@ class UserPermissionChecks:
         filters provider__isnull=True, so provider functions are always excluded.
         """
         functions = self.client.functions(filter="serverless")
-        assert not _function_in_list(
+        assert not contains_function(
             functions, self.provider_name, self.function_title
         ), f"Expected {self.provider_name}/{self.function_title} NOT in serverless list (has provider)"
 
@@ -363,7 +363,7 @@ class UserPermissionChecks:
     def test_provider_logs_raises_403(self):
         """provider_logs() is denied (403) when function-provider-logs.read is absent."""
         with pytest.raises(QiskitServerlessException) as exc:
-            self.client.provider_logs(self.seeded_job_id)
+            self.client.provider_logs(self.populated_job_id)
         _assert_403(exc)
 
     def test_files_list_returns_list(self):
@@ -430,7 +430,7 @@ class ProviderPermissionChecks:  # pylint: disable=too-many-public-methods
     def test_list_catalog_excludes_function(self):
         """Catalog list excludes the function when function.read is absent."""
         functions = self.client.functions(filter="catalog")
-        assert not _function_in_list(
+        assert not contains_function(
             functions, self.provider_name, self.function_title
         ), f"Expected {self.provider_name}/{self.function_title} NOT in catalog list (no function.read)"
 
@@ -441,21 +441,21 @@ class ProviderPermissionChecks:  # pylint: disable=too-many-public-methods
         assert that the specific provider function is not present.
         """
         functions = self.client.functions()
-        assert not _function_in_list(
+        assert not contains_function(
             functions, self.provider_name, self.function_title
         ), f"Expected {self.provider_name}/{self.function_title} NOT in unfiltered list (no function.read)"
 
     def test_list_catalog_excludes_other_function(self):
         """Catalog list excludes functions not in the instance entitlements."""
         functions = self.client.functions(filter="catalog")
-        assert not _function_in_list(
+        assert not contains_function(
             functions, self.provider_name, self.other_function_title
         ), f"Expected {self.provider_name}/{self.other_function_title} NOT in catalog list (not in CRN entitlements)"
 
     def test_list_all_excludes_other_function(self):
         """Unfiltered list excludes functions not in the instance entitlements."""
         functions = self.client.functions()
-        assert not _function_in_list(
+        assert not contains_function(
             functions, self.provider_name, self.other_function_title
         ), f"Expected {self.provider_name}/{self.other_function_title} NOT in unfiltered list (not in CRN entitlements)"
 
@@ -484,34 +484,34 @@ class ProviderPermissionChecks:  # pylint: disable=too-many-public-methods
         assert result is not None
         assert result.title == self.function_title
 
-    def test_provider_jobs_contains_seeded_job(self):
+    def test_provider_jobs_contains_populated_job(self):
         """provider_jobs() returns the expected jobs when function-job.read is present.
 
-        Verifies that the seeded job appears in the list, confirming the endpoint filters
+        Verifies that the populated job appears in the list, confirming the endpoint filters
         correctly by function and that function-job.read grants access.
         """
         fn = QiskitFunction(title=self.function_title, provider=self.provider_name)
         jobs = self.client.provider_jobs(fn)
         assert isinstance(jobs, list)
         assert any(
-            j.job_id == self.seeded_job_id for j in jobs
-        ), f"Seeded job {self.seeded_job_id} not found in provider_jobs. Got: {[j.job_id for j in jobs]}"
+            j.job_id == self.populated_job_id for j in jobs
+        ), f"Populated job {self.populated_job_id} not found in provider_jobs. Got: {[j.job_id for j in jobs]}"
 
     def test_retrieve_job_succeeds(self):
         """retrieve() succeeds when function-job.read is present.
 
-        Note: since all test clients share the same GATEWAY_TOKEN, the seeded job is
+        Note: since all test clients share the same GATEWAY_TOKEN, the populated job is
         authored by the same user and the author check alone would grant access. The
         non-author code path (function-job.read only) requires a separate user token.
         """
-        job_data = self.client.get_job_data(self.seeded_job_id)
+        job_data = self.client.get_job_data(self.populated_job_id)
         assert job_data is not None
         assert "status" in job_data
 
     def test_list_serverless_excludes_provider_function(self):
         """Serverless filter never returns provider functions regardless of permissions."""
         functions = self.client.functions(filter="serverless")
-        assert not _function_in_list(
+        assert not contains_function(
             functions, self.provider_name, self.function_title
         ), f"Expected {self.provider_name}/{self.function_title} NOT in serverless list (has provider)"
 
@@ -553,7 +553,7 @@ class ProviderPermissionChecks:  # pylint: disable=too-many-public-methods
 
     def test_provider_logs_succeeds(self):
         """provider_logs() succeeds when function-provider-logs.read is present."""
-        logs = self.client.provider_logs(self.seeded_job_id)
+        logs = self.client.provider_logs(self.populated_job_id)
         assert logs is not None
 
     def test_files_list_raises_404(self):
@@ -608,10 +608,10 @@ class ProviderPermissionChecks:  # pylint: disable=too-many-public-methods
             self.client.run(self.custom_function_title)
         _assert_404(exc)
 
-    def test_serverless_list_includes_custom_function(self, seeded_custom_function):
+    def test_serverless_list_includes_custom_function(self, populated_custom_function):
         """Serverless list is author-based; no custom permission is needed to see own functions.
 
-        seeded_custom_function was uploaded with the same GATEWAY_TOKEN (same author), so the
+        populated_custom_function was uploaded with the same GATEWAY_TOKEN (same author), so the
         custom function must appear even though this instance has no function-custom.* permissions.
         """
         functions = self.client.functions(filter="serverless")
@@ -648,14 +648,14 @@ class CombinedPermissionChecks:  # pylint: disable=too-many-public-methods
     def test_list_catalog_includes_function(self):
         """Catalog list includes the provider function."""
         functions = self.client.functions(filter="catalog")
-        assert _function_in_list(
+        assert contains_function(
             functions, self.provider_name, self.function_title
         ), f"Expected {self.provider_name}/{self.function_title} in catalog list"
 
     def test_list_all_includes_function(self):
         """Unfiltered list includes the provider function."""
         functions = self.client.functions()
-        assert _function_in_list(
+        assert contains_function(
             functions, self.provider_name, self.function_title
         ), f"Expected {self.provider_name}/{self.function_title} in unfiltered list"
 
@@ -668,27 +668,27 @@ class CombinedPermissionChecks:  # pylint: disable=too-many-public-methods
         in TestUserInstance and TestProviderInstance.
         """
         functions = self.client.functions(filter="catalog")
-        assert _function_in_list(
+        assert contains_function(
             functions, self.provider_name, self.function_title
         ), f"Expected {self.provider_name}/{self.function_title} in catalog list"
-        assert _function_in_list(
+        assert contains_function(
             functions, self.provider_name, self.other_function_title
         ), f"Expected {self.provider_name}/{self.other_function_title} in catalog list (entitled for combined_instance)"
 
     def test_list_all_includes_both_functions(self):
         """Unfiltered list includes both functions entitled for this CRN."""
         functions = self.client.functions()
-        assert _function_in_list(
+        assert contains_function(
             functions, self.provider_name, self.function_title
         ), f"Expected {self.provider_name}/{self.function_title} in unfiltered list"
-        assert _function_in_list(
+        assert contains_function(
             functions, self.provider_name, self.other_function_title
         ), f"Expected {self.provider_name}/{self.other_function_title} in unfiltered list (entitled for combined_instance)"
 
     def test_list_serverless_excludes_provider_function(self):
         """Serverless filter never returns provider functions regardless of permissions."""
         functions = self.client.functions(filter="serverless")
-        assert not _function_in_list(
+        assert not contains_function(
             functions, self.provider_name, self.function_title
         ), f"Expected {self.provider_name}/{self.function_title} NOT in serverless list (has provider)"
 
@@ -723,24 +723,24 @@ class CombinedPermissionChecks:  # pylint: disable=too-many-public-methods
         assert result is not None
         assert result.title == self.function_title
 
-    def test_provider_jobs_contains_seeded_job(self):
+    def test_provider_jobs_contains_populated_job(self):
         """provider_jobs() returns the expected jobs with full permissions."""
         fn = QiskitFunction(title=self.function_title, provider=self.provider_name)
         jobs = self.client.provider_jobs(fn)
         assert isinstance(jobs, list)
         assert any(
-            j.job_id == self.seeded_job_id for j in jobs
-        ), f"Seeded job {self.seeded_job_id} not found in provider_jobs. Got: {[j.job_id for j in jobs]}"
+            j.job_id == self.populated_job_id for j in jobs
+        ), f"Populated job {self.populated_job_id} not found in provider_jobs. Got: {[j.job_id for j in jobs]}"
 
     def test_retrieve_job_succeeds(self):
         """retrieve() succeeds with full permissions."""
-        job_data = self.client.get_job_data(self.seeded_job_id)
+        job_data = self.client.get_job_data(self.populated_job_id)
         assert job_data is not None
         assert "status" in job_data
 
     def test_provider_logs_succeeds(self):
         """provider_logs() succeeds with full permissions."""
-        logs = self.client.provider_logs(self.seeded_job_id)
+        logs = self.client.provider_logs(self.populated_job_id)
         assert logs is not None
 
     def test_provider_files_list_returns_list(self):
@@ -827,13 +827,13 @@ class CombinedPermissionChecks:  # pylint: disable=too-many-public-methods
         assert result is not None
         assert result.title == self.custom_function_title
 
-    def test_run_custom_function_succeeds(self, seeded_custom_function):
+    def test_run_custom_function_succeeds(self, populated_custom_function):
         """run() creates a job for the custom function when function-custom.run is present."""
         job = self.client.run(self.custom_function_title)
         assert job is not None
         assert job.job_id is not None
 
-    def test_serverless_list_includes_custom_function(self, seeded_custom_function):
+    def test_serverless_list_includes_custom_function(self, populated_custom_function):
         """Serverless filter returns the custom function owned by the authenticated user."""
         functions = self.client.functions(filter="serverless")
         titles = [f.title for f in functions]
@@ -865,13 +865,13 @@ class CustomFunctionChecks:
         assert result is not None
         assert result.title == self.custom_function_title
 
-    def test_run_custom_function_succeeds(self, seeded_custom_function):
+    def test_run_custom_function_succeeds(self, populated_custom_function):
         """run() creates a job for the custom function when function-custom.run is present."""
         job = self.client.run(self.custom_function_title)
         assert job is not None
         assert job.job_id is not None
 
-    def test_serverless_list_includes_custom_function(self, seeded_custom_function):
+    def test_serverless_list_includes_custom_function(self, populated_custom_function):
         """Serverless filter returns the custom function owned by the authenticated user."""
         functions = self.client.functions(filter="serverless")
         titles = [f.title for f in functions]

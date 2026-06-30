@@ -1,7 +1,7 @@
 # pylint: disable=line-too-long
 """Client for configuring NTC accounts and service instances in acceptance tests.
 
-This is a Python port of the bash workflow used to seed the permission tests. It talks to
+This is a Python port of the bash workflow used to populate the permission tests. It talks to
 two NTC hosts, each with a DIFFERENT authorization scheme, both derived from a single API key:
 
   - the account admin API (``quantum.test.cloud.ibm.com``) authenticates with
