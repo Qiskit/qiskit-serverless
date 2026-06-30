@@ -244,33 +244,32 @@ own `functions` to `[]` lands on the 200 + clean-deny path. The propagation test
 distinction, and the NONE level is built by PATCHing the instance to `functions: []` (not by
 emptying the account).
 
-### Gateway entitlements cache and propagation waits
+### Gateway entitlements cache and direct reads
 
 The gateway caches the per-CRN `/functions` result for `RUNTIME_API_CACHE_TTL` seconds
-(`function_access_client.py`; 1s on staging) under a key derived from `(instance_crn, api_key_hash)`.
-Because every level reuses the **same CRN and token**, the cache key is identical across levels, so a
-reconfiguration is only observed by the next gateway read once that entry expires. Every NTC change
-that a subsequent gateway read must observe is therefore followed by `wait_for_propagation()`, which
-sleeps `TEST_CACHE_WAIT_SECONDS` (default 3s, a little above the TTL). On top of the gateway cache,
-the NTC -> Runtime API propagation itself is eventually-consistent, so the wait also absorbs that
-lag.
+(`function_access_client.py`) under a key derived from `(instance_crn, api_key_hash)`. Because every
+level reuses the **same CRN and token**, the cache key is identical across levels, so a stale entry
+would make a gateway read return the previous level. The suite therefore assumes the test deployment
+runs with the gateway `/functions` cache **disabled** (`RUNTIME_API_CACHE_TTL=0`), so each gateway
+read reflects the current instance state.
 
-A fixed sleep is not always enough, because that NTC -> Runtime API propagation has no upper bound
-the test controls, and **adding** an entitlement (re-adding a function to the instance) is the slow
-case while unchanged functions are already visible. Several helpers make the suite robust to this:
+Given that, the suite reads back every change **immediately**, with no sleep and no polling:
 
-- `wait_for_catalog` **polls** the gateway catalog until a function reaches the expected visibility
-  (up to `TEST_PROPAGATION_TIMEOUT_SECONDS`, default 30s) instead of reading once after a fixed
-  sleep. The propagation test uses it so that, for example, re-adding the function to the instance
-  in step 4 is observed reliably rather than racing the propagation.
-- `wait_for_runtime` polls the **Runtime API directly** (see below) for the ground truth, before the
-  gateway cache. The seeds use it to wait until `function.write` is actually granted before
-  attempting an upload.
-- `seed_with_recovery` wraps the **session-scoped seed uploads**: it retries the upload through the
-  propagation lag until it succeeds, and if nothing works within `TEST_SEED_UPLOAD_TIMEOUT_SECONDS`
-  (default 60s) it calls `pytest.exit` to **abort the whole session**, so one un-propagated seed does
-  not cascade into dozens of failures. Each failed attempt logs the current Runtime API state for
-  diagnosis.
+- `apply_level` sets the account superset and PATCHes the instance, then returns; the permission
+  tests read the gateway right after.
+- `assert_runtime_matches` reads the Runtime API once and asserts the entitlements match.
+- The propagation test reads the catalog directly after each account/instance change.
+
+This is sound because the instance PATCH carries an **advancing `timestamp`** (see the Runtime API
+ground truth section): it forces the Runtime API to invalidate its per-instance cache and re-sync at
+once, so a stored PATCH is reflected by `/functions` immediately. The account narrow-sync is itself
+synchronous, so a narrow is observable as soon as the account save returns.
+
+> Earlier revisions of the suite carried fixed sleeps, catalog/Runtime-API polling and a seed-upload
+> retry-with-abort to absorb propagation lag. Those were all compensating for the missing PATCH
+> timestamp: a stored instance PATCH was not reflected by `/functions`, so reads had to wait and
+> retry for a re-sync that never reliably came. Once the advancing timestamp made the re-sync
+> deterministic, all of that machinery was removed in favor of direct reads.
 
 ### Runtime API ground truth (`/functions`)
 
@@ -293,14 +292,11 @@ three-state contract above), and the Runtime API echoes that shape back on the r
 `custom_functions` to an empty permission set rather than dereferencing it.
 
 `runtime_api_client.py` (`RuntimeApiClient`) reproduces this exact call so the tests can read the
-ground truth **directly, before the gateway cache**. This is used for two things:
-
-- **Authoritative waits**: `wait_for_runtime` / `assert_runtime_matches` poll the real source of
-  truth, so we no longer rely solely on a fixed sleep tuned to the cache TTL.
-- **Content verification**: `test_runtime_api.py` configures the instance at each level and asserts
-  the Runtime API exposes **exactly** the functions, permissions and custom permissions that were
-  written (and that `functions: []` is the clean `200`-empty deny path, not a `204` fallback). The
-  parsed entitlements are logged on every read for diagnosis.
+ground truth **directly, independent of the gateway**. `test_runtime_api.py` configures the instance
+at each level and asserts via `assert_runtime_matches` that the Runtime API exposes **exactly** the
+functions, permissions and custom permissions that were written (and that `functions: []` is the
+clean `200`-empty deny path, not a `204` fallback). The parsed entitlements are logged on every read
+for diagnosis.
 
 `RUNTIME_API_BASE_URL` defaults to `NTC_ADMIN_BASE` (the gateway's own default,
 `https://quantum.test.cloud.ibm.com`) and `RUNTIME_API_KEY` defaults to `GATEWAY_TOKEN`; both can be

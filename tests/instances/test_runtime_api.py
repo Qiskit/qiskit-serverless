@@ -22,7 +22,6 @@ from instances.conftest import (
     apply_level,
     assert_runtime_matches,
     ensure_account_superset,
-    wait_for_runtime,
     RECONFIG_CRN,
 )
 
@@ -37,7 +36,6 @@ def restore_account(ntc):
 def test_runtime_reflects_all_level(ntc, runtime, function_title, other_function_title):
     """ALL level: both functions present on the Runtime API with the full permission set + custom."""
     apply_level(ntc, ALL_FUNCTIONS, ALL_CUSTOM)
-    wait_for_runtime(runtime, function_title, present=True, require_permissions=["function.write"])
     assert_runtime_matches(runtime, ALL_FUNCTIONS, ALL_CUSTOM)
 
 
