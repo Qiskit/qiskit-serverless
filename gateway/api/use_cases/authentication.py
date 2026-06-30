@@ -1,21 +1,21 @@
 """Authentication use case to manage the authentication process in the api."""
 
 import logging
-from typing import Optional
+from typing import List, Optional
 
 from django.conf import settings
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AbstractUser, Group, Permission
 from rest_framework import exceptions
 
 from api.access_policies.users import UserAccessPolicies
+from api.domain.authentication.authentication_group import AuthenticationGroup
 from api.domain.authentication.channel import Channel
-from api.repositories.providers import ProviderRepository
-from api.repositories.users import UserRepository
-from api.services.authentication.authentication_base import AuthenticationBase
 from api.services.authentication.ibm_quantum_platform import IBMQuantumPlatform
 from api.services.authentication.local_authentication import LocalAuthenticationService
-from core.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
+from core.models import GroupMetadata, RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Provider
 
+User = get_user_model()
 logger = logging.getLogger("api.AuthenticationUseCase")
 
 
@@ -23,9 +23,6 @@ class AuthenticationUseCase:
     """
     This class will manage the authentication flow for the api.
     """
-
-    user_repository = UserRepository()
-    provider_repository = ProviderRepository()
 
     def __init__(
         self,
@@ -39,7 +36,7 @@ class AuthenticationUseCase:
         self.crn = crn
         self.public_access = public_access
 
-    def _get_authentication_service_instance(self) -> AuthenticationBase:
+    def _get_authentication_service_instance(self):
         if self.channel in (Channel.IBM_CLOUD, Channel.IBM_QUANTUM_PLATFORM):
             return IBMQuantumPlatform(api_key=self.authorization_token, crn=self.crn)
 
@@ -52,7 +49,7 @@ class AuthenticationUseCase:
         """
         authentication_service = self._get_authentication_service_instance()
 
-        user_id = authentication_service.authenticate()
+        username = authentication_service.authenticate()
         account_id = authentication_service.get_account_id()
 
         if self.public_access is False:
@@ -61,7 +58,9 @@ class AuthenticationUseCase:
                 raise exceptions.AuthenticationFailed("Sorry, you don't have access to the service.")
 
         access_groups = authentication_service.get_groups()
-        quantum_user = self.user_repository.get_or_create_by_id(user_id=user_id)
+        quantum_user, created = User.objects.get_or_create(username=username)
+        if created:
+            logger.debug("New user [%s] created", username)
         if not UserAccessPolicies.can_access(quantum_user):
             raise exceptions.AuthenticationFailed(
                 "Your user was deactivated. Please contact to IBM support for reactivaton."
@@ -69,22 +68,48 @@ class AuthenticationUseCase:
 
         if self.channel == Channel.LOCAL:
             permission_names = [VIEW_PROGRAM_PERMISSION, RUN_PROGRAM_PERMISSION]
-            groups = self.user_repository.restart_user_groups(
+            groups = self._restart_user_groups(
                 user=quantum_user,
                 authentication_groups=access_groups,
                 permission_names=permission_names,
             )
-            self.provider_repository.get_or_create_by_name(
+            provider, created = Provider.objects.get_or_create(
                 name="mockprovider",
                 registry=settings.SETTINGS_AUTH_MOCKPROVIDER_REGISTRY,
-                admin_groups=groups,
             )
+            if created:
+                for admin_group in groups:
+                    provider.admin_groups.add(admin_group)
         else:
             permission_names = [VIEW_PROGRAM_PERMISSION]
-            self.user_repository.restart_user_groups(
+            self._restart_user_groups(
                 user=quantum_user,
                 authentication_groups=access_groups,
                 permission_names=permission_names,
             )
 
         return quantum_user, account_id
+
+    # Deprecate this when login through instances migration was completed
+    def _restart_user_groups(
+        self,
+        user: type[AbstractUser],
+        authentication_groups: List[AuthenticationGroup],
+        permission_names: List[str],
+    ) -> List[Group]:
+        new_groups = []
+
+        permissions = Permission.objects.filter(codename__in=permission_names)
+
+        user.groups.clear()
+
+        for authentication_group in authentication_groups:
+            group, created = Group.objects.get_or_create(name=authentication_group.group_name)
+            if created:
+                group.permissions.add(*permissions)
+            if authentication_group.account is not None:
+                GroupMetadata.objects.update_or_create(group=group, defaults={"account": authentication_group.account})
+            group.user_set.add(user)
+            new_groups.append(group)
+
+        return new_groups

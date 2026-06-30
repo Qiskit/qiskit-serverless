@@ -8,15 +8,12 @@ from api.domain.exceptions.provider_not_found_exception import ProviderNotFoundE
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.model_managers.jobs import JobFilters
-from core.models import Job, PLATFORM_PERMISSION_JOBS_READ
+from core.models import Job, PLATFORM_PERMISSION_JOBS_READ, Provider
 from core.models import Program as Function
-from api.repositories.providers import ProviderRepository
 
 
 class JobsProviderListUseCase:
     """Use case for retrieving provider jobs with optional filtering and pagination."""
-
-    provider_repository = ProviderRepository()
 
     def execute(
         self,
@@ -34,7 +31,7 @@ class JobsProviderListUseCase:
             ProviderNotFoundException: If the provider doesn't exist or access is denied.
             FunctionNotFoundException: If the function doesn't exist.
         """
-        provider = self.provider_repository.get_provider_by_name(filters.provider)
+        provider = Provider.objects.get_by_name(filters.provider)
         if not provider:
             raise ProviderNotFoundException(filters.provider)
 
