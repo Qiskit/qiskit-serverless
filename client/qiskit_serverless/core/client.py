@@ -68,12 +68,18 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
         Initialize a BaseClient instance.
 
         Args:
-            name: name of client
+            name: (deprecated) name of client - will be removed in a future release
             host: host of client a.k.a managers host
             token: authentication token for manager
             instance: IBM Cloud CRN or IQP h/g/p
             channel: identifies the method to use to authenticate the user
         """
+        if name:
+            warnings.warn(
+                "The 'name' attribute is deprecated and will be removed in a future release.",
+                DeprecationWarning,
+                stacklevel=2
+            )
         self.name = name
         self.host = host
         self.token = token
@@ -189,7 +195,19 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
     ######################
 
     def widget(self):
-        """Widget for information about provider and jobs."""
+        """Widget for information about provider and jobs.
+
+        .. deprecated:: 0.33.0
+            The ``widget()`` method is deprecated and will be removed in a future release.
+            The Jupyter widget interface is no longer maintained. Use ``jobs()`` and
+            ``functions()`` directly, or the IBM Quantum web dashboard instead.
+        """
+        warnings.warn(
+            "The `widget()` method is deprecated and will be removed in a future release. "
+            "Use `jobs()` and `functions()` directly, or the IBM Quantum web dashboard instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         # prevent cyclic import
         from qiskit_serverless.visualization import (  # pylint: disable=import-outside-toplevel
             Widget,
