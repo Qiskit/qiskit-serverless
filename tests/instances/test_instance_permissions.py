@@ -4,9 +4,8 @@
 These tests verify that each implemented endpoint correctly grants or denies access
 depending on the effective permissions of the instance CRN used to authenticate.
 
-Unlike the original suite (which depended on four pre-configured CRNs), this version uses
-a SINGLE reconfigurable instance: each test class reconfigures the instance to its level
-(NONE / USER / PROVIDER / ALL) right before each test via the NTC APIs, and reuses the
+The suite uses a SINGLE reconfigurable instance: each test class reconfigures the instance to its
+level (NONE / USER / PROVIDER / ALL) right before each test via the NTC APIs, and reuses the
 shared assertion battery from permission_checks.py.
 
 Setup (see conftest.py for the full list):

@@ -12,8 +12,8 @@ class must provide via an autouse binding fixture:
   - self.seeded_job_id          id of a pre-seeded job (where used)
   - self.other_function_title   title of a second function not in the entitlements (where used)
 
-This lets the same battery run against either pre-configured CRNs or an instance
-reconfigured on the fly through the Runtime API.
+This lets the same battery run at every permission level against the single reconfigurable
+instance, which each test class drives to its level before binding self.client.
 """
 
 import requests
