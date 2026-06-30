@@ -99,7 +99,8 @@ class TestIBMEventStreamsClient:
                         mock_producer.flush.return_value = 0
                         client.emit_job_started(job)
 
-        published = json.loads(mock_producer.produce.call_args[1]["value"])
+        call_kwargs = mock_producer.produce.call_args[1]
+        published = json.loads(call_kwargs["value"])
         assert published["specversion"] == "1.0"
         assert published["type"] == "quantum.production.function-usage.v1"
         assert published["source"] == "qiskit-serverless/scheduler/fleets"
@@ -108,6 +109,7 @@ class TestIBMEventStreamsClient:
         assert published["data"]["usage_nanoseconds"] == 0
         assert published["data"]["instance_crn"] == job.instance_crn
         assert published["data"]["function_id"] == str(job.id)
+        assert call_kwargs["key"] == str(job.id).encode("utf-8")
         mock_producer.flush.assert_called_once()
 
     def test_emit_job_in_progress_computes_usage_nanoseconds(self):
