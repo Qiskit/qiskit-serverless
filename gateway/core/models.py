@@ -18,6 +18,7 @@ from core.model_managers.code_engine_projects import CodeEngineProjectQuerySet
 from core.model_managers.functions import FunctionsQuerySet
 from core.model_managers.job_events import JobEventQuerySet
 from core.model_managers.jobs import JobQuerySet
+from core.model_managers.providers import ProviderQuerySet
 
 logger = logging.getLogger("core.models")
 
@@ -85,6 +86,8 @@ class Provider(models.Model):
     icon_url = models.TextField(null=True, blank=True, default=None)
     registry = models.CharField(max_length=255, null=True, blank=True, default=None)
     admin_groups = models.ManyToManyField(Group)
+
+    objects = ProviderQuerySet.as_manager()
 
     class Meta:
         app_label = "api"
