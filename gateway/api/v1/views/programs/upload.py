@@ -126,10 +126,7 @@ class ProgramSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):  # pylint: disable=too-many-branches
         """Validates serializer data."""
-        entrypoint = attrs.get("entrypoint", None)
         image = attrs.get("image", None)
-        if entrypoint is None and image is None:
-            raise ValidationError("At least one of attributes (entrypoint, image) is required.")
         try:
             deps = json.loads(attrs.get("dependencies", "[]"))
         except (json.JSONDecodeError, UnicodeDecodeError) as exc:

@@ -71,6 +71,9 @@ class UploadFunctionUseCase:
     def _create(self, data: UploadFunctionInput, user, provider) -> Function:
         logger.info("user_id=%s program=%s | Creating function", user.id, data.title)
 
+        if data.entrypoint is None and data.image is None:
+            raise DRFValidationError("At least one of attributes (entrypoint, image) is required.")
+
         env_vars = data.env_vars
         if env_vars:
             env_vars = json.dumps(encrypt_env_vars(json.loads(env_vars)))
