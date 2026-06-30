@@ -134,6 +134,50 @@ class TestFleetsResultStorage:
         with pytest.raises(NotImplementedError):
             storage.save("some result")
 
+    # ── get_url ────────────────────────────────────────────────────────────────
+
+    def test_get_url_returns_url_when_object_exists(self, job):
+        """get_url() returns a presigned URL when the COS object exists."""
+        mock_cos = MagicMock()
+        mock_cos.get_presigned_url.return_value = "https://cos.example.com/results.json?sig=abc"
+
+        with patch(_COS_MODULE, return_value=mock_cos):
+            result = FleetsResultStorage(job).get_url()
+
+        assert result == "https://cos.example.com/results.json?sig=abc"
+        mock_cos.head_object.assert_called_once()
+        mock_cos.get_presigned_url.assert_called_once()
+
+    def test_get_url_returns_none_when_not_found(self, job):
+        """get_url() returns None when the COS object does not exist."""
+        mock_cos = MagicMock()
+        mock_cos.head_object.side_effect = _make_client_error("NoSuchKey")
+
+        with patch(_COS_MODULE, return_value=mock_cos):
+            result = FleetsResultStorage(job).get_url()
+
+        assert result is None
+        mock_cos.get_presigned_url.assert_not_called()
+
+    def test_get_url_returns_none_on_404(self, job):
+        """get_url() returns None for 404 COS error."""
+        mock_cos = MagicMock()
+        mock_cos.head_object.side_effect = _make_client_error("404")
+
+        with patch(_COS_MODULE, return_value=mock_cos):
+            result = FleetsResultStorage(job).get_url()
+
+        assert result is None
+
+    def test_get_url_reraises_non_404_cos_error(self, job):
+        """get_url() re-raises unexpected COS errors (e.g., 403)."""
+        mock_cos = MagicMock()
+        mock_cos.head_object.side_effect = _make_client_error("AccessDenied")
+
+        with patch(_COS_MODULE, return_value=mock_cos):
+            with pytest.raises(ClientError):
+                FleetsResultStorage(job).get_url()
+
     def test_factory_returns_fleets_storage_for_fleet_job(self, job):
         """get_result_storage returns FleetsResultStorage for FLEETS runner jobs."""
         storage = get_result_storage(job)

@@ -92,6 +92,7 @@ ENV/
 # Sphinx
 docs/stubs/
 docs/_build/
+docs/superpowers/
 /manager/debug.log
 /manager/ray-1/
 /debug.log

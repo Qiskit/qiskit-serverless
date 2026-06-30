@@ -1,0 +1,73 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block title %}Events -- Job {{ job.id }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'change' job.pk|admin_urlquote %}">{{ job|truncatewords:"18" }}</a>
+&rsaquo; {% translate 'Events' %}
+</div>
+{% endblock %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'admin/css/job_admin.css' %}">
+    <link rel="stylesheet" href="{% static 'admin/css/admin_job_event_inline.css' %}">
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+<h1>{% translate "Events" %}</h1>
+
+<div class="job-nav">
+    <a href="{% url opts|admin_urlname:'change' job.id|admin_urlquote %}">{% translate "Edit Job" %}</a>
+    <a class="active">{% translate "Events" %}</a>
+    <a href="{% url 'admin:job_files_view' job.id %}">{% translate "Storage Files" %}</a>
+    <a href="{% url opts|admin_urlname:'history' job.id|admin_urlquote %}">{% translate "History" %}</a>
+</div>
+{% include "admin/api/job/_job_subtitle.html" with job_instance=job %}
+
+{% if not events %}
+  <p>{% translate "No events found for this job." %}</p>
+{% else %}
+<table style="width: 100%; border-collapse: collapse; font-size: 0.875em;">
+  <thead>
+    <tr style="background: #f5f5f5; border-bottom: 2px solid #ccc;">
+      <th style="padding: 6px 12px; text-align: left; width: 160px;">{% translate "Date" %}</th>
+      <th style="padding: 6px 12px; text-align: left; width: 160px;">{% translate "Type" %}</th>
+      <th style="padding: 6px 12px; text-align: left; width: 140px;">{% translate "Status" %}</th>
+      <th style="padding: 6px 12px; text-align: left; width: 100px;">{% translate "Origin" %}</th>
+      <th style="padding: 6px 12px; text-align: left; width: 100px;">{% translate "Context" %}</th>
+      <th style="padding: 6px 12px; text-align: left;">{% translate "Data" %}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for ev in events %}
+    <tr style="border-bottom: 1px solid #eee; {% cycle '' 'background: #fafafa;' %}">
+      <td style="padding: 6px 12px; color: #555; white-space: nowrap;">{{ ev.obj.created|date:"Y-m-d H:i:s" }}</td>
+      <td style="padding: 6px 12px; font-family: monospace; font-size: 0.85em;">{{ ev.obj.event_type }}</td>
+      <td style="padding: 6px 12px;">
+        {% if ev.display_status %}
+          <span class="event-badge" data-event-status="{{ ev.display_status }}">{{ ev.display_status }}</span>
+        {% else %}
+          <span style="color: #aaa;">&mdash;</span>
+        {% endif %}
+      </td>
+      <td style="padding: 6px 12px; color: #555;">{{ ev.obj.origin }}</td>
+      <td style="padding: 6px 12px; color: #555;">{{ ev.obj.context }}</td>
+      <td style="padding: 6px 12px;">
+        {% if ev.pretty_json %}
+          <pre class="event-json-block">{{ ev.pretty_json }}</pre>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+</div>
+{% endblock %}

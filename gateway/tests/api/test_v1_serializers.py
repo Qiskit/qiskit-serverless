@@ -11,18 +11,17 @@ from django.core.files import File
 from django.core.management import call_command
 
 from api.domain.authentication.channel import Channel
-from api.v1.serializers import (
-    JobConfigSerializer,
-    JobSerializer,
-    JobSerializerWithoutResult,
-    UploadProgramSerializer,
-    RunProgramSerializer,
-    RunJobSerializer,
-)
+from api.use_cases.programs.run import RunFunctionUseCase
+from api.use_cases.programs.run_input import RunFunctionInput
+from api.v1.views.jobs.retrieve import JobSerializer, JobSerializerWithoutResult
+from api.v1.views.programs.run import InputSerializer as RunProgramSerializer, JobConfigSerializer
+from api.v1.views.programs.upload import ProgramSerializer as UploadProgramSerializer
+from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.business_models import BusinessModel
 from core.models import Job, JobConfig, Program
 from rest_framework.exceptions import ValidationError
-from tests.utils import TestUtils
+from core.models import PLATFORM_PERMISSION_RUN
+from tests.utils import TestUtils, create_function_access_result
 
 
 class TestSerializers:
@@ -55,41 +54,6 @@ class TestSerializers:
         assert not entry.min_workers
         assert not entry.max_workers
         assert not entry.auto_scaling
-
-    def test_upload_program_serializer_creates_program(self):
-        path_to_resource_artifact = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "artifact.tar",
-        )
-        file_data = File(open(path_to_resource_artifact, "rb"))
-        upload_file = SimpleUploadedFile("artifact.tar", file_data.read(), content_type="multipart/form-data")
-
-        user = models.User.objects.get(username="test_user")
-
-        title = "Hello world"
-        entrypoint = "pattern.py"
-        type = Program.CIRCUIT
-        arguments = "{}"
-        dependencies = "[]"
-
-        data = {}
-        data["title"] = title
-        data["entrypoint"] = entrypoint
-        data["type"] = type
-        data["arguments"] = arguments
-        data["dependencies"] = dependencies
-        data["artifact"] = upload_file
-
-        serializer = UploadProgramSerializer(data=data)
-        assert serializer.is_valid()
-
-        program: Program = serializer.save(author=user)
-        assert title == program.title
-        assert type == program.type
-        assert entrypoint == program.entrypoint
-        assert dependencies == program.dependencies
 
     def test_upload_program_serializer_check_empty_data(self):
         data = {}
@@ -227,29 +191,22 @@ class TestSerializers:
     def test_run_job_serializer_creates_job(self):
         user = models.User.objects.get(username="test_user")
         program_instance = Program.objects.get(id="1a7947f9-6ae8-4e3d-ac1e-e7d608deec82")
-        arguments = "{}"
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
-        config_data = {
-            "workers": None,
-            "min_workers": 1,
-            "max_workers": 5,
-            "auto_scaling": True,
-        }
-        config_serializer = JobConfigSerializer(data=config_data)
-        config_serializer.is_valid()
-        jobconfig = config_serializer.save()
-
-        job_data = {"arguments": arguments, "program": program_instance.id}
-        job_serializer = RunJobSerializer(data=job_data)
-        job_serializer.is_valid()
-
-        job = job_serializer.save(
-            channel=Channel.IBM_QUANTUM_PLATFORM,
-            author=user,
-            carrier={},
-            token="my_token",
-            config=jobconfig,
-            account_id="1234-5678-9012",
+        job = RunFunctionUseCase().execute(
+            user,
+            accessible,
+            RunFunctionInput(
+                title=program_instance.title,
+                provider_name=None,
+                arguments="{}",
+                config_data={"workers": None, "min_workers": 1, "max_workers": 5, "auto_scaling": True},
+                compute_profile=None,
+                channel=Channel.IBM_QUANTUM_PLATFORM,
+                token="my_token",
+                instance=None,
+                account_id="1234-5678-9012",
+            ),
         )
         env_vars = json.loads(job.env_vars)
 
@@ -265,23 +222,29 @@ class TestSerializers:
         assert env_vars["PROGRAM_ENV2"] == "VALUE2"
         assert job.account_id == "1234-5678-9012"
 
-    @patch("api.serializers.create_gpujob_allowlist")
+    @patch("api.use_cases.programs.run.create_gpujob_allowlist")
     def test_run_job_serializer_sets_gpu_flag_for_gpu_provider(self, mock_gpujob_allowlist):
         """Tests that gpu flag is True when program's provider is in GPU allowlist."""
         mock_gpujob_allowlist.return_value = {"gpu-functions": {"gpu_provider": []}}
 
         user = models.User.objects.get(username="test_user")
-        program = TestUtils.create_program(program_title="Default-Program", author=user, provider="gpu_provider")
+        program = TestUtils.create_program(program_title="gpu-func", author=user, provider="gpu_provider")
+        accessible = create_function_access_result("gpu_provider", "gpu-func", {PLATFORM_PERMISSION_RUN})
 
-        job_data = {"program": program.id}
-        job_serializer = RunJobSerializer(data=job_data)
-        job_serializer.is_valid()
-
-        job = job_serializer.save(
-            channel=Channel.IBM_QUANTUM_PLATFORM,
-            author=user,
-            carrier={},
-            token="my_token",
+        job = RunFunctionUseCase().execute(
+            user,
+            accessible,
+            RunFunctionInput(
+                title="gpu-func",
+                provider_name="gpu_provider",
+                arguments="{}",
+                config_data=None,
+                compute_profile=None,
+                channel=Channel.IBM_QUANTUM_PLATFORM,
+                token="my_token",
+                instance=None,
+                account_id=None,
+            ),
         )
 
         assert job.gpu
@@ -392,48 +355,19 @@ class TestSerializers:
         serializer = UploadProgramSerializer(data=data)
         assert not serializer.is_valid(), serializer.errors
 
-    def test_upload_program_serializer_updates_program_without_description(self):
-        path_to_resource_artifact = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "artifact.tar",
-        )
-        file_data = File(open(path_to_resource_artifact, "rb"))
-        upload_file = SimpleUploadedFile("artifact.tar", file_data.read(), content_type="multipart/form-data")
-
-        user = models.User.objects.get(username="test_user")
-
-        title = "Hello world"
-        entrypoint = "pattern.py"
-        arguments = "{}"
-        dependencies = "[]"
-        description = "This is my old description"
-
-        data = {}
-        data["title"] = title
-        data["entrypoint"] = entrypoint
-        data["arguments"] = arguments
-        data["dependencies"] = dependencies
-        data["description"] = description
-        data["artifact"] = upload_file
+    def test_upload_program_serializer_sanitizes_title(self):
+        data = {"title": "my fn!", "entrypoint": "main.py"}
 
         serializer = UploadProgramSerializer(data=data)
-        serializer.is_valid()
-        program: Program = serializer.save(author=user)
-        assert description == program.description
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data["title"] == "myfn"
 
-        data_without_description = {}
-        data_without_description["title"] = title
-        data_without_description["entrypoint"] = entrypoint
-        data_without_description["arguments"] = arguments
-        data_without_description["dependencies"] = dependencies
-        data_without_description["artifact"] = upload_file
+    def test_upload_program_serializer_sanitizes_provider(self):
+        data = {"title": "my-fn", "entrypoint": "main.py", "provider": "my provider!"}
 
-        serializer_2 = UploadProgramSerializer(program, data=data_without_description)
-        serializer_2.is_valid()
-        program_2: Program = serializer_2.save(author=user)
-        assert description == program_2.description
+        serializer = UploadProgramSerializer(data=data)
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data["provider"] == "myprovider"
 
     def test_job_serializer_includes_fleet_id(self):
         """JobSerializer output includes fleet_id when set on the job."""
@@ -455,18 +389,25 @@ class TestSerializers:
         assert "fleet_id" in data
         assert data["fleet_id"] == "fleet-xyz"
 
-    def test_run_job_serializer_raises_validation_error_when_no_ce_project(self):
-        """RunJobSerializer.create() raises ValidationError when program has no CE project."""
+    def test_run_job_raises_validation_error_when_no_ce_project(self):
+        """RunFunctionUseCase raises ValidationError when Fleets program has no CE project."""
         user = models.User.objects.get(username="test_user")
-        program = TestUtils.create_program(program_title="fleets-program", author=user, runner=Program.FLEETS)
-
-        job_serializer = RunJobSerializer(data={"program": program.id})
-        job_serializer.is_valid()
+        TestUtils.create_program(program_title="fleets-program", author=user, runner=Program.FLEETS)
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
         with pytest.raises(ValidationError):
-            job_serializer.save(
-                channel=Channel.IBM_QUANTUM_PLATFORM,
-                author=user,
-                carrier={},
-                token="my_token",
+            RunFunctionUseCase().execute(
+                user,
+                accessible,
+                RunFunctionInput(
+                    title="fleets-program",
+                    provider_name=None,
+                    arguments="{}",
+                    config_data=None,
+                    compute_profile=None,
+                    channel=Channel.IBM_QUANTUM_PLATFORM,
+                    token="my_token",
+                    instance=None,
+                    account_id=None,
+                ),
             )

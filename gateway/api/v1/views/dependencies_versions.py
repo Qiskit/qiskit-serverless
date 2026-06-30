@@ -9,7 +9,7 @@ from drf_yasg.utils import swagger_auto_schema
 from packaging.requirements import Requirement
 from rest_framework import permissions, status
 from rest_framework.response import Response
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import permission_classes
 from api.use_cases.dependencies_versions import (
     AvailableDependenciesVersionsUseCase,
 )
@@ -43,8 +43,7 @@ def serialize_output(data: Dict[str, Requirement]):
         ),
     },
 )
-@endpoint("dependencies-versions")
-@api_view(["GET"])
+@endpoint("dependencies-versions", method="GET")
 @permission_classes([permissions.IsAuthenticated])
 def dependencies_versions(request):
     """

@@ -1,0 +1,979 @@
+/*
+    Qiskit Serverless backoffice theme.
+
+    IBM Carbon Design System look over the stock Django admin:
+    - IBM Plex Sans / Mono, self-hosted (CSP default-src 'self').
+    - Carbon "White" theme in light mode, "Gray 100" in dark mode.
+    - Square corners, bottom-bordered fields, left-aligned buttons,
+      black UI shell header.
+
+    Loaded after the stock admin CSS via templates/admin/base_site.html.
+*/
+
+/* TYPEFACES */
+
+@font-face {
+    font-family: "IBM Plex Sans";
+    src: url(../fonts/ibm-plex-sans-latin.woff2) format("woff2");
+    font-weight: 400 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "IBM Plex Mono";
+    src: url(../fonts/ibm-plex-mono-latin.woff2) format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* CARBON TOKENS — LIGHT (White theme) */
+
+html[data-theme="light"],
+:root {
+    --primary: #0f62fe;
+    --secondary: #161616;
+    --accent: #78a9ff;
+    --primary-fg: #ffffff;
+
+    --body-fg: #161616;
+    --body-bg: #ffffff;
+    --body-quiet-color: #525252;
+    --body-medium-color: #393939;
+    --body-loud-color: #161616;
+
+    --header-color: #f4f4f4;
+    --header-branding-color: #ffffff;
+    --header-bg: #161616;
+    --header-link-color: #f4f4f4;
+
+    --breadcrumbs-fg: #525252;
+    --breadcrumbs-link-fg: #0f62fe;
+    --breadcrumbs-bg: transparent;
+
+    --link-fg: #0f62fe;
+    --link-hover-color: #0043ce;
+    --link-selected-fg: #0043ce;
+
+    --hairline-color: #e0e0e0;
+    --border-color: #e0e0e0;
+
+    --error-fg: #da1e28;
+
+    --message-success-bg: #defbe6;
+    --message-warning-bg: #fcf4d6;
+    --message-error-bg: #fff1f1;
+
+    --darkened-bg: #f4f4f4;
+    --selected-bg: #e0e0e0;
+    --selected-row: #edf5ff;
+
+    --button-fg: #ffffff;
+    --button-bg: #393939;
+    --button-hover-bg: #4c4c4c;
+    --default-button-bg: #0f62fe;
+    --default-button-hover-bg: #0353e9;
+    --close-button-bg: #393939;
+    --close-button-hover-bg: #4c4c4c;
+    --delete-button-bg: #da1e28;
+    --delete-button-hover-bg: #b81922;
+
+    --object-tools-fg: #0f62fe;
+    --object-tools-bg: transparent;
+    --object-tools-hover-bg: #0f62fe;
+
+    /* Carbon-only tokens (qs- prefix to avoid collisions) */
+    --qs-field-bg: #f4f4f4;
+    --qs-field-border: #8d8d8d;
+    --qs-layer-header-bg: #e0e0e0;
+    --qs-layer-header-fg: #161616;
+    --qs-row-hover: #e8e8e8;
+    --qs-focus: #0f62fe;
+    --qs-support-success: #24a148;
+    --qs-support-warning: #f1c21b;
+    --qs-support-error: #da1e28;
+    --qs-code-bg: #161616;
+    --qs-code-fg: #f4f4f4;
+    --qs-code-border: #393939;
+
+    --font-family-primary:
+        "IBM Plex Sans",
+        "Helvetica Neue",
+        system-ui,
+        Arial,
+        sans-serif;
+    --font-family-monospace:
+        "IBM Plex Mono",
+        ui-monospace,
+        Menlo,
+        "Courier New",
+        monospace;
+}
+
+/* CARBON TOKENS — DARK (Gray 100 theme) */
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --primary: #0f62fe;
+        --secondary: #161616;
+        --accent: #78a9ff;
+        --primary-fg: #ffffff;
+
+        --body-fg: #f4f4f4;
+        --body-bg: #161616;
+        --body-quiet-color: #c6c6c6;
+        --body-medium-color: #e0e0e0;
+        --body-loud-color: #ffffff;
+
+        --breadcrumbs-fg: #c6c6c6;
+        --breadcrumbs-link-fg: #78a9ff;
+        --breadcrumbs-bg: transparent;
+
+        --link-fg: #78a9ff;
+        --link-hover-color: #a6c8ff;
+        --link-selected-fg: #a6c8ff;
+
+        --hairline-color: #393939;
+        --border-color: #393939;
+
+        --error-fg: #fa4d56;
+
+        --message-success-bg: #071908;
+        --message-warning-bg: #2b2206;
+        --message-error-bg: #2d0709;
+
+        --darkened-bg: #1c1c1c;
+        --selected-bg: #393939;
+        --selected-row: #0f62fe2e;
+
+        --button-bg: #6f6f6f;
+        --button-hover-bg: #606060;
+        --close-button-bg: #6f6f6f;
+        --close-button-hover-bg: #606060;
+
+        --qs-field-bg: #262626;
+        --qs-field-border: #6f6f6f;
+        --qs-layer-header-bg: #393939;
+        --qs-layer-header-fg: #f4f4f4;
+        --qs-row-hover: #2c2c2c;
+        --qs-focus: #ffffff;
+        --qs-code-bg: #262626;
+        --qs-code-fg: #f4f4f4;
+        --qs-code-border: #525252;
+    }
+}
+
+html[data-theme="dark"] {
+    --primary: #0f62fe;
+    --secondary: #161616;
+    --accent: #78a9ff;
+    --primary-fg: #ffffff;
+
+    --body-fg: #f4f4f4;
+    --body-bg: #161616;
+    --body-quiet-color: #c6c6c6;
+    --body-medium-color: #e0e0e0;
+    --body-loud-color: #ffffff;
+
+    --breadcrumbs-fg: #c6c6c6;
+    --breadcrumbs-link-fg: #78a9ff;
+    --breadcrumbs-bg: transparent;
+
+    --link-fg: #78a9ff;
+    --link-hover-color: #a6c8ff;
+    --link-selected-fg: #a6c8ff;
+
+    --hairline-color: #393939;
+    --border-color: #393939;
+
+    --error-fg: #fa4d56;
+
+    --message-success-bg: #071908;
+    --message-warning-bg: #2b2206;
+    --message-error-bg: #2d0709;
+
+    --darkened-bg: #1c1c1c;
+    --selected-bg: #393939;
+    --selected-row: #0f62fe2e;
+
+    --button-bg: #6f6f6f;
+    --button-hover-bg: #606060;
+    --close-button-bg: #6f6f6f;
+    --close-button-hover-bg: #606060;
+
+    --qs-field-bg: #262626;
+    --qs-field-border: #6f6f6f;
+    --qs-layer-header-bg: #393939;
+    --qs-layer-header-fg: #f4f4f4;
+    --qs-row-hover: #2c2c2c;
+    --qs-focus: #ffffff;
+    --qs-code-bg: #262626;
+    --qs-code-fg: #f4f4f4;
+    --qs-code-border: #525252;
+}
+
+/* BASE */
+
+body {
+    font-family: var(--font-family-primary);
+    letter-spacing: 0.16px;
+}
+
+a:focus-visible,
+button:focus-visible {
+    outline: 2px solid var(--qs-focus);
+    outline-offset: 1px;
+    text-decoration: none;
+}
+
+/* UI SHELL HEADER */
+
+#header {
+    background: var(--header-bg);
+    color: var(--header-color);
+    padding: 0 16px;
+    min-height: 48px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #393939;
+}
+
+#branding h1,
+#site-name {
+    margin: 0;
+    padding: 0;
+    font-size: 0.875rem;
+    font-weight: 400;
+    line-height: 48px;
+}
+
+#site-name a:link,
+#site-name a:visited {
+    color: #ffffff;
+    letter-spacing: 0.16px;
+}
+
+#site-name a:hover,
+#site-name a:focus {
+    color: #ffffff;
+    text-decoration: none;
+}
+
+.qs-brand-prefix {
+    font-weight: 600;
+}
+
+.qs-brand-name {
+    font-weight: 400;
+}
+
+/* Carbon tags are the one rounded element in the system */
+.qs-brand-tag {
+    display: inline-block;
+    margin-left: 10px;
+    padding: 0 9px;
+    border: 1px solid #4589ff;
+    border-radius: 100px;
+    color: #78a9ff;
+    font-size: 0.6875rem;
+    font-weight: 400;
+    line-height: 17px;
+    letter-spacing: 0.32px;
+    text-transform: uppercase;
+    vertical-align: 1px;
+}
+
+#user-tools {
+    font-size: 0.75rem;
+    letter-spacing: 0.32px;
+    color: #c6c6c6;
+}
+
+#user-tools a:link,
+#user-tools a:visited,
+#logout-form button {
+    color: #ffffff;
+    border-bottom: none;
+    text-decoration: none;
+}
+
+#user-tools a:hover,
+#user-tools a:focus,
+#logout-form button:hover,
+#logout-form button:focus {
+    color: #78a9ff;
+    border-bottom: none;
+    text-decoration: underline;
+}
+
+#header button.theme-toggle {
+    color: #ffffff;
+}
+
+#header .theme-toggle svg {
+    fill: #ffffff;
+}
+
+/* BREADCRUMBS */
+
+div.breadcrumbs {
+    background: var(--breadcrumbs-bg);
+    color: var(--breadcrumbs-fg);
+    padding: 12px 40px;
+    font-size: 0.75rem;
+    letter-spacing: 0.32px;
+    border-bottom: 1px solid var(--hairline-color);
+}
+
+div.breadcrumbs a {
+    color: var(--breadcrumbs-link-fg);
+}
+
+div.breadcrumbs a:focus,
+div.breadcrumbs a:hover {
+    color: var(--link-hover-color);
+    text-decoration: underline;
+}
+
+/* PAGE TITLES — Carbon productive heading */
+
+#content h1 {
+    font-size: 1.75rem;
+    font-weight: 400;
+    letter-spacing: 0;
+    color: var(--body-loud-color);
+    margin: 8px 0 24px;
+}
+
+#content h2 {
+    font-weight: 400;
+}
+
+/* MODULES — Carbon layers */
+
+.module {
+    border: 1px solid var(--border-color);
+    border-radius: 0;
+}
+
+.module h2,
+.module caption,
+.inline-group h2,
+body fieldset .fieldset-heading,
+body fieldset .inline-heading,
+body :not(.inline-related) .collapse summary {
+    background: var(--qs-layer-header-bg);
+    color: var(--qs-layer-header-fg);
+    border: none;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.32px;
+    text-transform: uppercase;
+    padding: 10px 16px;
+}
+
+.module caption a.section:link,
+.module caption a.section:visited {
+    color: inherit;
+}
+
+/* TABLES — Carbon data table */
+
+thead th {
+    background: var(--qs-layer-header-bg);
+    color: var(--qs-layer-header-fg);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.32px;
+    padding: 10px 16px;
+}
+
+thead th a:link,
+thead th a:visited {
+    color: var(--qs-layer-header-fg);
+}
+
+td, th {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--hairline-color);
+}
+
+tr:nth-child(odd),
+tr:nth-child(even),
+tr:nth-child(even) .errorlist,
+tr:nth-child(odd) + .row-form-errors,
+tr:nth-child(odd) + .row-form-errors .errorlist {
+    background: transparent;
+}
+
+#result_list tbody tr {
+    cursor: pointer;
+}
+
+#result_list tbody tr:hover {
+    background: var(--qs-row-hover);
+}
+
+#result_list tbody tr.selected:hover {
+    background: var(--selected-row);
+}
+
+thead th.sorted {
+    background: var(--selected-bg);
+}
+
+/* IDs and timestamps read better in mono */
+#result_list tbody th a {
+    font-family: var(--font-family-monospace);
+    font-size: 0.8125rem;
+}
+
+/* BUTTONS — softly rounded, generous horizontal padding */
+
+.button, input[type=submit], input[type=button], .submit-row input, a.button {
+    border-radius: 4px;
+    padding: 10px 28px;
+    font-family: var(--font-family-primary);
+    font-size: 0.875rem;
+    letter-spacing: 0.16px;
+    transition: background 70ms cubic-bezier(0, 0, 0.38, 0.9);
+}
+
+a.button {
+    padding: 7px 20px;
+}
+
+.button:focus-visible,
+input[type=submit]:focus-visible,
+input[type=button]:focus-visible {
+    outline: 2px solid var(--qs-focus);
+    outline-offset: 1px;
+}
+
+/* OBJECT TOOLS — Carbon tertiary button */
+
+.object-tools a:link,
+.object-tools a:visited {
+    border: 1px solid var(--object-tools-fg);
+    border-radius: 4px;
+    background: var(--object-tools-bg);
+    color: var(--object-tools-fg);
+    padding: 6px 18px;
+    font-size: 0.75rem;
+    font-weight: 400;
+    letter-spacing: 0.32px;
+    text-transform: none;
+}
+
+.object-tools a:focus,
+.object-tools a:hover {
+    background: var(--object-tools-hover-bg);
+    color: var(--primary-fg);
+}
+
+.object-tools a.viewsitelink,
+.object-tools a.addlink {
+    background-image: none;
+    padding-right: 14px;
+}
+
+/* FORMS — Carbon text inputs: filled, bottom border, square */
+
+input[type=text],
+input[type=password],
+input[type=email],
+input[type=url],
+input[type=number],
+input[type=tel],
+textarea,
+select,
+.vTextField {
+    background: var(--qs-field-bg);
+    color: var(--body-fg);
+    border: none;
+    border-bottom: 1px solid var(--qs-field-border);
+    border-radius: 0;
+    padding: 8px 12px;
+    font-family: var(--font-family-primary);
+    font-size: 0.875rem;
+}
+
+textarea {
+    font-family: var(--font-family-monospace);
+    font-size: 0.8125rem;
+}
+
+select {
+    padding: 6px 6px;
+}
+
+input[type=text]:focus,
+input[type=password]:focus,
+input[type=email]:focus,
+input[type=url]:focus,
+input[type=number]:focus,
+input[type=tel]:focus,
+textarea:focus,
+select:focus,
+.vTextField:focus {
+    outline: 2px solid var(--qs-focus);
+    outline-offset: -2px;
+    border-bottom-color: transparent;
+}
+
+input[type=checkbox],
+input[type=radio] {
+    accent-color: var(--primary);
+}
+
+.aligned label,
+.form-row label {
+    font-size: 0.75rem;
+    letter-spacing: 0.32px;
+    color: var(--body-quiet-color);
+}
+
+.help,
+div.help,
+.help li {
+    font-size: 0.75rem;
+    color: var(--body-quiet-color);
+}
+
+fieldset .fieldset-heading,
+fieldset h2 {
+    font-weight: 600;
+}
+
+/* Submit row: keep it a quiet bar, primary action carries the color */
+
+body .submit-row {
+    background: var(--darkened-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0;
+}
+
+body .submit-row input.default {
+    text-transform: none;
+}
+
+body .submit-row a.deletelink,
+body .submit-row a.closelink {
+    border-radius: 4px;
+    height: auto;
+    padding: 10px 28px;
+    font-size: 0.875rem;
+}
+
+/* MESSAGES — Carbon inline notifications */
+
+ul.messagelist li {
+    border-left: 3px solid var(--qs-support-success);
+    background-position: 14px center;
+    padding: 12px 16px 12px 42px;
+    font-size: 0.875rem;
+}
+
+ul.messagelist li.warning {
+    border-left-color: var(--qs-support-warning);
+    background-position: 14px center;
+}
+
+ul.messagelist li.error {
+    border-left-color: var(--qs-support-error);
+    background-position: 14px center;
+}
+
+p.errornote {
+    border: 1px solid var(--border-color);
+    border-left: 3px solid var(--qs-support-error);
+    border-radius: 0;
+    background-position: 10px center;
+}
+
+.errorlist li {
+    border-radius: 0;
+}
+
+/* CHANGELIST */
+
+#changelist {
+    border: none;
+}
+
+#changelist .results,
+#changelist .paginator {
+    border: 1px solid var(--border-color);
+    border-top: none;
+}
+
+#changelist table {
+    border: none;
+}
+
+#toolbar {
+    background: transparent;
+    border: none;
+    padding: 0 0 12px 0;
+}
+
+#toolbar #searchbar {
+    height: auto;
+    padding: 8px 12px;
+}
+
+#changelist-search img {
+    margin: 8px 8px 0 4px;
+}
+
+#changelist-filter {
+    background: var(--darkened-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0;
+}
+
+#changelist-filter h2 {
+    background: var(--qs-layer-header-bg);
+    color: var(--qs-layer-header-fg);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.32px;
+    text-transform: uppercase;
+    padding: 10px 16px;
+}
+
+#changelist-filter h3 {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.32px;
+    text-transform: uppercase;
+    color: var(--body-quiet-color);
+}
+
+#changelist-filter li.selected {
+    border-left: 3px solid var(--primary);
+    margin-left: -13px;
+    padding-left: 10px;
+}
+
+#changelist-filter li.selected a {
+    color: var(--link-fg);
+    font-weight: 600;
+}
+
+#changelist .actions {
+    background: var(--darkened-bg);
+    border: 1px solid var(--border-color);
+    border-bottom: none;
+}
+
+/* PAGINATOR */
+
+.paginator a:link,
+.paginator a:visited {
+    border-radius: 0;
+    background: transparent;
+    color: var(--link-fg);
+    border: 1px solid transparent;
+    padding: 4px 10px;
+}
+
+.paginator a:focus,
+.paginator a:hover {
+    background: var(--qs-row-hover);
+    color: var(--link-hover-color);
+}
+
+.paginator .this-page {
+    background: var(--primary);
+    color: var(--primary-fg);
+    padding: 4px 10px;
+    font-weight: 600;
+}
+
+/* NAV SIDEBAR — IBM side nav: plain list, blue bar on the active item */
+
+#nav-sidebar {
+    border-right: 1px solid var(--hairline-color);
+}
+
+#nav-sidebar .module {
+    border: none;
+    background: transparent;
+    margin-bottom: 24px;
+}
+
+#nav-sidebar .module caption {
+    background: transparent;
+    color: var(--body-quiet-color);
+    padding: 8px 16px 4px;
+}
+
+#nav-sidebar .current-app .section:link,
+#nav-sidebar .current-app .section:visited {
+    color: var(--body-quiet-color);
+    font-weight: 600;
+}
+
+#nav-sidebar .module th,
+#nav-sidebar .module td {
+    border-bottom: none;
+    padding: 9px 16px;
+}
+
+#nav-sidebar .current-model {
+    background: transparent;
+    border-left: 3px solid var(--primary);
+}
+
+#nav-sidebar .current-model th {
+    padding-left: 13px;
+}
+
+#nav-sidebar .current-model th a {
+    font-weight: 600;
+    color: var(--body-loud-color);
+}
+
+#nav-filter {
+    background: var(--qs-field-bg);
+    border: none;
+    border-bottom: 1px solid var(--qs-field-border);
+    padding: 8px 12px;
+    margin: 8px 0;
+}
+
+/* DASHBOARD */
+
+.dashboard #content {
+    width: 760px;
+}
+
+#content-related .module {
+    background: var(--darkened-bg);
+}
+
+#content-related .module h2,
+#content-related h3 {
+    background: transparent;
+    color: var(--body-loud-color);
+    font-size: 0.875rem;
+}
+
+/* SELECTOR (filter_horizontal) */
+
+.selector-available h2,
+.selector-chosen h2 {
+    border: 1px solid var(--border-color);
+    border-radius: 0;
+}
+
+.selector-chosen h2 {
+    background: var(--primary);
+    color: var(--primary-fg);
+}
+
+.selector .selector-available,
+.selector .selector-chosen {
+    border-radius: 0;
+}
+
+.selector select {
+    border-radius: 0;
+    border: 1px solid var(--border-color);
+    border-top: none;
+}
+
+.selector-available h2,
+.selector-chosen h2 {
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.32px;
+}
+
+/* LOGIN — IBMid-style card */
+
+body.login #container {
+    background: var(--body-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0;
+    padding: 32px;
+    width: 360px;
+}
+
+body.login #header {
+    background: var(--header-bg);
+    border-radius: 0;
+    padding: 12px 16px;
+    margin: -32px -32px 24px;
+}
+
+body.login #content {
+    padding: 0;
+}
+
+body.login .form-row {
+    padding: 6px 0;
+    border-bottom: none;
+}
+
+body.login .form-row label {
+    display: block;
+    margin-bottom: 6px;
+}
+
+body.login .form-row input[type=text],
+body.login .form-row input[type=password] {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+body.login .submit-row {
+    background: transparent;
+    border: none;
+    padding: 16px 0 0;
+    margin: 0;
+}
+
+body.login .submit-row input {
+    width: 100%;
+    background: var(--default-button-bg);
+    text-align: left;
+    padding: 12px 28px 12px 16px;
+}
+
+body.login .submit-row input:hover,
+body.login .submit-row input:focus {
+    background: var(--default-button-hover-bg);
+}
+
+/* CODE & MONO */
+
+pre, code {
+    font-family: var(--font-family-monospace);
+}
+
+/* DELETE CONFIRMATION */
+
+.delete-confirmation form input[type=submit] {
+    border-radius: 4px;
+    padding: 10px 28px;
+}
+
+.delete-confirmation form .cancel-link {
+    border-radius: 4px;
+    height: auto;
+    padding: 10px 28px;
+}
+
+/* PROGRAM HISTORY — action tags (used by program_history.html) */
+
+.qs-tag {
+    display: inline-block;
+    padding: 1px 9px;
+    border-radius: 100px;
+    font-size: 0.75rem;
+    letter-spacing: 0.16px;
+}
+
+.qs-tag--add {
+    background: #a7f0ba;
+    color: #0e6027;
+}
+
+.qs-tag--remove {
+    background: #ffd7d9;
+    color: #a2191f;
+}
+
+/* IBM LOGO — header: invert to white on dark background */
+
+.qs-ibm-logo {
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 12px;
+    filter: brightness(0) invert(1);
+}
+
+/* LOGIN — IBM logo + bigger title */
+
+.qs-login-logo {
+    margin-bottom: 20px;
+}
+
+body.login #content h1 {
+    font-size: 2rem;
+    font-weight: 300;
+    letter-spacing: -0.01em;
+    margin: 0 0 24px;
+}
+
+/* JOB LIST — status badges (same palette as event-badge inline) */
+
+.qs-status-badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 100px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.32px;
+    text-transform: uppercase;
+    color: #ffffff;
+    background-color: var(--qs-badge-bg, #6f6f6f);
+}
+
+.qs-status-badge[data-status="QUEUED"],
+.qs-status-badge[data-status="PENDING"] {
+    --qs-badge-bg: #f0ad4e;
+    color: #1c1c1c;
+}
+
+.qs-status-badge[data-status="RUNNING"] {
+    --qs-badge-bg: #5bc0de;
+    color: #1c1c1c;
+}
+
+.qs-status-badge[data-status="SUCCEEDED"] { --qs-badge-bg: #00aa00; }
+.qs-status-badge[data-status="STOPPED"]   { --qs-badge-bg: #888888; }
+.qs-status-badge[data-status="FAILED"]    { --qs-badge-bg: #cc0000; }
+
+/* NAV SIDEBAR — hide +Add links */
+
+#nav-sidebar .addlink {
+    display: none;
+}
+
+/* OVERVIEW LINK IN NAV SIDEBAR */
+
+.qs-nav-overview {
+    border-bottom: 1px solid var(--hairline-color);
+    margin-bottom: 0.25rem;
+}
+
+.qs-nav-overview a {
+    display: block;
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--body-fg);
+    text-decoration: none;
+}
+
+.qs-nav-overview a:hover {
+    background: var(--darkened-bg);
+}
+
+.qs-nav-overview.active a {
+    background: var(--selected-bg);
+    color: var(--primary);
+}
+
+/* MOTION */
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        transition: none !important;
+    }
+}

@@ -6,8 +6,6 @@ import os
 import importlib
 import logging
 
-from rest_framework.routers import SimpleRouter
-from api.v1 import views as v1_views
 from api.v1.route_registry import RouteRegistry
 
 logger = logging.getLogger("api.api.v1.urls")
@@ -33,11 +31,4 @@ def import_dir(directory: str, base_module: str):
 
 import_dir(views_dir, BASE_MODULE)
 
-router = SimpleRouter()
-router.register(
-    r"programs",
-    v1_views.ProgramViewSet,
-    basename=v1_views.ProgramViewSet.BASE_NAME,
-)
-
-urlpatterns = RouteRegistry.get() + router.urls
+urlpatterns = RouteRegistry.get()

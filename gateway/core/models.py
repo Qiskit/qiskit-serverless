@@ -18,6 +18,7 @@ from core.model_managers.code_engine_projects import CodeEngineProjectQuerySet
 from core.model_managers.functions import FunctionsQuerySet
 from core.model_managers.job_events import JobEventQuerySet
 from core.model_managers.jobs import JobQuerySet
+from core.model_managers.providers import ProviderQuerySet
 
 logger = logging.getLogger("core.models")
 
@@ -85,6 +86,8 @@ class Provider(models.Model):
     icon_url = models.TextField(null=True, blank=True, default=None)
     registry = models.CharField(max_length=255, null=True, blank=True, default=None)
     admin_groups = models.ManyToManyField(Group)
+
+    objects = ProviderQuerySet.as_manager()
 
     class Meta:
         app_label = "api"
@@ -454,6 +457,7 @@ class Job(models.Model):
 
     account_id = models.CharField(max_length=255, null=True, blank=True)
     instance_crn = models.CharField(max_length=255, null=True, blank=True)
+    running_started_at = models.DateTimeField(null=True, blank=True)
     ce_project_name = models.CharField(
         max_length=255, null=True, blank=True, help_text="CE project name at execution time"
     )
