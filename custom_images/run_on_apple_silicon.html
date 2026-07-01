@@ -347,8 +347,8 @@ restore those entries in <code class="docutils literal notranslate"><span class=
 </section>
 <section id="choose-your-path">
 <h2>2. Choose your path<a class="headerlink" href="#choose-your-path" title="Permalink to this heading">¶</a></h2>
-<p>From here there are two ways to use the arm64 base image, depending on whether you need to build
-a local “provider” image or you are following the “custom function” path without a bespoke image.</p>
+<p>From here there are a few ways to use the arm64 base image, depending on whether you run from
+published images or build the stack (or a custom function image) from local source.</p>
 <section id="path-1-run-the-stack-with-the-arm64-base-image-as-is">
 <h3>Path 1 — Run the stack with the arm64 base image as-is<a class="headerlink" href="#path-1-run-the-stack-with-the-arm64-base-image-as-is" title="Permalink to this heading">¶</a></h3>
 <p>If you just need a working local cluster (for example to run custom functions),
@@ -400,6 +400,32 @@ file — keeping <code class="docutils literal notranslate"><span class="pre">pl
 </div>
 <p>With the stack running, upload and run your function as described in <a class="reference internal" href="deploy_custom_image_function.html#deploy-image"><span class="std std-ref">Deploy a Custom Function Image</span></a>; the job
 should now progress <code class="docutils literal notranslate"><span class="pre">QUEUED</span></code> → <code class="docutils literal notranslate"><span class="pre">DONE</span></code>.</p>
+</section>
+<section id="path-3-build-the-whole-dev-stack-from-local-source-arm64">
+<h3>Path 3 — Build the whole dev stack from local source (arm64)<a class="headerlink" href="#path-3-build-the-whole-dev-stack-from-local-source-arm64" title="Permalink to this heading">¶</a></h3>
+<p>If you are developing against your own checkout — i.e. you want <code class="docutils literal notranslate"><span class="pre">gateway</span></code>, <code class="docutils literal notranslate"><span class="pre">scheduler</span></code> and
+<code class="docutils literal notranslate"><span class="pre">ray-head</span></code> built from local source rather than from published images — use the dev compose,
+<code class="docutils literal notranslate"><span class="pre">docker-compose-dev.yaml</span></code>, with its Apple-Silicon override <code class="docutils literal notranslate"><span class="pre">docker-compose-dev.arm64.yaml</span></code>.
+The override builds <code class="docutils literal notranslate"><span class="pre">ray-head</span></code> natively from <code class="docutils literal notranslate"><span class="pre">ray-node/Dockerfile.arm64</span></code> and keeps
+<code class="docutils literal notranslate"><span class="pre">gateway</span></code>/<code class="docutils literal notranslate"><span class="pre">scheduler</span></code>/<code class="docutils literal notranslate"><span class="pre">postgres</span></code> on <code class="docutils literal notranslate"><span class="pre">amd64</span></code> (same rationale as Path 1):</p>
+<div class="literal-block-wrapper docutils container" id="id5">
+<div class="code-block-caption"><span class="caption-text">Start the dev stack on Apple Silicon</span><a class="headerlink" href="#id5" title="Permalink to this code">¶</a></div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">docker</span> <span class="n">compose</span> \
+  <span class="o">-</span><span class="n">f</span> <span class="n">docker</span><span class="o">-</span><span class="n">compose</span><span class="o">-</span><span class="n">dev</span><span class="o">.</span><span class="n">yaml</span> \
+  <span class="o">-</span><span class="n">f</span> <span class="n">docker</span><span class="o">-</span><span class="n">compose</span><span class="o">-</span><span class="n">dev</span><span class="o">.</span><span class="n">arm64</span><span class="o">.</span><span class="n">yaml</span> \
+  <span class="n">up</span> <span class="o">--</span><span class="n">build</span>
+</pre></div>
+</div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>In local mode (<code class="docutils literal notranslate"><span class="pre">RAY_CLUSTER_MODE_LOCAL=true</span></code>) the job runs inside <code class="docutils literal notranslate"><span class="pre">ray-head</span></code>, so a custom
+function’s code (<code class="docutils literal notranslate"><span class="pre">/runner</span></code>) must live in the <code class="docutils literal notranslate"><span class="pre">ray-head</span></code> image. If you need that, override
+<code class="docutils literal notranslate"><span class="pre">ray-head</span></code>’s <code class="docutils literal notranslate"><span class="pre">image</span></code> with your arm64 function image in an additional override file instead
+of building the bare base.</p>
+</div>
+<p>With the stack running, upload and run your function; the job should now progress
+<code class="docutils literal notranslate"><span class="pre">QUEUED</span></code> → <code class="docutils literal notranslate"><span class="pre">DONE</span></code>.</p>
 </section>
 </section>
 </section>
@@ -464,6 +490,7 @@ should now progress <code class="docutils literal notranslate"><span class="pre"
 <li><a class="reference internal" href="#choose-your-path">2. Choose your path</a><ul>
 <li><a class="reference internal" href="#path-1-run-the-stack-with-the-arm64-base-image-as-is">Path 1 — Run the stack with the arm64 base image as-is</a></li>
 <li><a class="reference internal" href="#path-2-build-a-custom-function-image-on-the-arm64-base">Path 2 — Build a custom function image on the arm64 base</a></li>
+<li><a class="reference internal" href="#path-3-build-the-whole-dev-stack-from-local-source-arm64">Path 3 — Build the whole dev stack from local source (arm64)</a></li>
 </ul>
 </li>
 </ul>
