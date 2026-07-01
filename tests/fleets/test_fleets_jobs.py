@@ -289,8 +289,13 @@ class TestFleetsJobs:
         )
         assert row[0] == "FAILED"
 
+    @pytest.mark.order("last")
     def test_cancel_running_job(self, serverless_client, pg_conn, minio_client, unique_title):
         """Cancel a RUNNING job and verify it reaches CANCELED/STOPPED and the cancel propagates to COS.
+
+        Runs last (pytest-order) and uses a short sleep so its long-ish job can
+        never starve another test's job on the single-threaded fleet-worker,
+        regardless of how pytest-randomly shuffles the suite.
 
         ``sleep_seconds`` keeps the job RUNNING well beyond the cancel-propagation
         latency (test -> gateway -> scheduler -> mock -> COS) so the test reliably
@@ -312,7 +317,12 @@ class TestFleetsJobs:
         )
         serverless_client.upload(fn)
         fn = serverless_client.function(unique_title)
-        job = fn.run(name="cancel-me", sleep_seconds=120)
+        # sleep long enough to reliably observe RUNNING (warm pipeline + the 30s
+        # poll below), but short enough that if the worker doesn't terminate the
+        # subprocess on cancel it still frees the single-threaded worker quickly.
+        # A larger value here (e.g. 120s) let a shuffled test order (pytest-randomly
+        # can run this before other job tests) starve the next job on the worker.
+        job = fn.run(name="cancel-me", sleep_seconds=30)
 
         deadline = time.time() + 30
         observed_running = False
