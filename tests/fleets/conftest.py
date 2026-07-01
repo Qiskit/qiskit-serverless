@@ -18,9 +18,11 @@ import uuid
 import boto3
 import psycopg2
 import pytest
-from qiskit_serverless import ServerlessClient
+from qiskit_serverless import QiskitFunction, ServerlessClient
 
-from _helpers import DATA_BUCKETS, FLEET_STATE_BUCKETS, clear_buckets
+from _helpers import DATA_BUCKETS, FLEET_STATE_BUCKETS, clear_buckets, wait_for_terminal
+
+resources_path = os.path.join(os.path.dirname(__file__), "source_files")
 
 
 @pytest.fixture(scope="session")
@@ -76,6 +78,37 @@ def minio_client():
 def cleanup_minio(minio_client):  # pylint: disable=redefined-outer-name
     """Clear fleet-state and data buckets at the start of each test run."""
     clear_buckets(minio_client, FLEET_STATE_BUCKETS + DATA_BUCKETS)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def warm_pipeline(serverless_client, cleanup_minio):  # pylint: disable=redefined-outer-name,unused-argument
+    """Warm the whole fleets pipeline (scheduler -> worker -> s3fs) once, before timed tests.
+
+    The first job after ``docker compose up`` pays a one-time cold-start cost:
+    the scheduler and fleet-worker containers boot (Django start, migrate lock,
+    s3fs FUSE mount) and the run script only waits for the gateway and MinIO —
+    not the scheduler or worker. On a slow CI runner that cold-start can consume
+    a per-test ``wait_for_terminal`` budget, so the *first* timed test flakes
+    while later (warm) tests pass. Running one throwaway job to completion here
+    absorbs that cold-start into session setup with a generous one-time budget,
+    keeping every per-test budget fair. If the pipeline never comes up this
+    fails loudly at setup rather than as a confusing mid-suite timeout.
+    """
+    title = f"fleets-warmup-{uuid.uuid4().hex[:8]}"
+    fn = QiskitFunction(
+        title=title,
+        entrypoint="entrypoint.py",
+        working_dir=resources_path,
+        runner="fleets",
+    )
+    serverless_client.upload(fn)
+    fn = serverless_client.function(title)
+    job = fn.run(name="warmup")
+    _, status = wait_for_terminal(job, timeout=300)
+    assert status == "DONE", (
+        f"Fleets pipeline warm-up job did not finish (last status={status}); "
+        "scheduler/worker/s3fs did not come up — check container logs."
+    )
 
 
 @pytest.fixture(autouse=True)
