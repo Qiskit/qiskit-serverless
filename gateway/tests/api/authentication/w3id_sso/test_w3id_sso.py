@@ -92,9 +92,10 @@ def test_verify_claims(oidc_settings):
     assert backend.verify_claims({"sub": "12345"}) is False
 
 
-def test_login_view_falls_back_to_normal_login_without_client_id(client, settings):
-    """With no client id configured, the SSO entry view sends users to the normal login."""
+def test_login_view_falls_back_to_normal_login_without_config(client, settings):
+    """With no id/secret configured, the SSO entry view sends users to the normal login."""
     settings.W3ID_SSO_CLIENT_ID = ""
+    settings.W3ID_SSO_CLIENT_SECRET = ""
 
     response = client.get("/auth/login")
 
@@ -102,9 +103,21 @@ def test_login_view_falls_back_to_normal_login_without_client_id(client, setting
     assert response.url == "/backoffice/login/"
 
 
-def test_login_view_starts_flow_when_client_id_configured(client, settings):
-    """With a client id configured, the SSO entry view redirects to the provider."""
+def test_login_view_falls_back_with_client_id_but_no_secret(client, settings):
+    """A client id without a secret is not enough: the flow would fail on token exchange."""
     settings.W3ID_SSO_CLIENT_ID = "a-client-id"
+    settings.W3ID_SSO_CLIENT_SECRET = ""
+
+    response = client.get("/auth/login")
+
+    assert response.status_code == 302
+    assert response.url == "/backoffice/login/"
+
+
+def test_login_view_starts_flow_when_id_and_secret_configured(client, settings):
+    """With both id and secret configured, the SSO entry view redirects to the provider."""
+    settings.W3ID_SSO_CLIENT_ID = "a-client-id"
+    settings.W3ID_SSO_CLIENT_SECRET = "a-client-secret"
     settings.OIDC_RP_CLIENT_ID = "a-client-id"
     settings.OIDC_OP_AUTHORIZATION_ENDPOINT = "https://test.login.w3.ibm.com/authorize"
 
@@ -114,15 +127,17 @@ def test_login_view_starts_flow_when_client_id_configured(client, settings):
     assert response.url.startswith("https://test.login.w3.ibm.com/authorize")
 
 
-def test_login_button_hidden_without_client_id(client, settings):
-    """The backoffice login page hides the SSO button when no client id is set."""
-    settings.W3ID_SSO_CLIENT_ID = ""
+def test_login_button_hidden_without_secret(client, settings):
+    """The backoffice login page hides the SSO button unless id and secret are set."""
+    settings.W3ID_SSO_CLIENT_ID = "a-client-id"
+    settings.W3ID_SSO_CLIENT_SECRET = ""
     html = client.get("/backoffice/login/").content.decode()
     assert "Login IBM SSO" not in html
 
 
-def test_login_button_shown_with_client_id(client, settings):
-    """The backoffice login page shows the SSO button when a client id is set."""
+def test_login_button_shown_with_id_and_secret(client, settings):
+    """The backoffice login page shows the SSO button when id and secret are set."""
     settings.W3ID_SSO_CLIENT_ID = "a-client-id"
+    settings.W3ID_SSO_CLIENT_SECRET = "a-client-secret"
     html = client.get("/backoffice/login/").content.decode()
     assert "Login IBM SSO" in html

@@ -240,10 +240,11 @@ SETTINGS_AUTH_MOCKPROVIDER_REGISTRY = os.environ.get("SETTINGS_AUTH_MOCKPROVIDER
 # W3ID SSO (OIDC) - optional backoffice login
 # ==========================================
 # The OIDC backend, urls and provider settings are always wired in. The feature
-# is effectively "off" until a client id is configured: with no W3ID_SSO_CLIENT_ID
-# the login template does not render the "Login IBM SSO" button and the SSO entry
-# view (api.authentication_oidc.w3id_sso_login) falls back to the normal login,
-# so nothing changes for the user.
+# is effectively "off" until both the client id and the client secret are
+# configured: without them the login template does not render the "Login IBM SSO"
+# button and the SSO entry view (api.authentication_oidc.w3id_sso_login) falls
+# back to the normal login, so nothing changes for the user. Both are required
+# because with only the id the callback would fail on the token exchange.
 #
 # Only three environment variables are needed:
 #   W3ID_SSO_CLIENT_ID      credentials of the registered w3id connector

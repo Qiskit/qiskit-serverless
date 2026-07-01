@@ -23,20 +23,31 @@ from mozilla_django_oidc.views import OIDCAuthenticationRequestView
 
 logger = logging.getLogger("api.W3IDSSOAuthenticationBackend")
 
-# Where to send the user when SSO is not usable (no client id) or after a failure.
+# Where to send the user when SSO is not usable (not configured) or after a failure.
 NORMAL_LOGIN_URL = "/backoffice/login/"
+
+
+def w3id_sso_enabled() -> bool:
+    """Return whether the w3id SSO login is fully configured.
+
+    Both the client id and the client secret are required: with only the id the
+    provider redirect would work but the callback would fail on the token
+    exchange, leaving the user stuck. Requiring both keeps the feature off
+    unless it can actually complete a login.
+    """
+    return bool(settings.W3ID_SSO_CLIENT_ID and settings.W3ID_SSO_CLIENT_SECRET)
 
 
 def w3id_sso_login(request):
     """Entry point for the w3id SSO flow (one of our own urls).
 
     The SSO login is started from our own view, so we can decide here whether
-    to contact the provider at all. When no client id is configured we never
+    to contact the provider at all. When SSO is not fully configured we never
     start a broken flow: the user is sent back to the standard backoffice login.
     Failures during the callback are handled by mozilla-django-oidc, which
     redirects to ``LOGIN_REDIRECT_URL_FAILURE`` (also the normal login).
     """
-    if not settings.W3ID_SSO_CLIENT_ID:
+    if not w3id_sso_enabled():
         return redirect(NORMAL_LOGIN_URL)
     return OIDCAuthenticationRequestView.as_view()(request)
 
