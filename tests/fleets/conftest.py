@@ -104,11 +104,20 @@ def warm_pipeline(serverless_client, cleanup_minio):  # pylint: disable=redefine
     serverless_client.upload(fn)
     fn = serverless_client.function(title)
     job = fn.run(name="warmup")
-    _, status = wait_for_terminal(job, timeout=300)
-    assert status == "DONE", (
-        f"Fleets pipeline warm-up job did not finish (last status={status}); "
-        "scheduler/worker/s3fs did not come up — check container logs."
-    )
+    try:
+        _, status = wait_for_terminal(job, timeout=300)
+        assert status == "DONE", (
+            f"Fleets pipeline warm-up job did not finish (last status={status}); "
+            "scheduler/worker/s3fs did not come up — check container logs."
+        )
+    finally:
+        # If warm-up timed out/failed, don't leave a job occupying the
+        # single-job-at-a-time worker and blocking the real tests.
+        try:
+            if job.status() not in ("DONE", "ERROR", "CANCELED"):
+                job.stop()
+        except Exception:  # pylint: disable=broad-exception-caught
+            pass
 
 
 @pytest.fixture(autouse=True)

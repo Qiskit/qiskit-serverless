@@ -44,17 +44,45 @@ DATA_BUCKETS = ["user-data-bucket", "provider-data-bucket"]
 def clear_buckets(minio_client, buckets):
     """Delete all objects in each bucket, ignoring buckets that don't exist.
 
+    Paginates so buckets with more than one page (>1000 keys) are fully cleared,
+    not just the first page.
+
     Args:
         minio_client: A boto3 S3 client.
         buckets: Iterable of bucket names to empty.
     """
     for bucket in buckets:
         try:
-            resp = minio_client.list_objects_v2(Bucket=bucket)
-            for obj in resp.get("Contents", []):
-                minio_client.delete_object(Bucket=bucket, Key=obj["Key"])
+            for page in minio_client.get_paginator("list_objects_v2").paginate(Bucket=bucket):
+                for obj in page.get("Contents", []):
+                    minio_client.delete_object(Bucket=bucket, Key=obj["Key"])
         except ClientError:
             pass
+
+
+def wait_for_s3_key_substring(minio_client, bucket, substring, timeout=30):
+    """Poll a bucket until any object key contains ``substring``.
+
+    Args:
+        minio_client: A boto3 S3 client.
+        bucket: The bucket to search.
+        substring: The substring an object key must contain.
+        timeout: Maximum seconds to wait.
+
+    Returns:
+        True if a matching key appears within the timeout, else False.
+    """
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            for page in minio_client.get_paginator("list_objects_v2").paginate(Bucket=bucket):
+                for obj in page.get("Contents", []):
+                    if substring in obj["Key"]:
+                        return True
+        except ClientError:
+            pass
+        time.sleep(1)
+    return False
 
 
 def is_valid_uuid(value: str) -> bool:

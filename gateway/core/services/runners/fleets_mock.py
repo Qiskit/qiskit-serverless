@@ -32,7 +32,7 @@ from unittest.mock import patch
 from django.conf import settings
 from ibm_boto3 import client as ibm_boto3_client
 
-from ibm_botocore.exceptions import ClientError as BotoClientError
+from ibm_botocore.exceptions import BotoCoreError, ClientError as BotoClientError
 
 from core.ibm_cloud.clients import IBMCloudClientProvider
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
@@ -303,10 +303,14 @@ def _mock_get_job_status(self, identifier):  # pylint: disable=unused-argument
         error_code = exc.response.get("Error", {}).get("Code", "")
         if error_code in ("404", "NoSuchKey", "NotFound"):
             raise ApiException(status=404, reason="Fleet not found") from exc
-        # Any other COS error (403, NoSuchBucket, connectivity) is a real
+        # Any other HTTP-level COS error (e.g. 403, NoSuchBucket) is a real
         # failure the real get_job_status would surface — don't fall through and
         # fabricate a live 'pending' fleet, which would defeat is_active()/stop().
         raise ApiException(status=502, reason=f"COS error checking fleet existence: {error_code}") from exc
+    except BotoCoreError as exc:
+        # Connectivity errors (EndpointConnectionError, etc.) are BotoCoreError,
+        # not ClientError — surface them as an error rather than a fake fleet.
+        raise ApiException(status=502, reason=f"COS connectivity error checking fleet existence: {exc}") from exc
 
     bucket = _task_store_bucket(self.project_id)
     prefix = queue_prefix(self.project_id, fleet_id)
