@@ -17,7 +17,6 @@ import logging
 import re
 import tarfile
 import time
-from collections import OrderedDict
 from io import BytesIO
 
 from django.conf import settings
@@ -39,30 +38,6 @@ from core.ibm_cloud.code_engine.fleets.utils import (
 )
 
 logger = logging.getLogger("FleetsRunner")
-
-
-class TTLCache:
-    """Fixed-size cache with per-entry TTL, evicting oldest entries when full."""
-
-    def __init__(self, maxsize: int = 1000, ttl: float = 30) -> None:
-        self._store: OrderedDict[str, tuple] = OrderedDict()
-        self._maxsize = maxsize
-        self._ttl = ttl
-
-    def get(self, key: str):
-        """Return cached value if present and not expired, else ``None``."""
-        entry = self._store.get(key)
-        if entry and (time.monotonic() - entry[1]) < self._ttl:
-            return entry[0]
-        self._store.pop(key, None)
-        return None
-
-    def put(self, key: str, value) -> None:
-        """Store a value, evicting the oldest entry if the cache is full."""
-        self._store.pop(key, None)
-        if len(self._store) >= self._maxsize:
-            self._store.popitem(last=False)
-        self._store[key] = (value, time.monotonic())
 
 
 def _retry_on_rate_limit(fn, retries=3, delays=(0.5, 1.0, 2.0)):
@@ -96,8 +71,6 @@ class FleetsRunner(AbstractRunner):
     recreated automatically when the cached IAM token is rotated.
     """
 
-    _is_active_cache = TTLCache(maxsize=1000, ttl=30)
-
     def __init__(self, job: Job) -> None:
         """Initialize the runner.
 
@@ -129,35 +102,16 @@ class FleetsRunner(AbstractRunner):
         """No-op — FleetHandler is a stateless REST client."""
 
     def is_active(self) -> bool:
-        """Return ``True`` if the fleet exists in Code Engine.
+        """Return ``True`` if the fleet was created.
 
-        Results are cached for 30 seconds (class-level :class:`TTLCache`)
-        to avoid redundant API calls when the scheduler polls frequently.
+        A non-None ``fleet_id`` means ``submit()`` succeeded and the fleet
+        exists in Code Engine — sufficient for ``status()`` and ``stop()``
+        to proceed.
 
         Returns:
-            ``True`` when the fleet is reachable, ``False`` otherwise.
+            ``True`` when the job has a fleet_id, ``False`` otherwise.
         """
-        if not self.job.fleet_id:
-            return False
-
-        cached = self._is_active_cache.get(self.job.fleet_id)
-        if cached is not None:
-            return cached
-
-        try:
-            self._ensure_connected()
-            self._get_handler().get_job_status(self.job.fleet_id)
-            self._is_active_cache.put(self.job.fleet_id, True)
-            return True
-        except ApiException as ex:
-            if ex.status == 404:
-                self._is_active_cache.put(self.job.fleet_id, False)
-                return False
-            logger.warning("CE API error checking fleet [%s]: status=%s", self.job.fleet_id, ex.status)
-            return False
-        except Exception:  # pylint: disable=broad-exception-caught
-            logger.warning("Unable to verify fleet [%s] existence", self.job.fleet_id)
-            return False
+        return self.job.fleet_id is not None
 
     def submit(self) -> None:
         """Submit the job as a Code Engine fleet.

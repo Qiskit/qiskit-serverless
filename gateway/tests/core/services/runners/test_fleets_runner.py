@@ -25,11 +25,6 @@ from core.services.runners.fleets_runner import FleetsRunner
 _RUNNER_MOD = "core.services.runners.fleets_runner"
 
 
-@pytest.fixture(autouse=True)
-def _clear_caches():
-    FleetsRunner._is_active_cache._store.clear()
-
-
 def _make_runner(fleet_id: str | None = None) -> tuple[FleetsRunner, MagicMock]:
     """Build a FleetsRunner wired to mock Job and FleetHandler.
 
@@ -137,34 +132,16 @@ def _make_submit_runner() -> tuple[FleetsRunner, MagicMock]:
     return runner, mock_handler
 
 
-def test_is_active_true_when_fleet_exists():
-    """is_active() returns True when CE API confirms fleet exists."""
-    runner, mock_handler = _make_runner(fleet_id="fleet-123")
-    mock_handler.get_job_status.return_value = {"status": "running"}
+def test_is_active_true_when_fleet_id_set():
+    """is_active() returns True when job has a fleet_id."""
+    runner, _ = _make_runner(fleet_id="fleet-123")
     assert runner.is_active() is True
-    mock_handler.get_job_status.assert_called_once_with("fleet-123")
 
 
 def test_is_active_false_when_no_fleet_id():
     """is_active() returns False when job.fleet_id is None."""
     runner, _ = _make_runner(fleet_id=None)
     assert runner.is_active() is False
-
-
-def test_is_active_false_when_fleet_not_found():
-    """is_active() returns False when CE API returns 404."""
-    runner, mock_handler = _make_runner(fleet_id="fleet-gone")
-    mock_handler.get_job_status.side_effect = ApiException(status=404, reason="Not Found")
-    assert runner.is_active() is False
-
-
-def test_is_active_false_on_connection_error():
-    """is_active() returns False when connection to CE fails."""
-    runner, _ = _make_runner(fleet_id="fleet-123")
-    runner._connected = False  # pylint: disable=protected-access
-    runner._handler = None  # pylint: disable=protected-access
-    with patch.object(runner, "connect", side_effect=Exception("connection failed")):
-        assert runner.is_active() is False
 
 
 def test_status_raises_runner_error_when_no_fleet_id():
