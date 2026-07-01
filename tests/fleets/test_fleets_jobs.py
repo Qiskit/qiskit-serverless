@@ -23,6 +23,7 @@ from qiskit_serverless import QiskitFunction
 from _helpers import (
     CLIENT_TO_DB_STATUS,
     VALID_DB_STATUS_ORDER,
+    assert_presigned_cos_redirect,
     fetch_all,
     fetch_one,
     is_valid_uuid,
@@ -197,6 +198,11 @@ class TestFleetsJobs:
         assert_manifest(pg_conn, minio_client, job_id)
         assert_db_state(pg_conn, job_id, client_status)
 
+        # Explicitly exercise the presigned-URL path: the gateway 302s to a
+        # SigV4-signed MinIO URL that MinIO (private buckets) must validate.
+        assert_presigned_cos_redirect(serverless_client, job_id, "result")
+        assert_presigned_cos_redirect(serverless_client, job_id, "logs")
+
     # pylint: disable=too-many-arguments,too-many-positional-arguments
     def test_run_provider_fleets_job(self, serverless_client, pg_conn, minio_client, unique_title, test_provider):
         """Submit a provider fleets job, assert success with provider-specific COS paths.
@@ -224,6 +230,13 @@ class TestFleetsJobs:
         assert_client_api(job, expected_name="provider-world", is_provider=True)
         assert_manifest(pg_conn, minio_client, job_id, is_provider=True)
         assert_db_state(pg_conn, job_id, client_status)
+
+        # Provider jobs also serve the private provider log via a presigned URL.
+        # (Reaching this endpoint also requires provider-admin access — the
+        # single mock-token user is a provider admin because LocalAuthentication
+        # seeds it into 'mockgroup' and the test_provider fixture links
+        # 'test-provider' -> 'mockgroup'.)
+        assert_presigned_cos_redirect(serverless_client, job_id, "provider-logs")
 
         row = fetch_one(
             pg_conn,

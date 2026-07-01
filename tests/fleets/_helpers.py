@@ -19,7 +19,9 @@ pytest idiom of treating conftest as fixtures-only.
 import time
 import uuid
 
+import requests
 from botocore.exceptions import ClientError
+from qiskit_serverless.utils.http import get_headers
 
 CLIENT_TO_DB_STATUS = {
     "QUEUED": "QUEUED",
@@ -58,6 +60,46 @@ def clear_buckets(minio_client, buckets):
                     minio_client.delete_object(Bucket=bucket, Key=obj["Key"])
         except ClientError:
             pass
+
+
+def assert_presigned_cos_redirect(serverless_client, job_id, artifact):
+    """Verify a fleets job artifact endpoint 302s to a presigned COS/MinIO URL that serves the object.
+
+    Makes the presigned-URL path explicit: the gateway signs a real SigV4 URL
+    (COSClient.generate_presigned_url) against the MinIO endpoint with MinIO
+    credentials, and — because the MinIO buckets are private — MinIO must
+    validate that signature to return the object. A regression in presigned
+    generation would surface here as a non-redirect or a 403 on the follow-up.
+
+    Args:
+        serverless_client: The ServerlessClient (for host/token/instance/channel).
+        job_id: The job whose artifact to fetch.
+        artifact: One of "result", "logs", "provider-logs".
+
+    Returns:
+        The requests.Response from fetching the presigned URL.
+    """
+    url = f"{serverless_client.host}/api/v1/jobs/{job_id}/{artifact}/"
+    headers = get_headers(
+        token=serverless_client.token,
+        instance=serverless_client.instance,
+        channel=serverless_client.channel,
+    )
+    resp = requests.get(url, headers=headers, allow_redirects=False, timeout=15)
+    assert resp.status_code in (
+        301,
+        302,
+        307,
+        308,
+    ), f"expected a presigned redirect from {artifact}, got {resp.status_code}: {resp.text[:200]}"
+    location = resp.headers.get("Location", "")
+    assert "X-Amz-" in location, f"{artifact} redirect is not a presigned URL: {location}"
+
+    fetched = requests.get(location, timeout=15)
+    assert (
+        fetched.status_code == 200
+    ), f"presigned {artifact} fetch from COS/MinIO failed: {fetched.status_code} {fetched.text[:200]}"
+    return fetched
 
 
 def wait_for_s3_key_substring(minio_client, bucket, substring, timeout=30):
