@@ -115,7 +115,7 @@ def warm_pipeline(serverless_client, cleanup_minio):  # pylint: disable=redefine
         # single-job-at-a-time worker and blocking the real tests.
         try:
             if job.status() not in ("DONE", "ERROR", "CANCELED"):
-                job.stop()
+                job.cancel()
         except Exception:  # pylint: disable=broad-exception-caught
             pass
 

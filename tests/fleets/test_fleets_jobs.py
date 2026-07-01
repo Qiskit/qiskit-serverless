@@ -309,7 +309,7 @@ class TestFleetsJobs:
                 break
             time.sleep(0.5)
         assert observed_running, "job never reached RUNNING within 30s — cancel would not exercise mid-execution"
-        job.stop()
+        job.cancel()
 
         job_id, client_status = wait_for_terminal(job)
         logger.info("job %s canceled terminal: %s", job_id, client_status)
