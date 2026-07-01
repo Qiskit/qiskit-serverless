@@ -41,8 +41,8 @@ the repository root:
 2. Choose your path
 -------------------
 
-From here there are two ways to use the arm64 base image, depending on whether you need to build
-a local "provider" image or you are following the "custom function" path without a bespoke image.
+From here there are a few ways to use the arm64 base image, depending on whether you run from
+published images or build the stack (or a custom function image) from local source.
 
 Path 1 — Run the stack with the arm64 base image as-is
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -98,3 +98,30 @@ file — keeping ``platform: linux/arm64``:
 
 With the stack running, upload and run your function as described in :ref:`deploy_image`; the job
 should now progress ``QUEUED`` → ``DONE``.
+
+Path 3 — Build the whole dev stack from local source (arm64)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you are developing against your own checkout — i.e. you want ``gateway``, ``scheduler`` and
+``ray-head`` built from local source rather than from published images — use the dev compose,
+``docker-compose-dev.yaml``, with its Apple-Silicon override ``docker-compose-dev.arm64.yaml``.
+The override builds ``ray-head`` natively from ``ray-node/Dockerfile.arm64`` and keeps
+``gateway``/``scheduler``/``postgres`` on ``amd64`` (same rationale as Path 1):
+
+.. code-block::
+   :caption: Start the dev stack on Apple Silicon
+
+   docker compose \
+     -f docker-compose-dev.yaml \
+     -f docker-compose-dev.arm64.yaml \
+     up --build
+
+.. note::
+
+   In local mode (``RAY_CLUSTER_MODE_LOCAL=true``) the job runs inside ``ray-head``, so a custom
+   function's code (``/runner``) must live in the ``ray-head`` image. If you need that, override
+   ``ray-head``'s ``image`` with your arm64 function image in an additional override file instead
+   of building the bare base.
+
+With the stack running, upload and run your function; the job should now progress
+``QUEUED`` → ``DONE``.

@@ -1,0 +1,31 @@
+# Apple Silicon (M-series) arm64 override for the LOCAL-SOURCE dev stack.
+#
+# Use together with the base docker-compose-dev.yaml (which builds gateway, scheduler and
+# ray-head from your local checkout):
+#
+#   docker compose -f docker-compose-dev.yaml -f docker-compose-dev.arm64.yaml up --build
+#
+# Builds ray-head NATIVELY on arm64 from ray-node/Dockerfile.arm64 (no QEMU) so Ray 2.55 startup
+# is fast enough that its default timeouts are satisfied and jobs no longer hang in QUEUED.
+# gateway/scheduler/postgres stay amd64 (Django/DB only, no Ray) and run under emulation; they
+# reach ray-head over HTTP, so the mixed architecture is fine.
+#
+# This is the dev-stack counterpart to docker-compose.arm64.yaml. The difference is that the dev
+# stack BUILDS ray-head from source, so this override repoints that build at the arm64 Dockerfile
+# rather than pulling a prebuilt image. See docs/custom_images/run_on_apple_silicon.rst.
+#
+# If you are building a custom function image and running in local mode
+# (RAY_CLUSTER_MODE_LOCAL=true), the job runs inside ray-head, so ray-head must carry your
+# function code (/runner). In that case override ray-head's image with your arm64 function image
+# in an additional override file instead of using the build below.
+services:
+  ray-head:
+    platform: linux/arm64
+    build:
+      dockerfile: ray-node/Dockerfile.arm64
+  gateway:
+    platform: linux/amd64
+  scheduler:
+    platform: linux/amd64
+  postgres:
+    platform: linux/amd64
