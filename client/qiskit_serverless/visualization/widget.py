@@ -20,6 +20,12 @@ Decorators (:mod:`qiskit_serverless.visualization.widget`)
 Qiskit Serverless widgets
 ==========================
 
+.. deprecated:: 0.33.0
+    The :class:`Widget` class and the entire ``qiskit_serverless.visualization`` module
+    are deprecated and will be removed in a future release.
+    Use ``client.jobs()`` and ``client.functions()`` directly, or the IBM Quantum
+    web dashboard instead.
+
 .. autosummary::
     :toctree: ../stubs/
 
@@ -27,6 +33,7 @@ Qiskit Serverless widgets
 """
 
 import os
+import warnings
 from datetime import datetime
 
 from IPython.display import display, clear_output
@@ -53,7 +60,13 @@ TABLE_STYLE = """
 
 
 class Widget:  # pylint: disable=too-many-instance-attributes
-    """Widget for displaying information related to provider."""
+    """Widget for displaying information related to provider.
+
+    .. deprecated:: 0.33.0
+        The ``Widget`` class is deprecated and will be removed in a future release.
+        Use ``client.jobs()`` and ``client.functions()`` directly, or the IBM Quantum
+        web dashboard instead.
+    """
 
     def __init__(self, provider: BaseClient):
         """Constructor for widget.
@@ -61,6 +74,13 @@ class Widget:  # pylint: disable=too-many-instance-attributes
         Args:
             provider: provider
         """
+        warnings.warn(
+            "The `Widget` class is deprecated and will be removed in a future release. "
+            "Use `client.jobs()` and `client.functions()` directly, "
+            "or the IBM Quantum web dashboard instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if provider is None:
             raise QiskitServerlessException("Provider must be set in order to display widget.")
         self.provider = provider

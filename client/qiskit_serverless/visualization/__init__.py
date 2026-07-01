@@ -20,6 +20,11 @@ Visualization (:mod:`qiskit_serverless.visualization`)
 Qiskit Serverless visualisation module classes and functions
 =============================================================
 
+.. deprecated:: 0.33.0
+    The ``qiskit_serverless.visualization`` module is deprecated and will be removed
+    in a future release. Use ``client.jobs()`` and ``client.functions()`` directly,
+    or the IBM Quantum web dashboard instead.
+
 .. autosummary::
     :toctree: ../stubs/
 

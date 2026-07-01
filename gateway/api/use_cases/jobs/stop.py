@@ -6,11 +6,10 @@ from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ObjectDoesNotExist
 from qiskit_ibm_runtime import QiskitRuntimeService, RuntimeInvalidStateError
 
-from core.models import Job, JobEvent
+from core.models import Job, JobEvent, RuntimeJob
 from core.services.runners import get_runner, RunnerError
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
-from api.repositories.runtime_job import RuntimeJobRepository
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
 logger = logging.getLogger("api.StopJobUseCase")
@@ -20,8 +19,6 @@ class StopJobUseCase:
     """
     Use case for stopping a single job.
     """
-
-    runtime_jobs_repository = RuntimeJobRepository()
 
     def __init__(self) -> None:
         self.status_messages = []
@@ -57,7 +54,7 @@ class StopJobUseCase:
         service = None
         if service_str:
             service = json.loads(service_str, cls=json.JSONDecoder)
-        runtime_jobs = self.runtime_jobs_repository.get_runtime_job(job)
+        runtime_jobs = RuntimeJob.objects.filter(job=job)
 
         if not service:
             self.status_messages.append("QiskitRuntimeService not found, cannot stop runtime jobs.")

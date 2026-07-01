@@ -9,9 +9,8 @@ from api.access_policies.providers import ProviderAccessPolicy
 from api.domain.exceptions.provider_not_found_exception import ProviderNotFoundException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 
-from api.repositories.providers import ProviderRepository
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import Program as Function
+from core.models import Program as Function, Provider
 from core.services.storage import get_file_storage
 
 logger = logging.getLogger("api.FilesProviderListUseCase")
@@ -21,8 +20,6 @@ class FilesProviderListUseCase:
     """
     List all files on the provider storage use case.
     """
-
-    provider_repository = ProviderRepository()
 
     def execute(
         self,
@@ -35,7 +32,7 @@ class FilesProviderListUseCase:
         List all files on the provider storage.
         """
 
-        provider = self.provider_repository.get_provider_by_name(name=provider_name)
+        provider = Provider.objects.get_by_name(provider_name)
         if provider is None or not ProviderAccessPolicy.can_read_files(
             user=user,
             provider=provider,
