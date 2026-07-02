@@ -49,7 +49,7 @@ class Command(BaseCommand):
             jobs = list(
                 Job.objects.order_by("id")
                 .filter(status__in=Job.TERMINAL_STATUSES, compute_resource__active=False)
-                .exclude(result="")[: settings.JOB_LOGS_MIGRATION_BATCH_SIZE]
+                .exclude(result__in=("", None))[: settings.JOB_LOGS_MIGRATION_BATCH_SIZE]
             )
 
             if len(jobs) == 0:
