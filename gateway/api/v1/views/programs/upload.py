@@ -67,7 +67,7 @@ class ProgramSerializer(serializers.ModelSerializer):
     def validate_entrypoint(self, value):
         """Validate the entrypoint is a safe, relative ``.py`` file path.
 
-        The entrypoint is interpolated into the runner's execution command
+        The entrypoint is inserted into the runner's execution command
         (e.g. ``python {entrypoint}`` for Ray) and into COS/PDS object paths, so
         it must not contain shell metacharacters, be absolute, or traverse
         outside the function directory via ``..``.
