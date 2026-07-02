@@ -16,6 +16,9 @@ import os
 import os.path
 import sys
 from pathlib import Path
+
+from django.core.exceptions import ImproperlyConfigured
+
 from core.utils import sanitize_file_path
 
 RELEASE_VERSION = os.environ.get("VERSION", "UNKNOWN")
@@ -50,7 +53,17 @@ LOG_LEVEL = "DEBUG" if int(os.environ.get("DEBUG", 1)) else "INFO"
 LOG_FORMAT = "json" if os.environ.get("LOG_FORMAT", "simple") == "json" else "simple"
 
 # It must be a full url without protocol: mydomain.com
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
+# Accepting any Host ("*") enables Host header attacks (cache poisoning and
+# password-reset links pointing at an attacker domain). In production (DEBUG off)
+# the process fails closed if ALLOWED_HOSTS is not set, instead of defaulting to
+# a value. A hardcoded "*" is only used for local development and tests.
+_allowed_hosts = os.environ.get("ALLOWED_HOSTS")
+if not _allowed_hosts:
+    if DEBUG or IS_TEST:
+        _allowed_hosts = "*"
+    else:
+        raise ImproperlyConfigured("ALLOWED_HOSTS environment variable must be set when DEBUG is disabled.")
+ALLOWED_HOSTS = _allowed_hosts.split(",")
 
 # It must be a full url: https://mydomain.com
 CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", "http://localhost").split(",")
