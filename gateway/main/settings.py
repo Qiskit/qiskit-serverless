@@ -16,6 +16,9 @@ import os
 import os.path
 import sys
 from pathlib import Path
+
+from django.core.exceptions import ImproperlyConfigured
+
 from core.utils import sanitize_file_path
 
 RELEASE_VERSION = os.environ.get("VERSION", "UNKNOWN")
@@ -227,9 +230,15 @@ ALL_AUTH_CLASSES_CONFIGURATION = {
         "api.authentication.MockTokenBackend",
     ],
 }
-DJR_DEFAULT_AUTHENTICATION_CLASSES = ALL_AUTH_CLASSES_CONFIGURATION.get(
-    SETTINGS_AUTH_MECHANISM, ALL_AUTH_CLASSES_CONFIGURATION["mock_token"]
-)
+# Fail closed on an unknown mechanism instead of silently falling back to the
+# insecure mock_token backend (which authenticates anyone presenting a static
+# shared token).
+if SETTINGS_AUTH_MECHANISM not in ALL_AUTH_CLASSES_CONFIGURATION:
+    raise ImproperlyConfigured(
+        f"Unknown SETTINGS_AUTH_MECHANISM '{SETTINGS_AUTH_MECHANISM}'. "
+        f"Valid values are: {list(ALL_AUTH_CLASSES_CONFIGURATION)}."
+    )
+DJR_DEFAULT_AUTHENTICATION_CLASSES = ALL_AUTH_CLASSES_CONFIGURATION[SETTINGS_AUTH_MECHANISM]
 # mock token value
 SETTINGS_AUTH_MOCK_TOKEN = os.environ.get("SETTINGS_AUTH_MOCK_TOKEN", "awesome_token")
 SETTINGS_AUTH_MOCKPROVIDER_REGISTRY = os.environ.get("SETTINGS_AUTH_MOCKPROVIDER_REGISTRY", None)
