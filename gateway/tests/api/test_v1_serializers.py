@@ -148,6 +148,12 @@ class TestSerializers:
         serializer = UploadProgramSerializer(data=data)
         assert not serializer.is_valid()
 
+    def test_upload_program_serializer_rejects_unsafe_entrypoint(self):
+        """Rejects a '..' traversal entrypoint path."""
+        serializer = UploadProgramSerializer()
+        with pytest.raises(ValidationError):
+            serializer.validate_entrypoint("../evil.py")
+
     def test_run_program_serializer_check_emtpy_data(self):
         data = {}
 
