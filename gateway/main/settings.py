@@ -50,7 +50,9 @@ LOG_LEVEL = "DEBUG" if int(os.environ.get("DEBUG", 1)) else "INFO"
 LOG_FORMAT = "json" if os.environ.get("LOG_FORMAT", "simple") == "json" else "simple"
 
 # It must be a full url without protocol: mydomain.com
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
+# In production (DEBUG off) require an explicit allowlist instead of "*", which
+# otherwise enables Host header attacks (cache poisoning, password-reset, etc.).
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*" if DEBUG else "localhost").split(",")
 
 # It must be a full url: https://mydomain.com
 CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", "http://localhost").split(",")
