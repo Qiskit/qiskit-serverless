@@ -74,13 +74,13 @@ class ProgramSerializer(serializers.ModelSerializer):
         """
         if value is None:
             return value
+        if not isinstance(value, str):
+            raise ValidationError(
+                "Invalid entrypoint. It must be a relative path to a .py file "
+                "without '..' segments or shell characters."
+            )
         segments = value.split("/")
-        if (
-            not isinstance(value, str)
-            or not re.fullmatch(r"[A-Za-z0-9_./-]+\.py", value)
-            or value.startswith("/")
-            or ".." in segments
-        ):
+        if not re.fullmatch(r"[A-Za-z0-9_./-]+\.py", value) or value.startswith("/") or ".." in segments:
             raise ValidationError(
                 "Invalid entrypoint. It must be a relative path to a .py file "
                 "without '..' segments or shell characters."
