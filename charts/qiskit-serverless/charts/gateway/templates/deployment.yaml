@@ -256,6 +256,23 @@ spec:
               value: {{ .Values.application.trustedOrigins | quote }}
             - name: CORS_ALLOWED_ORIGIN_REGEXES
               value: {{ .Values.application.corsOrigins | quote }}
+            {{- if .Values.secrets.w3idSso }}
+            # Optional IBM w3id SSO backoffice login. Only wired in when the
+            # secret is provided; the feature stays off (no button, entry view
+            # falls back to the normal login) unless both id and secret are set.
+            - name: W3ID_SSO_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.w3idSso.name }}
+                  key: {{ .Values.secrets.w3idSso.key.clientId }}
+            - name: W3ID_SSO_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.w3idSso.name }}
+                  key: {{ .Values.secrets.w3idSso.key.clientSecret }}
+            - name: W3ID_SSO_BASE_URL
+              value: {{ .Values.application.w3idSso.baseUrl | quote }}
+            {{- end }}
             - name: FUNCTIONS_LOGS_SIZE_LIMIT
               value: {{ .Values.application.logsMaximumSize | quote }}
             - name: SECURE_HSTS_SECONDS

@@ -64,6 +64,11 @@ application:
     hstsPreload: false
   eventStreams:
     enabled: false
+  # Optional IBM w3id SSO backoffice login. The provider base url is not
+  # sensitive and lives here; the credentials go in secrets.w3idSso (see below).
+  # SSO stays off unless that secret is provided with both id and secret.
+  w3idSso:
+    baseUrl: "https://test.login.w3.ibm.com"
 
 tracing:
   enabled: false
@@ -100,6 +105,13 @@ secrets:
       name: name
       password: password
       email: email
+  # Optional: enable IBM w3id SSO backoffice login by pointing to a secret that
+  # holds the connector credentials. Leave unset (default) to keep SSO off.
+  # w3idSso:
+  #   name: gateway-w3id-sso
+  #   key:
+  #     clientId: client-id
+  #     clientSecret: client-secret
 
 image:
   repository: icr.io/quantum-public/qiskit-serverless/gateway
