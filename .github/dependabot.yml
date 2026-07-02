@@ -12,6 +12,9 @@ updates:
     versioning-strategy: increase
     schedule:
       interval: "weekly"
+    groups:
+      client-dependencies:
+        patterns: ["*"]
 
   - package-ecosystem: "pip"
     directory: "/gateway"
@@ -19,6 +22,9 @@ updates:
     versioning-strategy: increase
     schedule:
       interval: "weekly"
+    groups:
+      gateway-dependencies:
+        patterns: ["*"]
 
   - package-ecosystem: "pip"
     directory: "/tests"
@@ -26,3 +32,6 @@ updates:
     versioning-strategy: increase
     schedule:
       interval: "weekly"
+    groups:
+      tests-dependencies:
+        patterns: ["*"]
