@@ -112,7 +112,11 @@ ROOT_URLCONF = "main.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates", "/tmp/templates"],
+        # The extra template directory (the ray cluster template delivered via a
+        # configmap mount) must not be a shared world-writable location such as
+        # /tmp, where a co-resident process could drop a malicious template into
+        # Django's search path.
+        "DIRS": [BASE_DIR / "templates", "/etc/gateway/templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
