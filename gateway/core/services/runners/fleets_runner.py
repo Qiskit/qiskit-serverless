@@ -492,7 +492,11 @@ class FleetsRunner(AbstractRunner):
                     # COS keys outside this job's prefix. Reject absolute paths
                     # and any name that escapes via "..".
                     normalized_name = os.path.normpath(member.name)
-                    if os.path.isabs(normalized_name) or normalized_name.startswith(".."):
+                    if (
+                        os.path.isabs(normalized_name)
+                        or normalized_name == ".."
+                        or normalized_name.startswith(".." + os.sep)
+                    ):
                         logger.warning(
                             "Skipping unsafe artifact member [%s] for job_id=%s",
                             member.name,
