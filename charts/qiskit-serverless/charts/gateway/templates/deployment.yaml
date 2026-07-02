@@ -510,6 +510,8 @@ spec:
             {{- end }}
             - name: EVENT_STREAMS_ENABLED
               value: {{ .Values.application.eventStreams.enabled | default false | quote }}
+            - name: EVENT_STREAMS_ENVIRONMENT_PREFIX
+              value: {{ .Values.application.eventStreams.environmentPrefix | default "" | quote }}
             {{- if .Values.secrets.kafka }}
             - name: EVENT_STREAMS_BOOTSTRAP_SERVERS
               valueFrom:
