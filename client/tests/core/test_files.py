@@ -151,6 +151,67 @@ class TestDownload:
                 assert result.endswith("_test.txt")
 
     @patch("qiskit_serverless.core.files.requests.get")
+    @patch("qiskit_serverless.core.files.tqdm")
+    def test_download_strips_path_traversal_from_target_name(self, mock_tqdm, mock_get, files_client, test_function):
+        """download() strips directory parts from target_name so it can't escape download_location."""
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_response.headers = {"content-length": "1024"}
+        mock_response.iter_content = MagicMock(return_value=[b"malicious"])
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_get.return_value = mock_response
+
+        mock_progress = MagicMock()
+        mock_tqdm.return_value = mock_progress
+
+        with tempfile.TemporaryDirectory() as parent_dir:
+            download_location = os.path.join(parent_dir, "downloads")
+            os.makedirs(download_location)
+
+            result = files_client.download(
+                file="test.txt",
+                download_location=download_location,
+                function=test_function,
+                target_name="../../evil.txt",
+            )
+
+            # Only the basename is kept, so the returned name has no directory part.
+            assert result == "evil.txt"
+            # The file is written inside download_location, never outside of it.
+            assert os.path.exists(os.path.join(download_location, "evil.txt"))
+            assert not os.path.exists(os.path.join(parent_dir, "evil.txt"))
+
+    @patch("qiskit_serverless.core.files.requests.get")
+    @patch("qiskit_serverless.core.files.tqdm")
+    def test_download_writes_file_inside_download_location(self, mock_tqdm, mock_get, files_client, test_function):
+        """download() writes the file with a plain target_name inside download_location."""
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_response.headers = {"content-length": "1024"}
+        mock_response.iter_content = MagicMock(return_value=[b"hello ", b"world"])
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_get.return_value = mock_response
+
+        mock_progress = MagicMock()
+        mock_tqdm.return_value = mock_progress
+
+        with tempfile.TemporaryDirectory() as download_location:
+            result = files_client.download(
+                file="test.txt",
+                download_location=download_location,
+                function=test_function,
+                target_name="downloaded.txt",
+            )
+
+            assert result == "downloaded.txt"
+            written_path = os.path.join(download_location, "downloaded.txt")
+            assert os.path.exists(written_path)
+            with open(written_path, "rb") as written_file:
+                assert written_file.read() == b"hello world"
+
+    @patch("qiskit_serverless.core.files.requests.get")
     def test_download_raises_on_http_error(self, mock_get, files_client, test_function):
         """download() raises exception on HTTP error."""
         mock_response = MagicMock()

@@ -10,13 +10,14 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Regression tests for main.settings ALLOWED_HOSTS handling."""
+"""Tests for main.settings."""
 
 import importlib
 import sys
 from unittest.mock import patch
 
 import pytest
+from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
 
@@ -73,3 +74,16 @@ def test_allowed_hosts_uses_set_value(monkeypatch):
     importlib.reload(main.settings)
 
     assert main.settings.ALLOWED_HOSTS == ["example.com"]
+
+
+def test_template_dirs_use_etc_gateway_not_tmp():
+    """The extra template dir must be /etc/gateway/templates, never /tmp.
+
+    The chart mounts the ray cluster template into /etc/gateway/templates. If
+    that mount ever drifts back to a world-writable location like /tmp, any
+    other process on the host could drop a malicious template into Django's
+    search path. This test catches such a desync.
+    """
+    dirs = [str(path) for path in settings.TEMPLATES[0]["DIRS"]]
+    assert "/etc/gateway/templates" in dirs
+    assert "/tmp/templates" not in dirs
