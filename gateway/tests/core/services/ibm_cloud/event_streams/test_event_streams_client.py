@@ -46,7 +46,7 @@ class TestKafkaEventStreamsClient:
                 {
                     "EVENT_STREAMS_BOOTSTRAP_SERVERS": "broker1:9093",
                     "EVENT_STREAMS_API_KEY": "my-key",
-                    "EVENT_STREAMS_ENVIRONMENT_PREFIX": "staging",
+                    "ENVIRONMENT": "staging",
                 },
             ):
                 KafkaEventStreamsClient()
@@ -68,7 +68,7 @@ class TestKafkaEventStreamsClient:
                 {
                     "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
                     "EVENT_STREAMS_API_KEY": "k",
-                    "EVENT_STREAMS_ENVIRONMENT_PREFIX": "staging",
+                    "ENVIRONMENT": "staging",
                 },
             ):
                 client = KafkaEventStreamsClient()
@@ -86,7 +86,7 @@ class TestKafkaEventStreamsClient:
                         {
                             "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
                             "EVENT_STREAMS_API_KEY": "k",
-                            "EVENT_STREAMS_ENVIRONMENT_PREFIX": "production",
+                            "ENVIRONMENT": "production",
                         },
                     ):
                         fake_event_id = uuid_module.UUID("00000000-0000-0000-0000-000000000001")
@@ -124,7 +124,7 @@ class TestKafkaEventStreamsClient:
                         {
                             "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
                             "EVENT_STREAMS_API_KEY": "k",
-                            "EVENT_STREAMS_ENVIRONMENT_PREFIX": "production",
+                            "ENVIRONMENT": "production",
                         },
                     ):
                         mock_uuid_mod.uuid4.return_value = uuid_module.uuid4()
@@ -151,7 +151,7 @@ class TestKafkaEventStreamsClient:
                         {
                             "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
                             "EVENT_STREAMS_API_KEY": "k",
-                            "EVENT_STREAMS_ENVIRONMENT_PREFIX": "production",
+                            "ENVIRONMENT": "production",
                         },
                     ):
                         mock_uuid_mod.uuid4.return_value = uuid_module.uuid4()
@@ -177,7 +177,7 @@ class TestKafkaEventStreamsClient:
                         {
                             "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
                             "EVENT_STREAMS_API_KEY": "k",
-                            "EVENT_STREAMS_ENVIRONMENT_PREFIX": "production",
+                            "ENVIRONMENT": "production",
                         },
                     ):
                         mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
@@ -200,7 +200,7 @@ class TestKafkaEventStreamsClient:
                         {
                             "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
                             "EVENT_STREAMS_API_KEY": "k",
-                            "EVENT_STREAMS_ENVIRONMENT_PREFIX": "production",
+                            "ENVIRONMENT": "production",
                         },
                     ):
                         mock_uuid_mod.uuid4.return_value = uuid_module.uuid4()

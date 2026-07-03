@@ -41,7 +41,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
     def __init__(self) -> None:
         bootstrap_servers = os.environ["EVENT_STREAMS_BOOTSTRAP_SERVERS"]
         api_key = os.environ["EVENT_STREAMS_API_KEY"]
-        environment_prefix = os.environ["EVENT_STREAMS_ENVIRONMENT_PREFIX"]
+        environment = os.environ["ENVIRONMENT"]
 
         self._producer = Producer(
             {
@@ -52,7 +52,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
                 "sasl.password": api_key,
             }
         )
-        self.topic = f"quantum.{environment_prefix}.function-usage.v1"
+        self.topic = f"quantum.{environment}.function-usage.v1"
 
     def emit_job_started(self, job) -> None:
         """Publish a job_started event (usage_nanoseconds=0)."""
