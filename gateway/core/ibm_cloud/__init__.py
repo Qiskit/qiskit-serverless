@@ -52,6 +52,12 @@ def get_cos_client(project: CodeEngineProject) -> JobCOS:
     ``CE_COS_USE_PUBLIC_ENDPOINT`` from Django settings, fetches HMAC
     credentials from the named CE secret, and returns a ready :class:`JobCOS`.
 
+    Construction is delegated to :func:`_create_cos_client`. That private
+    indirection is the single seam tests patch: callers do
+    ``from core.ibm_cloud import get_cos_client`` (binding their own name), but
+    this function resolves ``_create_cos_client`` via the module namespace at
+    call time, so one patch of the private helper redirects every caller.
+
     Args:
         project: Active :class:`CodeEngineProject` whose region and project_id
             are used to authenticate and locate the CE secret.
@@ -63,6 +69,18 @@ def get_cos_client(project: CodeEngineProject) -> JobCOS:
         ValueError: If required settings are missing or the CE secret is not
             found / lacks the expected HMAC fields.
         ApiException: If the CE secrets API call fails for a non-404 reason.
+    """
+    return _create_cos_client(project)
+
+
+def _create_cos_client(project: CodeEngineProject) -> JobCOS:
+    """Construct the real :class:`JobCOS` (see :func:`get_cos_client`).
+
+    Args:
+        project: Active :class:`CodeEngineProject` to authenticate against.
+
+    Returns:
+        Initialized :class:`JobCOS`.
     """
     api_key = settings.IBM_CLOUD_API_KEY
     if not api_key:

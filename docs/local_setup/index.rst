@@ -18,3 +18,4 @@ A local setup allows you to:
 
    ../deployment/local
    ../deployment/client
+   fleets_integration_tests
