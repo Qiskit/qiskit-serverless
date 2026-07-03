@@ -31,6 +31,7 @@ docker-compose-dev.yaml
 *.egg-info
 *.sql.gz
 **/.tox
+**/.venv*
 .cache
 .idea/workspace.xml
 .project
@@ -44,4 +45,5 @@ static
 stats
 *.sqlite3
 tests
+!tests/fleets/fleet-worker
 gateway/media

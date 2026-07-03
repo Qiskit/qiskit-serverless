@@ -75,7 +75,9 @@ class FunctionAccessClient:
                 # entry with missing field or incorrect business model
                 logger.error("FunctionAccessClient: invalid entry %s — %s", entry, exc)
 
-        custom_function_permissions = set(response_json.get("custom_functions", {}).get("permissions", []))
+        # custom_functions may be present but null (cleared), so coalesce both levels to avoid
+        # AttributeError on None.get(...).
+        custom_function_permissions = set((response_json.get("custom_functions") or {}).get("permissions") or [])
         result = FunctionAccessResult(
             use_legacy_authorization=False,
             functions=functions,
