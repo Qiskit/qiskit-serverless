@@ -71,6 +71,13 @@ class InstancesServer:
         self._httpd.response_config = {"status": 200, "body": body}
         return self
 
+    def clear_custom(self) -> "InstancesServer":
+        """Set custom_functions to null (the 'cleared' shape NTC stores when no custom grants)."""
+        body = dict(self._httpd.response_config.get("body") or {})
+        body["custom_functions"] = None
+        self._httpd.response_config = {"status": 200, "body": body}
+        return self
+
     def reset(self) -> "InstancesServer":
         """Clear all grants (returns use_legacy_authorization=False with empty function list)."""
         self._httpd.response_config = {

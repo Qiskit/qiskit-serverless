@@ -14,6 +14,7 @@
 
 import json
 import logging
+import os
 import re
 import tarfile
 import time
@@ -29,7 +30,7 @@ from core.services.runners.abstract_runner import AbstractRunner, RunnerError
 from core.ibm_cloud import get_ce_auth, get_cos_client
 from core.utils import decrypt_env_vars
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
-from core.ibm_cloud.code_engine.fleets.cos import JobCOS
+from core.ibm_cloud.code_engine.fleets.cos import JobCOS, queue_prefix
 from core.ibm_cloud.code_engine.fleets.utils import (
     FleetJobPaths,
     build_job_paths,
@@ -246,7 +247,7 @@ class FleetsRunner(AbstractRunner):
                 f"CodeEngineProject '{self._project.project_name}' has no cos_bucket_task_store_name configured"
             )
 
-        prefix = f"ce/{self._project.project_id}/{self.job.fleet_id}/v2/queue/"
+        prefix = queue_prefix(self._project.project_id, self.job.fleet_id)
         keys = self._list_task_state_keys(bucket, prefix)
         if not keys:
             # CE takes 10-15s after fleet creation to write the first queue/ key.
@@ -485,14 +486,32 @@ class FleetsRunner(AbstractRunner):
                 for member in tar.getmembers():
                     if not member.isfile():
                         continue
+
+                    # Defend against path traversal: a crafted archive could use
+                    # member names like "../../other-user/results.json" to write
+                    # COS keys outside this job's prefix. Reject absolute paths
+                    # and any name that escapes via "..".
+                    normalized_name = os.path.normpath(member.name)
+                    if (
+                        os.path.isabs(normalized_name)
+                        or normalized_name == ".."
+                        or normalized_name.startswith(".." + os.sep)
+                    ):
+                        logger.warning(
+                            "Skipping unsafe artifact member [%s] for job_id=%s",
+                            member.name,
+                            self.job.id,
+                        )
+                        continue
+
                     extracted = tar.extractfile(member)
                     if extracted is None:
                         continue
 
-                    if member.name == program.entrypoint:
+                    if normalized_name == program.entrypoint:
                         entrypoint_found = True
 
-                    key = f"{paths.cos_user_function_prefix}/{member.name}"
+                    key = f"{paths.cos_user_function_prefix}/{normalized_name}"
 
                     self._get_cos().upload_fileobj(fileobj=extracted, bucket_name=user_bucket, key=key)
                     logger.debug("Uploaded [%s] for job_id=%s to %s/%s", member.name, self.job.id, user_bucket, key)
