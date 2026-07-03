@@ -27,10 +27,10 @@ class NoOpEventStreamsClient(EventStreamsClient):
     """
 
     def emit_job_started(self, job) -> None:
-        logger.debug("job_id=%s [noop] emit_job_started", job.id)
+        logger.info("job_id=%s [noop] emit_job_started", job.id)
 
     def emit_job_in_progress(self, job) -> None:
-        logger.debug("job_id=%s [noop] emit_job_in_progress", job.id)
+        logger.info("job_id=%s [noop] emit_job_in_progress", job.id)
 
     def emit_job_ended(self, job) -> None:
-        logger.debug("job_id=%s [noop] emit_job_ended", job.id)
+        logger.info("job_id=%s [noop] emit_job_ended", job.id)
