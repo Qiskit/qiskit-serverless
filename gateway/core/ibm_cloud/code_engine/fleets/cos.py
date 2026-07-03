@@ -21,6 +21,24 @@ from core.ibm_cloud.cos.cos_client import COSClient
 logger = logging.getLogger("FleetHandler")
 
 
+def queue_prefix(project_id: str, fleet_id: str) -> str:
+    """Build the COS task-state queue key prefix for a fleet.
+
+    Single source for the ``ce/{project_id}/{fleet_id}/v2/queue/`` layout shared
+    by the status reader (FleetsRunner) and the fleets mock, so they cannot
+    drift. The fleet-worker test image is a separate container and keeps a
+    documented mirror of this format.
+
+    Args:
+        project_id: The CE project UUID.
+        fleet_id: The fleet UUID.
+
+    Returns:
+        The queue key prefix, ending in a trailing slash.
+    """
+    return f"ce/{project_id}/{fleet_id}/v2/queue/"
+
+
 class JobCOS:
     """COS operations wrapper for fleet job artifacts."""
 

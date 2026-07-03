@@ -30,7 +30,7 @@ from core.services.runners.abstract_runner import AbstractRunner, RunnerError
 from core.ibm_cloud import get_ce_auth, get_cos_client
 from core.utils import decrypt_env_vars
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
-from core.ibm_cloud.code_engine.fleets.cos import JobCOS
+from core.ibm_cloud.code_engine.fleets.cos import JobCOS, queue_prefix
 from core.ibm_cloud.code_engine.fleets.utils import (
     FleetJobPaths,
     build_job_paths,
@@ -247,7 +247,7 @@ class FleetsRunner(AbstractRunner):
                 f"CodeEngineProject '{self._project.project_name}' has no cos_bucket_task_store_name configured"
             )
 
-        prefix = f"ce/{self._project.project_id}/{self.job.fleet_id}/v2/queue/"
+        prefix = queue_prefix(self._project.project_id, self.job.fleet_id)
         keys = self._list_task_state_keys(bucket, prefix)
         if not keys:
             # CE takes 10-15s after fleet creation to write the first queue/ key.
