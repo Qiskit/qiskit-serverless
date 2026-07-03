@@ -2,6 +2,7 @@
 
 import json
 import logging
+import posixpath
 import re
 from typing import Any, cast
 
@@ -79,13 +80,14 @@ class ProgramSerializer(serializers.ModelSerializer):
                 "Invalid entrypoint. It must be a relative path to a .py file "
                 "without '..' segments or shell characters."
             )
-        segments = value.split("/")
-        if not re.fullmatch(r"[A-Za-z0-9_./-]+\.py", value) or value.startswith("/") or ".." in segments:
+        normalized = posixpath.normpath(value)
+        segments = normalized.split("/")
+        if not re.fullmatch(r"[A-Za-z0-9_./-]+\.py", normalized) or normalized.startswith("/") or ".." in segments:
             raise ValidationError(
                 "Invalid entrypoint. It must be a relative path to a .py file "
                 "without '..' segments or shell characters."
             )
-        return value
+        return normalized
 
     def validate_image(self, value):
         """Validate image."""
