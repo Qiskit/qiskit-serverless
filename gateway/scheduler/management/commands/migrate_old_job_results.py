@@ -48,7 +48,7 @@ class Command(BaseCommand):
         while True:
             jobs = list(
                 Job.objects.order_by("id")
-                .filter(status__in=Job.TERMINAL_STATUSES, compute_resource__active=False, result__isnull=False)
+                .filter(status__in=Job.TERMINAL_STATUSES, compute_resource__active=False)
                 .exclude(result="")[: settings.JOB_LOGS_MIGRATION_BATCH_SIZE]
             )
 
@@ -58,7 +58,10 @@ class Command(BaseCommand):
 
             logger.info("Processing [%s] jobs", len(jobs))
             for job in jobs:
-                if save_job_results_to_storage(job):
+                if job.result is None:
+                    job.result = ""
+                    job.save(update_fields=["result"])
+                elif save_job_results_to_storage(job):
                     job.result = ""
                     job.save(update_fields=["result"])
 
