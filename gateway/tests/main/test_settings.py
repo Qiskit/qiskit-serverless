@@ -10,12 +10,13 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Tests for main.settings auth mechanism resolution."""
+"""Tests for main.settings."""
 
 import importlib
 import os
 
 import pytest
+from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
 import main.settings
@@ -63,3 +64,16 @@ class TestAuthMechanism:
         assert main.settings.DJR_DEFAULT_AUTHENTICATION_CLASSES == [
             "api.authentication.MockTokenBackend",
         ]
+
+
+def test_template_dirs_use_etc_gateway_not_tmp():
+    """The extra template dir must be /etc/gateway/templates, never /tmp.
+
+    The chart mounts the ray cluster template into /etc/gateway/templates. If
+    that mount ever drifts back to a world-writable location like /tmp, any
+    other process on the host could drop a malicious template into Django's
+    search path. This test catches such a desync.
+    """
+    dirs = [str(path) for path in settings.TEMPLATES[0]["DIRS"]]
+    assert "/etc/gateway/templates" in dirs
+    assert "/tmp/templates" not in dirs
