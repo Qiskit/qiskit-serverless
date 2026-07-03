@@ -67,6 +67,7 @@ application:
     hstsPreload: false
   eventStreams:
     enabled: false
+    environment: ""
 
 tracing:
   enabled: false
