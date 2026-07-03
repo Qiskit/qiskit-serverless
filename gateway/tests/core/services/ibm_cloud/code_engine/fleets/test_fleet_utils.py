@@ -248,6 +248,15 @@ def test_build_run_env_variables_excludes_empty_values():
     assert "ALSO_DROP" not in by_name
 
 
+def test_build_run_env_variables_drops_env_job_arguments():
+    """build_run_env_variables drops the ENV_JOB_ARGUMENTS stored env var."""
+    stored = {"ENV_JOB_ARGUMENTS": '{"secret": "value"}', "KEEP": "yes"}
+    result = build_run_env_variables(_make_paths(), stored)
+    names = {e["name"] for e in result}
+    assert "ENV_JOB_ARGUMENTS" not in names
+    assert "KEEP" in names
+
+
 def test_build_run_env_variables_with_private_log():
     """build_run_env_variables includes PRIVATE_LOG_PATH when container_private_log_path is set."""
     result = build_run_env_variables(
