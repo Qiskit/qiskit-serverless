@@ -43,6 +43,17 @@ def test_returns_function_from_200_response_empty(instances_server):
     assert result.functions == ()
 
 
+def test_handles_null_custom_functions(instances_server):
+    """custom_functions: null (the cleared shape) must not crash; permissions resolve to empty."""
+    instances_server.grant("ibm", "sampler", [PLATFORM_PERMISSION_RUN]).clear_custom()
+
+    result = FunctionAccessClient().get_accessible_functions("crn:null:1", "test-api-key")
+
+    assert result.use_legacy_authorization is False
+    assert result.custom_function_permissions == set()
+    assert result.get_function("ibm", "sampler") is not None
+
+
 def test_raises_on_server_error(instances_server):
     instances_server.error(500)
 
