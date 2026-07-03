@@ -5,6 +5,7 @@ import pytest
 import main.settings
 from django.conf import settings
 
+
 @pytest.fixture(autouse=True)
 def restore_settings(monkeypatch):
     """Reload main.settings with a clean default env after each test.
@@ -36,7 +37,6 @@ def test_debug_enabled_sets_debug_log_level(monkeypatch):
 
     assert main.settings.DEBUG
     assert main.settings.LOG_LEVEL == "DEBUG"
-"""Tests for Django settings."""
 
 
 def test_template_dirs_use_etc_gateway_not_tmp():
