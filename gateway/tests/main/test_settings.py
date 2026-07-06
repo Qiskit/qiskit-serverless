@@ -24,18 +24,38 @@ import main.settings
 
 @pytest.fixture(autouse=True)
 def restore_settings():
-    """Reload main.settings with a valid env after each test.
+    """Reload main.settings with a clean default env after each test.
 
-    main.settings reads SETTINGS_AUTH_MECHANISM at import time and raises on
-    an unknown value, so tests reload the module with a patched environment.
-    This teardown clears the override and reloads it once more with a valid
-    value to leave the module in a good state and avoid polluting the rest of
-    the suite. Clearing the env var here (instead of relying on monkeypatch)
-    keeps the teardown order-independent.
+    The tests reload the settings module with a patched environment, so clear
+    the overrides and reload once more on teardown to leave the module in a
+    good state and avoid polluting the rest of the suite. Clearing the env
+    vars here (instead of relying on monkeypatch) keeps the teardown
+    order-independent.
     """
     yield
+    os.environ.pop("DEBUG", None)
     os.environ.pop("SETTINGS_AUTH_MECHANISM", None)
     importlib.reload(main.settings)
+
+
+def test_debug_defaults_to_off_when_unset(monkeypatch):
+    """With DEBUG unset, DEBUG is falsy and LOG_LEVEL is INFO."""
+    monkeypatch.delenv("DEBUG", raising=False)
+
+    importlib.reload(main.settings)
+
+    assert not main.settings.DEBUG
+    assert main.settings.LOG_LEVEL == "INFO"
+
+
+def test_debug_enabled_sets_debug_log_level(monkeypatch):
+    """With DEBUG=1, DEBUG is truthy and LOG_LEVEL is DEBUG."""
+    monkeypatch.setenv("DEBUG", "1")
+
+    importlib.reload(main.settings)
+
+    assert main.settings.DEBUG
+    assert main.settings.LOG_LEVEL == "DEBUG"
 
 
 class TestAuthMechanism:

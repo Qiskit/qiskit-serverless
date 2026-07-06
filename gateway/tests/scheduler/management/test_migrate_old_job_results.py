@@ -114,7 +114,7 @@ def test_migrate_jobs_results_to_storage_not_active(settings):
 
 @pytest.mark.django_db
 def test_migrate_jobs_results_with_results_none(settings):
-    """Tests that results are properly migrated with a not active compute resource."""
+    """Tests that jobs with None results are not migrated."""
     settings.JOB_LOGS_MIGRATION_BATCH_SIZE = 10
     compute_resource = ComputeResource.objects.create(title="test-cluster-migrate-results", active=False)
     test_result = None
@@ -127,16 +127,16 @@ def test_migrate_jobs_results_with_results_none(settings):
 
     call_command("migrate_old_job_results", max_jobs=0)
 
-    for job in [
-        job_succeeded,
-        job_failed,
-        job_stopped,
-        job_queued,
-        job_running,
+    for job, expected_result in [
+        (job_succeeded, ""),
+        (job_failed, ""),
+        (job_stopped, ""),
+        (job_queued, None),
+        (job_running, None),
     ]:
         job.refresh_from_db()
-        assert job.result == None
-        assert get_result_storage(job).get() == None
+        assert job.result == expected_result
+        assert get_result_storage(job).get() is None
 
 
 @pytest.mark.django_db
