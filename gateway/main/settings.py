@@ -46,10 +46,10 @@ SECRET_KEY = os.environ.get(
 )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = int(os.environ.get("DEBUG", 1))
+DEBUG = int(os.environ.get("DEBUG", 0))
 
 # SECURITY WARNING: don't run with debug turned on in production!
-LOG_LEVEL = "DEBUG" if int(os.environ.get("DEBUG", 1)) else "INFO"
+LOG_LEVEL = "DEBUG" if int(os.environ.get("DEBUG", 0)) else "INFO"
 LOG_FORMAT = "json" if os.environ.get("LOG_FORMAT", "simple") == "json" else "simple"
 
 # It must be a full url without protocol: mydomain.com
