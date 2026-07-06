@@ -184,6 +184,12 @@ def build_run_env_variables(
     """
     env = dict(stored_env_vars)
 
+    # The full JSON job arguments are delivered to the container via COS at
+    # ARGUMENTS_PATH (mounted file), so the duplicate ENV_JOB_ARGUMENTS literal
+    # env var would just expose the (possibly sensitive) user arguments as plain
+    # text in the Code Engine control plane. Drop it for fleets.
+    env.pop("ENV_JOB_ARGUMENTS", None)
+
     gateway_host = getattr(settings, "FLEETS_GATEWAY_HOST", None)
     if gateway_host:
         env["ENV_JOB_GATEWAY_HOST"] = gateway_host

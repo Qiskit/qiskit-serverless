@@ -43,10 +43,10 @@ SECRET_KEY = os.environ.get(
 )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = int(os.environ.get("DEBUG", 1))
+DEBUG = int(os.environ.get("DEBUG", 0))
 
 # SECURITY WARNING: don't run with debug turned on in production!
-LOG_LEVEL = "DEBUG" if int(os.environ.get("DEBUG", 1)) else "INFO"
+LOG_LEVEL = "DEBUG" if int(os.environ.get("DEBUG", 0)) else "INFO"
 LOG_FORMAT = "json" if os.environ.get("LOG_FORMAT", "simple") == "json" else "simple"
 
 # It must be a full url without protocol: mydomain.com
@@ -112,7 +112,11 @@ ROOT_URLCONF = "main.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates", "/tmp/templates"],
+        # The extra template directory (the ray cluster template delivered via a
+        # configmap mount) must not be a shared world-writable location such as
+        # /tmp, where any other process on the host could drop a malicious
+        # template into Django's search path.
+        "DIRS": [BASE_DIR / "templates", "/etc/gateway/templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [

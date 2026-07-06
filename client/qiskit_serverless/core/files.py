@@ -99,6 +99,10 @@ class GatewayFilesClient:
             chunk_size = 8192
             progress_bar = tqdm(total=total_size_in_bytes, unit="iB", unit_scale=True)
             file_name = target_name or f"downloaded_{str(uuid.uuid4())[:8]}_{file}"
+            # os.path.basename keeps only the file name and strips any directory
+            # part, which could be a traversal like "../../etc/passwd", so a
+            # crafted name cannot escape download_location.
+            file_name = os.path.basename(file_name)
             with open(os.path.join(download_location, file_name), "wb") as f:
                 for chunk in req.iter_content(chunk_size=chunk_size):
                     progress_bar.update(len(chunk))
