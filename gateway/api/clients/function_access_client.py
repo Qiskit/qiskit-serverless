@@ -45,13 +45,6 @@ class FunctionAccessClient:
             logger.exception("FunctionAccessClient: connection error for CRN %s", instance_crn)
             raise RuntimeFunctionsException("Error connecting to Runtime API") from exc
 
-        if response.status_code == 204:
-            # We agreed with Runtime that 204 response means there is no functions configured
-            # for this instance, so we should fallback to Django
-            return FunctionAccessResult(
-                use_legacy_authorization=True, message="Instance not configured, migration pending"
-            )
-
         if response.status_code != 200:
             logger.warning(
                 "FunctionAccessClient: unexpected status %s for CRN %s",
@@ -60,28 +53,35 @@ class FunctionAccessClient:
             )
             raise RuntimeFunctionsException(f"Unexpected status {response.status_code} for CRN {instance_crn}")
 
-        response_json = response.json()
-        functions = []
-        for entry in response_json.get("functions", []):
-            try:
-                function_entry = FunctionAccessEntry(
-                    provider_name=entry["provider"],
-                    function_title=entry["name"],
-                    permissions=set(entry.get("permissions", [])),
-                    business_model=entry["business_model"],
-                )
-                functions.append(function_entry)
-            except (KeyError, ValueError) as exc:
-                # entry with missing field or incorrect business model
-                logger.error("FunctionAccessClient: invalid entry %s — %s", entry, exc)
+        if response.status_code == 204:
+            # We agreed with Runtime that 204 response means there is no functions configured
+            # for this instance, so we should fallback to Django
+            result = FunctionAccessResult(
+                use_legacy_authorization=True, message="Instance not configured, migration pending"
+            )
+        else:
+            response_json = response.json()
+            functions = []
+            for entry in response_json.get("functions", []):
+                try:
+                    function_entry = FunctionAccessEntry(
+                        provider_name=entry["provider"],
+                        function_title=entry["name"],
+                        permissions=set(entry.get("permissions", [])),
+                        business_model=entry["business_model"],
+                    )
+                    functions.append(function_entry)
+                except (KeyError, ValueError) as exc:
+                    # entry with missing field or incorrect business model
+                    logger.error("FunctionAccessClient: invalid entry %s — %s", entry, exc)
 
-        # custom_functions may be present but null (cleared), so coalesce both levels to avoid
-        # AttributeError on None.get(...).
-        custom_function_permissions = set((response_json.get("custom_functions") or {}).get("permissions") or [])
-        result = FunctionAccessResult(
-            use_legacy_authorization=False,
-            functions=functions,
-            custom_function_permissions=custom_function_permissions,
-        )
+            # custom_functions may be present but null (cleared), so coalesce both levels to avoid
+            # AttributeError on None.get(...).
+            custom_function_permissions = set((response_json.get("custom_functions") or {}).get("permissions") or [])
+            result = FunctionAccessResult(
+                use_legacy_authorization=False,
+                functions=functions,
+                custom_function_permissions=custom_function_permissions,
+            )
         cache.set(cache_key, result, timeout=settings.RUNTIME_API_CACHE_TTL)
         return result
