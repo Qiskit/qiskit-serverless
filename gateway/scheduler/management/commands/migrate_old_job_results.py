@@ -56,6 +56,8 @@ class Command(BaseCommand):
                 logger.info("No more jobs to process")
                 break
 
+            logger.info("max_jobs jobs %s", max_jobs)
+
             logger.info("Processing [%s] jobs", len(jobs))
             for job in jobs:
                 logger.info("Processing job[%s]", job.id)
