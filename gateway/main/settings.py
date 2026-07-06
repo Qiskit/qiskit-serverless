@@ -40,7 +40,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = int(os.environ.get("DEBUG", 1))
+DEBUG = int(os.environ.get("DEBUG", 0))
 
 # SECURITY WARNING: keep the secret key used in production secret!
 # A hardcoded fallback is only allowed in development/tests. When DEBUG is off
@@ -54,7 +54,7 @@ if not SECRET_KEY:
         raise ImproperlyConfigured("DJANGO_SECRET_KEY environment variable must be set when DEBUG is disabled.")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-LOG_LEVEL = "DEBUG" if int(os.environ.get("DEBUG", 1)) else "INFO"
+LOG_LEVEL = "DEBUG" if int(os.environ.get("DEBUG", 0)) else "INFO"
 LOG_FORMAT = "json" if os.environ.get("LOG_FORMAT", "simple") == "json" else "simple"
 
 # It must be a full url without protocol: mydomain.com

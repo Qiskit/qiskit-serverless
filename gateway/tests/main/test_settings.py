@@ -60,6 +60,26 @@ def test_missing_secret_key_uses_fallback_when_debug_on(monkeypatch):
     assert main.settings.SECRET_KEY.startswith("django-insecure-")
 
 
+def test_debug_defaults_to_off_when_unset(monkeypatch):
+    """With DEBUG unset, DEBUG is falsy and LOG_LEVEL is INFO."""
+    monkeypatch.delenv("DEBUG", raising=False)
+
+    importlib.reload(main.settings)
+
+    assert not main.settings.DEBUG
+    assert main.settings.LOG_LEVEL == "INFO"
+
+
+def test_debug_enabled_sets_debug_log_level(monkeypatch):
+    """With DEBUG=1, DEBUG is truthy and LOG_LEVEL is DEBUG."""
+    monkeypatch.setenv("DEBUG", "1")
+
+    importlib.reload(main.settings)
+
+    assert main.settings.DEBUG
+    assert main.settings.LOG_LEVEL == "DEBUG"
+
+
 def test_template_dirs_use_etc_gateway_not_tmp():
     """The extra template dir must be /etc/gateway/templates, never /tmp.
 
