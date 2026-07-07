@@ -377,12 +377,23 @@
         <span class="k">if</span> <span class="s2">&quot;__type__&quot;</span> <span class="ow">in</span> <span class="n">obj</span><span class="p">:</span>
             <span class="n">obj_type</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="s2">&quot;__type__&quot;</span><span class="p">]</span>
 
+            <span class="c1"># Only reconstruct known types, and only from a well-formed mapping</span>
+            <span class="c1"># of string keys. This prevents a malicious/compromised gateway from</span>
+            <span class="c1"># splatting an arbitrarily-shaped &quot;__value__&quot; into these</span>
+            <span class="c1"># constructors (which would otherwise be attacker-controlled kwargs).</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;__value__&quot;</span><span class="p">)</span>
+
+            <span class="k">def</span><span class="w"> </span><span class="nf">_safe_kwargs</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">value</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid &#39;__value__&#39; payload for type &#39;</span><span class="si">{</span><span class="n">obj_type</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">value</span>
+
             <span class="k">if</span> <span class="n">obj_type</span> <span class="o">==</span> <span class="s2">&quot;QiskitRuntimeService&quot;</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">QiskitRuntimeService</span><span class="p">(</span><span class="o">**</span><span class="n">obj</span><span class="p">[</span><span class="s2">&quot;__value__&quot;</span><span class="p">])</span>
+                <span class="k">return</span> <span class="n">QiskitRuntimeService</span><span class="p">(</span><span class="o">**</span><span class="n">_safe_kwargs</span><span class="p">())</span>
             <span class="k">if</span> <span class="n">obj_type</span> <span class="o">==</span> <span class="s2">&quot;SamplerResult&quot;</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">SamplerResult</span><span class="p">(</span><span class="o">**</span><span class="n">obj</span><span class="p">[</span><span class="s2">&quot;__value__&quot;</span><span class="p">])</span>
+                <span class="k">return</span> <span class="n">SamplerResult</span><span class="p">(</span><span class="o">**</span><span class="n">_safe_kwargs</span><span class="p">())</span>
             <span class="k">if</span> <span class="n">obj_type</span> <span class="o">==</span> <span class="s2">&quot;EstimatorResult&quot;</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">EstimatorResult</span><span class="p">(</span><span class="o">**</span><span class="n">obj</span><span class="p">[</span><span class="s2">&quot;__value__&quot;</span><span class="p">])</span>
+                <span class="k">return</span> <span class="n">EstimatorResult</span><span class="p">(</span><span class="o">**</span><span class="n">_safe_kwargs</span><span class="p">())</span>
             <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">object_hook</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">obj</span>
 
