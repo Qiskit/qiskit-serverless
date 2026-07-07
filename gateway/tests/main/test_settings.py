@@ -15,6 +15,7 @@
 settings.py reads the environment at import time and raises there, so we
 exercise it by reloading the module with a patched environment.
 """
+
 import importlib
 import os
 import sys
