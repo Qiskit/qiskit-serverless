@@ -52,7 +52,7 @@ application:
     url: "https://cloud.ibm.com"
   runtimeApi:
     url: "https://quantum.cloud.ibm.com"
-    cacheTtl: "60"
+    cacheTtl: "1"
   # Set this to the host(s) the gateway serves. It is empty by default so a
   # deployment that forgets to set it fails closed (the gateway refuses to boot)
   # instead of accepting any Host header. Set "*" only for local development.

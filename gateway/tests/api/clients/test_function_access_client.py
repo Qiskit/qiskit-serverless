@@ -80,6 +80,17 @@ def test_caches_successful_response(instances_server):
     assert result.get_function("ibm", "sampler") is not None
 
 
+def test_caches_204_response(instances_server):
+    instances_server.error(204)
+
+    first = FunctionAccessClient().get_accessible_functions("crn:cache:204", "test-api-key")
+    second = FunctionAccessClient().get_accessible_functions("crn:cache:204", "test-api-key")
+
+    assert instances_server.request_count == 1
+    assert first.use_legacy_authorization is True
+    assert second.use_legacy_authorization is True
+
+
 def test_does_not_cache_error_response(instances_server):
     instances_server.error(500)
 

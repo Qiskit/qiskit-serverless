@@ -1,6 +1,11 @@
-"""Regression tests for main.settings defaults."""
+"""Regression tests for main.settings.
+
+settings.py reads the environment at import time and raises there, so we
+exercise it by reloading the module with a patched environment.
+"""
 
 import importlib
+import os
 import sys
 from unittest.mock import patch
 
@@ -12,16 +17,48 @@ import main.settings
 
 
 @pytest.fixture(autouse=True)
-def restore_settings(monkeypatch):
-    """Reload main.settings with a clean default env after each test.
+def restore_settings_module():
+    """Reload main.settings with a valid environment after each test.
 
-    The tests below reload the settings module with a patched environment,
-    so we reload it once more on teardown to leave the module clean and
-    avoid polluting other tests in the suite.
+    A test that reloads settings.py while it raises leaves the module
+    half-initialised, so reload it once more with a good environment to keep
+    the rest of the suite unaffected. This forces the good state itself rather
+    than relying on monkeypatch teardown order.
     """
     yield
-    monkeypatch.delenv("DEBUG", raising=False)
+    sys.modules.setdefault("pytest", pytest)
+    previous_debug = os.environ.get("DEBUG")
+    os.environ["DEBUG"] = "1"
+    try:
+        importlib.reload(main.settings)
+    finally:
+        if previous_debug is None:
+            os.environ.pop("DEBUG", None)
+        else:
+            os.environ["DEBUG"] = previous_debug
+
+
+def test_missing_secret_key_fails_closed_when_debug_off(monkeypatch):
+    """DEBUG off and no DJANGO_SECRET_KEY must fail closed at import time."""
+    monkeypatch.setenv("DEBUG", "0")
+    monkeypatch.delenv("DJANGO_SECRET_KEY", raising=False)
+    # settings treats any pytest run as a test env (IS_TEST), which allows the
+    # insecure fallback. Drop the marker so we hit the real production path.
+    monkeypatch.delitem(sys.modules, "pytest", raising=False)
+
+    with pytest.raises(ImproperlyConfigured):
+        importlib.reload(main.settings)
+
+
+def test_missing_secret_key_uses_fallback_when_debug_on(monkeypatch):
+    """DEBUG on and no key loads fine and falls back to the dev secret."""
+    monkeypatch.setenv("DEBUG", "1")
+    monkeypatch.delenv("DJANGO_SECRET_KEY", raising=False)
+
     importlib.reload(main.settings)
+
+    assert main.settings.SECRET_KEY
+    assert main.settings.SECRET_KEY.startswith("django-insecure-")
 
 
 def test_debug_defaults_to_off_when_unset(monkeypatch):
@@ -55,6 +92,26 @@ def test_allowed_hosts_required_when_debug_off(monkeypatch):
         sys.modules.pop("pytest", None)
         with pytest.raises(ImproperlyConfigured):
             importlib.reload(main.settings)
+
+
+def test_allowed_hosts_wildcard_when_debug_on(monkeypatch):
+    """Unset ALLOWED_HOSTS with DEBUG on defaults to the wildcard."""
+    monkeypatch.setenv("DEBUG", "1")
+    monkeypatch.delenv("ALLOWED_HOSTS", raising=False)
+
+    importlib.reload(main.settings)
+
+    assert main.settings.ALLOWED_HOSTS == ["*"]
+
+
+def test_allowed_hosts_uses_set_value(monkeypatch):
+    """A set ALLOWED_HOSTS value is used as-is, split on commas."""
+    monkeypatch.setenv("DEBUG", "0")
+    monkeypatch.setenv("ALLOWED_HOSTS", "example.com")
+
+    importlib.reload(main.settings)
+
+    assert main.settings.ALLOWED_HOSTS == ["example.com"]
 
 
 def test_template_dirs_use_etc_gateway_not_tmp():

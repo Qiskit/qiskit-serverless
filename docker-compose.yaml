@@ -48,6 +48,8 @@ services:
     environment:
       - DEBUG=0
       - ALLOWED_HOSTS=*
+      # Local-only dev secret. With DEBUG=0 the app fails closed without this.
+      - DJANGO_SECRET_KEY=django-insecure-local-compose-only-change-me
       - RAY_HOST=http://ray-head:8265
       - RAY_CLUSTER_MODE_LOCAL=true
       - DJANGO_SUPERUSER_USERNAME=admin
@@ -78,6 +80,8 @@ services:
     environment:
       - DEBUG=0
       - ALLOWED_HOSTS=*
+      # Local-only dev secret. With DEBUG=0 the app fails closed without this.
+      - DJANGO_SECRET_KEY=django-insecure-local-compose-only-change-me
       - DATABASE_HOST=postgres
       - DATABASE_PORT=5432
       - DATABASE_NAME=serverlessdb
