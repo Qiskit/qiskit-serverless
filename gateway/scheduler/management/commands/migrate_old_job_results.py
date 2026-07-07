@@ -49,16 +49,22 @@ class Command(BaseCommand):
             jobs = list(
                 Job.objects.order_by("id")
                 .filter(status__in=Job.TERMINAL_STATUSES, compute_resource__active=False)
-                .exclude(result__in=("", None))[: settings.JOB_LOGS_MIGRATION_BATCH_SIZE]
+                .exclude(result="")[: settings.JOB_LOGS_MIGRATION_BATCH_SIZE]
             )
 
             if len(jobs) == 0:
                 logger.info("No more jobs to process")
                 break
 
+            logger.info("max_jobs jobs %s", max_jobs)
+
             logger.info("Processing [%s] jobs", len(jobs))
             for job in jobs:
-                if save_job_results_to_storage(job):
+                logger.info("Processing job[%s]", job.id)
+                if job.result is None:
+                    job.result = ""
+                    job.save(update_fields=["result"])
+                elif save_job_results_to_storage(job):
                     job.result = ""
                     job.save(update_fields=["result"])
 

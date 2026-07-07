@@ -16,6 +16,9 @@ import os
 import os.path
 import sys
 from pathlib import Path
+
+from django.core.exceptions import ImproperlyConfigured
+
 from core.utils import sanitize_file_path
 
 RELEASE_VERSION = os.environ.get("VERSION", "UNKNOWN")
@@ -36,17 +39,22 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = int(os.environ.get("DEBUG", 0))
+
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get(
-    "DJANGO_SECRET_KEY",
-    "django-insecure-&)i3b5aue*#-i6k9i-03qm(d!0h&662lbhj12on_*gimn3x8p7",
-)
+# A hardcoded fallback is only allowed in development/tests. When DEBUG is off
+# (i.e. production) the process must fail closed if no key is provided, so we
+# never silently sign sessions/tokens with a publicly known key.
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+if not SECRET_KEY:
+    if DEBUG or IS_TEST:
+        SECRET_KEY = "django-insecure-&)i3b5aue*#-i6k9i-03qm(d!0h&662lbhj12on_*gimn3x8p7"
+    else:
+        raise ImproperlyConfigured("DJANGO_SECRET_KEY environment variable must be set when DEBUG is disabled.")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = int(os.environ.get("DEBUG", 1))
-
-# SECURITY WARNING: don't run with debug turned on in production!
-LOG_LEVEL = "DEBUG" if int(os.environ.get("DEBUG", 1)) else "INFO"
+LOG_LEVEL = "DEBUG" if int(os.environ.get("DEBUG", 0)) else "INFO"
 LOG_FORMAT = "json" if os.environ.get("LOG_FORMAT", "simple") == "json" else "simple"
 
 # It must be a full url without protocol: mydomain.com
@@ -112,7 +120,11 @@ ROOT_URLCONF = "main.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates", "/tmp/templates"],
+        # The extra template directory (the ray cluster template delivered via a
+        # configmap mount) must not be a shared world-writable location such as
+        # /tmp, where any other process on the host could drop a malicious
+        # template into Django's search path.
+        "DIRS": [BASE_DIR / "templates", "/etc/gateway/templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [

@@ -43,6 +43,17 @@ def test_returns_function_from_200_response_empty(instances_server):
     assert result.functions == ()
 
 
+def test_handles_null_custom_functions(instances_server):
+    """custom_functions: null (the cleared shape) must not crash; permissions resolve to empty."""
+    instances_server.grant("ibm", "sampler", [PLATFORM_PERMISSION_RUN]).clear_custom()
+
+    result = FunctionAccessClient().get_accessible_functions("crn:null:1", "test-api-key")
+
+    assert result.use_legacy_authorization is False
+    assert result.custom_function_permissions == set()
+    assert result.get_function("ibm", "sampler") is not None
+
+
 def test_raises_on_server_error(instances_server):
     instances_server.error(500)
 
@@ -67,6 +78,17 @@ def test_caches_successful_response(instances_server):
     assert instances_server.request_count == 1
     assert result.use_legacy_authorization is False
     assert result.get_function("ibm", "sampler") is not None
+
+
+def test_caches_204_response(instances_server):
+    instances_server.error(204)
+
+    first = FunctionAccessClient().get_accessible_functions("crn:cache:204", "test-api-key")
+    second = FunctionAccessClient().get_accessible_functions("crn:cache:204", "test-api-key")
+
+    assert instances_server.request_count == 1
+    assert first.use_legacy_authorization is True
+    assert second.use_legacy_authorization is True
 
 
 def test_does_not_cache_error_response(instances_server):

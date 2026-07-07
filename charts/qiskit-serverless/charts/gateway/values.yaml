@@ -52,7 +52,7 @@ application:
     url: "https://cloud.ibm.com"
   runtimeApi:
     url: "https://quantum.cloud.ibm.com"
-    cacheTtl: "60"
+    cacheTtl: "1"
   allowedHosts: "*"
   trustedOrigins: "http://localhost"
   corsOrigins: "http://localhost"
@@ -64,6 +64,7 @@ application:
     hstsPreload: false
   eventStreams:
     enabled: false
+    environment: ""
 
 tracing:
   enabled: false

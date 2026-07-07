@@ -113,6 +113,33 @@ def test_migrate_jobs_results_to_storage_not_active(settings):
 
 
 @pytest.mark.django_db
+def test_migrate_jobs_results_with_results_none(settings):
+    """Tests that jobs with None results are not migrated."""
+    settings.JOB_LOGS_MIGRATION_BATCH_SIZE = 10
+    compute_resource = ComputeResource.objects.create(title="test-cluster-migrate-results", active=False)
+    test_result = None
+
+    job_succeeded = _create_test_job(status=Job.SUCCEEDED, compute_resource=compute_resource, result=test_result)
+    job_failed = _create_test_job(status=Job.FAILED, compute_resource=compute_resource, result=test_result)
+    job_stopped = _create_test_job(status=Job.STOPPED, compute_resource=compute_resource, result=test_result)
+    job_queued = _create_test_job(status=Job.QUEUED, compute_resource=compute_resource, result=test_result)
+    job_running = _create_test_job(status=Job.RUNNING, compute_resource=compute_resource, result=test_result)
+
+    call_command("migrate_old_job_results", max_jobs=0)
+
+    for job, expected_result in [
+        (job_succeeded, ""),
+        (job_failed, ""),
+        (job_stopped, ""),
+        (job_queued, None),
+        (job_running, None),
+    ]:
+        job.refresh_from_db()
+        assert job.result == expected_result
+        assert get_result_storage(job).get() is None
+
+
+@pytest.mark.django_db
 def test_migrate_jobs_results_to_storage_too_much_elements(settings):
     """Tests that results are properly migrated in batches of JOB_LOGS_MIGRATION_BATCH_SIZE."""
     settings.JOB_LOGS_MIGRATION_BATCH_SIZE = 10
