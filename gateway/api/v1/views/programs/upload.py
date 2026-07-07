@@ -2,6 +2,8 @@
 
 import json
 import logging
+import posixpath
+import re
 from typing import Any, cast
 
 from django.contrib.auth.models import AbstractUser
@@ -62,6 +64,30 @@ class ProgramSerializer(serializers.ModelSerializer):
     def validate_provider(self, value):
         """Sanitize provider name."""
         return sanitize_name(value) if value else value
+
+    def validate_entrypoint(self, value):
+        """Validate the entrypoint is a safe, relative ``.py`` file path.
+
+        The entrypoint is inserted into the runner's execution command
+        (e.g. ``python {entrypoint}`` for Ray) and into COS/PDS object paths, so
+        it must not contain shell metacharacters, be absolute, or traverse
+        outside the function directory via ``..``.
+        """
+        if value is None:
+            return value
+        if not isinstance(value, str):
+            raise ValidationError(
+                "Invalid entrypoint. It must be a relative path to a .py file "
+                "without '..' segments or shell characters."
+            )
+        normalized = posixpath.normpath(value)
+        segments = normalized.split("/")
+        if not re.fullmatch(r"[A-Za-z0-9_./-]+\.py", normalized) or normalized.startswith("/") or ".." in segments:
+            raise ValidationError(
+                "Invalid entrypoint. It must be a relative path to a .py file "
+                "without '..' segments or shell characters."
+            )
+        return normalized
 
     def validate_image(self, value):
         """Validate image."""

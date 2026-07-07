@@ -39,14 +39,19 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get(
-    "DJANGO_SECRET_KEY",
-    "django-insecure-&)i3b5aue*#-i6k9i-03qm(d!0h&662lbhj12on_*gimn3x8p7",
-)
-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = int(os.environ.get("DEBUG", 0))
+
+# SECURITY WARNING: keep the secret key used in production secret!
+# A hardcoded fallback is only allowed in development/tests. When DEBUG is off
+# (i.e. production) the process must fail closed if no key is provided, so we
+# never silently sign sessions/tokens with a publicly known key.
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+if not SECRET_KEY:
+    if DEBUG or IS_TEST:
+        SECRET_KEY = "django-insecure-&)i3b5aue*#-i6k9i-03qm(d!0h&662lbhj12on_*gimn3x8p7"
+    else:
+        raise ImproperlyConfigured("DJANGO_SECRET_KEY environment variable must be set when DEBUG is disabled.")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 LOG_LEVEL = "DEBUG" if int(os.environ.get("DEBUG", 0)) else "INFO"
