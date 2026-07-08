@@ -100,3 +100,38 @@ def test_does_not_cache_error_response(instances_server):
         FunctionAccessClient().get_accessible_functions("crn:cache:err", "test-api-key")
 
     assert instances_server.request_count == 2
+
+
+# Region routing: the Runtime API is region-scoped. The default region is served by the
+# bare host; other regions get a "{region}." host prefix derived from the CRN.
+
+BASE_URL = "https://quantum.cloud.ibm.com"
+
+
+def _crn(region: str) -> str:
+    return f"crn:v1:bluemix:public:quantum-computing:{region}:a/acct:guid::"
+
+
+def test_regional_url_default_region_unchanged(settings):
+    settings.RUNTIME_API_DEFAULT_REGION = "us-east"
+
+    result = FunctionAccessClient()._regional_base_url(BASE_URL, _crn("us-east"))
+
+    assert result == BASE_URL
+
+
+def test_regional_url_non_default_region_prefixed(settings):
+    settings.RUNTIME_API_DEFAULT_REGION = "us-east"
+
+    result = FunctionAccessClient()._regional_base_url(BASE_URL, _crn("eu-de"))
+
+    assert result == "https://eu-de.quantum.cloud.ibm.com"
+
+
+@pytest.mark.parametrize("crn", ["crn:test:123", "", None])
+def test_regional_url_unparseable_crn_falls_back(settings, crn):
+    settings.RUNTIME_API_DEFAULT_REGION = "us-east"
+
+    result = FunctionAccessClient()._regional_base_url(BASE_URL, crn)
+
+    assert result == BASE_URL
