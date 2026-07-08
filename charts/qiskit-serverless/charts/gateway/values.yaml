@@ -65,6 +65,10 @@ application:
   eventStreams:
     enabled: false
     environment: ""
+  # Optional IBM w3id SSO backoffice login. The provider base url is not
+  # sensitive and lives here; credentials go in secrets.w3idSso (see below).
+  w3idSso:
+    baseUrl: "https://test.login.w3.ibm.com"
 
 tracing:
   enabled: false
@@ -101,6 +105,7 @@ secrets:
       name: name
       password: password
       email: email
+  # w3idSso: ""  # path in IBM Secrets Manager, e.g. app_qiskit_serverless_staging/arbitrary/staging-w3id-sso
 
 image:
   repository: icr.io/quantum-public/qiskit-serverless/gateway

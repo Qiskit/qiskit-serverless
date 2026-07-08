@@ -76,6 +76,9 @@ gateway:
   kafkaCredentials:
     create: false
 
+  w3idSsoCredentials:
+    create: false
+
   secrets:
     secretKey:
       name: gateway-secret-key
