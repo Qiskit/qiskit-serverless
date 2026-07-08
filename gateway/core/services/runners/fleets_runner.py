@@ -14,10 +14,10 @@
 
 import json
 import logging
+import os
 import re
 import tarfile
 import time
-from collections import OrderedDict
 from io import BytesIO
 
 from django.conf import settings
@@ -30,7 +30,7 @@ from core.services.runners.abstract_runner import AbstractRunner, RunnerError
 from core.ibm_cloud import get_ce_auth, get_cos_client
 from core.utils import decrypt_env_vars
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
-from core.ibm_cloud.code_engine.fleets.cos import JobCOS
+from core.ibm_cloud.code_engine.fleets.cos import JobCOS, queue_prefix
 from core.ibm_cloud.code_engine.fleets.utils import (
     FleetJobPaths,
     build_job_paths,
@@ -39,30 +39,6 @@ from core.ibm_cloud.code_engine.fleets.utils import (
 )
 
 logger = logging.getLogger("FleetsRunner")
-
-
-class TTLCache:
-    """Fixed-size cache with per-entry TTL, evicting oldest entries when full."""
-
-    def __init__(self, maxsize: int = 1000, ttl: float = 30) -> None:
-        self._store: OrderedDict[str, tuple] = OrderedDict()
-        self._maxsize = maxsize
-        self._ttl = ttl
-
-    def get(self, key: str):
-        """Return cached value if present and not expired, else ``None``."""
-        entry = self._store.get(key)
-        if entry and (time.monotonic() - entry[1]) < self._ttl:
-            return entry[0]
-        self._store.pop(key, None)
-        return None
-
-    def put(self, key: str, value) -> None:
-        """Store a value, evicting the oldest entry if the cache is full."""
-        self._store.pop(key, None)
-        if len(self._store) >= self._maxsize:
-            self._store.popitem(last=False)
-        self._store[key] = (value, time.monotonic())
 
 
 def _retry_on_rate_limit(fn, retries=3, delays=(0.5, 1.0, 2.0)):
@@ -96,8 +72,6 @@ class FleetsRunner(AbstractRunner):
     recreated automatically when the cached IAM token is rotated.
     """
 
-    _is_active_cache = TTLCache(maxsize=1000, ttl=30)
-
     def __init__(self, job: Job) -> None:
         """Initialize the runner.
 
@@ -129,35 +103,16 @@ class FleetsRunner(AbstractRunner):
         """No-op — FleetHandler is a stateless REST client."""
 
     def is_active(self) -> bool:
-        """Return ``True`` if the fleet exists in Code Engine.
+        """Return ``True`` if the fleet was created.
 
-        Results are cached for 30 seconds (class-level :class:`TTLCache`)
-        to avoid redundant API calls when the scheduler polls frequently.
+        A non-None ``fleet_id`` means ``submit()`` succeeded and the fleet
+        exists in Code Engine — sufficient for ``status()`` and ``stop()``
+        to proceed.
 
         Returns:
-            ``True`` when the fleet is reachable, ``False`` otherwise.
+            ``True`` when the job has a fleet_id, ``False`` otherwise.
         """
-        if not self.job.fleet_id:
-            return False
-
-        cached = self._is_active_cache.get(self.job.fleet_id)
-        if cached is not None:
-            return cached
-
-        try:
-            self._ensure_connected()
-            self._get_handler().get_job_status(self.job.fleet_id)
-            self._is_active_cache.put(self.job.fleet_id, True)
-            return True
-        except ApiException as ex:
-            if ex.status == 404:
-                self._is_active_cache.put(self.job.fleet_id, False)
-                return False
-            logger.warning("CE API error checking fleet [%s]: status=%s", self.job.fleet_id, ex.status)
-            return False
-        except Exception:  # pylint: disable=broad-exception-caught
-            logger.warning("Unable to verify fleet [%s] existence", self.job.fleet_id)
-            return False
+        return self.job.fleet_id is not None
 
     def submit(self) -> None:
         """Submit the job as a Code Engine fleet.
@@ -292,7 +247,7 @@ class FleetsRunner(AbstractRunner):
                 f"CodeEngineProject '{self._project.project_name}' has no cos_bucket_task_store_name configured"
             )
 
-        prefix = f"ce/{self._project.project_id}/{self.job.fleet_id}/v2/queue/"
+        prefix = queue_prefix(self._project.project_id, self.job.fleet_id)
         keys = self._list_task_state_keys(bucket, prefix)
         if not keys:
             # CE takes 10-15s after fleet creation to write the first queue/ key.
@@ -531,14 +486,32 @@ class FleetsRunner(AbstractRunner):
                 for member in tar.getmembers():
                     if not member.isfile():
                         continue
+
+                    # Defend against path traversal: a crafted archive could use
+                    # member names like "../../other-user/results.json" to write
+                    # COS keys outside this job's prefix. Reject absolute paths
+                    # and any name that escapes via "..".
+                    normalized_name = os.path.normpath(member.name)
+                    if (
+                        os.path.isabs(normalized_name)
+                        or normalized_name == ".."
+                        or normalized_name.startswith(".." + os.sep)
+                    ):
+                        logger.warning(
+                            "Skipping unsafe artifact member [%s] for job_id=%s",
+                            member.name,
+                            self.job.id,
+                        )
+                        continue
+
                     extracted = tar.extractfile(member)
                     if extracted is None:
                         continue
 
-                    if member.name == program.entrypoint:
+                    if normalized_name == program.entrypoint:
                         entrypoint_found = True
 
-                    key = f"{paths.cos_user_function_prefix}/{member.name}"
+                    key = f"{paths.cos_user_function_prefix}/{normalized_name}"
 
                     self._get_cos().upload_fileobj(fileobj=extracted, bucket_name=user_bucket, key=key)
                     logger.debug("Uploaded [%s] for job_id=%s to %s/%s", member.name, self.job.id, user_bucket, key)
