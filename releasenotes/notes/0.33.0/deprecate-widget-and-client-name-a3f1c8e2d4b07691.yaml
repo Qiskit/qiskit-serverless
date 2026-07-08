@@ -1,0 +1,21 @@
+---
+deprecations:
+  - |
+    The ``name`` parameter in :class:`.BaseClient`, :class:`.ServerlessClient`, and
+    :class:`.IBMServerlessClient` is deprecated and will be removed in a future release.
+    The parameter is no longer used for client functionality. Users should
+    remove this parameter from their client instantiation code.
+
+    Note: The ``name`` parameter in :class:`.IBMServerlessClient` is NOT deprecated
+    as it is used to load saved accounts.
+  - |
+    The :meth:`.BaseClient.widget` method (and its subclasses :class:`.ServerlessClient`
+    and :class:`.IBMServerlessClient`) has been deprecated and will be removed in a future
+    release. The Jupyter widget interface is no longer maintained.
+    Use :meth:`.BaseClient.jobs` and :meth:`.BaseClient.functions` directly to
+    retrieve job and function information, or visit the IBM Quantum web dashboard instead.
+  - |
+    The :class:`.Widget` class in ``qiskit_serverless.visualization.widget`` and the
+    entire ``qiskit_serverless.visualization`` module have been deprecated and will
+    be removed in a future release. The ``ipywidgets`` and ``ipython`` dependencies
+    will also be removed at that time.

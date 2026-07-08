@@ -1,0 +1,12 @@
+---
+prelude: >
+    ``qiskit_serverless v0.33.0`` is a feature release that expands the
+    ``IBMServerlessClient`` with methods to inspect IBM Quantum backends and
+    runtime usage through the Qiskit IBM Runtime service, and adds pre-flight
+    validation to ``run()`` so that quota and backend-access problems surface
+    immediately instead of after a silent queue wait. Cloud (instance)
+    authentication now goes through ``QiskitRuntimeService`` to align with the
+    Qiskit Runtime APIs. This release also deprecates the Jupyter ``widget()``
+    interface, the unused client ``name`` parameter, and the
+    ``qiskit_serverless.visualization`` module, updates dependencies, and fixes a
+    couple of bugs from 0.32.0.
