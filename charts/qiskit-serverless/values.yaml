@@ -77,7 +77,7 @@ gateway:
     create: false
 
   w3idSsoCredentials:
-    create: false
+    enabled: false
 
   secrets:
     secretKey:

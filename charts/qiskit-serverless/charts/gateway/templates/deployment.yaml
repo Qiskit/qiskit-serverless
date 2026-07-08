@@ -256,7 +256,7 @@ spec:
               value: {{ .Values.application.trustedOrigins | quote }}
             - name: CORS_ALLOWED_ORIGIN_REGEXES
               value: {{ .Values.application.corsOrigins | quote }}
-            {{- if .Values.secrets.w3idSso }}
+            {{- if .Values.w3idSsoCredentials.enabled }}
             - name: W3ID_SSO_CLIENT_ID
               valueFrom:
                 secretKeyRef:

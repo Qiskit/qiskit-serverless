@@ -107,6 +107,9 @@ secrets:
       email: email
   # w3idSso: ""  # path in IBM Secrets Manager, e.g. app_qiskit_serverless_staging/arbitrary/staging-w3id-sso
 
+w3idSsoCredentials:
+  enabled: false
+
 image:
   repository: icr.io/quantum-public/qiskit-serverless/gateway
   pullPolicy: IfNotPresent
