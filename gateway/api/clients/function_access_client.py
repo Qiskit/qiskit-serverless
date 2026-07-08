@@ -2,6 +2,7 @@
 
 import hashlib
 import logging
+from urllib.parse import urlparse, urlunparse
 
 import requests
 from django.conf import settings
@@ -19,10 +20,27 @@ logger = logging.getLogger("api.FunctionAccessClient")
 class FunctionAccessClient:
     """Client for retrieving accessible functions for a given instance CRN."""
 
+    def _regional_base_url(self, base_url: str, instance_crn: str) -> str:
+        """Return the Runtime API base URL for the region encoded in ``instance_crn``.
+
+        The Runtime API is region-scoped: the default region (see
+        ``RUNTIME_API_DEFAULT_REGION``) is served by the bare host, while other regions
+        are reached via a ``{region}.`` host prefix (e.g. ``eu-de.quantum.cloud.ibm.com``).
+        The region is the 6th ``:``-delimited segment of the CRN
+        (``crn:v1:bluemix:public:quantum-computing:<region>:...``). A CRN whose region
+        cannot be parsed falls back to ``base_url`` unchanged.
+        """
+        parts = instance_crn.split(":") if instance_crn else []
+        region = parts[5] if len(parts) > 6 else None
+        if not region or region == settings.RUNTIME_API_DEFAULT_REGION:
+            return base_url
+        parsed = urlparse(base_url)
+        return urlunparse(parsed._replace(netloc=f"{region}.{parsed.netloc}"))
+
     def get_accessible_functions(self, instance_crn: str, api_key: str) -> FunctionAccessResult:
         """Return all functions accessible to the given instance CRN with their permissions."""
         enabled = Config.get_bool(ConfigKey.RUNTIME_INSTANCES_API_ENABLED)
-        base_url = settings.RUNTIME_API_BASE_URL
+        base_url = self._regional_base_url(settings.RUNTIME_API_BASE_URL, instance_crn)
         if not enabled:
             return FunctionAccessResult(use_legacy_authorization=True, message="RUNTIME_INSTANCES_API_ENABLED is False")
 
