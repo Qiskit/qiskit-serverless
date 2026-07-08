@@ -449,6 +449,19 @@ will also be removed at that time.</p></li>
 <section id="bug-fixes">
 <span id="release-notes-upcoming-qiskit-serverless-release-bug-fixes"></span><h3>Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
+<li><p>Fixed authentication failures for IBM Cloud instances in regions other than the
+gateway’s default region (for example <code class="docutils literal notranslate"><span class="pre">eu-de</span></code>). During authentication the gateway
+resolves accessible functions via the region-scoped Runtime API, but it previously
+used a single fixed <code class="docutils literal notranslate"><span class="pre">RUNTIME_API_BASE_URL</span></code> for every CRN. A CRN from a non-default
+region was sent to the default-region host, which returned <code class="docutils literal notranslate"><span class="pre">404</span> <span class="pre">Instance</span> <span class="pre">not</span>
+<span class="pre">found</span></code> and failed authentication. The gateway now derives the region from the CRN
+(the <code class="docutils literal notranslate"><span class="pre">crn:v1:bluemix:public:quantum-computing:&lt;region&gt;:...</span></code> segment) and routes the
+functions-access request to the matching regional endpoint. The default region is
+configurable via the <code class="docutils literal notranslate"><span class="pre">RUNTIME_API_DEFAULT_REGION</span></code> environment variable
+(default <code class="docutils literal notranslate"><span class="pre">us-east</span></code>), which is served by the bare <code class="docutils literal notranslate"><span class="pre">RUNTIME_API_BASE_URL</span></code> host;
+other regions use a <code class="docutils literal notranslate"><span class="pre">{region}.</span></code> host prefix.</p></li>
+</ul>
+<ul class="simple">
 <li><p>Fixed result retrieval for provider (custom-image) functions running on the Ray
 runner. The function writes its result to a provider-scoped path
 (<code class="docutils literal notranslate"><span class="pre">{username}/{provider}/{title}/results/{job_id}.json</span></code>, via the <code class="docutils literal notranslate"><span class="pre">RESULTS_PATH</span></code>
