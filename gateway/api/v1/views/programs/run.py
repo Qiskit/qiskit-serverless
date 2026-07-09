@@ -1,9 +1,11 @@
 """API endpoint for running a Qiskit Function."""
 
+import json
 import logging
 import re
 from typing import cast
 
+import jsonschema
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from drf_yasg.utils import swagger_auto_schema
@@ -144,21 +146,32 @@ def run_program(request: Request) -> Response:
         accessible_functions,
     )
 
-    job = RunFunctionUseCase().execute(
-        user,
-        accessible_functions,
-        RunFunctionInput(
-            title=title,
-            provider_name=provider_name,
-            arguments=arguments,
-            config_data=config_data,
-            compute_profile=compute_profile,
-            channel=channel,
-            token=token,
-            instance=instance,
-            account_id=account_id,
-            carrier=carrier,
-        ),
-    )
+    try:
+        job = RunFunctionUseCase().execute(
+            user,
+            accessible_functions,
+            RunFunctionInput(
+                title=title,
+                provider_name=provider_name,
+                arguments=arguments,
+                config_data=config_data,
+                compute_profile=compute_profile,
+                channel=channel,
+                token=token,
+                instance=instance,
+                account_id=account_id,
+                carrier=carrier,
+            ),
+        )
+    except jsonschema.ValidationError as exc:
+        return Response(
+            {"message": exc.message, "path": [*exc.path]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except json.JSONDecodeError as exc:
+        return Response(
+            {"message": f"arguments is not valid JSON: {exc.msg}"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     logger.info("[programs-run] user_id=%s job_id=%s | Job queued ok", user.id, job.id)
     return Response(OutputSerializer(job).data)
