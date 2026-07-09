@@ -105,7 +105,7 @@ secrets:
       name: name
       password: password
       email: email
-  # w3idSso: ""  # path to the credentials JSON in the secret store, e.g. my-group/my-type/my-w3id-sso
+  w3idSso: ""
 
 w3idSsoCredentials:
   enabled: false
