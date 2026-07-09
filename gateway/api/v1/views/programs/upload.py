@@ -35,6 +35,7 @@ class ProgramSerializer(serializers.ModelSerializer):
     image = serializers.CharField(required=False)
     provider = serializers.CharField(required=False)
     runner = serializers.CharField(required=False)
+    arguments_schema = serializers.CharField(required=False)
 
     class Meta:
         model = Program
@@ -50,6 +51,7 @@ class ProgramSerializer(serializers.ModelSerializer):
             "type",
             "version",
             "runner",
+            "arguments_schema",
         ]
         ref_name = "ProgramsUploadProgram"
 
@@ -91,6 +93,14 @@ class ProgramSerializer(serializers.ModelSerializer):
 
     def validate_image(self, value):
         """Validate image."""
+        return value
+
+    def validate_arguments_schema(self, value):
+        """Validates that arguments_schema is valid JSON."""
+        try:
+            json.loads(value)
+        except (json.JSONDecodeError, ValueError) as exc:
+            raise ValidationError("arguments_schema must be valid JSON.") from exc
         return value
 
     def _parse_dependency(self, dep: Any):
@@ -142,10 +152,7 @@ class ProgramSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):  # pylint: disable=too-many-branches
         """Validates serializer data."""
-        entrypoint = attrs.get("entrypoint", None)
         image = attrs.get("image", None)
-        if entrypoint is None and image is None:
-            raise ValidationError("At least one of attributes (entrypoint, image) is required.")
         try:
             deps = json.loads(attrs.get("dependencies", "[]"))
         except (json.JSONDecodeError, UnicodeDecodeError) as exc:

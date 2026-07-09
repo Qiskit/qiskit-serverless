@@ -257,16 +257,11 @@ class TestSerializers:
         assert job.gpu
 
     def test_upload_program_serializer_with_only_title(self):
-        """Tests upload serializer with only title."""
+        """Serializer accepts title-only requests (entrypoint/image check moved to use case, allowing schema-only updates)."""
         data = {"title": "awesome"}
 
         serializer = UploadProgramSerializer(data=data)
-        assert not serializer.is_valid()
-        errors = serializer.errors
-        assert ["non_field_errors"] == list(errors.keys())
-        assert ["At least one of attributes (entrypoint, image) is required."] == [
-            value[0] for value in errors.values()
-        ]
+        assert serializer.is_valid()
 
     # Dependency validation tests use 'mergedeep' and 'ffsim' as representative examples
     # from requirements-dynamic-dependencies.txt. These tests validate the dependency
