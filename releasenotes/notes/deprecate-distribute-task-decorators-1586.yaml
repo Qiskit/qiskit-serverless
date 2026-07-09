@@ -1,0 +1,12 @@
+---
+deprecations:
+  - |
+    The ``distribute_task`` decorator and the ``get``, ``put`` and
+    ``get_refs_by_status`` helper functions have been deprecated and will be
+    removed in following releases. They were thin wrappers around Ray's native
+    API, which should now be used directly instead:
+
+    * ``distribute_task`` -> `ray.remote <https://docs.ray.io/en/latest/ray-core/api/doc/ray.remote.html>`__
+    * ``get`` -> `ray.get <https://docs.ray.io/en/latest/ray-core/api/doc/ray.get.html>`__
+    * ``put`` -> `ray.put <https://docs.ray.io/en/latest/ray-core/api/doc/ray.put.html>`__
+    * ``get_refs_by_status`` -> `ray.wait <https://docs.ray.io/en/latest/ray-core/api/doc/ray.wait.html>`__
