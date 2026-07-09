@@ -68,6 +68,7 @@ application:
   # Optional IBM w3id SSO backoffice login. The provider base url is not
   # sensitive and lives here; credentials go in secrets.w3idSso (see below).
   w3idSso:
+    enabled: false
     baseUrl: "https://test.login.w3.ibm.com"
 
 tracing:
@@ -106,9 +107,6 @@ secrets:
       password: password
       email: email
   w3idSso: ""
-
-w3idSsoCredentials:
-  enabled: false
 
 image:
   repository: icr.io/quantum-public/qiskit-serverless/gateway
