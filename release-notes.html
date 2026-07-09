@@ -315,14 +315,14 @@
         <article role="main" id="furo-main-content">
           <section id="release-notes">
 <span id="id1"></span><h1>Release Notes<a class="headerlink" href="#release-notes" title="Permalink to this heading">¶</a></h1>
-<section id="upcoming-qiskit-serverless-release">
-<span id="release-notes-upcoming-qiskit-serverless-release"></span><h2>Upcoming Qiskit Serverless release<a class="headerlink" href="#upcoming-qiskit-serverless-release" title="Permalink to this heading">¶</a></h2>
+<section id="v0-33-0">
+<span id="release-notes-v0-33-0"></span><h2>v0.33.0<a class="headerlink" href="#v0-33-0" title="Permalink to this heading">¶</a></h2>
 <section id="prelude">
-<span id="release-notes-upcoming-qiskit-serverless-release-prelude"></span><h3>Prelude<a class="headerlink" href="#prelude" title="Permalink to this heading">¶</a></h3>
+<span id="release-notes-v0-33-0-prelude"></span><h3>Prelude<a class="headerlink" href="#prelude" title="Permalink to this heading">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">qiskit_serverless</span> <span class="pre">v0.33.0</span></code> is a feature release that expands the <code class="docutils literal notranslate"><span class="pre">IBMServerlessClient</span></code> with methods to inspect IBM Quantum backends and runtime usage through the Qiskit IBM Runtime service, and adds pre-flight validation to <code class="docutils literal notranslate"><span class="pre">run()</span></code> so that quota and backend-access problems surface immediately instead of after a silent queue wait. Cloud (instance) authentication now goes through <code class="docutils literal notranslate"><span class="pre">QiskitRuntimeService</span></code> to align with the Qiskit Runtime APIs. This release also deprecates the Jupyter <code class="docutils literal notranslate"><span class="pre">widget()</span></code> interface, the unused client <code class="docutils literal notranslate"><span class="pre">name</span></code> parameter, and the <code class="docutils literal notranslate"><span class="pre">qiskit_serverless.visualization</span></code> module, updates dependencies, and fixes a couple of bugs from 0.32.0.</p>
 </section>
 <section id="new-features">
-<span id="release-notes-upcoming-qiskit-serverless-release-new-features"></span><h3>New Features<a class="headerlink" href="#new-features" title="Permalink to this heading">¶</a></h3>
+<span id="release-notes-v0-33-0-new-features"></span><h3>New Features<a class="headerlink" href="#new-features" title="Permalink to this heading">¶</a></h3>
 <ul>
 <li><p><a class="reference internal" href="stubs/qiskit_serverless.core.IBMServerlessClient.html#qiskit_serverless.core.IBMServerlessClient" title="qiskit_serverless.core.IBMServerlessClient"><code class="xref py py-class docutils literal notranslate"><span class="pre">IBMServerlessClient</span></code></a> now exposes several methods that wrap the Qiskit IBM Runtime
 <code class="docutils literal notranslate"><span class="pre">QiskitRuntimeService</span></code> API to interact with IBM Quantum backends:</p>
@@ -362,7 +362,7 @@ at least one backend (result cached). Raises <a class="reference internal" href=
 </ul>
 </section>
 <section id="upgrade-notes">
-<span id="release-notes-upcoming-qiskit-serverless-release-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Permalink to this heading">¶</a></h3>
+<span id="release-notes-v0-33-0-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>The <code class="docutils literal notranslate"><span class="pre">qiskit-addon-aqc-tensor</span></code> package bundled in the Ray runner image has
 been updated from <code class="docutils literal notranslate"><span class="pre">0.2.0</span></code> to <code class="docutils literal notranslate"><span class="pre">0.3.0</span></code> (installed with the <code class="docutils literal notranslate"><span class="pre">quimb-jax</span></code>
@@ -422,7 +422,7 @@ credential management.</p></li>
 </ul>
 </section>
 <section id="deprecation-notes">
-<span id="release-notes-upcoming-qiskit-serverless-release-deprecation-notes"></span><h3>Deprecation Notes<a class="headerlink" href="#deprecation-notes" title="Permalink to this heading">¶</a></h3>
+<span id="release-notes-v0-33-0-deprecation-notes"></span><h3>Deprecation Notes<a class="headerlink" href="#deprecation-notes" title="Permalink to this heading">¶</a></h3>
 <ul>
 <li><p>The <code class="docutils literal notranslate"><span class="pre">name</span></code> parameter in <a class="reference internal" href="stubs/qiskit_serverless.core.BaseClient.html#qiskit_serverless.core.BaseClient" title="qiskit_serverless.core.BaseClient"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseClient</span></code></a>, <a class="reference internal" href="stubs/qiskit_serverless.core.ServerlessClient.html#qiskit_serverless.core.ServerlessClient" title="qiskit_serverless.core.ServerlessClient"><code class="xref py py-class docutils literal notranslate"><span class="pre">ServerlessClient</span></code></a>, and
 <a class="reference internal" href="stubs/qiskit_serverless.core.IBMServerlessClient.html#qiskit_serverless.core.IBMServerlessClient" title="qiskit_serverless.core.IBMServerlessClient"><code class="xref py py-class docutils literal notranslate"><span class="pre">IBMServerlessClient</span></code></a> is deprecated and will be removed in a future release.
@@ -447,7 +447,7 @@ will also be removed at that time.</p></li>
 </ul>
 </section>
 <section id="bug-fixes">
-<span id="release-notes-upcoming-qiskit-serverless-release-bug-fixes"></span><h3>Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permalink to this heading">¶</a></h3>
+<span id="release-notes-v0-33-0-bug-fixes"></span><h3>Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Fixed authentication failures for IBM Cloud instances in regions other than the
 gateway’s default region (for example <code class="docutils literal notranslate"><span class="pre">eu-de</span></code>). During authentication the gateway
@@ -1239,7 +1239,7 @@ specific jobs. For example:</p>
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">Release Notes</a><ul>
-<li><a class="reference internal" href="#upcoming-qiskit-serverless-release">Upcoming Qiskit Serverless release</a><ul>
+<li><a class="reference internal" href="#v0-33-0">v0.33.0</a><ul>
 <li><a class="reference internal" href="#prelude">Prelude</a></li>
 <li><a class="reference internal" href="#new-features">New Features</a></li>
 <li><a class="reference internal" href="#upgrade-notes">Upgrade Notes</a></li>
