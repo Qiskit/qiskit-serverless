@@ -66,7 +66,7 @@ def _require_ray():
     only needed for the Ray runner. Importing the package must not require it, so
     the Ray-only helpers below import it on demand.
     """
-    # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel,import-error
     try:
         import ray
 
@@ -298,7 +298,7 @@ def distribute_task(
 
     def decorator(function):
         def wrapper(*args, **kwargs):
-            # pylint: disable=import-outside-toplevel
+            # pylint: disable=import-outside-toplevel,import-error
             ray = _require_ray()
             from ray.runtime_env import RuntimeEnv
 

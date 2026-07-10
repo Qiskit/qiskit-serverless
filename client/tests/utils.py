@@ -11,7 +11,7 @@ def wait_for_ray_ready(connection_url: str, timeout: int = 60):
     Ray is an optional dependency (`pip install qiskit-serverless[ray]`), imported
     here on demand so this module stays importable without it.
     """
-    # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel,import-error
     from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
     client = None

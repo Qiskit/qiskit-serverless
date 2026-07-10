@@ -98,7 +98,7 @@ def register_all_serializers():
     Note: this requires Ray, which is an optional dependency. Install it with
     ``pip install qiskit-serverless[ray]``. It is only used on the Ray runner.
     """
-    # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel,import-error
     import ray
 
     # serialization for QiskitRuntimeService
