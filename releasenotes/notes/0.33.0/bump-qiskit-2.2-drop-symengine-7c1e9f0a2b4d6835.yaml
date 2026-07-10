@@ -10,8 +10,13 @@ upgrade:
     is no longer installed. Reading such legacy symengine-encoded QPY payloads is no
     longer supported by the client; QPY produced by modern Qiskit is unaffected.
   - |
-    The Ray node images no longer copy ``symengine`` between the ``lib`` and ``lib64``
-    site-packages directories. That step was a workaround for the UBI9 split
-    ``lib``/``lib64`` layout and only applied when ``symengine`` was installed; with
-    ``symengine`` no longer present it is unnecessary (and would fail on a missing
+    The gateway no longer requests the ``qpy-compat`` extra either (its requirement
+    changed from ``qiskit[qpy-compat]>=2.5.0,<3`` to ``qiskit>=2.5.0,<3``). The gateway
+    does not deserialize QPY, so it does not need ``symengine``/``sympy``; ``qiskit``
+    itself is still installed.
+  - |
+    The Ray node and gateway images no longer copy ``symengine`` between the ``lib``
+    and ``lib64`` site-packages directories. That step was a workaround for the UBI9
+    split ``lib``/``lib64`` layout and only applied when ``symengine`` was installed;
+    with ``symengine`` no longer present it is unnecessary (and would fail on a missing
     source path).

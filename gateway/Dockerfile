@@ -51,8 +51,6 @@ COPY gateway/requirements.txt .
 RUN python3.11 -m ensurepip --upgrade && \
     python3.11 -m pip install --upgrade --no-cache-dir setuptools>=80.0.0 && \
     python3.11 -m pip install -r requirements.txt --no-cache-dir --upgrade && \
-    cp -r -n /usr/local/lib64/python3.11/site-packages/symengine /usr/local/lib/python3.11/site-packages && \
-    cp -r -n /usr/local/lib/python3.11/site-packages/symengine /usr/local/lib64/python3.11/site-packages && \
     python3.11 -m pip uninstall -y pip
 
 COPY --chown=1000:100 gateway .
