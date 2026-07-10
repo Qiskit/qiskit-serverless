@@ -12,12 +12,13 @@
 
 """Test decorators."""
 
+import importlib.util
 from typing import List
 
+import pytest
 from qiskit import QuantumCircuit
 from qiskit.circuit.random import random_circuit
 
-import ray
 from qiskit_serverless import get
 from qiskit_serverless.core.decorators import (
     distribute_task,
@@ -25,12 +26,18 @@ from qiskit_serverless.core.decorators import (
     fetch_execution_meta,
 )
 
+# Ray is an optional dependency (`pip install qiskit-serverless[ray]`). The test that
+# spins up a Ray cluster only runs when it is installed; the rest run either way.
+ray_installed = importlib.util.find_spec("ray") is not None
+
 
 class TestDecorators:
     """Test decorators."""
 
+    @pytest.mark.skipif(not ray_installed, reason="requires the optional [ray] extra")
     def test_distribute_task(self):
         """Test for run_qiskit_remote."""
+        import ray  # pylint: disable=import-outside-toplevel
 
         @distribute_task()
         def another_function(circuit: List[QuantumCircuit], other_circuit: QuantumCircuit):

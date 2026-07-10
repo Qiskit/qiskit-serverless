@@ -34,6 +34,12 @@ classifiers=[
 # These are configured in the `tool.setuptools.dynamic` table.
 dynamic = ["version", "readme", "dependencies"]
 
+# Ray is only needed for the Ray runner. Install it with
+#   pip install qiskit-serverless[ray]
+# The base install (e.g. the Fleets image) does not pull Ray.
+[project.optional-dependencies]
+ray = ["ray[default]>=2.56.0, <3"]
+
 [tool.setuptools.package-data]
 qiskit_serverless = ["VERSION.txt"]
 

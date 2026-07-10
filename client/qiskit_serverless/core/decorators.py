@@ -37,15 +37,13 @@ import shutil
 from types import FunctionType
 import warnings
 from dataclasses import dataclass
-from typing import Optional, Dict, Any, Union, List, Callable, Sequence
+from typing import Optional, Dict, Any, Union, List, Callable, Sequence, TYPE_CHECKING
 from uuid import uuid4
 
 import cloudpickle
-import ray
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from qiskit import QuantumCircuit
-from ray.runtime_env import RuntimeEnv
 
 from qiskit_serverless.core.constants import (
     OT_ATTRIBUTE_PREFIX,
@@ -57,7 +55,37 @@ from qiskit_serverless.core.constants import (
 from qiskit_serverless.core.tracing import get_tracer, _trace_env_vars
 from qiskit_serverless.utils import JsonSerializable
 
-remote = ray.remote
+if TYPE_CHECKING:
+    import ray  # for type annotations only; Ray is the optional [ray] extra
+
+
+def _require_ray():
+    """Import Ray lazily, with a clear error if the optional extra is missing.
+
+    Ray is an optional dependency (``pip install qiskit-serverless[ray]``); it is
+    only needed for the Ray runner. Importing the package must not require it, so
+    the Ray-only helpers below import it on demand.
+    """
+    # pylint: disable=import-outside-toplevel
+    try:
+        import ray
+
+        return ray
+    except ModuleNotFoundError as err:
+        raise ModuleNotFoundError(
+            "Ray is required for this feature but is not installed. "
+            "Install it with `pip install qiskit-serverless[ray]`."
+        ) from err
+
+
+def remote(*args, **kwargs):
+    """Proxy for ``ray.remote`` that defers importing Ray until use.
+
+    Forwards to ``ray.remote`` and therefore supports both ``@remote`` and
+    ``remote(num_cpus=...)(fn)`` usages, while keeping ``import qiskit_serverless``
+    Ray-free (Ray is the optional ``qiskit-serverless[ray]`` extra).
+    """
+    return _require_ray().remote(*args, **kwargs)
 
 
 def put(value: Any, **kwargs):
@@ -70,7 +98,7 @@ def put(value: Any, **kwargs):
     Returns:
 
     """
-    return ray.put(value=value, **kwargs)
+    return _require_ray().put(value=value, **kwargs)
 
 
 def get_refs_by_status(object_refs: List["ray.ObjectRef"], **kwargs):
@@ -83,11 +111,11 @@ def get_refs_by_status(object_refs: List["ray.ObjectRef"], **kwargs):
     Returns:
         A list of refs that are ready and a list of the remaining references.
     """
-    return ray.wait(ray_waitables=object_refs, **kwargs)
+    return _require_ray().wait(ray_waitables=object_refs, **kwargs)
 
 
 def get(
-    object_refs: Union[ray.ObjectRef, Sequence[ray.ObjectRef]],
+    object_refs: Union["ray.ObjectRef", Sequence["ray.ObjectRef"]],
     *,
     timeout: Optional[float] = None,
 ) -> Any:
@@ -102,7 +130,7 @@ def get(
     Returns:
         A object or a list of objects.
     """
-    return ray.get(object_refs=object_refs, timeout=timeout)
+    return _require_ray().get(object_refs=object_refs, timeout=timeout)
 
 
 @dataclass
@@ -270,6 +298,10 @@ def distribute_task(
 
     def decorator(function):
         def wrapper(*args, **kwargs):
+            # pylint: disable=import-outside-toplevel
+            ray = _require_ray()
+            from ray.runtime_env import RuntimeEnv
+
             # tracing
             traced_env_vars = _trace_env_vars(remote_target.env_vars or {}, location="on decoration")
             traced_function = _tracible_function(
