@@ -1,0 +1,17 @@
+---
+upgrade:
+  - |
+    The minimum supported Qiskit version for the ``qiskit-serverless`` client is now
+    ``2.2`` (the requirement changed from ``qiskit[qpy-compat]>=1.4,<3`` to
+    ``qiskit>=2.2,<3``). Since Qiskit 2.1, ``symengine`` is no longer a Qiskit
+    dependency; it was only pulled in via the ``qpy-compat`` extra, which is used to
+    deserialize the legacy QPY formats (10, 11, 12) written by Qiskit 1.0-1.1 with
+    ``use_symengine=True``. The client no longer requests that extra, so ``symengine``
+    is no longer installed. Reading such legacy symengine-encoded QPY payloads is no
+    longer supported by the client; QPY produced by modern Qiskit is unaffected.
+  - |
+    The Ray node images no longer copy ``symengine`` between the ``lib`` and ``lib64``
+    site-packages directories. That step was a workaround for the UBI9 split
+    ``lib``/``lib64`` layout and only applied when ``symengine`` was installed; with
+    ``symengine`` no longer present it is unnecessary (and would fail on a missing
+    source path).
