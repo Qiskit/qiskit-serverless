@@ -100,3 +100,64 @@ def test_does_not_cache_error_response(instances_server):
         FunctionAccessClient().get_accessible_functions("crn:cache:err", "test-api-key")
 
     assert instances_server.request_count == 2
+
+
+# Region routing: the Runtime API is region-scoped. The default region is served by the
+# bare host; other regions get a "{region}." host prefix derived from the CRN.
+
+BASE_URL = "https://quantum.cloud.ibm.com"
+
+
+def _crn(region: str) -> str:
+    return f"crn:v1:bluemix:public:quantum-computing:{region}:a/acct:guid::"
+
+
+def test_regional_url_default_region_unchanged(settings):
+    settings.RUNTIME_API_DEFAULT_REGION = "us-east"
+
+    result = FunctionAccessClient()._regional_base_url(BASE_URL, _crn("us-east"))
+
+    assert result == BASE_URL
+
+
+def test_regional_url_non_default_region_prefixed(settings):
+    settings.RUNTIME_API_DEFAULT_REGION = "us-east"
+
+    result = FunctionAccessClient()._regional_base_url(BASE_URL, _crn("eu-de"))
+
+    assert result == "https://eu-de.quantum.cloud.ibm.com"
+
+
+@pytest.mark.parametrize("crn", ["crn:test:123", "", None])
+def test_regional_url_unparseable_crn_falls_back(settings, crn):
+    settings.RUNTIME_API_DEFAULT_REGION = "us-east"
+
+    result = FunctionAccessClient()._regional_base_url(BASE_URL, crn)
+
+    assert result == BASE_URL
+
+
+def test_request_routed_to_region_prefixed_host(settings, requests_mock):
+    """End-to-end: a non-default-region CRN sends the /functions request to the
+    region-prefixed host, not the bare default-region host."""
+    settings.RUNTIME_API_BASE_URL = BASE_URL
+    settings.RUNTIME_API_DEFAULT_REGION = "us-east"
+    matcher = requests_mock.get("https://eu-de.quantum.cloud.ibm.com/api/v1/functions", status_code=204)
+
+    result = FunctionAccessClient().get_accessible_functions(_crn("eu-de"), "test-api-key")
+
+    assert matcher.called_once
+    assert matcher.last_request.headers["Service-CRN"] == _crn("eu-de")
+    # 204 → instance not configured in the runtime API, fall back to legacy authorization.
+    assert result.use_legacy_authorization is True
+
+
+def test_request_routed_to_default_host(settings, requests_mock):
+    """End-to-end: a default-region CRN uses the bare host with no region prefix."""
+    settings.RUNTIME_API_BASE_URL = BASE_URL
+    settings.RUNTIME_API_DEFAULT_REGION = "us-east"
+    matcher = requests_mock.get("https://quantum.cloud.ibm.com/api/v1/functions", status_code=204)
+
+    FunctionAccessClient().get_accessible_functions(_crn("us-east"), "test-api-key")
+
+    assert matcher.called_once
