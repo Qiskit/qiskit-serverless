@@ -1,9 +1,9 @@
-# pylint: disable=import-error, invalid-name
+# pylint: disable=import-error, invalid-name, duplicate-code
 """Tests jobs."""
 
 import os
 
-from pytest import mark, raises
+from pytest import raises
 
 from qiskit_serverless import QiskitServerlessException, ServerlessClient, QiskitFunction
 
@@ -15,7 +15,7 @@ filename_not_valid = "test-img.png"
 filename_not_valid_path = os.path.join(resources_path, filename_not_valid)
 
 
-class TestFiles:
+class TestFilesStorage:
     """Test class for integration tests producing and consuming files"""
 
     def test_list_upload_download_delete(self, serverless_client: ServerlessClient, tmp_path):

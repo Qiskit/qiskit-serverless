@@ -1,4 +1,4 @@
-# pylint: disable=import-error, line-too-long
+# pylint: disable=import-error, line-too-long, duplicate-code
 """Read-only client for the Runtime API ``/functions`` endpoint (the gateway's ground truth).
 
 When the serverless client calls the gateway, the gateway authenticates the request and asks the

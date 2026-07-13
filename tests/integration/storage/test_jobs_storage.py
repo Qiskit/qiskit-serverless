@@ -1,4 +1,4 @@
-# pylint: disable=import-error, invalid-name
+# pylint: disable=import-error, invalid-name, duplicate-code
 """Tests jobs."""
 
 from datetime import datetime, timezone
@@ -7,22 +7,15 @@ import tempfile
 from time import sleep
 from uuid import uuid4
 
-from pytest import raises, mark
+from pytest import mark
 
-from qiskit import QuantumCircuit
-from qiskit.circuit.random import random_circuit
-
-from qiskit_serverless import (
-    QiskitFunction,
-    ServerlessClient,
-    QiskitServerlessException,
-)
-from utils import wait_for_logs, wait_for_terminal_state
+from qiskit_serverless import QiskitFunction, ServerlessClient
+from utils import wait_for_terminal_state
 
 resources_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../source_files")
 
 
-class TestJobs:
+class TestJobsStorage:
     """Test class for integration testing with docker."""
 
     def _upload_with_template(self, serverless_client: ServerlessClient, file: str) -> str:
