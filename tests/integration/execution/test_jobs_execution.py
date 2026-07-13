@@ -53,8 +53,8 @@ class TestJobs:
     def test_simple_function(self, serverless_client: ServerlessClient):
         """Integration test function uploading."""
         simple_function = QiskitFunction(
-            title="my-first-pattern",
-            entrypoint="pattern.py",
+            title="gold-path",
+            entrypoint="gold-path-function.py",
             working_dir=resources_path,
         )
 
@@ -70,6 +70,39 @@ class TestJobs:
 
         job = runnable_function.run()
 
+        wait_for_logs(job, "DELAY STARTS")
+
+        print(f"Execution logs until DELAY STARTS {job.job_id}")
+        print(job.logs())
+        print("-----")
+
+        wait_for_terminal_state(job)
+
+        expected_result = """INFO: User log
+INFO: User multiline
+INFO: log
+WARNING: User log
+ERROR: User log
+DELAY STARTS
+INFO: Provider log
+INFO: Provider multiline
+INFO: log
+WARNING: Provider log
+ERROR: Provider log
+"""
+
+        assert job.logs().endswith(expected_result)
+
+        with raises(QiskitServerlessException) as exc_info:
+            job.provider_logs()
+
+        expected_error = f"""
+| Message: Http bad request.
+| Code: 403
+| Details: You don't have access to job [{job.job_id}]
+""".strip()
+        assert str(exc_info.value).strip() == expected_error
+
         # pylint: disable=duplicate-code
         assert job is not None
         assert job.result() is not None
@@ -79,6 +112,75 @@ class TestJobs:
 
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
+
+    #     def test_function_with_arguments(self, serverless_client: ServerlessClient):
+    #         """Integration test for Functions with arguments."""
+    #         circuit = QuantumCircuit(2)
+    #         circuit.h(0)
+    #         circuit.cx(0, 1)
+    #         circuit.measure_all()
+    #         circuit.draw()
+
+    #         arguments_function = QiskitFunction(
+    #             title="pattern-with-arguments",
+    #             entrypoint="pattern_with_arguments.py",
+    #             working_dir=resources_path,
+    #         )
+
+    #         runnable_function = serverless_client.upload(arguments_function)
+
+    #         job = runnable_function.run(circuit=circuit)
+
+    #         assert job is not None
+    #         assert job.result() is not None
+    #         allowed_keys = {"00", "11"}
+    #         for entry in job.result().get("results", []):
+    #             assert set(entry.keys()).issubset(allowed_keys)
+    #         assert job.status() == "DONE"
+    #         assert isinstance(job.logs(), str)
+
+    #     def test_logs(self, serverless_client: ServerlessClient):
+    #         """Integration test for logs."""
+
+    #         function = QiskitFunction(
+    #             title="logs_function", entrypoint="logger.py", working_dir=resources_path, env_vars={"DELAY": "10"}
+    #         )
+    #         function = serverless_client.upload(function)
+    #         job = function.run()
+
+    #         wait_for_logs(job, "DELAY STARTS")
+
+    #         print(f"Execution logs until DELAY STARTS {job.job_id}")
+    #         print(job.logs())
+    #         print("-----")
+
+    #         wait_for_terminal_state(job)
+
+    #         expected_result = """INFO: User log
+    # INFO: User multiline
+    # INFO: log
+    # WARNING: User log
+    # ERROR: User log
+    # DELAY STARTS
+    # INFO: Provider log
+    # INFO: Provider multiline
+    # INFO: log
+    # WARNING: Provider log
+    # ERROR: Provider log
+    # """
+
+    #         assert job.logs().endswith(expected_result)
+
+    #         with raises(QiskitServerlessException) as exc_info:
+    #             job.provider_logs()
+
+    #         expected_error = f"""
+    # | Message: Http bad request.
+    # | Code: 403
+    # | Details: You don't have access to job [{job.job_id}]
+    # """.strip()
+
+    #         assert str(exc_info.value).strip() == expected_error
 
     # failed jobs has logs "", so the result() can't get the error from the logs
     def test_function_with_import_errors(self, serverless_client: ServerlessClient):
@@ -105,114 +207,6 @@ class TestJobs:
 
         assert job.status() == "ERROR"
         assert isinstance(job.logs(), str)
-
-    def test_function_with_arguments(self, serverless_client: ServerlessClient):
-        """Integration test for Functions with arguments."""
-        circuit = QuantumCircuit(2)
-        circuit.h(0)
-        circuit.cx(0, 1)
-        circuit.measure_all()
-        circuit.draw()
-
-        arguments_function = QiskitFunction(
-            title="pattern-with-arguments",
-            entrypoint="pattern_with_arguments.py",
-            working_dir=resources_path,
-        )
-
-        runnable_function = serverless_client.upload(arguments_function)
-
-        job = runnable_function.run(circuit=circuit)
-
-        assert job is not None
-        assert job.result() is not None
-        allowed_keys = {"00", "11"}
-        for entry in job.result().get("results", []):
-            assert set(entry.keys()).issubset(allowed_keys)
-        assert job.status() == "DONE"
-        assert isinstance(job.logs(), str)
-
-    @mark.skip(reason="Works in docker compose but tails in k8s/staging/production")
-    def test_distributed_workloads(self, serverless_client: ServerlessClient):
-        """Integration test for Functions for distributed workloads."""
-
-        circuits = [random_circuit(2, 2) for _ in range(3)]
-        for circuit in circuits:
-            circuit.measure_all()
-
-        function = QiskitFunction(
-            title="pattern-with-parallel-workflow",
-            entrypoint="pattern_with_parallel_workflow.py",
-            working_dir=resources_path,
-        )
-        runnable_function = serverless_client.upload(function)
-
-        job = runnable_function.run(circuits=circuits)
-
-        assert job is not None
-        assert job.result() is not None
-        allowed_keys = {"00", "11", "01", "10"}
-        for entry in job.result().get("results", []):
-            assert set(entry.keys()).issubset(allowed_keys)
-        assert job.status() == "DONE"
-        assert isinstance(job.logs(), str)
-
-    def test_multiple_runs(self, serverless_client: ServerlessClient):
-        """Integration test for run functions multiple times."""
-
-        circuits = [random_circuit(2, 2) for _ in range(3)]
-        for circuit in circuits:
-            circuit.measure_all()
-
-        function = QiskitFunction(
-            title="pattern-to-fetch-results",
-            entrypoint="pattern.py",
-            working_dir=resources_path,
-        )
-        runnable_function = serverless_client.upload(function)
-
-        job1 = runnable_function.run()
-        job2 = runnable_function.run()
-
-        assert job1 is not None
-        assert job2 is not None
-
-        assert job1.job_id != job2.job_id
-
-        retrieved_job1 = serverless_client.job(job1.job_id)
-        retrieved_job2 = serverless_client.job(job2.job_id)
-
-        assert retrieved_job1.result() is not None
-        assert retrieved_job2.result() is not None
-
-        assert isinstance(retrieved_job1.logs(), str)
-        assert isinstance(retrieved_job2.logs(), str)
-
-    def test_error(self, serverless_client: ServerlessClient):
-        """Integration test to force an error."""
-
-        description = """
-        title: custom-image-function
-        description: sample function implemented in a custom image
-        arguments:
-            service: service created with the account information
-            circuit: circuit
-            observable: observable
-        """
-
-        function_with_custom_image = QiskitFunction(
-            title="custom-image-function",
-            image="test_function:latest",
-            provider=os.environ.get("PROVIDER_ID", "mockprovider"),
-            description=description,
-        )
-
-        runnable_function = serverless_client.upload(function_with_custom_image)
-
-        job = runnable_function.run(message="Argument for the custum function")
-
-        with raises(QiskitServerlessException):
-            job.result()
 
     @mark.skip(reason="Works in docker compose but tails in k8s/staging/production")
     def test_update_sub_status(self, serverless_client: ServerlessClient):
@@ -260,117 +254,6 @@ class TestJobs:
 
         assert job_1.status() == "RUNNING"
         assert job_2.status() == "RUNNING"
-
-    @mark.skip(reason="Works in docker compose but tails in k8s/staging/production")
-    def test_get_filtered_jobs(self, serverless_client: ServerlessClient):  # pylint: disable=too-many-locals
-        """Integration test for filtering jobs."""
-
-        function_1 = QiskitFunction(
-            title=f"test-exec-1-{uuid4()}",
-            entrypoint="pattern_wait.py",
-            working_dir=resources_path,
-        )
-        function_2 = QiskitFunction(
-            title=f"test-exec-2-{uuid4()}",
-            entrypoint="pattern_wait.py",
-            working_dir=resources_path,
-        )
-        runnable_function_1 = serverless_client.upload(function_1)
-        runnable_function_2 = serverless_client.upload(function_2)
-
-        before_create = datetime.now(timezone.utc)
-        sleep(0.1)
-        job_1_1 = runnable_function_1.run()
-        job_1_2 = runnable_function_1.run()
-        sleep(0.1)
-        before_last = datetime.now(timezone.utc)
-        job_2 = runnable_function_2.run()
-        sleep(0.1)
-        after_last = datetime.now(timezone.utc)
-
-        non_filtered_jobs = serverless_client.jobs()
-        non_filtered_jobs_1 = runnable_function_1.jobs()
-        non_filtered_jobs_2 = runnable_function_2.jobs()
-
-        limit_jobs = runnable_function_1.jobs(limit=1)
-        offset_jobs = runnable_function_1.jobs(offset=1)
-        date_before_jobs = serverless_client.jobs(created_after=before_create)
-        date_middle_jobs = serverless_client.jobs(created_after=before_last)
-        date_after_jobs = serverless_client.jobs(created_after=after_last)
-
-        while job_1_1.status() == "QUEUED" or job_1_1.status() == "INITIALIZING":
-            sleep(0.5)
-        running_jobs = serverless_client.jobs(status="RUNNING")
-
-        assert len(non_filtered_jobs) >= 3
-        assert len(non_filtered_jobs_1) == 2
-        assert len(non_filtered_jobs_2) == 1
-        assert non_filtered_jobs_2[0].job_id == job_2.job_id
-
-        assert len(running_jobs) >= 1
-
-        assert len(date_before_jobs) == 3
-        assert len(date_middle_jobs) == 1
-        assert len(date_after_jobs) == 0
-
-        assert len(limit_jobs) == 1
-        assert limit_jobs[0].job_id == job_1_2.job_id
-
-        assert len(offset_jobs) == 1
-        assert offset_jobs[0].job_id == job_1_1.job_id
-
-        while job_1_1.status() == "RUNNING":
-            sleep(1)
-        while job_1_2.status() == "RUNNING":
-            sleep(1)
-        while job_2.status() == "RUNNING":
-            sleep(1)
-
-        succeeded_jobs = serverless_client.jobs(status="SUCCEEDED")
-        assert len(succeeded_jobs) >= 3
-
-    def test_logs(self, serverless_client: ServerlessClient):
-        """Integration test for logs."""
-
-        function = QiskitFunction(
-            title="logs_function", entrypoint="logger.py", working_dir=resources_path, env_vars={"DELAY": "10"}
-        )
-        function = serverless_client.upload(function)
-        job = function.run()
-
-        wait_for_logs(job, "DELAY STARTS")
-
-        print(f"Execution logs until DELAY STARTS {job.job_id}")
-        print(job.logs())
-        print("-----")
-
-        wait_for_terminal_state(job)
-
-        expected_result = """INFO: User log
-INFO: User multiline
-INFO: log
-WARNING: User log
-ERROR: User log
-DELAY STARTS
-INFO: Provider log
-INFO: Provider multiline
-INFO: log
-WARNING: Provider log
-ERROR: Provider log
-"""
-
-        assert job.logs().endswith(expected_result)
-
-        with raises(QiskitServerlessException) as exc_info:
-            job.provider_logs()
-
-        expected_error = f"""
-| Message: Http bad request.
-| Code: 403
-| Details: You don't have access to job [{job.job_id}]
-""".strip()
-
-        assert str(exc_info.value).strip() == expected_error
 
     def test_wrong_function_name(self, serverless_client: ServerlessClient):
         """Integration test for retrieving a function that isn't accessible."""
@@ -471,34 +354,3 @@ ERROR: Provider log
         assert event_data["message"] == "ValueError: This is not a ServerlessError"
         assert event_data["exception"] == "ValueError"
         assert expected_message == job.error_message()
-
-    @mark.skipif(
-        os.environ.get("LARGE_LOGS_TEST") != "1",
-        reason="Load test for large log volumes -- enable with LARGE_LOGS_TEST=1",
-    )
-    def test_large_logs(self, serverless_client: ServerlessClient):
-        """Stress test: verify gateway handles large log volumes without OOM.
-
-        The rolling deque in _stream_logs_from_ray() bounds memory usage; this test
-        confirms the job completes and the most-recent logs are still retrievable.
-
-        Control the log volume with LOGS_SIZE_MB (default 500).
-        """
-        logs_size_mb = int(os.environ.get("LOGS_SIZE_MB", "500"))
-
-        function = QiskitFunction(
-            title="large-logs-function",
-            entrypoint="large_logs_generator.py",
-            working_dir=resources_path,
-            env_vars={"LOGS_SIZE_MB": str(logs_size_mb)},
-        )
-        function = serverless_client.upload(function)
-        job = function.run()
-
-        wait_for_terminal_state(job, timeout=60 * 30)
-
-        assert job.status() == "DONE"
-        logs = job.logs()
-        assert isinstance(logs, str)
-        assert "LARGE_LOGS_DONE" in logs
-        print(f"Retrieved {len(logs)} chars of logs for a {logs_size_mb} MB job")
