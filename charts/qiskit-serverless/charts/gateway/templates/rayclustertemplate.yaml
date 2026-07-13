@@ -41,6 +41,11 @@ data:
               - name: ray-head-cert
                 image: {{ .Values.application.ray.kubectlImage }}
                 command: ["/bin/sh", "-c", "/etc/gen/tls/gencert_cert_head.sh /tmp/tls {{`{{ cluster_name }}`}} $POD_IP {{ .Release.Namespace }}"]
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  capabilities:
+                    drop:
+                    - ALL
                 volumeMounts:
                   - mountPath: /tmp/tls
                     name: cert-tls
@@ -55,6 +60,11 @@ data:
               - name: ray-head-tls
                 image: {{ .Values.application.ray.opensslImage }}
                 command: ["/bin/sh", "-c", "cp -R /etc/ca/tls /etc/ray && /etc/gen/tls/gencert_head.sh"]
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  capabilities:
+                    drop:
+                    - ALL
                 volumeMounts:
                   - mountPath: /etc/ca/tls
                     name: ca-tls
@@ -94,6 +104,10 @@ data:
                   cpu: {{ .Values.application.ray.cpu }}
                   memory: {{ .Values.application.ray.memory }}Gi
               securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                  - ALL
               volumeMounts:
               - mountPath: /tmp/ray
                 name: log-volume
@@ -155,7 +169,12 @@ data:
               {{`{{node_selector_label}}`}}
             tolerations: []
             securityContext:
+              runAsNonRoot: true
+              runAsUser: 1000
+              runAsGroup: 1000
               fsGroup: 1000
+              seccompProfile:
+                type: RuntimeDefault
             volumes:
             - emptyDir:
               name: log-volume
