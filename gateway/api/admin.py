@@ -5,7 +5,7 @@ import logging
 
 from django.contrib import admin
 from django.db.models import Count, F, Q
-from django.utils.safestring import mark_safe
+from django.utils.html import format_html
 from django.urls import path
 from django.shortcuts import render, get_object_or_404
 from django.contrib.admin.views.main import PAGE_VAR
@@ -201,7 +201,7 @@ class JobEventInline(admin.TabularInline):
 
         pretty_json = json.dumps(instance.data, indent=2).strip()
 
-        return mark_safe(f'<pre class="event-json-block">{pretty_json}</pre>')
+        return format_html('<pre class="event-json-block">{}</pre>', pretty_json)
 
     @admin.display(description="Status/SubStatus")
     def pretty_status(self, instance):
@@ -213,7 +213,7 @@ class JobEventInline(admin.TabularInline):
         elif instance.event_type == JobEventType.SUB_STATUS_CHANGE:
             status = instance.data["sub_status"]
 
-        return mark_safe(f'<span class="event-badge" data-event-status="{status}">{status}</span>')
+        return format_html('<span class="event-badge" data-event-status="{}">{}</span>', status, status)
 
     class Media:  # pylint: disable=too-few-public-methods
         """JobEventInline Media"""
@@ -380,7 +380,7 @@ class JobAdmin(admin.ModelAdmin):
     @admin.display(description="Status")
     def status_badge(self, obj):
         """Render status as a colored badge."""
-        return mark_safe(f'<span class="qs-status-badge" data-status="{obj.status}">{obj.status}</span>')
+        return format_html('<span class="qs-status-badge" data-status="{}">{}</span>', obj.status, obj.status)
 
     @admin.display(description="Program")
     def get_program(self, obj):
