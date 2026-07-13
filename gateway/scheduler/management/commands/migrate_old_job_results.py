@@ -22,7 +22,7 @@ def save_job_results_to_storage(job: Job):
     result_storage = get_result_storage(job)
     result_storage.save(job.result)
 
-    if not result_storage.get() in job.result:
+    if not result_storage.get() == job.result:
         logger.error("Result NOT saved to storage for job [%s]", job.id)
         return False
 
