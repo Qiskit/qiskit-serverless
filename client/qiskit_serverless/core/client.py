@@ -68,12 +68,18 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
         Initialize a BaseClient instance.
 
         Args:
-            name: name of client
+            name: (deprecated) name of client - will be removed in a future release
             host: host of client a.k.a managers host
             token: authentication token for manager
             instance: IBM Cloud CRN or IQP h/g/p
             channel: identifies the method to use to authenticate the user
         """
+        if name:
+            warnings.warn(
+                "The 'name' attribute is deprecated and will be removed in a future release.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self.name = name
         self.host = host
         self.token = token

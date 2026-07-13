@@ -3,6 +3,8 @@
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, Program
 from core.services.runners import RunnerError
@@ -14,7 +16,11 @@ _MOD = "scheduler.tasks.update_fleets_jobs_statuses"
 def _make_task():
     kill_signal = MagicMock()
     kill_signal.received = False
-    return UpdateFleetsJobsStatuses(kill_signal=kill_signal, metrics=MagicMock())
+    task = UpdateFleetsJobsStatuses.__new__(UpdateFleetsJobsStatuses)
+    task.kill_signal = kill_signal
+    task.metrics = MagicMock()
+    task._event_streams_client = MagicMock()
+    return task
 
 
 def _make_fleets_job(status=Job.RUNNING, fleet_id="fleet-123"):
@@ -26,6 +32,8 @@ def _make_fleets_job(status=Job.RUNNING, fleet_id="fleet-123"):
     job.logs = ""
     job.env_vars = "{}"
     job.sub_status = None
+    job.running_started_at = None
+    job.instance_crn = "crn:v1:bluemix:public:quantum-computing:us-east:a/abc:def::"
     job.in_terminal_state.return_value = status in Job.TERMINAL_STATUSES
 
     def _apply_update_fields(fields_map):
@@ -226,6 +234,25 @@ class TestToRunning:
             status=Job.RUNNING,
         )
 
+    def test_to_running_sets_running_started_at(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.PENDING)
+
+        with (
+            patch(f"{_MOD}.JobEvent"),
+            patch(f"{_MOD}.django_timezone") as mock_dt,
+        ):
+            fake_now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+            mock_dt.now.return_value = fake_now
+            task.to_running(job)
+
+        job.update_fields.assert_called_once_with(
+            {
+                "status": Job.RUNNING,
+                "running_started_at": fake_now,
+            }
+        )
+
 
 class TestStopJobIfTimeout:
     """Tests for stop_job_if_timeout()."""
@@ -325,3 +352,119 @@ class TestRun:
             task.run()
 
         mock_logger.info.assert_called_with("Updated %s Fleets jobs.", 2)
+
+
+class TestEventStreamsIntegration:
+    """Tests that emit methods are called at the right lifecycle points."""
+
+    def test_to_running_emits_job_started_before_db_update(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.PENDING)
+
+        call_order = []
+        task.event_streams_client.emit_job_started.side_effect = lambda j: call_order.append("publish")
+        job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db"))
+
+        with patch(f"{_MOD}.JobEvent"):
+            with patch(f"{_MOD}.django_timezone"):
+                task.to_running(job)
+
+        assert call_order == ["publish", "db"]
+        task.event_streams_client.emit_job_started.assert_called_once_with(job)
+
+    def test_to_running_raises_if_publish_fails(self):
+        task = _make_task()
+        task.event_streams_client.emit_job_started.side_effect = Exception("broker down")
+        job = _make_fleets_job(status=Job.PENDING)
+
+        with patch(f"{_MOD}.JobEvent"):
+            with patch(f"{_MOD}.django_timezone"):
+                with pytest.raises(Exception, match="broker down"):
+                    task.to_running(job)
+
+        job.update_fields.assert_not_called()
+
+    def test_to_terminal_emits_job_ended_before_db_update(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        call_order = []
+        task.event_streams_client.emit_job_ended.side_effect = lambda j: call_order.append("publish")
+        job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db"))
+
+        with patch(f"{_MOD}.JobEvent"):
+            task.to_terminal(job, Job.SUCCEEDED)
+
+        assert call_order == ["publish", "db"]
+        task.event_streams_client.emit_job_ended.assert_called_once_with(job)
+
+    def test_to_terminal_raises_if_publish_fails(self):
+        task = _make_task()
+        task.event_streams_client.emit_job_ended.side_effect = Exception("broker down")
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        with patch(f"{_MOD}.JobEvent"):
+            with pytest.raises(Exception, match="broker down"):
+                task.to_terminal(job, Job.SUCCEEDED)
+
+        job.update_fields.assert_not_called()
+
+    def test_update_job_status_emits_job_in_progress_for_running_job(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        mock_runner = MagicMock()
+        mock_runner.status.return_value = Job.RUNNING
+
+        with (
+            patch(f"{_MOD}.get_runner", return_value=mock_runner),
+            patch.object(task, "stop_job_if_timeout"),
+        ):
+            task.update_job_status(job)
+
+        task.event_streams_client.emit_job_in_progress.assert_called_once_with(job)
+
+    def test_run_publish_failure_skips_db_update_and_continues_other_jobs(self):
+        task = _make_task()
+        job1 = _make_fleets_job(status=Job.RUNNING)
+        job2 = _make_fleets_job(status=Job.RUNNING)
+
+        with (
+            patch(f"{_MOD}.settings") as mock_settings,
+            patch(f"{_MOD}.Job") as mock_job_cls,
+            patch.object(task, "update_job_status", return_value=True) as mock_update_status,
+        ):
+            mock_settings.LIMITS_MAX_FLEETS = 10
+            mock_job_cls.objects.filter.return_value = [job1, job2]
+            mock_job_cls.RUNNING_STATUSES = Job.RUNNING_STATUSES
+
+            # Simulate update_job_status raising for job1 (publish failure) but succeeding for job2
+            def fake_update(job):
+                if job is job1:
+                    raise Exception("broker down")
+                return True
+
+            mock_update_status.side_effect = fake_update
+
+            task.run()
+
+        # job1 raised — skipped; job2 processed normally
+        mock_update_status.assert_any_call(job1)
+        mock_update_status.assert_any_call(job2)
+        assert mock_update_status.call_count == 2
+
+    def test_update_job_status_skips_emit_for_pending_to_running_transition(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.PENDING)
+
+        mock_runner = MagicMock()
+        mock_runner.status.return_value = Job.RUNNING
+
+        with (
+            patch(f"{_MOD}.get_runner", return_value=mock_runner),
+            patch.object(task, "to_running"),
+            patch.object(task, "stop_job_if_timeout"),
+        ):
+            task.update_job_status(job)
+
+        task.event_streams_client.emit_job_in_progress.assert_not_called()

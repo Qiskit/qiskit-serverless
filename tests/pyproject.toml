@@ -5,3 +5,10 @@ requires-python = ">=3.11"
 
 [tool.black]
 line-length = 120
+
+[tool.pytest.ini_options]
+# Stream logs live so each NTC/gateway access is visible during the run.
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s %(levelname)s %(name)s: %(message)s"
+log_cli_date_format = "%H:%M:%S"

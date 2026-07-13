@@ -1,0 +1,14 @@
+---
+fixes:
+  - |
+    Fixed authentication failures for IBM Cloud instances in regions other than the
+    gateway's default region (for example ``eu-de``). During authentication the gateway
+    resolves accessible functions via the region-scoped Runtime API, but it previously
+    used a single fixed ``RUNTIME_API_BASE_URL`` for every CRN. A CRN from a non-default
+    region was sent to the default-region host, which returned ``404 Instance not
+    found`` and failed authentication. The gateway now derives the region from the CRN
+    (the ``crn:v1:bluemix:public:quantum-computing:<region>:...`` segment) and routes the
+    functions-access request to the matching regional endpoint. The default region is
+    configurable via the ``RUNTIME_API_DEFAULT_REGION`` environment variable
+    (default ``us-east``), which is served by the bare ``RUNTIME_API_BASE_URL`` host;
+    other regions use a ``{region}.`` host prefix.

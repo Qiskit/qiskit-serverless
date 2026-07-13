@@ -1,0 +1,7 @@
+---
+upgrade:
+  - |
+    The minimum supported version of ``qiskit-ibm-runtime`` has been raised to
+    ``0.47.0`` (the supported range is now ``>=0.47.0,<0.48.0``). Users should
+    ensure their environment has a compatible ``qiskit-ibm-runtime`` installed
+    before upgrading.

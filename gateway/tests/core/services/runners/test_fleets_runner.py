@@ -12,6 +12,8 @@
 
 """Unit tests for FleetsRunner."""
 
+import io
+import tarfile
 from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
@@ -23,11 +25,6 @@ from core.services.runners.abstract_runner import RunnerError
 from core.services.runners.fleets_runner import FleetsRunner
 
 _RUNNER_MOD = "core.services.runners.fleets_runner"
-
-
-@pytest.fixture(autouse=True)
-def _clear_caches():
-    FleetsRunner._is_active_cache._store.clear()
 
 
 def _make_runner(fleet_id: str | None = None) -> tuple[FleetsRunner, MagicMock]:
@@ -137,34 +134,16 @@ def _make_submit_runner() -> tuple[FleetsRunner, MagicMock]:
     return runner, mock_handler
 
 
-def test_is_active_true_when_fleet_exists():
-    """is_active() returns True when CE API confirms fleet exists."""
-    runner, mock_handler = _make_runner(fleet_id="fleet-123")
-    mock_handler.get_job_status.return_value = {"status": "running"}
+def test_is_active_true_when_fleet_id_set():
+    """is_active() returns True when job has a fleet_id."""
+    runner, _ = _make_runner(fleet_id="fleet-123")
     assert runner.is_active() is True
-    mock_handler.get_job_status.assert_called_once_with("fleet-123")
 
 
 def test_is_active_false_when_no_fleet_id():
     """is_active() returns False when job.fleet_id is None."""
     runner, _ = _make_runner(fleet_id=None)
     assert runner.is_active() is False
-
-
-def test_is_active_false_when_fleet_not_found():
-    """is_active() returns False when CE API returns 404."""
-    runner, mock_handler = _make_runner(fleet_id="fleet-gone")
-    mock_handler.get_job_status.side_effect = ApiException(status=404, reason="Not Found")
-    assert runner.is_active() is False
-
-
-def test_is_active_false_on_connection_error():
-    """is_active() returns False when connection to CE fails."""
-    runner, _ = _make_runner(fleet_id="fleet-123")
-    runner._connected = False  # pylint: disable=protected-access
-    runner._handler = None  # pylint: disable=protected-access
-    with patch.object(runner, "connect", side_effect=Exception("connection failed")):
-        assert runner.is_active() is False
 
 
 def test_status_raises_runner_error_when_no_fleet_id():
@@ -816,3 +795,114 @@ def test_submit_uses_artifact_upload_when_artifact_set():
 
     mock_art.assert_called_once()
     mock_tmpl.assert_not_called()
+
+
+def _build_artifact_tar(members: dict[str, bytes]) -> tarfile.TarFile:
+    """Build an in-memory tar and return it opened for reading.
+
+    Args:
+        members: Mapping of member name to file content.
+
+    Returns:
+        An open ``TarFile`` positioned at the start, ready to iterate.
+    """
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w") as tar:
+        for name, content in members.items():
+            info = tarfile.TarInfo(name=name)
+            info.size = len(content)
+            tar.addfile(info, io.BytesIO(content))
+    buf.seek(0)
+    return tarfile.open(fileobj=buf, mode="r")
+
+
+def _make_custom_artifact_runner() -> tuple[FleetsRunner, FleetJobPaths]:
+    """Build a runner and paths wired for _upload_custom_image_entrypoint."""
+    runner, _ = _make_runner()
+    runner.job.author.username = "alice"
+    runner.job.program.provider = None
+    runner.job.program.title = "my-func"
+    runner.job.program.entrypoint = "main.py"
+    runner.job.program.runner = Program.FLEETS
+    runner.job.program.artifact = MagicMock()
+    runner.job.program.artifact.path = "/tmp/artifact.tar"
+    runner.job.id = "job-1"
+    runner._project.cos_bucket_user_data_name = "user-bucket"  # pylint: disable=protected-access
+    paths = build_job_paths(runner.job)
+    return runner, paths
+
+
+def test_upload_custom_image_entrypoint_skips_traversal_member():
+    """_upload_custom_image_entrypoint() skips a member that escapes via ".." and only uploads safe files."""
+    runner, paths = _make_custom_artifact_runner()
+    tar = _build_artifact_tar({"../evil.txt": b"malicious", "main.py": b"safe"})
+
+    mock_template = MagicMock()
+    mock_template.render.return_value = "wrapper"
+
+    with (
+        _patch_settings(),
+        patch(f"{_RUNNER_MOD}.get_template", return_value=mock_template),
+        patch(f"{_RUNNER_MOD}.tarfile.open", return_value=tar),
+        patch(f"{_RUNNER_MOD}.logger") as mock_logger,
+    ):
+        runner._upload_custom_image_entrypoint(paths)  # pylint: disable=protected-access
+
+    uploaded_keys = [
+        call.kwargs["key"] for call in runner._cos.upload_fileobj.call_args_list  # pylint: disable=protected-access
+    ]
+    # The safe member is uploaded under the job's function prefix.
+    assert f"{paths.cos_user_function_prefix}/main.py" in uploaded_keys
+    # No uploaded key references the traversal member.
+    assert not any("evil.txt" in key for key in uploaded_keys)
+    # The unsafe member is logged as skipped.
+    mock_logger.warning.assert_called_once()
+    assert "../evil.txt" in mock_logger.warning.call_args.args
+
+
+def test_upload_custom_image_entrypoint_skips_absolute_member():
+    """_upload_custom_image_entrypoint() skips an absolute-path member and only uploads safe files."""
+    runner, paths = _make_custom_artifact_runner()
+    tar = _build_artifact_tar({"/abs/evil.txt": b"malicious", "main.py": b"safe"})
+
+    mock_template = MagicMock()
+    mock_template.render.return_value = "wrapper"
+
+    with (
+        _patch_settings(),
+        patch(f"{_RUNNER_MOD}.get_template", return_value=mock_template),
+        patch(f"{_RUNNER_MOD}.tarfile.open", return_value=tar),
+        patch(f"{_RUNNER_MOD}.logger") as mock_logger,
+    ):
+        runner._upload_custom_image_entrypoint(paths)  # pylint: disable=protected-access
+
+    uploaded_keys = [
+        call.kwargs["key"] for call in runner._cos.upload_fileobj.call_args_list  # pylint: disable=protected-access
+    ]
+    assert f"{paths.cos_user_function_prefix}/main.py" in uploaded_keys
+    assert not any("evil.txt" in key for key in uploaded_keys)
+    mock_logger.warning.assert_called_once()
+
+
+def test_upload_custom_image_entrypoint_keeps_dotdot_prefixed_name():
+    """_upload_custom_image_entrypoint() uploads a legit name like "..config" that is not real traversal."""
+    runner, paths = _make_custom_artifact_runner()
+    tar = _build_artifact_tar({"..config": b"data", "main.py": b"safe"})
+
+    mock_template = MagicMock()
+    mock_template.render.return_value = "wrapper"
+
+    with (
+        _patch_settings(),
+        patch(f"{_RUNNER_MOD}.get_template", return_value=mock_template),
+        patch(f"{_RUNNER_MOD}.tarfile.open", return_value=tar),
+        patch(f"{_RUNNER_MOD}.logger") as mock_logger,
+    ):
+        runner._upload_custom_image_entrypoint(paths)  # pylint: disable=protected-access
+
+    uploaded_keys = [
+        call.kwargs["key"] for call in runner._cos.upload_fileobj.call_args_list  # pylint: disable=protected-access
+    ]
+    assert f"{paths.cos_user_function_prefix}/..config" in uploaded_keys
+    assert f"{paths.cos_user_function_prefix}/main.py" in uploaded_keys
+    mock_logger.warning.assert_not_called()

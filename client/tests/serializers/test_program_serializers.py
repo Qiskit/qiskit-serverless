@@ -56,6 +56,12 @@ class TestProgramSerializers:
         decoded_arguments = json.loads(encoded_arguments, cls=QiskitObjectsDecoder)
         assert isinstance(decoded_arguments.get("service"), QiskitRuntimeService)
 
+    def test_decoder_rejects_malformed_value(self):
+        """Tests a decoder '__value__' that is a list raises ValueError."""
+        payload = json.dumps({"__type__": "SamplerResult", "__value__": [1, 2, 3]})
+        with pytest.raises(ValueError, match="Invalid '__value__' payload"):
+            json.loads(payload, cls=QiskitObjectsDecoder)
+
 
 class TestArgParsing:
     """Tests argument parsing,"""

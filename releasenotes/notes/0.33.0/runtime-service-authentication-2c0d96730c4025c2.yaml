@@ -1,7 +1,7 @@
 ---
 upgrade:
   - |
-    Updated ``IBMServerlessClient`` cloud (instance) authentication to use
+    Updated :class:`.IBMServerlessClient` cloud (instance) authentication to use
     ``QiskitRuntimeService`` for authentication handling.
     This aligns authentication behavior with Qiskit Runtime APIs and centralizes
     credential management.

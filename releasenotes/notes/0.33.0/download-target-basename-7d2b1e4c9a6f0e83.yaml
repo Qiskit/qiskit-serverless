@@ -1,0 +1,11 @@
+---
+upgrade:
+  - |
+    :meth:`.ServerlessClient.file_download` and :meth:`.ServerlessClient.provider_file_download`
+    now always write the downloaded file into the requested ``download_location`` using only the
+    base name of the target file. Any directory component in the ``target_name`` argument (for
+    example ``subdir/result.json`` or a path-traversal sequence such as ``../result.json``) is
+    stripped, so the file is written directly under ``download_location``. Code that relied on
+    ``target_name`` creating or writing into subdirectories must now pass that subdirectory as
+    part of ``download_location`` instead. This prevents a crafted file name from escaping the
+    download location.
