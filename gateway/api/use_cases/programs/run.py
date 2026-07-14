@@ -25,7 +25,7 @@ from core.models import (
     RUN_PROGRAM_PERMISSION,
 )
 from core.services.storage import get_arguments_storage
-from core.utils import create_gpujob_allowlist, encrypt_env_vars
+from core.utils import encrypt_env_vars
 
 logger = logging.getLogger("api.api.use_cases.programs.run")
 
