@@ -41,7 +41,7 @@ def _runner_config(function: Function, compute_profile_requested: str | None) ->
     if function.runner == Function.FLEETS:
         profile = compute_profile_requested or getattr(settings, "DEFAULT_COMPUTE_PROFILE", "cx3d-4x16")
         return profile, False
-    if function.provider and function.provider.name in create_gpujob_allowlist().get("gpu-functions", {}):
+    if function.provider and function.gpu:
         return None, True
     return None, False
 
