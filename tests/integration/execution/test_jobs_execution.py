@@ -47,6 +47,7 @@ class TestJobsExecution:
     @mark.order(1)
     def test_simple_function(self, serverless_client: ServerlessClient):
         """Integration test function uploading."""
+        # pylint: disable=import-outside-toplevel
         from qiskit import QuantumCircuit
 
         circuit = QuantumCircuit(2)
