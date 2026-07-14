@@ -103,6 +103,7 @@ class ProgramAdmin(admin.ModelAdmin):
             "Info",
             {
                 "fields": [
+                    "title",
                     "readable_title",
                     "type",
                     "description",
