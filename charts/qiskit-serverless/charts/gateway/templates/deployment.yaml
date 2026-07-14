@@ -455,8 +455,6 @@ spec:
               value: {{ .Values.application.limits.maxComputeResources | quote }}
             - name: LIMITS_MAX_GPU_CLUSTERS
               value: {{ .Values.application.limits.maxGpuResources | quote }}
-            - name: GATEWAY_GPU_JOBS_CONFIG
-              value: {{ .Values.application.ray.gpuJobsConfig | quote }}
             - name: MAINTENANCE
               value: {{ .Values.application.maintenance | quote }}
 {{- if .Values.application.limits.keepClusterOnComplete }}

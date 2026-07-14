@@ -39,7 +39,6 @@ application:
     kubectlImage: alpine/k8s:1.35.4
     scrapeWithPrometheus: true
     useTLS: true
-    gpuJobsConfig: "api/v1/gpu-jobs.json"
 
   limits:
     maxJobsPerUser: 2
