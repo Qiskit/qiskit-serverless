@@ -12,7 +12,7 @@ from pytest import mark
 from qiskit_serverless import QiskitFunction, ServerlessClient
 from utils import wait_for_terminal_state
 
-resources_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../source_files")
+resources_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../source_files")
 
 
 class TestJobsStorage:

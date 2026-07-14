@@ -14,7 +14,7 @@ from qiskit_serverless import (
 )
 from utils import wait_for_logs, wait_for_terminal_state
 
-resources_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../source_files")
+resources_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../source_files")
 
 
 class TestJobsExecution:
@@ -47,6 +47,13 @@ class TestJobsExecution:
     @mark.order(1)
     def test_simple_function(self, serverless_client: ServerlessClient):
         """Integration test function uploading."""
+        from qiskit import QuantumCircuit
+
+        circuit = QuantumCircuit(2)
+        circuit.h(0)
+        circuit.cx(0, 1)
+        circuit.measure_all()
+
         simple_function = QiskitFunction(
             title="gold-path",
             entrypoint="gold-path-function.py",
@@ -63,7 +70,7 @@ class TestJobsExecution:
         assert runnable_function is not None
         assert runnable_function.type == "GENERIC"
 
-        job = runnable_function.run()
+        job = runnable_function.run(circuit=circuit)
 
         wait_for_logs(job, "DELAY STARTS")
 
@@ -108,76 +115,6 @@ ERROR: Provider log
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    #     def test_function_with_arguments(self, serverless_client: ServerlessClient):
-    #         """Integration test for Functions with arguments."""
-    #         circuit = QuantumCircuit(2)
-    #         circuit.h(0)
-    #         circuit.cx(0, 1)
-    #         circuit.measure_all()
-    #         circuit.draw()
-
-    #         arguments_function = QiskitFunction(
-    #             title="pattern-with-arguments",
-    #             entrypoint="pattern_with_arguments.py",
-    #             working_dir=resources_path,
-    #         )
-
-    #         runnable_function = serverless_client.upload(arguments_function)
-
-    #         job = runnable_function.run(circuit=circuit)
-
-    #         assert job is not None
-    #         assert job.result() is not None
-    #         allowed_keys = {"00", "11"}
-    #         for entry in job.result().get("results", []):
-    #             assert set(entry.keys()).issubset(allowed_keys)
-    #         assert job.status() == "DONE"
-    #         assert isinstance(job.logs(), str)
-
-    #     def test_logs(self, serverless_client: ServerlessClient):
-    #         """Integration test for logs."""
-
-    #         function = QiskitFunction(
-    #             title="logs_function", entrypoint="logger.py", working_dir=resources_path, env_vars={"DELAY": "10"}
-    #         )
-    #         function = serverless_client.upload(function)
-    #         job = function.run()
-
-    #         wait_for_logs(job, "DELAY STARTS")
-
-    #         print(f"Execution logs until DELAY STARTS {job.job_id}")
-    #         print(job.logs())
-    #         print("-----")
-
-    #         wait_for_terminal_state(job)
-
-    #         expected_result = """INFO: User log
-    # INFO: User multiline
-    # INFO: log
-    # WARNING: User log
-    # ERROR: User log
-    # DELAY STARTS
-    # INFO: Provider log
-    # INFO: Provider multiline
-    # INFO: log
-    # WARNING: Provider log
-    # ERROR: Provider log
-    # """
-
-    #         assert job.logs().endswith(expected_result)
-
-    #         with raises(QiskitServerlessException) as exc_info:
-    #             job.provider_logs()
-
-    #         expected_error = f"""
-    # | Message: Http bad request.
-    # | Code: 403
-    # | Details: You don't have access to job [{job.job_id}]
-    # """.strip()
-
-    #         assert str(exc_info.value).strip() == expected_error
-
-    # failed jobs has logs "", so the result() can't get the error from the logs
     def test_function_with_import_errors(self, serverless_client: ServerlessClient):
         """Integration test for faulty function run."""
         function = QiskitFunction(
@@ -253,9 +190,9 @@ ERROR: Provider log
     def test_wrong_function_name(self, serverless_client: ServerlessClient):
         """Integration test for retrieving a function that isn't accessible."""
 
-        arguments_function = QiskitFunction(
-            title="pattern-with-arguments",
-            entrypoint="pattern_with_arguments.py",
+        function = QiskitFunction(
+            title="gold-path-function",
+            entrypoint="gold-path-function.py",
             working_dir=resources_path,
         )
 
@@ -263,7 +200,7 @@ ERROR: Provider log
             "\n| Message: Http bad request.\n| Code: 404\n| Details: Qiskit Function wrong-title doesn't exist."
         )
 
-        serverless_client.upload(arguments_function)
+        serverless_client.upload(function)
 
         with raises(QiskitServerlessException) as exc_info:
             serverless_client.function("wrong-title")

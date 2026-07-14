@@ -7,7 +7,7 @@ from pytest import raises
 
 from qiskit_serverless import QiskitServerlessException, ServerlessClient, QiskitFunction
 
-resources_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../source_files")
+resources_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../source_files")
 
 filename = "test.txt"
 filename_path = os.path.join(resources_path, filename)
