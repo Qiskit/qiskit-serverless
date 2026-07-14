@@ -24,6 +24,7 @@ class TestAvailableDependenciesVersion(APITestCase):
             "mergedeep==1.3.4",
             "mthree==3.0.0",
             "pyscf==2.13.1",
+            "cotengrust==0.2.0",
             "qiskit-addon-aqc-tensor[quimb-jax]==0.3.0",
             "qiskit-addon-obp==0.3.0",
             "qiskit-addon-sqd==0.12.1",
