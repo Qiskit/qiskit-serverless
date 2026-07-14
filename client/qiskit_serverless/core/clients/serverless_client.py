@@ -435,15 +435,26 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         if response.status_code == 204:
             return {}
         # Not all redirects go to COS — HTTP→HTTPS redirects stay on the same host.
-        # Checking the hostname detects only redirects to an external host (COS/MinIO).
-        redirected_to_cos = urlparse(response.url).hostname != urlparse(gateway_url).hostname
+        # Compare netloc (host AND port): COS/MinIO often shares the gateway host in
+        # local/dev setups but listens on a different port (e.g. 127.0.0.1:9000 vs :8000),
+        # so a hostname-only check would misclassify the redirect and try to JSON-decode
+        # the raw object body.
+        redirected_to_cos = urlparse(response.url).netloc != urlparse(gateway_url).netloc
         if redirected_to_cos:
             return json.loads(response.text, cls=QiskitObjectsDecoder) if response.ok else {}
         return json.loads(response.json().get("result", "{}") or "{}", cls=QiskitObjectsDecoder)
 
-    @_trace_job
-    def logs(self, job_id: str):
-        gateway_url = f"{self.host}/api/{self.version}/jobs/{job_id}/logs/"
+    def _fetch_logs(self, gateway_url: str) -> str:
+        """Fetch logs from a gateway logs endpoint, handling every response shape.
+
+        The gateway may answer in one of these ways:
+          - 204 No Content        -> no logs (yet)
+          - 3xx redirect to COS   -> the raw log object is served directly (Fleets)
+          - 200 JSON {"logs": ..} -> logs inlined by the gateway (Ray)
+
+        Returns a human-readable string in all cases and never surfaces a raw JSON
+        decoding error to the caller.
+        """
         response = requests.get(
             gateway_url,
             headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
@@ -452,28 +463,33 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         if response.status_code == 204:
             return "No logs yet."
         # Not all redirects go to COS — HTTP→HTTPS redirects stay on the same host.
-        # Checking the hostname detects only redirects to an external host (COS/MinIO).
-        redirected_to_cos = urlparse(response.url).hostname != urlparse(gateway_url).hostname
+        # Compare netloc (host AND port): COS/MinIO often shares the gateway host in
+        # local/dev setups but listens on a different port (e.g. 127.0.0.1:9000 vs :8000),
+        # so a hostname-only check would misclassify the redirect and try to JSON-decode
+        # the raw log body.
+        redirected_to_cos = urlparse(response.url).netloc != urlparse(gateway_url).netloc
         if redirected_to_cos:
-            return response.text if response.ok else "Error fetching logs."
-        return safe_json_request_as_dict(request=lambda: response).get("logs")
+            # The redirect target (COS/MinIO) serves the raw log file, not JSON.
+            return response.text if response.ok else f"Could not fetch logs (HTTP {response.status_code})."
+        if not response.ok:
+            return f"Could not fetch logs (HTTP {response.status_code})."
+        # Gateway (Ray) path: a 200 with a JSON body of {"logs": ...}.
+        try:
+            return response.json().get("logs")
+        except ValueError:
+            # The gateway contract is JSON here; a non-JSON body means something
+            # upstream misbehaved. Degrade to a clear message instead of a parser error.
+            return "Could not read logs: the server returned an unexpected (non-JSON) response."
+
+    @_trace_job
+    def logs(self, job_id: str):
+        gateway_url = f"{self.host}/api/{self.version}/jobs/{job_id}/logs/"
+        return self._fetch_logs(gateway_url)
 
     @_trace_job
     def provider_logs(self, job_id: str):
         gateway_url = f"{self.host}/api/{self.version}/jobs/{job_id}/provider-logs/"
-        response = requests.get(
-            gateway_url,
-            headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
-            timeout=REQUESTS_TIMEOUT,
-        )
-        if response.status_code == 204:
-            return "No logs yet."
-        # Not all redirects go to COS — HTTP→HTTPS redirects stay on the same host.
-        # Checking the hostname detects only redirects to an external host (COS/MinIO).
-        redirected_to_cos = urlparse(response.url).hostname != urlparse(gateway_url).hostname
-        if redirected_to_cos:
-            return response.text if response.ok else "Error fetching logs."
-        return safe_json_request_as_dict(request=lambda: response).get("logs")
+        return self._fetch_logs(gateway_url)
 
     @_trace_job
     def runtime_jobs(self, job_id: str, runtime_session: Optional[str] = None) -> list[str]:

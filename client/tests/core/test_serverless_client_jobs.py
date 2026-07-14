@@ -766,6 +766,88 @@ class TestProviderLogsMethod:
             assert logs == "No logs yet."
 
 
+class TestLogsRedirectPortDetection:
+    """Regression tests: a COS/MinIO redirect that shares the gateway host but uses a
+    different port (every local/dev setup, e.g. 127.0.0.1:9000 vs :8000) must be detected
+    as a redirect and its raw body returned, not force-parsed as JSON."""
+
+    def test_logs_same_host_different_port_redirect_returns_raw_text(self, mock_client):
+        """logs() must return the raw log text (not JSON1001) for a same-host, different-port redirect."""
+        log_content = "raw log line 1\nraw log line 2\n"
+        # Same host as the gateway (test-host.com) but a different port -> a real COS/MinIO redirect.
+        presigned_url = "https://test-host.com:9000/logs.log?sig=abc"
+
+        with requests_mock.Mocker() as mocker:
+            mocker.get(
+                "https://test-host.com/api/v1/jobs/test-job/logs/",
+                status_code=302,
+                headers={"Location": presigned_url},
+            )
+            mocker.get(presigned_url, text=log_content)
+
+            assert mock_client.logs("test-job") == log_content
+
+    def test_provider_logs_same_host_different_port_redirect_returns_raw_text(self, mock_client):
+        """provider_logs() must behave the same as logs() for a same-host, different-port redirect."""
+        log_content = "private raw line\n"
+        presigned_url = "https://test-host.com:9000/private.log?sig=xyz"
+
+        with requests_mock.Mocker() as mocker:
+            mocker.get(
+                "https://test-host.com/api/v1/jobs/test-job/provider-logs/",
+                status_code=302,
+                headers={"Location": presigned_url},
+            )
+            mocker.get(presigned_url, text=log_content)
+
+            assert mock_client.provider_logs("test-job") == log_content
+
+    def test_result_same_host_different_port_redirect_decodes_object(self, mock_client):
+        """result() must decode the COS object for a same-host, different-port redirect."""
+        presigned_url = "https://test-host.com:9000/results.json?sig=abc"
+
+        with requests_mock.Mocker() as mocker:
+            mocker.get(
+                "https://test-host.com/api/v1/jobs/test-job/result/",
+                status_code=302,
+                headers={"Location": presigned_url},
+            )
+            mocker.get(presigned_url, text='{"answer": 42}')
+
+            assert mock_client.result("test-job") == {"answer": 42}
+
+
+class TestLogsErrorHandling:
+    """logs() / provider_logs() must degrade gracefully instead of raising JSON1001."""
+
+    def test_logs_non_json_body_returns_clear_message(self, mock_client):
+        """A 200 with a non-JSON body (contract violation) yields a clear message, not a parser error."""
+        with requests_mock.Mocker() as mocker:
+            mocker.get(
+                "https://test-host.com/api/v1/jobs/test-job/logs/",
+                status_code=200,
+                text="<html>gateway error page</html>",
+            )
+
+            logs = mock_client.logs("test-job")
+
+            assert "unexpected" in logs.lower()
+            assert "JSON1001" not in logs
+
+    def test_logs_error_status_returns_clear_message(self, mock_client):
+        """A non-2xx status yields a clear 'could not fetch' message with the status code."""
+        with requests_mock.Mocker() as mocker:
+            mocker.get(
+                "https://test-host.com/api/v1/jobs/test-job/logs/",
+                status_code=500,
+                text="boom",
+            )
+
+            logs = mock_client.logs("test-job")
+
+            assert logs == "Could not fetch logs (HTTP 500)."
+
+
 class TestRuntimeJobsMethod:
     """Test ServerlessClient.runtime_jobs() method."""
 
