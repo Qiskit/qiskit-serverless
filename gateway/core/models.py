@@ -151,6 +151,7 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         max_length=20, choices=RUNNER_CHOICES, default=RAY, help_text="Execution backend for this program"
     )
 
+    gpu = models.BooleanField(default=False, null=False)
     default_compute_profile = models.CharField(
         max_length=255,
         null=True,
