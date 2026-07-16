@@ -153,7 +153,7 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
 
     gpu = models.BooleanField(
         default=False,
-        null=False,
+        null=True,
         help_text=(
             "Whether this program should run on GPU nodes. "
             "Applies only to the Ray runner; ignored by the Fleets runner."
