@@ -1,14 +1,14 @@
 pylint>=4.0.6
 pytest>=9.1.1
 pytest-django>=4.12.0
-pylint-django>=2.7.0
+pylint-django>=2.8.0
 # Black's formatting rules can change between major versions, so we use
 # the ~= specifier for it.
 black~=26.5
 requests-mock>=1.12.1
-coverage>=7.15.0
+coverage>=7.15.1
 pytest-cov>=7.1.0
 responses>=0.26.2
-tox>=4.56.2
+tox>=4.56.4
 pre-commit>=4.6.0
 import-linter>=2.13
