@@ -22,7 +22,7 @@ def save_job_arguments_to_storage(job: Job):
     arguments_storage = get_arguments_storage(job)
     arguments_storage.save(job.arguments)
 
-    if not arguments_storage.get() in job.arguments:
+    if not arguments_storage.get() == job.arguments:
         logger.error("Arguments NOT saved to storage for job [%s]", job.id)
         return False
 

@@ -766,6 +766,98 @@ class TestProviderLogsMethod:
             assert logs == "No logs yet."
 
 
+class TestLogsAndResultErrorHandling:
+    """logs()/provider_logs()/result() must surface a readable error for non-OK
+    responses (e.g. a Cloudflare/ingress block page) instead of a JSON1001."""
+
+    def test_logs_blocked_by_intermediary_raises_with_status_and_body(self, mock_client):
+        """A block page (e.g. Cloudflare 403 HTML) surfaces the status and body."""
+        with requests_mock.Mocker() as mocker:
+            mocker.get(
+                "https://test-host.com/api/v1/jobs/test-job/logs/",
+                status_code=403,
+                text="<!DOCTYPE html><html><body>Sorry, you have been blocked</body></html>",
+            )
+
+            with pytest.raises(QiskitServerlessException) as context:
+                mock_client.logs("test-job")
+
+            message = str(context.value)
+            assert "403" in message
+            assert "Sorry, you have been blocked" in message
+            assert "JSON1001" not in message
+
+    def test_logs_error_status_raises_with_status_and_body(self, mock_client):
+        """A non-2xx status surfaces the status code and body, not a JSON1001."""
+        with requests_mock.Mocker() as mocker:
+            mocker.get(
+                "https://test-host.com/api/v1/jobs/test-job/logs/",
+                status_code=500,
+                text="boom",
+            )
+
+            with pytest.raises(QiskitServerlessException) as context:
+                mock_client.logs("test-job")
+
+            message = str(context.value)
+            assert "500" in message
+            assert "boom" in message
+            assert "JSON1001" not in message
+
+    def test_provider_logs_blocked_by_intermediary_raises(self, mock_client):
+        """provider_logs() surfaces a block page's status and body."""
+        with requests_mock.Mocker() as mocker:
+            mocker.get(
+                "https://test-host.com/api/v1/jobs/test-job/provider-logs/",
+                status_code=403,
+                text="<html><body>Sorry, you have been blocked</body></html>",
+            )
+
+            with pytest.raises(QiskitServerlessException) as context:
+                mock_client.provider_logs("test-job")
+
+            message = str(context.value)
+            assert "403" in message
+            assert "Sorry, you have been blocked" in message
+            assert "JSON1001" not in message
+
+    def test_result_blocked_by_intermediary_raises_with_status_and_body(self, mock_client):
+        """result() surfaces a block page's status and body instead of a JSON1001."""
+        with requests_mock.Mocker() as mocker:
+            mocker.get(
+                "https://test-host.com/api/v1/jobs/test-job/result/",
+                status_code=403,
+                text="<!DOCTYPE html><html><body>Sorry, you have been blocked</body></html>",
+            )
+
+            with pytest.raises(QiskitServerlessException) as context:
+                mock_client.result("test-job")
+
+            message = str(context.value)
+            assert "403" in message
+            assert "Sorry, you have been blocked" in message
+            assert "JSON1001" not in message
+
+    def test_result_error_status_after_redirect_raises(self, mock_client):
+        """A non-OK COS response after a redirect surfaces status + body, not JSON1001."""
+        presigned_url = "https://cos.example.com/results.json?sig=abc"
+        with requests_mock.Mocker() as mocker:
+            mocker.get(
+                "https://test-host.com/api/v1/jobs/test-job/result/",
+                status_code=302,
+                headers={"Location": presigned_url},
+            )
+            mocker.get(presigned_url, status_code=403, text="AccessDenied")
+
+            with pytest.raises(QiskitServerlessException) as context:
+                mock_client.result("test-job")
+
+            message = str(context.value)
+            assert "403" in message
+            assert "AccessDenied" in message
+            assert "JSON1001" not in message
+
+
 class TestRuntimeJobsMethod:
     """Test ServerlessClient.runtime_jobs() method."""
 
@@ -997,7 +1089,11 @@ class TestComputeProfile:
 
     def test_run_with_compute_profile(self, mock_client):
         """Test run() passes compute_profile to API and Job property works."""
-        mock_response = {"id": "test-job-id", "status": "QUEUED", "compute_profile": "gx3d-24x120x1a100p"}
+        mock_response = {
+            "id": "test-job-id",
+            "status": "QUEUED",
+            "compute_profile": "gx3d-24x120x1a100p",
+        }
 
         with requests_mock.Mocker() as mocker:
             mock_request = mocker.post(
