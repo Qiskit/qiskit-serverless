@@ -57,7 +57,7 @@ class TestJobsExecution:
 
         simple_function = QiskitFunction(
             title="gold-path",
-            entrypoint="gold-path-function.py",
+            entrypoint="gold_path_function.py",
             working_dir=resources_path,
         )
 
@@ -192,8 +192,8 @@ ERROR: Provider log
         """Integration test for retrieving a function that isn't accessible."""
 
         function = QiskitFunction(
-            title="gold-path-function",
-            entrypoint="gold-path-function.py",
+            title="gold-path",
+            entrypoint="gold_path_function.py",
             working_dir=resources_path,
         )
 
