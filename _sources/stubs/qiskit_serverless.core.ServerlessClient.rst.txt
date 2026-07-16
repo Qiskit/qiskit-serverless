@@ -46,7 +46,6 @@
       ~ServerlessClient.stop
       ~ServerlessClient.to_dict
       ~ServerlessClient.upload
-      ~ServerlessClient.widget
    
    
 

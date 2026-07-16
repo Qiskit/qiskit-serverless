@@ -51,7 +51,6 @@
       ~IBMServerlessClient.to_dict
       ~IBMServerlessClient.upload
       ~IBMServerlessClient.usage
-      ~IBMServerlessClient.widget
    
    
 

@@ -36,7 +36,6 @@
       ~BaseClient.stop
       ~BaseClient.to_dict
       ~BaseClient.upload
-      ~BaseClient.widget
    
    
 
