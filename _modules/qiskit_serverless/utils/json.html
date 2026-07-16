@@ -385,6 +385,60 @@
         <span class="k">return</span> <span class="kc">False</span>
 
 
+<span class="n">_MAX_BODY_SNIPPET_LEN</span> <span class="o">=</span> <span class="mi">500</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_body_snippet</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Condenses a non-JSON response body into a short, readable snippet.</span>
+
+<span class="sd">    Intermediaries (Cloudflare, proxies, load balancers) may return large HTML</span>
+<span class="sd">    error pages. This collapses whitespace and truncates so the message stays</span>
+<span class="sd">    readable while preserving enough of the body to identify the source.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        text: raw response body.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        a single-line, length-capped snippet (empty-body note if blank).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">text</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+        <span class="k">return</span> <span class="s2">&quot;(empty response body)&quot;</span>
+    <span class="n">collapsed</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">text</span><span class="o">.</span><span class="n">split</span><span class="p">())</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">collapsed</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">_MAX_BODY_SNIPPET_LEN</span><span class="p">:</span>
+        <span class="n">collapsed</span> <span class="o">=</span> <span class="n">collapsed</span><span class="p">[:</span><span class="n">_MAX_BODY_SNIPPET_LEN</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;...&quot;</span>
+    <span class="k">return</span> <span class="n">collapsed</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">raise_for_non_ok_response</span><span class="p">(</span><span class="n">response</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">Response</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raise a readable exception if the response is not OK.</span>
+
+<span class="sd">    Surfaces the HTTP status and a snippet of the body so that a block page or</span>
+<span class="sd">    error body from an intermediary (Cloudflare, proxy, load balancer) or from</span>
+<span class="sd">    COS itself is reported clearly, instead of being fed to a JSON parser and</span>
+<span class="sd">    surfacing a cryptic decoding error. If the body is JSON, its values are</span>
+<span class="sd">    included; otherwise a cleaned text snippet is used.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        response: the HTTP response to check.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        QiskitServerlessException: if ``response`` is not OK.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">response</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">response</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+        <span class="k">return</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">json_data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+        <span class="n">details</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">json_data</span><span class="o">.</span><span class="n">values</span><span class="p">())</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">json_data</span><span class="p">,</span> <span class="n">Dict</span><span class="p">)</span> <span class="k">else</span> <span class="nb">str</span><span class="p">(</span><span class="n">json_data</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">:</span>
+        <span class="n">details</span> <span class="o">=</span> <span class="n">_body_snippet</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
+        <span class="n">format_err_msg</span><span class="p">(</span>
+            <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span>
+            <span class="n">details</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+
+
 <span class="k">def</span><span class="w"> </span><span class="nf">safe_json_request_as_list</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">requests</span><span class="o">.</span><span class="n">Response</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns parsed json data from request.</span>
 
@@ -449,35 +503,47 @@
     <span class="k">if</span> <span class="n">error_message</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="n">error_message</span><span class="p">)</span>
 
-    <span class="n">decoding_error_message</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="n">json_data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span> <span class="k">as</span> <span class="n">json_error</span><span class="p">:</span>
+        <span class="c1"># The body is not JSON. This commonly happens when an intermediary</span>
+        <span class="c1"># (Cloudflare, an ingress/proxy, a load balancer) returns an HTML</span>
+        <span class="c1"># error page or an empty body instead of the gateway&#39;s JSON. Surface</span>
+        <span class="c1"># the HTTP status and a snippet of the body so the real cause is</span>
+        <span class="c1"># visible, rather than a bare JSON1001 that hides it.</span>
         <span class="k">if</span> <span class="n">response</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">response</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
-            <span class="c1"># When response is not ok, the expected json</span>
-            <span class="c1"># response is a dictionary with a field</span>
-            <span class="c1"># that contains the error message. The key</span>
-            <span class="c1"># varies between messages, so appending all</span>
-            <span class="c1"># values to a string allows to capture all</span>
-            <span class="c1"># potential messages.</span>
-            <span class="n">error_msg</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
-            <span class="k">for</span> <span class="n">error_string</span> <span class="ow">in</span> <span class="n">json_data</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
-                <span class="n">error_msg</span> <span class="o">+=</span> <span class="nb">str</span><span class="p">(</span><span class="n">error_string</span><span class="p">)</span>
-
             <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
                 <span class="n">format_err_msg</span><span class="p">(</span>
                     <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span>
-                    <span class="nb">str</span><span class="p">(</span><span class="n">error_msg</span><span class="p">),</span>
+                    <span class="n">_body_snippet</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">),</span>
                 <span class="p">)</span>
+            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">json_error</span>
+        <span class="c1"># A successful (2xx) response whose body we cannot decode is a genuine</span>
+        <span class="c1"># violation of the server contract: report it as a JSON decoding error.</span>
+        <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
+            <span class="n">format_err_msg</span><span class="p">(</span>
+                <span class="n">ErrorCodes</span><span class="o">.</span><span class="n">JSON1001</span><span class="p">,</span>
+                <span class="nb">str</span><span class="p">(</span><span class="n">json_error</span><span class="o">.</span><span class="n">args</span><span class="p">),</span>
             <span class="p">)</span>
-    <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span> <span class="k">as</span> <span class="n">json_error</span><span class="p">:</span>
-        <span class="n">decoding_error_message</span> <span class="o">=</span> <span class="n">format_err_msg</span><span class="p">(</span>
-            <span class="n">ErrorCodes</span><span class="o">.</span><span class="n">JSON1001</span><span class="p">,</span>
-            <span class="nb">str</span><span class="p">(</span><span class="n">json_error</span><span class="o">.</span><span class="n">args</span><span class="p">),</span>
-        <span class="p">)</span>
-        <span class="n">json_data</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">json_error</span>
 
-    <span class="k">if</span> <span class="n">decoding_error_message</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="n">decoding_error_message</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">response</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">response</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+        <span class="c1"># When response is not ok, the expected json</span>
+        <span class="c1"># response is a dictionary with a field</span>
+        <span class="c1"># that contains the error message. The key</span>
+        <span class="c1"># varies between messages, so appending all</span>
+        <span class="c1"># values to a string allows to capture all</span>
+        <span class="c1"># potential messages.</span>
+        <span class="n">error_msg</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">error_string</span> <span class="ow">in</span> <span class="n">json_data</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">error_msg</span> <span class="o">+=</span> <span class="nb">str</span><span class="p">(</span><span class="n">error_string</span><span class="p">)</span>
+
+        <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
+            <span class="n">format_err_msg</span><span class="p">(</span>
+                <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span>
+                <span class="nb">str</span><span class="p">(</span><span class="n">error_msg</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
 
     <span class="k">return</span> <span class="n">json_data</span>
 </pre></div>
