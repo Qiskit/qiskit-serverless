@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    The ServerlessClient now automatically removes trailing slashes from the
+    gateway host parameter, preventing URL formatting issues when constructing
+    API endpoints. Users can now provide gateway hosts with or without trailing
+    slashes (e.g., ``https://gateway.example.com`` or ``https://gateway.example.com/``).
