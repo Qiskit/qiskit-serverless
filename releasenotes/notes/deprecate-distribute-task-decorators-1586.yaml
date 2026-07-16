@@ -1,0 +1,73 @@
+---
+deprecations:
+  - |
+    The ``distribute_task`` decorator and the ``get``, ``put`` and
+    ``get_refs_by_status`` helper functions have been deprecated and will be
+    removed in following releases. They were thin wrappers around Ray's native
+    API, which should now be used directly instead:
+
+    * ``distribute_task`` -> `ray.remote <https://docs.ray.io/en/latest/ray-core/api/doc/ray.remote.html>`__
+    * ``get`` -> `ray.get <https://docs.ray.io/en/latest/ray-core/api/doc/ray.get.html>`__
+    * ``put`` -> `ray.put <https://docs.ray.io/en/latest/ray-core/api/doc/ray.put.html>`__
+    * ``get_refs_by_status`` -> `ray.wait <https://docs.ray.io/en/latest/ray-core/api/doc/ray.wait.html>`__
+
+    To migrate, ``import ray`` inside your function and replace the decorator
+    and helpers with their Ray equivalents. You do not need to declare ``ray``
+    as a function dependency: it is already provided by the Qiskit Serverless
+    runtime image that executes your function.
+
+    Before (using the deprecated Qiskit Serverless wrappers):
+
+    .. code-block:: python
+
+        from qiskit_serverless import (
+            get_arguments,
+            save_result,
+            distribute_task,
+            get,
+        )
+
+        @distribute_task()
+        def distributed_transpilation(circuit, target_backend):
+            ...  # returns an ISA circuit
+            return isa_circuit
+
+        # launch one task per circuit and collect the results
+        refs = [distributed_transpilation(circuit, backend) for circuit in circuits]
+        isa_circuits = get(refs)
+        save_result({"results": isa_circuits})
+
+    After (using Ray directly):
+
+    .. code-block:: python
+
+        import ray
+        from qiskit_serverless import get_arguments, save_result
+
+        @ray.remote
+        def distributed_transpilation(circuit, target_backend):
+            ...  # returns an ISA circuit
+            return isa_circuit
+
+        # launch one task per circuit and collect the results
+        refs = [distributed_transpilation.remote(circuit, backend) for circuit in circuits]
+        isa_circuits = ray.get(refs)
+        save_result({"results": isa_circuits})
+
+    Uploading the function does not change. Ray is part of the serverless
+    runtime image, so it does not need to be listed in ``dependencies``:
+
+    .. code-block:: python
+
+        from qiskit_serverless import QiskitFunction
+
+        function = QiskitFunction(
+            title="function-with-parallel-workflow",
+            entrypoint="function_with_parallel_workflow.py",
+            working_dir="./source_files/",
+        )
+
+    To request resources per task (for example GPUs), pass Ray's native
+    arguments to the decorator, e.g. ``@ray.remote(num_cpus=1, num_gpus=1)``.
+    For more details, see the
+    `Ray Core walkthrough <https://docs.ray.io/en/latest/ray-core/walkthrough.html>`__.
