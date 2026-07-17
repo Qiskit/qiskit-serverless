@@ -76,7 +76,7 @@ class CustomTokenBackend(authentication.BaseAuthentication):
             # The Runtime API failed while resolving the user's accessible functions.
             # Details (status codes, CRN) are already logged by FunctionAccessClient;
             # surface a generic, CRN-free message instead of an opaque 500.
-            logger.warning("Could not resolve accessible functions: %s", error.message)
+            logger.exception("Could not resolve accessible functions: %s", error.message)
             raise exceptions.AuthenticationFailed(
                 "We couldn't verify your access to Qiskit Functions at this time. "
                 "Please try again later, or contact IBM support if the problem persists."
