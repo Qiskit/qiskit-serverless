@@ -111,6 +111,26 @@ class TestSerializers:
         assert serializer.is_valid()
         assert "image" in list(serializer.validated_data.keys())
 
+    def test_upload_program_custom_image_registry_prefix_boundary(self):
+        """A registry must match on a path boundary, not a bare string prefix.
+
+        Provider ``default`` has registry ``docker.io/awesome``. An image such as
+        ``docker.io/awesome.attacker.com/evil`` shares the prefix but is hosted
+        elsewhere and must be rejected.
+        """
+        data = {
+            "title": "Hello world",
+            "entrypoint": "main.py",
+            "arguments": {},
+            "dependencies": "[]",
+            "image": "docker.io/awesome.attacker.com/evil:latest",
+            "provider": "default",
+        }
+
+        serializer = UploadProgramSerializer(data=data)
+        assert not serializer.is_valid()
+        assert "Custom images must be in docker.io/awesome." in str(serializer.errors)
+
     def test_upload_program_with_custom_image_and_title_provider(self):
         """Tests image upload serializer."""
         title = "default/Hello world"

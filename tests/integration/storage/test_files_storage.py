@@ -49,7 +49,7 @@ class TestFilesStorage:
         function = QiskitFunction(
             title="provider-function",
             provider="mockprovider",
-            image="test-local-provider-function:latest",
+            image="test/local-provider-function:latest",
         )
         serverless_client.upload(function)
 
@@ -76,7 +76,7 @@ class TestFilesStorage:
         function = QiskitFunction(
             title="provider-function",
             provider="mockprovider",
-            image="test-local-provider-function:latest",
+            image="test/local-provider-function:latest",
         )
         serverless_client.upload(function)
 
@@ -106,7 +106,7 @@ class TestFilesStorage:
         function = QiskitFunction(
             title="provider-function",
             provider="mockprovider",
-            image="test-local-provider-function:latest",
+            image="test/local-provider-function:latest",
         )
         function = serverless_client.upload(function)
 
