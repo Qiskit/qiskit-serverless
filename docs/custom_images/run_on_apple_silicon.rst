@@ -82,7 +82,7 @@ arm64 base instead of the published ``icr.io`` image:
    USER 1000
 
 Then build it as usual, e.g.
-``docker build --platform linux/arm64 -t test-local-provider-function -f Sample-Dockerfile .``.
+``docker build --platform linux/arm64 -t test/local-provider-function -f Sample-Dockerfile .``.
 
 Start the stack with the arm64 override, overriding the ``ray-head`` image with your custom
 function image — either by editing ``docker-compose.arm64.yaml`` or via an additional override
