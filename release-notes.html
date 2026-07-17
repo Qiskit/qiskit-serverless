@@ -327,6 +327,29 @@ the Ray runner image. Qiskit Functions can now declare and use
 </section>
 <section id="upgrade-notes">
 <span id="release-notes-upcoming-qiskit-serverless-release-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Permalink to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>The minimum supported Qiskit version for the <code class="docutils literal notranslate"><span class="pre">qiskit-serverless</span></code> client is now
+<code class="docutils literal notranslate"><span class="pre">2.2</span></code> (the requirement changed from <code class="docutils literal notranslate"><span class="pre">qiskit[qpy-compat]&gt;=1.4,&lt;3</span></code> to
+<code class="docutils literal notranslate"><span class="pre">qiskit&gt;=2.2,&lt;3</span></code>). Since Qiskit 2.1, <code class="docutils literal notranslate"><span class="pre">symengine</span></code> is no longer a Qiskit
+dependency; it was only pulled in via the <code class="docutils literal notranslate"><span class="pre">qpy-compat</span></code> extra, which is used to
+deserialize the legacy QPY formats (10, 11, 12) written by Qiskit 1.0-1.1 with
+<code class="docutils literal notranslate"><span class="pre">use_symengine=True</span></code>. The client no longer requests that extra, so <code class="docutils literal notranslate"><span class="pre">symengine</span></code>
+is no longer installed. Reading such legacy symengine-encoded QPY payloads is no
+longer supported by the client; QPY produced by modern Qiskit is unaffected.</p></li>
+</ul>
+<ul class="simple">
+<li><p>The gateway no longer requests the <code class="docutils literal notranslate"><span class="pre">qpy-compat</span></code> extra either (its requirement
+changed from <code class="docutils literal notranslate"><span class="pre">qiskit[qpy-compat]&gt;=2.5.0,&lt;3</span></code> to <code class="docutils literal notranslate"><span class="pre">qiskit&gt;=2.5.0,&lt;3</span></code>). The gateway
+does not deserialize QPY, so it does not need <code class="docutils literal notranslate"><span class="pre">symengine</span></code>/<code class="docutils literal notranslate"><span class="pre">sympy</span></code>; <code class="docutils literal notranslate"><span class="pre">qiskit</span></code>
+itself is still installed.</p></li>
+</ul>
+<ul class="simple">
+<li><p>The Ray node and gateway images no longer copy <code class="docutils literal notranslate"><span class="pre">symengine</span></code> between the <code class="docutils literal notranslate"><span class="pre">lib</span></code>
+and <code class="docutils literal notranslate"><span class="pre">lib64</span></code> site-packages directories. That step was a workaround for the UBI9
+split <code class="docutils literal notranslate"><span class="pre">lib</span></code>/<code class="docutils literal notranslate"><span class="pre">lib64</span></code> layout and only applied when <code class="docutils literal notranslate"><span class="pre">symengine</span></code> was installed;
+with <code class="docutils literal notranslate"><span class="pre">symengine</span></code> no longer present it is unnecessary (and would fail on a missing
+source path).</p></li>
+</ul>
 <ul>
 <li><p>Custom image names must now be nested under the provider registry prefix.
 The registry check previously used a plain <code class="docutils literal notranslate"><span class="pre">startswith</span></code>, which could
