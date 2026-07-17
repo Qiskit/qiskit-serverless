@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.17
-FROM registry.access.redhat.com/ubi9-minimal:9.8-1779809423
+FROM registry.access.redhat.com/ubi9-minimal:9.8-1784092902
 # set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -37,8 +37,6 @@ RUN pip install -r /tmp/requirements-dynamic-dependencies.txt --no-cache-dir && 
 # Install latest version of client (at the end for better layer cache usage)
 COPY client /tmp/qs
 RUN pip install /tmp/qs --no-cache-dir
-RUN cp -r -n /usr/local/lib64/python3.11/site-packages/symengine /usr/local/lib/python3.11/site-packages && \
-    cp -r -n /usr/local/lib/python3.11/site-packages/symengine /usr/local/lib64/python3.11/site-packages && \
-    rm -rf /tmp/qs /tmp/requirements*.txt
+RUN rm -rf /tmp/qs /tmp/requirements*.txt
 
 USER 1000

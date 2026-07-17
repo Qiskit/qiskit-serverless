@@ -1,0 +1,12 @@
+---
+upgrade:
+  - |
+    Custom image names must now be nested under the provider registry prefix.
+    The registry check previously used a plain ``startswith``, which could
+    accept look-alike hostnames. The check now requires the image to equal
+    the registry or start with ``registry/``.
+
+    If you use the local development mock provider (registry ``test``), rename
+    your image from ``test-local-provider-function`` to
+    ``test/local-provider-function`` and update the corresponding
+    ``docker build -t`` tag in your local workflow.
