@@ -12,6 +12,9 @@
 
 FROM python:3.11-slim
 RUN apt-get update && apt-get install -y s3fs fuse && rm -rf /var/lib/apt/lists/*
+# Upgrade the base image build tools to versions without known CVEs
+# (CVE-2026-8643 in pip, CVE-2026-24049 in wheel, CVE-2026-59890 in setuptools).
+RUN pip install --no-cache-dir --upgrade "pip>=26.1.2" "setuptools>=83.0.0" "wheel>=0.46.2"
 COPY client/ /tmp/client/
 RUN pip install /tmp/client/ boto3
 COPY tests/fleets/fleet-worker/storage.py /app/storage.py

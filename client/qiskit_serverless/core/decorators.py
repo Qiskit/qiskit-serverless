@@ -98,6 +98,13 @@ def put(value: Any, **kwargs):
     Returns:
 
     """
+    warnings.warn(
+        "`put` has been deprecated and will be removed in future releases. "
+        "Use Ray's native `ray.put` instead: "
+        "https://docs.ray.io/en/latest/ray-core/api/doc/ray.put.html",
+        category=DeprecationWarning,
+        stacklevel=2,
+    )
     return _require_ray().put(value=value, **kwargs)
 
 
@@ -111,6 +118,13 @@ def get_refs_by_status(object_refs: List["ray.ObjectRef"], **kwargs):
     Returns:
         A list of refs that are ready and a list of the remaining references.
     """
+    warnings.warn(
+        "`get_refs_by_status` has been deprecated and will be removed in future releases. "
+        "Use Ray's native `ray.wait` instead: "
+        "https://docs.ray.io/en/latest/ray-core/api/doc/ray.wait.html",
+        category=DeprecationWarning,
+        stacklevel=2,
+    )
     return _require_ray().wait(ray_waitables=object_refs, **kwargs)
 
 
@@ -130,6 +144,13 @@ def get(
     Returns:
         A object or a list of objects.
     """
+    warnings.warn(
+        "`get` has been deprecated and will be removed in future releases. "
+        "Use Ray's native `ray.get` instead: "
+        "https://docs.ray.io/en/latest/ray-core/api/doc/ray.get.html",
+        category=DeprecationWarning,
+        stacklevel=2,
+    )
     return _require_ray().get(object_refs=object_refs, timeout=timeout)
 
 
@@ -288,6 +309,13 @@ def distribute_task(
     Returns:
         object reference
     """
+    warnings.warn(
+        "`distribute_task` has been deprecated and will be removed in future releases. "
+        "Use Ray's native `ray.remote` instead: "
+        "https://docs.ray.io/en/latest/ray-core/api/doc/ray.remote.html",
+        category=DeprecationWarning,
+        stacklevel=2,
+    )
     if target is None:
         target = Target(cpu=1)
 

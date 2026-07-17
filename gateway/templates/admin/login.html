@@ -66,5 +66,12 @@
   </div>
 </form>
 
+{% if w3id_sso_enabled %}
+<div class="qs-sso-separator"><span>{% translate 'or' %}</span></div>
+<div class="submit-row qs-sso-row">
+  <a class="button qs-sso-button" href="{% url 'oidc_authentication_init' %}?next={{ next|urlencode }}">{% translate 'Login IBM SSO' %}</a>
+</div>
+{% endif %}
+
 </div>
 {% endblock %}

@@ -16,12 +16,15 @@ import importlib.util
 from typing import List
 
 import pytest
+
 from qiskit import QuantumCircuit
 from qiskit.circuit.random import random_circuit
 
 from qiskit_serverless import get
 from qiskit_serverless.core.decorators import (
     distribute_task,
+    get_refs_by_status,
+    put,
     Target,
     fetch_execution_meta,
 )
@@ -55,6 +58,34 @@ class TestDecorators:
             reference = ultimate_function(1)
             result = get(reference)
             assert result == 4
+
+    def test_distribute_task_deprecation_warning(self):
+        """`distribute_task` should raise a DeprecationWarning pointing to ray.remote."""
+        with pytest.warns(DeprecationWarning, match="ray.remote"):
+
+            @distribute_task()
+            def _some_function():
+                return 42
+
+    def test_get_deprecation_warning(self):
+        """`get` should raise a DeprecationWarning pointing to ray.get."""
+        with ray.init():
+            reference = ray.put(42)
+            with pytest.warns(DeprecationWarning, match="ray.get"):
+                assert get(reference) == 42
+
+    def test_put_deprecation_warning(self):
+        """`put` should raise a DeprecationWarning pointing to ray.put."""
+        with ray.init():
+            with pytest.warns(DeprecationWarning, match="ray.put"):
+                put(42)
+
+    def test_get_refs_by_status_deprecation_warning(self):
+        """`get_refs_by_status` should raise a DeprecationWarning pointing to ray.wait."""
+        with ray.init():
+            reference = ray.put(42)
+            with pytest.warns(DeprecationWarning, match="ray.wait"):
+                get_refs_by_status([reference])
 
     def test_target(self):
         """Test for target."""

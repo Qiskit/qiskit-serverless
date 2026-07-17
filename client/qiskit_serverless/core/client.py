@@ -189,28 +189,3 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
             DeprecationWarning,
         )
         return self.functions(**kwargs)
-
-    ######################
-    ####### Widget #######
-    ######################
-
-    def widget(self):
-        """Widget for information about provider and jobs.
-
-        .. deprecated:: 0.33.0
-            The ``widget()`` method is deprecated and will be removed in a future release.
-            The Jupyter widget interface is no longer maintained. Use ``jobs()`` and
-            ``functions()`` directly, or the IBM Quantum web dashboard instead.
-        """
-        warnings.warn(
-            "The `widget()` method is deprecated and will be removed in a future release. "
-            "Use `jobs()` and `functions()` directly, or the IBM Quantum web dashboard instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        # prevent cyclic import
-        from qiskit_serverless.visualization import (  # pylint: disable=import-outside-toplevel
-            Widget,
-        )
-
-        return Widget(self).show()
