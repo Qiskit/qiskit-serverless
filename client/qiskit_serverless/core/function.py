@@ -57,6 +57,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
         working_dir: directory where entrypoint file is located (max size 50MB)
         description: description of a program
         version: version of a program
+        arguments_schema: JSON Schema dict describing valid arguments for this function
     """
 
     GENERIC: ClassVar[GenericType] = "GENERIC"
@@ -76,7 +77,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
     image: Optional[str] = None
     runner: str = "ray"
     validate: bool = True
-    schema: Optional[str] = None
+    arguments_schema: Optional[Dict[str, Any]] = None
     type: Union[GenericType, ApplicationType, CircuitType] = GENERIC
 
     def __post_init__(self):
@@ -140,6 +141,15 @@ class RunService(ABC):
         compute_profile: Optional[str] = None,
     ) -> Job:
         """Run a function and return its job."""
+
+    @abstractmethod
+    def validate_arguments(
+        self,
+        title: str,
+        arguments: Optional[Dict[str, Any]] = None,
+        provider: Optional[str] = None,
+    ) -> dict:
+        """Validate arguments against a function's schema without creating a job."""
 
 
 class RunnableQiskitFunction(QiskitFunction):
@@ -240,6 +250,26 @@ class RunnableQiskitFunction(QiskitFunction):
 
         jobs = self._run_service.jobs(function=self, **kwargs)
         return jobs
+
+    def validate_arguments(self, arguments: dict) -> dict:
+        """Validate arguments against the function's schema without creating a job.
+
+        Args:
+            arguments: arguments dict to validate against the function's schema
+
+        Returns:
+            dict: {"valid": True} if arguments are valid.
+
+        Raises:
+            QiskitServerlessException: if arguments are invalid or function not found.
+        """
+        if self._run_service is None:
+            raise ValueError("No client specified for this function.")
+        return self._run_service.validate_arguments(
+            title=self.title,
+            arguments=arguments,
+            provider=self.provider,
+        )
 
 
 # pylint: disable=abstract-method

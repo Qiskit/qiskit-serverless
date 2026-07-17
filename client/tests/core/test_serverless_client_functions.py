@@ -613,3 +613,276 @@ class TestQiskitFunctionDefaults:
         """QiskitFunction.runner accepts a custom value."""
         program = QiskitFunction(title="my-function", image="img:latest", runner="fleets")
         assert program.runner == "fleets"
+
+
+class TestArgumentsSchemaField:
+    """Tests for arguments_schema field in QiskitFunction and upload payloads."""
+
+    def test_arguments_schema_field_exists_and_defaults_to_none(self):
+        """QiskitFunction has an arguments_schema field that defaults to None."""
+        program = QiskitFunction(title="my-function", image="img:latest")
+        assert program.arguments_schema is None
+
+    def test_arguments_schema_accepts_dict(self):
+        """QiskitFunction.arguments_schema accepts a dict value."""
+        schema = {"type": "object", "properties": {"shots": {"type": "integer"}}}
+        program = QiskitFunction(title="my-function", image="img:latest", arguments_schema=schema)
+        assert program.arguments_schema == schema
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_docker_upload_sends_arguments_schema(self, mock_post):
+        """_upload_with_docker_image includes arguments_schema in POST data."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        payload = {"title": "my-function", "provider": None, "id": "abc-123"}
+        mock_response.text = json.dumps(payload)
+        mock_response.json.return_value = payload
+        mock_post.return_value = mock_response
+
+        schema = {"type": "object", "properties": {"shots": {"type": "integer"}}}
+        program = QiskitFunction(
+            title="my-function",
+            image="img:latest",
+            arguments_schema=schema,
+        )
+
+        _upload_with_docker_image(
+            program=program,
+            url="http://gateway/api/v1/programs/",
+            token="test-token",
+            span=MagicMock(),
+            client=MagicMock(),
+            instance=None,
+            channel=None,
+        )
+
+        _, kwargs = mock_post.call_args
+        data = kwargs["data"]
+        assert "arguments_schema" in data
+        assert data["arguments_schema"] == json.dumps(schema)
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_docker_upload_omits_arguments_schema_when_not_set(self, mock_post):
+        """_upload_with_docker_image omits arguments_schema from payload when not set."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        payload = {"title": "my-function", "provider": None, "id": "abc-123"}
+        mock_response.text = json.dumps(payload)
+        mock_response.json.return_value = payload
+        mock_post.return_value = mock_response
+
+        program = QiskitFunction(title="my-function", image="img:latest")
+
+        _upload_with_docker_image(
+            program=program,
+            url="http://gateway/api/v1/programs/",
+            token="test-token",
+            span=MagicMock(),
+            client=MagicMock(),
+            instance=None,
+            channel=None,
+        )
+
+        _, kwargs = mock_post.call_args
+        data = kwargs["data"]
+        assert "arguments_schema" not in data
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_artifact_upload_sends_arguments_schema(self, mock_post):
+        """_upload_with_artifact includes arguments_schema in POST data."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        payload = {"title": "my-function", "provider": None, "id": "abc-123"}
+        mock_response.text = json.dumps(payload)
+        mock_response.json.return_value = payload
+        mock_post.return_value = mock_response
+
+        schema = {"type": "object", "properties": {"shots": {"type": "integer"}}}
+
+        with tempfile.TemporaryDirectory() as working_dir:
+            entrypoint = "main.py"
+            with open(os.path.join(working_dir, entrypoint), "w", encoding="utf-8") as f:
+                f.write("print('hello')\n")
+
+            program = QiskitFunction(
+                title="my-function",
+                entrypoint=entrypoint,
+                working_dir=working_dir,
+                arguments_schema=schema,
+            )
+
+            _upload_with_artifact(
+                program=program,
+                url="http://gateway/api/v1/programs/",
+                token="test-token",
+                span=MagicMock(),
+                client=MagicMock(),
+                instance=None,
+                channel=None,
+            )
+
+        _, kwargs = mock_post.call_args
+        data = kwargs["data"]
+        assert "arguments_schema" in data
+        assert data["arguments_schema"] == json.dumps(schema)
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_artifact_upload_omits_arguments_schema_when_not_set(self, mock_post):
+        """_upload_with_artifact omits arguments_schema from payload when not set."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        payload = {"title": "my-function", "provider": None, "id": "abc-123"}
+        mock_response.text = json.dumps(payload)
+        mock_response.json.return_value = payload
+        mock_post.return_value = mock_response
+
+        with tempfile.TemporaryDirectory() as working_dir:
+            entrypoint = "main.py"
+            with open(os.path.join(working_dir, entrypoint), "w", encoding="utf-8") as f:
+                f.write("print('hello')\n")
+
+            program = QiskitFunction(
+                title="my-function",
+                entrypoint=entrypoint,
+                working_dir=working_dir,
+            )
+
+            _upload_with_artifact(
+                program=program,
+                url="http://gateway/api/v1/programs/",
+                token="test-token",
+                span=MagicMock(),
+                client=MagicMock(),
+                instance=None,
+                channel=None,
+            )
+
+        _, kwargs = mock_post.call_args
+        data = kwargs["data"]
+        assert "arguments_schema" not in data
+
+
+class TestValidateArgumentsMethod:
+    """Tests for ServerlessClient.validate_arguments() and RunnableQiskitFunction.validate_arguments()."""
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_validate_arguments_calls_correct_endpoint(self, mock_post, mock_client):
+        """validate_arguments() POSTs to the validate_arguments endpoint."""
+        mock_response = Mock()
+        mock_response.ok = True
+        mock_response.text = '{"valid": true}'
+        mock_response.json.return_value = {"valid": True}
+        mock_post.return_value = mock_response
+
+        result = mock_client.validate_arguments(
+            title="my-function",
+            arguments={"shots": 1024},
+        )
+
+        mock_post.assert_called_once()
+        call_url = mock_post.call_args[0][0] if mock_post.call_args[0] else mock_post.call_args[1]["url"]
+        assert "validate_arguments" in call_url
+        assert result == {"valid": True}
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_validate_arguments_sends_title_and_arguments(self, mock_post, mock_client):
+        """validate_arguments() includes title and arguments in the request body."""
+        mock_response = Mock()
+        mock_response.ok = True
+        mock_response.text = '{"valid": true}'
+        mock_response.json.return_value = {"valid": True}
+        mock_post.return_value = mock_response
+
+        mock_client.validate_arguments(
+            title="my-function",
+            arguments={"shots": 1024},
+            provider="my-provider",
+        )
+
+        mock_post.assert_called_once()
+        call_kwargs = mock_post.call_args[1]
+        body = call_kwargs["json"]
+        assert body["title"] == "my-function"
+        assert body["provider"] == "my-provider"
+        assert json.loads(body["arguments"]) == {"shots": 1024}
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_validate_arguments_with_provider_in_title(self, mock_post, mock_client):
+        """validate_arguments() parses provider/title format correctly."""
+        mock_response = Mock()
+        mock_response.ok = True
+        mock_response.text = '{"valid": true}'
+        mock_response.json.return_value = {"valid": True}
+        mock_post.return_value = mock_response
+
+        mock_client.validate_arguments(
+            title="my-provider/my-function",
+            arguments={"shots": 1024},
+        )
+
+        mock_post.assert_called_once()
+        call_kwargs = mock_post.call_args[1]
+        body = call_kwargs["json"]
+        assert body["title"] == "my-function"
+        assert body["provider"] == "my-provider"
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_validate_arguments_raises_on_error_response(self, mock_post, mock_client):
+        """validate_arguments() raises QiskitServerlessException on error response."""
+        mock_response = Mock()
+        mock_response.ok = False
+        mock_response.text = "{\"error\": \"'shots' is not of type 'integer'\"}"
+        mock_response.json.return_value = {"error": "'shots' is not of type 'integer'"}
+        mock_post.return_value = mock_response
+
+        with pytest.raises(QiskitServerlessException):
+            mock_client.validate_arguments(
+                title="my-function",
+                arguments={"shots": "wrong"},
+            )
+
+
+class TestRunnableQiskitFunctionValidateArguments:
+    """Tests for RunnableQiskitFunction.validate_arguments() method."""
+
+    def test_validate_arguments_returns_valid_on_200(self):
+        """RunnableQiskitFunction.validate_arguments delegates to client and returns response."""
+        client = MagicMock()
+        client.validate_arguments.return_value = {"valid": True}
+        fn = RunnableQiskitFunction(client=client, title="my-fn")
+
+        result = fn.validate_arguments({"shots": 1024})
+
+        assert result == {"valid": True}
+        client.validate_arguments.assert_called_once_with(title="my-fn", arguments={"shots": 1024}, provider=None)
+
+    def test_validate_arguments_raises_on_error(self):
+        """RunnableQiskitFunction.validate_arguments propagates exceptions from client."""
+        client = MagicMock()
+        client.validate_arguments.side_effect = QiskitServerlessException("'shots' is not of type 'integer'")
+        fn = RunnableQiskitFunction(client=client, title="my-fn")
+
+        with pytest.raises(QiskitServerlessException):
+            fn.validate_arguments({"shots": "wrong"})
+
+    def test_validate_arguments_passes_provider(self):
+        """RunnableQiskitFunction.validate_arguments passes provider to the client."""
+        client = MagicMock()
+        client.validate_arguments.return_value = {"valid": True}
+        fn = RunnableQiskitFunction(client=client, title="my-fn", provider="my-provider")
+
+        fn.validate_arguments({"shots": 1024})
+
+        client.validate_arguments.assert_called_once_with(
+            title="my-fn", arguments={"shots": 1024}, provider="my-provider"
+        )
+
+    def test_validate_arguments_raises_when_no_client(self):
+        """RunnableQiskitFunction.validate_arguments raises ValueError when no client."""
+        fn = RunnableQiskitFunction.__new__(RunnableQiskitFunction)
+        fn._run_service = None
+        fn.title = "my-fn"
+        fn.provider = None
+
+        with pytest.raises(ValueError, match="No client"):
+            fn.validate_arguments({"shots": 1024})
