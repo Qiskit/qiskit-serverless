@@ -386,7 +386,7 @@ arm64 base instead of the published <code class="docutils literal notranslate"><
 </div>
 </div>
 <p>Then build it as usual, e.g.
-<code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">build</span> <span class="pre">--platform</span> <span class="pre">linux/arm64</span> <span class="pre">-t</span> <span class="pre">test-local-provider-function</span> <span class="pre">-f</span> <span class="pre">Sample-Dockerfile</span> <span class="pre">.</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">build</span> <span class="pre">--platform</span> <span class="pre">linux/arm64</span> <span class="pre">-t</span> <span class="pre">test/local-provider-function</span> <span class="pre">-f</span> <span class="pre">Sample-Dockerfile</span> <span class="pre">.</span></code>.</p>
 <p>Start the stack with the arm64 override, overriding the <code class="docutils literal notranslate"><span class="pre">ray-head</span></code> image with your custom
 function image — either by editing <code class="docutils literal notranslate"><span class="pre">docker-compose.arm64.yaml</span></code> or via an additional override
 file — keeping <code class="docutils literal notranslate"><span class="pre">platform:</span> <span class="pre">linux/arm64</span></code>:</p>

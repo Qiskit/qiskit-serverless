@@ -328,6 +328,17 @@ the Ray runner image. Qiskit Functions can now declare and use
 <section id="upgrade-notes">
 <span id="release-notes-upcoming-qiskit-serverless-release-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Permalink to this heading">¶</a></h3>
 <ul>
+<li><p>Custom image names must now be nested under the provider registry prefix.
+The registry check previously used a plain <code class="docutils literal notranslate"><span class="pre">startswith</span></code>, which could
+accept look-alike hostnames. The check now requires the image to equal
+the registry or start with <code class="docutils literal notranslate"><span class="pre">registry/</span></code>.</p>
+<p>If you use the local development mock provider (registry <code class="docutils literal notranslate"><span class="pre">test</span></code>), rename
+your image from <code class="docutils literal notranslate"><span class="pre">test-local-provider-function</span></code> to
+<code class="docutils literal notranslate"><span class="pre">test/local-provider-function</span></code> and update the corresponding
+<code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">build</span> <span class="pre">-t</span></code> tag in your local workflow.</p>
+</li>
+</ul>
+<ul>
 <li><p>The  deprecated <code class="docutils literal notranslate"><span class="pre">widget()</span></code> method has been removed from <code class="docutils literal notranslate"><span class="pre">BaseClient</span></code>, 
 <code class="docutils literal notranslate"><span class="pre">ServerlessClient</span></code>, and <code class="docutils literal notranslate"><span class="pre">IBMServerlessClient</span></code>. The visualization 
 module (deprecated in 0.33.0) has been completely removed from the package.</p>
