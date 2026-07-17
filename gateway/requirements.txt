@@ -18,7 +18,7 @@ django-pglock>=1.8.0, <2
 drf-yasg>=1.21.15, <2
 # Django dependency, but we need a newer version (IBMQ#246)
 sqlparse>=0.5.5, <1
-qiskit[qpy-compat]>=2.5.0, <3
+qiskit>=2.5.0, <3
 qiskit-ibm-runtime>=0.48.0, <0.49.0
 tzdata>=2026.3
 django-cors-headers>=4.9.0, <5
