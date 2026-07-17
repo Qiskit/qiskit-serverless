@@ -23,7 +23,9 @@ from django.urls import path, include, re_path
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
+from mozilla_django_oidc.views import OIDCAuthenticationCallbackView, OIDCLogoutView
 from api.views import probes, system
+from api.authentication_oidc import w3id_sso_login
 
 handler500 = "rest_framework.exceptions.server_error"
 logging.getLogger("main").info("[BOOT] Reading urls.py...")
@@ -101,5 +103,20 @@ urlpatterns += [
     re_path(r"^redoc/$", schema.with_ui("redoc", cache_timeout=0), name="schema-redoc"),
 ]
 urlpatterns += [path("", include("django_prometheus.urls"))]
+
+# IBM w3id SSO (OIDC) login for the backoffice. Always mounted; the entry view
+# falls back to the normal login when no client id is configured. The callback
+# path is registered without a trailing slash to match the redirect_uri
+# configured in the w3id connector (/auth/callback).
+urlpatterns += [
+    path("auth/login", w3id_sso_login, name="oidc_authentication_init"),
+    path(
+        "auth/callback",
+        OIDCAuthenticationCallbackView.as_view(),
+        name="oidc_authentication_callback",
+    ),
+    path("auth/logout", OIDCLogoutView.as_view(), name="oidc_logout"),
+]
+
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

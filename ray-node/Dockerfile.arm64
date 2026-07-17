@@ -11,7 +11,7 @@
 #
 # This mirrors ray-node/Dockerfile, but installs the arm64 dynamic-dependencies set
 # (ffsim / qiskit-addon-aqc-tensor omitted; see requirements-dynamic-dependencies-arm64.txt).
-FROM registry.access.redhat.com/ubi9-minimal:9.8-1779809423
+FROM registry.access.redhat.com/ubi9-minimal:9.8-1784092902
 # set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
