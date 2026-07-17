@@ -1,4 +1,3 @@
-# source_files/program_3.py
 
 import os
 from time import sleep
