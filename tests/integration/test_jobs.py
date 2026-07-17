@@ -202,7 +202,7 @@ class TestJobs:
 
         function_with_custom_image = QiskitFunction(
             title="custom-image-function",
-            image="test_function:latest",
+            image="test/function:latest",
             provider=os.environ.get("PROVIDER_ID", "mockprovider"),
             description=description,
         )

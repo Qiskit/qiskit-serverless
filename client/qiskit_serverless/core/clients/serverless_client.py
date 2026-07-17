@@ -135,6 +135,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         host = host or os.environ.get(ENV_GATEWAY_PROVIDER_HOST)
         if host is None:
             raise QiskitServerlessException("Please provide `host` of gateway.")
+        host = host.rstrip("/")
 
         version = version or os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
         if version is None:

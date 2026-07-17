@@ -38,8 +38,6 @@ RUN pip install -r /tmp/requirements-dynamic-dependencies.txt --no-cache-dir && 
 # Ray is an optional extra of the client; the Ray node needs it, so install [ray].
 COPY client /tmp/qs
 RUN pip install "/tmp/qs[ray]" --no-cache-dir
-RUN cp -r -n /usr/local/lib64/python3.11/site-packages/symengine /usr/local/lib/python3.11/site-packages && \
-    cp -r -n /usr/local/lib/python3.11/site-packages/symengine /usr/local/lib64/python3.11/site-packages && \
-    rm -rf /tmp/qs /tmp/requirements*.txt
+RUN rm -rf /tmp/qs /tmp/requirements*.txt
 
 USER 1000
