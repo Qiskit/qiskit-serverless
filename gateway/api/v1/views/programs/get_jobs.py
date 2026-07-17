@@ -54,6 +54,21 @@ class OutputSerializer(serializers.ModelSerializer):
         ref_name = "ProgramsGetJobsOutput"
 
 
+class OutputSerializerWithoutResult(serializers.ModelSerializer):
+    """Job representation for cross-author provider listings.
+
+    A provider admin may list every author's jobs for the function, but the `result`
+    field is author-private everywhere else, so it is never serialized here.
+    """
+
+    program = ProgramSerializer(many=False)
+
+    class Meta:
+        model = Job
+        fields = ["id", "status", "program", "created", "sub_status", "fleet_id", "compute_profile"]
+        ref_name = "ProgramsGetJobsOutputWithoutResult"
+
+
 @swagger_auto_schema(
     method="get",
     operation_description="[Deprecated] List jobs for a Qiskit Function",
@@ -76,6 +91,8 @@ def get_jobs(request: Request, pk: uuid.UUID) -> Response:
         accessible_functions,
     )
 
-    jobs = GetJobsUseCase().execute(user, accessible_functions, pk)
+    jobs, is_provider_listing = GetJobsUseCase().execute(user, accessible_functions, pk)
     logger.info("[programs-get-jobs] user_id=%s program_id=%s | Jobs listed ok", user.id, pk)
+    if is_provider_listing:
+        return Response(OutputSerializerWithoutResult(jobs, many=True).data)
     return Response(OutputSerializer(jobs, many=True).data)
