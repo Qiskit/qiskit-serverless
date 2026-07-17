@@ -67,21 +67,30 @@ class TestDecorators:
             def _some_function():
                 return 42
 
+    @pytest.mark.skipif(not ray_installed, reason="requires the optional [ray] extra")
     def test_get_deprecation_warning(self):
         """`get` should raise a DeprecationWarning pointing to ray.get."""
+        import ray  # pylint: disable=import-outside-toplevel
+
         with ray.init():
             reference = ray.put(42)
             with pytest.warns(DeprecationWarning, match="ray.get"):
                 assert get(reference) == 42
 
+    @pytest.mark.skipif(not ray_installed, reason="requires the optional [ray] extra")
     def test_put_deprecation_warning(self):
         """`put` should raise a DeprecationWarning pointing to ray.put."""
+        import ray  # pylint: disable=import-outside-toplevel
+
         with ray.init():
             with pytest.warns(DeprecationWarning, match="ray.put"):
                 put(42)
 
+    @pytest.mark.skipif(not ray_installed, reason="requires the optional [ray] extra")
     def test_get_refs_by_status_deprecation_warning(self):
         """`get_refs_by_status` should raise a DeprecationWarning pointing to ray.wait."""
+        import ray  # pylint: disable=import-outside-toplevel
+
         with ray.init():
             reference = ray.put(42)
             with pytest.warns(DeprecationWarning, match="ray.wait"):
