@@ -132,6 +132,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "api.context_processors.w3id_sso",
             ],
         },
     },
@@ -245,6 +246,53 @@ DJR_DEFAULT_AUTHENTICATION_CLASSES = ALL_AUTH_CLASSES_CONFIGURATION.get(
 # mock token value
 SETTINGS_AUTH_MOCK_TOKEN = os.environ.get("SETTINGS_AUTH_MOCK_TOKEN", "awesome_token")
 SETTINGS_AUTH_MOCKPROVIDER_REGISTRY = os.environ.get("SETTINGS_AUTH_MOCKPROVIDER_REGISTRY", None)
+# =============
+
+# ==========================================
+# W3ID SSO (OIDC) - optional backoffice login
+# ==========================================
+# The OIDC backend, urls and provider settings are always wired in. The feature
+# is effectively "off" until both the client id and the client secret are
+# configured: without them the login template does not render the "Login IBM SSO"
+# button and the SSO entry view (api.authentication_oidc.w3id_sso_login) falls
+# back to the normal login, so nothing changes for the user. Both are required
+# because with only the id the callback would fail on the token exchange.
+#
+# Only three environment variables are needed:
+#   W3ID_SSO_CLIENT_ID      credentials of the registered w3id connector
+#   W3ID_SSO_CLIENT_SECRET
+#   W3ID_SSO_BASE_URL       provider base (defaults to the test environment);
+#                           the OIDC endpoints are derived from it.
+W3ID_SSO_CLIENT_ID = os.environ.get("W3ID_SSO_CLIENT_ID", "")
+W3ID_SSO_CLIENT_SECRET = os.environ.get("W3ID_SSO_CLIENT_SECRET", "")
+W3ID_SSO_BASE_URL = os.environ.get("W3ID_SSO_BASE_URL", "https://test.login.w3.ibm.com")
+
+INSTALLED_APPS.append("mozilla_django_oidc")
+
+# Django session/admin login backends. ModelBackend keeps the classic
+# username/password login working; the OIDC backend only activates on the SSO
+# callback, so it is harmless when no client id is configured.
+AUTHENTICATION_BACKENDS = [
+    "api.authentication_oidc.W3IDSSOAuthenticationBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]
+
+OIDC_RP_CLIENT_ID = W3ID_SSO_CLIENT_ID
+OIDC_RP_CLIENT_SECRET = W3ID_SSO_CLIENT_SECRET
+OIDC_RP_SIGN_ALGO = "RS256"
+OIDC_RP_SCOPES = "openid email"
+
+# Provider endpoints, all derived from the base url.
+OIDC_OP_AUTHORIZATION_ENDPOINT = f"{W3ID_SSO_BASE_URL}/v1.0/endpoint/default/authorize"
+OIDC_OP_TOKEN_ENDPOINT = f"{W3ID_SSO_BASE_URL}/v1.0/endpoint/default/token"
+OIDC_OP_USER_ENDPOINT = f"{W3ID_SSO_BASE_URL}/v1.0/endpoint/default/userinfo"
+OIDC_OP_JWKS_ENDPOINT = f"{W3ID_SSO_BASE_URL}/v1.0/endpoint/default/jwks"
+
+# The redirect_uri registered in the w3id connector is the callback url named
+# below (mounted at /auth/callback without a trailing slash in main/urls.py).
+OIDC_AUTHENTICATION_CALLBACK_URL = "oidc_authentication_callback"
+LOGIN_REDIRECT_URL = "/backoffice/"
+LOGIN_REDIRECT_URL_FAILURE = "/backoffice/login/"
 # =============
 
 REST_FRAMEWORK = {

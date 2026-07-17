@@ -256,6 +256,20 @@ spec:
               value: {{ .Values.application.trustedOrigins | quote }}
             - name: CORS_ALLOWED_ORIGIN_REGEXES
               value: {{ .Values.application.corsOrigins | quote }}
+            {{- if .Values.application.w3idSso.enabled }}
+            - name: W3ID_SSO_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-w3id-sso
+                  key: client-id
+            - name: W3ID_SSO_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-w3id-sso
+                  key: client-secret
+            - name: W3ID_SSO_BASE_URL
+              value: {{ .Values.application.w3idSso.baseUrl | quote }}
+            {{- end }}
             - name: FUNCTIONS_LOGS_SIZE_LIMIT
               value: {{ .Values.application.logsMaximumSize | quote }}
             - name: SECURE_HSTS_SECONDS
