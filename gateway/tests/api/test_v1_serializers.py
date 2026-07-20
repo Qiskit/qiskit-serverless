@@ -3,7 +3,6 @@
 import os
 import json
 import pytest
-from unittest.mock import patch
 
 from django.contrib.auth import models
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -249,13 +248,10 @@ class TestSerializers:
         assert env_vars["PROGRAM_ENV2"] == "VALUE2"
         assert job.account_id == "1234-5678-9012"
 
-    @patch("api.use_cases.programs.run.create_gpujob_allowlist")
-    def test_run_job_serializer_sets_gpu_flag_for_gpu_provider(self, mock_gpujob_allowlist):
-        """Tests that gpu flag is True when program's provider is in GPU allowlist."""
-        mock_gpujob_allowlist.return_value = {"gpu-functions": {"gpu_provider": []}}
-
+    def test_run_job_serializer_sets_gpu_flag_for_gpu_provider(self):
+        """Tests that gpu flag is True when the program has gpu enabled and a provider."""
         user = models.User.objects.get(username="test_user")
-        program = TestUtils.create_program(program_title="gpu-func", author=user, provider="gpu_provider")
+        TestUtils.create_program(program_title="gpu-func", author=user, provider="gpu_provider", gpu=True)
         accessible = create_function_access_result("gpu_provider", "gpu-func", {PLATFORM_PERMISSION_RUN})
 
         job = RunFunctionUseCase().execute(

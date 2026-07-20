@@ -1,0 +1,8 @@
+---
+features:
+  - |
+    Added a ``gpu`` boolean field to the ``Program`` model. When a program is
+    owned by a provider and has ``gpu`` enabled, jobs run from that program are
+    now scheduled with GPU resources. This replaces the previous provider
+    allowlist mechanism, which determined GPU eligibility from a static
+    configuration instead of a per-program flag.

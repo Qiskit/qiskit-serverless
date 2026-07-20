@@ -151,6 +151,15 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         max_length=20, choices=RUNNER_CHOICES, default=RAY, help_text="Execution backend for this program"
     )
 
+    gpu = models.BooleanField(
+        default=False,
+        db_default=False,
+        null=False,
+        help_text=(
+            "Whether this program should run on GPU nodes. "
+            "Applies only to the Ray runner; ignored by the Fleets runner."
+        ),
+    )
     default_compute_profile = models.CharField(
         max_length=255,
         null=True,

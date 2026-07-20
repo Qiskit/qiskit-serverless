@@ -368,8 +368,6 @@ PROGRAM_TIMEOUT = int(os.environ.get("PROGRAM_TIMEOUT", "24"))  # Time units are
 
 GATEWAY_ALLOWLIST_CONFIG = str(os.environ.get("GATEWAY_ALLOWLIST_CONFIG", "api/v1/allowlist.json"))
 
-GATEWAY_GPU_JOBS_CONFIG = str(os.environ.get("GATEWAY_GPU_JOBS_CONFIG", "api/v1/gpu-jobs.json"))
-
 # Authentication base url for Qiskit Runtime
 QISKIT_IBM_URL = os.environ.get("QISKIT_IBM_URL", "https://cloud.ibm.com")
 
