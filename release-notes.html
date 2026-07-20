@@ -463,6 +463,14 @@ For more details, see the
 <section id="bug-fixes">
 <span id="release-notes-upcoming-qiskit-serverless-release-bug-fixes"></span><h3>Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
+<li><p>Fixed <code class="xref py py-meth docutils literal notranslate"><span class="pre">status()</span></code> returning <code class="docutils literal notranslate"><span class="pre">RUNNING</span></code>
+for jobs that report a <code class="docutils literal notranslate"><span class="pre">sub_status</span></code> (e.g. <code class="docutils literal notranslate"><span class="pre">RUNNING:</span> <span class="pre">MAPPING</span></code>).
+The fast path introduced in #2072 read only the top-level <code class="docutils literal notranslate"><span class="pre">status</span></code> field
+and silently dropped the <code class="docutils literal notranslate"><span class="pre">sub_status</span></code> check that existed in
+<code class="docutils literal notranslate"><span class="pre">ServerlessClient.status()</span></code>.  The sub-status is now forwarded correctly
+when the top-level status is <code class="docutils literal notranslate"><span class="pre">RUNNING</span></code> and <code class="docutils literal notranslate"><span class="pre">sub_status</span></code> is not <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
+</ul>
+<ul class="simple">
 <li><p>The ServerlessClient now automatically removes trailing slashes from the
 gateway host parameter, preventing URL formatting issues when constructing
 API endpoints. Users can now provide gateway hosts with or without trailing
