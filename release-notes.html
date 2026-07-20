@@ -335,6 +335,13 @@ that do not use the Ray runner can install a lighter client. Importing
 the Ray runner image. Qiskit Functions can now declare and use
 <code class="docutils literal notranslate"><span class="pre">cotengrust</span></code> for tensor network contraction path optimization.</p></li>
 </ul>
+<ul class="simple">
+<li><p>Added a <code class="docutils literal notranslate"><span class="pre">gpu</span></code> boolean field to the <code class="docutils literal notranslate"><span class="pre">Program</span></code> model. When a program is
+owned by a provider and has <code class="docutils literal notranslate"><span class="pre">gpu</span></code> enabled, jobs run from that program are
+now scheduled with GPU resources. This replaces the previous provider
+allowlist mechanism, which determined GPU eligibility from a static
+configuration instead of a per-program flag.</p></li>
+</ul>
 </section>
 <section id="upgrade-notes">
 <span id="release-notes-upcoming-qiskit-serverless-release-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Permalink to this heading">¶</a></h3>
