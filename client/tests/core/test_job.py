@@ -755,3 +755,33 @@ class TestJobMethods:
 
         assert result == "RUNNING"
         mock_service.status.assert_called_once_with("test-job")
+
+    def test_status_returns_sub_status_when_running(self):
+        """status() returns mapped sub_status when status is RUNNING and sub_status is present."""
+        mock_service = Mock()
+        mock_service.get_job_data.return_value = {"status": "RUNNING", "sub_status": "MAPPING"}
+
+        job = Job(job_id="test-job", job_service=mock_service)
+        result = job.status()
+
+        assert result == "RUNNING: MAPPING"
+
+    def test_status_ignores_sub_status_when_not_running(self):
+        """status() ignores sub_status for non-RUNNING statuses."""
+        mock_service = Mock()
+        mock_service.get_job_data.return_value = {"status": "SUCCEEDED", "sub_status": "MAPPING"}
+
+        job = Job(job_id="test-job", job_service=mock_service)
+        result = job.status()
+
+        assert result == "DONE"
+
+    def test_status_returns_running_when_sub_status_is_none(self):
+        """status() returns RUNNING when sub_status is None."""
+        mock_service = Mock()
+        mock_service.get_job_data.return_value = {"status": "RUNNING", "sub_status": None}
+
+        job = Job(job_id="test-job", job_service=mock_service)
+        result = job.status()
+
+        assert result == "RUNNING"
