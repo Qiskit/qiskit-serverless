@@ -24,7 +24,6 @@ Qiskit Serverless job
 .. autosummary::
     :toctree: ../stubs/
 
-    RuntimeEnv
     Job
 """
 
@@ -38,7 +37,6 @@ import warnings
 from typing import ClassVar, Dict, Any, Literal, Optional, Tuple, Union
 from dataclasses import dataclass
 
-import ray.runtime_env
 import requests
 
 from qiskit_ibm_runtime import QiskitRuntimeService
@@ -64,8 +62,6 @@ from qiskit_serverless.utils.errors import JobEvent, format_err_event
 from qiskit_serverless.utils.http import get_headers
 from qiskit_serverless.utils.json import is_jsonable
 from qiskit_serverless.utils import ServerlessRuntimeService
-
-RuntimeEnv = ray.runtime_env.RuntimeEnv
 
 
 @dataclass
@@ -195,7 +191,11 @@ class Job:
         fresh_data = self._job_service.get_job_data(self.job_id)
         if isinstance(fresh_data, dict):
             self.raw_data.update(fresh_data)
-            return _map_status_from_serveless(fresh_data.get("status"))
+            raw_status = fresh_data.get("status")
+            sub_status = fresh_data.get("sub_status")
+            if raw_status == Job.RUNNING and sub_status is not None:
+                return _map_status_from_serveless(sub_status)
+            return _map_status_from_serveless(raw_status)
         return _map_status_from_serveless(self._job_service.status(self.job_id))
 
     def stop(self, service: Optional[QiskitRuntimeService] = None):

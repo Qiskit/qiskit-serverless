@@ -34,7 +34,6 @@ import base64
 import io
 import zlib
 
-import ray
 from qiskit import QuantumCircuit, qpy
 from qiskit_ibm_runtime import QiskitRuntimeService
 
@@ -94,7 +93,14 @@ def service_deserializer(account: dict):
 
 
 def register_all_serializers():
-    """Registers all serializers."""
+    """Registers all serializers.
+
+    Note: this requires Ray, which is an optional dependency. Install it with
+    ``pip install qiskit-serverless[ray]``. It is only used on the Ray runner.
+    """
+    # pylint: disable=import-outside-toplevel,import-error
+    import ray
+
     # serialization for QiskitRuntimeService
     ray.util.register_serializer(
         QiskitRuntimeService,
