@@ -319,6 +319,17 @@
 <span id="release-notes-upcoming-qiskit-serverless-release"></span><h2>Upcoming Qiskit Serverless release<a class="headerlink" href="#upcoming-qiskit-serverless-release" title="Permalink to this heading">¶</a></h2>
 <section id="new-features">
 <span id="release-notes-upcoming-qiskit-serverless-release-new-features"></span><h3>New Features<a class="headerlink" href="#new-features" title="Permalink to this heading">¶</a></h3>
+<ul>
+<li><p>Ray is now an optional dependency of the <code class="docutils literal notranslate"><span class="pre">qiskit-serverless</span></code> client. Install it
+with the <code class="docutils literal notranslate"><span class="pre">ray</span></code> extra when you need the Ray runner:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">qiskit</span><span class="o">-</span><span class="n">serverless</span><span class="p">[</span><span class="n">ray</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>A plain <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">qiskit-serverless</span></code> no longer pulls in Ray, so environments
+that do not use the Ray runner can install a lighter client. Importing
+<code class="docutils literal notranslate"><span class="pre">qiskit_serverless</span></code> works without Ray installed.</p>
+</li>
+</ul>
 <ul class="simple">
 <li><p>Added <code class="docutils literal notranslate"><span class="pre">cotengrust==0.2.0</span></code> to the dynamic dependencies allowlist bundled in
 the Ray runner image. Qiskit Functions can now declare and use
@@ -349,6 +360,15 @@ and <code class="docutils literal notranslate"><span class="pre">lib64</span></c
 split <code class="docutils literal notranslate"><span class="pre">lib</span></code>/<code class="docutils literal notranslate"><span class="pre">lib64</span></code> layout and only applied when <code class="docutils literal notranslate"><span class="pre">symengine</span></code> was installed;
 with <code class="docutils literal notranslate"><span class="pre">symengine</span></code> no longer present it is unnecessary (and would fail on a missing
 source path).</p></li>
+</ul>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">ray</span></code> was removed from the base client requirements and is now provided by the
+<code class="docutils literal notranslate"><span class="pre">ray</span></code> extra (<code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">qiskit-serverless[ray]</span></code>). If you rely on the Ray
+runner or on the Ray-only helpers (<code class="docutils literal notranslate"><span class="pre">distribute_task</span></code>, <code class="docutils literal notranslate"><span class="pre">get</span></code>, <code class="docutils literal notranslate"><span class="pre">put</span></code>,
+<code class="docutils literal notranslate"><span class="pre">get_refs_by_status</span></code>, <code class="docutils literal notranslate"><span class="pre">remote</span></code>), install the extra. Using any of those symbols
+without Ray installed now raises a clear <code class="docutils literal notranslate"><span class="pre">ModuleNotFoundError</span></code> instructing you to
+<code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">qiskit-serverless[ray]</span></code>. The published Ray node image installs the
+<code class="docutils literal notranslate"><span class="pre">[ray]</span></code> extra, so its behavior is unchanged.</p></li>
 </ul>
 <ul>
 <li><p>Custom image names must now be nested under the provider registry prefix.

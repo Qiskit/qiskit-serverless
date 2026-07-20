@@ -344,7 +344,6 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">zlib</span>
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">ray</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit</span><span class="w"> </span><span class="kn">import</span> <span class="n">QuantumCircuit</span><span class="p">,</span> <span class="n">qpy</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_ibm_runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitRuntimeService</span>
 
@@ -404,7 +403,14 @@
 
 
 <div class="viewcode-block" id="register_all_serializers"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.serializers.register_all_serializers.html#qiskit_serverless.serializers.register_all_serializers">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">register_all_serializers</span><span class="p">():</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Registers all serializers.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Registers all serializers.</span>
+
+<span class="sd">    Note: this requires Ray, which is an optional dependency. Install it with</span>
+<span class="sd">    ``pip install qiskit-serverless[ray]``. It is only used on the Ray runner.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># pylint: disable=import-outside-toplevel,import-error</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">ray</span>
+
     <span class="c1"># serialization for QiskitRuntimeService</span>
     <span class="n">ray</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">register_serializer</span><span class="p">(</span>
         <span class="n">QiskitRuntimeService</span><span class="p">,</span>

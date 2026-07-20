@@ -347,15 +347,13 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">types</span><span class="w"> </span><span class="kn">import</span> <span class="n">FunctionType</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Sequence</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">TYPE_CHECKING</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">uuid</span><span class="w"> </span><span class="kn">import</span> <span class="n">uuid4</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">cloudpickle</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">ray</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">opentelemetry</span><span class="w"> </span><span class="kn">import</span> <span class="n">trace</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">opentelemetry.trace.propagation.tracecontext</span><span class="w"> </span><span class="kn">import</span> <span class="n">TraceContextTextMapPropagator</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit</span><span class="w"> </span><span class="kn">import</span> <span class="n">QuantumCircuit</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">ray.runtime_env</span><span class="w"> </span><span class="kn">import</span> <span class="n">RuntimeEnv</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.core.constants</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">OT_ATTRIBUTE_PREFIX</span><span class="p">,</span>
@@ -367,7 +365,37 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.core.tracing</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_tracer</span><span class="p">,</span> <span class="n">_trace_env_vars</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">JsonSerializable</span>
 
-<span class="n">remote</span> <span class="o">=</span> <span class="n">ray</span><span class="o">.</span><span class="n">remote</span>
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">ray</span>  <span class="c1"># for type annotations only; Ray is the optional [ray] extra</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_require_ray</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Import Ray lazily, with a clear error if the optional extra is missing.</span>
+
+<span class="sd">    Ray is an optional dependency (``pip install qiskit-serverless[ray]``); it is</span>
+<span class="sd">    only needed for the Ray runner. Importing the package must not require it, so</span>
+<span class="sd">    the Ray-only helpers below import it on demand.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># pylint: disable=import-outside-toplevel,import-error</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">ray</span>
+
+        <span class="k">return</span> <span class="n">ray</span>
+    <span class="k">except</span> <span class="ne">ModuleNotFoundError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ModuleNotFoundError</span><span class="p">(</span>
+            <span class="s2">&quot;Ray is required for this feature but is not installed. &quot;</span>
+            <span class="s2">&quot;Install it with `pip install qiskit-serverless[ray]`.&quot;</span>
+        <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">err</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">remote</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Proxy for ``ray.remote`` that defers importing Ray until use.</span>
+
+<span class="sd">    Forwards to ``ray.remote`` and therefore supports both ``@remote`` and</span>
+<span class="sd">    ``remote(num_cpus=...)(fn)`` usages, while keeping ``import qiskit_serverless``</span>
+<span class="sd">    Ray-free (Ray is the optional ``qiskit-serverless[ray]`` extra).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_require_ray</span><span class="p">()</span><span class="o">.</span><span class="n">remote</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="put"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.put.html#qiskit_serverless.core.put">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">put</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -387,7 +415,7 @@
         <span class="n">category</span><span class="o">=</span><span class="ne">DeprecationWarning</span><span class="p">,</span>
         <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="k">return</span> <span class="n">ray</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">_require_ray</span><span class="p">()</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="get_refs_by_status"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.get_refs_by_status.html#qiskit_serverless.core.get_refs_by_status">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">get_refs_by_status</span><span class="p">(</span><span class="n">object_refs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;ray.ObjectRef&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -407,11 +435,11 @@
         <span class="n">category</span><span class="o">=</span><span class="ne">DeprecationWarning</span><span class="p">,</span>
         <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="k">return</span> <span class="n">ray</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">ray_waitables</span><span class="o">=</span><span class="n">object_refs</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">_require_ray</span><span class="p">()</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">ray_waitables</span><span class="o">=</span><span class="n">object_refs</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="get"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.get.html#qiskit_serverless.core.get">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
-    <span class="n">object_refs</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">ray</span><span class="o">.</span><span class="n">ObjectRef</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">ray</span><span class="o">.</span><span class="n">ObjectRef</span><span class="p">]],</span>
+    <span class="n">object_refs</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="s2">&quot;ray.ObjectRef&quot;</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="s2">&quot;ray.ObjectRef&quot;</span><span class="p">]],</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
@@ -433,7 +461,7 @@
         <span class="n">category</span><span class="o">=</span><span class="ne">DeprecationWarning</span><span class="p">,</span>
         <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="k">return</span> <span class="n">ray</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">object_refs</span><span class="o">=</span><span class="n">object_refs</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">_require_ray</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">object_refs</span><span class="o">=</span><span class="n">object_refs</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="Target"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.Target.html#qiskit_serverless.core.Target">[docs]</a><span class="nd">@dataclass</span>
@@ -608,6 +636,10 @@
 
     <span class="k">def</span><span class="w"> </span><span class="nf">decorator</span><span class="p">(</span><span class="n">function</span><span class="p">):</span>
         <span class="k">def</span><span class="w"> </span><span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="c1"># pylint: disable=import-outside-toplevel,import-error</span>
+            <span class="n">ray</span> <span class="o">=</span> <span class="n">_require_ray</span><span class="p">()</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">ray.runtime_env</span><span class="w"> </span><span class="kn">import</span> <span class="n">RuntimeEnv</span>
+
             <span class="c1"># tracing</span>
             <span class="n">traced_env_vars</span> <span class="o">=</span> <span class="n">_trace_env_vars</span><span class="p">(</span><span class="n">remote_target</span><span class="o">.</span><span class="n">env_vars</span> <span class="ow">or</span> <span class="p">{},</span> <span class="n">location</span><span class="o">=</span><span class="s2">&quot;on decoration&quot;</span><span class="p">)</span>
             <span class="n">traced_function</span> <span class="o">=</span> <span class="n">_tracible_function</span><span class="p">(</span>
