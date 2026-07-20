@@ -195,7 +195,11 @@ class Job:
         fresh_data = self._job_service.get_job_data(self.job_id)
         if isinstance(fresh_data, dict):
             self.raw_data.update(fresh_data)
-            return _map_status_from_serveless(fresh_data.get("status"))
+            raw_status = fresh_data.get("status")
+            sub_status = fresh_data.get("sub_status")
+            if raw_status == Job.RUNNING and sub_status is not None:
+                return _map_status_from_serveless(sub_status)
+            return _map_status_from_serveless(raw_status)
         return _map_status_from_serveless(self._job_service.status(self.job_id))
 
     def stop(self, service: Optional[QiskitRuntimeService] = None):
