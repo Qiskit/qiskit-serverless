@@ -497,7 +497,7 @@
                 <span class="p">)</span>
             <span class="p">)</span>
         <span class="k">except</span> <span class="n">QiskitServerlessException</span> <span class="k">as</span> <span class="n">reason</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="s2">&quot;Credentials couldn&#39;t be verified.&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">reason</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Credentials couldn&#39;t be verified: </span><span class="si">{</span><span class="n">reason</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">reason</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">dependencies_versions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the list of available dependencies and its versions for creating functions&quot;&quot;&quot;</span>
