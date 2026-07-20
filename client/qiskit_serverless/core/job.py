@@ -24,7 +24,6 @@ Qiskit Serverless job
 .. autosummary::
     :toctree: ../stubs/
 
-    RuntimeEnv
     Job
 """
 
@@ -38,7 +37,6 @@ import warnings
 from typing import ClassVar, Dict, Any, Literal, Optional, Tuple, Union
 from dataclasses import dataclass
 
-import ray.runtime_env
 import requests
 
 from qiskit_ibm_runtime import QiskitRuntimeService
@@ -64,8 +62,6 @@ from qiskit_serverless.utils.errors import JobEvent, format_err_event
 from qiskit_serverless.utils.http import get_headers
 from qiskit_serverless.utils.json import is_jsonable
 from qiskit_serverless.utils import ServerlessRuntimeService
-
-RuntimeEnv = ray.runtime_env.RuntimeEnv
 
 
 @dataclass

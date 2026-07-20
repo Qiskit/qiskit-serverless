@@ -1,9 +1,9 @@
-ray[default]>=2.56.0, <3
 requests>=2.34.2, <3
 importlib-metadata>=9.0.0, <10
 qiskit>=2.2, <3
 qiskit-ibm-runtime>=0.47.0, <0.49.0
-# Make sure ray node and notebook node have the same version of cloudpickle
+# cloudpickle is imported unconditionally by the client (decorators). Keep the pin
+# aligned with the Ray node/notebook cloudpickle version for cross-node compatibility.
 cloudpickle==3.1.2
 tqdm>=4.68.4, <5
 # opentelemetry

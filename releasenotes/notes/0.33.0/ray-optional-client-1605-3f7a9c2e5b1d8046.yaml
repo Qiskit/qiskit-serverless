@@ -1,0 +1,20 @@
+---
+features:
+  - |
+    Ray is now an optional dependency of the ``qiskit-serverless`` client. Install it
+    with the ``ray`` extra when you need the Ray runner::
+
+        pip install qiskit-serverless[ray]
+
+    A plain ``pip install qiskit-serverless`` no longer pulls in Ray, so environments
+    that do not use the Ray runner can install a lighter client. Importing
+    ``qiskit_serverless`` works without Ray installed.
+upgrade:
+  - |
+    ``ray`` was removed from the base client requirements and is now provided by the
+    ``ray`` extra (``pip install qiskit-serverless[ray]``). If you rely on the Ray
+    runner or on the Ray-only helpers (``distribute_task``, ``get``, ``put``,
+    ``get_refs_by_status``, ``remote``), install the extra. Using any of those symbols
+    without Ray installed now raises a clear ``ModuleNotFoundError`` instructing you to
+    ``pip install qiskit-serverless[ray]``. The published Ray node image installs the
+    ``[ray]`` extra, so its behavior is unchanged.
