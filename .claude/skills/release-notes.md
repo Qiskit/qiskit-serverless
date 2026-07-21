@@ -87,9 +87,14 @@ Then write a file to `releasenotes/notes/<slug>-<16hexchars>.yaml`.
 **Choosing the slug:** kebab-case summary of the change, e.g. `ray-optional-client`,
 `fix-job-status-sub-status`. Keep it short and descriptive.
 
-**Choosing the 16 hex chars:** run `reno new <slug>` if reno is installed (it generates the
-suffix automatically). Otherwise generate a random 16-character hex string. The exact value
-doesn't matter, only uniqueness across the notes directory.
+**Choosing the 16 hex chars:** generate a random 16-character hex string directly — do NOT
+run `reno new` as it launches an interactive version picker. Use:
+
+```bash
+python3 -c "import secrets; print(secrets.token_hex(8))"
+```
+
+The exact value doesn't matter, only uniqueness across the notes directory.
 
 **Do NOT place notes in a versioned subfolder** (e.g. `0.34.0/`). That move happens at
 release time as a separate step.
