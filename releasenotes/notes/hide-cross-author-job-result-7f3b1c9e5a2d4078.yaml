@@ -1,0 +1,12 @@
+---
+security:
+  - |
+    The ``GET /api/v1/programs/{id}/get_jobs/`` provider listing endpoint no longer
+    returns the ``result`` field for jobs. A provider admin can see all jobs submitted
+    to their function (including those from other authors) via this endpoint, but job
+    results are author-private and should not be exposed across author boundaries.
+    Results were already hidden on other cross-author listing endpoints; this brings
+    the provider listing into line with that behaviour.
+
+    Provider admins who need to read their own job results can continue to use the
+    own-scoped job endpoints, which still include ``result``.
