@@ -46,7 +46,6 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
 
     Example:
         >>> client = BaseClient(
-        >>>    name="<NAME>",
         >>>    host="<HOST>",
         >>>    token="<TOKEN>",
         >>>    compute_resource=ComputeResource(
@@ -58,7 +57,6 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
 
     def __init__(  # pylint:  disable=too-many-positional-arguments
         self,
-        name: str,
         host: Optional[str] = None,
         token: Optional[str] = None,
         instance: Optional[str] = None,
@@ -68,19 +66,11 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
         Initialize a BaseClient instance.
 
         Args:
-            name: (deprecated) name of client - will be removed in a future release
             host: host of client a.k.a managers host
             token: authentication token for manager
             instance: IBM Cloud CRN or IQP h/g/p
             channel: identifies the method to use to authenticate the user
         """
-        if name:
-            warnings.warn(
-                "The 'name' attribute is deprecated and will be removed in a future release.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        self.name = name
         self.host = host
         self.token = token
         self.instance = instance
@@ -93,12 +83,16 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
 
     def __eq__(self, other):
         if isinstance(other, BaseClient):
-            return self.name == other.name
-
+            return (
+                self.host == other.host
+                and self.token == other.token
+                and self.instance == other.instance
+                and self.channel == other.channel
+            )
         return False
 
     def __repr__(self):
-        return f"<{self.name}>"
+        return f"<{self.__class__.__name__}(host={self.host})>"
 
     ####################
     ####### JOBS #######
