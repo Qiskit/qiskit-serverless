@@ -2,10 +2,18 @@
 
 Given a GitHub draft release URL, produce a complete reno status table and write any missing release note files.
 
+## Step 0 — Collect required inputs
+
+Before doing anything else, ask the user for both of the following in a single message:
+
+1. **Draft release URL** — the GitHub draft release page (e.g. `https://github.com/Qiskit/qiskit-serverless/releases/tag/untagged-...`)
+2. **Release version number** — the version being released (e.g. `0.34.0`)
+
+Do not proceed to Step 1 until both have been provided.
+
 ## Step 1 — Build the PR list
 
 Fetch the draft release page with WebFetch and extract every PR entry (title, author, number).
-If the user passed a URL as args, use that. Otherwise ask for it.
 
 ## Step 2 — Check existing reno files
 
@@ -181,15 +189,8 @@ do not modify versioned subfolders) for:
 
 ## Step 7 — Move notes into versioned subfolder
 
-Once the user has reviewed and confirmed all release notes look correct, ask the user for the
-release version number before proceeding:
-
-> "What version number should I use for the subfolder? (e.g. 0.34.0)"
-
-Do not infer it from the branch name or draft release URL — always ask explicitly to avoid
-moving notes into a wrongly-named directory.
-
-Once confirmed, write a prelude note for the release before moving anything. The prelude is a
+Once the user has reviewed and confirmed all release notes look correct, write a prelude note
+using the version number collected in Step 0. Do not ask for the version again. The prelude is a
 one-paragraph summary of the most important changes in this release. Write it to a new file at
 the top level:
 
