@@ -89,7 +89,8 @@ def execute_fleets_job(job: Job, ctx) -> Job:
 
         span.set_attribute("job.status", job.status)
 
-        job.save_direct(["status", "fleet_id"])
+        job.env_vars = "{}"
+        job.save_direct(["status", "fleet_id", "env_vars"])
         JobEvent.objects.add_status_event(
             job_id=job.id,
             origin=JobEventOrigin.SCHEDULER,
