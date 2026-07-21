@@ -84,10 +84,10 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
     def __eq__(self, other):
         if isinstance(other, BaseClient):
             return (
-                    self.host == other.host
-                    and self.token == other.token
-                    and self.instance == other.instance
-                    and self.channel == other.channel
+                self.host == other.host
+                and self.token == other.token
+                and self.instance == other.instance
+                and self.channel == other.channel
             )
         return False
 

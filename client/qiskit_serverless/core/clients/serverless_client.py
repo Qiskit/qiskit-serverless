@@ -162,7 +162,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
     @classmethod
     def from_dict(cls, dictionary: dict):
         # Remove 'name' if present for backward compatibility with serialized clients
-        data = {k: v for k, v in dictionary.items() if k != 'name'}
+        data = {k: v for k, v in dictionary.items() if k != "name"}
         return ServerlessClient(**data)
 
     def _verify_credentials(self):
