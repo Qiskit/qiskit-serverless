@@ -377,6 +377,11 @@ without Ray installed now raises a clear <code class="docutils literal notransla
 <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">qiskit-serverless[ray]</span></code>. The published Ray node image installs the
 <code class="docutils literal notranslate"><span class="pre">[ray]</span></code> extra, so its behavior is unchanged.</p></li>
 </ul>
+<ul class="simple">
+<li><p>Bumped <code class="docutils literal notranslate"><span class="pre">qiskit-addon-aqc-tensor[quimb-jax]</span></code> from <code class="docutils literal notranslate"><span class="pre">0.3.0</span></code> to <code class="docutils literal notranslate"><span class="pre">0.3.1</span></code>
+in the dynamic dependencies allowlist bundled in the Ray runner image.
+Qiskit Functions can now declare and use this newer version.</p></li>
+</ul>
 <ul>
 <li><p>Custom image names must now be nested under the provider registry prefix.
 The registry check previously used a plain <code class="docutils literal notranslate"><span class="pre">startswith</span></code>, which could
