@@ -1,5 +1,5 @@
 ---
-features:
+upgrade:
   - |
     Added ``cotengrust==0.2.0`` to the dynamic dependencies allowlist bundled in
     the Ray runner image. Qiskit Functions can now declare and use
