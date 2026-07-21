@@ -2,8 +2,6 @@
 fixes:
   - |
     Fixed :meth:`~qiskit_serverless.core.job.Job.status` returning ``RUNNING``
-    for jobs that report a ``sub_status`` (e.g. ``RUNNING: MAPPING``).
-    The fast path introduced in #2072 read only the top-level ``status`` field
-    and silently dropped the ``sub_status`` check that existed in
-    ``ServerlessClient.status()``.  The sub-status is now forwarded correctly
-    when the top-level status is ``RUNNING`` and ``sub_status`` is not ``None``.
+    for jobs that report a ``sub_status`` (e.g. ``RUNNING: MAPPING``). The
+    sub-status is now forwarded correctly when the top-level status is
+    ``RUNNING``.
