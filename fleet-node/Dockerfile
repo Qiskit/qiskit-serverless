@@ -46,9 +46,13 @@ USER 0
 RUN mkdir /data /function_data /function_user_data /job_user_data /function_provider_data /job_provider_data && \
     chown 1000:1000 /data /function_data /function_user_data /job_user_data /function_provider_data /job_provider_data && \
     python${PYTHON_VERSION} -m ensurepip --upgrade && \
+    # Floors chosen to clear known CVEs (CVE-2026-8643 in pip,
+    # CVE-2026-59890 in setuptools); images built FROM this inherit them.
+    # wheel is intentionally not installed (ubi9 ensurepip omits it; nothing
+    # here builds from sdist), so CVE-2026-24049 in wheel does not apply.
     pip install --upgrade --no-cache-dir \
-        "pip>=24.2" \
-        "setuptools>=80.0.0"
+        "pip>=26.1.2" \
+        "setuptools>=83.0.0"
 
 # Dynamic dependencies. Reuse ray-node's list (single source of truth — avoids the
 # two files drifting; both runners install the same qiskit stack). All resolve to
