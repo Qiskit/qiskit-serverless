@@ -38,7 +38,7 @@ dynamic = ["version", "readme", "dependencies"]
 #   pip install qiskit-serverless[ray]
 # The base install (e.g. the Fleets image) does not pull Ray.
 [project.optional-dependencies]
-ray = ["ray[default]>=2.56.0, <3"]
+ray = ["ray[default]>=2.56.1, <3"]
 
 [tool.setuptools.package-data]
 qiskit_serverless = ["VERSION.txt"]

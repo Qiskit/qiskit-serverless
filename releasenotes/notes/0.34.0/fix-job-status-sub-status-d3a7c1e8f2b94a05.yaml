@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    Fixed :meth:`~qiskit_serverless.core.job.Job.status` returning ``RUNNING``
+    for jobs that report a ``sub_status`` (e.g. ``RUNNING: MAPPING``). The
+    sub-status is now forwarded correctly when the top-level status is
+    ``RUNNING``.

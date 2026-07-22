@@ -1,0 +1,6 @@
+---
+upgrade:
+  - |
+    The deprecated ``widget()`` method has been removed from ``BaseClient``,
+    ``ServerlessClient``, and ``IBMServerlessClient``. The visualization
+    module (deprecated in 0.33.0) has been completely removed from the package.
