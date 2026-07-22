@@ -156,8 +156,7 @@ class StorageManager:
                 os.rmdir(link_path)
             except OSError as exc:
                 raise RuntimeError(
-                    f"Cannot replace non-empty mount dir {link_path} "
-                    f"(contains {os.listdir(link_path)})"
+                    f"Cannot replace non-empty mount dir {link_path} (contains {os.listdir(link_path)})"
                 ) from exc
         elif os.path.exists(link_path):
             os.unlink(link_path)
