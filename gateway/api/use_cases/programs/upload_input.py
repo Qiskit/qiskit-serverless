@@ -3,8 +3,6 @@
 from dataclasses import dataclass
 from typing import Any
 
-from core.models import Program as Function
-
 
 def _parse_provider_and_title(provider_raw: str | None, title_raw: str) -> tuple[str | None, str]:
     if provider_raw:
@@ -28,11 +26,12 @@ class UploadFunctionInput:  # pylint: disable=too-many-instance-attributes
     artifact: Any = None
     image: str | None = None
     env_vars: str | None = None
-    dependencies: str = "[]"
-    runner: str = Function.RAY
+    dependencies: str | None = None
+    runner: str | None = None
     description: str | None = None
     version: str | None = None
     type: str | None = None
+    arguments_schema: str | None = None
 
     @classmethod
     def from_validated_data(cls, data: dict) -> "UploadFunctionInput":
@@ -45,9 +44,10 @@ class UploadFunctionInput:  # pylint: disable=too-many-instance-attributes
             artifact=data.get("artifact"),
             image=data.get("image"),
             env_vars=data.get("env_vars"),
-            dependencies=data.get("dependencies", "[]"),
-            runner=data.get("runner", "ray"),
+            dependencies=data.get("dependencies"),
+            runner=data.get("runner"),
             description=data.get("description"),
             version=data.get("version"),
             type=data.get("type"),
+            arguments_schema=data.get("arguments_schema"),
         )

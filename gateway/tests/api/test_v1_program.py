@@ -1158,6 +1158,151 @@ class TestProgramApi(APITestCase):
         program = Program.objects.get(title="Defaultrunnerfunction")
         assert program.runner == Program.RAY
 
+    def test_upload_with_arguments_schema_stores_it(self):
+        """Upload with arguments_schema saves the schema on the Program."""
+        schema = json.dumps({"type": "object", "properties": {"shots": {"type": "integer"}}})
+        fake_file = ContentFile(b"print('hello')")
+        fake_file.name = "test.tar"
+        TestUtils.authorize_client(user="test_user", client=self.client)
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "schema-function",
+                    "entrypoint": "main.py",
+                    "dependencies": "[]",
+                    "arguments_schema": schema,
+                    "artifact": fake_file,
+                },
+            )
+        assert response.status_code == status.HTTP_200_OK
+        program = Program.objects.get(title="schema-function")
+        assert program.arguments_schema == schema
+
+    def test_upload_with_invalid_schema_returns_400(self):
+        """Upload with malformed JSON as arguments_schema returns 400."""
+        fake_file = ContentFile(b"print('hello')")
+        fake_file.name = "test.tar"
+        TestUtils.authorize_client(user="test_user", client=self.client)
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "bad-schema-function",
+                    "entrypoint": "main.py",
+                    "dependencies": "[]",
+                    "arguments_schema": "not-valid-json{{{",
+                    "artifact": fake_file,
+                },
+            )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_reupload_without_schema_preserves_existing_schema(self):
+        """Re-uploading a function without arguments_schema keeps the existing schema."""
+        schema = json.dumps({"type": "object"})
+        user = TestUtils.authorize_client(user="test_user", client=self.client)
+        TestUtils.create_program(
+            program_title="preserve-schema-func",
+            author=user,
+            entrypoint="main.py",
+            arguments_schema=schema,
+        )
+        fake_file = ContentFile(b"print('hello')")
+        fake_file.name = "test.tar"
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "preserve-schema-func",
+                    "entrypoint": "main.py",
+                    "dependencies": "[]",
+                    "artifact": fake_file,
+                },
+            )
+        assert response.status_code == status.HTTP_200_OK
+        program = Program.objects.get(title="preserve-schema-func", author=user)
+        assert program.arguments_schema == schema
+
+    def test_upload_all_fields_stores_all_fields(self):
+        """Upload with all optional fields - every field is persisted to the DB."""
+        fake_file = ContentFile(b"print('hello')")
+        fake_file.name = "test.tar"
+        user = TestUtils.authorize_client(user="test_user", client=self.client)
+        schema = json.dumps({"type": "object", "properties": {"n": {"type": "integer"}}})
+        env_vars = json.dumps({"MY_KEY": "MY_VALUE"})
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "full-function",
+                    "entrypoint": "custom_entry.py",
+                    "dependencies": "[]",
+                    "env_vars": env_vars,
+                    "description": "My description",
+                    "version": "1.2.3",
+                    "runner": Program.RAY,
+                    "arguments_schema": schema,
+                    "artifact": fake_file,
+                },
+            )
+        assert response.status_code == status.HTTP_200_OK
+        program = Program.objects.get(title="full-function", author=user)
+        assert program.entrypoint == "custom_entry.py"
+        assert program.description == "My description"
+        assert program.version == "1.2.3"
+        assert program.runner == Program.RAY
+        assert program.arguments_schema == schema
+        assert program.env_vars not in ("{}", "")
+
+    def test_reupload_with_only_required_fields_preserves_optional_fields(self):
+        """Re-uploading with title+entrypoint must preserve all previously set optional fields.
+
+        This test proves empirically which fields survive a minimal re-upload.
+        Fields that used to RESET (runner, dependencies, env_vars) must be PRESERVED.
+        """
+        schema = json.dumps({"type": "object"})
+        user = TestUtils.authorize_client(user="test_user", client=self.client)
+        TestUtils.get_or_create_ce_project(project_name="test-project", project_id="test-id")
+        TestUtils.create_program(
+            program_title="reupload-test-func",
+            author=user,
+            entrypoint="original.py",
+            description="Original description",
+            version="2.0.0",
+            runner=Program.FLEETS,
+            dependencies='["numpy==1.26.0"]',
+            env_vars='{"MY_KEY":"MY_VALUE"}',
+            arguments_schema=schema,
+        )
+        fake_file = ContentFile(b"print('updated')")
+        fake_file.name = "update.tar"
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT, CE_DEFAULT_PROJECT_NAME="test-project"):
+            response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "reupload-test-func",
+                    "entrypoint": "new_main.py",
+                    "artifact": fake_file,
+                },
+            )
+        assert response.status_code == status.HTTP_200_OK
+        program = Program.objects.get(title="reupload-test-func", author=user)
+
+        # Already preserved (existing behavior):
+        assert program.description == "Original description"
+        assert program.version == "2.0.0"
+        assert program.arguments_schema == schema
+
+        # Now also preserved (previously reset):
+        assert program.runner == Program.FLEETS
+        assert json.loads(program.dependencies) == ["numpy==1.26.0"]
+        assert program.env_vars not in ("{}", "")
+
 
 @pytest.mark.django_db
 class TestProgramApiRuntimeInstances:

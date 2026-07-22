@@ -71,18 +71,21 @@ class UploadFunctionUseCase:
     def _create(self, data: UploadFunctionInput, user, provider) -> Function:
         logger.info("user_id=%s program=%s | Creating function", user.id, data.title)
 
+        if data.entrypoint is None and data.image is None:
+            raise DRFValidationError("At least one of attributes (entrypoint, image) is required.")
+
         env_vars = data.env_vars
         if env_vars:
             env_vars = json.dumps(encrypt_env_vars(json.loads(env_vars)))
 
-        raw_deps = json.loads(data.dependencies)
+        raw_deps = json.loads(data.dependencies or "[]")
         dependencies = json.dumps([_normalize_dependency(d) for d in raw_deps])
 
         function = Function(
             title=data.title,
             author=user,
             provider=provider,
-            runner=data.runner,
+            runner=data.runner or Function.RAY,
             entrypoint=data.entrypoint or DEFAULT_PROGRAM_ENTRYPOINT,
             artifact=data.artifact,
             image=data.image,
@@ -93,6 +96,8 @@ class UploadFunctionUseCase:
         )
         if data.type is not None:
             function.type = data.type
+        if data.arguments_schema is not None:
+            function.arguments_schema = data.arguments_schema
 
         CodeEngineProject.objects.assign_to_program(function)
         if function.runner == Function.FLEETS and not function.code_engine_project:
@@ -104,21 +109,23 @@ class UploadFunctionUseCase:
         logger.info("user_id=%s program=%s | Updating function", user.id, instance.title)
 
         instance.entrypoint = data.entrypoint or DEFAULT_PROGRAM_ENTRYPOINT
-        raw_deps = json.loads(data.dependencies)
-        instance.dependencies = json.dumps([_normalize_dependency(d) for d in raw_deps])
-        env_vars = data.env_vars
-        if env_vars:
-            env_vars = json.dumps(encrypt_env_vars(json.loads(env_vars)))
-        instance.env_vars = env_vars or {}
+        if data.dependencies is not None:
+            raw_deps = json.loads(data.dependencies)
+            instance.dependencies = json.dumps([_normalize_dependency(d) for d in raw_deps])
+        if data.env_vars is not None:
+            instance.env_vars = json.dumps(encrypt_env_vars(json.loads(data.env_vars)))
         instance.artifact = data.artifact
         instance.author = user
         instance.image = data.image
-        instance.runner = data.runner
+        if data.runner is not None:
+            instance.runner = data.runner
 
         if data.description is not None:
             instance.description = data.description
         if data.version is not None:
             instance.version = data.version
+        if data.arguments_schema is not None:
+            instance.arguments_schema = data.arguments_schema
 
         CodeEngineProject.objects.assign_to_program(instance)
         instance.save()

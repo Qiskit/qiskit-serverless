@@ -146,6 +146,7 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     image = models.CharField(max_length=511, null=True, blank=True)
     env_vars = models.TextField(null=False, blank=True, default="{}")
     dependencies = models.TextField(null=False, blank=True, default="[]")
+    arguments_schema = models.TextField(null=True, blank=True, default="{}")
 
     runner = models.CharField(
         max_length=20, choices=RUNNER_CHOICES, default=RAY, help_text="Execution backend for this program"
