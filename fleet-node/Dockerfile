@@ -40,11 +40,11 @@ RUN microdnf update -y && \
     ln -s /usr/bin/pip${PYTHON_VERSION} /usr/local/bin/pip
 
 USER 0
-# /data and /function_data are Ray runner PDS mount points.
 # /function_user_data, /job_user_data, /function_provider_data, /job_provider_data
-# are the Fleets runner 4-mount COS path layout.
-RUN mkdir /data /function_data /function_user_data /job_user_data /function_provider_data /job_provider_data && \
-    chown 1000:1000 /data /function_data /function_user_data /job_user_data /function_provider_data /job_provider_data && \
+# are the Fleets runner 4-mount COS path layout. fleet-node runs Fleets jobs only,
+# so it does not create the Ray runner's /data and /function_data mounts.
+RUN mkdir /function_user_data /job_user_data /function_provider_data /job_provider_data && \
+    chown 1000:1000 /function_user_data /job_user_data /function_provider_data /job_provider_data && \
     python${PYTHON_VERSION} -m ensurepip --upgrade && \
     # Floors chosen to clear known CVEs (CVE-2026-8643 in pip,
     # CVE-2026-59890 in setuptools); images built FROM this inherit them.
