@@ -57,10 +57,11 @@ RUN mkdir /function_user_data /job_user_data /function_provider_data /job_provid
         "pip>=26.1.2" \
         "setuptools>=83.0.0"
 
-# Dynamic dependencies. Reuse ray-node's list (single source of truth — avoids the
-# two files drifting; both runners install the same qiskit stack). All resolve to
-# prebuilt 3.12 wheels.
-COPY ray-node/requirements-dynamic-dependencies.txt /tmp/
+# Dynamic dependencies — the qiskit workload stack pre-baked so Fleets functions
+# run without reinstalling. Kept in fleet-node's own file (not shared with
+# ray-node) so the two runners can evolve independently; today the set is the
+# same as ray-node's. All resolve to prebuilt 3.12 wheels.
+COPY fleet-node/requirements-dynamic-dependencies.txt /tmp/
 RUN pip install --no-cache-dir \
         -r /tmp/requirements-dynamic-dependencies.txt && \
     rm /tmp/requirements-dynamic-dependencies.txt
