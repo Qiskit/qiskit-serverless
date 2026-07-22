@@ -43,13 +43,16 @@ USER 0
 # /function_user_data, /job_user_data, /function_provider_data, /job_provider_data
 # are the Fleets runner 4-mount COS path layout. fleet-node runs Fleets jobs only,
 # so it does not create the Ray runner's /data and /function_data mounts.
+#
+# pip/setuptools floors clear known CVEs (CVE-2026-8643 in pip,
+# CVE-2026-59890 in setuptools); images built FROM this inherit them. wheel is
+# intentionally not installed (ubi9 ensurepip omits it; nothing here builds from
+# an sdist), so CVE-2026-24049 in wheel does not apply.
+# NOTE: keep this a plain '&&' chain — do not put '#' comments between the
+# continued commands, or a broken chain could silently skip the pip upgrade.
 RUN mkdir /function_user_data /job_user_data /function_provider_data /job_provider_data && \
     chown 1000:1000 /function_user_data /job_user_data /function_provider_data /job_provider_data && \
     python${PYTHON_VERSION} -m ensurepip --upgrade && \
-    # Floors chosen to clear known CVEs (CVE-2026-8643 in pip,
-    # CVE-2026-59890 in setuptools); images built FROM this inherit them.
-    # wheel is intentionally not installed (ubi9 ensurepip omits it; nothing
-    # here builds from sdist), so CVE-2026-24049 in wheel does not apply.
     pip install --upgrade --no-cache-dir \
         "pip>=26.1.2" \
         "setuptools>=83.0.0"

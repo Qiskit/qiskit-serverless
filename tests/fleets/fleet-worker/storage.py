@@ -94,6 +94,8 @@ class StorageManager:
             "stat_cache_expire=1",
             "-o",
             "allow_other",
+            # No "-o nonempty": newer s3fs (fuse3) rejects that option, and
+            # setup_mounts creates the mount point empty, so it is unnecessary.
         ]
         logger.info("Mounting %s -> %s", bucket, mount_point)
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
@@ -155,9 +157,11 @@ class StorageManager:
             try:
                 os.rmdir(link_path)
             except OSError as exc:
-                raise RuntimeError(
-                    f"Cannot replace non-empty mount dir {link_path} (contains {os.listdir(link_path)})"
-                ) from exc
+                try:
+                    contents = os.listdir(link_path)
+                except OSError:
+                    contents = "<unreadable>"
+                raise RuntimeError(f"Cannot replace mount dir {link_path} (contents: {contents})") from exc
         elif os.path.exists(link_path):
             os.unlink(link_path)
         os.makedirs(target_path, exist_ok=True)
