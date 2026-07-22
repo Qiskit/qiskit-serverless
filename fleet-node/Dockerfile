@@ -65,7 +65,7 @@ RUN pip install --no-cache-dir \
 # Install the client last for better layer-cache reuse. Keep this on its own RUN
 # with plain '&&' so a failed install fails the build — do NOT chain '|| true'
 # guards onto this step (that would silently ship an image with no client).
-# (No symengine lib/lib64 copy: Qiskit 2.1+ dropped symengine, so it is not
+# (No symengine lib/lib64 copy: Qiskit 2.2 dropped symengine, so it is not
 # installed here; ray-node/gateway removed the same copy in 0.34.0.)
 COPY client /tmp/qs
 RUN pip install --no-cache-dir /tmp/qs && \
