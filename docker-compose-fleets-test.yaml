@@ -135,6 +135,10 @@ services:
     build:
       context: ./
       dockerfile: tests/fleets/fleet-worker/Dockerfile
+      # Built FROM the fleets runtime base. Build it first:
+      #   make build-fleet-node   (tags fleet-node:latest)
+      args:
+        BASE_IMAGE: ${FLEET_NODE_IMAGE:-fleet-node:latest}
     privileged: true
     environment:
       - MINIO_ENDPOINT=http://minio:9000
