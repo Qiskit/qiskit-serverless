@@ -1,5 +1,7 @@
 # syntax=docker/dockerfile:1.17
-FROM registry.access.redhat.com/ubi9-minimal:9.8-1784092902
+FROM registry.access.redhat.com/ubi9-minimal:9.8-1784092902 AS base
+ARG PYTHON_VERSION=3.12
+
 # set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -7,15 +9,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Install system dependencies and setup Python symlinks
 RUN microdnf update -y && \
     microdnf install -y \
-        python3.11 \
-        python3.11-devel \
+        python${PYTHON_VERSION} \
+        python${PYTHON_VERSION}-devel \
         wget-1.21.1 && \
     microdnf clean all && \
-    ln -s /usr/bin/python3.11 /usr/local/bin/python3 && \
-    ln -s /usr/bin/python3.11 /usr/local/bin/python && \
-    ln -s /usr/bin/pip3.11 /usr/local/bin/pip3 && \
-    ln -s /usr/bin/pip3.11 /usr/local/bin/pip
-
+    ln -s /usr/bin/python${PYTHON_VERSION} /usr/local/bin/python3 && \
+    ln -s /usr/bin/python${PYTHON_VERSION} /usr/local/bin/python && \
+    ln -s /usr/bin/pip${PYTHON_VERSION} /usr/local/bin/pip3 && \
+    ln -s /usr/bin/pip${PYTHON_VERSION} /usr/local/bin/pip
 
 USER 0
 # Create data directories and upgrade pip/setuptools
@@ -24,20 +25,20 @@ USER 0
 # are used by the Fleets runner (4-mount COS path layout).
 RUN mkdir /data /function_data /function_user_data /job_user_data /function_provider_data /job_provider_data && \
     chown 1000:1000 /data /function_data /function_user_data /job_user_data /function_provider_data /job_provider_data && \
-    python3.11 -m ensurepip --upgrade && \
+    python${PYTHON_VERSION} -m ensurepip --upgrade && \
     pip install --upgrade --no-cache-dir \
         "pip>=24.2" \
         "setuptools>=80.0.0"
 
-# Install additional dependencies
-COPY ray-node/requirements-dynamic-dependencies.txt /tmp/
-RUN pip install -r /tmp/requirements-dynamic-dependencies.txt --no-cache-dir && \
-    rm /tmp/requirements-dynamic-dependencies.txt
-
 # Install latest version of client (at the end for better layer cache usage).
 # Ray is an optional extra of the client; the Ray node needs it, so install [ray].
 COPY client /tmp/qs
-RUN pip install "/tmp/qs[ray]" --no-cache-dir
-RUN rm -rf /tmp/qs /tmp/requirements*.txt
+RUN pip install "/tmp/qs[ray]" --no-cache-dir && rm -rf /tmp/qs
+USER 1000
 
+FROM base AS selector
+USER 0
+COPY ray-node/requirements-dynamic-dependencies.txt /tmp/
+RUN pip install -r /tmp/requirements-dynamic-dependencies.txt --no-cache-dir && \
+    rm /tmp/requirements-dynamic-dependencies.txt
 USER 1000
