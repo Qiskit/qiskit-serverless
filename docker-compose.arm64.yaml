@@ -3,7 +3,7 @@
 # Use together with the base docker-compose.yaml:
 #
 #   docker build --platform linux/arm64 \
-#     -t custom-ray-node:0.32.0-arm64 -f ray-node/Dockerfile.arm64 .
+#     --target arm64 -t custom-ray-node:0.32.0-arm64 -f ray-node/Dockerfile .
 #   VERSION=0.32.0 docker compose -f docker-compose.yaml -f docker-compose.arm64.yaml up
 #
 # Runs ray-head as a NATIVE arm64 image (no QEMU) so Ray 2.55 startup is fast enough that its
