@@ -47,6 +47,7 @@ def execute_ray_job(job: Job) -> Job:
         except RunnerError as ex:
             logger.error("job_id=%s error=%s Job set as FAILED: compute resource or submission error", job.id, ex)
             job.status = Job.FAILED
+        job.env_vars = "{}"
         span.set_attribute("job.status", job.status)
     return job
 

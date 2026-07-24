@@ -93,6 +93,7 @@ class TestScheduleApi(APITestCase):
         mock_runner.submit.assert_called_once()
         mock_compute_resource.save.assert_called_once()
         assert ret_job.status == Job.PENDING
+        assert ret_job.env_vars == "{}"
 
     @patch("scheduler.schedule.get_runner")
     def test_execute_ray_job_failure(self, mock_get_runner_client):
@@ -109,6 +110,7 @@ class TestScheduleApi(APITestCase):
 
         mock_runner.submit.assert_called_once()
         assert ret_job.status == Job.FAILED
+        assert ret_job.env_vars == "{}"
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.JobEvent")
