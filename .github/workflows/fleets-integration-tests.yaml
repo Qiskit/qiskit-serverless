@@ -21,6 +21,10 @@ jobs:
           python-version: '3.11'
       - name: Install tox
         run: pip install tox>=4.0.0
+      - name: Build fleet-node base image
+        # The fleet-worker image is FROM fleet-node:latest, and `compose build`
+        # does not build FROM-referenced bases, so build it first.
+        run: docker build --platform linux/amd64 -f fleet-node/Dockerfile -t fleet-node:latest .
       - name: Build containers
         run: docker compose -f docker-compose-fleets-test.yaml build
       - name: Start services

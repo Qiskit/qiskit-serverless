@@ -94,8 +94,8 @@ class StorageManager:
             "stat_cache_expire=1",
             "-o",
             "allow_other",
-            "-o",
-            "nonempty",
+            # No "-o nonempty": newer s3fs (fuse3) rejects that option, and
+            # setup_mounts creates the mount point empty, so it is unnecessary.
         ]
         logger.info("Mounting %s -> %s", bucket, mount_point)
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
@@ -144,7 +144,25 @@ class StorageManager:
             link_path: The path where the symlink will be created.
             target_path: The target directory the symlink will point to.
         """
-        if os.path.islink(link_path) or os.path.exists(link_path):
+        # The base image (fleet-node) pre-creates the COS mount dirs
+        # (/function_user_data, /job_user_data, ...) as empty directories — the
+        # real CE mount points. Replace such a dir with our symlink; os.unlink
+        # would raise EISDIR on a directory, so rmdir it first.
+        if os.path.islink(link_path):
+            os.unlink(link_path)
+        elif os.path.isdir(link_path):
+            # Expected to be an empty base-image mount dir. Fail loudly (with the
+            # offending contents) rather than opaquely if it is unexpectedly
+            # non-empty — never silently rmtree a directory that may hold data.
+            try:
+                os.rmdir(link_path)
+            except OSError as exc:
+                try:
+                    contents = os.listdir(link_path)
+                except OSError:
+                    contents = "<unreadable>"
+                raise RuntimeError(f"Cannot replace mount dir {link_path} (contents: {contents})") from exc
+        elif os.path.exists(link_path):
             os.unlink(link_path)
         os.makedirs(target_path, exist_ok=True)
         os.symlink(target_path, link_path)

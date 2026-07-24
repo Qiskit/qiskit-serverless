@@ -49,6 +49,7 @@ jobs:
         shell: bash
         run: |
           sed -i "s/qiskit-serverless\/ray-node:${OLDNUM}/qiskit-serverless\/ray-node:${NEWNUM}/" gateway/main/settings.py
+          sed -i "s/qiskit-serverless\/fleet-node:${OLDNUM}/qiskit-serverless\/fleet-node:${NEWNUM}/" gateway/main/settings.py
       - name: Update client version
         shell: bash
         run: |
