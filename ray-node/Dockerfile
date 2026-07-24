@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.17
-FROM registry.access.redhat.com/ubi9-minimal:9.8-1784092902
+FROM registry.access.redhat.com/ubi9-minimal:9.8-1784092902 AS base
 ARG PYTHON_VERSION=3.12
 
 # set environment variables
@@ -30,15 +30,15 @@ RUN mkdir /data /function_data /function_user_data /job_user_data /function_prov
         "pip>=24.2" \
         "setuptools>=80.0.0"
 
-# Install additional dependencies
-COPY ray-node/requirements-dynamic-dependencies.txt /tmp/
-RUN pip install -r /tmp/requirements-dynamic-dependencies.txt --no-cache-dir && \
-    rm /tmp/requirements-dynamic-dependencies.txt
-
 # Install latest version of client (at the end for better layer cache usage).
 # Ray is an optional extra of the client; the Ray node needs it, so install [ray].
 COPY client /tmp/qs
-RUN pip install "/tmp/qs[ray]" --no-cache-dir && \
-    rm -rf /tmp/qs
+RUN pip install "/tmp/qs[ray]" --no-cache-dir && rm -rf /tmp/qs
+USER 1000
 
+FROM base AS selector
+USER 0
+COPY ray-node/requirements-dynamic-dependencies.txt /tmp/
+RUN pip install -r /tmp/requirements-dynamic-dependencies.txt --no-cache-dir && \
+    rm /tmp/requirements-dynamic-dependencies.txt
 USER 1000
