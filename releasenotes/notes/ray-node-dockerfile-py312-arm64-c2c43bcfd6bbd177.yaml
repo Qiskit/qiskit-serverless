@@ -1,0 +1,12 @@
+---
+upgrade:
+  - |
+    The default Python version in the ``ray-node`` image has been bumped from 3.11 to 3.12.
+    The Dockerfile now uses ``ARG PYTHON_VERSION=3.12`` so the version can still be overridden
+    at build time if needed.
+  - |
+    The Apple Silicon local-development image is no longer a separate ``ray-node/Dockerfile.arm64``
+    file. It is now the ``arm64`` stage of ``ray-node/Dockerfile`` and is built with
+    ``--target arm64 --platform linux/arm64``. The ``docker-compose-dev.arm64.yaml`` override
+    has been updated accordingly; no changes are needed to existing local-dev workflows beyond
+    rebuilding the image.
