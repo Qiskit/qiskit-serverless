@@ -93,6 +93,7 @@ class TestScheduleApi(APITestCase):
         mock_runner.submit.assert_called_once()
         mock_compute_resource.save.assert_called_once()
         assert ret_job.status == Job.PENDING
+        assert ret_job.env_vars == "{}"
 
     @patch("scheduler.schedule.get_runner")
     def test_execute_ray_job_failure(self, mock_get_runner_client):
@@ -109,6 +110,7 @@ class TestScheduleApi(APITestCase):
 
         mock_runner.submit.assert_called_once()
         assert ret_job.status == Job.FAILED
+        assert ret_job.env_vars == "{}"
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.JobEvent")
@@ -127,7 +129,8 @@ class TestScheduleApi(APITestCase):
 
         mock_runner.submit.assert_called_once()
         assert ret_job.status == Job.PENDING
-        ret_job.save_direct.assert_called_once_with(["status", "fleet_id"])
+        assert ret_job.env_vars == "{}"
+        ret_job.save_direct.assert_called_once_with(["status", "fleet_id", "env_vars"])
         mock_job_event.objects.add_status_event.assert_called_once()
 
     @patch("scheduler.schedule.get_runner")
@@ -148,6 +151,8 @@ class TestScheduleApi(APITestCase):
 
         mock_runner.submit.assert_called_once()
         assert ret_job.status == Job.FAILED
+        assert ret_job.env_vars == "{}"
+        ret_job.save_direct.assert_called_once_with(["status", "fleet_id", "env_vars"])
         mock_job_event.objects.add_status_event.assert_called_once()
 
     @patch("scheduler.tasks.update_ray_jobs_statuses.get_runner")

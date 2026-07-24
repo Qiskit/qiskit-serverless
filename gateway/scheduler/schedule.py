@@ -47,6 +47,8 @@ def execute_ray_job(job: Job) -> Job:
         except RunnerError as ex:
             logger.error("job_id=%s error=%s Job set as FAILED: compute resource or submission error", job.id, ex)
             job.status = Job.FAILED
+        # Env vars have been forwarded to Ray; wipe them from the DB now.
+        job.env_vars = "{}"
         span.set_attribute("job.status", job.status)
     return job
 
@@ -89,7 +91,9 @@ def execute_fleets_job(job: Job, ctx) -> Job:
 
         span.set_attribute("job.status", job.status)
 
-        job.save_direct(["status", "fleet_id"])
+        # Env vars have been forwarded to Code Engine; wipe them from the DB now.
+        job.env_vars = "{}"
+        job.save_direct(["status", "fleet_id", "env_vars"])
         JobEvent.objects.add_status_event(
             job_id=job.id,
             origin=JobEventOrigin.SCHEDULER,
