@@ -42,3 +42,26 @@ COPY ray-node/requirements-dynamic-dependencies.txt /tmp/
 RUN pip install -r /tmp/requirements-dynamic-dependencies.txt --no-cache-dir && \
     rm /tmp/requirements-dynamic-dependencies.txt
 USER 1000
+
+# arm64-native variant for LOCAL DEV on Apple Silicon (M-series) Macs.
+# Build with: --target arm64 --platform linux/arm64
+#
+# Why: the published ray-node image is amd64-only, so on Apple Silicon it runs under QEMU
+# emulation. Ray 2.55's dashboard subprocess-modules must report ready within hardcoded ~30s
+# startup windows; under emulation they time out, the jobs API never becomes available, and
+# jobs stay stuck in QUEUED. Running a NATIVE arm64 image removes the emulation overhead so
+# the default timeouts are satisfied. The Ray version is unchanged.
+#
+# ffsim / qiskit-addon-aqc-tensor are omitted (no arm64 wheels); see
+# requirements-dynamic-dependencies-arm64.txt. To restore them, install a Rust toolchain
+# so ffsim compiles from source:
+#   RUN microdnf install -y gcc gcc-c++ make && microdnf clean all && \
+#       curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+#   ENV PATH="/root/.cargo/bin:${PATH}"
+# and add the two packages back to requirements-dynamic-dependencies-arm64.txt.
+FROM base AS arm64
+USER 0
+COPY ray-node/requirements-dynamic-dependencies-arm64.txt /tmp/requirements-dynamic-dependencies.txt
+RUN pip install -r /tmp/requirements-dynamic-dependencies.txt --no-cache-dir && \
+    rm /tmp/requirements-dynamic-dependencies.txt
+USER 1000
