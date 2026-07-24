@@ -54,7 +54,10 @@ class UpdateRayJobsStatuses(SchedulerTask):
         except RunnerError as ex:
             job.status = Job.FAILED
             job.sub_status = None
-            Job.objects.filter(pk=job.id).update(status=job.status, sub_status=job.sub_status, version=F("version") + 1)
+            job.env_vars = "{}"
+            Job.objects.filter(pk=job.id).update(
+                status=job.status, sub_status=job.sub_status, env_vars=job.env_vars, version=F("version") + 1
+            )
             JobEvent.objects.add_status_event(
                 job_id=job.id,
                 origin=JobEventOrigin.SCHEDULER,
@@ -86,6 +89,7 @@ class UpdateRayJobsStatuses(SchedulerTask):
             job.status = job_new_status
             if job.in_terminal_state():
                 job.sub_status = None
+                job.env_vars = "{}"
                 # Ray logs need fetching and persisting when the job finishes
                 try:
                     lines = runner.logs()
@@ -126,6 +130,7 @@ class UpdateRayJobsStatuses(SchedulerTask):
                     private_logs=None,
                 )
                 job.status = job_new_status
+                job.env_vars = "{}"
                 status_has_changed = True
                 save_logs_to_storage(job, lines)
 
@@ -133,6 +138,7 @@ class UpdateRayJobsStatuses(SchedulerTask):
             Job.objects.filter(pk=job.id).update(
                 status=job.status,
                 sub_status=job.sub_status,
+                env_vars=job.env_vars,
                 version=F("version") + 1,
             )
             job.refresh_from_db(fields=["version"])

@@ -108,7 +108,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             new_status,
         )
         self.event_streams_client.emit_job_ended(job)
-        job.update_fields({"status": new_status, "sub_status": None})
+        job.update_fields({"status": new_status, "sub_status": None, "env_vars": "{}"})
         JobEvent.objects.add_status_event(
             job_id=job.id,
             origin=JobEventOrigin.SCHEDULER,

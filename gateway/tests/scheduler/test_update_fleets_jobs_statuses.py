@@ -181,12 +181,14 @@ class TestToTerminal:
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
         job.sub_status = "pending"
+        job.env_vars = '{"key": "value"}'
 
         with patch(f"{_MOD}.JobEvent") as mock_job_event:
             task.to_terminal(job, Job.SUCCEEDED)
 
         assert job.status == Job.SUCCEEDED
         assert job.sub_status is None
+        assert job.env_vars == "{}"
         mock_job_event.objects.add_status_event.assert_called_once_with(
             job_id=job.id,
             origin=JobEventOrigin.SCHEDULER,
@@ -198,12 +200,14 @@ class TestToTerminal:
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
         job.sub_status = "pending"
+        job.env_vars = '{"key": "value"}'
 
         with patch(f"{_MOD}.JobEvent") as mock_job_event:
             task.to_terminal(job, Job.FAILED)
 
         assert job.status == Job.FAILED
         assert job.sub_status is None
+        assert job.env_vars == "{}"
         mock_job_event.objects.add_status_event.assert_called_once_with(
             job_id=job.id,
             origin=JobEventOrigin.SCHEDULER,
