@@ -1,0 +1,14 @@
+---
+fixes:
+  - |
+    Authentication failures now surface a clear, actionable message instead of a
+    generic "Credentials couldn't be verified" error.
+
+    * If your IBM Cloud account is not entitled to use Qiskit Serverless, the error
+      now explains that your plan is not authorised and instructs you to check your
+      account entitlements, without leaking internal plan identifiers.
+    * If the IBM Runtime API returns an unexpected error during authentication, the
+      response status is forwarded as a friendly message rather than an opaque 500.
+    * The client now passes the server-supplied error message through to the
+      :class:`~qiskit_serverless.exception.QiskitServerlessException` it raises, so
+      the real reason always reaches the caller.

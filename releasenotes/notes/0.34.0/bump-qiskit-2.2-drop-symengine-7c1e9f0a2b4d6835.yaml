@@ -1,0 +1,9 @@
+---
+upgrade:
+  - |
+    The minimum supported Qiskit version for the ``qiskit-serverless`` client is now
+    ``2.2`` (raised from ``>=1.4``). Since Qiskit 2.1, ``symengine`` is no longer a
+    Qiskit dependency, so the client no longer installs it. Reading legacy
+    symengine-encoded QPY payloads (formats 10/11/12 written by Qiskit 1.0–1.1 with
+    ``use_symengine=True``) is no longer supported; QPY produced by modern Qiskit is
+    unaffected.

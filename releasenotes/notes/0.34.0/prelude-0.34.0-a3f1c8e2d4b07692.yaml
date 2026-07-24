@@ -1,0 +1,11 @@
+---
+prelude: >
+    ``qiskit_serverless v0.34.0`` makes ``ray`` an optional client dependency
+    (install with ``pip install qiskit-serverless[ray]`` when needed), raises the
+    minimum Qiskit version to 2.2, and removes the previously deprecated
+    ``widget()`` interface and ``qiskit_serverless.visualization`` module.
+    GPU scheduling is now configured via a ``gpu`` flag on the ``Program`` model,
+    replacing the provider allowlist. This release also deprecates the
+    ``distribute_task``, ``get``, ``put``, and ``get_refs_by_status`` helpers in
+    favour of their Ray equivalents, and includes a range of client bug fixes and
+    UX improvements.

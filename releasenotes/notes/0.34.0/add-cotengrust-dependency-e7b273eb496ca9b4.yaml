@@ -1,0 +1,6 @@
+---
+upgrade:
+  - |
+    ``cotengrust==0.2.0`` is now included in the dynamic dependencies allowlist
+    bundled in the Ray runner image. Qiskit Functions that declare ``cotengrust``
+    as a dependency can use it for tensor network contraction path optimization.

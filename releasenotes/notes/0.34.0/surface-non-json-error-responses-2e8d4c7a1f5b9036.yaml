@@ -1,0 +1,14 @@
+---
+fixes:
+  - |
+    Non-JSON error responses from the gateway (for example an HTTP 403 block page
+    returned by an ingress proxy) no longer surface as a misleading
+    ``QiskitServerlessException: JSON1001: Expecting value: line 1 column 1 (char 0)``.
+    The client now checks whether the response indicates success before attempting to
+    parse the body as JSON. When the response is not successful and the body is not
+    valid JSON, the HTTP status code and the raw body text are included in the
+    exception message so the real cause is visible to the caller.
+
+    This affects :meth:`~qiskit_serverless.core.client.IBMServerlessClient.upload`,
+    :meth:`~qiskit_serverless.core.job.Job.result`,
+    :meth:`~qiskit_serverless.core.job.Job.logs`, and most other client API calls.
