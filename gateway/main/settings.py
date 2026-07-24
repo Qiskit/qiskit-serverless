@@ -450,7 +450,7 @@ CE_ICR_PULL_SECRET = os.environ.get("CE_ICR_PULL_SECRET", None)
 # override it via ce.fleetsDefaultImage.
 FLEETS_DEFAULT_IMAGE = os.environ.get(
     "FLEETS_DEFAULT_IMAGE",
-    "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.33.0",
+    "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.34.0",
 )
 # Compute profile settings for Fleets runner
 DEFAULT_COMPUTE_PROFILE = os.environ.get("DEFAULT_COMPUTE_PROFILE", "bx3d-24x120")  # 24 CPU, 120GB RAM
