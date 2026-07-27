@@ -38,7 +38,7 @@ import json
 
 from django.template.loader import get_template
 
-_DOCKER_TMP = "./tests/resources/tmp"
+_DOCKER_TMP = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..", "resources", "tmp"))
 
 
 # ---------------------------------------------------------------------------
