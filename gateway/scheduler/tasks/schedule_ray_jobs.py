@@ -86,7 +86,7 @@ class ScheduleRayJobs(SchedulerTask):
                 )
 
                 t1 = time.monotonic()
-                job.save_direct(["status", "ray_job_id", "compute_resource"])
+                job.save_direct(["status", "ray_job_id", "compute_resource", "env_vars"])
                 JobEvent.objects.add_status_event(
                     job_id=job.id,
                     origin=JobEventOrigin.SCHEDULER,
