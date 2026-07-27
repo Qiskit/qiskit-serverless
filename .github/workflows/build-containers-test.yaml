@@ -22,6 +22,8 @@ jobs:
           - ray-node/Dockerfile
           - fleet-node/Dockerfile
           - gateway/Dockerfile
+        python:
+                  - "3.11"
     steps:
       - name: Checkout
         uses: actions/checkout@v7
