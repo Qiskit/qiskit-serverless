@@ -45,7 +45,7 @@ _DOCKER_TMP = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."
 # Helpers / marks
 # ---------------------------------------------------------------------------
 
-_DOCKER_IMAGE = "python:3-slim"
+_DOCKER_IMAGE = "python:3-alpine"
 
 
 def _render_wrapper(app_run_commands: list[str], *, is_provider_function: bool = False) -> list[str]:

@@ -29,11 +29,8 @@ import ctypes, ctypes.util, os, signal, struct, subprocess, sys, threading
 # in process space: no-new-privs, gid reset, and an empty capability bounding set.
 # Non-fatal on platforms that lack the required syscalls (e.g. musl, non-Linux).
 def _harden():
-    libc_name = ctypes.util.find_library("c")
-    if not libc_name:
-        return
     try:
-        _libc = ctypes.CDLL(libc_name, use_errno=True)
+        _libc = ctypes.CDLL(ctypes.util.find_library("c") or "libc.so.6", use_errno=True)
     except OSError:
         return
 
