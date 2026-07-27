@@ -2,11 +2,11 @@ ARG MICRO_IMAGE_DIR=/ubi-micro-img
 
 # BASE image using UBI 9 micro where the
 # application and requirements will be installed
-FROM registry.access.redhat.com/ubi9-micro:9.8-1779858820 AS base
+FROM registry.access.redhat.com/ubi9-micro:9.8-1782840931 AS base
 
 # BUILD image using UBI 9 where the dependencies that
 # require installing with a package manager will be installed.
-FROM registry.access.redhat.com/ubi9:9.8-1779808651 AS build
+FROM registry.access.redhat.com/ubi9:9.8-1784165989 AS build
 ARG MICRO_IMAGE_DIR
 
 # Copy the BASE image into the BUILD image
@@ -51,8 +51,6 @@ COPY gateway/requirements.txt .
 RUN python3.11 -m ensurepip --upgrade && \
     python3.11 -m pip install --upgrade --no-cache-dir setuptools>=80.0.0 && \
     python3.11 -m pip install -r requirements.txt --no-cache-dir --upgrade && \
-    cp -r -n /usr/local/lib64/python3.11/site-packages/symengine /usr/local/lib/python3.11/site-packages && \
-    cp -r -n /usr/local/lib/python3.11/site-packages/symengine /usr/local/lib64/python3.11/site-packages && \
     python3.11 -m pip uninstall -y pip
 
 COPY --chown=1000:100 gateway .

@@ -146,11 +146,21 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     image = models.CharField(max_length=511, null=True, blank=True)
     env_vars = models.TextField(null=False, blank=True, default="{}")
     dependencies = models.TextField(null=False, blank=True, default="[]")
+    arguments_schema = models.TextField(null=True, blank=True, default="{}")
 
     runner = models.CharField(
         max_length=20, choices=RUNNER_CHOICES, default=RAY, help_text="Execution backend for this program"
     )
 
+    gpu = models.BooleanField(
+        default=False,
+        db_default=False,
+        null=False,
+        help_text=(
+            "Whether this program should run on GPU nodes. "
+            "Applies only to the Ray runner; ignored by the Fleets runner."
+        ),
+    )
     default_compute_profile = models.CharField(
         max_length=255,
         null=True,

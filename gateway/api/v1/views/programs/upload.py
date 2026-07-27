@@ -28,6 +28,17 @@ from core.models import Program, Provider
 logger = logging.getLogger("api.api.v1.views.programs.upload")
 
 
+def _image_in_registry(image: str, registry: str) -> bool:
+    """Return True only when ``image`` is hosted under ``registry``.
+
+    Enforces a path boundary so that a registry of ``docker.io`` is NOT
+    satisfied by ``docker.io.attacker.com/evil`` (the bug a bare
+    ``str.startswith`` introduces).
+    """
+    registry = registry.rstrip("/")
+    return image == registry or image.startswith(registry + "/")
+
+
 class ProgramSerializer(serializers.ModelSerializer):
     """Serializer for uploading (creating or updating) a Qiskit Function."""
 
@@ -35,6 +46,7 @@ class ProgramSerializer(serializers.ModelSerializer):
     image = serializers.CharField(required=False)
     provider = serializers.CharField(required=False)
     runner = serializers.CharField(required=False)
+    arguments_schema = serializers.CharField(required=False)
 
     class Meta:
         model = Program
@@ -50,6 +62,7 @@ class ProgramSerializer(serializers.ModelSerializer):
             "type",
             "version",
             "runner",
+            "arguments_schema",
         ]
         ref_name = "ProgramsUploadProgram"
 
@@ -91,6 +104,14 @@ class ProgramSerializer(serializers.ModelSerializer):
 
     def validate_image(self, value):
         """Validate image."""
+        return value
+
+    def validate_arguments_schema(self, value):
+        """Validates that arguments_schema is valid JSON."""
+        try:
+            json.loads(value)
+        except (json.JSONDecodeError, ValueError) as exc:
+            raise ValidationError("arguments_schema must be valid JSON.") from exc
         return value
 
     def _parse_dependency(self, dep: Any):
@@ -142,10 +163,7 @@ class ProgramSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):  # pylint: disable=too-many-branches
         """Validates serializer data."""
-        entrypoint = attrs.get("entrypoint", None)
         image = attrs.get("image", None)
-        if entrypoint is None and image is None:
-            raise ValidationError("At least one of attributes (entrypoint, image) is required.")
         try:
             deps = json.loads(attrs.get("dependencies", "[]"))
         except (json.JSONDecodeError, UnicodeDecodeError) as exc:
@@ -173,7 +191,7 @@ class ProgramSerializer(serializers.ModelSerializer):
             provider_instance = Provider.objects.filter(name=provider).first()
             if provider_instance is None:
                 raise ValidationError(f"{provider} is not valid provider.")
-            if provider_instance.registry and not image.startswith(provider_instance.registry):
+            if provider_instance.registry and not _image_in_registry(image, provider_instance.registry):
                 raise ValidationError(f"Custom images must be in {provider_instance.registry}.")
 
         version = attrs.get("version", None)

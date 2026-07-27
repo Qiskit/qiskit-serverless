@@ -80,6 +80,7 @@ from qiskit_serverless.utils.json import (
     safe_json_request_as_dict,
     safe_json_request_as_list,
     safe_json_request,
+    raise_for_non_ok_response,
 )
 from qiskit_serverless.utils.formatting import format_provider_name_and_title
 from qiskit_serverless.serializers.program_serializers import (
@@ -134,6 +135,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         host = host or os.environ.get(ENV_GATEWAY_PROVIDER_HOST)
         if host is None:
             raise QiskitServerlessException("Please provide `host` of gateway.")
+        host = host.rstrip("/")
 
         version = version or os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
         if version is None:
@@ -185,7 +187,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 )
             )
         except QiskitServerlessException as reason:
-            raise QiskitServerlessException("Credentials couldn't be verified.") from reason
+            raise QiskitServerlessException(f"Credentials couldn't be verified: {reason}") from reason
 
     def dependencies_versions(self):
         """Get the list of available dependencies and its versions for creating functions"""
@@ -241,7 +243,12 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         )
 
         return [
-            Job(job.get("id"), job_service=self, raw_data=job, compute_profile=job.get("compute_profile"))
+            Job(
+                job.get("id"),
+                job_service=self,
+                raw_data=job,
+                compute_profile=job.get("compute_profile"),
+            )
             for job in response_data.get("results", [])
         ]
 
@@ -291,7 +298,12 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         )
 
         return [
-            Job(job.get("id"), job_service=self, raw_data=job, compute_profile=job.get("compute_profile"))
+            Job(
+                job.get("id"),
+                job_service=self,
+                raw_data=job,
+                compute_profile=job.get("compute_profile"),
+            )
             for job in response_data.get("results", [])
         ]
 
@@ -363,7 +375,11 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             job_id = response_data.get("id")
             span.set_attribute("job.id", job_id)
 
-        return Job(job_id, job_service=self, compute_profile=response_data.get("compute_profile"))
+        return Job(
+            job_id,
+            job_service=self,
+            compute_profile=response_data.get("compute_profile"),
+        )
 
     def get_job_data(self, job_id: str) -> Optional[dict]:
         return (
@@ -434,11 +450,15 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         )
         if response.status_code == 204:
             return {}
+        # Any non-OK response (from the gateway, COS, or an intermediary such as
+        # Cloudflare returning a block page) is surfaced with its status and body
+        # instead of being fed to the JSON parser as a cryptic decoding error.
+        raise_for_non_ok_response(response)
         # Not all redirects go to COS — HTTP→HTTPS redirects stay on the same host.
         # Checking the hostname detects only redirects to an external host (COS/MinIO).
         redirected_to_cos = urlparse(response.url).hostname != urlparse(gateway_url).hostname
         if redirected_to_cos:
-            return json.loads(response.text, cls=QiskitObjectsDecoder) if response.ok else {}
+            return json.loads(response.text, cls=QiskitObjectsDecoder)
         return json.loads(response.json().get("result", "{}") or "{}", cls=QiskitObjectsDecoder)
 
     @_trace_job
@@ -451,11 +471,15 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         )
         if response.status_code == 204:
             return "No logs yet."
+        # Any non-OK response (from the gateway, COS, or an intermediary such as
+        # Cloudflare returning a block page) is surfaced with its status and body
+        # instead of being fed to the JSON parser as a cryptic decoding error.
+        raise_for_non_ok_response(response)
         # Not all redirects go to COS — HTTP→HTTPS redirects stay on the same host.
         # Checking the hostname detects only redirects to an external host (COS/MinIO).
         redirected_to_cos = urlparse(response.url).hostname != urlparse(gateway_url).hostname
         if redirected_to_cos:
-            return response.text if response.ok else "Error fetching logs."
+            return response.text
         return safe_json_request_as_dict(request=lambda: response).get("logs")
 
     @_trace_job
@@ -468,11 +492,15 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         )
         if response.status_code == 204:
             return "No logs yet."
+        # Any non-OK response (from the gateway, COS, or an intermediary such as
+        # Cloudflare returning a block page) is surfaced with its status and body
+        # instead of being fed to the JSON parser as a cryptic decoding error.
+        raise_for_non_ok_response(response)
         # Not all redirects go to COS — HTTP→HTTPS redirects stay on the same host.
         # Checking the hostname detects only redirects to an external host (COS/MinIO).
         redirected_to_cos = urlparse(response.url).hostname != urlparse(gateway_url).hostname
         if redirected_to_cos:
-            return response.text if response.ok else "Error fetching logs."
+            return response.text
         return safe_json_request_as_dict(request=lambda: response).get("logs")
 
     @_trace_job

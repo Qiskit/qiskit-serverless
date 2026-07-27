@@ -21,6 +21,11 @@ docker-compose-dev.yaml
 .idea
 .vscode/
 
+### Local env files (never bake into the image)
+
+**/.env
+**/.env.*
+
 ### Python project ignores
 
 *.pyc

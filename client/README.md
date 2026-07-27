@@ -17,6 +17,13 @@ To install the latest release of the client, run:
 pip install qiskit-serverless
 ```
 
+Ray is an optional dependency, needed only for the Ray runner. Install it with the
+`ray` extra:
+
+```shell
+pip install qiskit-serverless[ray]
+```
+
 To install an editable package from source, run:
 
 ```shell

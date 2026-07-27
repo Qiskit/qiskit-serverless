@@ -20,11 +20,15 @@ class GetJobsUseCase:
         user: AbstractUser,
         accessible_functions: FunctionAccessResult,
         program_id: uuid.UUID,
-    ) -> QuerySet:
+    ) -> tuple[QuerySet, bool]:
         """Return jobs for the given program, filtered by access level.
 
         Provider admins see all jobs for their function; regular users see only their own.
         Raises FunctionNotFoundException if the program does not exist.
+
+        Returns a tuple of the job queryset and a boolean that is True when the caller
+        is a provider admin listing every author's jobs across the function. Callers use
+        that flag to hide the author-private `result` field on the cross-author listing.
         """
         program = Function.objects.filter(id=program_id).first()
         if program is None:
@@ -36,6 +40,6 @@ class GetJobsUseCase:
             function_title=program.title,
             accessible_functions=accessible_functions,
         ):
-            return Job.objects.filter(program=program)
+            return Job.objects.filter(program=program), True
 
-        return Job.objects.filter(program=program, author=user)
+        return Job.objects.filter(program=program, author=user), False

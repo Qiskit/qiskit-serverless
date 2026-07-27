@@ -3,7 +3,6 @@
 import os
 import json
 import pytest
-from unittest.mock import patch
 
 from django.contrib.auth import models
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -110,6 +109,26 @@ class TestSerializers:
         serializer = UploadProgramSerializer(data=data)
         assert serializer.is_valid()
         assert "image" in list(serializer.validated_data.keys())
+
+    def test_upload_program_custom_image_registry_prefix_boundary(self):
+        """A registry must match on a path boundary, not a bare string prefix.
+
+        Provider ``default`` has registry ``docker.io/awesome``. An image such as
+        ``docker.io/awesome.attacker.com/evil`` shares the prefix but is hosted
+        elsewhere and must be rejected.
+        """
+        data = {
+            "title": "Hello world",
+            "entrypoint": "main.py",
+            "arguments": {},
+            "dependencies": "[]",
+            "image": "docker.io/awesome.attacker.com/evil:latest",
+            "provider": "default",
+        }
+
+        serializer = UploadProgramSerializer(data=data)
+        assert not serializer.is_valid()
+        assert "Custom images must be in docker.io/awesome." in str(serializer.errors)
 
     def test_upload_program_with_custom_image_and_title_provider(self):
         """Tests image upload serializer."""
@@ -229,13 +248,10 @@ class TestSerializers:
         assert env_vars["PROGRAM_ENV2"] == "VALUE2"
         assert job.account_id == "1234-5678-9012"
 
-    @patch("api.use_cases.programs.run.create_gpujob_allowlist")
-    def test_run_job_serializer_sets_gpu_flag_for_gpu_provider(self, mock_gpujob_allowlist):
-        """Tests that gpu flag is True when program's provider is in GPU allowlist."""
-        mock_gpujob_allowlist.return_value = {"gpu-functions": {"gpu_provider": []}}
-
+    def test_run_job_serializer_sets_gpu_flag_for_gpu_provider(self):
+        """Tests that gpu flag is True when the program has gpu enabled and a provider."""
         user = models.User.objects.get(username="test_user")
-        program = TestUtils.create_program(program_title="gpu-func", author=user, provider="gpu_provider")
+        TestUtils.create_program(program_title="gpu-func", author=user, provider="gpu_provider", gpu=True)
         accessible = create_function_access_result("gpu_provider", "gpu-func", {PLATFORM_PERMISSION_RUN})
 
         job = RunFunctionUseCase().execute(
@@ -257,16 +273,11 @@ class TestSerializers:
         assert job.gpu
 
     def test_upload_program_serializer_with_only_title(self):
-        """Tests upload serializer with only title."""
+        """Serializer accepts title-only requests (entrypoint/image check moved to use case, allowing schema-only updates)."""
         data = {"title": "awesome"}
 
         serializer = UploadProgramSerializer(data=data)
-        assert not serializer.is_valid()
-        errors = serializer.errors
-        assert ["non_field_errors"] == list(errors.keys())
-        assert ["At least one of attributes (entrypoint, image) is required."] == [
-            value[0] for value in errors.values()
-        ]
+        assert serializer.is_valid()
 
     # Dependency validation tests use 'mergedeep' and 'ffsim' as representative examples
     # from requirements-dynamic-dependencies.txt. These tests validate the dependency

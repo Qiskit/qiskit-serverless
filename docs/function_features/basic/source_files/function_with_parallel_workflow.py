@@ -1,6 +1,7 @@
 """function with parallel workflow for jupyter notebook."""
 
 import os
+import ray
 from qiskit import QuantumCircuit
 from qiskit.providers import BackendV2
 from qiskit.providers.exceptions import QiskitBackendNotFoundError
@@ -8,10 +9,10 @@ from qiskit.transpiler import generate_preset_pass_manager
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_ibm_runtime.fake_provider import FakeProviderForBackendV2
 from qiskit_ibm_runtime import SamplerV2 as Sampler
-from qiskit_serverless import get_arguments, save_result, distribute_task, get
+from qiskit_serverless import get_arguments, save_result
 
 
-@distribute_task()
+@ray.remote
 def distributed_transpilation(circuit_idx: int, circuit: QuantumCircuit, target_backend: BackendV2):
     """Distributed task that returns an ISA circuit ready for execution."""
     print(
@@ -86,12 +87,14 @@ else:
 # get task references (async, parallel on the serverless cluster)
 print(f"[main] Launching distributed transpilation tasks (count={len(circuits)})...")
 # sending circuit indexing for
-sample_task_references = [distributed_transpilation(idx, circuit, backend) for idx, circuit in enumerate(circuits)]
+sample_task_references = [
+    distributed_transpilation.remote(idx, circuit, backend) for idx, circuit in enumerate(circuits)
+]
 
 # ----- collect ISA circuits -----
 # collect all results (blocks until all tasks complete)
 print("[main] Waiting for transpilation tasks to finish...")
-isa_circuits = get(sample_task_references)
+isa_circuits = ray.get(sample_task_references)
 print(f"[main] All transpilation tasks completed (isa_count={len(isa_circuits)})")
 
 # ----- batch execute on the quantum computer -----

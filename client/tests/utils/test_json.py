@@ -25,8 +25,11 @@ from qiskit_serverless.utils.json import (
     safe_json_request_as_list,
     safe_json_request_as_dict,
     safe_json_request,
+    raise_for_non_ok_response,
+    _body_snippet,
 )
 from qiskit_serverless.exception import QiskitServerlessException
+from qiskit_serverless.utils.errors import ErrorCodes
 
 
 class ConcreteJsonSerializable(JsonSerializable):
@@ -250,7 +253,10 @@ class TestSafeJsonRequest:
     def test_successful_request_with_nested_data(self):
         """Test with successful request containing nested data."""
         nested_data = {
-            "results": [{"id": 1, "data": {"value": "a"}}, {"id": 2, "data": {"value": "b"}}],
+            "results": [
+                {"id": 1, "data": {"value": "a"}},
+                {"id": 2, "data": {"value": "b"}},
+            ],
             "metadata": {"count": 2},
         }
         mock_response = Mock(spec=requests.Response)
@@ -263,7 +269,10 @@ class TestSafeJsonRequest:
 
     def test_failed_request_with_detailed_error(self):
         """Test with failed request containing detailed error message."""
-        error_details = {"error": "Validation failed", "details": {"field": "name", "message": "Required field"}}
+        error_details = {
+            "error": "Validation failed",
+            "details": {"field": "name", "message": "Required field"},
+        }
         mock_response = Mock(spec=requests.Response)
         mock_response.ok = False
         mock_response.status_code = 422
@@ -275,3 +284,124 @@ class TestSafeJsonRequest:
 
         exception_str = str(context.value)
         assert "422" in exception_str
+
+    def test_failed_request_with_html_body_surfaces_status_and_body(self):
+        """A non-OK response with a non-JSON (e.g. Cloudflare HTML) body should
+        surface the HTTP status and a snippet of the body, not a bare JSON1001."""
+        html_body = (
+            "<!DOCTYPE html><html><head><title>403 Forbidden</title></head>"
+            "<body>Sorry, you have been blocked</body></html>"
+        )
+        mock_response = Mock(spec=requests.Response)
+        mock_response.ok = False
+        mock_response.status_code = 403
+        mock_response.text = html_body
+
+        with pytest.raises(QiskitServerlessException) as context:
+            safe_json_request(lambda: mock_response)
+
+        exception_str = str(context.value)
+        assert "403" in exception_str
+        assert "Sorry, you have been blocked" in exception_str
+        assert ErrorCodes.JSON1001 not in exception_str
+
+    def test_failed_request_with_empty_body_surfaces_status(self):
+        """A non-OK response with an empty body should surface the status and
+        an empty-body note rather than a JSON decode error."""
+        mock_response = Mock(spec=requests.Response)
+        mock_response.ok = False
+        mock_response.status_code = 502
+        mock_response.text = ""
+
+        with pytest.raises(QiskitServerlessException) as context:
+            safe_json_request(lambda: mock_response)
+
+        exception_str = str(context.value)
+        assert "502" in exception_str
+        assert "empty response body" in exception_str
+
+    def test_successful_request_with_non_json_body_reports_json_error(self):
+        """A 2xx response whose body is not JSON is a server-contract violation
+        and should still be reported as a JSON decoding error (JSON1001)."""
+        mock_response = Mock(spec=requests.Response)
+        mock_response.ok = True
+        mock_response.status_code = 200
+        mock_response.text = "not json at all"
+
+        with pytest.raises(QiskitServerlessException) as context:
+            safe_json_request(lambda: mock_response)
+
+        assert ErrorCodes.JSON1001 in str(context.value)
+
+
+class TestRaiseForNonOkResponse:
+    """Tests for the raise_for_non_ok_response helper."""
+
+    def test_ok_response_does_not_raise(self):
+        """An OK response returns without raising."""
+        mock_response = Mock(spec=requests.Response)
+        mock_response.ok = True
+        assert raise_for_non_ok_response(mock_response) is None
+
+    def test_html_block_page_surfaces_status_and_body(self):
+        """A non-OK HTML body (Cloudflare block) surfaces status and body snippet."""
+        mock_response = Mock(spec=requests.Response)
+        mock_response.ok = False
+        mock_response.status_code = 403
+        mock_response.text = "<html><body>Sorry, you have been blocked</body></html>"
+
+        with pytest.raises(QiskitServerlessException) as context:
+            raise_for_non_ok_response(mock_response)
+
+        message = str(context.value)
+        assert "403" in message
+        assert "Sorry, you have been blocked" in message
+        assert ErrorCodes.JSON1001 not in message
+
+    def test_json_error_body_surfaces_status_and_values(self):
+        """A non-OK JSON body surfaces the status and the error values."""
+        mock_response = Mock(spec=requests.Response)
+        mock_response.ok = False
+        mock_response.status_code = 401
+        mock_response.text = json.dumps({"error": "Unauthorized"})
+
+        with pytest.raises(QiskitServerlessException) as context:
+            raise_for_non_ok_response(mock_response)
+
+        message = str(context.value)
+        assert "401" in message
+        assert "Unauthorized" in message
+
+    def test_empty_body_surfaces_status_and_note(self):
+        """A non-OK empty body surfaces the status and an empty-body note."""
+        mock_response = Mock(spec=requests.Response)
+        mock_response.ok = False
+        mock_response.status_code = 502
+        mock_response.text = ""
+
+        with pytest.raises(QiskitServerlessException) as context:
+            raise_for_non_ok_response(mock_response)
+
+        message = str(context.value)
+        assert "502" in message
+        assert "empty response body" in message
+
+
+class TestBodySnippet:
+    """Tests for the _body_snippet helper."""
+
+    def test_empty_body(self):
+        """Blank or whitespace-only bodies produce a readable note."""
+        assert _body_snippet("") == "(empty response body)"
+        assert _body_snippet(None) == "(empty response body)"
+        assert _body_snippet("   \n\t ") == "(empty response body)"
+
+    def test_collapses_whitespace(self):
+        """Newlines and repeated whitespace are collapsed to single spaces."""
+        assert _body_snippet("line one\n\n   line two") == "line one line two"
+
+    def test_truncates_long_body(self):
+        """Bodies longer than the cap are truncated with an ellipsis."""
+        snippet = _body_snippet("x" * 1000)
+        assert snippet.endswith("...")
+        assert len(snippet) == 503

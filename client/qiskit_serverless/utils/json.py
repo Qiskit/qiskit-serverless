@@ -75,6 +75,60 @@ def is_jsonable(data, cls: Optional[Type[JSONEncoder]] = None):
         return False
 
 
+_MAX_BODY_SNIPPET_LEN = 500
+
+
+def _body_snippet(text: Optional[str]) -> str:
+    """Condenses a non-JSON response body into a short, readable snippet.
+
+    Intermediaries (Cloudflare, proxies, load balancers) may return large HTML
+    error pages. This collapses whitespace and truncates so the message stays
+    readable while preserving enough of the body to identify the source.
+
+    Args:
+        text: raw response body.
+
+    Returns:
+        a single-line, length-capped snippet (empty-body note if blank).
+    """
+    if not text or not text.strip():
+        return "(empty response body)"
+    collapsed = " ".join(text.split())
+    if len(collapsed) > _MAX_BODY_SNIPPET_LEN:
+        collapsed = collapsed[:_MAX_BODY_SNIPPET_LEN] + "..."
+    return collapsed
+
+
+def raise_for_non_ok_response(response: requests.Response) -> None:
+    """Raise a readable exception if the response is not OK.
+
+    Surfaces the HTTP status and a snippet of the body so that a block page or
+    error body from an intermediary (Cloudflare, proxy, load balancer) or from
+    COS itself is reported clearly, instead of being fed to a JSON parser and
+    surfacing a cryptic decoding error. If the body is JSON, its values are
+    included; otherwise a cleaned text snippet is used.
+
+    Args:
+        response: the HTTP response to check.
+
+    Raises:
+        QiskitServerlessException: if ``response`` is not OK.
+    """
+    if response is None or response.ok:
+        return
+    try:
+        json_data = json.loads(response.text)
+        details = "".join(str(value) for value in json_data.values()) if isinstance(json_data, Dict) else str(json_data)
+    except json.JSONDecodeError:
+        details = _body_snippet(response.text)
+    raise QiskitServerlessException(
+        format_err_msg(
+            response.status_code,
+            details,
+        )
+    )
+
+
 def safe_json_request_as_list(request: Callable[..., requests.Response]) -> List[Any]:
     """Returns parsed json data from request.
 
@@ -139,34 +193,46 @@ def safe_json_request(
     if error_message:
         raise QiskitServerlessException(error_message)
 
-    decoding_error_message: Optional[str] = None
     try:
         json_data = json.loads(response.text)
+    except json.JSONDecodeError as json_error:
+        # The body is not JSON. This commonly happens when an intermediary
+        # (Cloudflare, an ingress/proxy, a load balancer) returns an HTML
+        # error page or an empty body instead of the gateway's JSON. Surface
+        # the HTTP status and a snippet of the body so the real cause is
+        # visible, rather than a bare JSON1001 that hides it.
         if response is not None and not response.ok:
-            # When response is not ok, the expected json
-            # response is a dictionary with a field
-            # that contains the error message. The key
-            # varies between messages, so appending all
-            # values to a string allows to capture all
-            # potential messages.
-            error_msg = ""
-            for error_string in json_data.values():
-                error_msg += str(error_string)
-
             raise QiskitServerlessException(
                 format_err_msg(
                     response.status_code,
-                    str(error_msg),
+                    _body_snippet(response.text),
                 )
+            ) from json_error
+        # A successful (2xx) response whose body we cannot decode is a genuine
+        # violation of the server contract: report it as a JSON decoding error.
+        raise QiskitServerlessException(
+            format_err_msg(
+                ErrorCodes.JSON1001,
+                str(json_error.args),
             )
-    except json.JSONDecodeError as json_error:
-        decoding_error_message = format_err_msg(
-            ErrorCodes.JSON1001,
-            str(json_error.args),
-        )
-        json_data = {}
+        ) from json_error
 
-    if decoding_error_message:
-        raise QiskitServerlessException(decoding_error_message)
+    if response is not None and not response.ok:
+        # When response is not ok, the expected json
+        # response is a dictionary with a field
+        # that contains the error message. The key
+        # varies between messages, so appending all
+        # values to a string allows to capture all
+        # potential messages.
+        error_msg = ""
+        for error_string in json_data.values():
+            error_msg += str(error_string)
+
+        raise QiskitServerlessException(
+            format_err_msg(
+                response.status_code,
+                str(error_msg),
+            )
+        )
 
     return json_data

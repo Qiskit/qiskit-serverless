@@ -12,25 +12,35 @@
 
 """Test decorators."""
 
+import importlib.util
 from typing import List
+
+import pytest
 
 from qiskit import QuantumCircuit
 from qiskit.circuit.random import random_circuit
 
-import ray
 from qiskit_serverless import get
 from qiskit_serverless.core.decorators import (
     distribute_task,
+    get_refs_by_status,
+    put,
     Target,
     fetch_execution_meta,
 )
+
+# Ray is an optional dependency (`pip install qiskit-serverless[ray]`). The test that
+# spins up a Ray cluster only runs when it is installed; the rest run either way.
+ray_installed = importlib.util.find_spec("ray") is not None
 
 
 class TestDecorators:
     """Test decorators."""
 
+    @pytest.mark.skipif(not ray_installed, reason="requires the optional [ray] extra")
     def test_distribute_task(self):
         """Test for run_qiskit_remote."""
+        import ray  # pylint: disable=import-outside-toplevel
 
         @distribute_task()
         def another_function(circuit: List[QuantumCircuit], other_circuit: QuantumCircuit):
@@ -48,6 +58,43 @@ class TestDecorators:
             reference = ultimate_function(1)
             result = get(reference)
             assert result == 4
+
+    def test_distribute_task_deprecation_warning(self):
+        """`distribute_task` should raise a DeprecationWarning pointing to ray.remote."""
+        with pytest.warns(DeprecationWarning, match="ray.remote"):
+
+            @distribute_task()
+            def _some_function():
+                return 42
+
+    @pytest.mark.skipif(not ray_installed, reason="requires the optional [ray] extra")
+    def test_get_deprecation_warning(self):
+        """`get` should raise a DeprecationWarning pointing to ray.get."""
+        import ray  # pylint: disable=import-outside-toplevel
+
+        with ray.init():
+            reference = ray.put(42)
+            with pytest.warns(DeprecationWarning, match="ray.get"):
+                assert get(reference) == 42
+
+    @pytest.mark.skipif(not ray_installed, reason="requires the optional [ray] extra")
+    def test_put_deprecation_warning(self):
+        """`put` should raise a DeprecationWarning pointing to ray.put."""
+        import ray  # pylint: disable=import-outside-toplevel
+
+        with ray.init():
+            with pytest.warns(DeprecationWarning, match="ray.put"):
+                put(42)
+
+    @pytest.mark.skipif(not ray_installed, reason="requires the optional [ray] extra")
+    def test_get_refs_by_status_deprecation_warning(self):
+        """`get_refs_by_status` should raise a DeprecationWarning pointing to ray.wait."""
+        import ray  # pylint: disable=import-outside-toplevel
+
+        with ray.init():
+            reference = ray.put(42)
+            with pytest.warns(DeprecationWarning, match="ray.wait"):
+                get_refs_by_status([reference])
 
     def test_target(self):
         """Test for target."""
