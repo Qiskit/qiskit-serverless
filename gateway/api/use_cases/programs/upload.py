@@ -117,7 +117,6 @@ class UploadFunctionUseCase:
             instance.env_vars = json.dumps(encrypt_env_vars(json.loads(data.env_vars)))
         if data.artifact is not None:
             instance.artifact = data.artifact
-        instance.author = user
         if data.image is not None:
             instance.image = data.image
         if data.runner is not None:

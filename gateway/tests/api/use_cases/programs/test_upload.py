@@ -76,6 +76,23 @@ class TestUploadFunctionUseCase:
         assert result.pk == existing.pk
         assert result.entrypoint == "new.py"
 
+    def test_reupload_by_different_provider_admin_preserves_original_author(self, user):
+        group = TestUtils.get_or_create_group("my-provider")
+        TestUtils.add_user_to_group(user, group)
+        other_admin = User.objects.create_user(username="other-admin")
+        TestUtils.add_user_to_group(other_admin, group)
+        provider = Provider.objects.create(name="my-provider")
+        provider.admin_groups.add(group)
+        existing = Program.objects.create(title="my-fn", provider=provider, author=user, entrypoint="old.py")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        result = UploadFunctionUseCase().execute(
+            other_admin, accessible, UploadFunctionInput(title="my-fn", provider="my-provider", entrypoint="new.py")
+        )
+
+        assert result.pk == existing.pk
+        assert result.author == user
+
     def test_raises_not_found_when_provider_not_found(self, user):
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
