@@ -28,7 +28,7 @@ application:
     enable: true
   maintenance: false
   ray:
-    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.33.0"
+    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.34.0"
     cpu: 2
     memory: 2
     gpu: 1
@@ -39,7 +39,6 @@ application:
     kubectlImage: alpine/k8s:1.35.4
     scrapeWithPrometheus: true
     useTLS: true
-    gpuJobsConfig: "api/v1/gpu-jobs.json"
 
   limits:
     maxJobsPerUser: 2

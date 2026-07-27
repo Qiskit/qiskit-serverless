@@ -187,7 +187,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 )
             )
         except QiskitServerlessException as reason:
-            raise QiskitServerlessException("Credentials couldn't be verified.") from reason
+            raise QiskitServerlessException(f"Credentials couldn't be verified: {reason}") from reason
 
     def dependencies_versions(self):
         """Get the list of available dependencies and its versions for creating functions"""

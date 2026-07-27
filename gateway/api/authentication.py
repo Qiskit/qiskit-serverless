@@ -4,6 +4,7 @@ import logging
 from rest_framework import authentication, exceptions
 
 from core.domain.authorization.function_access_result import FunctionAccessResult
+from api.domain.exceptions.runtime_api_exception import RuntimeFunctionsException
 
 from api.clients.function_access_client import FunctionAccessClient
 from api.domain.authentication.channel import Channel
@@ -69,7 +70,17 @@ class CustomTokenBackend(authentication.BaseAuthentication):
             public_access=public_access,
         ).execute()
 
-        accessible_functions = FunctionAccessClient().get_accessible_functions(crn, authorization_token)
+        try:
+            accessible_functions = FunctionAccessClient().get_accessible_functions(crn, authorization_token)
+        except RuntimeFunctionsException as error:
+            # The Runtime API failed while resolving the user's accessible functions.
+            # Details (status codes, CRN) are already logged by FunctionAccessClient;
+            # surface a generic, CRN-free message instead of an opaque 500.
+            logger.exception("Could not resolve accessible functions: %s", error.message)
+            raise exceptions.AuthenticationFailed(
+                "We couldn't verify your access to Qiskit Functions at this time. "
+                "Please try again later, or contact IBM support if the problem persists."
+            ) from error
         return quantum_user, CustomAuthentication(
             channel=channel,
             token=authorization_token.encode(),

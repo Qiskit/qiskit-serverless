@@ -15,6 +15,7 @@ from ibm_cloud_sdk_core import DetailedResponse
 
 from api.authentication import CustomTokenBackend
 from api.domain.authentication.custom_authentication import CustomAuthentication
+from api.domain.exceptions.runtime_api_exception import RuntimeFunctionsException
 from api.services.authentication.ibm_quantum_platform import IBMQuantumPlatform
 from core.models import VIEW_PROGRAM_PERMISSION
 
@@ -159,6 +160,54 @@ class TestIBMQuantumPlatformAuthentication:
         settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
         with pytest.raises(AuthenticationFailed, match="Your user was deactivated"):
             CustomTokenBackend().authenticate(_create_request())
+
+    @patch.object(IamAccessGroupsV2, "list_access_groups")
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    @responses.activate
+    def test_disallowed_resource_plan_raises_entitlement_error(
+        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
+    ):
+        """A CRN whose resource plan is not in RESOURCE_PLANS_ID_ALLOWED should get a
+        clear entitlement message (not the misleading 'credentials' wording)."""
+        _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
+        _add_mock_response("IBMid-NO-PLAN", "abc18abcd41546508b35dfe0627109c4")
+
+        # The mocked resource plan (RESOURCE_PLAN_ID) is intentionally NOT in the allowed list.
+        settings.RESOURCE_PLANS_ID_ALLOWED = ["some-other-allowed-plan"]
+        with pytest.raises(AuthenticationFailed, match="resource plan is not entitled") as exc_info:
+            CustomTokenBackend().authenticate(_create_request())
+
+        # The specific (server-only) plan id must not leak to the user-facing message.
+        assert RESOURCE_PLAN_ID not in str(exc_info.value)
+
+    @patch.object(IamAccessGroupsV2, "list_access_groups")
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    @patch("api.authentication.FunctionAccessClient.get_accessible_functions")
+    @responses.activate
+    def test_runtime_api_failure_raises_friendly_error_without_crn(
+        self,
+        mock_get_accessible_functions: MagicMock,
+        mock_get_resource_instance: MagicMock,
+        mock_list_access_groups: MagicMock,
+        settings,
+    ):
+        """A Runtime API failure while resolving accessible functions must surface a
+        friendly AuthenticationFailed (not an opaque 500) and must not leak the CRN."""
+        _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
+        _add_mock_response("IBMid-RUNTIME-ERR", "abc18abcd41546508b35dfe0627109c4")
+
+        crn = "crn:v1:bluemix:public:quantum-computing:us-east:a/secret-account:instance-id::"
+        # The exception message intentionally embeds the CRN (as the real client does) to
+        # assert it is NOT propagated to the user-facing message.
+        mock_get_accessible_functions.side_effect = RuntimeFunctionsException(f"Unexpected status 502 for CRN {crn}")
+
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        with pytest.raises(AuthenticationFailed, match="couldn't verify your access") as exc_info:
+            CustomTokenBackend().authenticate(_create_request(crn=crn))
+
+        message = str(exc_info.value)
+        assert crn not in message
+        assert "502" not in message
 
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")
