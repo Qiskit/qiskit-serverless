@@ -59,16 +59,21 @@ From the repository root:
 
 .. code-block:: bash
 
-   # 1. Build and start the stack (gateway, scheduler, postgres, MinIO, fleet-worker)
+   # 1. Build the fleets runtime base image. The fleet-worker is FROM
+   #    fleet-node:latest, and `compose up --build` does not build a
+   #    FROM-referenced base, so it must be built first.
+   make build-fleet-node
+
+   # 2. Build and start the stack (gateway, scheduler, postgres, MinIO, fleet-worker)
    docker compose -f docker-compose-fleets-test.yaml up --build -d
 
-   # 2. Wait until the gateway is ready
+   # 3. Wait until the gateway is ready
    curl --retry 30 --retry-delay 2 --retry-all-errors --fail http://localhost:8000/liveness/
 
-   # 3. Run the integration tests
+   # 4. Run the integration tests
    tox -c tests/tox.ini -e py311-fleets
 
-   # 4. Tear down (``-v`` also removes the volumes)
+   # 5. Tear down (``-v`` also removes the volumes)
    docker compose -f docker-compose-fleets-test.yaml down -v
 
 The tests reach the gateway on port ``8000``, MinIO on ``9000``, and PostgreSQL
