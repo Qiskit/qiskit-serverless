@@ -1,3 +1,15 @@
+# This code is part of a Qiskit project.
+#
+# (C) IBM 2026
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE.txt file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
 """Regression tests for main.settings.
 
 settings.py reads the environment at import time and raises there, so we
@@ -28,6 +40,7 @@ def restore_settings_module():
     sys.modules.setdefault("pytest", pytest)
     previous_debug = os.environ.get("DEBUG")
     os.environ["DEBUG"] = "1"
+    os.environ.pop("SETTINGS_AUTH_MECHANISM", None)
     try:
         importlib.reload(main.settings)
     finally:
@@ -78,6 +91,34 @@ def test_debug_enabled_sets_debug_log_level(monkeypatch):
 
     assert main.settings.DEBUG
     assert main.settings.LOG_LEVEL == "DEBUG"
+
+
+class TestAuthMechanism:
+    """Tests for SETTINGS_AUTH_MECHANISM handling in main.settings."""
+
+    def test_unknown_mechanism_raises(self, monkeypatch):
+        """A bogus mechanism fails closed with ImproperlyConfigured."""
+        monkeypatch.setenv("SETTINGS_AUTH_MECHANISM", "bogus_mechanism")
+        with pytest.raises(ImproperlyConfigured):
+            importlib.reload(main.settings)
+
+    def test_custom_token_resolves(self, monkeypatch):
+        """The custom_token mechanism resolves without raising."""
+        monkeypatch.setenv("SETTINGS_AUTH_MECHANISM", "custom_token")
+        importlib.reload(main.settings)
+        assert main.settings.SETTINGS_AUTH_MECHANISM == "custom_token"
+        assert main.settings.DJR_DEFAULT_AUTHENTICATION_CLASSES == [
+            "api.authentication.CustomTokenBackend",
+        ]
+
+    def test_mock_token_resolves(self, monkeypatch):
+        """The mock_token mechanism resolves without raising."""
+        monkeypatch.setenv("SETTINGS_AUTH_MECHANISM", "mock_token")
+        importlib.reload(main.settings)
+        assert main.settings.SETTINGS_AUTH_MECHANISM == "mock_token"
+        assert main.settings.DJR_DEFAULT_AUTHENTICATION_CLASSES == [
+            "api.authentication.MockTokenBackend",
+        ]
 
 
 def test_template_dirs_use_etc_gateway_not_tmp():

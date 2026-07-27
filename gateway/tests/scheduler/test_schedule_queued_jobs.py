@@ -38,4 +38,4 @@ def test_job_saved_with_save_direct():
             max_slots_possible=5, number_of_slots_running=0, gpu_job=False
         )
 
-    mock_job.save_direct.assert_called_once_with(["status", "ray_job_id", "compute_resource"])
+    mock_job.save_direct.assert_called_once_with(["status", "ray_job_id", "compute_resource", "env_vars"])

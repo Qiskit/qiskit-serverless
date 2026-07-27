@@ -977,3 +977,37 @@ body.login #content h1 {
         transition: none !important;
     }
 }
+
+/* W3ID SSO login button (optional backoffice SSO login) */
+.qs-sso-separator {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: var(--body-quiet-color);
+    margin: 16px 0 8px;
+}
+
+.qs-sso-separator::before,
+.qs-sso-separator::after {
+    content: "";
+    flex: 1;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.qs-sso-separator span {
+    padding: 0 10px;
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+.qs-sso-row {
+    padding: 0;
+}
+
+.qs-sso-button {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+    padding: 10px 15px;
+}

@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("api", "0054_job_running_started_at"),
+        ("api", "0055_program_gpu"),
     ]
 
     operations = [

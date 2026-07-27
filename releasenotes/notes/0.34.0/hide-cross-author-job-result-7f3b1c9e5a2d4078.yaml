@@ -1,0 +1,10 @@
+---
+upgrade:
+  - |
+    The ``GET /api/v1/programs/{id}/get_jobs/`` provider listing endpoint now omits
+    the ``result`` field, bringing it in line with the other cross-author job listing
+    endpoints. Job results are scoped to their author; provider admins listing jobs
+    across authors see job metadata and status only.
+
+    Provider admins can still read their own job results through the own-scoped job
+    endpoints, which continue to include ``result``.

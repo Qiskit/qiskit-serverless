@@ -55,7 +55,11 @@ class AuthenticationUseCase:
         if self.public_access is False:
             verified = authentication_service.verify_access()
             if verified is False:
-                raise exceptions.AuthenticationFailed("Sorry, you don't have access to the service.")
+                raise exceptions.AuthenticationFailed(
+                    "Your instance's resource plan is not entitled to use Qiskit Functions. "
+                    "Please use an instance provisioned on a supported plan, or contact IBM "
+                    "support if you believe this is an error."
+                )
 
         access_groups = authentication_service.get_groups()
         quantum_user, created = User.objects.get_or_create(username=username)
@@ -63,7 +67,7 @@ class AuthenticationUseCase:
             logger.debug("New user [%s] created", username)
         if not UserAccessPolicies.can_access(quantum_user):
             raise exceptions.AuthenticationFailed(
-                "Your user was deactivated. Please contact to IBM support for reactivaton."
+                "Your user was deactivated. Please contact IBM support for reactivation."
             )
 
         if self.channel == Channel.LOCAL:

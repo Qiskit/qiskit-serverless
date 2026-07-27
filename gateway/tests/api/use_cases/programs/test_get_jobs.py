@@ -34,10 +34,12 @@ class TestGetJobsUseCase:
         TestUtils.create_job(author=other_user, program=program)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
-        result = list(GetJobsUseCase().execute(user, accessible, program.id))
+        jobs, is_provider_listing = GetJobsUseCase().execute(user, accessible, program.id)
+        result = list(jobs)
 
         assert len(result) == 1
         assert result[0].id == own_job.id
+        assert is_provider_listing is False
 
     def test_provider_admin_sees_all_jobs(self, user, other_user, provider):
         group = TestUtils.get_or_create_group("my-provider")
@@ -50,9 +52,11 @@ class TestGetJobsUseCase:
         job_b = TestUtils.create_job(author=other_user, program=program)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
-        result = list(GetJobsUseCase().execute(user, accessible, program.id))
+        jobs, is_provider_listing = GetJobsUseCase().execute(user, accessible, program.id)
+        result = list(jobs)
 
         assert {j.id for j in result} == {job_a.id, job_b.id}
+        assert is_provider_listing is True
 
     def test_non_admin_sees_only_own_jobs(self, user, other_user, provider):
         program = Program.objects.create(
@@ -62,10 +66,12 @@ class TestGetJobsUseCase:
         TestUtils.create_job(author=other_user, program=program)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
-        result = list(GetJobsUseCase().execute(user, accessible, program.id))
+        jobs, is_provider_listing = GetJobsUseCase().execute(user, accessible, program.id)
+        result = list(jobs)
 
         assert len(result) == 1
         assert result[0].id == own_job.id
+        assert is_provider_listing is False
 
     def test_raises_not_found_when_program_missing(self, user):
         import uuid
