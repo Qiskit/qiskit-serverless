@@ -136,6 +136,8 @@ class TestProgramApiLegacyGroupsPermissions:
 
             assert response.status_code == status.HTTP_200_OK
             assert len(response.data) == 2
+            # The cross-author provider listing must never expose the author-private result.
+            assert all("result" not in job for job in response.data)
 
         def test_non_admin_sees_only_own_jobs(self, client, authorize_legacy):
             """get_jobs() returns only own jobs when user is not in the provider admin_groups."""
@@ -149,6 +151,8 @@ class TestProgramApiLegacyGroupsPermissions:
 
             assert response.status_code == status.HTTP_200_OK
             assert len(response.data) == 1
+            # The own listing still returns each job's result.
+            assert all("result" in job for job in response.data)
 
 
 class TestProgramApi(APITestCase):

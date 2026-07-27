@@ -25,7 +25,7 @@ class TestAvailableDependenciesVersion(APITestCase):
             "mthree==3.0.0",
             "pyscf==2.13.1",
             "cotengrust==0.2.0",
-            "qiskit-addon-aqc-tensor[quimb-jax]==0.3.0",
+            "qiskit-addon-aqc-tensor[quimb-jax]==0.3.1",
             "qiskit-addon-obp==0.3.0",
             "qiskit-addon-sqd==0.12.1",
             "qiskit-addon-utils==0.2.0",

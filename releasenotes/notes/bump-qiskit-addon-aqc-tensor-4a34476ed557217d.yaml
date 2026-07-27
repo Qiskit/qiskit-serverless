@@ -1,0 +1,6 @@
+---
+upgrade:
+  - |
+    Bumped ``qiskit-addon-aqc-tensor[quimb-jax]`` from ``0.3.0`` to ``0.3.1``
+    in the dynamic dependencies allowlist bundled in the Ray runner image.
+    Qiskit Functions can now declare and use this newer version.
