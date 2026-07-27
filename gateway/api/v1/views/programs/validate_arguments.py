@@ -1,10 +1,8 @@
 """API endpoint for validating arguments against a Qiskit Function schema."""
 
-import json
 import logging
 from typing import cast
 
-import jsonschema
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, serializers, status
 from rest_framework.decorators import permission_classes
@@ -90,18 +88,7 @@ def validate_arguments(request: Request) -> Response:
         )
 
     arguments = serializer.data.get("arguments")
-    try:
-        validate_arguments_use_case(function, arguments)
-    except jsonschema.ValidationError as exc:
-        return Response(
-            {"message": exc.message, "path": [*exc.path]},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    except json.JSONDecodeError as exc:
-        return Response(
-            {"message": f"arguments is not valid JSON: {exc.msg}"},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+    validate_arguments_use_case(function, arguments)
 
     logger.info(
         "[programs-validate-arguments] user_id=%s program=%s provider=%s | Arguments validated ok",
