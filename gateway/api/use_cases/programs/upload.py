@@ -108,15 +108,18 @@ class UploadFunctionUseCase:
     def _update(self, instance: Function, data: UploadFunctionInput, user) -> Function:
         logger.info("user_id=%s program=%s | Updating function", user.id, instance.title)
 
-        instance.entrypoint = data.entrypoint or DEFAULT_PROGRAM_ENTRYPOINT
+        if data.entrypoint is not None:
+            instance.entrypoint = data.entrypoint
         if data.dependencies is not None:
             raw_deps = json.loads(data.dependencies)
             instance.dependencies = json.dumps([_normalize_dependency(d) for d in raw_deps])
         if data.env_vars is not None:
             instance.env_vars = json.dumps(encrypt_env_vars(json.loads(data.env_vars)))
-        instance.artifact = data.artifact
+        if data.artifact is not None:
+            instance.artifact = data.artifact
         instance.author = user
-        instance.image = data.image
+        if data.image is not None:
+            instance.image = data.image
         if data.runner is not None:
             instance.runner = data.runner
 

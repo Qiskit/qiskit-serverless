@@ -1258,40 +1258,38 @@ class TestProgramApi(APITestCase):
         assert program.arguments_schema == schema
         assert program.env_vars not in ("{}", "")
 
-    def test_reupload_with_only_required_fields_preserves_optional_fields(self):
-        """Re-uploading with title+entrypoint must preserve all previously set optional fields.
+    def test_reupload_with_only_title_preserves_optional_fields(self):
+        """Re-uploading with only the title must preserve every previously set optional field.
 
         This test proves empirically which fields survive a minimal re-upload.
-        Fields that used to RESET (runner, dependencies, env_vars) must be PRESERVED.
+        Fields that used to RESET (runner, dependencies, env_vars, entrypoint, artifact, image) must be PRESERVED.
         """
         schema = json.dumps({"type": "object"})
         user = TestUtils.authorize_client(user="test_user", client=self.client)
         TestUtils.get_or_create_ce_project(project_name="test-project", project_id="test-id")
-        TestUtils.create_program(
-            program_title="reupload-test-func",
-            author=user,
-            entrypoint="original.py",
-            description="Original description",
-            version="2.0.0",
-            runner=Program.FLEETS,
-            dependencies='["numpy==1.26.0"]',
-            env_vars='{"MY_KEY":"MY_VALUE"}',
-            arguments_schema=schema,
-        )
-        fake_file = ContentFile(b"print('updated')")
-        fake_file.name = "update.tar"
 
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT, CE_DEFAULT_PROJECT_NAME="test-project"):
+            program = TestUtils.create_program(
+                program_title="reupload-test-func",
+                author=user,
+                entrypoint="original.py",
+                artifact=ContentFile(b"print('original')", name="original.tar"),
+                image="docker.io/original-image:latest",
+                description="Original description",
+                version="2.0.0",
+                runner=Program.FLEETS,
+                dependencies='["numpy==1.26.0"]',
+                env_vars='{"MY_KEY":"MY_VALUE"}',
+                arguments_schema=schema,
+            )
+            original_artifact = program.artifact.name
+
             response = self.client.post(
                 "/api/v1/programs/upload/",
-                data={
-                    "title": "reupload-test-func",
-                    "entrypoint": "new_main.py",
-                    "artifact": fake_file,
-                },
+                data={"title": "reupload-test-func"},
             )
         assert response.status_code == status.HTTP_200_OK
-        program = Program.objects.get(title="reupload-test-func", author=user)
+        program.refresh_from_db()
 
         # Already preserved (existing behavior):
         assert program.description == "Original description"
@@ -1302,6 +1300,9 @@ class TestProgramApi(APITestCase):
         assert program.runner == Program.FLEETS
         assert json.loads(program.dependencies) == ["numpy==1.26.0"]
         assert program.env_vars not in ("{}", "")
+        assert program.entrypoint == "original.py"
+        assert program.artifact.name == original_artifact
+        assert program.image == "docker.io/original-image:latest"
 
 
 @pytest.mark.django_db
