@@ -45,7 +45,7 @@ _DOCKER_TMP = "./tests/resources/tmp"
 # Helpers / marks
 # ---------------------------------------------------------------------------
 
-_DOCKER_IMAGE = "python:3-alpine"
+_DOCKER_IMAGE = "python:3-slim"
 
 
 def _render_wrapper(app_run_commands: list[str], *, is_provider_function: bool = False) -> list[str]:
@@ -353,3 +353,33 @@ def test_custom_wrapper_periodic_flush_during_run():
             assert "early line" in content, f"periodic flush did not upload early lines:\n{content}"
         finally:
             proc.wait(timeout=20)
+
+
+@docker_required
+def test_harden_applies_no_new_privs_and_drops_capabilities():
+    """_harden() sets NoNewPrivs and zeros the capability bounding/effective/permitted sets.
+
+    Runs a wrapper whose app prints /proc/self/status lines for NoNewPrivs, CapBnd,
+    CapEff, and CapPrm.  Asserts the values match the expected hardened state so that
+    any regression where _harden() silently stops working is caught immediately.
+    """
+    app = "grep -E '^(NoNewPrivs|CapBnd|CapEff|CapPrm):' /proc/self/status"
+    run_commands = _render_wrapper(["sh", "-c", app])
+
+    with tempfile.TemporaryDirectory(dir=_DOCKER_TMP) as tmp:
+        cos_dir = f"{tmp}/cos"
+        os.makedirs(f"{cos_dir}/public")
+        result = _docker_run(
+            run_commands,
+            {"PUBLIC_LOG_PATH": "/cos/public/logs.log", "LOG_FLUSH_INTERVAL_SECONDS": "999"},
+            f"{cos_dir}:/cos",
+        )
+        assert result.returncode == 0, result.stderr
+
+        with open(f"{cos_dir}/public/logs.log") as f:
+            content = f.read()
+
+    assert "NoNewPrivs:\t1" in content, f"NoNewPrivs not set:\n{content}"
+    assert "CapBnd:\t0000000000000000" in content, f"capability bounding set not cleared:\n{content}"
+    assert "CapEff:\t0000000000000000" in content, f"effective capabilities not zeroed:\n{content}"
+    assert "CapPrm:\t0000000000000000" in content, f"permitted capabilities not zeroed:\n{content}"
