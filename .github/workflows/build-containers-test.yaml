@@ -20,6 +20,7 @@ jobs:
       matrix:
         dockerfile:
           - ray-node/Dockerfile
+          - fleet-node/Dockerfile
           - gateway/Dockerfile
         python:
           - "3.11"
