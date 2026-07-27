@@ -121,6 +121,9 @@ class UploadFunctionUseCase:
             instance.image = data.image
         if data.runner is not None:
             instance.runner = data.runner
+            CodeEngineProject.objects.assign_to_program(instance)
+            if instance.runner == Function.FLEETS and not instance.code_engine_project:
+                raise DRFValidationError("No active Code Engine project available. Contact administrator.")
 
         if data.description is not None:
             instance.description = data.description
@@ -129,6 +132,5 @@ class UploadFunctionUseCase:
         if data.arguments_schema is not None:
             instance.arguments_schema = data.arguments_schema
 
-        CodeEngineProject.objects.assign_to_program(instance)
         instance.save()
         return instance

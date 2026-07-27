@@ -2,6 +2,7 @@
 
 import pytest
 from django.contrib.auth.models import User
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.use_cases.programs.upload import UploadFunctionUseCase
@@ -92,6 +93,35 @@ class TestUploadFunctionUseCase:
 
         assert result.pk == existing.pk
         assert result.author == user
+
+    def test_reupload_switching_to_fleets_without_ce_project_raises(self, user, settings):
+        settings.CE_DEFAULT_PROJECT_NAME = "nonexistent-project"
+        existing = Program.objects.create(title="my-fn", author=user, entrypoint="old.py", runner=Program.RAY)
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        with pytest.raises(DRFValidationError):
+            UploadFunctionUseCase().execute(
+                user,
+                accessible,
+                UploadFunctionInput(title="my-fn", entrypoint="old.py", runner=Program.FLEETS),
+            )
+
+        existing.refresh_from_db()
+        assert existing.runner == Program.RAY
+
+    def test_reupload_without_changing_runner_ignores_missing_ce_project(self, user, settings):
+        settings.CE_DEFAULT_PROJECT_NAME = "nonexistent-project"
+        Program.objects.create(title="my-fn", author=user, entrypoint="old.py", runner=Program.FLEETS)
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        result = UploadFunctionUseCase().execute(
+            user,
+            accessible,
+            UploadFunctionInput(title="my-fn", entrypoint="new.py"),
+        )
+
+        assert result.entrypoint == "new.py"
+        assert result.runner == Program.FLEETS
 
     def test_raises_not_found_when_provider_not_found(self, user):
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
