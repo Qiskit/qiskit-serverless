@@ -130,7 +130,6 @@ class UpdateRayJobsStatuses(SchedulerTask):
                     private_logs=None,
                 )
                 job.status = job_new_status
-                # cleanup env vars
                 job.env_vars = "{}"
                 status_has_changed = True
                 save_logs_to_storage(job, lines)
