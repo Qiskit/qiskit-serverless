@@ -9,17 +9,11 @@ from rest_framework.decorators import permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from api.access_policies.jobs import JobAccessPolicies
-from api.use_cases.validate_arguments import validate_arguments as validate_arguments_use_case
+from api.use_cases.programs.validate_arguments import ValidateArgumentsUseCase
 from api.utils import sanitize_name
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import (
-    PLATFORM_PERMISSION_RUN,
-    RUN_PROGRAM_PERMISSION,
-    Program as Function,
-)
 
 logger = logging.getLogger("api.api.v1.views.programs.validate_arguments")
 
@@ -58,6 +52,7 @@ def validate_arguments(request: Request) -> Response:
 
     provider_name = sanitize_name(serializer.data.get("provider"))
     function_title = sanitize_name(serializer.data.get("title"))
+    arguments = serializer.data.get("arguments")
 
     logger.info(
         "[programs-validate-arguments] user_id=%s program=%s provider=%s accessible_functions=%s",
@@ -67,28 +62,7 @@ def validate_arguments(request: Request) -> Response:
         accessible_functions,
     )
 
-    function = None
-    if provider_name:
-        function = Function.objects.get_function_by_permission(
-            user=user,
-            function_title=function_title,
-            provider_name=provider_name,
-            accessible_functions=accessible_functions,
-            permission=PLATFORM_PERMISSION_RUN,
-            legacy_permission_name=RUN_PROGRAM_PERMISSION,
-        )
-    else:
-        if JobAccessPolicies.can_create(user=user, accessible_functions=accessible_functions):
-            function = Function.objects.get_user_function(user, function_title)
-
-    if function is None:
-        return Response(
-            {"message": f"Qiskit Pattern [{function_title}] was not found."},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
-    arguments = serializer.data.get("arguments")
-    validate_arguments_use_case(function, arguments)
+    ValidateArgumentsUseCase().execute(user, accessible_functions, function_title, provider_name, arguments)
 
     logger.info(
         "[programs-validate-arguments] user_id=%s program=%s provider=%s | Arguments validated ok",
