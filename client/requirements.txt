@@ -5,14 +5,14 @@ qiskit-ibm-runtime>=0.47.0, <0.49.0
 # cloudpickle is imported unconditionally by the client (decorators). Keep the pin
 # aligned with the Ray node/notebook cloudpickle version for cross-node compatibility.
 cloudpickle==3.1.2
-tqdm>=4.68.4, <5
+tqdm>=4.69.0, <5
 # opentelemetry
-opentelemetry-api>=1.43.0, <1.44
-opentelemetry-sdk>=1.43.0, <1.44
-opentelemetry-exporter-otlp-proto-http>=1.43.0, <1.44
-opentelemetry-instrumentation-requests>=0.64b0
+opentelemetry-api>=1.44.0, <1.45
+opentelemetry-sdk>=1.44.0, <1.45
+opentelemetry-exporter-otlp-proto-http>=1.44.0, <1.45
+opentelemetry-instrumentation-requests>=0.65b0
 ipython>=8.39.0, <9
 numpy>=2.2.6, <3
-aiohttp>=3.14.1, <4
+aiohttp>=3.14.2, <4
 zipp==4.1.0
 certifi==2026.6.17

@@ -20,7 +20,7 @@ arm64** ``ray-node`` image that can be used as-is or for custom image developmen
 1. Build the native arm64 base image
 ------------------------------------
 
-This repository ships an arm64 variant of the base image, ``ray-node/Dockerfile.arm64``, and a
+This repository ships an arm64 stage (``AS arm64``) inside ``ray-node/Dockerfile``, and a
 matching dependency file, ``ray-node/requirements-dynamic-dependencies-arm64.txt``. Build it from
 the repository root:
 
@@ -28,15 +28,16 @@ the repository root:
    :caption: Build the arm64 ray-node image
 
    docker build --platform linux/arm64 \
+     --target arm64 \
      -t custom-ray-node:0.32.0-arm64 \
-     -f ray-node/Dockerfile.arm64 .
+     -f ray-node/Dockerfile .
 
 .. note::
 
    The arm64 dependency set omits ``ffsim`` and ``qiskit-addon-aqc-tensor`` because
    ``ffsim==0.0.60`` has no published arm64 wheel. If your function needs them, uncomment the
-   Rust-toolchain block in ``ray-node/Dockerfile.arm64`` (so ``ffsim`` compiles from source) and
-   restore those entries in ``requirements-dynamic-dependencies-arm64.txt``.
+   Rust-toolchain block in the ``arm64`` stage of ``ray-node/Dockerfile`` (so ``ffsim`` compiles
+   from source) and restore those entries in ``requirements-dynamic-dependencies-arm64.txt``.
 
 2. Choose your path
 -------------------
@@ -105,7 +106,7 @@ Path 3 — Build the whole dev stack from local source (arm64)
 If you are developing against your own checkout — i.e. you want ``gateway``, ``scheduler`` and
 ``ray-head`` built from local source rather than from published images — use the dev compose,
 ``docker-compose-dev.yaml``, with its Apple-Silicon override ``docker-compose-dev.arm64.yaml``.
-The override builds ``ray-head`` natively from ``ray-node/Dockerfile.arm64`` and keeps
+The override builds ``ray-head`` natively from the ``arm64`` stage of ``ray-node/Dockerfile`` and keeps
 ``gateway``/``scheduler``/``postgres`` on ``amd64`` (same rationale as Path 1):
 
 .. code-block::

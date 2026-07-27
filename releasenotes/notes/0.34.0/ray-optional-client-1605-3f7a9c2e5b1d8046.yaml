@@ -1,14 +1,4 @@
 ---
-features:
-  - |
-    Ray is now an optional dependency of the ``qiskit-serverless`` client. Install it
-    with the ``ray`` extra when you need the Ray runner::
-
-        pip install qiskit-serverless[ray]
-
-    A plain ``pip install qiskit-serverless`` no longer pulls in Ray, so environments
-    that do not use the Ray runner can install a lighter client. Importing
-    ``qiskit_serverless`` works without Ray installed.
 upgrade:
   - |
     ``ray`` was removed from the base client requirements and is now provided by the
