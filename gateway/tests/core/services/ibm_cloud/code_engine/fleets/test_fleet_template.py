@@ -31,14 +31,13 @@ import os
 import subprocess
 import tempfile
 import time
+import uuid
 
 import pytest
 
 import json
 
 from django.template.loader import get_template
-
-_DOCKER_TMP = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..", "resources", "tmp"))
 
 
 # ---------------------------------------------------------------------------
@@ -85,27 +84,71 @@ _APP_SCRIPT = "\n".join(
 
 
 def _docker_run(
-    run_commands: list[str], env_pairs: dict[str, str], volume: str, timeout: int = 90
-) -> subprocess.CompletedProcess:
-    """Run *run_commands* inside Docker with the given env vars and volume mount.
+    run_commands: list[str], env_pairs: dict[str, str], timeout: int = 90
+) -> tuple[subprocess.CompletedProcess, str]:
+    """Run *run_commands* inside a named Docker container.
 
-    volume: bind-mount spec for Docker's -v flag, e.g. "/host/cos:/cos".
+    Uses docker create → docker cp (script + mkdir) → docker start so that:
+    - The rendered wrapper script is copied in as a file (avoids shell-quoting
+      the ~10 KB script on the command line).
+    - /cos/public/ and /cos/provider/ are pre-created so upload_log has a
+      writable destination without needing a bind mount.
+
+    Returns (result, container_name).  Container is NOT auto-removed so the
+    caller can docker-cp log files out before calling _docker_cleanup().
     """
-    env_flags: list[str] = []
-    for name, value in env_pairs.items():
-        env_flags += ["-e", f"{name}={value}"]
+    assert run_commands[:2] == ["python", "-c"], "run_commands must be ['python', '-c', script]"
+    script = run_commands[2]
 
-    cmd = [
-        "docker",
-        "run",
-        "--rm",
-        "-v",
-        volume,
-        *env_flags,
-        _DOCKER_IMAGE,
-        *run_commands,
-    ]
-    return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    name = f"qs-test-{uuid.uuid4().hex[:12]}"
+    env_flags: list[str] = []
+    for k, v in env_pairs.items():
+        env_flags += ["-e", f"{k}={v}"]
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+        f.write(script)
+        script_path = f.name
+
+    try:
+        # 1. Create (but don't start) the container; run sh so we can mkdir first.
+        subprocess.run(
+            [
+                "docker",
+                "create",
+                "--name",
+                name,
+                *env_flags,
+                _DOCKER_IMAGE,
+                "sh",
+                "-c",
+                "mkdir -p /cos/public /cos/provider && exec python /wrapper.py",
+            ],
+            check=True,
+            capture_output=True,
+        )
+        # 2. Copy the script in.
+        subprocess.run(["docker", "cp", script_path, f"{name}:/wrapper.py"], check=True, capture_output=True)
+        # 3. Start and wait.
+        result = subprocess.run(
+            ["docker", "start", "-a", name],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    finally:
+        os.unlink(script_path)
+
+    return result, name
+
+
+def _docker_cp(container: str, src: str, dst: str) -> None:
+    """Copy a path from inside a (stopped) container to the host."""
+    subprocess.run(["docker", "cp", f"{container}:{src}", dst], check=True, capture_output=True)
+
+
+def _docker_cleanup(container: str) -> None:
+    """Remove a stopped container (best-effort)."""
+    subprocess.run(["docker", "rm", "-f", container], capture_output=True)
 
 
 # ---------------------------------------------------------------------------
@@ -124,22 +167,18 @@ def test_custom_wrapper_all_lines_reach_public_log():
     because the output is well under any reasonable size limit.
     """
     run_commands = _render_wrapper(["sh", "-c", _APP_SCRIPT])
-
-    with tempfile.TemporaryDirectory(dir=_DOCKER_TMP) as tmp:
-        cos_dir = f"{tmp}/cos"
-        os.makedirs(f"{cos_dir}/public")
-        result = _docker_run(
-            run_commands,
-            {
-                "PUBLIC_LOG_PATH": "/cos/public/logs.log",
-                "LOG_FLUSH_INTERVAL_SECONDS": "999",
-            },
-            f"{cos_dir}:/cos",
-        )
+    result, name = _docker_run(
+        run_commands,
+        {"PUBLIC_LOG_PATH": "/cos/public/logs.log", "LOG_FLUSH_INTERVAL_SECONDS": "999"},
+    )
+    try:
         assert result.returncode == 0, result.stderr
-
-        with open(f"{cos_dir}/public/logs.log") as f:
-            public = f.read()
+        with tempfile.TemporaryDirectory() as tmp:
+            _docker_cp(name, "/cos/public/logs.log", tmp)
+            with open(f"{tmp}/logs.log") as f:
+                public = f.read()
+    finally:
+        _docker_cleanup(name)
 
     for line in ("public line 1", "public line 2", "private line 1", "private line 2", "plain line 1", "plain line 2"):
         assert line in public, f"expected '{line}' in public log:\n{public}"
@@ -162,26 +201,25 @@ def test_provider_wrapper_splits_public_and_private_logs():
     because the output is well under any reasonable size limit.
     """
     run_commands = _render_wrapper(["sh", "-c", _APP_SCRIPT], is_provider_function=True)
-
-    with tempfile.TemporaryDirectory(dir=_DOCKER_TMP) as tmp:
-        cos_dir = f"{tmp}/cos"
-        os.makedirs(f"{cos_dir}/public")
-        os.makedirs(f"{cos_dir}/provider")
-        result = _docker_run(
-            run_commands,
-            {
-                "PUBLIC_LOG_PATH": "/cos/public/logs.log",
-                "PRIVATE_LOG_PATH": "/cos/provider/logs.log",
-                "LOG_FLUSH_INTERVAL_SECONDS": "999",
-            },
-            f"{cos_dir}:/cos",
-        )
+    result, name = _docker_run(
+        run_commands,
+        {
+            "PUBLIC_LOG_PATH": "/cos/public/logs.log",
+            "PRIVATE_LOG_PATH": "/cos/provider/logs.log",
+            "LOG_FLUSH_INTERVAL_SECONDS": "999",
+        },
+    )
+    try:
         assert result.returncode == 0, result.stderr
-
-        with open(f"{cos_dir}/public/logs.log") as f:
-            public = f.read()
-        with open(f"{cos_dir}/provider/logs.log") as f:
-            private = f.read()
+        with tempfile.TemporaryDirectory() as tmp:
+            _docker_cp(name, "/cos/public/logs.log", tmp)
+            _docker_cp(name, "/cos/provider/logs.log", f"{tmp}/private.log")
+            with open(f"{tmp}/logs.log") as f:
+                public = f.read()
+            with open(f"{tmp}/private.log") as f:
+                private = f.read()
+    finally:
+        _docker_cleanup(name)
 
     # Public log: only [PUBLIC]-prefixed lines, prefix stripped.
     assert "public line 1" in public
@@ -213,18 +251,18 @@ def test_wrapper_failure_propagates_exit_code_and_flushes_logs():
     """
     app = "printf 'output before failure\\n'; exit 7"
     run_commands = _render_wrapper(["sh", "-c", app])
-
-    with tempfile.TemporaryDirectory(dir=_DOCKER_TMP) as tmp:
-        cos_dir = f"{tmp}/cos"
-        os.makedirs(f"{cos_dir}/public")
-        result = _docker_run(
-            run_commands,
-            {"PUBLIC_LOG_PATH": "/cos/public/logs.log", "LOG_FLUSH_INTERVAL_SECONDS": "999"},
-            f"{cos_dir}:/cos",
-        )
+    result, name = _docker_run(
+        run_commands,
+        {"PUBLIC_LOG_PATH": "/cos/public/logs.log", "LOG_FLUSH_INTERVAL_SECONDS": "999"},
+    )
+    try:
         assert result.returncode == 7
-        with open(f"{cos_dir}/public/logs.log") as f:
-            content = f.read()
+        with tempfile.TemporaryDirectory() as tmp:
+            _docker_cp(name, "/cos/public/logs.log", tmp)
+            with open(f"{tmp}/logs.log") as f:
+                content = f.read()
+    finally:
+        _docker_cleanup(name)
 
     assert "output before failure" in content
 
@@ -245,22 +283,22 @@ def test_custom_wrapper_truncates_log_when_limit_exceeded():
     """
     app = "i=0; while [ $i -lt 50 ]; do printf 'line %04d: some padding text\\n' $i; i=$((i+1)); done"
     run_commands = _render_wrapper(["sh", "-c", app])
-
-    with tempfile.TemporaryDirectory(dir=_DOCKER_TMP) as tmp:
-        cos_dir = f"{tmp}/cos"
-        os.makedirs(f"{cos_dir}/public")
-        result = _docker_run(
-            run_commands,
-            {
-                "PUBLIC_LOG_PATH": "/cos/public/logs.log",
-                "LOG_FLUSH_INTERVAL_SECONDS": "999",
-                "LOG_SIZE_LIMIT_BYTES": str(_SMALL_LOG_LIMIT),
-            },
-            f"{cos_dir}:/cos",
-        )
+    result, name = _docker_run(
+        run_commands,
+        {
+            "PUBLIC_LOG_PATH": "/cos/public/logs.log",
+            "LOG_FLUSH_INTERVAL_SECONDS": "999",
+            "LOG_SIZE_LIMIT_BYTES": str(_SMALL_LOG_LIMIT),
+        },
+    )
+    try:
         assert result.returncode == 0, result.stderr
-        with open(f"{cos_dir}/public/logs.log") as f:
-            content = f.read()
+        with tempfile.TemporaryDirectory() as tmp:
+            _docker_cp(name, "/cos/public/logs.log", tmp)
+            with open(f"{tmp}/logs.log") as f:
+                content = f.read()
+    finally:
+        _docker_cleanup(name)
 
     assert "Logs exceeded maximum allowed size" in content
     assert "line 0000" not in content  # early lines dropped
@@ -283,26 +321,26 @@ def test_provider_wrapper_truncates_both_logs_independently_when_limit_exceeded(
         " done"
     )
     run_commands = _render_wrapper(["sh", "-c", app], is_provider_function=True)
-
-    with tempfile.TemporaryDirectory(dir=_DOCKER_TMP) as tmp:
-        cos_dir = f"{tmp}/cos"
-        os.makedirs(f"{cos_dir}/public")
-        os.makedirs(f"{cos_dir}/provider")
-        result = _docker_run(
-            run_commands,
-            {
-                "PUBLIC_LOG_PATH": "/cos/public/logs.log",
-                "PRIVATE_LOG_PATH": "/cos/provider/logs.log",
-                "LOG_FLUSH_INTERVAL_SECONDS": "999",
-                "LOG_SIZE_LIMIT_BYTES": str(_SMALL_LOG_LIMIT),
-            },
-            f"{cos_dir}:/cos",
-        )
+    result, name = _docker_run(
+        run_commands,
+        {
+            "PUBLIC_LOG_PATH": "/cos/public/logs.log",
+            "PRIVATE_LOG_PATH": "/cos/provider/logs.log",
+            "LOG_FLUSH_INTERVAL_SECONDS": "999",
+            "LOG_SIZE_LIMIT_BYTES": str(_SMALL_LOG_LIMIT),
+        },
+    )
+    try:
         assert result.returncode == 0, result.stderr
-        with open(f"{cos_dir}/public/logs.log") as f:
-            public = f.read()
-        with open(f"{cos_dir}/provider/logs.log") as f:
-            private = f.read()
+        with tempfile.TemporaryDirectory() as tmp:
+            _docker_cp(name, "/cos/public/logs.log", tmp)
+            _docker_cp(name, "/cos/provider/logs.log", f"{tmp}/private.log")
+            with open(f"{tmp}/logs.log") as f:
+                public = f.read()
+            with open(f"{tmp}/private.log") as f:
+                private = f.read()
+    finally:
+        _docker_cleanup(name)
 
     assert "Logs exceeded maximum allowed size" in public
     assert "pub line 0000" not in public
@@ -317,42 +355,57 @@ def test_provider_wrapper_truncates_both_logs_independently_when_limit_exceeded(
 def test_custom_wrapper_periodic_flush_during_run():
     """Uploader loop copies logs to COS while the job is still running.
 
-    Uses subprocess.Popen (non-blocking) so we can inspect the COS-mounted file
-    mid-run. The job prints one line then sleeps for 10s; with an interval of 2s the
-    uploader must have fired at least once by the 5s mark. This test specifically
-    exercises the start_uploader background loop, not the EXIT-trap final flush.
+    Uses subprocess.Popen (non-blocking) so we can inspect the log mid-run via
+    docker exec. The job prints one line then sleeps for 10s; with an interval of
+    2s the uploader must have fired at least once by the 5s mark. This test
+    specifically exercises the start_uploader background loop, not the final flush.
     """
     app = "printf 'early line\\n'; sleep 10"
     run_commands = _render_wrapper(["sh", "-c", app])
+    assert run_commands[:2] == ["python", "-c"]
+    name = f"qs-test-{uuid.uuid4().hex[:12]}"
 
-    with tempfile.TemporaryDirectory(dir=_DOCKER_TMP) as tmp:
-        cos_dir = f"{tmp}/cos"
-        os.makedirs(f"{cos_dir}/public")
-        cmd = [
-            "docker",
-            "run",
-            "--rm",
-            "-v",
-            f"{cos_dir}:/cos",
-            "-e",
-            "PUBLIC_LOG_PATH=/cos/public/logs.log",
-            "-e",
-            "LOG_FLUSH_INTERVAL_SECONDS=2",
-            _DOCKER_IMAGE,
-            *run_commands,
-        ]
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        try:
-            # After 5s the uploader must have fired at least once (interval=2s)
-            # but the job is still running (sleep 10).
-            time.sleep(5)
-            cos_log = f"{cos_dir}/public/logs.log"
-            assert os.path.exists(cos_log), "log not flushed during run"
-            with open(cos_log) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+        f.write(run_commands[2])
+        script_path = f.name
+    try:
+        subprocess.run(
+            [
+                "docker",
+                "create",
+                "--name",
+                name,
+                "-e",
+                "PUBLIC_LOG_PATH=/cos/public/logs.log",
+                "-e",
+                "LOG_FLUSH_INTERVAL_SECONDS=2",
+                _DOCKER_IMAGE,
+                "sh",
+                "-c",
+                "mkdir -p /cos/public && exec python /wrapper.py",
+            ],
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(["docker", "cp", script_path, f"{name}:/wrapper.py"], check=True, capture_output=True)
+    finally:
+        os.unlink(script_path)
+
+    proc = subprocess.Popen(["docker", "start", "-a", name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    try:
+        # After 5s the uploader must have fired at least once (interval=2s)
+        # but the job is still running (sleep 10).
+        time.sleep(5)
+        with tempfile.TemporaryDirectory() as tmp:
+            _docker_cp(name, "/cos/public/logs.log", tmp)
+            assert os.path.exists(f"{tmp}/logs.log"), "log not flushed during run"
+            with open(f"{tmp}/logs.log") as f:
                 content = f.read()
-            assert "early line" in content, f"periodic flush did not upload early lines:\n{content}"
-        finally:
-            proc.wait(timeout=20)
+        assert "early line" in content, f"periodic flush did not upload early lines:\n{content}"
+    finally:
+        proc.terminate()
+        proc.wait(timeout=20)
+        _docker_cleanup(name)
 
 
 @docker_required
@@ -365,19 +418,18 @@ def test_harden_applies_no_new_privs_and_drops_capabilities():
     """
     app = "grep -E '^(NoNewPrivs|CapBnd|CapEff|CapPrm):' /proc/self/status"
     run_commands = _render_wrapper(["sh", "-c", app])
-
-    with tempfile.TemporaryDirectory(dir=_DOCKER_TMP) as tmp:
-        cos_dir = f"{tmp}/cos"
-        os.makedirs(f"{cos_dir}/public")
-        result = _docker_run(
-            run_commands,
-            {"PUBLIC_LOG_PATH": "/cos/public/logs.log", "LOG_FLUSH_INTERVAL_SECONDS": "999"},
-            f"{cos_dir}:/cos",
-        )
+    result, name = _docker_run(
+        run_commands,
+        {"PUBLIC_LOG_PATH": "/cos/public/logs.log", "LOG_FLUSH_INTERVAL_SECONDS": "999"},
+    )
+    try:
         assert result.returncode == 0, result.stderr
-
-        with open(f"{cos_dir}/public/logs.log") as f:
-            content = f.read()
+        with tempfile.TemporaryDirectory() as tmp:
+            _docker_cp(name, "/cos/public/logs.log", tmp)
+            with open(f"{tmp}/logs.log") as f:
+                content = f.read()
+    finally:
+        _docker_cleanup(name)
 
     assert "NoNewPrivs:\t1" in content, f"NoNewPrivs not set:\n{content}"
     assert "CapBnd:\t0000000000000000" in content, f"capability bounding set not cleared:\n{content}"
