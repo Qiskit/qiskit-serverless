@@ -19,13 +19,13 @@ class EventStreamsClient(ABC):
     """Interface for job usage event publishing."""
 
     @abstractmethod
-    def emit_job_started(self, job) -> None:
-        """Publish or log a job_started event."""
+    def emit_job_started(self, job, metric_type: str) -> None:
+        """Publish or log a function_job_started event for the given metric."""
 
     @abstractmethod
-    def emit_job_in_progress(self, job) -> None:
-        """Publish or log a job_in_progress event."""
+    def emit_job_in_progress(self, job, metric_type: str) -> None:
+        """Publish or log a function_job_in_progress event for the given metric."""
 
     @abstractmethod
-    def emit_job_ended(self, job) -> None:
-        """Publish or log a job_ended event."""
+    def emit_job_completed(self, job, metric_type: str) -> None:
+        """Publish or log a function_job_completed event for the given metric."""
