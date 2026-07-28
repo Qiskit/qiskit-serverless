@@ -331,6 +331,49 @@ file. It is now the <code class="docutils literal notranslate"><span class="pre"
 has been updated accordingly; no changes are needed to existing local-dev workflows beyond
 rebuilding the image.</p></li>
 </ul>
+<ul>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">name</span></code> attribute has been removed from <code class="docutils literal notranslate"><span class="pre">ServerlessClient</span></code> and
+<code class="docutils literal notranslate"><span class="pre">BaseClient</span></code>. This parameter was deprecated in v0.33.0 and emitted a
+<code class="docutils literal notranslate"><span class="pre">DeprecationWarning</span></code>; it is now fully removed. Passing <code class="docutils literal notranslate"><span class="pre">name</span></code> when
+constructing a client will raise a <code class="docutils literal notranslate"><span class="pre">TypeError</span></code>.</p>
+<p><strong>Migration guide</strong></p>
+<p>Remove the <code class="docutils literal notranslate"><span class="pre">name</span></code> argument from any <code class="docutils literal notranslate"><span class="pre">ServerlessClient</span></code> (or
+<code class="docutils literal notranslate"><span class="pre">BaseClient</span></code>) construction. It was never used for authentication or
+routing, so it can be deleted without any replacement.</p>
+<p>Before:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">client</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;my-client&quot;</span><span class="p">,</span>
+    <span class="n">host</span><span class="o">=</span><span class="s2">&quot;&lt;HOST&gt;&quot;</span><span class="p">,</span>
+    <span class="n">token</span><span class="o">=</span><span class="s2">&quot;&lt;TOKEN&gt;&quot;</span><span class="p">,</span>
+    <span class="n">instance</span><span class="o">=</span><span class="s2">&quot;&lt;CRN&gt;&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>After:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">client</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
+    <span class="n">host</span><span class="o">=</span><span class="s2">&quot;&lt;HOST&gt;&quot;</span><span class="p">,</span>
+    <span class="n">token</span><span class="o">=</span><span class="s2">&quot;&lt;TOKEN&gt;&quot;</span><span class="p">,</span>
+    <span class="n">instance</span><span class="o">=</span><span class="s2">&quot;&lt;CRN&gt;&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Additional notes for existing code:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">ServerlessClient.from_dict(...)</span></code> continues to accept dictionaries that
+still contain a <code class="docutils literal notranslate"><span class="pre">name</span></code> key; the key is silently ignored, so previously
+serialized clients keep deserializing without changes.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BaseClient.__eq__</span></code> now compares clients by their <code class="docutils literal notranslate"><span class="pre">host</span></code>, <code class="docutils literal notranslate"><span class="pre">token</span></code>,
+<code class="docutils literal notranslate"><span class="pre">instance</span></code>, and <code class="docutils literal notranslate"><span class="pre">channel</span></code> instead of by <code class="docutils literal notranslate"><span class="pre">name</span></code>. Code that relied on
+name-based equality should compare the relevant connection attributes
+directly.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">repr(client)</span></code> now renders as
+<code class="docutils literal notranslate"><span class="pre">&lt;ServerlessClient(host=&lt;HOST&gt;)&gt;</span></code> instead of <code class="docutils literal notranslate"><span class="pre">&lt;my-client&gt;</span></code>. Update
+any code or tests that matched the old representation.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">name</span></code> attribute on <code class="docutils literal notranslate"><span class="pre">IBMServerlessClient</span></code> (used to select a saved
+account) is unaffected by this change.</p></li>
+</ul>
+</li>
+</ul>
 </section>
 </section>
 <section id="v0-34-0">
