@@ -49,6 +49,7 @@ jobs:
         shell: bash
         run: |
           sed -i "s/qiskit-serverless\/ray-node:${OLDNUM}/qiskit-serverless\/ray-node:${NEWNUM}/" gateway/main/settings.py
+          sed -i "s/qiskit-serverless\/fleet-node:${OLDNUM}/qiskit-serverless\/fleet-node:${NEWNUM}/" gateway/main/settings.py
       - name: Update client version
         shell: bash
         run: |
@@ -64,6 +65,8 @@ jobs:
           sed -i "s/qiskit-serverless\/ray-node:${OLDNUM}/qiskit-serverless\/ray-node:${NEWNUM}/" docs/custom_images/custom_function/Sample-Dockerfile
           sed -i "s/FROM icr.io\/quantum-public\/qiskit-serverless\/ray-node:${OLDNUM}/FROM icr.io\/quantum-public\/qiskit-serverless\/ray-node:${NEWNUM}/" docs/custom_images/deploy_custom_image_function.rst
           sed -i "s/FROM icr.io\/quantum-public\/qiskit-serverless\/ray-node:${OLDNUM}/FROM icr.io\/quantum-public\/qiskit-serverless\/ray-node:${NEWNUM}/" docs/custom_images/custom_image_examples.rst
+          sed -i "s/custom-ray-node:${OLDNUM}-arm64/custom-ray-node:${NEWNUM}-arm64/g" docs/custom_images/run_on_apple_silicon.rst
+          sed -i "s/VERSION=${OLDNUM} docker compose/VERSION=${NEWNUM} docker compose/g" docs/custom_images/run_on_apple_silicon.rst
       - name: Update CITATION.cff
         shell: bash
         run: |

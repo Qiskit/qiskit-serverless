@@ -98,7 +98,6 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
 
     Example:
         >>> client = ServerlessClient(
-        >>>    name="<NAME>",
         >>>    host="<HOST>",
         >>>    token="<TOKEN>",
         >>>    instance="<CRN>",
@@ -107,7 +106,6 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
 
     def __init__(  # pylint:  disable=too-many-positional-arguments
         self,
-        name: Optional[str] = None,
         host: Optional[str] = None,
         version: Optional[str] = None,
         token: Optional[str] = None,
@@ -118,20 +116,12 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         Initializes the ServerlessClient instance.
 
         Args:
-            name: (deprecated) name of client - will be removed in a future release
             host: host of gateway. If None, it uses the ENV_GATEWAY_PROVIDER_HOST env var
             version: version of gateway
             token: authorization token
             instance: IBM Cloud CRN
             channel: identifies the method to use to authenticate the user
         """
-        if name:
-            warnings.warn(
-                "The 'name' attribute is deprecated and will be removed in a future release.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        resolved_name = name or "gateway-client"
         host = host or os.environ.get(ENV_GATEWAY_PROVIDER_HOST)
         if host is None:
             raise QiskitServerlessException("Please provide `host` of gateway.")
@@ -163,10 +153,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 "Authentication with IBM Quantum Platform requires to pass the CRN as an instance."
             )
 
-        # Pass name=None so BaseClient does not emit a second deprecation
-        # warning; the warning above is the single one users should see.
-        super().__init__(None, host, token, instance, channel)
-        self.name = resolved_name
+        super().__init__(host, token, instance, channel)
         self.version = version
         self._verify_credentials()
 
@@ -174,7 +161,9 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
 
     @classmethod
     def from_dict(cls, dictionary: dict):
-        return ServerlessClient(**dictionary)
+        # Remove 'name' if present for backward compatibility with serialized clients
+        data = {k: v for k, v in dictionary.items() if k != "name"}
+        return ServerlessClient(**data)
 
     def _verify_credentials(self):
         """Verify against the API that the credentials are correct."""
