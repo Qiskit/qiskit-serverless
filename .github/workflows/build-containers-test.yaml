@@ -19,8 +19,8 @@ jobs:
       fail-fast: false # keep running if one leg fails
       matrix:
         dockerfile:
-          - ray-node/Dockerfile
-          - fleet-node/Dockerfile
+          - docker-images/ray-node/Dockerfile
+          - docker-images/fleet-node/Dockerfile
           - gateway/Dockerfile
         python:
           - "3.11"
