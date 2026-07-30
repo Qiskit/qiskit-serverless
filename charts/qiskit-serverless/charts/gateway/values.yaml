@@ -105,7 +105,9 @@ secrets:
       name: name
       password: password
       email: email
-  w3idSso: ""
+  w3idSso:
+    name: ""
+    secretStoreName: qiskit-serverless
 
 image:
   repository: icr.io/quantum-public/qiskit-serverless/gateway
