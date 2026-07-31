@@ -26,6 +26,8 @@ from .abstract_event_streams_client import EventStreamsClient
 
 logger = logging.getLogger("gateway.ibm_cloud.event_streams_client")
 
+LICENSE_FEE_METRIC_TYPE = "license"
+
 
 class KafkaEventStreamsClient(EventStreamsClient):
     """
@@ -81,6 +83,15 @@ class KafkaEventStreamsClient(EventStreamsClient):
             metric_value=self._usage_ms(job),
             job_started=False,
             job_completed=True,
+        )
+
+    def emit_license_fee(self, job) -> None:
+        self._publish(
+            job,
+            metric_type=LICENSE_FEE_METRIC_TYPE,
+            metric_value=1,
+            job_started=True,
+            job_completed=False,
         )
 
     def _usage_ms(self, job) -> int:

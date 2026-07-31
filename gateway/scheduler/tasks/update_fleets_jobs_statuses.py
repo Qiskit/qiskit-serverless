@@ -133,6 +133,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             Job.RUNNING,
         )
         self.event_streams_client.emit_job_started(job, CLASSICAL_TIME_METRIC_TYPE)
+        self.event_streams_client.emit_license_fee(job)
         # running_started_at is set only on first transition; already-RUNNING jobs picked up
         # after a scheduler restart will have running_started_at=None (metric_value=0).
         job.update_fields({"status": Job.RUNNING, "running_started_at": django_timezone.now()})
