@@ -93,6 +93,9 @@ gateway:
     w3idSso:
       name: ""
       secretStoreName: qiskit-serverless
+    kafka:
+      name: ""
+      secretStoreName: qiskit-serverless
 
 # ===================
 # Kuberay Operator
