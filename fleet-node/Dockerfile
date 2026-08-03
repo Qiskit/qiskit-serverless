@@ -11,18 +11,24 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 #
-# Fleets worker base image (Python 3.12) — the Fleets-runner counterpart of
-# ray-node/Dockerfile. This is the runtime image Code Engine fleet tasks run in;
-# the integration-test worker (tests/fleets/fleet-worker/Dockerfile) builds FROM it.
+# Fleets worker image (Python 3.12) — the Fleets-runner counterpart of
+# ray-node/Dockerfile, split into the same two stages:
+#   base:     slim public image (client only, no dynamic deps). Function providers
+#             build custom Fleets images FROM it, and the integration-test worker
+#             (tests/fleets/fleet-worker/Dockerfile) builds FROM it.
+#   selector: base + requirements-dynamic-dependencies.txt (the qiskit workload
+#             stack). The full runtime the gateway deploys for imageless Fleets
+#             jobs. It is the LAST stage, so a build with no --target resolves to it.
 #
-# Build from repo root (client/ and ray-node/ must be in the build context):
-#   docker build --platform linux/amd64 -f fleet-node/Dockerfile -t fleet-node:latest .
+# Build from repo root (client/ must be in the build context):
+#   docker build --platform linux/amd64 -f fleet-node/Dockerfile -t fleet-node:latest .                 # full (selector)
+#   docker build --platform linux/amd64 --target base -f fleet-node/Dockerfile -t fleet-node:base .     # slim base
 #
 # No CUDA base: nothing here links against CUDA (qiskit-aer is the CPU build),
 # and CE's NVIDIA container runtime injects the driver + nvidia-smi into GPU
 # workers at runtime. UBI9 (glibc 2.34) satisfies the mthree manylinux_2_34 wheel;
 # all pinned deps ship linux/x86_64 wheels for 3.12, so no build toolchain is needed.
-FROM registry.access.redhat.com/ubi9-minimal:9.8-1784092902
+FROM registry.access.redhat.com/ubi9-minimal:9.8-1784092902 AS base
 ARG PYTHON_VERSION=3.12
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -57,16 +63,9 @@ RUN mkdir /function_user_data /job_user_data /function_provider_data /job_provid
         "pip>=26.1.2" \
         "setuptools>=83.0.0"
 
-# Dynamic dependencies — the qiskit workload stack pre-baked so Fleets functions
-# run without reinstalling. Kept in fleet-node's own file (not shared with
-# ray-node) so the two runners can evolve independently; today the set is the
-# same as ray-node's. All resolve to prebuilt 3.12 wheels.
-COPY fleet-node/requirements-dynamic-dependencies.txt /tmp/
-RUN pip install --no-cache-dir \
-        -r /tmp/requirements-dynamic-dependencies.txt && \
-    rm /tmp/requirements-dynamic-dependencies.txt
-
-# Install the client last for better layer-cache reuse. Keep this on its own RUN
+# Install the client into the base stage (plain, no [ray] extra — Fleets does not
+# use Ray) so images built FROM base — custom provider images and the
+# integration-test worker — already have the client. Keep this on its own RUN
 # with plain '&&' so a failed install fails the build — do NOT chain '|| true'
 # guards onto this step (that would silently ship an image with no client).
 # (No symengine lib/lib64 copy: Qiskit 2.2 dropped symengine, so it is not
@@ -74,5 +73,16 @@ RUN pip install --no-cache-dir \
 COPY client /tmp/qs
 RUN pip install --no-cache-dir /tmp/qs && \
     rm -rf /tmp/qs
+USER 1000
 
+# Dynamic dependencies — the qiskit workload stack pre-baked so Fleets functions
+# run without reinstalling. Kept in fleet-node's own file (not shared with
+# ray-node) so the two runners can evolve independently; today the set is the
+# same as ray-node's. All resolve to prebuilt 3.12 wheels.
+FROM base AS selector
+USER 0
+COPY fleet-node/requirements-dynamic-dependencies.txt /tmp/
+RUN pip install --no-cache-dir \
+        -r /tmp/requirements-dynamic-dependencies.txt && \
+    rm /tmp/requirements-dynamic-dependencies.txt
 USER 1000

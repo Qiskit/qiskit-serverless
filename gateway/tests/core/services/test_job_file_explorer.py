@@ -19,13 +19,14 @@ from django.test import TestCase
 from core.services.storage.job_file_explorer import FileEntry, FileGroup, JobFileExplorer
 
 
-def _make_job(runner="fleets", has_provider=False):
+def _make_job(runner="fleets", has_provider=False, artifact=None):
     job = MagicMock()
     job.id = uuid.UUID("aaaaaaaa-0000-0000-0000-000000000001")
     job.author.username = "alice"
     job.runner = runner
     job.program.title = "my-fn"
     job.program.runner = runner
+    job.program.artifact = artifact
     if has_provider:
         job.program.provider = MagicMock()
         job.program.provider.name = "acme"
@@ -119,6 +120,26 @@ class TestJobFileExplorerFleets(TestCase):
         categories = {g.category for g in groups}
         assert "Data Files" in categories
         assert "Job Files" not in categories
+
+
+class TestJobFileExplorerArtifact(TestCase):
+    @patch("core.services.storage.job_file_explorer.get_cos_client")
+    def test_program_artifact_group_listed(self, mock_get_cos):
+        mock_get_cos.return_value = MagicMock(list_with_metadata=MagicMock(return_value=[]))
+        artifact = MagicMock()
+        artifact.name = "alice/prog-123/artifact.tar"
+        artifact.size = 2048
+        artifact.storage.get_modified_time.return_value = TS
+        job = _make_job(runner="fleets", artifact=artifact)
+
+        groups = JobFileExplorer().explore(job)
+
+        group = next((g for g in groups if g.category == "Function artifact"), None)
+        assert group is not None
+        assert group.files[0].name == "artifact.tar"
+        assert group.files[0].size_bytes == 2048
+        assert group.files[0].bucket_or_path == "alice/prog-123"
+        assert group.files[0].last_modified == TS
 
 
 def _setup_ray_services(mock_file_storage, mock_result, mock_logs, mock_args, job):
