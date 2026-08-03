@@ -28,6 +28,17 @@ class InputSerializer(serializers.Serializer):  # pylint: disable=abstract-metho
     class Meta:
         ref_name = "ProgramsValidateArgumentsInput"
 
+    def validate_title(self, value):
+        """Sanitize title."""
+        sanitized = sanitize_name(value)
+        if not sanitized:
+            raise serializers.ValidationError("Invalid title.")
+        return sanitized
+
+    def validate_provider(self, value):
+        """Sanitize provider name."""
+        return sanitize_name(value) if value else value
+
 
 @swagger_auto_schema(
     method="post",
@@ -47,12 +58,11 @@ def validate_arguments(request: Request) -> Response:
     accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
 
     serializer = InputSerializer(data=request.data)
-    if not serializer.is_valid():
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    serializer.is_valid(raise_exception=True)
 
-    provider_name = sanitize_name(serializer.data.get("provider"))
-    function_title = sanitize_name(serializer.data.get("title"))
-    arguments = serializer.data.get("arguments")
+    function_title = serializer.validated_data.get("title")
+    provider_name = serializer.validated_data.get("provider")
+    arguments = serializer.validated_data.get("arguments")
 
     logger.info(
         "[programs-validate-arguments] user_id=%s program=%s provider=%s accessible_functions=%s",

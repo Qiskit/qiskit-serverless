@@ -1621,3 +1621,16 @@ class TestProgramApiRuntimeInstances:
                 format="json",
             )
             assert response.status_code == status.HTTP_404_NOT_FOUND
+
+        def test_validate_arguments_title_that_sanitizes_to_empty_returns_400(self, client, authorize):
+            """validate_arguments returns 400 when the title sanitizes down to an empty string."""
+            authorize("test_user", create_custom_access_result({PLATFORM_PERMISSION_CUSTOM_RUN}))
+            response = client.post(
+                "/api/v1/programs/validate_arguments/",
+                data={
+                    "title": "!!!",
+                    "arguments": json.dumps({}),
+                },
+                format="json",
+            )
+            assert response.status_code == status.HTTP_400_BAD_REQUEST
