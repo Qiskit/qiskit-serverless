@@ -5,7 +5,7 @@
 #
 #   docker compose -f docker-compose-dev.yaml -f docker-compose-dev.arm64.yaml up --build
 #
-# Builds ray-head NATIVELY on arm64 from the arm64 stage of ray-node/Dockerfile (no QEMU) so
+# Builds ray-head NATIVELY on arm64 from the arm64 stage of docker-images/ray-node/Dockerfile (no QEMU) so
 # Ray 2.55 startup is fast enough that its default timeouts are satisfied and jobs no longer hang
 # in QUEUED. gateway/scheduler/postgres stay amd64 (Django/DB only, no Ray) and run under
 # emulation; they reach ray-head over HTTP, so the mixed architecture is fine.
@@ -22,7 +22,7 @@ services:
   ray-head:
     platform: linux/arm64
     build:
-      dockerfile: ray-node/Dockerfile
+      dockerfile: docker-images/ray-node/Dockerfile
       target: arm64
   gateway:
     platform: linux/amd64
