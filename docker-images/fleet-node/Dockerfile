@@ -12,7 +12,7 @@
 # that they have been altered from the originals.
 #
 # Fleets worker image (Python 3.12) — the Fleets-runner counterpart of
-# ray-node/Dockerfile, split into the same two stages:
+# docker-images/ray-node/Dockerfile, split into the same two stages:
 #   base:     slim public image (client only, no dynamic deps). Function providers
 #             build custom Fleets images FROM it, and the integration-test worker
 #             (tests/fleets/fleet-worker/Dockerfile) builds FROM it.
@@ -21,8 +21,8 @@
 #             jobs. It is the LAST stage, so a build with no --target resolves to it.
 #
 # Build from repo root (client/ must be in the build context):
-#   docker build --platform linux/amd64 -f fleet-node/Dockerfile -t fleet-node:latest .                 # full (selector)
-#   docker build --platform linux/amd64 --target base -f fleet-node/Dockerfile -t fleet-node:base .     # slim base
+#   docker build --platform linux/amd64 -f docker-images/fleet-node/Dockerfile -t fleet-node:latest .                 # full (selector)
+#   docker build --platform linux/amd64 --target base -f docker-images/fleet-node/Dockerfile -t fleet-node:base .     # slim base
 #
 # No CUDA base: nothing here links against CUDA (qiskit-aer is the CPU build),
 # and CE's NVIDIA container runtime injects the driver + nvidia-smi into GPU
@@ -76,12 +76,12 @@ RUN pip install --no-cache-dir /tmp/qs && \
 USER 1000
 
 # Dynamic dependencies — the qiskit workload stack pre-baked so Fleets functions
-# run without reinstalling. Kept in fleet-node's own file (not shared with
-# ray-node) so the two runners can evolve independently; today the set is the
-# same as ray-node's. All resolve to prebuilt 3.12 wheels.
+# run without reinstalling. Shared with ray-node (docker-images/requirements-dynamic-
+# dependencies.txt) so the two runners cannot drift; gateway reads the same file for
+# GET /api/v1/dependencies-versions. All resolve to prebuilt 3.12 wheels.
 FROM base AS selector
 USER 0
-COPY fleet-node/requirements-dynamic-dependencies.txt /tmp/
+COPY docker-images/requirements-dynamic-dependencies.txt /tmp/
 RUN pip install --no-cache-dir \
         -r /tmp/requirements-dynamic-dependencies.txt && \
     rm /tmp/requirements-dynamic-dependencies.txt
