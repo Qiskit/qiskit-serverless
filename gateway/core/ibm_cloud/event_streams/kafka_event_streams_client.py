@@ -21,12 +21,13 @@ import uuid
 from datetime import datetime, timezone
 
 from confluent_kafka import Producer
+from core.models import Job
 
 from .abstract_event_streams_client import EventStreamsClient
 
 logger = logging.getLogger("gateway.ibm_cloud.event_streams_client")
 
-LICENSE_FEE_METRIC_TYPE = "license"
+LICENSE_FEE_METRIC_TYPE = "license_qesem"
 
 
 class KafkaEventStreamsClient(EventStreamsClient):
@@ -85,13 +86,14 @@ class KafkaEventStreamsClient(EventStreamsClient):
             job_completed=True,
         )
 
-    def emit_license_fee(self, job) -> None:
+    def emit_license_fee(self, job: Job) -> None:
+        metric_type = "_".join([LICENSE_FEE_METRIC_TYPE, job.program.provider.name, job.program.title])
         self._publish(
             job,
-            metric_type=LICENSE_FEE_METRIC_TYPE,
+            metric_type=metric_type,
             metric_value=1,
             job_started=True,
-            job_completed=False,
+            job_completed=True,
         )
 
     def _usage_ms(self, job) -> int:
