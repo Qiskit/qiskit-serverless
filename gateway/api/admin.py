@@ -114,7 +114,7 @@ class ProgramAdmin(admin.ModelAdmin):
             },
         ),
         ("Status", {"fields": ["disabled", "disabled_message"]}),
-        ("Execution", {"fields": ["runner", "entrypoint", "artifact", "image", "dependencies"]}),
+        ("Execution", {"fields": ["runner", "gpu", "entrypoint", "artifact", "image", "dependencies"]}),
         ("Fleets", {"fields": ["default_compute_profile", "code_engine_project"]}),
         ("Ownership", {"fields": ["author", "provider", "instances", "trial_instances"]}),
     ]

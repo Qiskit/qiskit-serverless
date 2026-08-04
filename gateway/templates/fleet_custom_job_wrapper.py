@@ -9,7 +9,61 @@
 # Custom jobs only have a public log: all lines go to the single file served
 # by /logs to the job's author. [PUBLIC] and [PRIVATE] prefixes are stripped
 # (equivalent to remove_prefix_tags_in_logs in core.domain.filter_logs).
-import os, signal, subprocess, sys, threading
+import ctypes, ctypes.util, os, signal, struct, subprocess, sys, threading
+
+
+# ── Security hardening ────────────────────────────────────────────────────────
+# IBM Code Engine Fleets has no securityContext API, so runAsGroup, capability
+# restrictions, and allowPrivilegeEscalation cannot be set at the platform level.
+# This function runs before any user code to apply least-privilege constraints
+# in process space: no-new-privs, gid reset, and an empty capability bounding set.
+# Non-fatal on platforms that lack the required syscalls (e.g. musl, non-Linux).
+def _harden():
+    try:
+        _libc = ctypes.CDLL(ctypes.util.find_library("c") or "libc.so.6", use_errno=True)
+    except OSError:
+        return
+
+    # 1. PR_SET_NO_NEW_PRIVS: this process and all descendants can never gain
+    #    privileges through setuid/setgid binaries or file capabilities.
+    PR_SET_NO_NEW_PRIVS = 38
+    if _libc.prctl(PR_SET_NO_NEW_PRIVS, ctypes.c_ulong(1),
+                   ctypes.c_ulong(0), ctypes.c_ulong(0), ctypes.c_ulong(0)) != 0:
+        return  # prctl not available on this platform
+
+    # 2. Reset gid=0(root) → uid (1000).  Code Engine assigns gid=0 when
+    #    runAsGroup is absent from the fleet spec.
+    if os.getgid() == 0:
+        target = os.getuid()
+        _libc.setresgid.restype = ctypes.c_int
+        _libc.setresgid.argtypes = [ctypes.c_uint, ctypes.c_uint, ctypes.c_uint]
+        _libc.setresgid(target, target, target)  # EPERM after no-new-privs is benign
+
+    # 3. Drop every capability from the bounding set (PR_CAPBSET_DROP).
+    PR_CAPBSET_DROP = 24
+    for cap in range(42):  # CAP_LAST_CAP is 41 on Linux 5.x+
+        ret = _libc.prctl(PR_CAPBSET_DROP, ctypes.c_ulong(cap),
+                          ctypes.c_ulong(0), ctypes.c_ulong(0), ctypes.c_ulong(0))
+        if ret != 0 and ctypes.get_errno() != 22:  # 22=EINVAL: cap not known, skip
+            break  # bounding-set drops not supported; continue with capset
+
+    # 4. Zero effective/permitted/inheritable capability sets via capset(2).
+    _LINUX_CAPABILITY_VERSION_3 = 0x20080522
+    hdr = ctypes.create_string_buffer(struct.pack("=Ii", _LINUX_CAPABILITY_VERSION_3, 0))
+    dat = ctypes.create_string_buffer(struct.pack("=III", 0, 0, 0) * 2)  # two 32-bit words
+    try:
+        _libc.capset(hdr, dat)  # ENOSYS on musl — silently ignored
+    except Exception:
+        pass
+
+    # 5. Clear ambient capabilities (kernel 4.3+; EINVAL on older = no ambient caps, fine).
+    PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL = 47, 4
+    _libc.prctl(PR_CAP_AMBIENT, ctypes.c_ulong(PR_CAP_AMBIENT_CLEAR_ALL),
+                ctypes.c_ulong(0), ctypes.c_ulong(0), ctypes.c_ulong(0))
+
+
+_harden()
+# ── End security hardening ────────────────────────────────────────────────────
 
 # Command to run (injected by the gateway template engine)
 app_cmd = {{ app_cmd }}

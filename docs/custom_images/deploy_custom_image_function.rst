@@ -55,7 +55,7 @@ image and adding your implementation:
 .. code-block::
    :caption: Dockerfile for custom function image
 
-   FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.33.0
+   FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.34.0
 
    USER 0
    WORKDIR /runner
@@ -71,7 +71,7 @@ For more complete examples, visit the :ref:`image_examples` section.
 .. code-block::
    :caption: Build image
 
-   docker build -t test-local-provider-function -f Sample-Dockerfile .
+   docker build -t test/local-provider-function -f Sample-Dockerfile .
 
 3. Upload the image
 -------------------
@@ -87,7 +87,7 @@ keep the rest of the existing ``ray-head`` definition (``user``, ``entrypoint``,
    services:
      ray-head:
        # keep the existing ray-head keys; only override the image
-       image: test-local-provider-function:latest
+       image: test/local-provider-function:latest
 
 Run it:
 
@@ -108,7 +108,7 @@ If using **Kubernetes in local development**, create the cluster and load the im
    :caption: Deploy and load image into Kind
 
    tox -e cluster-deploy
-   kind load docker-image test-local-provider-function:latest
+   kind load docker-image test/local-provider-function:latest
 
 For **remote environments**, you must be a registered provider and
 follow the provider upload workflow.
@@ -132,7 +132,7 @@ define a ``QiskitFunction`` that will use the custom image, upload it, and invok
 
    function = QiskitFunction(
        title="custom-image-function",
-       image="test-local-provider-function:latest",
+       image="test/local-provider-function:latest",
        provider="mockprovider",
    )
 

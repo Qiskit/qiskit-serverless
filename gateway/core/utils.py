@@ -27,7 +27,6 @@ Qiskit Serverless utilities
 """
 
 import base64
-import json
 import logging
 import os
 import re
@@ -168,26 +167,6 @@ def decrypt_env_vars(env_vars: Dict[str, str]) -> Dict[str, str]:
             except Exception:  # pylint: disable=broad-exception-caught
                 logger.error("Cannot decrypt %s.", key)
     return env_vars
-
-
-def create_gpujob_allowlist():
-    """
-    Create dictionary of jobs allowed to run on gpu nodes.
-
-    Sample format of json:
-        { "gpu-functions": { "mockprovider": [ "my-first-pattern" ] } }
-    """
-    try:
-        with open(settings.GATEWAY_GPU_JOBS_CONFIG, encoding="utf-8", mode="r") as f:
-            gpujobs = json.load(f)
-    except IOError as e:
-        logger.error("Unable to open gpu job config file: %s", e)
-        raise ValueError("Unable to open gpu job config file") from e
-    except ValueError as e:
-        logger.error("Unable to decode gpu job allowlist: %s", e)
-        raise ValueError("Unable to decode gpujob allowlist") from e
-
-    return gpujobs
 
 
 def check_logs(logs: Union[str, None], job) -> str:

@@ -1,27 +1,19 @@
 """API endpoint for validating arguments against a Qiskit Function schema."""
 
-import json
 import logging
 from typing import cast
 
-import jsonschema
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, serializers, status
 from rest_framework.decorators import permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from api.access_policies.jobs import JobAccessPolicies
-from api.use_cases.validate_arguments import validate_arguments as validate_arguments_use_case
+from api.use_cases.programs.validate_arguments import ValidateArgumentsUseCase
 from api.utils import sanitize_name
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import (
-    PLATFORM_PERMISSION_RUN,
-    RUN_PROGRAM_PERMISSION,
-    Program as Function,
-)
 
 logger = logging.getLogger("api.api.v1.views.programs.validate_arguments")
 
@@ -35,6 +27,17 @@ class InputSerializer(serializers.Serializer):  # pylint: disable=abstract-metho
 
     class Meta:
         ref_name = "ProgramsValidateArgumentsInput"
+
+    def validate_title(self, value):
+        """Sanitize title."""
+        sanitized = sanitize_name(value)
+        if not sanitized:
+            raise serializers.ValidationError("Invalid title.")
+        return sanitized
+
+    def validate_provider(self, value):
+        """Sanitize provider name."""
+        return sanitize_name(value) if value else value
 
 
 @swagger_auto_schema(
@@ -55,11 +58,11 @@ def validate_arguments(request: Request) -> Response:
     accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
 
     serializer = InputSerializer(data=request.data)
-    if not serializer.is_valid():
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    serializer.is_valid(raise_exception=True)
 
-    provider_name = sanitize_name(serializer.data.get("provider"))
-    function_title = sanitize_name(serializer.data.get("title"))
+    function_title = serializer.validated_data.get("title")
+    provider_name = serializer.validated_data.get("provider")
+    arguments = serializer.validated_data.get("arguments")
 
     logger.info(
         "[programs-validate-arguments] user_id=%s program=%s provider=%s accessible_functions=%s",
@@ -69,39 +72,7 @@ def validate_arguments(request: Request) -> Response:
         accessible_functions,
     )
 
-    function = None
-    if provider_name:
-        function = Function.objects.get_function_by_permission(
-            user=user,
-            function_title=function_title,
-            provider_name=provider_name,
-            accessible_functions=accessible_functions,
-            permission=PLATFORM_PERMISSION_RUN,
-            legacy_permission_name=RUN_PROGRAM_PERMISSION,
-        )
-    else:
-        if JobAccessPolicies.can_create(user=user, accessible_functions=accessible_functions):
-            function = Function.objects.get_user_function(user, function_title)
-
-    if function is None:
-        return Response(
-            {"message": f"Qiskit Pattern [{function_title}] was not found."},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
-    arguments = serializer.data.get("arguments")
-    try:
-        validate_arguments_use_case(function, arguments)
-    except jsonschema.ValidationError as exc:
-        return Response(
-            {"message": exc.message, "path": [*exc.path]},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    except json.JSONDecodeError as exc:
-        return Response(
-            {"message": f"arguments is not valid JSON: {exc.msg}"},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+    ValidateArgumentsUseCase().execute(user, accessible_functions, function_title, provider_name, arguments)
 
     logger.info(
         "[programs-validate-arguments] user_id=%s program=%s provider=%s | Arguments validated ok",

@@ -12,7 +12,7 @@ from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobL
 from api.domain.exceptions.function_disabled_exception import FunctionDisabledException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.use_cases.programs.run_input import RunFunctionInput
-from api.use_cases.validate_arguments import validate_arguments as validate_arguments_use_case
+from api.use_cases.programs.validate_arguments import validate_arguments
 from api.utils import active_jobs_limit_reached, build_env_variables
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.business_models import BusinessModel
@@ -26,7 +26,7 @@ from core.models import (
     RUN_PROGRAM_PERMISSION,
 )
 from core.services.storage import get_arguments_storage
-from core.utils import create_gpujob_allowlist, encrypt_env_vars
+from core.utils import encrypt_env_vars
 
 logger = logging.getLogger("api.api.use_cases.programs.run")
 
@@ -42,7 +42,7 @@ def _runner_config(function: Function, compute_profile_requested: str | None) ->
     if function.runner == Function.FLEETS:
         profile = compute_profile_requested or getattr(settings, "DEFAULT_COMPUTE_PROFILE", "cx3d-4x16")
         return profile, False
-    if function.provider and function.provider.name in create_gpujob_allowlist().get("gpu-functions", {}):
+    if function.provider and function.gpu:
         return None, True
     return None, False
 
@@ -87,7 +87,7 @@ class RunFunctionUseCase:
         if function.runner == Function.FLEETS and not function.code_engine_project:
             raise DRFValidationError("Program has no Code Engine project assigned. Contact administrator.")
 
-        validate_arguments_use_case(function, data.arguments)
+        validate_arguments(function, data.arguments)
 
         logger.info("user_id=%s program=%s | Creating job", user.id, function.title)
 

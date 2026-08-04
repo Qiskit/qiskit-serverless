@@ -38,6 +38,29 @@ spec:
             port:
               number: {{ .Values.gateway.application.service.port  }}
 ---
+{{ if .Values.istio.privateHost }}
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: gateway-virtual-service-private
+spec:
+  hosts:
+    - {{ .Values.istio.privateHost }}
+  gateways:
+    - qiskit-serverless-gateway-private
+  http:
+    - match:
+        - uri:
+            prefix: /metrics
+      directResponse:
+        status: 404
+    - route:
+        - destination:
+            host: {{ .Values.gateway.fullnameOverride }}
+            port:
+              number: {{ .Values.gateway.application.service.port }}
+{{ end }}
+---
 apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:

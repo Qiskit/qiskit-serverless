@@ -136,6 +136,8 @@ class TestProgramApiLegacyGroupsPermissions:
 
             assert response.status_code == status.HTTP_200_OK
             assert len(response.data) == 2
+            # The cross-author provider listing must never expose the author-private result.
+            assert all("result" not in job for job in response.data)
 
         def test_non_admin_sees_only_own_jobs(self, client, authorize_legacy):
             """get_jobs() returns only own jobs when user is not in the provider admin_groups."""
@@ -149,6 +151,8 @@ class TestProgramApiLegacyGroupsPermissions:
 
             assert response.status_code == status.HTTP_200_OK
             assert len(response.data) == 1
+            # The own listing still returns each job's result.
+            assert all("result" in job for job in response.data)
 
 
 class TestProgramApi(APITestCase):
@@ -1254,40 +1258,38 @@ class TestProgramApi(APITestCase):
         assert program.arguments_schema == schema
         assert program.env_vars not in ("{}", "")
 
-    def test_reupload_with_only_required_fields_preserves_optional_fields(self):
-        """Re-uploading with title+entrypoint must preserve all previously set optional fields.
+    def test_reupload_with_only_title_preserves_optional_fields(self):
+        """Re-uploading with only the title must preserve every previously set optional field.
 
         This test proves empirically which fields survive a minimal re-upload.
-        Fields that used to RESET (runner, dependencies, env_vars) must be PRESERVED.
+        Fields that used to RESET (runner, dependencies, env_vars, entrypoint, artifact, image) must be PRESERVED.
         """
         schema = json.dumps({"type": "object"})
         user = TestUtils.authorize_client(user="test_user", client=self.client)
         TestUtils.get_or_create_ce_project(project_name="test-project", project_id="test-id")
-        TestUtils.create_program(
-            program_title="reupload-test-func",
-            author=user,
-            entrypoint="original.py",
-            description="Original description",
-            version="2.0.0",
-            runner=Program.FLEETS,
-            dependencies='["numpy==1.26.0"]',
-            env_vars='{"MY_KEY":"MY_VALUE"}',
-            arguments_schema=schema,
-        )
-        fake_file = ContentFile(b"print('updated')")
-        fake_file.name = "update.tar"
 
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT, CE_DEFAULT_PROJECT_NAME="test-project"):
+            program = TestUtils.create_program(
+                program_title="reupload-test-func",
+                author=user,
+                entrypoint="original.py",
+                artifact=ContentFile(b"print('original')", name="original.tar"),
+                image="docker.io/original-image:latest",
+                description="Original description",
+                version="2.0.0",
+                runner=Program.FLEETS,
+                dependencies='["numpy==1.26.0"]',
+                env_vars='{"MY_KEY":"MY_VALUE"}',
+                arguments_schema=schema,
+            )
+            original_artifact = program.artifact.name
+
             response = self.client.post(
                 "/api/v1/programs/upload/",
-                data={
-                    "title": "reupload-test-func",
-                    "entrypoint": "new_main.py",
-                    "artifact": fake_file,
-                },
+                data={"title": "reupload-test-func"},
             )
         assert response.status_code == status.HTTP_200_OK
-        program = Program.objects.get(title="reupload-test-func", author=user)
+        program.refresh_from_db()
 
         # Already preserved (existing behavior):
         assert program.description == "Original description"
@@ -1298,6 +1300,9 @@ class TestProgramApi(APITestCase):
         assert program.runner == Program.FLEETS
         assert json.loads(program.dependencies) == ["numpy==1.26.0"]
         assert program.env_vars not in ("{}", "")
+        assert program.entrypoint == "original.py"
+        assert program.artifact.name == original_artifact
+        assert program.image == "docker.io/original-image:latest"
 
     def test_run_with_invalid_arguments_returns_400_no_job_created(self):
         """Run with arguments that violate the schema returns 400 and no job is created."""
@@ -1616,3 +1621,16 @@ class TestProgramApiRuntimeInstances:
                 format="json",
             )
             assert response.status_code == status.HTTP_404_NOT_FOUND
+
+        def test_validate_arguments_title_that_sanitizes_to_empty_returns_400(self, client, authorize):
+            """validate_arguments returns 400 when the title sanitizes down to an empty string."""
+            authorize("test_user", create_custom_access_result({PLATFORM_PERMISSION_CUSTOM_RUN}))
+            response = client.post(
+                "/api/v1/programs/validate_arguments/",
+                data={
+                    "title": "!!!",
+                    "arguments": json.dumps({}),
+                },
+                format="json",
+            )
+            assert response.status_code == status.HTTP_400_BAD_REQUEST

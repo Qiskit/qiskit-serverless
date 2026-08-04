@@ -58,9 +58,45 @@ class JobFileExplorer:
 
     def explore(self, job: Job) -> list[FileGroup]:
         """Return all storage files for the given job, grouped by category."""
+        groups: list[FileGroup] = []
+
+        artifact_group = self._program_artifact_group(job)
+        if artifact_group:
+            groups.append(artifact_group)
+
         if job.program.runner == Program.FLEETS:
-            return self._explore_fleets(job)
-        return self._explore_ray(job)
+            groups.extend(self._explore_fleets(job))
+        else:
+            groups.extend(self._explore_ray(job))
+        return groups
+
+    @staticmethod
+    def _program_artifact_group(job: Job) -> FileGroup | None:
+        """The uploaded function code (``program.artifact``), stored per Program, not per Job.
+
+        Present for both runners when the function was uploaded as an artifact (rather than a
+        custom image). Metadata is read through the FileField's storage API so it works whether
+        the media volume is a local disk or a COS-backed mount.
+        """
+        artifact = job.program.artifact
+        if not artifact:
+            return None
+        try:
+            size = artifact.size
+        except (OSError, ValueError):
+            size = 0
+        try:
+            last_modified = artifact.storage.get_modified_time(artifact.name)
+        except (OSError, ValueError, NotImplementedError):
+            last_modified = None
+        entry = FileEntry(
+            name=os.path.basename(artifact.name),
+            full_key=artifact.name,
+            size_bytes=size,
+            last_modified=last_modified,
+            bucket_or_path=os.path.dirname(artifact.name),
+        )
+        return FileGroup(category="Function artifact", files=[entry])
 
     def _explore_fleets(self, job: Job) -> list[FileGroup]:
         paths = build_job_paths(job)
