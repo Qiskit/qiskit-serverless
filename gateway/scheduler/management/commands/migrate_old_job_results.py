@@ -21,6 +21,7 @@ def save_job_results_to_storage(job: Job):
 
     result_storage = get_result_storage(job)
     result_storage.save(job.result)
+    logger.info("Result data [%s]: %s", job.id, job.result[:100])
 
     if not result_storage.get() == job.result:
         logger.error("Result NOT saved to storage for job [%s]", job.id)
@@ -62,6 +63,7 @@ class Command(BaseCommand):
             for job in jobs:
                 logger.info("Processing job[%s]", job.id)
                 if job.result is None:
+                    logger.info("Result is None")
                     job.result = ""
                     job.save(update_fields=["result"])
                 elif save_job_results_to_storage(job):

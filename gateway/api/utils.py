@@ -194,10 +194,10 @@ def create_dynamic_dependencies_whitelist() -> Dict[str, Requirement]:
     The format of the readed file should be a requirements.txt file.
     """
     # Determine path based on environment:
-    # - Tests: ../ray-node/requirements-dynamic-dependencies.txt
+    # - Tests: ../docker-images/requirements-dynamic-dependencies.txt
     # - Docker/production: requirements-dynamic-dependencies.txt (copied to /usr/src/app/)
     if settings.IS_TEST:
-        requirements_path = "../ray-node/requirements-dynamic-dependencies.txt"
+        requirements_path = "../docker-images/requirements-dynamic-dependencies.txt"
     else:
         requirements_path = "requirements-dynamic-dependencies.txt"
 
