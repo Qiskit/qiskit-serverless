@@ -27,7 +27,7 @@ from .abstract_event_streams_client import EventStreamsClient
 
 logger = logging.getLogger("gateway.ibm_cloud.event_streams_client")
 
-LICENSE_FEE_METRIC_TYPE = "license_qesem"
+LICENSE_FEE_METRIC_TYPE = "license"
 
 
 class KafkaEventStreamsClient(EventStreamsClient):

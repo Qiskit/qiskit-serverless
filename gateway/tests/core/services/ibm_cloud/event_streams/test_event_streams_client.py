@@ -256,7 +256,7 @@ class TestKafkaEventStreamsClient:
         assert published["source"] == "qiskit-serverless/scheduler/fleets"
         assert published["subject"] == str(job.id)
         assert published["data"] == {
-            "metric_type": "license_qesem_ibm_test-program",
+            "metric_type": "license_ibm_test-program",
             "metric_value": 1,
             "instance_crn": job.instance_crn,
             "resource_id": str(job.id),

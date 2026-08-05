@@ -18,13 +18,13 @@ build-all: build-ray-node build-fleet-node build-gateway
 push-all: push-ray-node push-fleet-node push-gateway
 
 build-ray-node:
-	docker build -t $(rayNodeImageName):$(version) -f ./ray-node/Dockerfile .
+	docker build -t $(rayNodeImageName):$(version) -f ./docker-images/ray-node/Dockerfile .
 
 # Also tag it fleet-node:latest so the fleets integration-test worker
 # (tests/fleets/fleet-worker/Dockerfile, FROM ${BASE_IMAGE:-fleet-node:latest})
 # can build on it locally without needing the full registry path.
 build-fleet-node:
-	docker build -t $(fleetNodeImageName):$(version) -t fleet-node:latest -f ./fleet-node/Dockerfile .
+	docker build -t $(fleetNodeImageName):$(version) -t fleet-node:latest -f ./docker-images/fleet-node/Dockerfile .
 
 build-gateway:
 	docker build -t $(gatewayImageName):$(version) -f ./gateway/Dockerfile .
