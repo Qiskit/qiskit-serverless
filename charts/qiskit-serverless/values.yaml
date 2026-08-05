@@ -93,6 +93,9 @@ gateway:
         name: name
         password: password
         email: email
+    w3idSso:
+      name: ""
+      secretStoreName: qiskit-serverless
 
 # ===================
 # Kuberay Operator

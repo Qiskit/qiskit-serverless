@@ -1158,6 +1158,184 @@ class TestProgramApi(APITestCase):
         program = Program.objects.get(title="Defaultrunnerfunction")
         assert program.runner == Program.RAY
 
+    def test_upload_with_arguments_schema_stores_it(self):
+        """Upload with arguments_schema saves the schema on the Program."""
+        schema = json.dumps({"type": "object", "properties": {"shots": {"type": "integer"}}})
+        fake_file = ContentFile(b"print('hello')")
+        fake_file.name = "test.tar"
+        TestUtils.authorize_client(user="test_user", client=self.client)
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "schema-function",
+                    "entrypoint": "main.py",
+                    "dependencies": "[]",
+                    "arguments_schema": schema,
+                    "artifact": fake_file,
+                },
+            )
+        assert response.status_code == status.HTTP_200_OK
+        program = Program.objects.get(title="schema-function")
+        assert program.arguments_schema == schema
+
+    def test_upload_with_invalid_schema_returns_400(self):
+        """Upload with malformed JSON as arguments_schema returns 400."""
+        fake_file = ContentFile(b"print('hello')")
+        fake_file.name = "test.tar"
+        TestUtils.authorize_client(user="test_user", client=self.client)
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "bad-schema-function",
+                    "entrypoint": "main.py",
+                    "dependencies": "[]",
+                    "arguments_schema": "not-valid-json{{{",
+                    "artifact": fake_file,
+                },
+            )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_reupload_without_schema_preserves_existing_schema(self):
+        """Re-uploading a function without arguments_schema keeps the existing schema."""
+        schema = json.dumps({"type": "object"})
+        user = TestUtils.authorize_client(user="test_user", client=self.client)
+        TestUtils.create_program(
+            program_title="preserve-schema-func",
+            author=user,
+            entrypoint="main.py",
+            arguments_schema=schema,
+        )
+        fake_file = ContentFile(b"print('hello')")
+        fake_file.name = "test.tar"
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "preserve-schema-func",
+                    "entrypoint": "main.py",
+                    "dependencies": "[]",
+                    "artifact": fake_file,
+                },
+            )
+        assert response.status_code == status.HTTP_200_OK
+        program = Program.objects.get(title="preserve-schema-func", author=user)
+        assert program.arguments_schema == schema
+
+    def test_upload_all_fields_stores_all_fields(self):
+        """Upload with all optional fields - every field is persisted to the DB."""
+        fake_file = ContentFile(b"print('hello')")
+        fake_file.name = "test.tar"
+        user = TestUtils.authorize_client(user="test_user", client=self.client)
+        schema = json.dumps({"type": "object", "properties": {"n": {"type": "integer"}}})
+        env_vars = json.dumps({"MY_KEY": "MY_VALUE"})
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "full-function",
+                    "entrypoint": "custom_entry.py",
+                    "dependencies": "[]",
+                    "env_vars": env_vars,
+                    "description": "My description",
+                    "version": "1.2.3",
+                    "runner": Program.RAY,
+                    "arguments_schema": schema,
+                    "artifact": fake_file,
+                },
+            )
+        assert response.status_code == status.HTTP_200_OK
+        program = Program.objects.get(title="full-function", author=user)
+        assert program.entrypoint == "custom_entry.py"
+        assert program.description == "My description"
+        assert program.version == "1.2.3"
+        assert program.runner == Program.RAY
+        assert program.arguments_schema == schema
+        assert program.env_vars not in ("{}", "")
+
+    def test_reupload_with_only_title_preserves_optional_fields(self):
+        """Re-uploading with only the title must preserve every previously set optional field.
+
+        This test proves empirically which fields survive a minimal re-upload.
+        Fields that used to RESET (runner, dependencies, env_vars, entrypoint, artifact, image) must be PRESERVED.
+        """
+        schema = json.dumps({"type": "object"})
+        user = TestUtils.authorize_client(user="test_user", client=self.client)
+        TestUtils.get_or_create_ce_project(project_name="test-project", project_id="test-id")
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT, CE_DEFAULT_PROJECT_NAME="test-project"):
+            program = TestUtils.create_program(
+                program_title="reupload-test-func",
+                author=user,
+                entrypoint="original.py",
+                artifact=ContentFile(b"print('original')", name="original.tar"),
+                image="docker.io/original-image:latest",
+                description="Original description",
+                version="2.0.0",
+                runner=Program.FLEETS,
+                dependencies='["numpy==1.26.0"]',
+                env_vars='{"MY_KEY":"MY_VALUE"}',
+                arguments_schema=schema,
+            )
+            original_artifact = program.artifact.name
+
+            response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={"title": "reupload-test-func"},
+            )
+        assert response.status_code == status.HTTP_200_OK
+        program.refresh_from_db()
+
+        # Already preserved (existing behavior):
+        assert program.description == "Original description"
+        assert program.version == "2.0.0"
+        assert program.arguments_schema == schema
+
+        # Now also preserved (previously reset):
+        assert program.runner == Program.FLEETS
+        assert json.loads(program.dependencies) == ["numpy==1.26.0"]
+        assert program.env_vars not in ("{}", "")
+        assert program.entrypoint == "original.py"
+        assert program.artifact.name == original_artifact
+        assert program.image == "docker.io/original-image:latest"
+
+    def test_run_with_invalid_arguments_returns_400_no_job_created(self):
+        """Run with arguments that violate the schema returns 400 and no job is created."""
+        schema = json.dumps(
+            {
+                "type": "object",
+                "required": ["shots"],
+                "properties": {"shots": {"type": "integer"}},
+            }
+        )
+        user = TestUtils.authorize_client(user="test_user", client=self.client)
+        TestUtils.create_program(
+            program_title="validated-func",
+            author=user,
+            arguments_schema=schema,
+        )
+        job_count_before = Job.objects.count()
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            response = self.client.post(
+                "/api/v1/programs/run/",
+                data={
+                    "title": "validated-func",
+                    "arguments": json.dumps({"shots": "wrong-type"}),
+                    "config": {},
+                },
+                format="json",
+            )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "message" in response.data
+        assert "path" in response.data
+        assert Job.objects.count() == job_count_before
+
 
 @pytest.mark.django_db
 class TestProgramApiRuntimeInstances:
@@ -1362,3 +1540,97 @@ class TestProgramApiRuntimeInstances:
 
             assert response.status_code == status.HTTP_200_OK
             assert len(response.data) == expected_job_count
+
+    class TestValidateArguments:
+        def test_validate_arguments_valid_returns_200(self, client, authorize):
+            """validate_arguments returns 200 when arguments match the schema."""
+            schema = json.dumps(
+                {
+                    "type": "object",
+                    "required": ["shots"],
+                    "properties": {"shots": {"type": "integer"}},
+                }
+            )
+            user = authorize("test_user", create_custom_access_result({PLATFORM_PERMISSION_CUSTOM_RUN}))
+            TestUtils.create_program(
+                program_title="validate-endpoint-func",
+                author=user,
+                arguments_schema=schema,
+            )
+            response = client.post(
+                "/api/v1/programs/validate_arguments/",
+                data={
+                    "title": "validate-endpoint-func",
+                    "arguments": json.dumps({"shots": 1024}),
+                },
+                format="json",
+            )
+            assert response.status_code == status.HTTP_200_OK
+            assert response.data == {"valid": True}
+
+        def test_validate_arguments_invalid_returns_400(self, client, authorize):
+            """validate_arguments returns 400 when arguments violate the schema."""
+            schema = json.dumps(
+                {
+                    "type": "object",
+                    "required": ["shots"],
+                    "properties": {"shots": {"type": "integer"}},
+                }
+            )
+            user = authorize("test_user", create_custom_access_result({PLATFORM_PERMISSION_CUSTOM_RUN}))
+            TestUtils.create_program(
+                program_title="validate-endpoint-func-bad",
+                author=user,
+                arguments_schema=schema,
+            )
+            response = client.post(
+                "/api/v1/programs/validate_arguments/",
+                data={
+                    "title": "validate-endpoint-func-bad",
+                    "arguments": json.dumps({"shots": "wrong"}),
+                },
+                format="json",
+            )
+            assert response.status_code == status.HTTP_400_BAD_REQUEST
+            assert "message" in response.data
+            assert "path" in response.data
+
+        def test_validate_arguments_no_schema_returns_200(self, client, authorize):
+            """validate_arguments returns 200 for any arguments when function has no schema."""
+            user = authorize("test_user", create_custom_access_result({PLATFORM_PERMISSION_CUSTOM_RUN}))
+            TestUtils.create_program(program_title="no-schema-func", author=user)
+            response = client.post(
+                "/api/v1/programs/validate_arguments/",
+                data={
+                    "title": "no-schema-func",
+                    "arguments": json.dumps({"anything": "goes"}),
+                },
+                format="json",
+            )
+            assert response.status_code == status.HTTP_200_OK
+
+        def test_validate_arguments_unknown_function_returns_404(self, client, authorize):
+            """validate_arguments returns 404 when function is not found."""
+            authorize("test_user", create_custom_access_result({PLATFORM_PERMISSION_CUSTOM_RUN}))
+            response = client.post(
+                "/api/v1/programs/validate_arguments/",
+                data={
+                    "title": "does-not-exist",
+                    "arguments": json.dumps({}),
+                },
+                format="json",
+            )
+            assert response.status_code == status.HTTP_404_NOT_FOUND
+
+        def test_validate_arguments_title_that_sanitizes_to_empty_returns_400(self, client, authorize):
+            """validate_arguments returns 400 when the title sanitizes down to an empty string."""
+            authorize("test_user", create_custom_access_result({PLATFORM_PERMISSION_CUSTOM_RUN}))
+            response = client.post(
+                "/api/v1/programs/validate_arguments/",
+                data={
+                    "title": "!!!",
+                    "arguments": json.dumps({}),
+                },
+                format="json",
+            )
+            assert response.status_code == status.HTTP_400_BAD_REQUEST

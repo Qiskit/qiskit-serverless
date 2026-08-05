@@ -20,6 +20,11 @@ from .task import SchedulerTask
 
 logger = logging.getLogger("scheduler.UpdateFleetsJobsStatuses")
 
+# Metric billed for the wall-clock time a Fleets job spends running. Every Fleets job
+# currently reports this single metric; deriving the metric type from
+# provider/function/size and compute profile is handled in a follow-up task.
+CLASSICAL_TIME_METRIC_TYPE = "classical_time"
+
 
 class UpdateFleetsJobsStatuses(SchedulerTask):
     """Update status of Fleets (Code Engine) jobs."""
@@ -81,8 +86,9 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             else:
                 # Job already RUNNING — emit in-progress before checking timeout.
                 # A job transitioning to terminal via stop_job_if_timeout in this same tick
-                # will produce both job_in_progress and job_ended events; consumers key on event_type.
-                self.event_streams_client.emit_job_in_progress(job)
+                # will produce both an in-progress and a completed event; consumers key on
+                # the job_started / job_completed flags.
+                self.event_streams_client.emit_job_in_progress(job, CLASSICAL_TIME_METRIC_TYPE)
 
             self.stop_job_if_timeout(job)
 
@@ -107,7 +113,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             new_status,
         )
-        self.event_streams_client.emit_job_ended(job)
+        self.event_streams_client.emit_job_completed(job, CLASSICAL_TIME_METRIC_TYPE)
         job.update_fields({"status": new_status, "sub_status": None, "env_vars": "{}"})
         JobEvent.objects.add_status_event(
             job_id=job.id,
@@ -126,9 +132,13 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             Job.RUNNING,
         )
-        self.event_streams_client.emit_job_started(job)
+        self.event_streams_client.emit_job_started(job, CLASSICAL_TIME_METRIC_TYPE)
+        # prevent custom function to emit license fee
+        # since licenses is a provider feature
+        if job.program.provider:
+            self.event_streams_client.emit_license_fee(job)
         # running_started_at is set only on first transition; already-RUNNING jobs picked up
-        # after a scheduler restart will have running_started_at=None (usage_nanoseconds=0).
+        # after a scheduler restart will have running_started_at=None (metric_value=0).
         job.update_fields({"status": Job.RUNNING, "running_started_at": django_timezone.now()})
         JobEvent.objects.add_status_event(
             job_id=job.id,

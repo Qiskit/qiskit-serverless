@@ -13,16 +13,26 @@ defaults:
 
 jobs:
   build-containers:
-    name: Test build containers
+    # The label is what shows up in the check name "Test build containers (<label>, <python>)".
+    # The branch ruleset requires those names by exact string, so we keep the old paths as labels
+    # (ray-node/Dockerfile, gateway/Dockerfile) even though the Dockerfiles now live under
+    # docker-images/. dockerfile is the real path we build. Drop the label indirection once the
+    # ruleset is updated (or once ray-node is removed).
+    name: Test build containers (${{ matrix.label }}, ${{ matrix.python }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false # keep running if one leg fails
       matrix:
-        dockerfile:
-          - ray-node/Dockerfile
-          - gateway/Dockerfile
-        python:
-          - "3.11"
+        include:
+          - label: ray-node/Dockerfile          # label kept to match the required check name
+            dockerfile: docker-images/ray-node/Dockerfile
+            python: "3.11"
+          - label: fleet-node/Dockerfile         # not required in CI
+            dockerfile: docker-images/fleet-node/Dockerfile
+            python: "3.11"
+          - label: gateway/Dockerfile            # unchanged (label == path)
+            dockerfile: gateway/Dockerfile
+            python: "3.11"
     steps:
       - name: Checkout
         uses: actions/checkout@v7

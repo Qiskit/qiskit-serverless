@@ -8,7 +8,7 @@ import pytest
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, Program
 from core.services.runners import RunnerError
-from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses
+from scheduler.tasks.update_fleets_jobs_statuses import CLASSICAL_TIME_METRIC_TYPE, UpdateFleetsJobsStatuses
 
 _MOD = "scheduler.tasks.update_fleets_jobs_statuses"
 
@@ -362,7 +362,7 @@ class TestEventStreamsIntegration:
         job = _make_fleets_job(status=Job.PENDING)
 
         call_order = []
-        task.event_streams_client.emit_job_started.side_effect = lambda j: call_order.append("publish")
+        task.event_streams_client.emit_job_started.side_effect = lambda j, m: call_order.append("publish")
         job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db"))
 
         with patch(f"{_MOD}.JobEvent"):
@@ -370,7 +370,7 @@ class TestEventStreamsIntegration:
                 task.to_running(job)
 
         assert call_order == ["publish", "db"]
-        task.event_streams_client.emit_job_started.assert_called_once_with(job)
+        task.event_streams_client.emit_job_started.assert_called_once_with(job, CLASSICAL_TIME_METRIC_TYPE)
 
     def test_to_running_raises_if_publish_fails(self):
         task = _make_task()
@@ -384,23 +384,23 @@ class TestEventStreamsIntegration:
 
         job.update_fields.assert_not_called()
 
-    def test_to_terminal_emits_job_ended_before_db_update(self):
+    def test_to_terminal_emits_job_completed_before_db_update(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
         call_order = []
-        task.event_streams_client.emit_job_ended.side_effect = lambda j: call_order.append("publish")
+        task.event_streams_client.emit_job_completed.side_effect = lambda j, m: call_order.append("publish")
         job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db"))
 
         with patch(f"{_MOD}.JobEvent"):
             task.to_terminal(job, Job.SUCCEEDED)
 
         assert call_order == ["publish", "db"]
-        task.event_streams_client.emit_job_ended.assert_called_once_with(job)
+        task.event_streams_client.emit_job_completed.assert_called_once_with(job, CLASSICAL_TIME_METRIC_TYPE)
 
     def test_to_terminal_raises_if_publish_fails(self):
         task = _make_task()
-        task.event_streams_client.emit_job_ended.side_effect = Exception("broker down")
+        task.event_streams_client.emit_job_completed.side_effect = Exception("broker down")
         job = _make_fleets_job(status=Job.RUNNING)
 
         with patch(f"{_MOD}.JobEvent"):
@@ -422,7 +422,7 @@ class TestEventStreamsIntegration:
         ):
             task.update_job_status(job)
 
-        task.event_streams_client.emit_job_in_progress.assert_called_once_with(job)
+        task.event_streams_client.emit_job_in_progress.assert_called_once_with(job, CLASSICAL_TIME_METRIC_TYPE)
 
     def test_run_publish_failure_skips_db_update_and_continues_other_jobs(self):
         task = _make_task()
@@ -468,3 +468,19 @@ class TestEventStreamsIntegration:
             task.update_job_status(job)
 
         task.event_streams_client.emit_job_in_progress.assert_not_called()
+
+    def test_to_running_emits_license_fee_after_job_started(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.PENDING)
+
+        call_order = []
+        task.event_streams_client.emit_job_started.side_effect = lambda j, m: call_order.append("started")
+        task.event_streams_client.emit_license_fee.side_effect = lambda j: call_order.append("license")
+        job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db"))
+
+        with patch(f"{_MOD}.JobEvent"):
+            with patch(f"{_MOD}.django_timezone"):
+                task.to_running(job)
+
+        assert call_order == ["started", "license", "db"]
+        task.event_streams_client.emit_license_fee.assert_called_once_with(job)

@@ -21,6 +21,7 @@ def save_job_arguments_to_storage(job: Job):
 
     arguments_storage = get_arguments_storage(job)
     arguments_storage.save(job.arguments)
+    logger.info("Arguments data [%s]: %s", job.id, job.arguments[:100])
 
     if not arguments_storage.get() == job.arguments:
         logger.error("Arguments NOT saved to storage for job [%s]", job.id)
@@ -56,8 +57,11 @@ class Command(BaseCommand):
                 logger.info("No more jobs to process")
                 break
 
+            logger.info("max_jobs jobs %s", max_jobs)
+
             logger.info("Processing [%s] jobs", len(jobs))
             for job in jobs:
+                logger.info("Processing job[%s]", job.id)
                 if save_job_arguments_to_storage(job):
                     job.arguments = ""
                     job.save(update_fields=["arguments"])

@@ -21,17 +21,25 @@ import uuid
 from datetime import datetime, timezone
 
 from confluent_kafka import Producer
+from core.models import Job
 
 from .abstract_event_streams_client import EventStreamsClient
 
 logger = logging.getLogger("gateway.ibm_cloud.event_streams_client")
+
+LICENSE_FEE_METRIC_TYPE = "license"
 
 
 class KafkaEventStreamsClient(EventStreamsClient):
     """
     Kafka producer client for IBM Cloud Event Streams.
 
-    Publishes CloudEvents 1.0 usage events for Fleets jobs.
+    Publishes CloudEvents 1.0 usage events for Fleets jobs. Each event carries a
+    single metric in its `data` payload: `metric_type` (what is being billed) and
+    `metric_value` (how much, in milliseconds for time-based metrics), plus
+    `job_started` / `job_completed` flags so consumers can detect lifecycle
+    boundaries without interpreting the metric type.
+
     Configured from environment variables:
       EVENT_STREAMS_BOOTSTRAP_SERVERS — comma-separated broker list
       EVENT_STREAMS_API_KEY           — SASL/PLAIN password
@@ -54,25 +62,55 @@ class KafkaEventStreamsClient(EventStreamsClient):
         )
         self.topic = f"quantum.{environment}.function-usage.v1"
 
-    def emit_job_started(self, job) -> None:
-        """Publish a job_started event (usage_nanoseconds=0)."""
-        self._publish(job, event_type="job_started", usage_nanoseconds=0)
+    def emit_job_started(self, job, metric_type: str) -> None:
+        """Publish a job-started event for the given metric (metric_value=0)."""
+        self._publish(job, metric_type=metric_type, metric_value=0, job_started=True, job_completed=False)
 
-    def emit_job_in_progress(self, job) -> None:
-        """Publish a job_in_progress event with current usage."""
-        self._publish(job, event_type="job_in_progress", usage_nanoseconds=self._usage_ns(job))
+    def emit_job_in_progress(self, job, metric_type: str) -> None:
+        """Publish a job-in-progress event for the given metric with current usage."""
+        self._publish(
+            job,
+            metric_type=metric_type,
+            metric_value=self._usage_ms(job),
+            job_started=False,
+            job_completed=False,
+        )
 
-    def emit_job_ended(self, job) -> None:
-        """Publish a job_ended event with final usage."""
-        self._publish(job, event_type="job_ended", usage_nanoseconds=self._usage_ns(job))
+    def emit_job_completed(self, job, metric_type: str) -> None:
+        """Publish a job-completed event for the given metric with final usage."""
+        self._publish(
+            job,
+            metric_type=metric_type,
+            metric_value=self._usage_ms(job),
+            job_started=False,
+            job_completed=True,
+        )
 
-    def _usage_ns(self, job) -> int:
+    def emit_license_fee(self, job: Job) -> None:
+        metric_type = "_".join([LICENSE_FEE_METRIC_TYPE, job.program.provider.name, job.program.title])
+        self._publish(
+            job,
+            metric_type=metric_type,
+            metric_value=1,
+            job_started=True,
+            job_completed=True,
+        )
+
+    def _usage_ms(self, job) -> int:
         if job.running_started_at is None:
             return 0
         delta = datetime.now(timezone.utc) - job.running_started_at
-        return int(delta.total_seconds() * 1e9)
+        return int(delta.total_seconds() * 1e3)
 
-    def _publish(self, job, *, event_type: str, usage_nanoseconds: int) -> None:
+    def _publish(
+        self,
+        job,
+        *,
+        metric_type: str,
+        metric_value: int,
+        job_started: bool,
+        job_completed: bool,
+    ) -> None:
         now = datetime.now(timezone.utc)
         event = {
             "specversion": "1.0",
@@ -83,10 +121,12 @@ class KafkaEventStreamsClient(EventStreamsClient):
             "subject": str(job.id),
             "datacontenttype": "application/json",
             "data": {
-                "event_type": event_type,
-                "usage_nanoseconds": usage_nanoseconds,
+                "metric_type": metric_type,
+                "metric_value": metric_value,
                 "instance_crn": job.instance_crn,
-                "function_id": str(job.id),
+                "resource_id": str(job.id),
+                "job_started": job_started,
+                "job_completed": job_completed,
             },
         }
         self._producer.produce(

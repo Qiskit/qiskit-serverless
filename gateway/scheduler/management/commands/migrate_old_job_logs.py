@@ -25,11 +25,13 @@ def save_job_logs_to_storage(job: Job):
     logs_storage = get_logs_storage(job)
     if job.program.provider:
         logs_storage.save_private_logs(logs)
+        logger.info("Provider logs data [%s]: %s", job.id, job.logs[:100])
         if not logs_storage.get_private_logs() == job.logs:
             logger.error("Logs NOT saved to storage for job [%s]", job.id)
             return False
     else:
         logs_storage.save_public_logs(logs)
+        logger.info("Public logs data [%s]: %s", job.id, job.logs[:100])
         if not logs_storage.get_public_logs() == job.logs:
             logger.error("Logs NOT saved to storage for job [%s]", job.id)
             return False
@@ -64,8 +66,11 @@ class Command(BaseCommand):
                 logger.info("No more jobs to process")
                 break
 
+            logger.info("max_jobs jobs %s", max_jobs)
+
             logger.info("Processing [%s] jobs", len(jobs))
             for job in jobs:
+                logger.info("Processing job[%s]", job.id)
                 if save_job_logs_to_storage(job):
                     job.logs = ""
                     job.save(update_fields=["logs"])
