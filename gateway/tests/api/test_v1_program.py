@@ -850,6 +850,17 @@ class TestProgramApi(APITestCase):
         )
         assert programs_response_do_not_have_access.status_code == status.HTTP_404_NOT_FOUND
 
+    def test_get_by_title_returns_arguments_schema(self):
+        """get_by_title exposes arguments_schema so clients can read a function's declared schema."""
+        schema = json.dumps({"type": "object", "required": ["shots"]})
+        user = TestUtils.authorize_client(user="test_user", client=self.client)
+        TestUtils.create_program(program_title="schema-func", author=user, arguments_schema=schema)
+
+        response = self.client.get("/api/v1/programs/get_by_title/schema-func/", format="json")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data.get("arguments_schema") == schema
+
     def test_get_jobs(self):
         """Tests run existing authorized."""
 

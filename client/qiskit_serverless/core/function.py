@@ -29,9 +29,10 @@ Qiskit Serverless function
 
 from abc import ABC, abstractmethod
 import dataclasses
+import json
 import warnings
 from dataclasses import dataclass
-from typing import ClassVar, Literal, Optional, Dict, List, Any, Tuple, Union
+from typing import ClassVar, Literal, Optional, Dict, List, Any, Union
 
 from qiskit_serverless.core.job import (
     Job,
@@ -41,6 +42,21 @@ from qiskit_serverless.core.job import (
 GenericType = Literal["GENERIC"]
 ApplicationType = Literal["APPLICATION"]
 CircuitType = Literal["CIRCUIT"]
+
+
+def _decode_fields(data: Dict[str, Any], field_names: set) -> Dict[str, Any]:
+    """Keep only known dataclass fields and decode the ones the gateway sends as text.
+
+    ``arguments_schema`` is stored server-side as text (defaulting to ``"{}"``), so a
+    function without a schema comes back as an empty object rather than null.
+    """
+    decoded = {k: v for k, v in data.items() if k in field_names}
+    if "arguments_schema" in decoded:
+        raw_schema = decoded["arguments_schema"]
+        if isinstance(raw_schema, str):
+            raw_schema = json.loads(raw_schema) if raw_schema else None
+        decoded["arguments_schema"] = raw_schema or None
+    return decoded
 
 
 @dataclass
@@ -76,7 +92,6 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
     raw_data: Optional[Dict[str, Any]] = None
     image: Optional[str] = None
     runner: str = "ray"
-    validate: bool = True
     arguments_schema: Optional[Dict[str, Any]] = None
     type: Union[GenericType, ApplicationType, CircuitType] = GENERIC
 
@@ -98,7 +113,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
     def from_json(cls, data: Dict[str, Any]):
         """Reconstructs QiskitPattern from dictionary."""
         field_names = set(f.name for f in dataclasses.fields(QiskitFunction))
-        return QiskitFunction(**{k: v for k, v in data.items() if k in field_names})
+        return QiskitFunction(**_decode_fields(data, field_names))
 
     def __str__(self):
         if self.provider is not None:
@@ -107,16 +122,6 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
 
     def __repr__(self):
         return self.__str__()
-
-    def _validate_function(self) -> Tuple[bool, List[str]]:
-        """Validate function arguments using schema provided.
-
-        Returns:
-            Tuple[bool, List[str]]:
-                boolean specifying if function arguments are valid
-                list of validation errors, if any
-        """
-        return True, []
 
 
 class RunService(ABC):
@@ -178,7 +183,7 @@ class RunnableQiskitFunction(QiskitFunction):
         """Reconstructs QiskitPattern from dictionary."""
         field_names = set(f.name for f in dataclasses.fields(RunnableQiskitFunction))
         client = data["client"]
-        return RunnableQiskitFunction(client, **{k: v for k, v in data.items() if k in field_names})
+        return RunnableQiskitFunction(client, **_decode_fields(data, field_names))
 
     def run(self, **kwargs):
         """Run function
@@ -191,14 +196,6 @@ class RunnableQiskitFunction(QiskitFunction):
         """
         if self._run_service is None:
             raise ValueError("No clients specified for a function.")
-
-        if self.validate:
-            is_valid, validation_errors = self._validate_function()
-            if not is_valid:
-                error_string = "\n".join(validation_errors)
-                raise ValueError(
-                    f"Function validation failed. Validation errors:\n {error_string}",
-                )
 
         config = kwargs.pop("config", None)
         compute_profile = kwargs.pop("compute_profile", None)
@@ -239,14 +236,6 @@ class RunnableQiskitFunction(QiskitFunction):
 
         if self._run_service is None:
             raise ValueError("No clients specified for a function.")
-
-        if self.validate:
-            is_valid, validation_errors = self._validate_function()
-            if not is_valid:
-                error_string = "\n".join(validation_errors)
-                raise ValueError(
-                    f"Function validation failed. Validation errors:\n {error_string}",
-                )
 
         jobs = self._run_service.jobs(function=self, **kwargs)
         return jobs
