@@ -133,6 +133,8 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             Job.RUNNING,
         )
         self.event_streams_client.emit_job_started(job, CLASSICAL_TIME_METRIC_TYPE)
+        # prevent custom function to emit license fee
+        # since licenses is a provider feature
         if job.program.provider:
             self.event_streams_client.emit_license_fee(job)
         # running_started_at is set only on first transition; already-RUNNING jobs picked up
