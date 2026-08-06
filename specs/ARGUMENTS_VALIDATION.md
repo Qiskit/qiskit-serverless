@@ -134,13 +134,15 @@ Request body:
 | `arguments` | yes | JSON string |
 | `provider` | no | Alternative to putting the provider in `title` |
 
-A provider function can be addressed either way, matching `/upload` and `/get_by_title`: as `title="acme/my-function"`
-or as `title="my-function"` plus `provider="acme"`. `_split_provider_and_title` in the view applies the convention and
-rejects the same two malformed cases `/upload` rejects: a provider given in both places, and more than one slash.
+A provider function can be addressed either way: as `title="acme/my-function"` or as `title="my-function"` plus
+`provider="acme"`. The convention lives in one place, `parse_title_and_provider` in `api/utils.py`, shared by this
+endpoint, `/get_by_title` and `/upload`. It sanitizes both values and rejects the two malformed cases: a provider given
+in both places at once, and a title with more than one slash. Rejecting is safe precisely because `/upload` is what
+creates functions, so a title `/upload` refuses cannot belong to an existing one, and a clear 400 beats a puzzling 404.
 
-Note that `/run` does **not** split its `title`, so there a provider function must be addressed with `provider` as its
-own field. The client SDK always separates the two in `QiskitFunction.__post_init__`, so SDK callers never notice the
-difference; direct API callers do.
+`/run` is the one endpoint that still does not apply the convention, so there a provider function must be addressed
+with `provider` as its own field. The client SDK always separates the two in `QiskitFunction.__post_init__`, so SDK
+callers never notice; direct API callers do.
 
 The view (`api/v1/views/programs/validate_arguments.py`) only parses and sanitizes input, then hands off to
 `ValidateArgumentsUseCase`. Function resolution and permissions match `/run` exactly: `PLATFORM_PERMISSION_RUN` /

@@ -10,30 +10,12 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from api.use_cases.programs.validate_arguments import ValidateArgumentsUseCase
-from api.utils import sanitize_name
+from api.utils import parse_title_and_provider, sanitize_name
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
 from core.domain.authorization.function_access_result import FunctionAccessResult
 
 logger = logging.getLogger("api.api.v1.views.programs.validate_arguments")
-
-
-def _split_provider_and_title(title: str, provider: str | None) -> tuple[str, str | None]:
-    """Apply the ``provider/title`` convention, the same way /upload and /get_by_title do.
-
-    Both values arrive already sanitized from the serializer, so this only splits them.
-    """
-    if provider:
-        if "/" in title:
-            raise serializers.ValidationError("Provider defined in title and in provider fields.")
-        return title, provider
-
-    parts = title.split("/")
-    if len(parts) == 1:
-        return title, None
-    if len(parts) > 2:
-        raise serializers.ValidationError("Qiskit Function title is malformed. It can only contain one slash.")
-    return parts[1], parts[0]
 
 
 class InputSerializer(serializers.Serializer):  # pylint: disable=abstract-method
@@ -78,7 +60,7 @@ def validate_arguments(request: Request) -> Response:
     serializer = InputSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
-    function_title, provider_name = _split_provider_and_title(
+    function_title, provider_name = parse_title_and_provider(
         serializer.validated_data.get("title"),
         serializer.validated_data.get("provider"),
     )
