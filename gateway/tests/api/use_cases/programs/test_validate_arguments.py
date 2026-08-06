@@ -1,10 +1,12 @@
 """Unit tests for validate_arguments and ValidateArgumentsUseCase."""
 
 import json
+import time
 import pytest
 from unittest.mock import MagicMock
 from django.contrib.auth.models import User
 
+from api.domain.arguments_schema import MAX_SCHEMA_LENGTH
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.domain.exceptions.invalid_arguments_exception import InvalidArgumentsException
 from api.use_cases.programs.validate_arguments import ValidateArgumentsUseCase, validate_arguments
@@ -45,6 +47,122 @@ def test_invalid_json_raises_invalid_arguments_exception():
     schema = {"type": "object", "required": ["shots"]}
     with pytest.raises(InvalidArgumentsException):
         validate_arguments(_program(schema), "not-valid-json{{{")
+
+
+def test_catastrophic_pattern_is_matched_in_linear_time():
+    """A nested quantifier must not make validation exponential in the length of the input.
+
+    Under Python's backtracking engine this pattern needs about 8 seconds for 28 characters and
+    doubles per extra character, so 5000 characters would never finish. RE2 does not backtrack.
+    """
+    schema = {"type": "object", "properties": {"x": {"type": "string", "pattern": "^(a+)+$"}}}
+    start = time.perf_counter()
+
+    with pytest.raises(InvalidArgumentsException):
+        validate_arguments(_program(schema), json.dumps({"x": "a" * 5000 + "!"}))
+
+    assert time.perf_counter() - start < 1
+
+
+def test_dialect_switch_below_the_top_level_is_rejected():
+    """'$schema' in a subschema would switch jsonschema back to the backtracking engine."""
+    schema = {
+        "properties": {
+            "x": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "string",
+                "pattern": "^(a+)+$",
+            }
+        }
+    }
+    with pytest.raises(InvalidArgumentsException, match=r"\$schema"):
+        validate_arguments(_program(schema), '{"x": "aaa"}')
+
+
+def test_pattern_properties_is_rejected():
+    """'patternProperties' regexes stay reachable from Python's re engine, so the keyword is out."""
+    schema = {"type": "object", "patternProperties": {"^(a+)+$": {"type": "integer"}}}
+    with pytest.raises(InvalidArgumentsException, match="patternProperties"):
+        validate_arguments(_program(schema), json.dumps({"a" * 5000 + "!": 1}))
+
+
+def test_oversized_schema_is_rejected():
+    """A schema large enough to spell out a costly combination of subschemas is refused."""
+    schema = {"type": "object", "description": "x" * (MAX_SCHEMA_LENGTH + 1)}
+    with pytest.raises(InvalidArgumentsException, match="maximum"):
+        validate_arguments(_program(schema), "{}")
+
+
+def test_legitimate_pattern_still_validates():
+    """An ordinary pattern keeps working, accepting and rejecting the same values as before."""
+    schema = {"type": "object", "properties": {"backend": {"type": "string", "pattern": "^ibm_[a-z0-9_]+$"}}}
+
+    validate_arguments(_program(schema), '{"backend": "ibm_torino"}')  # must not raise
+
+    with pytest.raises(InvalidArgumentsException):
+        validate_arguments(_program(schema), '{"backend": "not a backend"}')
+
+
+def test_external_ref_is_rejected_without_being_fetched():
+    """A stored schema pointing at a URL must not make the gateway fetch it (SSRF).
+
+    The error says the reference is unresolvable, which can only happen if no retrieval was
+    attempted: a successful fetch would have produced a schema and validated against it.
+    """
+    schema = {"$ref": "http://169.254.169.254/latest/meta-data/"}
+    with pytest.raises(InvalidArgumentsException, match="cannot be resolved"):
+        validate_arguments(_program(schema), '{"shots": 1024}')
+
+
+def test_internal_ref_still_resolves():
+    """Blocking external references must not break same-document ones."""
+    schema = {
+        "type": "object",
+        "properties": {"shots": {"$ref": "#/$defs/positive"}},
+        "$defs": {"positive": {"type": "integer", "minimum": 1}},
+    }
+    validate_arguments(_program(schema), '{"shots": 1024}')  # must not raise
+
+    with pytest.raises(InvalidArgumentsException):
+        validate_arguments(_program(schema), '{"shots": -5}')
+
+
+def test_unusable_schema_is_reported_as_invalid_arguments_not_a_crash():
+    """A stored schema that is not a valid JSON Schema must not surface as a 500."""
+    with pytest.raises(InvalidArgumentsException, match="not usable"):
+        validate_arguments(_program({"type": "integar"}), '{"shots": 1024}')
+
+
+def test_non_string_pattern_is_reported_instead_of_crashing():
+    """A 'pattern' that is not a string must not reach the regex engine and raise a TypeError."""
+    with pytest.raises(InvalidArgumentsException):
+        validate_arguments(_program({"properties": {"x": {"pattern": {"nope": 1}}}}), '{"x": "v"}')
+
+
+def test_combinatorial_ref_bomb_is_cut_off():
+    """A small schema can express an exponential combination through internal references.
+
+    Eighteen levels of two-branch 'anyOf' fit in 1.3 KB, well under the length limit, and take
+    minutes to evaluate without a budget on how many subschemas a validation may visit.
+    """
+    defs = {"l0": {"anyOf": [{"type": "string"}, {"type": "string"}]}}
+    for level in range(1, 19):
+        ref = {"$ref": f"#/$defs/l{level - 1}"}
+        defs[f"l{level}"] = {"anyOf": [ref, ref]}
+    schema = {"$defs": defs, "$ref": "#/$defs/l18"}
+    start = time.perf_counter()
+
+    with pytest.raises(InvalidArgumentsException, match="subschemas"):
+        validate_arguments(_program(schema), "123")
+
+    assert time.perf_counter() - start < 1
+
+
+def test_budget_is_reset_between_validations():
+    """The step counter must not leak across calls, or a later validation would fail unfairly."""
+    schema = {"type": "object", "properties": {"shots": {"type": "integer"}}}
+    for _ in range(3):
+        validate_arguments(_program(schema), '{"shots": 1024}')  # must not raise
 
 
 @pytest.mark.django_db

@@ -4,8 +4,14 @@ import json
 
 import jsonschema
 from django.contrib.auth.models import AbstractUser
+from referencing.exceptions import Unresolvable
 
 from api.access_policies.jobs import JobAccessPolicies
+from api.domain.arguments_schema import (
+    UnsupportedSchemaError,
+    check_arguments_schema,
+    validate_at_bounded_cost,
+)
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.domain.exceptions.invalid_arguments_exception import InvalidArgumentsException
 from core.domain.authorization.function_access_result import FunctionAccessResult
@@ -20,7 +26,7 @@ def validate_arguments(program: Function, arguments_str: str) -> None:
     """Validate arguments_str against program.arguments_schema.
 
     No-op if schema is empty. Raises InvalidArgumentsException if arguments_str is not
-    valid JSON or does not match the schema.
+    valid JSON, if it does not match the schema, or if the schema itself cannot be used.
     """
     schema_str = program.arguments_schema
     if not schema_str or schema_str == "{}":
@@ -32,10 +38,20 @@ def validate_arguments(program: Function, arguments_str: str) -> None:
         arguments = json.loads(arguments_str or "{}")
     except json.JSONDecodeError as exc:
         raise InvalidArgumentsException(f"arguments is not valid JSON: {exc.msg}") from exc
+
     try:
-        jsonschema.validate(instance=arguments, schema=schema)
+        check_arguments_schema(schema, schema_str)
+        validate_at_bounded_cost(schema, arguments)
+    except UnsupportedSchemaError as exc:
+        raise InvalidArgumentsException(f"the function arguments schema cannot be used: {exc}") from exc
+    except jsonschema.SchemaError as exc:
+        raise InvalidArgumentsException(f"the function arguments schema is not usable: {exc.message}") from exc
     except jsonschema.ValidationError as exc:
         raise InvalidArgumentsException(exc.message, path=list(exc.path)) from exc
+    except Unresolvable as exc:
+        raise InvalidArgumentsException(
+            f"the function arguments schema references something that cannot be resolved: {exc}"
+        ) from exc
 
 
 class ValidateArgumentsUseCase:
