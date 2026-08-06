@@ -130,9 +130,14 @@ Request body:
 
 | Field | Required | Notes |
 |---|---|---|
-| `title` | yes | Accepts the `provider/title` convention; sanitized in the serializer |
+| `title` | yes | Bare function title, sanitized in the serializer |
 | `arguments` | yes | JSON string |
-| `provider` | no | Alternative to putting the provider in `title` |
+| `provider` | no | Provider name, sent separately |
+
+Unlike `/upload` and `/get_by_title`, this endpoint does **not** split a `provider/title` string into its two parts,
+matching `/run`, which does not either. A provider function must be addressed with `provider` as its own field;
+sending `"acme/my-function"` as `title` looks for a user function literally named that and reports 404. The client SDK
+always splits the two in `QiskitFunction.__post_init__`, so SDK callers never hit this. Direct API callers do.
 
 The view (`api/v1/views/programs/validate_arguments.py`) only parses and sanitizes input, then hands off to
 `ValidateArgumentsUseCase`. Function resolution and permissions match `/run` exactly: `PLATFORM_PERMISSION_RUN` /
