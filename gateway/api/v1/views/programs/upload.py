@@ -17,6 +17,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 
+from api.domain.arguments_schema import UnsupportedSchemaError, check_arguments_schema
 from api.use_cases.programs.upload import UploadFunctionUseCase
 from api.use_cases.programs.upload_input import UploadFunctionInput
 from api.utils import check_whitelisted, sanitize_name
@@ -107,11 +108,17 @@ class ProgramSerializer(serializers.ModelSerializer):
         return value
 
     def validate_arguments_schema(self, value):
-        """Validates that arguments_schema is valid JSON."""
+        """Validates that arguments_schema is valid JSON the gateway can evaluate cheaply."""
         try:
-            json.loads(value)
+            schema = json.loads(value)
         except (json.JSONDecodeError, ValueError) as exc:
             raise ValidationError("arguments_schema must be valid JSON.") from exc
+
+        try:
+            check_arguments_schema(schema, value)
+        except UnsupportedSchemaError as exc:
+            raise ValidationError(f"arguments_schema cannot be used: {exc}.") from exc
+
         return value
 
     def _parse_dependency(self, dep: Any):

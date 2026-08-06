@@ -1199,6 +1199,26 @@ class TestProgramApi(APITestCase):
             )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
+    def test_upload_with_unsupported_pattern_in_schema_returns_400(self):
+        """A pattern the linear-time engine cannot match is rejected at upload, not at run time."""
+        fake_file = ContentFile(b"print('hello')")
+        fake_file.name = "test.tar"
+        TestUtils.authorize_client(user="test_user", client=self.client)
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "unsupported-pattern-function",
+                    "entrypoint": "main.py",
+                    "dependencies": "[]",
+                    "arguments_schema": json.dumps({"properties": {"x": {"pattern": "^(?=secret)x$"}}}),
+                    "artifact": fake_file,
+                },
+            )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert not Program.objects.filter(title="unsupported-pattern-function").exists()
+
     def test_reupload_without_schema_preserves_existing_schema(self):
         """Re-uploading a function without arguments_schema keeps the existing schema."""
         schema = json.dumps({"type": "object"})

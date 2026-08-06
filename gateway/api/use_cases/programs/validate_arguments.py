@@ -6,6 +6,11 @@ import jsonschema
 from django.contrib.auth.models import AbstractUser
 
 from api.access_policies.jobs import JobAccessPolicies
+from api.domain.arguments_schema import (
+    UnsupportedSchemaError,
+    check_arguments_schema,
+    linear_time_validator_for,
+)
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.domain.exceptions.invalid_arguments_exception import InvalidArgumentsException
 from core.domain.authorization.function_access_result import FunctionAccessResult
@@ -33,7 +38,12 @@ def validate_arguments(program: Function, arguments_str: str) -> None:
     except json.JSONDecodeError as exc:
         raise InvalidArgumentsException(f"arguments is not valid JSON: {exc.msg}") from exc
     try:
-        jsonschema.validate(instance=arguments, schema=schema)
+        check_arguments_schema(schema, schema_str)
+    except UnsupportedSchemaError as exc:
+        raise InvalidArgumentsException(f"the function arguments schema cannot be used: {exc}") from exc
+
+    try:
+        linear_time_validator_for(schema)(schema).validate(arguments)
     except jsonschema.ValidationError as exc:
         raise InvalidArgumentsException(exc.message, path=list(exc.path)) from exc
 
