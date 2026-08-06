@@ -25,6 +25,12 @@ features:
         {"message": "'wrong-type' is not of type 'integer'", "path": ["shots"]}
 
     The feature is opt-in and backwards compatible: functions without a schema are never validated.
+
+    Re-uploading a function without the field keeps the schema it already had, so a schema is removed by uploading an
+    empty one::
+
+        function.arguments_schema = {}
+        client.upload(function)
   - |
     New endpoint ``POST /api/v1/programs/validate_arguments/`` checks arguments against a function's schema without
     submitting a run, so inputs can be verified before paying for a job. It resolves the function with the same

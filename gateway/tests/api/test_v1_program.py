@@ -1237,6 +1237,31 @@ class TestProgramApi(APITestCase):
         program = Program.objects.get(title="preserve-schema-func", author=user)
         assert program.arguments_schema == schema
 
+    def test_reupload_with_empty_schema_removes_it(self):
+        """Since omitting the field preserves the schema, an empty one is how it gets removed."""
+        user = TestUtils.authorize_client(user="test_user", client=self.client)
+        TestUtils.create_program(
+            program_title="clear-schema-func",
+            author=user,
+            entrypoint="main.py",
+            arguments_schema=json.dumps({"type": "object", "required": ["shots"]}),
+        )
+        fake_file = ContentFile(b"print('hello')")
+        fake_file.name = "test.tar"
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "clear-schema-func",
+                    "arguments_schema": "{}",
+                    "artifact": fake_file,
+                },
+            )
+        assert response.status_code == status.HTTP_200_OK
+        program = Program.objects.get(title="clear-schema-func", author=user)
+        assert program.arguments_schema == "{}"
+
     def test_upload_all_fields_stores_all_fields(self):
         """Upload with all optional fields - every field is persisted to the DB."""
         fake_file = ContentFile(b"print('hello')")

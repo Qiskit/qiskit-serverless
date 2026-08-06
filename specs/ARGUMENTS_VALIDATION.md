@@ -58,6 +58,15 @@ So a vendor can update a schema by sending just the title plus `arguments_schema
 field does not wipe an existing schema. The same preserve-when-omitted rule applies to the other optional fields
 (`runner`, `dependencies`, `env_vars`, `entrypoint`, `artifact`, `image`, `description`, `version`).
 
+Because omitting the field means "leave it alone", removing a schema is done by sending an empty one, `{}`, which is
+the same value as never having had one. From the SDK that is `arguments_schema={}`, since `None` is what marks the
+field as not sent:
+
+```python
+function.arguments_schema = {}
+client.upload(function)   # the function stops validating its arguments
+```
+
 ## Reading a schema back
 
 `arguments_schema` is included in the output of both read endpoints, so a schema is not write-only:
