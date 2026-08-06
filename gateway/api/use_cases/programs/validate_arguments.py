@@ -4,6 +4,8 @@ import json
 
 import jsonschema
 from django.contrib.auth.models import AbstractUser
+from referencing import Registry
+from referencing.exceptions import Unresolvable
 
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
@@ -15,12 +17,20 @@ from core.models import (
     Program as Function,
 )
 
+# An arguments schema is uploaded by whoever owns the function, so it is untrusted input that the
+# gateway later evaluates. jsonschema resolves "$ref" by fetching the target, which would let a
+# schema make the gateway issue arbitrary HTTP requests from inside the cluster or read local files.
+# An empty registry has no retrieval hook, so an external reference resolves to nothing and raises
+# Unresolvable instead. Internal references such as "#/$defs/name" still work: they are resolved
+# against the schema document itself, not through the registry.
+_NO_EXTERNAL_REFS = Registry()
+
 
 def validate_arguments(program: Function, arguments_str: str) -> None:
     """Validate arguments_str against program.arguments_schema.
 
     No-op if schema is empty. Raises InvalidArgumentsException if arguments_str is not
-    valid JSON or does not match the schema.
+    valid JSON, if it does not match the schema, or if the schema itself cannot be used.
     """
     schema_str = program.arguments_schema
     if not schema_str or schema_str == "{}":
@@ -32,10 +42,21 @@ def validate_arguments(program: Function, arguments_str: str) -> None:
         arguments = json.loads(arguments_str or "{}")
     except json.JSONDecodeError as exc:
         raise InvalidArgumentsException(f"arguments is not valid JSON: {exc.msg}") from exc
+
+    validator_class = jsonschema.validators.validator_for(schema)
     try:
-        jsonschema.validate(instance=arguments, schema=schema)
+        validator_class.check_schema(schema)
+    except jsonschema.SchemaError as exc:
+        raise InvalidArgumentsException(f"the function arguments schema is not usable: {exc.message}") from exc
+
+    try:
+        validator_class(schema, registry=_NO_EXTERNAL_REFS).validate(arguments)
     except jsonschema.ValidationError as exc:
         raise InvalidArgumentsException(exc.message, path=list(exc.path)) from exc
+    except Unresolvable as exc:
+        raise InvalidArgumentsException(
+            f"the function arguments schema references something that cannot be resolved: {exc}"
+        ) from exc
 
 
 class ValidateArgumentsUseCase:

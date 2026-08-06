@@ -47,6 +47,36 @@ def test_invalid_json_raises_invalid_arguments_exception():
         validate_arguments(_program(schema), "not-valid-json{{{")
 
 
+def test_external_ref_is_rejected_without_being_fetched():
+    """A stored schema pointing at a URL must not make the gateway fetch it (SSRF).
+
+    The error says the reference is unresolvable, which can only happen if no retrieval was
+    attempted: a successful fetch would have produced a schema and validated against it.
+    """
+    schema = {"$ref": "http://169.254.169.254/latest/meta-data/"}
+    with pytest.raises(InvalidArgumentsException, match="cannot be resolved"):
+        validate_arguments(_program(schema), '{"shots": 1024}')
+
+
+def test_internal_ref_still_resolves():
+    """Blocking external references must not break same-document ones."""
+    schema = {
+        "type": "object",
+        "properties": {"shots": {"$ref": "#/$defs/positive"}},
+        "$defs": {"positive": {"type": "integer", "minimum": 1}},
+    }
+    validate_arguments(_program(schema), '{"shots": 1024}')  # must not raise
+
+    with pytest.raises(InvalidArgumentsException):
+        validate_arguments(_program(schema), '{"shots": -5}')
+
+
+def test_unusable_schema_is_reported_as_invalid_arguments_not_a_crash():
+    """A stored schema that is not a valid JSON Schema must not surface as a 500."""
+    with pytest.raises(InvalidArgumentsException, match="not usable"):
+        validate_arguments(_program({"type": "integar"}), '{"shots": 1024}')
+
+
 @pytest.mark.django_db
 class TestValidateArgumentsUseCase:
     @pytest.fixture
