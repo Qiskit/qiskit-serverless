@@ -29,3 +29,7 @@ class EventStreamsClient(ABC):
     @abstractmethod
     def emit_job_completed(self, job, metric_type: str) -> None:
         """Publish or log a function_job_completed event for the given metric."""
+
+    @abstractmethod
+    def emit_license_fee(self, job) -> None:
+        """Publish or log a function_job_completed event for the given metric."""
