@@ -1620,6 +1620,30 @@ class TestProgramApiRuntimeInstances:
             )
             assert response.status_code == status.HTTP_200_OK
 
+        def test_validate_arguments_accepts_provider_slash_title(self, client, authorize):
+            """A 'provider/title' string resolves the provider function, as in /upload and /get_by_title."""
+            schema = json.dumps({"type": "object", "required": ["shots"]})
+            TestUtils.create_program(
+                program_title="my-func",
+                author="func-author",
+                provider="my-provider",
+                arguments_schema=schema,
+            )
+            authorize(
+                "runtime-user", create_function_access_result("my-provider", "my-func", {PLATFORM_PERMISSION_RUN})
+            )
+
+            response = client.post(
+                "/api/v1/programs/validate_arguments/",
+                data={
+                    "title": "my-provider/my-func",
+                    "arguments": json.dumps({"shots": 1024}),
+                },
+                format="json",
+            )
+            assert response.status_code == status.HTTP_200_OK
+            assert response.data == {"valid": True}
+
         def test_validate_arguments_unknown_function_returns_404(self, client, authorize):
             """validate_arguments returns 404 when function is not found."""
             authorize("test_user", create_custom_access_result({PLATFORM_PERMISSION_CUSTOM_RUN}))

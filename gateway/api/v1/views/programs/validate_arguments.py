@@ -18,6 +18,24 @@ from core.domain.authorization.function_access_result import FunctionAccessResul
 logger = logging.getLogger("api.api.v1.views.programs.validate_arguments")
 
 
+def _split_provider_and_title(title: str, provider: str | None) -> tuple[str, str | None]:
+    """Apply the ``provider/title`` convention, the same way /upload and /get_by_title do.
+
+    Both values arrive already sanitized from the serializer, so this only splits them.
+    """
+    if provider:
+        if "/" in title:
+            raise serializers.ValidationError("Provider defined in title and in provider fields.")
+        return title, provider
+
+    parts = title.split("/")
+    if len(parts) == 1:
+        return title, None
+    if len(parts) > 2:
+        raise serializers.ValidationError("Qiskit Function title is malformed. It can only contain one slash.")
+    return parts[1], parts[0]
+
+
 class InputSerializer(serializers.Serializer):  # pylint: disable=abstract-method
     """Request body for the /programs/validate_arguments endpoint."""
 
@@ -60,8 +78,10 @@ def validate_arguments(request: Request) -> Response:
     serializer = InputSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
-    function_title = serializer.validated_data.get("title")
-    provider_name = serializer.validated_data.get("provider")
+    function_title, provider_name = _split_provider_and_title(
+        serializer.validated_data.get("title"),
+        serializer.validated_data.get("provider"),
+    )
     arguments = serializer.validated_data.get("arguments")
 
     logger.info(
