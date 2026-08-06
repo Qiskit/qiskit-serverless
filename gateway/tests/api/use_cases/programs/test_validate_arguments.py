@@ -103,6 +103,68 @@ def test_legitimate_pattern_still_validates():
         validate_arguments(_program(schema), '{"backend": "not a backend"}')
 
 
+def test_external_ref_is_rejected_without_being_fetched():
+    """A stored schema pointing at a URL must not make the gateway fetch it (SSRF).
+
+    The error says the reference is unresolvable, which can only happen if no retrieval was
+    attempted: a successful fetch would have produced a schema and validated against it.
+    """
+    schema = {"$ref": "http://169.254.169.254/latest/meta-data/"}
+    with pytest.raises(InvalidArgumentsException, match="cannot be resolved"):
+        validate_arguments(_program(schema), '{"shots": 1024}')
+
+
+def test_internal_ref_still_resolves():
+    """Blocking external references must not break same-document ones."""
+    schema = {
+        "type": "object",
+        "properties": {"shots": {"$ref": "#/$defs/positive"}},
+        "$defs": {"positive": {"type": "integer", "minimum": 1}},
+    }
+    validate_arguments(_program(schema), '{"shots": 1024}')  # must not raise
+
+    with pytest.raises(InvalidArgumentsException):
+        validate_arguments(_program(schema), '{"shots": -5}')
+
+
+def test_unusable_schema_is_reported_as_invalid_arguments_not_a_crash():
+    """A stored schema that is not a valid JSON Schema must not surface as a 500."""
+    with pytest.raises(InvalidArgumentsException, match="not usable"):
+        validate_arguments(_program({"type": "integar"}), '{"shots": 1024}')
+
+
+def test_non_string_pattern_is_reported_instead_of_crashing():
+    """A 'pattern' that is not a string must not reach the regex engine and raise a TypeError."""
+    with pytest.raises(InvalidArgumentsException):
+        validate_arguments(_program({"properties": {"x": {"pattern": {"nope": 1}}}}), '{"x": "v"}')
+
+
+def test_combinatorial_ref_bomb_is_cut_off():
+    """A small schema can express an exponential combination through internal references.
+
+    Eighteen levels of two-branch 'anyOf' fit in 1.3 KB, well under the length limit, and take
+    minutes to evaluate without a budget on how many subschemas a validation may visit.
+    """
+    defs = {"l0": {"anyOf": [{"type": "string"}, {"type": "string"}]}}
+    for level in range(1, 19):
+        ref = {"$ref": f"#/$defs/l{level - 1}"}
+        defs[f"l{level}"] = {"anyOf": [ref, ref]}
+    schema = {"$defs": defs, "$ref": "#/$defs/l18"}
+    start = time.perf_counter()
+
+    with pytest.raises(InvalidArgumentsException, match="subschemas"):
+        validate_arguments(_program(schema), "123")
+
+    assert time.perf_counter() - start < 1
+
+
+def test_budget_is_reset_between_validations():
+    """The step counter must not leak across calls, or a later validation would fail unfairly."""
+    schema = {"type": "object", "properties": {"shots": {"type": "integer"}}}
+    for _ in range(3):
+        validate_arguments(_program(schema), '{"shots": 1024}')  # must not raise
+
+
 @pytest.mark.django_db
 class TestValidateArgumentsUseCase:
     @pytest.fixture

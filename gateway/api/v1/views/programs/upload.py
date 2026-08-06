@@ -6,6 +6,7 @@ import posixpath
 import re
 from typing import Any, cast
 
+import jsonschema
 from django.contrib.auth.models import AbstractUser
 from drf_yasg.utils import swagger_auto_schema
 from packaging.requirements import Requirement, InvalidRequirement
@@ -38,6 +39,29 @@ def _image_in_registry(image: str, registry: str) -> bool:
     """
     registry = registry.rstrip("/")
     return image == registry or image.startswith(registry + "/")
+
+
+def _find_external_ref(node: Any) -> str | None:
+    """Return the first ``$ref`` in ``node`` that points outside the schema document.
+
+    Only same-document references (``#`` fragments) are allowed. Anything else would make the
+    validator fetch a URL or read a file when the schema is later used, so it is rejected here
+    rather than at validation time, when the caller could no longer do anything about it.
+    """
+    if isinstance(node, dict):
+        ref = node.get("$ref")
+        if isinstance(ref, str) and not ref.startswith("#"):
+            return ref
+        for value in node.values():
+            found = _find_external_ref(value)
+            if found is not None:
+                return found
+    elif isinstance(node, list):
+        for value in node:
+            found = _find_external_ref(value)
+            if found is not None:
+                return found
+    return None
 
 
 class ProgramSerializer(serializers.ModelSerializer):
@@ -108,16 +132,28 @@ class ProgramSerializer(serializers.ModelSerializer):
         return value
 
     def validate_arguments_schema(self, value):
-        """Validates that arguments_schema is valid JSON the gateway can evaluate cheaply."""
+        """Validates arguments_schema is a usable JSON Schema the gateway can evaluate cheaply."""
         try:
             schema = json.loads(value)
         except (json.JSONDecodeError, ValueError) as exc:
             raise ValidationError("arguments_schema must be valid JSON.") from exc
 
+        external_ref = _find_external_ref(schema)
+        if external_ref is not None:
+            raise ValidationError(
+                f"arguments_schema must not reference external resources: '{external_ref}'. "
+                "Inline the definitions or use an internal reference such as '#/$defs/name'."
+            )
+
         try:
             check_arguments_schema(schema, value)
         except UnsupportedSchemaError as exc:
             raise ValidationError(f"arguments_schema cannot be used: {exc}.") from exc
+
+        try:
+            jsonschema.validators.validator_for(schema).check_schema(schema)
+        except jsonschema.SchemaError as exc:
+            raise ValidationError(f"arguments_schema is not a valid JSON Schema: {exc.message}") from exc
 
         return value
 

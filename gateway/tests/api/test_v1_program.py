@@ -1219,6 +1219,26 @@ class TestProgramApi(APITestCase):
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert not Program.objects.filter(title="unsupported-pattern-function").exists()
 
+    def test_upload_with_external_ref_in_schema_returns_400(self):
+        """A schema referencing an external resource is rejected, so it can never be fetched later."""
+        fake_file = ContentFile(b"print('hello')")
+        fake_file.name = "test.tar"
+        TestUtils.authorize_client(user="test_user", client=self.client)
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "ssrf-schema-function",
+                    "entrypoint": "main.py",
+                    "dependencies": "[]",
+                    "arguments_schema": json.dumps({"$ref": "http://169.254.169.254/latest/meta-data/"}),
+                    "artifact": fake_file,
+                },
+            )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert not Program.objects.filter(title="ssrf-schema-function").exists()
+
     def test_reupload_without_schema_preserves_existing_schema(self):
         """Re-uploading a function without arguments_schema keeps the existing schema."""
         schema = json.dumps({"type": "object"})
