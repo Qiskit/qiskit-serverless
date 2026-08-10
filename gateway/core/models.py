@@ -370,15 +370,14 @@ class ComputeProfiles(models.Model):
     rate (``classical_time_<compute_profile>``).
     """
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    created = models.DateTimeField(auto_now_add=True, editable=False)
-
     compute_profile = models.CharField(
         max_length=255,
-        unique=True,
-        db_index=True,
+        primary_key=True,
         help_text="Code Engine compute profile identifier (e.g., gx3d-24x120x1a100p)",
     )
+    created = models.DateTimeField(auto_now_add=True, editable=False)
+    updated = models.DateTimeField(auto_now=True, null=True)
+
     name = models.CharField(
         max_length=255,
         null=True,
@@ -416,6 +415,7 @@ class FunctionSize(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True, editable=False)
+    updated = models.DateTimeField(auto_now=True, null=True)
 
     function = models.ForeignKey(
         to=Program,
