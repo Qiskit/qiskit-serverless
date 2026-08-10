@@ -185,6 +185,39 @@ def test_unique_items_on_a_large_array_of_objects_stays_cheap():
     assert time.perf_counter() - start < 2
 
 
+def test_unevaluated_properties_is_rejected():
+    """'unevaluatedProperties' works out which keys were evaluated inside a private jsonschema helper.
+
+    That helper recurses through '$ref' and 'dependentSchemas' without ever descending into a
+    subschema, so the step budget cannot see the work. Because the keyword comes first in the
+    document its error is the one that stops the validation, so validation never does its own walk
+    of the same chain: 1.5 KB spent 1.7 seconds while using 2 of the 10000 steps, and every extra
+    level doubles it. The identical chain without the keyword is cut off at 10000 steps in 0.05s.
+    The keyword has to go the way of 'patternProperties': its cost is not observable.
+    """
+    defs = {"l0": {"type": "object"}}
+    for level in range(1, 18):
+        ref = {"$ref": f"#/$defs/l{level - 1}"}
+        defs[f"l{level}"] = {"$ref": f"#/$defs/l{level - 1}", "dependentSchemas": {"a": ref}}
+    schema = {
+        "unevaluatedProperties": False,
+        "dependentSchemas": {"a": {"$ref": "#/$defs/l17"}},
+        "$defs": defs,
+    }
+    start = time.perf_counter()
+
+    with pytest.raises(InvalidArgumentsException, match="unevaluatedProperties"):
+        validate_arguments(_program(schema), '{"a": 1}')
+
+    assert time.perf_counter() - start < 1
+
+
+def test_unevaluated_items_is_rejected():
+    """Same as 'unevaluatedProperties': the sibling keyword costs just as much and just as quietly."""
+    with pytest.raises(InvalidArgumentsException, match="unevaluatedItems"):
+        validate_arguments(_program({"type": "array", "unevaluatedItems": False}), "[1, 2]")
+
+
 def test_unique_items_still_catches_a_duplicate():
     """Replacing the keyword must not turn it into a keyword that accepts everything."""
     with pytest.raises(InvalidArgumentsException):

@@ -68,6 +68,21 @@ MAX_VALIDATION_STEPS = 10_000
 # keyword that is already slow, which is why the expensive ones are replaced or refused outright.
 MAX_VALIDATION_SECONDS = 2.0
 
+# Keywords the gateway refuses, and what to write instead. What they have in common is that their
+# cost is spent inside private jsonschema helpers rather than in the keyword, so it can neither be
+# replaced the way "pattern" is nor be seen by the step budget, which only counts what descends.
+_UNSUPPORTED_KEYWORDS = {
+    # Its regexes are matched by additionalProperties and unevaluatedProperties too, inside helpers
+    # that keep Python's backtracking "re" reachable.
+    "patternProperties": "use 'properties' with a 'pattern' on the values instead",
+    # find_evaluated_property_keys_by_schema recurses through "$ref", "dependentSchemas" and
+    # "if"/"then"/"else" without descending, so the budget is blind to it. Measured: 1.5 KB of
+    # schema spent 1.7 seconds using 2 of the 10000 steps, doubling with every extra level.
+    "unevaluatedProperties": "use 'additionalProperties' instead",
+    # Same helper, same blind spot, for arrays.
+    "unevaluatedItems": "use 'items' or 'additionalItems' instead",
+}
+
 # References are never retrieved: an empty registry has no retrieval hook, so an external "$ref"
 # raises Unresolvable instead of causing a request or a file read.
 _NO_EXTERNAL_REFS = Registry()
@@ -220,10 +235,13 @@ def check_arguments_schema(schema: Any, schema_str: str) -> None:
         if "$schema" in node and not is_root:
             raise UnsupportedSchemaError("'$schema' is only allowed at the top level of the schema")
 
-        if "patternProperties" in node:
-            raise UnsupportedSchemaError(
-                "'patternProperties' is not supported, use 'properties' with a 'pattern' on the values instead"
-            )
+        for keyword, alternative in _UNSUPPORTED_KEYWORDS.items():
+            if keyword in node:
+                raise UnsupportedSchemaError(
+                    f"{keyword!r} is not supported, {alternative}. It must not appear anywhere in the "
+                    "document: the check does not tell a schema apart from a property name or an "
+                    "'enum', 'const' or 'default' value, so rename the key if that is what this is"
+                )
 
         patrn = node.get("pattern")
         if isinstance(patrn, str):
