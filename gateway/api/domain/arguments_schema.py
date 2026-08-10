@@ -37,6 +37,7 @@ read a file. Same-document references keep working: they resolve against the doc
 
 import contextvars
 import functools
+import time
 from collections.abc import Iterator
 from typing import Any
 
@@ -51,10 +52,21 @@ from referencing import Registry
 # "$ref" can still express a much larger one in very few characters.
 MAX_SCHEMA_LENGTH = 64 * 1024
 
+# Maximum length of the arguments a caller may send. Several keywords cost more the longer the
+# instance is, and without this the ceiling would be DATA_UPLOAD_MAX_MEMORY_SIZE (2.5 MB by
+# default). The same figure is already the threshold for passing arguments to a job in api/utils.py.
+MAX_ARGUMENTS_LENGTH = 100_000
+
 # Maximum number of subschemas a single validation may visit. A realistic arguments schema needs
 # single digits (a four-property object with a nested object costs 4), so this leaves three orders
 # of magnitude of headroom while capping the worst case at about a tenth of a second.
 MAX_VALIDATION_STEPS = 10_000
+
+# Wall clock ceiling for one validation, checked every time it descends into a subschema. The step
+# budget counts subschemas rather than time, so on its own it cannot tell a cheap visit from an
+# expensive one; this is the backstop for a shape nobody enumerated. It cannot interrupt a single
+# keyword that is already slow, which is why the expensive ones are replaced or refused outright.
+MAX_VALIDATION_SECONDS = 2.0
 
 # References are never retrieved: an empty registry has no retrieval hook, so an external "$ref"
 # raises Unresolvable instead of causing a request or a file read.
@@ -64,6 +76,10 @@ _NO_EXTERNAL_REFS = Registry()
 # context variable rather than on the validator because jsonschema builds a fresh validator per
 # subschema through "evolve", so instance state would not be shared across the recursion.
 _steps = contextvars.ContextVar("arguments_schema_steps", default=0)
+
+# Monotonic time by which the validation running in this thread or task must be done. Lives in a
+# context variable for the same reason as the step counter.
+_deadline = contextvars.ContextVar("arguments_schema_deadline", default=0.0)
 
 # RE2 writes parse errors to stderr by default; we report them to the caller instead.
 _RE2_OPTIONS = re2.Options()
@@ -90,10 +106,52 @@ def _pattern(validator, patrn, instance, schema):  # pylint: disable=unused-argu
         yield ValidationError(f"{instance!r} does not match {patrn!r}")
 
 
+def _comparison_key(value: Any) -> Any:
+    """Return a hashable key that collides exactly when JSON Schema considers two values equal.
+
+    Mirrors the comparison jsonschema makes itself: ``True`` is not ``1``, ``1`` is ``1.0``, and
+    arrays and objects compare by their contents.
+    """
+    if isinstance(value, bool):
+        return ("boolean", value)
+    if isinstance(value, (int, float)):
+        # 1 and 1.0 are the same JSON number. Collapsing an integral float onto the integer keeps
+        # that true without going through float(), which would lose precision on large integers.
+        return ("number", int(value) if isinstance(value, float) and value.is_integer() else value)
+    if isinstance(value, str):
+        return ("string", value)
+    if value is None:
+        return ("null",)
+    if isinstance(value, (list, tuple)):
+        return ("array", tuple(_comparison_key(item) for item in value))
+    if isinstance(value, dict):
+        return ("object", frozenset((key, _comparison_key(item)) for key, item in value.items()))
+    return ("other", repr(value))
+
+
+def _unique_items(validator, unique, instance, schema):  # pylint: disable=unused-argument
+    """Single-pass replacement for the ``uniqueItems`` keyword.
+
+    jsonschema compares the elements pairwise whenever they are not sortable, which any array of
+    objects triggers, and that comparison lives in a private helper that never descends into a
+    subschema: 4000 objects took about 8 seconds while spending one step of the budget. Hashing a
+    canonical form of each element answers the same question in one pass.
+    """
+    if not unique or not validator.is_type(instance, "array"):
+        return
+    seen = set()
+    for item in instance:
+        key = _comparison_key(item)
+        if key in seen:
+            yield ValidationError(f"{instance!r} has non-unique elements")
+            return
+        seen.add(key)
+
+
 @functools.lru_cache(maxsize=None)
 def _bounded(base: type) -> type:
     """Return ``base`` with RE2 patterns and a ceiling on how many subschemas it may visit."""
-    with_re2 = jsonschema.validators.extend(base, {"pattern": _pattern})
+    with_re2 = jsonschema.validators.extend(base, {"pattern": _pattern, "uniqueItems": _unique_items})
 
     class BoundedValidator(with_re2):
         """Counts every subschema it descends into and gives up once the budget is spent."""
@@ -104,6 +162,9 @@ def _bounded(base: type) -> type:
                 raise UnsupportedSchemaError(
                     f"validating against it visits more than {MAX_VALIDATION_STEPS} subschemas"
                 )
+            deadline = _deadline.get()
+            if deadline and time.monotonic() > deadline:
+                raise UnsupportedSchemaError(f"validating against it took longer than {MAX_VALIDATION_SECONDS} seconds")
             _steps.set(visited)
             yield from super().descend(*args, **kwargs)
 
@@ -125,6 +186,7 @@ def validate_at_bounded_cost(schema: Any, instance: Any) -> None:
     validator_class = _bounded(jsonschema.validators.validator_for(schema))
     validator_class.check_schema(schema)
     _steps.set(0)
+    _deadline.set(time.monotonic() + MAX_VALIDATION_SECONDS)
     validator_class(schema, registry=_NO_EXTERNAL_REFS).validate(instance)
 
 

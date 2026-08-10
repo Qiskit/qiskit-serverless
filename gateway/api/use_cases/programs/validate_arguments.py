@@ -8,6 +8,7 @@ from referencing.exceptions import Unresolvable
 
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.arguments_schema import (
+    MAX_ARGUMENTS_LENGTH,
     UnsupportedSchemaError,
     check_arguments_schema,
     validate_at_bounded_cost,
@@ -34,6 +35,12 @@ def validate_arguments(program: Function, arguments_str: str) -> None:
     schema = json.loads(schema_str)
     if not schema:
         return
+
+    if len(arguments_str or "") > MAX_ARGUMENTS_LENGTH:
+        raise InvalidArgumentsException(
+            f"arguments are {len(arguments_str)} characters long and the maximum is {MAX_ARGUMENTS_LENGTH}"
+        )
+
     try:
         arguments = json.loads(arguments_str or "{}")
     except json.JSONDecodeError as exc:

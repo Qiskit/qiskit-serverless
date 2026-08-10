@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import MagicMock
 from django.contrib.auth.models import User
 
-from api.domain.arguments_schema import MAX_SCHEMA_LENGTH
+from api.domain.arguments_schema import MAX_ARGUMENTS_LENGTH, MAX_SCHEMA_LENGTH
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.domain.exceptions.invalid_arguments_exception import InvalidArgumentsException
 from api.use_cases.programs.validate_arguments import ValidateArgumentsUseCase, validate_arguments
@@ -156,6 +156,39 @@ def test_combinatorial_ref_bomb_is_cut_off():
         validate_arguments(_program(schema), "123")
 
     assert time.perf_counter() - start < 1
+
+
+def test_arguments_longer_than_the_limit_are_rejected():
+    """The work a validation does grows with the caller's payload, so its length is capped.
+
+    Without a cap the ceiling is DATA_UPLOAD_MAX_MEMORY_SIZE, 2.5 MB by default, which is three
+    orders of magnitude more input than any keyword was measured against.
+    """
+    arguments = json.dumps({"blob": "x" * (MAX_ARGUMENTS_LENGTH + 1)})
+
+    with pytest.raises(InvalidArgumentsException, match="maximum"):
+        validate_arguments(_program({"type": "object"}), arguments)
+
+
+def test_unique_items_on_a_large_array_of_objects_stays_cheap():
+    """'uniqueItems' compares values pairwise when they are not orderable, which is quadratic.
+
+    An array of objects is the ordinary case that triggers it, and it never descends into a
+    subschema, so the step budget does not see it: 4000 items took about 8 seconds and 8000 more
+    than 30, with a schema anyone would write and one step spent.
+    """
+    arguments = json.dumps([{"i": i} for i in range(4000)])
+    start = time.perf_counter()
+
+    validate_arguments(_program({"type": "array", "uniqueItems": True}), arguments)  # must not raise
+
+    assert time.perf_counter() - start < 2
+
+
+def test_unique_items_still_catches_a_duplicate():
+    """Replacing the keyword must not turn it into a keyword that accepts everything."""
+    with pytest.raises(InvalidArgumentsException):
+        validate_arguments(_program({"type": "array", "uniqueItems": True}), '[{"i": 1}, {"i": 1}]')
 
 
 def test_budget_is_reset_between_validations():
