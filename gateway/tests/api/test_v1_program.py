@@ -1682,6 +1682,25 @@ class TestProgramApiRuntimeInstances:
             assert "message" in response.data
             assert "path" in response.data
 
+        def test_validate_arguments_endlessly_recursive_schema_returns_400(self, client, authorize):
+            """A stored schema that recurses forever must answer 400, not fail the request.
+
+            RecursionError reached the generic handler, so a 13 character schema turned every call
+            into a 500.
+            """
+            user = authorize("test_user", create_custom_access_result({PLATFORM_PERMISSION_CUSTOM_RUN}))
+            TestUtils.create_program(
+                program_title="recursive-schema-func",
+                author=user,
+                arguments_schema=json.dumps({"$ref": "#"}),
+            )
+            response = client.post(
+                "/api/v1/programs/validate_arguments/",
+                data={"title": "recursive-schema-func", "arguments": "{}"},
+                format="json",
+            )
+            assert response.status_code == status.HTTP_400_BAD_REQUEST
+
         def test_validate_arguments_no_schema_returns_200(self, client, authorize):
             """validate_arguments returns 200 for any arguments when function has no schema."""
             user = authorize("test_user", create_custom_access_result({PLATFORM_PERMISSION_CUSTOM_RUN}))

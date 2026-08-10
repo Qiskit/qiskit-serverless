@@ -62,6 +62,12 @@ MAX_ARGUMENTS_LENGTH = 100_000
 # of magnitude of headroom while capping the worst case at about a tenth of a second.
 MAX_VALIDATION_STEPS = 10_000
 
+# Maximum nesting depth of the schema document and of the instance. jsonschema recurses once per
+# level of each, and CPython gives up at a nesting depth of about 180, which a few kilobytes of
+# either can reach. Anything hand written stays in single digits, so this leaves plenty of room
+# while keeping the recursion well short of the interpreter's limit.
+MAX_DOCUMENT_DEPTH = 64
+
 # Wall clock ceiling for one validation, checked every time it descends into a subschema. The step
 # budget counts subschemas rather than time, so on its own it cannot tell a cheap visit from an
 # expensive one; this is the backstop for a shape nobody enumerated. It cannot interrupt a single
@@ -186,6 +192,25 @@ def _bounded(base: type) -> type:
     return BoundedValidator
 
 
+def exceeds_max_depth(value: Any) -> bool:
+    """Whether ``value`` nests deeper than ``MAX_DOCUMENT_DEPTH``.
+
+    Walks iteratively and stops at the first node past the limit, so it cannot exhaust the stack
+    itself, and applies to the instance as much as to the schema: the ordinary way to describe a
+    tree is a recursive schema, and there the depth that decides the cost is the caller's.
+    """
+    stack: list[tuple[Any, int]] = [(value, 0)]
+    while stack:
+        node, depth = stack.pop()
+        if depth > MAX_DOCUMENT_DEPTH:
+            return True
+        if isinstance(node, dict):
+            stack.extend((item, depth + 1) for item in node.values())
+        elif isinstance(node, list):
+            stack.extend((item, depth + 1) for item in node)
+    return False
+
+
 def _require_schema_shape(schema: Any) -> None:
     """Refuse a schema that is not an object or a boolean.
 
@@ -244,6 +269,9 @@ def check_arguments_schema(schema: Any, schema_str: str) -> None:
         raise UnsupportedSchemaError(f"it is {len(schema_str)} characters long and the maximum is {MAX_SCHEMA_LENGTH}")
 
     _require_schema_shape(schema)
+
+    if exceeds_max_depth(schema):
+        raise UnsupportedSchemaError(f"it is nested more than {MAX_DOCUMENT_DEPTH} levels deep")
 
     for node, is_root in _dict_nodes(schema):
         if "$schema" in node and not is_root:

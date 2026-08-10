@@ -9,8 +9,10 @@ from referencing.exceptions import Unresolvable
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.arguments_schema import (
     MAX_ARGUMENTS_LENGTH,
+    MAX_DOCUMENT_DEPTH,
     UnsupportedSchemaError,
     check_arguments_schema,
+    exceeds_max_depth,
     validate_at_bounded_cost,
 )
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
@@ -32,11 +34,6 @@ def validate_arguments(program: Function, arguments_str: str) -> None:
     schema_str = program.arguments_schema
     if not schema_str or schema_str == "{}":
         return
-    schema = json.loads(schema_str)
-    # Only the empty object means "no schema". "false" is the schema that rejects every instance,
-    # so treating the parsed value as a boolean would turn the strictest schema into no validation.
-    if isinstance(schema, dict) and not schema:
-        return
 
     if len(arguments_str or "") > MAX_ARGUMENTS_LENGTH:
         raise InvalidArgumentsException(
@@ -44,13 +41,30 @@ def validate_arguments(program: Function, arguments_str: str) -> None:
         )
 
     try:
+        schema = json.loads(schema_str)
+    except json.JSONDecodeError as exc:
+        raise InvalidArgumentsException(f"the function arguments schema is not valid JSON: {exc.msg}") from exc
+
+    # Only the empty object means "no schema". "false" is the schema that rejects every instance,
+    # so treating the parsed value as a boolean would turn the strictest schema into no validation.
+    if isinstance(schema, dict) and not schema:
+        return
+
+    try:
         arguments = json.loads(arguments_str or "{}")
     except json.JSONDecodeError as exc:
         raise InvalidArgumentsException(f"arguments is not valid JSON: {exc.msg}") from exc
 
+    if exceeds_max_depth(arguments):
+        raise InvalidArgumentsException(f"arguments are nested more than {MAX_DOCUMENT_DEPTH} levels deep")
+
     try:
         check_arguments_schema(schema, schema_str)
         validate_at_bounded_cost(schema, arguments)
+    except RecursionError as exc:
+        # A "$ref" back to the root of the document recurses forever in 13 characters, so depth
+        # limits cannot catch every case and this is what keeps it from surfacing as a 500.
+        raise InvalidArgumentsException("the function arguments schema recurses without end") from exc
     except UnsupportedSchemaError as exc:
         raise InvalidArgumentsException(f"the function arguments schema cannot be used: {exc}") from exc
     except jsonschema.SchemaError as exc:

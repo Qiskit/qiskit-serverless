@@ -258,6 +258,48 @@ def test_scalar_schema_is_reported_instead_of_crashing():
         validate_arguments(program, "{}")
 
 
+def test_self_referencing_schema_is_reported_instead_of_crashing():
+    """A '$ref' to the document root recurses forever in 13 bytes.
+
+    RecursionError is not a subclass of anything the use case catches, so it fell through to the
+    generic handler and came out as a 500.
+    """
+    with pytest.raises(InvalidArgumentsException):
+        validate_arguments(_program({"$ref": "#"}), "{}")
+
+
+def test_deeply_nested_schema_is_rejected():
+    """Nesting alone reaches RecursionError, at a depth of about 180, in a few kilobytes."""
+    schema: dict = {"not": {}}
+    node = schema
+    for _ in range(400):
+        node["not"] = {"not": {}}
+        node = node["not"]
+
+    with pytest.raises(InvalidArgumentsException, match="nested"):
+        validate_arguments(_program(schema), "1")
+
+
+def test_deeply_nested_arguments_are_rejected():
+    """The trigger can be the caller's payload against a schema that is perfectly ordinary.
+
+    A recursive schema is the documented way to describe a tree, so the depth has to be capped on
+    the instance as well, not just on the schema.
+    """
+    schema = {
+        "$defs": {"node": {"type": "object", "properties": {"child": {"$ref": "#/$defs/node"}}}},
+        "$ref": "#/$defs/node",
+    }
+    arguments: dict = {}
+    node = arguments
+    for _ in range(300):
+        node["child"] = {}
+        node = node["child"]
+
+    with pytest.raises(InvalidArgumentsException, match="nested"):
+        validate_arguments(_program(schema), json.dumps(arguments))
+
+
 def test_budget_is_reset_between_validations():
     """The step counter must not leak across calls, or a later validation would fail unfairly."""
     schema = {"type": "object", "properties": {"shots": {"type": "integer"}}}
