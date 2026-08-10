@@ -524,7 +524,7 @@ spec:
               value: {{ .Values.application.eventStreams.enabled | default false | quote }}
             - name: ENVIRONMENT
               value: {{ .Values.application.eventStreams.environment | default "" | quote }}
-            {{- if .Values.secrets.kafka }}
+            {{- if .Values.application.eventStreams.enabled }}
             - name: EVENT_STREAMS_BOOTSTRAP_SERVERS
               valueFrom:
                 secretKeyRef:

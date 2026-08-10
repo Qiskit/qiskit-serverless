@@ -108,6 +108,9 @@ secrets:
   w3idSso:
     name: ""
     secretStoreName: qiskit-serverless
+  kafka:
+    name: ""
+    secretStoreName: qiskit-serverless
 
 image:
   repository: icr.io/quantum-public/qiskit-serverless/gateway
