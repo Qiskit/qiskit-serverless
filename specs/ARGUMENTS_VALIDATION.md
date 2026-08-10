@@ -91,7 +91,7 @@ Bounding the input:
 | Constant | Value | What it bounds |
 |---|---|---|
 | `MAX_SCHEMA_LENGTH` | 64 KB | How much combinatorial work (nested `anyOf` / `allOf`) a schema can spell out literally |
-| `MAX_ARGUMENTS_LENGTH` | 100000 characters | Keywords whose cost grows with the instance. The ceiling otherwise was `DATA_UPLOAD_MAX_MEMORY_SIZE`, 2.5 MB by default |
+| `MAX_ARGUMENTS_LENGTH` | 1 MB | Keywords whose cost grows with the instance. The ceiling otherwise was `DATA_UPLOAD_MAX_MEMORY_SIZE`, 2.5 MB by default. Defence in depth rather than the main protection, so it is set clear of what a legitimate caller sends |
 | `MAX_DOCUMENT_DEPTH` | 64 | Nesting depth of the schema **and** of the arguments. `jsonschema` recurses once per level and CPython gives up at about 180 |
 
 Bounding what the validation does:
@@ -193,10 +193,13 @@ To constrain a circuit argument, describe the encoded object:
 The practical advice for a vendor is to validate the plain arguments (counts, names, options, flags) and to check only
 the `__type__` tag of the Qiskit ones, since the payload itself is opaque base64.
 
-One consequence of encoding worth knowing: `MAX_ARGUMENTS_LENGTH` applies to the encoded text. A single circuit is
-small (a random 100 qubit, depth 100 circuit encodes to about 39 KB), but a batch of large circuits can exceed
-100000 characters, and three of that size do. This limit only applies to functions that **declare a schema**: the
-length check runs after the "no schema, nothing to do" short-circuit, so functions without one are unaffected.
+One consequence of encoding worth knowing: `MAX_ARGUMENTS_LENGTH` applies to the encoded text, which is much larger
+than the same arguments look in a notebook. A random 100 qubit, depth 100 circuit encodes to about 39 KB, so the 1 MB
+limit leaves room for a batch of roughly twenty five of them. It is set there deliberately: an earlier draft used 100000
+characters, which a batch of three such circuits already exceeded, and a limit that rejects ordinary work is worse than
+no limit, since the cost it was guarding against is bounded by other means. This limit only applies to functions that
+**declare a schema**: the length check runs after the "no schema, nothing to do" short-circuit, so functions without one
+are unaffected.
 
 ## Validating arguments
 

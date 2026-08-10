@@ -20,7 +20,9 @@ Bounding the input:
    ``anyOf`` / ``allOf``) it can spell out literally.
 
 2. The arguments have a maximum length. Several keywords cost more the longer the instance is, and
-   the ceiling otherwise is DATA_UPLOAD_MAX_MEMORY_SIZE, three orders of magnitude further out.
+   the ceiling otherwise is DATA_UPLOAD_MAX_MEMORY_SIZE. This one is defence in depth: the keyword
+   that grew faster than its input is replaced by rule 5, so the limit is set well clear of what a
+   legitimate caller sends, which for encoded circuits is larger than it looks.
 
 3. Both have a maximum nesting depth. jsonschema recurses once per level and CPython gives up at
    about 180, which a few kilobytes of either can reach.
@@ -80,8 +82,12 @@ MAX_SCHEMA_LENGTH = 64 * 1024
 
 # Maximum length of the arguments a caller may send. Several keywords cost more the longer the
 # instance is, and without this the ceiling would be DATA_UPLOAD_MAX_MEMORY_SIZE (2.5 MB by
-# default). The same figure is already the threshold for passing arguments to a job in api/utils.py.
-MAX_ARGUMENTS_LENGTH = 100_000
+# default). This is defence in depth rather than the main protection: the keyword that actually
+# grew faster than its input, "uniqueItems", is replaced below, and the deadline covers the rest.
+# So the figure is chosen to leave legitimate callers alone. Arguments are validated in the form
+# QiskitObjectsEncoder produces, where a single 100 qubit, depth 100 circuit is about 39 KB of
+# base64, so a limit in the tens of kilobytes would reject an ordinary batch of circuits.
+MAX_ARGUMENTS_LENGTH = 1024 * 1024
 
 # Maximum number of subschemas a single validation may visit. A realistic arguments schema needs
 # single digits (a four-property object with a nested object costs 4), so this leaves three orders
