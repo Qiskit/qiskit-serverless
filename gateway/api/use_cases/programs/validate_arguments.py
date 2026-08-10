@@ -33,7 +33,9 @@ def validate_arguments(program: Function, arguments_str: str) -> None:
     if not schema_str or schema_str == "{}":
         return
     schema = json.loads(schema_str)
-    if not schema:
+    # Only the empty object means "no schema". "false" is the schema that rejects every instance,
+    # so treating the parsed value as a boolean would turn the strictest schema into no validation.
+    if isinstance(schema, dict) and not schema:
         return
 
     if len(arguments_str or "") > MAX_ARGUMENTS_LENGTH:

@@ -42,16 +42,22 @@ def _image_in_registry(image: str, registry: str) -> bool:
 
 
 def _find_external_ref(node: Any) -> str | None:
-    """Return the first ``$ref`` in ``node`` that points outside the schema document.
+    """Return the first reference in ``node`` that points outside the schema document.
 
     Only same-document references (``#`` fragments) are allowed. Anything else would make the
     validator fetch a URL or read a file when the schema is later used, so it is rejected here
     rather than at validation time, when the caller could no longer do anything about it.
+
+    ``$dynamicRef`` and ``$recursiveRef`` resolve references just like ``$ref``, so they are
+    checked too. Missing them did not allow a fetch, since validation runs against an empty
+    registry, but it did let a function be stored that raises Unresolvable on every single run,
+    which is the outcome checking at upload time exists to prevent.
     """
     if isinstance(node, dict):
-        ref = node.get("$ref")
-        if isinstance(ref, str) and not ref.startswith("#"):
-            return ref
+        for keyword in ("$ref", "$dynamicRef", "$recursiveRef"):
+            ref = node.get(keyword)
+            if isinstance(ref, str) and not ref.startswith("#"):
+                return ref
         for value in node.values():
             found = _find_external_ref(value)
             if found is not None:

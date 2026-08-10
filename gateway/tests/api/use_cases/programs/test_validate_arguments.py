@@ -224,6 +224,40 @@ def test_unique_items_still_catches_a_duplicate():
         validate_arguments(_program({"type": "array", "uniqueItems": True}), '[{"i": 1}, {"i": 1}]')
 
 
+def test_schema_false_rejects_everything_instead_of_disabling_validation():
+    """'false' is the JSON Schema that rejects every instance, and it must not read as "no schema".
+
+    Treating the parsed schema as a boolean turned the strictest schema there is into no validation
+    at all, which is the wrong direction to fail in.
+    """
+    program = MagicMock()
+    program.arguments_schema = "false"
+
+    with pytest.raises(InvalidArgumentsException):
+        validate_arguments(program, '{"anything": 1}')
+
+
+def test_schema_true_still_accepts_everything():
+    """'true' is the other boolean schema and it does accept every instance."""
+    program = MagicMock()
+    program.arguments_schema = "true"
+
+    validate_arguments(program, '{"anything": 1}')  # must not raise
+
+
+def test_scalar_schema_is_reported_instead_of_crashing():
+    """A stored schema that is a JSON number reaches validator_for, which assumes a dict.
+
+    '"$schema" not in schema' raises TypeError on a scalar, and nothing on the way here rejects it,
+    so the request came out as a 500.
+    """
+    program = MagicMock()
+    program.arguments_schema = "123"
+
+    with pytest.raises(InvalidArgumentsException, match="object or a boolean"):
+        validate_arguments(program, "{}")
+
+
 def test_budget_is_reset_between_validations():
     """The step counter must not leak across calls, or a later validation would fail unfairly."""
     schema = {"type": "object", "properties": {"shots": {"type": "integer"}}}

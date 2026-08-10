@@ -1239,6 +1239,53 @@ class TestProgramApi(APITestCase):
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert not Program.objects.filter(title="ssrf-schema-function").exists()
 
+    def test_upload_with_scalar_schema_returns_400(self):
+        """A JSON scalar is valid JSON but not a schema, and it used to come back as a 500.
+
+        validator_for tests '"$schema" not in schema', which raises TypeError on a number.
+        """
+        fake_file = ContentFile(b"print('hello')")
+        fake_file.name = "test.tar"
+        TestUtils.authorize_client(user="test_user", client=self.client)
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "scalar-schema-function",
+                    "entrypoint": "main.py",
+                    "dependencies": "[]",
+                    "arguments_schema": "123",
+                    "artifact": fake_file,
+                },
+            )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert not Program.objects.filter(title="scalar-schema-function").exists()
+
+    def test_upload_with_external_dynamic_ref_in_schema_returns_400(self):
+        """'$dynamicRef' resolves references too, so it needs the same check as '$ref'.
+
+        Letting it through leaves the function permanently broken: the empty registry raises
+        Unresolvable on every run, which is exactly what checking at upload time avoids.
+        """
+        fake_file = ContentFile(b"print('hello')")
+        fake_file.name = "test.tar"
+        TestUtils.authorize_client(user="test_user", client=self.client)
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "dynamic-ref-schema-function",
+                    "entrypoint": "main.py",
+                    "dependencies": "[]",
+                    "arguments_schema": json.dumps({"$dynamicRef": "https://example.com/tree#node"}),
+                    "artifact": fake_file,
+                },
+            )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert not Program.objects.filter(title="dynamic-ref-schema-function").exists()
+
     def test_reupload_without_schema_preserves_existing_schema(self):
         """Re-uploading a function without arguments_schema keeps the existing schema."""
         schema = json.dumps({"type": "object"})

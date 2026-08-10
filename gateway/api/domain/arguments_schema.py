@@ -186,6 +186,17 @@ def _bounded(base: type) -> type:
     return BoundedValidator
 
 
+def _require_schema_shape(schema: Any) -> None:
+    """Refuse a schema that is not an object or a boolean.
+
+    jsonschema's own entry points assume one or the other: ``validator_for`` tests
+    ``"$schema" not in schema``, which raises TypeError on a JSON number or null, and nothing
+    downstream catches it, so the request came out as a 500 instead of a rejection.
+    """
+    if not isinstance(schema, (dict, bool)):
+        raise UnsupportedSchemaError(f"a JSON Schema must be an object or a boolean, not {type(schema).__name__}")
+
+
 def validate_at_bounded_cost(schema: Any, instance: Any) -> None:
     """Validate ``instance`` against ``schema`` without letting it cost an unbounded amount.
 
@@ -198,6 +209,7 @@ def validate_at_bounded_cost(schema: Any, instance: Any) -> None:
         jsonschema.ValidationError: if the instance does not match the schema.
         referencing.exceptions.Unresolvable: if the schema references something outside itself.
     """
+    _require_schema_shape(schema)
     validator_class = _bounded(jsonschema.validators.validator_for(schema))
     validator_class.check_schema(schema)
     _steps.set(0)
@@ -230,6 +242,8 @@ def check_arguments_schema(schema: Any, schema_str: str) -> None:
     """
     if len(schema_str) > MAX_SCHEMA_LENGTH:
         raise UnsupportedSchemaError(f"it is {len(schema_str)} characters long and the maximum is {MAX_SCHEMA_LENGTH}")
+
+    _require_schema_shape(schema)
 
     for node, is_root in _dict_nodes(schema):
         if "$schema" in node and not is_root:
