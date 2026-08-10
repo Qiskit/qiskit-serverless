@@ -9,6 +9,7 @@ from django.conf import settings
 from packaging.requirements import Requirement
 
 import objsize
+from rest_framework.exceptions import ValidationError
 
 from api.domain.authentication.channel import Channel
 from core.services.storage.path_builder import PathBuilder
@@ -162,6 +163,31 @@ def sanitize_name(name: Optional[str]):
         return name
     # Remove all characters except alphanumeric, _, -, /
     return re.sub("[^a-zA-Z0-9_\\-/]", "", name)
+
+
+def parse_title_and_provider(title: str, provider: Optional[str]) -> Tuple[str, Optional[str]]:
+    """Apply the ``provider/title`` convention and sanitize both values.
+
+    A function can be addressed either as ``title="acme/my-function"`` or as
+    ``title="my-function"`` plus ``provider="acme"``. The malformed cases are rejected rather
+    than silently reinterpreted, matching ``/upload``: since ``/upload`` is what creates
+    functions, a title it refuses cannot belong to an existing function, so accepting it
+    anywhere else would only turn a clear error into a confusing 404.
+
+    Raises:
+        ValidationError: if the provider is given twice, or the title holds more than one slash.
+    """
+    if provider:
+        if "/" in title:
+            raise ValidationError("Provider defined in title and in provider fields.")
+        return sanitize_name(title), sanitize_name(provider)
+
+    parts = title.split("/")
+    if len(parts) > 2:
+        raise ValidationError("Qiskit Function title is malformed. It can only contain one slash.")
+    if len(parts) == 1:
+        return sanitize_name(title), None
+    return sanitize_name(parts[1]), sanitize_name(parts[0])
 
 
 def sanitize_boolean(value: Optional[str]) -> Optional[bool]:

@@ -3,14 +3,7 @@
 from dataclasses import dataclass
 from typing import Any
 
-
-def _parse_provider_and_title(provider_raw: str | None, title_raw: str) -> tuple[str | None, str]:
-    if provider_raw:
-        return provider_raw, title_raw
-    parts = title_raw.split("/")
-    if len(parts) == 1:
-        return None, parts[0]
-    return parts[0], parts[1]
+from api.utils import parse_title_and_provider
 
 
 @dataclass
@@ -36,7 +29,7 @@ class UploadFunctionInput:  # pylint: disable=too-many-instance-attributes
     @classmethod
     def from_validated_data(cls, data: dict) -> "UploadFunctionInput":
         """Construct from a DRF serializer's validated_data, parsing provider/title convention."""
-        provider, title = _parse_provider_and_title(data.get("provider"), data.get("title", ""))
+        title, provider = parse_title_and_provider(data.get("title", ""), data.get("provider"))
         return cls(
             title=title,
             provider=provider,
