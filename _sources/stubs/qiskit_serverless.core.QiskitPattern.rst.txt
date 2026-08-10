@@ -27,6 +27,7 @@
       ~QiskitPattern.APPLICATION
       ~QiskitPattern.CIRCUIT
       ~QiskitPattern.GENERIC
+      ~QiskitPattern.arguments_schema
       ~QiskitPattern.dependencies
       ~QiskitPattern.description
       ~QiskitPattern.entrypoint
@@ -35,10 +36,8 @@
       ~QiskitPattern.provider
       ~QiskitPattern.raw_data
       ~QiskitPattern.runner
-      ~QiskitPattern.schema
       ~QiskitPattern.tags
       ~QiskitPattern.type
-      ~QiskitPattern.validate
       ~QiskitPattern.version
       ~QiskitPattern.working_dir
       ~QiskitPattern.title

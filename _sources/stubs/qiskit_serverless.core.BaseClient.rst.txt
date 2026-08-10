@@ -36,6 +36,7 @@
       ~BaseClient.stop
       ~BaseClient.to_dict
       ~BaseClient.upload
+      ~BaseClient.validate_arguments
    
    
 

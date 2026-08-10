@@ -27,6 +27,7 @@
       ~QiskitFunction.APPLICATION
       ~QiskitFunction.CIRCUIT
       ~QiskitFunction.GENERIC
+      ~QiskitFunction.arguments_schema
       ~QiskitFunction.dependencies
       ~QiskitFunction.description
       ~QiskitFunction.entrypoint
@@ -35,10 +36,8 @@
       ~QiskitFunction.provider
       ~QiskitFunction.raw_data
       ~QiskitFunction.runner
-      ~QiskitFunction.schema
       ~QiskitFunction.tags
       ~QiskitFunction.type
-      ~QiskitFunction.validate
       ~QiskitFunction.version
       ~QiskitFunction.working_dir
       ~QiskitFunction.title

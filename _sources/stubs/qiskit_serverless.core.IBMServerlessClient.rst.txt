@@ -51,6 +51,7 @@
       ~IBMServerlessClient.to_dict
       ~IBMServerlessClient.upload
       ~IBMServerlessClient.usage
+      ~IBMServerlessClient.validate_arguments
    
    
 
