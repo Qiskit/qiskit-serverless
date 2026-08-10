@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import MagicMock
 from django.contrib.auth.models import User
 
-from api.domain.arguments_schema import MAX_ARGUMENTS_LENGTH, MAX_SCHEMA_LENGTH
+from api.domain.arguments_schema import MAX_ARGUMENTS_LENGTH, MAX_SCHEMA_LENGTH, _check_schema_once
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.domain.exceptions.invalid_arguments_exception import InvalidArgumentsException
 from api.use_cases.programs.validate_arguments import ValidateArgumentsUseCase, validate_arguments
@@ -298,6 +298,84 @@ def test_deeply_nested_arguments_are_rejected():
 
     with pytest.raises(InvalidArgumentsException, match="nested"):
         validate_arguments(_program(schema), json.dumps(arguments))
+
+
+def test_declared_format_is_applied():
+    """'format' is an annotation unless a checker is attached, so it used to reject nothing.
+
+    A vendor writing 'format' got neither validation nor a warning that it does nothing.
+    """
+    schema = {"type": "object", "properties": {"contact": {"type": "string", "format": "email"}}}
+
+    validate_arguments(_program(schema), '{"contact": "someone@example.com"}')  # must not raise
+
+    with pytest.raises(InvalidArgumentsException):
+        validate_arguments(_program(schema), '{"contact": "not-an-email"}')
+
+
+def test_regex_format_is_not_asserted():
+    """Asserting 'format: regex' would compile caller input with Python's backtracking engine.
+
+    That is the one call site that would undo matching patterns with RE2, so it stays unchecked.
+    """
+    schema = {"type": "object", "properties": {"p": {"type": "string", "format": "regex"}}}
+
+    validate_arguments(_program(schema), '{"p": "^(a+)+$"}')  # must not raise
+    validate_arguments(_program(schema), '{"p": "unparseable("}')  # must not raise
+
+
+def test_re2_only_pattern_is_refused_with_a_message_naming_both_engines():
+    """RE2 accepts '\\p{L}' and Python's re does not, and check_schema uses re.
+
+    The refusal came out of the metaschema as "is not a 'regex'", which describes neither the real
+    contract nor how to satisfy it.
+    """
+    schema = {"type": "object", "properties": {"x": {"type": "string", "pattern": "\\p{L}+"}}}
+
+    with pytest.raises(InvalidArgumentsException, match="both"):
+        validate_arguments(_program(schema), '{"x": "abc"}')
+
+
+def test_keyword_refusal_explains_it_matches_property_names_too():
+    """The scan cannot tell a schema from a property name, so the message has to say so.
+
+    Here 'patternProperties' is the name of an argument, not a keyword, and it is still refused.
+    """
+    schema = {"type": "object", "properties": {"patternProperties": {"type": "string"}}}
+
+    with pytest.raises(InvalidArgumentsException, match="property name"):
+        validate_arguments(_program(schema), '{"patternProperties": "x"}')
+
+
+def test_metaschema_check_is_not_repeated_for_the_same_schema():
+    """check_schema walks the whole document and is pure, so it must not run on every request.
+
+    Measured at 0.151 seconds for a 54 KB schema, which two workers turn into a ceiling of about
+    14 requests a second.
+    """
+    program = _program({"type": "object", "properties": {"shots": {"type": "integer"}}})
+    validate_arguments(program, '{"shots": 1}')
+    before = _check_schema_once.cache_info()
+
+    validate_arguments(program, '{"shots": 2}')
+
+    after = _check_schema_once.cache_info()
+    assert after.hits == before.hits + 1
+    assert after.misses == before.misses
+
+
+def test_error_message_does_not_echo_the_whole_payload():
+    """jsonschema builds its messages with repr(instance), so the 400 carried the input back.
+
+    Measured: a 200 KB payload produced a 200 027 character message.
+    """
+    schema = {"type": "object", "properties": {"blob": {"type": "integer"}}}
+    arguments = json.dumps({"blob": "x" * 50_000})
+
+    with pytest.raises(InvalidArgumentsException) as caught:
+        validate_arguments(_program(schema), arguments)
+
+    assert len(caught.value.message) < 1000
 
 
 def test_budget_is_reset_between_validations():

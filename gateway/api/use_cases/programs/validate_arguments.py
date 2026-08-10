@@ -24,6 +24,17 @@ from core.models import (
     Program as Function,
 )
 
+# Longest validator message the API will hand back. jsonschema builds its messages with
+# repr(instance), so without a limit a rejected 200 KB payload came back in full in the 400.
+MAX_MESSAGE_LENGTH = 500
+
+
+def _shortened(message: str) -> str:
+    """Cut ``message`` down to something a client can read, keeping the informative front."""
+    if len(message) <= MAX_MESSAGE_LENGTH:
+        return message
+    return f"{message[:MAX_MESSAGE_LENGTH]}... (message truncated)"
+
 
 def validate_arguments(program: Function, arguments_str: str) -> None:
     """Validate arguments_str against program.arguments_schema.
@@ -60,20 +71,22 @@ def validate_arguments(program: Function, arguments_str: str) -> None:
 
     try:
         check_arguments_schema(schema, schema_str)
-        validate_at_bounded_cost(schema, arguments)
+        validate_at_bounded_cost(schema, arguments, schema_str)
     except RecursionError as exc:
         # A "$ref" back to the root of the document recurses forever in 13 characters, so depth
         # limits cannot catch every case and this is what keeps it from surfacing as a 500.
         raise InvalidArgumentsException("the function arguments schema recurses without end") from exc
     except UnsupportedSchemaError as exc:
-        raise InvalidArgumentsException(f"the function arguments schema cannot be used: {exc}") from exc
+        raise InvalidArgumentsException(_shortened(f"the function arguments schema cannot be used: {exc}")) from exc
     except jsonschema.SchemaError as exc:
-        raise InvalidArgumentsException(f"the function arguments schema is not usable: {exc.message}") from exc
+        raise InvalidArgumentsException(
+            _shortened(f"the function arguments schema is not usable: {exc.message}")
+        ) from exc
     except jsonschema.ValidationError as exc:
-        raise InvalidArgumentsException(exc.message, path=list(exc.path)) from exc
+        raise InvalidArgumentsException(_shortened(exc.message), path=list(exc.path)) from exc
     except Unresolvable as exc:
         raise InvalidArgumentsException(
-            f"the function arguments schema references something that cannot be resolved: {exc}"
+            _shortened(f"the function arguments schema references something that cannot be resolved: {exc}")
         ) from exc
 
 
