@@ -424,7 +424,7 @@ class FunctionSize(models.Model):
     )
     function_size = models.CharField(max_length=1, choices=SIZE_CHOICES)
     compute_profile = models.ForeignKey(
-        to=ComputeProfile,
+        to=ComputeProfiles,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
@@ -548,7 +548,7 @@ class Job(models.Model):
     )
     program = models.ForeignKey(to=Program, on_delete=models.SET_NULL, null=True)
     flavor = models.ForeignKey(
-        to=ComputeProfile,
+        to=ComputeProfiles,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

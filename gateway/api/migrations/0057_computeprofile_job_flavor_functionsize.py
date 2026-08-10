@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name="ComputeProfile",
+            name="ComputeProfiles",
             fields=[
                 ("id", models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ("created", models.DateTimeField(auto_now_add=True)),
@@ -50,7 +50,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.SET_NULL,
                 related_name="jobs",
-                to="api.computeprofile",
+                to="api.computeprofiles",
             ),
         ),
         migrations.CreateModel(
@@ -69,7 +69,7 @@ class Migration(migrations.Migration):
                         null=True,
                         on_delete=django.db.models.deletion.PROTECT,
                         related_name="function_sizes",
-                        to="api.computeprofile",
+                        to="api.computeprofiles",
                     ),
                 ),
                 (
