@@ -361,7 +361,7 @@ class CodeEngineProject(models.Model):
         return f"{self.project_name} ({self.region})"
 
 
-class ComputeProfile(models.Model):
+class ComputeProfiles(models.Model):
     """Compute profile model.
 
     Maps a Code Engine compute profile to a specific CPU/GPU/memory allocation
