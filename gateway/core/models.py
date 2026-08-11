@@ -404,15 +404,6 @@ class FunctionSize(models.Model):
     and carries the ``compute_profile`` used.
     """
 
-    SMALL = "S"
-    MEDIUM = "M"
-    LARGE = "L"
-    SIZE_CHOICES = [
-        (SMALL, "Small"),
-        (MEDIUM, "Medium"),
-        (LARGE, "Large"),
-    ]
-
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, null=True)
@@ -422,7 +413,7 @@ class FunctionSize(models.Model):
         on_delete=models.CASCADE,
         related_name="function_sizes",
     )
-    function_size = models.CharField(max_length=1, choices=SIZE_CHOICES)
+    function_size = models.CharField(max_length=64)
     compute_profile = models.ForeignKey(
         to=ComputeProfiles,
         on_delete=models.PROTECT,
@@ -547,7 +538,7 @@ class Job(models.Model):
         blank=True,
     )
     program = models.ForeignKey(to=Program, on_delete=models.SET_NULL, null=True)
-    flavor = models.ForeignKey(
+    compute_profile_fk = models.ForeignKey(
         to=ComputeProfiles,
         on_delete=models.SET_NULL,
         null=True,
