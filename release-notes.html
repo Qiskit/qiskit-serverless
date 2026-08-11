@@ -374,6 +374,11 @@ account) is unaffected by this change.</p></li>
 </ul>
 </li>
 </ul>
+<ul class="simple">
+<li><p>The gateway and scheduler no longer run <code class="docutils literal notranslate"><span class="pre">sync_ce_project</span></code> on startup. Code Engine
+project rows are seeded on demand instead, so a fresh deployment must seed them before
+Fleets jobs can be scheduled.</p></li>
+</ul>
 </section>
 </section>
 <section id="v0-34-0">
