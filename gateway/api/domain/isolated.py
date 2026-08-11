@@ -1,7 +1,7 @@
 """Run a piece of work in a forked child under hard operating system limits.
 
 Bounding the cost of JSON Schema validation from inside the library meant enumerating the ways it
-can be expensive, and three rounds of review found five distinct ways past that: keywords whose
+can be expensive, and three rounds of review found four distinct ways past that: keywords whose
 cost lives in private helpers, a "$schema" at the root restoring the stock validator class when a
 reference resolves, the size of a compiled regex program, and memory, which no rule bounded at all.
 
@@ -10,10 +10,13 @@ whatever it does inside, it either finishes or dies. Verified by execution: RLIM
 runaway regex at 1.00s with SIGXCPU on both macOS and Linux, and RLIMIT_AS turns a 1 GB allocation
 into a catchable MemoryError at 0.38s on Linux.
 
-The address space limit does NOT fire on macOS: base VmSize is 25 MB on Linux and 425 GB there,
-because macOS reserves enormous virtual ranges, so any margin is lost in the noise. Protection
-degrades in development and applies in production, which is why the limit is computed at runtime
-from the process's own size rather than set to an absolute figure.
+The address space limit does NOT fire on macOS. It is computed at runtime from the process's own
+size, plus a margin, because a fork starts out mapping everything the parent had, so an absolute
+figure would need to already exceed whatever the parent happens to be using. That size comes from
+``_current_address_space`` reading ``/proc/self/status``, and that file does not exist on macOS, so
+the read fails there, the function returns 0, and ``_apply_limits`` skips setting RLIMIT_AS
+altogether rather than set it to a wrong value. Protection therefore degrades in development and
+applies in production.
 """
 
 import json

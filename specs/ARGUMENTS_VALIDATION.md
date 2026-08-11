@@ -39,12 +39,14 @@ alongside `title`, `dependencies`, `env_vars` and the rest. It is metadata, not 
 request is the `artifact` tarball).
 
 `ProgramSerializer.validate_arguments_schema` (`gateway/api/v1/views/programs/upload.py`) rejects at upload anything
-the gateway would not be able to evaluate later. It runs four checks, in this order:
+the gateway would not be able to evaluate later. It checks, in this order:
 
-1. The value parses as JSON.
-2. No reference points outside the document, checking `$ref`, `$dynamicRef` and `$recursiveRef` (`_find_external_ref`).
-3. `check_arguments_schema` (see [What a schema may contain](#what-a-schema-may-contain)).
-4. The document is a valid JSON Schema for its own dialect, via `validator_for(schema).check_schema(schema)`.
+1. The value is no longer than `MAX_SCHEMA_LENGTH`, checked before anything is forked.
+2. Inside a forked child (`check_uploaded_schema_in_isolation`, see [What a schema may
+   contain](#what-a-schema-may-contain)): the value parses as JSON and is an object or a boolean; it does not nest
+   deeper than `MAX_DOCUMENT_DEPTH` or contain more than `MAX_SCHEMA_NODES` subschemas; no reference points outside
+   the document, checking `$ref`, `$dynamicRef` and `$recursiveRef` (`find_external_ref`); and the document is a valid
+   JSON Schema for its own dialect, via `validator_for(schema).check_schema(schema)`.
 
 The point of doing all of this at upload time is *who gets the error*. The person who can fix a broken schema is the
 one uploading it, so a schema that cannot be used is refused there, with a `400` naming the problem, instead of
@@ -78,62 +80,68 @@ client.upload(function)   # the function stops validating its arguments
 Both sides of this validation are untrusted input that the gateway evaluates **in the request thread**: the schema
 comes from whoever owns the function, the instance from whoever runs it. A JSON Schema `pattern` is a regular
 expression applied to caller input, and Python's backtracking engine makes that exponential in the length of the
-input, so a request body of under 100 bytes could otherwise keep a worker busy for hours.
+input, so a request body of under 100 bytes could otherwise keep a worker busy for hours. `jsonschema` also spends
+unbounded cost in a private helper behind `uniqueItems` that never descends into a subschema, so a rule that only
+watches recursion cannot see it either.
 
-No single limit bounds that cost, because `jsonschema` spends it in two different places. Most of it goes through
-`descend`, which is a method and can therefore be counted. The rest is spent inside private module level helpers that
-subclassing cannot reach (`uniq` behind `uniqueItems`, `find_evaluated_property_keys_by_schema` behind
-`unevaluatedProperties`), and those do their work without descending even once, so a budget on subschemas is blind to
-them. Hence a rule per place the cost can hide, all of them in `gateway/api/domain/arguments_schema.py`.
+An earlier version of this feature tried to bound that cost from inside `jsonschema` itself: a validator subclass
+counting subschema visits, a wall clock deadline, `pattern` matched with a non-backtracking engine, a replaced
+`uniqueItems`, and a list of keywords refused outright because their cost lived in private helpers. Three
+rounds of review found four separate ways past that scheme: keywords whose cost lives in private module level helpers
+no subclass can reach, a `$schema` below the top level restoring the stock backtracking validator class on a
+reference, the size of a compiled regex program, and memory, which nothing in that scheme bounded at all. `jsonschema`
+also warns that subclassing its validator classes is not part of its public API and will become an error in a future
+release, so a fix that depended on it would need redoing regardless.
 
-Bounding the input:
+Validation now runs in a forked child (`gateway/api/domain/isolated.py`), bounded from outside `jsonschema` instead of
+from within it. The child gets a CPU limit and an address space limit before it does anything else: whatever the
+validation does inside, it either finishes within those limits or the child dies, and the parent turns that into a
+rejection rather than an occupied worker. Measured by execution: `RLIMIT_CPU` kills a runaway `pattern` match at 1.00s
+with `SIGXCPU`, and `RLIMIT_AS` turns a 1 GB allocation into a catchable `MemoryError` at 0.38s on Linux.
+
+`RLIMIT_AS` does not fire on macOS. The limit is computed at runtime from the process's own address space, read from
+`/proc/self/status`. That file does not exist on macOS, so the read fails, the computed size comes back as 0, and the
+limit is skipped rather than set to a wrong value. The CPU limit is unaffected and fires the same way on both
+platforms, so this is the one part of the protection that degrades in development and applies in production: a schema
+that only spends memory rather than CPU can validate without complaint on a laptop and still be refused once deployed.
+
+Inside the child, `jsonschema` runs unmodified, with one exception: `uniqueItems` is still replaced, by a single-pass
+hash of a canonical form of each element, rather than being left for the isolation alone to bound. `jsonschema`
+compares elements pairwise whenever they are not sortable, which any array of objects triggers, and that comparison
+lives in a private helper that never descends into a subschema, so it pays its full quadratic cost within a single
+CPU-second budget regardless: 1500 objects in 18 KB of JSON were refused for exceeding the CPU limit, where the
+hash-based replacement answers in 0.011s. `pattern`, by contrast, is on the stock engine now, matched with Python's
+ordinary backtracking `re` and left for the isolation to bound; `uniqueItems` is the one place where isolation can
+only refuse the work rather than make it cheap.
+
+Before any of this runs, text limits are applied to the schema, and to the arguments:
 
 | Constant | Value | What it bounds |
 |---|---|---|
-| `MAX_SCHEMA_LENGTH` | 64 KB | How much combinatorial work (nested `anyOf` / `allOf`) a schema can spell out literally |
-| `MAX_ARGUMENTS_LENGTH` | 1 MB | Keywords whose cost grows with the instance. The ceiling otherwise was `DATA_UPLOAD_MAX_MEMORY_SIZE`, 2.5 MB by default. Defence in depth rather than the main protection, so it is set clear of what a legitimate caller sends |
-| `MAX_DOCUMENT_DEPTH` | 64 | Nesting depth of the schema **and** of the arguments. `jsonschema` recurses once per level and CPython gives up at about 180 |
+| `MAX_SCHEMA_LENGTH` | 64 KB | How much combinatorial work a schema can spell out literally |
+| `MAX_ARGUMENTS_LENGTH` | 1 MB | Keywords whose cost grows with the instance |
+| `MAX_DOCUMENT_DEPTH` | 64 | Nesting of schema and arguments; CPython gives up near 180 |
+| `MAX_SCHEMA_NODES` | 200 | Subschemas in the document, which bounds memory on every platform |
 
-Bounding what the validation does:
+`MAX_SCHEMA_LENGTH` and `MAX_ARGUMENTS_LENGTH` are checked before anything is forked, on both entry points. Where
+`MAX_DOCUMENT_DEPTH` and `MAX_SCHEMA_NODES` are checked on the schema differs by entry point: on `/run` and
+`/validate_arguments/` (`validate_arguments_in_isolation`), the caller already holds the schema as a parsed object and
+checks both before forking. At upload (`check_uploaded_schema_in_isolation`), the schema is still text when it
+arrives, and parsing it is itself part of what has to be isolated, so `json.loads` and both checks run inside the
+child instead. `MAX_DOCUMENT_DEPTH` on the arguments always runs inside the child, for the same reason: they are still
+text outside it. An upload is refused outright if the schema contains more than 200 subschemas, the same
+`MAX_SCHEMA_NODES` limit that a run-time check applies, because memory use there scales with the number of branches
+times the size of the instance, which is the half of the memory protection that holds on every platform, including
+where `RLIMIT_AS` does not fire.
 
-| Constant | Value | What it bounds |
-|---|---|---|
-| `MAX_VALIDATION_STEPS` | 10000 | Subschemas one validation may visit. A realistic schema needs single digits |
-| `MAX_VALIDATION_SECONDS` | 2.0 | Wall clock ceiling, checked on every descent. The backstop for a shape nobody enumerated |
-
-Both are checked in `descend`, so they bound everything that recurses through it, and neither can interrupt a single
-keyword that is already slow. That is what the next three rules are for:
-
-- **`pattern` is matched with RE2** (`google-re2`), which never backtracks, so matching is linear in the length of the
-  input. A pattern has to be valid in RE2 *and* in Python's `re`, because the metaschema checks it with `re`, so RE2
-  extensions such as `\p{L}` are refused, with a message that says so.
-- **`uniqueItems` is replaced** by a single-pass hash of a canonical form of each element. `jsonschema` compares the
-  elements pairwise whenever they are not sortable, which any array of objects triggers, and that comparison never
-  descends, so the step budget could not see it.
-- **`patternProperties`, `unevaluatedProperties` and `unevaluatedItems` are refused** outright, because their cost
-  lives in those private helpers rather than in a keyword, so it can neither be replaced nor counted. The error names
-  the alternative to write instead.
-
-Two more rules that are less obvious:
-
-- **`$schema` is only accepted at the top level.** `jsonschema` picks the validator class from `$schema` for every
-  subschema it descends into, so a nested one would switch back to a class that matches with Python's `re` and undo
-  the RE2 rule.
-- **`format` is asserted, but only for cheap checkers.** `jsonschema` treats `format` as an annotation and checks
-  nothing unless a checker is attached, so a vendor writing `{"type": "string", "format": "email"}` used to get
-  neither validation nor a warning. The asserted set is `date`, `email`, `idn-email`, `ipv4`, `ipv6` and `uuid`.
-  `regex` is deliberately left out, since it would compile caller input with the very engine the RE2 rule exists to
-  avoid, and any other format stays an annotation, which is what JSON Schema says an unknown format is.
-
-The keyword scan (`check_arguments_schema`) walks **every** dict in the document, not only the schema positions, so a
-refused keyword used as a property name or inside an `enum`, `const` or `default` value is refused too.
-Over-approximating is the safe direction, since missing a position would mean missing the cost, and the error message
-says as much so an author can tell the two cases apart.
-
-**References are never retrieved.** The schema is evaluated against an empty `referencing.Registry`, which has no
-retrieval hook, so a reference pointing outside the document raises `Unresolvable` instead of making the gateway issue
-a request or read a file. Same-document references such as `#/$defs/name` keep working normally. Upload rejects an
-external reference up front anyway, so the empty registry is the second line rather than the first.
+**References are never retrieved.** The schema is evaluated against a `referencing.Registry` built with no retrieval
+hook of its own, so a reference pointing outside the document raises `Unresolvable` instead of making the gateway
+issue a request or read a file. Verified with a spy on `socket.connect`: no socket calls happen with this registry,
+where `getaddrinfo` plus `connect` happen with `jsonschema`'s default one. The registry is not empty, despite having
+no entries of its own: `jsonschema` does `SPECIFICATIONS.combine(registry)` internally, so the packaged metaschemas
+still resolve. What it stops is going out to the network for anything else. Same-document references such as
+`#/$defs/name` keep working normally. Upload rejects an external reference up front anyway, so this is the second
+line of defence rather than the first.
 
 ## Reading a schema back
 
@@ -218,39 +226,40 @@ class ValidateArgumentsUseCase:
         """Resolves the function (raising FunctionNotFoundException), then validates."""
 ```
 
-`validate_arguments` short-circuits when there is nothing to validate, applies the length and depth limits, then hands
-the actual work to the bounded validator (dependencies `jsonschema>=4.26.0,<5` and `google-re2>=1.1,<2` in
-`gateway/requirements.txt`):
+`validate_arguments` short-circuits when there is nothing to validate, applies the length limit to the schema and to
+the arguments and the depth and node count limits to the schema, then hands the actual work to
+`validate_arguments_in_isolation` (`gateway/api/domain/arguments_schema.py`, dependency `jsonschema>=4.26.0,<5` in
+`gateway/requirements.txt`), which runs inside the forked child described in [What a schema may
+contain](#what-a-schema-may-contain):
 
 ```python
 schema_str = program.arguments_schema
 if not schema_str or schema_str == "{}":
     return
-# ... length limit on arguments_str, json.loads of both, depth limit on arguments ...
+# ... length limit on schema_str and arguments_str, json.loads of the schema, depth and node count limits on it ...
 try:
-    check_arguments_schema(schema, schema_str)
-    validate_at_bounded_cost(schema, arguments, schema_str)
-except RecursionError as exc:
+    validate_arguments_in_isolation(schema, arguments_str or "{}")
+except InvalidArgumentsError as exc:
     ...
 except UnsupportedSchemaError as exc:
     ...
-except jsonschema.SchemaError as exc:
-    ...
 except jsonschema.ValidationError as exc:
-    ...
-except Unresolvable as exc:
     ...
 ```
 
 Every one of those becomes an `InvalidArgumentsException`, so a schema problem is a `400` and never a `500`.
-`RecursionError` is in the list because a reference back to the root of the document (`{"$ref": "#"}`, 13 characters)
-recurses without end, and no depth limit can see that coming.
+`InvalidArgumentsError` covers the caller's own mistakes, caught inside the child: arguments that are not valid JSON,
+or arguments nested past `MAX_DOCUMENT_DEPTH`. `UnsupportedSchemaError` covers everything wrong with the schema
+itself, including a self-referencing document (`{"$ref": "#"}`, 13 characters) that recurses without end while being
+evaluated: nothing catches `RecursionError` by name any more, it is one more exception the child's generic handler
+turns into a rejection instead of letting it escape.
 
 Messages are truncated at `MAX_MESSAGE_LENGTH` (500 characters). `jsonschema` builds its messages with
 `repr(instance)`, so without that a rejected payload came back to the caller in full.
 
-The metaschema check is remembered by document text (`_check_schema_once`), since `check_schema` walks the whole
-document, is pure, and a stored schema does not change between runs.
+The metaschema check itself only runs once, at upload time (`check_uploaded_schema_in_isolation`), never again on a
+later run: it used to run on every request too, which cost 89 ms for a 63 KB schema and put a ceiling of about 22
+requests a second on the gateway.
 
 ### On `/run`
 
@@ -337,10 +346,7 @@ At validation time, everything below is an `InvalidArgumentsException`, so a bro
 | Arguments violate the schema | 400 | `{"message": "...", "path": [...]}` |
 | `arguments` is not valid JSON | 400 | `{"message": "arguments is not valid JSON: ...", "path": []}` |
 | `arguments` longer than `MAX_ARGUMENTS_LENGTH` or nested past `MAX_DOCUMENT_DEPTH` | 400 | `{"message": "...", "path": []}` |
-| Schema out of budget, refused keyword, unsupported regex, nested `$schema` | 400 | `{"message": "the function arguments schema cannot be used: ...", "path": []}` |
-| Schema is not a valid JSON Schema, or not an object or boolean | 400 | `{"message": "the function arguments schema is not usable: ...", "path": []}` |
-| Schema recurses without end | 400 | `{"message": "the function arguments schema recurses without end", "path": []}` |
-| Schema references something unresolvable | 400 | `{"message": "... cannot be resolved: ...", "path": []}` |
+| Schema cannot be evaluated: an isolation limit was hit, a reference is unresolvable, evaluating it recurses without end, or it is not a valid JSON Schema (including not being an object or a boolean) | 400 | `{"message": "the function arguments schema cannot be used: ...", "path": []}` |
 | Function missing or not accessible | 404 | `{"message": "..."}` |
 | `arguments_schema` rejected at upload | 400 | `{"message": "arguments_schema ..."}` |
 

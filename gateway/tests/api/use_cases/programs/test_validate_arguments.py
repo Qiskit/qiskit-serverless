@@ -71,7 +71,7 @@ def test_a_reference_to_the_root_is_reported_not_a_crash():
 
 
 def test_unique_items_on_a_large_array_of_objects_is_bounded():
-    """8000 objects took 32.2s with the stock keyword, spending 2 of the 10000 budget steps."""
+    """8000 objects took 32.2s with the stock keyword."""
     items = json.dumps([{"i": i} for i in range(8000)])
     start = time.monotonic()
     try:
@@ -135,7 +135,7 @@ def test_the_validation_error_keeps_its_path():
 
 
 def test_uniqueitems_still_rejects_a_duplicate():
-    """The stock keyword is back, so confirm it still does its job and not only that it is fast."""
+    """The hash-based uniqueItems replacement is back, so confirm it still does its job and not only that it is fast."""
     with pytest.raises(jsonschema.ValidationError):
         validate_arguments_in_isolation({"type": "array", "uniqueItems": True}, '[{"a":1},{"a":1}]')
 

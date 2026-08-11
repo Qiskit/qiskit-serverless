@@ -32,10 +32,15 @@ unbounded cost that isolation can only refuse rather than make cheap.
 
 What remains in this module besides that replacement is the text limits applied to the schema
 before anything is evaluated: a maximum length for the document, a maximum nesting depth, and a
-maximum count of subschemas. These run in the caller, before anything is forked. The arguments get
-the same length limit there too, but the depth limit on them cannot run there: they are still text
-at that point, and parsing them is itself part of what has to be isolated, so it runs inside the
-child, right after ``json.loads``.
+maximum count of subschemas. Where each one runs depends on the entry point. On the run path
+(``validate_arguments_in_isolation``), the caller already holds the schema as a parsed object, so
+it applies the length, depth and node count limits itself, before anything is forked; the arguments
+get the same length limit there too, but their depth limit cannot run there, since they are still
+text at that point and parsing them is itself part of what has to be isolated, so it runs inside
+the child, right after ``json.loads``. On the upload path (``check_uploaded_schema_in_isolation``),
+only the length limit runs in the caller, because it needs no parsing: the schema is still text
+when this module receives it, so ``json.loads`` and the depth and node count checks that follow all
+run inside the child instead.
 """
 
 import json
