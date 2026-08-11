@@ -397,6 +397,18 @@ def test_node_count_refuses_a_wide_combination_and_allows_an_ordinary_schema():
     assert exceeds_max_nodes({"anyOf": [{"type": "integer"}] * (MAX_SCHEMA_NODES + 1)}) is True
 
 
+def test_node_count_refuses_many_boolean_branches_under_length_limit():
+    """A schema of many boolean branches under MAX_SCHEMA_LENGTH must still be refused.
+
+    The bypass: {"anyOf": [False] * 8000} is 56011 bytes, under the 64 KB limit,
+    but each False is a valid JSON Schema that produces a validation error with
+    repr(instance) embedded, so memory use still scales with branches.
+    """
+    schema = {"anyOf": [False] * (MAX_SCHEMA_NODES + 1)}
+    assert len(json.dumps(schema)) < MAX_SCHEMA_LENGTH
+    assert exceeds_max_nodes(schema) is True
+
+
 @pytest.mark.django_db
 class TestValidateArgumentsUseCase:
     @pytest.fixture

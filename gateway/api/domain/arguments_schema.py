@@ -262,18 +262,23 @@ def exceeds_max_depth(value: Any) -> bool:
 def exceeds_max_nodes(schema: Any) -> bool:
     """Whether ``schema`` contains more than ``MAX_SCHEMA_NODES`` subschemas.
 
-    Counts dicts, which over-approximates: an "enum" value that is an object counts too. Walks
-    iteratively and stops as soon as the limit is passed, so it cannot be expensive itself.
+    Counts dicts and booleans, which over-approximates: a boolean that is a keyword value
+    such as ``uniqueItems: true`` or ``required: false`` will also be counted, but that is
+    harmless because a legitimate schema is nowhere near 200 nodes, and the alternative
+    approach of distinguishing schema positions from keyword positions is what made the
+    previous approach unworkable. Walks iteratively and stops as soon as the limit is
+    passed, so it cannot be expensive itself.
     """
     seen = 0
     stack: list[Any] = [schema]
     while stack:
         node = stack.pop()
-        if isinstance(node, dict):
+        if isinstance(node, (dict, bool)):
             seen += 1
             if seen > MAX_SCHEMA_NODES:
                 return True
-            stack.extend(node.values())
+            if isinstance(node, dict):
+                stack.extend(node.values())
         elif isinstance(node, list):
             stack.extend(node)
     return False
