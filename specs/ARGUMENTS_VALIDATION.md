@@ -401,11 +401,16 @@ the stored `"{}"` default to `None` so `if function.arguments_schema:` behaves a
 - **No schema means no validation.** Rather than a separate toggle, an absent or empty schema is the off switch. Every
   function that existed before this feature keeps working untouched.
 - **The schema is stored as text.** It is round-tripped verbatim rather than normalized through a JSON column, so what a
-  vendor uploads is what they read back. It also gives the metaschema check a stable cache key.
+  vendor uploads is what they read back.
 - **A dedicated exception instead of DRF's `ValidationError`,** so the 400 response can keep the `path` to the offending
   field instead of collapsing to one flat message.
 - **A schema is refused at upload, not at run time.** The cost of evaluating a schema is a property of the schema, so
-  the check belongs where the author can still act on the error. Validation applies the same rules again, because a
-  schema stored before a rule existed must not become a way around it.
-- **Expensive keywords are refused rather than budgeted.** A step counter only sees what goes through `descend`, so for
-  keywords whose cost lives in private helpers the only safe options are replacing the keyword or refusing it.
+  the check belongs where the author can still act on the error. `MAX_DOCUMENT_DEPTH` and `MAX_SCHEMA_NODES` are
+  rechecked at run time too, because a schema stored before either limit existed must not become a way around it;
+  `find_external_ref` and the metaschema check are not repeated, since a schema that already passed them at upload
+  cannot fail them later on its own.
+- **Cost is bounded by isolation, not by refusing keywords.** A forked child with a CPU limit and an address space
+  limit bounds every keyword uniformly, including ones whose cost lives in private helpers a validator subclass could
+  never reach. `uniqueItems` is the one keyword still replaced outright, not because isolation cannot bound it, but
+  because paying the isolation's CPU budget just to be refused is a worse experience than a hash-based check that
+  answers immediately.
