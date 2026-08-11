@@ -2,6 +2,7 @@
 
 import json
 import time
+import jsonschema
 import pytest
 from unittest.mock import MagicMock
 from django.contrib.auth.models import User
@@ -10,8 +11,9 @@ from api.domain.arguments_schema import (
     MAX_ARGUMENTS_LENGTH,
     MAX_SCHEMA_LENGTH,
     MAX_SCHEMA_NODES,
-    _check_schema_once,
+    UnsupportedSchemaError,
     exceeds_max_nodes,
+    validate_arguments_in_isolation,
 )
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.domain.exceptions.invalid_arguments_exception import InvalidArgumentsException
@@ -24,6 +26,99 @@ def _program(schema_dict):
     p = MagicMock()
     p.arguments_schema = json.dumps(schema_dict)
     return p
+
+
+def _refused_within(seconds, schema, arguments_str):
+    """Assert the schema is refused, and quickly. Returns how long it took."""
+    start = time.monotonic()
+    with pytest.raises(UnsupportedSchemaError):
+        validate_arguments_in_isolation(schema, arguments_str)
+    elapsed = time.monotonic() - start
+    assert elapsed < seconds, f"took {elapsed:.2f}s"
+    return elapsed
+
+
+def test_root_dollar_schema_no_longer_restores_the_backtracking_engine():
+    """Measured at 0.4907s for 24 characters before, doubling per character: 40 is hours."""
+    schema = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "pattern": "^(a+)+$",
+        "properties": {"x": {"$ref": "#"}},
+    }
+    _refused_within(4.0, schema, json.dumps({"x": "a" * 40 + "!"}))
+
+
+def test_a_large_regex_program_cannot_run_for_minutes():
+    """A 6189 byte pattern, valid in RE2 and in re: 24000 characters is comfortably past the
+    1 CPU-second budget on this hardware (measured at 0.61s for 8000, 1.96s for 24000)."""
+    pattern = "(?:" + "|".join(f"a{{{i}}}" for i in range(1, 900)) + ")b"
+    schema = {"type": "object", "properties": {"x": {"type": "string", "pattern": pattern}}}
+    _refused_within(4.0, schema, json.dumps({"x": "a" * 24000}))
+
+
+def test_a_reference_to_the_root_is_reported_not_a_crash():
+    """13 characters that recurse forever. It used to reach the generic handler as a 500."""
+    with pytest.raises(UnsupportedSchemaError):
+        validate_arguments_in_isolation({"$ref": "#"}, "{}")
+
+
+def test_unique_items_on_a_large_array_of_objects_is_bounded():
+    """8000 objects took 32.2s with the stock keyword, spending 2 of the 10000 budget steps."""
+    items = json.dumps([{"i": i} for i in range(8000)])
+    start = time.monotonic()
+    try:
+        validate_arguments_in_isolation({"type": "array", "uniqueItems": True}, items)
+    except UnsupportedSchemaError:
+        pass
+    assert time.monotonic() - start < 4.0
+
+
+def test_an_ordinary_schema_still_accepts_and_rejects_the_same_values():
+    schema = {
+        "type": "object",
+        "properties": {"name": {"type": "string", "pattern": "^ibm_[a-z0-9_]+$"}},
+        "required": ["name"],
+    }
+    validate_arguments_in_isolation(schema, json.dumps({"name": "ibm_backend_1"}))
+    with pytest.raises(jsonschema.ValidationError):
+        validate_arguments_in_isolation(schema, json.dumps({"name": "NOPE"}))
+    with pytest.raises(jsonschema.ValidationError):
+        validate_arguments_in_isolation(schema, "{}")
+
+
+def test_internal_references_still_resolve():
+    schema = {
+        "$defs": {"shots": {"type": "integer", "minimum": 1}},
+        "type": "object",
+        "properties": {"shots": {"$ref": "#/$defs/shots"}},
+    }
+    validate_arguments_in_isolation(schema, json.dumps({"shots": 1024}))
+    with pytest.raises(jsonschema.ValidationError):
+        validate_arguments_in_isolation(schema, json.dumps({"shots": 0}))
+
+
+def test_boolean_schemas_keep_their_meaning():
+    validate_arguments_in_isolation(True, json.dumps({"anything": 1}))
+    with pytest.raises(jsonschema.ValidationError):
+        validate_arguments_in_isolation(False, json.dumps({"anything": 1}))
+
+
+def test_a_declared_format_is_still_asserted():
+    with pytest.raises(jsonschema.ValidationError):
+        validate_arguments_in_isolation({"type": "string", "format": "email"}, '"not-an-email"')
+
+
+def test_the_validation_error_keeps_its_path():
+    schema = {"properties": {"outer": {"properties": {"inner": {"type": "integer"}}}}}
+    with pytest.raises(jsonschema.ValidationError) as caught:
+        validate_arguments_in_isolation(schema, json.dumps({"outer": {"inner": "no"}}))
+    assert list(caught.value.path) == ["outer", "inner"]
+
+
+def test_uniqueitems_still_rejects_a_duplicate():
+    """The stock keyword is back, so confirm it still does its job and not only that it is fast."""
+    with pytest.raises(jsonschema.ValidationError):
+        validate_arguments_in_isolation({"type": "array", "uniqueItems": True}, '[{"a":1},{"a":1}]')
 
 
 def test_empty_schema_always_passes():
@@ -55,43 +150,6 @@ def test_invalid_json_raises_invalid_arguments_exception():
         validate_arguments(_program(schema), "not-valid-json{{{")
 
 
-def test_catastrophic_pattern_is_matched_in_linear_time():
-    """A nested quantifier must not make validation exponential in the length of the input.
-
-    Under Python's backtracking engine this pattern needs about 8 seconds for 28 characters and
-    doubles per extra character, so 5000 characters would never finish. RE2 does not backtrack.
-    """
-    schema = {"type": "object", "properties": {"x": {"type": "string", "pattern": "^(a+)+$"}}}
-    start = time.perf_counter()
-
-    with pytest.raises(InvalidArgumentsException):
-        validate_arguments(_program(schema), json.dumps({"x": "a" * 5000 + "!"}))
-
-    assert time.perf_counter() - start < 1
-
-
-def test_dialect_switch_below_the_top_level_is_rejected():
-    """'$schema' in a subschema would switch jsonschema back to the backtracking engine."""
-    schema = {
-        "properties": {
-            "x": {
-                "$schema": "https://json-schema.org/draft/2020-12/schema",
-                "type": "string",
-                "pattern": "^(a+)+$",
-            }
-        }
-    }
-    with pytest.raises(InvalidArgumentsException, match=r"\$schema"):
-        validate_arguments(_program(schema), '{"x": "aaa"}')
-
-
-def test_pattern_properties_is_rejected():
-    """'patternProperties' regexes stay reachable from Python's re engine, so the keyword is out."""
-    schema = {"type": "object", "patternProperties": {"^(a+)+$": {"type": "integer"}}}
-    with pytest.raises(InvalidArgumentsException, match="patternProperties"):
-        validate_arguments(_program(schema), json.dumps({"a" * 5000 + "!": 1}))
-
-
 def test_oversized_schema_is_rejected():
     """A schema large enough to spell out a costly combination of subschemas is refused."""
     schema = {"type": "object", "description": "x" * (MAX_SCHEMA_LENGTH + 1)}
@@ -109,15 +167,36 @@ def test_legitimate_pattern_still_validates():
         validate_arguments(_program(schema), '{"backend": "not a backend"}')
 
 
-def test_external_ref_is_rejected_without_being_fetched():
-    """A stored schema pointing at a URL must not make the gateway fetch it (SSRF).
+def test_an_external_reference_is_not_fetched():
+    """Asserts on sockets, not on the exception type: Unresolvable is raised either way, and with
+    jsonschema's default registry it arrives after a real request. The previous version of this
+    test passed while taking 75 seconds to time out against 169.254.169.254.
 
-    The error says the reference is unresolvable, which can only happen if no retrieval was
-    attempted: a successful fetch would have produced a schema and validated against it.
+    validate_arguments_in_isolation always forks, and a fork's copy of a Python list is private to
+    it: a spy that appends to one in the parent would stay looking empty no matter what the child
+    did. A plain file predates the fork, so a write to it from the child is visible here.
     """
-    schema = {"$ref": "http://169.254.169.254/latest/meta-data/"}
-    with pytest.raises(InvalidArgumentsException, match="cannot be resolved"):
-        validate_arguments(_program(schema), '{"shots": 1024}')
+    import socket
+    import tempfile
+
+    real_getaddrinfo = socket.getaddrinfo
+
+    with tempfile.TemporaryFile() as marker:
+
+        def spy(*args, **kwargs):
+            marker.write(repr(args[0]).encode() + b"\n")
+            marker.flush()
+            return real_getaddrinfo(*args, **kwargs)
+
+        socket.getaddrinfo = spy
+        try:
+            with pytest.raises(UnsupportedSchemaError):
+                validate_arguments_in_isolation({"$ref": "https://example.invalid/schema.json"}, "{}")
+        finally:
+            socket.getaddrinfo = real_getaddrinfo
+
+        marker.seek(0)
+        assert marker.read() == b""
 
 
 def test_internal_ref_still_resolves():
@@ -134,34 +213,13 @@ def test_internal_ref_still_resolves():
 
 
 def test_unusable_schema_is_reported_as_invalid_arguments_not_a_crash():
-    """A stored schema that is not a valid JSON Schema must not surface as a 500."""
-    with pytest.raises(InvalidArgumentsException, match="not usable"):
-        validate_arguments(_program({"type": "integar"}), '{"shots": 1024}')
+    """A stored schema that is not a valid JSON Schema must not surface as a 500.
 
-
-def test_non_string_pattern_is_reported_instead_of_crashing():
-    """A 'pattern' that is not a string must not reach the regex engine and raise a TypeError."""
-    with pytest.raises(InvalidArgumentsException):
-        validate_arguments(_program({"properties": {"x": {"pattern": {"nope": 1}}}}), '{"x": "v"}')
-
-
-def test_combinatorial_ref_bomb_is_cut_off():
-    """A small schema can express an exponential combination through internal references.
-
-    Eighteen levels of two-branch 'anyOf' fit in 1.3 KB, well under the length limit, and take
-    minutes to evaluate without a budget on how many subschemas a validation may visit.
+    "integar" is not a recognised JSON Schema type, so jsonschema raises UnknownType while
+    validating rather than a SchemaError, and the child reports it as an unusable schema.
     """
-    defs = {"l0": {"anyOf": [{"type": "string"}, {"type": "string"}]}}
-    for level in range(1, 19):
-        ref = {"$ref": f"#/$defs/l{level - 1}"}
-        defs[f"l{level}"] = {"anyOf": [ref, ref]}
-    schema = {"$defs": defs, "$ref": "#/$defs/l18"}
-    start = time.perf_counter()
-
-    with pytest.raises(InvalidArgumentsException, match="subschemas"):
-        validate_arguments(_program(schema), "123")
-
-    assert time.perf_counter() - start < 1
+    with pytest.raises(InvalidArgumentsException, match="cannot be used"):
+        validate_arguments(_program({"type": "integar"}), '{"shots": 1024}')
 
 
 def test_arguments_longer_than_the_limit_are_rejected():
@@ -189,39 +247,6 @@ def test_unique_items_on_a_large_array_of_objects_stays_cheap():
     validate_arguments(_program({"type": "array", "uniqueItems": True}), arguments)  # must not raise
 
     assert time.perf_counter() - start < 2
-
-
-def test_unevaluated_properties_is_rejected():
-    """'unevaluatedProperties' works out which keys were evaluated inside a private jsonschema helper.
-
-    That helper recurses through '$ref' and 'dependentSchemas' without ever descending into a
-    subschema, so the step budget cannot see the work. Because the keyword comes first in the
-    document its error is the one that stops the validation, so validation never does its own walk
-    of the same chain: 1.5 KB spent 1.7 seconds while using 2 of the 10000 steps, and every extra
-    level doubles it. The identical chain without the keyword is cut off at 10000 steps in 0.05s.
-    The keyword has to go the way of 'patternProperties': its cost is not observable.
-    """
-    defs = {"l0": {"type": "object"}}
-    for level in range(1, 18):
-        ref = {"$ref": f"#/$defs/l{level - 1}"}
-        defs[f"l{level}"] = {"$ref": f"#/$defs/l{level - 1}", "dependentSchemas": {"a": ref}}
-    schema = {
-        "unevaluatedProperties": False,
-        "dependentSchemas": {"a": {"$ref": "#/$defs/l17"}},
-        "$defs": defs,
-    }
-    start = time.perf_counter()
-
-    with pytest.raises(InvalidArgumentsException, match="unevaluatedProperties"):
-        validate_arguments(_program(schema), '{"a": 1}')
-
-    assert time.perf_counter() - start < 1
-
-
-def test_unevaluated_items_is_rejected():
-    """Same as 'unevaluatedProperties': the sibling keyword costs just as much and just as quietly."""
-    with pytest.raises(InvalidArgumentsException, match="unevaluatedItems"):
-        validate_arguments(_program({"type": "array", "unevaluatedItems": False}), "[1, 2]")
 
 
 def test_unique_items_still_catches_a_duplicate():
@@ -330,46 +355,6 @@ def test_regex_format_is_not_asserted():
     validate_arguments(_program(schema), '{"p": "unparseable("}')  # must not raise
 
 
-def test_re2_only_pattern_is_refused_with_a_message_naming_both_engines():
-    """RE2 accepts '\\p{L}' and Python's re does not, and check_schema uses re.
-
-    The refusal came out of the metaschema as "is not a 'regex'", which describes neither the real
-    contract nor how to satisfy it.
-    """
-    schema = {"type": "object", "properties": {"x": {"type": "string", "pattern": "\\p{L}+"}}}
-
-    with pytest.raises(InvalidArgumentsException, match="both"):
-        validate_arguments(_program(schema), '{"x": "abc"}')
-
-
-def test_keyword_refusal_explains_it_matches_property_names_too():
-    """The scan cannot tell a schema from a property name, so the message has to say so.
-
-    Here 'patternProperties' is the name of an argument, not a keyword, and it is still refused.
-    """
-    schema = {"type": "object", "properties": {"patternProperties": {"type": "string"}}}
-
-    with pytest.raises(InvalidArgumentsException, match="property name"):
-        validate_arguments(_program(schema), '{"patternProperties": "x"}')
-
-
-def test_metaschema_check_is_not_repeated_for_the_same_schema():
-    """check_schema walks the whole document and is pure, so it must not run on every request.
-
-    Measured at 0.151 seconds for a 54 KB schema, which two workers turn into a ceiling of about
-    14 requests a second.
-    """
-    program = _program({"type": "object", "properties": {"shots": {"type": "integer"}}})
-    validate_arguments(program, '{"shots": 1}')
-    before = _check_schema_once.cache_info()
-
-    validate_arguments(program, '{"shots": 2}')
-
-    after = _check_schema_once.cache_info()
-    assert after.hits == before.hits + 1
-    assert after.misses == before.misses
-
-
 def test_error_message_does_not_echo_the_whole_payload():
     """jsonschema builds its messages with repr(instance), so the 400 carried the input back.
 
@@ -382,13 +367,6 @@ def test_error_message_does_not_echo_the_whole_payload():
         validate_arguments(_program(schema), arguments)
 
     assert len(caught.value.message) < 1000
-
-
-def test_budget_is_reset_between_validations():
-    """The step counter must not leak across calls, or a later validation would fail unfairly."""
-    schema = {"type": "object", "properties": {"shots": {"type": "integer"}}}
-    for _ in range(3):
-        validate_arguments(_program(schema), '{"shots": 1024}')  # must not raise
 
 
 def test_node_count_refuses_a_wide_combination_and_allows_an_ordinary_schema():

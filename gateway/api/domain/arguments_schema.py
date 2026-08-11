@@ -1,78 +1,37 @@
-"""Bounded-cost validation of job arguments against a Qiskit Function's JSON Schema.
+"""Validation of job arguments against a Qiskit Function's JSON Schema.
 
 Both sides of this validation are untrusted input that the gateway evaluates in the request
 thread: the schema comes from whoever owns the function, the instance from whoever runs it. A
-JSON Schema ``pattern`` is a regular expression applied to caller input, and Python's
-backtracking engine makes that exponential in the length of that input for patterns such as
-``^(a+)+$``: 28 characters already take about 8 seconds and every extra character doubles the
-time, so a request body of well under 100 bytes can keep a worker busy for hours.
+JSON Schema ``pattern`` is a regular expression applied to caller input, and Python's backtracking
+engine makes that exponential in the length of that input for patterns such as ``^(a+)+$``, so a
+request body of well under 100 bytes can keep a worker busy for hours. jsonschema also spends
+unbounded cost in places a budget on subschemas cannot see, such as ``uniqueItems`` and
+``unevaluatedProperties``, which never descend even once.
 
-No single limit bounds that cost, because jsonschema spends it in two different places. Most of it
-goes through ``descend``, which is a method and can therefore be counted. The rest is spent inside
-private module level helpers that no amount of subclassing can reach: ``uniq`` behind
-``uniqueItems``, and ``find_evaluated_property_keys_by_schema`` behind ``unevaluatedProperties``,
-both do their work without descending even once, so a budget on subschemas is blind to them. What
-follows is a rule per place the cost can hide.
+Bounding that cost from inside jsonschema was tried and refuted five times: keywords whose cost
+lives in private module level helpers no subclass can reach, a ``$schema`` below the top level
+restoring the stock (backtracking) validator class on a reference, the size of a compiled regex
+program, and memory, which nothing inside jsonschema bounds at all.
 
-Bounding the input:
+The cost is now bounded by the operating system instead, in a forked child (``api.domain.isolated``).
+``RLIMIT_CPU`` kills a runaway regex at 1.00s with ``SIGXCPU``, and ``RLIMIT_AS`` turns a large
+allocation into a catchable ``MemoryError`` at 0.38s on Linux. ``RLIMIT_AS`` does not fire on macOS,
+where base address space is 425 GB against 25 MB on Linux, so that half of the protection degrades
+in development and applies in production.
 
-1. The schema document has a maximum length, which caps how much combinatorial work (nested
-   ``anyOf`` / ``allOf``) it can spell out literally.
-
-2. The arguments have a maximum length. Several keywords cost more the longer the instance is, and
-   the ceiling otherwise is DATA_UPLOAD_MAX_MEMORY_SIZE. This one is defence in depth: the keyword
-   that grew faster than its input is replaced by rule 5, so the limit is set well clear of what a
-   legitimate caller sends, which for encoded circuits is larger than it looks.
-
-3. Both have a maximum nesting depth. jsonschema recurses once per level and CPython gives up at
-   about 180, which a few kilobytes of either can reach.
-
-Bounding what the validation does:
-
-4. ``pattern`` is matched with RE2, which never backtracks, so matching is linear in the length of
-   the input. ``format`` asserts only checkers that cost no more than their input, which leaves out
-   ``regex``: it would compile caller input with the very engine this rule exists to avoid.
-
-5. ``uniqueItems`` is replaced. jsonschema compares the elements pairwise whenever they are not
-   sortable, which any array of objects triggers, so 4000 items took about 8 seconds while
-   spending one step; hashing a canonical form of each element answers it in a single pass.
-
-6. ``patternProperties``, ``unevaluatedProperties`` and ``unevaluatedItems`` are refused, because
-   their cost lives in the helpers named above rather than in a keyword, so it can neither be
-   replaced nor counted. Measured for the second: 1.5 KB of schema spent 1.7 seconds using 2 of
-   the 10000 steps, and doubling with every extra level.
-
-7. ``$schema`` is only accepted at the top level of the document. jsonschema picks the validator
-   class from ``$schema``, including for subschemas, so a ``$schema`` deeper in the document would
-   switch back to a class that matches with Python's ``re`` and undo rule 4. It is also what keeps
-   rules 5 and 8 in place, since ``evolve`` falls back to the current class only while the dialect
-   does not change.
-
-8. A validation may visit only a bounded number of subschemas, and may not run past a wall clock
-   deadline. Rule 1 alone is not enough: an internal ``$ref`` expresses an exponential combination
-   in very few characters, so a 1.3 KB document can otherwise keep a worker busy for minutes. Both
-   are checked in ``descend``, which bounds everything that recurses through it, and neither can
-   interrupt a single keyword that is already slow. That is what rules 5 and 6 are for.
-
-References are never retrieved. The schema is evaluated against an empty registry, so a ``$ref``
-pointing outside the document resolves to nothing rather than making the gateway fetch a URL or
-read a file. Same-document references keep working: they resolve against the document itself. A
-reference to the root still recurses without end in 13 characters (``{"$ref": "#"}``), which no
-depth limit can see coming, so callers have to expect RecursionError too.
+What remains in this module is the text limits applied before anything is evaluated: a maximum
+length for the schema document and for the arguments, a maximum nesting depth for both, and a
+maximum count of subschemas in the document. These bound the input rather than the cost of
+evaluating it, and they run before the child is even forked.
 """
 
-import contextvars
-import functools
 import json
-import re
-import time
-from collections.abc import Iterator
 from typing import Any
 
 import jsonschema
-import re2
-from jsonschema import ValidationError
 from referencing import Registry
+
+from api.domain.isolated import IsolationError, run_isolated
 
 # A schema this long is already far beyond anything hand written, and the worst nested "anyOf"
 # that can be spelled out in 64k characters costs about 0.01 seconds to evaluate, which is an
@@ -89,11 +48,6 @@ MAX_SCHEMA_LENGTH = 64 * 1024
 # base64, so a limit in the tens of kilobytes would reject an ordinary batch of circuits.
 MAX_ARGUMENTS_LENGTH = 1024 * 1024
 
-# Maximum number of subschemas a single validation may visit. A realistic arguments schema needs
-# single digits (a four-property object with a nested object costs 4), so this leaves three orders
-# of magnitude of headroom while capping the worst case at about a tenth of a second.
-MAX_VALIDATION_STEPS = 10_000
-
 # Maximum nesting depth of the schema document and of the instance. jsonschema recurses once per
 # level of each, and CPython gives up at a nesting depth of about 180, which a few kilobytes of
 # either can reach. Anything hand written stays in single digits, so this leaves plenty of room
@@ -107,27 +61,6 @@ MAX_DOCUMENT_DEPTH = 64
 # half of the memory protection that works everywhere, since RLIMIT_AS does not bound on macOS.
 MAX_SCHEMA_NODES = 200
 
-# Wall clock ceiling for one validation, checked every time it descends into a subschema. The step
-# budget counts subschemas rather than time, so on its own it cannot tell a cheap visit from an
-# expensive one; this is the backstop for a shape nobody enumerated. It cannot interrupt a single
-# keyword that is already slow, which is why the expensive ones are replaced or refused outright.
-MAX_VALIDATION_SECONDS = 2.0
-
-# Keywords the gateway refuses, and what to write instead. What they have in common is that their
-# cost is spent inside private jsonschema helpers rather than in the keyword, so it can neither be
-# replaced the way "pattern" is nor be seen by the step budget, which only counts what descends.
-_UNSUPPORTED_KEYWORDS = {
-    # Its regexes are matched by additionalProperties and unevaluatedProperties too, inside helpers
-    # that keep Python's backtracking "re" reachable.
-    "patternProperties": "use 'properties' with a 'pattern' on the values instead",
-    # find_evaluated_property_keys_by_schema recurses through "$ref", "dependentSchemas" and
-    # "if"/"then"/"else" without descending, so the budget is blind to it. Measured: 1.5 KB of
-    # schema spent 1.7 seconds using 2 of the 10000 steps, doubling with every extra level.
-    "unevaluatedProperties": "use 'additionalProperties' instead",
-    # Same helper, same blind spot, for arrays.
-    "unevaluatedItems": "use 'items' or 'additionalItems' instead",
-}
-
 # Formats the gateway asserts. jsonschema treats "format" as an annotation and checks nothing
 # unless a checker is attached, so without this a vendor's "format" would silently reject nothing.
 # Only checkers that cost no more than the length of their input are listed: "regex" is left out
@@ -137,107 +70,16 @@ _UNSUPPORTED_KEYWORDS = {
 _ASSERTED_FORMATS = ("date", "email", "idn-email", "ipv4", "ipv6", "uuid")
 _FORMAT_CHECKER = jsonschema.FormatChecker(formats=_ASSERTED_FORMATS)
 
-# References are never retrieved: an empty registry has no retrieval hook, so an external "$ref"
-# raises Unresolvable instead of causing a request or a file read.
+# References are never retrieved: this registry has no retrieval hook, so an external "$ref" raises
+# Unresolvable instead of causing a request or a file read. Verified with a spy on socket.connect:
+# no socket calls with this registry, getaddrinfo plus connect with jsonschema's default one. Note
+# it is not empty, despite the name: jsonschema does SPECIFICATIONS.combine(registry), so the
+# packaged metaschemas do resolve. What it stops is going out to the network.
 _NO_EXTERNAL_REFS = Registry()
-
-# Counts the subschemas visited by the validation running in this thread or task. It lives in a
-# context variable rather than on the validator because jsonschema builds a fresh validator per
-# subschema through "evolve", so instance state would not be shared across the recursion.
-_steps = contextvars.ContextVar("arguments_schema_steps", default=0)
-
-# Monotonic time by which the validation running in this thread or task must be done. Lives in a
-# context variable for the same reason as the step counter.
-_deadline = contextvars.ContextVar("arguments_schema_deadline", default=0.0)
-
-# RE2 writes parse errors to stderr by default; we report them to the caller instead.
-_RE2_OPTIONS = re2.Options()
-_RE2_OPTIONS.log_errors = False
 
 
 class UnsupportedSchemaError(Exception):
     """Raised when an arguments schema cannot be evaluated at a bounded cost."""
-
-
-@functools.lru_cache(maxsize=512)
-def _compile(pattern: str):
-    """Compile ``pattern`` with RE2. Cached because the same schema is reused on every run."""
-    return re2.compile(pattern, options=_RE2_OPTIONS)
-
-
-def _pattern(validator, patrn, instance, schema):  # pylint: disable=unused-argument
-    """RE2 replacement for the ``pattern`` keyword."""
-    # A non-string pattern is a broken schema, not something to compile. Ignoring it here leaves the
-    # report to check_schema, instead of raising an unhandled TypeError out of the request.
-    if not isinstance(patrn, str):
-        return
-    if validator.is_type(instance, "string") and not _compile(patrn).search(instance):
-        yield ValidationError(f"{instance!r} does not match {patrn!r}")
-
-
-def _comparison_key(value: Any) -> Any:
-    """Return a hashable key that collides exactly when JSON Schema considers two values equal.
-
-    Mirrors the comparison jsonschema makes itself: ``True`` is not ``1``, ``1`` is ``1.0``, and
-    arrays and objects compare by their contents.
-    """
-    if isinstance(value, bool):
-        return ("boolean", value)
-    if isinstance(value, (int, float)):
-        # 1 and 1.0 are the same JSON number. Collapsing an integral float onto the integer keeps
-        # that true without going through float(), which would lose precision on large integers.
-        return ("number", int(value) if isinstance(value, float) and value.is_integer() else value)
-    if isinstance(value, str):
-        return ("string", value)
-    if isinstance(value, (list, tuple)):
-        return ("array", tuple(_comparison_key(item) for item in value))
-    if isinstance(value, dict):
-        return ("object", frozenset((key, _comparison_key(item)) for key, item in value.items()))
-    # None, and anything else json.loads cannot produce. Tagged so that None cannot collide with
-    # the string "None", and by repr so that two equal values still give one key.
-    return ("other", repr(value))
-
-
-def _unique_items(validator, unique, instance, schema):  # pylint: disable=unused-argument
-    """Single-pass replacement for the ``uniqueItems`` keyword.
-
-    jsonschema compares the elements pairwise whenever they are not sortable, which any array of
-    objects triggers, and that comparison lives in a private helper that never descends into a
-    subschema: 4000 objects took about 8 seconds while spending one step of the budget. Hashing a
-    canonical form of each element answers the same question in one pass.
-    """
-    if not unique or not validator.is_type(instance, "array"):
-        return
-    seen = set()
-    for item in instance:
-        key = _comparison_key(item)
-        if key in seen:
-            yield ValidationError(f"{instance!r} has non-unique elements")
-            return
-        seen.add(key)
-
-
-@functools.lru_cache(maxsize=None)
-def _bounded(base: type) -> type:
-    """Return ``base`` with RE2 patterns and a ceiling on how many subschemas it may visit."""
-    with_re2 = jsonschema.validators.extend(base, {"pattern": _pattern, "uniqueItems": _unique_items})
-
-    class BoundedValidator(with_re2):
-        """Counts every subschema it descends into and gives up once the budget is spent."""
-
-        def descend(self, *args, **kwargs):
-            visited = _steps.get() + 1
-            if visited > MAX_VALIDATION_STEPS:
-                raise UnsupportedSchemaError(
-                    f"validating against it visits more than {MAX_VALIDATION_STEPS} subschemas"
-                )
-            deadline = _deadline.get()
-            if deadline and time.monotonic() > deadline:
-                raise UnsupportedSchemaError(f"validating against it took longer than {MAX_VALIDATION_SECONDS} seconds")
-            _steps.set(visited)
-            yield from super().descend(*args, **kwargs)
-
-    return BoundedValidator
 
 
 def exceeds_max_depth(value: Any) -> bool:
@@ -295,104 +137,131 @@ def _require_schema_shape(schema: Any) -> None:
         raise UnsupportedSchemaError(f"a JSON Schema must be an object or a boolean, not {type(schema).__name__}")
 
 
-@functools.lru_cache(maxsize=256)
-def _check_schema_once(validator_class: type, schema_str: str) -> None:
-    """Check the schema against its metaschema, remembering the answer by document text.
+def _validator(schema: Any):
+    """Build a stock jsonschema validator for ``schema`` against the no-retrieval registry."""
+    return jsonschema.validators.validator_for(schema)(
+        schema, registry=_NO_EXTERNAL_REFS, format_checker=_FORMAT_CHECKER
+    )
 
-    check_schema walks the whole document and costs about 0.15 seconds for a 54 KB schema. It is
-    pure and a stored schema does not change between runs, so asking again on every request only
-    burns a worker: with two of them that alone puts a ceiling of about 14 requests a second.
+
+def find_external_ref(node: Any) -> str | None:
+    """Return the first reference in ``node`` that points outside the schema document.
+
+    Only same-document references ("#" fragments) are allowed. Anything else would make the
+    validator fetch a URL or read a file when the schema is later used, so it is rejected at upload
+    rather than at validation time, when the caller could no longer do anything about it.
+
+    "$dynamicRef" and "$recursiveRef" resolve references just like "$ref", so they are checked too.
+    Missing them did not allow a fetch, since validation runs against a registry with no retrieval
+    hook, but it did let a function be stored that raises Unresolvable on every single run.
+
+    Recursive on purpose, unlike the walks above: it only ever runs inside the isolation, where a
+    document deep enough to exhaust the stack costs a rejection rather than a failed request.
     """
-    validator_class.check_schema(json.loads(schema_str))
+    if isinstance(node, dict):
+        for keyword in ("$ref", "$dynamicRef", "$recursiveRef"):
+            ref = node.get(keyword)
+            if isinstance(ref, str) and not ref.startswith("#"):
+                return ref
+        for value in node.values():
+            found = find_external_ref(value)
+            if found is not None:
+                return found
+    elif isinstance(node, list):
+        for value in node:
+            found = find_external_ref(value)
+            if found is not None:
+                return found
+    return None
 
 
-def validate_at_bounded_cost(schema: Any, instance: Any, schema_str: str) -> None:
-    """Validate ``instance`` against ``schema`` without letting it cost an unbounded amount.
+def validate_arguments_in_isolation(schema: Any, arguments_str: str) -> None:
+    """Parse ``arguments_str`` and validate it against ``schema`` in a child with hard limits.
 
-    Patterns are matched with RE2, references are never retrieved, and the number of subschemas
-    visited is capped. ``schema_str`` is the document the schema was parsed from, used to remember
-    the metaschema check between requests.
+    The caller applies the text limits on the schema first. Parsing the arguments happens inside
+    the child on purpose: json.loads raises RecursionError on a few kilobytes of nesting and
+    ValueError on an integer with more than 4300 digits, both from caller input, and outside the
+    isolation each of those came out of the request as a 500.
 
     Raises:
-        UnsupportedSchemaError: if the validation runs out of budget.
-        jsonschema.SchemaError: if the schema is not a valid JSON Schema.
-        jsonschema.ValidationError: if the instance does not match the schema.
-        referencing.exceptions.Unresolvable: if the schema references something outside itself.
+        UnsupportedSchemaError: if the schema cannot be evaluated, the arguments are not JSON or
+            are nested too deep, or a limit fired.
+        jsonschema.ValidationError: if the arguments do not match the schema, with ``path`` set.
     """
     _require_schema_shape(schema)
-    validator_class = _bounded(jsonschema.validators.validator_for(schema))
-    _check_schema_once(validator_class, schema_str)
-    _steps.set(0)
-    _deadline.set(time.monotonic() + MAX_VALIDATION_SECONDS)
-    validator_class(schema, registry=_NO_EXTERNAL_REFS, format_checker=_FORMAT_CHECKER).validate(instance)
+
+    def work():
+        try:
+            arguments = json.loads(arguments_str)
+        except (json.JSONDecodeError, ValueError, RecursionError) as exc:
+            return {"unusable": f"arguments are not valid JSON ({type(exc).__name__})"}
+        if exceeds_max_depth(arguments):
+            return {"unusable": f"arguments are nested more than {MAX_DOCUMENT_DEPTH} levels deep"}
+        try:
+            _validator(schema).validate(arguments)
+            return {"valid": True}
+        except jsonschema.ValidationError as exc:
+            return {"valid": False, "message": exc.message, "path": [str(part) for part in exc.path]}
+        except Exception as exc:  # pylint: disable=broad-except
+            # SchemaError, Unresolvable, RecursionError, UnknownType, and the TypeError and
+            # AttributeError a malformed keyword raises. Every one of these used to be a 500.
+            return {"unusable": f"{type(exc).__name__}: {exc}"}
+
+    answer = _answer_from_child(work)
+    if "unusable" in answer:
+        raise UnsupportedSchemaError(answer["unusable"])
+    if not answer["valid"]:
+        raise jsonschema.ValidationError(answer["message"], path=answer["path"])
 
 
-def _dict_nodes(schema: Any) -> Iterator[tuple[dict, bool]]:
-    """Yield every dict in the schema document as ``(node, is_root)``.
+def check_uploaded_schema_in_isolation(schema_str: str) -> None:
+    """Check that ``schema_str`` is a schema the gateway can store and later evaluate.
 
-    Iterative on purpose: a deeply nested document must not exhaust the stack here.
+    Everything that touches the document runs in the child, because each step here has been seen to
+    raise out of the request: json.loads gives RecursionError on 1500 levels of nesting,
+    validator_for gives TypeError on an unhashable "$schema", and check_schema gives
+    UnicodeEncodeError on a pattern holding a lone surrogate.
+
+    This is the only place the metaschema check runs. It used to run on every request too, which
+    cost 89 ms for a 63 KB schema and put a ceiling of about 22 requests a second on the gateway.
+
+    Raises:
+        UnsupportedSchemaError: with a message meant for whoever is uploading the function.
     """
-    stack: list[tuple[Any, bool]] = [(schema, True)]
-    while stack:
-        node, is_root = stack.pop()
-        if isinstance(node, dict):
-            yield node, is_root
-            stack.extend((value, False) for value in node.values())
-        elif isinstance(node, list):
-            stack.extend((value, False) for value in node)
+
+    def work():  # pylint: disable=too-many-return-statements
+        try:
+            schema = json.loads(schema_str)
+        except (json.JSONDecodeError, ValueError, RecursionError):
+            return {"error": "it must be valid JSON"}
+        if not isinstance(schema, (dict, bool)):
+            return {"error": f"a JSON Schema must be an object or a boolean, not {type(schema).__name__}"}
+        if exceeds_max_depth(schema):
+            return {"error": f"it is nested more than {MAX_DOCUMENT_DEPTH} levels deep"}
+        if exceeds_max_nodes(schema):
+            return {"error": f"it contains more than {MAX_SCHEMA_NODES} subschemas"}
+        external_ref = find_external_ref(schema)
+        if external_ref is not None:
+            return {
+                "error": f"it must not reference external resources: '{external_ref}'. Inline the "
+                "definitions or use an internal reference such as '#/$defs/name'"
+            }
+        try:
+            jsonschema.validators.validator_for(schema).check_schema(schema)
+        except jsonschema.SchemaError as exc:
+            return {"error": f"it is not a valid JSON Schema: {exc.message}"}
+        except Exception as exc:  # pylint: disable=broad-except
+            return {"error": f"it cannot be used ({type(exc).__name__}: {exc})"}
+        return {"ok": True}
+
+    answer = _answer_from_child(work)
+    if "error" in answer:
+        raise UnsupportedSchemaError(answer["error"])
 
 
-def check_arguments_schema(schema: Any, schema_str: str) -> None:
-    """Check that ``schema`` can be evaluated at a bounded cost.
-
-    Raises UnsupportedSchemaError when the document is too long or too deeply nested, when it is
-    not an object or a boolean, when it uses one of the keywords whose cost cannot be observed
-    (see ``_UNSUPPORTED_KEYWORDS``), when it switches dialect below the top level, or when a regex
-    in it is not valid in both RE2 and Python's ``re``.
-
-    The scan walks every dict in the document rather than only the schema positions, so a keyword
-    name used as a property name or inside an ``enum`` value is refused too. Over-approximating is
-    the safe direction here, since missing a position would mean missing the cost, and the message
-    says as much so the author can tell the two cases apart.
-    """
-    if len(schema_str) > MAX_SCHEMA_LENGTH:
-        raise UnsupportedSchemaError(f"it is {len(schema_str)} characters long and the maximum is {MAX_SCHEMA_LENGTH}")
-
-    _require_schema_shape(schema)
-
-    if exceeds_max_depth(schema):
-        raise UnsupportedSchemaError(f"it is nested more than {MAX_DOCUMENT_DEPTH} levels deep")
-
-    for node, is_root in _dict_nodes(schema):
-        if "$schema" in node and not is_root:
-            raise UnsupportedSchemaError("'$schema' is only allowed at the top level of the schema")
-
-        for keyword, alternative in _UNSUPPORTED_KEYWORDS.items():
-            if keyword in node:
-                raise UnsupportedSchemaError(
-                    f"{keyword!r} is not supported, {alternative}. It must not appear anywhere in the "
-                    "document: the check does not tell a schema apart from a property name or an "
-                    "'enum', 'const' or 'default' value, so rename the key if that is what this is"
-                )
-
-        patrn = node.get("pattern")
-        if isinstance(patrn, str):
-            try:
-                _compile(patrn)
-            except re2.error as exc:
-                detail = exc.args[0].decode(errors="replace") if isinstance(exc.args[0], bytes) else str(exc)
-                raise UnsupportedSchemaError(
-                    f"the regular expression {patrn!r} is not supported ({detail}). Patterns are "
-                    "matched with RE2, which has no backreferences and no lookaround"
-                ) from exc
-            # The metaschema applies format "regex" to every pattern using Python's re, so a
-            # pattern RE2 accepts but re rejects, such as '\p{L}', would otherwise be turned down
-            # later as "is not a 'regex'", which says nothing about what is actually required.
-            try:
-                re.compile(patrn)
-            except re.error as exc:
-                raise UnsupportedSchemaError(
-                    f"the regular expression {patrn!r} is not supported ({exc}). Patterns have to "
-                    "be valid in both RE2, which matches them, and Python's re, which the "
-                    "metaschema checks them with, so RE2 extensions such as '\\p{L}' are out"
-                ) from exc
+def _answer_from_child(work) -> Any:
+    """Run ``work`` in the isolation, turning a limit being hit into UnsupportedSchemaError."""
+    try:
+        return run_isolated(work)
+    except IsolationError as exc:
+        raise UnsupportedSchemaError(exc.reason) from exc

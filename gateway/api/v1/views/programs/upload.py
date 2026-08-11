@@ -6,7 +6,6 @@ import posixpath
 import re
 from typing import Any, cast
 
-import jsonschema
 from django.contrib.auth.models import AbstractUser
 from drf_yasg.utils import swagger_auto_schema
 from packaging.requirements import Requirement, InvalidRequirement
@@ -18,7 +17,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 
-from api.domain.arguments_schema import UnsupportedSchemaError, check_arguments_schema
+from api.domain.arguments_schema import UnsupportedSchemaError, check_uploaded_schema_in_isolation
 from api.use_cases.programs.upload import UploadFunctionUseCase
 from api.use_cases.programs.upload_input import UploadFunctionInput
 from api.utils import check_whitelisted, sanitize_name
@@ -39,35 +38,6 @@ def _image_in_registry(image: str, registry: str) -> bool:
     """
     registry = registry.rstrip("/")
     return image == registry or image.startswith(registry + "/")
-
-
-def _find_external_ref(node: Any) -> str | None:
-    """Return the first reference in ``node`` that points outside the schema document.
-
-    Only same-document references (``#`` fragments) are allowed. Anything else would make the
-    validator fetch a URL or read a file when the schema is later used, so it is rejected here
-    rather than at validation time, when the caller could no longer do anything about it.
-
-    ``$dynamicRef`` and ``$recursiveRef`` resolve references just like ``$ref``, so they are
-    checked too. Missing them did not allow a fetch, since validation runs against an empty
-    registry, but it did let a function be stored that raises Unresolvable on every single run,
-    which is the outcome checking at upload time exists to prevent.
-    """
-    if isinstance(node, dict):
-        for keyword in ("$ref", "$dynamicRef", "$recursiveRef"):
-            ref = node.get(keyword)
-            if isinstance(ref, str) and not ref.startswith("#"):
-                return ref
-        for value in node.values():
-            found = _find_external_ref(value)
-            if found is not None:
-                return found
-    elif isinstance(node, list):
-        for value in node:
-            found = _find_external_ref(value)
-            if found is not None:
-                return found
-    return None
 
 
 class ProgramSerializer(serializers.ModelSerializer):
@@ -138,28 +108,16 @@ class ProgramSerializer(serializers.ModelSerializer):
         return value
 
     def validate_arguments_schema(self, value):
-        """Validates arguments_schema is a usable JSON Schema the gateway can evaluate cheaply."""
-        try:
-            schema = json.loads(value)
-        except (json.JSONDecodeError, ValueError) as exc:
-            raise ValidationError("arguments_schema must be valid JSON.") from exc
+        """Validates arguments_schema is a usable JSON Schema the gateway can evaluate cheaply.
 
-        external_ref = _find_external_ref(schema)
-        if external_ref is not None:
-            raise ValidationError(
-                f"arguments_schema must not reference external resources: '{external_ref}'. "
-                "Inline the definitions or use an internal reference such as '#/$defs/name'."
-            )
-
+        Interim wiring: this calls the isolated check built for it, but keeps neither a length
+        pre-check nor this method's previous wording. Left for the task that owns this call site to
+        finish rewiring, including the length pre-check that avoids forking on an oversized document.
+        """
         try:
-            check_arguments_schema(schema, value)
+            check_uploaded_schema_in_isolation(value)
         except UnsupportedSchemaError as exc:
             raise ValidationError(f"arguments_schema cannot be used: {exc}.") from exc
-
-        try:
-            jsonschema.validators.validator_for(schema).check_schema(schema)
-        except jsonschema.SchemaError as exc:
-            raise ValidationError(f"arguments_schema is not a valid JSON Schema: {exc.message}") from exc
 
         return value
 
