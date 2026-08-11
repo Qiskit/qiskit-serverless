@@ -32,8 +32,6 @@ PyJWT>=2.13.0, <3
 ibm-cos-sdk>=2.16.2, <3
 ibm-cloud-sdk-core>=3.26.0, <4
 jsonschema>=4.26.0,<5
-# Linear-time regex engine used for JSON Schema "pattern" keywords (see api/domain/arguments_schema.py)
-google-re2>=1.1,<2
 confluent-kafka>=2.15.0,<3
 mozilla-django-oidc>=5.0.2, <6
 python-dotenv>=1.2.2, <2
