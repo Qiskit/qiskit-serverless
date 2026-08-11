@@ -47,14 +47,17 @@ import json
 from typing import Any
 
 import jsonschema
+from django.conf import settings
 from referencing import Registry
 
 from api.domain.isolated import IsolationError, run_isolated
 
-# A schema this long is already far beyond anything hand written, and the worst nested "anyOf"
-# that can be spelled out in 64k characters costs about 0.01 seconds to evaluate, which is an
-# acceptable ceiling. Note this only bounds a schema that spells the combination out: internal
-# "$ref" can still express a much larger one in very few characters.
+# A schema this long is already far beyond anything hand written. MAX_SCHEMA_NODES below already
+# refuses a schema wide enough to make its combinatorial evaluation expensive, so this is defence in
+# depth for a document that grows a single node instead of adding more of them, such as a huge
+# string literal in "enum" or "pattern": it still bounds the size of the text handled before
+# anything is forked. Note this only bounds a schema that spells things out: internal "$ref" can
+# still express a much larger one in very few characters.
 MAX_SCHEMA_LENGTH = 64 * 1024
 
 # Maximum length of the arguments a caller may send. Several keywords cost more the longer the
@@ -79,6 +82,27 @@ MAX_DOCUMENT_DEPTH = 64
 # cost 1018 MB, measured. At this limit the same arguments cost about a tenth of that. This is the
 # half of the memory protection that works everywhere, since RLIMIT_AS does not bound on macOS.
 MAX_SCHEMA_NODES = 200
+
+# Bounds for settings.ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB (gateway/main/settings.py), the RLIMIT_AS
+# margin given to the forked child (api/domain/isolated.py). Read from settings rather than baked in
+# here, so it can be tuned without a code deploy, but a setting is also a way to weaken this by
+# configuration, so the value that reaches the child is clamped rather than used as given:
+# - MAX guards against reopening the exact failure this module exists to close. Measured in a
+#   container at the pod's real limits (2 Gi, 3 CPU, gunicorn --workers=2 --threads=1): a 512 MB
+#   margin let a 4 KB schema plus 1 MB of arguments drive one child to 526 MB, and two concurrent
+#   such requests, exactly the worker x thread concurrency, added about 960 MB to the cgroup and got
+#   a process OOM-killed. Half of that failing value leaves a wide safety margin.
+# - MIN keeps the limit from being weakened into uselessness the other way: every legitimate shape
+#   tested (a 1 MB batch of encoded circuits, 4000 objects under uniqueItems) passed at 64 MB, so a
+#   configured value below that would start rejecting ordinary callers rather than attackers.
+_MIN_MEMORY_LIMIT_MB = 64
+_MAX_MEMORY_LIMIT_MB = 256
+
+
+def _memory_limit_mb() -> int:
+    """The child memory limit from settings, clamped to a safe range."""
+    return max(_MIN_MEMORY_LIMIT_MB, min(settings.ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB, _MAX_MEMORY_LIMIT_MB))
+
 
 # Formats the gateway asserts. jsonschema treats "format" as an annotation and checks nothing
 # unless a checker is attached, so without this a vendor's "format" would silently reject nothing.
@@ -156,15 +180,24 @@ def exceeds_max_nodes(schema: Any) -> bool:
     return False
 
 
-def _require_schema_shape(schema: Any) -> None:
-    """Refuse a schema that is not an object or a boolean.
+def _schema_shape_error(schema: Any) -> str | None:
+    """The rejection message when ``schema`` is not an object or a boolean, else None.
 
     jsonschema's own entry points assume one or the other: ``validator_for`` tests
     ``"$schema" not in schema``, which raises TypeError on a JSON number or null, and nothing
-    downstream catches it, so the request came out as a 500 instead of a rejection.
+    downstream catches it, so the request came out as a 500 instead of a rejection. Shared by both
+    entry points below so the same shape gets the same message whichever one is checking it.
     """
-    if not isinstance(schema, (dict, bool)):
-        raise UnsupportedSchemaError(f"a JSON Schema must be an object or a boolean, not {type(schema).__name__}")
+    if isinstance(schema, (dict, bool)):
+        return None
+    return f"a JSON Schema must be an object or a boolean, not {type(schema).__name__}"
+
+
+def _require_schema_shape(schema: Any) -> None:
+    """Raise UnsupportedSchemaError when ``schema`` is not an object or a boolean."""
+    error = _schema_shape_error(schema)
+    if error is not None:
+        raise UnsupportedSchemaError(error)
 
 
 def _comparison_key(value: Any) -> Any:
@@ -283,6 +316,12 @@ def validate_arguments_in_isolation(schema: Any, arguments_str: str) -> None:
             return {"valid": True}
         except jsonschema.ValidationError as exc:
             return {"valid": False, "message": exc.message, "path": list(exc.path)}
+        except MemoryError:
+            # Left to the blanket handler below, this reads as {"unusable": "MemoryError: "}: an
+            # empty message, because MemoryError carries no text of its own. Re-raising instead lets
+            # _run_child's own except MemoryError (api/domain/isolated.py) name the limit that fired,
+            # which is the whole reason that handler exists.
+            raise
         except Exception as exc:  # pylint: disable=broad-except
             # SchemaError, Unresolvable, RecursionError, UnknownType, and the TypeError and
             # AttributeError a malformed keyword raises. Every one of these used to be a 500.
@@ -317,8 +356,9 @@ def check_uploaded_schema_in_isolation(schema_str: str) -> None:
             schema = json.loads(schema_str)
         except (json.JSONDecodeError, ValueError, RecursionError):
             return {"error": "it must be valid JSON"}
-        if not isinstance(schema, (dict, bool)):
-            return {"error": f"a JSON Schema must be an object or a boolean, not {type(schema).__name__}"}
+        shape_error = _schema_shape_error(schema)
+        if shape_error is not None:
+            return {"error": shape_error}
         if exceeds_max_depth(schema):
             return {"error": f"it is nested more than {MAX_DOCUMENT_DEPTH} levels deep"}
         if exceeds_max_nodes(schema):
@@ -333,6 +373,11 @@ def check_uploaded_schema_in_isolation(schema_str: str) -> None:
             jsonschema.validators.validator_for(schema).check_schema(schema)
         except jsonschema.SchemaError as exc:
             return {"error": f"it is not a valid JSON Schema: {exc.message}"}
+        except MemoryError:
+            # See the matching comment in validate_arguments_in_isolation.work(): left to the
+            # blanket handler below, this reads as an empty "MemoryError:" message instead of
+            # letting isolated.py's own except MemoryError name the limit that fired.
+            raise
         except Exception as exc:  # pylint: disable=broad-except
             return {"error": f"it cannot be used ({type(exc).__name__}: {exc})"}
         return {"ok": True}
@@ -345,6 +390,6 @@ def check_uploaded_schema_in_isolation(schema_str: str) -> None:
 def _answer_from_child(work) -> Any:
     """Run ``work`` in the isolation, turning a limit being hit into UnsupportedSchemaError."""
     try:
-        return run_isolated(work)
+        return run_isolated(work, memory_mb=_memory_limit_mb())
     except IsolationError as exc:
         raise UnsupportedSchemaError(exc.reason) from exc

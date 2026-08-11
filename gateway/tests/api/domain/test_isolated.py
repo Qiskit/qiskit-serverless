@@ -1,4 +1,6 @@
 import os
+import signal
+import time
 
 import pytest
 
@@ -58,6 +60,62 @@ def test_work_that_raises_is_reported_not_propagated():
     with pytest.raises(IsolationError) as caught:
         run_isolated(work)
     assert "ValueError" in caught.value.reason
+
+
+def test_a_fork_that_cannot_be_created_is_reported_not_propagated(monkeypatch):
+    """A failing os.fork (EAGAIN under process-table pressure, for example) used to escape
+    run_isolated as a raw OSError, and leaked both ends of the pipe it had just opened: five
+    attempts drove this process's open descriptors from 4 to 14."""
+
+    def _raise(*_args, **_kwargs):
+        raise BlockingIOError(11, "Resource temporarily unavailable")
+
+    monkeypatch.setattr(os, "fork", _raise)
+
+    fd_count_before = len(os.listdir("/dev/fd")) if os.path.isdir("/dev/fd") else None
+    for _ in range(5):
+        with pytest.raises(IsolationError) as caught:
+            run_isolated(lambda: {"ok": True})
+        assert "could not be started" in caught.value.reason
+
+    if fd_count_before is not None:
+        assert len(os.listdir("/dev/fd")) == fd_count_before
+
+
+def test_an_external_kill_is_not_reported_as_a_cpu_overrun():
+    """An OOM-killed child, or any external SIGKILL unrelated to the CPU limit, must not read as
+    a CPU overrun: only the CPU limit's own hard-cap SIGKILL, arriving after the child actually
+    spent close to its CPU budget, means that."""
+
+    def work():
+        os.kill(os.getpid(), signal.SIGKILL)  # simulates an external kill, e.g. the OOM killer
+
+    with pytest.raises(IsolationError) as caught:
+        run_isolated(work, cpu_seconds=5)
+    assert "CPU time" not in caught.value.reason
+    assert "memory" in caught.value.reason
+
+
+@pytest.mark.skipif(
+    not os.path.exists("/proc/self/status"),
+    reason="RLIMIT_CPU's hard limit is not enforced on macOS once the process ignores SIGXCPU: "
+    "verified by running this exact child under both. On Linux it is killed with SIGKILL at "
+    "2.00s of CPU time, matching the hard limit; on macOS it ran the full 5s loop to completion, "
+    "used ~5s of CPU, and was never signalled at all.",
+)
+def test_cpu_hard_limit_kill_is_still_reported_as_a_cpu_overrun():
+    """When a child ignores SIGXCPU, the RLIMIT_CPU hard limit kills it with SIGKILL a second
+    later, having actually spent the CPU budget: that SIGKILL must still read as a CPU overrun."""
+
+    def work():
+        signal.signal(signal.SIGXCPU, signal.SIG_IGN)
+        end = time.monotonic() + 5
+        while time.monotonic() < end:
+            pass
+
+    with pytest.raises(IsolationError) as caught:
+        run_isolated(work, cpu_seconds=1, wall_seconds=5.0)
+    assert "CPU time" in caught.value.reason
 
 
 @pytest.mark.skipif(

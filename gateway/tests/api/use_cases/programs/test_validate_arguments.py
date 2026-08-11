@@ -7,11 +7,13 @@ import pytest
 from unittest.mock import MagicMock
 from django.contrib.auth.models import User
 
+from api.domain import arguments_schema as arguments_schema_module
 from api.domain.arguments_schema import (
     MAX_ARGUMENTS_LENGTH,
     MAX_SCHEMA_LENGTH,
     MAX_SCHEMA_NODES,
     UnsupportedSchemaError,
+    check_uploaded_schema_in_isolation,
     exceeds_max_nodes,
     validate_arguments_in_isolation,
 )
@@ -411,6 +413,67 @@ def test_error_message_does_not_echo_the_whole_payload():
         validate_arguments(_program(schema), arguments)
 
     assert len(caught.value.message) < 1000
+
+
+def test_validation_error_path_does_not_echo_the_whole_property_name():
+    """path carries data as caller-controlled as the message next to it, and used to go out
+    untruncated: a 900 000 character property name produced a 28 character message next to a
+    900 000 character path[0], in full, in the 400 body.
+    """
+    schema = {"additionalProperties": {"type": "integer"}}
+    arguments = json.dumps({"x" * 900_000: "not-an-int"})
+
+    with pytest.raises(InvalidArgumentsException) as caught:
+        validate_arguments(_program(schema), arguments)
+
+    assert len(caught.value.path[0]) < 1000
+
+
+def test_validation_error_path_keeps_an_array_index_as_an_int_after_shortening():
+    """Shortening the path must only touch string segments: an array index is caller-controlled
+    too, but it is an int, and turning it into a truncated string would change the API contract for
+    no benefit.
+    """
+    schema = {"properties": {"circuits": {"type": "array", "items": {"type": "integer"}}}}
+
+    with pytest.raises(InvalidArgumentsException) as caught:
+        validate_arguments(_program(schema), json.dumps({"circuits": [1, "no"]}))
+
+    assert caught.value.path == ["circuits", 1]
+
+
+def test_memory_limit_reason_is_named_through_the_real_validate_entry_point(monkeypatch):
+    """arguments_schema.work() for validate_arguments_in_isolation used to have its own
+    except Exception, which caught MemoryError before isolated.py's own handler could name the
+    limit that fired: a real 400 read "the function arguments schema cannot be used: MemoryError:",
+    with nothing after the colon, instead of naming the limit. Patching what validate() does, rather
+    than actually allocating hundreds of MB, keeps this deterministic on every platform, including
+    macOS where RLIMIT_AS never fires.
+    """
+
+    class _OutOfMemoryValidator:
+        def validate(self, _instance):
+            raise MemoryError
+
+    monkeypatch.setattr(arguments_schema_module, "_validator", lambda schema: _OutOfMemoryValidator())
+
+    with pytest.raises(UnsupportedSchemaError, match="memory"):
+        validate_arguments_in_isolation({"type": "object"}, "{}")
+
+
+def test_memory_limit_reason_is_named_through_the_real_upload_entry_point(monkeypatch):
+    """Same bug, other real entry point: check_uploaded_schema_in_isolation's work() has the same
+    shape and the same fix."""
+
+    class _OutOfMemoryValidator:
+        @staticmethod
+        def check_schema(_schema):
+            raise MemoryError
+
+    monkeypatch.setattr(jsonschema.validators, "validator_for", lambda schema: _OutOfMemoryValidator)
+
+    with pytest.raises(UnsupportedSchemaError, match="memory"):
+        check_uploaded_schema_in_isolation("{}")
 
 
 def test_node_count_refuses_a_wide_combination_and_allows_an_ordinary_schema():

@@ -105,6 +105,16 @@ limit is skipped rather than set to a wrong value. The CPU limit is unaffected a
 platforms, so this is the one part of the protection that degrades in development and applies in production: a schema
 that only spends memory rather than CPU can validate without complaint on a laptop and still be refused once deployed.
 
+The memory margin above that base is `settings.ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB` (`gateway/main/settings.py`, default
+128), read by `api/domain/arguments_schema.py` and passed into `run_isolated`, which itself only knows a plain numeric
+default: the isolation mechanism stays free of Django so it can be reused outside a web request. Measured in a
+container at the pod's real limits (2 Gi memory, 3 CPU, `gunicorn --workers=2 --threads=1`): a 512 MB margin let a
+4 KB schema plus 1 MB of arguments drive one child to 526 MB, and two concurrent such requests, exactly the worker x
+thread concurrency, added about 960 MB to the cgroup and got a process OOM-killed by the kernel. Every legitimate
+shape tested, including a 1 MB batch of encoded circuits and 4000 objects under `uniqueItems`, passes at 64 MB.
+Because the setting is a way to weaken this by configuration, the value read from it is clamped to 64-256 MB before
+reaching the child, rather than used as given.
+
 Inside the child, `jsonschema` runs unmodified, with one exception: `uniqueItems` is still replaced, by a single-pass
 hash of a canonical form of each element, rather than being left for the isolation alone to bound. `jsonschema`
 compares elements pairwise whenever they are not sortable, which any array of objects triggers, and that comparison
@@ -123,8 +133,9 @@ Before any of this runs, text limits are applied to the schema, and to the argum
 | `MAX_DOCUMENT_DEPTH` | 64 | Nesting of schema and arguments; CPython gives up near 180 |
 | `MAX_SCHEMA_NODES` | 200 | Subschemas in the document, which bounds memory on every platform |
 
-`MAX_SCHEMA_LENGTH` and `MAX_ARGUMENTS_LENGTH` are checked before anything is forked, on both entry points. Where
-`MAX_DOCUMENT_DEPTH` and `MAX_SCHEMA_NODES` are checked on the schema differs by entry point: on `/run` and
+`MAX_SCHEMA_LENGTH` is checked before anything is forked, on both entry points. `MAX_ARGUMENTS_LENGTH` only applies on
+`/run` and `/validate_arguments/`: upload has no arguments to bound, only a schema. Where `MAX_DOCUMENT_DEPTH` and
+`MAX_SCHEMA_NODES` are checked on the schema differs by entry point: on `/run` and
 `/validate_arguments/` (`validate_arguments_in_isolation`), the caller already holds the schema as a parsed object and
 checks both before forking. At upload (`check_uploaded_schema_in_isolation`), the schema is still text when it
 arrives, and parsing it is itself part of what has to be isolated, so `json.loads` and both checks run inside the
@@ -251,8 +262,10 @@ Every one of those becomes an `InvalidArgumentsException`, so a schema problem i
 `InvalidArgumentsError` covers the caller's own mistakes, caught inside the child: arguments that are not valid JSON,
 or arguments nested past `MAX_DOCUMENT_DEPTH`. `UnsupportedSchemaError` covers everything wrong with the schema
 itself, including a self-referencing document (`{"$ref": "#"}`, 13 characters) that recurses without end while being
-evaluated: nothing catches `RecursionError` by name any more, it is one more exception the child's generic handler
-turns into a rejection instead of letting it escape.
+evaluated: nothing catches that particular `RecursionError` by name, so the child's generic handler turns it into a
+rejection instead of letting it escape. `RecursionError` is still caught by name in three other places, all around
+`json.loads` rather than around evaluating a schema: parsing the arguments and parsing the schema, both inside the
+child, and parsing the schema in the use case before anything is forked.
 
 Messages are truncated at `MAX_MESSAGE_LENGTH` (500 characters). `jsonschema` builds its messages with
 `repr(instance)`, so without that a rejected payload came back to the caller in full.

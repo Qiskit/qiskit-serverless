@@ -336,6 +336,12 @@ LIMITS_CPU_PER_TASK = int(os.environ.get("LIMITS_CPU_PER_TASK", "4"))
 LIMITS_GPU_PER_TASK = int(os.environ.get("LIMITS_GPU_PER_TASK", "1"))
 LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
 
+# Memory margin (MB) given to the forked child that evaluates a Qiskit Function's arguments schema
+# (api/domain/isolated.py, api/domain/arguments_schema.py). Kept in settings, not in the isolation
+# mechanism itself, so it can be tuned without a code deploy. The value is clamped to a safe range
+# before use; see _memory_limit_mb in api/domain/arguments_schema.py for why.
+ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB = int(os.environ.get("ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB", "128"))
+
 # ray cluster management
 RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
 RAY_CLUSTER_MODE_LOCAL = os.environ.get("RAY_CLUSTER_MODE_LOCAL", "false").lower() == "true"

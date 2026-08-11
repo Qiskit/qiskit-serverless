@@ -38,6 +38,17 @@ def _shortened(message: str) -> str:
     return f"{message[:MAX_MESSAGE_LENGTH]}... (message truncated)"
 
 
+def _shortened_path(path: list) -> list:
+    """Truncate any string segment of a validation path the same way _shortened truncates message.
+
+    A property name is as caller-controlled as the message text next to it: an
+    ``additionalProperties`` schema against a 900 000 character property name put that property
+    name straight into the path, in full, while the message beside it was already capped. Array
+    indices are ints, not strings, and are left alone.
+    """
+    return [_shortened(segment) if isinstance(segment, str) else segment for segment in path]
+
+
 def validate_arguments(program: Function, arguments_str: str) -> None:
     """Validate arguments_str against program.arguments_schema.
 
@@ -93,7 +104,7 @@ def validate_arguments(program: Function, arguments_str: str) -> None:
     except UnsupportedSchemaError as exc:
         raise InvalidArgumentsException(_shortened(f"the function arguments schema cannot be used: {exc}")) from exc
     except jsonschema.ValidationError as exc:
-        raise InvalidArgumentsException(_shortened(exc.message), path=list(exc.path)) from exc
+        raise InvalidArgumentsException(_shortened(exc.message), path=_shortened_path(list(exc.path))) from exc
 
 
 class ValidateArgumentsUseCase:

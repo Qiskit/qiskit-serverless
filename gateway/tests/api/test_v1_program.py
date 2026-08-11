@@ -1231,10 +1231,17 @@ class TestProgramApi(APITestCase):
         """A JSON scalar is valid JSON but not a schema, and it used to come back as a 500.
 
         validator_for tests '"$schema" not in schema', which raises TypeError on a number.
+
+        Asserts the specific "object or a boolean" message from the isinstance check, not just the
+        status code: with that check disabled, validator_for's own TypeError would still reach the
+        generic except Exception a few lines below it and still come back as a 400, with the
+        generic message "it cannot be used (TypeError: ...)" instead, so a bare status check would
+        not prove this specific check ran rather than the fallback.
         """
         response = self._upload_with_schema("scalar-schema-function", "123")
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert not Program.objects.filter(title="scalar-schema-function").exists()
+        assert "must be an object or a boolean, not int" in str(response.data)
 
     def test_upload_with_external_dynamic_ref_in_schema_returns_400(self):
         """'$dynamicRef' resolves references too, so it needs the same check as '$ref'.

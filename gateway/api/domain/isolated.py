@@ -22,7 +22,7 @@ applies in production.
 import json
 import os
 import resource
-import select
+import selectors
 import signal
 from collections.abc import Callable
 from typing import Any
@@ -68,17 +68,25 @@ def run_isolated(
     work: Callable[[], Any],
     *,
     cpu_seconds: int = 1,
-    memory_mb: int = 512,
+    memory_mb: int = 128,
     wall_seconds: float = 5.0,
 ) -> Any:
     """Run ``work`` in a forked child and return its JSON-serializable result.
 
     Raises:
-        IsolationError: if the child exceeded a limit, died, wrote nothing, its result could not
-            be encoded as JSON, or ``work`` raised.
+        IsolationError: if the fork itself could not be created, the child exceeded a limit, died,
+            wrote nothing, its result could not be encoded as JSON, or ``work`` raised.
     """
     read_fd, write_fd = os.pipe()
-    pid = os.fork()
+    try:
+        pid = os.fork()
+    except OSError as exc:
+        # Under process-table pressure, os.fork can raise (EAGAIN et al.) instead of returning a
+        # child pid. Left unhandled, that escaped run_isolated as a 500 and, worse, leaked both
+        # ends of this pipe: five attempts drove the process's open file descriptors from 4 to 14.
+        os.close(read_fd)
+        os.close(write_fd)
+        raise IsolationError(f"it could not be started: {exc}") from exc
 
     if pid == 0:
         # Child. Nothing here may touch the database, and it must leave through os._exit so that
@@ -124,7 +132,12 @@ def _run_child(work: Callable[[], Any], write_fd: int, cpu_seconds: int, memory_
 def _collect(pid: int, read_fd: int, wall_seconds: float, cpu_seconds: int) -> Any:
     """Read the child's answer, reap it, and turn anything else into IsolationError."""
     chunks = []
-    ready, _, _ = select.select([read_fd], [], [], wall_seconds)
+    # selectors picks epoll/kqueue/poll under the hood rather than select.select, which raises
+    # ValueError on a descriptor at or above 1024: under fd pressure that would escape as a 500 and
+    # leave the child unreaped.
+    with selectors.DefaultSelector() as selector:
+        selector.register(read_fd, selectors.EVENT_READ)
+        ready = bool(selector.select(wall_seconds))
     timed_out = not ready
     if ready:
         while True:
@@ -135,13 +148,23 @@ def _collect(pid: int, read_fd: int, wall_seconds: float, cpu_seconds: int) -> A
     else:
         os.kill(pid, signal.SIGKILL)
 
-    _, status = os.waitpid(pid, 0)
+    _, status, rusage = os.wait4(pid, 0)
 
     if not chunks:
         if timed_out:
             raise IsolationError(f"it took more than {wall_seconds} seconds of wall-clock time")
-        if os.WIFSIGNALED(status) and os.WTERMSIG(status) in (signal.SIGXCPU, signal.SIGKILL):
-            raise IsolationError(f"it took more than {cpu_seconds} seconds of CPU time")
+        if os.WIFSIGNALED(status):
+            sig = os.WTERMSIG(status)
+            # The CPU limit's hard cap also kills with SIGKILL, one second after SIGXCPU, for a
+            # child that ignored the soft limit, so SIGKILL alone does not mean "CPU overrun": an
+            # external SIGKILL, such as the kernel's OOM killer, arrives having spent far less than
+            # the CPU budget. Telling the two apart from the signal alone is not possible, so this
+            # looks at how much CPU time the child actually used instead.
+            cpu_seconds_used = rusage.ru_utime + rusage.ru_stime
+            if sig == signal.SIGXCPU or (sig == signal.SIGKILL and cpu_seconds_used >= cpu_seconds):
+                raise IsolationError(f"it took more than {cpu_seconds} seconds of CPU time")
+            if sig == signal.SIGKILL:
+                raise IsolationError("it was killed by the operating system, most likely for using too much memory")
         raise IsolationError("it stopped without producing an answer")
 
     try:
