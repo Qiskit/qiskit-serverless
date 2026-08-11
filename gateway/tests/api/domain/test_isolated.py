@@ -11,11 +11,23 @@ def test_returns_the_value_the_work_produced():
 
 def test_cpu_limit_kills_work_that_will_not_stop():
     import re
+    import time
 
     pattern = re.compile("^(a+)+$")  # exponential, and does not release control
+    start = time.monotonic()
     with pytest.raises(IsolationError) as caught:
         run_isolated(lambda: pattern.search("a" * 40 + "!") is None, cpu_seconds=1)
+    elapsed = time.monotonic() - start
     assert "CPU time" in caught.value.reason
+    # Comfortably under the 5.0s default wall_seconds, so the wall-clock fallback path (which
+    # reports a different reason) cannot satisfy this test by accident.
+    assert elapsed < 3.0
+
+
+def test_work_returning_something_unencodable_is_reported_not_hung():
+    with pytest.raises(IsolationError) as caught:
+        run_isolated(lambda: object())
+    assert "JSON" in caught.value.reason
 
 
 def test_work_that_raises_is_reported_not_propagated():

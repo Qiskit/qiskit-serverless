@@ -71,27 +71,22 @@ def run_isolated(
     """Run ``work`` in a forked child and return its JSON-serializable result.
 
     Raises:
-        IsolationError: if the child exceeded a limit, died, wrote nothing, or ``work`` raised.
+        IsolationError: if the child exceeded a limit, died, wrote nothing, its result could not
+            be encoded as JSON, or ``work`` raised.
     """
     read_fd, write_fd = os.pipe()
     pid = os.fork()
 
     if pid == 0:
         # Child. Nothing here may touch the database, and it must leave through os._exit so that
-        # Django's atexit handlers do not run and the connections the parent shares stay open.
+        # Django's atexit handlers do not run and the connections the parent shares stay open. The
+        # exit lives in a finally so that nothing between the fork and it, including a MemoryError
+        # raised while encoding a large-but-successful result, can skip it.
         os.close(read_fd)
         try:
-            _apply_limits(cpu_seconds, memory_mb)
-            payload = {"result": work()}
-        except MemoryError:
-            payload = {"reason": f"it needed more than {memory_mb} MB of memory"}
-        except BaseException as exc:  # pylint: disable=broad-except
-            payload = {"reason": f"it raised {type(exc).__name__}"}
-        try:
-            os.write(write_fd, json.dumps(payload).encode())
-        except (OSError, ValueError, TypeError):
-            pass
-        os._exit(0)  # pylint: disable=protected-access
+            _run_child(work, write_fd, cpu_seconds, memory_mb)
+        finally:
+            os._exit(0)  # pylint: disable=protected-access
 
     os.close(write_fd)
     try:
@@ -100,10 +95,34 @@ def run_isolated(
         os.close(read_fd)
 
 
+def _run_child(work: Callable[[], Any], write_fd: int, cpu_seconds: int, memory_mb: int) -> None:
+    """Run ``work``, encode whatever happened, and write it to the pipe. Never raises."""
+    try:
+        _apply_limits(cpu_seconds, memory_mb)
+        payload = {"result": work()}
+    except MemoryError:
+        payload = {"reason": f"it needed more than {memory_mb} MB of memory"}
+    except BaseException as exc:  # pylint: disable=broad-except
+        payload = {"reason": f"it raised {type(exc).__name__}"}
+
+    try:
+        encoded = json.dumps(payload).encode()
+    except MemoryError:
+        encoded = json.dumps({"reason": f"it needed more than {memory_mb} MB of memory"}).encode()
+    except (TypeError, ValueError):
+        encoded = json.dumps({"reason": "its result could not be encoded as JSON"}).encode()
+
+    try:
+        os.write(write_fd, encoded)
+    except OSError:
+        pass
+
+
 def _collect(pid: int, read_fd: int, wall_seconds: float, cpu_seconds: int) -> Any:
     """Read the child's answer, reap it, and turn anything else into IsolationError."""
     chunks = []
     ready, _, _ = select.select([read_fd], [], [], wall_seconds)
+    timed_out = not ready
     if ready:
         while True:
             chunk = os.read(read_fd, _READ_CHUNK)
@@ -116,6 +135,8 @@ def _collect(pid: int, read_fd: int, wall_seconds: float, cpu_seconds: int) -> A
     _, status = os.waitpid(pid, 0)
 
     if not chunks:
+        if timed_out:
+            raise IsolationError(f"it took more than {wall_seconds} seconds of wall-clock time")
         if os.WIFSIGNALED(status) and os.WTERMSIG(status) in (signal.SIGXCPU, signal.SIGKILL):
             raise IsolationError(f"it took more than {cpu_seconds} seconds of CPU time")
         raise IsolationError("it stopped without producing an answer")
