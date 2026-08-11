@@ -1249,14 +1249,29 @@ class TestProgramApi(APITestCase):
         assert not Program.objects.filter(title="dynamic-ref-schema-function").exists()
 
     def test_upload_with_unhashable_dollar_schema_returns_400(self):
-        """validator_for tests '"$schema" not in schema', which raises TypeError on a dict."""
+        """validator_for tests '"$schema" not in schema', which raises TypeError on a dict.
+
+        Asserts the specific message from check_schema's own except Exception handling, not just
+        the status code: _run_child's blanket except BaseException would also turn an unhandled
+        TypeError into a 400, with the generic message "it raised TypeError" instead, so a bare
+        status check would not prove this specific handling ran rather than the fallback.
+        """
         response = self._upload_with_schema("unhashable-schema-function", json.dumps({"$schema": {}}))
         assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "cannot be used (TypeError: unhashable type: 'dict')" in str(response.data)
 
     def test_upload_with_a_deeply_nested_schema_returns_400(self):
-        """1500 levels raise RecursionError inside json.loads, which used to be a 500."""
+        """1500 levels raise RecursionError inside json.loads, which used to be a 500.
+
+        Asserts the specific "it must be valid JSON" message from the json.loads except clause, not
+        just the status code: _run_child's blanket except BaseException would also turn an
+        unhandled RecursionError into a 400, with the generic message "it raised RecursionError"
+        instead, so a bare status check would not prove this specific handling ran rather than the
+        fallback.
+        """
         response = self._upload_with_schema("deep-schema-function", '{"a":' * 1500 + "1" + "}" * 1500)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "it must be valid JSON" in str(response.data)
 
     def test_upload_with_too_many_subschemas_returns_400(self):
         """anyOf of 201 branches exceeds MAX_SCHEMA_NODES, which is 200."""
