@@ -272,8 +272,9 @@ Order inside the use case:
 1. Resolve the function → `FunctionNotFoundException` (404)
 2. Function disabled → `FunctionDisabledException` (423)
 3. Active job limit → `ActiveJobLimitExceeded` (429)
-4. **Validate arguments** → `InvalidArgumentsException` (400)
-5. Create `JobConfig` and `Job`
+4. Fleets function missing a Code Engine project → DRF `ValidationError` (400)
+5. **Validate arguments** → `InvalidArgumentsException` (400)
+6. Create `JobConfig` and `Job`
 
 ### On `/validate_arguments/`
 
