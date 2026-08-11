@@ -361,6 +361,89 @@ class CodeEngineProject(models.Model):
         return f"{self.project_name} ({self.region})"
 
 
+class ComputeProfiles(models.Model):
+    """Compute profile model.
+
+    Maps a Code Engine compute profile to a specific CPU/GPU/memory allocation
+    (driving the classical cost we pay CE and the GPU submission payload for
+    Performance tiers). In billing, the profile identifies the classical time
+    rate (``classical_time_<compute_profile>``).
+    """
+
+    compute_profile = models.CharField(
+        max_length=255,
+        primary_key=True,
+        help_text="Code Engine compute profile identifier (e.g., gx3d-24x120x1a100p)",
+    )
+    created = models.DateTimeField(auto_now_add=True, editable=False)
+    updated = models.DateTimeField(auto_now=True, null=True)
+
+    name = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        default=None,
+        help_text="Human-readable display name / tag for the profile",
+    )
+    cpu = models.CharField(max_length=64, null=True, blank=True, default=None)
+    gpu = models.CharField(max_length=64, null=True, blank=True, default=None)
+    memory = models.CharField(max_length=64, null=True, blank=True, default=None)
+
+    class Meta:
+        app_label = "api"
+
+    def __str__(self):
+        return self.name or self.compute_profile
+
+
+class FunctionSize(models.Model):
+    """Function size model.
+
+    A ``(function, function_size)`` row identifies the license fee rate
+    (billing looks up ``license_fee_<function>_<size>`` in its metric table)
+    and carries the ``compute_profile`` used.
+    """
+
+    SMALL = "S"
+    MEDIUM = "M"
+    LARGE = "L"
+    SIZE_CHOICES = [
+        (SMALL, "Small"),
+        (MEDIUM, "Medium"),
+        (LARGE, "Large"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created = models.DateTimeField(auto_now_add=True, editable=False)
+    updated = models.DateTimeField(auto_now=True, null=True)
+
+    function = models.ForeignKey(
+        to=Program,
+        on_delete=models.CASCADE,
+        related_name="function_sizes",
+    )
+    function_size = models.CharField(max_length=1, choices=SIZE_CHOICES)
+    compute_profile = models.ForeignKey(
+        to=ComputeProfiles,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="function_sizes",
+    )
+
+    class Meta:
+        app_label = "api"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["function", "function_size"],
+                name="unique_function_size",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.function} ({self.function_size})"
+
+
 class Job(models.Model):
     """Job model."""
 
@@ -464,6 +547,17 @@ class Job(models.Model):
         blank=True,
     )
     program = models.ForeignKey(to=Program, on_delete=models.SET_NULL, null=True)
+    flavor = models.ForeignKey(
+        to=ComputeProfiles,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="jobs",
+        help_text=(
+            "Compute profile used by the job, captured at creation time so the "
+            "historical compute profile is preserved even if the profile changes later."
+        ),
+    )
 
     account_id = models.CharField(max_length=255, null=True, blank=True)
     instance_crn = models.CharField(max_length=255, null=True, blank=True)
