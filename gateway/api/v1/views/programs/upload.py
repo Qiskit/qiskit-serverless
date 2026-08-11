@@ -17,7 +17,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 
-from api.domain.arguments_schema import UnsupportedSchemaError, check_uploaded_schema_in_isolation
+from api.domain.arguments_schema import MAX_SCHEMA_LENGTH, UnsupportedSchemaError, check_uploaded_schema_in_isolation
 from api.use_cases.programs.upload import UploadFunctionUseCase
 from api.use_cases.programs.upload_input import UploadFunctionInput
 from api.utils import check_whitelisted, sanitize_name
@@ -110,10 +110,15 @@ class ProgramSerializer(serializers.ModelSerializer):
     def validate_arguments_schema(self, value):
         """Validates arguments_schema is a usable JSON Schema the gateway can evaluate cheaply.
 
-        Interim wiring: this calls the isolated check built for it, but keeps neither a length
-        pre-check nor this method's previous wording. Left for the task that owns this call site to
-        finish rewiring, including the length pre-check that avoids forking on an oversized document.
+        The length check runs first and avoids forking just to reject an oversized document:
+        without it, an over-length schema uploaded fine and then failed every single run instead
+        of being turned down at upload time, when the author could still fix it.
         """
+        if len(value) > MAX_SCHEMA_LENGTH:
+            raise ValidationError(
+                f"arguments_schema is {len(value)} characters long and the maximum is {MAX_SCHEMA_LENGTH}."
+            )
+
         try:
             check_uploaded_schema_in_isolation(value)
         except UnsupportedSchemaError as exc:

@@ -11,6 +11,7 @@ from api.domain.arguments_schema import (
     MAX_DOCUMENT_DEPTH,
     MAX_SCHEMA_LENGTH,
     MAX_SCHEMA_NODES,
+    InvalidArgumentsError,
     UnsupportedSchemaError,
     exceeds_max_depth,
     exceeds_max_nodes,
@@ -85,6 +86,10 @@ def validate_arguments(program: Function, arguments_str: str) -> None:
 
     try:
         validate_arguments_in_isolation(schema, arguments_str or "{}")
+    except InvalidArgumentsError as exc:
+        # The caller's own mistake, not the schema's: report it as-is, without the schema prefix
+        # below, so a malformed request does not read as the function owner's schema being broken.
+        raise InvalidArgumentsException(_shortened(str(exc))) from exc
     except UnsupportedSchemaError as exc:
         raise InvalidArgumentsException(_shortened(f"the function arguments schema cannot be used: {exc}")) from exc
     except jsonschema.ValidationError as exc:

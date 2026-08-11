@@ -49,11 +49,19 @@ def test_root_dollar_schema_no_longer_restores_the_backtracking_engine():
 
 
 def test_a_large_regex_program_cannot_run_for_minutes():
-    """A 6189 byte pattern, valid in RE2 and in re: 24000 characters is comfortably past the
-    1 CPU-second budget on this hardware (measured at 0.61s for 8000, 1.96s for 24000)."""
+    """A 6189 byte pattern matched against 24000 characters is comfortably past the 1 CPU-second
+    budget on this hardware (measured at 0.61s for 8000, 1.92s for 24000). Assert the time is
+    bounded rather than a specific exception: on faster hardware the match finishes inside the
+    budget and raises jsonschema.ValidationError instead of UnsupportedSchemaError, the same way
+    the uniqueItems timing test below does not assert which of the two happened."""
     pattern = "(?:" + "|".join(f"a{{{i}}}" for i in range(1, 900)) + ")b"
     schema = {"type": "object", "properties": {"x": {"type": "string", "pattern": pattern}}}
-    _refused_within(4.0, schema, json.dumps({"x": "a" * 24000}))
+    start = time.monotonic()
+    try:
+        validate_arguments_in_isolation(schema, json.dumps({"x": "a" * 24000}))
+    except (UnsupportedSchemaError, jsonschema.ValidationError):
+        pass
+    assert time.monotonic() - start < 4.0
 
 
 def test_a_reference_to_the_root_is_reported_not_a_crash():
@@ -109,10 +117,21 @@ def test_a_declared_format_is_still_asserted():
 
 
 def test_the_validation_error_keeps_its_path():
-    schema = {"properties": {"outer": {"properties": {"inner": {"type": "integer"}}}}}
+    schema = {
+        "properties": {
+            "outer": {"properties": {"inner": {"type": "integer"}}},
+            "circuits": {"type": "array", "items": {"type": "integer"}},
+        }
+    }
     with pytest.raises(jsonschema.ValidationError) as caught:
         validate_arguments_in_isolation(schema, json.dumps({"outer": {"inner": "no"}}))
     assert list(caught.value.path) == ["outer", "inner"]
+
+    # An array index must stay an int, not become the string "1": jsonschema's own path does, and
+    # stringifying it here would change the API contract for no benefit.
+    with pytest.raises(jsonschema.ValidationError) as caught:
+        validate_arguments_in_isolation(schema, json.dumps({"circuits": [1, "no"]}))
+    assert list(caught.value.path) == ["circuits", 1]
 
 
 def test_uniqueitems_still_rejects_a_duplicate():
@@ -165,8 +184,11 @@ def test_missing_required_field_raises():
 
 
 def test_invalid_json_raises_invalid_arguments_exception():
+    """The message must read as the caller's own mistake, not as the function's schema being
+    broken: no "the function arguments schema" prefix, matching what specs/ARGUMENTS_VALIDATION.md
+    documents for this case."""
     schema = {"type": "object", "required": ["shots"]}
-    with pytest.raises(InvalidArgumentsException):
+    with pytest.raises(InvalidArgumentsException, match="^arguments is not valid JSON"):
         validate_arguments(_program(schema), "not-valid-json{{{")
 
 
@@ -255,14 +277,14 @@ def test_arguments_longer_than_the_limit_are_rejected():
 
 
 def test_unique_items_on_a_large_array_of_objects_stays_cheap():
-    """'uniqueItems' compares values pairwise when they are not orderable, which is quadratic.
-
-    An array of objects is the ordinary case that triggers it: 300 items leaves a wide margin under
-    the 1 CPU-second budget even with coverage instrumentation slowing the child down, while 4000
-    measured at about 8s and would be killed by that same budget, which is what the isolation is
-    there for.
+    """'uniqueItems' compares values pairwise when they are not orderable, which is quadratic, and
+    jsonschema's own implementation does exactly that: 4000 objects took about 8s that way, which
+    the 1 CPU-second isolation budget would refuse outright. This is the case the hash-based
+    _unique_items replacement exists to keep working: with it, the same 4000 objects answer in
+    about 0.007s, comfortably inside the budget even with coverage instrumentation slowing the
+    child down.
     """
-    arguments = json.dumps([{"i": i} for i in range(300)])
+    arguments = json.dumps([{"i": i} for i in range(4000)])
     start = time.perf_counter()
 
     validate_arguments(_program({"type": "array", "uniqueItems": True}), arguments)  # must not raise
@@ -368,7 +390,8 @@ def test_declared_format_is_applied():
 def test_regex_format_is_not_asserted():
     """Asserting 'format: regex' would compile caller input with Python's backtracking engine.
 
-    That is the one call site that would undo matching patterns with RE2, so it stays unchecked.
+    That is exactly the cost the isolation exists to bound, not something to trigger deliberately
+    on every request that happens to declare this format, so it stays unchecked.
     """
     schema = {"type": "object", "properties": {"p": {"type": "string", "format": "regex"}}}
 

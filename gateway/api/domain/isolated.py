@@ -141,7 +141,13 @@ def _collect(pid: int, read_fd: int, wall_seconds: float, cpu_seconds: int) -> A
             raise IsolationError(f"it took more than {cpu_seconds} seconds of CPU time")
         raise IsolationError("it stopped without producing an answer")
 
-    payload = json.loads(b"".join(chunks).decode())
+    try:
+        payload = json.loads(b"".join(chunks).decode())
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        # A child killed mid-write (SIGKILL from the wall clock, or a hard memory limit) can leave
+        # a truncated write in the pipe: valid bytes so far, but not a complete JSON document. That
+        # is still the isolation failing to produce an answer, not something that should escape.
+        raise IsolationError("it stopped without producing a complete answer") from exc
     if "reason" in payload:
         raise IsolationError(payload["reason"])
     return payload["result"]

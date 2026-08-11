@@ -5,24 +5,37 @@ thread: the schema comes from whoever owns the function, the instance from whoev
 JSON Schema ``pattern`` is a regular expression applied to caller input, and Python's backtracking
 engine makes that exponential in the length of that input for patterns such as ``^(a+)+$``, so a
 request body of well under 100 bytes can keep a worker busy for hours. jsonschema also spends
-unbounded cost in places a budget on subschemas cannot see, such as ``uniqueItems`` and
-``unevaluatedProperties``, which never descend even once.
+unbounded cost in a private helper behind ``uniqueItems`` that never descends into a subschema, so
+a budget on subschemas cannot see it either.
 
-Bounding that cost from inside jsonschema was tried and refuted five times: keywords whose cost
+Bounding that cost from inside jsonschema was tried and refuted four times: keywords whose cost
 lives in private module level helpers no subclass can reach, a ``$schema`` below the top level
 restoring the stock (backtracking) validator class on a reference, the size of a compiled regex
 program, and memory, which nothing inside jsonschema bounds at all.
 
 The cost is now bounded by the operating system instead, in a forked child (``api.domain.isolated``).
 ``RLIMIT_CPU`` kills a runaway regex at 1.00s with ``SIGXCPU``, and ``RLIMIT_AS`` turns a large
-allocation into a catchable ``MemoryError`` at 0.38s on Linux. ``RLIMIT_AS`` does not fire on macOS,
-where base address space is 425 GB against 25 MB on Linux, so that half of the protection degrades
-in development and applies in production.
+allocation into a catchable ``MemoryError`` at 0.38s on Linux. ``RLIMIT_AS`` is never set on macOS at
+all: the limit is computed from the process's own address space, read from ``/proc/self/status``,
+which does not exist there, so that half of the protection degrades in development and applies in
+production.
 
-What remains in this module is the text limits applied before anything is evaluated: a maximum
-length for the schema document and for the arguments, a maximum nesting depth for both, and a
-maximum count of subschemas in the document. These bound the input rather than the cost of
-evaluating it, and they run before the child is even forked.
+One keyword is still replaced rather than left for the isolation alone to bound: ``uniqueItems``.
+jsonschema compares elements pairwise whenever they are not sortable, which any array of objects
+triggers, inside a private helper that never descends into a subschema, so it pays its full
+quadratic cost within a single CPU-second budget regardless: 4000 objects took about 8 seconds,
+which the isolation would refuse outright even though sending a few thousand of them is ordinary
+for a caller. Hashing a canonical form of each element (``_comparison_key``, ``_unique_items``)
+answers the same question in one pass instead. Do not delete this as leftover scaffolding: unlike
+``pattern``, which the isolation alone now bounds, this is the one place jsonschema still spends
+unbounded cost that isolation can only refuse rather than make cheap.
+
+What remains in this module besides that replacement is the text limits applied to the schema
+before anything is evaluated: a maximum length for the document, a maximum nesting depth, and a
+maximum count of subschemas. These run in the caller, before anything is forked. The arguments get
+the same length limit there too, but the depth limit on them cannot run there: they are still text
+at that point, and parsing them is itself part of what has to be isolated, so it runs inside the
+child, right after ``json.loads``.
 """
 
 import json
@@ -42,7 +55,8 @@ MAX_SCHEMA_LENGTH = 64 * 1024
 # Maximum length of the arguments a caller may send. Several keywords cost more the longer the
 # instance is, and without this the ceiling would be DATA_UPLOAD_MAX_MEMORY_SIZE (2.5 MB by
 # default). This is defence in depth rather than the main protection: the keyword that actually
-# grew faster than its input, "uniqueItems", is replaced below, and the deadline covers the rest.
+# grew faster than its input, "uniqueItems", is replaced below (see _unique_items), and the
+# isolation's 1 CPU-second budget covers the rest.
 # So the figure is chosen to leave legitimate callers alone. Arguments are validated in the form
 # QiskitObjectsEncoder produces, where a single 100 qubit, depth 100 circuit is about 39 KB of
 # base64, so a limit in the tens of kilobytes would reject an ordinary batch of circuits.
@@ -64,9 +78,10 @@ MAX_SCHEMA_NODES = 200
 # Formats the gateway asserts. jsonschema treats "format" as an annotation and checks nothing
 # unless a checker is attached, so without this a vendor's "format" would silently reject nothing.
 # Only checkers that cost no more than the length of their input are listed: "regex" is left out
-# because it compiles caller input with Python's backtracking engine, the one thing rule 1 exists
-# to keep out of reach, and "idn-hostname" because its cost lives in a third party library. Any
-# other format stays an annotation, which is what JSON Schema says an unknown format is.
+# because it would compile caller input with Python's backtracking engine, which is exactly the
+# cost the isolation exists to bound, not something this module tries to keep from happening, and
+# "idn-hostname" because its cost lives in a third party library. Any other format stays an
+# annotation, which is what JSON Schema says an unknown format is.
 _ASSERTED_FORMATS = ("date", "email", "idn-email", "ipv4", "ipv6", "uuid")
 _FORMAT_CHECKER = jsonschema.FormatChecker(formats=_ASSERTED_FORMATS)
 
@@ -80,6 +95,16 @@ _NO_EXTERNAL_REFS = Registry()
 
 class UnsupportedSchemaError(Exception):
     """Raised when an arguments schema cannot be evaluated at a bounded cost."""
+
+
+class InvalidArgumentsError(Exception):
+    """Raised when the caller's arguments are themselves at fault, not the function's schema.
+
+    Covers arguments that are not valid JSON (including a number too large for json.loads to
+    parse) and arguments nested past MAX_DOCUMENT_DEPTH. Kept distinct from
+    UnsupportedSchemaError, which is about the schema, so that a caller's own mistake is not
+    reported as the function owner's schema being broken.
+    """
 
 
 def exceeds_max_depth(value: Any) -> bool:
@@ -137,11 +162,60 @@ def _require_schema_shape(schema: Any) -> None:
         raise UnsupportedSchemaError(f"a JSON Schema must be an object or a boolean, not {type(schema).__name__}")
 
 
+def _comparison_key(value: Any) -> Any:
+    """Return a hashable key that collides exactly when JSON Schema considers two values equal.
+
+    Mirrors the comparison jsonschema makes itself: ``True`` is not ``1``, ``1`` is ``1.0``, and
+    arrays and objects compare by their contents.
+    """
+    if isinstance(value, bool):
+        return ("boolean", value)
+    if isinstance(value, (int, float)):
+        # 1 and 1.0 are the same JSON number. Collapsing an integral float onto the integer keeps
+        # that true without going through float(), which would lose precision on large integers.
+        return ("number", int(value) if isinstance(value, float) and value.is_integer() else value)
+    if isinstance(value, str):
+        return ("string", value)
+    if isinstance(value, (list, tuple)):
+        return ("array", tuple(_comparison_key(item) for item in value))
+    if isinstance(value, dict):
+        return ("object", frozenset((key, _comparison_key(item)) for key, item in value.items()))
+    # None, and anything else json.loads cannot produce. Tagged so that None cannot collide with
+    # the string "None", and by repr so that two equal values still give one key.
+    return ("other", repr(value))
+
+
+def _unique_items(validator, unique, instance, schema):  # pylint: disable=unused-argument
+    """Single-pass replacement for the ``uniqueItems`` keyword.
+
+    jsonschema compares the elements pairwise whenever they are not sortable, which any array of
+    objects triggers, and that comparison lives in a private helper that never descends into a
+    subschema: 4000 objects took about 8 seconds while the isolation's 1 CPU-second budget would
+    refuse them outright. Hashing a canonical form of each element answers the same question in
+    one pass.
+    """
+    if not unique or not validator.is_type(instance, "array"):
+        return
+    seen = set()
+    for item in instance:
+        key = _comparison_key(item)
+        if key in seen:
+            yield jsonschema.ValidationError(f"{instance!r} has non-unique elements")
+            return
+        seen.add(key)
+
+
 def _validator(schema: Any):
-    """Build a stock jsonschema validator for ``schema`` against the no-retrieval registry."""
-    return jsonschema.validators.validator_for(schema)(
-        schema, registry=_NO_EXTERNAL_REFS, format_checker=_FORMAT_CHECKER
-    )
+    """Build a jsonschema validator for ``schema``, with ``uniqueItems`` replaced.
+
+    Everything else is the stock validator: ``pattern`` matches with Python's backtracking ``re``,
+    and the isolation this runs inside bounds that cost. ``uniqueItems`` is the one keyword this
+    module still replaces instead of leaving for the isolation to bound, because its cost lives in
+    a private helper that never descends into a subschema (see ``_unique_items``).
+    """
+    base = jsonschema.validators.validator_for(schema)
+    with_fast_unique_items = jsonschema.validators.extend(base, {"uniqueItems": _unique_items})
+    return with_fast_unique_items(schema, registry=_NO_EXTERNAL_REFS, format_checker=_FORMAT_CHECKER)
 
 
 def find_external_ref(node: Any) -> str | None:
@@ -184,8 +258,10 @@ def validate_arguments_in_isolation(schema: Any, arguments_str: str) -> None:
     isolation each of those came out of the request as a 500.
 
     Raises:
-        UnsupportedSchemaError: if the schema cannot be evaluated, the arguments are not JSON or
-            are nested too deep, or a limit fired.
+        InvalidArgumentsError: if the arguments are not valid JSON or are nested too deep. This is
+            the caller's mistake, not the function owner's schema.
+        UnsupportedSchemaError: if the schema itself cannot be evaluated, or a limit fired while
+            validating against it.
         jsonschema.ValidationError: if the arguments do not match the schema, with ``path`` set.
     """
     _require_schema_shape(schema)
@@ -194,20 +270,22 @@ def validate_arguments_in_isolation(schema: Any, arguments_str: str) -> None:
         try:
             arguments = json.loads(arguments_str)
         except (json.JSONDecodeError, ValueError, RecursionError) as exc:
-            return {"unusable": f"arguments are not valid JSON ({type(exc).__name__})"}
+            return {"invalid_arguments": f"arguments is not valid JSON: {exc}"}
         if exceeds_max_depth(arguments):
-            return {"unusable": f"arguments are nested more than {MAX_DOCUMENT_DEPTH} levels deep"}
+            return {"invalid_arguments": f"arguments are nested more than {MAX_DOCUMENT_DEPTH} levels deep"}
         try:
             _validator(schema).validate(arguments)
             return {"valid": True}
         except jsonschema.ValidationError as exc:
-            return {"valid": False, "message": exc.message, "path": [str(part) for part in exc.path]}
+            return {"valid": False, "message": exc.message, "path": list(exc.path)}
         except Exception as exc:  # pylint: disable=broad-except
             # SchemaError, Unresolvable, RecursionError, UnknownType, and the TypeError and
             # AttributeError a malformed keyword raises. Every one of these used to be a 500.
             return {"unusable": f"{type(exc).__name__}: {exc}"}
 
     answer = _answer_from_child(work)
+    if "invalid_arguments" in answer:
+        raise InvalidArgumentsError(answer["invalid_arguments"])
     if "unusable" in answer:
         raise UnsupportedSchemaError(answer["unusable"])
     if not answer["valid"]:

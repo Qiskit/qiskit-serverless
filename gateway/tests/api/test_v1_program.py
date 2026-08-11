@@ -11,6 +11,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
+from api.domain.arguments_schema import MAX_SCHEMA_LENGTH
 from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import (
@@ -1210,8 +1211,10 @@ class TestProgramApi(APITestCase):
             )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_upload_with_unsupported_pattern_in_schema_returns_400(self):
-        """A pattern the linear-time engine cannot match is rejected at upload, not at run time."""
+    def test_upload_with_invalid_pattern_in_schema_returns_400(self):
+        """A pattern that is not even a valid regular expression is rejected at upload, not at run
+        time. check_schema asserts the "regex" format on every "pattern" value, so this does not
+        depend on any particular regex engine."""
         fake_file = ContentFile(b"print('hello')")
         fake_file.name = "test.tar"
         TestUtils.authorize_client(user="test_user", client=self.client)
@@ -1220,15 +1223,36 @@ class TestProgramApi(APITestCase):
             response = self.client.post(
                 "/api/v1/programs/upload/",
                 data={
-                    "title": "unsupported-pattern-function",
+                    "title": "invalid-pattern-function",
                     "entrypoint": "main.py",
                     "dependencies": "[]",
-                    "arguments_schema": json.dumps({"properties": {"x": {"pattern": "^(?=secret)x$"}}}),
+                    "arguments_schema": json.dumps({"properties": {"x": {"pattern": "("}}}),
                     "artifact": fake_file,
                 },
             )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert not Program.objects.filter(title="unsupported-pattern-function").exists()
+        assert not Program.objects.filter(title="invalid-pattern-function").exists()
+
+    def test_upload_with_oversized_schema_returns_400(self):
+        """A schema over MAX_SCHEMA_LENGTH is rejected at upload, without forking to check it."""
+        fake_file = ContentFile(b"print('hello')")
+        fake_file.name = "test.tar"
+        TestUtils.authorize_client(user="test_user", client=self.client)
+        schema = json.dumps({"type": "object", "description": "x" * MAX_SCHEMA_LENGTH})
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "oversized-schema-function",
+                    "entrypoint": "main.py",
+                    "dependencies": "[]",
+                    "arguments_schema": schema,
+                    "artifact": fake_file,
+                },
+            )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert not Program.objects.filter(title="oversized-schema-function").exists()
 
     def test_upload_with_external_ref_in_schema_returns_400(self):
         """A schema referencing an external resource is rejected, so it can never be fetched later."""
