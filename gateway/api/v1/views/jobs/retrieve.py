@@ -22,7 +22,7 @@ from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import Job, Program
+from core.models import ComputeProfiles, Job, Program
 
 logger = logging.getLogger("api.api.v1.views.jobs.retrieve")
 
@@ -63,12 +63,30 @@ class ProgramSerializer(serializers.ModelSerializer):
         ref_name = "JobsRetrieveProgramSerializer"
 
 
+class ComputeProfilesSerializer(serializers.ModelSerializer):
+    """
+    Compute profile fields exposed for a job's `compute_profile_fk`.
+    """
+
+    class Meta:
+        model = ComputeProfiles
+        fields = [
+            "compute_profile",
+            "name",
+            "cpu",
+            "gpu",
+            "memory",
+        ]
+        ref_name = "JobsRetrieveComputeProfilesSerializer"
+
+
 class JobSerializer(serializers.ModelSerializer):
     """
     Job representation including the `result` and full `program`.
     """
 
     program = ProgramSerializer(many=False)
+    compute_profile_fk = ComputeProfilesSerializer(read_only=True)
 
     class Meta:
         model = Job
@@ -81,6 +99,7 @@ class JobSerializer(serializers.ModelSerializer):
             "sub_status",
             "fleet_id",
             "compute_profile",
+            "compute_profile_fk",
             "business_model",
         ]
         ref_name = "JobsRetrieveJobSerializer"
@@ -99,10 +118,21 @@ class JobSerializerWithoutResult(serializers.ModelSerializer):
     """
 
     program = ProgramSummary(read_only=True)
+    compute_profile_fk = ComputeProfilesSerializer(read_only=True)
 
     class Meta:
         model = Job
-        fields = ["id", "status", "program", "created", "sub_status", "fleet_id", "compute_profile", "business_model"]
+        fields = [
+            "id",
+            "status",
+            "program",
+            "created",
+            "sub_status",
+            "fleet_id",
+            "compute_profile",
+            "compute_profile_fk",
+            "business_model",
+        ]
 
 
 def serialize_output(job: Job, with_result: bool) -> Job:
