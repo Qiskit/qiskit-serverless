@@ -100,6 +100,13 @@ MAX_VALIDATION_STEPS = 10_000
 # while keeping the recursion well short of the interpreter's limit.
 MAX_DOCUMENT_DEPTH = 64
 
+# Maximum number of subschemas the document may contain. Memory use scales with the number of
+# branches times the size of the instance, because "anyOf" accumulates one error per branch and
+# jsonschema builds each message with repr(instance): 2000 branches against 500 KB of arguments
+# cost 1018 MB, measured. At this limit the same arguments cost about a tenth of that. This is the
+# half of the memory protection that works everywhere, since RLIMIT_AS does not bound on macOS.
+MAX_SCHEMA_NODES = 200
+
 # Wall clock ceiling for one validation, checked every time it descends into a subschema. The step
 # budget counts subschemas rather than time, so on its own it cannot tell a cheap visit from an
 # expensive one; this is the backstop for a shape nobody enumerated. It cannot interrupt a single
@@ -249,6 +256,26 @@ def exceeds_max_depth(value: Any) -> bool:
             stack.extend((item, depth + 1) for item in node.values())
         elif isinstance(node, list):
             stack.extend((item, depth + 1) for item in node)
+    return False
+
+
+def exceeds_max_nodes(schema: Any) -> bool:
+    """Whether ``schema`` contains more than ``MAX_SCHEMA_NODES`` subschemas.
+
+    Counts dicts, which over-approximates: an "enum" value that is an object counts too. Walks
+    iteratively and stops as soon as the limit is passed, so it cannot be expensive itself.
+    """
+    seen = 0
+    stack: list[Any] = [schema]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            seen += 1
+            if seen > MAX_SCHEMA_NODES:
+                return True
+            stack.extend(node.values())
+        elif isinstance(node, list):
+            stack.extend(node)
     return False
 
 

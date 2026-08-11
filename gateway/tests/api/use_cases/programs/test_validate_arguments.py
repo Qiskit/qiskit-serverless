@@ -6,7 +6,13 @@ import pytest
 from unittest.mock import MagicMock
 from django.contrib.auth.models import User
 
-from api.domain.arguments_schema import MAX_ARGUMENTS_LENGTH, MAX_SCHEMA_LENGTH, _check_schema_once
+from api.domain.arguments_schema import (
+    MAX_ARGUMENTS_LENGTH,
+    MAX_SCHEMA_LENGTH,
+    MAX_SCHEMA_NODES,
+    _check_schema_once,
+    exceeds_max_nodes,
+)
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.domain.exceptions.invalid_arguments_exception import InvalidArgumentsException
 from api.use_cases.programs.validate_arguments import ValidateArgumentsUseCase, validate_arguments
@@ -383,6 +389,12 @@ def test_budget_is_reset_between_validations():
     schema = {"type": "object", "properties": {"shots": {"type": "integer"}}}
     for _ in range(3):
         validate_arguments(_program(schema), '{"shots": 1024}')  # must not raise
+
+
+def test_node_count_refuses_a_wide_combination_and_allows_an_ordinary_schema():
+    ordinary = {"type": "object", "properties": {"shots": {"type": "integer"}, "name": {"type": "string"}}}
+    assert exceeds_max_nodes(ordinary) is False
+    assert exceeds_max_nodes({"anyOf": [{"type": "integer"}] * (MAX_SCHEMA_NODES + 1)}) is True
 
 
 @pytest.mark.django_db
