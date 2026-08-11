@@ -173,6 +173,25 @@ class TestProgramApi(APITestCase):
         self._temp_directory.cleanup()
         super().tearDown()
 
+    def _upload_with_schema(self, title, arguments_schema):
+        """POST an upload whose only interesting field is arguments_schema."""
+        fake_file = ContentFile(b"print('hello')")
+        fake_file.name = "test.tar"
+        TestUtils.authorize_client(user="test_user", client=self.client)
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            return self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": title,
+                    "entrypoint": "main.py",
+                    "dependencies": "[]",
+                    "arguments_schema": arguments_schema,
+                    "artifact": fake_file,
+                },
+                format="multipart",
+            )
+
     def test_programs_non_auth_user(self):
         """Tests program list non-authorized."""
         url = reverse("v1:programs-list")
@@ -1173,104 +1192,38 @@ class TestProgramApi(APITestCase):
     def test_upload_with_arguments_schema_stores_it(self):
         """Upload with arguments_schema saves the schema on the Program."""
         schema = json.dumps({"type": "object", "properties": {"shots": {"type": "integer"}}})
-        fake_file = ContentFile(b"print('hello')")
-        fake_file.name = "test.tar"
-        TestUtils.authorize_client(user="test_user", client=self.client)
-
-        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            response = self.client.post(
-                "/api/v1/programs/upload/",
-                data={
-                    "title": "schema-function",
-                    "entrypoint": "main.py",
-                    "dependencies": "[]",
-                    "arguments_schema": schema,
-                    "artifact": fake_file,
-                },
-            )
+        response = self._upload_with_schema("schema-function", schema)
         assert response.status_code == status.HTTP_200_OK
         program = Program.objects.get(title="schema-function")
         assert program.arguments_schema == schema
 
     def test_upload_with_invalid_schema_returns_400(self):
         """Upload with malformed JSON as arguments_schema returns 400."""
-        fake_file = ContentFile(b"print('hello')")
-        fake_file.name = "test.tar"
-        TestUtils.authorize_client(user="test_user", client=self.client)
-
-        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            response = self.client.post(
-                "/api/v1/programs/upload/",
-                data={
-                    "title": "bad-schema-function",
-                    "entrypoint": "main.py",
-                    "dependencies": "[]",
-                    "arguments_schema": "not-valid-json{{{",
-                    "artifact": fake_file,
-                },
-            )
+        response = self._upload_with_schema("bad-schema-function", "not-valid-json{{{")
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_upload_with_invalid_pattern_in_schema_returns_400(self):
         """A pattern that is not even a valid regular expression is rejected at upload, not at run
         time. check_schema asserts the "regex" format on every "pattern" value, so this does not
         depend on any particular regex engine."""
-        fake_file = ContentFile(b"print('hello')")
-        fake_file.name = "test.tar"
-        TestUtils.authorize_client(user="test_user", client=self.client)
-
-        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            response = self.client.post(
-                "/api/v1/programs/upload/",
-                data={
-                    "title": "invalid-pattern-function",
-                    "entrypoint": "main.py",
-                    "dependencies": "[]",
-                    "arguments_schema": json.dumps({"properties": {"x": {"pattern": "("}}}),
-                    "artifact": fake_file,
-                },
-            )
+        response = self._upload_with_schema(
+            "invalid-pattern-function", json.dumps({"properties": {"x": {"pattern": "("}}})
+        )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert not Program.objects.filter(title="invalid-pattern-function").exists()
 
     def test_upload_with_oversized_schema_returns_400(self):
         """A schema over MAX_SCHEMA_LENGTH is rejected at upload, without forking to check it."""
-        fake_file = ContentFile(b"print('hello')")
-        fake_file.name = "test.tar"
-        TestUtils.authorize_client(user="test_user", client=self.client)
         schema = json.dumps({"type": "object", "description": "x" * MAX_SCHEMA_LENGTH})
-
-        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            response = self.client.post(
-                "/api/v1/programs/upload/",
-                data={
-                    "title": "oversized-schema-function",
-                    "entrypoint": "main.py",
-                    "dependencies": "[]",
-                    "arguments_schema": schema,
-                    "artifact": fake_file,
-                },
-            )
+        response = self._upload_with_schema("oversized-schema-function", schema)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert not Program.objects.filter(title="oversized-schema-function").exists()
 
     def test_upload_with_external_ref_in_schema_returns_400(self):
         """A schema referencing an external resource is rejected, so it can never be fetched later."""
-        fake_file = ContentFile(b"print('hello')")
-        fake_file.name = "test.tar"
-        TestUtils.authorize_client(user="test_user", client=self.client)
-
-        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            response = self.client.post(
-                "/api/v1/programs/upload/",
-                data={
-                    "title": "ssrf-schema-function",
-                    "entrypoint": "main.py",
-                    "dependencies": "[]",
-                    "arguments_schema": json.dumps({"$ref": "http://169.254.169.254/latest/meta-data/"}),
-                    "artifact": fake_file,
-                },
-            )
+        response = self._upload_with_schema(
+            "ssrf-schema-function", json.dumps({"$ref": "http://169.254.169.254/latest/meta-data/"})
+        )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert not Program.objects.filter(title="ssrf-schema-function").exists()
 
@@ -1279,21 +1232,7 @@ class TestProgramApi(APITestCase):
 
         validator_for tests '"$schema" not in schema', which raises TypeError on a number.
         """
-        fake_file = ContentFile(b"print('hello')")
-        fake_file.name = "test.tar"
-        TestUtils.authorize_client(user="test_user", client=self.client)
-
-        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            response = self.client.post(
-                "/api/v1/programs/upload/",
-                data={
-                    "title": "scalar-schema-function",
-                    "entrypoint": "main.py",
-                    "dependencies": "[]",
-                    "arguments_schema": "123",
-                    "artifact": fake_file,
-                },
-            )
+        response = self._upload_with_schema("scalar-schema-function", "123")
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert not Program.objects.filter(title="scalar-schema-function").exists()
 
@@ -1303,23 +1242,26 @@ class TestProgramApi(APITestCase):
         Letting it through leaves the function permanently broken: the empty registry raises
         Unresolvable on every run, which is exactly what checking at upload time avoids.
         """
-        fake_file = ContentFile(b"print('hello')")
-        fake_file.name = "test.tar"
-        TestUtils.authorize_client(user="test_user", client=self.client)
-
-        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            response = self.client.post(
-                "/api/v1/programs/upload/",
-                data={
-                    "title": "dynamic-ref-schema-function",
-                    "entrypoint": "main.py",
-                    "dependencies": "[]",
-                    "arguments_schema": json.dumps({"$dynamicRef": "https://example.com/tree#node"}),
-                    "artifact": fake_file,
-                },
-            )
+        response = self._upload_with_schema(
+            "dynamic-ref-schema-function", json.dumps({"$dynamicRef": "https://example.com/tree#node"})
+        )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert not Program.objects.filter(title="dynamic-ref-schema-function").exists()
+
+    def test_upload_with_unhashable_dollar_schema_returns_400(self):
+        """validator_for tests '"$schema" not in schema', which raises TypeError on a dict."""
+        response = self._upload_with_schema("unhashable-schema-function", json.dumps({"$schema": {}}))
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_upload_with_a_deeply_nested_schema_returns_400(self):
+        """1500 levels raise RecursionError inside json.loads, which used to be a 500."""
+        response = self._upload_with_schema("deep-schema-function", '{"a":' * 1500 + "1" + "}" * 1500)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_upload_with_too_many_subschemas_returns_400(self):
+        """anyOf of 201 branches exceeds MAX_SCHEMA_NODES, which is 200."""
+        response = self._upload_with_schema("wide-schema-function", json.dumps({"anyOf": [{"type": "integer"}] * 201}))
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_reupload_without_schema_preserves_existing_schema(self):
         """Re-uploading a function without arguments_schema keeps the existing schema."""
