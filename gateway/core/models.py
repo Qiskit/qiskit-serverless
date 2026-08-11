@@ -370,7 +370,7 @@ class ComputeProfiles(models.Model):
     rate (``classical_time_<compute_profile>``).
     """
 
-    compute_profile = models.CharField(
+    compute_profile_id = models.CharField(
         max_length=255,
         primary_key=True,
         help_text="Code Engine compute profile identifier (e.g., gx3d-24x120x1a100p)",
@@ -414,7 +414,7 @@ class FunctionSize(models.Model):
         related_name="function_sizes",
     )
     function_size = models.CharField(max_length=64)
-    compute_profile = models.ForeignKey(
+    compute_profile_fk = models.ForeignKey(
         to=ComputeProfiles,
         on_delete=models.PROTECT,
         null=True,
