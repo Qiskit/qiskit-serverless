@@ -4,16 +4,17 @@ import json
 
 import jsonschema
 from django.contrib.auth.models import AbstractUser
-from referencing.exceptions import Unresolvable
 
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.arguments_schema import (
     MAX_ARGUMENTS_LENGTH,
     MAX_DOCUMENT_DEPTH,
+    MAX_SCHEMA_LENGTH,
+    MAX_SCHEMA_NODES,
     UnsupportedSchemaError,
-    check_arguments_schema,
     exceeds_max_depth,
-    validate_at_bounded_cost,
+    exceeds_max_nodes,
+    validate_arguments_in_isolation,
 )
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.domain.exceptions.invalid_arguments_exception import InvalidArgumentsException
@@ -39,12 +40,23 @@ def _shortened(message: str) -> str:
 def validate_arguments(program: Function, arguments_str: str) -> None:
     """Validate arguments_str against program.arguments_schema.
 
-    No-op if schema is empty. Raises InvalidArgumentsException if arguments_str is not
-    valid JSON, if it does not match the schema, or if the schema itself cannot be used.
+    No-op if the schema is empty. The cheap text limits run here; everything that evaluates the
+    schema runs in a child with hard limits, so a pathological schema costs a bounded amount and
+    comes back as a rejection rather than a 500 or an occupied worker.
+
+    Raises:
+        InvalidArgumentsException: if the arguments do not match the schema, are not valid JSON,
+            exceed a limit, or the stored schema cannot be used.
     """
     schema_str = program.arguments_schema
     if not schema_str or schema_str == "{}":
         return
+
+    if len(schema_str) > MAX_SCHEMA_LENGTH:
+        raise InvalidArgumentsException(
+            f"the function arguments schema is {len(schema_str)} characters long "
+            f"and the maximum is {MAX_SCHEMA_LENGTH}"
+        )
 
     if len(arguments_str or "") > MAX_ARGUMENTS_LENGTH:
         raise InvalidArgumentsException(
@@ -53,41 +65,30 @@ def validate_arguments(program: Function, arguments_str: str) -> None:
 
     try:
         schema = json.loads(schema_str)
-    except json.JSONDecodeError as exc:
-        raise InvalidArgumentsException(f"the function arguments schema is not valid JSON: {exc.msg}") from exc
+    except (json.JSONDecodeError, ValueError, RecursionError) as exc:
+        raise InvalidArgumentsException("the function arguments schema is not valid JSON") from exc
 
     # Only the empty object means "no schema". "false" is the schema that rejects every instance,
     # so treating the parsed value as a boolean would turn the strictest schema into no validation.
     if isinstance(schema, dict) and not schema:
         return
 
-    try:
-        arguments = json.loads(arguments_str or "{}")
-    except json.JSONDecodeError as exc:
-        raise InvalidArgumentsException(f"arguments is not valid JSON: {exc.msg}") from exc
+    if exceeds_max_depth(schema):
+        raise InvalidArgumentsException(
+            f"the function arguments schema is nested more than {MAX_DOCUMENT_DEPTH} levels deep"
+        )
 
-    if exceeds_max_depth(arguments):
-        raise InvalidArgumentsException(f"arguments are nested more than {MAX_DOCUMENT_DEPTH} levels deep")
+    if exceeds_max_nodes(schema):
+        raise InvalidArgumentsException(
+            f"the function arguments schema contains more than {MAX_SCHEMA_NODES} subschemas"
+        )
 
     try:
-        check_arguments_schema(schema, schema_str)
-        validate_at_bounded_cost(schema, arguments, schema_str)
-    except RecursionError as exc:
-        # A "$ref" back to the root of the document recurses forever in 13 characters, so depth
-        # limits cannot catch every case and this is what keeps it from surfacing as a 500.
-        raise InvalidArgumentsException("the function arguments schema recurses without end") from exc
+        validate_arguments_in_isolation(schema, arguments_str or "{}")
     except UnsupportedSchemaError as exc:
         raise InvalidArgumentsException(_shortened(f"the function arguments schema cannot be used: {exc}")) from exc
-    except jsonschema.SchemaError as exc:
-        raise InvalidArgumentsException(
-            _shortened(f"the function arguments schema is not usable: {exc.message}")
-        ) from exc
     except jsonschema.ValidationError as exc:
         raise InvalidArgumentsException(_shortened(exc.message), path=list(exc.path)) from exc
-    except Unresolvable as exc:
-        raise InvalidArgumentsException(
-            _shortened(f"the function arguments schema references something that cannot be resolved: {exc}")
-        ) from exc
 
 
 class ValidateArgumentsUseCase:

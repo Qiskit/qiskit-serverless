@@ -1737,6 +1737,28 @@ class TestProgramApiRuntimeInstances:
             )
             assert response.status_code == status.HTTP_400_BAD_REQUEST
 
+        def test_validate_arguments_with_a_pathological_schema_returns_400(self, client, authorize):
+            """A root "$schema" plus a self reference restored the backtracking engine: 7.8s for
+            37 bytes of request body, and it stayed under every declared limit."""
+            user = authorize("test_user", create_custom_access_result({PLATFORM_PERMISSION_CUSTOM_RUN}))
+            TestUtils.create_program(
+                program_title="pathological-schema-func",
+                author=user,
+                arguments_schema=json.dumps(
+                    {
+                        "$schema": "https://json-schema.org/draft/2020-12/schema",
+                        "pattern": "^(a+)+$",
+                        "properties": {"x": {"$ref": "#"}},
+                    }
+                ),
+            )
+            response = client.post(
+                "/api/v1/programs/validate_arguments/",
+                data={"title": "pathological-schema-func", "arguments": json.dumps({"x": "a" * 40 + "!"})},
+                format="json",
+            )
+            assert response.status_code == 400
+
         def test_validate_arguments_no_schema_returns_200(self, client, authorize):
             """validate_arguments returns 200 for any arguments when function has no schema."""
             user = authorize("test_user", create_custom_access_result({PLATFORM_PERMISSION_CUSTOM_RUN}))

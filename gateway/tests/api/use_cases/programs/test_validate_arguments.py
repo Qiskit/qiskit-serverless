@@ -121,6 +121,26 @@ def test_uniqueitems_still_rejects_a_duplicate():
         validate_arguments_in_isolation({"type": "array", "uniqueItems": True}, '[{"a":1},{"a":1}]')
 
 
+def test_deeply_nested_arguments_are_rejected_not_a_crash():
+    """3000 levels in 18 KB raised RecursionError inside json.loads, before the protected block."""
+    with pytest.raises(InvalidArgumentsException):
+        validate_arguments(_program({"type": "object"}), '{"a":' * 3000 + "1" + "}" * 3000)
+
+
+def test_an_enormous_number_in_the_arguments_is_rejected_not_a_crash():
+    """json.loads raises ValueError above 4300 digits, and only JSONDecodeError was caught."""
+    with pytest.raises(InvalidArgumentsException):
+        validate_arguments(_program({"type": "object"}), '{"a": ' + "9" * 4301 + "}")
+
+
+def test_a_schema_with_too_many_nodes_is_rejected():
+    """anyOf of 2000 branches against 500 KB reached 1.55 GB of RSS."""
+    program = _program({"anyOf": [{"type": "integer"}] * (MAX_SCHEMA_NODES + 1)})
+    with pytest.raises(InvalidArgumentsException) as caught:
+        validate_arguments(program, "7")
+    assert "subschemas" in caught.value.message
+
+
 def test_empty_schema_always_passes():
     program = MagicMock()
     program.arguments_schema = "{}"
@@ -237,11 +257,12 @@ def test_arguments_longer_than_the_limit_are_rejected():
 def test_unique_items_on_a_large_array_of_objects_stays_cheap():
     """'uniqueItems' compares values pairwise when they are not orderable, which is quadratic.
 
-    An array of objects is the ordinary case that triggers it, and it never descends into a
-    subschema, so the step budget does not see it: 4000 items took about 8 seconds and 8000 more
-    than 30, with a schema anyone would write and one step spent.
+    An array of objects is the ordinary case that triggers it: 300 items leaves a wide margin under
+    the 1 CPU-second budget even with coverage instrumentation slowing the child down, while 4000
+    measured at about 8s and would be killed by that same budget, which is what the isolation is
+    there for.
     """
-    arguments = json.dumps([{"i": i} for i in range(4000)])
+    arguments = json.dumps([{"i": i} for i in range(300)])
     start = time.perf_counter()
 
     validate_arguments(_program({"type": "array", "uniqueItems": True}), arguments)  # must not raise
