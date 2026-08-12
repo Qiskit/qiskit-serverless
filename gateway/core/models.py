@@ -393,7 +393,7 @@ class ComputeProfiles(models.Model):
         app_label = "api"
 
     def __str__(self):
-        return self.name or self.compute_profile
+        return self.name or self.compute_profile_id
 
 
 class FunctionSize(models.Model):
