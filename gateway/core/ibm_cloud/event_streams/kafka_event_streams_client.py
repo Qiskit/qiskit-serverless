@@ -21,6 +21,7 @@ import uuid
 from datetime import datetime, timezone
 
 from confluent_kafka import Producer
+from core.domain.business_models import BusinessModel
 from core.models import Job
 
 from .abstract_event_streams_client import EventStreamsClient
@@ -28,6 +29,14 @@ from .abstract_event_streams_client import EventStreamsClient
 logger = logging.getLogger("gateway.ibm_cloud.event_streams_client")
 
 LICENSE_FEE_METRIC_TYPE = "license"
+
+# Business model names as billing expects them. Subsidized functions are billed
+# as licensed; the rest keep their own name, lowercased.
+BUSINESS_MODEL_NAMES = {
+    BusinessModel.SUBSIDIZED: "licensed",
+    BusinessModel.TRIAL: "trial",
+    BusinessModel.CONSUMPTION: "consumption",
+}
 
 
 class KafkaEventStreamsClient(EventStreamsClient):
@@ -38,7 +47,8 @@ class KafkaEventStreamsClient(EventStreamsClient):
     single metric in its `data` payload: `metric_type` (what is being billed) and
     `metric_value` (how much, in milliseconds for time-based metrics), plus
     `job_started` / `job_completed` flags so consumers can detect lifecycle
-    boundaries without interpreting the metric type.
+    boundaries without interpreting the metric type. License fee events also
+    carry `business_model`.
 
     Configured from environment variables:
       EVENT_STREAMS_BOOTSTRAP_SERVERS — comma-separated broker list
@@ -94,7 +104,13 @@ class KafkaEventStreamsClient(EventStreamsClient):
             metric_value=1,
             job_started=True,
             job_completed=True,
+            business_model=self._business_model_name(job),
         )
+
+    @staticmethod
+    def _business_model_name(job: Job) -> str:
+        """Map the job's business model to the name billing expects."""
+        return BUSINESS_MODEL_NAMES.get(job.business_model, job.business_model.lower())
 
     def _usage_ms(self, job) -> int:
         if job.running_started_at is None:
@@ -110,8 +126,20 @@ class KafkaEventStreamsClient(EventStreamsClient):
         metric_value: int,
         job_started: bool,
         job_completed: bool,
+        business_model: str | None = None,
     ) -> None:
         now = datetime.now(timezone.utc)
+        data = {
+            "metric_type": metric_type,
+            "metric_value": metric_value,
+            "instance_crn": job.instance_crn,
+            "resource_id": str(job.id),
+            "job_started": job_started,
+            "job_completed": job_completed,
+        }
+        if business_model is not None:
+            data["business_model"] = business_model
+
         event = {
             "specversion": "1.0",
             "id": str(uuid.uuid4()),
@@ -120,14 +148,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
             "time": now.isoformat(),
             "subject": str(job.id),
             "datacontenttype": "application/json",
-            "data": {
-                "metric_type": metric_type,
-                "metric_value": metric_value,
-                "instance_crn": job.instance_crn,
-                "resource_id": str(job.id),
-                "job_started": job_started,
-                "job_completed": job_completed,
-            },
+            "data": data,
         }
         self._producer.produce(
             topic=self.topic,
