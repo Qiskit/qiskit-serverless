@@ -21,7 +21,7 @@ import uuid
 from datetime import datetime, timezone
 
 from confluent_kafka import Producer
-from core.domain.business_models import BusinessModel
+from core.domain.business_models import billing_name_for
 from core.models import Job
 
 from .abstract_event_streams_client import EventStreamsClient
@@ -29,14 +29,6 @@ from .abstract_event_streams_client import EventStreamsClient
 logger = logging.getLogger("gateway.ibm_cloud.event_streams_client")
 
 LICENSE_FEE_METRIC_TYPE = "license"
-
-# Business model names as billing expects them. Subsidized functions are billed
-# as licensed; the rest keep their own name, lowercased.
-BUSINESS_MODEL_NAMES = {
-    BusinessModel.SUBSIDIZED: "licensed",
-    BusinessModel.TRIAL: "trial",
-    BusinessModel.CONSUMPTION: "consumption",
-}
 
 
 class KafkaEventStreamsClient(EventStreamsClient):
@@ -104,13 +96,8 @@ class KafkaEventStreamsClient(EventStreamsClient):
             metric_value=1,
             job_started=True,
             job_completed=True,
-            business_model=self._business_model_name(job),
+            business_model=billing_name_for(job.business_model),
         )
-
-    @staticmethod
-    def _business_model_name(job: Job) -> str:
-        """Map the job's business model to the name billing expects."""
-        return BUSINESS_MODEL_NAMES.get(job.business_model, job.business_model.lower())
 
     def _usage_ms(self, job) -> int:
         if job.running_started_at is None:
