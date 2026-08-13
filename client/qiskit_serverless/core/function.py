@@ -38,24 +38,53 @@ from qiskit_serverless.core.job import (
     Job,
     Configuration,
 )
+from qiskit_serverless.exception import QiskitServerlessException
 
 GenericType = Literal["GENERIC"]
 ApplicationType = Literal["APPLICATION"]
 CircuitType = Literal["CIRCUIT"]
 
 
-def _decode_fields(data: Dict[str, Any], field_names: set) -> Dict[str, Any]:
-    """Keep only known dataclass fields and decode the ones the gateway sends as text.
+def _decode_arguments_schema(raw_schema: Any) -> Optional[Union[Dict[str, Any], bool]]:
+    """Turn the text the gateway stores for ``arguments_schema`` back into a schema.
 
-    ``arguments_schema`` is stored server-side as text (defaulting to ``"{}"``), so a
-    function without a schema comes back as an empty object rather than null.
+    The column holds text (defaulting to ``"{}"``), so a function without a schema arrives as
+    an empty object rather than null, and both read back as ``None``. Sending ``{}`` is also how
+    a schema is removed, which works because the upload only omits the field when it is ``None``
+    rather than when it is falsy.
+
+    A boolean is a valid JSON Schema and is kept as one: ``False`` rejects every instance, so
+    reporting it as ``None`` would describe the strictest possible schema as no schema at all.
+    Anything else is not a schema the gateway would have accepted, so it is reported rather than
+    returned with a type the caller does not expect.
+
+    Raises:
+        QiskitServerlessException: if the stored value is not JSON, or is JSON but not an object
+            or a boolean.
     """
+    if isinstance(raw_schema, str):
+        if not raw_schema:
+            return None
+        try:
+            raw_schema = json.loads(raw_schema)
+        except json.JSONDecodeError as error:
+            raise QiskitServerlessException(f"The function arguments schema is not valid JSON: {error.msg}") from error
+
+    if raw_schema is None or raw_schema == {}:
+        return None
+    if isinstance(raw_schema, (dict, bool)):
+        return raw_schema
+    raise QiskitServerlessException(
+        "A function arguments schema must be an object or a boolean, "
+        f"not {type(raw_schema).__name__}: {raw_schema!r}"
+    )
+
+
+def _decode_fields(data: Dict[str, Any], field_names: set) -> Dict[str, Any]:
+    """Keep only known dataclass fields and decode the ones the gateway sends as text."""
     decoded = {k: v for k, v in data.items() if k in field_names}
     if "arguments_schema" in decoded:
-        raw_schema = decoded["arguments_schema"]
-        if isinstance(raw_schema, str):
-            raw_schema = json.loads(raw_schema) if raw_schema else None
-        decoded["arguments_schema"] = raw_schema or None
+        decoded["arguments_schema"] = _decode_arguments_schema(decoded["arguments_schema"])
     return decoded
 
 
@@ -73,7 +102,10 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
         working_dir: directory where entrypoint file is located (max size 50MB)
         description: description of a program
         version: version of a program
-        arguments_schema: JSON Schema dict describing valid arguments for this function
+        arguments_schema: JSON Schema describing valid arguments for this function. Normally an
+            object; ``True`` and ``False`` are also valid schemas, accepting and rejecting every
+            argument respectively. ``None`` means the function does not declare one, and setting
+            it to ``{}`` on an upload removes the schema an earlier upload stored.
     """
 
     GENERIC: ClassVar[GenericType] = "GENERIC"
@@ -92,7 +124,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
     raw_data: Optional[Dict[str, Any]] = None
     image: Optional[str] = None
     runner: str = "ray"
-    arguments_schema: Optional[Dict[str, Any]] = None
+    arguments_schema: Optional[Union[Dict[str, Any], bool]] = None
     type: Union[GenericType, ApplicationType, CircuitType] = GENERIC
 
     def __post_init__(self):
