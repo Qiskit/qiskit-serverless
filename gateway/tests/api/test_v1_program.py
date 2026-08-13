@@ -881,6 +881,28 @@ class TestProgramApi(APITestCase):
         assert response.status_code == status.HTTP_200_OK
         assert response.data.get("arguments_schema") == schema
 
+    def test_get_by_title_does_not_take_the_provider_in_the_path(self):
+        """Regression lock: the <str:title> route cannot carry a slash, so the provider is a query param.
+
+        The function used here IS retrievable as ``?provider=default``, so if the route ever started
+        accepting a slash (a <path:title> converter), these requests would resolve and return 200.
+        The 404 is therefore evidence that routing rejects both spellings before the view runs.
+        """
+        user = TestUtils.authorize_client(user="test_user_2", client=self.client)
+        TestUtils.create_program(program_title="Docker-Image-Program", author=user, provider="default")
+
+        reachable = self.client.get(
+            "/api/v1/programs/get_by_title/Docker-Image-Program/",
+            {"provider": "default"},
+            format="json",
+        )
+        literal_slash = self.client.get("/api/v1/programs/get_by_title/default/Docker-Image-Program/", format="json")
+        encoded_slash = self.client.get("/api/v1/programs/get_by_title/default%2FDocker-Image-Program/", format="json")
+
+        assert reachable.status_code == status.HTTP_200_OK
+        assert literal_slash.status_code == status.HTTP_404_NOT_FOUND
+        assert encoded_slash.status_code == status.HTTP_404_NOT_FOUND
+
     def test_get_jobs(self):
         """Tests run existing authorized."""
 

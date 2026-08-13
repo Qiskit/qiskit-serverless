@@ -99,6 +99,9 @@ secrets:
       host: database-host
       port: database-port
       userName: user-name
+    createExternalSecret: false
+    secretRef: ""
+    secretStoreName: qiskit-serverless
   superuser:
     name: gateway-superuser
     key:
@@ -107,9 +110,11 @@ secrets:
       email: email
   w3idSso:
     name: ""
+    secretRef: ""
     secretStoreName: qiskit-serverless
   kafka:
     name: ""
+    secretRef: ""
     secretStoreName: qiskit-serverless
 
 image:
