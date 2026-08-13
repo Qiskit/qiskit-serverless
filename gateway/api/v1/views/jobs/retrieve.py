@@ -71,7 +71,7 @@ class ComputeProfilesSerializer(serializers.ModelSerializer):
     class Meta:
         model = ComputeProfiles
         fields = [
-            "compute_profile",
+            "compute_profile_id",
             "name",
             "cpu",
             "gpu",
