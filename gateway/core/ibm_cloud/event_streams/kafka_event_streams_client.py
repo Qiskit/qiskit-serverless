@@ -53,6 +53,11 @@ class KafkaEventStreamsClient(EventStreamsClient):
         api_key = os.environ["EVENT_STREAMS_API_KEY"]
         environment = os.environ["ENVIRONMENT"]
 
+        # LOG: Initialization
+        logger.info(
+            "Initializing KafkaEventStreamsClient bootstrap_servers=%s environment=%s", bootstrap_servers, environment
+        )
+
         self._producer = Producer(
             {
                 "bootstrap.servers": bootstrap_servers,
@@ -60,12 +65,19 @@ class KafkaEventStreamsClient(EventStreamsClient):
                 "sasl.mechanisms": "PLAIN",
                 "sasl.username": "token",
                 "sasl.password": api_key,
+                # Add delivery callback configuration
+                "enable.idempotence": True,
+                "acks": "all",
             }
         )
         self.topic = f"quantum.{environment}.function-usage.v1"
 
+        # LOG: Client created successfully
+        logger.info("KafkaEventStreamsClient initialized successfully topic=%s", self.topic)
+
     def emit_job_started(self, job, metric_type: str) -> None:
         """Publish a job-started event for the given metric (metric_value=0)."""
+        logger.info("job_id=%s Emitting job_started event", job.id)
         self._publish(job, metric_type=metric_type, metric_value=0, job_started=True, job_completed=False)
 
     def emit_job_in_progress(self, job, metric_type: str) -> None:
@@ -80,10 +92,12 @@ class KafkaEventStreamsClient(EventStreamsClient):
 
     def emit_job_completed(self, job, metric_type: str) -> None:
         """Publish a job-completed event for the given metric with final usage."""
+        usage_ms = self._usage_ms(job)
+        logger.info("job_id=%s Emitting job_completed event metric_value=%s", job.id, usage_ms)
         self._publish(
             job,
             metric_type=metric_type,
-            metric_value=self._usage_ms(job),
+            metric_value=usage_ms,
             job_started=False,
             job_completed=True,
         )
@@ -105,6 +119,17 @@ class KafkaEventStreamsClient(EventStreamsClient):
         delta = datetime.now(timezone.utc) - job.running_started_at
         return int(delta.total_seconds() * 1e3)
 
+    def _delivery_callback(self, err, msg):
+        """Callback for message delivery reports."""
+        if err is not None:
+            logger.error(
+                "Message delivery failed topic=%s partition=%s error=%s error_code=%s",
+                msg.topic() if msg else "unknown",
+                msg.partition() if msg else "unknown",
+                err,
+                err.code() if hasattr(err, "code") else "unknown",
+            )
+
     def _publish(
         self,
         job,
@@ -116,6 +141,8 @@ class KafkaEventStreamsClient(EventStreamsClient):
         business_model: str | None = None,
     ) -> None:
         now = datetime.now(timezone.utc)
+        event_id = str(uuid.uuid4())
+
         data = {
             "metric_type": metric_type,
             "metric_value": metric_value,
@@ -129,7 +156,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
 
         event = {
             "specversion": "1.0",
-            "id": str(uuid.uuid4()),
+            "id": event_id,
             "source": "qiskit-serverless/scheduler/fleets",
             "type": self.topic,
             "time": now.isoformat(),
@@ -137,11 +164,22 @@ class KafkaEventStreamsClient(EventStreamsClient):
             "datacontenttype": "application/json",
             "data": data,
         }
-        self._producer.produce(
-            topic=self.topic,
-            key=str(job.id).encode("utf-8"),
-            value=json.dumps(event).encode("utf-8"),
-        )
-        remaining = self._producer.flush(timeout=5)
-        if remaining > 0:
-            raise RuntimeError(f"KafkaEventStreamsClient: {remaining} message(s) not delivered after flush timeout")
+
+        try:
+            self._producer.produce(
+                topic=self.topic,
+                key=str(job.id).encode("utf-8"),
+                value=json.dumps(event).encode("utf-8"),
+                callback=self._delivery_callback,
+            )
+
+            remaining = self._producer.flush(timeout=5)
+
+            if remaining > 0:
+                raise RuntimeError(f"KafkaEventStreamsClient: {remaining} message(s) not delivered after flush timeout")
+
+        except Exception as e:
+            raise RuntimeError(
+                f"KafkaEventStreamsClient: Failed to publish event "
+                f"(job_id={job.id}, event_id={event_id}, metric_type={metric_type}): {str(e)}"
+            ) from e

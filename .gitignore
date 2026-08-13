@@ -2,6 +2,7 @@
 **/.terraform/*
 
 # Local helm dependencies
+# Commented line below due to problems with helm build
 charts/**/*.tgz
 charts/values/**
 
