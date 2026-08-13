@@ -348,24 +348,53 @@
     <span class="n">Job</span><span class="p">,</span>
     <span class="n">Configuration</span><span class="p">,</span>
 <span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.exception</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitServerlessException</span>
 
 <span class="n">GenericType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;GENERIC&quot;</span><span class="p">]</span>
 <span class="n">ApplicationType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;APPLICATION&quot;</span><span class="p">]</span>
 <span class="n">CircuitType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;CIRCUIT&quot;</span><span class="p">]</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_decode_fields</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">field_names</span><span class="p">:</span> <span class="nb">set</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Keep only known dataclass fields and decode the ones the gateway sends as text.</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_decode_arguments_schema</span><span class="p">(</span><span class="n">raw_schema</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="nb">bool</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Turn the text the gateway stores for ``arguments_schema`` back into a schema.</span>
 
-<span class="sd">    ``arguments_schema`` is stored server-side as text (defaulting to ``&quot;{}&quot;``), so a</span>
-<span class="sd">    function without a schema comes back as an empty object rather than null.</span>
+<span class="sd">    The column holds text (defaulting to ``&quot;{}&quot;``), so a function without a schema arrives as</span>
+<span class="sd">    an empty object rather than null, and both read back as ``None``. Sending ``{}`` is also how</span>
+<span class="sd">    a schema is removed, which works because the upload only omits the field when it is ``None``</span>
+<span class="sd">    rather than when it is falsy.</span>
+
+<span class="sd">    A boolean is a valid JSON Schema and is kept as one: ``False`` rejects every instance, so</span>
+<span class="sd">    reporting it as ``None`` would describe the strictest possible schema as no schema at all.</span>
+<span class="sd">    Anything else is not a schema the gateway would have accepted, so it is reported rather than</span>
+<span class="sd">    returned with a type the caller does not expect.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        QiskitServerlessException: if the stored value is not JSON, or is JSON but not an object</span>
+<span class="sd">            or a boolean.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">raw_schema</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">raw_schema</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">raw_schema</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">raw_schema</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The function arguments schema is not valid JSON: </span><span class="si">{</span><span class="n">error</span><span class="o">.</span><span class="n">msg</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span>
+
+    <span class="k">if</span> <span class="n">raw_schema</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">raw_schema</span> <span class="o">==</span> <span class="p">{}:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">raw_schema</span><span class="p">,</span> <span class="p">(</span><span class="nb">dict</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)):</span>
+        <span class="k">return</span> <span class="n">raw_schema</span>
+    <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
+        <span class="s2">&quot;A function arguments schema must be an object or a boolean, &quot;</span>
+        <span class="sa">f</span><span class="s2">&quot;not </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">raw_schema</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">raw_schema</span><span class="si">!r}</span><span class="s2">&quot;</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_decode_fields</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">field_names</span><span class="p">:</span> <span class="nb">set</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Keep only known dataclass fields and decode the ones the gateway sends as text.&quot;&quot;&quot;</span>
     <span class="n">decoded</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">field_names</span><span class="p">}</span>
     <span class="k">if</span> <span class="s2">&quot;arguments_schema&quot;</span> <span class="ow">in</span> <span class="n">decoded</span><span class="p">:</span>
-        <span class="n">raw_schema</span> <span class="o">=</span> <span class="n">decoded</span><span class="p">[</span><span class="s2">&quot;arguments_schema&quot;</span><span class="p">]</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">raw_schema</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-            <span class="n">raw_schema</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">raw_schema</span><span class="p">)</span> <span class="k">if</span> <span class="n">raw_schema</span> <span class="k">else</span> <span class="kc">None</span>
-        <span class="n">decoded</span><span class="p">[</span><span class="s2">&quot;arguments_schema&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">raw_schema</span> <span class="ow">or</span> <span class="kc">None</span>
+        <span class="n">decoded</span><span class="p">[</span><span class="s2">&quot;arguments_schema&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_decode_arguments_schema</span><span class="p">(</span><span class="n">decoded</span><span class="p">[</span><span class="s2">&quot;arguments_schema&quot;</span><span class="p">])</span>
     <span class="k">return</span> <span class="n">decoded</span>
 
 
@@ -383,7 +412,10 @@
 <span class="sd">        working_dir: directory where entrypoint file is located (max size 50MB)</span>
 <span class="sd">        description: description of a program</span>
 <span class="sd">        version: version of a program</span>
-<span class="sd">        arguments_schema: JSON Schema dict describing valid arguments for this function</span>
+<span class="sd">        arguments_schema: JSON Schema describing valid arguments for this function. Normally an</span>
+<span class="sd">            object; ``True`` and ``False`` are also valid schemas, accepting and rejecting every</span>
+<span class="sd">            argument respectively. ``None`` means the function does not declare one, and setting</span>
+<span class="sd">            it to ``{}`` on an upload removes the schema an earlier upload stored.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">GENERIC</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">GenericType</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;GENERIC&quot;</span>
@@ -402,7 +434,7 @@
     <span class="n">raw_data</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">image</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">runner</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;ray&quot;</span>
-    <span class="n">arguments_schema</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">arguments_schema</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="nb">bool</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="nb">type</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">GenericType</span><span class="p">,</span> <span class="n">ApplicationType</span><span class="p">,</span> <span class="n">CircuitType</span><span class="p">]</span> <span class="o">=</span> <span class="n">GENERIC</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
