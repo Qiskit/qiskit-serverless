@@ -6,8 +6,11 @@ from unittest.mock import MagicMock
 
 from core.models import Job, Program
 from api.domain.authentication.channel import Channel
+from rest_framework.exceptions import ValidationError
+
 from api.utils import (
     build_env_variables,
+    parse_title_and_provider,
     remove_duplicates_from_list,
 )
 from core.utils import (
@@ -335,3 +338,24 @@ class TestUtils:
         list_with_duplicates = ["value_two", "value_one", "value_two"]
         test_list = ["value_two", "value_one"]
         assert test_list == remove_duplicates_from_list(list_with_duplicates)
+
+
+class TestParseTitleAndProvider:
+    """The single implementation of the 'provider/title' convention, shared by every endpoint."""
+
+    def test_splits_provider_out_of_the_title(self):
+        assert parse_title_and_provider("acme/my-function", None) == ("my-function", "acme")
+
+    def test_keeps_a_bare_title_without_provider(self):
+        assert parse_title_and_provider("my-function", None) == ("my-function", None)
+
+    def test_takes_provider_from_its_own_field(self):
+        assert parse_title_and_provider("my-function", "acme") == ("my-function", "acme")
+
+    def test_rejects_provider_given_twice(self):
+        with pytest.raises(ValidationError):
+            parse_title_and_provider("acme/my-function", "acme")
+
+    def test_rejects_more_than_one_slash(self):
+        with pytest.raises(ValidationError):
+            parse_title_and_provider("acme/team/my-function", None)

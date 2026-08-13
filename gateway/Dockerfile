@@ -58,8 +58,8 @@ RUN python${PYTHON_VERSION} -m ensurepip --upgrade && \
 
 COPY --chown=1000:100 gateway .
 
-# Copy dynamic dependencies from Ray node image, used by GET /api/v1/dependencies-versions/
-COPY --chown=1000:100 ray-node/requirements-dynamic-dependencies.txt .
+# Copy dynamic dependencies (shared by ray-node and fleet-node), used by GET /api/v1/dependencies-versions/
+COPY --chown=1000:100 docker-images/requirements-dynamic-dependencies.txt .
 
 RUN mkdir /usr/src/app/static && chown 1000:100 /usr/src/app/static && \
     mkdir /usr/src/app/media && chown 1000:100 /usr/src/app/media
