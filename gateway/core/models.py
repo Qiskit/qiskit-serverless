@@ -15,6 +15,8 @@ from django_prometheus.models import ExportModelOperationsMixin
 from core.config_key import ConfigKey
 from core.domain.business_models import BusinessModel
 from core.model_managers.code_engine_projects import CodeEngineProjectQuerySet
+from core.model_managers.compute_profiles import ComputeProfilesQuerySet
+from core.model_managers.function_sizes import FunctionSizeQuerySet
 from core.model_managers.functions import FunctionsQuerySet
 from core.model_managers.job_events import JobEventQuerySet
 from core.model_managers.jobs import JobQuerySet
@@ -389,6 +391,8 @@ class ComputeProfiles(models.Model):
     gpu = models.CharField(max_length=64, null=True, blank=True, default=None)
     memory = models.CharField(max_length=64, null=True, blank=True, default=None)
 
+    objects: ComputeProfilesQuerySet = ComputeProfilesQuerySet.as_manager()
+
     class Meta:
         app_label = "api"
 
@@ -422,6 +426,8 @@ class FunctionSize(models.Model):
         related_name="function_sizes",
     )
 
+    objects: FunctionSizeQuerySet = FunctionSizeQuerySet.as_manager()
+
     class Meta:
         app_label = "api"
         constraints = [
@@ -430,6 +436,18 @@ class FunctionSize(models.Model):
                 name="unique_function_size",
             ),
         ]
+
+    def clean(self):
+        """All FunctionSize-specific validation.
+
+        Deliberately kept in one method so the whole policy can be removed at
+        once if sizes stop being per-function.
+
+        Normalizing the size to lowercase keeps ``"S"`` and ``"s"`` from
+        becoming two rows and dodging the ``unique_function_size`` constraint.
+        """
+        if self.function_size:
+            self.function_size = self.function_size.strip().lower()
 
     def __str__(self):
         return f"{self.function} ({self.function_size})"
