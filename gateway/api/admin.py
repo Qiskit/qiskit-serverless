@@ -11,7 +11,9 @@ from django.shortcuts import render, get_object_or_404
 from django.contrib.admin.views.main import PAGE_VAR
 from core.models import (
     CodeEngineProject,
+    ComputeProfiles,
     Config,
+    FunctionSize,
     GroupMetadata,
     JobConfig,
     JobEvent,
@@ -89,6 +91,39 @@ class ProviderAdmin(admin.ModelAdmin):
     filter_horizontal = ["admin_groups"]
 
 
+@admin.register(ComputeProfiles)
+class ComputeProfilesAdmin(admin.ModelAdmin):
+    """ComputeProfilesAdmin."""
+
+    # search_fields is required for FunctionSize's autocomplete on compute_profile_fk
+    search_fields = ["compute_profile_id", "name"]
+    list_display = ["compute_profile_id", "name", "cpu", "gpu", "memory", "updated"]
+    ordering = ["compute_profile_id"]
+    readonly_fields = ["created", "updated"]
+
+
+@admin.register(FunctionSize)
+class FunctionSizeAdmin(admin.ModelAdmin):
+    """FunctionSizeAdmin."""
+
+    list_display = ["function", "function_size", "compute_profile_fk", "updated"]
+    list_filter = ["function_size"]
+    search_fields = ["function__title", "function_size", "compute_profile_fk__compute_profile_id"]
+    autocomplete_fields = ["function", "compute_profile_fk"]
+    list_select_related = ["function", "compute_profile_fk"]
+    readonly_fields = ["created", "updated"]
+
+
+class FunctionSizeInline(admin.TabularInline):
+    """FunctionSizeInline for the Program admin view."""
+
+    model = FunctionSize
+    extra = 0
+    fields = ["function_size", "compute_profile_fk"]
+    autocomplete_fields = ["compute_profile_fk"]
+    verbose_name_plural = "Function Sizes"
+
+
 @admin.register(Program)
 class ProgramAdmin(admin.ModelAdmin):
     """ProgramAdmin."""
@@ -97,6 +132,7 @@ class ProgramAdmin(admin.ModelAdmin):
     list_filter = ["provider", "type", "runner", "disabled"]
     filter_horizontal = ["instances", "trial_instances"]
     autocomplete_fields = ["author", "provider", "code_engine_project"]
+    inlines = [FunctionSizeInline]
     change_form_template = "program/change_form.html"
     fieldsets = [
         (
@@ -272,7 +308,7 @@ class JobAdmin(admin.ModelAdmin):
     list_select_related = ["author", "program", "program__provider"]
     ordering = ["-created"]
     inlines = []
-    autocomplete_fields = ["author", "program", "compute_resource", "config"]
+    autocomplete_fields = ["author", "program", "compute_resource", "config", "compute_profile_fk"]
     change_form_template = "admin/api/job/change_form.html"
     fieldsets = [
         (
@@ -299,6 +335,7 @@ class JobAdmin(admin.ModelAdmin):
                 "fields": [
                     "fleet_id",
                     "compute_profile",
+                    "compute_profile_fk",
                     "ce_project_name",
                     "ce_region",
                     "code_engine_project",
