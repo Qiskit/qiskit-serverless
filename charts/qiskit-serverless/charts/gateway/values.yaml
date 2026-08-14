@@ -69,6 +69,8 @@ application:
   w3idSso:
     enabled: false
     baseUrl: "https://test.login.w3.ibm.com"
+  ibmCloudFidApiKey:
+    enabled: false
 
 tracing:
   enabled: false
@@ -113,6 +115,10 @@ secrets:
     secretRef: ""
     secretStoreName: qiskit-serverless
   kafka:
+    name: ""
+    secretRef: ""
+    secretStoreName: qiskit-serverless
+  ibmCloudFidApiKey:
     name: ""
     secretRef: ""
     secretStoreName: qiskit-serverless
