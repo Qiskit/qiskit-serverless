@@ -361,7 +361,7 @@ class CodeEngineProject(models.Model):
         return f"{self.project_name} ({self.region})"
 
 
-class ComputeProfiles(models.Model):
+class ComputeProfile(models.Model):
     """Compute profile model.
 
     Maps a Code Engine compute profile to a specific CPU/GPU/memory allocation
@@ -373,27 +373,26 @@ class ComputeProfiles(models.Model):
     compute_profile_id = models.CharField(
         max_length=255,
         primary_key=True,
-        help_text="Code Engine compute profile identifier (e.g., gx3d-24x120x1a100p)",
+        help_text="Code Engine compute profile identifier (e.g., 24x120x1l40)",
     )
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, null=True)
 
     name = models.CharField(
         max_length=255,
-        null=True,
         blank=True,
         default=None,
         help_text="Human-readable display name / tag for the profile",
     )
-    cpu = models.CharField(max_length=64, null=True, blank=True, default=None)
+    cpu = models.CharField(max_length=64, blank=True, default=None)
     gpu = models.CharField(max_length=64, null=True, blank=True, default=None)
-    memory = models.CharField(max_length=64, null=True, blank=True, default=None)
+    memory = models.CharField(max_length=64, blank=True, default=None)
 
     class Meta:
         app_label = "api"
 
     def __str__(self):
-        return self.name or self.compute_profile_id
+        return self.compute_profile_id
 
 
 class FunctionSize(models.Model):
@@ -414,11 +413,9 @@ class FunctionSize(models.Model):
         related_name="function_sizes",
     )
     function_size = models.CharField(max_length=64)
-    compute_profile_fk = models.ForeignKey(
-        to=ComputeProfiles,
+    compute_profile = models.ForeignKey(
+        to=ComputeProfile,
         on_delete=models.PROTECT,
-        null=True,
-        blank=True,
         related_name="function_sizes",
     )
 
@@ -539,8 +536,8 @@ class Job(models.Model):
     )
     program = models.ForeignKey(to=Program, on_delete=models.SET_NULL, null=True)
     compute_profile_fk = models.ForeignKey(
-        to=ComputeProfiles,
-        on_delete=models.SET_NULL,
+        to=ComputeProfile,
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="jobs",
