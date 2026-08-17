@@ -47,6 +47,7 @@ application:
     maxGpuResources: 1
     keepClusterOnComplete: False
     programTimeoutHours: 24
+    argumentsSchemaMemoryLimitMb: 128
   qiskitRuntime:
     url: "https://cloud.ibm.com"
   runtimeApi:
