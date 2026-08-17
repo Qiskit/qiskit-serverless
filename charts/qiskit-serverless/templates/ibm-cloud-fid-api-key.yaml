@@ -1,0 +1,19 @@
+{{- if .Values.gateway.application.ibmCloudFidApiKey.enabled -}}
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ .Values.gateway.secrets.ibmCloudFidApiKey.name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  data:
+  - secretKey: payload
+    remoteRef:
+      key: {{ .Values.gateway.secrets.ibmCloudFidApiKey.secretRef }}
+  secretStoreRef:
+    kind: SecretStore
+    name: {{ .Values.gateway.secrets.ibmCloudFidApiKey.secretStoreName }}
+  target:
+    creationPolicy: Owner
+    name: {{ .Values.gateway.secrets.ibmCloudFidApiKey.name }}
+{{- end -}}

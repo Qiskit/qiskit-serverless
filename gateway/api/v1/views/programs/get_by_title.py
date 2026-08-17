@@ -76,6 +76,11 @@ def get_by_title(request: Request, title: str) -> Response:
     """Retrieve a single Qiskit Function by title."""
     user = cast(AbstractUser, request.user)
     accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
+    # Unlike the endpoints that take the title in the body, the "provider/title" form cannot arrive
+    # here: the route is <str:title>, whose converter is "[^/]+", and a percent-encoded slash is
+    # decoded before routing, so either spelling 404s before reaching this view. The provider always
+    # comes from the query parameter. The shared helper still handles both, which is what the other
+    # callers need, and it keeps the error identical if the route ever starts allowing a slash.
     function_title, provider_name = parse_title_and_provider(title, request.query_params.get("provider"))
     logger.info(
         "[programs-get-by-title] user_id=%s program=%s provider=%s accessible_functions=%s",

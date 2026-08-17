@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 import pytest
 from unittest.mock import MagicMock, patch
 
+from core.domain.business_models import BusinessModel
 from core.ibm_cloud.event_streams.kafka_event_streams_client import KafkaEventStreamsClient
 
 _CLIENT_MOD = "core.ibm_cloud.event_streams.kafka_event_streams_client"
@@ -30,11 +31,13 @@ def _make_job(
     job_id=None,
     instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/abc:def::",
     running_started_at=None,
+    business_model=BusinessModel.SUBSIDIZED,
 ):
     job = MagicMock()
     job.id = job_id or uuid_module.uuid4()
     job.instance_crn = instance_crn
     job.running_started_at = running_started_at or datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    job.business_model = business_model
     return job
 
 
@@ -58,6 +61,8 @@ class TestKafkaEventStreamsClient:
                 "sasl.mechanisms": "PLAIN",
                 "sasl.username": "token",
                 "sasl.password": "my-key",
+                "enable.idempotence": True,
+                "acks": "all",
             }
         )
 
@@ -262,6 +267,66 @@ class TestKafkaEventStreamsClient:
             "resource_id": str(job.id),
             "job_started": True,
             "job_completed": True,
+            "business_model": "licensed",
         }
         assert call_kwargs["key"] == str(job.id).encode("utf-8")
         mock_producer.flush.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "business_model,expected",
+        [
+            (BusinessModel.SUBSIDIZED, "licensed"),
+            (BusinessModel.TRIAL, "trial"),
+            (BusinessModel.CONSUMPTION, "consumption"),
+        ],
+    )
+    def test_emit_license_fee_maps_business_model(self, business_model, expected):
+        job = _make_job(business_model=business_model)
+        job.program = MagicMock()
+        job.program.provider.name = "ibm"
+        job.program.title = "test-program"
+
+        with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
+            with patch(f"{_CLIENT_MOD}.uuid"):
+                with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
+                    with patch.dict(
+                        os.environ,
+                        {
+                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                            "EVENT_STREAMS_API_KEY": "k",
+                            "ENVIRONMENT": "production",
+                        },
+                    ):
+                        mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 1, tzinfo=timezone.utc)
+
+                        client = KafkaEventStreamsClient()
+                        mock_producer = mock_producer_cls.return_value
+                        mock_producer.flush.return_value = 0
+                        client.emit_license_fee(job)
+
+        published = json.loads(mock_producer.produce.call_args[1]["value"])
+        assert published["data"]["business_model"] == expected
+
+    def test_business_model_absent_from_non_license_events(self):
+        job = _make_job()
+
+        with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
+            with patch(f"{_CLIENT_MOD}.uuid"):
+                with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
+                    with patch.dict(
+                        os.environ,
+                        {
+                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                            "EVENT_STREAMS_API_KEY": "k",
+                            "ENVIRONMENT": "production",
+                        },
+                    ):
+                        mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 1, tzinfo=timezone.utc)
+
+                        client = KafkaEventStreamsClient()
+                        mock_producer = mock_producer_cls.return_value
+                        mock_producer.flush.return_value = 0
+                        client.emit_job_started(job, "classical_time")
+
+        published = json.loads(mock_producer.produce.call_args[1]["value"])
+        assert "business_model" not in published["data"]

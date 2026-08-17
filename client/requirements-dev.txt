@@ -1,4 +1,4 @@
-coverage>=7.15.2
+coverage>=7.15.4
 pylint>=4.0.6
 nbqa>=1.9.1
 treon>=0.1.4
@@ -18,4 +18,4 @@ requests-mock>=1.12.1
 testcontainers>=4.15.0
 tox>=4.58.0
 pre-commit>=4.6.1
-setuptools>=83.0.0
+setuptools>=84.0.0
