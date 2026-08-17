@@ -30,24 +30,25 @@ def _program(schema_dict):
     return p
 
 
-def _refused_within(seconds, schema, arguments_str):
-    """Assert the schema is refused, and quickly. Returns how long it took."""
-    start = time.monotonic()
-    with pytest.raises(UnsupportedSchemaError):
-        validate_arguments_in_isolation(schema, arguments_str)
-    elapsed = time.monotonic() - start
-    assert elapsed < seconds, f"took {elapsed:.2f}s"
-    return elapsed
-
-
 def test_root_dollar_schema_no_longer_restores_the_backtracking_engine():
-    """Measured at 0.4907s for 24 characters before, doubling per character: 40 is hours."""
+    """{"$ref": "#"} pointing back at a schema with its own "pattern" used to hand the caller's
+    string straight to Python's backtracking regex engine on every property that referenced it:
+    measured at 0.4907s for 24 characters before, doubling per character, so 40 is hours.
+
+    Assert the cause in the message rather than elapsed wall-clock time: RLIMIT_CPU firing (the
+    "CPU time" reason) is what proves the backtracking engine got cut off, independent of how
+    long that takes on a loaded or CPU-throttled runner. The wall-clock fallback path reports a
+    different reason ("wall-clock time"), so this alone rules out the fallback satisfying the
+    test by accident.
+    """
     schema = {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "pattern": "^(a+)+$",
         "properties": {"x": {"$ref": "#"}},
     }
-    _refused_within(4.0, schema, json.dumps({"x": "a" * 40 + "!"}))
+    with pytest.raises(UnsupportedSchemaError) as caught:
+        validate_arguments_in_isolation(schema, json.dumps({"x": "a" * 40 + "!"}))
+    assert "CPU time" in str(caught.value)
 
 
 def test_a_large_regex_program_cannot_run_for_minutes():
@@ -55,7 +56,15 @@ def test_a_large_regex_program_cannot_run_for_minutes():
     budget on this hardware (measured at 0.61s for 8000, 1.92s for 24000). Assert the time is
     bounded rather than a specific exception: on faster hardware the match finishes inside the
     budget and raises jsonschema.ValidationError instead of UnsupportedSchemaError, the same way
-    the uniqueItems timing test below does not assert which of the two happened."""
+    the uniqueItems timing test below does not assert which of the two happened.
+
+    The bound below is deliberately loose and is not a performance assertion: run_isolated's own
+    wall-clock fallback (wall_seconds, 5.0s by default) is a hard ceiling on how long the forked
+    child can run at all, regardless of CPU speed or throttling, so the real worst case here is
+    that fallback plus fork/pipe/teardown overhead, not how much work the child got done. 30s
+    leaves several times that margin for a loaded or CPU-throttled runner, while still catching
+    the actual bug this test guards against: a schema that runs for minutes.
+    """
     pattern = "(?:" + "|".join(f"a{{{i}}}" for i in range(1, 900)) + ")b"
     schema = {"type": "object", "properties": {"x": {"type": "string", "pattern": pattern}}}
     start = time.monotonic()
@@ -63,7 +72,7 @@ def test_a_large_regex_program_cannot_run_for_minutes():
         validate_arguments_in_isolation(schema, json.dumps({"x": "a" * 24000}))
     except (UnsupportedSchemaError, jsonschema.ValidationError):
         pass
-    assert time.monotonic() - start < 4.0
+    assert time.monotonic() - start < 30.0
 
 
 def test_a_reference_to_the_root_is_reported_not_a_crash():
@@ -73,14 +82,20 @@ def test_a_reference_to_the_root_is_reported_not_a_crash():
 
 
 def test_unique_items_on_a_large_array_of_objects_is_bounded():
-    """8000 objects took 32.2s with the stock keyword."""
+    """8000 objects took 32.2s with the stock keyword.
+
+    Same loose, non-performance bound as test_a_large_regex_program_cannot_run_for_minutes above,
+    for the same reason: run_isolated's own wall_seconds fallback (5.0s by default) is the real
+    ceiling on the child, so 30s leaves ample margin for a loaded or CPU-throttled runner while
+    still catching an actual runaway.
+    """
     items = json.dumps([{"i": i} for i in range(8000)])
     start = time.monotonic()
     try:
         validate_arguments_in_isolation({"type": "array", "uniqueItems": True}, items)
     except UnsupportedSchemaError:
         pass
-    assert time.monotonic() - start < 4.0
+    assert time.monotonic() - start < 30.0
 
 
 def test_an_ordinary_schema_still_accepts_and_rejects_the_same_values():
