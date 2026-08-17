@@ -133,13 +133,22 @@ unblocked by a value change rather than a code deploy, and clamped more tightly 
 the whole bound on the work one request can ask for, and no endpoint is rate limited. Every legitimate schema measured
 validates in milliseconds, so a deployment should not need to raise it.
 
-Beyond `RLIMIT_CPU` there is a wall clock deadline, for a child that spends no CPU and still does not finish. It is not
-configured separately: `run_isolated` derives it as the CPU budget plus `_WALL_CLOCK_SLACK_SECONDS` (4.0), which keeps
-the default at the 5.0 seconds measured against a 1-second budget and moves with the budget when it is raised. Two
-things pin that ordering. The deadline has to sit above `RLIMIT_CPU`'s hard cap, which is the budget plus one second,
-or a child killed for spending its CPU would be reported as a wall clock timeout. And it has to leave room beyond
-that, because CPU seconds are not wall clock seconds: on a throttled or contended machine, work that spends one second
-of CPU can take several seconds of wall clock.
+Alongside `RLIMIT_CPU` there is a wall clock deadline, which is not configured separately: `run_isolated` derives it by
+multiplying the CPU budget by `_WALL_CLOCK_SLOWDOWN_FACTOR` (5.0), so the default budget of one second keeps the 5.0
+second deadline that was measured, and the highest configurable budget gets 25. The two are independent bounds rather
+than a limit and its fallback. `RLIMIT_CPU` bounds how much CPU one request consumes; the deadline bounds how long it
+can hold a worker while consuming it. Which of them fires depends on how much CPU the child actually gets, because a
+child on a fraction of a core spends its budget divided by that fraction in wall time. So the deadline's real parameter
+is a tolerated slowdown rather than a number of extra seconds, and adding a constant would tolerate less and less as the
+budget grew: four seconds on top of one tolerates a 5x slowdown, four on top of five only 1.8x, which would leave a
+schema legitimately needing 3 CPU seconds refused at a budget of 5 and make the highest budget the least usable one.
+
+Past a 5x slowdown the deadline fires first and reports itself, which is accurate rather than a misreport, and is the
+outcome to prefer: measured on a 16 core laptop against 40 CPU hogs, a child got 0.083 of a core and needed 60 wall
+seconds to spend 5 CPU seconds, and holding a worker for a minute is worse than refusing the request. In the deployed
+pod (3 CPU, `gunicorn --workers=2 --threads=1`) a child gets far more than a fifth of a core, so there the CPU budget
+is the bound that fires. Either way, raising the budget is paid for in worker occupancy: at the clamp maximum one child
+can hold a worker for 25 wall seconds.
 
 Inside the child, `jsonschema` runs unmodified, with one exception: `uniqueItems` is still replaced, by a single-pass
 hash of a canonical form of each element, rather than being left for the isolation alone to bound. `jsonschema`
@@ -468,16 +477,19 @@ Because the gateway returns the schema as text, `from_json` decodes it back into
 
 ## Known limits
 
-- **The bound is per request, not per rate.** `run_isolated` caps what a single request can cost, at most one CPU
-  second and a bounded amount of memory, but says nothing about how many requests a caller can send. A schema such as
-  `{"pattern": "^(a+)+$"}`, at 41 bytes, still costs close to a full second of CPU and a worker slot on every request
-  that reaches it, whether that request comes from `/run`, `/validate_arguments/`, or upload. None of those requests
+- **The bound is per request, not per rate.** `run_isolated` caps what a single request can cost, at the configured CPU
+  budget and a bounded amount of memory, but says nothing about how many requests a caller can send. A schema such as
+  `{"pattern": "^(a+)+$"}`, at 41 bytes, still costs close to the whole budget and a worker slot on every request
+  that reaches it, whether that request comes from `/run`, `/validate_arguments/`, or upload. At the default budget
+  that is about one CPU second per request; a deployment that raises `ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS` raises this
+  cost with it, to at most 5 CPU seconds and 25 seconds of wall clock at the clamp maximum, which is the reason the
+  clamp is there. None of those requests
   creates a job, so none of them is caught by a job quota either: `LIMITS_ACTIVE_JOBS_PER_USER` and
   `LIMITS_JOBS_PER_USER` (`gateway/main/settings.py`) count jobs, not validation attempts.
 - **The gateway does not throttle any endpoint**, this one included. Nothing limits how often a given caller may send
   such a request. What this feature changes is the cost of one request, not the number of requests a caller can make:
   before it, a single pathological schema or argument could occupy a worker for hours; after it, the same request
-  costs about a second. That is a large reduction in exposure, not an elimination of it, since nothing stops the same
+  costs about a second at the default budget. That is a large reduction in exposure, not an elimination of it, since nothing stops the same
   caller from repeating the request. Per-endpoint throttling would close that gap, but is deliberately out of scope
   here: it is a concern for the API as a whole, not something specific to schema validation, and is not implemented
   by this feature.

@@ -1,6 +1,5 @@
 import os
 import signal
-import time
 
 import pytest
 
@@ -24,25 +23,35 @@ def test_cpu_limit_kills_work_that_will_not_stop():
     assert "CPU time" in caught.value.reason
 
 
-def test_the_wall_clock_deadline_follows_the_cpu_budget(monkeypatch):
-    """The CPU budget is configurable, and the deadline has to move with it: RLIMIT_CPU kills at the
-    budget and, for a child ignoring SIGXCPU, one second after it, so a deadline that did not scale
-    would fire first at a raised budget and report a wall-clock timeout for a CPU overrun.
+def test_the_wall_clock_deadline_scales_with_the_cpu_budget(monkeypatch):
+    """The CPU budget is configurable, and the deadline has to keep the same tolerance to a slowed
+    down child at every budget, not just at the default one. A child getting a fraction f of a core
+    spends its budget in budget/f wall seconds, so a deadline that added a constant would tolerate
+    less and less as the budget grew: four seconds on top of one tolerates a 5x slowdown, four on top
+    of five only 1.8x, which would leave a schema legitimately needing 3 CPU seconds refused at a
+    budget of 5, the case raising the budget exists to allow.
 
-    The spy runs in the parent, which is the only side that calls _collect, so unlike an earlier
-    test in this feature it does observe the real call rather than a copy lost across the fork.
+    Asserted as the two properties that matter, not as the literal number: the deadline stays above
+    RLIMIT_CPU's hard cap (the budget plus one second), and it still tolerates the same slowdown at
+    the highest budget arguments_schema allows as it does at the default one.
+
+    The spy runs in the parent, which is the only side that calls _collect, so unlike an earlier test
+    in this feature it does observe the real call rather than a copy lost across the fork.
     """
     real_collect = isolated._collect  # pylint: disable=protected-access
     seen = {}
 
     def spy(pid, read_fd, wall_seconds, cpu_seconds):
-        seen["wall_seconds"] = wall_seconds
+        seen[cpu_seconds] = wall_seconds
         return real_collect(pid, read_fd, wall_seconds, cpu_seconds)
 
     monkeypatch.setattr(isolated, "_collect", spy)
 
-    assert run_isolated(lambda: {"ok": True}, cpu_seconds=5) == {"ok": True}
-    assert seen["wall_seconds"] > 5 + 1  # above RLIMIT_CPU's hard cap, which is the budget plus one
+    for budget in (1, 5):
+        assert run_isolated(lambda: {"ok": True}, cpu_seconds=budget) == {"ok": True}
+        assert seen[budget] > budget + 1
+
+    assert seen[5] / 5 == seen[1] / 1
 
 
 def test_work_returning_something_unencodable_is_reported_not_hung():
@@ -118,22 +127,29 @@ def test_an_external_kill_is_not_reported_as_a_cpu_overrun():
 @pytest.mark.skipif(
     not os.path.exists("/proc/self/status"),
     reason="RLIMIT_CPU's hard limit is not enforced on macOS once the process ignores SIGXCPU: "
-    "verified by running this exact child under both. On Linux it is killed with SIGKILL at "
-    "2.00s of CPU time, matching the hard limit; on macOS it ran the full 5s loop to completion, "
-    "used ~5s of CPU, and was never signalled at all.",
+    "verified by running this child under both. On Linux it is killed with SIGKILL at 2.00s of CPU "
+    "time, matching the hard limit; on macOS the same child was never signalled at all and kept "
+    "running, so here it would stop only at the wall-clock deadline and report that instead.",
 )
 def test_cpu_hard_limit_kill_is_still_reported_as_a_cpu_overrun():
     """When a child ignores SIGXCPU, the RLIMIT_CPU hard limit kills it with SIGKILL a second
-    later, having actually spent the CPU budget: that SIGKILL must still read as a CPU overrun."""
+    later, having actually spent the CPU budget: that SIGKILL must still read as a CPU overrun.
+
+    The child loops until it is killed, rather than for a fixed stretch of wall clock, and the
+    deadline is passed in generously rather than derived. Both remove a race this test used to have
+    with the wall clock: the hard cap needs two CPU seconds, which on a quarter of a core is eight
+    seconds of wall clock, so a child looping for five wall seconds under that throttle was never
+    hard-capped at all and the deadline reported the failure instead. 60 seconds leaves the hard cap
+    30x the room it needs, while still ending the test rather than hanging if it never fires.
+    """
 
     def work():
         signal.signal(signal.SIGXCPU, signal.SIG_IGN)
-        end = time.monotonic() + 5
-        while time.monotonic() < end:
+        while True:
             pass
 
     with pytest.raises(IsolationError) as caught:
-        run_isolated(work, cpu_seconds=1, wall_seconds=5.0)
+        run_isolated(work, cpu_seconds=1, wall_seconds=60.0)
     assert "CPU time" in caught.value.reason
 
 

@@ -29,15 +29,27 @@ from typing import Any
 
 _READ_CHUNK = 1 << 16
 
-# Wall-clock slack added on top of the CPU budget when no deadline is passed in. Two things
-# constrain this figure. It has to sit above the CPU limit's hard cap, which is the budget plus one
-# second, so that a child killed for spending its CPU is reported as a CPU overrun and not as a
-# wall-clock timeout. And it has to leave room beyond that, because CPU seconds are not wall-clock
-# seconds: on a throttled or contended machine, work that spends one second of CPU can take several
-# seconds of wall clock, and four tests in this feature failed exactly that way under
-# "docker run --cpus=0.25". Four seconds keeps the default deadline at the 5.0 measured against a
-# 1-second budget, and moves with the budget when it is raised.
-_WALL_CLOCK_SLACK_SECONDS = 4.0
+# The wall-clock deadline is derived from the CPU budget when none is passed in, by multiplying it
+# rather than by adding a constant. It is not a fallback for RLIMIT_CPU but a second, independent
+# bound: RLIMIT_CPU bounds how much CPU a child consumes, the deadline bounds how long it can hold
+# the caller's worker while consuming it. Which of the two fires depends on how much CPU the child
+# actually gets, since a child on a fraction f of a core spends its budget in budget/f wall seconds.
+# The deadline's real parameter is therefore a tolerated slowdown, not a number of extra seconds, and
+# adding a constant tolerates less and less as the budget grows: four seconds on top of one tolerates
+# a 5x slowdown, four on top of five only 1.8x. That would make the largest configurable budget the
+# least usable one, so a schema legitimately needing 3 CPU seconds would still be refused at a budget
+# of 5, which is exactly what raising the budget is supposed to allow. Multiplying tolerates the same
+# 5x slowdown at every budget and keeps the default deadline at the 5.0 seconds measured against the
+# default 1-second budget.
+#
+# Past that slowdown the deadline fires first and says so, which is accurate rather than a misreport,
+# and is the outcome to prefer: a child that needs 60 wall seconds to spend 5 CPU seconds (measured
+# on a 16 core laptop against 40 CPU hogs, where it got 0.083 of a core) is holding a worker for a
+# minute, and refusing the request beats waiting for it. In the deployed pod (3 CPU, gunicorn
+# --workers=2 --threads=1) a child gets far more than a fifth of a core, so there the CPU budget is
+# the bound that fires. Raising the budget is still paid for in worker occupancy either way: at the
+# highest budget arguments_schema allows, one child can hold a worker for 25 wall seconds.
+_WALL_CLOCK_SLOWDOWN_FACTOR = 5.0
 
 
 class IsolationError(Exception):
@@ -83,15 +95,15 @@ def run_isolated(
 ) -> Any:
     """Run ``work`` in a forked child and return its JSON-serializable result.
 
-    ``wall_seconds`` defaults to the CPU budget plus ``_WALL_CLOCK_SLACK_SECONDS``, so that raising
-    the budget does not leave the deadline firing first and reporting the wrong reason.
+    ``wall_seconds`` defaults to the CPU budget times ``_WALL_CLOCK_SLOWDOWN_FACTOR``, so that a
+    raised budget is not cut short by a deadline that failed to scale with it.
 
     Raises:
         IsolationError: if the fork itself could not be created, the child exceeded a limit, died,
             wrote nothing, its result could not be encoded as JSON, or ``work`` raised.
     """
     if wall_seconds is None:
-        wall_seconds = cpu_seconds + _WALL_CLOCK_SLACK_SECONDS
+        wall_seconds = cpu_seconds * _WALL_CLOCK_SLOWDOWN_FACTOR
     read_fd, write_fd = os.pipe()
     try:
         pid = os.fork()

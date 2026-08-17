@@ -59,8 +59,9 @@ def test_a_large_regex_program_cannot_run_for_minutes():
     the uniqueItems timing test below does not assert which of the two happened.
 
     The bound below is deliberately loose and is not a performance assertion: run_isolated's own
-    wall-clock fallback (wall_seconds, 5.0s by default) is a hard ceiling on how long the forked
-    child can run at all, regardless of CPU speed or throttling, so the real worst case here is
+    wall-clock fallback (wall_seconds, five times the CPU budget, so 5.0s at the default budget of
+    one second) is a hard ceiling on how long the forked child can run at all, regardless of CPU
+    speed or throttling, so the real worst case here is
     that fallback plus fork/pipe/teardown overhead, not how much work the child got done. 30s
     leaves several times that margin for a loaded or CPU-throttled runner, while still catching
     the actual bug this test guards against: a schema that runs for minutes.
@@ -85,9 +86,9 @@ def test_unique_items_on_a_large_array_of_objects_is_bounded():
     """8000 objects took 32.2s with the stock keyword.
 
     Same loose, non-performance bound as test_a_large_regex_program_cannot_run_for_minutes above,
-    for the same reason: run_isolated's own wall_seconds fallback (5.0s by default) is the real
-    ceiling on the child, so 30s leaves ample margin for a loaded or CPU-throttled runner while
-    still catching an actual runaway.
+    for the same reason: run_isolated's own wall_seconds fallback (five times the CPU budget, so
+    5.0s at the default budget) is the real ceiling on the child, so 30s leaves ample margin for a
+    loaded or CPU-throttled runner while still catching an actual runaway.
     """
     items = json.dumps([{"i": i} for i in range(8000)])
     start = time.monotonic()
@@ -602,12 +603,16 @@ def test_node_count_refuses_many_boolean_branches_under_length_limit():
     assert exceeds_max_nodes(schema) is True
 
 
-def test_the_configured_limits_reach_the_child(settings, monkeypatch):
-    """The point of reading these from settings is that a deployment can change them, so assert what
-    _answer_from_child actually hands to run_isolated. Dropping either argument would leave every
-    test above passing, since they all run at the defaults."""
-    settings.ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS = 3
-    settings.ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB = 200
+def test_the_configured_limits_reach_the_child_clamped(settings, monkeypatch):
+    """Both limits are read from settings so a deployment can tune them without a code deploy, and
+    both are clamped so that the same setting cannot weaken them past a measured bound: 10000 CPU
+    seconds is an unbounded request thread again, and 8 MB of memory would reject ordinary callers
+    rather than attackers.
+
+    Asserted on what _answer_from_child hands to run_isolated, with values outside the range in both
+    directions. Configured values inside the range would not prove anything here: with 3 and 200 this
+    test passed against raw settings reads with the clamp deleted from the production path.
+    """
     real_run_isolated = arguments_schema_module.run_isolated
     seen = {}
 
@@ -617,25 +622,15 @@ def test_the_configured_limits_reach_the_child(settings, monkeypatch):
 
     monkeypatch.setattr(arguments_schema_module, "run_isolated", spy)
 
-    validate_arguments_in_isolation({"type": "object"}, "{}")
-
-    assert seen == {"cpu_seconds": 3, "memory_mb": 200}
-
-
-def test_configured_limits_are_clamped_before_reaching_the_child(settings):
-    """Both limits are read from settings so a deployment can tune them without a code deploy, which
-    is also a way to weaken them by configuration. A value outside the safe range must be clamped
-    rather than used as given: 10000 CPU seconds is an unbounded request thread again, and 1 second
-    of CPU with 8 MB of memory would reject ordinary callers instead of attackers."""
     settings.ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS = 10000
     settings.ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB = 100000
-    assert arguments_schema_module._cpu_limit_seconds() == 5  # pylint: disable=protected-access
-    assert arguments_schema_module._memory_limit_mb() == 256  # pylint: disable=protected-access
+    validate_arguments_in_isolation({"type": "object"}, "{}")
+    assert seen == {"cpu_seconds": 5, "memory_mb": 256}
 
     settings.ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS = 0
     settings.ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB = 8
-    assert arguments_schema_module._cpu_limit_seconds() == 1  # pylint: disable=protected-access
-    assert arguments_schema_module._memory_limit_mb() == 64  # pylint: disable=protected-access
+    validate_arguments_in_isolation({"type": "object"}, "{}")
+    assert seen == {"cpu_seconds": 1, "memory_mb": 64}
 
 
 @pytest.mark.django_db
