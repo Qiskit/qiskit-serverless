@@ -7,6 +7,7 @@ from concurrency.fields import IntegerVersionField
 from django.contrib.auth.models import Group
 from django.conf import settings
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.db.models import F
@@ -161,11 +162,13 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
             "Applies only to the Ray runner; ignored by the Fleets runner."
         ),
     )
-    default_compute_profile = models.CharField(
-        max_length=255,
+    default_size = models.ForeignKey(
+        to="FunctionSize",
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        help_text="Default Code Engine compute profile for Fleets runner (e.g., gx3d-24x120x1a100p)",
+        related_name="default_for_functions",
+        help_text="Size used when a run request omits an explicit size. Must belong to this same function.",
     )
 
     instances = models.ManyToManyField(Group, blank=True, related_name="program_instances")
@@ -211,6 +214,16 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         if self.provider:
             return f"{self.provider.name}/{self.title}"
         return f"{self.title}"
+
+    def clean(self):
+        """Validate that ``default_size`` belongs to this function.
+
+        The rule spans two tables (``program.id`` vs ``function_size.function_id``),
+        so it cannot be expressed as a row-local database CHECK constraint.
+        """
+        super().clean()
+        if self.default_size_id and self.default_size.function_id != self.id:
+            raise ValidationError({"default_size": "default_size must be a FunctionSize belonging to this function."})
 
 
 class ProgramHistory(models.Model):
@@ -381,12 +394,18 @@ class ComputeProfile(models.Model):
     name = models.CharField(
         max_length=255,
         blank=True,
-        default=None,
-        help_text="Human-readable display name / tag for the profile",
+        default="",
+        help_text="Human-readable display name / tag for the profile (e.g., the size class label)",
     )
-    cpu = models.CharField(max_length=64, blank=True, default=None)
-    gpu = models.CharField(max_length=64, null=True, blank=True, default=None)
-    memory = models.CharField(max_length=64, blank=True, default=None)
+    cpu = models.CharField(max_length=64, help_text="Number of vCPUs (e.g., 24)")
+    gpu = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        default=None,
+        help_text="GPU allocation as count + model (e.g., 1l40s); null when the profile has no GPUs",
+    )
+    memory = models.CharField(max_length=64, help_text="Memory in GB (e.g., 120)")
 
     class Meta:
         app_label = "api"
