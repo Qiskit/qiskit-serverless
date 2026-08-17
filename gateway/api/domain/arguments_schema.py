@@ -361,6 +361,39 @@ def find_unresolvable_ref(schema: Any, root: Any = None) -> str | None:
     return None
 
 
+# Longest excerpt of the rejected value appended to a validation message. Kept well under
+# validate_arguments.MAX_MESSAGE_LENGTH so the reason built by _validation_message is never at
+# risk of being the part that a truncation further up the call stack cuts off.
+MAX_INSTANCE_EXCERPT_LENGTH = 200
+
+
+def _validation_message(exc: jsonschema.ValidationError) -> str:
+    """Build a rejection message from ``exc``'s own fields instead of using ``exc.message``.
+
+    jsonschema builds ``exc.message`` as ``f"{instance!r} <reason>"``: the rejected value first,
+    the reason ("is not of type 'integer'", "is a required property", ...) last. Truncating that
+    to a fixed length, as the caller of this function does for defence in depth, keeps whatever is
+    at the front and drops the rest, so a rejected value at or past that length, such as a 39 KB
+    base64 encoded circuit, came back with 500 characters of base64 and no reason at all.
+
+    ``exc.validator`` (the keyword that failed, e.g. "type") and ``exc.validator_value`` (what the
+    schema required for it, e.g. "integer") are ``exc``'s own fields and do not grow with the size
+    of the instance, so building the message from them keeps the reason present no matter how
+    large the rejected value is. This must run here, inside the child, while ``exc`` is still the
+    real ``jsonschema.ValidationError`` jsonschema raised: only ``message`` and ``path`` cross the
+    isolation boundary (see ``work()`` below), so by the time the caller in
+    ``validate_arguments.py`` sees a ``jsonschema.ValidationError``, it has been reconstructed from
+    just those two fields and ``validator``/``validator_value`` read back as "<unset>".
+
+    A separately bounded excerpt of the rejected value is appended after the reason, so there is
+    still a clue about what was sent.
+    """
+    excerpt = repr(exc.instance)
+    if len(excerpt) > MAX_INSTANCE_EXCERPT_LENGTH:
+        excerpt = f"{excerpt[:MAX_INSTANCE_EXCERPT_LENGTH]}... (value truncated)"
+    return f"'{exc.validator}' validation failed, schema requires {exc.validator_value!r}: rejected value {excerpt}"
+
+
 def validate_arguments_in_isolation(schema: Any, arguments_str: str) -> None:
     """Parse ``arguments_str`` and validate it against ``schema`` in a child with hard limits.
 
@@ -389,7 +422,7 @@ def validate_arguments_in_isolation(schema: Any, arguments_str: str) -> None:
             _validator(schema).validate(arguments)
             return {"valid": True}
         except jsonschema.ValidationError as exc:
-            return {"valid": False, "message": exc.message, "path": list(exc.path)}
+            return {"valid": False, "message": _validation_message(exc), "path": list(exc.path)}
         except MemoryError:
             # Left to the blanket handler below, this reads as {"unusable": "MemoryError: "}: an
             # empty message, because MemoryError carries no text of its own. Re-raising instead lets

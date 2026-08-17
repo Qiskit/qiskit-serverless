@@ -463,6 +463,24 @@ def test_error_message_does_not_echo_the_whole_payload():
     assert len(caught.value.message) < 1000
 
 
+def test_error_message_keeps_the_reason_for_a_large_rejected_value():
+    """The previous fix (test_error_message_does_not_echo_the_whole_payload above) only bounded
+    the message's length. jsonschema builds exc.message as f"{instance!r} <reason>", value first
+    and reason last, so truncating the front to stay under the bound kept 500 characters of the
+    rejected value and dropped the reason entirely: a 39 KB base64 encoded circuit came back with
+    no explanation of what was wrong with it. The message must contain the reason regardless of
+    how large the rejected value is, and still stay bounded.
+    """
+    schema = {"type": "object", "properties": {"blob": {"type": "integer"}}}
+    arguments = json.dumps({"blob": "x" * 50_000})
+
+    with pytest.raises(InvalidArgumentsException) as caught:
+        validate_arguments(_program(schema), arguments)
+
+    assert "integer" in caught.value.message
+    assert len(caught.value.message) < 1000
+
+
 def test_validation_error_path_does_not_echo_the_whole_property_name():
     """path carries data as caller-controlled as the message next to it, and used to go out
     untruncated: a 900 000 character property name produced a 28 character message next to a
