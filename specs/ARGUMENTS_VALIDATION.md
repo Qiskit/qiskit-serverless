@@ -451,3 +451,19 @@ Because the gateway returns the schema as text, `from_json` decodes it back into
   never reach. `uniqueItems` is the one keyword still replaced outright, not because isolation cannot bound it, but
   because paying the isolation's CPU budget just to be refused is a worse experience than a hash-based check that
   answers immediately.
+
+## Known limits
+
+- **The bound is per request, not per rate.** `run_isolated` caps what a single request can cost, at most one CPU
+  second and a bounded amount of memory, but says nothing about how many requests a caller can send. A schema such as
+  `{"pattern": "^(a+)+$"}`, at 41 bytes, still costs close to a full second of CPU and a worker slot on every request
+  that reaches it, whether that request comes from `/run`, `/validate_arguments/`, or upload. None of those requests
+  creates a job, so none of them is caught by a job quota either: `LIMITS_ACTIVE_JOBS_PER_USER` and
+  `LIMITS_JOBS_PER_USER` (`gateway/main/settings.py`) count jobs, not validation attempts.
+- **The gateway does not throttle any endpoint**, this one included. Nothing limits how often a given caller may send
+  such a request. What this feature changes is the cost of one request, not the number of requests a caller can make:
+  before it, a single pathological schema or argument could occupy a worker for hours; after it, the same request
+  costs about a second. That is a large reduction in exposure, not an elimination of it, since nothing stops the same
+  caller from repeating the request. Per-endpoint throttling would close that gap, but is deliberately out of scope
+  here: it is a concern for the API as a whole, not something specific to schema validation, and is not implemented
+  by this feature.
