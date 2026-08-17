@@ -45,12 +45,24 @@ the gateway would not be able to evaluate later. It checks, in this order:
 2. Inside a forked child (`check_uploaded_schema_in_isolation`, see [What a schema may
    contain](#what-a-schema-may-contain)): the value parses as JSON and is an object or a boolean; it does not nest
    deeper than `MAX_DOCUMENT_DEPTH` or contain more than `MAX_SCHEMA_NODES` subschemas; no reference points outside
-   the document, checking `$ref`, `$dynamicRef` and `$recursiveRef` (`find_external_ref`); and the document is a valid
-   JSON Schema for its own dialect, via `validator_for(schema).check_schema(schema)`.
+   the document, checking `$ref`, `$dynamicRef` and `$recursiveRef` (`find_external_ref`); every same-document
+   reference resolves to something that actually exists in the document (`find_unresolvable_ref`); the document is a
+   valid JSON Schema for its own dialect, via `validator_for(schema).check_schema(schema)`; and, last, the schema is
+   tried once against a trial instance, an empty object, discarding whether it matches and only watching for
+   anything other than the ordinary `ValidationError` that comparison can raise.
 
 The point of doing all of this at upload time is *who gets the error*. The person who can fix a broken schema is the
-one uploading it, so a schema that cannot be used is refused there, with a `400` naming the problem, instead of
-turning every later run of that function into a failure that the caller can do nothing about.
+one uploading it, so a schema the upload checks know how to catch is refused there, with a `400` naming the problem,
+instead of turning every later run of that function into a failure that the caller can do nothing about. It is not a
+promise that every unusable schema is caught this way: `check_schema` verifies the document is syntactically a valid
+JSON Schema, never that evaluating it terminates, and the trial instance is a single fixed shape, an empty object,
+so it only exercises the parts of the schema an empty object happens to reach (a broken reference at the schema's
+root, but not one describing a deeply nested test that requires other test data). `find_unresolvable_ref` closes the
+gap the trial instance leaves for a broken reference specifically, by walking the whole document instead of only
+what one instance touches, but no equivalent walk exists for every other way evaluation can go wrong. The upload
+checks are quality of service, catching the cases known to leave a function permanently unusable so the error reaches
+whoever can fix it; the isolation described below is the actual protection, and it bounds whatever the upload checks
+miss into a plain `400` at run time instead of an unbounded cost or a `500`.
 
 ### Re-upload preserves the schema
 
@@ -418,11 +430,18 @@ the stored `"{}"` default to `None` so `if function.arguments_schema:` behaves a
   vendor uploads is what they read back.
 - **A dedicated exception instead of DRF's `ValidationError`,** so the 400 response can keep the `path` to the offending
   field instead of collapsing to one flat message.
-- **A schema is refused at upload, not at run time.** The cost of evaluating a schema is a property of the schema, so
-  the check belongs where the author can still act on the error. `MAX_DOCUMENT_DEPTH` and `MAX_SCHEMA_NODES` are
-  rechecked at run time too, because a schema stored before either limit existed must not become a way around it;
-  `find_external_ref` and the metaschema check are not repeated, since a schema that already passed them at upload
-  cannot fail them later on its own.
+- **A schema is refused at upload when the gateway knows how, not at run time.** The cost of evaluating a schema is a
+  property of the schema, so the check belongs where the author can still act on the error, and upload does refuse
+  every case it knows about: not just a document that fails its own metaschema, but one that would recurse without
+  end (a trial validation against an empty instance) or reference something that is not there (`find_unresolvable_ref`
+  walking the whole document, since the trial instance alone only reaches what an empty object touches). What upload
+  does not do is guarantee completeness: those two checks catch the ways this has been seen to leave a function
+  permanently unusable, not every way a schema can be unusable, and nothing rechecks the schema on `/run` because
+  doing so would just repeat the identical bounded cost, not add coverage. `MAX_DOCUMENT_DEPTH` and `MAX_SCHEMA_NODES`
+  are the exception: they are rechecked at run time, because a schema stored before either limit existed must not
+  become a way around it. The upload checks are quality of service, so the error reaches whoever can fix it instead
+  of every caller; the isolation is what actually keeps a schema the upload checks did not catch from costing more
+  than a bounded amount, turning it into a plain `400` at run time instead of an unbounded cost or a `500`.
 - **Cost is bounded by isolation, not by refusing keywords.** A forked child with a CPU limit and an address space
   limit bounds every keyword uniformly, including ones whose cost lives in private helpers a validator subclass could
   never reach. `uniqueItems` is the one keyword still replaced outright, not because isolation cannot bound it, but

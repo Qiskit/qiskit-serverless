@@ -243,6 +243,54 @@ def test_an_external_reference_is_not_fetched():
         assert marker.read() == b""
 
 
+def test_check_uploaded_schema_rejects_self_referencing_root_schema():
+    """{"$ref": "#"} passes the metaschema check and then recurses forever on every future run:
+    the metaschema check only verifies the document is a valid JSON Schema, it never evaluates it.
+    The trial validation this module now runs at upload catches it there instead.
+    """
+    with pytest.raises(UnsupportedSchemaError, match="RecursionError"):
+        check_uploaded_schema_in_isolation(json.dumps({"$ref": "#"}))
+
+
+def test_check_uploaded_schema_rejects_an_unresolvable_ref_nested_in_properties():
+    """A broken reference under "properties" is never touched by a trial validation against an
+    empty instance: jsonschema does not descend into a property the instance does not have.
+    Measured: the same broken reference raises when placed at the schema's root and raises
+    nothing when moved under "properties.x". The document walk this module also runs at upload
+    catches it regardless of where it sits.
+    """
+    schema = {"type": "object", "properties": {"x": {"$ref": "#/$defs/nope"}}}
+    with pytest.raises(UnsupportedSchemaError, match="does not resolve: '#/\\$defs/nope'"):
+        check_uploaded_schema_in_isolation(json.dumps(schema))
+
+
+def test_check_uploaded_schema_rejects_an_unresolvable_ref_nested_in_items():
+    """Same gap as the properties case, for "items": an empty instance is not a non-empty array,
+    so jsonschema never evaluates against it either."""
+    schema = {"type": "object", "properties": {"xs": {"type": "array", "items": {"$ref": "#/$defs/nope"}}}}
+    with pytest.raises(UnsupportedSchemaError, match="does not resolve"):
+        check_uploaded_schema_in_isolation(json.dumps(schema))
+
+
+def test_check_uploaded_schema_accepts_a_legitimate_recursive_tree_schema_and_it_still_validates():
+    """A schema describing a tree by referencing its own root is the ordinary way to do it, and
+    must not be rejected: it only recurses as deep as the instance actually sent, which
+    MAX_DOCUMENT_DEPTH already bounds. Checks both halves in one test: the schema uploads, and
+    using it afterwards still tells good arguments from bad ones.
+    """
+    schema = {
+        "type": "object",
+        "required": ["value"],
+        "properties": {"value": {"type": "integer"}, "child": {"$ref": "#"}},
+    }
+
+    check_uploaded_schema_in_isolation(json.dumps(schema))  # must not raise
+
+    validate_arguments_in_isolation(schema, json.dumps({"value": 1, "child": {"value": 2}}))  # must not raise
+    with pytest.raises(jsonschema.ValidationError):
+        validate_arguments_in_isolation(schema, json.dumps({"value": 1, "child": {"value": "no"}}))
+
+
 def test_internal_ref_still_resolves():
     """Blocking external references must not break same-document ones."""
     schema = {

@@ -287,6 +287,80 @@ def find_external_ref(node: Any) -> str | None:
     return None
 
 
+def _pointer_resolves(root: Any, ref: str) -> bool:
+    """Whether the JSON Pointer fragment of same-document reference ``ref`` names something in
+    ``root``. ``ref`` is a "#" ("points at the whole document") or a "#/..." string; anything else
+    is not this function's concern, since only same-document references reach here.
+    """
+    fragment = ref[1:]
+    if fragment.startswith("/"):
+        fragment = fragment[1:]
+    node = root
+    if not fragment:
+        return True
+    for raw_segment in fragment.split("/"):
+        segment = raw_segment.replace("~1", "/").replace("~0", "~")
+        if isinstance(node, dict):
+            if segment not in node:
+                return False
+            node = node[segment]
+        elif isinstance(node, list):
+            try:
+                index = int(segment)
+            except ValueError:
+                return False
+            if not 0 <= index < len(node):
+                return False
+            node = node[index]
+        else:
+            return False
+    return True
+
+
+def find_unresolvable_ref(schema: Any, root: Any = None) -> str | None:
+    """Return the first same-document reference in ``schema`` that names nothing.
+
+    A trial validation against an empty instance (see ``check_uploaded_schema_in_isolation``)
+    catches a broken reference at the schema's root, because a top level "$ref" is resolved
+    against every instance regardless of its shape. It does not catch one nested inside
+    "properties" or "items": jsonschema never descends into either without an instance that has
+    that property or is a non-empty array, so a broken pointer sitting there is never touched.
+    Measured: the same broken reference that raises when placed at the root raises nothing when
+    moved under "properties.x" or "items".
+
+    This walks the whole document instead, independent of any instance, and resolves each
+    "#/..." pointer with ``_pointer_resolves``. A reference to the document root or to an
+    ancestor, such as ``{"properties": {"child": {"$ref": "#"}}}``, always resolves: that pointer
+    names the document itself, which exists, so the ordinary way to describe a recursive
+    structure is never rejected here. Only a pointer naming a location that is not there is
+    unresolvable.
+
+    External references are a separate, cheaper check (``find_external_ref``), and are assumed
+    already rejected by the time this runs.
+
+    Recursive on purpose, unlike the cheap walks above: it only ever runs inside the isolation,
+    where a document deep enough to exhaust the stack costs a rejection rather than a failed
+    request.
+    """
+    if root is None:
+        root = schema
+    if isinstance(schema, dict):
+        for keyword in ("$ref", "$dynamicRef", "$recursiveRef"):
+            ref = schema.get(keyword)
+            if isinstance(ref, str) and ref.startswith("#") and not _pointer_resolves(root, ref):
+                return ref
+        for value in schema.values():
+            found = find_unresolvable_ref(value, root)
+            if found is not None:
+                return found
+    elif isinstance(schema, list):
+        for value in schema:
+            found = find_unresolvable_ref(value, root)
+            if found is not None:
+                return found
+    return None
+
+
 def validate_arguments_in_isolation(schema: Any, arguments_str: str) -> None:
     """Parse ``arguments_str`` and validate it against ``schema`` in a child with hard limits.
 
@@ -369,6 +443,9 @@ def check_uploaded_schema_in_isolation(schema_str: str) -> None:
                 "error": f"it must not reference external resources: '{external_ref}'. Inline the "
                 "definitions or use an internal reference such as '#/$defs/name'"
             }
+        unresolvable_ref = find_unresolvable_ref(schema)
+        if unresolvable_ref is not None:
+            return {"error": f"it contains a reference that does not resolve: '{unresolvable_ref}'"}
         try:
             jsonschema.validators.validator_for(schema).check_schema(schema)
         except jsonschema.SchemaError as exc:
@@ -377,6 +454,23 @@ def check_uploaded_schema_in_isolation(schema_str: str) -> None:
             # See the matching comment in validate_arguments_in_isolation.work(): left to the
             # blanket handler below, this reads as an empty "MemoryError:" message instead of
             # letting isolated.py's own except MemoryError name the limit that fired.
+            raise
+        except Exception as exc:  # pylint: disable=broad-except
+            return {"error": f"it cannot be used ({type(exc).__name__}: {exc})"}
+        # check_schema only verifies the document is a valid JSON Schema; it never evaluates it.
+        # {"$ref": "#"} and {"$ref": "#/$defs/nope"} both passed check_schema and then failed every
+        # single run of the function: the first recurses without end, the second names nothing.
+        # find_unresolvable_ref just refused the second kind wherever it can be found by walking
+        # the document; this catches the first kind and anything else only evaluation reveals, by
+        # actually trying to validate with it. The instance does not matter, since nothing here
+        # cares whether it matches: a ValidationError is the expected, uninteresting outcome, and
+        # is not proof the schema is usable in general, only that this one instance was evaluated
+        # against it without the process itself falling over.
+        try:
+            _validator(schema).validate({})
+        except jsonschema.ValidationError:
+            pass
+        except MemoryError:
             raise
         except Exception as exc:  # pylint: disable=broad-except
             return {"error": f"it cannot be used ({type(exc).__name__}: {exc})"}

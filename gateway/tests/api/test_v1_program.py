@@ -1307,6 +1307,15 @@ class TestProgramApi(APITestCase):
         response = self._upload_with_schema("wide-schema-function", json.dumps({"anyOf": [{"type": "integer"}] * 201}))
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
+    def test_upload_with_self_referencing_root_schema_returns_400(self):
+        """{"$ref": "#"} used to pass the metaschema check, upload with 200, and then fail every
+        single run of the function with a RecursionError. Upload now tries the schema against a
+        trial instance and refuses it there instead, where the author can still fix it.
+        """
+        response = self._upload_with_schema("self-ref-root-function", json.dumps({"$ref": "#"}))
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert not Program.objects.filter(title="self-ref-root-function").exists()
+
     def test_reupload_without_schema_preserves_existing_schema(self):
         """Re-uploading a function without arguments_schema keeps the existing schema."""
         schema = json.dumps({"type": "object"})
