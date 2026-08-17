@@ -673,3 +673,29 @@ class TestValidateArgumentsMethod:
 
         with pytest.raises(QiskitServerlessException):
             mock_client.validate_arguments(title="my-function", arguments={"shots": "wrong"})
+
+
+class TestArgumentsSchemaDecoding:
+    """Tests for how a stored arguments_schema is decoded when a function is read back."""
+
+    def test_boolean_schema_is_kept_instead_of_looking_absent(self):
+        """``false`` is the schema that rejects everything, so it must not read as "no schema"."""
+        function = QiskitFunction.from_json({"title": "t", "arguments_schema": "false"})
+
+        assert function.arguments_schema is False
+
+    def test_empty_object_still_means_no_schema(self):
+        """Regression lock: sending ``{}`` is how a schema is removed, and it reads back as None."""
+        function = QiskitFunction.from_json({"title": "t", "arguments_schema": "{}"})
+
+        assert function.arguments_schema is None
+
+    def test_schema_that_is_not_an_object_or_boolean_is_rejected(self):
+        """A JSON scalar is not a schema, so it must not leak through with the wrong type."""
+        with pytest.raises(QiskitServerlessException):
+            QiskitFunction.from_json({"title": "t", "arguments_schema": "123"})
+
+    def test_schema_that_is_not_json_is_rejected(self):
+        """A column value that is not JSON must raise the SDK exception, not a bare JSON error."""
+        with pytest.raises(QiskitServerlessException):
+            QiskitFunction.from_json({"title": "t", "arguments_schema": "not json at all"})

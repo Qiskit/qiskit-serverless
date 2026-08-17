@@ -23,8 +23,11 @@ class NoOpEventStreamsClient(EventStreamsClient):
     """
     Drop-in replacement for KafkaEventStreamsClient when EVENT_STREAMS_ENABLED is false.
 
-    Logs each emit call at DEBUG level instead of publishing to Kafka.
+    Logs each emit call at INFO level instead of publishing to Kafka.
     """
+
+    def __init__(self) -> None:
+        logger.info("NoOpEventStreamsClient initialized (no Kafka publishing)")
 
     def emit_job_started(self, job, metric_type: str) -> None:
         logger.info("job_id=%s metric_type=%s [noop] emit_job_started", job.id, metric_type)
