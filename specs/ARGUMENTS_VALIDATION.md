@@ -127,11 +127,25 @@ shape tested, including a 1 MB batch of encoded circuits and 4000 objects under 
 Because the setting is a way to weaken this by configuration, the value read from it is clamped to 64-256 MB before
 reaching the child, rather than used as given.
 
+The CPU budget is `settings.ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS` (default 1), read and clamped the same way, to 1-5
+seconds. It is configurable so that a vendor whose legitimate schema turns out to need longer than one second can be
+unblocked by a value change rather than a code deploy, and clamped more tightly than the memory margin because this is
+the whole bound on the work one request can ask for, and no endpoint is rate limited. Every legitimate schema measured
+validates in milliseconds, so a deployment should not need to raise it.
+
+Beyond `RLIMIT_CPU` there is a wall clock deadline, for a child that spends no CPU and still does not finish. It is not
+configured separately: `run_isolated` derives it as the CPU budget plus `_WALL_CLOCK_SLACK_SECONDS` (4.0), which keeps
+the default at the 5.0 seconds measured against a 1-second budget and moves with the budget when it is raised. Two
+things pin that ordering. The deadline has to sit above `RLIMIT_CPU`'s hard cap, which is the budget plus one second,
+or a child killed for spending its CPU would be reported as a wall clock timeout. And it has to leave room beyond
+that, because CPU seconds are not wall clock seconds: on a throttled or contended machine, work that spends one second
+of CPU can take several seconds of wall clock.
+
 Inside the child, `jsonschema` runs unmodified, with one exception: `uniqueItems` is still replaced, by a single-pass
 hash of a canonical form of each element, rather than being left for the isolation alone to bound. `jsonschema`
 compares elements pairwise whenever they are not sortable, which any array of objects triggers, and that comparison
-lives in a private helper that never descends into a subschema, so it pays its full quadratic cost within a single
-CPU-second budget regardless: 1500 objects in 18 KB of JSON were refused for exceeding the CPU limit, where the
+lives in a private helper that never descends into a subschema, so it pays its full quadratic cost within the CPU
+budget regardless: 1500 objects in 18 KB of JSON were refused for exceeding the CPU limit, where the
 hash-based replacement answers in 0.011s. `pattern`, by contrast, is on the stock engine now, matched with Python's
 ordinary backtracking `re` and left for the isolation to bound; `uniqueItems` is the one place where isolation can
 only refuse the work rather than make it cheap.

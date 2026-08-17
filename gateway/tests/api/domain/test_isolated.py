@@ -4,6 +4,7 @@ import time
 
 import pytest
 
+from api.domain import isolated
 from api.domain.isolated import IsolationError, _collect, run_isolated  # pylint: disable=protected-access
 
 
@@ -21,6 +22,27 @@ def test_cpu_limit_kills_work_that_will_not_stop():
     # different reason ("wall-clock time" instead of "CPU time"), so this alone proves RLIMIT_CPU
     # is what stopped the work, regardless of how long that took on a loaded or throttled runner.
     assert "CPU time" in caught.value.reason
+
+
+def test_the_wall_clock_deadline_follows_the_cpu_budget(monkeypatch):
+    """The CPU budget is configurable, and the deadline has to move with it: RLIMIT_CPU kills at the
+    budget and, for a child ignoring SIGXCPU, one second after it, so a deadline that did not scale
+    would fire first at a raised budget and report a wall-clock timeout for a CPU overrun.
+
+    The spy runs in the parent, which is the only side that calls _collect, so unlike an earlier
+    test in this feature it does observe the real call rather than a copy lost across the fork.
+    """
+    real_collect = isolated._collect  # pylint: disable=protected-access
+    seen = {}
+
+    def spy(pid, read_fd, wall_seconds, cpu_seconds):
+        seen["wall_seconds"] = wall_seconds
+        return real_collect(pid, read_fd, wall_seconds, cpu_seconds)
+
+    monkeypatch.setattr(isolated, "_collect", spy)
+
+    assert run_isolated(lambda: {"ok": True}, cpu_seconds=5) == {"ok": True}
+    assert seen["wall_seconds"] > 5 + 1  # above RLIMIT_CPU's hard cap, which is the budget plus one
 
 
 def test_work_returning_something_unencodable_is_reported_not_hung():

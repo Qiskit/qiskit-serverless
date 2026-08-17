@@ -29,6 +29,16 @@ from typing import Any
 
 _READ_CHUNK = 1 << 16
 
+# Wall-clock slack added on top of the CPU budget when no deadline is passed in. Two things
+# constrain this figure. It has to sit above the CPU limit's hard cap, which is the budget plus one
+# second, so that a child killed for spending its CPU is reported as a CPU overrun and not as a
+# wall-clock timeout. And it has to leave room beyond that, because CPU seconds are not wall-clock
+# seconds: on a throttled or contended machine, work that spends one second of CPU can take several
+# seconds of wall clock, and four tests in this feature failed exactly that way under
+# "docker run --cpus=0.25". Four seconds keeps the default deadline at the 5.0 measured against a
+# 1-second budget, and moves with the budget when it is raised.
+_WALL_CLOCK_SLACK_SECONDS = 4.0
+
 
 class IsolationError(Exception):
     """Raised when isolated work did not finish within its limits."""
@@ -69,14 +79,19 @@ def run_isolated(
     *,
     cpu_seconds: int = 1,
     memory_mb: int = 128,
-    wall_seconds: float = 5.0,
+    wall_seconds: float | None = None,
 ) -> Any:
     """Run ``work`` in a forked child and return its JSON-serializable result.
+
+    ``wall_seconds`` defaults to the CPU budget plus ``_WALL_CLOCK_SLACK_SECONDS``, so that raising
+    the budget does not leave the deadline firing first and reporting the wrong reason.
 
     Raises:
         IsolationError: if the fork itself could not be created, the child exceeded a limit, died,
             wrote nothing, its result could not be encoded as JSON, or ``work`` raised.
     """
+    if wall_seconds is None:
+        wall_seconds = cpu_seconds + _WALL_CLOCK_SLACK_SECONDS
     read_fd, write_fd = os.pipe()
     try:
         pid = os.fork()

@@ -602,6 +602,42 @@ def test_node_count_refuses_many_boolean_branches_under_length_limit():
     assert exceeds_max_nodes(schema) is True
 
 
+def test_the_configured_limits_reach_the_child(settings, monkeypatch):
+    """The point of reading these from settings is that a deployment can change them, so assert what
+    _answer_from_child actually hands to run_isolated. Dropping either argument would leave every
+    test above passing, since they all run at the defaults."""
+    settings.ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS = 3
+    settings.ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB = 200
+    real_run_isolated = arguments_schema_module.run_isolated
+    seen = {}
+
+    def spy(work, **kwargs):
+        seen.update(kwargs)
+        return real_run_isolated(work, **kwargs)
+
+    monkeypatch.setattr(arguments_schema_module, "run_isolated", spy)
+
+    validate_arguments_in_isolation({"type": "object"}, "{}")
+
+    assert seen == {"cpu_seconds": 3, "memory_mb": 200}
+
+
+def test_configured_limits_are_clamped_before_reaching_the_child(settings):
+    """Both limits are read from settings so a deployment can tune them without a code deploy, which
+    is also a way to weaken them by configuration. A value outside the safe range must be clamped
+    rather than used as given: 10000 CPU seconds is an unbounded request thread again, and 1 second
+    of CPU with 8 MB of memory would reject ordinary callers instead of attackers."""
+    settings.ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS = 10000
+    settings.ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB = 100000
+    assert arguments_schema_module._cpu_limit_seconds() == 5  # pylint: disable=protected-access
+    assert arguments_schema_module._memory_limit_mb() == 256  # pylint: disable=protected-access
+
+    settings.ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS = 0
+    settings.ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB = 8
+    assert arguments_schema_module._cpu_limit_seconds() == 1  # pylint: disable=protected-access
+    assert arguments_schema_module._memory_limit_mb() == 64  # pylint: disable=protected-access
+
+
 @pytest.mark.django_db
 class TestValidateArgumentsUseCase:
     @pytest.fixture

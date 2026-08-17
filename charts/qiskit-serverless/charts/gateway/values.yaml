@@ -48,6 +48,7 @@ application:
     keepClusterOnComplete: False
     programTimeoutHours: 24
     argumentsSchemaMemoryLimitMb: 128
+    argumentsSchemaCpuLimitSeconds: 1
   qiskitRuntime:
     url: "https://cloud.ibm.com"
   runtimeApi:

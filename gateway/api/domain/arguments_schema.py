@@ -23,7 +23,7 @@ production.
 One keyword is still replaced rather than left for the isolation alone to bound: ``uniqueItems``.
 jsonschema compares elements pairwise whenever they are not sortable, which any array of objects
 triggers, inside a private helper that never descends into a subschema, so it pays its full
-quadratic cost within a single CPU-second budget regardless: 4000 objects took about 8 seconds,
+quadratic cost within the isolation's CPU budget regardless: 4000 objects took about 8 seconds,
 which the isolation would refuse outright even though sending a few thousand of them is ordinary
 for a caller. Hashing a canonical form of each element (``_comparison_key``, ``_unique_items``)
 answers the same question in one pass instead. Do not delete this as leftover scaffolding: unlike
@@ -64,7 +64,7 @@ MAX_SCHEMA_LENGTH = 64 * 1024
 # instance is, and without this the ceiling would be DATA_UPLOAD_MAX_MEMORY_SIZE (2.5 MB by
 # default). This is defence in depth rather than the main protection: the keyword that actually
 # grew faster than its input, "uniqueItems", is replaced below (see _unique_items), and the
-# isolation's 1 CPU-second budget covers the rest.
+# isolation's CPU budget (one second by default) covers the rest.
 # So the figure is chosen to leave legitimate callers alone. Arguments are validated in the form
 # QiskitObjectsEncoder produces, where a single 100 qubit, depth 100 circuit is about 39 KB of
 # base64, so a limit in the tens of kilobytes would reject an ordinary batch of circuits.
@@ -98,10 +98,26 @@ MAX_SCHEMA_NODES = 200
 _MIN_MEMORY_LIMIT_MB = 64
 _MAX_MEMORY_LIMIT_MB = 256
 
+# Bounds for settings.ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS, the RLIMIT_CPU budget given to the child.
+# Configurable for the same reason as the memory margin: every legitimate schema measured validates
+# in milliseconds, but the figure is a measurement rather than a proof, and a vendor whose schema
+# turns out to need longer should be unblocked by changing a value rather than by a code deploy.
+# Clamped for a stronger reason than the memory margin, though: this is the whole bound on how much
+# work one request can ask for, and no endpoint is rate limited, so raising it multiplies what a
+# single caller can spend, one CPU second at a time, without ever creating a job. MIN is 1 because
+# RLIMIT_CPU counts whole seconds and 0 would kill the child immediately.
+_MIN_CPU_LIMIT_SECONDS = 1
+_MAX_CPU_LIMIT_SECONDS = 5
+
 
 def _memory_limit_mb() -> int:
     """The child memory limit from settings, clamped to a safe range."""
     return max(_MIN_MEMORY_LIMIT_MB, min(settings.ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB, _MAX_MEMORY_LIMIT_MB))
+
+
+def _cpu_limit_seconds() -> int:
+    """The child CPU budget from settings, clamped to a safe range."""
+    return max(_MIN_CPU_LIMIT_SECONDS, min(settings.ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS, _MAX_CPU_LIMIT_SECONDS))
 
 
 # Formats the gateway asserts. jsonschema treats "format" as an annotation and checks nothing
@@ -228,7 +244,7 @@ def _unique_items(validator, unique, instance, schema):  # pylint: disable=unuse
 
     jsonschema compares the elements pairwise whenever they are not sortable, which any array of
     objects triggers, and that comparison lives in a private helper that never descends into a
-    subschema: 4000 objects took about 8 seconds while the isolation's 1 CPU-second budget would
+    subschema: 4000 objects took about 8 seconds while the isolation's default CPU budget would
     refuse them outright. Hashing a canonical form of each element answers the same question in
     one pass.
     """
@@ -539,6 +555,6 @@ def check_uploaded_schema_in_isolation(schema_str: str) -> None:
 def _answer_from_child(work) -> Any:
     """Run ``work`` in the isolation, turning a limit being hit into UnsupportedSchemaError."""
     try:
-        return run_isolated(work, memory_mb=_memory_limit_mb())
+        return run_isolated(work, memory_mb=_memory_limit_mb(), cpu_seconds=_cpu_limit_seconds())
     except IsolationError as exc:
         raise UnsupportedSchemaError(exc.reason) from exc
