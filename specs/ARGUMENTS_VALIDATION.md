@@ -176,7 +176,8 @@ line of defence rather than the first.
 | `GET /api/v1/programs/` | `api/v1/views/programs/list.py` |
 
 This lets a user inspect the arguments a function expects even when they did not upload it themselves. The value comes
-back as the stored **string**, so the client SDK decodes it into a dict (see [Client SDK](#client-sdk)).
+back as the stored **string**, so the client SDK decodes it back into an object or a boolean (see
+[Client SDK](#client-sdk)).
 
 ## Arguments are validated in encoded form
 
@@ -378,10 +379,12 @@ At validation time, everything below is an `InvalidArgumentsException`, so a bro
 
 ## Client SDK
 
-`QiskitFunction.arguments_schema` (`client/qiskit_serverless/core/function.py`) is a **dict**, not a JSON string:
+`QiskitFunction.arguments_schema` (`client/qiskit_serverless/core/function.py`) is a **dict or a bool**, not a JSON
+string: a JSON Schema is normally an object, but `True` and `False` are also valid schemas, accepting and rejecting
+every argument respectively.
 
 ```python
-arguments_schema: Optional[Dict[str, Any]] = None
+arguments_schema: Optional[Union[Dict[str, Any], bool]] = None
 ```
 
 Declare it at upload time:
@@ -413,8 +416,9 @@ runnable.validate_arguments({"shots": 1024})   # {"valid": True}, or raises Qisk
 endpoint. Errors surface as `QiskitServerlessException` through the usual `safe_json_request_as_dict` path, so the
 client never swallows a gateway rejection.
 
-Because the gateway returns the schema as text, `from_json` decodes it back into a dict (`_decode_fields`), normalizing
-the stored `"{}"` default to `None` so `if function.arguments_schema:` behaves as expected.
+Because the gateway returns the schema as text, `from_json` decodes it back into a dict or a bool
+(`_decode_fields`, `_decode_arguments_schema`), normalizing the stored `"{}"` default to `None` so
+`if function.arguments_schema:` behaves as expected.
 
 ## Design decisions
 
