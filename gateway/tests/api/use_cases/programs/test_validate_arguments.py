@@ -291,6 +291,33 @@ def test_check_uploaded_schema_accepts_a_legitimate_recursive_tree_schema_and_it
         validate_arguments_in_isolation(schema, json.dumps({"value": 1, "child": {"value": "no"}}))
 
 
+def test_check_uploaded_schema_accepts_a_plain_name_anchor_reference_and_it_still_validates():
+    """A fragment after "#" is not always a JSON Pointer: "#itemAnchor" here names a "$anchor", a
+    legitimate vendor pattern the specification itself recommends for recursive and extensible
+    schemas, and jsonschema resolves it correctly on its own. find_unresolvable_ref must not treat
+    it as a broken pointer and refuse the upload. Checks both halves: the schema uploads, and
+    using it afterwards still tells good arguments from bad ones.
+    """
+    schema = {
+        "type": "object",
+        "$defs": {
+            "item": {
+                "$anchor": "itemAnchor",
+                "type": "object",
+                "required": ["n"],
+                "properties": {"n": {"type": "integer"}},
+            }
+        },
+        "properties": {"thing": {"$ref": "#itemAnchor"}},
+    }
+
+    check_uploaded_schema_in_isolation(json.dumps(schema))  # must not raise
+
+    validate_arguments_in_isolation(schema, json.dumps({"thing": {"n": 1}}))  # must not raise
+    with pytest.raises(jsonschema.ValidationError):
+        validate_arguments_in_isolation(schema, json.dumps({"thing": {"n": "no"}}))
+
+
 def test_internal_ref_still_resolves():
     """Blocking external references must not break same-document ones."""
     schema = {

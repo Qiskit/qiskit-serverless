@@ -289,8 +289,10 @@ def find_external_ref(node: Any) -> str | None:
 
 def _pointer_resolves(root: Any, ref: str) -> bool:
     """Whether the JSON Pointer fragment of same-document reference ``ref`` names something in
-    ``root``. ``ref`` is a "#" ("points at the whole document") or a "#/..." string; anything else
-    is not this function's concern, since only same-document references reach here.
+    ``root``. ``ref`` is a "#" ("points at the whole document") or a "#/..." string.
+
+    Only ever called with a ``ref`` whose fragment is actually a JSON Pointer: the caller,
+    ``find_unresolvable_ref``, filters out plain-name anchor fragments before reaching here.
     """
     fragment = ref[1:]
     if fragment.startswith("/"):
@@ -335,6 +337,21 @@ def find_unresolvable_ref(schema: Any, root: Any = None) -> str | None:
     structure is never rejected here. Only a pointer naming a location that is not there is
     unresolvable.
 
+    A fragment after "#" is not always a JSON Pointer. "#" and "#/..." are; a plain name such as
+    "#itemAnchor" is not, it is an anchor, set by ``$anchor``, ``$dynamicAnchor``, or an old-style
+    ``$id: "#name"``, and jsonschema resolves it against its own anchor table, built while it
+    compiles the schema, not by walking the document structure. This function does not build that
+    table: doing so would mean reimplementing the part of jsonschema that already does this
+    correctly, which is exactly the road that made an earlier version of this check reject
+    legitimate schemas (recursive and extensible ones, which is precisely where the specification
+    recommends anchors) outright, while only avoiding a false accept, in the ``$dynamicRef`` case,
+    by coincidence, when an anchor name happened to collide with a literal top-level key. So a
+    plain-name fragment is skipped here rather than resolved or rejected. That is not a gap this
+    function leaves open: the trial validation above already catches the infinite-recursion case,
+    and a reference to an anchor that genuinely does not exist surfaces at run time as
+    jsonschema's own ``Unresolvable``, which ``work()`` below already turns into a plain 400.
+    Do not "complete" this by adding anchor resolution.
+
     External references are a separate, cheaper check (``find_external_ref``), and are assumed
     already rejected by the time this runs.
 
@@ -347,7 +364,12 @@ def find_unresolvable_ref(schema: Any, root: Any = None) -> str | None:
     if isinstance(schema, dict):
         for keyword in ("$ref", "$dynamicRef", "$recursiveRef"):
             ref = schema.get(keyword)
-            if isinstance(ref, str) and ref.startswith("#") and not _pointer_resolves(root, ref):
+            if not isinstance(ref, str) or not ref.startswith("#"):
+                continue
+            fragment = ref[1:]
+            if fragment and not fragment.startswith("/"):
+                continue  # plain-name anchor, not a JSON Pointer; see docstring above
+            if not _pointer_resolves(root, ref):
                 return ref
         for value in schema.values():
             found = find_unresolvable_ref(value, root)
