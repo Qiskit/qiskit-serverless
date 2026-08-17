@@ -320,7 +320,7 @@
 <span class="c1"># copyright notice, and modified files need to carry a notice indicating</span>
 <span class="c1"># that they have been altered from the originals.</span>
 
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">"""</span>
 <span class="sd">=====================================================</span>
 <span class="sd">Json utilities (:mod:`qiskit_serverless.utils.json`)</span>
 <span class="sd">=====================================================</span>
@@ -334,7 +334,7 @@
 <span class="sd">    :toctree: ../stubs/</span>
 
 <span class="sd">    JsonSerializable</span>
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">"""</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
@@ -348,18 +348,18 @@
 
 
 <div class="viewcode-block" id="JsonSerializable"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.utils.JsonSerializable.html#qiskit_serverless.utils.JsonSerializable">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">JsonSerializable</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Classes that can be serialized as json.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Classes that can be serialized as json."""</span>
 
     <span class="nd">@classmethod</span>
     <span class="nd">@abstractmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">from_dict</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">dictionary</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Converts dict to object.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Converts dict to object."""</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Converts class to dict.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Converts class to dict."""</span>
         <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">"_"</span><span class="p">):</span>
                 <span class="k">continue</span>
             <span class="n">element</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
@@ -377,7 +377,7 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">is_jsonable</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="bp">cls</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="n">JSONEncoder</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if data can be serialized to json.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Check if data can be serialized to json."""</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="bp">cls</span><span class="p">)</span>
         <span class="k">return</span> <span class="kc">True</span>
@@ -389,7 +389,7 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_body_snippet</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Condenses a non-JSON response body into a short, readable snippet.</span>
+<span class="w">    </span><span class="sd">"""Condenses a non-JSON response body into a short, readable snippet.</span>
 
 <span class="sd">    Intermediaries (Cloudflare, proxies, load balancers) may return large HTML</span>
 <span class="sd">    error pages. This collapses whitespace and truncates so the message stays</span>
@@ -400,17 +400,17 @@
 
 <span class="sd">    Returns:</span>
 <span class="sd">        a single-line, length-capped snippet (empty-body note if blank).</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">text</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
-        <span class="k">return</span> <span class="s2">&quot;(empty response body)&quot;</span>
-    <span class="n">collapsed</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">text</span><span class="o">.</span><span class="n">split</span><span class="p">())</span>
+        <span class="k">return</span> <span class="s2">"(empty response body)"</span>
+    <span class="n">collapsed</span> <span class="o">=</span> <span class="s2">" "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">text</span><span class="o">.</span><span class="n">split</span><span class="p">())</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">collapsed</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">_MAX_BODY_SNIPPET_LEN</span><span class="p">:</span>
-        <span class="n">collapsed</span> <span class="o">=</span> <span class="n">collapsed</span><span class="p">[:</span><span class="n">_MAX_BODY_SNIPPET_LEN</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;...&quot;</span>
+        <span class="n">collapsed</span> <span class="o">=</span> <span class="n">collapsed</span><span class="p">[:</span><span class="n">_MAX_BODY_SNIPPET_LEN</span><span class="p">]</span> <span class="o">+</span> <span class="s2">"..."</span>
     <span class="k">return</span> <span class="n">collapsed</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">raise_for_non_ok_response</span><span class="p">(</span><span class="n">response</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">Response</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raise a readable exception if the response is not OK.</span>
+<span class="w">    </span><span class="sd">"""Raise a readable exception if the response is not OK.</span>
 
 <span class="sd">    Surfaces the HTTP status and a snippet of the body so that a block page or</span>
 <span class="sd">    error body from an intermediary (Cloudflare, proxy, load balancer) or from</span>
@@ -423,12 +423,12 @@
 
 <span class="sd">    Raises:</span>
 <span class="sd">        QiskitServerlessException: if ``response`` is not OK.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="n">response</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">response</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
         <span class="k">return</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="n">json_data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
-        <span class="n">details</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">json_data</span><span class="o">.</span><span class="n">values</span><span class="p">())</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">json_data</span><span class="p">,</span> <span class="n">Dict</span><span class="p">)</span> <span class="k">else</span> <span class="nb">str</span><span class="p">(</span><span class="n">json_data</span><span class="p">)</span>
+        <span class="n">details</span> <span class="o">=</span> <span class="s2">""</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">json_data</span><span class="o">.</span><span class="n">values</span><span class="p">())</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">json_data</span><span class="p">,</span> <span class="n">Dict</span><span class="p">)</span> <span class="k">else</span> <span class="nb">str</span><span class="p">(</span><span class="n">json_data</span><span class="p">)</span>
     <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">:</span>
         <span class="n">details</span> <span class="o">=</span> <span class="n">_body_snippet</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
     <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
@@ -440,57 +440,57 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">safe_json_request_as_list</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">requests</span><span class="o">.</span><span class="n">Response</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns parsed json data from request.</span>
+<span class="w">    </span><span class="sd">"""Returns parsed json data from request.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        request: callable for request.</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; safe_json_request(request=lambda: requests.get(&quot;https://ibm.com&quot;))</span>
+<span class="sd">        &gt;&gt;&gt; safe_json_request(request=lambda: requests.get("https://ibm.com"))</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        parsed json response as list structure</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">response</span> <span class="o">=</span> <span class="n">safe_json_request</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="n">List</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">response</span>
-    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;JSON is not a List&quot;</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">"JSON is not a List"</span><span class="p">)</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">safe_json_request_as_dict</span><span class="p">(</span>
     <span class="n">request</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">requests</span><span class="o">.</span><span class="n">Response</span><span class="p">],</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns parsed json data from request.</span>
+<span class="w">    </span><span class="sd">"""Returns parsed json data from request.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        request: callable for request.</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; safe_json_request(request=lambda: requests.get(&quot;https://ibm.com&quot;))</span>
+<span class="sd">        &gt;&gt;&gt; safe_json_request(request=lambda: requests.get("https://ibm.com"))</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        parsed json response as dict structure</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">response</span> <span class="o">=</span> <span class="n">safe_json_request</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="n">Dict</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">response</span>
-    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;JSON is not a Dict&quot;</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">"JSON is not a Dict"</span><span class="p">)</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">safe_json_request</span><span class="p">(</span>
     <span class="n">request</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">requests</span><span class="o">.</span><span class="n">Response</span><span class="p">],</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns parsed json data from request.</span>
+<span class="w">    </span><span class="sd">"""Returns parsed json data from request.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        request: callable for request.</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; safe_json_request(request=lambda: requests.get(&quot;https://ibm.com&quot;))</span>
+<span class="sd">        &gt;&gt;&gt; safe_json_request(request=lambda: requests.get("https://ibm.com"))</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        parsed json response</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">error_message</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="n">response</span> <span class="o">=</span> <span class="n">request</span><span class="p">()</span>
@@ -508,7 +508,7 @@
     <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span> <span class="k">as</span> <span class="n">json_error</span><span class="p">:</span>
         <span class="c1"># The body is not JSON. This commonly happens when an intermediary</span>
         <span class="c1"># (Cloudflare, an ingress/proxy, a load balancer) returns an HTML</span>
-        <span class="c1"># error page or an empty body instead of the gateway&#39;s JSON. Surface</span>
+        <span class="c1"># error page or an empty body instead of the gateway's JSON. Surface</span>
         <span class="c1"># the HTTP status and a snippet of the body so the real cause is</span>
         <span class="c1"># visible, rather than a bare JSON1001 that hides it.</span>
         <span class="k">if</span> <span class="n">response</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">response</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
@@ -534,7 +534,7 @@
         <span class="c1"># varies between messages, so appending all</span>
         <span class="c1"># values to a string allows to capture all</span>
         <span class="c1"># potential messages.</span>
-        <span class="n">error_msg</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">error_msg</span> <span class="o">=</span> <span class="s2">""</span>
         <span class="k">for</span> <span class="n">error_string</span> <span class="ow">in</span> <span class="n">json_data</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
             <span class="n">error_msg</span> <span class="o">+=</span> <span class="nb">str</span><span class="p">(</span><span class="n">error_string</span><span class="p">)</span>
 

@@ -320,7 +320,7 @@
 <span class="c1"># copyright notice, and modified files need to carry a notice indicating</span>
 <span class="c1"># that they have been altered from the originals.</span>
 
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">"""</span>
 <span class="sd">=======================================================================</span>
 <span class="sd">Serializers (:mod:`qiskit_serverless.serializers.program_serializers`)</span>
 <span class="sd">=======================================================================</span>
@@ -335,7 +335,7 @@
 
 <span class="sd">    QiskitObjectsDecoder</span>
 <span class="sd">    QiskitObjectsEncoder</span>
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">"""</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
@@ -349,76 +349,76 @@
 
 
 <span class="k">class</span><span class="w"> </span><span class="nc">QiskitObjectsEncoder</span><span class="p">(</span><span class="n">RuntimeEncoder</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Json encoder for Qiskit objects.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Json encoder for Qiskit objects."""</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">default</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">QiskitRuntimeService</span><span class="p">):</span>
             <span class="k">return</span> <span class="p">{</span>
-                <span class="s2">&quot;__type__&quot;</span><span class="p">:</span> <span class="s2">&quot;QiskitRuntimeService&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;__value__&quot;</span><span class="p">:</span> <span class="n">obj</span><span class="o">.</span><span class="n">active_account</span><span class="p">(),</span>
+                <span class="s2">"__type__"</span><span class="p">:</span> <span class="s2">"QiskitRuntimeService"</span><span class="p">,</span>
+                <span class="s2">"__value__"</span><span class="p">:</span> <span class="n">obj</span><span class="o">.</span><span class="n">active_account</span><span class="p">(),</span>
             <span class="p">}</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">SamplerResult</span><span class="p">):</span>
             <span class="k">return</span> <span class="p">{</span>
-                <span class="s2">&quot;__type__&quot;</span><span class="p">:</span> <span class="s2">&quot;SamplerResult&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;__value__&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;quasi_dists&quot;</span><span class="p">:</span> <span class="n">obj</span><span class="o">.</span><span class="n">quasi_dists</span><span class="p">,</span> <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="n">obj</span><span class="o">.</span><span class="n">metadata</span><span class="p">},</span>
+                <span class="s2">"__type__"</span><span class="p">:</span> <span class="s2">"SamplerResult"</span><span class="p">,</span>
+                <span class="s2">"__value__"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"quasi_dists"</span><span class="p">:</span> <span class="n">obj</span><span class="o">.</span><span class="n">quasi_dists</span><span class="p">,</span> <span class="s2">"metadata"</span><span class="p">:</span> <span class="n">obj</span><span class="o">.</span><span class="n">metadata</span><span class="p">},</span>
             <span class="p">}</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">EstimatorResult</span><span class="p">):</span>
             <span class="k">return</span> <span class="p">{</span>
-                <span class="s2">&quot;__type__&quot;</span><span class="p">:</span> <span class="s2">&quot;EstimatorResult&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;__value__&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;values&quot;</span><span class="p">:</span> <span class="n">obj</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="n">obj</span><span class="o">.</span><span class="n">metadata</span><span class="p">},</span>
+                <span class="s2">"__type__"</span><span class="p">:</span> <span class="s2">"EstimatorResult"</span><span class="p">,</span>
+                <span class="s2">"__value__"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"values"</span><span class="p">:</span> <span class="n">obj</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="s2">"metadata"</span><span class="p">:</span> <span class="n">obj</span><span class="o">.</span><span class="n">metadata</span><span class="p">},</span>
             <span class="p">}</span>
         <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">default</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
 
 
 <span class="k">class</span><span class="w"> </span><span class="nc">QiskitObjectsDecoder</span><span class="p">(</span><span class="n">RuntimeDecoder</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Json decoder for Qiskit objects.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Json decoder for Qiskit objects."""</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">object_hook</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
-        <span class="k">if</span> <span class="s2">&quot;__type__&quot;</span> <span class="ow">in</span> <span class="n">obj</span><span class="p">:</span>
-            <span class="n">obj_type</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="s2">&quot;__type__&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s2">"__type__"</span> <span class="ow">in</span> <span class="n">obj</span><span class="p">:</span>
+            <span class="n">obj_type</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="s2">"__type__"</span><span class="p">]</span>
 
             <span class="c1"># Only reconstruct known types, and only from a well-formed mapping</span>
             <span class="c1"># of string keys. This prevents a malicious/compromised gateway from</span>
-            <span class="c1"># splatting an arbitrarily-shaped &quot;__value__&quot; into these</span>
+            <span class="c1"># splatting an arbitrarily-shaped "__value__" into these</span>
             <span class="c1"># constructors (which would otherwise be attacker-controlled kwargs).</span>
-            <span class="n">value</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;__value__&quot;</span><span class="p">)</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"__value__"</span><span class="p">)</span>
 
             <span class="k">def</span><span class="w"> </span><span class="nf">_safe_kwargs</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">value</span><span class="p">):</span>
-                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid &#39;__value__&#39; payload for type &#39;</span><span class="si">{</span><span class="n">obj_type</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Invalid '__value__' payload for type '</span><span class="si">{</span><span class="n">obj_type</span><span class="si">}</span><span class="s2">'."</span><span class="p">)</span>
                 <span class="k">return</span> <span class="n">value</span>
 
-            <span class="k">if</span> <span class="n">obj_type</span> <span class="o">==</span> <span class="s2">&quot;QiskitRuntimeService&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">obj_type</span> <span class="o">==</span> <span class="s2">"QiskitRuntimeService"</span><span class="p">:</span>
                 <span class="k">return</span> <span class="n">QiskitRuntimeService</span><span class="p">(</span><span class="o">**</span><span class="n">_safe_kwargs</span><span class="p">())</span>
-            <span class="k">if</span> <span class="n">obj_type</span> <span class="o">==</span> <span class="s2">&quot;SamplerResult&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">obj_type</span> <span class="o">==</span> <span class="s2">"SamplerResult"</span><span class="p">:</span>
                 <span class="k">return</span> <span class="n">SamplerResult</span><span class="p">(</span><span class="o">**</span><span class="n">_safe_kwargs</span><span class="p">())</span>
-            <span class="k">if</span> <span class="n">obj_type</span> <span class="o">==</span> <span class="s2">&quot;EstimatorResult&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">obj_type</span> <span class="o">==</span> <span class="s2">"EstimatorResult"</span><span class="p">:</span>
                 <span class="k">return</span> <span class="n">EstimatorResult</span><span class="p">(</span><span class="o">**</span><span class="n">_safe_kwargs</span><span class="p">())</span>
             <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">object_hook</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">obj</span>
 
 
 <div class="viewcode-block" id="get_arguments"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.serializers.get_arguments.html#qiskit_serverless.serializers.get_arguments">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">get_arguments</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Parses arguments for program and returns them as dict.</span>
+<span class="w">    </span><span class="sd">"""Parses arguments for program and returns them as dict.</span>
 
 <span class="sd">    Reads the file path specified by the ``ARGUMENTS_PATH`` environment</span>
 <span class="sd">    variable, which is set by the runner (Ray or Fleets) at job submission.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        Dictionary of arguments.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">arguments_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ARGUMENTS_PATH</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">arguments_path</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
-            <span class="s2">&quot;Error getting arguments: ARGUMENTS_PATH environment variable is missing or empty&quot;</span>
+            <span class="s2">"Error getting arguments: ARGUMENTS_PATH environment variable is missing or empty"</span>
         <span class="p">)</span>
 
     <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">arguments_path</span><span class="p">),</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">arguments_path</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error getting arguments: </span><span class="si">{</span><span class="n">arguments_path</span><span class="si">}</span><span class="s2"> is not a file or doesn&#39;t exist&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Error getting arguments: </span><span class="si">{</span><span class="n">arguments_path</span><span class="si">}</span><span class="s2"> is not a file or doesn't exist"</span><span class="p">)</span>
 
-    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">arguments_path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">arguments_path</span><span class="p">,</span> <span class="s2">"r"</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
         <span class="n">arguments</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
 
     <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">arguments</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsDecoder</span><span class="p">)</span></div>

@@ -342,18 +342,18 @@ constructing a client will raise a <code class="docutils literal notranslate"><s
 routing, so it can be deleted without any replacement.</p>
 <p>Before:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">client</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
-    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;my-client&quot;</span><span class="p">,</span>
-    <span class="n">host</span><span class="o">=</span><span class="s2">&quot;&lt;HOST&gt;&quot;</span><span class="p">,</span>
-    <span class="n">token</span><span class="o">=</span><span class="s2">&quot;&lt;TOKEN&gt;&quot;</span><span class="p">,</span>
-    <span class="n">instance</span><span class="o">=</span><span class="s2">&quot;&lt;CRN&gt;&quot;</span><span class="p">,</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">"my-client"</span><span class="p">,</span>
+    <span class="n">host</span><span class="o">=</span><span class="s2">"&lt;HOST&gt;"</span><span class="p">,</span>
+    <span class="n">token</span><span class="o">=</span><span class="s2">"&lt;TOKEN&gt;"</span><span class="p">,</span>
+    <span class="n">instance</span><span class="o">=</span><span class="s2">"&lt;CRN&gt;"</span><span class="p">,</span>
 <span class="p">)</span>
 </pre></div>
 </div>
 <p>After:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">client</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
-    <span class="n">host</span><span class="o">=</span><span class="s2">&quot;&lt;HOST&gt;&quot;</span><span class="p">,</span>
-    <span class="n">token</span><span class="o">=</span><span class="s2">&quot;&lt;TOKEN&gt;&quot;</span><span class="p">,</span>
-    <span class="n">instance</span><span class="o">=</span><span class="s2">&quot;&lt;CRN&gt;&quot;</span><span class="p">,</span>
+    <span class="n">host</span><span class="o">=</span><span class="s2">"&lt;HOST&gt;"</span><span class="p">,</span>
+    <span class="n">token</span><span class="o">=</span><span class="s2">"&lt;TOKEN&gt;"</span><span class="p">,</span>
+    <span class="n">instance</span><span class="o">=</span><span class="s2">"&lt;CRN&gt;"</span><span class="p">,</span>
 <span class="p">)</span>
 </pre></div>
 </div>
@@ -485,7 +485,7 @@ runtime image that executes your function.</p>
 <span class="c1"># launch one task per circuit and collect the results</span>
 <span class="n">refs</span> <span class="o">=</span> <span class="p">[</span><span class="n">distributed_transpilation</span><span class="p">(</span><span class="n">circuit</span><span class="p">,</span> <span class="n">backend</span><span class="p">)</span> <span class="k">for</span> <span class="n">circuit</span> <span class="ow">in</span> <span class="n">circuits</span><span class="p">]</span>
 <span class="n">isa_circuits</span> <span class="o">=</span> <span class="n">get</span><span class="p">(</span><span class="n">refs</span><span class="p">)</span>
-<span class="n">save_result</span><span class="p">({</span><span class="s2">&quot;results&quot;</span><span class="p">:</span> <span class="n">isa_circuits</span><span class="p">})</span>
+<span class="n">save_result</span><span class="p">({</span><span class="s2">"results"</span><span class="p">:</span> <span class="n">isa_circuits</span><span class="p">})</span>
 </pre></div>
 </div>
 <p>After (using Ray directly):</p>
@@ -500,7 +500,7 @@ runtime image that executes your function.</p>
 <span class="c1"># launch one task per circuit and collect the results</span>
 <span class="n">refs</span> <span class="o">=</span> <span class="p">[</span><span class="n">distributed_transpilation</span><span class="o">.</span><span class="n">remote</span><span class="p">(</span><span class="n">circuit</span><span class="p">,</span> <span class="n">backend</span><span class="p">)</span> <span class="k">for</span> <span class="n">circuit</span> <span class="ow">in</span> <span class="n">circuits</span><span class="p">]</span>
 <span class="n">isa_circuits</span> <span class="o">=</span> <span class="n">ray</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">refs</span><span class="p">)</span>
-<span class="n">save_result</span><span class="p">({</span><span class="s2">&quot;results&quot;</span><span class="p">:</span> <span class="n">isa_circuits</span><span class="p">})</span>
+<span class="n">save_result</span><span class="p">({</span><span class="s2">"results"</span><span class="p">:</span> <span class="n">isa_circuits</span><span class="p">})</span>
 </pre></div>
 </div>
 <p>Uploading the function does not change. Ray is part of the serverless
@@ -508,9 +508,9 @@ runtime image, so it does not need to be listed in <code class="docutils literal
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitFunction</span>
 
 <span class="n">function</span> <span class="o">=</span> <span class="n">QiskitFunction</span><span class="p">(</span>
-    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;function-with-parallel-workflow&quot;</span><span class="p">,</span>
-    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;function_with_parallel_workflow.py&quot;</span><span class="p">,</span>
-    <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">"function-with-parallel-workflow"</span><span class="p">,</span>
+    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">"function_with_parallel_workflow.py"</span><span class="p">,</span>
+    <span class="n">working_dir</span><span class="o">=</span><span class="s2">"./source_files/"</span><span class="p">,</span>
 <span class="p">)</span>
 </pre></div>
 </div>
@@ -751,7 +751,7 @@ upgrade before installing this release.</p></li>
 <ul>
 <li><p>Qiskit Serverless is now compatible with <code class="docutils literal notranslate"><span class="pre">qiskit-ibm-runtime&lt;0.48.0</span></code>. Users can upgrade
 their local installation before using this release:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="s2">&quot;qiskit-ibm-runtime==0.47.0&quot;</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="s2">"qiskit-ibm-runtime==0.47.0"</span>
 </pre></div>
 </div>
 </li>
@@ -798,20 +798,20 @@ error conditions. Each event is represented by a <code class="xref py py-class d
 
 <span class="c1"># Send a simple error</span>
 <span class="n">send_error</span><span class="p">(</span>
-    <span class="n">code</span><span class="o">=</span><span class="s2">&quot;ERR001&quot;</span><span class="p">,</span>
-    <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Invalid input parameter&quot;</span><span class="p">,</span>
-    <span class="n">exception</span><span class="o">=</span><span class="s2">&quot;ValueError&quot;</span>
+    <span class="n">code</span><span class="o">=</span><span class="s2">"ERR001"</span><span class="p">,</span>
+    <span class="n">message</span><span class="o">=</span><span class="s2">"Invalid input parameter"</span><span class="p">,</span>
+    <span class="n">exception</span><span class="o">=</span><span class="s2">"ValueError"</span>
 <span class="p">)</span>
 
 <span class="c1"># Send an error with additional context</span>
 <span class="n">send_error</span><span class="p">(</span>
-    <span class="n">code</span><span class="o">=</span><span class="s2">&quot;ERR002&quot;</span><span class="p">,</span>
-    <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Circuit optimization failed&quot;</span><span class="p">,</span>
-    <span class="n">exception</span><span class="o">=</span><span class="s2">&quot;OptimizationError&quot;</span><span class="p">,</span>
+    <span class="n">code</span><span class="o">=</span><span class="s2">"ERR002"</span><span class="p">,</span>
+    <span class="n">message</span><span class="o">=</span><span class="s2">"Circuit optimization failed"</span><span class="p">,</span>
+    <span class="n">exception</span><span class="o">=</span><span class="s2">"OptimizationError"</span><span class="p">,</span>
     <span class="n">args</span><span class="o">=</span><span class="p">{</span>
-        <span class="s2">&quot;circuit_depth&quot;</span><span class="p">:</span> <span class="mi">150</span><span class="p">,</span>
-        <span class="s2">&quot;num_qubits&quot;</span><span class="p">:</span> <span class="mi">127</span><span class="p">,</span>
-        <span class="s2">&quot;optimization_level&quot;</span><span class="p">:</span> <span class="mi">3</span>
+        <span class="s2">"circuit_depth"</span><span class="p">:</span> <span class="mi">150</span><span class="p">,</span>
+        <span class="s2">"num_qubits"</span><span class="p">:</span> <span class="mi">127</span><span class="p">,</span>
+        <span class="s2">"optimization_level"</span><span class="p">:</span> <span class="mi">3</span>
     <span class="p">}</span>
 <span class="p">)</span>
 </pre></div>
@@ -831,9 +831,9 @@ logged as an ERROR event, and can be retrieved by users through the events API.<
 
 <span class="c1"># Raise a structured error</span>
 <span class="k">raise</span> <span class="n">ServerlessError</span><span class="p">(</span>
-    <span class="n">code</span><span class="o">=</span><span class="s2">&quot;VAL001&quot;</span><span class="p">,</span>
-    <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Invalid circuit depth&quot;</span><span class="p">,</span>
-    <span class="n">details</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;max_depth&quot;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span> <span class="s2">&quot;provided_depth&quot;</span><span class="p">:</span> <span class="mi">150</span><span class="p">}</span>
+    <span class="n">code</span><span class="o">=</span><span class="s2">"VAL001"</span><span class="p">,</span>
+    <span class="n">message</span><span class="o">=</span><span class="s2">"Invalid circuit depth"</span><span class="p">,</span>
+    <span class="n">details</span><span class="o">=</span><span class="p">{</span><span class="s2">"max_depth"</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span> <span class="s2">"provided_depth"</span><span class="p">:</span> <span class="mi">150</span><span class="p">}</span>
 <span class="p">)</span>
 </pre></div>
 </div>
@@ -848,45 +848,45 @@ retrieved by users, making errors easier to categorize and filter.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">ServerlessError</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">ProviderError</span><span class="p">(</span><span class="n">ServerlessError</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base error for all errors raised by this provider.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Base error for all errors raised by this provider."""</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">ValidationError</span><span class="p">(</span><span class="n">ProviderError</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when input arguments fail validation.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Raised when input arguments fail validation."""</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">ResourceError</span><span class="p">(</span><span class="n">ProviderError</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when a required resource is unavailable.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Raised when a required resource is unavailable."""</span>
 </pre></div>
 </div>
 <p>Raise them exactly as you would <code class="xref py py-class docutils literal notranslate"><span class="pre">ServerlessError</span></code>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">raise</span> <span class="n">ValidationError</span><span class="p">(</span>
-    <span class="n">code</span><span class="o">=</span><span class="s2">&quot;VAL001&quot;</span><span class="p">,</span>
-    <span class="n">message</span><span class="o">=</span><span class="s2">&quot;num_qubits exceeds the maximum allowed value&quot;</span><span class="p">,</span>
-    <span class="n">details</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mi">127</span><span class="p">,</span> <span class="s2">&quot;provided&quot;</span><span class="p">:</span> <span class="mi">256</span><span class="p">}</span>
+    <span class="n">code</span><span class="o">=</span><span class="s2">"VAL001"</span><span class="p">,</span>
+    <span class="n">message</span><span class="o">=</span><span class="s2">"num_qubits exceeds the maximum allowed value"</span><span class="p">,</span>
+    <span class="n">details</span><span class="o">=</span><span class="p">{</span><span class="s2">"max"</span><span class="p">:</span> <span class="mi">127</span><span class="p">,</span> <span class="s2">"provided"</span><span class="p">:</span> <span class="mi">256</span><span class="p">}</span>
 <span class="p">)</span>
 </pre></div>
 </div>
 <p>On the client side, the <code class="docutils literal notranslate"><span class="pre">exception</span></code> field of the retrieved event will be
 <code class="docutils literal notranslate"><span class="pre">&quot;ValidationError&quot;</span></code> rather than <code class="docutils literal notranslate"><span class="pre">&quot;ServerlessError&quot;</span></code>, which lets users filter
 precisely:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">error_events</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">events</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;ERROR&quot;</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">error_events</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">events</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">"ERROR"</span><span class="p">)</span>
 <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">error_events</span><span class="p">:</span>
-    <span class="k">if</span> <span class="n">event</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;exception&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;ValidationError&quot;</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Input problem:&quot;</span><span class="p">,</span> <span class="n">event</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;message&quot;</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">event</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"exception"</span><span class="p">)</span> <span class="o">==</span> <span class="s2">"ValidationError"</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">"Input problem:"</span><span class="p">,</span> <span class="n">event</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">"message"</span><span class="p">])</span>
 </pre></div>
 </div>
 <p>You can also override <code class="docutils literal notranslate"><span class="pre">__init__</span></code> to fix a <code class="docutils literal notranslate"><span class="pre">code</span></code> prefix or add mandatory fields,
 so callers only need to provide the varying parts:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">CircuitError</span><span class="p">(</span><span class="n">ProviderError</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised for circuit-related failures.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Raised for circuit-related failures."""</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">circuit_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
-            <span class="n">code</span><span class="o">=</span><span class="s2">&quot;CIR001&quot;</span><span class="p">,</span>
+            <span class="n">code</span><span class="o">=</span><span class="s2">"CIR001"</span><span class="p">,</span>
             <span class="n">message</span><span class="o">=</span><span class="n">message</span><span class="p">,</span>
-            <span class="n">details</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;circuit_id&quot;</span><span class="p">:</span> <span class="n">circuit_id</span><span class="p">},</span>
+            <span class="n">details</span><span class="o">=</span><span class="p">{</span><span class="s2">"circuit_id"</span><span class="p">:</span> <span class="n">circuit_id</span><span class="p">},</span>
         <span class="p">)</span>
 
-<span class="k">raise</span> <span class="n">CircuitError</span><span class="p">(</span><span class="s2">&quot;Circuit depth exceeds limit&quot;</span><span class="p">,</span> <span class="n">circuit_id</span><span class="o">=</span><span class="s2">&quot;circ-42&quot;</span><span class="p">)</span>
+<span class="k">raise</span> <span class="n">CircuitError</span><span class="p">(</span><span class="s2">"Circuit depth exceeds limit"</span><span class="p">,</span> <span class="n">circuit_id</span><span class="o">=</span><span class="s2">"circ-42"</span><span class="p">)</span>
 </pre></div>
 </div>
 <p><strong>When to use ServerlessError vs send_error</strong></p>
@@ -919,10 +919,10 @@ job ultimately ends in ERROR status.</p></li>
         <span class="k">if</span> <span class="n">circuit</span><span class="o">.</span><span class="n">num_qubits</span> <span class="o">&gt;</span> <span class="mi">127</span><span class="p">:</span>
             <span class="c1"># Log non-fatal error, continue processing</span>
             <span class="n">send_error</span><span class="p">(</span>
-                <span class="n">code</span><span class="o">=</span><span class="s2">&quot;SKIP001&quot;</span><span class="p">,</span>
-                <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Circuit exceeds qubit limit&quot;</span><span class="p">,</span>
-                <span class="n">exception</span><span class="o">=</span><span class="s2">&quot;ValidationError&quot;</span><span class="p">,</span>
-                <span class="n">args</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;num_qubits&quot;</span><span class="p">:</span> <span class="n">circuit</span><span class="o">.</span><span class="n">num_qubits</span><span class="p">}</span>
+                <span class="n">code</span><span class="o">=</span><span class="s2">"SKIP001"</span><span class="p">,</span>
+                <span class="n">message</span><span class="o">=</span><span class="s2">"Circuit exceeds qubit limit"</span><span class="p">,</span>
+                <span class="n">exception</span><span class="o">=</span><span class="s2">"ValidationError"</span><span class="p">,</span>
+                <span class="n">args</span><span class="o">=</span><span class="p">{</span><span class="s2">"num_qubits"</span><span class="p">:</span> <span class="n">circuit</span><span class="o">.</span><span class="n">num_qubits</span><span class="p">}</span>
             <span class="p">)</span>
             <span class="n">failed</span> <span class="o">+=</span> <span class="mi">1</span>
             <span class="k">continue</span>
@@ -931,9 +931,9 @@ job ultimately ends in ERROR status.</p></li>
     <span class="c1"># Raise fatal error if all circuits failed</span>
     <span class="k">if</span> <span class="n">failed</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">circuits</span><span class="p">):</span>
         <span class="k">raise</span> <span class="n">ServerlessError</span><span class="p">(</span>
-            <span class="n">code</span><span class="o">=</span><span class="s2">&quot;FATAL001&quot;</span><span class="p">,</span>
-            <span class="n">message</span><span class="o">=</span><span class="s2">&quot;All circuits failed&quot;</span><span class="p">,</span>
-            <span class="n">details</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;total&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">circuits</span><span class="p">)}</span>
+            <span class="n">code</span><span class="o">=</span><span class="s2">"FATAL001"</span><span class="p">,</span>
+            <span class="n">message</span><span class="o">=</span><span class="s2">"All circuits failed"</span><span class="p">,</span>
+            <span class="n">details</span><span class="o">=</span><span class="p">{</span><span class="s2">"total"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">circuits</span><span class="p">)}</span>
         <span class="p">)</span>
 </pre></div>
 </div>
@@ -953,31 +953,31 @@ retrieved in bulk for comprehensive debugging. Each event is represented by a
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">ServerlessClient</span>
 
 <span class="n">serverless</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
-<span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;my-function&quot;</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;param&quot;</span><span class="p">:</span> <span class="s2">&quot;value&quot;</span><span class="p">})</span>
+<span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">"my-function"</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="p">{</span><span class="s2">"param"</span><span class="p">:</span> <span class="s2">"value"</span><span class="p">})</span>
 
 <span class="c1"># Get all events</span>
 <span class="n">all_events</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">events</span><span class="p">()</span>
 <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">all_events</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Type: </span><span class="si">{</span><span class="n">event</span><span class="o">.</span><span class="n">event_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Created: </span><span class="si">{</span><span class="n">event</span><span class="o">.</span><span class="n">created</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Data: </span><span class="si">{</span><span class="n">event</span><span class="o">.</span><span class="n">data</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Type: </span><span class="si">{</span><span class="n">event</span><span class="o">.</span><span class="n">event_type</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Created: </span><span class="si">{</span><span class="n">event</span><span class="o">.</span><span class="n">created</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Data: </span><span class="si">{</span><span class="n">event</span><span class="o">.</span><span class="n">data</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>To retrieve error events, users can filter events by type:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get only error events</span>
-<span class="n">error_events</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">events</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;ERROR&quot;</span><span class="p">)</span>
+<span class="n">error_events</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">events</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">"ERROR"</span><span class="p">)</span>
 
 <span class="k">for</span> <span class="n">error</span> <span class="ow">in</span> <span class="n">error_events</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error Code: </span><span class="si">{</span><span class="n">error</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;code&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Message: </span><span class="si">{</span><span class="n">error</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;message&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Exception: </span><span class="si">{</span><span class="n">error</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;exception&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="s1">&#39;args&#39;</span> <span class="ow">in</span> <span class="n">error</span><span class="o">.</span><span class="n">data</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Additional Info: </span><span class="si">{</span><span class="n">error</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;args&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Error Code: </span><span class="si">{</span><span class="n">error</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'code'</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Message: </span><span class="si">{</span><span class="n">error</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'message'</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Exception: </span><span class="si">{</span><span class="n">error</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'exception'</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s1">'args'</span> <span class="ow">in</span> <span class="n">error</span><span class="o">.</span><span class="n">data</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Additional Info: </span><span class="si">{</span><span class="n">error</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">'args'</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>On top of the <a class="reference internal" href="stubs/qiskit_serverless.core.Job.html#qiskit_serverless.core.Job" title="qiskit_serverless.core.Job"><code class="xref py py-class docutils literal notranslate"><span class="pre">Job</span></code></a> methods, users can retrieve events using the client directly:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Alternative: use client to get events by job_id</span>
-<span class="n">events</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">events</span><span class="p">(</span><span class="n">job_id</span><span class="o">=</span><span class="s2">&quot;my-job-id&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;ERROR&quot;</span><span class="p">)</span>
+<span class="n">events</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">events</span><span class="p">(</span><span class="n">job_id</span><span class="o">=</span><span class="s2">"my-job-id"</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s2">"ERROR"</span><span class="p">)</span>
 </pre></div>
 </div>
 <p><strong>API</strong></p>
@@ -1006,7 +1006,7 @@ new label dimensions on scheduler metrics.</p></li>
 <ul>
 <li><p>Qiskit Serverless is now compatible with <code class="docutils literal notranslate"><span class="pre">qiskit-ibm-runtime==0.47</span></code>. Users can upgrade
 their local installation before using this release:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="s2">&quot;qiskit-ibm-runtime==0.47&quot;</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="s2">"qiskit-ibm-runtime==0.47"</span>
 </pre></div>
 </div>
 </li>
@@ -1055,15 +1055,15 @@ For example:</p>
 <span class="n">user_logger</span> <span class="o">=</span> <span class="n">get_logger</span><span class="p">()</span>
 <span class="n">provider_logger</span> <span class="o">=</span> <span class="n">get_provider_logger</span><span class="p">()</span>
 
-<span class="n">get_logger</span><span class="p">()</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;User log&quot;</span><span class="p">)</span>
-<span class="n">user_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;User multiline</span><span class="se">\n</span><span class="s2">log&quot;</span><span class="p">)</span>
-<span class="n">user_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;User log&quot;</span><span class="p">)</span>
-<span class="n">user_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;User log&quot;</span><span class="p">)</span>
+<span class="n">get_logger</span><span class="p">()</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"User log"</span><span class="p">)</span>
+<span class="n">user_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"User multiline</span><span class="se">\n</span><span class="s2">log"</span><span class="p">)</span>
+<span class="n">user_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">"User log"</span><span class="p">)</span>
+<span class="n">user_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">"User log"</span><span class="p">)</span>
 
-<span class="n">get_provider_logger</span><span class="p">()</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Provider log&quot;</span><span class="p">)</span>
-<span class="n">provider_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Provider multiline</span><span class="se">\n</span><span class="s2">log&quot;</span><span class="p">)</span>
-<span class="n">provider_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Provider log&quot;</span><span class="p">)</span>
-<span class="n">provider_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Provider log&quot;</span><span class="p">)</span>
+<span class="n">get_provider_logger</span><span class="p">()</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"Provider log"</span><span class="p">)</span>
+<span class="n">provider_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"Provider multiline</span><span class="se">\n</span><span class="s2">log"</span><span class="p">)</span>
+<span class="n">provider_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">"Provider log"</span><span class="p">)</span>
+<span class="n">provider_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">"Provider log"</span><span class="p">)</span>
 </pre></div>
 </div>
 </li>
@@ -1073,7 +1073,7 @@ For example:</p>
 from now on only return user logs. To access provider logs, we have added a new
 <code class="xref py py-meth docutils literal notranslate"><span class="pre">provider_logs()</span></code> method.
 For example:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">runnable_function</span> <span class="o">=</span> <span class="n">serverless_client</span><span class="o">.</span><span class="n">function</span><span class="p">(</span><span class="s2">&quot;my_function&quot;</span><span class="p">)</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">runnable_function</span> <span class="o">=</span> <span class="n">serverless_client</span><span class="o">.</span><span class="n">function</span><span class="p">(</span><span class="s2">"my_function"</span><span class="p">)</span>
 <span class="n">job</span> <span class="o">=</span> <span class="n">runnable_function</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 
 <span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">logs</span><span class="p">())</span>  <span class="c1"># only users</span>
@@ -1176,17 +1176,17 @@ After the fix, the function version can be tracked through the whole life cycle.
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitFunction</span>
 
 <span class="n">my</span><span class="o">-</span><span class="n">func</span> <span class="o">=</span> <span class="n">QiskitFunction</span><span class="p">(</span>
-    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;my_func_title&quot;</span><span class="p">,</span>
-    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;my_func_entrypoint.py&quot;</span><span class="p">,</span>
-    <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span><span class="p">,</span>
-    <span class="n">version</span><span class="o">=</span><span class="s2">&quot;2.0.0&quot;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">"my_func_title"</span><span class="p">,</span>
+    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">"my_func_entrypoint.py"</span><span class="p">,</span>
+    <span class="n">working_dir</span><span class="o">=</span><span class="s2">"./source_files/"</span><span class="p">,</span>
+    <span class="n">version</span><span class="o">=</span><span class="s2">"2.0.0"</span><span class="p">,</span>
 <span class="p">)</span>
 
 <span class="c1"># this print outputs 2.0.0</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">my</span><span class="o">-</span><span class="n">func</span><span class="o">.</span><span class="n">version</span><span class="p">)</span>
 
 <span class="n">serverless</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">my</span><span class="o">-</span><span class="n">func</span><span class="p">)</span>
-<span class="n">my</span><span class="o">-</span><span class="n">func</span><span class="o">-</span><span class="n">load</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">function</span><span class="p">(</span><span class="s2">&quot;my_func_title&quot;</span><span class="p">)</span>
+<span class="n">my</span><span class="o">-</span><span class="n">func</span><span class="o">-</span><span class="n">load</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">function</span><span class="p">(</span><span class="s2">"my_func_title"</span><span class="p">)</span>
 
 <span class="c1"># this print now also outputs 2.0.0 (previously empty)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">my</span><span class="o">-</span><span class="n">func</span><span class="o">-</span><span class="n">load</span><span class="o">.</span><span class="n">version</span><span class="p">)</span>
@@ -1255,7 +1255,7 @@ bare 404 error, the <code class="docutils literal notranslate"><span class="pre"
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">QiskitServerlessException</span><span class="p">:</span>
 <span class="o">|</span> <span class="n">Message</span><span class="p">:</span> <span class="n">Http</span> <span class="n">bad</span> <span class="n">request</span><span class="o">.</span>
 <span class="o">|</span> <span class="n">Code</span><span class="p">:</span> <span class="mi">404</span>
-<span class="o">|</span> <span class="n">Details</span><span class="p">:</span> <span class="n">User</span> <span class="n">program</span> <span class="s1">&#39;my-program&#39;</span> <span class="n">was</span> <span class="ow">not</span> <span class="n">found</span> <span class="ow">or</span> <span class="n">you</span> <span class="n">do</span> <span class="ow">not</span> <span class="n">have</span> <span class="n">permission</span> <span class="n">to</span> <span class="n">view</span> <span class="n">it</span><span class="o">.</span>
+<span class="o">|</span> <span class="n">Details</span><span class="p">:</span> <span class="n">User</span> <span class="n">program</span> <span class="s1">'my-program'</span> <span class="n">was</span> <span class="ow">not</span> <span class="n">found</span> <span class="ow">or</span> <span class="n">you</span> <span class="n">do</span> <span class="ow">not</span> <span class="n">have</span> <span class="n">permission</span> <span class="n">to</span> <span class="n">view</span> <span class="n">it</span><span class="o">.</span>
 </pre></div>
 </div>
 <p>Fixes <a class="reference external" href="https://github.com/Qiskit/qiskit-serverless/issues/1773">https://github.com/Qiskit/qiskit-serverless/issues/1773</a>.</p>
@@ -1316,7 +1316,7 @@ variables, reducing boilerplate code and improving usability for function develo
 <p>Example usage:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_runtime_service</span>
 <span class="n">service</span> <span class="o">=</span> <span class="n">get_runtime_service</span><span class="p">()</span>
-<span class="n">backend</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">backend</span><span class="p">(</span><span class="s2">&quot;ibm_fez&quot;</span><span class="p">)</span>
+<span class="n">backend</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">backend</span><span class="p">(</span><span class="s2">"ibm_fez"</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>This is equivalent to:</p>
@@ -1324,11 +1324,11 @@ variables, reducing boilerplate code and improving usability for function develo
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_arguments</span><span class="p">,</span> <span class="n">save_result</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_ibm_runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitRuntimeService</span>
 <span class="n">service</span> <span class="o">=</span> <span class="n">QiskitRuntimeService</span><span class="p">(</span>
-  <span class="n">channel</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;QISKIT_IBM_CHANNEL&quot;</span><span class="p">],</span>
-  <span class="n">instance</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;QISKIT_IBM_INSTANCE&quot;</span><span class="p">],</span>
-  <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;QISKIT_IBM_TOKEN&quot;</span><span class="p">],</span>
+  <span class="n">channel</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">"QISKIT_IBM_CHANNEL"</span><span class="p">],</span>
+  <span class="n">instance</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">"QISKIT_IBM_INSTANCE"</span><span class="p">],</span>
+  <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">"QISKIT_IBM_TOKEN"</span><span class="p">],</span>
 <span class="p">)</span>
-<span class="n">backend</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">backend</span><span class="p">(</span><span class="s2">&quot;ibm_fez&quot;</span><span class="p">)</span>
+<span class="n">backend</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">backend</span><span class="p">(</span><span class="s2">"ibm_fez"</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>This function also enables automatic tracking of runtime job and session IDs created during function
@@ -1337,11 +1337,11 @@ are submitted through a service instantiated with this function.</p>
 <p>On top of the default credentials, function developers can customize the call to <code class="docutils literal notranslate"><span class="pre">get_runtime_service()</span></code>
 with custom input parameters, including <code class="docutils literal notranslate"><span class="pre">token</span></code>, <code class="docutils literal notranslate"><span class="pre">instance</span></code>, <code class="docutils literal notranslate"><span class="pre">channel</span></code> and <code class="docutils literal notranslate"><span class="pre">url</span></code>. For example:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_runtime_service</span>
-<span class="n">service</span> <span class="o">=</span> <span class="n">get_runtime_service</span><span class="p">(</span><span class="n">channel</span><span class="o">=</span><span class="s2">&quot;ibm_quantum_platform&quot;</span><span class="p">,</span>
-                              <span class="n">token</span><span class="o">=</span><span class="s2">&quot;staging_token&quot;</span><span class="p">,</span>
-                              <span class="n">instance</span><span class="o">=</span><span class="s2">&quot;staging_crn&quot;</span><span class="p">,</span>
-                              <span class="n">url</span><span class="o">=</span><span class="s2">&quot;staging_url&quot;</span><span class="p">)</span>
-<span class="n">backend</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">backend</span><span class="p">(</span><span class="s2">&quot;staging_backend&quot;</span><span class="p">)</span>
+<span class="n">service</span> <span class="o">=</span> <span class="n">get_runtime_service</span><span class="p">(</span><span class="n">channel</span><span class="o">=</span><span class="s2">"ibm_quantum_platform"</span><span class="p">,</span>
+                              <span class="n">token</span><span class="o">=</span><span class="s2">"staging_token"</span><span class="p">,</span>
+                              <span class="n">instance</span><span class="o">=</span><span class="s2">"staging_crn"</span><span class="p">,</span>
+                              <span class="n">url</span><span class="o">=</span><span class="s2">"staging_url"</span><span class="p">)</span>
+<span class="n">backend</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">backend</span><span class="p">(</span><span class="s2">"staging_backend"</span><span class="p">)</span>
 </pre></div>
 </div>
 </li>
@@ -1356,17 +1356,17 @@ For example:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">job</span> <span class="o">=</span> <span class="n">function</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
 
 <span class="n">runtime_ids</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">runtime_jobs</span><span class="p">()</span>
-<span class="c1"># out = [&quot;job_id_1&quot;, &quot;job_id_2&quot;, &quot;job_id_3&quot;...]</span>
+<span class="c1"># out = ["job_id_1", "job_id_2", "job_id_3"...]</span>
 <span class="n">runtime_sessions</span> <span class="o">=</span>  <span class="n">job</span><span class="o">.</span><span class="n">runtime_sessions</span><span class="p">()</span>
-<span class="c1"># out = [&quot;session_id_1&quot;, &quot;session_id_2&quot;]</span>
+<span class="c1"># out = ["session_id_1", "session_id_2"]</span>
 
 <span class="c1"># a specific session id can be passed to the runtime_jobs() method to filter by session:</span>
 
 <span class="n">session_id</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">runtime_sessions</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
-<span class="c1"># out = &quot;session_id_1&quot;</span>
+<span class="c1"># out = "session_id_1"</span>
 <span class="n">session_job_ids</span> <span class="o">=</span>  <span class="n">job</span><span class="o">.</span><span class="n">runtime_jobs</span><span class="p">(</span><span class="n">session_id</span><span class="p">)</span>
 <span class="c1"># in this example, only job ids 1 and 3 correspond to session_id_1:</span>
-<span class="c1"># out = [&quot;job_id_1&quot;, &quot;job_id_3&quot;]</span>
+<span class="c1"># out = ["job_id_1", "job_id_3"]</span>
 </pre></div>
 </div>
 </li>
@@ -1388,10 +1388,10 @@ with no additional inputs.</p>
 <code class="docutils literal notranslate"><span class="pre">ServerlessClient</span></code> don’t match those in the <code class="docutils literal notranslate"><span class="pre">QiskitRuntimeService</span></code> used to submit the jobs,
 <code class="docutils literal notranslate"><span class="pre">job.cancel()</span></code> accepts a service parameter:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">service</span> <span class="o">=</span> <span class="n">QiskitRuntimeService</span><span class="p">(</span>
-  <span class="n">channel</span><span class="o">=</span><span class="s2">&quot;ibm_quantum_platform&quot;</span><span class="p">,</span>
-  <span class="n">token</span><span class="o">=</span><span class="s2">&quot;MY_TOKEN&quot;</span><span class="p">,</span>
-  <span class="n">instance</span><span class="o">=</span><span class="s2">&quot;MY_CRN&quot;</span><span class="p">,</span>
-  <span class="n">url</span><span class="o">=</span><span class="s2">&quot;my.staging.url.com&quot;</span>
+  <span class="n">channel</span><span class="o">=</span><span class="s2">"ibm_quantum_platform"</span><span class="p">,</span>
+  <span class="n">token</span><span class="o">=</span><span class="s2">"MY_TOKEN"</span><span class="p">,</span>
+  <span class="n">instance</span><span class="o">=</span><span class="s2">"MY_CRN"</span><span class="p">,</span>
+  <span class="n">url</span><span class="o">=</span><span class="s2">"my.staging.url.com"</span>
 <span class="p">)</span>
 <span class="n">job</span><span class="o">.</span><span class="n">cancel</span><span class="p">(</span><span class="n">service</span><span class="p">)</span>
 </pre></div>
@@ -1416,7 +1416,7 @@ new filters to improve the management of the different jobs. Now you
 can filter by <code class="docutils literal notranslate"><span class="pre">status</span></code> and by <code class="docutils literal notranslate"><span class="pre">created_after</span></code> to retrieve those
 specific jobs. For example:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Filtering by status it will retrieve all the jobs with that status</span>
-<span class="n">client</span><span class="o">.</span><span class="n">jobs</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="s2">&quot;SUCCEEDED&quot;</span><span class="p">)</span>
+<span class="n">client</span><span class="o">.</span><span class="n">jobs</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="s2">"SUCCEEDED"</span><span class="p">)</span>
 
 <span class="c1"># The same it will apply after a specific date</span>
 <span class="n">time_filter</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span>
@@ -1424,7 +1424,7 @@ specific jobs. For example:</p>
 
 <span class="c1"># And all these new filters can be combined with the Qiskit Function filter</span>
 <span class="c1"># to be able to return running jobs from the specific Qiskit Function</span>
-<span class="n">function</span><span class="o">.</span><span class="n">jobs</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="s2">&quot;RUNNING&quot;</span><span class="p">)</span>
+<span class="n">function</span><span class="o">.</span><span class="n">jobs</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="s2">"RUNNING"</span><span class="p">)</span>
 </pre></div>
 </div>
 </li>

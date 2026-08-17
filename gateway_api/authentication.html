@@ -325,7 +325,7 @@
 </section>
 <section id="example-request">
 <h2>Example Request<a class="headerlink" href="#example-request" title="Permalink to this heading">¶</a></h2>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer your-token&quot;</span><span class="w"> </span><span class="se">\</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-H<span class="w"> </span><span class="s2">"Authorization: Bearer your-token"</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>https://qiskit-serverless.quantum.ibm.com/api/v1/jobs/
 </pre></div>
 </div>
@@ -333,9 +333,9 @@
 <h3>Python Example<a class="headerlink" href="#python-example" title="Permalink to this heading">¶</a></h3>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
 
-<span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="s2">&quot;Bearer your-token&quot;</span><span class="p">}</span>
+<span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"Authorization"</span><span class="p">:</span> <span class="s2">"Bearer your-token"</span><span class="p">}</span>
 <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-    <span class="s2">&quot;https://qiskit-serverless.quantum.ibm.com/api/v1/jobs/&quot;</span><span class="p">,</span>
+    <span class="s2">"https://qiskit-serverless.quantum.ibm.com/api/v1/jobs/"</span><span class="p">,</span>
     <span class="n">headers</span><span class="o">=</span><span class="n">headers</span>
 <span class="p">)</span>
 </pre></div>
@@ -346,13 +346,13 @@
 <h2>Error Responses<a class="headerlink" href="#error-responses" title="Permalink to this heading">¶</a></h2>
 <p><strong>401 Unauthorized</strong> - Missing or invalid token</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;detail&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Authentication credentials were not provided.&quot;</span>
+<span class="w">  </span><span class="nt">"detail"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Authentication credentials were not provided."</span>
 <span class="p">}</span>
 </pre></div>
 </div>
 <p><strong>403 Forbidden</strong> - Insufficient permissions</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;message&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Not allowed to perform this action.&quot;</span>
+<span class="w">  </span><span class="nt">"message"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Not allowed to perform this action."</span>
 <span class="p">}</span>
 </pre></div>
 </div>

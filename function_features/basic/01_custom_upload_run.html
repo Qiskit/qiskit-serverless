@@ -347,7 +347,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">save_result</span>
 
 <span class="c1"># all print statement will be available in job logs</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Running function...&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Running function..."</span><span class="p">)</span>
 
 <span class="c1"># Step 1: Create a Bell-state circuit</span>
 <span class="n">circuit</span> <span class="o">=</span> <span class="n">QuantumCircuit</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
@@ -367,7 +367,7 @@
 
 <span class="c1"># Step 4: Save results so they can be retrieved later by calling `.result()`</span>
 <span class="n">save_result</span><span class="p">(</span><span class="n">quasi_dists</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Completed running function.&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Completed running function."</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Now that we’ve written our Qiskit Function, the next step is to deploy it to the serverless environment so it can run remotely.</p>
@@ -393,9 +393,9 @@
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">client</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
-    <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;awesome_token&quot;</span><span class="p">),</span>
-    <span class="n">instance</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_INSTANCE&quot;</span><span class="p">,</span> <span class="s2">&quot;an_awesome_crn&quot;</span><span class="p">),</span>
-    <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">),</span>
+    <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"GATEWAY_TOKEN"</span><span class="p">,</span> <span class="s2">"awesome_token"</span><span class="p">),</span>
+    <span class="n">instance</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"GATEWAY_INSTANCE"</span><span class="p">,</span> <span class="s2">"an_awesome_crn"</span><span class="p">),</span>
+    <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"GATEWAY_HOST"</span><span class="p">,</span> <span class="s2">"http://localhost:8000"</span><span class="p">),</span>
     <span class="c1"># If you are using the kubernetes approach the URL must be http://localhost</span>
 <span class="p">)</span>
 
@@ -432,9 +432,9 @@
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitFunction</span>
 
 <span class="n">function</span> <span class="o">=</span> <span class="n">QiskitFunction</span><span class="p">(</span>
-    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;my-first-function&quot;</span><span class="p">,</span>
-    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;function.py&quot;</span><span class="p">,</span>
-    <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">"my-first-function"</span><span class="p">,</span>
+    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">"function.py"</span><span class="p">,</span>
+    <span class="n">working_dir</span><span class="o">=</span><span class="s2">"./source_files/"</span>
 <span class="p">)</span>
 </pre></div>
 </div>
@@ -472,7 +472,7 @@ QiskitFunction(my-first-function)
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">my_first_function</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;my-first-function&quot;</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">my_first_function</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"my-first-function"</span><span class="p">)</span>
 <span class="n">my_first_function</span>
 </pre></div>
 </div>

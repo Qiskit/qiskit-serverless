@@ -336,13 +336,13 @@ NoiseModel, Instruction]. See full list via link.</p>
 </dl>
 <p class="rubric">Example</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># save dictionary</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">save_result</span><span class="p">({</span><span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;value&quot;</span><span class="p">})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">save_result</span><span class="p">({</span><span class="s2">"key"</span><span class="p">:</span> <span class="s2">"value"</span><span class="p">})</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="c1"># save circuit</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">circuit</span><span class="p">:</span> <span class="n">QuantumCircuit</span> <span class="o">=</span> <span class="o">...</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">save_result</span><span class="p">({</span><span class="s2">&quot;circuit&quot;</span><span class="p">:</span> <span class="n">circuit</span><span class="p">})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">save_result</span><span class="p">({</span><span class="s2">"circuit"</span><span class="p">:</span> <span class="n">circuit</span><span class="p">})</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="c1"># save primitives data</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">quasi_dists</span> <span class="o">=</span> <span class="n">Sampler</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">()</span><span class="o">.</span><span class="n">quasi_dists</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="c1"># {&quot;1x0&quot;: 0.1, ...}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># {"1x0": 0.1, ...}</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">save_result</span><span class="p">(</span><span class="n">quasi_dists</span><span class="p">)</span>
 </pre></div>
 </div>

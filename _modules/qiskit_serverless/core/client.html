@@ -320,7 +320,7 @@
 <span class="c1"># copyright notice, and modified files need to carry a notice indicating</span>
 <span class="c1"># that they have been altered from the originals.</span>
 
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">"""</span>
 <span class="sd">================================================</span>
 <span class="sd">Provider (:mod:`qiskit_serverless.core.client`)</span>
 <span class="sd">================================================</span>
@@ -335,7 +335,7 @@
 
 <span class="sd">    ComputeResource</span>
 <span class="sd">    BaseClient</span>
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">"""</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
@@ -351,19 +351,19 @@
 
 
 <div class="viewcode-block" id="BaseClient"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.BaseClient.html#qiskit_serverless.core.BaseClient">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">BaseClient</span><span class="p">(</span><span class="n">JobService</span><span class="p">,</span> <span class="n">RunService</span><span class="p">,</span> <span class="n">JsonSerializable</span><span class="p">,</span> <span class="n">ABC</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    A client class for specifying custom compute resources.</span>
 
 <span class="sd">    Example:</span>
 <span class="sd">        &gt;&gt;&gt; client = BaseClient(</span>
-<span class="sd">        &gt;&gt;&gt;    host=&quot;&lt;HOST&gt;&quot;,</span>
-<span class="sd">        &gt;&gt;&gt;    token=&quot;&lt;TOKEN&gt;&quot;,</span>
+<span class="sd">        &gt;&gt;&gt;    host="&lt;HOST&gt;",</span>
+<span class="sd">        &gt;&gt;&gt;    token="&lt;TOKEN&gt;",</span>
 <span class="sd">        &gt;&gt;&gt;    compute_resource=ComputeResource(</span>
-<span class="sd">        &gt;&gt;&gt;        name=&quot;&lt;COMPUTE_RESOURCE_NAME&gt;&quot;,</span>
-<span class="sd">        &gt;&gt;&gt;        host=&quot;&lt;COMPUTE_RESOURCE_HOST&gt;&quot;</span>
+<span class="sd">        &gt;&gt;&gt;        name="&lt;COMPUTE_RESOURCE_NAME&gt;",</span>
+<span class="sd">        &gt;&gt;&gt;        host="&lt;COMPUTE_RESOURCE_HOST&gt;"</span>
 <span class="sd">        &gt;&gt;&gt;    ),</span>
 <span class="sd">        &gt;&gt;&gt; )</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
 <div class="viewcode-block" id="BaseClient.__init__"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.BaseClient.html#qiskit_serverless.core.BaseClient.__init__">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>  <span class="c1"># pylint:  disable=too-many-positional-arguments</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -372,7 +372,7 @@
         <span class="n">instance</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">channel</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Initialize a BaseClient instance.</span>
 
 <span class="sd">        Args:</span>
@@ -380,7 +380,7 @@
 <span class="sd">            token: authentication token for manager</span>
 <span class="sd">            instance: IBM Cloud CRN or IQP h/g/p</span>
 <span class="sd">            channel: identifies the method to use to authenticate the user</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">host</span> <span class="o">=</span> <span class="n">host</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">token</span> <span class="o">=</span> <span class="n">token</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">instance</span> <span class="o">=</span> <span class="n">instance</span>
@@ -389,7 +389,7 @@
     <span class="nd">@classmethod</span>
     <span class="nd">@abstractmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">from_dict</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">dictionary</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Converts dict to object.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Converts dict to object."""</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">BaseClient</span><span class="p">):</span>
@@ -402,58 +402,58 @@
         <span class="k">return</span> <span class="kc">False</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;&lt;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">(host=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">)&gt;&quot;</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">"&lt;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">(host=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">)&gt;"</span>
 
     <span class="c1">####################</span>
     <span class="c1">####### JOBS #######</span>
     <span class="c1">####################</span>
     <span class="nd">@abstractmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">function</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">QiskitFunction</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Job</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return list of jobs.</span>
+<span class="w">        </span><span class="sd">"""Return list of jobs.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            list of jobs.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
 
     <span class="nd">@abstractmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Job</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns job by job id.</span>
+<span class="w">        </span><span class="sd">"""Returns job by job id.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            job_id: job id</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Job instance</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">get_job_by_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Job</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns job by job id.</span>
+<span class="w">        </span><span class="sd">"""Returns job by job id.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            job_id: job id</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Job instance</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-            <span class="s2">&quot;`get_job_by_id` method has been deprecated. &quot;</span>
-            <span class="s2">&quot;And will be removed in future releases. &quot;</span>
-            <span class="s2">&quot;Please, use `get_job` instead.&quot;</span><span class="p">,</span>
+            <span class="s2">"`get_job_by_id` method has been deprecated. "</span>
+            <span class="s2">"And will be removed in future releases. "</span>
+            <span class="s2">"Please, use `get_job` instead."</span><span class="p">,</span>
             <span class="ne">DeprecationWarning</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">job</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">get_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Job</span><span class="p">]:</span>
         <span class="c1"># pylint: disable=duplicate-code</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return list of jobs.</span>
+<span class="w">        </span><span class="sd">"""Return list of jobs.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            list of jobs.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-            <span class="s2">&quot;`get_jobs` method has been deprecated. &quot;</span>
-            <span class="s2">&quot;And will be removed in future releases. &quot;</span>
-            <span class="s2">&quot;Please, use `jobs` instead.&quot;</span><span class="p">,</span>
+            <span class="s2">"`get_jobs` method has been deprecated. "</span>
+            <span class="s2">"And will be removed in future releases. "</span>
+            <span class="s2">"Please, use `jobs` instead."</span><span class="p">,</span>
             <span class="ne">DeprecationWarning</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
@@ -464,32 +464,32 @@
 
     <span class="nd">@abstractmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RunnableQiskitFunction</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Uploads program.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Uploads program."""</span>
 
     <span class="nd">@abstractmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">functions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">RunnableQiskitFunction</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns list of available programs.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Returns list of available programs."""</span>
 
     <span class="nd">@abstractmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">provider</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RunnableQiskitFunction</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns program based on parameters.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Returns program based on parameters."""</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">provider</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RunnableQiskitFunction</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns program based on parameters.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Returns program based on parameters."""</span>
         <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-            <span class="s2">&quot;`get` method has been deprecated. &quot;</span>
-            <span class="s2">&quot;And will be removed in future releases. &quot;</span>
-            <span class="s2">&quot;Please, use `get_function` instead.&quot;</span><span class="p">,</span>
+            <span class="s2">"`get` method has been deprecated. "</span>
+            <span class="s2">"And will be removed in future releases. "</span>
+            <span class="s2">"Please, use `get_function` instead."</span><span class="p">,</span>
             <span class="ne">DeprecationWarning</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">function</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="n">provider</span><span class="o">=</span><span class="n">provider</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">RunnableQiskitFunction</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns list of available programs.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Returns list of available programs."""</span>
         <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-            <span class="s2">&quot;`list` method has been deprecated. &quot;</span>
-            <span class="s2">&quot;And will be removed in future releases. &quot;</span>
-            <span class="s2">&quot;Please, use `get_functions` instead.&quot;</span><span class="p">,</span>
+            <span class="s2">"`list` method has been deprecated. "</span>
+            <span class="s2">"And will be removed in future releases. "</span>
+            <span class="s2">"Please, use `get_functions` instead."</span><span class="p">,</span>
             <span class="ne">DeprecationWarning</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>

@@ -320,7 +320,7 @@
 <span class="c1"># copyright notice, and modified files need to carry a notice indicating</span>
 <span class="c1"># that they have been altered from the originals.</span>
 
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">"""</span>
 <span class="sd">======================================================</span>
 <span class="sd">Decorators (:mod:`qiskit_serverless.core.decorators`)</span>
 <span class="sd">======================================================</span>
@@ -338,7 +338,7 @@
 <span class="sd">    run_qiskit_remote</span>
 <span class="sd">    get_refs_by_status</span>
 <span class="sd">    distribute_task</span>
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">"""</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">functools</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">inspect</span>
@@ -370,12 +370,12 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_require_ray</span><span class="p">():</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Import Ray lazily, with a clear error if the optional extra is missing.</span>
+<span class="w">    </span><span class="sd">"""Import Ray lazily, with a clear error if the optional extra is missing.</span>
 
 <span class="sd">    Ray is an optional dependency (``pip install qiskit-serverless[ray]``); it is</span>
 <span class="sd">    only needed for the Ray runner. Importing the package must not require it, so</span>
 <span class="sd">    the Ray-only helpers below import it on demand.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="c1"># pylint: disable=import-outside-toplevel,import-error</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="kn">import</span><span class="w"> </span><span class="nn">ray</span>
@@ -383,23 +383,23 @@
         <span class="k">return</span> <span class="n">ray</span>
     <span class="k">except</span> <span class="ne">ModuleNotFoundError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ModuleNotFoundError</span><span class="p">(</span>
-            <span class="s2">&quot;Ray is required for this feature but is not installed. &quot;</span>
-            <span class="s2">&quot;Install it with `pip install qiskit-serverless[ray]`.&quot;</span>
+            <span class="s2">"Ray is required for this feature but is not installed. "</span>
+            <span class="s2">"Install it with `pip install qiskit-serverless[ray]`."</span>
         <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">err</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">remote</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Proxy for ``ray.remote`` that defers importing Ray until use.</span>
+<span class="w">    </span><span class="sd">"""Proxy for ``ray.remote`` that defers importing Ray until use.</span>
 
 <span class="sd">    Forwards to ``ray.remote`` and therefore supports both ``@remote`` and</span>
 <span class="sd">    ``remote(num_cpus=...)(fn)`` usages, while keeping ``import qiskit_serverless``</span>
 <span class="sd">    Ray-free (Ray is the optional ``qiskit-serverless[ray]`` extra).</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">return</span> <span class="n">_require_ray</span><span class="p">()</span><span class="o">.</span><span class="n">remote</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="put"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.put.html#qiskit_serverless.core.put">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">put</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Puts object into shared distributed storage</span>
+<span class="w">    </span><span class="sd">"""Puts object into shared distributed storage</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        value: object to put to object store</span>
@@ -407,19 +407,19 @@
 
 <span class="sd">    Returns:</span>
 
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-        <span class="s2">&quot;`put` has been deprecated and will be removed in future releases. &quot;</span>
-        <span class="s2">&quot;Use Ray&#39;s native `ray.put` instead: &quot;</span>
-        <span class="s2">&quot;https://docs.ray.io/en/latest/ray-core/api/doc/ray.put.html&quot;</span><span class="p">,</span>
+        <span class="s2">"`put` has been deprecated and will be removed in future releases. "</span>
+        <span class="s2">"Use Ray's native `ray.put` instead: "</span>
+        <span class="s2">"https://docs.ray.io/en/latest/ray-core/api/doc/ray.put.html"</span><span class="p">,</span>
         <span class="n">category</span><span class="o">=</span><span class="ne">DeprecationWarning</span><span class="p">,</span>
         <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="k">return</span> <span class="n">_require_ray</span><span class="p">()</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="get_refs_by_status"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.get_refs_by_status.html#qiskit_serverless.core.get_refs_by_status">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">get_refs_by_status</span><span class="p">(</span><span class="n">object_refs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;ray.ObjectRef&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get references by status.</span>
+<div class="viewcode-block" id="get_refs_by_status"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.get_refs_by_status.html#qiskit_serverless.core.get_refs_by_status">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">get_refs_by_status</span><span class="p">(</span><span class="n">object_refs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="s2">"ray.ObjectRef"</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Get references by status.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        object_refs: object references</span>
@@ -427,11 +427,11 @@
 
 <span class="sd">    Returns:</span>
 <span class="sd">        A list of refs that are ready and a list of the remaining references.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-        <span class="s2">&quot;`get_refs_by_status` has been deprecated and will be removed in future releases. &quot;</span>
-        <span class="s2">&quot;Use Ray&#39;s native `ray.wait` instead: &quot;</span>
-        <span class="s2">&quot;https://docs.ray.io/en/latest/ray-core/api/doc/ray.wait.html&quot;</span><span class="p">,</span>
+        <span class="s2">"`get_refs_by_status` has been deprecated and will be removed in future releases. "</span>
+        <span class="s2">"Use Ray's native `ray.wait` instead: "</span>
+        <span class="s2">"https://docs.ray.io/en/latest/ray-core/api/doc/ray.wait.html"</span><span class="p">,</span>
         <span class="n">category</span><span class="o">=</span><span class="ne">DeprecationWarning</span><span class="p">,</span>
         <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
     <span class="p">)</span>
@@ -439,11 +439,11 @@
 
 
 <div class="viewcode-block" id="get"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.get.html#qiskit_serverless.core.get">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
-    <span class="n">object_refs</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="s2">&quot;ray.ObjectRef&quot;</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="s2">&quot;ray.ObjectRef&quot;</span><span class="p">]],</span>
+    <span class="n">object_refs</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="s2">"ray.ObjectRef"</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="s2">"ray.ObjectRef"</span><span class="p">]],</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get results from distributed tasks.</span>
+<span class="w">    </span><span class="sd">"""Get results from distributed tasks.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        object_refs: Object ref of the object to get or a list of object refs</span>
@@ -453,11 +453,11 @@
 
 <span class="sd">    Returns:</span>
 <span class="sd">        A object or a list of objects.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-        <span class="s2">&quot;`get` has been deprecated and will be removed in future releases. &quot;</span>
-        <span class="s2">&quot;Use Ray&#39;s native `ray.get` instead: &quot;</span>
-        <span class="s2">&quot;https://docs.ray.io/en/latest/ray-core/api/doc/ray.get.html&quot;</span><span class="p">,</span>
+        <span class="s2">"`get` has been deprecated and will be removed in future releases. "</span>
+        <span class="s2">"Use Ray's native `ray.get` instead: "</span>
+        <span class="s2">"https://docs.ray.io/en/latest/ray-core/api/doc/ray.get.html"</span><span class="p">,</span>
         <span class="n">category</span><span class="o">=</span><span class="ne">DeprecationWarning</span><span class="p">,</span>
         <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
     <span class="p">)</span>
@@ -466,13 +466,13 @@
 
 <div class="viewcode-block" id="Target"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.Target.html#qiskit_serverless.core.Target">[docs]</a><span class="nd">@dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">Target</span><span class="p">(</span><span class="n">JsonSerializable</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Qiskit Serverless target.</span>
+<span class="w">    </span><span class="sd">"""Qiskit Serverless target.</span>
 
 <span class="sd">    Example:</span>
 <span class="sd">        &gt;&gt;&gt; @distribute_task(target=Target(cpu=1))</span>
 <span class="sd">        &gt;&gt;&gt; def awesome_function():</span>
 <span class="sd">        &gt;&gt;&gt;     return 42</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="n">cpu</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
     <span class="n">gpu</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
@@ -489,13 +489,13 @@
 
 <div class="viewcode-block" id="CircuitMeta"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.CircuitMeta.html#qiskit_serverless.core.CircuitMeta">[docs]</a><span class="nd">@dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">CircuitMeta</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Circuit metainformation.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Circuit metainformation."""</span>
 
     <span class="n">num_qubits</span><span class="p">:</span> <span class="nb">int</span>
     <span class="n">depth</span><span class="p">:</span> <span class="nb">int</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">to_seq</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Converts meta to seq.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Converts meta to seq."""</span>
         <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">num_qubits</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">depth</span><span class="p">]</span></div>
 
 
@@ -503,7 +503,7 @@
 
 
 <div class="viewcode-block" id="fetch_execution_meta"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.fetch_execution_meta.html#qiskit_serverless.core.fetch_execution_meta">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">fetch_execution_meta</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Numeric</span><span class="p">]]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Extracts meta information from function arguments.</span>
+<span class="w">    </span><span class="sd">"""Extracts meta information from function arguments.</span>
 
 <span class="sd">    Meta information consist of metrics that describe circuits.</span>
 <span class="sd">    Metrics described in `CircuitMeta` class.</span>
@@ -514,33 +514,33 @@
 
 <span class="sd">    Returns:</span>
 <span class="sd">        return meta information dictionary</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">fetch_meta</span><span class="p">(</span><span class="n">circuit</span><span class="p">:</span> <span class="n">QuantumCircuit</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CircuitMeta</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns meta information from circuit.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Returns meta information from circuit."""</span>
         <span class="k">return</span> <span class="n">CircuitMeta</span><span class="p">(</span><span class="n">num_qubits</span><span class="o">=</span><span class="n">circuit</span><span class="o">.</span><span class="n">num_qubits</span><span class="p">,</span> <span class="n">depth</span><span class="o">=</span><span class="n">circuit</span><span class="o">.</span><span class="n">depth</span><span class="p">())</span>
 
     <span class="n">meta</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Numeric</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
 
     <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">argument</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">argument</span><span class="p">,</span> <span class="n">QuantumCircuit</span><span class="p">):</span>
-            <span class="n">meta</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.args.arg_</span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">fetch_meta</span><span class="p">(</span><span class="n">argument</span><span class="p">)</span><span class="o">.</span><span class="n">to_seq</span><span class="p">()</span>
+            <span class="n">meta</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.args.arg_</span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="o">=</span> <span class="n">fetch_meta</span><span class="p">(</span><span class="n">argument</span><span class="p">)</span><span class="o">.</span><span class="n">to_seq</span><span class="p">()</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">argument</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
             <span class="k">for</span> <span class="n">sub_idx</span><span class="p">,</span> <span class="n">sub_argument</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">argument</span><span class="p">):</span>
                 <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sub_argument</span><span class="p">,</span> <span class="n">QuantumCircuit</span><span class="p">):</span>
-                    <span class="n">meta</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.args.arg_</span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">sub_idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">fetch_meta</span><span class="p">(</span><span class="n">sub_argument</span><span class="p">)</span><span class="o">.</span><span class="n">to_seq</span><span class="p">()</span>
+                    <span class="n">meta</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.args.arg_</span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">sub_idx</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="o">=</span> <span class="n">fetch_meta</span><span class="p">(</span><span class="n">sub_argument</span><span class="p">)</span><span class="o">.</span><span class="n">to_seq</span><span class="p">()</span>
     <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">QuantumCircuit</span><span class="p">):</span>
-            <span class="n">meta</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.kwargs.</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">fetch_meta</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">to_seq</span><span class="p">()</span>
+            <span class="n">meta</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.kwargs.</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="o">=</span> <span class="n">fetch_meta</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">to_seq</span><span class="p">()</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
             <span class="k">for</span> <span class="n">sub_idx</span><span class="p">,</span> <span class="n">sub_argument</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
                 <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sub_argument</span><span class="p">,</span> <span class="n">QuantumCircuit</span><span class="p">):</span>
-                    <span class="n">meta</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.kwargs.</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">sub_idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">fetch_meta</span><span class="p">(</span><span class="n">sub_argument</span><span class="p">)</span><span class="o">.</span><span class="n">to_seq</span><span class="p">()</span>
+                    <span class="n">meta</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.kwargs.</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">sub_idx</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="o">=</span> <span class="n">fetch_meta</span><span class="p">(</span><span class="n">sub_argument</span><span class="p">)</span><span class="o">.</span><span class="n">to_seq</span><span class="p">()</span>
     <span class="k">return</span> <span class="n">meta</span></div>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_tracible_function</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Target</span><span class="p">,</span> <span class="n">trace_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Wrap a function in an OTel span.</span>
+<span class="w">    </span><span class="sd">"""Wrap a function in an OTel span.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        name: name of function</span>
@@ -549,12 +549,12 @@
 
 <span class="sd">    Returns:</span>
 <span class="sd">        traced function</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">decorator</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">):</span>
         <span class="nd">@functools</span><span class="o">.</span><span class="n">wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
         <span class="k">def</span><span class="w"> </span><span class="nf">wraps</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-            <span class="k">if</span> <span class="nb">bool</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">QS_OT_RAY_TRACER</span><span class="p">,</span> <span class="s2">&quot;0&quot;</span><span class="p">))):</span>
+            <span class="k">if</span> <span class="nb">bool</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">QS_OT_RAY_TRACER</span><span class="p">,</span> <span class="s2">"0"</span><span class="p">))):</span>
                 <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="n">func</span><span class="o">.</span><span class="vm">__module__</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">tracer</span> <span class="o">=</span> <span class="n">get_tracer</span><span class="p">(</span>
@@ -570,22 +570,22 @@
 
             <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">ctx</span><span class="p">)</span> <span class="k">as</span> <span class="n">rollspan</span><span class="p">:</span>
                 <span class="c1"># TODO: add serverless package version # pylint: disable=fixme</span>
-                <span class="n">rollspan</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.meta.function_name&quot;</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
-                <span class="n">rollspan</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.meta.stack_layer&quot;</span><span class="p">,</span> <span class="s2">&quot;qiskit_serverless&quot;</span><span class="p">)</span>
+                <span class="n">rollspan</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.meta.function_name"</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+                <span class="n">rollspan</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.meta.stack_layer"</span><span class="p">,</span> <span class="s2">"qiskit_serverless"</span><span class="p">)</span>
 
-                <span class="n">rollspan</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.resources.cpu&quot;</span><span class="p">,</span> <span class="n">target</span><span class="o">.</span><span class="n">cpu</span><span class="p">)</span>
-                <span class="n">rollspan</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.resources.memory&quot;</span><span class="p">,</span> <span class="n">target</span><span class="o">.</span><span class="n">mem</span><span class="p">)</span>
-                <span class="n">rollspan</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.resources.gpu&quot;</span><span class="p">,</span> <span class="n">target</span><span class="o">.</span><span class="n">gpu</span><span class="p">)</span>
+                <span class="n">rollspan</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.resources.cpu"</span><span class="p">,</span> <span class="n">target</span><span class="o">.</span><span class="n">cpu</span><span class="p">)</span>
+                <span class="n">rollspan</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.resources.memory"</span><span class="p">,</span> <span class="n">target</span><span class="o">.</span><span class="n">mem</span><span class="p">)</span>
+                <span class="n">rollspan</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.resources.gpu"</span><span class="p">,</span> <span class="n">target</span><span class="o">.</span><span class="n">gpu</span><span class="p">)</span>
 
                 <span class="n">resources</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="n">resources</span> <span class="ow">or</span> <span class="p">{}</span>
                 <span class="k">for</span> <span class="n">resource_name</span><span class="p">,</span> <span class="n">resource_value</span> <span class="ow">in</span> <span class="n">resources</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
                     <span class="n">rollspan</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span>
-                        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.resources.</span><span class="si">{</span><span class="n">resource_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.resources.</span><span class="si">{</span><span class="n">resource_name</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
                         <span class="n">resource_value</span><span class="p">,</span>
                     <span class="p">)</span>
 
                 <span class="k">if</span> <span class="n">target</span><span class="o">.</span><span class="n">pip</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="n">rollspan</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;requirements&quot;</span><span class="p">,</span> <span class="n">target</span><span class="o">.</span><span class="n">pip</span><span class="p">)</span>
+                    <span class="n">rollspan</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">"requirements"</span><span class="p">,</span> <span class="n">target</span><span class="o">.</span><span class="n">pip</span><span class="p">)</span>
 
                 <span class="k">for</span> <span class="n">meta_key</span><span class="p">,</span> <span class="n">meta_value</span> <span class="ow">in</span> <span class="n">circuits_meta</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
                     <span class="n">rollspan</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="n">meta_key</span><span class="p">,</span> <span class="n">meta_value</span><span class="p">)</span>
@@ -600,7 +600,7 @@
 <div class="viewcode-block" id="distribute_task"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.distribute_task.html#qiskit_serverless.core.distribute_task">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">distribute_task</span><span class="p">(</span>
     <span class="n">target</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">Target</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Wraps local function as remote executable function.</span>
+<span class="w">    </span><span class="sd">"""Wraps local function as remote executable function.</span>
 <span class="sd">    New function will return reference object when called.</span>
 
 <span class="sd">    Example:</span>
@@ -618,11 +618,11 @@
 
 <span class="sd">    Returns:</span>
 <span class="sd">        object reference</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-        <span class="s2">&quot;`distribute_task` has been deprecated and will be removed in future releases. &quot;</span>
-        <span class="s2">&quot;Use Ray&#39;s native `ray.remote` instead: &quot;</span>
-        <span class="s2">&quot;https://docs.ray.io/en/latest/ray-core/api/doc/ray.remote.html&quot;</span><span class="p">,</span>
+        <span class="s2">"`distribute_task` has been deprecated and will be removed in future releases. "</span>
+        <span class="s2">"Use Ray's native `ray.remote` instead: "</span>
+        <span class="s2">"https://docs.ray.io/en/latest/ray-core/api/doc/ray.remote.html"</span><span class="p">,</span>
         <span class="n">category</span><span class="o">=</span><span class="ne">DeprecationWarning</span><span class="p">,</span>
         <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
     <span class="p">)</span>
@@ -641,7 +641,7 @@
             <span class="kn">from</span><span class="w"> </span><span class="nn">ray.runtime_env</span><span class="w"> </span><span class="kn">import</span> <span class="n">RuntimeEnv</span>
 
             <span class="c1"># tracing</span>
-            <span class="n">traced_env_vars</span> <span class="o">=</span> <span class="n">_trace_env_vars</span><span class="p">(</span><span class="n">remote_target</span><span class="o">.</span><span class="n">env_vars</span> <span class="ow">or</span> <span class="p">{},</span> <span class="n">location</span><span class="o">=</span><span class="s2">&quot;on decoration&quot;</span><span class="p">)</span>
+            <span class="n">traced_env_vars</span> <span class="o">=</span> <span class="n">_trace_env_vars</span><span class="p">(</span><span class="n">remote_target</span><span class="o">.</span><span class="n">env_vars</span> <span class="ow">or</span> <span class="p">{},</span> <span class="n">location</span><span class="o">=</span><span class="s2">"on decoration"</span><span class="p">)</span>
             <span class="n">traced_function</span> <span class="o">=</span> <span class="n">_tracible_function</span><span class="p">(</span>
                 <span class="n">name</span><span class="o">=</span><span class="n">function</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
                 <span class="n">target</span><span class="o">=</span><span class="n">remote_target</span><span class="p">,</span>
@@ -668,19 +668,19 @@
 
 
 <span class="c1"># TODO: remove once distribute_qiskit_function is removed # pylint: disable=fixme</span>
-<span class="n">ENTRYPOINT_CONTENT</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="n">ENTRYPOINT_CONTENT</span> <span class="o">=</span> <span class="s2">"""</span>
 <span class="s2">import cloudpickle</span>
 <span class="s2">from qiskit_serverless import get_arguments, save_result</span>
 
 <span class="s2">arguments = get_arguments()</span>
 
-<span class="s2">with open(&quot;./</span><span class="si">{file_name}</span><span class="s2">&quot;, &quot;rb&quot;) as file:</span>
+<span class="s2">with open("./</span><span class="si">{file_name}</span><span class="s2">", "rb") as file:</span>
 <span class="s2">    function = cloudpickle.load(file)</span>
 
 <span class="s2">    result = function(**arguments)</span>
 <span class="s2">    if result is not None:</span>
 <span class="s2">        save_result(result)</span>
-<span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">"""</span>
 
 
 <div class="viewcode-block" id="distribute_qiskit_function"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.distribute_qiskit_function.html#qiskit_serverless.core.distribute_qiskit_function">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">distribute_qiskit_function</span><span class="p">(</span>
@@ -688,12 +688,12 @@
     <span class="n">dependencies</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">working_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;[Experimental] QiskitFunction decorator to turn function into remotely executable program.</span>
+<span class="w">    </span><span class="sd">"""[Experimental] QiskitFunction decorator to turn function into remotely executable program.</span>
 
 <span class="sd">    Example:</span>
 <span class="sd">        &gt;&gt;&gt; @distribute_qiskit_function(provider=ServerlessProvider(...), dependencies=[...])</span>
 <span class="sd">        &gt;&gt;&gt; def my_program():</span>
-<span class="sd">        &gt;&gt;&gt;     print(&quot;Hola!&quot;)</span>
+<span class="sd">        &gt;&gt;&gt;     print("Hola!")</span>
 <span class="sd">        &gt;&gt;&gt;</span>
 <span class="sd">        &gt;&gt;&gt; job = my_program()</span>
 
@@ -704,11 +704,11 @@
 
 <span class="sd">    Returns:</span>
 <span class="sd">        remotely executable program</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-        <span class="s2">&quot;`distribute_qiskit_function` has been deprecated &quot;</span>
-        <span class="s2">&quot;and will be removed in future releases. &quot;</span>
-        <span class="s2">&quot;To upload custom functions, use the `upload` functionality of the ServerlessClient class.&quot;</span><span class="p">,</span>
+        <span class="s2">"`distribute_qiskit_function` has been deprecated "</span>
+        <span class="s2">"and will be removed in future releases. "</span>
+        <span class="s2">"To upload custom functions, use the `upload` functionality of the ServerlessClient class."</span><span class="p">,</span>
         <span class="n">category</span><span class="o">=</span><span class="ne">DeprecationWarning</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="c1"># pylint: disable=import-outside-toplevel,cyclic-import</span>
@@ -723,43 +723,43 @@
             <span class="n">provider</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">()</span>
         <span class="k">except</span> <span class="n">QiskitServerlessException</span> <span class="k">as</span> <span class="n">qs_error</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
-                <span class="s2">&quot;Set provider in arguments for `distribute_program` decorator or define env variables.&quot;</span>
+                <span class="s2">"Set provider in arguments for `distribute_program` decorator or define env variables."</span>
             <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">qs_error</span>
     <span class="k">if</span> <span class="n">provider</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
-            <span class="s2">&quot;Provider was not defined. &quot;</span>
-            <span class="s2">&quot;Please, pass provider to @distribute_program decorator or setup env variables.&quot;</span>
+            <span class="s2">"Provider was not defined. "</span>
+            <span class="s2">"Please, pass provider to @distribute_program decorator or setup env variables."</span>
         <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">decorator</span><span class="p">(</span><span class="n">function</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Decorator.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Decorator."""</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">inspect</span><span class="o">.</span><span class="n">isfunction</span><span class="p">(</span><span class="n">function</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="s2">&quot;Only functions are supported by this decorator.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="s2">"Only functions are supported by this decorator."</span><span class="p">)</span>
 
         <span class="k">def</span><span class="w"> </span><span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-<span class="w">            </span><span class="sd">&quot;&quot;&quot;Function wrapper.&quot;&quot;&quot;</span>
+<span class="w">            </span><span class="sd">"""Function wrapper."""</span>
             <span class="n">suffix</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid4</span><span class="p">())[:</span><span class="mi">8</span><span class="p">]</span>
 
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;Only named arguments supported at this moment. &quot;</span>
-                    <span class="sa">f</span><span class="s2">&quot;Please specify name of argument of function </span><span class="si">{</span><span class="n">function</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="sa">f</span><span class="s2">"Only named arguments supported at this moment. "</span>
+                    <span class="sa">f</span><span class="s2">"Please specify name of argument of function </span><span class="si">{</span><span class="n">function</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">"</span>
                 <span class="p">)</span>
 
             <span class="c1"># create folder</span>
-            <span class="n">working_directory</span> <span class="o">=</span> <span class="n">working_dir</span> <span class="ow">or</span> <span class="sa">f</span><span class="s2">&quot;./qs_artifacts/</span><span class="si">{</span><span class="n">function</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">working_directory</span> <span class="o">=</span> <span class="n">working_dir</span> <span class="ow">or</span> <span class="sa">f</span><span class="s2">"./qs_artifacts/</span><span class="si">{</span><span class="n">function</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">"</span>
             <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">working_directory</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
             <span class="c1"># dump pickle</span>
-            <span class="n">pickle_file_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;pickle_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">.pkl&quot;</span>
-            <span class="n">pickle_file_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">working_directory</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">pickle_file_name</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">pickle_file_path</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+            <span class="n">pickle_file_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"pickle_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">.pkl"</span>
+            <span class="n">pickle_file_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">working_directory</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">pickle_file_name</span><span class="si">}</span><span class="s2">"</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">pickle_file_path</span><span class="p">,</span> <span class="s2">"wb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
                 <span class="n">cloudpickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">function</span><span class="p">,</span> <span class="n">file</span><span class="p">)</span>
 
             <span class="c1"># create entrypoint</span>
-            <span class="n">entrypoint_file_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;entrypoint_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">.py&quot;</span>
-            <span class="n">entrypoint_file_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">working_directory</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">entrypoint_file_name</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">entrypoint_file_path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+            <span class="n">entrypoint_file_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"entrypoint_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">.py"</span>
+            <span class="n">entrypoint_file_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">working_directory</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">entrypoint_file_name</span><span class="si">}</span><span class="s2">"</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">entrypoint_file_path</span><span class="p">,</span> <span class="s2">"w"</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
                 <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">ENTRYPOINT_CONTENT</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">file_name</span><span class="o">=</span><span class="n">pickle_file_name</span><span class="p">))</span>
 
             <span class="c1"># create program</span>
@@ -768,7 +768,7 @@
                 <span class="n">entrypoint</span><span class="o">=</span><span class="n">entrypoint_file_name</span><span class="p">,</span>
                 <span class="n">working_dir</span><span class="o">=</span><span class="n">working_directory</span><span class="p">,</span>
                 <span class="n">dependencies</span><span class="o">=</span><span class="n">dependencies</span><span class="p">,</span>
-                <span class="n">description</span><span class="o">=</span><span class="s2">&quot;QiskitFunction execution using @distribute_program decorator.&quot;</span><span class="p">,</span>
+                <span class="n">description</span><span class="o">=</span><span class="s2">"QiskitFunction execution using @distribute_program decorator."</span><span class="p">,</span>
             <span class="p">)</span>
 
             <span class="n">provider</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">wrapped_program</span><span class="p">)</span>
@@ -791,24 +791,24 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">trace_decorator_factory</span><span class="p">(</span><span class="n">traced_feature</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Factory for generate decorators for classes or features.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Factory for generate decorators for classes or features."""</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">generated_decorator</span><span class="p">(</span><span class="n">traced_function</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">FunctionType</span><span class="p">,</span> <span class="nb">str</span><span class="p">]):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        The decorator wrapper to generate optional arguments</span>
 <span class="sd">        if traced_function is string it will be used in the span,</span>
 <span class="sd">        the function.__name__ attribute will be used otherwise</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
 
         <span class="k">def</span><span class="w"> </span><span class="nf">decorator_trace</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">FunctionType</span><span class="p">):</span>
-<span class="w">            </span><span class="sd">&quot;&quot;&quot;The decorator that python call&quot;&quot;&quot;</span>
+<span class="w">            </span><span class="sd">"""The decorator that python call"""</span>
 
             <span class="nd">@functools</span><span class="o">.</span><span class="n">wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
             <span class="k">def</span><span class="w"> </span><span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-<span class="w">                </span><span class="sd">&quot;&quot;&quot;The wrapper&quot;&quot;&quot;</span>
-                <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
+<span class="w">                </span><span class="sd">"""The wrapper"""</span>
+                <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">"client.tracer"</span><span class="p">)</span>
                 <span class="n">function_name</span> <span class="o">=</span> <span class="n">traced_function</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">traced_function</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">func</span><span class="o">.</span><span class="vm">__name__</span>
-                <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">traced_feature</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">function_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">):</span>
+                <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">traced_feature</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">function_name</span><span class="si">}</span><span class="s2">"</span><span class="p">):</span>
                     <span class="n">result</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
                 <span class="k">return</span> <span class="n">result</span>
 

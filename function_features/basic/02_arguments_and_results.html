@@ -324,7 +324,7 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="o">%</span><span class="k">pip</span> install &quot;qiskit==2.2.3&quot; &quot;qiskit-ibm-runtime==0.43.1&quot; &quot;qiskit-serverless==0.27.0&quot;
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="o">%</span><span class="k">pip</span> install "qiskit==2.2.3" "qiskit-ibm-runtime==0.43.1" "qiskit-serverless==0.27.0"
 </pre></div>
 </div>
 </div>
@@ -347,7 +347,7 @@
 <li><p>Run the Sampler primitive.</p></li>
 <li><p><a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.save_result.html#qiskit_serverless.core.save_result">Save the results</a> so they’re available via <code class="docutils literal notranslate"><span class="pre">job.result()</span></code> later.</p></li>
 </ul>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="sd">&quot;&quot;&quot;function with arguments for jupyter notebook.&quot;&quot;&quot;</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="sd">"""function with arguments for jupyter notebook."""</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit</span><span class="w"> </span><span class="kn">import</span> <span class="n">QuantumCircuit</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit.providers.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitBackendNotFoundError</span>
@@ -360,85 +360,85 @@
 
 <span class="c1"># ----- parse inputs -----</span>
 <span class="c1"># get all arguments passed to this function</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;[main] Parsing arguments...&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"[main] Parsing arguments..."</span><span class="p">)</span>
 <span class="n">arguments</span> <span class="o">=</span> <span class="n">get_arguments</span><span class="p">()</span>
 
 <span class="c1"># Extract inputs we care about</span>
-<span class="n">circuit</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;circuit&quot;</span><span class="p">)</span>
-<span class="n">backend_name</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;backend_name&quot;</span><span class="p">)</span>
-<span class="n">service</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;service&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[main] Inputs received (backend_name=</span><span class="si">{</span><span class="n">backend_name</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+<span class="n">circuit</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"circuit"</span><span class="p">)</span>
+<span class="n">backend_name</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"backend_name"</span><span class="p">)</span>
+<span class="n">service</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"service"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[main] Inputs received (backend_name=</span><span class="si">{</span><span class="n">backend_name</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
 
 <span class="c1"># Basic validation</span>
 <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">circuit</span><span class="p">,</span> <span class="n">QuantumCircuit</span><span class="p">):</span>
-    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;circuit must be QuantumCircuit.&quot;</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"circuit must be QuantumCircuit."</span><span class="p">)</span>
 <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">backend_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">backend_name</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;backend_name must be a non-empty string.&quot;</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"backend_name must be a non-empty string."</span><span class="p">)</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[main] Inputs received (backend_name=</span><span class="si">{</span><span class="n">backend_name</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[main] Inputs received (backend_name=</span><span class="si">{</span><span class="n">backend_name</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
 
 <span class="c1"># Choose a provider: fake provider for local testing, or a real servic</span>
-<span class="k">if</span> <span class="s2">&quot;fake&quot;</span> <span class="ow">in</span> <span class="n">backend_name</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+<span class="k">if</span> <span class="s2">"fake"</span> <span class="ow">in</span> <span class="n">backend_name</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
     <span class="nb">print</span><span class="p">(</span>
-        <span class="s2">&quot;[main] Using fake provider (auto-selected because backend_name contains &#39;fake&#39;).&quot;</span>
+        <span class="s2">"[main] Using fake provider (auto-selected because backend_name contains 'fake')."</span>
     <span class="p">)</span>
     <span class="n">service</span> <span class="o">=</span> <span class="n">FakeProviderForBackendV2</span><span class="p">()</span>
 
 <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">service</span><span class="p">,</span> <span class="p">(</span><span class="n">FakeProviderForBackendV2</span><span class="p">,</span> <span class="n">QiskitRuntimeService</span><span class="p">)):</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="n">backend</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">backend</span><span class="p">(</span><span class="n">backend_name</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[main] Backend resolved (name=</span><span class="si">{</span><span class="n">backend</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[main] Backend resolved (name=</span><span class="si">{</span><span class="n">backend</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
     <span class="k">except</span> <span class="n">QiskitBackendNotFoundError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error retrieving backend </span><span class="si">{</span><span class="n">backend_name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Error retrieving backend </span><span class="si">{</span><span class="n">backend_name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
 <span class="k">else</span><span class="p">:</span>
     <span class="c1"># Fallback: build a Runtime service from environment variables</span>
     <span class="nb">print</span><span class="p">(</span>
-        <span class="s2">&quot;[main] No service provided and backend not fake; &quot;</span>
-        <span class="s2">&quot;attempting to initialize QiskitRuntimeService from environment variables...&quot;</span>
+        <span class="s2">"[main] No service provided and backend not fake; "</span>
+        <span class="s2">"attempting to initialize QiskitRuntimeService from environment variables..."</span>
     <span class="p">)</span>
 
     <span class="k">try</span><span class="p">:</span>
         <span class="n">service</span> <span class="o">=</span> <span class="n">QiskitRuntimeService</span><span class="p">(</span>
-            <span class="n">channel</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;QISKIT_IBM_CHANNEL&quot;</span><span class="p">),</span>
-            <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;QISKIT_IBM_TOKEN&quot;</span><span class="p">),</span>
-            <span class="n">instance</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;QISKIT_IBM_INSTANCE&quot;</span><span class="p">),</span>
-            <span class="n">url</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;QISKIT_IBM_URL&quot;</span><span class="p">),</span>
+            <span class="n">channel</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"QISKIT_IBM_CHANNEL"</span><span class="p">),</span>
+            <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"QISKIT_IBM_TOKEN"</span><span class="p">),</span>
+            <span class="n">instance</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"QISKIT_IBM_INSTANCE"</span><span class="p">),</span>
+            <span class="n">url</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"QISKIT_IBM_URL"</span><span class="p">),</span>
         <span class="p">)</span>
         <span class="n">backend</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">backend</span><span class="p">(</span><span class="n">backend_name</span><span class="p">)</span>
         <span class="nb">print</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;[main] Runtime service initialized from env and backend &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;resolved (name=</span><span class="si">{</span><span class="n">backend</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">)&quot;</span>
+            <span class="sa">f</span><span class="s2">"[main] Runtime service initialized from env and backend "</span>
+            <span class="sa">f</span><span class="s2">"resolved (name=</span><span class="si">{</span><span class="n">backend</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">)"</span>
         <span class="p">)</span>
     <span class="k">except</span> <span class="n">QiskitBackendNotFoundError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The backend named </span><span class="si">{</span><span class="n">backend_name</span><span class="si">}</span><span class="s2"> couldn&#39;t be found.&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"The backend named </span><span class="si">{</span><span class="n">backend_name</span><span class="si">}</span><span class="s2"> couldn't be found."</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
     <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;`QiskitRuntimeService` couldn&#39;t be initialized with os environment variables: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">.&quot;</span>
+            <span class="sa">f</span><span class="s2">"`QiskitRuntimeService` couldn't be initialized with os environment variables: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">."</span>
         <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
 
 <span class="c1"># ----- transpile -----</span>
 <span class="c1"># Match the run to the backend and transpile</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;[main] Building preset pass manager (optimization_level=3)...&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"[main] Building preset pass manager (optimization_level=3)..."</span><span class="p">)</span>
 <span class="n">pm</span> <span class="o">=</span> <span class="n">generate_preset_pass_manager</span><span class="p">(</span><span class="n">backend</span><span class="o">=</span><span class="n">backend</span><span class="p">,</span> <span class="n">optimization_level</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;[main] Transpiling circuit...&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"[main] Transpiling circuit..."</span><span class="p">)</span>
 <span class="n">isa_circuit</span> <span class="o">=</span> <span class="n">pm</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;[main] Transpilation complete&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"[main] Transpilation complete"</span><span class="p">)</span>
 
 <span class="c1"># ----- execute -----</span>
 <span class="c1"># Execute and collect counts</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[main] Executing circuit on backend (name=</span><span class="si">{</span><span class="n">backend</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">)...&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[main] Executing circuit on backend (name=</span><span class="si">{</span><span class="n">backend</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">)..."</span><span class="p">)</span>
 <span class="n">sampler</span> <span class="o">=</span> <span class="n">Sampler</span><span class="p">(</span><span class="n">backend</span><span class="p">)</span>
 <span class="n">job_result</span> <span class="o">=</span> <span class="n">sampler</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="n">isa_circuit</span><span class="p">])</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;[main] Sampler execution complete&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"[main] Sampler execution complete"</span><span class="p">)</span>
 
 <span class="c1"># Extract counts</span>
 <span class="n">quasi_dists</span> <span class="o">=</span> <span class="n">job_result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">meas</span><span class="o">.</span><span class="n">get_counts</span><span class="p">()</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;[main] Extracted counts from result&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"[main] Extracted counts from result"</span><span class="p">)</span>
 
 <span class="c1"># ----- persist -------</span>
 <span class="c1"># saving results of the execution</span>
-<span class="n">save_result</span><span class="p">({</span><span class="s2">&quot;quasi_dists&quot;</span><span class="p">:</span> <span class="n">quasi_dists</span><span class="p">})</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;[main] Results saved.&quot;</span><span class="p">)</span>
+<span class="n">save_result</span><span class="p">({</span><span class="s2">"quasi_dists"</span><span class="p">:</span> <span class="n">quasi_dists</span><span class="p">})</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"[main] Results saved."</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>This function resolves the backend through a <code class="docutils literal notranslate"><span class="pre">QiskitRuntimeService</span></code>. For real IBM Quantum backends, the service can be provided explicitly as an argument (recommended for notebooks and local runs) or constructed dynamically from environment variables. These variables—such as <code class="docutils literal notranslate"><span class="pre">QISKIT_IBM_CHANNEL</span></code>, <code class="docutils literal notranslate"><span class="pre">QISKIT_IBM_TOKEN</span></code>, <code class="docutils literal notranslate"><span class="pre">QISKIT_IBM_INSTANCE</span></code>, and <code class="docutils literal notranslate"><span class="pre">QISKIT_IBM_URL</span></code> —are typically set by your DevOps or cloud team during deployment (for example, in Kubernetes manifests or Docker Compose). When
@@ -455,16 +455,16 @@ present, the function uses them to authenticate and configure the runtime servic
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 
 <span class="n">client</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
-    <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;awesome_token&quot;</span><span class="p">),</span>
-    <span class="n">instance</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_INSTANCE&quot;</span><span class="p">,</span> <span class="s2">&quot;an_awesome_crn&quot;</span><span class="p">),</span>
-    <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">),</span>
+    <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"GATEWAY_TOKEN"</span><span class="p">,</span> <span class="s2">"awesome_token"</span><span class="p">),</span>
+    <span class="n">instance</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"GATEWAY_INSTANCE"</span><span class="p">,</span> <span class="s2">"an_awesome_crn"</span><span class="p">),</span>
+    <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"GATEWAY_HOST"</span><span class="p">,</span> <span class="s2">"http://localhost:8000"</span><span class="p">),</span>
     <span class="c1"># If you are using the kubernetes approach the URL must be http://localhost</span>
 <span class="p">)</span>
 
 <span class="n">function_with_args</span> <span class="o">=</span> <span class="n">QiskitFunction</span><span class="p">(</span>
-    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;function-with-arguments&quot;</span><span class="p">,</span>
-    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;function_with_arguments.py&quot;</span><span class="p">,</span>
-    <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">"function-with-arguments"</span><span class="p">,</span>
+    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">"function_with_arguments.py"</span><span class="p">,</span>
+    <span class="n">working_dir</span><span class="o">=</span><span class="s2">"./source_files/"</span><span class="p">,</span>
 <span class="p">)</span>
 
 <span class="n">client</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">function_with_args</span><span class="p">)</span>
@@ -494,7 +494,7 @@ QiskitFunction(function-with-arguments)
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit</span><span class="w"> </span><span class="kn">import</span> <span class="n">QuantumCircuit</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_ibm_runtime.fake_provider</span><span class="w"> </span><span class="kn">import</span> <span class="n">FakeVigoV2</span>
 
-<span class="n">backend_name</span> <span class="o">=</span> <span class="n">FakeVigoV2</span><span class="p">()</span><span class="o">.</span><span class="n">name</span>  <span class="c1"># e.g., &quot;fake_vigo&quot;</span>
+<span class="n">backend_name</span> <span class="o">=</span> <span class="n">FakeVigoV2</span><span class="p">()</span><span class="o">.</span><span class="n">name</span>  <span class="c1"># e.g., "fake_vigo"</span>
 
 <span class="n">circuit</span> <span class="o">=</span> <span class="n">QuantumCircuit</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
 <span class="n">circuit</span><span class="o">.</span><span class="n">h</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
@@ -522,7 +522,7 @@ meas: 2/══════════════╩══╩═
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">my_function</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;function-with-arguments&quot;</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">my_function</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"function-with-arguments"</span><span class="p">)</span>
 
 <span class="c1"># For fake backends, passing `service` is not required.</span>
 <span class="n">job</span> <span class="o">=</span> <span class="n">my_function</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">circuit</span><span class="o">=</span><span class="n">circuit</span><span class="p">,</span> <span class="n">backend_name</span><span class="o">=</span><span class="n">backend_name</span><span class="p">)</span>
@@ -561,7 +561,7 @@ meas: 2/══════════════╩══╩═
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>   <span class="c1"># Returns {&#39;quasi_dists&#39;: {...}}</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>   <span class="c1"># Returns {'quasi_dists': {...}}</span>
 </pre></div>
 </div>
 </div>
@@ -616,9 +616,9 @@ meas: 2/══════════════╩══╩═
 
 <span class="c1"># If you have saved your account, this can be empty:</span>
 <span class="n">service</span> <span class="o">=</span> <span class="n">QiskitRuntimeService</span><span class="p">(</span>
-    <span class="c1"># channel=&quot;ibm_quantum_platform&quot;,</span>
-    <span class="c1"># token=&quot;API_KEY&quot;,</span>
-    <span class="c1"># instance=&quot;CRN&quot;,</span>
+    <span class="c1"># channel="ibm_quantum_platform",</span>
+    <span class="c1"># token="API_KEY",</span>
+    <span class="c1"># instance="CRN",</span>
 <span class="p">)</span>
 
 <span class="n">backend</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">least_busy</span><span class="p">(</span><span class="n">simulator</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">operational</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -634,8 +634,8 @@ meas: 2/══════════════╩══╩═
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Results: </span><span class="se">\n</span><span class="s2"> </span><span class="si">{</span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Logs: </span><span class="se">\n</span><span class="s2"> </span><span class="si">{</span><span class="n">job</span><span class="o">.</span><span class="n">logs</span><span class="p">()</span><span class="si">}</span><span class="s2">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Results: </span><span class="se">\n</span><span class="s2"> </span><span class="si">{</span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Logs: </span><span class="se">\n</span><span class="s2"> </span><span class="si">{</span><span class="n">job</span><span class="o">.</span><span class="n">logs</span><span class="p">()</span><span class="si">}</span><span class="s2">)</span>
 <br/></pre></div>
 </div>
 </div>

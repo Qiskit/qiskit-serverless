@@ -351,7 +351,7 @@ becomes the function result.</p>
         <span class="c1"># Example implementation</span>
         <span class="k">return</span> <span class="p">{</span>
             <span class="o">**</span><span class="n">arguments</span><span class="p">,</span>
-            <span class="s2">&quot;answer&quot;</span><span class="p">:</span> <span class="mi">42</span>
+            <span class="s2">"answer"</span><span class="p">:</span> <span class="mi">42</span>
         <span class="p">}</span>
 </pre></div>
 </div>
@@ -429,21 +429,21 @@ define a <code class="docutils literal notranslate"><span class="pre">QiskitFunc
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitFunction</span><span class="p">,</span> <span class="n">ServerlessClient</span>
 
 <span class="n">serverless</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
-    <span class="n">token</span><span class="o">=</span><span class="s2">&quot;awesome_token&quot;</span><span class="p">,</span>
-    <span class="n">instance</span><span class="o">=</span><span class="s2">&quot;awesome_crn&quot;</span><span class="p">,</span>
-    <span class="n">host</span><span class="o">=</span><span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">,</span> <span class="c1"># Use http://localhost when using Kubernetes</span>
+    <span class="n">token</span><span class="o">=</span><span class="s2">"awesome_token"</span><span class="p">,</span>
+    <span class="n">instance</span><span class="o">=</span><span class="s2">"awesome_crn"</span><span class="p">,</span>
+    <span class="n">host</span><span class="o">=</span><span class="s2">"http://localhost:8000"</span><span class="p">,</span> <span class="c1"># Use http://localhost when using Kubernetes</span>
 <span class="p">)</span>
 
 <span class="n">function</span> <span class="o">=</span> <span class="n">QiskitFunction</span><span class="p">(</span>
-    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;custom-image-function&quot;</span><span class="p">,</span>
-    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;test/local-provider-function:latest&quot;</span><span class="p">,</span>
-    <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;mockprovider&quot;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">"custom-image-function"</span><span class="p">,</span>
+    <span class="n">image</span><span class="o">=</span><span class="s2">"test/local-provider-function:latest"</span><span class="p">,</span>
+    <span class="n">provider</span><span class="o">=</span><span class="s2">"mockprovider"</span><span class="p">,</span>
 <span class="p">)</span>
 
 <span class="n">serverless</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">function</span><span class="p">)</span>
-<span class="n">my_function</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;custom-image-function&quot;</span><span class="p">,</span> <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;mockprovider&quot;</span><span class="p">)</span>
+<span class="n">my_function</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"custom-image-function"</span><span class="p">,</span> <span class="n">provider</span><span class="o">=</span><span class="s2">"mockprovider"</span><span class="p">)</span>
 
-<span class="n">job</span> <span class="o">=</span> <span class="n">my_function</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">test_argument_one</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">test_argument_two</span><span class="o">=</span><span class="s2">&quot;two&quot;</span><span class="p">)</span>
+<span class="n">job</span> <span class="o">=</span> <span class="n">my_function</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">test_argument_one</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">test_argument_two</span><span class="o">=</span><span class="s2">"two"</span><span class="p">)</span>
 <span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
 </pre></div>
 </div>

@@ -333,7 +333,7 @@
 <section id="authentication">
 <h3>Authentication<a class="headerlink" href="#authentication" title="Permalink to this heading">¶</a></h3>
 <p>All requests require a Bearer token:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer &lt;your-token&gt;&quot;</span><span class="w"> </span><span class="se">\</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-H<span class="w"> </span><span class="s2">"Authorization: Bearer &lt;your-token&gt;"</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>https://qiskit-serverless.quantum.ibm.com/api/v1/jobs/
 </pre></div>
 </div>
@@ -351,8 +351,8 @@
 <section id="pagination">
 <h3>Pagination<a class="headerlink" href="#pagination" title="Permalink to this heading">¶</a></h3>
 <p>List endpoints support <code class="docutils literal notranslate"><span class="pre">limit</span></code> and <code class="docutils literal notranslate"><span class="pre">offset</span></code> parameters:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer &lt;token&gt;&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span><span class="s2">&quot;https://qiskit-serverless.quantum.ibm.com/api/v1/jobs/?limit=10&amp;offset=0&quot;</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-H<span class="w"> </span><span class="s2">"Authorization: Bearer &lt;token&gt;"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="s2">"https://qiskit-serverless.quantum.ibm.com/api/v1/jobs/?limit=10&amp;offset=0"</span>
 </pre></div>
 </div>
 </section>
