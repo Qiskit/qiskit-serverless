@@ -72,6 +72,8 @@ application:
   w3idSso:
     enabled: false
     baseUrl: "https://test.login.w3.ibm.com"
+  ibmCloudFidApiKey:
+    enabled: false
 
 tracing:
   enabled: false
@@ -102,13 +104,27 @@ secrets:
       host: database-host
       port: database-port
       userName: user-name
+    createExternalSecret: false
+    secretRef: ""
+    secretStoreName: qiskit-serverless
   superuser:
     name: gateway-superuser
     key:
       name: name
       password: password
       email: email
-  w3idSso: ""
+  w3idSso:
+    name: ""
+    secretRef: ""
+    secretStoreName: qiskit-serverless
+  kafka:
+    name: ""
+    secretRef: ""
+    secretStoreName: qiskit-serverless
+  ibmCloudFidApiKey:
+    name: ""
+    secretRef: ""
+    secretStoreName: qiskit-serverless
 
 image:
   repository: icr.io/quantum-public/qiskit-serverless/gateway

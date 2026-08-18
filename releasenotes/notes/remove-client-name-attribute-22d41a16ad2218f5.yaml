@@ -1,0 +1,49 @@
+---
+upgrade:
+  - |
+    The ``name`` attribute has been removed from ``ServerlessClient`` and
+    ``BaseClient``. This parameter was deprecated in v0.33.0 and emitted a
+    ``DeprecationWarning``; it is now fully removed. Passing ``name`` when
+    constructing a client will raise a ``TypeError``.
+
+    **Migration guide**
+
+    Remove the ``name`` argument from any ``ServerlessClient`` (or
+    ``BaseClient``) construction. It was never used for authentication or
+    routing, so it can be deleted without any replacement.
+
+    Before:
+
+    .. code-block:: python
+
+        client = ServerlessClient(
+            name="my-client",
+            host="<HOST>",
+            token="<TOKEN>",
+            instance="<CRN>",
+        )
+
+    After:
+
+    .. code-block:: python
+
+        client = ServerlessClient(
+            host="<HOST>",
+            token="<TOKEN>",
+            instance="<CRN>",
+        )
+
+    Additional notes for existing code:
+
+    * ``ServerlessClient.from_dict(...)`` continues to accept dictionaries that
+      still contain a ``name`` key; the key is silently ignored, so previously
+      serialized clients keep deserializing without changes.
+    * ``BaseClient.__eq__`` now compares clients by their ``host``, ``token``,
+      ``instance``, and ``channel`` instead of by ``name``. Code that relied on
+      name-based equality should compare the relevant connection attributes
+      directly.
+    * ``repr(client)`` now renders as
+      ``<ServerlessClient(host=<HOST>)>`` instead of ``<my-client>``. Update
+      any code or tests that matched the old representation.
+    * The ``name`` attribute on ``IBMServerlessClient`` (used to select a saved
+      account) is unaffected by this change.

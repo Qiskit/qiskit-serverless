@@ -23,14 +23,20 @@ class NoOpEventStreamsClient(EventStreamsClient):
     """
     Drop-in replacement for KafkaEventStreamsClient when EVENT_STREAMS_ENABLED is false.
 
-    Logs each emit call at DEBUG level instead of publishing to Kafka.
+    Logs each emit call at INFO level instead of publishing to Kafka.
     """
 
-    def emit_job_started(self, job) -> None:
-        logger.info("job_id=%s [noop] emit_job_started", job.id)
+    def __init__(self) -> None:
+        logger.info("NoOpEventStreamsClient initialized (no Kafka publishing)")
 
-    def emit_job_in_progress(self, job) -> None:
-        logger.info("job_id=%s [noop] emit_job_in_progress", job.id)
+    def emit_job_started(self, job, metric_type: str) -> None:
+        logger.info("job_id=%s metric_type=%s [noop] emit_job_started", job.id, metric_type)
 
-    def emit_job_ended(self, job) -> None:
-        logger.info("job_id=%s [noop] emit_job_ended", job.id)
+    def emit_job_in_progress(self, job, metric_type: str) -> None:
+        logger.info("job_id=%s metric_type=%s [noop] emit_job_in_progress", job.id, metric_type)
+
+    def emit_job_completed(self, job, metric_type: str) -> None:
+        logger.info("job_id=%s metric_type=%s [noop] emit_job_completed", job.id, metric_type)
+
+    def emit_license_fee(self, job) -> None:
+        logger.info("job_id=%s metric_type=license [noop] emit_license_fee", job.id)
