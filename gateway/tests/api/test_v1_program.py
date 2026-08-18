@@ -11,6 +11,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
+from api.domain.arguments_schema import MAX_SCHEMA_LENGTH
 from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import (
@@ -171,6 +172,25 @@ class TestProgramApi(APITestCase):
     def tearDown(self):
         self._temp_directory.cleanup()
         super().tearDown()
+
+    def _upload_with_schema(self, title, arguments_schema):
+        """POST an upload whose only interesting field is arguments_schema."""
+        fake_file = ContentFile(b"print('hello')")
+        fake_file.name = "test.tar"
+        TestUtils.authorize_client(user="test_user", client=self.client)
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            return self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": title,
+                    "entrypoint": "main.py",
+                    "dependencies": "[]",
+                    "arguments_schema": arguments_schema,
+                    "artifact": fake_file,
+                },
+                format="multipart",
+            )
 
     def test_programs_non_auth_user(self):
         """Tests program list non-authorized."""
@@ -1194,43 +1214,111 @@ class TestProgramApi(APITestCase):
     def test_upload_with_arguments_schema_stores_it(self):
         """Upload with arguments_schema saves the schema on the Program."""
         schema = json.dumps({"type": "object", "properties": {"shots": {"type": "integer"}}})
-        fake_file = ContentFile(b"print('hello')")
-        fake_file.name = "test.tar"
-        TestUtils.authorize_client(user="test_user", client=self.client)
-
-        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            response = self.client.post(
-                "/api/v1/programs/upload/",
-                data={
-                    "title": "schema-function",
-                    "entrypoint": "main.py",
-                    "dependencies": "[]",
-                    "arguments_schema": schema,
-                    "artifact": fake_file,
-                },
-            )
+        response = self._upload_with_schema("schema-function", schema)
         assert response.status_code == status.HTTP_200_OK
         program = Program.objects.get(title="schema-function")
         assert program.arguments_schema == schema
 
     def test_upload_with_invalid_schema_returns_400(self):
         """Upload with malformed JSON as arguments_schema returns 400."""
-        fake_file = ContentFile(b"print('hello')")
-        fake_file.name = "test.tar"
-        TestUtils.authorize_client(user="test_user", client=self.client)
-
-        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            response = self.client.post(
-                "/api/v1/programs/upload/",
-                data={
-                    "title": "bad-schema-function",
-                    "entrypoint": "main.py",
-                    "dependencies": "[]",
-                    "arguments_schema": "not-valid-json{{{",
-                    "artifact": fake_file,
-                },
-            )
+        response = self._upload_with_schema("bad-schema-function", "not-valid-json{{{")
         assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_upload_with_invalid_pattern_in_schema_returns_400(self):
+        """A pattern that is not even a valid regular expression is rejected at upload, not at run
+        time. check_schema asserts the "regex" format on every "pattern" value, so this does not
+        depend on any particular regex engine."""
+        response = self._upload_with_schema(
+            "invalid-pattern-function", json.dumps({"properties": {"x": {"pattern": "("}}})
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert not Program.objects.filter(title="invalid-pattern-function").exists()
+
+    def test_upload_with_oversized_schema_returns_400(self):
+        """A schema over MAX_SCHEMA_LENGTH is rejected at upload, without forking to check it."""
+        schema = json.dumps({"type": "object", "description": "x" * MAX_SCHEMA_LENGTH})
+        response = self._upload_with_schema("oversized-schema-function", schema)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert not Program.objects.filter(title="oversized-schema-function").exists()
+
+    def test_upload_with_external_ref_in_schema_returns_400(self):
+        """A schema referencing an external resource is rejected, so it can never be fetched later."""
+        response = self._upload_with_schema(
+            "ssrf-schema-function", json.dumps({"$ref": "http://169.254.169.254/latest/meta-data/"})
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert not Program.objects.filter(title="ssrf-schema-function").exists()
+
+    def test_upload_with_scalar_schema_returns_400(self):
+        """A JSON scalar is valid JSON but not a schema, and it used to come back as a 500.
+
+        validator_for tests '"$schema" not in schema', which raises TypeError on a number.
+
+        Asserts the specific "object or a boolean" message from the isinstance check, not just the
+        status code: with that check disabled, validator_for's own TypeError would still reach the
+        generic except Exception a few lines below it and still come back as a 400, with the
+        generic message "it cannot be used (TypeError: ...)" instead, so a bare status check would
+        not prove this specific check ran rather than the fallback.
+        """
+        response = self._upload_with_schema("scalar-schema-function", "123")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert not Program.objects.filter(title="scalar-schema-function").exists()
+        assert "must be an object or a boolean, not int" in str(response.data)
+
+    def test_upload_with_external_dynamic_ref_in_schema_returns_400(self):
+        """'$dynamicRef' resolves references too, so it needs the same check as '$ref'.
+
+        Letting it through leaves the function permanently broken: the empty registry raises
+        Unresolvable on every run, which is exactly what checking at upload time avoids.
+        """
+        response = self._upload_with_schema(
+            "dynamic-ref-schema-function", json.dumps({"$dynamicRef": "https://example.com/tree#node"})
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert not Program.objects.filter(title="dynamic-ref-schema-function").exists()
+
+    def test_upload_with_unhashable_dollar_schema_returns_400(self):
+        """validator_for tests '"$schema" not in schema', which raises TypeError on a dict.
+
+        Asserts the specific message from check_schema's own except Exception handling, not just
+        the status code: _run_child's blanket except BaseException would also turn an unhandled
+        TypeError into a 400, with the generic message "it raised TypeError" instead, so a bare
+        status check would not prove this specific handling ran rather than the fallback.
+        """
+        response = self._upload_with_schema("unhashable-schema-function", json.dumps({"$schema": {}}))
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "cannot be used (TypeError: unhashable type: 'dict')" in str(response.data)
+
+    def test_upload_with_a_deeply_nested_schema_returns_400(self):
+        """1500 levels used to be a 500. Only the status code is asserted here, on purpose.
+
+        Which mechanism refuses the document depends on the interpreter, and every one of them is
+        the right answer, because what has to hold is that a document too deep to evaluate becomes a
+        400 rather than a 500 or an occupied worker. On Python 3.11 json.loads gives up on 1500
+        levels and the parse error path answers; on 3.12 the C recursion limit is high enough that
+        the document parses and MAX_DOCUMENT_DEPTH refuses it instead. Both were measured, as was
+        3.12 still raising RecursionError at 10000 levels, which is about as deep as
+        MAX_SCHEMA_LENGTH allows a document to be. Asserting either message would make this test
+        track the interpreter's recursion limit instead of the behaviour it exists for, and that is
+        what broke it when the gateway moved to 3.12. The depth check's own message is asserted
+        where it fires deterministically on every interpreter, in test_deeply_nested_schema_is_rejected.
+        """
+        response = self._upload_with_schema("deep-schema-function", '{"a":' * 1500 + "1" + "}" * 1500)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_upload_with_too_many_subschemas_returns_400(self):
+        """anyOf of 201 branches exceeds MAX_SCHEMA_NODES, which is 200."""
+        response = self._upload_with_schema("wide-schema-function", json.dumps({"anyOf": [{"type": "integer"}] * 201}))
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_upload_with_self_referencing_root_schema_returns_400(self):
+        """{"$ref": "#"} used to pass the metaschema check, upload with 200, and then fail every
+        single run of the function with a RecursionError. Upload now tries the schema against a
+        trial instance and refuses it there instead, where the author can still fix it.
+        """
+        response = self._upload_with_schema("self-ref-root-function", json.dumps({"$ref": "#"}))
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert not Program.objects.filter(title="self-ref-root-function").exists()
 
     def test_reupload_without_schema_preserves_existing_schema(self):
         """Re-uploading a function without arguments_schema keeps the existing schema."""
@@ -1652,6 +1740,47 @@ class TestProgramApiRuntimeInstances:
             assert response.status_code == status.HTTP_400_BAD_REQUEST
             assert "message" in response.data
             assert "path" in response.data
+
+        def test_validate_arguments_endlessly_recursive_schema_returns_400(self, client, authorize):
+            """A stored schema that recurses forever must answer 400, not fail the request.
+
+            RecursionError reached the generic handler, so a 13 character schema turned every call
+            into a 500.
+            """
+            user = authorize("test_user", create_custom_access_result({PLATFORM_PERMISSION_CUSTOM_RUN}))
+            TestUtils.create_program(
+                program_title="recursive-schema-func",
+                author=user,
+                arguments_schema=json.dumps({"$ref": "#"}),
+            )
+            response = client.post(
+                "/api/v1/programs/validate_arguments/",
+                data={"title": "recursive-schema-func", "arguments": "{}"},
+                format="json",
+            )
+            assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+        def test_validate_arguments_with_a_pathological_schema_returns_400(self, client, authorize):
+            """A root "$schema" plus a self reference restored the backtracking engine: 7.8s for
+            37 bytes of request body, and it stayed under every declared limit."""
+            user = authorize("test_user", create_custom_access_result({PLATFORM_PERMISSION_CUSTOM_RUN}))
+            TestUtils.create_program(
+                program_title="pathological-schema-func",
+                author=user,
+                arguments_schema=json.dumps(
+                    {
+                        "$schema": "https://json-schema.org/draft/2020-12/schema",
+                        "pattern": "^(a+)+$",
+                        "properties": {"x": {"$ref": "#"}},
+                    }
+                ),
+            )
+            response = client.post(
+                "/api/v1/programs/validate_arguments/",
+                data={"title": "pathological-schema-func", "arguments": json.dumps({"x": "a" * 40 + "!"})},
+                format="json",
+            )
+            assert response.status_code == 400
 
         def test_validate_arguments_no_schema_returns_200(self, client, authorize):
             """validate_arguments returns 200 for any arguments when function has no schema."""
