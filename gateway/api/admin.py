@@ -218,17 +218,20 @@ class ProgramAdmin(admin.ModelAdmin):
             readonly_fields.append("title")
         return readonly_fields
 
-    def render_change_form(self, request, context, add=False, change=False, form_url="", obj=None):
+    def render_change_form(self, request, context, *args, **kwargs):
         """Warn at the top of the page when the stored arguments_schema is unusable.
 
         The form has already worked out the reason, so this costs nothing extra. It only fires on a
         page being shown, since `stored_schema_error` stays None for a bound form.
+
+        The remaining arguments are passed straight through: Django's `_changeform_view` sends `add`,
+        `change`, `form_url` and `obj` by keyword, and none of them matter here.
         """
         stored_schema_error = getattr(context["adminform"].form, "stored_schema_error", None)
         if stored_schema_error:
             messages.warning(request, stored_schema_error)
 
-        return super().render_change_form(request, context, add=add, change=change, form_url=form_url, obj=obj)
+        return super().render_change_form(request, context, *args, **kwargs)
 
     def get_urls(self):
         """Add program history url to the available urls."""

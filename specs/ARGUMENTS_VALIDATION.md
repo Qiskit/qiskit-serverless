@@ -83,6 +83,23 @@ table. Both cases were false rejections of legitimate schemas before, refused at
 the reference and enforced the subschema it names. Stepping aside costs a false accept at worst, and the trial
 validation and `jsonschema`'s own `Unresolvable` at run time both still apply.
 
+### The Django admin applies the same check
+
+`ProgramAdminForm` (`gateway/api/admin.py`) runs `_arguments_schema_error`, which applies the same length limit and
+makes the same `check_uploaded_schema_in_isolation` call the upload serializer does, so both ways into the column
+accept exactly the same documents. Before this, the admin was the only way left to store a schema the gateway cannot
+evaluate, and one bad row breaks `client.functions()` for everyone who can see that function, because the SDK decodes
+the whole list at once.
+
+The admin differs from the upload in two ways, both on purpose. The check only runs when `arguments_schema` is among
+the changed fields, so a function whose stored schema is already broken stays editable and can still be turned off in
+a hurry. And a blank value is read as "no schema" instead of being handed to the validator, which is what the column
+means by its `{}` default.
+
+Opening a function whose stored schema does not work shows the reason twice, under the field and as a warning on the
+page, which is what turns an already broken row from invisible into visible. That check runs once per page shown and
+never while a submission is being handled.
+
 ### Re-upload preserves the schema
 
 `UploadFunctionUseCase._update` only writes `arguments_schema` when the field is present in the request, using `None`

@@ -7,6 +7,7 @@ from django.test.client import RequestFactory
 from django.urls import reverse
 
 from api.admin import ProgramAdmin
+from api.domain.arguments_schema import MAX_SCHEMA_LENGTH
 from core.models import Program, Provider
 
 
@@ -95,6 +96,34 @@ def test_admin_lets_you_edit_a_function_whose_stored_schema_is_broken():
 
 
 @pytest.mark.django_db
+def test_admin_lets_you_clear_the_schema():
+    """Emptying the field is how a schema is removed, so it must not be sent to the validator."""
+    program = _program(arguments_schema='{"type": "object"}')
+    form_class = ProgramAdmin(Program, AdminSite()).get_form(RequestFactory().get("/"), obj=program)
+
+    form = form_class(data={"arguments_schema": ""}, instance=program)
+
+    form.is_valid()
+    assert "arguments_schema" in form.changed_data
+    assert "arguments_schema" not in form.errors
+
+
+@pytest.mark.django_db
+def test_admin_rejects_an_oversized_schema_without_forking():
+    """The length limit comes first, so a huge document never reaches the isolation."""
+    program = _program(arguments_schema="{}")
+    form_class = ProgramAdmin(Program, AdminSite()).get_form(RequestFactory().get("/"), obj=program)
+    oversized = '{"description": "' + "x" * (MAX_SCHEMA_LENGTH + 1) + '"}'
+
+    form = form_class(data={"arguments_schema": oversized}, instance=program)
+
+    assert not form.is_valid()
+    assert form.errors["arguments_schema"] == [
+        f"arguments_schema is {len(oversized)} characters long and the maximum is {MAX_SCHEMA_LENGTH}."
+    ]
+
+
+@pytest.mark.django_db
 def test_opening_a_function_with_a_broken_schema_shows_the_reason():
     """A row that is already broken should stop being invisible."""
     program = _program(arguments_schema="not json at all")
@@ -104,6 +133,18 @@ def test_opening_a_function_with_a_broken_schema_shows_the_reason():
 
     assert form.stored_schema_error == "arguments_schema cannot be used: it must be valid JSON."
     assert "it must be valid JSON" in form.fields["arguments_schema"].help_text
+
+
+@pytest.mark.django_db
+def test_opening_a_function_with_a_good_schema_says_nothing():
+    """The everyday case must stay quiet, with no warning and nothing added to the field."""
+    program = _program(arguments_schema='{"type": "object"}')
+    form_class = ProgramAdmin(Program, AdminSite()).get_form(RequestFactory().get("/"), obj=program)
+
+    form = form_class(instance=program)
+
+    assert form.stored_schema_error is None
+    assert form.fields["arguments_schema"].help_text == ""
 
 
 @pytest.mark.django_db
