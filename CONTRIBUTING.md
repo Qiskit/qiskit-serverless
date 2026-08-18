@@ -236,7 +236,10 @@ git rebase main issue-1234-new-feature
 ### Adding tests
 
 Our team upholds the philosophy that a healthy codebase will include the proper amount of testing.
-From the project you are working on, you can run tests with `tox -epy311`.
+From the project you are working on, you can run tests with tox, using the environment that the project declares in
+its `tox.ini`: `tox -epy312` in `gateway/` and `tests/`, and any of `tox -epy310` up to `tox -epy313` in `client/`.
+Beware that asking for an environment a project does not declare, such as `tox -epy311` in `gateway/`, installs the
+dependencies, runs no test at all and still reports success.
 Note if you run this command from qiskit-serverless top directory, it will build the project documentation.
 For detailed testing guidelines using tox environments, please refer to [this documentation](./client/tests/README.md).
 
