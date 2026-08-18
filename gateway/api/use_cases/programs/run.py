@@ -18,6 +18,7 @@ from core.domain.authorization.function_access_result import FunctionAccessResul
 from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import (
+    ComputeProfile,
     Job,
     JobConfig,
     JobEvent,
@@ -102,6 +103,10 @@ class RunFunctionUseCase:
             trial = business_model == BusinessModel.TRIAL
 
         compute_profile, gpu = _runner_config(function, data.compute_profile)
+        # ``Job.compute_profile`` (string column) and ``ComputeProfile.compute_profile_id``
+        # (the PK) are the same identifier, so both columns derive from the same
+        # value and cannot drift while they coexist.
+        compute_profile_fk = ComputeProfile.objects.get_by_id(compute_profile)
         jobconfig = JobConfig.objects.create(**data.config_data) if data.config_data else None
         job = Job(
             trial=trial,
@@ -113,6 +118,7 @@ class RunFunctionUseCase:
             gpu=gpu,
             runner=function.runner,
             compute_profile=compute_profile,
+            compute_profile_fk=compute_profile_fk,
             instance_crn=data.instance,
             account_id=data.account_id,
             ce_project_name=function.code_engine_project.project_name if function.code_engine_project else None,
