@@ -399,10 +399,13 @@ def find_unresolvable_ref(schema: Any, root: Any = None) -> str | None:
     return None
 
 
-# Longest excerpt of the rejected value appended to a validation message. Kept well under
-# validate_arguments.MAX_MESSAGE_LENGTH so the reason built by _validation_message is never at
-# risk of being the part that a truncation further up the call stack cuts off.
-MAX_INSTANCE_EXCERPT_LENGTH = 200
+# Longest excerpt of either caller-controlled value a validation message quotes: what the schema
+# required, and what was rejected. A validation message carries both, and both are as large as
+# whoever wrote them made them, so the figure is a budget shared between the two rather than a
+# separate allowance each: two of these plus the fixed wording still has to stay clear of
+# validate_arguments.MAX_MESSAGE_LENGTH, or the truncation up there would cut off the very part of
+# the message this function exists to keep.
+MAX_EXCERPT_LENGTH = 150
 
 
 def _validation_message(exc: jsonschema.ValidationError) -> str:
@@ -423,13 +426,25 @@ def _validation_message(exc: jsonschema.ValidationError) -> str:
     ``validate_arguments.py`` sees a ``jsonschema.ValidationError``, it has been reconstructed from
     just those two fields and ``validator``/``validator_value`` read back as "<unset>".
 
-    A separately bounded excerpt of the rejected value is appended after the reason, so there is
-    still a clue about what was sent.
+    Both quoted values are bounded, not just the rejected one. ``validator_value`` is independent of
+    the instance, which is the case this function was written for, but it is a piece of the schema,
+    so it grows with the schema instead: for "enum" it is every allowed value, for "anyOf" or
+    "properties" a whole subschema, up to MAX_SCHEMA_LENGTH. Bounding only the instance therefore
+    reintroduced the same failure with the schema in the payload's place, and an enum of a few
+    hundred options came back as the truncation limit's worth of enum with the rejected value gone.
     """
-    excerpt = repr(exc.instance)
-    if len(excerpt) > MAX_INSTANCE_EXCERPT_LENGTH:
-        excerpt = f"{excerpt[:MAX_INSTANCE_EXCERPT_LENGTH]}... (value truncated)"
-    return f"'{exc.validator}' validation failed, schema requires {exc.validator_value!r}: rejected value {excerpt}"
+    return (
+        f"'{exc.validator}' validation failed, schema requires {_excerpt(exc.validator_value)}"
+        f": rejected value {_excerpt(exc.instance)}"
+    )
+
+
+def _excerpt(value: Any) -> str:
+    """``repr(value)``, cut to MAX_EXCERPT_LENGTH and marked as cut when it was."""
+    text = repr(value)
+    if len(text) > MAX_EXCERPT_LENGTH:
+        return f"{text[:MAX_EXCERPT_LENGTH]}... (value truncated)"
+    return text
 
 
 def validate_arguments_in_isolation(schema: Any, arguments_str: str) -> None:

@@ -19,7 +19,7 @@ from api.domain.arguments_schema import (
 )
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.domain.exceptions.invalid_arguments_exception import InvalidArgumentsException
-from api.use_cases.programs.validate_arguments import ValidateArgumentsUseCase, validate_arguments
+from api.use_cases.programs.validate_arguments import MAX_MESSAGE_LENGTH, ValidateArgumentsUseCase, validate_arguments
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import Program
 
@@ -522,6 +522,32 @@ def test_error_message_keeps_the_reason_for_a_large_rejected_value():
 
     assert "integer" in caught.value.message
     assert len(caught.value.message) < 1000
+
+
+def test_error_message_keeps_the_rejected_value_for_a_large_schema_requirement():
+    """The fix above put the reason at the front by building the message from exc.validator and
+    exc.validator_value rather than from exc.message. validator_value does not grow with the
+    instance, which is what that fix was about, but it does grow with the schema: it is whatever the
+    failing keyword required, so for "enum" it is the whole list of allowed values, and for "anyOf"
+    or "properties" the whole subschema, up to MAX_SCHEMA_LENGTH.
+
+    That put the schema at the front where the payload used to be, and the same 500 character
+    truncation cut the message off at the same place, so an enum of a few hundred options came back
+    as 500 characters of enum with the rejected value gone entirely. Both halves have to stay inside
+    the bound, not just the one that was measured first.
+
+    Both are large here, which is the worst case: the point of bounding them individually is that the
+    whole message then fits under MAX_MESSAGE_LENGTH on its own, so the truncation in the use case
+    never has anything to cut and no part of the message can be the part that gets lost.
+    """
+    schema = {"type": "object", "properties": {"x": {"enum": [f"option-{index}" for index in range(400)]}}}
+
+    with pytest.raises(InvalidArgumentsException) as caught:
+        validate_arguments(_program(schema), json.dumps({"x": "z" * 50_000}))
+
+    assert "rejected value" in caught.value.message
+    assert "(message truncated)" not in caught.value.message
+    assert len(caught.value.message) < MAX_MESSAGE_LENGTH
 
 
 def test_validation_error_path_does_not_echo_the_whole_property_name():
