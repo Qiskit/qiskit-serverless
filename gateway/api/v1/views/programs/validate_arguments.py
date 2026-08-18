@@ -10,7 +10,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from api.use_cases.programs.validate_arguments import ValidateArgumentsUseCase
-from api.utils import sanitize_name
+from api.utils import parse_title_and_provider, sanitize_name
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
 from core.domain.authorization.function_access_result import FunctionAccessResult
@@ -60,8 +60,10 @@ def validate_arguments(request: Request) -> Response:
     serializer = InputSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
-    function_title = serializer.validated_data.get("title")
-    provider_name = serializer.validated_data.get("provider")
+    function_title, provider_name = parse_title_and_provider(
+        serializer.validated_data.get("title"),
+        serializer.validated_data.get("provider"),
+    )
     arguments = serializer.validated_data.get("arguments")
 
     logger.info(

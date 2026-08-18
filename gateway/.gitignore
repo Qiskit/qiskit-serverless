@@ -98,6 +98,8 @@ celerybeat-schedule.*
 
 # Environments
 .env
+# .env.staging / .env.production are committed on purpose (local runserver config)
+.env.local
 .venv
 env/
 venv/

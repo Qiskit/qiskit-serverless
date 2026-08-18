@@ -2,6 +2,7 @@
 **/.terraform/*
 
 # Local helm dependencies
+# Commented line below due to problems with helm build
 charts/**/*.tgz
 charts/values/**
 
@@ -108,3 +109,7 @@ docs/superpowers/
 *.log
 .claude/settings.local.json
 hooks/
+
+# Nix local dev environment
+flake.nix
+flake.lock

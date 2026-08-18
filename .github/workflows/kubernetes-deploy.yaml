@@ -28,7 +28,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.11"
+          python-version: "3.12"
       - name: Install tox
         run: pip install tox>=4.0.0
       - name: Create Kind cluster
@@ -55,7 +55,7 @@ jobs:
       - name: setup python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.11"
+          python-version: "3.12"
       - name: Install dependencies
         run: |
           cd ../client
@@ -80,7 +80,7 @@ jobs:
         env:
           GATEWAY_HOST: http://localhost:8000
         run: |
-          tox -e py311
+          tox -e py312
       - uses: chainguard-dev/actions/kind-diag@main
         # Only upload logs on failure.
         if: ${{ failure() }}
