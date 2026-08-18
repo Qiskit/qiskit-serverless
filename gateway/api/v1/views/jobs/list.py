@@ -19,7 +19,7 @@ from rest_framework.response import Response
 
 from core.enums.type_filter import TypeFilter
 from core.model_managers.jobs import JobFilters
-from core.models import Job, Program
+from core.models import ComputeProfile, Job, Program
 from api.use_cases.jobs.list import JobsListUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
@@ -76,16 +76,34 @@ class ProgramSummarySerializer(serializers.ModelSerializer):
         ref_name = "JobsListProgramSummaryInputSerializer"
 
 
+class ComputeProfileSerializer(serializers.ModelSerializer):
+    """
+    Compute profile fields exposed for a job's `compute_profile_fk`.
+    """
+
+    class Meta:
+        model = ComputeProfile
+        fields = [
+            "compute_profile_id",
+            "name",
+            "cpu",
+            "gpu",
+            "memory",
+        ]
+        ref_name = "JobsListComputeProfileSerializer"
+
+
 class JobSerializerWithoutResult(serializers.ModelSerializer):
     """
     Minimal job representation for listings.
     """
 
     program = ProgramSummarySerializer(many=False)
+    compute_profile_fk = ComputeProfileSerializer(read_only=True)
 
     class Meta:
         model = Job
-        fields = ["id", "status", "program", "created", "sub_status", "compute_profile"]
+        fields = ["id", "status", "program", "created", "sub_status", "compute_profile", "compute_profile_fk"]
         ref_name = "JobsListWithoutResultInputSerializer"
 
 
