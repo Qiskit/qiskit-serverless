@@ -165,6 +165,42 @@ def test_memory_limit_stops_an_oversized_allocation():
     assert "memory" in caught.value.reason
 
 
+def test_a_failure_before_the_read_still_kills_and_reaps_the_child(monkeypatch):
+    """Nothing between the fork and os.wait4 may let the child outlive the call that created it.
+
+    selectors.DefaultSelector allocates a descriptor of its own (epoll_create1), so it fails under
+    exactly the descriptor pressure the os.fork handler above was written for. Left unhandled, that
+    OSError escaped run_isolated as the 500 this module exists to prevent, and left the child both
+    unkilled, so it ran on to its CPU limit inside a worker that had already answered, and unreaped,
+    so it then sat as a zombie for the rest of that worker's life.
+
+    The reap is asserted through waitpid rather than by inspecting the process table: a child this
+    process still owns answers (0, 0) while it runs and (pid, status) once it is a zombie, so only a
+    reaped one raises ChildProcessError.
+    """
+    real_fork = os.fork
+    forked = {}
+
+    def spy_fork():
+        pid = real_fork()
+        if pid:
+            forked["pid"] = pid
+        return pid
+
+    def unavailable(*_args, **_kwargs):
+        raise OSError(24, "Too many open files")
+
+    monkeypatch.setattr(os, "fork", spy_fork)
+    monkeypatch.setattr(isolated.selectors, "DefaultSelector", unavailable)
+
+    with pytest.raises(IsolationError) as caught:
+        run_isolated(lambda: {"ok": True})
+    assert "Too many open files" in caught.value.reason
+
+    with pytest.raises(ChildProcessError):
+        os.waitpid(forked["pid"], os.WNOHANG)
+
+
 @pytest.mark.django_db
 def test_forking_does_not_break_the_parents_database_connection():
     from django.db import connection

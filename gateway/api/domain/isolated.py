@@ -156,26 +156,67 @@ def _run_child(work: Callable[[], Any], write_fd: int, cpu_seconds: int, memory_
         pass
 
 
+def _kill_and_reap(pid: int) -> None:
+    """Make sure ``pid`` is dead and reaped, whatever state it was left in.
+
+    Both calls tolerate failure because either can legitimately have nothing to do: the child may
+    already have exited on its own (so the signal finds nothing), and a concurrent reap elsewhere
+    would take the wait. What must not happen is an exception from here replacing the failure that
+    brought us into this path.
+    """
+    try:
+        os.kill(pid, signal.SIGKILL)
+    except OSError:
+        pass
+    try:
+        os.waitpid(pid, 0)
+    except OSError:
+        pass
+
+
+def _read_and_reap(pid: int, read_fd: int, wall_seconds: float) -> tuple[list, bool, int, Any]:
+    """Read whatever the child wrote, kill it if the deadline passed, and reap it either way.
+
+    Returns the chunks read, whether the deadline fired, and the wait status and resource usage the
+    reap reported, which is what tells a CPU overrun apart from an external kill.
+
+    Every step lives under the try, because a failure anywhere in here used to leave the child
+    running: it went on spending its CPU budget inside a worker that had already answered, and then
+    sat as a zombie for the rest of that worker's life, while the failure itself escaped as the very
+    500 this module exists to prevent. That is not hypothetical, and the selector is the reason. It
+    is used rather than select.select because select raises ValueError on a descriptor at or above
+    1024, but DefaultSelector allocates a descriptor of its own (epoll_create1), so it raises OSError
+    under exactly the descriptor pressure the os.fork handler above exists for. os.read can fail the
+    same way, and accumulating the chunks can run out of memory.
+    """
+    chunks: list = []
+    reaped = False
+    try:
+        with selectors.DefaultSelector() as selector:
+            selector.register(read_fd, selectors.EVENT_READ)
+            ready = bool(selector.select(wall_seconds))
+        if ready:
+            while True:
+                chunk = os.read(read_fd, _READ_CHUNK)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+        else:
+            os.kill(pid, signal.SIGKILL)
+
+        _, status, rusage = os.wait4(pid, 0)
+        reaped = True
+        return chunks, not ready, status, rusage
+    except (OSError, MemoryError) as exc:
+        raise IsolationError(f"its answer could not be read ({type(exc).__name__}: {exc})") from exc
+    finally:
+        if not reaped:
+            _kill_and_reap(pid)
+
+
 def _collect(pid: int, read_fd: int, wall_seconds: float, cpu_seconds: int) -> Any:
     """Read the child's answer, reap it, and turn anything else into IsolationError."""
-    chunks = []
-    # selectors picks epoll/kqueue/poll under the hood rather than select.select, which raises
-    # ValueError on a descriptor at or above 1024: under fd pressure that would escape as a 500 and
-    # leave the child unreaped.
-    with selectors.DefaultSelector() as selector:
-        selector.register(read_fd, selectors.EVENT_READ)
-        ready = bool(selector.select(wall_seconds))
-    timed_out = not ready
-    if ready:
-        while True:
-            chunk = os.read(read_fd, _READ_CHUNK)
-            if not chunk:
-                break
-            chunks.append(chunk)
-    else:
-        os.kill(pid, signal.SIGKILL)
-
-    _, status, rusage = os.wait4(pid, 0)
+    chunks, timed_out, status, rusage = _read_and_reap(pid, read_fd, wall_seconds)
 
     if not chunks:
         if timed_out:
