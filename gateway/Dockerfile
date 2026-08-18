@@ -1,3 +1,4 @@
+ARG PYTHON_VERSION=3.12
 ARG MICRO_IMAGE_DIR=/ubi-micro-img
 
 # BASE image using UBI 9 micro where the
@@ -7,6 +8,7 @@ FROM registry.access.redhat.com/ubi9-micro:9.8-1782840931 AS base
 # BUILD image using UBI 9 where the dependencies that
 # require installing with a package manager will be installed.
 FROM registry.access.redhat.com/ubi9:9.8-1784165989 AS build
+ARG PYTHON_VERSION
 ARG MICRO_IMAGE_DIR
 
 # Copy the BASE image into the BUILD image
@@ -18,8 +20,8 @@ RUN dnf update -y && dnf clean all
 
 # Install Python inside the BASE image
 RUN dnf install --installroot ${MICRO_IMAGE_DIR} --nodocs -y \
-    python3.11 \
-    python3.11-devel \
+    python${PYTHON_VERSION} \
+    python${PYTHON_VERSION}-devel \
     libstdc++ \
     file-libs && \
     dnf upgrade --installroot ${MICRO_IMAGE_DIR} --nodocs -y && \
@@ -28,11 +30,12 @@ RUN dnf install --installroot ${MICRO_IMAGE_DIR} --nodocs -y \
 # APP image from `scratch` which will be the final image
 # and remaining application requirements will be installed
 FROM scratch AS app
+ARG PYTHON_VERSION
 ARG MICRO_IMAGE_DIR
 COPY --from=build ${MICRO_IMAGE_DIR}/ .
 
 # create symlinks for python
-RUN ln -s /usr/bin/python3.11 /usr/bin/python
+RUN ln -s /usr/bin/python${PYTHON_VERSION} /usr/bin/python
 
 # Create project dir
 WORKDIR /usr/src/app
@@ -48,10 +51,10 @@ ENV SCARF_ANALYTICS=false \
 COPY gateway/requirements.txt .
 
 # Install pip, dependencies, and uninstall pip (not needed in final image)
-RUN python3.11 -m ensurepip --upgrade && \
-    python3.11 -m pip install --upgrade --no-cache-dir setuptools>=80.0.0 && \
-    python3.11 -m pip install -r requirements.txt --no-cache-dir --upgrade && \
-    python3.11 -m pip uninstall -y pip
+RUN python${PYTHON_VERSION} -m ensurepip --upgrade && \
+    python${PYTHON_VERSION} -m pip install --upgrade --no-cache-dir setuptools>=80.0.0 && \
+    python${PYTHON_VERSION} -m pip install -r requirements.txt --no-cache-dir --upgrade && \
+    python${PYTHON_VERSION} -m pip uninstall -y pip
 
 COPY --chown=1000:100 gateway .
 

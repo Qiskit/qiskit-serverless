@@ -26,13 +26,13 @@ jobs:
         include:
           - label: ray-node/Dockerfile          # label kept to match the required check name
             dockerfile: docker-images/ray-node/Dockerfile
-            python: "3.11"
+            python: "3.12"
           - label: fleet-node/Dockerfile         # not required in CI
             dockerfile: docker-images/fleet-node/Dockerfile
-            python: "3.11"
+            python: "3.12"
           - label: gateway/Dockerfile            # unchanged (label == path)
             dockerfile: gateway/Dockerfile
-            python: "3.11"
+            python: "3.12"
     steps:
       - name: Checkout
         uses: actions/checkout@v7
