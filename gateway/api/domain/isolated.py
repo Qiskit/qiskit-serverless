@@ -48,7 +48,12 @@ _READ_CHUNK = 1 << 16
 # minute, and refusing the request beats waiting for it. In the deployed pod (3 CPU, gunicorn
 # --workers=2 --threads=1) a child gets far more than a fifth of a core, so there the CPU budget is
 # the bound that fires. Raising the budget is still paid for in worker occupancy either way: at the
-# highest budget arguments_schema allows, one child can hold a worker for 25 wall seconds.
+# highest budget arguments_schema allows, one child can hold a worker for 25 wall seconds. That figure
+# is the one to compare against the HTTP server's own timeout, not the CPU budget: a deadline reaching
+# that timeout means the server kills the worker at the moment this code would have answered, so
+# whoever raises the budget has to check there is room for the deadline it implies. The bound that
+# depends on the deployment rather than on this module is documented where the budget is configured
+# (_MAX_CPU_LIMIT_SECONDS in api/domain/arguments_schema.py, and the chart's values.yaml).
 _WALL_CLOCK_SLOWDOWN_FACTOR = 5.0
 
 

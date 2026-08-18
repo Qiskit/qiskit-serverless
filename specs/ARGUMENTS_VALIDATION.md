@@ -158,6 +158,16 @@ pod (3 CPU, `gunicorn --workers=2 --threads=1`) a child gets far more than a fif
 is the bound that fires. Either way, raising the budget is paid for in worker occupancy: at the clamp maximum one child
 can hold a worker for 25 wall seconds.
 
+That 25 is also the figure to weigh against the HTTP server's own timeout, and it is why the clamp maximum is not usable
+in every deployment. `gunicorn --timeout` is what the chart sets from `application.httpServer.timeout`, defaulting to
+25, and its arbiter kills a worker that has not checked in for that long. A deadline reaching the timeout therefore means
+the worker is killed at the moment the gateway would have answered `400`: the caller gets a dropped connection rather
+than a rejection, and because the pod runs `--threads=1`, every other request on that worker dies with it. So at the
+default timeout of 25 the usable maximum budget is 3, not 5, and a deployment that sets a longer timeout can use the
+whole range. Raise the timeout before raising the budget. This relation is not enforced in code: it is documented at
+`_MAX_CPU_LIMIT_SECONDS` and next to `argumentsSchemaCpuLimitSeconds` in the chart's values, which is where the value is
+actually changed.
+
 Inside the child, `jsonschema` runs unmodified, with one exception: `uniqueItems` is still replaced, by a single-pass
 hash of a canonical form of each element, rather than being left for the isolation alone to bound. `jsonschema`
 compares elements pairwise whenever they are not sortable, which any array of objects triggers, and that comparison

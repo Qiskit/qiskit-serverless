@@ -48,6 +48,14 @@ application:
     keepClusterOnComplete: False
     programTimeoutHours: 24
     argumentsSchemaMemoryLimitMb: 128
+    # Seconds of CPU given to the forked child that validates job arguments against a function's JSON
+    # Schema. The isolation also bounds that child on wall-clock time, at five times this budget, so
+    # this is equally a bound on how long one request can hold a worker: 1 allows a 5 second deadline,
+    # 5 allows 25. That deadline has to fit inside httpServer.timeout above with room left for the
+    # rest of the request, because a deadline that reaches the timeout means gunicorn's arbiter kills
+    # the worker at the moment the gateway would have answered 400, and takes every other request on
+    # that worker with it (threads: 1 above). At the timeout of 25 set above, do not raise this past
+    # 3. If a function's schema needs more than that, raise the timeout first.
     argumentsSchemaCpuLimitSeconds: 1
   qiskitRuntime:
     url: "https://cloud.ibm.com"

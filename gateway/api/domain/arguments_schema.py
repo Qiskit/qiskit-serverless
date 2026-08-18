@@ -106,6 +106,17 @@ _MAX_MEMORY_LIMIT_MB = 256
 # work one request can ask for, and no endpoint is rate limited, so raising it multiplies what a
 # single caller can spend, one CPU second at a time, without ever creating a job. MIN is 1 because
 # RLIMIT_CPU counts whole seconds and 0 would kill the child immediately.
+#
+# MAX is not reachable under every HTTP server timeout, and that is a second constraint on this value
+# that this clamp does not enforce. run_isolated turns the budget into a wall-clock deadline five
+# times as long (_WALL_CLOCK_SLOWDOWN_FACTOR in api/domain/isolated.py), so a budget of 5 means a 25
+# second deadline, and a deadline reaching gunicorn's --timeout means the arbiter kills the worker at
+# the moment the gateway would have answered 400: the caller gets a dropped connection instead of a
+# rejection, and every other request on that worker dies with it, since the pod runs --threads=1. So
+# the usable maximum depends on the deployment. At the chart's default timeout of 25
+# (application.httpServer.timeout, which is also what the deployment values leave in place unless
+# they override it) the usable maximum is 3, not 5; a deployment running a longer timeout can use the
+# whole range. Raise the timeout before raising this.
 _MIN_CPU_LIMIT_SECONDS = 1
 _MAX_CPU_LIMIT_SECONDS = 5
 
