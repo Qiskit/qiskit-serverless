@@ -280,6 +280,10 @@ spec:
               value: {{ .Values.application.security.hstsPreload | quote }}
             - name: LIMITS_ACTIVE_JOBS_PER_USER
               value: {{ .Values.application.limits.maxActiveJobsPerUser | quote }}
+            - name: ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB
+              value: {{ .Values.application.limits.argumentsSchemaMemoryLimitMb | quote }}
+            - name: ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS
+              value: {{ .Values.application.limits.argumentsSchemaCpuLimitSeconds | quote }}
             - name: LOG_FORMAT
               value: {{ .Values.application.logFormat | quote }}
             {{- if .Values.application.ibmCloudFidApiKey.enabled }}
