@@ -109,3 +109,7 @@ docs/superpowers/
 *.log
 .claude/settings.local.json
 hooks/
+
+# Nix local dev environment
+flake.nix
+flake.lock
