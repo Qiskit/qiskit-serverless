@@ -4,7 +4,6 @@ import logging
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
-from django.core.exceptions import ObjectDoesNotExist
 
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
@@ -32,9 +31,8 @@ class AssociateRuntimeJobsUseCase:
         Raises:
             NotFoundError: If the job does not exist or access is denied.
         """
-        try:
-            job = Job.objects.get(id=job_id)
-        except ObjectDoesNotExist:
+        job = Job.objects.filter(id=job_id).first()
+        if job is None:
             raise JobNotFoundException(job_id)
 
         if not JobAccessPolicies.can_manage_runtime_jobs(user, job):
