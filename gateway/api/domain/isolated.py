@@ -131,9 +131,13 @@ def run_isolated(
         # Child. Nothing here may touch the database, and it must leave through os._exit so that
         # Django's atexit handlers do not run and the connections the parent shares stay open. The
         # exit lives in a finally so that nothing between the fork and it, including a MemoryError
-        # raised while encoding a large-but-successful result, can skip it.
-        os.close(read_fd)
+        # raised while encoding a large-but-successful result, can skip it. Everything the child
+        # does belongs inside that try for the same reason, closing its copy of the read end
+        # included: an exception ahead of the try would return into the request handler, and the
+        # child would render a second response on the client socket it inherited while the parent
+        # renders its own.
         try:
+            os.close(read_fd)
             _run_child(work, write_fd, cpu_seconds, memory_mb)
         finally:
             os._exit(0)  # pylint: disable=protected-access

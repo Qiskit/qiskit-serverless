@@ -125,6 +125,43 @@ def test_a_pipe_that_cannot_be_opened_is_reported_not_propagated(monkeypatch):
     assert "could not be started" in caught.value.reason
 
 
+def test_a_failing_close_in_the_child_does_not_return_into_the_caller(monkeypatch, tmp_path):
+    """The child must leave through os._exit whatever happens, so everything it does belongs inside
+    the try whose finally calls it, closing its own copy of the read end included. Ahead of that try,
+    an exception there returned into the request handler inside the child, which would then render a
+    second response on the client socket it inherited while the parent renders its own.
+
+    What this test has to observe is the return itself, not the outcome the parent sees: a child that
+    escapes still dies eventually, and the parent then reads the same empty pipe and reports the same
+    "stopped without producing an answer" either way, so asserting on that alone passed with the fix
+    removed and proved nothing. The child therefore leaves a marker behind if it ever gets back here,
+    and the parent fails on finding one. There is no race: the parent only wakes from its read when
+    the child dies, and the marker is written before that.
+    """
+    parent_pid = os.getpid()
+    real_close = os.close
+    marker = tmp_path / "child-returned-into-the-caller"
+
+    def _close(fd):
+        if os.getpid() != parent_pid:
+            raise OSError(9, "Bad file descriptor")
+        return real_close(fd)
+
+    monkeypatch.setattr(os, "close", _close)
+
+    try:
+        with pytest.raises(IsolationError) as caught:
+            run_isolated(lambda: {"ok": True})
+    except BaseException:  # pylint: disable=broad-except
+        if os.getpid() != parent_pid:
+            marker.write_text("the child came back out of run_isolated")
+            os._exit(0)  # pylint: disable=protected-access
+        raise
+
+    assert not marker.exists(), marker.read_text()
+    assert "without producing an answer" in caught.value.reason
+
+
 def test_an_external_kill_is_not_reported_as_a_cpu_overrun():
     """An OOM-killed child, or any external SIGKILL unrelated to the CPU limit, must not read as
     a CPU overrun: only the CPU limit's own hard-cap SIGKILL, arriving after the child actually
