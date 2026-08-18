@@ -110,6 +110,21 @@ def test_a_fork_that_cannot_be_created_is_reported_not_propagated(monkeypatch):
         assert len(os.listdir("/dev/fd")) == fd_count_before
 
 
+def test_a_pipe_that_cannot_be_opened_is_reported_not_propagated(monkeypatch):
+    """os.pipe allocates two descriptors ahead of the fork, under the same descriptor pressure the
+    fork's own handler exists for, so an EMFILE here escaped run_isolated as a raw OSError and
+    reached the request as the very 500 this module exists to prevent."""
+
+    def _raise(*_args, **_kwargs):
+        raise OSError(24, "Too many open files")
+
+    monkeypatch.setattr(os, "pipe", _raise)
+
+    with pytest.raises(IsolationError) as caught:
+        run_isolated(lambda: {"ok": True})
+    assert "could not be started" in caught.value.reason
+
+
 def test_an_external_kill_is_not_reported_as_a_cpu_overrun():
     """An OOM-killed child, or any external SIGKILL unrelated to the CPU limit, must not read as
     a CPU overrun: only the CPU limit's own hard-cap SIGKILL, arriving after the child actually

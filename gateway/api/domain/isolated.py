@@ -109,7 +109,14 @@ def run_isolated(
     """
     if wall_seconds is None:
         wall_seconds = cpu_seconds * _WALL_CLOCK_SLOWDOWN_FACTOR
-    read_fd, write_fd = os.pipe()
+    try:
+        read_fd, write_fd = os.pipe()
+    except OSError as exc:
+        # This allocates two descriptors, ahead of the fork below and under the same pressure the
+        # fork's own handler exists for, so it raises EMFILE at a point that handler cannot see and
+        # the failure escaped as the very 500 this module exists to prevent. There is nothing to
+        # clean up here: the call either returns both descriptors or none.
+        raise IsolationError(f"it could not be started: {exc}") from exc
     try:
         pid = os.fork()
     except OSError as exc:
