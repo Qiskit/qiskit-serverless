@@ -4,6 +4,7 @@ import pytest
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth.models import User
 from django.test.client import RequestFactory
+from django.urls import reverse
 
 from api.admin import ProgramAdmin
 from core.models import Program, Provider
@@ -91,3 +92,49 @@ def test_admin_lets_you_edit_a_function_whose_stored_schema_is_broken():
     form.is_valid()
     assert "arguments_schema" not in form.changed_data
     assert "arguments_schema" not in form.errors
+
+
+@pytest.mark.django_db
+def test_opening_a_function_with_a_broken_schema_shows_the_reason():
+    """A row that is already broken should stop being invisible."""
+    program = _program(arguments_schema="not json at all")
+    form_class = ProgramAdmin(Program, AdminSite()).get_form(RequestFactory().get("/"), obj=program)
+
+    form = form_class(instance=program)
+
+    assert form.stored_schema_error == "arguments_schema cannot be used: it must be valid JSON."
+    assert "it must be valid JSON" in form.fields["arguments_schema"].help_text
+
+
+@pytest.mark.django_db
+def test_the_stored_schema_is_not_checked_while_handling_a_submission():
+    """One fork per page opened, none per save.
+
+    Skipping this on a bound form also avoids a confusing message: after fixing the schema and
+    hitting another validation error, the warning would still be describing the old value.
+    """
+    program = _program(arguments_schema="not json at all")
+    form_class = ProgramAdmin(Program, AdminSite()).get_form(RequestFactory().get("/"), obj=program)
+
+    form = form_class(data={"arguments_schema": '{"type": "object"}'}, instance=program)
+
+    assert form.stored_schema_error is None
+
+
+@pytest.mark.django_db
+def test_the_change_page_warns_about_a_broken_stored_schema(client):
+    """Exercise the real page, which is the only thing that proves the warning is rendered.
+
+    The form attribute alone would not catch a `render_change_form` that never runs or a template
+    with nowhere to put the message.
+    """
+    program = _program(arguments_schema="not json at all")
+    client.force_login(User.objects.create_superuser(username="admin", password="x", email="a@b.c"))
+
+    response = client.get(reverse("admin:api_program_change", args=[program.pk]))
+
+    assert response.status_code == 200
+    # Read the messages themselves, not the page text: the reason also reaches the HTML through the
+    # field's help_text, so looking for it in the body would pass with no warning at all.
+    warnings = [str(message) for message in response.context["messages"] if message.level_tag == "warning"]
+    assert warnings == ["arguments_schema cannot be used: it must be valid JSON."]

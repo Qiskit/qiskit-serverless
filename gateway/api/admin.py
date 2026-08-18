@@ -132,6 +132,25 @@ class ProgramAdminForm(forms.ModelForm):
         # class is declared. ProgramAdmin narrows this down to its fieldsets anyway.
         fields = "__all__"
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.stored_schema_error = None
+        # Only when showing an existing row: a bound form is handling a submission, where the stored
+        # value is no longer what the page is about, and an unsaved instance has nothing stored yet.
+        if self.is_bound or not self.instance.pk:
+            return
+
+        self.stored_schema_error = _arguments_schema_error(self.instance.arguments_schema)
+        if self.stored_schema_error is None:
+            return
+
+        field = self.fields["arguments_schema"]
+        field.help_text = format_html(
+            '<span style="color: var(--error-fg);">{}</span>{}',
+            self.stored_schema_error,
+            f" {field.help_text}" if field.help_text else "",
+        )
+
     def clean_arguments_schema(self):
         """Check the schema, but only when this field is the one being changed.
 
@@ -198,6 +217,18 @@ class ProgramAdmin(admin.ModelAdmin):
         if obj:
             readonly_fields.append("title")
         return readonly_fields
+
+    def render_change_form(self, request, context, add=False, change=False, form_url="", obj=None):
+        """Warn at the top of the page when the stored arguments_schema is unusable.
+
+        The form has already worked out the reason, so this costs nothing extra. It only fires on a
+        page being shown, since `stored_schema_error` stays None for a bound form.
+        """
+        stored_schema_error = getattr(context["adminform"].form, "stored_schema_error", None)
+        if stored_schema_error:
+            messages.warning(request, stored_schema_error)
+
+        return super().render_change_form(request, context, add=add, change=change, form_url=form_url, obj=obj)
 
     def get_urls(self):
         """Add program history url to the available urls."""
