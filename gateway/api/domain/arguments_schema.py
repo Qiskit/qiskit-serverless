@@ -272,6 +272,42 @@ def _validator(schema: Any):
     return with_fast_unique_items(schema, registry=_NO_EXTERNAL_REFS, format_checker=_FORMAT_CHECKER)
 
 
+# Keywords whose value is instance data rather than a subschema, so a "$ref" key sitting inside one
+# is an ordinary object key that jsonschema never resolves.
+_LITERAL_VALUE_KEYWORDS = frozenset({"const", "default", "enum", "examples"})
+
+# Keywords whose value is a map from arbitrary names to schemas. The names are the schema author's
+# to choose, so they can collide with any keyword above, which is why the walks descend through the
+# schemas such a map holds rather than through the map itself. "dependencies" is the draft-07 form
+# and may map a name to a list of property names instead of to a schema; walking one of those finds
+# nothing, which is the right answer for it.
+_SCHEMA_MAP_KEYWORDS = frozenset(
+    {"properties", "patternProperties", "$defs", "definitions", "dependentSchemas", "dependencies"}
+)
+
+
+def _schema_children(node: dict) -> Any:
+    """Yield the values of ``node`` that JSON Schema evaluates as schemas.
+
+    The reference walks below need this because a document holds two kinds of nested value and a
+    "$ref" key means something only in one of them. Treating every nested dict as a schema refused
+    a function whose schema pins a default or const object with a "$ref" key, wrongly reporting it
+    as a reference that does not resolve or as an external reference.
+
+    Skipping those keywords is not enough on its own, though, because a property may be named
+    anything, "const" included. So for the keywords whose value is a map from arbitrary names to
+    schemas, this yields the schemas rather than the map, and the names are never read as keywords.
+    That keeps a reference under a property named like a keyword findable.
+    """
+    for keyword, value in node.items():
+        if keyword in _LITERAL_VALUE_KEYWORDS:
+            continue
+        if keyword in _SCHEMA_MAP_KEYWORDS and isinstance(value, dict):
+            yield from value.values()
+        else:
+            yield value
+
+
 def find_external_ref(node: Any) -> str | None:
     """Return the first reference in ``node`` that points outside the schema document.
 
@@ -291,7 +327,7 @@ def find_external_ref(node: Any) -> str | None:
             ref = node.get(keyword)
             if isinstance(ref, str) and not ref.startswith("#"):
                 return ref
-        for value in node.values():
+        for value in _schema_children(node):
             found = find_external_ref(value)
             if found is not None:
                 return found
@@ -387,7 +423,7 @@ def find_unresolvable_ref(schema: Any, root: Any = None) -> str | None:
                 continue  # plain-name anchor, not a JSON Pointer; see docstring above
             if not _pointer_resolves(root, ref):
                 return ref
-        for value in schema.values():
+        for value in _schema_children(schema):
             found = find_unresolvable_ref(value, root)
             if found is not None:
                 return found

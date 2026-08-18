@@ -64,6 +64,14 @@ checks are quality of service, catching the cases known to leave a function perm
 whoever can fix it; the isolation described below is the actual protection, and it bounds whatever the upload checks
 miss into a plain `400` at run time instead of an unbounded cost or a `500`.
 
+Both reference walks skip one part of the document on purpose (`_schema_children`): whatever `const`, `default`, `enum`
+and `examples` hold is instance data rather than a subschema, so a `$ref` key inside one is an ordinary object key that
+`jsonschema` never resolves, and reading it as a reference refused a function whose schema legitimately pins such a
+value. Skipping those keywords alone would be a way to hide a reference behind one, though, since a property can be
+named anything a keyword can, so the walks descend through the schemas a name-to-schema map (`properties`,
+`patternProperties`, `$defs`, and the rest) holds rather than through the map itself. A reference under a property
+named `const` is therefore still found, while a `$ref` key inside an actual `const` value is not mistaken for one.
+
 ### Re-upload preserves the schema
 
 `UploadFunctionUseCase._update` only writes `arguments_schema` when the field is present in the request, using `None`

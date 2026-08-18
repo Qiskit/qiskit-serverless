@@ -334,6 +334,41 @@ def test_check_uploaded_schema_accepts_a_plain_name_anchor_reference_and_it_stil
         validate_arguments_in_isolation(schema, json.dumps({"thing": {"n": "no"}}))
 
 
+def test_check_uploaded_schema_accepts_a_literal_value_holding_a_ref_key():
+    """ "const", "default", "enum" and "examples" hold instance data, not subschemas, so a "$ref" key
+    inside one is an ordinary object key that jsonschema never resolves.
+
+    Both reference walks took any dict with a string "$ref" for a reference wherever it sat, so a
+    function pinning a default or const object that happens to have a "$ref" key could never be
+    uploaded at all, and the refusal named something that is not a reference: measured as "it
+    contains a reference that does not resolve" for the const below and "it must not reference
+    external resources" for the default.
+    """
+    schema = {
+        "type": "object",
+        "properties": {
+            "cfg": {"const": {"$ref": "#/nope"}},
+            "endpoint": {"default": {"$ref": "https://example.invalid/x.json"}},
+        },
+    }
+
+    check_uploaded_schema_in_isolation(json.dumps(schema))  # must not raise
+
+
+def test_check_uploaded_schema_still_rejects_a_bad_ref_under_a_property_named_like_a_keyword():
+    """Skipping the literal-value keywords must not become a way to hide a reference behind one.
+
+    A property may be named anything, including "const", and under "properties" that name is a name
+    rather than the keyword: the schema beside it is evaluated normally, so a reference in there has
+    to be caught. The walks therefore descend through the schemas a name-to-schema map holds instead
+    of through the map itself, which is what keeps the two cases apart.
+    """
+    schema = {"type": "object", "properties": {"const": {"$ref": "https://example.invalid/x.json"}}}
+
+    with pytest.raises(UnsupportedSchemaError, match="must not reference external resources"):
+        check_uploaded_schema_in_isolation(json.dumps(schema))
+
+
 def test_internal_ref_still_resolves():
     """Blocking external references must not break same-document ones."""
     schema = {
