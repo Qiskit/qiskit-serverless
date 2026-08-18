@@ -61,6 +61,8 @@ class TestKafkaEventStreamsClient:
                 "sasl.mechanisms": "PLAIN",
                 "sasl.username": "token",
                 "sasl.password": "my-key",
+                "enable.idempotence": True,
+                "acks": "all",
             }
         )
 
