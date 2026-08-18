@@ -39,8 +39,10 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         """Return the Event Streams client, instantiating it lazily on first access."""
         if self._event_streams_client is None:
             if settings.EVENT_STREAMS_ENABLED:
+                logger.info("Initializing KafkaEventStreamsClient (EVENT_STREAMS_ENABLED=True)")
                 self._event_streams_client = KafkaEventStreamsClient()
             else:
+                logger.info("Initializing NoOpEventStreamsClient (EVENT_STREAMS_ENABLED=False)")
                 self._event_streams_client = NoOpEventStreamsClient()
         return self._event_streams_client
 
@@ -114,6 +116,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             new_status,
         )
         self.event_streams_client.emit_job_completed(job, CLASSICAL_TIME_METRIC_TYPE)
+        logger.info("job_id=%s job_completed event emitted successfully", job.id)
         job.update_fields({"status": new_status, "sub_status": None, "env_vars": "{}"})
         JobEvent.objects.add_status_event(
             job_id=job.id,
@@ -133,6 +136,10 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             Job.RUNNING,
         )
         self.event_streams_client.emit_job_started(job, CLASSICAL_TIME_METRIC_TYPE)
+        # prevent custom function to emit license fee
+        # since licenses is a provider feature
+        if job.program.provider:
+            self.event_streams_client.emit_license_fee(job)
         # running_started_at is set only on first transition; already-RUNNING jobs picked up
         # after a scheduler restart will have running_started_at=None (metric_value=0).
         job.update_fields({"status": Job.RUNNING, "running_started_at": django_timezone.now()})
@@ -181,6 +188,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=Program.FLEETS)
         for job in jobs:
             if self.kill_signal.received:
+                logger.info("Kill signal received, stopping status update cycle")
                 return
             try:
                 if self.update_job_status(job):

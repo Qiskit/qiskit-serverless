@@ -38,7 +38,7 @@ USER 1000
 
 FROM base AS selector
 USER 0
-COPY ray-node/requirements-dynamic-dependencies.txt /tmp/
+COPY docker-images/requirements-dynamic-dependencies.txt /tmp/
 RUN pip install -r /tmp/requirements-dynamic-dependencies.txt --no-cache-dir && \
     rm /tmp/requirements-dynamic-dependencies.txt
 USER 1000
@@ -53,15 +53,15 @@ USER 1000
 # the default timeouts are satisfied. The Ray version is unchanged.
 #
 # ffsim / qiskit-addon-aqc-tensor are omitted (no arm64 wheels); see
-# requirements-dynamic-dependencies-arm64.txt. To restore them, install a Rust toolchain
+# docker-images/requirements-dynamic-dependencies-arm64.txt. To restore them, install a Rust toolchain
 # so ffsim compiles from source:
 #   RUN microdnf install -y gcc gcc-c++ make && microdnf clean all && \
 #       curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 #   ENV PATH="/root/.cargo/bin:${PATH}"
-# and add the two packages back to requirements-dynamic-dependencies-arm64.txt.
+# and add the two packages back to docker-images/requirements-dynamic-dependencies-arm64.txt.
 FROM base AS arm64
 USER 0
-COPY ray-node/requirements-dynamic-dependencies-arm64.txt /tmp/requirements-dynamic-dependencies.txt
+COPY docker-images/requirements-dynamic-dependencies-arm64.txt /tmp/requirements-dynamic-dependencies.txt
 RUN pip install -r /tmp/requirements-dynamic-dependencies.txt --no-cache-dir && \
     rm /tmp/requirements-dynamic-dependencies.txt
 USER 1000
