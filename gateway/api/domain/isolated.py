@@ -151,9 +151,26 @@ def _run_child(work: Callable[[], Any], write_fd: int, cpu_seconds: int, memory_
         encoded = json.dumps({"reason": "its result could not be encoded as JSON"}).encode()
 
     try:
-        os.write(write_fd, encoded)
+        _write_all(write_fd, encoded)
     except OSError:
         pass
+
+
+def _write_all(fd: int, data: bytes) -> None:
+    """Write every byte of ``data``, looping past any short write.
+
+    os.write is a single write(2), not a loop. On a blocking pipe carrying more than the 64 KB the
+    pipe holds, it returns a short count when a signal arrives mid-transfer, and Python retries only
+    when nothing at all was written (PEP 475), so taking the first call as complete left a valid JSON
+    document cut short. The parent then read a truncated document and reported a legitimate rejection
+    as the isolation having failed to produce a complete answer.
+
+    The remainder is tracked with a memoryview rather than by slicing the bytes, so a large answer is
+    not copied again inside a child that is running under a memory limit.
+    """
+    remaining = memoryview(data)
+    while remaining:
+        remaining = remaining[os.write(fd, remaining) :]
 
 
 def _kill_and_reap(pid: int) -> None:

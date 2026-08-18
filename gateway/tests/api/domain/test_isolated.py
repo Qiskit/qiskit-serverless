@@ -165,6 +165,32 @@ def test_memory_limit_stops_an_oversized_allocation():
     assert "memory" in caught.value.reason
 
 
+def test_an_answer_larger_than_the_pipe_buffer_arrives_whole(monkeypatch):
+    """A short write must not turn a complete answer into a truncated one.
+
+    os.write is a single write(2) rather than a loop. On a blocking pipe carrying more than the 64 KB
+    the pipe holds, it returns a short count when a signal arrives mid-transfer, and Python retries
+    only when nothing at all was written (PEP 475), so ignoring the count left a valid JSON document
+    cut in half. The parent then reported a legitimate rejection as the isolation having failed to
+    produce a complete answer, which reaches the caller as the function's schema being unusable.
+
+    Answers do pass 64 KB: a validation path carries a caller-controlled property name, and one of
+    900 000 characters has been measured (see _shortened_path in the validate_arguments use case).
+
+    The short write is forced rather than waited for, since a real one depends on signal timing no
+    test can schedule. The patch is inherited by the forked child, which is the side that writes.
+    """
+    real_write = os.write
+
+    def short_write(fd, data):
+        return real_write(fd, data[:1024])
+
+    monkeypatch.setattr(os, "write", short_write)
+
+    payload = "x" * (200 * 1024)
+    assert run_isolated(lambda: {"blob": payload}) == {"blob": payload}
+
+
 def test_a_failure_before_the_read_still_kills_and_reaps_the_child(monkeypatch):
     """Nothing between the fork and os.wait4 may let the child outlive the call that created it.
 
