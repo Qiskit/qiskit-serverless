@@ -850,6 +850,39 @@ class TestProgramApi(APITestCase):
         )
         assert programs_response_do_not_have_access.status_code == status.HTTP_404_NOT_FOUND
 
+    def test_get_by_title_returns_arguments_schema(self):
+        """get_by_title exposes arguments_schema so clients can read a function's declared schema."""
+        schema = json.dumps({"type": "object", "required": ["shots"]})
+        user = TestUtils.authorize_client(user="test_user", client=self.client)
+        TestUtils.create_program(program_title="schema-func", author=user, arguments_schema=schema)
+
+        response = self.client.get("/api/v1/programs/get_by_title/schema-func/", format="json")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data.get("arguments_schema") == schema
+
+    def test_get_by_title_does_not_take_the_provider_in_the_path(self):
+        """Regression lock: the <str:title> route cannot carry a slash, so the provider is a query param.
+
+        The function used here IS retrievable as ``?provider=default``, so if the route ever started
+        accepting a slash (a <path:title> converter), these requests would resolve and return 200.
+        The 404 is therefore evidence that routing rejects both spellings before the view runs.
+        """
+        user = TestUtils.authorize_client(user="test_user_2", client=self.client)
+        TestUtils.create_program(program_title="Docker-Image-Program", author=user, provider="default")
+
+        reachable = self.client.get(
+            "/api/v1/programs/get_by_title/Docker-Image-Program/",
+            {"provider": "default"},
+            format="json",
+        )
+        literal_slash = self.client.get("/api/v1/programs/get_by_title/default/Docker-Image-Program/", format="json")
+        encoded_slash = self.client.get("/api/v1/programs/get_by_title/default%2FDocker-Image-Program/", format="json")
+
+        assert reachable.status_code == status.HTTP_200_OK
+        assert literal_slash.status_code == status.HTTP_404_NOT_FOUND
+        assert encoded_slash.status_code == status.HTTP_404_NOT_FOUND
+
     def test_get_jobs(self):
         """Tests run existing authorized."""
 
@@ -1225,6 +1258,31 @@ class TestProgramApi(APITestCase):
         assert response.status_code == status.HTTP_200_OK
         program = Program.objects.get(title="preserve-schema-func", author=user)
         assert program.arguments_schema == schema
+
+    def test_reupload_with_empty_schema_removes_it(self):
+        """Since omitting the field preserves the schema, an empty one is how it gets removed."""
+        user = TestUtils.authorize_client(user="test_user", client=self.client)
+        TestUtils.create_program(
+            program_title="clear-schema-func",
+            author=user,
+            entrypoint="main.py",
+            arguments_schema=json.dumps({"type": "object", "required": ["shots"]}),
+        )
+        fake_file = ContentFile(b"print('hello')")
+        fake_file.name = "test.tar"
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "clear-schema-func",
+                    "arguments_schema": "{}",
+                    "artifact": fake_file,
+                },
+            )
+        assert response.status_code == status.HTTP_200_OK
+        program = Program.objects.get(title="clear-schema-func", author=user)
+        assert program.arguments_schema == "{}"
 
     def test_upload_all_fields_stores_all_fields(self):
         """Upload with all optional fields - every field is persisted to the DB."""
@@ -1608,6 +1666,30 @@ class TestProgramApiRuntimeInstances:
                 format="json",
             )
             assert response.status_code == status.HTTP_200_OK
+
+        def test_validate_arguments_accepts_provider_slash_title(self, client, authorize):
+            """A 'provider/title' string resolves the provider function, as in /upload and /get_by_title."""
+            schema = json.dumps({"type": "object", "required": ["shots"]})
+            TestUtils.create_program(
+                program_title="my-func",
+                author="func-author",
+                provider="my-provider",
+                arguments_schema=schema,
+            )
+            authorize(
+                "runtime-user", create_function_access_result("my-provider", "my-func", {PLATFORM_PERMISSION_RUN})
+            )
+
+            response = client.post(
+                "/api/v1/programs/validate_arguments/",
+                data={
+                    "title": "my-provider/my-func",
+                    "arguments": json.dumps({"shots": 1024}),
+                },
+                format="json",
+            )
+            assert response.status_code == status.HTTP_200_OK
+            assert response.data == {"valid": True}
 
         def test_validate_arguments_unknown_function_returns_404(self, client, authorize):
             """validate_arguments returns 404 when function is not found."""

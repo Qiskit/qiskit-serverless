@@ -269,6 +269,25 @@ class TestFunctionMethod:
         assert function.provider == "test-provider"
 
     @patch("qiskit_serverless.core.clients.serverless_client.requests.get")
+    def test_function_decodes_arguments_schema_into_dict(self, mock_get, mock_client):
+        """The gateway sends arguments_schema as text, so it must come back as a dict."""
+        payload = {
+            "title": "test-function",
+            "provider": "test-provider",
+            "id": "test-id",
+            "arguments_schema": json.dumps({"type": "object", "required": ["shots"]}),
+        }
+        mock_response = Mock()
+        mock_response.ok = True
+        mock_response.text = json.dumps(payload)
+        mock_response.json.return_value = payload
+        mock_get.return_value = mock_response
+
+        function = mock_client.function(title="test-function", provider="test-provider")
+
+        assert function.arguments_schema == {"type": "object", "required": ["shots"]}
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.get")
     def test_function_uses_format_provider_name_and_title(self, mock_get, mock_client):
         """function() uses format_provider_name_and_title to parse title."""
         mock_response = Mock()
@@ -482,6 +501,7 @@ class TestUploadWithArtifact:
                 env_vars={"KEY": "VALUE"},
                 description="A test function",
                 version="2.0.0",
+                arguments_schema={"type": "object", "properties": {"shots": {"type": "integer"}}},
             )
 
             _upload_with_artifact(
@@ -507,6 +527,10 @@ class TestUploadWithArtifact:
         assert data["env_vars"] == json.dumps({"KEY": "VALUE"})
         assert data["description"] == "A test function"
         assert data["version"] == "2.0.0"
+        assert json.loads(data["arguments_schema"]) == {
+            "type": "object",
+            "properties": {"shots": {"type": "integer"}},
+        }
 
     @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
     def test_optional_fields_default_correctly(self, mock_post):
@@ -613,3 +637,65 @@ class TestQiskitFunctionDefaults:
         """QiskitFunction.runner accepts a custom value."""
         program = QiskitFunction(title="my-function", image="img:latest", runner="fleets")
         assert program.runner == "fleets"
+
+
+class TestValidateArgumentsMethod:
+    """Tests for ServerlessClient.validate_arguments()."""
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_validate_arguments_posts_to_endpoint_and_returns_result(self, mock_post, mock_client):
+        """validate_arguments() POSTs title, provider and arguments, and returns the gateway response."""
+        mock_response = Mock()
+        mock_response.ok = True
+        mock_response.text = '{"valid": true}'
+        mock_response.json.return_value = {"valid": True}
+        mock_post.return_value = mock_response
+
+        result = mock_client.validate_arguments(title="my-provider/my-function", arguments={"shots": 1024})
+
+        mock_post.assert_called_once()
+        url = mock_post.call_args[0][0] if mock_post.call_args[0] else mock_post.call_args[1]["url"]
+        body = mock_post.call_args[1]["json"]
+        assert "validate_arguments" in url
+        assert body["title"] == "my-function"
+        assert body["provider"] == "my-provider"
+        assert json.loads(body["arguments"]) == {"shots": 1024}
+        assert result == {"valid": True}
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_validate_arguments_raises_on_error_response(self, mock_post, mock_client):
+        """validate_arguments() raises QiskitServerlessException when the gateway rejects the arguments."""
+        mock_response = Mock()
+        mock_response.ok = False
+        mock_response.text = "{\"message\": \"'shots' is not of type 'integer'\"}"
+        mock_response.json.return_value = {"message": "'shots' is not of type 'integer'"}
+        mock_post.return_value = mock_response
+
+        with pytest.raises(QiskitServerlessException):
+            mock_client.validate_arguments(title="my-function", arguments={"shots": "wrong"})
+
+
+class TestArgumentsSchemaDecoding:
+    """Tests for how a stored arguments_schema is decoded when a function is read back."""
+
+    def test_boolean_schema_is_kept_instead_of_looking_absent(self):
+        """``false`` is the schema that rejects everything, so it must not read as "no schema"."""
+        function = QiskitFunction.from_json({"title": "t", "arguments_schema": "false"})
+
+        assert function.arguments_schema is False
+
+    def test_empty_object_still_means_no_schema(self):
+        """Regression lock: sending ``{}`` is how a schema is removed, and it reads back as None."""
+        function = QiskitFunction.from_json({"title": "t", "arguments_schema": "{}"})
+
+        assert function.arguments_schema is None
+
+    def test_schema_that_is_not_an_object_or_boolean_is_rejected(self):
+        """A JSON scalar is not a schema, so it must not leak through with the wrong type."""
+        with pytest.raises(QiskitServerlessException):
+            QiskitFunction.from_json({"title": "t", "arguments_schema": "123"})
+
+    def test_schema_that_is_not_json_is_rejected(self):
+        """A column value that is not JSON must raise the SDK exception, not a bare JSON error."""
+        with pytest.raises(QiskitServerlessException):
+            QiskitFunction.from_json({"title": "t", "arguments_schema": "not json at all"})

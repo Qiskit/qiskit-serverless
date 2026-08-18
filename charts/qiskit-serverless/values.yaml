@@ -72,9 +72,6 @@ gateway:
   cos:
     claimName: gateway-claim
 
-  kafkaCredentials:
-    create: false
-
   secrets:
     secretKey:
       name: gateway-secret-key
@@ -95,6 +92,15 @@ gateway:
         email: email
     w3idSso:
       name: ""
+      secretRef: ""
+      secretStoreName: qiskit-serverless
+    kafka:
+      name: ""
+      secretRef: ""
+      secretStoreName: qiskit-serverless
+    ibmCloudFidApiKey:
+      name: ""
+      secretRef: ""
       secretStoreName: qiskit-serverless
 
 # ===================

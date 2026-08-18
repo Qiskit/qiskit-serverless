@@ -39,6 +39,7 @@ class OutputSerializer(serializers.ModelSerializer):
             "type",
             "version",
             "runner",
+            "arguments_schema",
         ]
         ref_name = "ProgramsListOutput"
 
