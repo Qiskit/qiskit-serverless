@@ -518,7 +518,15 @@ def _validation_message(exc: jsonschema.ValidationError) -> str:
     "properties" a whole subschema, up to MAX_SCHEMA_LENGTH. Bounding only the instance therefore
     reintroduced the same failure with the schema in the payload's place, and an enum of a few
     hundred options came back as the truncation limit's worth of enum with the rejected value gone.
+    A boolean schema has neither field. jsonschema raises for ``False`` with ``validator`` and
+    ``validator_value`` both left as None, so building the message from them produced "'None'
+    validation failed, schema requires None", naming no keyword and no requirement, and dropped the
+    library's own "False schema does not allow 1". That schema is the one this feature made
+    meaningful, since ``false`` used to disable validation and now rejects every instance, so the
+    message a caller gets for it is worth spelling out rather than leaving as two Nones.
     """
+    if exc.validator is None:
+        return f"the schema rejects every value: rejected value {_excerpt(exc.instance)}"
     return (
         f"'{exc.validator}' validation failed, schema requires {_excerpt(exc.validator_value)}"
         f": rejected value {_excerpt(exc.instance)}"

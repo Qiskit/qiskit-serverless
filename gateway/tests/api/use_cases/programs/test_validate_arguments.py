@@ -482,12 +482,18 @@ def test_schema_false_rejects_everything_instead_of_disabling_validation():
 
     Treating the parsed schema as a boolean turned the strictest schema there is into no validation
     at all, which is the wrong direction to fail in.
+
+    Also checks the message says something. A boolean schema is the one case where jsonschema leaves
+    both fields the message is built from unset, so it used to come back as "'None' validation
+    failed, schema requires None", naming neither a keyword nor a requirement.
     """
     program = MagicMock()
     program.arguments_schema = "false"
 
-    with pytest.raises(InvalidArgumentsException):
+    with pytest.raises(InvalidArgumentsException) as caught:
         validate_arguments(program, '{"anything": 1}')
+    assert "None" not in caught.value.message
+    assert "rejects every value" in caught.value.message
 
 
 def test_schema_true_still_accepts_everything():
