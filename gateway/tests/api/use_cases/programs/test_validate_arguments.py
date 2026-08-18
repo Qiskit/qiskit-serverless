@@ -159,7 +159,12 @@ def test_uniqueitems_still_rejects_a_duplicate():
 
 
 def test_deeply_nested_arguments_are_rejected_not_a_crash():
-    """3000 levels in 18 KB raised RecursionError inside json.loads, before the protected block."""
+    """3000 levels in 18 KB used to reach json.loads outside the protected block and crash.
+
+    As with the upload path, which mechanism refuses them is left to the interpreter: json.loads
+    gives up at this depth on Python 3.11, while on 3.12 it parses and MAX_DOCUMENT_DEPTH answers.
+    Either way the caller gets InvalidArgumentsException rather than a crash, which is the point.
+    """
     with pytest.raises(InvalidArgumentsException):
         validate_arguments(_program({"type": "object"}), '{"a":' * 3000 + "1" + "}" * 3000)
 
