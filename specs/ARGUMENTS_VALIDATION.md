@@ -72,6 +72,17 @@ named anything a keyword can, so the walks descend through the schemas a name-to
 `patternProperties`, `$defs`, and the rest) holds rather than through the map itself. A reference under a property
 named `const` is therefore still found, while a `$ref` key inside an actual `const` value is not mistaken for one.
 
+`find_unresolvable_ref` also steps aside in two cases where a pointer that names nothing in the document is still one
+`jsonschema` resolves. A fragment is part of a URI, so a `$defs` name holding a space is referenced as
+`#/$defs/a%20b`; the fragment is percent-decoded before being split, in the same order the library does it
+(`unquote(pointer[1:]).split("/")` in `referencing._core`). And an `$id` below the top level starts a separate
+resource, which every pointer written inside it resolves against instead of against the document, so when the document
+holds one anywhere, the pointer check is skipped for the whole document rather than for the one reference: telling the
+affected references apart would mean tracking the base URI down the walk, which is the same road as building an anchor
+table. Both cases were false rejections of legitimate schemas before, refused at upload while `jsonschema` resolved
+the reference and enforced the subschema it names. Stepping aside costs a false accept at worst, and the trial
+validation and `jsonschema`'s own `Unresolvable` at run time both still apply.
+
 ### Re-upload preserves the schema
 
 `UploadFunctionUseCase._update` only writes `arguments_schema` when the field is present in the request, using `None`

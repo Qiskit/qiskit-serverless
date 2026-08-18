@@ -339,6 +339,52 @@ def test_check_uploaded_schema_accepts_a_plain_name_anchor_reference_and_it_stil
         validate_arguments_in_isolation(schema, json.dumps({"thing": {"n": "no"}}))
 
 
+def test_check_uploaded_schema_accepts_a_subresource_with_its_own_id_and_it_still_validates():
+    """An "$id" below the top level starts a separate resource, and a pointer written inside it
+    resolves against that resource rather than against the whole document. Walking the document
+    alone cannot see that, so "#/$defs/n" below named nothing at the top level and the upload was
+    refused, while jsonschema resolved it and enforced the "string" it names. Checks both halves:
+    the schema uploads, and using it afterwards still tells good arguments from bad ones.
+    """
+    schema = {
+        "type": "object",
+        "$defs": {
+            "inner": {
+                "$id": "https://example.invalid/inner",
+                "$defs": {"n": {"type": "string"}},
+                "$ref": "#/$defs/n",
+            }
+        },
+        "properties": {"a": {"$ref": "#/$defs/inner"}},
+    }
+
+    check_uploaded_schema_in_isolation(json.dumps(schema))  # must not raise
+
+    validate_arguments_in_isolation(schema, json.dumps({"a": "hello"}))  # must not raise
+    with pytest.raises(jsonschema.ValidationError):
+        validate_arguments_in_isolation(schema, json.dumps({"a": 1}))
+
+
+def test_check_uploaded_schema_accepts_a_percent_encoded_pointer_and_it_still_validates():
+    """A reference is a URI, so a "$defs" name holding a space is written "#/$defs/a%20b" by
+    anything that builds one. Splitting the fragment without percent-decoding it first looked for a
+    key literally called "a%20b", found nothing, and refused the upload, while jsonschema decoded
+    the fragment and enforced the subschema it names. Checks both halves: the schema uploads, and
+    using it afterwards still tells good arguments from bad ones.
+    """
+    schema = {
+        "type": "object",
+        "$defs": {"a b": {"type": "string"}},
+        "properties": {"x": {"$ref": "#/$defs/a%20b"}},
+    }
+
+    check_uploaded_schema_in_isolation(json.dumps(schema))  # must not raise
+
+    validate_arguments_in_isolation(schema, json.dumps({"x": "hello"}))  # must not raise
+    with pytest.raises(jsonschema.ValidationError):
+        validate_arguments_in_isolation(schema, json.dumps({"x": 1}))
+
+
 def test_check_uploaded_schema_accepts_a_literal_value_holding_a_ref_key():
     """ "const", "default", "enum" and "examples" hold instance data, not subschemas, so a "$ref" key
     inside one is an ordinary object key that jsonschema never resolves.

@@ -45,6 +45,7 @@ run inside the child instead.
 
 import json
 from typing import Any
+from urllib.parse import unquote
 
 import jsonschema
 from django.conf import settings
@@ -363,7 +364,13 @@ def _pointer_resolves(root: Any, ref: str) -> bool:
     node = root
     if not fragment:
         return True
-    for raw_segment in fragment.split("/"):
+    # A fragment is part of a URI and therefore percent-encoded, and referencing decodes the whole
+    # fragment before splitting it, as ``unquote(pointer[1:]).split("/")`` in ``referencing._core``.
+    # Decoding in that same order is what makes this agree with the library. Skipping it refused a
+    # legitimate schema at upload: a "$defs" name holding a space is referenced as "#/$defs/a%20b"
+    # by anything that builds the reference as a URI, and that pointer named nothing here while
+    # jsonschema resolved it and enforced the subschema it names.
+    for raw_segment in unquote(fragment).split("/"):
         segment = raw_segment.replace("~1", "/").replace("~0", "~")
         if isinstance(node, dict):
             if segment not in node:
@@ -380,6 +387,25 @@ def _pointer_resolves(root: Any, ref: str) -> bool:
         else:
             return False
     return True
+
+
+def _holds_subresource(node: Any) -> bool:
+    """Whether any schema strictly below ``node`` declares its own "$id".
+
+    An "$id" below the top level starts a separate resource, and a "#/..." pointer written inside
+    that resource is resolved against the resource, not against the document this walk holds. The
+    library does that in ``maybe_in_subresource``, called for every segment a pointer crosses.
+
+    "$id" at the very top is not this case: it names the document itself, which is already the base
+    every pointer resolves against, so it changes nothing here and is deliberately not counted.
+    """
+    if isinstance(node, dict):
+        if isinstance(node.get("$id"), str):
+            return True
+        return any(_holds_subresource(value) for value in _schema_children(node))
+    if isinstance(node, list):
+        return any(_holds_subresource(value) for value in node)
+    return False
 
 
 def find_unresolvable_ref(schema: Any, root: Any = None) -> str | None:
@@ -415,6 +441,17 @@ def find_unresolvable_ref(schema: Any, root: Any = None) -> str | None:
     jsonschema's own ``Unresolvable``, which ``work()`` below already turns into a plain 400.
     Do not "complete" this by adding anchor resolution.
 
+    A nested "$id" is skipped for the same reason as an anchor, and the whole document is skipped
+    rather than the one reference: an "$id" below the top level starts a separate resource, and
+    every pointer written inside it resolves against that resource instead of against this
+    document, so a pointer naming nothing here may still name something where the library looks.
+    Which references are affected cannot be told apart without tracking the base URI down the walk,
+    which is the anchor table's mistake in another form, so the check steps aside for the document.
+    That is a false accept at worst, and the trial validation plus jsonschema's own ``Unresolvable``
+    at run time both still apply. It was a false reject before: a "$defs" entry carrying its own
+    "$id" and referring to its own inner "$defs" was refused at upload while jsonschema resolved it
+    and enforced the subschema it names.
+
     External references are a separate, cheaper check (``find_external_ref``), and are assumed
     already rejected by the time this runs.
 
@@ -424,6 +461,8 @@ def find_unresolvable_ref(schema: Any, root: Any = None) -> str | None:
     """
     if root is None:
         root = schema
+        if _holds_subresource(schema):
+            return None
     if isinstance(schema, dict):
         for keyword in ("$ref", "$dynamicRef", "$recursiveRef"):
             ref = schema.get(keyword)
