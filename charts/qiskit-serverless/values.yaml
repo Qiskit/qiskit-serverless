@@ -98,6 +98,10 @@ gateway:
       name: ""
       secretRef: ""
       secretStoreName: qiskit-serverless
+    ibmCloudFidApiKey:
+      name: ""
+      secretRef: ""
+      secretStoreName: qiskit-serverless
 
 # ===================
 # Kuberay Operator
