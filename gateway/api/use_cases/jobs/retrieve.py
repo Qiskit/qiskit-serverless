@@ -37,8 +37,9 @@ class JobRetrieveUseCase:
         Returns:
             Job: job found
         """
-        job = Job.objects.get(id=job_id)
-        if job is None:
+        try:
+            job = Job.objects.get(id=job_id)
+        except ObjectDoesNotExist:
             raise JobNotFoundException(str(job_id))
 
         if not JobAccessPolicies.can_access(user, job, accessible_functions=accessible_functions):
