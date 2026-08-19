@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 import logging
-from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.models import AbstractUser
 from api.domain.exceptions.invalid_access_exception import InvalidAccessException
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
@@ -47,9 +46,8 @@ class CreateJobEventUseCase:
             JobNotFoundException: If the job does not exist or the user is not allowed to create events.
             InvalidAccessException: If the job is not in RUNNING status.
         """
-        try:
-            job = Job.objects.get(id=job_id)
-        except ObjectDoesNotExist:
+        job = Job.objects.filter(id=job_id).first()
+        if job is None:
             raise JobNotFoundException(str(job_id))
 
         can_create_events = JobAccessPolicies.can_create_events(user, job)
