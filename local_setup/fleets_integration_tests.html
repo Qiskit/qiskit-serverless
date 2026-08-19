@@ -359,7 +359,7 @@ between public and provider-only logs</p></li>
 </section>
 <section id="running-the-tests">
 <h2>Running the tests<a class="headerlink" href="#running-the-tests" title="Permalink to this heading">¶</a></h2>
-<p><strong>Prerequisites:</strong> a Docker runtime with Compose (Docker or Podman), Python 3.11,
+<p><strong>Prerequisites:</strong> a Docker runtime with Compose (Docker or Podman), Python 3.12,
 and <code class="docutils literal notranslate"><span class="pre">tox</span></code>.</p>
 <p>From the repository root:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Build the fleets runtime base image. The fleet-worker is FROM</span>
@@ -374,7 +374,7 @@ docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> 
 curl<span class="w"> </span>--retry<span class="w"> </span><span class="m">30</span><span class="w"> </span>--retry-delay<span class="w"> </span><span class="m">2</span><span class="w"> </span>--retry-all-errors<span class="w"> </span>--fail<span class="w"> </span>http://localhost:8000/liveness/
 
 <span class="c1"># 4. Run the integration tests</span>
-tox<span class="w"> </span>-c<span class="w"> </span>tests/tox.ini<span class="w"> </span>-e<span class="w"> </span>py311-fleets
+tox<span class="w"> </span>-c<span class="w"> </span>tests/tox.ini<span class="w"> </span>-e<span class="w"> </span>py312-fleets
 
 <span class="c1"># 5. Tear down (``-v`` also removes the volumes)</span>
 docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose-fleets-test.yaml<span class="w"> </span>down<span class="w"> </span>-v
