@@ -1010,6 +1010,13 @@ class TestRetrieveJob:
         wrong_result_storage = RayResultStorage(wrong_job)
         assert wrong_result_storage.get() is None
 
+    def test_unknown_job_returns_404(self, authorize):
+        """A job id that does not exist returns 404, not 500."""
+        client = authorize("test_user")
+
+        response = client.get(reverse("v1:retrieve", args=["c5664e24-b1d8-4b55-8b09-7e7859414205"]), format="json")
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
     class TestLegacyGroups:
         def test_provider_admin_can_retrieve(self, authorize):
             """Provider admin (via Django groups) can retrieve a provider job they don't own."""

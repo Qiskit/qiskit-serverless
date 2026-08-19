@@ -18,7 +18,7 @@ x-gateway-env: &gateway-env
   IBM_CLOUD_API_KEY: fake-api-key-for-test
   CE_HMAC_SECRET_NAME: cos-hmac-secret
   LIMITS_MAX_FLEETS: "10"
-  FLEETS_DEFAULT_IMAGE: python:3.11-slim
+  FLEETS_DEFAULT_IMAGE: python:3.12-slim
   DEFAULT_COMPUTE_PROFILE: cx3d-4x16
   CE_DEFAULT_PROJECT_NAME: test-project
   CE_PROJECTS: '[{"project_id":"test-project-id","project_name":"test-project","region":"us-south","resource_group_id":"test-rg-id","subnet_pool_id":"test-subnet-pool-id","pds_name_state":"test-pds-state","pds_name_users":"test-pds-users","pds_name_providers":"test-pds-providers","cos_instance_name":"test-cos-instance","cos_key_name":"test-cos-key","cos_bucket_task_store_name":"task-store-bucket","cos_bucket_user_data_name":"user-data-bucket","cos_bucket_provider_data_name":"provider-data-bucket"}]'

@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.17
-FROM registry.access.redhat.com/ubi9-minimal:9.8-1784092902 AS base
+FROM registry.access.redhat.com/ubi9-minimal:9.8-1786987521 AS base
 ARG PYTHON_VERSION=3.12
 
 # set environment variables

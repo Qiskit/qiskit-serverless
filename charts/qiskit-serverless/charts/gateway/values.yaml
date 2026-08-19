@@ -97,6 +97,7 @@ ce:
   fleetsGatewayHost: "http://127.0.0.1:8000"
   defaultProjectName: ""
   defaultComputeProfile: "bx3d-24x120"
+  fleetsDefaultImage: "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.34.0"
   fleetsDefaultMaxInstances: 1
 
 secrets:
