@@ -17,7 +17,7 @@
 {% if result %}
     <div class="module aligned">
         {% if result.valid %}
-            <p style="color: green;"><strong>{% translate 'These arguments are valid.' %}</strong></p>
+            <p style="color: green;"><strong>{% translate 'validate_arguments() raised no error' %}</strong></p>
             {% if not has_schema %}
                 <p class="help">
                     {% translate 'This function does not declare an arguments schema, so there is nothing to check them against. Any arguments are accepted.' %}
