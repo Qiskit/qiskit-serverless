@@ -17,6 +17,9 @@
 {% if result %}
     <div class="module aligned">
         {% if result.valid %}
+            {# Literal green on purpose: the admin has no green text variable, and the --message-success-* #}
+            {# ones are near white backgrounds. Using a background variable as a text colour is what made #}
+            {# this line invisible in the Carbon theme, where --object-tools-bg is transparent. #}
             <p style="color: green;"><strong>{% translate 'validate_arguments() raised no error' %}</strong></p>
             {% if not has_schema %}
                 <p class="help">
@@ -24,7 +27,7 @@
                 </p>
             {% endif %}
         {% else %}
-            <p style="color: var(--error-fg);"><strong>{% translate 'These arguments are not valid.' %}</strong></p>
+            <p style="color: var(--error-fg);"><strong>{% translate 'validate_arguments() raised InvalidArgumentsException' %}</strong></p>
             <p>{{ result.message }}</p>
             {% if result.path %}
                 <p class="help">{% translate 'Where' %}: <code>{{ result.path }}</code></p>
