@@ -23,7 +23,7 @@ logger = logging.getLogger("scheduler.UpdateFleetsJobsStatuses")
 # Metric billed for the wall-clock time a Fleets job spends running. Every Fleets job
 # currently reports this single metric; deriving the metric type from
 # provider/function/size and compute profile is handled in a follow-up task.
-CLASSICAL_TIME_METRIC_TYPE = "classical_time"
+CLASSICAL_TIME_METRIC_TYPE = "classical_24x120"
 
 
 class UpdateFleetsJobsStatuses(SchedulerTask):
