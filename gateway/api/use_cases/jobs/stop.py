@@ -3,7 +3,6 @@ import logging
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
-from django.core.exceptions import ObjectDoesNotExist
 from qiskit_ibm_runtime import QiskitRuntimeService, RuntimeInvalidStateError
 
 from core.models import Job, JobEvent, RuntimeJob
@@ -25,9 +24,8 @@ class StopJobUseCase:
         self.stopped_sessions = []
 
     def execute(self, job_id: UUID, service_str: str, user: AbstractUser) -> str:
-        try:
-            job = Job.objects.get(id=job_id)
-        except ObjectDoesNotExist:
+        job = Job.objects.filter(id=job_id).first()
+        if job is None:
             raise JobNotFoundException(job_id)
 
         if not JobAccessPolicies.can_stop(user, job):
