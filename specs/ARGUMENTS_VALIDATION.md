@@ -100,6 +100,10 @@ Opening a function whose stored schema does not work shows the reason twice, und
 page, which is what turns an already broken row from invisible into visible. That check runs once per page shown and
 never while a submission is being handled.
 
+From the same page, a "Validate Arguments" link opens a form for trying arguments against the schema the function
+already has stored, which saves setting up a token and an instance to ask that question through the API. It calls the
+same `validate_arguments` the API calls, so the verdict is the one a client would get, and it writes nothing.
+
 ### Re-upload preserves the schema
 
 `UploadFunctionUseCase._update` only writes `arguments_schema` when the field is present in the request, using `None`
