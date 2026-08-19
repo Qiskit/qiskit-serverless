@@ -52,7 +52,7 @@ What is covered
 Running the tests
 -----------------
 
-**Prerequisites:** a Docker runtime with Compose (Docker or Podman), Python 3.11,
+**Prerequisites:** a Docker runtime with Compose (Docker or Podman), Python 3.12,
 and ``tox``.
 
 From the repository root:
@@ -71,7 +71,7 @@ From the repository root:
    curl --retry 30 --retry-delay 2 --retry-all-errors --fail http://localhost:8000/liveness/
 
    # 4. Run the integration tests
-   tox -c tests/tox.ini -e py311-fleets
+   tox -c tests/tox.ini -e py312-fleets
 
    # 5. Tear down (``-v`` also removes the volumes)
    docker compose -f docker-compose-fleets-test.yaml down -v

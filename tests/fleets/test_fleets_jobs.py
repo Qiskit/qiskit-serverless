@@ -215,7 +215,7 @@ class TestFleetsJobs:
         fn = QiskitFunction(
             title=unique_title,
             provider=test_provider,
-            image="python:3.11-slim",
+            image="python:3.12-slim",
             runner="fleets",
         )
         serverless_client.upload(fn)
