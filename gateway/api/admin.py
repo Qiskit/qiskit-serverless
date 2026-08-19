@@ -16,6 +16,8 @@ from api.domain.arguments_schema import (
     UnsupportedSchemaError,
     check_uploaded_schema_in_isolation,
 )
+from api.domain.exceptions.invalid_arguments_exception import InvalidArgumentsException
+from api.use_cases.programs.validate_arguments import validate_arguments
 from core.models import (
     CodeEngineProject,
     Config,
@@ -169,6 +171,48 @@ class ProgramAdminForm(forms.ModelForm):
         return value
 
 
+class ValidateArgumentsForm(forms.Form):
+    """Arguments to try against a function's stored schema."""
+
+    arguments = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 12, "cols": 80}),
+        label="Arguments (JSON)",
+        help_text="Leave empty to check what an empty argument list does.",
+    )
+
+
+def _format_arguments_path(error_path: list) -> str:
+    """Render a validation path the way it would be written in the arguments document.
+
+    `jsonschema` hands back the location of the failure as a list of property names and array
+    indices. Written out, it is the part of the payload to go and look at; an empty list means the
+    whole document failed, and the caller leaves it out.
+    """
+    parts: list[str] = []
+    for segment in error_path:
+        if isinstance(segment, int):
+            parts.append(f"[{segment}]")
+        else:
+            parts.append(f".{segment}" if parts else str(segment))
+    return "".join(parts)
+
+
+def _validate_arguments_result(program: Program, arguments: str) -> dict:
+    """Check `arguments` against `program`'s schema and describe the outcome for the page.
+
+    Calls the same function the API calls, so the verdict here is the verdict a client would get,
+    including the size limits and the isolated evaluation. That also means a schema that cannot be
+    used comes back as a rejection with the reason, never as a server error.
+    """
+    try:
+        validate_arguments(program, arguments)
+    except InvalidArgumentsException as exc:
+        return {"valid": False, "message": exc.message, "path": _format_arguments_path(exc.path)}
+
+    return {"valid": True}
+
+
 @admin.register(Program)
 class ProgramAdmin(admin.ModelAdmin):
     """ProgramAdmin."""
@@ -234,12 +278,17 @@ class ProgramAdmin(admin.ModelAdmin):
         return super().render_change_form(request, context, *args, **kwargs)
 
     def get_urls(self):
-        """Add program history url to the available urls."""
+        """Add the program history and validate arguments urls to the available urls."""
         custom_urls = [
             path(
                 "<path:object_id>/program-history/",
                 self.admin_site.admin_view(self.program_history_view),
                 name="program_history_view",
+            ),
+            path(
+                "<path:object_id>/validate-arguments/",
+                self.admin_site.admin_view(self.program_validate_arguments_view),
+                name="program_validate_arguments_view",
             ),
         ]
         return custom_urls + super().get_urls()
@@ -267,6 +316,32 @@ class ProgramAdmin(admin.ModelAdmin):
         }
 
         return render(request, "program/program_history.html", context)
+
+    def program_validate_arguments_view(self, request, object_id):
+        """View to try arguments against the schema this function already has stored.
+
+        Nothing is written: the page only reads the function to get its schema. Checking a schema
+        used to mean going through the API with a token and an instance, which is a lot of setup for
+        a question you are asking while looking at the function in the admin.
+        """
+        program = get_object_or_404(Program, pk=object_id)
+
+        form = ValidateArgumentsForm(request.POST) if request.method == "POST" else ValidateArgumentsForm()
+        result = _validate_arguments_result(program, form.cleaned_data["arguments"]) if form.is_valid() else None
+
+        context = {
+            **self.admin_site.each_context(request),
+            "object": program,
+            "form": form,
+            "result": result,
+            # An empty schema validates everything, which is the right answer but reads as a pass.
+            # The page says so next to the verdict, and needs to know which case it is in.
+            "has_schema": bool(program.arguments_schema) and program.arguments_schema != "{}",
+            "opts": self.model._meta,
+            "app_label": self.model._meta.app_label,
+        }
+
+        return render(request, "program/validate_arguments.html", context)
 
 
 @admin.register(ComputeResource)

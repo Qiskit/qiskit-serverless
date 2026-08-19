@@ -179,3 +179,79 @@ def test_the_change_page_warns_about_a_broken_stored_schema(client):
     # field's help_text, so looking for it in the body would pass with no warning at all.
     warnings = [str(message) for message in response.context["messages"] if message.level_tag == "warning"]
     assert warnings == ["arguments_schema cannot be used: it must be valid JSON."]
+
+
+@pytest.mark.django_db
+def test_the_validate_page_rejects_arguments_that_do_not_match_the_schema(client):
+    """The central case: the page names the reason and points at the part that failed."""
+    program = _program(arguments_schema='{"type": "object", "properties": {"shots": {"type": "integer"}}}')
+    client.force_login(User.objects.create_superuser(username="admin", password="x", email="a@b.c"))
+
+    response = client.post(
+        reverse("admin:program_validate_arguments_view", args=[program.pk]),
+        data={"arguments": '{"shots": "many"}'},
+    )
+
+    assert response.status_code == 200
+    result = response.context["result"]
+    assert result["valid"] is False
+    assert result["message"] == "'type' validation failed, schema requires 'integer': rejected value 'many'"
+    assert result["path"] == "shots"
+
+
+@pytest.mark.django_db
+def test_the_validate_page_accepts_arguments_that_match_the_schema(client):
+    """The happy path, run through the real page so the template is exercised too."""
+    program = _program(arguments_schema='{"type": "object", "properties": {"shots": {"type": "integer"}}}')
+    client.force_login(User.objects.create_superuser(username="admin", password="x", email="a@b.c"))
+
+    response = client.post(
+        reverse("admin:program_validate_arguments_view", args=[program.pk]),
+        data={"arguments": '{"shots": 1024}'},
+    )
+
+    assert response.status_code == 200
+    assert response.context["result"] == {"valid": True}
+
+
+@pytest.mark.django_db
+def test_the_validate_page_says_when_there_is_no_schema_to_check_against(client):
+    """A function with no schema accepts anything, which is right but reads as a pass.
+
+    The verdict has to stay the one a client would get, so the page keeps it valid and says why.
+    """
+    program = _program(arguments_schema="{}")
+    client.force_login(User.objects.create_superuser(username="admin", password="x", email="a@b.c"))
+
+    response = client.post(
+        reverse("admin:program_validate_arguments_view", args=[program.pk]),
+        data={"arguments": '{"anything": true}'},
+    )
+
+    assert response.status_code == 200
+    assert response.context["result"] == {"valid": True}
+    assert response.context["has_schema"] is False
+    assert "nothing to check them against" in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_the_change_page_links_to_the_validate_page(client):
+    """Without the link the page exists but nobody finds it."""
+    program = _program(arguments_schema='{"type": "object"}')
+    client.force_login(User.objects.create_superuser(username="admin", password="x", email="a@b.c"))
+
+    response = client.get(reverse("admin:api_program_change", args=[program.pk]))
+
+    assert reverse("admin:program_validate_arguments_view", args=[program.pk]) in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_the_validate_page_opens_empty(client):
+    """Opening the page must work before anything has been submitted."""
+    program = _program(arguments_schema='{"type": "object"}')
+    client.force_login(User.objects.create_superuser(username="admin", password="x", email="a@b.c"))
+
+    response = client.get(reverse("admin:program_validate_arguments_view", args=[program.pk]))
+
+    assert response.status_code == 200
+    assert response.context["result"] is None

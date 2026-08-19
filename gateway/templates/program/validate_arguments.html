@@ -1,0 +1,66 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+
+{% block breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+        &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+        &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+        &rsaquo; <a href="{% url opts|admin_urlname:'change' object.pk|admin_urlquote %}">{{ object|truncatewords:"18" }}</a>
+        &rsaquo; {% translate 'Validate Arguments' %}
+    </div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+
+{% if result %}
+    <div class="module aligned">
+        {% if result.valid %}
+            <p style="color: var(--object-tools-bg);"><strong>{% translate 'These arguments are valid.' %}</strong></p>
+            {% if not has_schema %}
+                <p class="help">
+                    {% translate 'This function does not declare an arguments schema, so there is nothing to check them against. Any arguments are accepted.' %}
+                </p>
+            {% endif %}
+        {% else %}
+            <p style="color: var(--error-fg);"><strong>{% translate 'These arguments are not valid.' %}</strong></p>
+            <p>{{ result.message }}</p>
+            {% if result.path %}
+                <p class="help">{% translate 'Where' %}: <code>{{ result.path }}</code></p>
+            {% endif %}
+        {% endif %}
+    </div>
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    <fieldset class="module aligned">
+        <h2>{% translate 'Arguments' %}</h2>
+        <div class="form-row">
+            {{ form.arguments.label_tag }}
+            {{ form.arguments }}
+            <div class="help">{{ form.arguments.help_text }}</div>
+            <div class="help">
+                {% blocktranslate %}Arguments are checked in the form the SDK sends them, not as they look in Python. Qiskit objects arrive as an object with <code>__type__</code> and <code>__value__</code> keys, so a circuit is an object and not a string.{% endblocktranslate %}
+            </div>
+        </div>
+    </fieldset>
+
+    <div class="submit-row">
+        <input type="submit" value="{% translate 'Validate' %}" class="default">
+        <a href="{% url opts|admin_urlname:'change' object.pk|admin_urlquote %}" class="closelink">{% translate 'Back to the function' %}</a>
+    </div>
+</form>
+
+<div class="module aligned">
+    <h2>{% translate 'Stored schema' %}</h2>
+    {% if has_schema %}
+        <pre style="white-space: pre-wrap; word-break: break-word;">{{ object.arguments_schema }}</pre>
+    {% else %}
+        <p class="help">{% translate 'This function does not declare an arguments schema.' %}</p>
+    {% endif %}
+</div>
+
+</div>
+{% endblock %}
