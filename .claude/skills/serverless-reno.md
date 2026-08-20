@@ -1,3 +1,8 @@
+---
+name: serverless-reno
+description: Review a GitHub draft release, produce a reno status table, and write missing release note files
+---
+
 # Release Notes Review
 
 Given a GitHub draft release URL, produce a complete reno status table and write any missing release note files.
