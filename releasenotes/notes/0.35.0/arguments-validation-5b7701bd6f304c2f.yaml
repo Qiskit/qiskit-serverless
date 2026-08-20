@@ -42,13 +42,6 @@ features:
     with ``{"type": "array"}`` therefore rejects every legitimate call. The advice is to constrain the plain arguments
     (counts, names, options, flags) and to check only the ``__type__`` tag of the Qiskit ones.
 
-    Second, a declared schema brings size limits with it: the schema itself may be at most 64 KB and is turned down at
-    upload time when it is larger, may not nest deeper than 64 levels or hold more than 200 subschemas, and the encoded
-    arguments of a function that declares a schema may be at most 1 MB. Evaluating a schema is also bounded in CPU time
-    and memory, so a schema that is too expensive to evaluate comes back as a ``400`` naming the limit it hit rather
-    than as a server error. Functions without a schema are unaffected by all of this.
-
-    Both are written up in full in ``specs/ARGUMENTS_VALIDATION.md``.
   - |
     New endpoint ``POST /api/v1/programs/validate_arguments/`` checks arguments against a function's schema without
     submitting a run, so inputs can be verified before paying for a job. It resolves the function with the same
