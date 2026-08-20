@@ -135,8 +135,6 @@ class RunFunctionUseCase:
             env.update(json.loads(function.env_vars))
         job.env_vars = json.dumps(env)
 
-        # Deliberately outside the transaction below: for Fleets this uploads to COS, and keeping
-        # a database transaction open across a network call holds it for as long as the upload takes.
         get_arguments_storage(job).save(data.arguments)
 
         with transaction.atomic():
