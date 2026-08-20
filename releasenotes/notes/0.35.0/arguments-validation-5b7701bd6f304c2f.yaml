@@ -20,9 +20,13 @@ features:
         runnable = client.upload(function)
 
     From then on, running that function with arguments that do not match the schema is rejected with a ``400`` before
-    the job is created, so no job is queued and no partial rows are left behind. The error names the offending field::
+    the job is created, so no job is queued and no partial rows are left behind. The error names the keyword that
+    failed, what the schema asked for, and the value that was rejected, and ``path`` points at the offending field::
 
-        {"message": "'wrong-type' is not of type 'integer'", "path": ["shots"]}
+        {
+          "message": "'type' validation failed, schema requires 'integer': rejected value 'wrong-type'",
+          "path": ["shots"]
+        }
 
     The feature is opt-in and backwards compatible: functions without a schema are never validated.
 
@@ -31,6 +35,13 @@ features:
 
         function.arguments_schema = {}
         client.upload(function)
+  - |
+    Two things to know when writing a schema. First, the schema is applied to the arguments **as the SDK encodes them**,
+    not as they look in Python, so a ``QuantumCircuit`` arrives as ``{"__type__": "QuantumCircuit", "__value__":
+    "<base64 QPY>"}`` and a numpy array as an object rather than an array. Describing a circuit or an array argument
+    with ``{"type": "array"}`` therefore rejects every legitimate call. The advice is to constrain the plain arguments
+    (counts, names, options, flags) and to check only the ``__type__`` tag of the Qiskit ones.
+
   - |
     New endpoint ``POST /api/v1/programs/validate_arguments/`` checks arguments against a function's schema without
     submitting a run, so inputs can be verified before paying for a job. It resolves the function with the same
@@ -47,8 +58,9 @@ features:
 upgrade:
   - |
     ``QiskitFunction.schema`` has been renamed to ``arguments_schema`` and its type changed from ``Optional[str]`` to
-    ``Optional[Dict[str, Any]]``. The old field was never read by the client nor sent to the gateway, so there is no
-    deprecation path. Pass a plain dict rather than a JSON string.
+    ``Optional[Union[Dict[str, Any], bool]]``. The old field was never read by the client nor sent to the gateway, so
+    there is no deprecation path. Pass a plain dict rather than a JSON string. A boolean is accepted because ``true``
+    and ``false`` are valid JSON Schemas in their own right, accepting and rejecting every argument respectively.
   - |
     The unused ``validate`` field has been removed from ``QiskitFunction``. It gated a client-side validation hook that
     was never implemented and always reported success, so passing ``validate=False`` had no effect. Argument validation

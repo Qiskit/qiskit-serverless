@@ -167,6 +167,13 @@ shape tested, including a 1 MB batch of encoded circuits and 4000 objects under 
 Because the setting is a way to weaken this by configuration, the value read from it is clamped to 64-256 MB before
 reaching the child, rather than used as given.
 
+Those figures were measured at the chart's own defaults, and the variable they depend on is one a deployment is free to
+change: how many children can exist at once, which is `workers` times `threads`. The limit is per child while the pod's
+headroom is per pod, so the worst case is the margin times that concurrency, and raising the worker count spends the
+same budget raising the margin does. A deployment running more workers than the chart's two is not covered by the
+measurement above, however much memory its pod has. Whoever changes either number should look at both together and
+re-measure, rather than reading the figures here as if they held at any concurrency.
+
 The CPU budget is `settings.ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS` (default 1), read and clamped the same way, to 1-5
 seconds. It is configurable so that a vendor whose legitimate schema turns out to need longer than one second can be
 unblocked by a value change rather than a code deploy, and clamped more tightly than the memory margin because this is
@@ -208,6 +215,26 @@ budget regardless: 1500 objects in 18 KB of JSON were refused for exceeding the 
 hash-based replacement answers in 0.011s. `pattern`, by contrast, is on the stock engine now, matched with Python's
 ordinary backtracking `re` and left for the isolation to bound; `uniqueItems` is the one place where isolation can
 only refuse the work rather than make it cheap.
+
+### `format` is asserted for six values and ignored for the rest
+
+`jsonschema` treats `format` as an annotation and checks nothing unless a checker is attached, so a vendor writing
+`format` would otherwise get no validation and no warning either. A checker is attached, but only for the formats whose
+cost is no more than the length of their input (`_ASSERTED_FORMATS`):
+
+| `format` | Asserted |
+|---|---|
+| `date`, `email`, `idn-email`, `ipv4`, `ipv6`, `uuid` | yes, a value that does not match is rejected with a `400` |
+| anything else, `uri`, `hostname` and `date-time` among them | no, it stays an annotation and rejects nothing |
+
+Two of the absences are deliberate rather than incidental. `regex` would compile caller input with Python's
+backtracking engine, which is the cost the isolation exists to bound rather than something to invite in, and
+`idn-hostname` spends its cost inside a third party library. The rest are simply not on the list, and JSON Schema says
+an unrecognised format is an annotation, so ignoring them is conforming behaviour rather than a gap.
+
+The practical consequence for a schema author is that `{"type": "string", "format": "email"}` does reject `"nope"`,
+while `{"type": "string", "format": "uri"}` accepts it. A constraint that has to hold is better written as a `pattern`,
+a `minLength`, or an `enum`, all of which are enforced whatever they describe.
 
 Before any of this runs, text limits are applied to the schema, and to the arguments:
 
@@ -353,12 +380,41 @@ rejection instead of letting it escape. `RecursionError` is still caught by name
 `json.loads` rather than around evaluating a schema: parsing the arguments and parsing the schema, both inside the
 child, and parsing the schema in the use case before anything is forked.
 
-Messages are truncated at `MAX_MESSAGE_LENGTH` (500 characters). `jsonschema` builds its messages with
-`repr(instance)`, so without that a rejected payload came back to the caller in full.
-
 The metaschema check itself only runs once, at upload time (`check_uploaded_schema_in_isolation`), never again on a
 later run: it used to run on every request too, which cost 89 ms for a 63 KB schema and put a ceiling of about 22
 requests a second on the gateway.
+
+### The rejection message is built here, not taken from `jsonschema`
+
+The message a caller gets for a schema violation is **not** `jsonschema`'s own. `_validation_message`
+(`api/domain/arguments_schema.py`) builds it inside the child, from the failing keyword and the two values around it:
+
+```
+'type' validation failed, schema requires 'integer': rejected value 'wrong-type'
+```
+
+The reason is where `jsonschema` puts things. It writes `exc.message` as `f"{instance!r} <reason>"`, the rejected value
+first and the reason last, so truncating that to a fixed length keeps the front and drops the rest: a rejected value at
+or past the limit, such as a 39 KB base64 encoded circuit, came back as 500 characters of base64 with no reason at all.
+Building the message from `exc.validator` and `exc.validator_value` instead keeps the reason present whatever the size
+of the instance. A boolean schema has neither field, and is reported as `the schema rejects every value: rejected value
+...`, which says more than the two `None`s those fields would otherwise produce.
+
+Each of the two quoted values is cut to `MAX_EXCERPT_LENGTH` (150 characters) by `_excerpt`, and marked as cut when it
+was. Both need it, not just the rejected value: `validator_value` is a piece of the schema rather than of the instance,
+so it grows with the schema instead, and an `enum` of a few hundred options filled the whole message with enum and
+pushed the rejected value out of it.
+
+`_shortened` then applies `MAX_MESSAGE_LENGTH` (500 characters) to the finished message, as defence in depth, and
+`_shortened_path` applies the same limit to every string segment of `path`. The path needs it too, because a property
+name is as caller-controlled as the message beside it: an `additionalProperties` schema against a 900 000 character
+property name put that name into the path in full while the message next to it was already capped. Array indices are
+integers and are left alone.
+
+One consequence worth knowing when reading code that catches these: only `message` and `path` cross the isolation
+boundary. By the time the use case in `validate_arguments.py` sees a `jsonschema.ValidationError`, it has been rebuilt
+from those two fields alone, so `validator` and `validator_value` read back as unset there. That is why the message has
+to be composed inside the child.
 
 ### On `/run`
 
@@ -404,13 +460,23 @@ The view (`api/v1/views/programs/validate_arguments.py`) only parses and sanitiz
 the caller cannot reach is reported as not found, never as a permission error, so the endpoint does not leak the
 existence of other vendors' functions.
 
-There is one deliberate difference from `/run`: **this endpoint does not check `function.disabled`**, so validating
-against a disabled function succeeds where running it would give a 423. `disabled` is an availability flag rather than
-a permission, and a disabled function's schema is already readable through `get_by_title` and `list`, so refusing here
-would remove something useful (preparing arguments while a function is temporarily unavailable) without protecting
-anything. The trade-off is that a successful validation is not a promise that `/run` will accept the job.
+What does not carry over are the two checks `/run` makes about *availability* rather than about permission. Both are
+left out deliberately, so a `200` here is not a promise that `/run` will accept the job:
+
+- **`function.disabled` is not checked**, so validating against a disabled function succeeds where running it would give
+  a 423. `disabled` is an availability flag rather than a permission, and a disabled function's schema is already
+  readable through `get_by_title` and `list`, so refusing here would remove something useful (preparing arguments while
+  a function is temporarily unavailable) without protecting anything.
+- **A Fleets function with no Code Engine project is not checked either**, so it validates here and is refused by `/run`
+  with a 400. That is a deployment gap in the function rather than anything about its arguments, and it is not something
+  the caller preparing the arguments can act on.
 
 Success is `200 {"valid": true}`.
+
+A function that declares no schema always answers `200 {"valid": true}`, whatever was sent, including `arguments` that
+are not JSON at all. The "no schema, nothing to validate" short-circuit runs before anything looks at the arguments, so
+there is nothing to check them against. A `200` therefore means "nothing rejected these arguments", not "these
+arguments were parsed and approved", and `arguments_schema` on the function is what tells the two apart.
 
 ## Error responses
 
@@ -449,6 +515,12 @@ At validation time, everything below is an `InvalidArgumentsException`, so a bro
 | Schema cannot be evaluated: an isolation limit was hit, a reference is unresolvable, evaluating it recurses without end, or it is not a valid JSON Schema (including not being an object or a boolean) | 400 | `{"message": "the function arguments schema cannot be used: ...", "path": []}` |
 | Function missing or not accessible | 404 | `{"message": "..."}` |
 | `arguments_schema` rejected at upload | 400 | `{"message": "arguments_schema ..."}` |
+| `arguments` sent as an empty string | 400 | `{"message": "This field may not be blank."}`, with **no** `path` |
+
+That last row is the one exception to the shape above, and it is worth knowing before writing a client against these
+responses. It never reaches the code in this document: `arguments` is a DRF `CharField`, which rejects a blank value in
+the serializer, so the response comes from the generic handler flattening a `ValidationError` rather than from
+`InvalidArgumentsException`, and it therefore has no `path` key at all. Every other `400` here carries one.
 
 ## Client SDK
 
