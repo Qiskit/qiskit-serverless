@@ -1,3 +1,8 @@
+---
+name: serverless-reno
+description: Review a GitHub draft release, produce a reno status table, and write missing release note files
+---
+
 # Release Notes Review
 
 Given a GitHub draft release URL, produce a complete reno status table and write any missing release note files.
@@ -13,7 +18,13 @@ Do not proceed to Step 1 until both have been provided.
 
 ## Step 1 — Build the PR list
 
-Fetch the draft release page with WebFetch and extract every PR entry (title, author, number).
+Fetch the draft release using the `gh` CLI (WebFetch cannot reach GitHub):
+
+```bash
+gh release view <tag> --repo Qiskit/qiskit-serverless
+```
+
+Extract every PR entry (title, author, number) from the release body.
 
 ## Step 2 — Check existing reno files
 
@@ -46,9 +57,11 @@ Apply these rules to classify each PR as **reno OK**, **no reno needed**, or **M
 **No reno needed — skip these automatically:**
 - Automated dependency bumps (dependabot, renovate, any "[bot]" author) for internal or
   infrastructure packages — **but not if the bumped package is user-facing** (e.g. `qiskit*`,
-  `qiskit-ibm-runtime`, any package listed in the client's `pyproject.toml` dependencies).
-  A bump that changes the minimum or maximum version a user must install always needs a reno,
-  regardless of who opened the PR.
+  `qiskit-ibm-runtime`, any package listed in the client's `requirements.txt` or
+  `pyproject.toml` dependencies). A bump that changes the minimum or maximum version a user
+  must install always needs a reno, regardless of who opened the PR.
+- When multiple consecutive bumps of the same user-facing package appear in a release, write
+  **one** reno covering the final version range — not one per bump.
 - CI/CD changes (workflows, GitHub Actions, `.github/`)
 - Test-only refactors (no behaviour change visible to users)
 - Internal tooling: backoffice UI, admin forms, SSO/auth for internal staff
@@ -58,6 +71,8 @@ Apply these rules to classify each PR as **reno OK**, **no reno needed**, or **M
 - Internal data model or database schema changes with no effect on the client API
 - Admin-only environment variables or settings not exposed to end users
 - Internal code refactors (renaming methods, splitting classes) that don't change the public interface
+- Internal operational changes: seeding/startup behaviour, job lifecycle internals (e.g. wiping
+  env vars from DB), Fleets infra fixes not visible to users
 
 **Reno needed — flag these:**
 - Any change to the client API surface (new/removed/renamed symbols, changed behaviour)
@@ -201,11 +216,18 @@ releasenotes/notes/prelude-<version>-<16hexchars>.yaml
 ```yaml
 ---
 prelude: >
-    ``qiskit_serverless vX.Y.Z`` <one paragraph summarising the headline changes — new
-    features, removed APIs, raised minimum versions, notable bug fixes>.
+    ``qiskit_serverless vX.Y.Z`` is a feature release that <one paragraph summarising
+    the headline changes — new features, removed APIs, raised minimum versions, notable
+    bug fixes>.
 ```
 
-Draw the content from the notes you wrote in Steps 5–6. Keep it to 3–5 sentences.
+Draw the content from the notes you wrote in Steps 5–6. Keep it to 3–5 sentences. Lead
+with the most significant user-facing change. Do not enumerate every item — pick the
+headline changes and group minor ones. Model the tone on past preludes in
+`releasenotes/notes/*/prelude-*.yaml`.
+
+Also note: a `test-reno-<hex>.yaml` placeholder file may exist as an untracked file.
+Delete it with `rm` (not `git rm`) before moving notes into the versioned subfolder.
 
 Then create the subfolder and move every top-level note (including the new prelude) into it:
 

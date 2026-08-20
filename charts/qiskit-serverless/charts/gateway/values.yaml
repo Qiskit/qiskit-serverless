@@ -28,7 +28,7 @@ application:
     enable: true
   maintenance: false
   ray:
-    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.34.0"
+    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.35.0"
     cpu: 2
     memory: 2
     gpu: 1
@@ -97,7 +97,7 @@ ce:
   fleetsGatewayHost: "http://127.0.0.1:8000"
   defaultProjectName: ""
   defaultComputeProfile: "bx3d-24x120"
-  fleetsDefaultImage: "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.34.0"
+  fleetsDefaultImage: "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.35.0"
   fleetsDefaultMaxInstances: 1
 
 secrets:

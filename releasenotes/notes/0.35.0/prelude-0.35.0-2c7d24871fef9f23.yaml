@@ -1,0 +1,10 @@
+---
+prelude: >
+    ``qiskit_serverless v0.35.0`` is a feature release that adds argument
+    validation for Qiskit Functions: functions can now declare a JSON Schema
+    for their arguments and the gateway validates submissions before any compute
+    is used, with a new ``validate_arguments`` client method for pre-flight
+    checks. The ``QiskitFunction.schema`` field has been renamed to
+    ``arguments_schema``. This release also removes the deprecated ``name``
+    parameter from ``ServerlessClient`` and bumps the ``ray-node`` default
+    Python version to 3.12.
