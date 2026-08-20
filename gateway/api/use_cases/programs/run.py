@@ -103,42 +103,45 @@ class RunFunctionUseCase:
             trial = business_model == BusinessModel.TRIAL
 
         compute_profile, gpu = _runner_config(function, data.compute_profile)
+        job = Job(
+            trial=trial,
+            business_model=business_model,
+            status=Job.QUEUED,
+            program=function,
+            author=user,
+            gpu=gpu,
+            runner=function.runner,
+            compute_profile=compute_profile,
+            instance_crn=data.instance,
+            account_id=data.account_id,
+            ce_project_name=function.code_engine_project.project_name if function.code_engine_project else None,
+            ce_region=function.code_engine_project.region if function.code_engine_project else None,
+        )
+
+        env = encrypt_env_vars(
+            build_env_variables(
+                channel=data.channel,
+                token=data.token,
+                job=job,
+                trial_mode=trial,
+                instance=data.instance,
+            )
+        )
+        try:
+            env["traceparent"] = data.carrier["traceparent"]
+        except KeyError:
+            pass
+        if function.env_vars:
+            env.update(json.loads(function.env_vars))
+        job.env_vars = json.dumps(env)
+
+        # Deliberately outside the transaction below: for Fleets this uploads to COS, and keeping
+        # a database transaction open across a network call holds it for as long as the upload takes.
+        get_arguments_storage(job).save(data.arguments)
+
         with transaction.atomic():
-            jobconfig = JobConfig.objects.create(**data.config_data) if data.config_data else None
-            job = Job(
-                trial=trial,
-                business_model=business_model,
-                status=Job.QUEUED,
-                program=function,
-                author=user,
-                config=jobconfig,
-                gpu=gpu,
-                runner=function.runner,
-                compute_profile=compute_profile,
-                instance_crn=data.instance,
-                account_id=data.account_id,
-                ce_project_name=function.code_engine_project.project_name if function.code_engine_project else None,
-                ce_region=function.code_engine_project.region if function.code_engine_project else None,
-            )
-
-            env = encrypt_env_vars(
-                build_env_variables(
-                    channel=data.channel,
-                    token=data.token,
-                    job=job,
-                    trial_mode=trial,
-                    instance=data.instance,
-                )
-            )
-            try:
-                env["traceparent"] = data.carrier["traceparent"]
-            except KeyError:
-                pass
-            if function.env_vars:
-                env.update(json.loads(function.env_vars))
-            job.env_vars = json.dumps(env)
-
-            get_arguments_storage(job).save(data.arguments)
+            if data.config_data:
+                job.config = JobConfig.objects.create(**data.config_data)
             job.save()
             JobEvent.objects.add_status_event(
                 job_id=job.id,
