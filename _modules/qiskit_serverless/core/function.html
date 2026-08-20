@@ -416,6 +416,14 @@
 <span class="sd">            object; ``True`` and ``False`` are also valid schemas, accepting and rejecting every</span>
 <span class="sd">            argument respectively. ``None`` means the function does not declare one, and setting</span>
 <span class="sd">            it to ``{}`` on an upload removes the schema an earlier upload stored.</span>
+
+<span class="sd">            The gateway applies the schema to the arguments *as this SDK encodes them*, not as</span>
+<span class="sd">            they look in Python, so a ``QuantumCircuit`` argument is matched against</span>
+<span class="sd">            ``{"__type__": "QuantumCircuit", "__value__": "&lt;base64 QPY&gt;"}`` and a numpy array</span>
+<span class="sd">            against an object rather than an array. Describing either with</span>
+<span class="sd">            ``{"type": "array"}`` therefore rejects every legitimate call. Constrain the plain</span>
+<span class="sd">            arguments (counts, names, options, flags) and check only the ``__type__`` tag of the</span>
+<span class="sd">            Qiskit ones. See ``specs/ARGUMENTS_VALIDATION.md``.</span>
 <span class="sd">    """</span>
 
     <span class="n">GENERIC</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">GenericType</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"GENERIC"</span>

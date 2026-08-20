@@ -315,14 +315,14 @@
         <article role="main" id="furo-main-content">
           <section id="release-notes">
 <span id="id1"></span><h1>Release Notes<a class="headerlink" href="#release-notes" title="Permalink to this heading">¶</a></h1>
-<section id="upcoming-qiskit-serverless-release">
-<span id="release-notes-upcoming-qiskit-serverless-release"></span><h2>Upcoming Qiskit Serverless release<a class="headerlink" href="#upcoming-qiskit-serverless-release" title="Permalink to this heading">¶</a></h2>
+<section id="v0-35-0">
+<span id="release-notes-v0-35-0"></span><h2>v0.35.0<a class="headerlink" href="#v0-35-0" title="Permalink to this heading">¶</a></h2>
 <section id="prelude">
-<span id="release-notes-upcoming-qiskit-serverless-release-prelude"></span><h3>Prelude<a class="headerlink" href="#prelude" title="Permalink to this heading">¶</a></h3>
+<span id="release-notes-v0-35-0-prelude"></span><h3>Prelude<a class="headerlink" href="#prelude" title="Permalink to this heading">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">qiskit_serverless</span> <span class="pre">v0.35.0</span></code> is a feature release that adds argument validation for Qiskit Functions: functions can now declare a JSON Schema for their arguments and the gateway validates submissions before any compute is used, with a new <code class="docutils literal notranslate"><span class="pre">validate_arguments</span></code> client method for pre-flight checks. The <code class="docutils literal notranslate"><span class="pre">QiskitFunction.schema</span></code> field has been renamed to <code class="docutils literal notranslate"><span class="pre">arguments_schema</span></code>. This release also removes the deprecated <code class="docutils literal notranslate"><span class="pre">name</span></code> parameter from <code class="docutils literal notranslate"><span class="pre">ServerlessClient</span></code> and bumps the <code class="docutils literal notranslate"><span class="pre">ray-node</span></code> default Python version to 3.12.</p>
 </section>
 <section id="new-features">
-<span id="release-notes-upcoming-qiskit-serverless-release-new-features"></span><h3>New Features<a class="headerlink" href="#new-features" title="Permalink to this heading">¶</a></h3>
+<span id="release-notes-v0-35-0-new-features"></span><h3>New Features<a class="headerlink" href="#new-features" title="Permalink to this heading">¶</a></h3>
 <ul>
 <li><p>Qiskit Functions can now declare the arguments they accept as a JSON Schema, and the gateway validates submitted
 arguments against it before any compute is used. Previously a function given bad input failed mid-execution, after
@@ -342,8 +342,12 @@ the user had already waited through queue time and container startup.</p>
 </pre></div>
 </div>
 <p>From then on, running that function with arguments that do not match the schema is rejected with a <code class="docutils literal notranslate"><span class="pre">400</span></code> before
-the job is created, so no job is queued and no partial rows are left behind. The error names the offending field:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s2">"message"</span><span class="p">:</span> <span class="s2">"'wrong-type' is not of type 'integer'"</span><span class="p">,</span> <span class="s2">"path"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"shots"</span><span class="p">]}</span>
+the job is created, so no job is queued and no partial rows are left behind. The error names the keyword that
+failed, what the schema asked for, and the value that was rejected, and <code class="docutils literal notranslate"><span class="pre">path</span></code> points at the offending field:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="s2">"message"</span><span class="p">:</span> <span class="s2">"'type' validation failed, schema requires 'integer': rejected value 'wrong-type'"</span><span class="p">,</span>
+  <span class="s2">"path"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"shots"</span><span class="p">]</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>The feature is opt-in and backwards compatible: functions without a schema are never validated.</p>
@@ -354,6 +358,13 @@ empty one:</p>
 </pre></div>
 </div>
 </li>
+</ul>
+<ul class="simple">
+<li><p>Two things to know when writing a schema. First, the schema is applied to the arguments <strong>as the SDK encodes them</strong>,
+not as they look in Python, so a <code class="docutils literal notranslate"><span class="pre">QuantumCircuit</span></code> arrives as <code class="docutils literal notranslate"><span class="pre">{&quot;__type__&quot;:</span> <span class="pre">&quot;QuantumCircuit&quot;,</span> <span class="pre">&quot;__value__&quot;:</span>
+<span class="pre">&quot;&lt;base64</span> <span class="pre">QPY&gt;&quot;}</span></code> and a numpy array as an object rather than an array. Describing a circuit or an array argument
+with <code class="docutils literal notranslate"><span class="pre">{&quot;type&quot;:</span> <span class="pre">&quot;array&quot;}</span></code> therefore rejects every legitimate call. The advice is to constrain the plain arguments
+(counts, names, options, flags) and to check only the <code class="docutils literal notranslate"><span class="pre">__type__</span></code> tag of the Qiskit ones.</p></li>
 </ul>
 <ul>
 <li><p>New endpoint <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/v1/programs/validate_arguments/</span></code> checks arguments against a function’s schema without
@@ -372,11 +383,12 @@ arguments a function expects can be inspected even by callers who did not upload
 </ul>
 </section>
 <section id="upgrade-notes">
-<span id="release-notes-upcoming-qiskit-serverless-release-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Permalink to this heading">¶</a></h3>
+<span id="release-notes-v0-35-0-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">QiskitFunction.schema</span></code> has been renamed to <code class="docutils literal notranslate"><span class="pre">arguments_schema</span></code> and its type changed from <code class="docutils literal notranslate"><span class="pre">Optional[str]</span></code> to
-<code class="docutils literal notranslate"><span class="pre">Optional[Dict[str,</span> <span class="pre">Any]]</span></code>. The old field was never read by the client nor sent to the gateway, so there is no
-deprecation path. Pass a plain dict rather than a JSON string.</p></li>
+<code class="docutils literal notranslate"><span class="pre">Optional[Union[Dict[str,</span> <span class="pre">Any],</span> <span class="pre">bool]]</span></code>. The old field was never read by the client nor sent to the gateway, so
+there is no deprecation path. Pass a plain dict rather than a JSON string. A boolean is accepted because <code class="docutils literal notranslate"><span class="pre">true</span></code>
+and <code class="docutils literal notranslate"><span class="pre">false</span></code> are valid JSON Schemas in their own right, accepting and rejecting every argument respectively.</p></li>
 </ul>
 <ul class="simple">
 <li><p>The unused <code class="docutils literal notranslate"><span class="pre">validate</span></code> field has been removed from <code class="docutils literal notranslate"><span class="pre">QiskitFunction</span></code>. It gated a client-side validation hook that
@@ -444,7 +456,7 @@ account) is unaffected by this change.</p></li>
 </ul>
 </section>
 <section id="bug-fixes">
-<span id="release-notes-upcoming-qiskit-serverless-release-bug-fixes"></span><h3>Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permalink to this heading">¶</a></h3>
+<span id="release-notes-v0-35-0-bug-fixes"></span><h3>Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Requesting a job that does not exist through <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/v1/jobs/{job_id}/</span></code>
 now returns HTTP 404 with a <code class="docutils literal notranslate"><span class="pre">Job</span> <span class="pre">[job_id]</span> <span class="pre">not</span> <span class="pre">found</span></code> message instead of
@@ -1561,7 +1573,7 @@ specific jobs. For example:</p>
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">Release Notes</a><ul>
-<li><a class="reference internal" href="#upcoming-qiskit-serverless-release">Upcoming Qiskit Serverless release</a><ul>
+<li><a class="reference internal" href="#v0-35-0">v0.35.0</a><ul>
 <li><a class="reference internal" href="#prelude">Prelude</a></li>
 <li><a class="reference internal" href="#new-features">New Features</a></li>
 <li><a class="reference internal" href="#upgrade-notes">Upgrade Notes</a></li>
