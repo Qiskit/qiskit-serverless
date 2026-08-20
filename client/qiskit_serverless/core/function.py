@@ -106,6 +106,14 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
             object; ``True`` and ``False`` are also valid schemas, accepting and rejecting every
             argument respectively. ``None`` means the function does not declare one, and setting
             it to ``{}`` on an upload removes the schema an earlier upload stored.
+
+            The gateway applies the schema to the arguments *as this SDK encodes them*, not as
+            they look in Python, so a ``QuantumCircuit`` argument is matched against
+            ``{"__type__": "QuantumCircuit", "__value__": "<base64 QPY>"}`` and a numpy array
+            against an object rather than an array. Describing either with
+            ``{"type": "array"}`` therefore rejects every legitimate call. Constrain the plain
+            arguments (counts, names, options, flags) and check only the ``__type__`` tag of the
+            Qiskit ones. See ``specs/ARGUMENTS_VALIDATION.md``.
     """
 
     GENERIC: ClassVar[GenericType] = "GENERIC"
