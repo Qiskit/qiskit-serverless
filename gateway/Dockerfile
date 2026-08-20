@@ -3,11 +3,11 @@ ARG MICRO_IMAGE_DIR=/ubi-micro-img
 
 # BASE image using UBI 9 micro where the
 # application and requirements will be installed
-FROM registry.access.redhat.com/ubi9-micro:9.8-1782840931 AS base
+FROM registry.access.redhat.com/ubi9-micro:9.8-1786321990 AS base
 
 # BUILD image using UBI 9 where the dependencies that
 # require installing with a package manager will be installed.
-FROM registry.access.redhat.com/ubi9:9.8-1784165989 AS build
+FROM registry.access.redhat.com/ubi9:9.8-1786985871 AS build
 ARG PYTHON_VERSION
 ARG MICRO_IMAGE_DIR
 

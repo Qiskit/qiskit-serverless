@@ -28,7 +28,7 @@
 # and CE's NVIDIA container runtime injects the driver + nvidia-smi into GPU
 # workers at runtime. UBI9 (glibc 2.34) satisfies the mthree manylinux_2_34 wheel;
 # all pinned deps ship linux/x86_64 wheels for 3.12, so no build toolchain is needed.
-FROM registry.access.redhat.com/ubi9-minimal:9.8-1784092902 AS base
+FROM registry.access.redhat.com/ubi9-minimal:9.8-1786987521 AS base
 ARG PYTHON_VERSION=3.12
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1

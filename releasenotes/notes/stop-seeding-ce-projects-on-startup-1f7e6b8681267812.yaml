@@ -1,6 +1,0 @@
----
-upgrade:
-  - |
-    The gateway and scheduler no longer run ``sync_ce_project`` on startup. Code Engine
-    project rows are seeded on demand instead, so a fresh deployment must seed them before
-    Fleets jobs can be scheduled.

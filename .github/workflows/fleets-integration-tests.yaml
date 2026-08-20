@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: '3.11'
+          python-version: '3.12'
       - name: Install tox
         run: pip install tox>=4.0.0
       - name: Build fleet-node base image
@@ -40,7 +40,7 @@ jobs:
       - name: Verify CE project provisioned
         run: docker compose -f docker-compose-fleets-test.yaml exec -T gateway python manage.py sync_ce_project
       - name: Run fleets integration tests
-        run: tox -c tests/tox.ini -e py311-fleets
+        run: tox -c tests/tox.ini -e py312-fleets
       - name: Print logs on failure
         if: failure()
         run: |

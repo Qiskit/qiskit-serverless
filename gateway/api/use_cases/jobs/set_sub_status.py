@@ -4,7 +4,6 @@ import logging
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
-from django.core.exceptions import ObjectDoesNotExist
 
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.invalid_access_exception import InvalidAccessException
@@ -34,9 +33,8 @@ class SetJobSubStatusUseCase:
             JobNotFoundException: If the job does not exist or access is denied.
             ForbiddenError: If the job is not in RUNNING status.
         """
-        try:
-            job = Job.objects.get(id=job_id)
-        except ObjectDoesNotExist:
+        job = Job.objects.filter(id=job_id).first()
+        if job is None:
             raise JobNotFoundException(str(job_id))
 
         can_update_sub_status = JobAccessPolicies.can_update_sub_status(user, job)
