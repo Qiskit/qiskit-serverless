@@ -10,7 +10,7 @@ from api.domain.authentication.channel import Channel
 from api.use_cases.programs.run import RunFunctionUseCase
 from api.use_cases.programs.run_input import RunFunctionInput
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import Job, Program
+from core.models import Job, JobConfig, JobEvent, Program
 
 pytestmark = pytest.mark.django_db
 
@@ -90,3 +90,18 @@ class TestRunFunctionUseCase:
 
         with pytest.raises(FunctionNotFoundException):
             RunFunctionUseCase().execute(user, accessible, make_input(title="nonexistent-fn"))
+
+    def test_rolls_back_job_and_config_when_creation_fails(self, user, monkeypatch):
+        Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        def boom(*args, **kwargs):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(JobEvent.objects, "add_status_event", boom)
+
+        with pytest.raises(RuntimeError):
+            RunFunctionUseCase().execute(user, accessible, make_input(config_data={"workers": 1}))
+
+        assert not Job.objects.exists()
+        assert not JobConfig.objects.exists()
