@@ -195,25 +195,20 @@ class TestListJobs:
                 )
 
 
-class TestProviderScope:
-    """The endpoint must never return jobs belonging to another provider."""
+def test_provider_admin_sees_only_their_provider(admin_user, provider_with_admin, jobs, user):
+    """A provider admin gets no function-level filter, so `filters.provider` is the only guard.
 
-    def test_provider_admin_sees_only_their_provider(self, admin_user, provider_with_admin, jobs, user):
-        """A provider admin gets no function-level filter, so `filters.provider` is the only guard.
+    Before the fix this returned every job in the system -- other providers' jobs included.
+    """
+    # Same function title under another provider -- must not be returned.
+    other = Provider.objects.create(name="other-provider")
+    Job.objects.create(author=user, program=Program.objects.create(title="my-function", author=user, provider=other))
 
-        Before the fix this returned every job in the system.
-        """
-        # Same function title under another provider -- must not be returned.
-        other = Provider.objects.create(name="other-provider")
-        Job.objects.create(
-            author=user, program=Program.objects.create(title="my-function", author=user, provider=other)
-        )
+    result_jobs, total = JobsProviderListUseCase().execute(
+        user=admin_user,
+        filters=JobFilters(provider="my-provider", limit=20, offset=0),
+        accessible_functions=_no_response(),
+    )
 
-        result_jobs, total = JobsProviderListUseCase().execute(
-            user=admin_user,
-            filters=JobFilters(provider="my-provider", limit=20, offset=0),
-            accessible_functions=_no_response(),
-        )
-
-        assert total == 2
-        assert all(job.program.provider.name == "my-provider" for job in result_jobs)
+    assert total == 2
+    assert all(job.program.provider.name == "my-provider" for job in result_jobs)
