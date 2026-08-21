@@ -196,24 +196,19 @@ class TestListJobs:
 
 
 class TestProviderScope:
-    """The endpoint must never return jobs belonging to a provider other than the one requested.
+    """The endpoint must never return jobs belonging to another provider."""
 
-    `_apply_access_scope` returns either None (provider-wide) or a set of function titles. Neither
-    carries a provider, so the scoping has to come from `filters.provider` in `_apply_filters`.
-    """
+    def test_provider_admin_sees_only_their_provider(self, admin_user, provider_with_admin, jobs, user):
+        """A provider admin gets no function-level filter, so `filters.provider` is the only guard.
 
-    @pytest.fixture()
-    def other_provider_job(self, user):
-        """A job of a *different* provider whose function shares the title of ours."""
-        other = Provider.objects.create(name="other-provider")
-        program = Program.objects.create(title="my-function", author=user, provider=other)
-        return Job.objects.create(author=user, program=program)
-
-    def test_provider_admin_sees_only_their_provider(self, admin_user, provider_with_admin, jobs, other_provider_job):
-        """A provider admin gets no function-level filter, so provider scoping is the only guard.
-
-        Before the fix this returned every job in the system -- other providers' jobs included.
+        Before the fix this returned every job in the system.
         """
+        # Same function title under another provider -- must not be returned.
+        other = Provider.objects.create(name="other-provider")
+        Job.objects.create(
+            author=user, program=Program.objects.create(title="my-function", author=user, provider=other)
+        )
+
         result_jobs, total = JobsProviderListUseCase().execute(
             user=admin_user,
             filters=JobFilters(provider="my-provider", limit=20, offset=0),

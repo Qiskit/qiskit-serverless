@@ -72,41 +72,22 @@ class TestFilterFunctions:
         assert titles == {"fn-a"}
 
 
-@pytest.fixture()
-def scoped_jobs(provider, author):
-    """One job per scoping vector, all sharing a single function title.
-
-    Titles are unique only *per provider* (`unique_provider_title`), so this shape is legal -- and is
-    what makes a title-only filter unsafe for scoping.
-    """
-    providers = {
-        "mine": provider,
-        "theirs": Provider.objects.create(name="other-provider"),
-        "custom": None,  # serverless function -- no provider at all
-    }
-    return {
-        key: Job.objects.create(
-            author=author, program=Program.objects.create(title="shared", author=author, provider=fn_provider)
-        )
-        for key, fn_provider in providers.items()
-    }
-
-
 class TestFilterProvider:
-    """`filters.provider` scopes the queryset whenever it is set.
+    """`filters.provider` must scope the queryset whenever it is set, not only under CATALOG."""
 
-    It used to be applied only under `filter=CATALOG`, which left `jobs/provider` -- which never sets
-    `filter` -- scoped by function title alone.
-    """
-
-    # `filter=CATALOG` also covers the regression where the clause compared a *name* against
-    # Provider's UUID primary key and raised ValueError("badly formed hexadecimal UUID string") --
-    # CATALOG was the only arm that reached it, so it 500'd rather than mis-scoped.
+    # CATALOG was the only arm reaching the old clause, which matched a name against Provider's UUID
+    # pk -- so it raised ValidationError("my-provider is not a valid UUID") rather than mis-scoping.
     @pytest.mark.parametrize("type_filter", [None, TypeFilter.CATALOG])
-    def test_provider_scopes_queryset(self, scoped_jobs, type_filter):
+    def test_provider_scopes_queryset(self, jobs, author, type_filter):
         """`filter=None` is the `jobs/provider` shape; CATALOG is the `jobs` shape."""
+        # `fn-a` may legally exist under another provider, and under none at all. Neither may leak.
+        foreign = [
+            Job.objects.create(author=author, program=Program.objects.create(title="fn-a", author=author, provider=p))
+            for p in (Provider.objects.create(name="other-provider"), None)
+        ]
+
         filters = JobFilters(provider="my-provider", filter=type_filter)
         queryset, total = Job.objects.user_jobs_page(user=None, filters=filters)
 
-        assert total == 1
-        assert [job.id for job in queryset] == [scoped_jobs["mine"].id]
+        assert total == 3
+        assert {job.id for job in queryset}.isdisjoint(job.id for job in foreign)
