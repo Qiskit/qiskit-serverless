@@ -193,3 +193,41 @@ class TestListJobs:
                     filters=filters,
                     accessible_functions=FunctionAccessResult(use_legacy_authorization=False, functions=[]),
                 )
+
+
+class TestProviderScope:
+    """The endpoint must never return jobs belonging to a provider other than the one requested.
+
+    `_apply_access_scope` returns either None (provider-wide) or a set of function titles. Neither
+    carries a provider, so the scoping has to come from `filters.provider` in `_apply_filters`.
+    """
+
+    @pytest.fixture()
+    def other_provider_job(self, user):
+        """A job of a *different* provider whose function shares the title of ours."""
+        other = Provider.objects.create(name="other-provider")
+        program = Program.objects.create(title="my-function", author=user, provider=other)
+        return Job.objects.create(author=user, program=program)
+
+    @pytest.fixture()
+    def custom_function_job(self, user):
+        """A serverless job whose function shares the title -- must not appear either."""
+        program = Program.objects.create(title="my-function", author=user, provider=None)
+        return Job.objects.create(author=user, program=program)
+
+    def test_provider_admin_sees_only_their_provider(
+        self, admin_user, provider_with_admin, jobs, other_provider_job, custom_function_job
+    ):
+        """A provider admin gets no function-level filter, so provider scoping is the only guard.
+
+        Before the fix this returned every job in the system -- other providers' and unrelated
+        users' serverless jobs included.
+        """
+        result_jobs, total = JobsProviderListUseCase().execute(
+            user=admin_user,
+            filters=JobFilters(provider="my-provider", limit=20, offset=0),
+            accessible_functions=FunctionAccessResult(use_legacy_authorization=True),
+        )
+
+        assert total == 2
+        assert all(job.program.provider.name == "my-provider" for job in result_jobs)
