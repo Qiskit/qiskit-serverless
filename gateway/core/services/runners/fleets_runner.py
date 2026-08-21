@@ -632,14 +632,19 @@ class FleetsRunner(AbstractRunner):
     def _get_image(self) -> str:
         """Return the container image for the fleet.
 
-        Uses ``program.image`` if set, otherwise falls back to
-        ``settings.FLEETS_DEFAULT_IMAGE``.
+        Custom jobs (artifact set) always run on the default fleet-node image —
+        ``program.image`` is the provider's runtime container and must not be
+        used when the gateway is supplying the entrypoint from an artifact.
+        Provider jobs (image set, no artifact) use ``program.image``.
+        Imageless jobs fall back to ``settings.FLEETS_DEFAULT_IMAGE``.
 
         Returns:
             Image reference string.
         """
         if not self.job.program:
             raise RunnerError("Job has no program assigned")
+        if self.job.program.artifact:
+            return settings.FLEETS_DEFAULT_IMAGE
         if self.job.program.image:
             return self.job.program.image
         return settings.FLEETS_DEFAULT_IMAGE
