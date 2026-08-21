@@ -194,6 +194,15 @@ def build_run_env_variables(
     if gateway_host:
         env["ENV_JOB_GATEWAY_HOST"] = gateway_host
 
+    if iam_url := getattr(settings, "FLEETS_IAM_URL", ""):
+        env["IAM_URL"] = iam_url
+    if global_search_url := getattr(settings, "FLEETS_GLOBAL_SEARCH_URL", ""):
+        env["GLOBAL_SEARCH_URL"] = global_search_url
+    if global_catalog_url := getattr(settings, "FLEETS_GLOBAL_CATALOG_URL", ""):
+        env["GLOBAL_CATALOG_URL"] = global_catalog_url
+    if getattr(settings, "FLEETS_EXPERIMENTAL", False):
+        env["QISKIT_FUNCTIONS_EXPERIMENTAL"] = "true"
+
     flush_interval = getattr(settings, "FLEETS_LOG_FLUSH_INTERVAL_SECONDS", 15)
     env.update(
         {

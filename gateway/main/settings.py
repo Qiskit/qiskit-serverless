@@ -466,6 +466,14 @@ DEFAULT_COMPUTE_PROFILE = os.environ.get("DEFAULT_COMPUTE_PROFILE", "bx3d-24x120
 FLEETS_DEFAULT_MAX_INSTANCES = int(os.environ.get("FLEETS_DEFAULT_MAX_INSTANCES", "1"))
 
 CE_HMAC_SECRET_NAME = os.environ.get("CE_HMAC_SECRET_NAME", None)
+
+# IBM Cloud service URLs injected into every Fleets job container.
+# Set via Helm in the internal repo; empty strings mean "don't inject".
+FLEETS_IAM_URL = os.environ.get("FLEETS_IAM_URL", "")
+FLEETS_GLOBAL_SEARCH_URL = os.environ.get("FLEETS_GLOBAL_SEARCH_URL", "")
+FLEETS_GLOBAL_CATALOG_URL = os.environ.get("FLEETS_GLOBAL_CATALOG_URL", "")
+# Set to "true" on staging to enable experimental features in the container.
+FLEETS_EXPERIMENTAL = os.environ.get("FLEETS_EXPERIMENTAL", "false").lower() == "true"
 CE_DEFAULT_PROJECT_NAME = os.environ.get("CE_DEFAULT_PROJECT_NAME", "")
 
 # Set to "true" to use the public COS endpoint instead of the private VPC endpoint.
