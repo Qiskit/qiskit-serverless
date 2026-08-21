@@ -7,6 +7,7 @@ from concurrency.fields import IntegerVersionField
 from django.contrib.auth.models import Group
 from django.conf import settings
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.db.models import F
@@ -161,11 +162,13 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
             "Applies only to the Ray runner; ignored by the Fleets runner."
         ),
     )
-    default_compute_profile = models.CharField(
-        max_length=255,
+    default_size = models.ForeignKey(
+        to="FunctionSize",
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        help_text="Default Code Engine compute profile for Fleets runner (e.g., gx3d-24x120x1a100p)",
+        related_name="default_for_functions",
+        help_text="Size used when a run request omits an explicit size. Must belong to this same function.",
     )
 
     instances = models.ManyToManyField(Group, blank=True, related_name="program_instances")
@@ -211,6 +214,16 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         if self.provider:
             return f"{self.provider.name}/{self.title}"
         return f"{self.title}"
+
+    def clean(self):
+        """Validate that ``default_size`` belongs to this function.
+
+        The rule spans two tables (``program.id`` vs ``function_size.function_id``),
+        so it cannot be expressed as a row-local database CHECK constraint.
+        """
+        super().clean()
+        if self.default_size_id and self.default_size.function_id != self.id:
+            raise ValidationError({"default_size": "default_size must be a FunctionSize belonging to this function."})
 
 
 class ProgramHistory(models.Model):
@@ -361,6 +374,83 @@ class CodeEngineProject(models.Model):
         return f"{self.project_name} ({self.region})"
 
 
+class ComputeProfile(models.Model):
+    """Compute profile model.
+
+    Maps a Code Engine compute profile to a specific CPU/GPU/memory allocation
+    (driving the classical cost we pay CE and the GPU submission payload for
+    Performance tiers). In billing, the profile identifies the classical time
+    rate (``classical_time_<compute_profile>``).
+    """
+
+    compute_profile_id = models.CharField(
+        max_length=255,
+        primary_key=True,
+        help_text="Code Engine compute profile identifier (e.g., 24x120x1l40)",
+    )
+    created = models.DateTimeField(auto_now_add=True, editable=False)
+    updated = models.DateTimeField(auto_now=True, null=True)
+
+    name = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Human-readable display name / tag for the profile (e.g., the size class label)",
+    )
+    cpu = models.CharField(max_length=64, help_text="Number of vCPUs (e.g., 24)")
+    gpu = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        default=None,
+        help_text="GPU allocation as count + model (e.g., 1l40s); null when the profile has no GPUs",
+    )
+    memory = models.CharField(max_length=64, help_text="Memory in GB (e.g., 120)")
+
+    class Meta:
+        app_label = "api"
+
+    def __str__(self):
+        return self.compute_profile_id
+
+
+class FunctionSize(models.Model):
+    """Function size model.
+
+    A ``(function, function_size)`` row identifies the license fee rate
+    (billing looks up ``license_fee_<function>_<size>`` in its metric table)
+    and carries the ``compute_profile`` used.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created = models.DateTimeField(auto_now_add=True, editable=False)
+    updated = models.DateTimeField(auto_now=True, null=True)
+
+    function = models.ForeignKey(
+        to=Program,
+        on_delete=models.CASCADE,
+        related_name="function_sizes",
+    )
+    function_size = models.CharField(max_length=64)
+    compute_profile = models.ForeignKey(
+        to=ComputeProfile,
+        on_delete=models.PROTECT,
+        related_name="function_sizes",
+    )
+
+    class Meta:
+        app_label = "api"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["function", "function_size"],
+                name="unique_function_size",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.function} ({self.function_size})"
+
+
 class Job(models.Model):
     """Job model."""
 
@@ -464,6 +554,17 @@ class Job(models.Model):
         blank=True,
     )
     program = models.ForeignKey(to=Program, on_delete=models.SET_NULL, null=True)
+    compute_profile_fk = models.ForeignKey(
+        to=ComputeProfile,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="jobs",
+        help_text=(
+            "Compute profile used by the job, captured at creation time so the "
+            "historical compute profile is preserved even if the profile changes later."
+        ),
+    )
 
     account_id = models.CharField(max_length=255, null=True, blank=True)
     instance_crn = models.CharField(max_length=255, null=True, blank=True)
