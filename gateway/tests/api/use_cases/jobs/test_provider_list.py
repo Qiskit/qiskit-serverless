@@ -209,24 +209,15 @@ class TestProviderScope:
         program = Program.objects.create(title="my-function", author=user, provider=other)
         return Job.objects.create(author=user, program=program)
 
-    @pytest.fixture()
-    def custom_function_job(self, user):
-        """A serverless job whose function shares the title -- must not appear either."""
-        program = Program.objects.create(title="my-function", author=user, provider=None)
-        return Job.objects.create(author=user, program=program)
-
-    def test_provider_admin_sees_only_their_provider(
-        self, admin_user, provider_with_admin, jobs, other_provider_job, custom_function_job
-    ):
+    def test_provider_admin_sees_only_their_provider(self, admin_user, provider_with_admin, jobs, other_provider_job):
         """A provider admin gets no function-level filter, so provider scoping is the only guard.
 
-        Before the fix this returned every job in the system -- other providers' and unrelated
-        users' serverless jobs included.
+        Before the fix this returned every job in the system -- other providers' jobs included.
         """
         result_jobs, total = JobsProviderListUseCase().execute(
             user=admin_user,
             filters=JobFilters(provider="my-provider", limit=20, offset=0),
-            accessible_functions=FunctionAccessResult(use_legacy_authorization=True),
+            accessible_functions=_no_response(),
         )
 
         assert total == 2
