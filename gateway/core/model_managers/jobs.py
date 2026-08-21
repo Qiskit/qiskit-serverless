@@ -89,16 +89,6 @@ class JobQuerySet(QuerySet):
             case TypeFilter.SERVERLESS:
                 queryset = queryset.filter(program__provider=None)
 
-        # Applied whenever a provider is named, independently of `filter`. It used to live inside the
-        # CATALOG arm above, which had two consequences:
-        #   - `jobs/provider` never sets `filter`, so the provider the caller asked for was dropped and
-        #     scoping fell to the title filter below. Titles are unique only *per provider*, so that
-        #     returned same-titled functions of other providers, and custom functions too.
-        #   - it compared against Provider's UUID primary key while callers pass a name, raising
-        #     ValueError("badly formed hexadecimal UUID string"). Every other provider lookup in the
-        #     codebase joins on `__name`.
-        # Under CATALOG a named provider makes the exclude() above redundant, so dropping the branch
-        # there loses nothing: filtering to one provider already excludes the null-provider rows.
         if filters.provider:
             queryset = queryset.filter(program__provider__name=filters.provider)
 
