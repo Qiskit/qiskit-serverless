@@ -1,6 +1,0 @@
----
-fixes:
-  - |
-    Job creation on ``POST /api/v1/programs/run`` now runs inside a single
-    database transaction, so a failure part way through no longer leaves an
-    orphan ``JobConfig`` row behind.
