@@ -1,0 +1,8 @@
+---
+upgrade:
+  - |
+    The ``api_program.default_compute_profile`` column is now dropped from the
+    database. The field itself was already removed from Qiskit Functions in an
+    earlier release, which kept the column in place so that release could still
+    be rolled back. Once this migration runs, any release that still declares
+    the field can no longer be deployed.
