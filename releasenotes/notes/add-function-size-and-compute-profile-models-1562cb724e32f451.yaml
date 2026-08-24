@@ -16,10 +16,8 @@ features:
     is optional, and a size assigned to it must belong to the same function.
 upgrade:
   - |
-    The ``default_compute_profile`` field has been removed from Qiskit
-    Functions. It was only ever settable through the admin backoffice and was
-    read by no code path, since the Fleets runner resolves its default from the
-    ``DEFAULT_COMPUTE_PROFILE`` setting, so no data migration is required. The
-    ``api_program.default_compute_profile`` column is kept in the database for
-    now and will be dropped in a later release, so that rolling back to a
-    previous release keeps working.
+    The ``default_compute_profile`` field has been removed from the Qiskit
+    Function model definition. No code path read it, since the Fleets runner
+    resolves its default from the ``DEFAULT_COMPUTE_PROFILE`` setting. This is
+    the first step: the ``api_program.default_compute_profile`` column is left
+    in the database, and a later release drops it.
