@@ -57,18 +57,19 @@ application:
     # that worker with it (threads: 1 above). At the timeout of 25 set above, do not raise this past
     # 3. If a function's schema needs more than that, raise the timeout first.
     argumentsSchemaCpuLimitSeconds: 1
-    # Largest request body the gateway accepts, in MB. A caller sending a batch of encoded circuits
-    # to /programs/run needs room: one 100 qubit, depth 100 circuit is about 39 KB of base64, so
-    # fifty of them are around 2 MB. Django's own default is 2.5 MB, which is why this is set here
-    # rather than left alone. Note this bounds any request body, while the smaller
-    # MAX_ARGUMENTS_LENGTH in the gateway bounds what arguments schema validation will look at.
+    # Largest request body the gateway accepts, in MB. Set here because Django's own default of
+    # 2.5 MB is below one batch of encoded circuits (about 39 KB each).
     #
-    # When the ingress below is enabled, templates/ingress.yaml derives the annotation
-    # nginx.ingress.kubernetes.io/proxy-body-size from this same value, so that the proxy and the
-    # gateway cannot drift apart: a proxy allowing less would cut a large body off before the gateway
-    # could answer 413. Setting that annotation under ingress.annotations overrides the derived one.
-    # A deployment that fronts the gateway some other way, an Istio ingress gateway for instance, has
-    # to bound the body there itself, because nothing in this chart reaches that far.
+    # Weigh this against the pod, not against one request: a body costs about 3.5x its size in the
+    # worker that holds it, so it multiplies by httpServer.workers above. At 4 Gi with 5 workers,
+    # 50 MB leaves roughly 2.9 GB in use at full concurrency (875 MB of bodies, 1.4 GB of worker
+    # footprint, 640 MB of validation children); 100 MB reaches 3.5 GB. Past the pod's memory the
+    # kernel OOM-kills a worker instead of the gateway answering 413, so raise the memory limit or
+    # lower the worker count first.
+    #
+    # When the ingress below is enabled, templates/ingress.yaml derives its proxy-body-size
+    # annotation from this value; a deployment fronting the gateway some other way, with an Istio
+    # ingress gateway for instance, has to bound the body there itself.
     maxRequestBodySizeMb: 50
   qiskitRuntime:
     url: "https://cloud.ibm.com"

@@ -61,26 +61,24 @@ from api.domain.isolated import IsolationError, run_isolated
 # still express a much larger one in very few characters.
 MAX_SCHEMA_LENGTH = 64 * 1024
 
-# Maximum length of the arguments a caller may send. Several keywords cost more the longer the
-# instance is, and without this the ceiling would be settings.MAX_REQUEST_BODY_SIZE_MB, the bound on
-# any request body. This is defence in depth rather than the main protection: the keyword that
-# actually grew faster than its input, "uniqueItems", is replaced below (see _unique_items), and the
-# isolation's CPU budget (one second by default) covers the rest.
+# Maximum length of the arguments a caller may send, applied only when a function declares a schema.
 #
-# So the figure is chosen to leave legitimate callers alone. Arguments are validated in the form
-# QiskitObjectsEncoder produces, where a single 100 qubit, depth 100 circuit is about 39 KB of
-# base64. The first version of this limit was 1 MB, which fits about twenty five of those, and that
-# turned out to be under real use: a caller sending fifty circuits per batch was already over it. The
-# figure below fits about two hundred, measured against the shape the spec recommends to a vendor (an
-# array of tagged objects, checking only the __type__ tag): fifty circuits cost 16.5 MB of peak child
-# RSS, two hundred cost 29.5 MB and five hundred cost 55.3 MB, so this stays well inside the memory
-# margin even at its 64 MB clamp minimum.
+# This is deliberately below settings.MAX_REQUEST_BODY_SIZE_MB (50 MB), which bounds any request
+# body, because accepting a body and validating it are not the same cost. Validating forks a child
+# and parses the arguments a second time in it, and that child grows by 2.24 MB per MB of arguments
+# for an array of encoded circuits (measured: 8 MB grows 17.6, 100 MB grows 223.6; the growth is
+# almost entirely json.loads, not the schema comparison). The child's whole allowance is
+# ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB, 128 by default, so at this length it uses about 72 MB of the 128
+# and a caller who fits the length also fits the margin. Setting it to the body's own 50 MB would
+# need 112 MB of that 128 and leave nothing for a payload denser than circuits.
 #
-# Raising this does not widen what an adversarial schema can spend, because that is bounded by the
-# isolation rather than by this number: the worst case for memory, an "anyOf" whose every branch
-# fails, costs about 208 MB of child RSS per MB of arguments (223 MB at 1 MB, 835 MB at 4 MB,
-# measured), so it exceeds the child's RLIMIT_AS and comes back as a 400 at any of these lengths.
-MAX_ARGUMENTS_LENGTH = 8 * 1024 * 1024
+# Nothing here can guarantee that, because the cost depends on shape rather than length: an array of
+# tiny objects grows the child 9.5 MB per MB and spends 0.27 CPU seconds per MB, so with the default
+# one second budget it is the CPU that refuses it, at about 3.7 MB. Those shapes are refused in the
+# child with a 400, which is the isolation working as intended. What this length does is cover the
+# shape the platform actually receives with room to spare: about 800 encoded circuits, sixteen times
+# the batch of fifty that first exceeded the original 1 MB.
+MAX_ARGUMENTS_LENGTH = 32 * 1024 * 1024
 
 # Maximum nesting depth of the schema document and of the instance. jsonschema recurses once per
 # level of each, and CPython gives up at a nesting depth of about 180, which a few kilobytes of

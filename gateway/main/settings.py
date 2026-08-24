@@ -344,22 +344,19 @@ LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
 ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB = int(os.environ.get("ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB", "128"))
 ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS = int(os.environ.get("ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS", "1"))
 
-# Largest request body the gateway accepts, in MB. Django's own default for
-# DATA_UPLOAD_MAX_MEMORY_SIZE is 2.5 MB, which is below what a caller sending a batch of encoded
-# circuits to /programs/run needs: a single 100 qubit, depth 100 circuit is about 39 KB of base64,
-# so fifty of them already exceed it. That default used not to apply to a JSON body at all, because
-# DRF read the request stream directly; 3.18.0 added a step through HttpRequest.body for JSONParser
-# and FormParser (rest_framework/request.py, Request._parse), which turned every oversized JSON
-# request into a RequestDataTooBig and, through the endpoint decorator's blanket handler, into a 500.
+# Largest request body the gateway accepts, in MB. Django's default is 2.5 MB, and one 100 qubit,
+# depth 100 circuit is about 39 KB of base64, so fifty of them go over it. That default used not to
+# apply to a JSON body at all until DRF 3.18.0 routed one through HttpRequest.body (Request._parse),
+# which turned an ordinary batch into a RequestDataTooBig and, through the endpoint decorator, a 500.
 #
-# The chart sets this from application.limits.maxRequestBodySizeMb, and when its ingress is enabled
-# it derives the annotation nginx.ingress.kubernetes.io/proxy-body-size from that same value, so
-# raising one raises the other. A deployment fronting the gateway some other way bounds the body
-# there instead, so this is the only limit that always applies.
-#
-# This bounds the body of any request. It is not the bound on the cost of validating arguments
-# against a function's JSON Schema: that one is MAX_ARGUMENTS_LENGTH in
-# api/domain/arguments_schema.py, which is smaller on purpose and reports a 400 naming the limit.
+# The ceiling is physical: a body costs about 3.5x its size in the worker, because Django holds it,
+# DRF copies it and json.loads builds a structure from the copy (50 MB measured at 175 MB). What
+# bounds this is the pod, not one request. Against production, 4 Gi with gunicorn --workers=5
+# --threads=1: five concurrent 50 MB bodies cost about 875 MB, the five workers' own Django footprint
+# about 1.4 GB (272 MB each, measured), and five validation children at their 128 MB margin 640 MB,
+# so roughly 2.9 GB of 4 Gi. At 100 MB the same sum reaches 3.5 GB, and raising the validation margin
+# with it passes 4 Gi, where the kernel OOM-kills a worker instead of the gateway answering 413.
+# Raise the pod's memory or lower the worker count before raising this.
 MAX_REQUEST_BODY_SIZE_MB = int(os.environ.get("MAX_REQUEST_BODY_SIZE_MB", "50"))
 DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_REQUEST_BODY_SIZE_MB * 1024 * 1024
 

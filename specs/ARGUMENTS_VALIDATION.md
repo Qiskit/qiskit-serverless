@@ -241,7 +241,7 @@ Before any of this runs, text limits are applied to the schema, and to the argum
 | Constant | Value | What it bounds |
 |---|---|---|
 | `MAX_SCHEMA_LENGTH` | 64 KB | How much combinatorial work a schema can spell out literally |
-| `MAX_ARGUMENTS_LENGTH` | 8 MB | Keywords whose cost grows with the instance |
+| `MAX_ARGUMENTS_LENGTH` | 32 MB | Keywords whose cost grows with the instance |
 | `MAX_DOCUMENT_DEPTH` | 64 | Nesting of schema and arguments; CPython gives up near 180 |
 | `MAX_SCHEMA_NODES` | 200 | Subschemas in the document, which bounds memory on every platform |
 
@@ -326,17 +326,52 @@ The practical advice for a vendor is to validate the plain arguments (counts, na
 the `__type__` tag of the Qiskit ones, since the payload itself is opaque base64.
 
 One consequence of encoding worth knowing: `MAX_ARGUMENTS_LENGTH` applies to the encoded text, which is much larger
-than the same arguments look in a notebook. A random 100 qubit, depth 100 circuit encodes to about 39 KB, so the 8 MB
-limit leaves room for a batch of roughly two hundred of them. The figure has been raised twice for the same reason, that
-a limit which rejects ordinary work is worse than no limit, since the cost it was guarding against is bounded by other
-means: an early draft used 100000 characters, which a batch of three such circuits already exceeded, and the 1 MB that
-replaced it fitted about twenty five, which turned out to be under what callers send in one batch. Measured against the
-shape recommended above, an array of tagged objects with only the `__type__` tag checked, fifty circuits cost 16.5 MB of
-peak memory in the forked child, two hundred cost 29.5 MB and five hundred cost 55.3 MB, so 8 MB of arguments stays
-inside the memory margin even at its 64 MB clamp minimum. Raising it does not widen what an adversarial schema can
-spend, because that is bounded by the isolation rather than by this number: the worst case for memory, an `anyOf` whose
-every branch fails, costs about 208 MB of child memory per MB of arguments, so it exceeds `RLIMIT_AS` and comes back as
-a `400` at any of these lengths.
+than the same arguments look in a notebook. A random 100 qubit, depth 100 circuit encodes to about 39 KB, so the 32 MB
+limit leaves room for a batch of roughly eight hundred of them. The figure has been raised twice for the same reason,
+that a limit which rejects ordinary work is worse than no limit, since the cost it was guarding against is bounded by
+other means: an early draft used 100000 characters, which a batch of three such circuits already exceeded, and the 1 MB
+that replaced it fitted about twenty five, which turned out to be under what callers send in one batch.
+
+### Why this limit is smaller than the body's
+
+`MAX_ARGUMENTS_LENGTH` sits below `settings.MAX_REQUEST_BODY_SIZE_MB` on purpose, because accepting a body and
+validating it are different costs. Accepting one is paid once in the worker. Validating it forks a child that parses the
+arguments a second time, and what that child may spend is a separate allowance,
+`settings.ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB` (128 MB by default) and one CPU second.
+
+Measured against the shape recommended above, an array of tagged objects with only the `__type__` tag checked, the
+child's growth above its parent is linear at **2.24 MB per MB of arguments**: 8 MB of arguments grows it 17.6 MB, 16 MB
+grows it 35.6, 64 MB grows it 143.1 and 100 MB grows it 223.6. Almost all of that is `json.loads` building a Python
+structure, not the schema comparison, which adds nothing measurable. CPU is never the constraint for this shape: 100 MB
+validates in 0.15 seconds.
+
+So at 32 MB a caller who passes the length check uses about 72 MB of the 128 MB margin and therefore also passes the
+memory check, which is the point of the smaller number: the rejection a caller gets is the length message naming the
+limit, not a `MemoryError` in the child reported as a schema that cannot be used. Setting it to the body's own 50 MB
+would need 112 MB of the same 128 and leave nothing for anything denser.
+
+Length cannot guarantee that for every shape, because the cost follows shape rather than size. An array of tiny objects
+such as `{"x": 1.5, "y": 2.5}` grows the child 9.5 MB per MB and spends 0.27 CPU seconds per MB, so the one second
+budget refuses it at about 3.7 MB, long before any length limit applies. Those shapes are refused inside the child with
+a `400`, which is the isolation doing its job. Raising the length therefore does not widen what an adversarial schema
+can spend either: the worst case for memory, an `anyOf` whose every branch fails, costs about 208 MB of child memory per
+MB of arguments, so it exceeds `RLIMIT_AS` and comes back as a `400` at any of these lengths.
+
+### The physical ceiling
+
+Neither limit is bounded by one request but by the pod. A request body costs about 3.5 times its size in the worker
+holding it, since Django keeps the body, DRF copies it into a `BytesIO` and `json.loads` builds from the copy: 50 MB
+measured at 175 MB. Against production, 4 Gi with `gunicorn --workers=5 --threads=1`, five concurrent 50 MB bodies cost
+about 875 MB, the five workers' own Django footprint about 1.4 GB (272 MB each, measured), and five validation children
+at their 128 MB margin 640 MB, so roughly 2.9 GB of 4 Gi at full concurrency.
+
+At 100 MB the same sum reaches 3.5 GB, and raising the validation margin along with it passes 4 Gi. That is the line not
+to cross, because the two ways of running out of memory are not equivalent. When the child's own `RLIMIT_AS` fires, the
+allocation fails, `MemoryError` is caught, and the caller gets a `400` while the server carries on. When the pod runs
+out instead, the child's limit never fires and the kernel's OOM killer picks a victim by size, which can be a gunicorn
+worker rather than the child that caused it: no `413`, no `400`, just a dropped connection and a worker gone. This is
+what was measured once already, and it is why `ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB` is clamped at 256. Raise the pod's
+memory or lower the worker count before raising either limit.
 
 This limit only applies to functions that **declare a schema**: the length check runs after the "no schema, nothing to
 do" short-circuit, so functions without one are unaffected. What bounds the request for every function, schema or not,

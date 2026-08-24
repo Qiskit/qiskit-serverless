@@ -90,11 +90,10 @@ def endpoint_handle_exceptions(view_func: Callable):
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
         except RequestDataTooBig:
-            # Django raises this from HttpRequest.body when the body is larger than
-            # DATA_UPLOAD_MAX_MEMORY_SIZE, which DRF reaches while parsing a JSON or form request,
-            # so it fires before the view runs and there is no serializer error to report. Left to
-            # the blanket handler below it became a 500 saying "Internal server error", which tells
-            # the caller nothing about a request they can fix by sending less at a time.
+            # Raised by HttpRequest.body over DATA_UPLOAD_MAX_MEMORY_SIZE, which DRF reaches while
+            # parsing, so it fires before the view runs and there is no serializer error to report.
+            # The blanket handler below turned it into "Internal server error", which says nothing
+            # about a request the caller can fix by sending less at a time.
             limit_mb = settings.MAX_REQUEST_BODY_SIZE_MB
             logger.warning("Request body over the %s MB limit", limit_mb)
             return Response(
