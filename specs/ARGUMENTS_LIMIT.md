@@ -8,7 +8,7 @@ may be set to, and how the figures behind them were measured. For the validation
 
 | Setting / env var | Default | Clamped to | Chart value under `gateway.application.limits` | What it bounds |
 |---|---|---|---|---|
-| `MAX_REQUEST_BODY_SIZE_MB` | 50 | not clamped | `maxRequestBodySizeMb` | Any request body, whether or not a schema is involved. Over it, `413`. |
+| `MAX_REQUEST_BODY_SIZE_MB` | 50 | not clamped | `maxRequestBodySizeMb` | A JSON body or a form field, whether or not a schema is involved. Over it, `413`. Not an uploaded file, see below. |
 | `MAX_ARGUMENTS_LENGTH_MB` | 32 | 1-64 | `maxArgumentsLengthMb` | The arguments of a function that declares a schema, checked before anything is forked. Over it, `400`. |
 | `ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB` | 128 | 64-256 | `argumentsSchemaMemoryLimitMb` | How much address space the validation child may add (`RLIMIT_AS`). Over it, `400`. |
 | `ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS` | 1 | 1-5 | `argumentsSchemaCpuLimitSeconds` | How much CPU that child may spend (`RLIMIT_CPU`). Over it, `400`. |
@@ -30,8 +30,9 @@ if isinstance(parser, (JSONParser, FormParser)):
 
 From then on every JSON request went through `HttpRequest.body`, and 2.5 MB is below what the client
 SDK sends: it posts `/programs/run` as JSON, and one 100 qubit, depth 100 circuit is about 39 KB of
-base64, so a batch of fifty is already at the limit. `endpoint_handle_exceptions` caught the result in
-its generic `except Exception` and answered `500 Internal server error`.
+base64, so about sixty five of them reach the limit and a batch of that order fails.
+`endpoint_handle_exceptions` caught the result in its generic `except Exception` and answered
+`500 Internal server error`.
 
 Measured with the same test on both DRF versions, `POST /programs/run` with a 3 MB body:
 
@@ -43,6 +44,24 @@ Measured with the same test on both DRF versions, `POST /programs/run` with a 3 
 
 So the gateway now sets the limit itself instead of inheriting a default nobody chose, and reports
 going over it as a `413` naming the limit.
+
+### What it does not bound: uploaded files
+
+`DATA_UPLOAD_MAX_MEMORY_SIZE` counts only the **non-file** parts of a multipart request. Verified with
+the limit set to 1 KB and a 64 KB payload sent three ways:
+
+```
+multipart FILE part  -> files=['file'] size=65536
+multipart FIELD part -> RequestDataTooBig
+JSON body            -> RequestDataTooBig
+```
+
+So `/files/upload`, `/files/provider_upload` and `/programs/upload`, which are multipart, have no size
+limit of their own from this setting: the artifact or file part goes through whatever its size.
+`FILE_UPLOAD_MAX_MEMORY_SIZE` (2.5 MB, untouched here) only decides whether Django buffers a file in
+memory or in a temporary file, it does not refuse anything. Bounding uploads is a separate concern and
+belongs at the proxy, or in the upload views themselves; this limit does not do it, and the sizing rule
+below does not cover them either.
 
 ## Why the arguments limit is smaller than the body limit
 
@@ -61,7 +80,7 @@ Measured on Linux, where `RLIMIT_AS` is actually applied ([method](#how-this-was
 | Payload shape | Address space added per MB of arguments | CPU per MB | With the defaults, refused at |
 |---|---|---|---|
 | Array of encoded circuits, 39 KB each | 1.00 MB | 0.001 s | about 127 MB, by the memory margin |
-| Array of tiny objects, `{"x": 1.5, "y": 2.5}` | 8.2 MB | 0.27 s | about 6 MB, by the CPU budget |
+| Array of tiny objects, `{"x": 1.5, "y": 2.5}` | 8.2 MB | 0.27 s | about 3.5 MB, by the CPU budget |
 
 Both are linear, not exponential. For a batch of circuits the child grows by exactly what the
 arguments weigh, and all of that is `json.loads` building a Python structure: the schema comparison
@@ -94,18 +113,20 @@ before they reach the child, because a setting is also a way to weaken the prote
 ### Memory, `ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB` (128, clamped 64-256)
 
 The clamp maximum guards against reopening the failure the isolation exists to close. Measured in a
-container at 2 Gi with `--workers=2 --threads=1`, a 512 MB margin let a 4 KB schema plus 1 MB of
-arguments drive one child to 526 MB, and two concurrent such requests, exactly that pod's worker times
-thread concurrency, added about 960 MB to the cgroup and got a process OOM-killed. 256 is half of the
-failing value.
+container at the chart's default 2 Gi with `--workers=2 --threads=1`, a 512 MB margin let a 4 KB schema
+plus 1 MB of arguments drive one child to 526 MB, and two concurrent such requests, exactly that
+configuration's worker times thread concurrency, added about 960 MB to the cgroup and got a process
+OOM-killed. 256 is half of the failing value.
 
 The clamp minimum keeps it from being weakened the other way: every legitimate shape tested, including
 a 1 MB batch of encoded circuits and 4000 objects under `uniqueItems`, passes at 64 MB.
 
-What the margin does **not** scale with is concurrency: it is per child, while the pod's headroom is per
-pod, so the worst case is the margin times `workers x threads`. Raising the worker count spends the same
-budget that raising the margin does. Whoever changes either should look at both, and at the body limit,
-together.
+**The clamp bounds one child, not the fleet of them.** The margin is per child while the pod's headroom
+is per pod, so the worst case is the margin times `workers x threads`, and raising the worker count
+spends the same budget that raising the margin does. The two-worker figure above therefore does not
+carry over to the deployment values, which run 4Gi with five workers: there the same worst case is five
+times the margin, 640 MB of 4 Gi. That is why the sizing rule below counts workers, and why whoever
+changes either number should look at both together, along with the body limit.
 
 ### CPU, `ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS` (1, clamped 1-5)
 
@@ -139,8 +160,9 @@ and next to `argumentsSchemaCpuLimitSeconds` in the chart's values.
 
 ## Sizing a deployment
 
-A request body costs about **3.2 times its size** in the worker that holds it, because Django keeps the
-body, DRF copies it into a `BytesIO`, and `json.loads` builds a structure from the copy:
+A request body costs about **3.2 times its size** in the worker that holds it, because it exists several
+times over at once: `HttpRequest.body` keeps the bytes and wraps them in a `BytesIO` of its own, DRF's
+`_parse` wraps them in a second one, and `json.loads` then builds a Python structure from that.
 
 | Body | Worker resident memory |
 |---|---|
@@ -207,12 +229,14 @@ macOS: `_current_address_space` reads `VmSize` from `/proc/self/status`, that fi
 the function returns 0, and `_apply_limits` skips the limit. Measurements of resident memory taken on
 macOS do not answer the question the margin asks, and overestimated the cost by about 2x.
 
-The container was Python 3.11 with `jsonschema` 4.26.0 and Django 5.2.17, the same versions the gateway
-pins, given the pod's own limits:
+The container ran `jsonschema` 4.26.0 and Django 5.2.17, the versions the gateway resolves, on Python 3.11.
+The gateway itself pins 3.12 (`gateway/Dockerfile`), which the recipe below uses; the measurements were taken on
+3.11 and neither figure depends on the interpreter's minor version. Give the container the pod's own limits:
 
 ```bash
 docker run --rm -m 4g --cpus=3 \
   -v "$PWD/gateway:/app:ro" -v "$PWD/scripts:/scripts:ro" \
+  -w /app -e PYTHONPATH=/app \
   <image> python /scripts/<script>.py
 ```
 
@@ -294,9 +318,11 @@ cpu = (after.ru_utime - before.ru_utime) + (after.ru_stime - before.ru_stime)
 print(f"{verdict}, child rss {after.ru_maxrss/1024:.0f} MB, cpu {cpu:.2f}s")
 ```
 
-This is where the CPU column comes from: tiny objects at 3 MB spent 0.82 s and were accepted, and at
-6.2 MB spent the whole second and came back as `UnsupportedSchemaError`, while 100 MB of circuits spent
-0.10 s.
+This is where the CPU column comes from. Walk the size up to bracket the threshold rather than reporting
+the first size that fails, which is how an earlier version of this document got it wrong by almost 2x:
+tiny objects at 1.5 MB spent 0.42 s and at 3.0 MB spent 0.82 s, both accepted, while 3.8 MB was cut with
+`it took more than 1 seconds of CPU time`. So the budget runs out at about 3.5 MB, consistent with the
+0.27 s per MB the accepted runs show. For comparison, 100 MB of circuits spends 0.10 s.
 
 ### Pod behaviour at full concurrency
 

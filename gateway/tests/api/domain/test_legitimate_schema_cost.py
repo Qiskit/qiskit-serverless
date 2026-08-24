@@ -52,12 +52,18 @@ def _circuit(index: int) -> str:
 
 
 def _batch() -> list:
-    """A batch of circuits just under the arguments length limit once encoded."""
+    """A batch of circuits adding up to about 1 MB once encoded.
+
+    That was the whole of MAX_ARGUMENTS_LENGTH when these profiles were written, and the figure is
+    kept rather than raised with the limit: what these tests watch is the cost per unit of input,
+    which is linear, so a bigger batch would spend proportionally longer without exercising anything
+    new. specs/ARGUMENTS_LIMIT.md carries the measurements across the whole range.
+    """
     return [_circuit(i) for i in range(26)]
 
 
 def _typical_vendor_profile():
-    """A hand-written vendor schema against the largest payload a caller may send."""
+    """A hand-written vendor schema against a 1 MB batch of circuits."""
     schema = {
         "type": "object",
         "required": ["backend", "shots", "circuits"],
@@ -140,6 +146,8 @@ def test_a_legitimate_schema_validates_well_inside_the_cpu_budget(label, builder
     fraction of the CPU budget while doing it."""
     schema, valid, invalid = builder()
     valid_str = json.dumps(valid)
+    # A realism guard rather than a tight bound: these profiles are about 1 MB against a limit that is
+    # now 32 by default, so this only catches a profile grown past what a caller could ever send.
     assert len(valid_str) <= max_arguments_length()
     assert not exceeds_max_nodes(schema), f"the profile itself must stay under {MAX_SCHEMA_NODES} nodes"
 

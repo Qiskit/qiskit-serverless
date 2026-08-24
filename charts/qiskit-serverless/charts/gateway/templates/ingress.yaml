@@ -15,10 +15,11 @@ metadata:
     {{- include "gateway.labels" . | nindent 4 }}
   {{- /* Default proxy-body-size to the gateway's own limit, so the proxy cannot allow less than the
     gateway and cut a large body off before it can answer 413. An annotation set under
-    ingress.annotations wins: merge prefers its first argument, and deepCopy keeps it from mutating
-    the values. */}}
+    ingress.annotations wins, because merge keeps what its first argument already has. That first
+    argument is a fresh dict rather than the values themselves: merge writes into it, and
+    ingress.annotations may also be null, which neither deepCopy nor an in-place merge accepts. */}}
   {{- $default := dict "nginx.ingress.kubernetes.io/proxy-body-size" (printf "%dm" (int .Values.application.limits.maxRequestBodySizeMb)) }}
-  {{- with merge (deepCopy .Values.ingress.annotations) $default }}
+  {{- with merge (dict) (.Values.ingress.annotations | default dict) $default }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}

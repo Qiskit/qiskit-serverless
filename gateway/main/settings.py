@@ -348,9 +348,11 @@ ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS = int(os.environ.get("ARGUMENTS_SCHEMA_CPU_LI
 # costs more than accepting. Over it, a 400.
 MAX_ARGUMENTS_LENGTH_MB = int(os.environ.get("MAX_ARGUMENTS_LENGTH_MB", "32"))
 
-# Largest request body, in MB, whether or not a schema is involved. Over it, a 413. Set explicitly
-# because Django's own default of 2.5 MB is below one batch of encoded circuits, and DRF 3.18.0 began
-# applying that default to JSON bodies, where it surfaced as a 500.
+# Largest JSON body or form field the gateway accepts, in MB. Over it, a 413. Set explicitly because
+# Django's own default of 2.5 MB is below one batch of encoded circuits, and DRF 3.18.0 began applying
+# that default to JSON bodies, where it surfaced as a 500. Note this does NOT bound an uploaded file:
+# Django counts only the non-file parts of a multipart request towards it, so /files/upload and
+# /programs/upload have no size limit of their own here.
 MAX_REQUEST_BODY_SIZE_MB = int(os.environ.get("MAX_REQUEST_BODY_SIZE_MB", "50"))
 DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_REQUEST_BODY_SIZE_MB * 1024 * 1024
 

@@ -197,14 +197,14 @@ a `minLength`, or an `enum`, all of which are enforced whatever they describe.
 
 Before any of this runs, text limits are applied to the schema, and to the arguments:
 
-| Constant | Value | What it bounds |
+| Limit | Value | What it bounds |
 |---|---|---|
 | `MAX_SCHEMA_LENGTH` | 64 KB | How much combinatorial work a schema can spell out literally |
-| `MAX_ARGUMENTS_LENGTH` | 32 MB | Keywords whose cost grows with the instance |
+| `max_arguments_length()` | 32 MB by default, from `settings.MAX_ARGUMENTS_LENGTH_MB` | Keywords whose cost grows with the instance |
 | `MAX_DOCUMENT_DEPTH` | 64 | Nesting of schema and arguments; CPython gives up near 180 |
 | `MAX_SCHEMA_NODES` | 200 | Subschemas in the document, which bounds memory on every platform |
 
-`MAX_SCHEMA_LENGTH` is checked before anything is forked, on both entry points. `MAX_ARGUMENTS_LENGTH` only applies on
+`MAX_SCHEMA_LENGTH` is checked before anything is forked, on both entry points. The arguments length only applies on
 `/run` and `/validate_arguments/`: upload has no arguments to bound, only a schema. Where `MAX_DOCUMENT_DEPTH` and
 `MAX_SCHEMA_NODES` are checked on the schema differs by entry point: on `/run` and
 `/validate_arguments/` (`validate_arguments_in_isolation`), the caller already holds the schema as a parsed object and
@@ -284,7 +284,7 @@ To constrain a circuit argument, describe the encoded object:
 The practical advice for a vendor is to validate the plain arguments (counts, names, options, flags) and to check only
 the `__type__` tag of the Qiskit ones, since the payload itself is opaque base64.
 
-One consequence of encoding worth knowing: `MAX_ARGUMENTS_LENGTH` applies to the encoded text, which is much larger
+One consequence of encoding worth knowing: the arguments length limit applies to the encoded text, which is much larger
 than the same arguments look in a notebook. A random 100 qubit, depth 100 circuit encodes to about 39 KB, so the 32 MB
 limit leaves room for a batch of roughly eight hundred of them. The figure has been raised twice for the same reason,
 that a limit which rejects ordinary work is worse than no limit, since the cost it was guarding against is bounded by
@@ -293,7 +293,7 @@ that replaced it fitted about twenty five, which turned out to be under what cal
 
 ### The limits, and the measurements behind them
 
-`MAX_ARGUMENTS_LENGTH` is one of four values that bound the size of a request, along with the body limit and the
+That length is one of four values that bound the size of a request, along with the body limit and the
 validation child's memory and CPU allowances. Which one refuses a caller first depends on the shape of the payload,
 not only on its size, and the whole set has to be sized against the pod's memory and its worker count.
 
@@ -480,7 +480,7 @@ At validation time, everything below is an `InvalidArgumentsException`, so a bro
 |---|---|---|
 | Arguments violate the schema | 400 | `{"message": "...", "path": [...]}` |
 | `arguments` is not valid JSON | 400 | `{"message": "arguments is not valid JSON: ...", "path": []}` |
-| `arguments` longer than `MAX_ARGUMENTS_LENGTH` or nested past `MAX_DOCUMENT_DEPTH` | 400 | `{"message": "...", "path": []}` |
+| `arguments` longer than the length limit or nested past `MAX_DOCUMENT_DEPTH` | 400 | `{"message": "...", "path": []}` |
 | Schema cannot be evaluated: an isolation limit was hit, a reference is unresolvable, evaluating it recurses without end, or it is not a valid JSON Schema (including not being an object or a boolean) | 400 | `{"message": "the function arguments schema cannot be used: ...", "path": []}` |
 | Function missing or not accessible | 404 | `{"message": "..."}` |
 | `arguments_schema` rejected at upload | 400 | `{"message": "arguments_schema ..."}` |

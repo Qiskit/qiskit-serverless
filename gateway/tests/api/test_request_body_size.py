@@ -45,7 +45,7 @@ class TestRequestBodySize:
         assert response.status_code == status.HTTP_200_OK
 
     def test_run_accepts_a_batch_of_circuits_against_a_schema(self, client):
-        """The same batch is accepted when the function declares a schema, under MAX_ARGUMENTS_LENGTH."""
+        """The same batch is accepted when the function declares a schema, so it is under both limits."""
         arguments = json.dumps({"circuits": "x" * 3 * 1024 * 1024})
 
         response = self._run(client, arguments, arguments_schema=json.dumps({"type": "object"}))
@@ -53,12 +53,19 @@ class TestRequestBodySize:
         assert response.status_code == status.HTTP_200_OK
 
     def test_run_reports_an_oversized_body_as_413(self, client, settings):
-        """Over the limit the caller gets a 413 naming it, not a 500 saying "Internal server error"."""
+        """Over the limit the caller gets a 413 naming it, not a 500 saying "Internal server error".
+
+        Only DATA_UPLOAD_MAX_MEMORY_SIZE is set here, not MAX_REQUEST_BODY_SIZE_MB which normally
+        derives it, so the message is asserted to report whatever actually did the refusing.
+        """
         settings.DATA_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024
-        settings.MAX_REQUEST_BODY_SIZE_MB = 1
         arguments = json.dumps({"circuits": "x" * 3 * 1024 * 1024})
 
         response = self._run(client, arguments)
 
         assert response.status_code == status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
         assert response.json()["message"] == "the request body is larger than the maximum of 1 MB"
+
+    def test_the_body_limit_derives_from_the_setting(self, settings):
+        """MAX_REQUEST_BODY_SIZE_MB is what a deployment sets; Django reads the byte count it derives."""
+        assert settings.DATA_UPLOAD_MAX_MEMORY_SIZE == settings.MAX_REQUEST_BODY_SIZE_MB * 1024 * 1024

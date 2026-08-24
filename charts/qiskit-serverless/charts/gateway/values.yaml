@@ -47,20 +47,24 @@ application:
     maxGpuResources: 1
     keepClusterOnComplete: False
     programTimeoutHours: 24
-    # Request size limits. Sized against this pod's resources.limits.memory and httpServer.workers
-    # above, not one request at a time: a body costs about 3.2x its size in the worker holding it, and
-    # every worker can hold one at once. Raising any of these without checking that is how a worker
-    # gets OOM-killed instead of the gateway answering 413. specs/ARGUMENTS_LIMIT.md has the table of
-    # what fits per pod memory and worker count, the measurements behind it, and how to repeat them.
+    # Request size limits. Size them against this pod's resources.limits.memory and the
+    # httpServer.workers count above, not one request at a time: a body costs about 3.2x its size in
+    # the worker holding it, and every worker can hold one at once. Raising any of these without
+    # checking that is how a worker gets OOM-killed instead of the gateway answering 413.
+    # specs/ARGUMENTS_LIMIT.md has the table of what fits per pod memory and worker count, the
+    # measurements behind it, and how to repeat them.
     #
     # Memory margin (MB) and CPU seconds for the child that validates arguments against a schema.
     # Clamped in code to 64-256 and 1-5. The CPU budget also caps how long one request can hold a
     # worker, at five times its value, which has to stay under httpServer.timeout above.
     argumentsSchemaMemoryLimitMb: 128
     argumentsSchemaCpuLimitSeconds: 1
-    # Largest request body accepted, in MB, with or without a schema. Over it, a 413. When the ingress
-    # below is enabled, templates/ingress.yaml derives its proxy-body-size annotation from this value;
-    # a deployment fronting the gateway another way, with Istio for instance, bounds the body there.
+    # Largest JSON body or form field accepted, in MB, with or without a schema. Over it, a 413. It
+    # does not bound an uploaded file: Django counts only the non-file parts of a multipart request.
+    # When the ingress below is enabled, templates/ingress.yaml derives its proxy-body-size annotation
+    # from this value. A deployment fronting the gateway another way, with Istio for instance, bounds
+    # the body there, and so does the ray-ingress in the parent chart, which carries its own
+    # proxy-body-size that this value does not reach.
     maxRequestBodySizeMb: 50
     # Longest arguments validated against a schema, in MB. Over it, a 400. Clamped in code to 1-64.
     maxArgumentsLengthMb: 32

@@ -94,10 +94,14 @@ def endpoint_handle_exceptions(view_func: Callable):
             # parsing, so it fires before the view runs and there is no serializer error to report.
             # The blanket handler below turned it into "Internal server error", which says nothing
             # about a request the caller can fix by sending less at a time.
-            limit_mb = settings.MAX_REQUEST_BODY_SIZE_MB
-            logger.warning("Request body over the %s MB limit", limit_mb)
+            #
+            # The figure comes from the setting that did the refusing, not from MAX_REQUEST_BODY_SIZE_MB
+            # which normally derives it, so the message cannot disagree with what actually happened if
+            # a deployment sets DATA_UPLOAD_MAX_MEMORY_SIZE on its own.
+            limit_mb = settings.DATA_UPLOAD_MAX_MEMORY_SIZE / (1024 * 1024)
+            logger.warning("Request body over the %g MB limit", limit_mb)
             return Response(
-                {"message": f"the request body is larger than the maximum of {limit_mb} MB"},
+                {"message": f"the request body is larger than the maximum of {limit_mb:g} MB"},
                 status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             )
         except Exception as error:  # pylint: disable=broad-exception-caught

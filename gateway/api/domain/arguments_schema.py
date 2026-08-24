@@ -61,11 +61,19 @@ from api.domain.isolated import IsolationError, run_isolated
 # still express a much larger one in very few characters.
 MAX_SCHEMA_LENGTH = 64 * 1024
 
-# Bounds for settings.MAX_ARGUMENTS_LENGTH_MB, the longest arguments a caller may send to a function
-# that declares a schema. Applied before anything is forked, so it is the cheapest of the limits, and
-# it is deliberately below settings.MAX_REQUEST_BODY_SIZE_MB: accepting a body and validating it are
-# not the same cost, since validating forks a child that parses the arguments a second time under the
-# margin and CPU budget above.
+# Hard bounds on settings.MAX_ARGUMENTS_LENGTH_MB, which is the longest arguments a caller may send
+# to a function that declares a schema. The setting is what a deployment configures, through the env
+# var or the chart; these two are fixed in code and clamp whatever it holds, so a value outside the
+# range is silently pulled back into it rather than honoured (see max_arguments_length below). Same
+# arrangement as the margin and CPU budget above, for the same reason: a setting is also a way to
+# weaken a protection by configuration.
+#
+# The length is applied before anything is forked, so it is the cheapest of the limits, and it is
+# meant to stay below settings.MAX_REQUEST_BODY_SIZE_MB (50 MB by default), because accepting a body
+# and validating it are not the same cost: validating forks a child that parses the arguments a
+# second time under the margin and CPU budget above. Nothing enforces that relation across the two
+# settings, and MAX below is above that default on purpose, so that a deployment raising the body
+# limit does not have to raise this one in the same breath.
 #
 # Two measurements decide these bounds, both taken on Linux in a container, where RLIMIT_AS is
 # actually applied (it is never set on macOS, so a laptop cannot answer this). Read them with the
@@ -79,12 +87,14 @@ MAX_SCHEMA_LENGTH = 64 * 1024
 #   the parent reports as a 400. So for this shape the length below is not what refuses a caller; the
 #   margin is, at about 127 MB.
 # - An array of tiny objects costs 8.2 MB and 0.27 CPU seconds per MB, so the default one second
-#   budget refuses it at about 6 MB, well before any length does.
+#   budget refuses it at about 3.5 MB (measured: 3.0 MB spent 0.82s and passed, 3.8 MB was cut),
+#   well before any length does.
 #
-# Hence MAX: cost follows shape rather than length, so no length can guarantee the child will fit, and
-# this one is set where the default margin still has room to spare for shapes several times denser
-# than circuits. MIN is the original value of this limit, which fitted about twenty five encoded
-# circuits and turned out to be below what callers send per batch, so nothing lower is worth allowing.
+# Hence MAX: cost follows shape rather than length, so no length can guarantee the child will fit,
+# and refusing on length is only the better error where it happens to come first. At 64 MB the
+# default 128 MB margin still covers a shape twice as dense as circuits. MIN is the original value of
+# this limit, which fitted about twenty five encoded circuits and turned out to be below what callers
+# send per batch, so nothing lower is worth allowing.
 #
 # specs/ARGUMENTS_LIMIT.md carries the full tables, the sizing rule against pod memory and worker
 # count, and the scripts to repeat any of it.
@@ -93,7 +103,7 @@ _MAX_ARGUMENTS_LENGTH_MB = 64
 
 
 def max_arguments_length() -> int:
-    """The longest arguments a caller may send, in bytes, from settings and clamped."""
+    """The longest arguments a caller may send, in bytes: the setting, clamped to the range above."""
     megabytes = max(_MIN_ARGUMENTS_LENGTH_MB, min(settings.MAX_ARGUMENTS_LENGTH_MB, _MAX_ARGUMENTS_LENGTH_MB))
     return megabytes * 1024 * 1024
 
@@ -116,7 +126,7 @@ MAX_SCHEMA_NODES = 200
 # here, so it can be tuned without a code deploy, but a setting is also a way to weaken this by
 # configuration, so the value that reaches the child is clamped rather than used as given:
 # - MAX guards against reopening the exact failure this module exists to close. Measured in a
-#   container at the pod's real limits (2 Gi, 3 CPU, gunicorn --workers=2 --threads=1): a 512 MB
+#   container at the chart's default limits (2 Gi, 3 CPU, gunicorn --workers=2 --threads=1): a 512 MB
 #   margin let a 4 KB schema plus 1 MB of arguments drive one child to 526 MB, and two concurrent
 #   such requests, exactly the worker x thread concurrency, added about 960 MB to the cgroup and got
 #   a process OOM-killed. Half of that failing value leaves a wide safety margin.
