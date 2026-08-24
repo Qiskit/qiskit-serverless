@@ -62,14 +62,25 @@ from api.domain.isolated import IsolationError, run_isolated
 MAX_SCHEMA_LENGTH = 64 * 1024
 
 # Maximum length of the arguments a caller may send. Several keywords cost more the longer the
-# instance is, and without this the ceiling would be DATA_UPLOAD_MAX_MEMORY_SIZE (2.5 MB by
-# default). This is defence in depth rather than the main protection: the keyword that actually
-# grew faster than its input, "uniqueItems", is replaced below (see _unique_items), and the
+# instance is, and without this the ceiling would be settings.MAX_REQUEST_BODY_SIZE_MB, the bound on
+# any request body. This is defence in depth rather than the main protection: the keyword that
+# actually grew faster than its input, "uniqueItems", is replaced below (see _unique_items), and the
 # isolation's CPU budget (one second by default) covers the rest.
+#
 # So the figure is chosen to leave legitimate callers alone. Arguments are validated in the form
 # QiskitObjectsEncoder produces, where a single 100 qubit, depth 100 circuit is about 39 KB of
-# base64, so a limit in the tens of kilobytes would reject an ordinary batch of circuits.
-MAX_ARGUMENTS_LENGTH = 1024 * 1024
+# base64. The first version of this limit was 1 MB, which fits about twenty five of those, and that
+# turned out to be under real use: a caller sending fifty circuits per batch was already over it. The
+# figure below fits about two hundred, measured against the shape the spec recommends to a vendor (an
+# array of tagged objects, checking only the __type__ tag): fifty circuits cost 16.5 MB of peak child
+# RSS, two hundred cost 29.5 MB and five hundred cost 55.3 MB, so this stays well inside the memory
+# margin even at its 64 MB clamp minimum.
+#
+# Raising this does not widen what an adversarial schema can spend, because that is bounded by the
+# isolation rather than by this number: the worst case for memory, an "anyOf" whose every branch
+# fails, costs about 208 MB of child RSS per MB of arguments (223 MB at 1 MB, 835 MB at 4 MB,
+# measured), so it exceeds the child's RLIMIT_AS and comes back as a 400 at any of these lengths.
+MAX_ARGUMENTS_LENGTH = 8 * 1024 * 1024
 
 # Maximum nesting depth of the schema document and of the instance. jsonschema recurses once per
 # level of each, and CPython gives up at a nesting depth of about 180, which a few kilobytes of

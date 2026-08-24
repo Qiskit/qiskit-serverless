@@ -241,7 +241,7 @@ Before any of this runs, text limits are applied to the schema, and to the argum
 | Constant | Value | What it bounds |
 |---|---|---|
 | `MAX_SCHEMA_LENGTH` | 64 KB | How much combinatorial work a schema can spell out literally |
-| `MAX_ARGUMENTS_LENGTH` | 1 MB | Keywords whose cost grows with the instance |
+| `MAX_ARGUMENTS_LENGTH` | 8 MB | Keywords whose cost grows with the instance |
 | `MAX_DOCUMENT_DEPTH` | 64 | Nesting of schema and arguments; CPython gives up near 180 |
 | `MAX_SCHEMA_NODES` | 200 | Subschemas in the document, which bounds memory on every platform |
 
@@ -326,12 +326,25 @@ The practical advice for a vendor is to validate the plain arguments (counts, na
 the `__type__` tag of the Qiskit ones, since the payload itself is opaque base64.
 
 One consequence of encoding worth knowing: `MAX_ARGUMENTS_LENGTH` applies to the encoded text, which is much larger
-than the same arguments look in a notebook. A random 100 qubit, depth 100 circuit encodes to about 39 KB, so the 1 MB
-limit leaves room for a batch of roughly twenty five of them. It is set there deliberately: an earlier draft used 100000
-characters, which a batch of three such circuits already exceeded, and a limit that rejects ordinary work is worse than
-no limit, since the cost it was guarding against is bounded by other means. This limit only applies to functions that
-**declare a schema**: the length check runs after the "no schema, nothing to do" short-circuit, so functions without one
-are unaffected.
+than the same arguments look in a notebook. A random 100 qubit, depth 100 circuit encodes to about 39 KB, so the 8 MB
+limit leaves room for a batch of roughly two hundred of them. The figure has been raised twice for the same reason, that
+a limit which rejects ordinary work is worse than no limit, since the cost it was guarding against is bounded by other
+means: an early draft used 100000 characters, which a batch of three such circuits already exceeded, and the 1 MB that
+replaced it fitted about twenty five, which turned out to be under what callers send in one batch. Measured against the
+shape recommended above, an array of tagged objects with only the `__type__` tag checked, fifty circuits cost 16.5 MB of
+peak memory in the forked child, two hundred cost 29.5 MB and five hundred cost 55.3 MB, so 8 MB of arguments stays
+inside the memory margin even at its 64 MB clamp minimum. Raising it does not widen what an adversarial schema can
+spend, because that is bounded by the isolation rather than by this number: the worst case for memory, an `anyOf` whose
+every branch fails, costs about 208 MB of child memory per MB of arguments, so it exceeds `RLIMIT_AS` and comes back as
+a `400` at any of these lengths.
+
+This limit only applies to functions that **declare a schema**: the length check runs after the "no schema, nothing to
+do" short-circuit, so functions without one are unaffected. What bounds the request for every function, schema or not,
+is `settings.MAX_REQUEST_BODY_SIZE_MB` (50 MB by default), which the gateway reports as a `413` naming the limit. That
+one exists because Django's own default of 2.5 MB is below what a batch of circuits needs, and because
+`djangorestframework` 3.18.0 began applying that default to a JSON body, which earlier versions never did: `_parse`
+gained a step through `HttpRequest.body` for `JSONParser` and `FormParser`, and every oversized request became a
+`RequestDataTooBig` and, through the endpoint decorator's generic handler, a `500`.
 
 ## Validating arguments
 

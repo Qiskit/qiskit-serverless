@@ -344,6 +344,25 @@ LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
 ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB = int(os.environ.get("ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB", "128"))
 ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS = int(os.environ.get("ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS", "1"))
 
+# Largest request body the gateway accepts, in MB. Django's own default for
+# DATA_UPLOAD_MAX_MEMORY_SIZE is 2.5 MB, which is below what a caller sending a batch of encoded
+# circuits to /programs/run needs: a single 100 qubit, depth 100 circuit is about 39 KB of base64,
+# so fifty of them already exceed it. That default used not to apply to a JSON body at all, because
+# DRF read the request stream directly; 3.18.0 added a step through HttpRequest.body for JSONParser
+# and FormParser (rest_framework/request.py, Request._parse), which turned every oversized JSON
+# request into a RequestDataTooBig and, through the endpoint decorator's blanket handler, into a 500.
+#
+# The chart derives the ingress annotation nginx.ingress.kubernetes.io/proxy-body-size from the same
+# value, so raising one raises the other (charts/qiskit-serverless/charts/gateway: values.yaml
+# application.limits.maxRequestBodySizeMb, templates/ingress.yaml). If a deployment sets that
+# annotation by hand, its value wins and the proxy rejects a large body before the gateway sees it.
+#
+# This bounds the body of any request. It is not the bound on the cost of validating arguments
+# against a function's JSON Schema: that one is MAX_ARGUMENTS_LENGTH in
+# api/domain/arguments_schema.py, which is smaller on purpose and reports a 400 naming the limit.
+MAX_REQUEST_BODY_SIZE_MB = int(os.environ.get("MAX_REQUEST_BODY_SIZE_MB", "50"))
+DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_REQUEST_BODY_SIZE_MB * 1024 * 1024
+
 # ray cluster management
 RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
 RAY_CLUSTER_MODE_LOCAL = os.environ.get("RAY_CLUSTER_MODE_LOCAL", "false").lower() == "true"

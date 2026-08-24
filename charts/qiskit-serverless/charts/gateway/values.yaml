@@ -57,6 +57,15 @@ application:
     # that worker with it (threads: 1 above). At the timeout of 25 set above, do not raise this past
     # 3. If a function's schema needs more than that, raise the timeout first.
     argumentsSchemaCpuLimitSeconds: 1
+    # Largest request body the gateway accepts, in MB. A caller sending a batch of encoded circuits
+    # to /programs/run needs room: one 100 qubit, depth 100 circuit is about 39 KB of base64, so
+    # fifty of them are around 2 MB. Django's own default is 2.5 MB, which is why this is set here
+    # rather than left alone. The ingress annotation nginx.ingress.kubernetes.io/proxy-body-size is
+    # derived from this same value (templates/ingress.yaml), so raising one raises the other; set
+    # that annotation under ingress.annotations to override it, and the proxy then rejects a large
+    # body before the gateway sees it. Note this bounds any request body, while the smaller
+    # MAX_ARGUMENTS_LENGTH in the gateway bounds what arguments schema validation will look at.
+    maxRequestBodySizeMb: 50
   qiskitRuntime:
     url: "https://cloud.ibm.com"
   runtimeApi:

@@ -6,6 +6,8 @@ import logging
 from functools import wraps
 from typing import Callable
 
+from django.conf import settings
+from django.core.exceptions import RequestDataTooBig
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from rest_framework import status
@@ -44,6 +46,7 @@ def endpoint_handle_exceptions(view_func: Callable):
       FunctionNotFoundException, FileNotFoundException) -> 404 NOT FOUND
     - InvalidAccessException -> 403 FORBIDDEN
     - ValidationError, InvalidArgumentsException -> 400 BAD REQUEST
+    - RequestDataTooBig -> 413 REQUEST ENTITY TOO LARGE
     - All other exceptions -> 500 INTERNAL SERVER ERROR
     """
 
@@ -85,6 +88,18 @@ def endpoint_handle_exceptions(view_func: Callable):
             return Response(
                 {"message": error.message},
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+        except RequestDataTooBig:
+            # Django raises this from HttpRequest.body when the body is larger than
+            # DATA_UPLOAD_MAX_MEMORY_SIZE, which DRF reaches while parsing a JSON or form request,
+            # so it fires before the view runs and there is no serializer error to report. Left to
+            # the blanket handler below it became a 500 saying "Internal server error", which tells
+            # the caller nothing about a request they can fix by sending less at a time.
+            limit_mb = settings.MAX_REQUEST_BODY_SIZE_MB
+            logger.warning("Request body over the %s MB limit", limit_mb)
+            return Response(
+                {"message": f"the request body is larger than the maximum of {limit_mb} MB"},
+                status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             )
         except Exception as error:  # pylint: disable=broad-exception-caught
             logger.error(

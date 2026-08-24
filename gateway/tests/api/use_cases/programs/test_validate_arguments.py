@@ -446,8 +446,8 @@ def test_unusable_schema_is_reported_as_invalid_arguments_not_a_crash():
 def test_arguments_longer_than_the_limit_are_rejected():
     """The work a validation does grows with the caller's payload, so its length is capped.
 
-    Without a cap the ceiling is DATA_UPLOAD_MAX_MEMORY_SIZE, 2.5 MB by default, which is three
-    orders of magnitude more input than any keyword was measured against.
+    Without a cap the ceiling is settings.MAX_REQUEST_BODY_SIZE_MB, the bound on any request body,
+    which is set for the whole API rather than for what one validation was measured against.
     """
     arguments = json.dumps({"blob": "x" * (MAX_ARGUMENTS_LENGTH + 1)})
 

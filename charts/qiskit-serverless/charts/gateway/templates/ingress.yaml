@@ -13,7 +13,17 @@ metadata:
   name: {{ $fullName }}
   labels:
     {{- include "gateway.labels" . | nindent 4 }}
-  {{- with .Values.ingress.annotations }}
+  {{- /*
+    proxy-body-size is derived from the same value the gateway reads as MAX_REQUEST_BODY_SIZE_MB, so
+    that raising the limit in one place raises it in both. A proxy that allowed less than the gateway
+    would cut a large body off before the gateway could answer 413, and one that allowed more would
+    just hand the gateway a body it refuses anyway. merge gives precedence to its first argument, so
+    an annotation set under ingress.annotations still wins; deepCopy is there because merge mutates
+    that argument in place.
+  */}}
+  {{- $bodySize := printf "%dm" (int .Values.application.limits.maxRequestBodySizeMb) }}
+  {{- $annotations := merge (deepCopy .Values.ingress.annotations) (dict "nginx.ingress.kubernetes.io/proxy-body-size" $bodySize) }}
+  {{- with $annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}

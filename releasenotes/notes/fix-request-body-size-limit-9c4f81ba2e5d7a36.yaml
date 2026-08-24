@@ -1,0 +1,29 @@
+---
+fixes:
+  - |
+    Running a Qiskit Function with a large batch of arguments no longer fails with
+    ``500 Internal server error``. Django's default limit on the size of a request
+    body is 2.5 MB, and ``djangorestframework`` 3.18.0 started applying it to JSON
+    requests, which it had not done before. A batch of encoded circuits goes over
+    that easily, since one 100 qubit, depth 100 circuit is about 39 KB of base64.
+    The gateway now accepts a body of up to 50 MB, set through the new
+    ``MAX_REQUEST_BODY_SIZE_MB`` setting.
+  - |
+    A request body over the limit is now reported as ``413 Request Entity Too
+    Large`` naming the limit, instead of the ``500 Internal server error`` the
+    endpoint decorator's generic handler produced.
+  - |
+    Raised the maximum length of the arguments validated against a function's
+    ``arguments_schema`` from 1 MB to 8 MB. The old figure fitted about twenty five
+    encoded circuits, which was under what callers send in one batch. Validating
+    the larger limit stays well inside the memory given to the forked child that
+    evaluates the schema: five hundred circuits cost 55 MB of peak child memory.
+upgrade:
+  - |
+    The chart derives the ingress annotation
+    ``nginx.ingress.kubernetes.io/proxy-body-size`` for the gateway from
+    ``gateway.application.limits.maxRequestBodySizeMb``, so the proxy and the
+    gateway agree on the limit and changing it in one place changes both. A
+    deployment that sets that annotation under ``gateway.ingress.annotations``
+    keeps its own value, and the proxy then rejects a large body before the
+    gateway sees it.
