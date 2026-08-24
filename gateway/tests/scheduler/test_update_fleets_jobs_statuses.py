@@ -8,7 +8,7 @@ import pytest
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, Program
 from core.services.runners import RunnerError
-from scheduler.tasks.update_fleets_jobs_statuses import CLASSICAL_TIME_METRIC_TYPE, UpdateFleetsJobsStatuses
+from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses
 
 _MOD = "scheduler.tasks.update_fleets_jobs_statuses"
 
@@ -370,7 +370,7 @@ class TestEventStreamsIntegration:
                 task.to_running(job)
 
         assert call_order == ["publish", "db"]
-        task.event_streams_client.emit_job_started.assert_called_once_with(job, CLASSICAL_TIME_METRIC_TYPE)
+        task.event_streams_client.emit_job_started.assert_called_once_with(job)
 
     def test_to_running_raises_if_publish_fails(self):
         task = _make_task()
@@ -396,7 +396,7 @@ class TestEventStreamsIntegration:
             task.to_terminal(job, Job.SUCCEEDED)
 
         assert call_order == ["publish", "db"]
-        task.event_streams_client.emit_job_completed.assert_called_once_with(job, CLASSICAL_TIME_METRIC_TYPE)
+        task.event_streams_client.emit_job_completed.assert_called_once_with(job)
 
     def test_to_terminal_raises_if_publish_fails(self):
         task = _make_task()
@@ -422,7 +422,7 @@ class TestEventStreamsIntegration:
         ):
             task.update_job_status(job)
 
-        task.event_streams_client.emit_job_in_progress.assert_called_once_with(job, CLASSICAL_TIME_METRIC_TYPE)
+        task.event_streams_client.emit_job_in_progress.assert_called_once_with(job)
 
     def test_run_publish_failure_skips_db_update_and_continues_other_jobs(self):
         task = _make_task()
