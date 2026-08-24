@@ -342,9 +342,11 @@ is optional, and a size assigned to it must belong to the same function.</p></li
 <ul class="simple">
 <li><p>The <code class="docutils literal notranslate"><span class="pre">default_compute_profile</span></code> field has been removed from Qiskit
 Functions. It was only ever settable through the admin backoffice and was
-read by no code path — the Fleets runner resolves its default from the
-<code class="docutils literal notranslate"><span class="pre">DEFAULT_COMPUTE_PROFILE</span></code> setting — so no data migration is required. Any
-values stored in the column are dropped when the migration runs.</p></li>
+read by no code path, since the Fleets runner resolves its default from the
+<code class="docutils literal notranslate"><span class="pre">DEFAULT_COMPUTE_PROFILE</span></code> setting, so no data migration is required. The
+<code class="docutils literal notranslate"><span class="pre">api_program.default_compute_profile</span></code> column is kept in the database for
+now and will be dropped in a later release, so that rolling back to a
+previous release keeps working.</p></li>
 </ul>
 </section>
 </section>
