@@ -112,22 +112,20 @@ Both are linear, not exponential, and the multiplier is what matters: a batch of
 grow by its own size, an array of small objects by eight times its size. All of that growth is
 `json.loads` building a Python structure; the schema comparison itself adds nothing measurable.
 
-Two consequences shape the choice of 32 MB:
+With the defaults that puts three limits in a row for a batch of circuits: the length at 32 MB, the
+body at 50 MB, and the margin at about 127 MB. **The length is the one that fires**, and that is the
+point of it: it is checked before anything is forked, and it produces a message naming the limit
+instead of a `MemoryError` in the child that the caller would read as the function's schema being
+broken.
 
-- **For the shape the platform receives, the length limit is not what refuses a caller.** The margin
-  is, at about 127 MB. The length is a cheaper bound applied before anything is forked, and it is a
-  safety net rather than the operative limit.
-- **Length cannot bound cost on its own, because cost follows shape.** The same byte count costs eight
-  times more as an array of small objects, and those are refused inside the child instead, with a `400`,
-  on CPU rather than on memory. That is the isolation doing its job, and no choice of length avoids it.
+**The cap of 64 MB exists to keep that true at any configured value**, since it stays below the
+margin's own 127. There is no minimum, so a deployment wanting a tighter length is free to set one.
 
-The cap of 64 MB is set where the default 128 MB margin still has room to spare for shapes denser
-than circuits. There is no minimum: a deployment that wants a tighter length than the default is free
-to set one.
-
-Raising the length does not widen what an adversarial schema can spend either: the worst case for
-memory, an `anyOf` whose every branch fails, costs about 208 MB per MB of arguments, so it exceeds
-`RLIMIT_AS` and comes back as a `400` at any length in this range.
+What length cannot do is bound cost on its own, because cost follows shape. An array of small objects
+is refused inside the child at about 3.5 MB, on CPU, far below any length anyone would configure. That
+is the isolation doing its job, and no choice of length avoids it. For the same reason the length does
+not widen what an adversarial schema can spend: the worst case for memory, an `anyOf` whose every
+branch fails, costs about 208 MB per MB of arguments, so `RLIMIT_AS` refuses it at any length here.
 
 ## The validation child's two allowances
 
@@ -185,37 +183,35 @@ and next to `argumentsSchemaCpuLimitSeconds` in the chart's values.
 
 ## Sizing a deployment
 
-A request body costs about **3.2 times its size** in the worker that holds it, because it exists several
-times over at once: `HttpRequest.body` keeps the bytes and wraps them in a `BytesIO` of its own, Django REST Framework's
-`_parse` wraps them in a second one, and `json.loads` then builds a Python structure from that.
+**A request body costs about 3.2 times its size** in the worker that holds it, because it exists three
+times over at once: the bytes Django keeps, a `BytesIO` around them, and the structure `json.loads`
+builds from it. Measured: 50 MB of body leaves the worker at 169 MB, 100 MB at 319 MB, 200 MB at
+618 MB. **Validating adds one more copy**, in the child, so a request whose function declares a schema
+costs about **4.2 times** the arguments it carries.
 
-| Body | Worker resident memory |
-|---|---|
-| 50 MB | 169 MB |
-| 100 MB | 319 MB |
-| 200 MB | 618 MB |
+With `--threads=1` every worker can hold one such request at a time, so the pod needs
+`resources.limits.memory` above `workers x 4.2 x maxRequestBodySizeMb`. Keeping that product under half
+the pod's memory leaves the rest for the workers themselves (about 272 MB each once Django is loaded,
+mostly shared because gunicorn forks them) and for everything else the gateway does.
 
-Every gunicorn worker can hold one such body at a time, since the pod runs `--threads=1`. So the pod
-needs `resources.limits.memory` comfortably above `workers x 3.2 x maxRequestBodySizeMb`. Keeping that
-product under half the pod's memory leaves the other half for everything else the gateway does.
-
-The table below gives **the largest `maxRequestBodySizeMb` that rule allows**, per pod memory and
-worker count. It is not a measurement of what breaks, it is the recommendation with the safety factor
-already applied:
+The table gives **the largest `maxRequestBodySizeMb` that rule allows**. It is the recommendation with
+the safety factor applied, not a measurement of what breaks:
 
 | `resources.limits.memory` | `httpServer.workers: 2` | `workers: 5` | `workers: 10` |
 |---|---|---|---|
-| 2Gi | 160 MB | 64 MB | 32 MB |
-| 4Gi | 320 MB | **128 MB** | 64 MB |
-| 8Gi | 640 MB | 256 MB | 128 MB |
+| 2Gi | 120 MB | 48 MB | 24 MB |
+| 4Gi | 240 MB | **96 MB** | 48 MB |
+| 8Gi | 480 MB | 192 MB | 96 MB |
 
-Production runs 4Gi with `--workers=5`, where the rule allows up to 128 MB, so the 50 MB default sits
-at less than half of what its own row permits. Measured at that setting in a 4 GB container, five
-concurrent 50 MB bodies with validation peaked at 724 MB, and five 100 MB bodies at 1.4 GB.
+Production runs 4Gi with `--workers=5`, so its ceiling is 96 MB and the 50 MB default sits at about
+half of it, using 26% of the pod when all five workers are validating at once. Measured in a 4 GB
+container: five concurrent 50 MB bodies with validation peaked at 724 MB, and five 100 MB bodies at
+1.4 GB.
 
-For reference when sizing, one worker with Django and the API fully loaded is about 272 MB resident
-before it serves anything. Because gunicorn forks its workers, most of that is shared rather than
-multiplied.
+Note the two limits are not independent, because the arguments travel inside the body: configuring
+`maxArgumentsLengthMb` above `maxRequestBodySizeMb` achieves nothing, since the body is refused with a
+`413` before anything looks at the arguments. Today that makes 50 MB the effective ceiling for
+arguments, below the 64 the code would otherwise allow.
 
 ## The two ways of running out of memory are not equivalent
 
@@ -231,19 +227,31 @@ than the child that caused the pressure. There is no `413` and no `400`: the cal
 connection, and every request on the killed worker dies with it.
 
 Both were observed in a single run of ten concurrent 200 MB bodies in a 4 GB container: seven requests
-were refused cleanly as `UnsupportedSchemaError`, and three workers were killed with `SIGKILL`.
+refused cleanly as `UnsupportedSchemaError`, and three workers killed with signal 9. So the order to
+change things in is: raise the pod's memory, or lower the worker count, before raising either limit.
 
-```
-worker 0: KILLED BY SIGNAL 9 (9 means the kernel OOM killer)
-worker 1: rss 618 MB, cgroup 1814 MB, UnsupportedSchemaError
-worker 2: rss 618 MB, cgroup 2536 MB, UnsupportedSchemaError
-worker 3: rss 618 MB, cgroup 1399 MB, UnsupportedSchemaError
-worker 4: KILLED BY SIGNAL 9 (9 means the kernel OOM killer)
-...
-```
+## Where this stops scaling
 
-So the order to change things in is: raise the pod's memory, or lower the worker count, before raising
-either size limit.
+Raising the limits buys room, not a solution, and the table above says why: the cost is multiplicative
+and per worker, so it is paid in RAM by every gateway pod, for data the gateway only forwards.
+
+The reason payloads reach these sizes at all is that circuits travel **inside** the arguments. The SDK
+serializes each one to QPY and base64-encodes it, because JSON cannot carry bytes, which adds 33% on
+top (a 29 KB QPY becomes 39 KB). A different encoding would only shave that 33%; the body would still
+have to be received and parsed.
+
+What removes the limit rather than raising it is keeping large data out of the body: upload it with
+`file_upload()` and pass the file name as an argument. Then the body is a few hundred bytes, the
+gateway parses nothing, and the schema validates the reference instead of a payload it cannot inspect
+anyway, since encoded circuits are opaque base64 (see the encoding section in
+[ARGUMENTS_VALIDATION.md](ARGUMENTS_VALIDATION.md)). The job reads the file from COS inside its own
+container, which at the default compute profile has 120 GB of memory against the 4 Gi the gateway
+shares between all callers.
+
+The pieces exist: `file_upload()` on the client, `/files/upload` accepting `application/octet-stream`
+so a binary QPY needs no encoding, and job arguments already persisted to COS for Fleets. What is
+missing is the convention for a vendor to declare an argument as a reference, and that is the shape to
+build if payloads keep growing.
 
 ## How this was measured
 

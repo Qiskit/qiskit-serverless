@@ -341,18 +341,16 @@ LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
 ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB = int(os.environ.get("ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB", "128"))
 ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS = int(os.environ.get("ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS", "1"))
 
-# Longest arguments validated against a schema, in MB. Over it, a 400. Below the body limit because
-# validating costs more than accepting: it forks a child that parses the arguments again under the
-# margin above.
+# Longest arguments validated against a schema, in MB. Over it, a 400 naming the limit, checked before
+# anything is forked. Below the body limit because validating costs more than accepting: it forks a
+# child that parses the arguments again under the margin above.
 #
-# 64 is where that margin still has room to spare. Measured on Linux in a container, where RLIMIT_AS
-# actually applies: validating a batch of encoded circuits grows the child's address space by about as
-# much as the arguments themselves weigh, so a 128 MB margin covers roughly 127 MB of them and 64
-# leaves room for a shape twice as dense. It cannot usefully be tighter, because cost follows shape
-# rather than length: an array of tiny objects costs eight times as much and 0.27 CPU seconds per MB,
-# so the one second budget refuses it at about 3.5 MB, well before any length does. More in
-# specs/ARGUMENTS_LIMIT.md. A value above 64 is refused here rather than lowered silently, so the
-# limit in force is always the configured one.
+# The cap of 64 is what keeps this the limit that fires. Measured on Linux, where RLIMIT_AS actually
+# applies: validating a batch of encoded circuits grows the child's address space by about as much as
+# the arguments weigh, so the default 128 MB margin would only refuse them around 127 MB. Staying under
+# that means the caller gets this message rather than a MemoryError in the child, which reads as the
+# function's schema being broken. A value above 64 is refused rather than lowered silently, so the limit
+# in force is always the configured one. specs/ARGUMENTS_LIMIT.md has the rest.
 MAX_ARGUMENTS_LENGTH_MB = int(os.environ.get("MAX_ARGUMENTS_LENGTH_MB", "32"))
 if MAX_ARGUMENTS_LENGTH_MB > 64:
     raise ImproperlyConfigured(f"MAX_ARGUMENTS_LENGTH_MB is {MAX_ARGUMENTS_LENGTH_MB} and the maximum is 64.")
