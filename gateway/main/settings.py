@@ -336,27 +336,35 @@ LIMITS_CPU_PER_TASK = int(os.environ.get("LIMITS_CPU_PER_TASK", "4"))
 LIMITS_GPU_PER_TASK = int(os.environ.get("LIMITS_GPU_PER_TASK", "1"))
 LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
 
-# Request size limits. All four are bounded in code or sized against the pod rather than used as
-# given, and which one refuses a caller first depends on the shape of the payload. See
-# specs/ARGUMENTS_LIMIT.md for the measurements behind each figure and for how to size them against
-# pod memory and workers.
-#
-# Margin (MB) and CPU budget (seconds) for the forked child that evaluates an arguments schema:
+# Memory margin (MB) and CPU budget (seconds) for the forked child that evaluates an arguments schema.
+# Both are clamped in code, to 64-256 and 1-5. See specs/ARGUMENTS_LIMIT.md.
 ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB = int(os.environ.get("ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB", "128"))
 ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS = int(os.environ.get("ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS", "1"))
 
-# Longest arguments validated against a schema, in MB. Smaller than the body limit because validating
-# costs more than accepting. Over it, a 400. A value above 64 is refused at boot rather than lowered
-# silently, so the limit in force is always the configured one.
+# Longest arguments validated against a schema, in MB. Over it, a 400. Below the body limit because
+# validating costs more than accepting: it forks a child that parses the arguments again under the
+# margin above.
+#
+# 64 is where that margin still has room to spare. Measured on Linux in a container, where RLIMIT_AS
+# actually applies: validating a batch of encoded circuits grows the child's address space by about as
+# much as the arguments themselves weigh, so a 128 MB margin covers roughly 127 MB of them and 64
+# leaves room for a shape twice as dense. It cannot usefully be tighter, because cost follows shape
+# rather than length: an array of tiny objects costs eight times as much and 0.27 CPU seconds per MB,
+# so the one second budget refuses it at about 3.5 MB, well before any length does. More in
+# specs/ARGUMENTS_LIMIT.md. A value above 64 is refused here rather than lowered silently, so the
+# limit in force is always the configured one.
 MAX_ARGUMENTS_LENGTH_MB = int(os.environ.get("MAX_ARGUMENTS_LENGTH_MB", "32"))
+if MAX_ARGUMENTS_LENGTH_MB > 64:
+    raise ImproperlyConfigured(f"MAX_ARGUMENTS_LENGTH_MB is {MAX_ARGUMENTS_LENGTH_MB} and the maximum is 64.")
 
-# Largest JSON body or form field the gateway accepts, in MB. Over it, a 413. Set explicitly because
-# Django's own default of 2.5 MB is below one batch of encoded circuits, and Django REST Framework
-# 3.17.2 began applying that default to JSON bodies, where it surfaced as a 500. Note this does NOT
-# bound an uploaded file: Django counts only the non-file parts of a multipart request towards it, so
-# /files/upload and /programs/upload have no size limit of their own here. A proxy in front of the
-# gateway has its own body limit, which the chart does not set from this value.
+# Largest JSON body or form field the gateway accepts, in MB. Over it, a 413. It does not bound an
+# uploaded file: Django counts only the non-file parts of a multipart request towards it, so
+# /files/upload and /programs/upload have no size limit of their own here.
 MAX_REQUEST_BODY_SIZE_MB = int(os.environ.get("MAX_REQUEST_BODY_SIZE_MB", "50"))
+
+# Django's own setting, which is what actually refuses the body. It defaults to 2.5 MB, and only
+# started applying to JSON bodies in Django REST Framework 3.17.2 (CVE-2026-73228), where that default
+# turned an ordinary batch of encoded circuits into a 500.
 DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_REQUEST_BODY_SIZE_MB * 1024 * 1024
 
 # ray cluster management

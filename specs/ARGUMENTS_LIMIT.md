@@ -6,12 +6,12 @@ may be set to, and how the figures behind them were measured. For the validation
 
 ## The four values
 
-| Setting / env var | Default | Bounded in code to | Chart value under `gateway.application.limits` | What it bounds |
+| Setting / env var | Default | Bound in code | Chart value under `gateway.application.limits` | What it bounds |
 |---|---|---|---|---|
-| `MAX_REQUEST_BODY_SIZE_MB` | 50 | not bounded | `maxRequestBodySizeMb` | A JSON body or a form field, whether or not a schema is involved. Over it, `413`. Not an uploaded file, see below. |
-| `MAX_ARGUMENTS_LENGTH_MB` | 32 | at most 64 | `maxArgumentsLengthMb` | The arguments of a function that declares a schema, checked before anything is forked. Over it, `400`. |
-| `ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB` | 128 | 64-256 | `argumentsSchemaMemoryLimitMb` | How much address space the validation child may add (`RLIMIT_AS`). Over it, `400`. |
-| `ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS` | 1 | 1-5 | `argumentsSchemaCpuLimitSeconds` | How much CPU that child may spend (`RLIMIT_CPU`). Over it, `400`. |
+| `MAX_REQUEST_BODY_SIZE_MB` | 50 | none | `maxRequestBodySizeMb` | A JSON body or a form field, whether or not a schema is involved. Over it, `413`. Not an uploaded file, see below. |
+| `MAX_ARGUMENTS_LENGTH_MB` | 32 | 64, refused above it | `maxArgumentsLengthMb` | The arguments of a function that declares a schema, checked before anything is forked. Over it, `400`. |
+| `ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB` | 128 | clamped to 64-256 | `argumentsSchemaMemoryLimitMb` | How much address space the validation child may add (`RLIMIT_AS`). Over it, `400`. |
+| `ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS` | 1 | clamped to 1-5 | `argumentsSchemaCpuLimitSeconds` | How much CPU that child may spend (`RLIMIT_CPU`). Over it, `400`. |
 
 `MAX_SCHEMA_LENGTH`, `MAX_DOCUMENT_DEPTH` and `MAX_SCHEMA_NODES` are plain constants in
 `api/domain/arguments_schema.py` rather than settings, because no deployment has needed to move them.

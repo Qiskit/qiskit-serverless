@@ -25,13 +25,13 @@ import time
 
 import jsonschema
 import pytest
+from django.conf import settings
 
 from api.domain.arguments_schema import (  # pylint: disable=protected-access
     MAX_SCHEMA_NODES,
     _cpu_limit_seconds,
     _validator,
     exceeds_max_nodes,
-    max_arguments_length,
     validate_arguments_in_isolation,
 )
 
@@ -148,7 +148,7 @@ def test_a_legitimate_schema_validates_well_inside_the_cpu_budget(label, builder
     valid_str = json.dumps(valid)
     # A realism guard rather than a tight bound: these profiles are about 1 MB against a limit that is
     # now 32 by default, so this only catches a profile grown past what a caller could ever send.
-    assert len(valid_str) <= max_arguments_length()
+    assert len(valid_str) <= settings.MAX_ARGUMENTS_LENGTH_MB * 1024 * 1024
     assert not exceeds_max_nodes(schema), f"the profile itself must stay under {MAX_SCHEMA_NODES} nodes"
 
     # The real path, isolation included. UnsupportedSchemaError here is the failure that would mean

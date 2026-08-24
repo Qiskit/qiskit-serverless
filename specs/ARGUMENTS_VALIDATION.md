@@ -200,7 +200,7 @@ Before any of this runs, text limits are applied to the schema, and to the argum
 | Limit | Value | What it bounds |
 |---|---|---|
 | `MAX_SCHEMA_LENGTH` | 64 KB | How much combinatorial work a schema can spell out literally |
-| `max_arguments_length()` | 32 MB by default, from `settings.MAX_ARGUMENTS_LENGTH_MB` | Keywords whose cost grows with the instance |
+| `settings.MAX_ARGUMENTS_LENGTH_MB` | 32 MB by default | Keywords whose cost grows with the instance |
 | `MAX_DOCUMENT_DEPTH` | 64 | Nesting of schema and arguments; CPython gives up near 180 |
 | `MAX_SCHEMA_NODES` | 200 | Subschemas in the document, which bounds memory on every platform |
 

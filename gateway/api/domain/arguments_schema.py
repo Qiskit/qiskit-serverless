@@ -49,7 +49,6 @@ from urllib.parse import unquote
 
 import jsonschema
 from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
 from referencing import Registry
 
 from api.domain.isolated import IsolationError, run_isolated
@@ -61,36 +60,6 @@ from api.domain.isolated import IsolationError, run_isolated
 # anything is forked. Note this only bounds a schema that spells things out: internal "$ref" can
 # still express a much larger one in very few characters.
 MAX_SCHEMA_LENGTH = 64 * 1024
-
-# Ceiling on settings.MAX_ARGUMENTS_LENGTH_MB, the longest arguments a caller may send to a function
-# that declares a schema. A configured value above this is refused rather than quietly pulled down to
-# it, so the limit in force is always the one the deployment asked for or none at all.
-#
-# 64 is where the validation child's default 128 MB margin still has room to spare. Measured on Linux
-# in a container, where RLIMIT_AS actually applies: validating a batch of encoded circuits grows the
-# child's address space by about as much as the arguments themselves weigh, so that margin covers
-# roughly 127 MB of them and 64 leaves room for a shape twice as dense. It cannot usefully be tighter,
-# because cost follows shape rather than length: an array of tiny objects costs eight times as much
-# and 0.27 CPU seconds per MB, so the one second budget refuses it at about 3.5 MB, well before any
-# length does. specs/ARGUMENTS_LIMIT.md has the tables and the scripts to repeat them.
-_MAX_ARGUMENTS_LENGTH_MB = 64
-
-
-def max_arguments_length() -> int:
-    """The longest arguments a caller may send, in bytes.
-
-    Raises:
-        ImproperlyConfigured: if the setting is above the ceiling above. ApiConfig.ready calls this at
-            startup so that lands as a boot failure rather than as a 500 on the first request.
-    """
-    if settings.MAX_ARGUMENTS_LENGTH_MB > _MAX_ARGUMENTS_LENGTH_MB:
-        raise ImproperlyConfigured(
-            f"MAX_ARGUMENTS_LENGTH_MB is {settings.MAX_ARGUMENTS_LENGTH_MB} and the maximum is "
-            f"{_MAX_ARGUMENTS_LENGTH_MB}. See specs/ARGUMENTS_LIMIT.md for why, and raise "
-            f"ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB first if a caller really needs more."
-        )
-    return settings.MAX_ARGUMENTS_LENGTH_MB * 1024 * 1024
-
 
 # Maximum nesting depth of the schema document and of the instance. jsonschema recurses once per
 # level of each, and CPython gives up at a nesting depth of about 180, which a few kilobytes of

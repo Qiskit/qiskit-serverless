@@ -5,8 +5,8 @@ import time
 import jsonschema
 import pytest
 from unittest.mock import MagicMock
+from django.conf import settings
 from django.contrib.auth.models import User
-from django.core.exceptions import ImproperlyConfigured
 
 from api.domain import arguments_schema as arguments_schema_module
 from api.domain.arguments_schema import (
@@ -15,7 +15,6 @@ from api.domain.arguments_schema import (
     UnsupportedSchemaError,
     check_uploaded_schema_in_isolation,
     exceeds_max_nodes,
-    max_arguments_length,
     validate_arguments_in_isolation,
 )
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
@@ -450,21 +449,10 @@ def test_arguments_longer_than_the_limit_are_rejected():
     Without a cap the ceiling is settings.MAX_REQUEST_BODY_SIZE_MB, the bound on any request body,
     which is set for the whole API rather than for what one validation was measured against.
     """
-    arguments = json.dumps({"blob": "x" * (max_arguments_length() + 1)})
+    arguments = json.dumps({"blob": "x" * (settings.MAX_ARGUMENTS_LENGTH_MB * 1024 * 1024 + 1)})
 
     with pytest.raises(InvalidArgumentsException, match="maximum"):
         validate_arguments(_program({"type": "object"}), arguments)
-
-
-def test_a_length_above_what_the_code_allows_is_refused_not_lowered(settings):
-    """Configuring more than the ceiling fails loudly, so the limit in force is never a surprise.
-
-    ApiConfig.ready calls this at startup, so in a real deployment the bad value stops the boot.
-    """
-    settings.MAX_ARGUMENTS_LENGTH_MB = 65
-
-    with pytest.raises(ImproperlyConfigured, match="65"):
-        max_arguments_length()
 
 
 def test_unique_items_on_a_large_array_of_objects_stays_cheap():
