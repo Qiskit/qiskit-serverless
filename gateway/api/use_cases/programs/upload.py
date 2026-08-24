@@ -57,10 +57,7 @@ class UploadFunctionUseCase:
             if provider_obj is None:
                 raise FunctionNotFoundException(function=data.title, provider=data.provider)
             existing = Function.objects.filter(title=data.title, provider__name=data.provider).first()
-            is_author_update = existing is not None and existing.author == user
-            if not is_author_update and not ProviderAccessPolicy.can_upload_function(
-                user, provider_obj, data.title, accessible_functions
-            ):
+            if not ProviderAccessPolicy.can_upload_function(user, provider_obj, data.title, accessible_functions):
                 raise FunctionNotFoundException(function=data.title, provider=data.provider)
         else:
             if not ProgramAccessPolicies.can_create(user, accessible_functions):

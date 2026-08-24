@@ -47,8 +47,18 @@ def provider_with_admin(provider, admin_user):
 
 
 @pytest.fixture()
-def function(provider, user):
-    return Program.objects.create(title="my-function", author=user, provider=provider)
+def function_owner():
+    """Author of the function under test.
+
+    Deliberately NOT `user`: ownership grants every provider operation, so a function authored
+    by the caller would make the permission-list assertions below pass for the wrong reason.
+    """
+    return User.objects.create_user(username="function-owner")
+
+
+@pytest.fixture()
+def function(provider, function_owner):
+    return Program.objects.create(title="my-function", author=function_owner, provider=provider)
 
 
 def _legacy():

@@ -26,7 +26,7 @@ FunctionAccessClient.get_accessible_functions(crn)
 
 The external client is called **once per request**, in the authentication middleware (`CustomTokenBackend`). The result is stored in `request.auth.accessible_functions` and reused by all views and use cases in that request.
 
-The client is only relevant when the user is **not the owner** of the function. If the user is the author of a function (whether serverless or provider), they have full access without consulting the client. This is consistent with the existing behavior.
+Ownership matters, but it does not grant everything. For a **serverless (custom) function**, being the author grants full access without consulting the client. For a **provider function**, being the author grants the **provider operations** (upload, provider jobs, provider logs, provider files) on both auth paths, independently of groups and instance permissions (see [Provider access checks](#provider-access-checks)). It does **not** grant catalog visibility or the right to run the function: seeing and running a provider function still go through the permission list, so the client is still consulted there even for the owner.
 
 ## Platform permissions
 
@@ -38,7 +38,7 @@ When the external client responds, it returns for each accessible function a set
 | `PLATFORM_PERMISSION_RUN`               | `function.run`                  | User     | Run function                                                       |
 | `PLATFORM_PERMISSION_USER_FILES_READ`   | `function-files.read`           | User     | `v1/files/` list, download                                         |
 | `PLATFORM_PERMISSION_USER_FILES_WRITE`  | `function-files.write`          | User     | `v1/files/` upload, delete                                         |
-| `PLATFORM_PERMISSION_PROVIDER_UPLOAD`   | `function.write`                | Provider | Upload provider function                                           |
+| `PLATFORM_PERMISSION_WRITE`             | `function.write`                | Provider | Upload provider function                                           |
 | `PLATFORM_PERMISSION_JOBS_READ`         | `function-job.read`             | Provider | `v1/jobs/provider`, `v1/jobs/<id>` (retrieve, non-author)          |
 | `PLATFORM_PERMISSION_PROVIDER_LOGS`     | `function-provider-logs.read`   | Provider | `v1/jobs/<id>/provider-logs`                                       |
 | `PLATFORM_PERMISSION_PROVIDER_FILES_READ`  | `function-provider-files.read`  | Provider | `v1/files/provider/` list, download                             |
@@ -90,9 +90,11 @@ These endpoints only allow the job's author. There is no provider role or extern
 
 For provider-related operations, the `ProviderAccessPolicy` class exposes named methods per operation. Each method internally selects the appropriate platform permission:
 
+**The owner of the function passes all six of these regardless of either column below.** `_check` ORs the column's rule with `Function(provider, title, author=user).exists()`, so the table describes what grants access to *everybody else*. See [Ownership grants the provider operations](#ownership-grants-the-provider-operations) for why.
+
 | Method                  | Platform permission used                   | Authorization when legacy    |
 |-------------------------|--------------------------------------------|------------------------------|
-| `can_upload_function`   | `PLATFORM_PERMISSION_PROVIDER_UPLOAD`      | `admin_groups` intersection  |
+| `can_upload_function`   | `PLATFORM_PERMISSION_WRITE`                | `admin_groups` intersection  |
 | `can_list_jobs`         | `PLATFORM_PERMISSION_JOBS_READ`            | `admin_groups` intersection  |
 | `can_retrieve_job`      | `PLATFORM_PERMISSION_JOBS_READ`            | `admin_groups` intersection  |
 | `can_read_logs`         | `PLATFORM_PERMISSION_PROVIDER_LOGS`        | `admin_groups` intersection  |
@@ -125,6 +127,16 @@ When the external client responds, authorization checks are performed at functio
 ### Provider file access no longer requires run permission
 
 In the legacy system, managing provider files required both admin group membership and `run_program` permission. This was a design flaw: `run_program` is a consumer permission (execute the function), not an admin permission. A provider admin should be able to manage files for any of their provider's functions without needing execution permission. In the new system, provider file access only requires admin access (`can_read_files` / `can_write_files`), independent of run permission.
+
+### Ownership grants the provider operations
+
+The owner of a function is an admin of it: `_check` returns `True` when the caller authored the function, whichever authorization path is in effect. Authorship is a third grant, independent of the legacy-groups and instance-permissions branches, so `_check` is the OR of the two. This is deliberate. The motivating case is a Functional ID that publishes provider functions automatically: it authors what it uploads, so it must be able to replace the image, read those runs' provider logs and manage the function's provider files without being in the provider's admin group and without entitlements. The bypass covers only the provider operations: catalog visibility and run stay gated by the permission list, so an owner with no entitlements can push a new image but cannot see the function in the catalog or execute it.
+
+Authorship is evaluated **last** because on the granular path it is the only branch that queries the database, while `has_permission_for_function` reads an already-cached tuple on `request.auth`. Ordering cannot change the outcome: both operands are side-effect-free and the result is their OR.
+
+Creation is unaffected: a function that does not exist has no author, so `_check` falls through and `function.write` / admin membership is still required. `is_provider_admin` deliberately ignores ownership: it answers "admin of the entire provider" and grants provider-wide job scope, so owning one function must not widen scope to all of them.
+
+> **Known limitation:** revoking access is now two steps instead of one. No code path reassigns `Program.author` after creation, so removing a user from `admin_groups` no longer revokes their access to the functions they authored. Offboarding also has to reassign the author in the admin backoffice ("Ownership" fieldset, `api/admin.py`), and nothing enforces that second step. The field is non-nullable, so it can only be reassigned and not cleared, and deleting the user is not an alternative: `author` cascades, so that deletes their functions.
 
 ### `PLATFORM_PERMISSION_JOBS_READ` unifies list and retrieve
 
@@ -385,6 +397,16 @@ is present, but because every test client shares the same `GATEWAY_TOKEN`, the p
 by that same user, so the author check alone would already grant access. The test therefore does not
 isolate the pure non-author path (`function-job.read` without authorship); that would require a
 second user token.
+
+The same shared-token caveat now applies to every provider-operation row. The NONE and USER cells for
+**Upload provider function**, **List provider jobs**, **Read provider logs** and both provider-file
+rows only hold for a function the caller does *not* own, because
+[ownership grants the provider operations](#ownership-grants-the-provider-operations) and
+`instances1-test` is uploaded by the same token that then asserts against it. Those cells therefore
+no longer isolate the permission list. Fixing this needs a function owned by somebody else, which the
+harness cannot express yet: `LocalAuthenticationService` hardcodes `username = "mockuser"` and accepts
+a single token, so every token resolves to the same user. **Known limitation**, tracked separately from
+the `_check` change.
 
 Cross-cutting checks:
 
