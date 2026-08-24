@@ -417,6 +417,18 @@ def test_submit_uses_settings_default_image_when_no_program_image():
     assert mock_handler.submit_job.call_args.kwargs["image_reference"] == "fallback-image:v2"
 
 
+def test_submit_uses_default_image_when_artifact_set_even_if_image_also_set():
+    """Custom jobs (artifact set) always use FLEETS_DEFAULT_IMAGE, ignoring program.image."""
+    runner, mock_handler = _make_submit_runner()
+    runner.job.program.artifact = MagicMock()
+    runner.job.program.image = "provider-image:latest"
+
+    with _patch_settings(FLEETS_DEFAULT_IMAGE="fleet-node:latest"), patch.object(runner, "_upload_program_to_cos"):
+        runner.submit()
+
+    assert mock_handler.submit_job.call_args.kwargs["image_reference"] == "fleet-node:latest"
+
+
 def test_submit_uses_config_workers_as_max_instances():
     """submit() uses job.config.workers as scale_max_instances when set."""
     runner, mock_handler = _make_submit_runner()

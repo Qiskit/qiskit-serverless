@@ -17,6 +17,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 
+from api.domain.arguments_schema import MAX_SCHEMA_LENGTH, UnsupportedSchemaError, check_uploaded_schema_in_isolation
 from api.use_cases.programs.upload import UploadFunctionUseCase
 from api.use_cases.programs.upload_input import UploadFunctionInput
 from api.utils import check_whitelisted, sanitize_name
@@ -107,11 +108,22 @@ class ProgramSerializer(serializers.ModelSerializer):
         return value
 
     def validate_arguments_schema(self, value):
-        """Validates that arguments_schema is valid JSON."""
+        """Validates arguments_schema is a usable JSON Schema the gateway can evaluate cheaply.
+
+        The length check runs first and avoids forking just to reject an oversized document:
+        without it, an over-length schema uploaded fine and then failed every single run instead
+        of being turned down at upload time, when the author could still fix it.
+        """
+        if len(value) > MAX_SCHEMA_LENGTH:
+            raise ValidationError(
+                f"arguments_schema is {len(value)} characters long and the maximum is {MAX_SCHEMA_LENGTH}."
+            )
+
         try:
-            json.loads(value)
-        except (json.JSONDecodeError, ValueError) as exc:
-            raise ValidationError("arguments_schema must be valid JSON.") from exc
+            check_uploaded_schema_in_isolation(value)
+        except UnsupportedSchemaError as exc:
+            raise ValidationError(f"arguments_schema cannot be used: {exc}.") from exc
+
         return value
 
     def _parse_dependency(self, dep: Any):

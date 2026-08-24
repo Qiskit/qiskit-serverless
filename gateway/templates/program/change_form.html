@@ -9,5 +9,10 @@
                 {% translate "Program History" %}
             </a>
         </li>
+        <li>
+            <a href="{% url 'admin:program_validate_arguments_view' original.pk %}">
+                {% translate "Validate Arguments" %}
+            </a>
+        </li>
     {% endif %}
 {% endblock %}

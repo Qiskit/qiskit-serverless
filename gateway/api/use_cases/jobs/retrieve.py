@@ -4,7 +4,6 @@ import logging
 from typing import Optional
 from uuid import UUID
 from django.contrib.auth.models import AbstractUser
-from django.core.exceptions import ObjectDoesNotExist
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import Job
@@ -37,7 +36,7 @@ class JobRetrieveUseCase:
         Returns:
             Job: job found
         """
-        job = Job.objects.get(id=job_id)
+        job = Job.objects.filter(id=job_id).first()
         if job is None:
             raise JobNotFoundException(str(job_id))
 

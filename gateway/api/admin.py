@@ -3,12 +3,21 @@
 import json
 import logging
 
-from django.contrib import admin
+from django import forms
+from django.contrib import admin, messages
 from django.db.models import Count, F, Q
 from django.utils.html import format_html
 from django.urls import path
 from django.shortcuts import render, get_object_or_404
 from django.contrib.admin.views.main import PAGE_VAR
+
+from api.domain.arguments_schema import (
+    MAX_SCHEMA_LENGTH,
+    UnsupportedSchemaError,
+    check_uploaded_schema_in_isolation,
+)
+from api.domain.exceptions.invalid_arguments_exception import InvalidArgumentsException
+from api.use_cases.programs.validate_arguments import validate_arguments
 from core.models import (
     CodeEngineProject,
     ComputeProfile,
@@ -112,12 +121,126 @@ class FunctionSizeAdmin(admin.ModelAdmin):
     autocomplete_fields = ["function", "compute_profile"]
     list_select_related = ["function", "compute_profile"]
     readonly_fields = ["created", "updated"]
+def _arguments_schema_error(value: str | None) -> str | None:
+    """Return why `value` is not a usable arguments schema, or None when it is.
+
+    The wording matches the upload endpoint's serializer on purpose, so a schema turned down here
+    and one turned down there read the same in the logs.
+    """
+    if not value:
+        # The column allows null and defaults to "{}", so a blank field means the function does not
+        # declare a schema. Django strips a form CharField, so spaces only arrive as "".
+        return None
+
+    if len(value) > MAX_SCHEMA_LENGTH:
+        return f"arguments_schema is {len(value)} characters long and the maximum is {MAX_SCHEMA_LENGTH}."
+
+    try:
+        check_uploaded_schema_in_isolation(value)
+    except UnsupportedSchemaError as exc:
+        return f"arguments_schema cannot be used: {exc}."
+
+    return None
+
+
+class ProgramAdminForm(forms.ModelForm):
+    """Program form that validates arguments_schema the way the upload endpoint does.
+
+    Without this, the admin was the only way left to store a schema the gateway cannot evaluate, and
+    a single bad row breaks `client.functions()` for everyone who can see that function, because the
+    SDK decodes the whole list at once.
+    """
+
+    class Meta:
+        model = Program
+        # A ModelForm has to name fields or exclude, or Django raises ImproperlyConfigured when the
+        # class is declared. ProgramAdmin narrows this down to its fieldsets anyway.
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.stored_schema_error = None
+        # Only when showing an existing row: a bound form is handling a submission, where the stored
+        # value is no longer what the page is about, and an unsaved instance has nothing stored yet.
+        if self.is_bound or not self.instance.pk:
+            return
+
+        self.stored_schema_error = _arguments_schema_error(self.instance.arguments_schema)
+        if self.stored_schema_error is None:
+            return
+
+        field = self.fields["arguments_schema"]
+        field.help_text = format_html(
+            '<span style="color: var(--error-fg);">{}</span>{}',
+            self.stored_schema_error,
+            f" {field.help_text}" if field.help_text else "",
+        )
+
+    def clean_arguments_schema(self):
+        """Check the schema, but only when this field is the one being changed.
+
+        A function whose stored schema is already broken still has to be editable: disabling it is
+        exactly what you want to be able to do quickly, and validating on every save would stand in
+        the way.
+        """
+        value = self.cleaned_data["arguments_schema"]
+        if "arguments_schema" not in self.changed_data:
+            return value
+
+        error = _arguments_schema_error(value)
+        if error is not None:
+            raise forms.ValidationError(error)
+
+        return value
+
+
+class ValidateArgumentsForm(forms.Form):
+    """Arguments to try against a function's stored schema."""
+
+    arguments = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 12, "cols": 80}),
+        label="Arguments (JSON)",
+        help_text="Leave empty to check what an empty argument list does.",
+    )
+
+
+def _format_arguments_path(error_path: list) -> str:
+    """Render a validation path the way it would be written in the arguments document.
+
+    `jsonschema` hands back the location of the failure as a list of property names and array
+    indices. Written out, it is the part of the payload to go and look at; an empty list means the
+    whole document failed, and the caller leaves it out.
+    """
+    parts: list[str] = []
+    for segment in error_path:
+        if isinstance(segment, int):
+            parts.append(f"[{segment}]")
+        else:
+            parts.append(f".{segment}" if parts else str(segment))
+    return "".join(parts)
+
+
+def _validate_arguments_result(program: Program, arguments: str) -> dict:
+    """Check `arguments` against `program`'s schema and describe the outcome for the page.
+
+    Calls the same function the API calls, so the verdict here is the verdict a client would get,
+    including the size limits and the isolated evaluation. That also means a schema that cannot be
+    used comes back as a rejection with the reason, never as a server error.
+    """
+    try:
+        validate_arguments(program, arguments)
+    except InvalidArgumentsException as exc:
+        return {"valid": False, "message": exc.message, "path": _format_arguments_path(exc.path)}
+
+    return {"valid": True}
 
 
 @admin.register(Program)
 class ProgramAdmin(admin.ModelAdmin):
     """ProgramAdmin."""
 
+    form = ProgramAdminForm
     search_fields = ["title", "author__username"]
     list_filter = ["provider", "type", "runner", "disabled"]
     filter_horizontal = ["instances", "trial_instances"]
@@ -162,13 +285,33 @@ class ProgramAdmin(admin.ModelAdmin):
             readonly_fields.append("title")
         return readonly_fields
 
+    def render_change_form(self, request, context, *args, **kwargs):
+        """Warn at the top of the page when the stored arguments_schema is unusable.
+
+        The form has already worked out the reason, so this costs nothing extra. It only fires on a
+        page being shown, since `stored_schema_error` stays None for a bound form.
+
+        The remaining arguments are passed straight through: Django's `_changeform_view` sends `add`,
+        `change`, `form_url` and `obj` by keyword, and none of them matter here.
+        """
+        stored_schema_error = getattr(context["adminform"].form, "stored_schema_error", None)
+        if stored_schema_error:
+            messages.warning(request, stored_schema_error)
+
+        return super().render_change_form(request, context, *args, **kwargs)
+
     def get_urls(self):
-        """Add program history url to the available urls."""
+        """Add the program history and validate arguments urls to the available urls."""
         custom_urls = [
             path(
                 "<path:object_id>/program-history/",
                 self.admin_site.admin_view(self.program_history_view),
                 name="program_history_view",
+            ),
+            path(
+                "<path:object_id>/validate-arguments/",
+                self.admin_site.admin_view(self.program_validate_arguments_view),
+                name="program_validate_arguments_view",
             ),
         ]
         return custom_urls + super().get_urls()
@@ -196,6 +339,32 @@ class ProgramAdmin(admin.ModelAdmin):
         }
 
         return render(request, "program/program_history.html", context)
+
+    def program_validate_arguments_view(self, request, object_id):
+        """View to try arguments against the schema this function already has stored.
+
+        Nothing is written: the page only reads the function to get its schema. Checking a schema
+        used to mean going through the API with a token and an instance, which is a lot of setup for
+        a question you are asking while looking at the function in the admin.
+        """
+        program = get_object_or_404(Program, pk=object_id)
+
+        form = ValidateArgumentsForm(request.POST) if request.method == "POST" else ValidateArgumentsForm()
+        result = _validate_arguments_result(program, form.cleaned_data["arguments"]) if form.is_valid() else None
+
+        context = {
+            **self.admin_site.each_context(request),
+            "object": program,
+            "form": form,
+            "result": result,
+            # An empty schema validates everything, which is the right answer but reads as a pass.
+            # The page says so next to the verdict, and needs to know which case it is in.
+            "has_schema": bool(program.arguments_schema) and program.arguments_schema != "{}",
+            "opts": self.model._meta,
+            "app_label": self.model._meta.app_label,
+        }
+
+        return render(request, "program/validate_arguments.html", context)
 
 
 @admin.register(ComputeResource)
