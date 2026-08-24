@@ -340,13 +340,11 @@ is optional, and a size assigned to it must belong to the same function.</p></li
 <section id="upgrade-notes">
 <span id="release-notes-upcoming-qiskit-serverless-release-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
-<li><p>The <code class="docutils literal notranslate"><span class="pre">default_compute_profile</span></code> field has been removed from Qiskit
-Functions. It was only ever settable through the admin backoffice and was
-read by no code path, since the Fleets runner resolves its default from the
-<code class="docutils literal notranslate"><span class="pre">DEFAULT_COMPUTE_PROFILE</span></code> setting, so no data migration is required. The
-<code class="docutils literal notranslate"><span class="pre">api_program.default_compute_profile</span></code> column is kept in the database for
-now and will be dropped in a later release, so that rolling back to a
-previous release keeps working.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">default_compute_profile</span></code> field has been removed from the Qiskit
+Function model definition. No code path read it, since the Fleets runner
+resolves its default from the <code class="docutils literal notranslate"><span class="pre">DEFAULT_COMPUTE_PROFILE</span></code> setting. This is
+the first step: the <code class="docutils literal notranslate"><span class="pre">api_program.default_compute_profile</span></code> column is left
+in the database, and a later release drops it.</p></li>
 </ul>
 </section>
 </section>
