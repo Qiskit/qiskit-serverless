@@ -49,9 +49,18 @@ class Migration(migrations.Migration):
                 ("memory", models.CharField(help_text="Memory in GB (e.g., 120)", max_length=64)),
             ],
         ),
-        migrations.RemoveField(
-            model_name="program",
-            name="default_compute_profile",
+        # The column is dropped from Django's state only, and left in place in the
+        # database, so a previous release can still be deployed: its Program model
+        # still declares the field, and Django lists every declared column in each
+        # SELECT. The real DROP COLUMN happens in a later release.
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.RemoveField(
+                    model_name="program",
+                    name="default_compute_profile",
+                ),
+            ],
+            database_operations=[],
         ),
         migrations.AddField(
             model_name="job",

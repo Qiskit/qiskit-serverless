@@ -18,6 +18,8 @@ upgrade:
   - |
     The ``default_compute_profile`` field has been removed from Qiskit
     Functions. It was only ever settable through the admin backoffice and was
-    read by no code path — the Fleets runner resolves its default from the
-    ``DEFAULT_COMPUTE_PROFILE`` setting — so no data migration is required. Any
-    values stored in the column are dropped when the migration runs.
+    read by no code path, since the Fleets runner resolves its default from the
+    ``DEFAULT_COMPUTE_PROFILE`` setting, so no data migration is required. The
+    ``api_program.default_compute_profile`` column is kept in the database for
+    now and will be dropped in a later release, so that rolling back to a
+    previous release keeps working.
