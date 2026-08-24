@@ -7,7 +7,6 @@ from django.contrib.auth.models import AbstractUser
 
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.arguments_schema import (
-    MAX_ARGUMENTS_LENGTH,
     MAX_DOCUMENT_DEPTH,
     MAX_SCHEMA_LENGTH,
     MAX_SCHEMA_NODES,
@@ -15,6 +14,7 @@ from api.domain.arguments_schema import (
     UnsupportedSchemaError,
     exceeds_max_depth,
     exceeds_max_nodes,
+    max_arguments_length,
     validate_arguments_in_isolation,
 )
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
@@ -70,9 +70,10 @@ def validate_arguments(program: Function, arguments_str: str) -> None:
             f"and the maximum is {MAX_SCHEMA_LENGTH}"
         )
 
-    if len(arguments_str or "") > MAX_ARGUMENTS_LENGTH:
+    maximum_arguments = max_arguments_length()
+    if len(arguments_str or "") > maximum_arguments:
         raise InvalidArgumentsException(
-            f"arguments are {len(arguments_str)} characters long and the maximum is {MAX_ARGUMENTS_LENGTH}"
+            f"arguments are {len(arguments_str)} characters long and the maximum is {maximum_arguments}"
         )
 
     try:

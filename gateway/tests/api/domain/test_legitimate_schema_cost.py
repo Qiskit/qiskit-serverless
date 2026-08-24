@@ -27,11 +27,11 @@ import jsonschema
 import pytest
 
 from api.domain.arguments_schema import (  # pylint: disable=protected-access
-    MAX_ARGUMENTS_LENGTH,
     MAX_SCHEMA_NODES,
     _cpu_limit_seconds,
     _validator,
     exceeds_max_nodes,
+    max_arguments_length,
     validate_arguments_in_isolation,
 )
 
@@ -52,7 +52,7 @@ def _circuit(index: int) -> str:
 
 
 def _batch() -> list:
-    """A batch of circuits just under MAX_ARGUMENTS_LENGTH once encoded."""
+    """A batch of circuits just under the arguments length limit once encoded."""
     return [_circuit(i) for i in range(26)]
 
 
@@ -140,7 +140,7 @@ def test_a_legitimate_schema_validates_well_inside_the_cpu_budget(label, builder
     fraction of the CPU budget while doing it."""
     schema, valid, invalid = builder()
     valid_str = json.dumps(valid)
-    assert len(valid_str) <= MAX_ARGUMENTS_LENGTH
+    assert len(valid_str) <= max_arguments_length()
     assert not exceeds_max_nodes(schema), f"the profile itself must stay under {MAX_SCHEMA_NODES} nodes"
 
     # The real path, isolation included. UnsupportedSchemaError here is the failure that would mean

@@ -332,46 +332,67 @@ that a limit which rejects ordinary work is worse than no limit, since the cost 
 other means: an early draft used 100000 characters, which a batch of three such circuits already exceeded, and the 1 MB
 that replaced it fitted about twenty five, which turned out to be under what callers send in one batch.
 
-### Why this limit is smaller than the body's
+### Every configurable limit in one place
 
-`MAX_ARGUMENTS_LENGTH` sits below `settings.MAX_REQUEST_BODY_SIZE_MB` on purpose, because accepting a body and
-validating it are different costs. Accepting one is paid once in the worker. Validating it forks a child that parses the
-arguments a second time, and what that child may spend is a separate allowance,
-`settings.ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB` (128 MB by default) and one CPU second.
+| Setting | Env var | Default | Clamp | Chart value under `gateway.application.limits` |
+|---|---|---|---|---|
+| `MAX_REQUEST_BODY_SIZE_MB` | same | 50 | none | `maxRequestBodySizeMb` |
+| `MAX_ARGUMENTS_LENGTH_MB` | same | 32 | 1-64 | `maxArgumentsLengthMb` |
+| `ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB` | same | 128 | 64-256 | `argumentsSchemaMemoryLimitMb` |
+| `ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS` | same | 1 | 1-5 | `argumentsSchemaCpuLimitSeconds` |
 
-Measured against the shape recommended above, an array of tagged objects with only the `__type__` tag checked, the
-child's growth above its parent is linear at **2.24 MB per MB of arguments**: 8 MB of arguments grows it 17.6 MB, 16 MB
-grows it 35.6, 64 MB grows it 143.1 and 100 MB grows it 223.6. Almost all of that is `json.loads` building a Python
-structure, not the schema comparison, which adds nothing measurable. CPU is never the constraint for this shape: 100 MB
-validates in 0.15 seconds.
+The rest (`MAX_SCHEMA_LENGTH`, `MAX_DOCUMENT_DEPTH`, `MAX_SCHEMA_NODES`) are constants in
+`api/domain/arguments_schema.py`, not settings, because no deployment has needed to move them.
 
-So at 32 MB a caller who passes the length check uses about 72 MB of the 128 MB margin and therefore also passes the
-memory check, which is the point of the smaller number: the rejection a caller gets is the length message naming the
-limit, not a `MemoryError` in the child reported as a schema that cannot be used. Setting it to the body's own 50 MB
-would need 112 MB of the same 128 and leave nothing for anything denser.
+### Why the arguments limit is smaller than the body's
 
-Length cannot guarantee that for every shape, because the cost follows shape rather than size. An array of tiny objects
-such as `{"x": 1.5, "y": 2.5}` grows the child 9.5 MB per MB and spends 0.27 CPU seconds per MB, so the one second
-budget refuses it at about 3.7 MB, long before any length limit applies. Those shapes are refused inside the child with
-a `400`, which is the isolation doing its job. Raising the length therefore does not widen what an adversarial schema
-can spend either: the worst case for memory, an `anyOf` whose every branch fails, costs about 208 MB of child memory per
-MB of arguments, so it exceeds `RLIMIT_AS` and comes back as a `400` at any of these lengths.
+Accepting a body and validating it are different costs. Accepting one is paid once in the worker. Validating forks a
+child that parses the arguments a second time, under a separate allowance: `ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB` and
+`ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS`.
+
+What that margin bounds is **address space, not resident memory**, and here the two differ a lot: a forked child
+inherits the parent's mappings, so it can touch pages without mapping new ones. Measured in a container on Linux, where
+`RLIMIT_AS` actually applies (it is never set on macOS), against the shape recommended above:
+
+| Payload shape | Address space per MB of arguments | CPU per MB | Refused at, with the defaults |
+|---|---|---|---|
+| Array of encoded circuits, 39 KB each | 1.00 MB | 0.001 s | about 127 MB, by the memory margin |
+| Array of tiny objects, `{"x": 1.5, "y": 2.5}` | 8.2 MB | 0.27 s | about 6 MB, by the CPU budget |
+
+Both are linear, not exponential. For circuits the child grows exactly as much as the arguments weigh, all of it
+`json.loads` building a Python structure rather than the schema comparison, which adds nothing measurable: at the
+default 128 MB margin, 100 MB of such arguments validates and 128 MB raises `MemoryError`, reported as a `400`.
+
+So for the shape the platform actually receives, the length limit is not what refuses a caller; the margin is. The
+length is a cheaper bound applied before anything is forked, set where the default margin still has room for shapes that
+cost more per byte, and those cost eight times more. Raising it does not widen what an adversarial schema can spend
+either: the worst case for memory, an `anyOf` whose every branch fails, costs about 208 MB per MB of arguments, so it
+exceeds `RLIMIT_AS` and comes back as a `400` at any of these lengths.
 
 ### The physical ceiling
 
-Neither limit is bounded by one request but by the pod. A request body costs about 3.5 times its size in the worker
-holding it, since Django keeps the body, DRF copies it into a `BytesIO` and `json.loads` builds from the copy: 50 MB
-measured at 175 MB. Against production, 4 Gi with `gunicorn --workers=5 --threads=1`, five concurrent 50 MB bodies cost
-about 875 MB, the five workers' own Django footprint about 1.4 GB (272 MB each, measured), and five validation children
-at their 128 MB margin 640 MB, so roughly 2.9 GB of 4 Gi at full concurrency.
+Neither limit is bounded by one request but by the pod. A body costs about 3.2 times its size in the worker holding it,
+since Django keeps the body, DRF copies it into a `BytesIO` and `json.loads` builds from the copy. Measured in a
+container: 50 MB of body leaves the worker at 169 MB, 100 MB at 319 MB, 200 MB at 618 MB. Every worker can hold one at
+once, so what the pod needs is `resources.limits.memory` above `workers x 3.2 x maxRequestBodySizeMb`. Keeping that under
+half the pod's memory leaves room for everything else:
 
-At 100 MB the same sum reaches 3.5 GB, and raising the validation margin along with it passes 4 Gi. That is the line not
-to cross, because the two ways of running out of memory are not equivalent. When the child's own `RLIMIT_AS` fires, the
-allocation fails, `MemoryError` is caught, and the caller gets a `400` while the server carries on. When the pod runs
-out instead, the child's limit never fires and the kernel's OOM killer picks a victim by size, which can be a gunicorn
-worker rather than the child that caused it: no `413`, no `400`, just a dropped connection and a worker gone. This is
-what was measured once already, and it is why `ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB` is clamped at 256. Raise the pod's
-memory or lower the worker count before raising either limit.
+| Pod memory | 2 workers | 5 workers | 10 workers |
+|---|---|---|---|
+| 2Gi | 160 MB | 64 MB | 32 MB |
+| 4Gi | 320 MB | **128 MB** | 64 MB |
+| 8Gi | 640 MB | 256 MB | 128 MB |
+
+Production runs 4Gi with `--workers=5`, so the 50 MB default sits well inside its 128 MB row. Measured at that setting,
+five concurrent 50 MB bodies with validation peaked at 724 MB of the container's 4 GB, and five 100 MB bodies at 1.4 GB.
+
+Past the pod's memory the two failures are not equivalent, which is the whole reason for the table. When the child's own
+`RLIMIT_AS` fires, the allocation fails, `MemoryError` is caught, and the caller gets a `400` while the server carries
+on. When the pod runs out instead, that limit never fires and the kernel's OOM killer picks a victim by size, which can
+be a gunicorn worker rather than the child that caused it: no `413`, no `400`, just a dropped connection and a worker
+gone. Both were observed in the same run: ten concurrent 200 MB bodies in a 4 GB container had seven requests refused
+cleanly as `UnsupportedSchemaError` and three workers killed with `SIGKILL`. Raise the pod's memory or lower the worker
+count before raising either limit.
 
 This limit only applies to functions that **declare a schema**: the length check runs after the "no schema, nothing to
 do" short-circuit, so functions without one are unaffected. What bounds the request for every function, schema or not,

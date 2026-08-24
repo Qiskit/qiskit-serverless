@@ -9,12 +9,12 @@ from django.contrib.auth.models import User
 
 from api.domain import arguments_schema as arguments_schema_module
 from api.domain.arguments_schema import (
-    MAX_ARGUMENTS_LENGTH,
     MAX_SCHEMA_LENGTH,
     MAX_SCHEMA_NODES,
     UnsupportedSchemaError,
     check_uploaded_schema_in_isolation,
     exceeds_max_nodes,
+    max_arguments_length,
     validate_arguments_in_isolation,
 )
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
@@ -449,7 +449,7 @@ def test_arguments_longer_than_the_limit_are_rejected():
     Without a cap the ceiling is settings.MAX_REQUEST_BODY_SIZE_MB, the bound on any request body,
     which is set for the whole API rather than for what one validation was measured against.
     """
-    arguments = json.dumps({"blob": "x" * (MAX_ARGUMENTS_LENGTH + 1)})
+    arguments = json.dumps({"blob": "x" * (max_arguments_length() + 1)})
 
     with pytest.raises(InvalidArgumentsException, match="maximum"):
         validate_arguments(_program({"type": "object"}), arguments)

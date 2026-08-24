@@ -286,6 +286,8 @@ spec:
               value: {{ .Values.application.limits.argumentsSchemaCpuLimitSeconds | quote }}
             - name: MAX_REQUEST_BODY_SIZE_MB
               value: {{ .Values.application.limits.maxRequestBodySizeMb | quote }}
+            - name: MAX_ARGUMENTS_LENGTH_MB
+              value: {{ .Values.application.limits.maxArgumentsLengthMb | quote }}
             - name: LOG_FORMAT
               value: {{ .Values.application.logFormat | quote }}
             {{- if .Values.application.ibmCloudFidApiKey.enabled }}

@@ -61,24 +61,36 @@ from api.domain.isolated import IsolationError, run_isolated
 # still express a much larger one in very few characters.
 MAX_SCHEMA_LENGTH = 64 * 1024
 
-# Maximum length of the arguments a caller may send, applied only when a function declares a schema.
+# Bounds for settings.MAX_ARGUMENTS_LENGTH_MB, the longest arguments a caller may send to a function
+# that declares a schema. It sits below settings.MAX_REQUEST_BODY_SIZE_MB, which bounds any request
+# body, because accepting a body and validating it are not the same cost: validating forks a child
+# that parses the arguments a second time, under the margin and CPU budget above.
 #
-# This is deliberately below settings.MAX_REQUEST_BODY_SIZE_MB (50 MB), which bounds any request
-# body, because accepting a body and validating it are not the same cost. Validating forks a child
-# and parses the arguments a second time in it, and that child grows by 2.24 MB per MB of arguments
-# for an array of encoded circuits (measured: 8 MB grows 17.6, 100 MB grows 223.6; the growth is
-# almost entirely json.loads, not the schema comparison). The child's whole allowance is
-# ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB, 128 by default, so at this length it uses about 72 MB of the 128
-# and a caller who fits the length also fits the margin. Setting it to the body's own 50 MB would
-# need 112 MB of that 128 and leave nothing for a payload denser than circuits.
+# What the margin bounds is address space, not resident memory, and the two differ by a lot here (a
+# forked child inherits the parent's mappings, so it can touch pages without mapping new ones).
+# Measured in a container on Linux, where the limit actually applies, the child's address space grows
+# 1.00 MB per MB of arguments for an array of encoded circuits, all of it json.loads rather than the
+# schema comparison: at the default 128 MB margin, 100 MB of such arguments validates and 128 MB
+# raises MemoryError, which the parent reports as a 400.
 #
-# Nothing here can guarantee that, because the cost depends on shape rather than length: an array of
-# tiny objects grows the child 9.5 MB per MB and spends 0.27 CPU seconds per MB, so with the default
-# one second budget it is the CPU that refuses it, at about 3.7 MB. Those shapes are refused in the
-# child with a 400, which is the isolation working as intended. What this length does is cover the
-# shape the platform actually receives with room to spare: about 800 encoded circuits, sixteen times
-# the batch of fifty that first exceeded the original 1 MB.
-MAX_ARGUMENTS_LENGTH = 32 * 1024 * 1024
+# So for that shape the length below is not what refuses a caller; the margin is, at about 127 MB.
+# The length is a cheaper bound applied before anything is forked, and MAX is set where the default
+# margin still has room to spare for shapes that cost more per byte. They cost much more: an array of
+# tiny objects grows the child 8.2 MB per MB and spends 0.27 CPU seconds per MB, so the default one
+# second budget refuses it at about 6 MB, well before any length does. Those are refused inside the
+# child with a 400, which is the isolation doing its job.
+#
+# MIN is 1 MB, which was the original value and fits about twenty five encoded circuits, and it turned
+# out to be below what callers send in one batch, so nothing lower is worth allowing.
+_MIN_ARGUMENTS_LENGTH_MB = 1
+_MAX_ARGUMENTS_LENGTH_MB = 64
+
+
+def max_arguments_length() -> int:
+    """The longest arguments a caller may send, in bytes, from settings and clamped."""
+    megabytes = max(_MIN_ARGUMENTS_LENGTH_MB, min(settings.MAX_ARGUMENTS_LENGTH_MB, _MAX_ARGUMENTS_LENGTH_MB))
+    return megabytes * 1024 * 1024
+
 
 # Maximum nesting depth of the schema document and of the instance. jsonschema recurses once per
 # level of each, and CPython gives up at a nesting depth of about 180, which a few kilobytes of
