@@ -349,8 +349,8 @@ ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS = int(os.environ.get("ARGUMENTS_SCHEMA_CPU_LI
 MAX_ARGUMENTS_LENGTH_MB = int(os.environ.get("MAX_ARGUMENTS_LENGTH_MB", "32"))
 
 # Largest JSON body or form field the gateway accepts, in MB. Over it, a 413. Set explicitly because
-# Django's own default of 2.5 MB is below one batch of encoded circuits, and Django REST Framework 3.18.0 began applying
-# that default to JSON bodies, where it surfaced as a 500. Note this does NOT bound an uploaded file:
+# Django's own default of 2.5 MB is below one batch of encoded circuits, and Django REST Framework
+# 3.17.2 began applying that default to JSON bodies, where it surfaced as a 500. Note this does NOT bound an uploaded file:
 # Django counts only the non-file parts of a multipart request towards it, so /files/upload and
 # /programs/upload have no size limit of their own here.
 MAX_REQUEST_BODY_SIZE_MB = int(os.environ.get("MAX_REQUEST_BODY_SIZE_MB", "50"))

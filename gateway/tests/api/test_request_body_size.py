@@ -1,7 +1,7 @@
 """Tests the bound on the size of a request body.
 
 DATA_UPLOAD_MAX_MEMORY_SIZE is Django's own setting and defaults to 2.5 MB. It used not to apply to a
-JSON body at all, because Django REST Framework read the request stream directly, until its 3.18.0
+JSON body at all, because Django REST Framework read the request stream directly, until its 3.17.2
 routed JSON and form bodies through HttpRequest.body, where Django enforces that default. An ordinary
 batch of circuits then became a RequestDataTooBig, reported as a 500 by the endpoint decorator's
 blanket handler. The gateway now sets the limit explicitly and reports going over it as a 413.

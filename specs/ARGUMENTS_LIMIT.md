@@ -18,9 +18,11 @@ may be set to, and how the figures behind them were measured. For the validation
 
 ## Why the body limit exists at all
 
-Django bounds a request body with `DATA_UPLOAD_MAX_MEMORY_SIZE`, 2.5 MB by default, raising
-`RequestDataTooBig` from `HttpRequest.body`. That default never applied to a JSON body, because Django REST Framework
-read the request stream directly, until 3.18.0 added this to `Request._parse`:
+`DATA_UPLOAD_MAX_MEMORY_SIZE` is **Django's own setting**, not one of ours, and it defaults to
+**2.5 MB**. Django raises `RequestDataTooBig` from `HttpRequest.body` when a body is larger than that.
+
+That default never reached a JSON request, because Django REST Framework read the request stream
+directly, until **3.17.2** added this to `Request._parse`:
 
 ```python
 from rest_framework.parsers import FormParser, JSONParser
@@ -28,19 +30,26 @@ if isinstance(parser, (JSONParser, FormParser)):
     stream = io.BytesIO(self.body)
 ```
 
-From then on every JSON request went through `HttpRequest.body`, and 2.5 MB is below what the client
-SDK sends: it posts `/programs/run` as JSON, and one 100 qubit, depth 100 circuit is about 39 KB of
-base64, so about sixty five of them reach the limit and a batch of that order fails.
+From then on every JSON and form request goes through `HttpRequest.body`, and 2.5 MB is below what the
+client SDK sends: it posts `/programs/run` as JSON, and one 100 qubit, depth 100 circuit is about 39 KB
+of base64, so about sixty five of them reach the limit and a batch of that order fails.
 `endpoint_handle_exceptions` caught the result in its generic `except Exception` and answered
 `500 Internal server error`.
 
-Measured with the same test on both Django REST Framework versions, `POST /programs/run` with a 3 MB body:
+Measured by running the same test against each version, `POST /programs/run` with a 3 MB body:
 
 | Django REST Framework | Function declares a schema | Result |
 |---|---|---|
+| 3.17.1 | no | 200, job queued |
+| 3.17.2 | no | 413 once the limit is set, refused before that as a 500 |
 | 3.18.0 | no | 500 `RequestDataTooBig` |
 | 3.18.0 | yes | 500 `RequestDataTooBig` |
-| 3.17.1 | no | 200, job queued |
+
+Worth knowing which version it was, because 3.17.2 was released on 2026-08-05 while this repository
+pinned `djangorestframework>=3.17.1, <4`, an open range. So the change arrived on any image rebuild
+from that date onwards without a single commit here, which is why the failures looked intermittent and
+why they predate the explicit bump to 3.18.0. It is also two weeks before arguments validation was
+merged, which is the feature they were first attributed to.
 
 So the gateway now sets the limit itself instead of inheriting a default nobody chose, and reports
 going over it as a `413` naming the limit.
