@@ -90,12 +90,6 @@ def endpoint_handle_exceptions(view_func: Callable):
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
         except RequestDataTooBig:
-            # DATA_UPLOAD_MAX_MEMORY_SIZE is Django's own setting, not one of ours, and it defaults to
-            # 2.5 MB. It only started reaching a JSON request in Django REST Framework 3.17.2, which
-            # routes JSON and form bodies through HttpRequest.body, where Django enforces it; before
-            # that a body of any size got here. Report the setting that did the refusing rather than our
-            # MAX_REQUEST_BODY_SIZE_MB, which only derives it, so the message still holds if a
-            # deployment sets Django's directly.
             limit_mb = settings.DATA_UPLOAD_MAX_MEMORY_SIZE / (1024 * 1024)
             logger.warning("Request body over the %g MB limit", limit_mb)
             return Response(

@@ -6,10 +6,10 @@ may be set to, and how the figures behind them were measured. For the validation
 
 ## The four values
 
-| Setting / env var | Default | Clamped to | Chart value under `gateway.application.limits` | What it bounds |
+| Setting / env var | Default | Bounded in code to | Chart value under `gateway.application.limits` | What it bounds |
 |---|---|---|---|---|
-| `MAX_REQUEST_BODY_SIZE_MB` | 50 | not clamped | `maxRequestBodySizeMb` | A JSON body or a form field, whether or not a schema is involved. Over it, `413`. Not an uploaded file, see below. |
-| `MAX_ARGUMENTS_LENGTH_MB` | 32 | 1-64 | `maxArgumentsLengthMb` | The arguments of a function that declares a schema, checked before anything is forked. Over it, `400`. |
+| `MAX_REQUEST_BODY_SIZE_MB` | 50 | not bounded | `maxRequestBodySizeMb` | A JSON body or a form field, whether or not a schema is involved. Over it, `413`. Not an uploaded file, see below. |
+| `MAX_ARGUMENTS_LENGTH_MB` | 32 | at most 64 | `maxArgumentsLengthMb` | The arguments of a function that declares a schema, checked before anything is forked. Over it, `400`. |
 | `ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB` | 128 | 64-256 | `argumentsSchemaMemoryLimitMb` | How much address space the validation child may add (`RLIMIT_AS`). Over it, `400`. |
 | `ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS` | 1 | 1-5 | `argumentsSchemaCpuLimitSeconds` | How much CPU that child may spend (`RLIMIT_CPU`). Over it, `400`. |
 
@@ -29,6 +29,17 @@ from rest_framework.parsers import FormParser, JSONParser
 if isinstance(parser, (JSONParser, FormParser)):
     stream = io.BytesIO(self.body)
 ```
+
+That is not an accident to be worked around but a security fix, and making Django's limit apply to
+JSON bodies was its stated purpose: **CVE-2026-73228** / [GHSA-2m8g-3cmr-wg3w](
+https://github.com/encode/django-rest-framework/security/advisories/GHSA-2m8g-3cmr-wg3w), medium
+severity, availability only, vulnerable `<=3.17.1` and fixed in 3.17.2. Pinning back is therefore not
+an option: 3.17.1 is the last release without the behaviour and it is the vulnerable one. Note the
+gap it closed had been known and tolerated since 2016 ([issue #4760](
+https://github.com/encode/django-rest-framework/issues/4760)), so treat the behaviour as permanent.
+
+`multipart/form-data` was never affected, because there Django REST Framework delegates to Django's
+own parser, which is the same reason the limit still does not bound an uploaded file (see below).
 
 From then on every JSON and form request goes through `HttpRequest.body`, and 2.5 MB is below what the
 client SDK sends: it posts `/programs/run` as JSON, and one 100 qubit, depth 100 circuit is about 39 KB
@@ -50,6 +61,12 @@ pinned `djangorestframework>=3.17.1, <4`, an open range. So the change arrived o
 from that date onwards without a single commit here, which is why the failures looked intermittent and
 why they predate the explicit bump to 3.18.0. It is also two weeks before arguments validation was
 merged, which is the feature they were first attributed to.
+
+Two things made it easy to miss. The 3.17.2 notes list it under "Bug fixes" rather than as a breaking
+change and do not mention the advisory, and the 3.18.0 notes do not mention it at all, so upgrading
+from 3.17.1 straight to 3.18.0 and reading only the latter's notes shows nothing. And the failure
+needs a JSON body over 2.5 MB, which most REST APIs never send; this one does because `/programs/run`
+carries a batch of encoded circuits as arguments.
 
 So the gateway now sets the limit itself instead of inheriting a default nobody chose, and reports
 going over it as a `413` naming the limit.
@@ -104,10 +121,9 @@ Two consequences shape the choice of 32 MB:
   times more as an array of small objects, and those are refused inside the child instead, with a `400`,
   on CPU rather than on memory. That is the isolation doing its job, and no choice of length avoids it.
 
-The clamp maximum of 64 MB is set where the default 128 MB margin still has room to spare for shapes
-denser than circuits. The clamp minimum of 1 MB is the original value of this limit, which fitted about
-twenty five encoded circuits and turned out to be below what callers send per batch, so nothing lower
-is worth allowing.
+The cap of 64 MB is set where the default 128 MB margin still has room to spare for shapes denser
+than circuits. There is no minimum: a deployment that wants a tighter length than the default is free
+to set one.
 
 Raising the length does not widen what an adversarial schema can spend either: the worst case for
 memory, an `anyOf` whose every branch fails, costs about 208 MB per MB of arguments, so it exceeds

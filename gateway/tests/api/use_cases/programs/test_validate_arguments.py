@@ -6,6 +6,7 @@ import jsonschema
 import pytest
 from unittest.mock import MagicMock
 from django.contrib.auth.models import User
+from django.core.exceptions import ImproperlyConfigured
 
 from api.domain import arguments_schema as arguments_schema_module
 from api.domain.arguments_schema import (
@@ -453,6 +454,17 @@ def test_arguments_longer_than_the_limit_are_rejected():
 
     with pytest.raises(InvalidArgumentsException, match="maximum"):
         validate_arguments(_program({"type": "object"}), arguments)
+
+
+def test_a_length_above_what_the_code_allows_is_refused_not_lowered(settings):
+    """Configuring more than the ceiling fails loudly, so the limit in force is never a surprise.
+
+    ApiConfig.ready calls this at startup, so in a real deployment the bad value stops the boot.
+    """
+    settings.MAX_ARGUMENTS_LENGTH_MB = 65
+
+    with pytest.raises(ImproperlyConfigured, match="65"):
+        max_arguments_length()
 
 
 def test_unique_items_on_a_large_array_of_objects_stays_cheap():
