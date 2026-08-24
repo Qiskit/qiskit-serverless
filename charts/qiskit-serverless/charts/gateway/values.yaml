@@ -47,44 +47,22 @@ application:
     maxGpuResources: 1
     keepClusterOnComplete: False
     programTimeoutHours: 24
+    # Request size limits. Sized against this pod's resources.limits.memory and httpServer.workers
+    # above, not one request at a time: a body costs about 3.2x its size in the worker holding it, and
+    # every worker can hold one at once. Raising any of these without checking that is how a worker
+    # gets OOM-killed instead of the gateway answering 413. specs/ARGUMENTS_LIMIT.md has the table of
+    # what fits per pod memory and worker count, the measurements behind it, and how to repeat them.
+    #
+    # Memory margin (MB) and CPU seconds for the child that validates arguments against a schema.
+    # Clamped in code to 64-256 and 1-5. The CPU budget also caps how long one request can hold a
+    # worker, at five times its value, which has to stay under httpServer.timeout above.
     argumentsSchemaMemoryLimitMb: 128
-    # Seconds of CPU given to the forked child that validates job arguments against a function's JSON
-    # Schema. The isolation also bounds that child on wall-clock time, at five times this budget, so
-    # this is equally a bound on how long one request can hold a worker: 1 allows a 5 second deadline,
-    # 5 allows 25. That deadline has to fit inside httpServer.timeout above with room left for the
-    # rest of the request, because a deadline that reaches the timeout means gunicorn's arbiter kills
-    # the worker at the moment the gateway would have answered 400, and takes every other request on
-    # that worker with it (threads: 1 above). At the timeout of 25 set above, do not raise this past
-    # 3. If a function's schema needs more than that, raise the timeout first.
     argumentsSchemaCpuLimitSeconds: 1
-    # Largest request body the gateway accepts, in MB. Set here because Django's own default of
-    # 2.5 MB is below one batch of encoded circuits (about 39 KB each). Over the limit the gateway
-    # answers 413. When the ingress below is enabled, templates/ingress.yaml derives its
-    # proxy-body-size annotation from this value; a deployment fronting the gateway some other way,
-    # with an Istio ingress gateway for instance, has to bound the body there itself.
-    #
-    # This one is bounded by the pod, not by one request. Measured in a container: a body costs about
-    # 3.2x its size in the worker holding it (50 MB -> 169 MB, 100 MB -> 319 MB), and every worker can
-    # hold one at once, so the pod needs resources.limits.memory > workers x 3.2 x this value. Keeping
-    # that under half the pod's memory leaves room for everything else the gateway does:
-    #
-    #   memory / workers | 2 workers | 5 workers | 10 workers
-    #   -----------------|-----------|-----------|-----------
-    #   2Gi              |   160 MB  |    64 MB  |    32 MB
-    #   4Gi              |   320 MB  |   128 MB  |    64 MB
-    #   8Gi              |   640 MB  |   256 MB  |   128 MB
-    #
-    # Past the pod's memory nothing answers 413: the kernel OOM-kills a worker, which was measured
-    # (ten concurrent 200 MB bodies in 4Gi killed three workers with SIGKILL). Raise the memory limit
-    # or lower the worker count first.
+    # Largest request body accepted, in MB, with or without a schema. Over it, a 413. When the ingress
+    # below is enabled, templates/ingress.yaml derives its proxy-body-size annotation from this value;
+    # a deployment fronting the gateway another way, with Istio for instance, bounds the body there.
     maxRequestBodySizeMb: 50
-    # Longest arguments accepted for a function that declares an arguments_schema, in MB, applied
-    # before anything is forked. Below maxRequestBodySizeMb because validating costs more than
-    # accepting: the child that validates grows its address space by about 1 MB per MB of encoded
-    # circuits, or 8 MB per MB for an array of many tiny objects, against the margin above. So for a
-    # batch of circuits it is usually that margin that refuses a caller first, at about 127 MB with
-    # the default 128, and for dense shapes the CPU budget does it at about 6 MB. Clamped to 1-64 in
-    # code. Over the limit the caller gets a 400 naming it.
+    # Longest arguments validated against a schema, in MB. Over it, a 400. Clamped in code to 1-64.
     maxArgumentsLengthMb: 32
   qiskitRuntime:
     url: "https://cloud.ibm.com"

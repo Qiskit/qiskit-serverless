@@ -1,0 +1,325 @@
+# Request size limits
+
+Why the gateway bounds the size of a request body and of the arguments it validates, what each limit
+may be set to, and how the figures behind them were measured. For the validation feature itself, see
+[ARGUMENTS_VALIDATION.md](ARGUMENTS_VALIDATION.md).
+
+## The four values
+
+| Setting / env var | Default | Clamped to | Chart value under `gateway.application.limits` | What it bounds |
+|---|---|---|---|---|
+| `MAX_REQUEST_BODY_SIZE_MB` | 50 | not clamped | `maxRequestBodySizeMb` | Any request body, whether or not a schema is involved. Over it, `413`. |
+| `MAX_ARGUMENTS_LENGTH_MB` | 32 | 1-64 | `maxArgumentsLengthMb` | The arguments of a function that declares a schema, checked before anything is forked. Over it, `400`. |
+| `ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB` | 128 | 64-256 | `argumentsSchemaMemoryLimitMb` | How much address space the validation child may add (`RLIMIT_AS`). Over it, `400`. |
+| `ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS` | 1 | 1-5 | `argumentsSchemaCpuLimitSeconds` | How much CPU that child may spend (`RLIMIT_CPU`). Over it, `400`. |
+
+`MAX_SCHEMA_LENGTH`, `MAX_DOCUMENT_DEPTH` and `MAX_SCHEMA_NODES` are plain constants in
+`api/domain/arguments_schema.py` rather than settings, because no deployment has needed to move them.
+
+## Why the body limit exists at all
+
+Django bounds a request body with `DATA_UPLOAD_MAX_MEMORY_SIZE`, 2.5 MB by default, raising
+`RequestDataTooBig` from `HttpRequest.body`. That default never applied to a JSON body, because DRF
+read the request stream directly, until 3.18.0 added this to `Request._parse`:
+
+```python
+from rest_framework.parsers import FormParser, JSONParser
+if isinstance(parser, (JSONParser, FormParser)):
+    stream = io.BytesIO(self.body)
+```
+
+From then on every JSON request went through `HttpRequest.body`, and 2.5 MB is below what the client
+SDK sends: it posts `/programs/run` as JSON, and one 100 qubit, depth 100 circuit is about 39 KB of
+base64, so a batch of fifty is already at the limit. `endpoint_handle_exceptions` caught the result in
+its generic `except Exception` and answered `500 Internal server error`.
+
+Measured with the same test on both DRF versions, `POST /programs/run` with a 3 MB body:
+
+| DRF | Function declares a schema | Result |
+|---|---|---|
+| 3.18.0 | no | 500 `RequestDataTooBig` |
+| 3.18.0 | yes | 500 `RequestDataTooBig` |
+| 3.17.1 | no | 200, job queued |
+
+So the gateway now sets the limit itself instead of inheriting a default nobody chose, and reports
+going over it as a `413` naming the limit.
+
+## Why the arguments limit is smaller than the body limit
+
+Accepting a body and validating it are different costs. Accepting one is paid once, in the worker.
+Validating forks a child that parses the arguments a second time, and that child has its own two
+allowances, `ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB` and `ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS`.
+
+The memory allowance bounds **address space, not resident memory**. `_apply_limits`
+(`api/domain/isolated.py`) sets `RLIMIT_AS` to the parent's `VmSize` at fork time plus the margin, and
+a fork inherits the parent's mappings, so a child can touch pages without mapping new ones. The two
+numbers are far apart in this code path, which is why an early measurement of resident memory on macOS
+overestimated the cost by a factor of two.
+
+Measured on Linux, where `RLIMIT_AS` is actually applied ([method](#how-this-was-measured)):
+
+| Payload shape | Address space added per MB of arguments | CPU per MB | With the defaults, refused at |
+|---|---|---|---|
+| Array of encoded circuits, 39 KB each | 1.00 MB | 0.001 s | about 127 MB, by the memory margin |
+| Array of tiny objects, `{"x": 1.5, "y": 2.5}` | 8.2 MB | 0.27 s | about 6 MB, by the CPU budget |
+
+Both are linear, not exponential. For a batch of circuits the child grows by exactly what the
+arguments weigh, and all of that is `json.loads` building a Python structure: the schema comparison
+itself adds nothing measurable.
+
+Two consequences shape the choice of 32 MB:
+
+- **For the shape the platform receives, the length limit is not what refuses a caller.** The margin
+  is, at about 127 MB. The length is a cheaper bound applied before anything is forked, and it is a
+  safety net rather than the operative limit.
+- **Length cannot bound cost on its own, because cost follows shape.** The same byte count costs eight
+  times more as an array of small objects, and those are refused inside the child instead, with a
+  `400`. That is the isolation doing its job, and no choice of length avoids it.
+
+The clamp maximum of 64 MB is set where the default 128 MB margin still has room to spare for shapes
+denser than circuits. The clamp minimum of 1 MB is the original value of this limit, which fitted about
+twenty five encoded circuits and turned out to be below what callers send per batch, so nothing lower
+is worth allowing.
+
+Raising the length does not widen what an adversarial schema can spend either: the worst case for
+memory, an `anyOf` whose every branch fails, costs about 208 MB per MB of arguments, so it exceeds
+`RLIMIT_AS` and comes back as a `400` at any length in this range.
+
+## The validation child's two allowances
+
+Both are read from settings by `api/domain/arguments_schema.py` and passed into `run_isolated`, which
+knows only plain numeric defaults so the isolation mechanism stays free of Django. Both are clamped
+before they reach the child, because a setting is also a way to weaken the protection by configuration.
+
+### Memory, `ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB` (128, clamped 64-256)
+
+The clamp maximum guards against reopening the failure the isolation exists to close. Measured in a
+container at 2 Gi with `--workers=2 --threads=1`, a 512 MB margin let a 4 KB schema plus 1 MB of
+arguments drive one child to 526 MB, and two concurrent such requests, exactly that pod's worker times
+thread concurrency, added about 960 MB to the cgroup and got a process OOM-killed. 256 is half of the
+failing value.
+
+The clamp minimum keeps it from being weakened the other way: every legitimate shape tested, including
+a 1 MB batch of encoded circuits and 4000 objects under `uniqueItems`, passes at 64 MB.
+
+What the margin does **not** scale with is concurrency: it is per child, while the pod's headroom is per
+pod, so the worst case is the margin times `workers x threads`. Raising the worker count spends the same
+budget that raising the margin does. Whoever changes either should look at both, and at the body limit,
+together.
+
+### CPU, `ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS` (1, clamped 1-5)
+
+Clamped more tightly than memory because this is the whole bound on how much work one request can ask
+for, and no endpoint is rate limited, so raising it multiplies what a single caller can spend without
+ever creating a job. Every legitimate schema measured validates in milliseconds. The minimum is 1
+because `RLIMIT_CPU` counts whole seconds and 0 would kill the child immediately.
+
+`run_isolated` derives a wall-clock deadline from this budget by multiplying it by
+`_WALL_CLOCK_SLOWDOWN_FACTOR` (5.0), so a budget of 1 keeps the 5 second deadline that was measured and
+a budget of 5 gets 25. The two are independent bounds rather than a limit and its fallback, and which
+one fires depends on how much CPU the child actually gets: a child on a fraction of a core spends its
+budget divided by that fraction in wall time. The deadline's real parameter is therefore a tolerated
+slowdown, not a number of extra seconds. Adding a constant instead would tolerate less and less as the
+budget grew, and would make the highest budget the least usable one: four seconds on top of one
+tolerates a 5x slowdown, four on top of five only 1.8x.
+
+Past a 5x slowdown the deadline fires first and says so, which is the outcome to prefer. Measured on a
+16 core laptop against 40 CPU hogs, a child got 0.083 of a core and needed 60 wall seconds to spend 5
+CPU seconds, and holding a worker for a minute is worse than refusing the request.
+
+**The deadline has to fit inside the HTTP server's own timeout.** `gunicorn --timeout` comes from
+`application.httpServer.timeout`, and its arbiter kills a worker that has not checked in for that long.
+A deadline reaching the timeout means the worker is killed at the moment the gateway would have answered
+`400`: a dropped connection instead of a rejection, taking every other request on that worker with it,
+since the pod runs `--threads=1`. So the usable maximum depends on the deployment rather than on the
+clamp: at the chart's default timeout of 25 it is a budget of 3, not 5, while the deployment values used
+in staging and production set the timeout to 120, where the whole range fits. Raise the timeout before
+raising the budget. This relation is not enforced in code, only documented at `_MAX_CPU_LIMIT_SECONDS`
+and next to `argumentsSchemaCpuLimitSeconds` in the chart's values.
+
+## Sizing a deployment
+
+A request body costs about **3.2 times its size** in the worker that holds it, because Django keeps the
+body, DRF copies it into a `BytesIO`, and `json.loads` builds a structure from the copy:
+
+| Body | Worker resident memory |
+|---|---|
+| 50 MB | 169 MB |
+| 100 MB | 319 MB |
+| 200 MB | 618 MB |
+
+Every gunicorn worker can hold one such body at a time, since the pod runs `--threads=1`. So the pod
+needs `resources.limits.memory` comfortably above `workers x 3.2 x maxRequestBodySizeMb`. Keeping that
+product under half the pod's memory leaves the other half for everything else the gateway does.
+
+The table below gives **the largest `maxRequestBodySizeMb` that rule allows**, per pod memory and
+worker count. It is not a measurement of what breaks, it is the recommendation with the safety factor
+already applied:
+
+| `resources.limits.memory` | `httpServer.workers: 2` | `workers: 5` | `workers: 10` |
+|---|---|---|---|
+| 2Gi | 160 MB | 64 MB | 32 MB |
+| 4Gi | 320 MB | **128 MB** | 64 MB |
+| 8Gi | 640 MB | 256 MB | 128 MB |
+
+Production runs 4Gi with `--workers=5`, where the rule allows up to 128 MB, so the 50 MB default sits
+at less than half of what its own row permits. Measured at that setting in a 4 GB container, five
+concurrent 50 MB bodies with validation peaked at 724 MB, and five 100 MB bodies at 1.4 GB.
+
+For reference when sizing, one worker with Django and the API fully loaded is about 272 MB resident
+before it serves anything. Because gunicorn forks its workers, most of that is shared rather than
+multiplied.
+
+## The two ways of running out of memory are not equivalent
+
+This is the reason the table matters, rather than just raising the limit until something breaks.
+
+When the **child's own `RLIMIT_AS`** fires, the allocation fails, Python raises `MemoryError`, the child
+catches it and reports it through its pipe, and the parent turns it into a `400`. The server carries
+on and no other request is affected. This is the designed path.
+
+When the **pod** runs out instead, the child's limit never fires, because it was never the binding
+constraint. The kernel's OOM killer picks a victim by size, and that can be a gunicorn worker rather
+than the child that caused the pressure. There is no `413` and no `400`: the caller gets a dropped
+connection, and every request on the killed worker dies with it.
+
+Both were observed in a single run of ten concurrent 200 MB bodies in a 4 GB container: seven requests
+were refused cleanly as `UnsupportedSchemaError`, and three workers were killed with `SIGKILL`.
+
+```
+worker 0: KILLED BY SIGNAL 9 (9 means the kernel OOM killer)
+worker 1: rss 618 MB, cgroup 1814 MB, UnsupportedSchemaError
+worker 2: rss 618 MB, cgroup 2536 MB, UnsupportedSchemaError
+worker 3: rss 618 MB, cgroup 1399 MB, UnsupportedSchemaError
+worker 4: KILLED BY SIGNAL 9 (9 means the kernel OOM killer)
+...
+```
+
+So the order to change things in is: raise the pod's memory, or lower the worker count, before raising
+either size limit.
+
+## How this was measured
+
+### Environment
+
+Everything about memory was measured **on Linux, in a container**, because `RLIMIT_AS` is never set on
+macOS: `_current_address_space` reads `VmSize` from `/proc/self/status`, that file does not exist there,
+the function returns 0, and `_apply_limits` skips the limit. Measurements of resident memory taken on
+macOS do not answer the question the margin asks, and overestimated the cost by about 2x.
+
+The container was Python 3.11 with `jsonschema` 4.26.0 and Django 5.2.17, the same versions the gateway
+pins, given the pod's own limits:
+
+```bash
+docker run --rm -m 4g --cpus=3 \
+  -v "$PWD/gateway:/app:ro" -v "$PWD/scripts:/scripts:ro" \
+  <image> python /scripts/<script>.py
+```
+
+An image is enough to build with:
+
+```dockerfile
+FROM python:3.12-slim
+RUN pip install --no-cache-dir "django>=5.2" "jsonschema>=4.26,<5"
+```
+
+### Address space added by the validation child
+
+The number the margin bounds. This forks, applies `RLIMIT_AS` the way `_apply_limits` does, and reports
+how much `VmSize` the child added, so the payload size can be walked up until `MemoryError` appears.
+
+```python
+import json, os, resource, sys
+
+def vmsize():
+    with open("/proc/self/status", encoding="utf-8") as status:
+        for line in status:
+            if line.startswith("VmSize:"):
+                return int(line.split()[1]) / 1024   # MB
+
+target_mb, margin_mb = float(sys.argv[1]), int(sys.argv[2])
+unit = {"__type__": "QuantumCircuit", "__value__": "A" * 39 * 1024}
+count = max(1, int(target_mb * 1024 * 1024 / len(json.dumps(unit))))
+arguments_str = json.dumps({"circuits": [unit] * count})
+
+read_fd, write_fd = os.pipe()
+if os.fork() == 0:
+    os.close(read_fd)
+    base = vmsize()
+    limit = int(base * 1024 * 1024) + margin_mb * (1 << 20)
+    resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
+    try:
+        parsed = json.loads(arguments_str)
+        result = f"grew {vmsize() - base:.0f} MB, ok"
+    except MemoryError:
+        result = f"grew {vmsize() - base:.0f} MB, MemoryError"
+    os.write(write_fd, result.encode())
+    os.close(write_fd)
+    os._exit(0)
+os.close(write_fd)
+print(f"{len(arguments_str)/1024/1024:.1f} MB args, margin {margin_mb}: {os.read(read_fd, 4096).decode()}")
+os.wait()
+```
+
+Swap the payload for `{"points": [{"x": i + 0.5, "y": i + 1.5} for i in range(count)]}` to get the
+second row of the shape table.
+
+Results at the default 128 MB margin: circuits grew 1 MB per MB up to 100 MB and raised `MemoryError`
+at 128 MB; tiny objects grew 8.2 MB per MB up to 12.6 MB and raised `MemoryError` at 19 MB.
+
+### End to end verdict and CPU, through the real entry point
+
+Same container, calling what the use case calls, to see which limit fires first and what the caller
+would get. Run one process per point so `ru_maxrss` reflects only that measurement.
+
+```python
+import json, os, resource, sys
+from django.conf import settings
+
+settings.configure(
+    ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB=int(os.environ.get("MARGIN_MB", "128")),
+    ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS=1,
+)
+from api.domain.arguments_schema import validate_arguments_in_isolation
+
+# ... build schema and arguments_str for the shape and size under test ...
+before = resource.getrusage(resource.RUSAGE_CHILDREN)
+try:
+    validate_arguments_in_isolation(schema, arguments_str)
+    verdict = "accepted"
+except Exception as exc:
+    verdict = type(exc).__name__
+after = resource.getrusage(resource.RUSAGE_CHILDREN)
+cpu = (after.ru_utime - before.ru_utime) + (after.ru_stime - before.ru_stime)
+print(f"{verdict}, child rss {after.ru_maxrss/1024:.0f} MB, cpu {cpu:.2f}s")
+```
+
+This is where the CPU column comes from: tiny objects at 3 MB spent 0.82 s and were accepted, and at
+6.2 MB spent the whole second and came back as `UnsupportedSchemaError`, while 100 MB of circuits spent
+0.10 s.
+
+### Pod behaviour at full concurrency
+
+The run that produced the `SIGKILL` output above. It forks one process per worker, and each does what a
+request does: hold the body as bytes, copy it, parse it, then validate. Reading `/sys/fs/cgroup/memory.current`
+gives what the container is charged, and checking `os.waitpid`'s status for a signal is what tells an
+OOM kill apart from a clean rejection.
+
+```python
+pid = os.fork()
+# ... in the child: build a body of BODY_MB, bytes(body), json.loads, then
+#     validate_arguments_in_isolation(SCHEMA, parsed["arguments"]) ...
+_, status = os.waitpid(pid, 0)
+if status & 0x7F:
+    print(f"worker killed by signal {status & 0x7F}")   # 9 is the OOM killer
+```
+
+Run it as `WORKERS x BODY_MB`: 5 x 50 and 5 x 100 both passed in a 4 GB container, 10 x 200 produced
+three OOM kills and seven clean rejections.
+
+### Repeating any of this after a change
+
+The figures worth re-checking if `jsonschema`, Django or DRF move: the 1.00 MB per MB for circuits (it
+is the one the margin is chosen against), the 3.2x body cost, and that a body over the limit still
+comes back as `413` rather than `500`. The last one is covered by
+`gateway/tests/api/test_request_body_size.py` and needs no container.

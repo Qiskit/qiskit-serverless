@@ -157,55 +157,14 @@ limit is skipped rather than set to a wrong value. The CPU limit is unaffected a
 platforms, so this is the one part of the protection that degrades in development and applies in production: a schema
 that only spends memory rather than CPU can validate without complaint on a laptop and still be refused once deployed.
 
-The memory margin above that base is `settings.ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB` (`gateway/main/settings.py`, default
-128), read by `api/domain/arguments_schema.py` and passed into `run_isolated`, which itself only knows a plain numeric
-default: the isolation mechanism stays free of Django so it can be reused outside a web request. Measured in a
-container at the pod's real limits (2 Gi memory, 3 CPU, `gunicorn --workers=2 --threads=1`): a 512 MB margin let a
-4 KB schema plus 1 MB of arguments drive one child to 526 MB, and two concurrent such requests, exactly the worker x
-thread concurrency, added about 960 MB to the cgroup and got a process OOM-killed by the kernel. Every legitimate
-shape tested, including a 1 MB batch of encoded circuits and 4000 objects under `uniqueItems`, passes at 64 MB.
-Because the setting is a way to weaken this by configuration, the value read from it is clamped to 64-256 MB before
-reaching the child, rather than used as given.
+How much that child may spend is configurable, as a memory margin and a CPU budget, and both are clamped before
+they reach it so a value cannot weaken the protection past what was measured. Alongside the CPU limit there is a
+wall-clock deadline that `run_isolated` derives from the budget rather than taking separately, because what matters
+is a tolerated slowdown: `RLIMIT_CPU` bounds how much CPU one request consumes, and the deadline bounds how long it
+can hold a worker while consuming it.
 
-Those figures were measured at the chart's own defaults, and the variable they depend on is one a deployment is free to
-change: how many children can exist at once, which is `workers` times `threads`. The limit is per child while the pod's
-headroom is per pod, so the worst case is the margin times that concurrency, and raising the worker count spends the
-same budget raising the margin does. A deployment running more workers than the chart's two is not covered by the
-measurement above, however much memory its pod has. Whoever changes either number should look at both together and
-re-measure, rather than reading the figures here as if they held at any concurrency.
-
-The CPU budget is `settings.ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS` (default 1), read and clamped the same way, to 1-5
-seconds. It is configurable so that a vendor whose legitimate schema turns out to need longer than one second can be
-unblocked by a value change rather than a code deploy, and clamped more tightly than the memory margin because this is
-the whole bound on the work one request can ask for, and no endpoint is rate limited. Every legitimate schema measured
-validates in milliseconds, so a deployment should not need to raise it.
-
-Alongside `RLIMIT_CPU` there is a wall clock deadline, which is not configured separately: `run_isolated` derives it by
-multiplying the CPU budget by `_WALL_CLOCK_SLOWDOWN_FACTOR` (5.0), so the default budget of one second keeps the 5.0
-second deadline that was measured, and the highest configurable budget gets 25. The two are independent bounds rather
-than a limit and its fallback. `RLIMIT_CPU` bounds how much CPU one request consumes; the deadline bounds how long it
-can hold a worker while consuming it. Which of them fires depends on how much CPU the child actually gets, because a
-child on a fraction of a core spends its budget divided by that fraction in wall time. So the deadline's real parameter
-is a tolerated slowdown rather than a number of extra seconds, and adding a constant would tolerate less and less as the
-budget grew: four seconds on top of one tolerates a 5x slowdown, four on top of five only 1.8x, which would leave a
-schema legitimately needing 3 CPU seconds refused at a budget of 5 and make the highest budget the least usable one.
-
-Past a 5x slowdown the deadline fires first and reports itself, which is accurate rather than a misreport, and is the
-outcome to prefer: measured on a 16 core laptop against 40 CPU hogs, a child got 0.083 of a core and needed 60 wall
-seconds to spend 5 CPU seconds, and holding a worker for a minute is worse than refusing the request. In the deployed
-pod (3 CPU, `gunicorn --workers=2 --threads=1`) a child gets far more than a fifth of a core, so there the CPU budget
-is the bound that fires. Either way, raising the budget is paid for in worker occupancy: at the clamp maximum one child
-can hold a worker for 25 wall seconds.
-
-That 25 is also the figure to weigh against the HTTP server's own timeout, and it is why the clamp maximum is not usable
-in every deployment. `gunicorn --timeout` is what the chart sets from `application.httpServer.timeout`, defaulting to
-25, and its arbiter kills a worker that has not checked in for that long. A deadline reaching the timeout therefore means
-the worker is killed at the moment the gateway would have answered `400`: the caller gets a dropped connection rather
-than a rejection, and because the pod runs `--threads=1`, every other request on that worker dies with it. So at the
-default timeout of 25 the usable maximum budget is 3, not 5, and a deployment that sets a longer timeout can use the
-whole range. Raise the timeout before raising the budget. This relation is not enforced in code: it is documented at
-`_MAX_CPU_LIMIT_SECONDS` and next to `argumentsSchemaCpuLimitSeconds` in the chart's values, which is where the value is
-actually changed.
+The values, their clamps, what each one costs, and how to size them against the pod are in
+[ARGUMENTS_LIMIT.md](ARGUMENTS_LIMIT.md), together with the measurements and the method for repeating them.
 
 Inside the child, `jsonschema` runs unmodified, with one exception: `uniqueItems` is still replaced, by a single-pass
 hash of a canonical form of each element, rather than being left for the isolation alone to bound. `jsonschema`
@@ -332,75 +291,16 @@ that a limit which rejects ordinary work is worse than no limit, since the cost 
 other means: an early draft used 100000 characters, which a batch of three such circuits already exceeded, and the 1 MB
 that replaced it fitted about twenty five, which turned out to be under what callers send in one batch.
 
-### Every configurable limit in one place
+### The limits, and the measurements behind them
 
-| Setting | Env var | Default | Clamp | Chart value under `gateway.application.limits` |
-|---|---|---|---|---|
-| `MAX_REQUEST_BODY_SIZE_MB` | same | 50 | none | `maxRequestBodySizeMb` |
-| `MAX_ARGUMENTS_LENGTH_MB` | same | 32 | 1-64 | `maxArgumentsLengthMb` |
-| `ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB` | same | 128 | 64-256 | `argumentsSchemaMemoryLimitMb` |
-| `ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS` | same | 1 | 1-5 | `argumentsSchemaCpuLimitSeconds` |
+`MAX_ARGUMENTS_LENGTH` is one of four values that bound the size of a request, along with the body limit and the
+validation child's memory and CPU allowances. Which one refuses a caller first depends on the shape of the payload,
+not only on its size, and the whole set has to be sized against the pod's memory and its worker count.
 
-The rest (`MAX_SCHEMA_LENGTH`, `MAX_DOCUMENT_DEPTH`, `MAX_SCHEMA_NODES`) are constants in
-`api/domain/arguments_schema.py`, not settings, because no deployment has needed to move them.
-
-### Why the arguments limit is smaller than the body's
-
-Accepting a body and validating it are different costs. Accepting one is paid once in the worker. Validating forks a
-child that parses the arguments a second time, under a separate allowance: `ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB` and
-`ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS`.
-
-What that margin bounds is **address space, not resident memory**, and here the two differ a lot: a forked child
-inherits the parent's mappings, so it can touch pages without mapping new ones. Measured in a container on Linux, where
-`RLIMIT_AS` actually applies (it is never set on macOS), against the shape recommended above:
-
-| Payload shape | Address space per MB of arguments | CPU per MB | Refused at, with the defaults |
-|---|---|---|---|
-| Array of encoded circuits, 39 KB each | 1.00 MB | 0.001 s | about 127 MB, by the memory margin |
-| Array of tiny objects, `{"x": 1.5, "y": 2.5}` | 8.2 MB | 0.27 s | about 6 MB, by the CPU budget |
-
-Both are linear, not exponential. For circuits the child grows exactly as much as the arguments weigh, all of it
-`json.loads` building a Python structure rather than the schema comparison, which adds nothing measurable: at the
-default 128 MB margin, 100 MB of such arguments validates and 128 MB raises `MemoryError`, reported as a `400`.
-
-So for the shape the platform actually receives, the length limit is not what refuses a caller; the margin is. The
-length is a cheaper bound applied before anything is forked, set where the default margin still has room for shapes that
-cost more per byte, and those cost eight times more. Raising it does not widen what an adversarial schema can spend
-either: the worst case for memory, an `anyOf` whose every branch fails, costs about 208 MB per MB of arguments, so it
-exceeds `RLIMIT_AS` and comes back as a `400` at any of these lengths.
-
-### The physical ceiling
-
-Neither limit is bounded by one request but by the pod. A body costs about 3.2 times its size in the worker holding it,
-since Django keeps the body, DRF copies it into a `BytesIO` and `json.loads` builds from the copy. Measured in a
-container: 50 MB of body leaves the worker at 169 MB, 100 MB at 319 MB, 200 MB at 618 MB. Every worker can hold one at
-once, so what the pod needs is `resources.limits.memory` above `workers x 3.2 x maxRequestBodySizeMb`. Keeping that under
-half the pod's memory leaves room for everything else:
-
-| Pod memory | 2 workers | 5 workers | 10 workers |
-|---|---|---|---|
-| 2Gi | 160 MB | 64 MB | 32 MB |
-| 4Gi | 320 MB | **128 MB** | 64 MB |
-| 8Gi | 640 MB | 256 MB | 128 MB |
-
-Production runs 4Gi with `--workers=5`, so the 50 MB default sits well inside its 128 MB row. Measured at that setting,
-five concurrent 50 MB bodies with validation peaked at 724 MB of the container's 4 GB, and five 100 MB bodies at 1.4 GB.
-
-Past the pod's memory the two failures are not equivalent, which is the whole reason for the table. When the child's own
-`RLIMIT_AS` fires, the allocation fails, `MemoryError` is caught, and the caller gets a `400` while the server carries
-on. When the pod runs out instead, that limit never fires and the kernel's OOM killer picks a victim by size, which can
-be a gunicorn worker rather than the child that caused it: no `413`, no `400`, just a dropped connection and a worker
-gone. Both were observed in the same run: ten concurrent 200 MB bodies in a 4 GB container had seven requests refused
-cleanly as `UnsupportedSchemaError` and three workers killed with `SIGKILL`. Raise the pod's memory or lower the worker
-count before raising either limit.
-
-This limit only applies to functions that **declare a schema**: the length check runs after the "no schema, nothing to
-do" short-circuit, so functions without one are unaffected. What bounds the request for every function, schema or not,
-is `settings.MAX_REQUEST_BODY_SIZE_MB` (50 MB by default), which the gateway reports as a `413` naming the limit. That
-one exists because Django's own default of 2.5 MB is below what a batch of circuits needs, and because
-`djangorestframework` 3.18.0 began applying that default to a JSON body, which earlier versions never did: `_parse`
-gained a step through `HttpRequest.body` for `JSONParser` and `FormParser`, and every oversized request became a
-`RequestDataTooBig` and, through the endpoint decorator's generic handler, a `500`.
+That, the measurements it rests on, and the method for repeating them live in one place:
+[ARGUMENTS_LIMIT.md](ARGUMENTS_LIMIT.md). The short version is that this limit sits below the body limit because
+validating costs more than accepting, and that for a batch of circuits it is usually not this limit that refuses a
+caller but the child's memory margin.
 
 ## Validating arguments
 

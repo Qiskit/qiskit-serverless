@@ -336,31 +336,21 @@ LIMITS_CPU_PER_TASK = int(os.environ.get("LIMITS_CPU_PER_TASK", "4"))
 LIMITS_GPU_PER_TASK = int(os.environ.get("LIMITS_GPU_PER_TASK", "1"))
 LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
 
-# Memory margin (MB) and CPU budget (seconds) given to the forked child that evaluates a Qiskit
-# Function's arguments schema (api/domain/isolated.py, api/domain/arguments_schema.py). Kept in
-# settings, not in the isolation mechanism itself, so a vendor whose legitimate schema needs more
-# than the default can be unblocked without a code deploy. Both values are clamped to a safe range
-# before use; see _memory_limit_mb and _cpu_limit_seconds in api/domain/arguments_schema.py for why.
+# Request size limits. All four are clamped or sized against the pod rather than used as given, and
+# which one refuses a caller first depends on the shape of the payload. See specs/ARGUMENTS_LIMIT.md
+# for the measurements behind each figure and for how to size them against pod memory and workers.
+#
+# Margin (MB) and CPU budget (seconds) for the forked child that evaluates an arguments schema:
 ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB = int(os.environ.get("ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB", "128"))
 ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS = int(os.environ.get("ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS", "1"))
 
-# Longest arguments accepted by a function that declares a schema, in MB. Below MAX_REQUEST_BODY_SIZE_MB
-# because validating costs more than accepting: see the clamp bounds in api/domain/arguments_schema.py
-# for the measurements, and note that for a batch of circuits it is the margin above, not this length,
-# that refuses a caller first. Clamped to 1-64 before use.
+# Longest arguments validated against a schema, in MB. Smaller than the body limit because validating
+# costs more than accepting. Over it, a 400.
 MAX_ARGUMENTS_LENGTH_MB = int(os.environ.get("MAX_ARGUMENTS_LENGTH_MB", "32"))
 
-# Largest request body the gateway accepts, in MB. Django's default is 2.5 MB, and one 100 qubit,
-# depth 100 circuit is about 39 KB of base64, so fifty of them go over it. That default used not to
-# apply to a JSON body at all until DRF 3.18.0 routed one through HttpRequest.body (Request._parse),
-# which turned an ordinary batch into a RequestDataTooBig and, through the endpoint decorator, a 500.
-#
-# The ceiling is physical: a body costs about 3.2x its size in the worker, because Django holds it,
-# DRF copies it and json.loads builds a structure from the copy (measured in a container: 50 MB ->
-# 169 MB, 100 MB -> 319 MB). Every worker can hold one at once, so the pod needs more memory than
-# workers x 3.2 x this value, and past its memory nothing answers 413: the kernel OOM-kills a worker
-# instead, measured with ten concurrent 200 MB bodies in 4 Gi killing three of them with SIGKILL. The
-# chart's values.yaml carries the table of what fits per pod memory and worker count.
+# Largest request body, in MB, whether or not a schema is involved. Over it, a 413. Set explicitly
+# because Django's own default of 2.5 MB is below one batch of encoded circuits, and DRF 3.18.0 began
+# applying that default to JSON bodies, where it surfaced as a 500.
 MAX_REQUEST_BODY_SIZE_MB = int(os.environ.get("MAX_REQUEST_BODY_SIZE_MB", "50"))
 DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_REQUEST_BODY_SIZE_MB * 1024 * 1024
 

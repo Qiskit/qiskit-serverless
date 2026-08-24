@@ -62,26 +62,32 @@ from api.domain.isolated import IsolationError, run_isolated
 MAX_SCHEMA_LENGTH = 64 * 1024
 
 # Bounds for settings.MAX_ARGUMENTS_LENGTH_MB, the longest arguments a caller may send to a function
-# that declares a schema. It sits below settings.MAX_REQUEST_BODY_SIZE_MB, which bounds any request
-# body, because accepting a body and validating it are not the same cost: validating forks a child
-# that parses the arguments a second time, under the margin and CPU budget above.
+# that declares a schema. Applied before anything is forked, so it is the cheapest of the limits, and
+# it is deliberately below settings.MAX_REQUEST_BODY_SIZE_MB: accepting a body and validating it are
+# not the same cost, since validating forks a child that parses the arguments a second time under the
+# margin and CPU budget above.
 #
-# What the margin bounds is address space, not resident memory, and the two differ by a lot here (a
-# forked child inherits the parent's mappings, so it can touch pages without mapping new ones).
-# Measured in a container on Linux, where the limit actually applies, the child's address space grows
-# 1.00 MB per MB of arguments for an array of encoded circuits, all of it json.loads rather than the
-# schema comparison: at the default 128 MB margin, 100 MB of such arguments validates and 128 MB
-# raises MemoryError, which the parent reports as a 400.
+# Two measurements decide these bounds, both taken on Linux in a container, where RLIMIT_AS is
+# actually applied (it is never set on macOS, so a laptop cannot answer this). Read them with the
+# distinction that matters: the margin bounds address space, not resident memory, and the two differ
+# a lot here because a forked child inherits the parent's mappings and can touch pages without
+# mapping new ones.
 #
-# So for that shape the length below is not what refuses a caller; the margin is, at about 127 MB.
-# The length is a cheaper bound applied before anything is forked, and MAX is set where the default
-# margin still has room to spare for shapes that cost more per byte. They cost much more: an array of
-# tiny objects grows the child 8.2 MB per MB and spends 0.27 CPU seconds per MB, so the default one
-# second budget refuses it at about 6 MB, well before any length does. Those are refused inside the
-# child with a 400, which is the isolation doing its job.
+# - An array of encoded circuits, the shape the platform receives, grows the child's address space
+#   1.00 MB per MB of arguments, all of it json.loads and none of it the schema comparison. At the
+#   default 128 MB margin, 100 MB of such arguments validates and 128 MB raises MemoryError, which
+#   the parent reports as a 400. So for this shape the length below is not what refuses a caller; the
+#   margin is, at about 127 MB.
+# - An array of tiny objects costs 8.2 MB and 0.27 CPU seconds per MB, so the default one second
+#   budget refuses it at about 6 MB, well before any length does.
 #
-# MIN is 1 MB, which was the original value and fits about twenty five encoded circuits, and it turned
-# out to be below what callers send in one batch, so nothing lower is worth allowing.
+# Hence MAX: cost follows shape rather than length, so no length can guarantee the child will fit, and
+# this one is set where the default margin still has room to spare for shapes several times denser
+# than circuits. MIN is the original value of this limit, which fitted about twenty five encoded
+# circuits and turned out to be below what callers send per batch, so nothing lower is worth allowing.
+#
+# specs/ARGUMENTS_LIMIT.md carries the full tables, the sizing rule against pod memory and worker
+# count, and the scripts to repeat any of it.
 _MIN_ARGUMENTS_LENGTH_MB = 1
 _MAX_ARGUMENTS_LENGTH_MB = 64
 
