@@ -352,10 +352,10 @@ ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS = int(os.environ.get("ARGUMENTS_SCHEMA_CPU_LI
 # and FormParser (rest_framework/request.py, Request._parse), which turned every oversized JSON
 # request into a RequestDataTooBig and, through the endpoint decorator's blanket handler, into a 500.
 #
-# The chart derives the ingress annotation nginx.ingress.kubernetes.io/proxy-body-size from the same
-# value, so raising one raises the other (charts/qiskit-serverless/charts/gateway: values.yaml
-# application.limits.maxRequestBodySizeMb, templates/ingress.yaml). If a deployment sets that
-# annotation by hand, its value wins and the proxy rejects a large body before the gateway sees it.
+# The chart sets this from application.limits.maxRequestBodySizeMb, and when its ingress is enabled
+# it derives the annotation nginx.ingress.kubernetes.io/proxy-body-size from that same value, so
+# raising one raises the other. A deployment fronting the gateway some other way bounds the body
+# there instead, so this is the only limit that always applies.
 #
 # This bounds the body of any request. It is not the bound on the cost of validating arguments
 # against a function's JSON Schema: that one is MAX_ARGUMENTS_LENGTH in

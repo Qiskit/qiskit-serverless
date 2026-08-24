@@ -60,11 +60,15 @@ application:
     # Largest request body the gateway accepts, in MB. A caller sending a batch of encoded circuits
     # to /programs/run needs room: one 100 qubit, depth 100 circuit is about 39 KB of base64, so
     # fifty of them are around 2 MB. Django's own default is 2.5 MB, which is why this is set here
-    # rather than left alone. The ingress annotation nginx.ingress.kubernetes.io/proxy-body-size is
-    # derived from this same value (templates/ingress.yaml), so raising one raises the other; set
-    # that annotation under ingress.annotations to override it, and the proxy then rejects a large
-    # body before the gateway sees it. Note this bounds any request body, while the smaller
+    # rather than left alone. Note this bounds any request body, while the smaller
     # MAX_ARGUMENTS_LENGTH in the gateway bounds what arguments schema validation will look at.
+    #
+    # When the ingress below is enabled, templates/ingress.yaml derives the annotation
+    # nginx.ingress.kubernetes.io/proxy-body-size from this same value, so that the proxy and the
+    # gateway cannot drift apart: a proxy allowing less would cut a large body off before the gateway
+    # could answer 413. Setting that annotation under ingress.annotations overrides the derived one.
+    # A deployment that fronts the gateway some other way, an Istio ingress gateway for instance, has
+    # to bound the body there itself, because nothing in this chart reaches that far.
     maxRequestBodySizeMb: 50
   qiskitRuntime:
     url: "https://cloud.ibm.com"

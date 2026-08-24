@@ -20,10 +20,10 @@ fixes:
     evaluates the schema: five hundred circuits cost 55 MB of peak child memory.
 upgrade:
   - |
-    The chart derives the ingress annotation
-    ``nginx.ingress.kubernetes.io/proxy-body-size`` for the gateway from
+    When the gateway ingress is enabled, the chart now derives its
+    ``nginx.ingress.kubernetes.io/proxy-body-size`` annotation from
     ``gateway.application.limits.maxRequestBodySizeMb``, so the proxy and the
     gateway agree on the limit and changing it in one place changes both. A
     deployment that sets that annotation under ``gateway.ingress.annotations``
-    keeps its own value, and the proxy then rejects a large body before the
-    gateway sees it.
+    keeps its own value. A deployment that fronts the gateway some other way has
+    to bound the request body there itself.
