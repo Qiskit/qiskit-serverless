@@ -121,6 +121,8 @@ class FunctionSizeAdmin(admin.ModelAdmin):
     autocomplete_fields = ["function", "compute_profile"]
     list_select_related = ["function", "compute_profile"]
     readonly_fields = ["created", "updated"]
+
+
 def _arguments_schema_error(value: str | None) -> str | None:
     """Return why `value` is not a usable arguments schema, or None when it is.
 
