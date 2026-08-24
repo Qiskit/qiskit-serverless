@@ -362,7 +362,7 @@ class TestEventStreamsIntegration:
         job = _make_fleets_job(status=Job.PENDING)
 
         call_order = []
-        task.event_streams_client.emit_job_started.side_effect = lambda j, m: call_order.append("publish")
+        task.event_streams_client.emit_job_started.side_effect = lambda j: call_order.append("publish")
         job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db"))
 
         with patch(f"{_MOD}.JobEvent"):
@@ -389,7 +389,7 @@ class TestEventStreamsIntegration:
         job = _make_fleets_job(status=Job.RUNNING)
 
         call_order = []
-        task.event_streams_client.emit_job_completed.side_effect = lambda j, m: call_order.append("publish")
+        task.event_streams_client.emit_job_completed.side_effect = lambda j: call_order.append("publish")
         job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db"))
 
         with patch(f"{_MOD}.JobEvent"):
@@ -474,7 +474,7 @@ class TestEventStreamsIntegration:
         job = _make_fleets_job(status=Job.PENDING)
 
         call_order = []
-        task.event_streams_client.emit_job_started.side_effect = lambda j, m: call_order.append("started")
+        task.event_streams_client.emit_job_started.side_effect = lambda j: call_order.append("started")
         task.event_streams_client.emit_license_fee.side_effect = lambda j: call_order.append("license")
         job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db"))
 
