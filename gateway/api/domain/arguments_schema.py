@@ -61,43 +61,26 @@ from api.domain.isolated import IsolationError, run_isolated
 # still express a much larger one in very few characters.
 MAX_SCHEMA_LENGTH = 64 * 1024
 
-# Hard bounds on settings.MAX_ARGUMENTS_LENGTH_MB, which is the longest arguments a caller may send
-# to a function that declares a schema. The setting is what a deployment configures, through the env
-# var or the chart; these two are fixed in code and clamp whatever it holds, so a value outside the
-# range is silently pulled back into it rather than honoured (see max_arguments_length below). Same
-# arrangement as the margin and CPU budget above, for the same reason: a setting is also a way to
-# weaken a protection by configuration.
+# settings.MAX_ARGUMENTS_LENGTH_MB, the longest arguments a caller may send to a function that
+# declares a schema, is clamped to 1-64 MB before use, like the margin and CPU budget above: a
+# setting is also a way to weaken a protection by configuration.
 #
-# The length is applied before anything is forked, so it is the cheapest of the limits, and it is
-# meant to stay below settings.MAX_REQUEST_BODY_SIZE_MB (50 MB by default), because accepting a body
-# and validating it are not the same cost: validating forks a child that parses the arguments a
-# second time under the margin and CPU budget above. Nothing enforces that relation across the two
-# settings, and MAX below is above that default on purpose, so that a deployment raising the body
-# limit does not have to raise this one in the same breath.
+# Two measurements decide the upper bound of 64, both on Linux in a container, where RLIMIT_AS is
+# actually applied (it is never set on macOS, so a laptop cannot answer this). Note the margin bounds
+# address space rather than resident memory, and the two differ a lot here, since a forked child
+# inherits the parent's mappings and can touch pages without mapping new ones.
 #
-# Two measurements decide these bounds, both taken on Linux in a container, where RLIMIT_AS is
-# actually applied (it is never set on macOS, so a laptop cannot answer this). Read them with the
-# distinction that matters: the margin bounds address space, not resident memory, and the two differ
-# a lot here because a forked child inherits the parent's mappings and can touch pages without
-# mapping new ones.
+# - Validating an array of encoded circuits, the shape the platform receives, grows the child's
+#   address space by about as much as the arguments themselves weigh, all of it json.loads and none of
+#   it the schema comparison. So the 128 MB margin covers roughly 127 MB of them, and 64 leaves it
+#   room for a shape twice as dense.
+# - An array of tiny objects is eight times denser than that, but costs 0.27 CPU seconds per MB, so
+#   the one second budget refuses it at about 3.5 MB, well before any length does.
 #
-# - An array of encoded circuits, the shape the platform receives, grows the child's address space
-#   1.00 MB per MB of arguments, all of it json.loads and none of it the schema comparison. At the
-#   default 128 MB margin, 100 MB of such arguments validates and 128 MB raises MemoryError, which
-#   the parent reports as a 400. So for this shape the length below is not what refuses a caller; the
-#   margin is, at about 127 MB.
-# - An array of tiny objects costs 8.2 MB and 0.27 CPU seconds per MB, so the default one second
-#   budget refuses it at about 3.5 MB (measured: 3.0 MB spent 0.82s and passed, 3.8 MB was cut),
-#   well before any length does.
-#
-# Hence MAX: cost follows shape rather than length, so no length can guarantee the child will fit,
-# and refusing on length is only the better error where it happens to come first. At 64 MB the
-# default 128 MB margin still covers a shape twice as dense as circuits. MIN is the original value of
-# this limit, which fitted about twenty five encoded circuits and turned out to be below what callers
-# send per batch, so nothing lower is worth allowing.
-#
-# specs/ARGUMENTS_LIMIT.md carries the full tables, the sizing rule against pod memory and worker
-# count, and the scripts to repeat any of it.
+# The second is why the number cannot be tighter in a useful way: cost follows shape, not length, so
+# no length guarantees the child will fit, and refusing on length is only the better error where it
+# happens to come first. specs/ARGUMENTS_LIMIT.md has the tables, the sizing rule against pod memory
+# and worker count, and the scripts to repeat any of it.
 _MIN_ARGUMENTS_LENGTH_MB = 1
 _MAX_ARGUMENTS_LENGTH_MB = 64
 

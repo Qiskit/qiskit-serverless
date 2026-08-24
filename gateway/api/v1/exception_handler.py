@@ -90,14 +90,11 @@ def endpoint_handle_exceptions(view_func: Callable):
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
         except RequestDataTooBig:
-            # Raised by HttpRequest.body over DATA_UPLOAD_MAX_MEMORY_SIZE, which DRF reaches while
-            # parsing, so it fires before the view runs and there is no serializer error to report.
-            # The blanket handler below turned it into "Internal server error", which says nothing
-            # about a request the caller can fix by sending less at a time.
-            #
-            # The figure comes from the setting that did the refusing, not from MAX_REQUEST_BODY_SIZE_MB
-            # which normally derives it, so the message cannot disagree with what actually happened if
-            # a deployment sets DATA_UPLOAD_MAX_MEMORY_SIZE on its own.
+            # DATA_UPLOAD_MAX_MEMORY_SIZE is Django's own setting, not one of ours, and its default of
+            # 2.5 MB is what used to surface here as a 500: Django REST Framework 3.18.0 started
+            # routing JSON bodies through HttpRequest.body, where that default is enforced. Report the
+            # setting that did the refusing rather than our MAX_REQUEST_BODY_SIZE_MB, which only
+            # derives it, so the message still holds if a deployment sets Django's directly.
             limit_mb = settings.DATA_UPLOAD_MAX_MEMORY_SIZE / (1024 * 1024)
             logger.warning("Request body over the %g MB limit", limit_mb)
             return Response(

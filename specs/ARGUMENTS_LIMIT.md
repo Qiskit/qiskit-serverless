@@ -19,7 +19,7 @@ may be set to, and how the figures behind them were measured. For the validation
 ## Why the body limit exists at all
 
 Django bounds a request body with `DATA_UPLOAD_MAX_MEMORY_SIZE`, 2.5 MB by default, raising
-`RequestDataTooBig` from `HttpRequest.body`. That default never applied to a JSON body, because DRF
+`RequestDataTooBig` from `HttpRequest.body`. That default never applied to a JSON body, because Django REST Framework
 read the request stream directly, until 3.18.0 added this to `Request._parse`:
 
 ```python
@@ -34,9 +34,9 @@ base64, so about sixty five of them reach the limit and a batch of that order fa
 `endpoint_handle_exceptions` caught the result in its generic `except Exception` and answered
 `500 Internal server error`.
 
-Measured with the same test on both DRF versions, `POST /programs/run` with a 3 MB body:
+Measured with the same test on both Django REST Framework versions, `POST /programs/run` with a 3 MB body:
 
-| DRF | Function declares a schema | Result |
+| Django REST Framework | Function declares a schema | Result |
 |---|---|---|
 | 3.18.0 | no | 500 `RequestDataTooBig` |
 | 3.18.0 | yes | 500 `RequestDataTooBig` |
@@ -77,14 +77,14 @@ overestimated the cost by a factor of two.
 
 Measured on Linux, where `RLIMIT_AS` is actually applied ([method](#how-this-was-measured)):
 
-| Payload shape | Address space added per MB of arguments | CPU per MB | With the defaults, refused at |
+| Payload shape | Address space the child adds | CPU it spends | With the defaults, refused at |
 |---|---|---|---|
-| Array of encoded circuits, 39 KB each | 1.00 MB | 0.001 s | about 127 MB, by the memory margin |
-| Array of tiny objects, `{"x": 1.5, "y": 2.5}` | 8.2 MB | 0.27 s | about 3.5 MB, by the CPU budget |
+| Array of encoded circuits, 39 KB each | 1.0x the arguments | 0.001 s per MB | about 127 MB, by the memory margin |
+| Array of tiny objects, `{"x": 1.5, "y": 2.5}` | 8.2x the arguments | 0.27 s per MB | about 3.5 MB, by the CPU budget |
 
-Both are linear, not exponential. For a batch of circuits the child grows by exactly what the
-arguments weigh, and all of that is `json.loads` building a Python structure: the schema comparison
-itself adds nothing measurable.
+Both are linear, not exponential, and the multiplier is what matters: a batch of circuits makes the child
+grow by its own size, an array of small objects by eight times its size. All of that growth is
+`json.loads` building a Python structure; the schema comparison itself adds nothing measurable.
 
 Two consequences shape the choice of 32 MB:
 
@@ -92,8 +92,8 @@ Two consequences shape the choice of 32 MB:
   is, at about 127 MB. The length is a cheaper bound applied before anything is forked, and it is a
   safety net rather than the operative limit.
 - **Length cannot bound cost on its own, because cost follows shape.** The same byte count costs eight
-  times more as an array of small objects, and those are refused inside the child instead, with a
-  `400`. That is the isolation doing its job, and no choice of length avoids it.
+  times more as an array of small objects, and those are refused inside the child instead, with a `400`,
+  on CPU rather than on memory. That is the isolation doing its job, and no choice of length avoids it.
 
 The clamp maximum of 64 MB is set where the default 128 MB margin still has room to spare for shapes
 denser than circuits. The clamp minimum of 1 MB is the original value of this limit, which fitted about
@@ -161,7 +161,7 @@ and next to `argumentsSchemaCpuLimitSeconds` in the chart's values.
 ## Sizing a deployment
 
 A request body costs about **3.2 times its size** in the worker that holds it, because it exists several
-times over at once: `HttpRequest.body` keeps the bytes and wraps them in a `BytesIO` of its own, DRF's
+times over at once: `HttpRequest.body` keeps the bytes and wraps them in a `BytesIO` of its own, Django REST Framework's
 `_parse` wraps them in a second one, and `json.loads` then builds a Python structure from that.
 
 | Body | Worker resident memory |
@@ -288,8 +288,9 @@ os.wait()
 Swap the payload for `{"points": [{"x": i + 0.5, "y": i + 1.5} for i in range(count)]}` to get the
 second row of the shape table.
 
-Results at the default 128 MB margin: circuits grew 1 MB per MB up to 100 MB and raised `MemoryError`
-at 128 MB; tiny objects grew 8.2 MB per MB up to 12.6 MB and raised `MemoryError` at 19 MB.
+Results at the default 128 MB margin: circuits grew the child by as much as the arguments weighed, up to
+100 MB, and raised `MemoryError` at 128 MB; tiny objects grew it 8.2 times their own size, up to 12.6 MB
+of arguments, and raised `MemoryError` at 19 MB.
 
 ### End to end verdict and CPU, through the real entry point
 
@@ -345,7 +346,8 @@ three OOM kills and seven clean rejections.
 
 ### Repeating any of this after a change
 
-The figures worth re-checking if `jsonschema`, Django or DRF move: the 1.00 MB per MB for circuits (it
+The figures worth re-checking if `jsonschema`, Django or Django REST Framework move: that a batch of circuits grows the
+child by its own size and no more (it
 is the one the margin is chosen against), the 3.2x body cost, and that a body over the limit still
 comes back as `413` rather than `500`. The last one is covered by
 `gateway/tests/api/test_request_body_size.py` and needs no container.

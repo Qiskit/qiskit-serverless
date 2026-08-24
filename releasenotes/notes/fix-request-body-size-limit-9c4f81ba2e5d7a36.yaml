@@ -2,37 +2,26 @@
 fixes:
   - |
     Running a Qiskit Function with a large batch of arguments no longer fails with
-    ``500 Internal server error``. Django's default limit on the size of a request
-    body is 2.5 MB, and ``djangorestframework`` 3.18.0 started applying it to JSON
-    requests, which it had not done before. A batch of encoded circuits goes over
-    that easily, since one 100 qubit, depth 100 circuit is about 39 KB of base64.
-    The gateway now accepts a body of up to 50 MB, set through the new
-    ``MAX_REQUEST_BODY_SIZE_MB`` setting.
-  - |
-    A request body over the limit is now reported as ``413 Request Entity Too
-    Large`` naming the limit, instead of the ``500 Internal server error`` the
-    endpoint decorator's generic handler produced.
+    ``500 Internal server error``. The gateway now accepts request bodies of up to
+    50 MB, and reports going over that as ``413 Request Entity Too Large`` naming
+    the limit.
   - |
     Raised the maximum length of the arguments validated against a function's
-    ``arguments_schema`` from 1 MB to 32 MB, and made it configurable through the
-    new ``MAX_ARGUMENTS_LENGTH_MB`` setting (clamped to 1-64). The old figure
-    fitted about twenty five encoded circuits, which was below what callers send
-    in one batch.
+    ``arguments_schema`` from 1 MB to 32 MB. The old figure fitted about twenty
+    five encoded circuits, below what callers send in one batch.
 upgrade:
   - |
-    Both limits are bounded by the pod rather than by one request, so weigh them
-    against ``gateway.resources`` and ``gateway.application.httpServer.workers``.
-    A request body costs about 3.2 times its size in the worker holding it, and
-    every worker can hold one at once, so the pod needs more memory than workers
-    times 3.2 times the limit. The chart's values carry a table of what fits per
-    pod memory and worker count. Past the pod's memory nothing answers 413: the
-    kernel OOM-kills a worker instead, which was measured with ten concurrent
-    200 MB bodies in 4 Gi killing three of them.
+    Two new settings, both also chart values under
+    ``gateway.application.limits``: ``MAX_REQUEST_BODY_SIZE_MB``
+    (``maxRequestBodySizeMb``, 50) and ``MAX_ARGUMENTS_LENGTH_MB``
+    (``maxArgumentsLengthMb``, 32). Size them against the pod's memory and worker
+    count, since a body costs about three times its size in the worker holding it
+    and every worker can hold one at once. ``specs/ARGUMENTS_LIMIT.md`` has the
+    table.
   - |
     When the gateway ingress is enabled, the chart now derives its
     ``nginx.ingress.kubernetes.io/proxy-body-size`` annotation from
-    ``gateway.application.limits.maxRequestBodySizeMb``, so the proxy and the
-    gateway agree on the limit and changing it in one place changes both. A
-    deployment that sets that annotation under ``gateway.ingress.annotations``
-    keeps its own value. A deployment that fronts the gateway some other way has
-    to bound the request body there itself.
+    ``maxRequestBodySizeMb``, so the proxy and the gateway agree on the limit.
+    Setting that annotation under ``gateway.ingress.annotations`` still overrides
+    it. A deployment that fronts the gateway another way has to bound the request
+    body there itself.

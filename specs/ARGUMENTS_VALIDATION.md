@@ -396,7 +396,7 @@ Order inside the use case:
 1. Resolve the function → `FunctionNotFoundException` (404)
 2. Function disabled → `FunctionDisabledException` (423)
 3. Active job limit → `ActiveJobLimitExceeded` (429)
-4. Fleets function missing a Code Engine project → DRF `ValidationError` (400)
+4. Fleets function missing a Code Engine project → Django REST Framework `ValidationError` (400)
 5. **Validate arguments** → `InvalidArgumentsException` (400)
 6. Create `JobConfig` and `Job`
 
@@ -470,10 +470,12 @@ except InvalidArgumentsException as error:
     )
 ```
 
-Keeping `path` is the reason for a dedicated exception rather than reusing DRF's `ValidationError`: the generic handler
+Keeping `path` is the reason for a dedicated exception rather than reusing Django REST Framework's `ValidationError`:
+the generic handler
 flattens a `ValidationError` to a single message, which would lose *which* field was wrong.
 
-At upload, a schema the gateway cannot evaluate is a DRF `ValidationError` and therefore a `400` with a flat message.
+At upload, a schema the gateway cannot evaluate is a Django REST Framework `ValidationError` and therefore a `400`
+with a flat message.
 At validation time, everything below is an `InvalidArgumentsException`, so a broken schema never becomes a `500`:
 
 | Situation | Status | Body |
@@ -487,7 +489,8 @@ At validation time, everything below is an `InvalidArgumentsException`, so a bro
 | `arguments` sent as an empty string | 400 | `{"message": "This field may not be blank."}`, with **no** `path` |
 
 That last row is the one exception to the shape above, and it is worth knowing before writing a client against these
-responses. It never reaches the code in this document: `arguments` is a DRF `CharField`, which rejects a blank value in
+responses. It never reaches the code in this document: `arguments` is a Django REST Framework `CharField`, which
+rejects a blank value in
 the serializer, so the response comes from the generic handler flattening a `ValidationError` rather than from
 `InvalidArgumentsException`, and it therefore has no `path` key at all. Every other `400` here carries one.
 
@@ -546,7 +549,7 @@ Because the gateway returns the schema as text, `from_json` decodes it back into
   function that existed before this feature keeps working untouched.
 - **The schema is stored as text.** It is round-tripped verbatim rather than normalized through a JSON column, so what a
   vendor uploads is what they read back.
-- **A dedicated exception instead of DRF's `ValidationError`,** so the 400 response can keep the `path` to the offending
+- **A dedicated exception instead of Django REST Framework's `ValidationError`,** so the 400 response can keep the `path` to the offending
   field instead of collapsing to one flat message.
 - **A schema is refused at upload when the gateway knows how, not at run time.** The cost of evaluating a schema is a
   property of the schema, so the check belongs where the author can still act on the error, and upload does refuse
