@@ -14,19 +14,20 @@ fixes:
     endpoint decorator's generic handler produced.
   - |
     Raised the maximum length of the arguments validated against a function's
-    ``arguments_schema`` from 1 MB to 32 MB. The old figure fitted about twenty
-    five encoded circuits, which was below what callers send in one batch. The new
-    one fits about eight hundred and still leaves the validation well inside the
-    memory it is allowed: validating a batch of circuits grows the forked child by
-    2.24 MB per MB of arguments, so 32 MB uses about 72 MB of the 128 MB margin.
+    ``arguments_schema`` from 1 MB to 32 MB, and made it configurable through the
+    new ``MAX_ARGUMENTS_LENGTH_MB`` setting (clamped to 1-64). The old figure
+    fitted about twenty five encoded circuits, which was below what callers send
+    in one batch.
 upgrade:
   - |
     Both limits are bounded by the pod rather than by one request, so weigh them
     against ``gateway.resources`` and ``gateway.application.httpServer.workers``.
-    A request body costs about 3.5 times its size in the worker holding it. At
-    4 Gi with 5 workers, a 50 MB body leaves roughly 2.9 GB in use at full
-    concurrency; 100 MB would reach 3.5 GB, and past the pod's memory the kernel
-    OOM-kills a worker instead of the gateway answering 413.
+    A request body costs about 3.2 times its size in the worker holding it, and
+    every worker can hold one at once, so the pod needs more memory than workers
+    times 3.2 times the limit. The chart's values carry a table of what fits per
+    pod memory and worker count. Past the pod's memory nothing answers 413: the
+    kernel OOM-kills a worker instead, which was measured with ten concurrent
+    200 MB bodies in 4 Gi killing three of them.
   - |
     When the gateway ingress is enabled, the chart now derives its
     ``nginx.ingress.kubernetes.io/proxy-body-size`` annotation from
