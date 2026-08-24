@@ -522,6 +522,8 @@ spec:
               value: {{ .Values.application.eventStreams.enabled | default false | quote }}
             - name: ENVIRONMENT
               value: {{ .Values.application.eventStreams.environment | default "" | quote }}
+            - name: EVENT_STREAMS_DEFAULT_REGION
+              value: {{ .Values.application.eventStreams.defaultRegion | default "us-east" | quote }}
             {{- if .Values.application.eventStreams.enabled }}
             - name: EVENT_STREAMS_BOOTSTRAP_SERVERS
               valueFrom:
@@ -538,6 +540,22 @@ spec:
                 secretKeyRef:
                   name: kafka-credentials
                   key: user
+            # Multi-region Event Streams support: optional suffixed regional secrets
+            # (kafka-credentials-eu-de, kafka-credentials-ap-sg, etc) are projected here if present
+            {{- range $region := (list "eu-de" "eu-gb" "ap-sg" "au-syd" "jp-osm") }}
+            {{- if (lookup "v1" "Secret" $.Release.Namespace (print "kafka-credentials-" $region)) }}
+            - name: EVENT_STREAMS_BOOTSTRAP_SERVERS_{{ upper (replace $region "-" "_") }}
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-credentials-{{ $region }}
+                  key: bootstrap_servers
+            - name: EVENT_STREAMS_API_KEY_{{ upper (replace $region "-" "_") }}
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-credentials-{{ $region }}
+                  key: api_key
+            {{- end }}
+            {{- end }}
             {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

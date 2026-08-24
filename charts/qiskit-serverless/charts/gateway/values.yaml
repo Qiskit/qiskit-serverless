@@ -74,6 +74,10 @@ application:
   eventStreams:
     enabled: false
     environment: ""
+    # Default region served by unsuffixed broker/API key secrets. Additional regions
+    # are configured via suffixed secrets (kafka-credentials-eu-de, etc).
+    # See: Multi-region Event Streams routing design (2026-08-06)
+    defaultRegion: "us-east"
   # Optional IBM w3id SSO backoffice login. The provider base url is not
   # sensitive and lives here; credentials go in secrets.w3idSso (see below).
   w3idSso:
