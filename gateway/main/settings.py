@@ -332,6 +332,10 @@ LIMITS_MAX_CLUSTERS = int(os.environ.get("LIMITS_MAX_CLUSTERS", "6"))
 LIMITS_GPU_CLUSTERS = int(os.environ.get("LIMITS_MAX_GPU_CLUSTERS", "1"))
 LIMITS_MAX_FLEETS = int(os.environ.get("LIMITS_MAX_FLEETS", "1000"))  # Fleets Project limit
 EVENT_STREAMS_ENABLED = os.environ.get("EVENT_STREAMS_ENABLED", "false").lower() == "true"
+# The Event Streams service is global; usage events are regional. EVENT_STREAMS_DEFAULT_REGION
+# specifies which regional Kafka bus receives events from unsuffixed broker/API key environment
+# variables. Additional regions are configured via suffixed variables (e.g. EVENT_STREAMS_BOOTSTRAP_SERVERS_EU_DE).
+EVENT_STREAMS_DEFAULT_REGION = os.environ.get("EVENT_STREAMS_DEFAULT_REGION", "us-east")
 LIMITS_CPU_PER_TASK = int(os.environ.get("LIMITS_CPU_PER_TASK", "4"))
 LIMITS_GPU_PER_TASK = int(os.environ.get("LIMITS_GPU_PER_TASK", "1"))
 LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))

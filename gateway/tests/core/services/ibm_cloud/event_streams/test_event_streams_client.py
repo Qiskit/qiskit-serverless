@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import uuid as uuid_module
 from datetime import datetime, timezone
@@ -330,3 +331,215 @@ class TestKafkaEventStreamsClient:
 
         published = json.loads(mock_producer.produce.call_args[1]["value"])
         assert "business_model" not in published["data"]
+
+    def test_default_region_producer_from_unsuffixed_vars(self):
+        with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
+            with patch.dict(
+                os.environ,
+                {
+                    "EVENT_STREAMS_BOOTSTRAP_SERVERS": "broker1:9093",
+                    "EVENT_STREAMS_API_KEY": "default-key",
+                    "ENVIRONMENT": "production",
+                },
+                clear=True,
+            ):
+                client = KafkaEventStreamsClient()
+
+        assert "us-east" in client._producers
+        mock_producer_cls.assert_called_once()
+
+    def test_suffixed_vars_discovered_by_scan(self):
+        with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
+            with patch.dict(
+                os.environ,
+                {
+                    "EVENT_STREAMS_BOOTSTRAP_SERVERS": "broker-us:9093",
+                    "EVENT_STREAMS_API_KEY": "us-key",
+                    "EVENT_STREAMS_BOOTSTRAP_SERVERS_EU_DE": "broker-eu:9093",
+                    "EVENT_STREAMS_API_KEY_EU_DE": "eu-key",
+                    "ENVIRONMENT": "production",
+                },
+                clear=True,
+            ):
+                client = KafkaEventStreamsClient()
+
+        assert "us-east" in client._producers
+        assert "eu-de" in client._producers
+        assert mock_producer_cls.call_count == 2
+
+    def test_event_streams_default_region_respected(self):
+        with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
+            with patch.dict(
+                os.environ,
+                {
+                    "EVENT_STREAMS_BOOTSTRAP_SERVERS": "broker1:9093",
+                    "EVENT_STREAMS_API_KEY": "key",
+                    "EVENT_STREAMS_DEFAULT_REGION": "eu-gb",
+                    "ENVIRONMENT": "production",
+                },
+                clear=True,
+            ):
+                client = KafkaEventStreamsClient()
+
+        assert client._default_region == "eu-gb"
+        assert "eu-gb" in client._producers
+
+    def test_routing_selects_right_producer(self):
+        job_us = _make_job(instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/abc:def::")
+        job_eu = _make_job(instance_crn="crn:v1:bluemix:public:quantum-computing:eu-de:a/abc:def::")
+
+        mock_producer_us = MagicMock()
+        mock_producer_eu = MagicMock()
+        mock_producer_us.flush.return_value = 0
+        mock_producer_eu.flush.return_value = 0
+
+        def create_producer_side_effect(config):
+            if "broker-us" in config.get("bootstrap.servers", ""):
+                return mock_producer_us
+            elif "broker-eu" in config.get("bootstrap.servers", ""):
+                return mock_producer_eu
+            return MagicMock()
+
+        with patch(f"{_CLIENT_MOD}.Producer", side_effect=create_producer_side_effect):
+            with patch(f"{_CLIENT_MOD}.uuid"):
+                with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
+                    with patch.dict(
+                        os.environ,
+                        {
+                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "broker-us:9093",
+                            "EVENT_STREAMS_API_KEY": "us-key",
+                            "EVENT_STREAMS_BOOTSTRAP_SERVERS_EU_DE": "broker-eu:9093",
+                            "EVENT_STREAMS_API_KEY_EU_DE": "eu-key",
+                            "ENVIRONMENT": "production",
+                        },
+                        clear=True,
+                    ):
+                        mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+                        client = KafkaEventStreamsClient()
+
+                        client.emit_job_started(job_us, "classical_24x120")
+                        client.emit_job_started(job_eu, "classical_24x120")
+
+        assert mock_producer_us.produce.called
+        assert mock_producer_eu.produce.called
+
+    def test_unconfigured_region_raises(self):
+        job = _make_job(instance_crn="crn:v1:bluemix:public:quantum-computing:au-syd:a/abc:def::")
+
+        with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
+            with patch(f"{_CLIENT_MOD}.uuid"):
+                with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
+                    with patch.dict(
+                        os.environ,
+                        {
+                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                            "EVENT_STREAMS_API_KEY": "k",
+                            "ENVIRONMENT": "production",
+                        },
+                        clear=True,
+                    ):
+                        mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+                        client = KafkaEventStreamsClient()
+                        mock_producer = mock_producer_cls.return_value
+                        mock_producer.flush.return_value = 0
+
+                        with pytest.raises(RuntimeError, match="No producer configured for region au-syd"):
+                            client.emit_job_started(job, "classical_24x120")
+
+    def test_null_crn_uses_default_region(self):
+        job = _make_job(instance_crn=None)
+
+        with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
+            with patch(f"{_CLIENT_MOD}.uuid"):
+                with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
+                    with patch.dict(
+                        os.environ,
+                        {
+                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                            "EVENT_STREAMS_API_KEY": "k",
+                            "ENVIRONMENT": "production",
+                        },
+                        clear=True,
+                    ):
+                        mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+                        client = KafkaEventStreamsClient()
+                        mock_producer = mock_producer_cls.return_value
+                        mock_producer.flush.return_value = 0
+
+                        client.emit_job_started(job, "classical_24x120")
+
+        mock_producer.produce.assert_called_once()
+
+    def test_malformed_crn_uses_default_region(self):
+        job = _make_job(instance_crn="not:a:valid:crn")
+
+        with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
+            with patch(f"{_CLIENT_MOD}.uuid"):
+                with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
+                    with patch.dict(
+                        os.environ,
+                        {
+                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                            "EVENT_STREAMS_API_KEY": "k",
+                            "ENVIRONMENT": "production",
+                        },
+                        clear=True,
+                    ):
+                        mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+                        client = KafkaEventStreamsClient()
+                        mock_producer = mock_producer_cls.return_value
+                        mock_producer.flush.return_value = 0
+
+                        client.emit_job_started(job, "classical_24x120")
+
+        mock_producer.produce.assert_called_once()
+
+    def test_broker_list_without_matching_api_key_raises_at_init(self):
+        with patch(f"{_CLIENT_MOD}.Producer"):
+            with patch.dict(
+                os.environ,
+                {
+                    "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                    "EVENT_STREAMS_API_KEY": "k",
+                    "EVENT_STREAMS_BOOTSTRAP_SERVERS_EU_DE": "broker-eu:9093",
+                    "ENVIRONMENT": "production",
+                },
+                clear=True,
+            ):
+                with pytest.raises(ValueError, match="missing EVENT_STREAMS_API_KEY_EU_DE"):
+                    KafkaEventStreamsClient()
+
+    def test_startup_log_line(self, caplog):
+        with patch(f"{_CLIENT_MOD}.Producer"):
+            with patch.dict(
+                os.environ,
+                {
+                    "EVENT_STREAMS_BOOTSTRAP_SERVERS": "broker-us:9093",
+                    "EVENT_STREAMS_API_KEY": "us-key",
+                    "EVENT_STREAMS_BOOTSTRAP_SERVERS_EU_DE": "broker-eu:9093",
+                    "EVENT_STREAMS_API_KEY_EU_DE": "eu-key",
+                    "ENVIRONMENT": "production",
+                },
+                clear=True,
+            ):
+                with caplog.at_level(logging.INFO):
+                    KafkaEventStreamsClient()
+
+        assert "Event Streams producers initialized" in caplog.text
+        assert "regions=" in caplog.text
+        assert "default=us-east" in caplog.text
+
+    def test_region_from_crn_extracts_correctly(self):
+        assert (
+            KafkaEventStreamsClient._region_from_crn("crn:v1:bluemix:public:quantum-computing:us-east:a/abc:def::")
+            == "us-east"
+        )
+        assert (
+            KafkaEventStreamsClient._region_from_crn("crn:v1:bluemix:public:quantum-computing:eu-de:a/abc:def::")
+            == "eu-de"
+        )
+
+    def test_region_from_crn_returns_none_for_invalid_crn(self):
+        assert KafkaEventStreamsClient._region_from_crn(None) is None
+        assert KafkaEventStreamsClient._region_from_crn("") is None
+        assert KafkaEventStreamsClient._region_from_crn("not:a:valid:crn") is None
