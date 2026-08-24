@@ -85,12 +85,12 @@ class JobQuerySet(QuerySet):
 
         match filters.filter:
             case TypeFilter.CATALOG:
-                if filters.provider:
-                    queryset = queryset.filter(program__provider=filters.provider)
-                else:
-                    queryset = queryset.exclude(program__provider=None)
+                queryset = queryset.exclude(program__provider=None)
             case TypeFilter.SERVERLESS:
                 queryset = queryset.filter(program__provider=None)
+
+        if filters.provider:
+            queryset = queryset.filter(program__provider__name=filters.provider)
 
         if filters.status:
             queryset = queryset.filter(status=filters.status)
