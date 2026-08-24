@@ -18,10 +18,3 @@ upgrade:
     count, since a body costs about three times its size in the worker holding it
     and every worker can hold one at once. ``specs/ARGUMENTS_LIMIT.md`` has the
     table.
-  - |
-    When the gateway ingress is enabled, the chart now derives its
-    ``nginx.ingress.kubernetes.io/proxy-body-size`` annotation from
-    ``maxRequestBodySizeMb``, so the proxy and the gateway agree on the limit.
-    Setting that annotation under ``gateway.ingress.annotations`` still overrides
-    it. A deployment that fronts the gateway another way has to bound the request
-    body there itself.
