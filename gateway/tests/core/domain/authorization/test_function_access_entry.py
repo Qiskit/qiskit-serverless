@@ -29,6 +29,17 @@ def test_business_model_normalized_to_uppercase():
     assert entry.business_model == "TRIAL"
 
 
+def test_subsidized_business_model_stored_as_licensed():
+    """SUBSIDIZED is the legacy name of LICENSED: we accept it and store the new one."""
+    entry = FunctionAccessEntry(
+        provider_name="p",
+        function_title="f",
+        permissions={PLATFORM_PERMISSION_RUN},
+        business_model="SUBSIDIZED",
+    )
+    assert entry.business_model == "LICENSED"
+
+
 def test_invalid_business_model_raises():
     with pytest.raises(ValueError, match="Invalid business_model"):
         FunctionAccessEntry(

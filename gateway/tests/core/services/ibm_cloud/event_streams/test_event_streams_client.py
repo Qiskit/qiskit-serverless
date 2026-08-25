@@ -31,7 +31,7 @@ def _make_job(
     job_id=None,
     instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/abc:def::",
     running_started_at=None,
-    business_model=BusinessModel.SUBSIDIZED,
+    business_model=BusinessModel.LICENSED,
 ):
     job = MagicMock()
     job.id = job_id or uuid_module.uuid4()
@@ -276,6 +276,7 @@ class TestKafkaEventStreamsClient:
         "business_model,expected",
         [
             (BusinessModel.SUBSIDIZED, "licensed"),
+            (BusinessModel.LICENSED, "licensed"),
             (BusinessModel.TRIAL, "trial"),
             (BusinessModel.CONSUMPTION, "consumption"),
         ],

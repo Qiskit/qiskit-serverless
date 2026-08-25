@@ -15,6 +15,7 @@ from django_prometheus.models import ExportModelOperationsMixin
 
 from core.config_key import ConfigKey
 from core.domain.business_models import BusinessModel
+from core.domain.subsidized_license_mapping import licensed_job_from_db
 from core.model_managers.code_engine_projects import CodeEngineProjectQuerySet
 from core.model_managers.functions import FunctionsQuerySet
 from core.model_managers.job_events import JobEventQuerySet
@@ -498,7 +499,7 @@ class Job(models.Model):
 
     BUSINESS_MODELS = [
         (BusinessModel.TRIAL, "Trial"),
-        (BusinessModel.SUBSIDIZED, "Subsidized"),
+        (BusinessModel.LICENSED, "Licensed"),
         (BusinessModel.CONSUMPTION, "Consumption"),
     ]
 
@@ -529,7 +530,7 @@ class Job(models.Model):
     )
     sub_status = models.CharField(max_length=255, choices=SUB_STATUSES, default=None, null=True, blank=True)
     trial = models.BooleanField(default=False, null=False)
-    business_model = models.CharField(max_length=50, choices=BUSINESS_MODELS, default=BusinessModel.SUBSIDIZED)
+    business_model = models.CharField(max_length=50, choices=BUSINESS_MODELS, default=BusinessModel.LICENSED)
     version = IntegerVersionField()
 
     author = models.ForeignKey(
@@ -578,6 +579,11 @@ class Job(models.Model):
 
     class Meta:
         app_label = "api"
+
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        """Read a job row, translating the old business model name (temporary)."""
+        return licensed_job_from_db(super().from_db(db, field_names, values), field_names)
 
     def __str__(self):
         return f"<Job {self.id} | {self.status}>"
