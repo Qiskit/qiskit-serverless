@@ -1,0 +1,20 @@
+---
+fixes:
+  - |
+    Running a Qiskit Function with a large batch of arguments no longer fails with
+    ``500 Internal server error``. The gateway now accepts request bodies of up to
+    50 MB, and reports going over that as ``413 Request Entity Too Large`` naming
+    the limit.
+  - |
+    Raised the maximum length of the arguments validated against a function's
+    ``arguments_schema`` from 1 MB to 32 MB. The old figure fitted about twenty
+    five encoded circuits, below what callers send in one batch.
+upgrade:
+  - |
+    Two new settings, both also chart values under
+    ``gateway.application.limits``: ``MAX_REQUEST_BODY_SIZE_MB``
+    (``maxRequestBodySizeMb``, 50) and ``MAX_ARGUMENTS_LENGTH_MB``
+    (``maxArgumentsLengthMb``, 32). Size them against the pod's memory and worker
+    count, since a body costs about three times its size in the worker holding it
+    and every worker can hold one at once. ``specs/ARGUMENTS_LIMIT.md`` has the
+    table.

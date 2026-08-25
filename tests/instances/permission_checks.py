@@ -9,8 +9,9 @@ class must provide via an autouse binding fixture:
   - self.provider_name          provider of the test function
   - self.function_title         title of the test function
   - self.custom_function_title  title of the custom (serverless) function (where used)
-  - self.populated_job_id          id of a pre-populated job (where used)
+  - self.populated_job_id       id of a pre-populated job (where used)
   - self.other_function_title   title of a second function not in the entitlements (where used)
+  - self.unowned_function_title title of a provider function the caller does NOT own (where used)
 
 This lets the same battery run at every permission level against the single reconfigurable
 instance, which each test class drives to its level before binding self.client.
@@ -25,6 +26,28 @@ from qiskit_serverless.exception import QiskitServerlessException
 # These come from core.domain.business_models.BusinessModel constants.
 BUSINESS_MODEL_USER = "TRIAL"
 BUSINESS_MODEL_ALL = "CONSUMPTION"
+
+
+# Why the deny checks of the provider operations point at a function title that does not exist
+# (self.unowned_function_title) instead of the function the suite uploaded:
+#
+# Since PR #2397 the author of a provider function is an admin of it, so ProviderAccessPolicy grants
+# every provider permission on self.function_title (the suite uploads it, so the caller owns it).
+# A deny check therefore needs a function the caller does not own, and with a single token the only
+# such function is one that does not exist at all.
+#
+# That works because in every one of these paths the permission check runs BEFORE the function is
+# looked up, so the 404 comes from the denied permission and not from the missing row:
+#   - gateway/api/use_cases/programs/upload.py: can_upload_function, then create/update.
+#   - gateway/api/use_cases/jobs/provider_list.py: can_list_jobs, then Function.objects.get_function.
+#   - gateway/api/use_cases/files/provider_{list,download,upload,delete}.py: can_read_files /
+#     can_write_files, then the function lookup.
+# Both branches raise a NotFoundError subclass, which api/v1/exception_handler.py maps to 404, so
+# the two causes are indistinguishable over HTTP.
+#
+# This is a fragile coupling and worth knowing about: if any of those use cases is ever reordered to
+# look the function up first, these checks would keep passing while asserting nothing about
+# permissions at all. If you touch that ordering, revisit these checks.
 
 
 def _assert_404(exc_info):
@@ -51,27 +74,129 @@ def contains_function(functions, provider_name, function_title):
     return any(f.title == function_title and f.provider == provider_name for f in functions)
 
 
-class NonePermissionChecks:
+class FunctionOwnershipChecks:
+    """Provider operations granted by AUTHORSHIP alone, with no entitlement whatsoever.
+
+    The author of a provider function is an admin of it: ProviderAccessPolicy._check
+    (gateway/api/access_policies/providers.py) grants every provider permission when a function row
+    exists for that provider and title with author=user, and it does so on both authorization paths
+    (legacy Django groups and runtime instance permissions).
+
+    This suite is the only place that contract can be verified end to end against a real deployment,
+    and it is well placed to do it: it uploads self.function_title itself with GATEWAY_TOKEN (see
+    _populate_provider_function in conftest.py), so the caller owns that function. These checks are
+    mixed into the levels that hold NO provider entitlements (NONE and USER) and expect success
+    anyway.
+
+    Expected behaviour, all against the function the caller owns:
+      - upload → succeeds (no function.write needed).
+      - provider_jobs → succeeds (no function-job.read needed).
+      - provider_files list/upload/download/delete → succeed (no function-provider-files.* needed).
+      - provider_logs of its job → succeeds (no function-provider-logs.read needed).
+      - provider_logs of a job of a function owned by somebody else → 403 (skipped unless
+        TEST_FOREIGN_JOB_ID is set).
+    """
+
+    def test_upload_owned_function_succeeds_by_ownership(self, tmp_path):
+        """upload() succeeds on the caller's own function even without function.write."""
+        (tmp_path / "main.py").write_text('print("hello")\n')
+        fn = QiskitFunction(
+            title=self.function_title,
+            provider=self.provider_name,
+            entrypoint="main.py",
+            working_dir=str(tmp_path),
+        )
+        result = self.client.upload(fn)
+        assert result is not None
+        assert result.title == self.function_title
+
+    def test_provider_jobs_owned_function_succeeds_by_ownership(self):
+        """provider_jobs() succeeds on the caller's own function even without function-job.read."""
+        fn = QiskitFunction(title=self.function_title, provider=self.provider_name)
+        jobs = self.client.provider_jobs(fn)
+        assert isinstance(jobs, list)
+        assert any(
+            j.job_id == self.populated_job_id for j in jobs
+        ), f"Populated job {self.populated_job_id} not found in provider_jobs. Got: {[j.job_id for j in jobs]}"
+
+    def test_provider_files_list_owned_function_succeeds_by_ownership(self):
+        """provider_files() succeeds on the caller's own function without function-provider-files.read."""
+        fn = QiskitFunction(title=self.function_title, provider=self.provider_name)
+        result = self.client.provider_files(fn)
+        assert isinstance(result, list)
+
+    def test_provider_file_upload_owned_function_succeeds_by_ownership(self, tmp_path):
+        """provider_file_upload() succeeds on the caller's own function without function-provider-files.write."""
+        file = tmp_path / "owner_data.txt"
+        file.write_text("owner content")
+        fn = QiskitFunction(title=self.function_title, provider=self.provider_name)
+        result = self.client.provider_file_upload(str(file), fn)
+        assert result is not None
+
+    def test_provider_file_download_owned_function_succeeds_by_ownership(self, tmp_path):
+        """provider_file_download() succeeds on the caller's own function without function-provider-files.read."""
+        file = tmp_path / "owner_dl_test.txt"
+        file.write_text("download content")
+        fn = QiskitFunction(title=self.function_title, provider=self.provider_name)
+        self.client.provider_file_upload(str(file), fn)
+        result = self.client.provider_file_download(
+            "owner_dl_test.txt", fn, download_location=str(tmp_path), target_name="owner_dl_result.txt"
+        )
+        assert result is not None
+        assert (tmp_path / "owner_dl_result.txt").exists()
+
+    def test_provider_file_delete_owned_function_succeeds_by_ownership(self, tmp_path):
+        """provider_file_delete() succeeds on the caller's own function without function-provider-files.write."""
+        file = tmp_path / "owner_del_test.txt"
+        file.write_text("delete content")
+        fn = QiskitFunction(title=self.function_title, provider=self.provider_name)
+        self.client.provider_file_upload(str(file), fn)
+        self.client.provider_file_delete("owner_del_test.txt", fn)
+        remaining = self.client.provider_files(fn)
+        assert "owner_del_test.txt" not in remaining
+
+    def test_provider_logs_owned_function_job_succeeds_by_ownership(self):
+        """provider_logs() succeeds for a job of the caller's own function without function-provider-logs.read."""
+        logs = self.client.provider_logs(self.populated_job_id)
+        assert logs is not None
+
+    def test_provider_logs_foreign_job_raises_403(self, foreign_job_id):
+        """provider_logs() is denied (403) for a job whose function the caller does not own.
+
+        Ownership does not leak to other people's functions. This needs a job created by another
+        identity, so it is driven by TEST_FOREIGN_JOB_ID and skipped when that is not configured.
+        """
+        with pytest.raises(QiskitServerlessException) as exc:
+            self.client.provider_logs(foreign_job_id)
+        _assert_403(exc)
+
+
+class NonePermissionChecks(FunctionOwnershipChecks):
     """
     Instance with NO permissions (empty functions list).
+
+    The deny checks of the provider operations target unowned_function_title, a function the caller
+    does not own: on the caller's own function those same operations are granted by authorship, and
+    that is asserted by the inherited FunctionOwnershipChecks.
 
     Expected behaviour:
       - catalog: provider function excluded (no function.read).
       - unfiltered: provider function excluded (no function.read).
       - get_by_title → 404.
       - run → 404.
-      - upload → 404.
-      - provider_jobs → 404.
+      - upload of an unowned function → 404.
+      - provider_jobs of an unowned function → 404.
       - files → 404 (no function-files.read).
       - file_upload → 404 (no function-files.write).
       - file_download → 404 (no function-files.read).
       - file_delete → 404 (no function-files.write).
-      - provider_files → 404.
-      - provider_file_upload → 404.
-      - provider_file_download → 404.
-      - provider_file_delete → 404.
+      - provider_files of an unowned function → 404.
+      - provider_file_upload of an unowned function → 404.
+      - provider_file_download of an unowned function → 404.
+      - provider_file_delete of an unowned function → 404.
       - upload custom function → 404 (no function-custom.write).
       - run custom function → 404 (no function-custom.run).
+      - every provider operation on the caller's OWN function → succeeds (FunctionOwnershipChecks).
     """
 
     def test_list_catalog_excludes_function(self):
@@ -100,11 +225,11 @@ class NonePermissionChecks:
             self.client.run(self.function_title, provider=self.provider_name)
         _assert_404(exc)
 
-    def test_upload_raises_404(self, tmp_path):
-        """upload() is denied (404) when no permissions are present."""
+    def test_upload_unowned_function_raises_404(self, tmp_path):
+        """upload() of a function the caller does not own is denied (404) with no permissions."""
         (tmp_path / "main.py").write_text('print("hello")\n')
         fn = QiskitFunction(
-            title=self.function_title,
+            title=self.unowned_function_title,
             provider=self.provider_name,
             entrypoint="main.py",
             working_dir=str(tmp_path),
@@ -113,48 +238,42 @@ class NonePermissionChecks:
             self.client.upload(fn)
         _assert_404(exc)
 
-    def test_provider_jobs_raises_404(self):
-        """provider_jobs() is denied (404) when no permissions are present."""
-        fn = QiskitFunction(title=self.function_title, provider=self.provider_name)
+    def test_provider_jobs_unowned_function_raises_404(self):
+        """provider_jobs() of a function the caller does not own is denied (404) with no permissions."""
+        fn = QiskitFunction(title=self.unowned_function_title, provider=self.provider_name)
         with pytest.raises(QiskitServerlessException) as exc:
             self.client.provider_jobs(fn)
         _assert_404(exc)
 
-    def test_provider_files_list_raises_404(self):
-        """provider_files() is denied (404) when no permissions are present."""
-        fn = QiskitFunction(title=self.function_title, provider=self.provider_name)
+    def test_provider_files_list_unowned_function_raises_404(self):
+        """provider_files() of a function the caller does not own is denied (404) with no permissions."""
+        fn = QiskitFunction(title=self.unowned_function_title, provider=self.provider_name)
         with pytest.raises(QiskitServerlessException) as exc:
             self.client.provider_files(fn)
         _assert_404(exc)
 
-    def test_provider_file_upload_raises_404(self, tmp_path):
-        """provider_file_upload() is denied (404) when no permissions are present."""
+    def test_provider_file_upload_unowned_function_raises_404(self, tmp_path):
+        """provider_file_upload() of a function the caller does not own is denied (404)."""
         file = tmp_path / "data.txt"
         file.write_text("content")
-        fn = QiskitFunction(title=self.function_title, provider=self.provider_name)
+        fn = QiskitFunction(title=self.unowned_function_title, provider=self.provider_name)
         with pytest.raises(QiskitServerlessException) as exc:
             self.client.provider_file_upload(str(file), fn)
         _assert_404(exc)
 
-    def test_provider_file_download_raises_404(self, tmp_path):
-        """provider_file_download() is denied (404) when no permissions are present."""
-        fn = QiskitFunction(title=self.function_title, provider=self.provider_name)
+    def test_provider_file_download_unowned_function_raises_404(self, tmp_path):
+        """provider_file_download() of a function the caller does not own is denied (404)."""
+        fn = QiskitFunction(title=self.unowned_function_title, provider=self.provider_name)
         with pytest.raises(requests.exceptions.HTTPError) as exc:
             self.client.provider_file_download("nonexistent.txt", fn, download_location=str(tmp_path))
         _assert_download_404(exc)
 
-    def test_provider_file_delete_raises_404(self):
-        """provider_file_delete() is denied (404) when no permissions are present."""
-        fn = QiskitFunction(title=self.function_title, provider=self.provider_name)
+    def test_provider_file_delete_unowned_function_raises_404(self):
+        """provider_file_delete() of a function the caller does not own is denied (404)."""
+        fn = QiskitFunction(title=self.unowned_function_title, provider=self.provider_name)
         with pytest.raises(QiskitServerlessException) as exc:
             self.client.provider_file_delete("nonexistent.txt", fn)
         _assert_404(exc)
-
-    def test_provider_logs_raises_403(self):
-        """provider_logs() is denied (403) when no permissions are present."""
-        with pytest.raises(QiskitServerlessException) as exc:
-            self.client.provider_logs(self.populated_job_id)
-        _assert_403(exc)
 
     def test_files_list_raises_404(self):
         """files() is denied (404) when function-files.read is absent."""
@@ -221,7 +340,7 @@ class NonePermissionChecks:
         ), f"Expected {self.custom_function_title!r} in serverless list (author-owned, no permission check), got: {titles}"
 
 
-class UserPermissionChecks:
+class UserPermissionChecks(FunctionOwnershipChecks):
     """
     Instance with USER permissions only:
       function.read, function.run, function-files.read, function-files.write
@@ -232,17 +351,21 @@ class UserPermissionChecks:
       - unfiltered: provider function appears (function.read).
       - serverless: provider function never appears (serverless ignores permissions, only own functions).
       - Can run (function.run); job is created with business_model=TRIAL.
-      - Cannot upload → 404 (no function.write).
-      - Cannot list provider jobs → 404 (no function-job.read).
+      - Cannot upload a function it does not own → 404 (no function.write).
+      - Cannot list provider jobs of a function it does not own → 404 (no function-job.read).
       - Can always retrieve own jobs (author check, no permission needed).
       - Can list user files (function-files.read).
       - Can upload user files (function-files.write).
       - Can download user files (function-files.read).
       - Can delete user files (function-files.write).
-      - provider_files → 404 (no function-provider-files.read).
-      - provider_file_upload → 404 (no function-provider-files.write).
-      - provider_file_download → 404 (no function-provider-files.read).
-      - provider_file_delete → 404 (no function-provider-files.write).
+      - provider_files of an unowned function → 404 (no function-provider-files.read).
+      - provider_file_upload of an unowned function → 404 (no function-provider-files.write).
+      - provider_file_download of an unowned function → 404 (no function-provider-files.read).
+      - provider_file_delete of an unowned function → 404 (no function-provider-files.write).
+      - every provider operation on the caller's OWN function → succeeds (FunctionOwnershipChecks).
+
+    The deny checks of the provider operations target unowned_function_title: on the caller's own
+    function those operations are granted by authorship, asserted by FunctionOwnershipChecks.
     """
 
     def test_list_catalog_includes_function(self):
@@ -307,11 +430,11 @@ class UserPermissionChecks:
             job_data.get("business_model") == BUSINESS_MODEL_USER
         ), f"Expected business_model={BUSINESS_MODEL_USER}, got {job_data.get('business_model')}"
 
-    def test_upload_raises_404(self, tmp_path):
-        """upload() is denied (404) when function.write is absent."""
+    def test_upload_unowned_function_raises_404(self, tmp_path):
+        """upload() of a function the caller does not own is denied (404) when function.write is absent."""
         (tmp_path / "main.py").write_text('print("hello")\n')
         fn = QiskitFunction(
-            title=self.function_title,
+            title=self.unowned_function_title,
             provider=self.provider_name,
             entrypoint="main.py",
             working_dir=str(tmp_path),
@@ -320,51 +443,45 @@ class UserPermissionChecks:
             self.client.upload(fn)
         _assert_404(exc)
 
-    def test_provider_jobs_raises_404(self):
-        """provider_jobs() is denied (404) when function-job.read is absent."""
-        fn = QiskitFunction(title=self.function_title, provider=self.provider_name)
+    def test_provider_jobs_unowned_function_raises_404(self):
+        """provider_jobs() of a function the caller does not own is denied (404) without function-job.read."""
+        fn = QiskitFunction(title=self.unowned_function_title, provider=self.provider_name)
         with pytest.raises(QiskitServerlessException) as exc:
             self.client.provider_jobs(fn)
         _assert_404(exc)
 
-    def test_provider_files_list_raises_404(self):
-        """provider_files() is denied (404) when function-provider-files.read is absent.
+    def test_provider_files_list_unowned_function_raises_404(self):
+        """provider_files() of a function the caller does not own is denied (404).
 
         user_instance has function-files.read/write but not function-provider-files.read.
         """
-        fn = QiskitFunction(title=self.function_title, provider=self.provider_name)
+        fn = QiskitFunction(title=self.unowned_function_title, provider=self.provider_name)
         with pytest.raises(QiskitServerlessException) as exc:
             self.client.provider_files(fn)
         _assert_404(exc)
 
-    def test_provider_file_upload_raises_404(self, tmp_path):
-        """provider_file_upload() is denied (404) when function-provider-files.write is absent."""
+    def test_provider_file_upload_unowned_function_raises_404(self, tmp_path):
+        """provider_file_upload() of a function the caller does not own is denied (404)."""
         file = tmp_path / "data.txt"
         file.write_text("content")
-        fn = QiskitFunction(title=self.function_title, provider=self.provider_name)
+        fn = QiskitFunction(title=self.unowned_function_title, provider=self.provider_name)
         with pytest.raises(QiskitServerlessException) as exc:
             self.client.provider_file_upload(str(file), fn)
         _assert_404(exc)
 
-    def test_provider_file_download_raises_404(self, tmp_path):
-        """provider_file_download() is denied (404) when function-provider-files.read is absent."""
-        fn = QiskitFunction(title=self.function_title, provider=self.provider_name)
+    def test_provider_file_download_unowned_function_raises_404(self, tmp_path):
+        """provider_file_download() of a function the caller does not own is denied (404)."""
+        fn = QiskitFunction(title=self.unowned_function_title, provider=self.provider_name)
         with pytest.raises(requests.exceptions.HTTPError) as exc:
             self.client.provider_file_download("nonexistent.txt", fn, download_location=str(tmp_path))
         _assert_download_404(exc)
 
-    def test_provider_file_delete_raises_404(self):
-        """provider_file_delete() is denied (404) when function-provider-files.write is absent."""
-        fn = QiskitFunction(title=self.function_title, provider=self.provider_name)
+    def test_provider_file_delete_unowned_function_raises_404(self):
+        """provider_file_delete() of a function the caller does not own is denied (404)."""
+        fn = QiskitFunction(title=self.unowned_function_title, provider=self.provider_name)
         with pytest.raises(QiskitServerlessException) as exc:
             self.client.provider_file_delete("nonexistent.txt", fn)
         _assert_404(exc)
-
-    def test_provider_logs_raises_403(self):
-        """provider_logs() is denied (403) when function-provider-logs.read is absent."""
-        with pytest.raises(QiskitServerlessException) as exc:
-            self.client.provider_logs(self.populated_job_id)
-        _assert_403(exc)
 
     def test_files_list_returns_list(self):
         """files() succeeds when function-files.read is present."""
