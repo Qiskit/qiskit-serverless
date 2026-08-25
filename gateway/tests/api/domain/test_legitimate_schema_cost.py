@@ -14,12 +14,17 @@ Each profile asserts two things, and the first matters more than the second:
 - The CPU time it spends stays far under the budget. Measured with time.process_time rather than the
   wall clock on purpose: CPU time is what RLIMIT_CPU counts, and unlike elapsed time it does not
   inflate when the runner is busy, which is what made earlier wall-clock assertions in this feature
-  fail on CPU-throttled CI runners.
+  fail on CPU-throttled CI runners. Process CPU time still bills the measured window for anything
+  else the process does inside it, above all a garbage collection whose cost comes from the whole
+  suite's live objects rather than from the profile, so the collector is paused around the window and
+  the figure kept is the cheapest of a few repetitions, which drops that and any CPU contention spike
+  of the runner along with it.
 
 To see the figures rather than just the pass: pytest tests/api/domain/test_legitimate_schema_cost.py -s
 """
 
 import base64
+import gc
 import json
 import time
 
@@ -149,12 +154,22 @@ def test_a_legitimate_schema_validates_well_inside_the_cpu_budget(label, builder
     with pytest.raises(jsonschema.ValidationError):
         validate_arguments_in_isolation(schema, json.dumps(invalid))
 
-    # The cost, measured where it can be attributed to this process rather than to the child.
+    # The cost, measured where it can be attributed to this process rather than to the child. The
+    # collector is off for the window and the cheapest repetition wins, so what is left is the
+    # validation itself: pausing it is safe here because the largest profile is about 1 MB.
     validator = _validator(schema)
     parsed = json.loads(valid_str)
-    start = time.process_time()
-    errors = list(validator.iter_errors(parsed))
-    cpu_seconds = time.process_time() - start
+    gc.collect()
+    gc.disable()
+    try:
+        samples = []
+        for _ in range(3):
+            start = time.process_time()
+            errors = list(validator.iter_errors(parsed))
+            samples.append(time.process_time() - start)
+    finally:
+        gc.enable()
+    cpu_seconds = min(samples)
     assert not errors
 
     budget = _cpu_limit_seconds()
