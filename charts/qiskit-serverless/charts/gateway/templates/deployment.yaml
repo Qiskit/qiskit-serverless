@@ -309,6 +309,14 @@ spec:
               value: {{ .Values.ce.defaultComputeProfile | quote }}
             - name: FLEETS_DEFAULT_MAX_INSTANCES
               value: {{ .Values.ce.fleetsDefaultMaxInstances | quote }}
+            - name: FLEETS_RUNTIME_IAM_URL
+              value: {{ .Values.ce.fleetsRuntimeIamUrl | quote }}
+            - name: FLEETS_RUNTIME_GLOBAL_SEARCH_URL
+              value: {{ .Values.ce.fleetsRuntimeGlobalSearchUrl | quote }}
+            - name: FLEETS_RUNTIME_GLOBAL_CATALOG_URL
+              value: {{ .Values.ce.fleetsRuntimeGlobalCatalogUrl | quote }}
+            - name: FLEETS_RUNTIME_EXPERIMENTAL
+              value: {{ .Values.ce.fleetsRuntimeExperimental | quote }}
             {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
@@ -517,6 +525,14 @@ spec:
               value: {{ .Values.ce.defaultComputeProfile | quote }}
             - name: FLEETS_DEFAULT_MAX_INSTANCES
               value: {{ .Values.ce.fleetsDefaultMaxInstances | quote }}
+            - name: FLEETS_RUNTIME_IAM_URL
+              value: {{ .Values.ce.fleetsRuntimeIamUrl | quote }}
+            - name: FLEETS_RUNTIME_GLOBAL_SEARCH_URL
+              value: {{ .Values.ce.fleetsRuntimeGlobalSearchUrl | quote }}
+            - name: FLEETS_RUNTIME_GLOBAL_CATALOG_URL
+              value: {{ .Values.ce.fleetsRuntimeGlobalCatalogUrl | quote }}
+            - name: FLEETS_RUNTIME_EXPERIMENTAL
+              value: {{ .Values.ce.fleetsRuntimeExperimental | quote }}
             {{- end }}
             - name: EVENT_STREAMS_ENABLED
               value: {{ .Values.application.eventStreams.enabled | default false | quote }}
