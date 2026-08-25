@@ -1,0 +1,19 @@
+---
+features:
+  - |
+    ``get_runtime_service()`` now reads a ``QISKIT_IBM_PRIVATE_ENDPOINT`` environment
+    variable and forwards it to ``QiskitRuntimeService`` as ``private_endpoint``. Set it to
+    ``true`` to reach the Qiskit Runtime API through a virtual private endpoint. Any other
+    value, or leaving it unset, keeps the current public endpoint behaviour.
+
+    This is the only way to select the private Runtime API host: ``QISKIT_IBM_URL`` is the
+    raw IBM Cloud URL that gets rewritten into an API host, so pointing it at a private
+    host does not work. Note the instance must be a CRN for the private host to be
+    resolved.
+
+    Example usage from within a Qiskit Function, with the variable set in the environment::
+
+        from qiskit_serverless import get_runtime_service
+
+        service = get_runtime_service()
+        backend = service.backend("my_backend")
