@@ -6,6 +6,8 @@ import logging
 from functools import wraps
 from typing import Callable
 
+from django.conf import settings
+from django.core.exceptions import RequestDataTooBig
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from rest_framework import status
@@ -44,6 +46,7 @@ def endpoint_handle_exceptions(view_func: Callable):
       FunctionNotFoundException, FileNotFoundException) -> 404 NOT FOUND
     - InvalidAccessException -> 403 FORBIDDEN
     - ValidationError, InvalidArgumentsException -> 400 BAD REQUEST
+    - RequestDataTooBig -> 413 REQUEST ENTITY TOO LARGE
     - All other exceptions -> 500 INTERNAL SERVER ERROR
     """
 
@@ -85,6 +88,13 @@ def endpoint_handle_exceptions(view_func: Callable):
             return Response(
                 {"message": error.message},
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+        except RequestDataTooBig:
+            limit_mb = settings.DATA_UPLOAD_MAX_MEMORY_SIZE / (1024 * 1024)
+            logger.warning("Request body over the %g MB limit", limit_mb)
+            return Response(
+                {"message": f"the request body is larger than the maximum of {limit_mb:g} MB"},
+                status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             )
         except Exception as error:  # pylint: disable=broad-exception-caught
             logger.error(
