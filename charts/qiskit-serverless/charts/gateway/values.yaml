@@ -110,6 +110,10 @@ ce:
   defaultComputeProfile: "bx3d-24x120"
   fleetsDefaultImage: "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.35.0"
   fleetsDefaultMaxInstances: 1
+  fleetsRuntimeIamUrl: ""
+  fleetsRuntimeGlobalSearchUrl: ""
+  fleetsRuntimeGlobalCatalogUrl: ""
+  fleetsRuntimeExperimental: "false"
 
 secrets:
   secretKey:
