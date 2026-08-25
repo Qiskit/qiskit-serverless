@@ -810,6 +810,10 @@
 <span class="sd">    ``get_runtime_service()``, which will automatically pull authentication data from the</span>
 <span class="sd">    environment variables.</span>
 
+<span class="sd">    Set ``QISKIT_IBM_PRIVATE_ENDPOINT`` to ``true`` to reach the Runtime API through a</span>
+<span class="sd">    virtual private endpoint. It defaults to off, and the instance has to be a CRN for the</span>
+<span class="sd">    private host to be resolved.</span>
+
 <span class="sd">    Args:</span>
 <span class="sd">        channel: Optional QiskitRuntimeService channel argument</span>
 <span class="sd">        token: Optional QiskitRuntimeService authorization token</span>
@@ -826,6 +830,7 @@
         <span class="n">instance</span><span class="o">=</span><span class="n">instance</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">"QISKIT_IBM_INSTANCE"</span><span class="p">],</span>
         <span class="n">token</span><span class="o">=</span><span class="n">token</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">"QISKIT_IBM_TOKEN"</span><span class="p">],</span>
         <span class="n">url</span><span class="o">=</span><span class="n">url</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"QISKIT_IBM_URL"</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="n">private_endpoint</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"QISKIT_IBM_PRIVATE_ENDPOINT"</span><span class="p">,</span> <span class="s2">"false"</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">"true"</span><span class="p">,</span>
     <span class="p">)</span></div>
 
 

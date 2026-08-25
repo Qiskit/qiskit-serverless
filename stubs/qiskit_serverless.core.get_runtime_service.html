@@ -323,6 +323,9 @@ that allows to associate runtime job ids to serverless job ids. All input argume
 are optional, and the recommended usage within a QiskitFunction source code is
 <code class="docutils literal notranslate"><span class="pre">get_runtime_service()</span></code>, which will automatically pull authentication data from the
 environment variables.</p>
+<p>Set <code class="docutils literal notranslate"><span class="pre">QISKIT_IBM_PRIVATE_ENDPOINT</span></code> to <code class="docutils literal notranslate"><span class="pre">true</span></code> to reach the Runtime API through a
+virtual private endpoint. It defaults to off, and the instance has to be a CRN for the
+private host to be resolved.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">

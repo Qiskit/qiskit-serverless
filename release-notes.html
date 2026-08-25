@@ -336,6 +336,20 @@ sizes; a compute profile still referenced by a size cannot be deleted.</p></li>
 <code class="docutils literal notranslate"><span class="pre">FunctionSize</span></code> to use when a run request omits an explicit size. The field
 is optional, and a size assigned to it must belong to the same function.</p></li>
 </ul>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">get_runtime_service()</span></code> now reads the <code class="docutils literal notranslate"><span class="pre">QISKIT_IBM_PRIVATE_ENDPOINT</span></code> environment
+variable and forwards it to <code class="docutils literal notranslate"><span class="pre">QiskitRuntimeService</span></code> as <code class="docutils literal notranslate"><span class="pre">private_endpoint</span></code>. Set it to
+<code class="docutils literal notranslate"><span class="pre">true</span></code> and the service connects through private URLs. Existing usage is unchanged, and
+the instance has to be a CRN for the private host to be resolved.</p>
+<p>Example usage from within a Qiskit Function, with the variable set in the environment:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_runtime_service</span>
+
+<span class="n">service</span> <span class="o">=</span> <span class="n">get_runtime_service</span><span class="p">()</span>
+<span class="n">backend</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">backend</span><span class="p">(</span><span class="s2">"my_backend"</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ul>
 </section>
 <section id="upgrade-notes">
 <span id="release-notes-upcoming-qiskit-serverless-release-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Permalink to this heading">¶</a></h3>
