@@ -147,6 +147,7 @@ class TestUtils:
         project_id: str,
         region: str = "us-east",
         active: bool = True,
+        provider_name: str = "",
         resource_group_id: str = "rg-id",
         subnet_pool_id: str = "subnet-id",
         pds_name_state: str = "pds-state",
@@ -166,6 +167,7 @@ class TestUtils:
             project_id: IBM Cloud project UUID.
             region: IBM Cloud region. Default is "us-east".
             active: Whether the project is active. Default is True.
+            provider_name: Provider.name this project is dedicated to. Default is "" (shared).
             resource_group_id: IBM Cloud resource group ID. Default is "rg-id".
             subnet_pool_id: Subnet pool ID for network placement. Default is "subnet-id".
             pds_name_state: PDS name for task state. Default is "pds-state".
@@ -185,6 +187,7 @@ class TestUtils:
                 "project_id": project_id,
                 "region": region,
                 "active": active,
+                "provider_name": provider_name,
                 "resource_group_id": resource_group_id,
                 "subnet_pool_id": subnet_pool_id,
                 "pds_name_state": pds_name_state,

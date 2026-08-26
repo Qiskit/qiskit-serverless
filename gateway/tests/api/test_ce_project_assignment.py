@@ -112,6 +112,18 @@ class TestCEProjectResolutionViaUseCase:
 
         assert updated.code_engine_project == ce_project
 
+    def test_create_provider_fleets_program_without_dedicated_project_is_rejected(self, ce_project):
+        """A provider Fleets function is rejected rather than given the default project."""
+        user, _ = TestUtils.get_user_and_username("uploader")
+        provider = TestUtils.get_or_create_provider("acme")
+
+        with pytest.raises(ValidationError, match="acme"):
+            UploadFunctionUseCase()._create(  # pylint: disable=protected-access
+                UploadFunctionInput(title="acme-func", entrypoint="main.py", runner=Program.FLEETS),
+                user=user,
+                provider=provider,
+            )
+
     def test_select_default_raises_without_config(self, settings):
         """select_default raises ValueError when CE_DEFAULT_PROJECT_NAME is empty."""
         settings.CE_DEFAULT_PROJECT_NAME = ""

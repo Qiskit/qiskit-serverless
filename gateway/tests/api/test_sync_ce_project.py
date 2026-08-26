@@ -53,3 +53,17 @@ class TestSyncCeProject:
         settings.CE_PROJECTS = []
         call_command("sync_ce_project")
         assert CodeEngineProject.objects.count() == 0
+
+    def test_seeds_provider_name_when_given(self, settings):
+        """An entry carrying provider_name dedicates the project to that provider."""
+        settings.CE_PROJECTS = [_project(provider_name="acme")]
+        call_command("sync_ce_project")
+
+        assert CodeEngineProject.objects.get(project_id="ce-1").provider_name == "acme"
+
+    def test_entry_without_provider_name_is_shared(self, settings):
+        """An entry with no provider_name seeds the shared project."""
+        settings.CE_PROJECTS = [_project()]
+        call_command("sync_ce_project")
+
+        assert CodeEngineProject.objects.get(project_id="ce-1").provider_name == ""

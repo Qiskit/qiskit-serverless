@@ -38,6 +38,13 @@ def _normalize_dependency(raw_dependency) -> str:
     return dependency_name + dependency_version
 
 
+def _no_ce_project_message(function: Function) -> str:
+    """Message for a Fleets function with no Code Engine project, naming its provider if it has one."""
+    if function.provider:
+        return f"No active Code Engine project for provider '{function.provider.name}'. Contact administrator."
+    return "No active Code Engine project available. Contact administrator."
+
+
 class UploadFunctionUseCase:
     """Use case for uploading (creating or updating) a Qiskit Function."""
 
@@ -101,7 +108,7 @@ class UploadFunctionUseCase:
 
         CodeEngineProject.objects.assign_to_program(function)
         if function.runner == Function.FLEETS and not function.code_engine_project:
-            raise DRFValidationError("No active Code Engine project available. Contact administrator.")
+            raise DRFValidationError(_no_ce_project_message(function))
         function.save()
         return function
 
@@ -123,7 +130,7 @@ class UploadFunctionUseCase:
             instance.runner = data.runner
             CodeEngineProject.objects.assign_to_program(instance)
             if instance.runner == Function.FLEETS and not instance.code_engine_project:
-                raise DRFValidationError("No active Code Engine project available. Contact administrator.")
+                raise DRFValidationError(_no_ce_project_message(instance))
 
         if data.description is not None:
             instance.description = data.description

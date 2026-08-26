@@ -13,6 +13,7 @@
 """Tests for CodeEngineProjectQuerySet model manager."""
 
 import pytest
+from django.db import IntegrityError
 
 from core.models import CodeEngineProject, Program
 from tests.utils import TestUtils
@@ -35,6 +36,32 @@ class TestSelectDefault:
         TestUtils.get_or_create_ce_project(project_name="my-project", project_id="p1", active=False)
 
         assert CodeEngineProject.objects.select_default() is None
+
+    def test_skips_project_dedicated_to_a_provider(self, settings):
+        """A project matching the default name but dedicated to a provider is not the default."""
+        settings.CE_DEFAULT_PROJECT_NAME = "my-project"
+        TestUtils.get_or_create_ce_project(project_name="my-project", project_id="p1", provider_name="acme")
+
+        assert CodeEngineProject.objects.select_default() is None
+
+
+@pytest.mark.django_db
+class TestProviderUniqueness:
+    """The unique constraint covers dedicated projects only."""
+
+    def test_two_active_projects_may_share_no_provider(self):
+        """Provider-less projects are exempt, so the default and any extra rows coexist."""
+        TestUtils.get_or_create_ce_project(project_name="shared-one", project_id="p1")
+        TestUtils.get_or_create_ce_project(project_name="shared-two", project_id="p2")
+
+        assert CodeEngineProject.objects.filter(active=True, provider_name="").count() == 2
+
+    def test_two_active_projects_cannot_share_a_provider(self):
+        """A second active project dedicated to the same provider is rejected."""
+        TestUtils.get_or_create_ce_project(project_name="acme-one", project_id="p1", provider_name="acme")
+
+        with pytest.raises(IntegrityError):
+            TestUtils.get_or_create_ce_project(project_name="acme-two", project_id="p2", provider_name="acme")
 
 
 @pytest.mark.django_db
@@ -71,3 +98,74 @@ class TestAssignToProgram:
         program.refresh_from_db()
 
         assert program.code_engine_project is None
+
+    def test_provider_program_gets_dedicated_project(self, ce_project):
+        """A provider with a dedicated project is assigned that project, not the default."""
+        dedicated = TestUtils.get_or_create_ce_project(
+            project_name="acme-project", project_id="proj-acme", provider_name="acme"
+        )
+        program = TestUtils.create_program(
+            program_title="acme-func", author="user1", provider="acme", runner=Program.FLEETS
+        )
+
+        CodeEngineProject.objects.assign_to_program(program)
+
+        assert program.code_engine_project == dedicated
+
+    def test_each_provider_gets_its_own_project(self, ce_project):
+        """With several dedicated projects, each program gets the one for its own provider.
+
+        Both directions are asserted in one test on purpose: an implementation that
+        ignored which provider a project belongs to would return the same project for
+        both programs and so fail one of the assertions, whichever it picked.
+        """
+        acme = TestUtils.get_or_create_ce_project(
+            project_name="acme-project", project_id="proj-acme", provider_name="acme"
+        )
+        other = TestUtils.get_or_create_ce_project(
+            project_name="other-project", project_id="proj-other", provider_name="other"
+        )
+        acme_program = TestUtils.create_program(
+            program_title="acme-func", author="user1", provider="acme", runner=Program.FLEETS
+        )
+        other_program = TestUtils.create_program(
+            program_title="other-func", author="user1", provider="other", runner=Program.FLEETS
+        )
+
+        CodeEngineProject.objects.assign_to_program(acme_program)
+        CodeEngineProject.objects.assign_to_program(other_program)
+
+        assert acme_program.code_engine_project == acme
+        assert other_program.code_engine_project == other
+
+    def test_provider_without_dedicated_project_is_left_unassigned(self, ce_project):
+        """A provider with no dedicated project is not given the default project."""
+        program = TestUtils.create_program(
+            program_title="other-func", author="user1", provider="other", runner=Program.FLEETS
+        )
+
+        CodeEngineProject.objects.assign_to_program(program)
+
+        assert program.code_engine_project is None
+
+    def test_inactive_dedicated_project_is_left_unassigned(self, ce_project):
+        """An inactive dedicated project is ignored and the default is not substituted."""
+        TestUtils.get_or_create_ce_project(
+            project_name="acme-project", project_id="proj-acme", provider_name="acme", active=False
+        )
+        program = TestUtils.create_program(
+            program_title="acme-inactive", author="user1", provider="acme", runner=Program.FLEETS
+        )
+
+        CodeEngineProject.objects.assign_to_program(program)
+
+        assert program.code_engine_project is None
+
+    def test_custom_program_gets_default_project(self, ce_project):
+        """A function without a provider is assigned the default project."""
+        TestUtils.get_or_create_ce_project(project_name="acme-project", project_id="proj-acme", provider_name="acme")
+        program = TestUtils.create_program(program_title="custom-func", author="user1", runner=Program.FLEETS)
+
+        CodeEngineProject.objects.assign_to_program(program)
+
+        assert program.code_engine_project == ce_project
