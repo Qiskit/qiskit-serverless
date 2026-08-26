@@ -3,17 +3,23 @@
 import json
 import logging
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.db import transaction
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from api.access_policies.programs import ProgramAccessPolicies
 from api.access_policies.providers import ProviderAccessPolicy
 from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
+from api.domain.function_sizes import normalize_function_size, parse_function_sizes
 from api.use_cases.programs.upload_input import UploadFunctionInput
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import (
     CodeEngineProject,
+    ComputeProfile,
     DEFAULT_PROGRAM_ENTRYPOINT,
+    FunctionSize,
     Program as Function,
     Provider,
 )
@@ -53,6 +59,73 @@ def _no_ce_project_message(function: Function) -> str:
             )
         return f"No active Code Engine project for provider '{function.provider.name}'. Contact administrator."
     return "No active Code Engine project available. Contact administrator."
+
+
+def _resolve_compute_profiles(sizes: dict[str, str]) -> dict[str, ComputeProfile]:
+    """Map each declared size name to its ComputeProfile row.
+
+    Raises DRFValidationError (400) naming the first identifier with no row, so
+    a typo is refused at upload time rather than failing every later run of the
+    function inside the runner.
+    """
+    profiles = {}
+    for name, compute_profile_id in sizes.items():
+        profile = ComputeProfile.objects.get_by_id(compute_profile_id)
+        if profile is None:
+            raise DRFValidationError(
+                f"Unknown compute profile '{compute_profile_id}' for size '{name}'. "
+                "Contact an administrator to have it registered."
+            )
+        profiles[name] = profile
+    return profiles
+
+
+def _replace_function_sizes(function: Function, sizes: dict[str, str]) -> dict[str, FunctionSize]:
+    """Replace a function's whole size catalog with ``sizes``.
+
+    Every profile is resolved before anything is written, so a bad identifier
+    leaves the stored catalog untouched. Names are normalized here so a caller
+    other than the serializer cannot write rows that never match at run time.
+    """
+    sizes = parse_function_sizes(sizes)
+    profiles = _resolve_compute_profiles(sizes)
+
+    rows = {}
+    for name, profile in profiles.items():
+        row, _ = FunctionSize.objects.update_or_create(
+            function=function,
+            function_size=name,
+            defaults={"compute_profile": profile},
+        )
+        rows[name] = row
+
+    # Clear default_size before deleting, so a default that points at a removed
+    # size does not depend on the FK's SET_NULL to be cleaned up.
+    if function.default_size_id and function.default_size.function_size not in rows:
+        function.default_size = None
+        function.save(update_fields=["default_size"])
+
+    FunctionSize.objects.function_sizes(function).exclude(function_size__in=list(rows)).delete()
+    return rows
+
+
+def _apply_default_size(function: Function, default_size: str) -> None:
+    """Point ``function.default_size`` at one of its own declared sizes.
+
+    Validated against what is stored now, which is why this runs after the
+    catalog has been replaced: a request sending both fields means the new
+    default refers to the new catalog. The name is normalized before lookup.
+    """
+    default_size = normalize_function_size(default_size)
+    row = FunctionSize.objects.get_function_size(function, default_size)
+    if row is None:
+        available = sorted(FunctionSize.objects.function_sizes(function).values_list("function_size", flat=True))
+        raise DRFValidationError(
+            f"'default_size' is '{default_size}', which is not one of this function's sizes: "
+            + (", ".join(available) if available else "this function declares no sizes.")
+        )
+    function.default_size = row
+    function.save(update_fields=["default_size"])
 
 
 class UploadFunctionUseCase:
@@ -121,8 +194,58 @@ class UploadFunctionUseCase:
             message = _no_ce_project_message(function)
             logger.warning("user_id=%s program=%s | %s", user.id, function.title, message)
             raise FunctionConfigurationException(message)
-        function.save()
+
+        # atomic() so all these writes commit together or not at all: the function
+        # row must exist before a FunctionSize can reference it, and default_size
+        # needs a second save for a UUID that did not exist at the first. Without
+        # it, a size naming an unregistered profile returns 400 with the function
+        # already committed and sizeless.
+        with transaction.atomic():
+            function.save()
+            if data.sizes is not None:
+                _replace_function_sizes(function, data.sizes)
+                self._apply_declared_default(function, data)
+            else:
+                self._seed_default_size(function)
         return function
+
+    def _apply_declared_default(self, function: Function, data: UploadFunctionInput) -> None:
+        """Set the default size the uploader named, or infer it when unambiguous."""
+        if data.default_size is not None:
+            _apply_default_size(function, data.default_size)
+        elif len(data.sizes) == 1:
+            # A single declared size is unambiguously the default; with several,
+            # default_size stays unset and runs fall back to DEFAULT_COMPUTE_PROFILE.
+            _apply_default_size(function, next(iter(data.sizes)))
+
+    def _seed_default_size(self, function: Function) -> None:
+        """Give a function with no declared catalog the deployment's default size.
+
+        Declaring sizes is still optional, so this is what gets every function to
+        a size. The seed is skipped rather than fatal when the profile row is
+        absent (an operator may not have populated ComputeProfile yet), leaving
+        the function to run on DEFAULT_COMPUTE_PROFILE as it did before sizes
+        existed.
+        """
+        compute_profile_id = settings.DEFAULT_FUNCTION_SIZE_PROFILE
+        profile = ComputeProfile.objects.get_by_id(compute_profile_id)
+        if profile is None:
+            logger.warning(
+                "program=%s | Default compute profile [%s] is not registered; "
+                "function created with no sizes and will run on the default compute profile.",
+                function.title,
+                compute_profile_id,
+            )
+            return
+
+        size_name = settings.DEFAULT_FUNCTION_SIZE
+        row = FunctionSize.objects.create(
+            function=function,
+            function_size=size_name,
+            compute_profile=profile,
+        )
+        function.default_size = row
+        function.save(update_fields=["default_size"])
 
     def _update(self, instance: Function, data: UploadFunctionInput, user) -> Function:
         logger.info("user_id=%s program=%s | Updating function", user.id, instance.title)
@@ -153,5 +276,20 @@ class UploadFunctionUseCase:
         if data.arguments_schema is not None:
             instance.arguments_schema = data.arguments_schema
 
-        instance.save()
+        # atomic() so a failure mid-replacement cannot leave the old and new sizes
+        # stored at once (the unique constraint does not catch it, the names
+        # differ), and so a concurrent run cannot resolve a size in the window
+        # between its replacement and its deletion.
+        with transaction.atomic():
+            instance.save()
+            # Order matters: sizes first, so a request sending both fields
+            # validates default_size against the catalog it just declared. Sent
+            # alone, default_size matches against the stored sizes. Sizes are
+            # never re-seeded here: a removed size should not reappear.
+            if data.sizes is not None:
+                _replace_function_sizes(instance, data.sizes)
+            if data.default_size is not None:
+                _apply_default_size(instance, data.default_size)
+            elif data.sizes is not None:
+                self._apply_declared_default(instance, data)
         return instance
