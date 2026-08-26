@@ -108,8 +108,6 @@ docs/superpowers/
 # any logs
 *.log
 
-# Local AI assistant files: per-user settings and generated planning docs.
-# Shared skills under .claude/skills/ are tracked on purpose.
 .claude/*
 !.claude/skills/
 HANDOFF-*.md
