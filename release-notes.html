@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="Qiskit Serverless API References" href="apidocs/index.html" /><link rel="prev" title="Endpoints" href="gateway_api/endpoints.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2024.08.06 -->
-        <title>Release Notes - Qiskit Serverless 0.35.0</title>
+        <title>Release Notes - Qiskit Serverless 0.35.1</title>
       <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=354aac6f" />
     <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=3ee1c6c6" />
     <link rel="stylesheet" type="text/css" href="_static/styles/qiskit-sphinx-theme.css?v=8ff9dcb6" />
@@ -161,7 +161,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="index.html"><div class="brand">Qiskit Serverless 0.35.0</div></a>
+      <a href="index.html"><div class="brand">Qiskit Serverless 0.35.1</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -189,7 +189,7 @@
     <img class="sidebar-logo only-dark" src="_static/images/qiskit-dark-logo.svg" alt="Dark Logo"/>
   </div>
   
-  <span class="sidebar-brand-text">Qiskit Serverless 0.35.0</span>
+  <span class="sidebar-brand-text">Qiskit Serverless 0.35.1</span>
   
 </a>
 <form class="sidebar-search-container" method="get" action="search.html" role="search">
@@ -317,57 +317,31 @@
 <span id="id1"></span><h1>Release Notes<a class="headerlink" href="#release-notes" title="Permalink to this heading">¶</a></h1>
 <section id="upcoming-qiskit-serverless-release">
 <span id="release-notes-upcoming-qiskit-serverless-release"></span><h2>Upcoming Qiskit Serverless release<a class="headerlink" href="#upcoming-qiskit-serverless-release" title="Permalink to this heading">¶</a></h2>
-<section id="new-features">
-<span id="release-notes-upcoming-qiskit-serverless-release-new-features"></span><h3>New Features<a class="headerlink" href="#new-features" title="Permalink to this heading">¶</a></h3>
-<ul class="simple">
-<li><p>Added the <code class="docutils literal notranslate"><span class="pre">ComputeProfile</span></code> model, which maps a Code Engine compute profile
-identifier (for example <code class="docutils literal notranslate"><span class="pre">24x120x1l40s</span></code>) to its CPU, memory and GPU
-allocation. Memory is recorded in GB. The table starts empty; profiles are
-created by operators through the admin backoffice.</p></li>
-</ul>
-<ul class="simple">
-<li><p>Added the <code class="docutils literal notranslate"><span class="pre">FunctionSize</span></code> model, which pairs a Qiskit Function with a size
-keyword and the <code class="docutils literal notranslate"><span class="pre">ComputeProfile</span></code> that size resolves to. A function may
-define at most one row per size keyword. Deleting a function removes its
-sizes; a compute profile still referenced by a size cannot be deleted.</p></li>
-</ul>
-<ul class="simple">
-<li><p>Added the <code class="docutils literal notranslate"><span class="pre">default_size</span></code> field to Qiskit Functions, naming the
-<code class="docutils literal notranslate"><span class="pre">FunctionSize</span></code> to use when a run request omits an explicit size. The field
-is optional, and a size assigned to it must belong to the same function.</p></li>
-</ul>
-<ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">get_runtime_service()</span></code> now reads the <code class="docutils literal notranslate"><span class="pre">QISKIT_IBM_PRIVATE_ENDPOINT</span></code> environment
-variable and forwards it to <code class="docutils literal notranslate"><span class="pre">QiskitRuntimeService</span></code> as <code class="docutils literal notranslate"><span class="pre">private_endpoint</span></code>. Set it to
-<code class="docutils literal notranslate"><span class="pre">true</span></code> and the service connects through private URLs. Existing usage is unchanged, and
-the instance has to be a CRN for the private host to be resolved.</p>
-<p>Example usage from within a Qiskit Function, with the variable set in the environment:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_runtime_service</span>
-
-<span class="n">service</span> <span class="o">=</span> <span class="n">get_runtime_service</span><span class="p">()</span>
-<span class="n">backend</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">backend</span><span class="p">(</span><span class="s2">"my_backend"</span><span class="p">)</span>
-</pre></div>
-</div>
-</li>
-</ul>
+<section id="prelude">
+<span id="release-notes-upcoming-qiskit-serverless-release-prelude"></span><h3>Prelude<a class="headerlink" href="#prelude" title="Permalink to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">qiskit_serverless</span> <span class="pre">v0.35.1</span></code> is a bug-fix release with a few improvements over <code class="docutils literal notranslate"><span class="pre">v0.35.0</span></code>; upgrading is advised but not required. <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/v1/jobs/provider</span></code> now scopes its results to the requested provider, running a Qiskit Function with a large batch of arguments no longer fails with a <code class="docutils literal notranslate"><span class="pre">500</span></code> error, and <code class="docutils literal notranslate"><span class="pre">get_runtime_service()</span></code> is now compatible with VPE configurations. The author of a provider function is also now treated as an admin of that function for the provider operations, so an automated publisher can manage the functions it uploads.</p>
 </section>
 <section id="upgrade-notes">
 <span id="release-notes-upcoming-qiskit-serverless-release-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
-<li><p>The <code class="docutils literal notranslate"><span class="pre">default_compute_profile</span></code> field has been removed from the Qiskit
-Function model definition. No code path read it, since the Fleets runner
-resolves its default from the <code class="docutils literal notranslate"><span class="pre">DEFAULT_COMPUTE_PROFILE</span></code> setting. This is
-the first step: the <code class="docutils literal notranslate"><span class="pre">api_program.default_compute_profile</span></code> column is left
-in the database, and a later release drops it.</p></li>
-</ul>
-<ul class="simple">
-<li><p>Two new settings, both also chart values under
+<li><p>Two new settings, both also exposed as chart values under
 <code class="docutils literal notranslate"><span class="pre">gateway.application.limits</span></code>: <code class="docutils literal notranslate"><span class="pre">MAX_REQUEST_BODY_SIZE_MB</span></code>
 (<code class="docutils literal notranslate"><span class="pre">maxRequestBodySizeMb</span></code>, 50) and <code class="docutils literal notranslate"><span class="pre">MAX_ARGUMENTS_LENGTH_MB</span></code>
 (<code class="docutils literal notranslate"><span class="pre">maxArgumentsLengthMb</span></code>, 32). Size them against the pod’s memory and worker
 count, since a body costs about three times its size in the worker holding it
 and every worker can hold one at once. <code class="docutils literal notranslate"><span class="pre">specs/ARGUMENTS_LIMIT.md</span></code> has the
 table.</p></li>
+</ul>
+<ul>
+<li><p>The author of a provider function is now treated as an admin of that one function for the
+six provider operations: uploading a new version, listing the function’s jobs, reading its
+provider logs, and the three provider file operations. This lets an automated publisher
+manage the functions it uploads without extra grants.</p>
+<p>The grant is scoped to that single function. It does not list the function in the catalog,
+does not grant the right to run it, and does not make the author an admin of the provider as
+a whole. Creating a brand-new provider function still requires the upload permission, and
+access that worked before is unaffected.</p>
+</li>
 </ul>
 </section>
 <section id="bug-fixes">
@@ -380,19 +354,47 @@ the limit.</p></li>
 </ul>
 <ul class="simple">
 <li><p>Raised the maximum length of the arguments validated against a function’s
-<code class="docutils literal notranslate"><span class="pre">arguments_schema</span></code> from 1 MB to 32 MB. The old figure fitted about twenty
-five encoded circuits, below what callers send in one batch.</p></li>
+<code class="docutils literal notranslate"><span class="pre">arguments_schema</span></code> from 1 MB to 32 MB. The old figure fit only about
+twenty-five encoded circuits, fewer than callers send in a single batch.</p></li>
+</ul>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">get_runtime_service()</span></code> now honours the <code class="docutils literal notranslate"><span class="pre">QISKIT_IBM_PRIVATE_ENDPOINT</span></code> environment
+variable, forwarding it to <code class="docutils literal notranslate"><span class="pre">QiskitRuntimeService</span></code> as <code class="docutils literal notranslate"><span class="pre">private_endpoint</span></code>. Previously the
+helper ignored it, so a Qiskit Function configured for a private endpoint still connected
+through public URLs. Set it to <code class="docutils literal notranslate"><span class="pre">true</span></code> and the service connects through private URLs; the
+instance must be a CRN for the private host to resolve. Existing usage is unchanged.</p>
+<p>Example usage from within a Qiskit Function, with the variable set in the environment:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_runtime_service</span>
+
+<span class="n">service</span> <span class="o">=</span> <span class="n">get_runtime_service</span><span class="p">()</span>
+<span class="n">backend</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">backend</span><span class="p">(</span><span class="s2">"my_backend"</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ul>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/v1/jobs/provider</span></code> now scopes its results to the requested provider. Because
+function titles are unique per provider rather than globally, a title alone could match
+same-named functions under other providers, so the listing could include jobs outside the
+requested provider. It now returns only jobs belonging to that provider. The response
+carries job metadata only (id, status, timestamps and the function’s id, title and
+provider); retrieving a job, its results or its provider logs is authorized separately
+against the job’s own provider and is unchanged.</p></li>
+</ul>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/v1/jobs?filter=catalog&amp;provider=&lt;name&gt;</span></code> no longer returns
+<code class="docutils literal notranslate"><span class="pre">500</span> <span class="pre">Internal</span> <span class="pre">server</span> <span class="pre">error</span></code> when the provider is given by name.</p></li>
 </ul>
 </section>
 </section>
 <section id="v0-35-0">
 <span id="release-notes-v0-35-0"></span><h2>v0.35.0<a class="headerlink" href="#v0-35-0" title="Permalink to this heading">¶</a></h2>
-<section id="prelude">
-<span id="release-notes-v0-35-0-prelude"></span><h3>Prelude<a class="headerlink" href="#prelude" title="Permalink to this heading">¶</a></h3>
+<section id="release-notes-v0-35-0-prelude">
+<span id="id2"></span><h3>Prelude<a class="headerlink" href="#release-notes-v0-35-0-prelude" title="Permalink to this heading">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">qiskit_serverless</span> <span class="pre">v0.35.0</span></code> is a feature release that adds argument validation for Qiskit Functions: functions can now declare a JSON Schema for their arguments and the gateway validates submissions before any compute is used, with a new <code class="docutils literal notranslate"><span class="pre">validate_arguments</span></code> client method for pre-flight checks. The <code class="docutils literal notranslate"><span class="pre">QiskitFunction.schema</span></code> field has been renamed to <code class="docutils literal notranslate"><span class="pre">arguments_schema</span></code>. This release also removes the deprecated <code class="docutils literal notranslate"><span class="pre">name</span></code> parameter from <code class="docutils literal notranslate"><span class="pre">ServerlessClient</span></code> and bumps the <code class="docutils literal notranslate"><span class="pre">ray-node</span></code> default Python version to 3.12.</p>
 </section>
-<section id="release-notes-v0-35-0-new-features">
-<span id="id2"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-35-0-new-features" title="Permalink to this heading">¶</a></h3>
+<section id="new-features">
+<span id="release-notes-v0-35-0-new-features"></span><h3>New Features<a class="headerlink" href="#new-features" title="Permalink to this heading">¶</a></h3>
 <ul>
 <li><p>Qiskit Functions can now declare the arguments they accept as a JSON Schema, and the gateway validates submitted
 arguments against it before any compute is used. Previously a function given bad input failed mid-execution, after
@@ -1644,14 +1646,14 @@ specific jobs. For example:</p>
             <ul>
 <li><a class="reference internal" href="#">Release Notes</a><ul>
 <li><a class="reference internal" href="#upcoming-qiskit-serverless-release">Upcoming Qiskit Serverless release</a><ul>
-<li><a class="reference internal" href="#new-features">New Features</a></li>
+<li><a class="reference internal" href="#prelude">Prelude</a></li>
 <li><a class="reference internal" href="#upgrade-notes">Upgrade Notes</a></li>
 <li><a class="reference internal" href="#bug-fixes">Bug Fixes</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#v0-35-0">v0.35.0</a><ul>
-<li><a class="reference internal" href="#prelude">Prelude</a></li>
-<li><a class="reference internal" href="#release-notes-v0-35-0-new-features">New Features</a></li>
+<li><a class="reference internal" href="#release-notes-v0-35-0-prelude">Prelude</a></li>
+<li><a class="reference internal" href="#new-features">New Features</a></li>
 <li><a class="reference internal" href="#release-notes-v0-35-0-upgrade-notes">Upgrade Notes</a></li>
 <li><a class="reference internal" href="#release-notes-v0-35-0-bug-fixes">Bug Fixes</a></li>
 </ul>
@@ -1728,7 +1730,7 @@ specific jobs. For example:</p>
       
     </aside>
   </div>
-</div><script data-url_root="./" id="documentation_options" src="_static/documentation_options.js?v=b23e8b7f"></script>
+</div><script data-url_root="./" id="documentation_options" src="_static/documentation_options.js?v=16460f66"></script>
     <script src="_static/doctools.js?v=888ff710"></script>
     <script src="_static/sphinx_highlight.js?v=4825356b"></script>
     <script src="_static/scripts/furo.js?v=5fa4622c"></script>
