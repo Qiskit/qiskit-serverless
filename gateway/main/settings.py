@@ -488,6 +488,12 @@ FLEETS_DEFAULT_IMAGE = os.environ.get(
 )
 # Compute profile settings for Fleets runner
 DEFAULT_COMPUTE_PROFILE = os.environ.get("DEFAULT_COMPUTE_PROFILE", "24x120")  # 24 CPU, 120GB RAM
+# Size seeded for a function uploaded without an explicit size catalog, so every
+# function has a size to run with while declaring sizes is still optional. The
+# profile must name an existing ComputeProfile row; when no such row exists the
+# function is created with no sizes and runs fall back to DEFAULT_COMPUTE_PROFILE.
+DEFAULT_FUNCTION_SIZE = os.environ.get("DEFAULT_FUNCTION_SIZE", "m")
+DEFAULT_FUNCTION_SIZE_PROFILE = os.environ.get("DEFAULT_FUNCTION_SIZE_PROFILE", "16x128")  # 16 CPU, 128GB RAM
 # Default resource limits for fleet jobs (can be overridden per job)
 FLEETS_DEFAULT_MAX_INSTANCES = int(os.environ.get("FLEETS_DEFAULT_MAX_INSTANCES", "1"))
 
