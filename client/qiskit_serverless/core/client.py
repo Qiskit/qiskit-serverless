@@ -157,8 +157,12 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
         """Uploads program."""
 
     @abstractmethod
-    def functions(self, **kwargs) -> List[RunnableQiskitFunction]:
-        """Returns list of available programs."""
+    def functions(self, provider: Optional[str] = None, **kwargs) -> List[RunnableQiskitFunction]:
+        """Returns list of available programs.
+
+        Args:
+            provider: if given, only functions belonging to this provider are returned.
+        """
 
     @abstractmethod
     def function(self, title: str, provider: Optional[str] = None) -> Optional[RunnableQiskitFunction]:
@@ -174,12 +178,16 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
         )
         return self.function(title, provider=provider)
 
-    def list(self, **kwargs) -> List[RunnableQiskitFunction]:
-        """Returns list of available programs."""
+    def list(self, provider: Optional[str] = None, **kwargs) -> List[RunnableQiskitFunction]:
+        """Returns list of available programs.
+
+        Args:
+            provider: if given, only functions belonging to this provider are returned.
+        """
         warnings.warn(
             "`list` method has been deprecated. "
             "And will be removed in future releases. "
             "Please, use `get_functions` instead.",
             DeprecationWarning,
         )
-        return self.functions(**kwargs)
+        return self.functions(provider=provider, **kwargs)

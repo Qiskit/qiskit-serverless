@@ -602,13 +602,21 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         return function_uploaded
 
     @_trace_functions("list")
-    def functions(self, **kwargs) -> List[RunnableQiskitFunction]:
-        """Returns list of available functions."""
+    def functions(self, provider: Optional[str] = None, **kwargs) -> List[RunnableQiskitFunction]:
+        """Returns list of available functions.
+
+        Args:
+            provider: if given, only functions belonging to this provider are returned,
+                e.g. ``functions(provider="q-ctrl")``.
+        """
+        params = dict(kwargs)
+        if provider:
+            params["provider"] = provider
         response_data = safe_json_request_as_list(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/programs",
                 headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
-                params=kwargs,
+                params=params,
                 timeout=REQUESTS_TIMEOUT,
             )
         )

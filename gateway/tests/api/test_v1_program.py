@@ -330,6 +330,38 @@ class TestProgramApi(APITestCase):
         assert len(programs_response.data) == 1
         assert programs_response.data[0].get("title") == "Program"
 
+    def test_provider_programs_filtered_by_provider(self):
+        """Tests the provider query param narrows the catalog list to one provider."""
+
+        user = TestUtils.authorize_client(user="test_user_4", client=self.client)
+        TestUtils.get_or_create_group(group="runner", permissions=[self.runner_permission])
+        TestUtils.add_user_to_group(user=user, group="runner")
+
+        # Two accessible provider functions under different providers.
+        TestUtils.create_program(
+            program_title="Ibm-Program",
+            author="test_user_3",
+            provider="ibm",
+            instances=["runner"],
+        )
+        TestUtils.create_program(
+            program_title="QCtrl-Program",
+            author="test_user_3",
+            provider="q-ctrl",
+            instances=["runner"],
+        )
+
+        programs_response = self.client.get(
+            reverse("v1:programs-list"),
+            {"filter": "catalog", "provider": "q-ctrl"},
+            format="json",
+        )
+
+        assert programs_response.status_code == status.HTTP_200_OK
+        assert len(programs_response.data) == 1
+        assert programs_response.data[0].get("title") == "QCtrl-Program"
+        assert programs_response.data[0].get("provider") == "q-ctrl"
+
     def test_run(self):
         """Tests run existing authorized."""
 
