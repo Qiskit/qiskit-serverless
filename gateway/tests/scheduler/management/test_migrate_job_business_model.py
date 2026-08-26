@@ -1,0 +1,44 @@
+"""Tests for the migrate_job_business_model command."""
+
+import pytest
+from django.contrib.auth.models import User
+from django.core.management import call_command
+
+from core.domain.business_models import BusinessModel
+from core.models import Job
+
+pytestmark = pytest.mark.django_db
+
+
+def _stored_business_model(job: Job) -> str:
+    """Read the raw column, since Job.from_db translates the old name away."""
+    return Job.objects.filter(pk=job.id).values_list("business_model", flat=True).first()
+
+
+@pytest.fixture()
+def jobs():
+    """Three jobs holding the old name and one holding TRIAL."""
+    author = User.objects.create_user(username="job-author")
+    old = [Job.objects.create(author=author, business_model=BusinessModel.SUBSIDIZED) for _ in range(3)]
+    trial = Job.objects.create(author=author, business_model=BusinessModel.TRIAL)
+    return old, trial
+
+
+def test_all_old_jobs_are_updated_in_batches(jobs):
+    """Every SUBSIDIZED row becomes LICENSED, even when it takes more than one batch."""
+    old, trial = jobs
+
+    call_command("migrate_job_business_model", batch_size=2, sleep=0)
+
+    for job in old:
+        assert _stored_business_model(job) == BusinessModel.LICENSED
+    assert _stored_business_model(trial) == BusinessModel.TRIAL
+
+
+def test_dry_run_writes_nothing(jobs):
+    old, _ = jobs
+
+    call_command("migrate_job_business_model", dry_run=True, sleep=0)
+
+    for job in old:
+        assert _stored_business_model(job) == BusinessModel.SUBSIDIZED

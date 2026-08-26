@@ -1,0 +1,70 @@
+"""Migrate the old SUBSIDIZED business model of existing jobs to LICENSED."""
+
+import logging
+import time
+
+from django.core.management.base import BaseCommand
+
+from core.domain.business_models import BusinessModel
+from core.models import Job
+
+logger = logging.getLogger("commands")
+
+DEFAULT_BATCH_SIZE = 500
+DEFAULT_SLEEP_SECONDS = 1.0
+
+
+class Command(BaseCommand):
+    """Rewrite api_job.business_model from SUBSIDIZED to LICENSED in batches.
+
+    One UPDATE per batch with a pause in between, so a table with a long job history
+    does not hold a single long write nor saturate the database. Safe to interrupt and
+    run again: each batch selects rows that still hold the old name, so a second run
+    picks up where the first one stopped.
+    """
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--batch-size",
+            type=int,
+            default=DEFAULT_BATCH_SIZE,
+            help=f"Rows to update per batch. Default {DEFAULT_BATCH_SIZE}.",
+        )
+        parser.add_argument(
+            "--sleep",
+            type=float,
+            default=DEFAULT_SLEEP_SECONDS,
+            help=f"Seconds to wait between batches. Default {DEFAULT_SLEEP_SECONDS}.",
+        )
+        parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="Only report how many rows would be updated, without writing.",
+        )
+
+    def handle(self, *args, **options):
+        batch_size = options["batch_size"]
+        sleep_seconds = options["sleep"]
+        dry_run = options["dry_run"]
+
+        pending = Job.objects.filter(business_model=BusinessModel.SUBSIDIZED)
+        total = pending.count()
+        logger.info("[migrate_job_business_model] %s jobs still hold %s", total, BusinessModel.SUBSIDIZED)
+
+        if dry_run:
+            logger.info("[migrate_job_business_model] Dry run, nothing written")
+            return
+
+        updated = 0
+        while True:
+            batch_ids = list(pending.order_by("id").values_list("id", flat=True)[:batch_size])
+            if not batch_ids:
+                break
+
+            Job.objects.filter(id__in=batch_ids).update(business_model=BusinessModel.LICENSED)
+            updated += len(batch_ids)
+            logger.info("[migrate_job_business_model] Updated %s of %s jobs", updated, total)
+
+            time.sleep(sleep_seconds)
+
+        logger.info("[migrate_job_business_model] Finished, %s jobs updated", updated)
