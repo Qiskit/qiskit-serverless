@@ -107,8 +107,16 @@ docs/superpowers/
 
 # any logs
 *.log
-.claude/settings.local.json
-hooks/
+
+# Local AI assistant files: per-user settings and generated planning docs.
+# Shared skills under .claude/skills/ are tracked on purpose.
+.claude/*
+!.claude/skills/
+HANDOFF-*.md
+
+# Local hook scripts at the repo root. Anchored, so a Helm chart's
+# templates/hooks/ directory stays tracked.
+/hooks/
 
 # Nix local dev environment
 flake.nix
