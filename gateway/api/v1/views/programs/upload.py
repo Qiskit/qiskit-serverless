@@ -18,6 +18,7 @@ from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 
 from api.domain.arguments_schema import MAX_SCHEMA_LENGTH, UnsupportedSchemaError, check_uploaded_schema_in_isolation
+from api.domain.function_sizes import InvalidFunctionSizesError, normalize_function_size, parse_function_sizes
 from api.use_cases.programs.upload import UploadFunctionUseCase
 from api.use_cases.programs.upload_input import UploadFunctionInput
 from api.utils import check_whitelisted, sanitize_name
@@ -48,6 +49,13 @@ class ProgramSerializer(serializers.ModelSerializer):
     provider = serializers.CharField(required=False)
     runner = serializers.CharField(required=False)
     arguments_schema = serializers.CharField(required=False)
+    # Both are write_only because this same class serializes the upload response.
+    # Neither is a plain attribute of Program: the catalog lives in the related
+    # FunctionSize table, and default_size is a ForeignKey whose serialized form
+    # would be an internal UUID rather than the name the uploader sent. The
+    # stored catalog is read back through programs/get_sizes.
+    sizes = serializers.JSONField(required=False, write_only=True)
+    default_size = serializers.CharField(required=False, write_only=True)
 
     class Meta:
         model = Program
@@ -64,6 +72,8 @@ class ProgramSerializer(serializers.ModelSerializer):
             "version",
             "runner",
             "arguments_schema",
+            "sizes",
+            "default_size",
         ]
         ref_name = "ProgramsUploadProgram"
 
@@ -125,6 +135,24 @@ class ProgramSerializer(serializers.ModelSerializer):
             raise ValidationError(f"arguments_schema cannot be used: {exc}.") from exc
 
         return value
+
+    def validate_sizes(self, value):
+        """Validate the declared size catalog's shape and normalize its names.
+
+        Only the shape is checked here; whether each compute profile exists is a
+        database question answered in the use case (see ``specs/VIEWS.md``).
+        """
+        try:
+            return parse_function_sizes(value)
+        except InvalidFunctionSizesError as exc:
+            raise ValidationError(str(exc)) from exc
+
+    def validate_default_size(self, value):
+        """Normalize the default size name so it can be matched against ``sizes``."""
+        normalized = normalize_function_size(value)
+        if not normalized:
+            raise ValidationError("'default_size' should be a non-empty size name.")
+        return normalized
 
     def _parse_dependency(self, dep: Any):
         if not isinstance(dep, dict) and not isinstance(dep, str):
@@ -235,10 +263,12 @@ def upload_program(request: Request) -> Response:
     data = UploadFunctionInput.from_validated_data(serializer.validated_data)
 
     logger.info(
-        "[programs-upload] user_id=%s title=%s provider=%s accessible_functions=%s",
+        "[programs-upload] user_id=%s title=%s provider=%s sizes=%s default_size=%s accessible_functions=%s",
         user.id,
         data.title,
         data.provider,
+        data.sizes,
+        data.default_size,
         accessible_functions,
     )
 
