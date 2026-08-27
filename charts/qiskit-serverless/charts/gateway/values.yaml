@@ -28,7 +28,7 @@ application:
     enable: true
   maintenance: false
   ray:
-    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.35.0"
+    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.35.1"
     cpu: 2
     memory: 2
     gpu: 1
@@ -47,16 +47,27 @@ application:
     maxGpuResources: 1
     keepClusterOnComplete: False
     programTimeoutHours: 24
+    # Memory margin (MB) and CPU seconds for the child that validates arguments against a schema.
+    # Clamped in code to 64-256 and 1-5. The CPU budget also caps how long one request can hold a
+    # worker, at five times its value, which has to stay under httpServer.timeout above.
     argumentsSchemaMemoryLimitMb: 128
-    # Seconds of CPU given to the forked child that validates job arguments against a function's JSON
-    # Schema. The isolation also bounds that child on wall-clock time, at five times this budget, so
-    # this is equally a bound on how long one request can hold a worker: 1 allows a 5 second deadline,
-    # 5 allows 25. That deadline has to fit inside httpServer.timeout above with room left for the
-    # rest of the request, because a deadline that reaches the timeout means gunicorn's arbiter kills
-    # the worker at the moment the gateway would have answered 400, and takes every other request on
-    # that worker with it (threads: 1 above). At the timeout of 25 set above, do not raise this past
-    # 3. If a function's schema needs more than that, raise the timeout first.
     argumentsSchemaCpuLimitSeconds: 1
+    # Largest JSON body or form field accepted, in MB, with or without a schema. Over it, a 413. Sets
+    # MAX_REQUEST_BODY_SIZE_MB and, through it, Django's own DATA_UPLOAD_MAX_MEMORY_SIZE, which is
+    # what refuses the body and which defaults to 2.5 MB. That default only began applying to JSON
+    # bodies in Django REST Framework 3.17.2, and 2.5 MB is below one batch of encoded circuits, which
+    # is why this is set here at all. It does not bound an uploaded file: Django counts only the
+    # non-file parts of a multipart request.
+    #
+    # Size this against resources.limits.memory and httpServer.workers above rather than against one
+    # request: a body costs about 3.2x its size in the worker holding it, and every worker can hold
+    # one at once, so raising it without checking that is how a worker gets OOM-killed instead of the
+    # gateway answering 413. specs/ARGUMENTS_LIMIT.md has the table of what fits per pod memory and
+    # worker count, the measurements behind it, and how to repeat them.
+    maxRequestBodySizeMb: 50
+    # Longest arguments validated against a schema, in MB. Over it, a 400. A value above 64 is refused
+    # at boot rather than lowered silently; the reason for that 64 is in the gateway's settings.py.
+    maxArgumentsLengthMb: 32
   qiskitRuntime:
     url: "https://cloud.ibm.com"
   runtimeApi:
@@ -97,8 +108,12 @@ ce:
   fleetsGatewayHost: "http://127.0.0.1:8000"
   defaultProjectName: ""
   defaultComputeProfile: "bx3d-24x120"
-  fleetsDefaultImage: "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.35.0"
+  fleetsDefaultImage: "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.35.1"
   fleetsDefaultMaxInstances: 1
+  fleetsRuntimeIamUrl: ""
+  fleetsRuntimeGlobalSearchUrl: ""
+  fleetsRuntimeGlobalCatalogUrl: ""
+  fleetsRuntimeExperimental: "false"
 
 secrets:
   secretKey:

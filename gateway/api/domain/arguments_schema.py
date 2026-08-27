@@ -61,16 +61,6 @@ from api.domain.isolated import IsolationError, run_isolated
 # still express a much larger one in very few characters.
 MAX_SCHEMA_LENGTH = 64 * 1024
 
-# Maximum length of the arguments a caller may send. Several keywords cost more the longer the
-# instance is, and without this the ceiling would be DATA_UPLOAD_MAX_MEMORY_SIZE (2.5 MB by
-# default). This is defence in depth rather than the main protection: the keyword that actually
-# grew faster than its input, "uniqueItems", is replaced below (see _unique_items), and the
-# isolation's CPU budget (one second by default) covers the rest.
-# So the figure is chosen to leave legitimate callers alone. Arguments are validated in the form
-# QiskitObjectsEncoder produces, where a single 100 qubit, depth 100 circuit is about 39 KB of
-# base64, so a limit in the tens of kilobytes would reject an ordinary batch of circuits.
-MAX_ARGUMENTS_LENGTH = 1024 * 1024
-
 # Maximum nesting depth of the schema document and of the instance. jsonschema recurses once per
 # level of each, and CPython gives up at a nesting depth of about 180, which a few kilobytes of
 # either can reach. Anything hand written stays in single digits, so this leaves plenty of room
@@ -89,7 +79,7 @@ MAX_SCHEMA_NODES = 200
 # here, so it can be tuned without a code deploy, but a setting is also a way to weaken this by
 # configuration, so the value that reaches the child is clamped rather than used as given:
 # - MAX guards against reopening the exact failure this module exists to close. Measured in a
-#   container at the pod's real limits (2 Gi, 3 CPU, gunicorn --workers=2 --threads=1): a 512 MB
+#   container at the chart's default limits (2 Gi, 3 CPU, gunicorn --workers=2 --threads=1): a 512 MB
 #   margin let a 4 KB schema plus 1 MB of arguments drive one child to 526 MB, and two concurrent
 #   such requests, exactly the worker x thread concurrency, added about 960 MB to the cgroup and got
 #   a process OOM-killed. Half of that failing value leaves a wide safety margin.
