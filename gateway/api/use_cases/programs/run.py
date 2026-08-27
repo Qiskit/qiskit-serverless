@@ -5,6 +5,7 @@ import logging
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser, Group
+from django.db import transaction
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from api.access_policies.jobs import JobAccessPolicies
@@ -102,14 +103,12 @@ class RunFunctionUseCase:
             trial = business_model == BusinessModel.TRIAL
 
         compute_profile, gpu = _runner_config(function, data.compute_profile)
-        jobconfig = JobConfig.objects.create(**data.config_data) if data.config_data else None
         job = Job(
             trial=trial,
             business_model=business_model,
             status=Job.QUEUED,
             program=function,
             author=user,
-            config=jobconfig,
             gpu=gpu,
             runner=function.runner,
             compute_profile=compute_profile,
@@ -137,11 +136,15 @@ class RunFunctionUseCase:
         job.env_vars = json.dumps(env)
 
         get_arguments_storage(job).save(data.arguments)
-        job.save()
-        JobEvent.objects.add_status_event(
-            job_id=job.id,
-            origin=JobEventOrigin.API,
-            context=JobEventContext.RUN_PROGRAM,
-            status=job.status,
-        )
+
+        with transaction.atomic():
+            if data.config_data:
+                job.config = JobConfig.objects.create(**data.config_data)
+            job.save()
+            JobEvent.objects.add_status_event(
+                job_id=job.id,
+                origin=JobEventOrigin.API,
+                context=JobEventContext.RUN_PROGRAM,
+                status=job.status,
+            )
         return job

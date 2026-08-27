@@ -7,11 +7,11 @@ fixes:
     the limit.
   - |
     Raised the maximum length of the arguments validated against a function's
-    ``arguments_schema`` from 1 MB to 32 MB. The old figure fitted about twenty
-    five encoded circuits, below what callers send in one batch.
+    ``arguments_schema`` from 1 MB to 32 MB. The old figure fit only about
+    twenty-five encoded circuits, fewer than callers send in a single batch.
 upgrade:
   - |
-    Two new settings, both also chart values under
+    Two new settings, both also exposed as chart values under
     ``gateway.application.limits``: ``MAX_REQUEST_BODY_SIZE_MB``
     (``maxRequestBodySizeMb``, 50) and ``MAX_ARGUMENTS_LENGTH_MB``
     (``maxArgumentsLengthMb``, 32). Size them against the pod's memory and worker
