@@ -102,24 +102,28 @@ def assert_presigned_cos_redirect(serverless_client, job_id, artifact):
     return fetched
 
 
-def wait_for_s3_key_substring(minio_client, bucket, substring, timeout=30):
-    """Poll a bucket until any object key contains ``substring``.
+def wait_for_s3_key_substring(minio_client, bucket, substrings, timeout=30):
+    """Poll a bucket until one object key contains every given substring.
+
+    Taking a list lets a caller pin the parts of a key it cares about without pinning
+    the parts it does not, such as the task-store schema version.
 
     Args:
         minio_client: A boto3 S3 client.
         bucket: The bucket to search.
-        substring: The substring an object key must contain.
+        substrings: Substrings that must all appear in the same object key.
         timeout: Maximum seconds to wait.
 
     Returns:
         True if a matching key appears within the timeout, else False.
     """
+    needles = list(substrings)
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
             for page in minio_client.get_paginator("list_objects_v2").paginate(Bucket=bucket):
                 for obj in page.get("Contents", []):
-                    if substring in obj["Key"]:
+                    if all(needle in obj["Key"] for needle in needles):
                         return True
         except ClientError:
             pass

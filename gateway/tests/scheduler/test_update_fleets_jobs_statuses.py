@@ -131,6 +131,7 @@ class TestUpdateJobStatus:
 
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
+            patch.object(task, "stop_job_if_timeout"),
             patch.object(task, "to_terminal") as mock_terminal,
             patch.object(task, "to_running") as mock_running,
         ):
@@ -150,6 +151,7 @@ class TestUpdateJobStatus:
 
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
+            patch.object(task, "stop_job_if_timeout"),
             patch.object(task, "to_terminal") as mock_terminal,
         ):
             result = task.update_job_status(job)
@@ -157,6 +159,27 @@ class TestUpdateJobStatus:
         assert result is False
         mock_terminal.assert_not_called()
         assert job.status == Job.PENDING
+
+    def test_none_status_still_checks_the_timeout(self):
+        """A job whose status never resolves must still be bounded.
+
+        Nothing else in the scheduler touches a PENDING or RUNNING Fleets job, so
+        without this the job holds the user's concurrency slot forever. This is the
+        regression guard for that.
+        """
+        task = _make_task()
+        job = _make_fleets_job(status=Job.PENDING)
+
+        mock_runner = MagicMock()
+        mock_runner.status.return_value = None
+
+        with (
+            patch(f"{_MOD}.get_runner", return_value=mock_runner),
+            patch.object(task, "stop_job_if_timeout") as mock_timeout,
+        ):
+            task.update_job_status(job)
+
+        mock_timeout.assert_called_once_with(job)
 
     def test_unknown_status_calls_to_terminal_failed(self):
         task = _make_task()
