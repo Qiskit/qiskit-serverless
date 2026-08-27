@@ -1,8 +1,0 @@
----
-upgrade:
-  - |
-    Added the ``migrate_job_business_model`` management command, which rewrites the old
-    ``SUBSIDIZED`` business model of existing jobs to ``LICENSED``. It updates the rows in
-    batches with a pause in between, so a long job history does not saturate the database,
-    and it can be interrupted and run again. Operators run it once after this release; jobs
-    already report ``LICENSED`` either way, so nothing changes for clients.
