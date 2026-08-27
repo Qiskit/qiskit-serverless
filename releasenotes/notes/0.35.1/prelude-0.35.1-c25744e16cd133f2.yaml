@@ -1,0 +1,9 @@
+---
+prelude: >
+    ``qiskit_serverless v0.35.1`` is a bug-fix release with a few improvements over
+    ``v0.35.0``; upgrading is advised but not required. ``GET /api/v1/jobs/provider`` now
+    scopes its results to the requested provider, running a Qiskit Function with a large
+    batch of arguments no longer fails with a ``500`` error, and ``get_runtime_service()``
+    is now compatible with VPE configurations. The author of a provider function is also now
+    treated as an admin of that function for the provider operations, so an automated
+    publisher can manage the functions it uploads.

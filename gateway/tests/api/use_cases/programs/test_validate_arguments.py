@@ -5,11 +5,11 @@ import time
 import jsonschema
 import pytest
 from unittest.mock import MagicMock
+from django.conf import settings
 from django.contrib.auth.models import User
 
 from api.domain import arguments_schema as arguments_schema_module
 from api.domain.arguments_schema import (
-    MAX_ARGUMENTS_LENGTH,
     MAX_SCHEMA_LENGTH,
     MAX_SCHEMA_NODES,
     UnsupportedSchemaError,
@@ -446,10 +446,10 @@ def test_unusable_schema_is_reported_as_invalid_arguments_not_a_crash():
 def test_arguments_longer_than_the_limit_are_rejected():
     """The work a validation does grows with the caller's payload, so its length is capped.
 
-    Without a cap the ceiling is DATA_UPLOAD_MAX_MEMORY_SIZE, 2.5 MB by default, which is three
-    orders of magnitude more input than any keyword was measured against.
+    Without a cap the ceiling is settings.MAX_REQUEST_BODY_SIZE_MB, the bound on any request body,
+    which is set for the whole API rather than for what one validation was measured against.
     """
-    arguments = json.dumps({"blob": "x" * (MAX_ARGUMENTS_LENGTH + 1)})
+    arguments = json.dumps({"blob": "x" * (settings.MAX_ARGUMENTS_LENGTH_MB * 1024 * 1024 + 1)})
 
     with pytest.raises(InvalidArgumentsException, match="maximum"):
         validate_arguments(_program({"type": "object"}), arguments)

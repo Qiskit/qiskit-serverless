@@ -122,19 +122,19 @@ class KafkaEventStreamsClient(EventStreamsClient):
 
     def _build_classical_metric_type(self, job: Job) -> str:
         """Build classical metric type from job attributes: classical_PROVIDER_FUNCTION_COMPUTE_PROFILE."""
+        parts = [CLASSICAL_TIME_METRIC_TYPE_PREFIX]
         try:
-            parts = [CLASSICAL_TIME_METRIC_TYPE_PREFIX]
             if hasattr(job, "program") and job.program:
                 if hasattr(job.program, "provider") and job.program.provider:
                     parts.append(job.program.provider.name)
                 if hasattr(job.program, "title") and job.program.title:
                     parts.append(job.program.title)
-            if hasattr(job, "compute_profile") and job.compute_profile:
-                parts.append(job.compute_profile)
-            return "_".join(parts)
-        except Exception as e:
-            logger.warning("job_id=%s Error building classical metric type: %s, using fallback", job.id, str(e))
-            return CLASSICAL_TIME_METRIC_TYPE_PREFIX
+        except AttributeError as e:
+            logger.warning("job_id=%s Error accessing program attributes: %s", job.id, str(e))
+
+        if hasattr(job, "compute_profile") and job.compute_profile:
+            parts.append(job.compute_profile)
+        return "_".join(parts)
 
     def _usage_ms(self, job) -> int:
         if job.running_started_at is None:
