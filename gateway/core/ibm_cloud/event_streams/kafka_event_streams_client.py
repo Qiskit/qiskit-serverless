@@ -124,26 +124,14 @@ class KafkaEventStreamsClient(EventStreamsClient):
         """Build classical metric type from job attributes: classical_PROVIDER_FUNCTION_COMPUTE_PROFILE."""
         parts = [CLASSICAL_TIME_METRIC_TYPE_PREFIX]
         try:
-            program = getattr(job, "program", None)
-            if program:
-                provider = getattr(program, "provider", None)
-                if provider:
-                    provider_name = getattr(provider, "name", None)
-                    if provider_name:
-                        parts.append(provider_name)
-                program_title = getattr(program, "title", None)
-                if program_title:
-                    parts.append(program_title)
-        except (AttributeError, ValueError) as e:
-            logger.warning("job_id=%s Error accessing program attributes: %s", job.id, str(e))
-
-        try:
-            compute_profile = getattr(job, "compute_profile", None)
-            if compute_profile:
-                parts.append(compute_profile)
-        except (AttributeError, ValueError) as e:
-            logger.warning("job_id=%s Error accessing compute_profile: %s", job.id, str(e))
-
+            if job.program and job.program.provider:
+                parts.append(job.program.provider.name)
+            if job.program:
+                parts.append(job.program.title)
+            if job.compute_profile:
+                parts.append(job.compute_profile)
+        except (AttributeError, ValueError):
+            pass
         return "_".join(parts)
 
     def _usage_ms(self, job) -> int:
