@@ -500,6 +500,10 @@ def get_runtime_service(
     ``get_runtime_service()``, which will automatically pull authentication data from the
     environment variables.
 
+    Set ``QISKIT_IBM_PRIVATE_ENDPOINT`` to ``true`` to reach the Runtime API through a
+    virtual private endpoint. It defaults to off, and the instance has to be a CRN for the
+    private host to be resolved.
+
     Args:
         channel: Optional QiskitRuntimeService channel argument
         token: Optional QiskitRuntimeService authorization token
@@ -516,6 +520,7 @@ def get_runtime_service(
         instance=instance or os.environ["QISKIT_IBM_INSTANCE"],
         token=token or os.environ["QISKIT_IBM_TOKEN"],
         url=url or os.environ.get("QISKIT_IBM_URL", None),
+        private_endpoint=os.environ.get("QISKIT_IBM_PRIVATE_ENDPOINT", "false").lower() == "true",
     )
 
 

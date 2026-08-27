@@ -3,6 +3,7 @@
 import pytest
 from django.contrib.auth.models import User
 
+from core.enums.type_filter import TypeFilter
 from core.model_managers.jobs import JobFilters
 from core.models import Job, Program, Provider
 
@@ -69,3 +70,24 @@ class TestFilterFunctions:
         titles = {job.program.title for job in queryset}
         assert total == 1
         assert titles == {"fn-a"}
+
+
+# CATALOG was the only arm reaching the old clause, which matched a name against Provider's UUID
+# pk -- so it raised ValidationError("my-provider is not a valid UUID") rather than mis-scoping.
+@pytest.mark.parametrize("type_filter", [None, TypeFilter.CATALOG])
+def test_provider_scopes_queryset(jobs, author, type_filter):
+    """`filters.provider` scopes the queryset whenever it is set, not only under CATALOG.
+
+    `filter=None` is the `jobs/provider` shape; CATALOG is the `jobs` shape.
+    """
+    # `fn-a` may legally exist under another provider, and under none at all. Neither may leak.
+    foreign = [
+        Job.objects.create(author=author, program=Program.objects.create(title="fn-a", author=author, provider=p))
+        for p in (Provider.objects.create(name="other-provider"), None)
+    ]
+
+    filters = JobFilters(provider="my-provider", filter=type_filter)
+    queryset, total = Job.objects.user_jobs_page(user=None, filters=filters)
+
+    assert total == 3
+    assert {job.id for job in queryset}.isdisjoint(job.id for job in foreign)

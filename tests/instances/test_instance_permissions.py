@@ -49,11 +49,19 @@ class TestNoPermissionsInstance(NonePermissionChecks):
 
     @pytest.fixture(autouse=True)
     def _bind(
-        self, instance, serverless_client, provider_name, function_title, custom_function_title, populated_job_id
+        self,
+        instance,
+        serverless_client,
+        provider_name,
+        function_title,
+        custom_function_title,
+        unowned_function_title,
+        populated_job_id,
     ):
         self.provider_name = provider_name
         self.function_title = function_title
         self.custom_function_title = custom_function_title
+        self.unowned_function_title = unowned_function_title
         self.populated_job_id = populated_job_id
         instance.reset_account_with_all_functions()
         instance.set_entitlements(NONE_FUNCTIONS, NONE_CUSTOM)
@@ -65,10 +73,18 @@ class TestUserInstance(UserPermissionChecks):
 
     @pytest.fixture(autouse=True)
     def _bind(
-        self, instance, serverless_client, provider_name, function_title, populated_other_function, populated_job_id
+        self,
+        instance,
+        serverless_client,
+        provider_name,
+        function_title,
+        unowned_function_title,
+        populated_other_function,
+        populated_job_id,
     ):
         self.provider_name = provider_name
         self.function_title = function_title
+        self.unowned_function_title = unowned_function_title
         self.other_function_title = populated_other_function
         self.populated_job_id = populated_job_id
         instance.reset_account_with_all_functions()

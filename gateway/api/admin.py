@@ -243,7 +243,7 @@ class ProgramAdmin(admin.ModelAdmin):
             "Execution",
             {"fields": ["runner", "gpu", "entrypoint", "artifact", "image", "dependencies", "arguments_schema"]},
         ),
-        ("Fleets", {"fields": ["default_compute_profile", "code_engine_project"]}),
+        ("Fleets", {"fields": ["code_engine_project"]}),
         ("Ownership", {"fields": ["author", "provider", "instances", "trial_instances"]}),
     ]
 

@@ -123,6 +123,37 @@ class TestUploadFunctionUseCase:
         assert result.entrypoint == "new.py"
         assert result.runner == Program.FLEETS
 
+    def test_author_can_update_provider_function_without_admin_group(self, user):
+        provider = Provider.objects.create(name="my-provider")
+        Program.objects.create(title="my-fn", provider=provider, author=user, entrypoint="old.py")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        result = UploadFunctionUseCase().execute(
+            user, accessible, UploadFunctionInput(title="my-fn", provider="my-provider", entrypoint="new.py")
+        )
+
+        assert result.entrypoint == "new.py"
+
+    def test_non_author_non_admin_cannot_update_provider_function(self, user):
+        other = User.objects.create_user(username="other")
+        provider = Provider.objects.create(name="my-provider")
+        Program.objects.create(title="my-fn", provider=provider, author=user, entrypoint="old.py")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        with pytest.raises(FunctionNotFoundException):
+            UploadFunctionUseCase().execute(
+                other, accessible, UploadFunctionInput(title="my-fn", provider="my-provider", entrypoint="new.py")
+            )
+
+    def test_creating_new_provider_function_requires_admin_group(self, user):
+        Provider.objects.create(name="my-provider")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        with pytest.raises(FunctionNotFoundException):
+            UploadFunctionUseCase().execute(
+                user, accessible, UploadFunctionInput(title="new-fn", provider="my-provider", entrypoint="main.py")
+            )
+
     def test_raises_not_found_when_provider_not_found(self, user):
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 

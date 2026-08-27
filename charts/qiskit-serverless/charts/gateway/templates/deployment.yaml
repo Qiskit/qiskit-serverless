@@ -284,6 +284,10 @@ spec:
               value: {{ .Values.application.limits.argumentsSchemaMemoryLimitMb | quote }}
             - name: ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS
               value: {{ .Values.application.limits.argumentsSchemaCpuLimitSeconds | quote }}
+            - name: MAX_REQUEST_BODY_SIZE_MB
+              value: {{ .Values.application.limits.maxRequestBodySizeMb | quote }}
+            - name: MAX_ARGUMENTS_LENGTH_MB
+              value: {{ .Values.application.limits.maxArgumentsLengthMb | quote }}
             - name: LOG_FORMAT
               value: {{ .Values.application.logFormat | quote }}
             {{- if .Values.application.ibmCloudFidApiKey.enabled }}
@@ -309,6 +313,14 @@ spec:
               value: {{ .Values.ce.defaultComputeProfile | quote }}
             - name: FLEETS_DEFAULT_MAX_INSTANCES
               value: {{ .Values.ce.fleetsDefaultMaxInstances | quote }}
+            - name: FLEETS_RUNTIME_IAM_URL
+              value: {{ .Values.ce.fleetsRuntimeIamUrl | quote }}
+            - name: FLEETS_RUNTIME_GLOBAL_SEARCH_URL
+              value: {{ .Values.ce.fleetsRuntimeGlobalSearchUrl | quote }}
+            - name: FLEETS_RUNTIME_GLOBAL_CATALOG_URL
+              value: {{ .Values.ce.fleetsRuntimeGlobalCatalogUrl | quote }}
+            - name: FLEETS_RUNTIME_EXPERIMENTAL
+              value: {{ .Values.ce.fleetsRuntimeExperimental | quote }}
             {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
@@ -517,6 +529,14 @@ spec:
               value: {{ .Values.ce.defaultComputeProfile | quote }}
             - name: FLEETS_DEFAULT_MAX_INSTANCES
               value: {{ .Values.ce.fleetsDefaultMaxInstances | quote }}
+            - name: FLEETS_RUNTIME_IAM_URL
+              value: {{ .Values.ce.fleetsRuntimeIamUrl | quote }}
+            - name: FLEETS_RUNTIME_GLOBAL_SEARCH_URL
+              value: {{ .Values.ce.fleetsRuntimeGlobalSearchUrl | quote }}
+            - name: FLEETS_RUNTIME_GLOBAL_CATALOG_URL
+              value: {{ .Values.ce.fleetsRuntimeGlobalCatalogUrl | quote }}
+            - name: FLEETS_RUNTIME_EXPERIMENTAL
+              value: {{ .Values.ce.fleetsRuntimeExperimental | quote }}
             {{- end }}
             - name: EVENT_STREAMS_ENABLED
               value: {{ .Values.application.eventStreams.enabled | default false | quote }}

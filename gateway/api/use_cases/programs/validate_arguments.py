@@ -3,11 +3,11 @@
 import json
 
 import jsonschema
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.arguments_schema import (
-    MAX_ARGUMENTS_LENGTH,
     MAX_DOCUMENT_DEPTH,
     MAX_SCHEMA_LENGTH,
     MAX_SCHEMA_NODES,
@@ -70,9 +70,10 @@ def validate_arguments(program: Function, arguments_str: str) -> None:
             f"and the maximum is {MAX_SCHEMA_LENGTH}"
         )
 
-    if len(arguments_str or "") > MAX_ARGUMENTS_LENGTH:
+    max_arguments_bytes = settings.MAX_ARGUMENTS_LENGTH_MB * 1024 * 1024
+    if len(arguments_str or "") > max_arguments_bytes:
         raise InvalidArgumentsException(
-            f"arguments are {len(arguments_str)} characters long and the maximum is {MAX_ARGUMENTS_LENGTH}"
+            f"arguments are {len(arguments_str)} characters long and the maximum is {max_arguments_bytes}"
         )
 
     try:
