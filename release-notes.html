@@ -315,14 +315,14 @@
         <article role="main" id="furo-main-content">
           <section id="release-notes">
 <span id="id1"></span><h1>Release Notes<a class="headerlink" href="#release-notes" title="Permalink to this heading">¶</a></h1>
-<section id="upcoming-qiskit-serverless-release">
-<span id="release-notes-upcoming-qiskit-serverless-release"></span><h2>Upcoming Qiskit Serverless release<a class="headerlink" href="#upcoming-qiskit-serverless-release" title="Permalink to this heading">¶</a></h2>
+<section id="v0-35-1">
+<span id="release-notes-v0-35-1"></span><h2>v0.35.1<a class="headerlink" href="#v0-35-1" title="Permalink to this heading">¶</a></h2>
 <section id="prelude">
-<span id="release-notes-upcoming-qiskit-serverless-release-prelude"></span><h3>Prelude<a class="headerlink" href="#prelude" title="Permalink to this heading">¶</a></h3>
+<span id="release-notes-v0-35-1-prelude"></span><h3>Prelude<a class="headerlink" href="#prelude" title="Permalink to this heading">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">qiskit_serverless</span> <span class="pre">v0.35.1</span></code> is a bug-fix release with a few improvements over <code class="docutils literal notranslate"><span class="pre">v0.35.0</span></code>; upgrading is advised but not required. <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/v1/jobs/provider</span></code> now scopes its results to the requested provider, running a Qiskit Function with a large batch of arguments no longer fails with a <code class="docutils literal notranslate"><span class="pre">500</span></code> error, and <code class="docutils literal notranslate"><span class="pre">get_runtime_service()</span></code> is now compatible with VPE configurations. The author of a provider function is also now treated as an admin of that function for the provider operations, so an automated publisher can manage the functions it uploads.</p>
 </section>
 <section id="upgrade-notes">
-<span id="release-notes-upcoming-qiskit-serverless-release-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Permalink to this heading">¶</a></h3>
+<span id="release-notes-v0-35-1-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Two new settings, both also exposed as chart values under
 <code class="docutils literal notranslate"><span class="pre">gateway.application.limits</span></code>: <code class="docutils literal notranslate"><span class="pre">MAX_REQUEST_BODY_SIZE_MB</span></code>
@@ -345,7 +345,7 @@ access that worked before is unaffected.</p>
 </ul>
 </section>
 <section id="bug-fixes">
-<span id="release-notes-upcoming-qiskit-serverless-release-bug-fixes"></span><h3>Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permalink to this heading">¶</a></h3>
+<span id="release-notes-v0-35-1-bug-fixes"></span><h3>Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Running a Qiskit Function with a large batch of arguments no longer fails with
 <code class="docutils literal notranslate"><span class="pre">500</span> <span class="pre">Internal</span> <span class="pre">server</span> <span class="pre">error</span></code>. The gateway now accepts request bodies of up to
@@ -1645,7 +1645,7 @@ specific jobs. For example:</p>
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">Release Notes</a><ul>
-<li><a class="reference internal" href="#upcoming-qiskit-serverless-release">Upcoming Qiskit Serverless release</a><ul>
+<li><a class="reference internal" href="#v0-35-1">v0.35.1</a><ul>
 <li><a class="reference internal" href="#prelude">Prelude</a></li>
 <li><a class="reference internal" href="#upgrade-notes">Upgrade Notes</a></li>
 <li><a class="reference internal" href="#bug-fixes">Bug Fixes</a></li>
