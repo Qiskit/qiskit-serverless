@@ -30,7 +30,12 @@ from core.services.runners.abstract_runner import AbstractRunner, RunnerError
 from core.ibm_cloud import get_ce_auth, get_cos_client
 from core.utils import decrypt_env_vars
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
-from core.ibm_cloud.code_engine.fleets.cos import JobCOS, queue_prefix
+from core.ibm_cloud.code_engine.fleets.cos import (
+    TASK_STORE_VERSIONS,
+    JobCOS,
+    queue_prefix,
+    task_state_from_key,
+)
 from core.ibm_cloud.code_engine.fleets.utils import (
     FleetJobPaths,
     build_job_paths,
@@ -39,6 +44,12 @@ from core.ibm_cloud.code_engine.fleets.utils import (
 )
 
 logger = logging.getLogger("FleetsRunner")
+
+# Fleets already warned about an unresolved task state. The scheduler is a single
+# long-lived, single-threaded process, so this keeps one warning per fleet instead of
+# one per poll. Bounded because a scheduler runs for weeks.
+_UNRESOLVED_WARNED: set[str] = set()
+_WARNED_FLEETS_LIMIT = 10_000
 
 
 def _retry_on_rate_limit(fn, retries=3, delays=(0.5, 1.0, 2.0)):
@@ -214,23 +225,30 @@ class FleetsRunner(AbstractRunner):
             logger.error("Failed to submit job_id=[%s]: %s", self.job.id, ex)
             raise RunnerError(f"Failed to submit job_id=[{self.job.id}] to Code Engine Fleets", ex) from ex
 
-    _COS_STATUS_PRIORITY = [
-        ("/succeeded/", Job.SUCCEEDED),
-        ("/failed/", Job.FAILED),
-        ("/canceled/", Job.STOPPED),
-        ("/canceling/", Job.STOPPED),
-        ("/running/", Job.RUNNING),
-        ("/pending/", Job.PENDING),
-    ]
+    # Task states Code Engine writes under ``{version}/queue/``, mapped to job
+    # statuses, in PRIORITY ORDER: a terminal state wins over running or pending when
+    # more than one state key is present. A tuple rather than a dict so the ordering
+    # is structural; sorting a dict of these alphabetically would put "pending" ahead
+    # of "succeeded" and report finished jobs as pending.
+    _STATE_TO_JOB_STATUS: tuple[tuple[str, str], ...] = (
+        ("succeeded", Job.SUCCEEDED),
+        ("failed", Job.FAILED),
+        ("canceled", Job.STOPPED),
+        ("canceling", Job.STOPPED),
+        ("running", Job.RUNNING),
+        ("pending", Job.PENDING),
+    )
 
     def status(self) -> str | None:
         """Return the job status by checking COS task state PDS bucket.
 
-        Reads keys under ``ce/{project_id}/{fleet_id}/v2/queue/`` and matches
-        against known status patterns in priority order.
+        Reads the task state from the first schema version in
+        ``TASK_STORE_VERSIONS`` that holds any key, so both the current and the
+        legacy layout work without pinning a version.
 
         Returns:
-            Mapped status string or ``None`` when COS has no state yet.
+            Mapped status string, or ``None`` when no state has been written yet,
+            the COS call failed, or no known state was found.
 
         Raises:
             RunnerError: On non-recoverable errors.
@@ -247,30 +265,94 @@ class FleetsRunner(AbstractRunner):
                 f"CodeEngineProject '{self._project.project_name}' has no cos_bucket_task_store_name configured"
             )
 
-        prefix = queue_prefix(self._project.project_id, self.job.fleet_id)
-        keys = self._list_task_state_keys(bucket, prefix)
+        prefix, keys = self._resolve_task_state_keys(bucket, self._project.project_id, self.job.fleet_id)
         if not keys:
-            # CE takes 10-15s after fleet creation to write the first queue/ key.
-            # Scheduler retries on next cycle.
+            # Either nothing written yet or the COS call failed; both are retried on
+            # the next scheduler cycle, and the scheduler bounds the wait.
+            logger.debug("Fleet [%s] has no task state key yet", self.job.fleet_id)
             return None
 
-        for pattern, status in self._COS_STATUS_PRIORITY:
-            for key in keys:
-                if pattern in key:
+        found: dict[str, str] = {}
+        for key in keys:
+            state = task_state_from_key(prefix, key)
+            if state:
+                found.setdefault(state, key)
+
+        for state, status in self._STATE_TO_JOB_STATUS:
+            if state in found:
+                _UNRESOLVED_WARNED.discard(self.job.fleet_id)
+                if status in Job.TERMINAL_STATUSES:
+                    # The segment after the state is the result code, so a terminal
+                    # state alone does not prove the task exited zero. Log the whole
+                    # key to keep that answerable from production logs. Taking any
+                    # terminal key is only correct because a job runs a single task
+                    # (tasks_specification indices "0" in submit()).
+                    logger.info("Fleet [%s] reached %s from key %s", self.job.fleet_id, status, found[state])
+                else:
                     logger.debug("Fleet [%s] COS status: %s", self.job.fleet_id, status)
-                    return status
+                return status
 
-        raise RunnerError(f"Unrecognized COS task state for fleet [{self.job.fleet_id}]: {keys}")
+        self._warn_unresolved_state(prefix, keys, found)
+        return None
 
-    def _list_task_state_keys(self, bucket: str, prefix: str) -> list[str]:
-        """List task state keys from COS, returning empty list on failure.
+    def _warn_unresolved_state(self, prefix: str, keys: list[str], found: dict[str, str]) -> None:
+        """Report a listing that held keys but no state this gateway recognises.
+
+        Warns once per fleet rather than once per poll: the scheduler re-polls every
+        running job roughly every second, and the condition this reports, a Code Engine
+        state rename, would hit every fleet at once and bury the logs exactly when they
+        are needed.
+
+        Args:
+            prefix: The queue prefix that was read.
+            keys: The keys found under it.
+            found: States parsed from those keys, mapped to the key that produced each.
+        """
+        message = "Fleet [%s] has %s task state key(s) under %s but no known state (found %s, samples %s)"
+        args = (self.job.fleet_id, len(keys), prefix, sorted(found), keys[:3])
+        if self.job.fleet_id in _UNRESOLVED_WARNED:
+            logger.debug(message, *args)
+            return
+        if len(_UNRESOLVED_WARNED) >= _WARNED_FLEETS_LIMIT:
+            _UNRESOLVED_WARNED.clear()
+        _UNRESOLVED_WARNED.add(self.job.fleet_id)
+        logger.warning(message, *args)
+
+    def _resolve_task_state_keys(self, bucket: str, project_id: str, fleet_id: str) -> tuple[str, list[str]]:
+        """Find the queue prefix holding this fleet's task state, with its keys.
+
+        Args:
+            bucket: COS bucket name to query.
+            project_id: The CE project UUID.
+            fleet_id: The fleet UUID.
+
+        Returns:
+            The prefix that was read and the keys under it. The key list is empty
+            when no version holds any state yet, or when a COS call failed.
+        """
+        prefix = ""
+        for version in TASK_STORE_VERSIONS:
+            prefix = queue_prefix(project_id, fleet_id, version)
+            keys = self._list_task_state_keys(bucket, prefix)
+            if keys is None:
+                # COS is unreachable, so probing the other versions would only
+                # repeat the same failure and the same warning.
+                return prefix, []
+            if keys:
+                return prefix, keys
+        return prefix, []
+
+    def _list_task_state_keys(self, bucket: str, prefix: str) -> list[str] | None:
+        """List task state keys from COS.
 
         Args:
             bucket: COS bucket name to query.
             prefix: Key prefix to filter results.
 
         Returns:
-            List of matching key strings, or an empty list if the COS call fails.
+            The matching keys, or ``None`` when the COS call failed. An empty list
+            means the prefix genuinely holds nothing, which callers must be able to
+            tell apart from a failure.
         """
         try:
             return self._get_cos().list_keys(bucket_name=bucket, prefix=prefix)
@@ -279,12 +361,12 @@ class FleetsRunner(AbstractRunner):
             logger.warning(
                 "COS list_keys failed for fleet [%s] (code=%s); will retry on next cycle", self.job.fleet_id, code
             )
-            return []
+            return None
         except ValueError:
             raise
         except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.warning("COS list_keys failed for fleet [%s]: %s; will retry on next cycle", self.job.fleet_id, exc)
-            return []
+            return None
 
     def get_result_from_cos(self) -> str | None:
         """Retrieve job results from COS.
