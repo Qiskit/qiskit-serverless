@@ -4,10 +4,10 @@ import json
 import logging
 
 from django.contrib.auth.models import AbstractUser
-from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from api.access_policies.programs import ProgramAccessPolicies
 from api.access_policies.providers import ProviderAccessPolicy
+from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.use_cases.programs.upload_input import UploadFunctionInput
 from core.domain.authorization.function_access_result import FunctionAccessResult
@@ -89,7 +89,7 @@ class UploadFunctionUseCase:
         logger.info("user_id=%s program=%s | Creating function", user.id, data.title)
 
         if data.entrypoint is None and data.image is None:
-            raise DRFValidationError("At least one of attributes (entrypoint, image) is required.")
+            raise FunctionConfigurationException("At least one of attributes (entrypoint, image) is required.")
 
         env_vars = data.env_vars
         if env_vars:
@@ -120,7 +120,7 @@ class UploadFunctionUseCase:
         if function.runner == Function.FLEETS and not function.code_engine_project:
             message = _no_ce_project_message(function)
             logger.warning("user_id=%s program=%s | %s", user.id, function.title, message)
-            raise DRFValidationError(message)
+            raise FunctionConfigurationException(message)
         function.save()
         return function
 
@@ -144,7 +144,7 @@ class UploadFunctionUseCase:
             if instance.runner == Function.FLEETS and not instance.code_engine_project:
                 message = _no_ce_project_message(instance)
                 logger.warning("user_id=%s program=%s | %s", user.id, instance.title, message)
-                raise DRFValidationError(message)
+                raise FunctionConfigurationException(message)
 
         if data.description is not None:
             instance.description = data.description
