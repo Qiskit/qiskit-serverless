@@ -86,15 +86,16 @@ class JobConfigAdmin(admin.ModelAdmin):
 class CodeEngineProjectAdmin(admin.ModelAdmin):
     """CodeEngineProjectAdmin."""
 
-    search_fields = ["project_name", "project_id", "region", "provider_name"]
-    list_display = ["project_name", "provider_name", "region"]
+    search_fields = ["project_name", "project_id", "region"]
+    list_display = ["project_name", "region"]
 
 
 @admin.register(Provider)
 class ProviderAdmin(admin.ModelAdmin):
     """ProviderAdmin."""
 
-    search_fields = ["name"]
+    search_fields = ["name", "code_engine_project__project_name"]
+    list_display = ["name", "code_engine_project"]
     filter_horizontal = ["admin_groups"]
 
 

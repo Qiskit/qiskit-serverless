@@ -88,6 +88,15 @@ class Provider(models.Model):
     registry = models.CharField(max_length=255, null=True, blank=True, default=None)
     admin_groups = models.ManyToManyField(Group)
 
+    code_engine_project = models.ForeignKey(
+        "CodeEngineProject",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="providers",
+        help_text="Code Engine project this provider's Fleets functions run in; empty for the shared default project",
+    )
+
     objects = ProviderQuerySet.as_manager()
 
     class Meta:
@@ -311,17 +320,6 @@ class CodeEngineProject(models.Model):
     project_id = models.CharField(max_length=255, help_text="IBM Code Engine project UUID")
     project_name = models.CharField(max_length=255, help_text="Code Engine project name in IBM Cloud")
 
-    # Which Qiskit Function provider this project is dedicated to. Stores Provider.name
-    # rather than a foreign key so seeding from CE_PROJECTS never depends on the Provider
-    # row already existing; empty means the project is not dedicated to any provider.
-    provider_name = models.CharField(
-        max_length=255,
-        blank=True,
-        default="",
-        db_default="",
-        help_text="Provider.name this project is dedicated to; empty for the shared default project",
-    )
-
     # Location and ownership
     region = models.CharField(max_length=50, help_text="IBM Cloud region (e.g., us-east, eu-de)")
     resource_group_id = models.CharField(max_length=255, help_text="IBM Cloud resource group ID")
@@ -380,16 +378,6 @@ class CodeEngineProject(models.Model):
 
     class Meta:
         app_label = "api"
-        constraints = [
-            # Only dedicated projects are constrained. Several projects may have an empty
-            # provider_name; select_default() picks between those by name, as before.
-            models.UniqueConstraint(
-                fields=["provider_name"],
-                condition=models.Q(active=True) & ~models.Q(provider_name=""),
-                name="unique_active_ce_project_per_provider",
-                violation_error_message="Another active Code Engine project is already dedicated to this provider.",
-            ),
-        ]
 
     def __str__(self):
         return f"{self.project_name} ({self.region})"

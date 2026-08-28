@@ -19,7 +19,7 @@ from django.conf import settings
 from django.db.models import QuerySet
 
 if TYPE_CHECKING:
-    from core.models import CodeEngineProject, Program, Provider
+    from core.models import CodeEngineProject, Program
 
 logger = logging.getLogger("core.model_managers.code_engine_projects")
 
@@ -42,7 +42,7 @@ class CodeEngineProjectQuerySet(QuerySet):
         if not default_name:
             raise ValueError("CE_DEFAULT_PROJECT_NAME not configured")
 
-        project = self.filter(active=True, provider_name="", project_name=default_name).first()
+        project = self.filter(active=True, project_name=default_name, providers__isnull=True).first()
         if not project:
             logger.warning(
                 "CE_DEFAULT_PROJECT_NAME='%s' does not match any active project without a provider",
@@ -50,25 +50,13 @@ class CodeEngineProjectQuerySet(QuerySet):
             )
         return project
 
-    def select_for_provider(self, provider: "Provider") -> "CodeEngineProject | None":
-        """Select the active Code Engine project dedicated to a provider.
-
-        Args:
-            provider: Provider owning the function.
-
-        Returns:
-            Active CodeEngineProject dedicated to that provider, or None when no project
-            is dedicated to it.
-        """
-        return self.filter(active=True, provider_name=provider.name).first()
-
     def assign_to_program(self, program: "Program") -> None:
         """Assign a CodeEngineProject to a Fleets program that lacks one.
 
-        A program with a provider requires a project dedicated to that provider; it is
-        left unassigned if none exists, so the caller fails instead of silently placing
-        the function in someone else's project. A program without a provider gets the
-        default project.
+        A program with a provider is assigned that provider's dedicated project (only if
+        it is active); it is left unassigned otherwise, so the caller fails instead of
+        silently placing the function in someone else's project. A program without a
+        provider gets the default project.
 
         No-op if the program already has a CE project or is not a Fleets runner.
         Mutates ``program.code_engine_project`` in place — caller must save.
@@ -81,9 +69,12 @@ class CodeEngineProjectQuerySet(QuerySet):
         if program.code_engine_project:
             return
 
-        program.code_engine_project = (
-            self.select_for_provider(program.provider) if program.provider else self.select_default()
-        )
+        if program.provider:
+            project = program.provider.code_engine_project
+            program.code_engine_project = project if project and project.active else None
+        else:
+            program.code_engine_project = self.select_default()
+
         if not program.code_engine_project:
             logger.warning(
                 "program='%s' provider='%s' | No active CodeEngineProject — "

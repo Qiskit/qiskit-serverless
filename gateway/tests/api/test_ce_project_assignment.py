@@ -124,6 +124,21 @@ class TestCEProjectResolutionViaUseCase:
                 provider=provider,
             )
 
+    def test_create_provider_fleets_program_with_inactive_project_is_rejected(self, ce_project):
+        """The rejection message names the inactive project, not just the missing-project case."""
+        user, _ = TestUtils.get_user_and_username("uploader")
+        inactive = TestUtils.get_or_create_ce_project(
+            project_name="acme-project", project_id="acme-ce-project-id", active=False
+        )
+        provider = TestUtils.get_or_create_provider("acme", code_engine_project=inactive)
+
+        with pytest.raises(ValidationError, match="acme-project.*not active"):
+            UploadFunctionUseCase()._create(  # pylint: disable=protected-access
+                UploadFunctionInput(title="acme-func", entrypoint="main.py", runner=Program.FLEETS),
+                user=user,
+                provider=provider,
+            )
+
     def test_select_default_raises_without_config(self, settings):
         """select_default raises ValueError when CE_DEFAULT_PROJECT_NAME is empty."""
         settings.CE_DEFAULT_PROJECT_NAME = ""
@@ -192,6 +207,37 @@ class TestJobCreationValidation:
                 accessible,
                 RunFunctionInput(
                     title="orphan-func",
+                    provider_name=None,
+                    arguments="{}",
+                    config_data=None,
+                    compute_profile=None,
+                    channel=Channel.IBM_QUANTUM_PLATFORM,
+                    token="my_token",
+                    instance=None,
+                    account_id=None,
+                ),
+            )
+
+    def test_job_creation_fails_with_inactive_ce_project(self):
+        """Job creation raises ValidationError when the assigned CE project is no longer active."""
+        user, _ = TestUtils.get_user_and_username("runner")
+        inactive = TestUtils.get_or_create_ce_project(
+            project_name="deactivated-project", project_id="deactivated-ce-project-id", active=False
+        )
+        program = TestUtils.create_program(
+            program_title="stale-func",
+            author=user,
+            runner=Program.FLEETS,
+            code_engine_project=inactive,
+        )
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        with pytest.raises(ValidationError, match="deactivated-project.*not active"):
+            RunFunctionUseCase().execute(
+                user,
+                accessible,
+                RunFunctionInput(
+                    title=program.title,
                     provider_name=None,
                     arguments="{}",
                     config_data=None,

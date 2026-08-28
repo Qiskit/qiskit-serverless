@@ -50,7 +50,6 @@ def _upsert_project(project_id: str, data: dict) -> bool:
         return False
 
     defaults = {k: data[k] for k in _REQUIRED_KEYS}
-    defaults["provider_name"] = str(data.get("provider_name") or "").strip()
     defaults["active"] = True
 
     _, created = CodeEngineProject.objects.update_or_create(
@@ -58,13 +57,7 @@ def _upsert_project(project_id: str, data: dict) -> bool:
         defaults=defaults,
     )
     action = "Created" if created else "Updated"
-    logger.info(
-        "%s CodeEngineProject [%s] region=[%s] provider_name=[%s]",
-        action,
-        data["project_name"],
-        data["region"],
-        defaults["provider_name"],
-    )
+    logger.info("%s CodeEngineProject [%s] region=[%s]", action, data["project_name"], data["region"])
     return True
 
 

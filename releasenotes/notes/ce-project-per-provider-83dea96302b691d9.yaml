@@ -1,27 +1,33 @@
 ---
 features:
   - |
-    A Code Engine project can now be dedicated to a single Qiskit Function provider.
-    ``CodeEngineProject`` has a new ``provider_name`` field, set from the optional
-    ``provider_name`` key of a ``CE_PROJECTS`` entry. A Fleets function belonging to a
-    provider is assigned the project dedicated to that provider, and a function with no
-    provider is assigned the default project.
+    A Code Engine project can now be dedicated to one or more Qiskit Function providers.
+    ``Provider`` has a new ``code_engine_project`` foreign key, set from Django admin. Several
+    providers may point at the same project (for example ``ibm`` and ``ibm-dev`` sharing one
+    project for testing). A Fleets function belonging to a provider is assigned that
+    provider's dedicated project, and a function with no provider is assigned the default
+    project (named by ``CE_DEFAULT_PROJECT_NAME``).
 upgrade:
   - |
     A Fleets function that belongs to a provider now **requires** a Code Engine project
     dedicated to that provider. It is no longer given the default project as a fallback, so
     uploading a new provider-owned Fleets function fails with ``No active Code Engine
-    project for provider '<name>'`` until one is seeded. Functions that already have a
-    project keep it and are unaffected.
+    project for provider '<name>'`` until one is assigned to that provider in Django admin.
+    Functions that already have a project keep it and are unaffected.
   - |
-    The project named by ``CE_DEFAULT_PROJECT_NAME`` is only used as the default while its
-    ``provider_name`` is empty. Dedicating it to a provider leaves functions without a
+    The project named by ``CE_DEFAULT_PROJECT_NAME`` is only used as the default while no
+    provider is dedicated to it. Dedicating it to a provider leaves functions without a
     provider with no project at all.
   - |
-    Only one active Code Engine project may be dedicated to a given provider, enforced by
-    the new ``unique_active_ce_project_per_provider`` constraint. Moving a provider from one
-    project to another therefore takes two deployments: clear ``provider_name`` on the old
-    project first, then set it on the new one.
+    If the project dedicated to a provider (or already assigned to a function) is later
+    deactivated (``active=False``), uploading or running a Fleets function against it now
+    fails explicitly with a message naming the inactive project, instead of silently using it
+    or falling back to the default.
+  - |
+    Deleting a ``CodeEngineProject`` that is still dedicated to a provider is now blocked
+    (``on_delete=PROTECT``) rather than silently clearing the link. Moving a provider to a
+    different project requires re-pointing ``Provider.code_engine_project`` at the new project
+    before the old one can be deleted.
   - |
     Functions already uploaded keep the project they were assigned, because their artifact,
     entrypoint and wrapper live in that project's Cloud Object Storage buckets. Re-uploading

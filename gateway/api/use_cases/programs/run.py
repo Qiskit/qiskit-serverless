@@ -51,7 +51,7 @@ def _runner_config(function: Function, compute_profile_requested: str | None) ->
 class RunFunctionUseCase:
     """Use case for running (enqueueing a job for) a Qiskit Function."""
 
-    def execute(  # pylint: disable=too-many-locals
+    def execute(  # pylint: disable=too-many-locals, too-many-branches
         self,
         user: AbstractUser,
         accessible_functions: FunctionAccessResult,
@@ -85,8 +85,18 @@ class RunFunctionUseCase:
         if active_jobs_limit_reached(user):
             raise ActiveJobLimitExceeded()
 
-        if function.runner == Function.FLEETS and not function.code_engine_project:
-            raise DRFValidationError("Program has no Code Engine project assigned. Contact administrator.")
+        if function.runner == Function.FLEETS:
+            message = None
+            if not function.code_engine_project:
+                message = "Program has no Code Engine project assigned. Contact administrator."
+            elif not function.code_engine_project.active:
+                message = (
+                    f"Code Engine project '{function.code_engine_project.project_name}' assigned to "
+                    "this function is not active. Contact administrator."
+                )
+            if message:
+                logger.warning("user_id=%s program=%s | %s", user.id, function.title, message)
+                raise DRFValidationError(message)
 
         validate_arguments(function, data.arguments)
 
