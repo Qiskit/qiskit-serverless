@@ -130,6 +130,7 @@ class TestKafkaEventStreamsClient:
             "resource_id": str(job.id),
             "job_started": True,
             "job_completed": False,
+            "job_started_at": job.running_started_at,
         }
         assert call_kwargs["key"] == str(job.id).encode("utf-8")
         mock_producer.flush.assert_called_once()
@@ -162,6 +163,7 @@ class TestKafkaEventStreamsClient:
         assert published["data"]["metric_value"] == 5_000
         assert published["data"]["job_started"] is False
         assert published["data"]["job_completed"] is False
+        assert published["data"]["job_started_at"] == started_at
 
     def test_emit_job_completed_computes_usage_milliseconds(self):
         started_at = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
@@ -191,6 +193,7 @@ class TestKafkaEventStreamsClient:
         assert published["data"]["metric_value"] == 30_000
         assert published["data"]["job_started"] is False
         assert published["data"]["job_completed"] is True
+        assert published["data"]["job_started_at"] == started_at
 
     def test_emit_raises_when_flush_times_out(self):
         job = _make_job()
@@ -239,6 +242,7 @@ class TestKafkaEventStreamsClient:
 
         published = json.loads(mock_producer.produce.call_args[1]["value"])
         assert published["data"]["metric_value"] == 0
+        assert published["data"]["job_started_at"] is None
 
     def test_emit_license_fee_publishes_correct_payload(self):
         job = _make_job()
@@ -280,6 +284,7 @@ class TestKafkaEventStreamsClient:
             "resource_id": str(job.id),
             "job_started": True,
             "job_completed": True,
+            "job_started_at": job.running_started_at,
             "business_model": "licensed",
         }
         assert call_kwargs["key"] == str(job.id).encode("utf-8")
@@ -343,3 +348,4 @@ class TestKafkaEventStreamsClient:
 
         published = json.loads(mock_producer.produce.call_args[1]["value"])
         assert "business_model" not in published["data"]
+        assert published["data"]["job_started_at"] == job.running_started_at

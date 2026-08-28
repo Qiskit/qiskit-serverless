@@ -152,7 +152,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
 
     def _publish(
         self,
-        job,
+        job: Job,
         *,
         metric_type: str,
         metric_value: int,
@@ -170,6 +170,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
             "resource_id": str(job.id),
             "job_started": job_started,
             "job_completed": job_completed,
+            "job_started_at": job.running_started_at,
         }
         if business_model is not None:
             data["business_model"] = business_model
