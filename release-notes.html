@@ -320,6 +320,11 @@
 <section id="upgrade-notes">
 <span id="release-notes-upcoming-qiskit-serverless-release-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
+<li><p>The <code class="docutils literal notranslate"><span class="pre">api_program.default_compute_profile</span></code> column is now dropped from the
+database. The field was removed from Qiskit Functions in the
+earlier release.</p></li>
+</ul>
+<ul class="simple">
 <li><p>An unrecognised task state in the Code Engine task store no longer fails the job.
 It is logged by name and treated as “no status yet”, so a future Code Engine
 change to the state names cannot mark every in-flight job as <code class="docutils literal notranslate"><span class="pre">FAILED</span></code> at once.</p></li>
