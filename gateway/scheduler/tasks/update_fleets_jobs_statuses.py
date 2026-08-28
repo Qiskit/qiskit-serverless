@@ -60,6 +60,10 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
 
         if new_status is None:
             logger.debug("job_id=%s status poll returned None (no COS state yet), skipping update", job.id)
+            # Without this the job is immortal: no other scheduler task touches a
+            # PENDING or RUNNING Fleets job, so a status that never resolves would
+            # hold the user's concurrency slot forever.
+            self.stop_job_if_timeout(job)
             return False
 
         if new_status == Job.SUCCEEDED:
