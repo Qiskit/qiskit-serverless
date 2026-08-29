@@ -106,3 +106,13 @@ def test_timeline_view_redirects_to_changelist_with_no_selection(client):
 
     assert response.status_code == 302
     assert response.url == reverse("admin:api_job_changelist")
+
+
+@pytest.mark.django_db
+def test_timeline_view_redirects_to_changelist_with_a_malformed_id(client):
+    client.force_login(User.objects.create_superuser(username="admin", password="x", email="a@b.c"))
+
+    response = client.get(reverse("admin:job_timeline_view") + "?ids=not-a-uuid")
+
+    assert response.status_code == 302
+    assert response.url == reverse("admin:api_job_changelist")

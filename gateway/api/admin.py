@@ -2,6 +2,7 @@
 
 import json
 import logging
+import uuid
 
 from django import forms
 from django.contrib import admin, messages
@@ -515,7 +516,13 @@ class JobAdmin(admin.ModelAdmin):
 
     def job_timeline_view(self, request):
         """Gantt/concurrency timeline for the jobs selected in the changelist."""
-        id_list = [v for v in request.GET.get("ids", "").split(",") if v]
+        raw_ids = [v for v in request.GET.get("ids", "").split(",") if v]
+        id_list = []
+        for raw_id in raw_ids:
+            try:
+                id_list.append(uuid.UUID(raw_id))
+            except ValueError:
+                continue
         jobs_qs = Job.objects.filter(id__in=id_list).prefetch_related("job_events")
         if not id_list or not jobs_qs.exists():
             messages.error(request, "No jobs selected for the timeline.")
