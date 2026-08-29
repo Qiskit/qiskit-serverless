@@ -3,9 +3,9 @@
 from unittest.mock import patch
 
 import pytest
-from rest_framework.exceptions import ValidationError
 
 from api.domain.authentication.channel import Channel
+from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
 from api.use_cases.programs.run import RunFunctionUseCase
 from api.use_cases.programs.run_input import RunFunctionInput
 from api.use_cases.programs.upload import UploadFunctionUseCase
@@ -117,7 +117,7 @@ class TestCEProjectResolutionViaUseCase:
         user, _ = TestUtils.get_user_and_username("uploader")
         provider = TestUtils.get_or_create_provider("acme")
 
-        with pytest.raises(ValidationError, match="acme"):
+        with pytest.raises(FunctionConfigurationException, match="acme"):
             UploadFunctionUseCase()._create(  # pylint: disable=protected-access
                 UploadFunctionInput(title="acme-func", entrypoint="main.py", runner=Program.FLEETS),
                 user=user,
@@ -132,7 +132,7 @@ class TestCEProjectResolutionViaUseCase:
         )
         provider = TestUtils.get_or_create_provider("acme", code_engine_project=inactive)
 
-        with pytest.raises(ValidationError, match="acme-project.*not active"):
+        with pytest.raises(FunctionConfigurationException, match="acme-project.*not active"):
             UploadFunctionUseCase()._create(  # pylint: disable=protected-access
                 UploadFunctionInput(title="acme-func", entrypoint="main.py", runner=Program.FLEETS),
                 user=user,
@@ -201,7 +201,7 @@ class TestJobCreationValidation:
         TestUtils.create_program(program_title="orphan-func", author=user, runner=Program.FLEETS)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
-        with pytest.raises(ValidationError, match="no Code Engine project assigned"):
+        with pytest.raises(FunctionConfigurationException, match="no Code Engine project assigned"):
             RunFunctionUseCase().execute(
                 user,
                 accessible,
@@ -232,7 +232,7 @@ class TestJobCreationValidation:
         )
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
-        with pytest.raises(ValidationError, match="deactivated-project.*not active"):
+        with pytest.raises(FunctionConfigurationException, match="deactivated-project.*not active"):
             RunFunctionUseCase().execute(
                 user,
                 accessible,
