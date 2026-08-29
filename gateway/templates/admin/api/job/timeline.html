@@ -20,13 +20,12 @@
 {% block content %}
 <div id="content-main" class="qs-timeline">
 <h1>{% translate "Timeline" %}</h1>
-<div class="qs-meta">{{ timeline_jobs_count }} jobs &middot; rango {{ timeline_range }}</div>
+<div class="qs-meta">{{ timeline_jobs_count }} jobs &middot; range {{ timeline_range }}</div>
 <div class="qs-legend">{{ timeline_legend }}</div>
 <div class="qs-filters"><span>Compute profile: </span>{{ timeline_filter_bar }}</div>
 <div class="qs-chart-wrap">{{ timeline_svg }}</div>
-<h2>{% translate "Resumen de solapes" %}</h2>
+<h2>{% translate "Overlap summary" %}</h2>
 {{ timeline_overlap_summary }}
 </div>
-<script>{{ timeline_filter_js }}</script>
-<script>{{ timeline_hover_js }}</script>
+<script src="{% static 'admin/js/job_timeline.js' %}" defer></script>
 {% endblock %}

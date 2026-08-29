@@ -38,6 +38,9 @@ from core.services.storage.job_file_explorer import JobFileExplorer
 
 logger = logging.getLogger("gateway.admin")
 
+# How many jobs the "Timeline" admin action can carry in the redirect query string
+MAX_TIMELINE_JOBS = 200
+
 
 def get_dashboard_stats():
     """Return platform-wide stats for the admin dashboard."""
@@ -489,10 +492,18 @@ class JobAdmin(admin.ModelAdmin):
         return formfield
 
     @admin.action(description="Timeline")
-    def timeline_action(self, request, queryset):  # pylint: disable=unused-argument
-        """Redirect to the Gantt/concurrency timeline for the selected jobs."""
-        ids = ",".join(str(pk) for pk in queryset.values_list("id", flat=True))
-        return redirect(f"{reverse('admin:job_timeline_view')}?ids={ids}")
+    def timeline_action(self, request, queryset):
+        """Redirect to the Gantt/concurrency timeline for the selected jobs.
+
+        The selection travels in the query string, so it has to be capped: "select all" on an
+        unfiltered changelist would build a URL long enough for the webserver to reject the
+        request with a 502 instead of showing an error.
+        """
+        total = queryset.count()
+        ids = list(queryset.values_list("id", flat=True)[:MAX_TIMELINE_JOBS])
+        if total > MAX_TIMELINE_JOBS:
+            messages.warning(request, f"Showing the first {MAX_TIMELINE_JOBS} of {total} selected jobs.")
+        return redirect(f"{reverse('admin:job_timeline_view')}?ids={','.join(str(i) for i in ids)}")
 
     def get_urls(self):
         custom_urls = [
@@ -523,14 +534,16 @@ class JobAdmin(admin.ModelAdmin):
                 id_list.append(uuid.UUID(raw_id))
             except ValueError:
                 continue
-        jobs_qs = Job.objects.filter(id__in=id_list).prefetch_related("job_events")
-        if not id_list or not jobs_qs.exists():
+        # one single query: the rendering iterates the jobs again, and re-running the queryset
+        # could come back empty (deleted in between) and break the rendering half way through
+        jobs = list(Job.objects.filter(id__in=id_list).prefetch_related("job_events"))
+        if not id_list or not jobs:
             messages.error(request, "No jobs selected for the timeline.")
             return redirect(reverse("admin:api_job_changelist"))
 
         context = {
             **self.admin_site.each_context(request),
-            **render_job_timeline(jobs_qs),
+            **render_job_timeline(jobs),
             "opts": self.model._meta,
             "app_label": self.model._meta.app_label,
         }

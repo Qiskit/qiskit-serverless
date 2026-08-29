@@ -30,3 +30,31 @@
 }
 .qs-timeline .job-row { transition: opacity 0.15s; }
 .qs-timeline code { background: #1e2740; padding: 1px 4px; border-radius: 3px; }
+
+/* Visibility of the SVG pieces. The Content Security Policy of this project rejects inline
+   style attributes, so the page starts every optional element hidden here and the JavaScript
+   in admin/js/job_timeline.js adds or removes .is-visible. */
+.qs-timeline .conc-path { display: none; }
+.qs-timeline .conc-path.is-visible { display: block; }
+.qs-timeline #hover-cursor { display: none; }
+.qs-timeline #hover-cursor.is-visible { display: block; }
+
+/* Legend. Keep these colors in sync with STATUS_COLOR, OUTCOME_LABEL and OVERLAP_STROKE in
+   api/domain/job_timeline.py. */
+.qs-timeline .qs-legend-item { margin-right: 16px; }
+.qs-timeline .qs-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.qs-timeline .qs-swatch--queued { background: #94a3b8; }
+.qs-timeline .qs-swatch--pending { background: #a855f7; }
+.qs-timeline .qs-swatch--running { background: #3b82f6; }
+.qs-timeline .qs-swatch--overlap { background: #3b82f6; border: 2px solid #dc2626; }
+.qs-timeline .qs-outcome { font-weight: bold; }
+.qs-timeline .qs-outcome--succeeded { color: #22c55e; }
+.qs-timeline .qs-outcome--failed { color: #ef4444; }
+.qs-timeline .qs-outcome--stopped { color: #a16207; }

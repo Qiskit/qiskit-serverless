@@ -69,6 +69,18 @@ def test_render_job_timeline_reports_per_state_durations_and_outcome():
 
 
 @pytest.mark.django_db
+def test_render_job_timeline_extends_an_unfinished_job_up_to_now():
+    base = timezone.now().replace(microsecond=0) - timedelta(minutes=10)
+    job = _job_with_events(status=Job.RUNNING, base=base)
+
+    context = render_job_timeline(Job.objects.filter(pk=job.pk).prefetch_related("job_events"))
+
+    # RUNNING started at base+51s and the job has not finished, so its RUNNING segment runs on
+    # until now: ten minutes minus those 51 seconds, that is nine minutes and change
+    assert "RUNNING: 9m" in context["timeline_svg"]
+
+
+@pytest.mark.django_db
 def test_render_job_timeline_flags_overlapping_running_jobs():
     shared_base = timezone.now().replace(microsecond=0)
     job_a = _job_with_events(base=shared_base)
@@ -77,7 +89,7 @@ def test_render_job_timeline_flags_overlapping_running_jobs():
     context = render_job_timeline(Job.objects.filter(pk__in=[job_a.pk, job_b.pk]).prefetch_related("job_events"))
 
     # both jobs share the same base timestamp, so their RUNNING windows fully overlap
-    assert "1 pares de jobs se solapan en ejecución" in context["timeline_overlap_summary"]
+    assert "1 pair of jobs overlaps during execution" in context["timeline_overlap_summary"]
 
 
 @pytest.mark.django_db
@@ -116,3 +128,29 @@ def test_timeline_view_redirects_to_changelist_with_a_malformed_id(client):
 
     assert response.status_code == 302
     assert response.url == reverse("admin:api_job_changelist")
+
+
+@pytest.mark.django_db
+def test_timeline_view_redirects_to_changelist_when_no_job_matches_the_ids(client):
+    client.force_login(User.objects.create_superuser(username="admin", password="x", email="a@b.c"))
+
+    response = client.get(reverse("admin:job_timeline_view") + f"?ids={uuid4()}")
+
+    assert response.status_code == 302
+    assert response.url == reverse("admin:api_job_changelist")
+
+
+@pytest.mark.django_db
+def test_render_job_timeline_escapes_a_compute_profile_that_looks_like_markup():
+    # two jobs sharing a base timestamp overlap, which is what makes the overlap summary list
+    # their compute profiles and therefore what exercises its escaping
+    shared_base = timezone.now().replace(microsecond=0)
+    job_a = _job_with_events(base=shared_base, compute_profile="<script>alert(1)</script>")
+    job_b = _job_with_events(status=Job.FAILED, base=shared_base, compute_profile="<script>alert(1)</script>")
+
+    context = render_job_timeline(Job.objects.filter(pk__in=[job_a.pk, job_b.pk]).prefetch_related("job_events"))
+
+    assert "<script>" not in context["timeline_svg"]
+    assert "<script>" not in context["timeline_overlap_summary"]
+    assert "&lt;script&gt;" in context["timeline_svg"]
+    assert "&lt;script&gt;" in context["timeline_overlap_summary"]
