@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 from django.contrib.auth.models import User
+from django.urls import reverse
 from django.utils import timezone
 
 from api.domain.job_timeline import render_job_timeline
@@ -77,3 +78,31 @@ def test_render_job_timeline_flags_overlapping_running_jobs():
 
     # both jobs share the same base timestamp, so their RUNNING windows fully overlap
     assert "1 pares de jobs se solapan en ejecución" in context["timeline_overlap_summary"]
+
+
+@pytest.mark.django_db
+def test_timeline_action_redirects_to_a_page_that_renders_the_selected_jobs(client):
+    job = _job_with_events()
+    client.force_login(User.objects.create_superuser(username="admin", password="x", email="a@b.c"))
+
+    response = client.post(
+        reverse("admin:api_job_changelist"),
+        data={"action": "timeline_action", "_selected_action": [str(job.pk)]},
+    )
+
+    assert response.status_code == 302
+    assert response.url == reverse("admin:job_timeline_view") + f"?ids={job.pk}"
+
+    page = client.get(response.url)
+    assert page.status_code == 200
+    assert str(job.id)[:8] in page.content.decode()
+
+
+@pytest.mark.django_db
+def test_timeline_view_redirects_to_changelist_with_no_selection(client):
+    client.force_login(User.objects.create_superuser(username="admin", password="x", email="a@b.c"))
+
+    response = client.get(reverse("admin:job_timeline_view"))
+
+    assert response.status_code == 302
+    assert response.url == reverse("admin:api_job_changelist")

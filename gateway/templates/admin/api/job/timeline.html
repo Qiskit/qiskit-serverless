@@ -1,0 +1,32 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block title %}Timeline{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; {% translate 'Timeline' %}
+</div>
+{% endblock %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'admin/css/job_timeline.css' %}">
+{% endblock %}
+
+{% block content %}
+<div id="content-main" class="qs-timeline">
+<h1>{% translate "Timeline" %}</h1>
+<div class="qs-meta">{{ timeline_jobs_count }} jobs &middot; rango {{ timeline_range }}</div>
+<div class="qs-legend">{{ timeline_legend }}</div>
+<div class="qs-filters"><span>Compute profile: </span>{{ timeline_filter_bar }}</div>
+<div class="qs-chart-wrap">{{ timeline_svg }}</div>
+<h2>{% translate "Resumen de solapes" %}</h2>
+{{ timeline_overlap_summary }}
+</div>
+<script>{{ timeline_filter_js }}</script>
+<script>{{ timeline_hover_js }}</script>
+{% endblock %}
