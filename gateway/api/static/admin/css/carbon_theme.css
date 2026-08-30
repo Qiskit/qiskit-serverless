@@ -924,7 +924,7 @@ body.login #content h1 {
     background-color: var(--qs-badge-bg, #6f6f6f);
 }
 
-.qs-status-badge[data-status="QUEUED"] { --qs-badge-bg: #8d8d8d; }
+.qs-status-badge[data-status="QUEUED"] { --qs-badge-bg: #8a3ffc; }
 
 .qs-status-badge[data-status="PENDING"] {
     --qs-badge-bg: #f0ad4e;
