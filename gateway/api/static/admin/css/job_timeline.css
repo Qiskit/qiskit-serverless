@@ -1,18 +1,49 @@
+/* The page chrome (headings, meta text, buttons, job details panel) follows Django admin's own
+   light/dark toggle via these variables, light by default, overridden for both "auto" (through
+   prefers-color-scheme) and the explicit dark toggle (html[data-theme="dark"]). The chart canvas
+   below (.qs-chart-wrap and everything the SVG draws) stays a fixed dark panel on purpose, the
+   same way a code block does regardless of the surrounding page's theme: its colors are chosen
+   for that dark background and are not meant to repaint per theme. */
 .qs-timeline {
-  background: #0b1020;
-  color: #e2e8f0;
+  --qs-bg: #f8fafc;
+  --qs-fg: #0f172a;
+  --qs-muted: #64748b;
+  --qs-border: #cbd5e1;
+  --qs-panel: #ffffff;
+  --qs-code-bg: #e2e8f0;
+  background: var(--qs-bg);
+  color: var(--qs-fg);
   font-family: -apple-system, sans-serif;
   padding: 16px;
   border-radius: 8px;
 }
-.qs-timeline h1, .qs-timeline h2 { color: #e2e8f0; }
-.qs-timeline .qs-meta { color: #94a3b8; font-size: 13px; margin-bottom: 12px; }
-.qs-timeline .qs-legend { margin: 12px 0 16px; font-size: 12px; }
-.qs-timeline .qs-filters { margin: 0 0 16px; font-size: 12px; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) .qs-timeline {
+    --qs-bg: #0b1020;
+    --qs-fg: #e2e8f0;
+    --qs-muted: #94a3b8;
+    --qs-border: #1e2740;
+    --qs-panel: #1e2740;
+    --qs-code-bg: #1e2740;
+  }
+}
+html[data-theme="dark"] .qs-timeline {
+  --qs-bg: #0b1020;
+  --qs-fg: #e2e8f0;
+  --qs-muted: #94a3b8;
+  --qs-border: #1e2740;
+  --qs-panel: #1e2740;
+  --qs-code-bg: #1e2740;
+}
+
+.qs-timeline h1, .qs-timeline h2 { color: var(--qs-fg); }
+.qs-timeline .qs-meta { color: var(--qs-muted); font-size: 13px; margin-bottom: 12px; }
+.qs-timeline .qs-legend { margin: 12px 0 16px; font-size: 12px; color: var(--qs-fg); }
+.qs-timeline .qs-filters { margin: 0 0 16px; font-size: 12px; color: var(--qs-fg); }
 .qs-timeline .filter-btn {
-  background: #1e2740;
-  color: #cbd5e1;
-  border: 1px solid #334155;
+  background: var(--qs-panel);
+  color: var(--qs-fg);
+  border: 1px solid var(--qs-border);
   border-radius: 14px;
   padding: 4px 12px;
   margin-right: 6px;
@@ -27,9 +58,11 @@
   border: 1px solid #1e2740;
   border-radius: 8px;
   padding: 8px;
+  background: #0b1020;
 }
-.qs-timeline .job-row { transition: opacity 0.15s; }
-.qs-timeline code { background: #1e2740; padding: 1px 4px; border-radius: 3px; }
+.qs-timeline .job-row { transition: opacity 0.15s; cursor: pointer; }
+.qs-timeline .job-row.is-selected rect { stroke: #60a5fa; stroke-width: 2; }
+.qs-timeline code { background: var(--qs-code-bg); color: var(--qs-fg); padding: 1px 4px; border-radius: 3px; }
 
 /* Visibility of the SVG pieces. The Content Security Policy of this project rejects inline
    style attributes, so the page starts every optional element hidden here and the JavaScript
@@ -40,7 +73,8 @@
 .qs-timeline #hover-cursor.is-visible { display: block; }
 
 /* Legend. Keep these colors in sync with STATUS_COLOR, OUTCOME_LABEL and OVERLAP_STROKE in
-   api/domain/job_timeline.py. */
+   api/domain/job_timeline.py. These sit on the dark chart canvas visually, so they keep their
+   own fixed light-on-dark colors instead of following the page's theme variables. */
 .qs-timeline .qs-legend-item { margin-right: 16px; }
 .qs-timeline .qs-swatch {
   display: inline-block;
@@ -58,3 +92,29 @@
 .qs-timeline .qs-outcome--succeeded { color: #22c55e; }
 .qs-timeline .qs-outcome--failed { color: #ef4444; }
 .qs-timeline .qs-outcome--stopped { color: #a16207; }
+
+/* Job details panel, shown below the chart when a job row is clicked. */
+.qs-timeline .qs-job-details-wrap {
+  background: var(--qs-panel);
+  border: 1px solid var(--qs-border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: var(--qs-fg);
+}
+.qs-timeline .qs-job-details { display: none; }
+.qs-timeline .qs-job-details.is-visible { display: block; }
+.qs-timeline .qs-job-details h3 {
+  margin: 12px 0 6px;
+  font-size: 12px;
+  color: var(--qs-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.qs-timeline .qs-job-details h3:first-child { margin-top: 0; }
+.qs-timeline .qs-detail-row { display: flex; gap: 8px; padding: 2px 0; font-size: 13px; }
+.qs-timeline .qs-detail-label { width: 140px; flex-shrink: 0; color: var(--qs-muted); }
+.qs-timeline .qs-detail-value {
+  color: var(--qs-fg);
+  font-family: ui-monospace, Menlo, monospace;
+  word-break: break-all;
+}

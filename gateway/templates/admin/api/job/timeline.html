@@ -24,8 +24,8 @@
 <div class="qs-legend">{{ timeline_legend }}</div>
 <div class="qs-filters"><span>Compute profile: </span>{{ timeline_filter_bar }}</div>
 <div class="qs-chart-wrap">{{ timeline_svg }}</div>
-<h2>{% translate "Overlap summary" %}</h2>
-{{ timeline_overlap_summary }}
+<h2>{% translate "Job details" %}</h2>
+<div class="qs-job-details-wrap">{{ timeline_job_details }}</div>
 </div>
 <script src="{% static 'admin/js/job_timeline.js' %}" defer></script>
 {% endblock %}

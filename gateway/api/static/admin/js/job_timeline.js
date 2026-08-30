@@ -83,3 +83,19 @@
         cursor.classList.remove("is-visible");
     });
 })();
+
+// --- click a job row to show its details below the chart ---
+(function () {
+    document.querySelectorAll(".job-row").forEach(function (row) {
+        row.addEventListener("click", function () {
+            document.querySelectorAll(".job-row").forEach(function (other) {
+                other.classList.remove("is-selected");
+            });
+            row.classList.add("is-selected");
+            const jobId = row.dataset.jobId;
+            document.querySelectorAll(".qs-job-details").forEach(function (panel) {
+                panel.classList.toggle("is-visible", panel.dataset.jobId === jobId);
+            });
+        });
+    });
+})();

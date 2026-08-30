@@ -9,11 +9,12 @@ from django.urls import reverse
 from django.utils import timezone
 
 from api.domain.job_timeline import render_job_timeline
+from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, JobEvent, Program, Provider
 
 
-def _job_with_events(status=Job.SUCCEEDED, compute_profile="bx3d-24x120", base=None):
+def _job_with_events(status=Job.SUCCEEDED, compute_profile="bx3d-24x120", base=None, **extra_fields):
     """Create one Job plus a QUEUED/PENDING/RUNNING/<status> JobEvent trail with known gaps.
 
     `JobEvent.created` and `Job.created` are `auto_now_add`, so Django ignores any value passed
@@ -24,6 +25,9 @@ def _job_with_events(status=Job.SUCCEEDED, compute_profile="bx3d-24x120", base=N
     `base` defaults to "now" but can be passed in explicitly so two jobs share the exact same
     starting point (needed by the overlap test below — computing "now" twice, once per job,
     could in theory land a second apart and make the test flaky around a second boundary).
+
+    `extra_fields` is forwarded straight to `Job.objects.create` (e.g. `account_id=...`), for
+    tests that need to check the job details panel.
     """
     if base is None:
         base = timezone.now().replace(microsecond=0)
@@ -31,7 +35,12 @@ def _job_with_events(status=Job.SUCCEEDED, compute_profile="bx3d-24x120", base=N
     provider = Provider.objects.create(name=f"P{uuid4().hex[:8]}")
     program = Program.objects.create(title="t", author=user, provider=provider)
     job = Job.objects.create(
-        author=user, program=program, status=status, compute_profile=compute_profile, runner=Program.FLEETS
+        author=user,
+        program=program,
+        status=status,
+        compute_profile=compute_profile,
+        runner=Program.FLEETS,
+        **extra_fields,
     )
 
     queued_event = job.job_events.add_status_event(
@@ -88,8 +97,9 @@ def test_render_job_timeline_flags_overlapping_running_jobs():
 
     context = render_job_timeline(Job.objects.filter(pk__in=[job_a.pk, job_b.pk]).prefetch_related("job_events"))
 
-    # both jobs share the same base timestamp, so their RUNNING windows fully overlap
-    assert "1 pair of jobs overlaps during execution" in context["timeline_overlap_summary"]
+    # both jobs share the same base timestamp, so their RUNNING windows fully overlap: each
+    # job's row label gets a "overlaps with 1 other job" badge
+    assert context["timeline_svg"].count("⧉1") == 2
 
 
 @pytest.mark.django_db
@@ -142,15 +152,38 @@ def test_timeline_view_redirects_to_changelist_when_no_job_matches_the_ids(clien
 
 @pytest.mark.django_db
 def test_render_job_timeline_escapes_a_compute_profile_that_looks_like_markup():
-    # two jobs sharing a base timestamp overlap, which is what makes the overlap summary list
-    # their compute profiles and therefore what exercises its escaping
-    shared_base = timezone.now().replace(microsecond=0)
-    job_a = _job_with_events(base=shared_base, compute_profile="<script>alert(1)</script>")
-    job_b = _job_with_events(status=Job.FAILED, base=shared_base, compute_profile="<script>alert(1)</script>")
+    # the compute profile is shown both on the chart label and in the job details panel
+    job = _job_with_events(compute_profile="<script>alert(1)</script>")
 
-    context = render_job_timeline(Job.objects.filter(pk__in=[job_a.pk, job_b.pk]).prefetch_related("job_events"))
+    context = render_job_timeline(Job.objects.filter(pk=job.pk).prefetch_related("job_events"))
 
     assert "<script>" not in context["timeline_svg"]
-    assert "<script>" not in context["timeline_overlap_summary"]
+    assert "<script>" not in context["timeline_job_details"]
     assert "&lt;script&gt;" in context["timeline_svg"]
-    assert "&lt;script&gt;" in context["timeline_overlap_summary"]
+    assert "&lt;script&gt;" in context["timeline_job_details"]
+
+
+@pytest.mark.django_db
+def test_render_job_timeline_shows_job_and_fleets_details():
+    job = _job_with_events(
+        business_model=BusinessModel.TRIAL,
+        account_id="acct-1",
+        instance_crn="crn:v1:bluemix:public:quantum-computing::a/acct-1:instance-1",
+        fleet_id="fleet-1",
+        ce_project_name="proj-1",
+        ce_region="us-south",
+    )
+
+    context = render_job_timeline(Job.objects.filter(pk=job.pk).select_related("author").prefetch_related("job_events"))
+
+    details = context["timeline_job_details"]
+    assert f'data-job-id="{job.id}"' in details
+    assert job.author.username in details
+    assert BusinessModel.TRIAL in details
+    assert "acct-1" in details
+    assert "crn:v1:bluemix:public:quantum-computing::a/acct-1:instance-1" in details
+    assert "fleet-1" in details
+    assert "bx3d-24x120" in details  # compute_profile, listed under "Fleets"
+    assert "proj-1" in details
+    assert "us-south" in details
+    assert f'data-job-id="{job.id}"' in context["timeline_svg"]  # the row itself is clickable

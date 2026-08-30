@@ -54,6 +54,13 @@ def _jobs_from_queryset(jobs_qs):
                 "updated": job.updated,
                 "running_started_at": job.running_started_at,
                 "status_events": status_events,
+                "author": job.author.username,
+                "business_model": job.business_model or "-",
+                "account_id": job.account_id or "-",
+                "instance_crn": job.instance_crn or "-",
+                "fleet_id": job.fleet_id or "-",
+                "ce_project_name": job.ce_project_name or "-",
+                "ce_region": job.ce_region or "-",
             }
         )
     return jobs
@@ -316,7 +323,10 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
             f"overlaps with {len(overlap_ids)} job(s)"
         )
 
-        svg.append(f'<g class="job-row" data-profile="{html.escape(job["profile"])}">')
+        svg.append(
+            f'<g class="job-row" data-profile="{html.escape(job["profile"])}" '
+            f'data-job-id="{html.escape(job["id"])}">'
+        )
         # the tooltip has to be the first child of the group: SVG uses the first <title> it finds
         svg.append(f"<title>{html.escape(tooltip)}</title>")
 
@@ -383,31 +393,50 @@ def build_legend():
     return "".join(parts)
 
 
-def build_overlap_summary(jobs, overlaps):
-    """Build HTML summary of overlapping jobs."""
-    seen_pairs = set()
-    for job in jobs:
-        for other_id in overlaps.get(job["id"], ()):
-            pair = tuple(sorted((job["id"], other_id)))
-            seen_pairs.add(pair)
-    by_job = {j["id"]: j for j in jobs}
-    lines = []
-    for a, b in sorted(seen_pairs, key=lambda p: by_job[p[0]]["t_run"]):
-        ja, jb = by_job[a], by_job[b]
-        lines.append(
-            f"<li><code>{a[:8]}</code> ({html.escape(ja['profile'])}, {fmt_dt(ja['t_run'])}–{fmt_dt(ja['t_end'])}) "
-            f"overlaps with <code>{b[:8]}</code> ({html.escape(jb['profile'])}, "
-            f"{fmt_dt(jb['t_run'])}–{fmt_dt(jb['t_end'])})</li>"
-        )
-    if not lines:
-        return "<p>No overlaps found between RUNNING segments.</p>"
-    count = len(seen_pairs)
-    heading = (
-        "1 pair of jobs overlaps during execution:"
-        if count == 1
-        else f"{count} pairs of jobs overlap during execution:"
+def _detail_rows(pairs):
+    """Render a label/value pair per row for a job details panel, escaping every value."""
+    return "".join(
+        f'<div class="qs-detail-row"><span class="qs-detail-label">{html.escape(label)}</span>'
+        f'<span class="qs-detail-value">{html.escape(value)}</span></div>'
+        for label, value in pairs
     )
-    return f"<p>{heading}</p><ul>{''.join(lines)}</ul>"
+
+
+def build_job_details(jobs):
+    """Build one hidden details panel per job, shown by `job_timeline.js` on click.
+
+    Starts with a placeholder panel (visible until a job row is clicked) plus one panel per job,
+    each carrying the job's id in `data-job-id` so the click handler can match it to the row.
+    """
+    panels = [
+        '<div class="qs-job-details is-visible" data-placeholder="1">'
+        "Click a job in the chart to see its details.</div>"
+    ]
+    for job in jobs:
+        main_rows = _detail_rows(
+            [
+                ("id", job["id"]),
+                ("author", job["author"]),
+                ("business model", job["business_model"]),
+                ("account id", job["account_id"]),
+                ("instance crn", job["instance_crn"]),
+            ]
+        )
+        fleets_rows = _detail_rows(
+            [
+                ("fleet id", job["fleet_id"]),
+                ("compute profile", job["profile"]),
+                ("ce project name", job["ce_project_name"]),
+                ("region", job["ce_region"]),
+            ]
+        )
+        panels.append(
+            f'<div class="qs-job-details" data-job-id="{html.escape(job["id"])}">'
+            f"<h3>Job</h3>{main_rows}"
+            f"<h3>Fleets</h3>{fleets_rows}"
+            "</div>"
+        )
+    return "".join(panels)
 
 
 def build_filter_bar(profiles):
@@ -433,5 +462,5 @@ def render_job_timeline(jobs_qs):
         "timeline_svg": mark_safe(svg),
         "timeline_legend": mark_safe(build_legend()),
         "timeline_filter_bar": mark_safe(build_filter_bar(profiles)),
-        "timeline_overlap_summary": mark_safe(build_overlap_summary(jobs, overlaps)),
+        "timeline_job_details": mark_safe(build_job_details(jobs)),
     }
