@@ -116,10 +116,6 @@
     background: var(--primary);
 }
 
-.qs-bar-fill--dim {
-    background: #a6c8ff; /* blue-20, for Failed/Stopped */
-}
-
 .qs-bar-val {
     font-size: 0.6875rem;
     font-weight: 600;
