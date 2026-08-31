@@ -518,6 +518,13 @@ class Job(models.Model):
     arguments = models.TextField(null=False, blank=True, default="{}")
     env_vars = models.TextField(null=False, blank=True, default="{}")
     gpu = models.BooleanField(default=False, null=False)
+    filler = models.BooleanField(
+        default=False,
+        db_default=False,
+        null=False,
+        help_text="True when this job was created by the filler-jobs balancer to occupy idle GPU "
+        "capacity, instead of coming from a real user request.",
+    )
     compute_profile = models.CharField(
         max_length=255,
         null=True,
