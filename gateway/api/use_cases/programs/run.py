@@ -13,6 +13,7 @@ from api.domain.exceptions.function_configuration_exception import FunctionConfi
 from api.domain.exceptions.function_disabled_exception import FunctionDisabledException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.use_cases.programs.run_input import RunFunctionInput
+from api.use_cases.programs.runner_config import RunnerConfig
 from api.use_cases.programs.validate_arguments import validate_arguments
 from api.utils import active_jobs_limit_reached, build_env_variables
 from core.domain.authorization.function_access_result import FunctionAccessResult
@@ -41,9 +42,7 @@ def _is_trial(function: Function, user) -> bool:
     return function.trial_instances.filter(pk__in=user_run_groups).exists()
 
 
-def _runner_config(
-    function: Function, compute_profile_requested: str | None
-) -> tuple[str | None, bool, ComputeProfile | None]:
+def _get_runner_config(function: Function, compute_profile_requested: str | None) -> RunnerConfig:
     """Resolve (compute_profile string, gpu flag, compute_profile FK) for a run.
 
     ``compute_profile`` (string) is transitional and will be removed; the FK
@@ -63,16 +62,16 @@ def _runner_config(
         # store and look the FK up by. Clients may still submit a prefixed value.
         compute_profile = normalize_compute_profile(requested)
     elif function.provider and function.gpu:
-        return None, True, None
+        return RunnerConfig(compute_profile=None, gpu=True, compute_profile_fk=None)
     else:
-        return None, False, None
+        return RunnerConfig(compute_profile=None, gpu=False, compute_profile_fk=None)
 
     compute_profile_fk = ComputeProfile.objects.get_by_id(compute_profile)
     if compute_profile is not None and compute_profile_fk is None:
         raise FunctionConfigurationException(
             f"Compute profile '{compute_profile}' is not registered. Contact administrator."
         )
-    return compute_profile, False, compute_profile_fk
+    return RunnerConfig(compute_profile=compute_profile, gpu=False, compute_profile_fk=compute_profile_fk)
 
 
 class RunFunctionUseCase:
@@ -139,17 +138,17 @@ class RunFunctionUseCase:
         else:
             trial = business_model == BusinessModel.TRIAL
 
-        compute_profile, gpu, compute_profile_fk = _runner_config(function, data.compute_profile)
+        runner_config = _get_runner_config(function, data.compute_profile)
         job = Job(
             trial=trial,
             business_model=business_model,
             status=Job.QUEUED,
             program=function,
             author=user,
-            gpu=gpu,
+            gpu=runner_config.gpu,
             runner=function.runner,
-            compute_profile=compute_profile,
-            compute_profile_fk=compute_profile_fk,
+            compute_profile=runner_config.compute_profile,
+            compute_profile_fk=runner_config.compute_profile_fk,
             instance_crn=data.instance,
             account_id=data.account_id,
             ce_project_name=function.code_engine_project.project_name if function.code_engine_project else None,
