@@ -2,6 +2,7 @@
 
 import pytest
 from django.contrib.auth.models import User
+from django.test import Client
 
 from api.admin import get_dashboard_stats
 from core.models import CodeEngineProject, Job, Program, Provider
@@ -74,3 +75,17 @@ def test_get_dashboard_stats_pct_sums_to_100():
 
     total_pct = sum(row["pct"] for row in stats["jobs_by_status"])
     assert total_pct == 100
+
+
+@pytest.mark.django_db
+def test_app_index_shows_model_list_not_the_home_dashboard():
+    """The per-app admin page (/backoffice/api/) must show its model list, not the home KPI dashboard."""
+    user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
+
+    client = Client()
+    client.force_login(user)
+    response = client.get("/backoffice/api/")
+
+    body = response.content.decode()
+    assert '<a href="/backoffice/api/job/">Jobs</a>' in body
+    assert "qs-kpi-grid" not in body
