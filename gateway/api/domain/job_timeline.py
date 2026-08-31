@@ -117,8 +117,8 @@ def compute_timeline(job):
 
 
 def sort_jobs(jobs):
-    """Sort jobs by creation date, most recent first."""
-    return sorted(jobs, key=lambda j: j["created"], reverse=True)
+    """Sort jobs by creation date, oldest first."""
+    return sorted(jobs, key=lambda j: j["created"])
 
 
 def find_overlaps(jobs):
@@ -235,7 +235,7 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
         f'data-t-min-ms="{t_min_ms}" data-span-ms="{span_ms}" '
         f'xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace, Menlo, monospace" font-size="10">'
     )
-    svg.append(f'<rect x="0" y="0" width="{total_w}" height="{total_h}" fill="#0b1020"/>')
+    svg.append(f'<rect x="0" y="0" width="{total_w}" height="{total_h}" class="qs-svg-bg"/>')
 
     top_of_chart = margin_top
     bottom_of_gantt = margin_top + concurrency_h + 30 + gantt_h
@@ -248,7 +248,7 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
         hx = x(hour)
         svg.append(
             f'<line x1="{hx:.1f}" y1="{top_of_chart}" x2="{hx:.1f}" y2="{bottom_of_gantt}" '
-            f'stroke="#e2e8f0" stroke-width="0.5" opacity="0.06"/>'
+            f'class="qs-hour-line" stroke-width="0.5" opacity="0.06"/>'
         )
         hour += timedelta(hours=1)
 
@@ -260,10 +260,10 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
         xx = x(t)
         svg.append(
             f'<line x1="{xx:.1f}" y1="{top_of_chart}" x2="{xx:.1f}" y2="{bottom_of_gantt}" '
-            f'stroke="#1e2740" stroke-width="1"/>'
+            f'class="qs-grid-line" stroke-width="1"/>'
         )
         svg.append(
-            f'<text x="{xx:.1f}" y="{bottom_of_gantt + 14}" fill="#94a3b8" '
+            f'<text x="{xx:.1f}" y="{bottom_of_gantt + 14}" class="qs-muted-text" '
             f'text-anchor="middle" transform="rotate(35 {xx:.1f} {bottom_of_gantt + 14})">'
             f"{html.escape(t.strftime('%d-%b %H:%M'))}</text>"
         )
@@ -276,7 +276,7 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
     max_conc = max((c for _, c in series_all), default=0) or 1
 
     svg.append(
-        f'<text x="{margin_left}" y="{margin_top - 6}" fill="#e2e8f0" font-weight="bold">'
+        f'<text x="{margin_left}" y="{margin_top - 6}" class="qs-heading" font-weight="bold">'
         f"Concurrent RUNNING jobs (peak overlap: {max_conc})</text>"
     )
     path_d = build_concurrency_path(series_all, t_min, t_max, x, lambda c: cy(c, max_conc))
@@ -295,12 +295,12 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
             )
     for c in range(0, max_conc + 1):
         yy = cy(c, max_conc)
-        svg.append(f'<text x="{margin_left - 8}" y="{yy + 3:.1f}" fill="#64748b" text-anchor="end">{c}</text>')
+        svg.append(f'<text x="{margin_left - 8}" y="{yy + 3:.1f}" class="qs-muted-text" text-anchor="end">{c}</text>')
 
     # --- gantt ---
     gantt_top = margin_top + concurrency_h + 30
     svg.append(
-        f'<text x="{margin_left}" y="{gantt_top - 8}" fill="#e2e8f0" font-weight="bold">'
+        f'<text x="{margin_left}" y="{gantt_top - 8}" class="qs-heading" font-weight="bold">'
         "Jobs sorted by start time (color = status during each segment)</text>"
     )
 
@@ -339,34 +339,39 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
         svg.append(f"<title>{html.escape(tooltip)}</title>")
 
         bar_end_x = x(job["t_queue"]) if job["t_queue"] else margin_left
+        overflow_parts = []
         for seg_start, seg_end, seg_status in job["segments"]:
             sx1, sx2 = x(seg_start), x(seg_end)
             color = STATUS_COLOR.get(seg_status, "#64748b")
             is_running_overlap = seg_status == "RUNNING" and overlap_ids
-            stroke = OVERLAP_STROKE if is_running_overlap else "#0b1020"
-            stroke_w = 2 if is_running_overlap else 0.5
+            border_class = " qs-seg-overlap" if is_running_overlap else ""
             svg.append(
                 f'<rect x="{sx1:.1f}" y="{y}" width="{max(sx2 - sx1, 1.5):.1f}" height="{row_h}" '
-                f'fill="{color}" stroke="{stroke}" stroke-width="{stroke_w}"/>'
+                f'class="qs-seg-border{border_class}" fill="{color}"/>'
             )
-            # the segment's own duration, drawn inside it only when it actually fits; a segment
-            # too narrow for its own time just stays bare rather than spilling text outside it
-            seg_text = fmt_dur((seg_end - seg_start).total_seconds())
-            if len(seg_text) * 5.4 + 4 <= sx2 - sx1:
+            # the segment's own status and duration, drawn inside it when they fit; otherwise
+            # they join the other segments that didn't fit in a summary drawn after the bar
+            seg_time = fmt_dur((seg_end - seg_start).total_seconds())
+            inline_text = f"{seg_status} {seg_time}"
+            if len(inline_text) * 5.4 + 4 <= sx2 - sx1:
                 seg_text_color = STATUS_TEXT_COLOR.get(seg_status, "#0b1020")
                 svg.append(
                     f'<text x="{(sx1 + sx2) / 2:.1f}" y="{cy_mid + 3:.1f}" fill="{seg_text_color}" '
-                    f'text-anchor="middle" font-size="9">{html.escape(seg_text)}</text>'
+                    f'text-anchor="middle" font-size="9">{html.escape(inline_text)}</text>'
                 )
+            else:
+                overflow_parts.append(f"{seg_status}: {seg_time}")
             bar_end_x = sx2
 
         svg.append(
-            f'<text x="{margin_left - 10:.1f}" y="{cy_mid + 3:.1f}" fill="#94a3b8" text-anchor="end">'
+            f'<text x="{margin_left - 10:.1f}" y="{cy_mid + 3:.1f}" class="qs-muted-text" text-anchor="end">'
             f"{html.escape(left_label)}</text>"
         )
+        outside_prefix = f"{' - '.join(overflow_parts)}  " if overflow_parts else ""
         svg.append(
-            f'<text x="{bar_end_x + 6:.1f}" y="{cy_mid + 3:.1f}" fill="{outcome_color}" text-anchor="start" '
-            f'font-weight="bold">{html.escape(outcome_text)}</text>'
+            f'<text x="{bar_end_x + 6:.1f}" y="{cy_mid + 3:.1f}" class="qs-fg-text" text-anchor="start">'
+            f'{html.escape(outside_prefix)}<tspan fill="{outcome_color}" font-weight="bold">'
+            f"{html.escape(outcome_text)}</tspan></text>"
         )
         svg.append("</g>")
 
@@ -376,8 +381,8 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
         f'<rect id="hover-cursor-bar" x="0" y="{top_of_chart}" width="2" '
         f'height="{bottom_of_gantt - top_of_chart}" fill="#93c5fd" opacity="0.35"/>'
         f'<rect id="hover-cursor-label-bg" x="0" y="{top_of_chart - 16}" width="1" height="14" '
-        f'rx="3" fill="#1e2740"/>'
-        f'<text id="hover-cursor-label" x="0" y="{top_of_chart - 6}" fill="#e2e8f0" text-anchor="middle">'
+        f'rx="3" class="qs-panel-bg"/>'
+        f'<text id="hover-cursor-label" x="0" y="{top_of_chart - 6}" class="qs-fg-text" text-anchor="middle">'
         "</text>"
         "</g>"
     )

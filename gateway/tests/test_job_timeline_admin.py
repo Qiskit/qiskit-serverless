@@ -75,9 +75,9 @@ def test_render_job_timeline_reports_per_state_durations_and_outcome():
     svg = context["timeline_svg"]
     assert str(job.id)[:8] in svg
     # pending ran from base+5s to base+51s, running from base+51s to base+99s: both segments
-    # are wide enough in a single-job chart to carry their own duration inline
-    assert ">46s<" in svg
-    assert ">48s<" in svg
+    # are wide enough in a single-job chart to carry their own status and duration inline
+    assert ">PENDING 46s<" in svg
+    assert ">RUNNING 48s<" in svg
     assert ">SUCCEEDED<" in svg  # same wording as the job list's status badge
 
 
@@ -90,7 +90,25 @@ def test_render_job_timeline_extends_an_unfinished_job_up_to_now():
 
     # RUNNING started at base+51s and the job has not finished, so its RUNNING segment runs on
     # until now: ten minutes minus those 51 seconds, that is nine minutes and change
-    assert ">9m " in context["timeline_svg"]
+    assert "RUNNING 9m " in context["timeline_svg"]
+
+
+@pytest.mark.django_db
+def test_render_job_timeline_shows_status_and_time_outside_when_the_segment_is_too_narrow():
+    base_a = timezone.now().replace(microsecond=0)
+    base_b = base_a + timedelta(hours=10)
+    job_a = _job_with_events(base=base_a)
+    job_b = _job_with_events(base=base_b)
+
+    context = render_job_timeline(Job.objects.filter(pk__in=[job_a.pk, job_b.pk]).prefetch_related("job_events"))
+
+    svg = context["timeline_svg"]
+    # each job's ~46s/48s segments are a tiny sliver of a ten-hour chart, too narrow to carry
+    # their own label, so the status and duration move outside the bar instead
+    assert "PENDING: 46s" in svg
+    assert "RUNNING: 48s" in svg
+    assert ">PENDING 46s<" not in svg
+    assert ">RUNNING 48s<" not in svg
 
 
 @pytest.mark.django_db
@@ -120,14 +138,14 @@ def test_render_job_timeline_does_not_flag_overlaps_across_runners():
 
 
 @pytest.mark.django_db
-def test_render_job_timeline_orders_jobs_by_creation_most_recent_first():
+def test_render_job_timeline_orders_jobs_by_creation_oldest_first():
     job_old = _job_with_events()
     job_new = _job_with_events()
 
     context = render_job_timeline(Job.objects.filter(pk__in=[job_old.pk, job_new.pk]).prefetch_related("job_events"))
 
     svg = context["timeline_svg"]
-    assert svg.index(str(job_new.id)[:8]) < svg.index(str(job_old.id)[:8])
+    assert svg.index(str(job_old.id)[:8]) < svg.index(str(job_new.id)[:8])
 
 
 @pytest.mark.django_db

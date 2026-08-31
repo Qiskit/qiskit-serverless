@@ -1,9 +1,8 @@
-/* The page chrome (headings, meta text, buttons, job details panel) follows Django admin's own
-   light/dark toggle via these variables, light by default, overridden for both "auto" (through
-   prefers-color-scheme) and the explicit dark toggle (html[data-theme="dark"]). The chart canvas
-   below (.qs-chart-wrap and everything the SVG draws) stays a fixed dark panel on purpose, the
-   same way a code block does regardless of the surrounding page's theme: its colors are chosen
-   for that dark background and are not meant to repaint per theme. */
+/* The whole page, including the chart canvas, follows Django admin's own light/dark toggle via
+   these variables: light by default, overridden for both "auto" (through prefers-color-scheme)
+   and the explicit dark toggle (html[data-theme="dark"]). Status colors (STATUS_COLOR,
+   OUTCOME_LABEL, OVERLAP_STROKE in api/domain/job_timeline.py) stay fixed regardless of theme,
+   matching the job list's own status badges, which do the same. */
 .qs-timeline {
   --qs-bg: #f8fafc;
   --qs-fg: #0f172a;
@@ -55,14 +54,27 @@ html[data-theme="dark"] .qs-timeline {
 .qs-timeline .qs-chart-wrap {
   overflow: auto;
   max-height: 70vh;
-  border: 1px solid #1e2740;
+  border: 1px solid var(--qs-border);
   border-radius: 8px;
   padding: 8px;
-  background: #0b1020;
+  background: var(--qs-bg);
 }
 .qs-timeline .job-row { transition: opacity 0.15s; cursor: pointer; }
 .qs-timeline .job-row.is-selected rect { stroke: #60a5fa; stroke-width: 2; }
 .qs-timeline .job-row.qs-hidden { display: none; }
+
+/* Neutral chart elements (background, gridlines, headings, muted labels): themed like the rest
+   of the page. Status colors stay off this list on purpose (see the note at the top of this
+   file), and so does the overlap stroke, which needs to stay visually loud in both themes. */
+.qs-timeline #timeline-svg .qs-svg-bg { fill: var(--qs-bg); }
+.qs-timeline #timeline-svg .qs-heading { fill: var(--qs-fg); }
+.qs-timeline #timeline-svg .qs-muted-text { fill: var(--qs-muted); }
+.qs-timeline #timeline-svg .qs-fg-text { fill: var(--qs-fg); }
+.qs-timeline #timeline-svg .qs-grid-line { stroke: var(--qs-border); }
+.qs-timeline #timeline-svg .qs-hour-line { stroke: var(--qs-fg); }
+.qs-timeline #timeline-svg .qs-seg-border { stroke: var(--qs-bg); stroke-width: 0.5; }
+.qs-timeline #timeline-svg .qs-seg-border.qs-seg-overlap { stroke: #dc2626; stroke-width: 2; }
+.qs-timeline #timeline-svg .qs-panel-bg { fill: var(--qs-panel); }
 .qs-timeline code { background: var(--qs-code-bg); color: var(--qs-fg); padding: 1px 4px; border-radius: 3px; }
 
 /* Visibility of the SVG pieces. The Content Security Policy of this project rejects inline
@@ -74,8 +86,7 @@ html[data-theme="dark"] .qs-timeline {
 .qs-timeline #hover-cursor.is-visible { display: block; }
 
 /* Legend. Keep these colors in sync with STATUS_COLOR, OUTCOME_LABEL and OVERLAP_STROKE in
-   api/domain/job_timeline.py. These sit on the dark chart canvas visually, so they keep their
-   own fixed light-on-dark colors instead of following the page's theme variables. */
+   api/domain/job_timeline.py: fixed regardless of theme, same as the job list's status badges. */
 .qs-timeline .qs-legend-item { margin-right: 16px; }
 .qs-timeline .qs-swatch {
   display: inline-block;
