@@ -1,16 +1,19 @@
 """Unit tests for RunFunctionUseCase."""
 
+from unittest import mock
+
 import pytest
 from django.contrib.auth.models import User
 from django.test import override_settings
 from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
+from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
 from api.domain.exceptions.function_disabled_exception import FunctionDisabledException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.domain.authentication.channel import Channel
 from api.use_cases.programs.run import RunFunctionUseCase
 from api.use_cases.programs.run_input import RunFunctionInput
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import Job, JobConfig, JobEvent, Program
+from core.models import CodeEngineProject, ComputeProfile, Job, JobConfig, JobEvent, Program
 
 pytestmark = pytest.mark.django_db
 
@@ -34,6 +37,31 @@ def make_input(**overrides) -> RunFunctionInput:
 @pytest.fixture
 def user():
     return User.objects.create_user(username="author")
+
+
+@pytest.fixture
+def ce_project():
+    return CodeEngineProject.objects.create(
+        project_id="ce-proj-id",
+        project_name="ce-proj",
+        region="us-east",
+        resource_group_id="rg-id",
+        subnet_pool_id="subnet-id",
+        pds_name_state="pds-state",
+        pds_name_users="pds-users",
+        pds_name_providers="pds-providers",
+        cos_bucket_user_data_name="user-data-bucket",
+    )
+
+
+def make_fleets_function(user, ce_project):
+    return Program.objects.create(
+        title="my-fn",
+        author=user,
+        entrypoint="main.py",
+        runner=Program.FLEETS,
+        code_engine_project=ce_project,
+    )
 
 
 class TestRunFunctionUseCase:
@@ -105,3 +133,51 @@ class TestRunFunctionUseCase:
 
         assert not Job.objects.exists()
         assert not JobConfig.objects.exists()
+
+    @override_settings(DEFAULT_COMPUTE_PROFILE="24x120")
+    def test_fleets_job_sets_compute_profile_fk_from_default(self, user, ce_project, monkeypatch):
+        """A Fleets job resolves its FK from the same bare string it stores in compute_profile."""
+        make_fleets_function(user, ce_project)
+        profile = ComputeProfile.objects.create(compute_profile_id="24x120", cpu="24", memory="120")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+        # Arguments storage talks to COS; unrelated to the FK behavior under test.
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
+
+        job = RunFunctionUseCase().execute(user, accessible, make_input())
+
+        assert job.compute_profile == "24x120"
+        assert job.compute_profile_fk == profile
+
+    @override_settings(DEFAULT_COMPUTE_PROFILE="24x120")
+    def test_fleets_job_prefixed_request_resolves_bare_fk(self, user, ce_project, monkeypatch):
+        """A prefixed requested profile is normalized to the bare stored value and FK row."""
+        make_fleets_function(user, ce_project)
+        profile = ComputeProfile.objects.create(compute_profile_id="24x120x1a100p", cpu="24", memory="120")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
+
+        job = RunFunctionUseCase().execute(user, accessible, make_input(compute_profile="gx3d-24x120x1a100p"))
+
+        assert job.compute_profile == "24x120x1a100p"
+        assert job.compute_profile_fk == profile
+
+    @override_settings(DEFAULT_COMPUTE_PROFILE="24x120")
+    def test_fleets_job_rejected_when_compute_profile_not_registered(self, user, ce_project):
+        """An unregistered profile is a misconfiguration: refuse the job, don't persist a null FK."""
+        make_fleets_function(user, ce_project)
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        with pytest.raises(FunctionConfigurationException):
+            RunFunctionUseCase().execute(user, accessible, make_input())
+
+        assert not Job.objects.exists()
+
+    def test_ray_job_leaves_compute_profile_fk_null(self, user):
+        """The Ray path has no profile; the FK stays null and no registration is required."""
+        Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        job = RunFunctionUseCase().execute(user, accessible, make_input())
+
+        assert job.compute_profile is None
+        assert job.compute_profile_fk is None

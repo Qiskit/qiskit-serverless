@@ -23,7 +23,9 @@ from api.domain.exceptions.invalid_arguments_exception import InvalidArgumentsEx
 from api.use_cases.programs.validate_arguments import validate_arguments
 from core.models import (
     CodeEngineProject,
+    ComputeProfile,
     Config,
+    FunctionSize,
     GroupMetadata,
     JobConfig,
     JobEvent,
@@ -109,6 +111,29 @@ class ProviderAdmin(admin.ModelAdmin):
     search_fields = ["name", "code_engine_project__project_name"]
     list_display = ["name", "code_engine_project"]
     filter_horizontal = ["admin_groups"]
+
+
+@admin.register(ComputeProfile)
+class ComputeProfileAdmin(admin.ModelAdmin):
+    """ComputeProfileAdmin."""
+
+    # search_fields is required for FunctionSizeAdmin's autocomplete on compute_profile
+    search_fields = ["compute_profile_id", "name"]
+    list_display = ["compute_profile_id", "name", "cpu", "gpu", "memory", "updated"]
+    ordering = ["compute_profile_id"]
+    readonly_fields = ["created", "updated"]
+
+
+@admin.register(FunctionSize)
+class FunctionSizeAdmin(admin.ModelAdmin):
+    """FunctionSizeAdmin."""
+
+    list_display = ["function", "function_size", "compute_profile", "updated"]
+    list_filter = ["function_size"]
+    search_fields = ["function__title", "function_size", "compute_profile__compute_profile_id"]
+    autocomplete_fields = ["function", "compute_profile"]
+    list_select_related = ["function", "compute_profile"]
+    readonly_fields = ["created", "updated"]
 
 
 def _arguments_schema_error(value: str | None) -> str | None:
@@ -446,7 +471,7 @@ class JobAdmin(admin.ModelAdmin):
     ordering = ["-created"]
     actions = ["timeline_action"]
     inlines = []
-    autocomplete_fields = ["author", "program", "compute_resource", "config"]
+    autocomplete_fields = ["author", "program", "compute_resource", "config", "compute_profile_fk"]
     change_form_template = "admin/api/job/change_form.html"
     fieldsets = [
         (
@@ -473,6 +498,7 @@ class JobAdmin(admin.ModelAdmin):
                 "fields": [
                     "fleet_id",
                     "compute_profile",
+                    "compute_profile_fk",
                     "ce_project_name",
                     "ce_region",
                     "code_engine_project",

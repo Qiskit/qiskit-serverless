@@ -27,6 +27,7 @@ from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
 from core.models import Job, CodeEngineProject
 from core.services.runners.abstract_runner import AbstractRunner, RunnerError
+from core.services.runners.compute_profile import normalize_compute_profile
 from core.ibm_cloud import get_ce_auth, get_cos_client
 from core.utils import decrypt_env_vars
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
@@ -744,9 +745,9 @@ class FleetsRunner(AbstractRunner):
         """
         profile = self.job.compute_profile or settings.DEFAULT_COMPUTE_PROFILE
 
-        # Strip optional prefix (e.g. "gx3d-" or "cx3d-")
-        match = re.match(r"^[a-z]+\d[a-z\d]*-(.+)$", profile)
-        resources = match.group(1) if match else profile
+        # Normalize away any instance-family prefix (jobs created after ingest
+        # normalization are already bare; this also covers older prefixed rows).
+        resources = normalize_compute_profile(profile)
 
         # Parse: {cpu}x{memory}[x{count}{model}]
         parts = re.match(r"^(\d+)x(\d+)(?:x(\d+)([a-z]\w*))?$", resources)

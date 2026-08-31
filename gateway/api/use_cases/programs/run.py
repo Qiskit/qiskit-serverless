@@ -13,12 +13,14 @@ from api.domain.exceptions.function_configuration_exception import FunctionConfi
 from api.domain.exceptions.function_disabled_exception import FunctionDisabledException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.use_cases.programs.run_input import RunFunctionInput
+from api.use_cases.programs.runner_config import RunnerConfig
 from api.use_cases.programs.validate_arguments import validate_arguments
 from api.utils import active_jobs_limit_reached, build_env_variables
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import (
+    ComputeProfile,
     Job,
     JobConfig,
     JobEvent,
@@ -26,6 +28,7 @@ from core.models import (
     PLATFORM_PERMISSION_RUN,
     RUN_PROGRAM_PERMISSION,
 )
+from core.services.runners.compute_profile import normalize_compute_profile
 from core.services.storage import get_arguments_storage
 from core.utils import encrypt_env_vars
 
@@ -39,13 +42,36 @@ def _is_trial(function: Function, user) -> bool:
     return function.trial_instances.filter(pk__in=user_run_groups).exists()
 
 
-def _runner_config(function: Function, compute_profile_requested: str | None) -> tuple[str | None, bool]:
+def _get_runner_config(function: Function, compute_profile_requested: str | None) -> RunnerConfig:
+    """Resolve (compute_profile string, gpu flag, compute_profile FK) for a run.
+
+    ``compute_profile`` (string) is transitional and will be removed; the FK
+    ``compute_profile_fk`` is the source of truth going forward. We derive the FK
+    from the same string, so they agree at creation. A Fleets job always resolves
+    to a profile string; if no ``ComputeProfile`` row is registered for it, that is
+    a deployment misconfiguration and we reject the job rather than store a null FK.
+    Ray leaves ``compute_profile`` None (profiles are a Fleets concept), so the FK
+    stays null there.
+
+    Raises:
+        FunctionConfigurationException: If a resolved profile has no registered row.
+    """
     if function.runner == Function.FLEETS:
-        profile = compute_profile_requested or getattr(settings, "DEFAULT_COMPUTE_PROFILE", "cx3d-4x16")
-        return profile, False
-    if function.provider and function.gpu:
-        return None, True
-    return None, False
+        requested = compute_profile_requested or settings.DEFAULT_COMPUTE_PROFILE
+        # Normalize away any instance-family prefix so the bare id is what we
+        # store and look the FK up by. Clients may still submit a prefixed value.
+        compute_profile = normalize_compute_profile(requested)
+    elif function.provider and function.gpu:
+        return RunnerConfig(compute_profile=None, gpu=True, compute_profile_fk=None)
+    else:
+        return RunnerConfig(compute_profile=None, gpu=False, compute_profile_fk=None)
+
+    compute_profile_fk = ComputeProfile.objects.get_by_id(compute_profile)
+    if compute_profile is not None and compute_profile_fk is None:
+        raise FunctionConfigurationException(
+            f"Compute profile '{compute_profile}' is not registered. Contact administrator."
+        )
+    return RunnerConfig(compute_profile=compute_profile, gpu=False, compute_profile_fk=compute_profile_fk)
 
 
 class RunFunctionUseCase:
@@ -112,16 +138,17 @@ class RunFunctionUseCase:
         else:
             trial = business_model == BusinessModel.TRIAL
 
-        compute_profile, gpu = _runner_config(function, data.compute_profile)
+        runner_config = _get_runner_config(function, data.compute_profile)
         job = Job(
             trial=trial,
             business_model=business_model,
             status=Job.QUEUED,
             program=function,
             author=user,
-            gpu=gpu,
+            gpu=runner_config.gpu,
             runner=function.runner,
-            compute_profile=compute_profile,
+            compute_profile=runner_config.compute_profile,
+            compute_profile_fk=runner_config.compute_profile_fk,
             instance_crn=data.instance,
             account_id=data.account_id,
             ce_project_name=function.code_engine_project.project_name if function.code_engine_project else None,
