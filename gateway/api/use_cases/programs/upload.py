@@ -4,10 +4,10 @@ import json
 import logging
 
 from django.contrib.auth.models import AbstractUser
-from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from api.access_policies.programs import ProgramAccessPolicies
 from api.access_policies.providers import ProviderAccessPolicy
+from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.use_cases.programs.upload_input import UploadFunctionInput
 from core.domain.authorization.function_access_result import FunctionAccessResult
@@ -36,6 +36,23 @@ def _normalize_dependency(raw_dependency) -> str:
         pass
 
     return dependency_name + dependency_version
+
+
+def _no_ce_project_message(function: Function) -> str:
+    """Message for a Fleets function with no Code Engine project, naming its provider if it has one.
+
+    Distinguishes a provider with no project linked at all from one whose linked project
+    is inactive, since those call for different administrator action.
+    """
+    if function.provider:
+        project = function.provider.code_engine_project
+        if project and not project.active:
+            return (
+                f"Code Engine project '{project.project_name}' assigned to provider "
+                f"'{function.provider.name}' is not active. Contact administrator."
+            )
+        return f"No active Code Engine project for provider '{function.provider.name}'. Contact administrator."
+    return "No active Code Engine project available. Contact administrator."
 
 
 class UploadFunctionUseCase:
@@ -72,7 +89,7 @@ class UploadFunctionUseCase:
         logger.info("user_id=%s program=%s | Creating function", user.id, data.title)
 
         if data.entrypoint is None and data.image is None:
-            raise DRFValidationError("At least one of attributes (entrypoint, image) is required.")
+            raise FunctionConfigurationException("At least one of attributes (entrypoint, image) is required.")
 
         env_vars = data.env_vars
         if env_vars:
@@ -101,7 +118,9 @@ class UploadFunctionUseCase:
 
         CodeEngineProject.objects.assign_to_program(function)
         if function.runner == Function.FLEETS and not function.code_engine_project:
-            raise DRFValidationError("No active Code Engine project available. Contact administrator.")
+            message = _no_ce_project_message(function)
+            logger.warning("user_id=%s program=%s | %s", user.id, function.title, message)
+            raise FunctionConfigurationException(message)
         function.save()
         return function
 
@@ -123,7 +142,9 @@ class UploadFunctionUseCase:
             instance.runner = data.runner
             CodeEngineProject.objects.assign_to_program(instance)
             if instance.runner == Function.FLEETS and not instance.code_engine_project:
-                raise DRFValidationError("No active Code Engine project available. Contact administrator.")
+                message = _no_ce_project_message(instance)
+                logger.warning("user_id=%s program=%s | %s", user.id, instance.title, message)
+                raise FunctionConfigurationException(message)
 
         if data.description is not None:
             instance.description = data.description
