@@ -2,13 +2,14 @@
 
 import json
 import logging
+import uuid
 
 from django import forms
 from django.contrib import admin, messages
 from django.db.models import Count, F, Q
 from django.utils.html import format_html
-from django.urls import path
-from django.shortcuts import render, get_object_or_404
+from django.urls import path, reverse
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.admin.views.main import PAGE_VAR
 
 from api.domain.arguments_schema import (
@@ -16,6 +17,7 @@ from api.domain.arguments_schema import (
     UnsupportedSchemaError,
     check_uploaded_schema_in_isolation,
 )
+from api.domain.job_timeline import render_job_timeline
 from api.domain.exceptions.invalid_arguments_exception import InvalidArgumentsException
 from api.use_cases.programs.validate_arguments import validate_arguments
 from core.models import (
@@ -35,6 +37,9 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobE
 from core.services.storage.job_file_explorer import JobFileExplorer
 
 logger = logging.getLogger("gateway.admin")
+
+# How many jobs the "Timeline" admin action can carry in the redirect query string
+MAX_TIMELINE_JOBS = 200
 
 
 def get_dashboard_stats():
@@ -432,6 +437,7 @@ class JobAdmin(admin.ModelAdmin):
     list_display = ["runner", "author", "get_program", "status_badge", "created", "updated"]
     list_select_related = ["author", "program", "program__provider"]
     ordering = ["-created"]
+    actions = ["timeline_action"]
     inlines = []
     autocomplete_fields = ["author", "program", "compute_resource", "config"]
     change_form_template = "admin/api/job/change_form.html"
@@ -475,8 +481,27 @@ class JobAdmin(admin.ModelAdmin):
             formfield.widget.can_delete_related = False
         return formfield
 
+    @admin.action(description="Timeline")
+    def timeline_action(self, request, queryset):
+        """Redirect to the Gantt/concurrency timeline for the selected jobs.
+
+        The selection travels in the query string, so it has to be capped: "select all" on an
+        unfiltered changelist would build a URL long enough for the webserver to reject the
+        request with a 502 instead of showing an error.
+        """
+        total = queryset.count()
+        ids = list(queryset.values_list("id", flat=True)[:MAX_TIMELINE_JOBS])
+        if total > MAX_TIMELINE_JOBS:
+            messages.warning(request, f"Showing the first {MAX_TIMELINE_JOBS} of {total} selected jobs.")
+        return redirect(f"{reverse('admin:job_timeline_view')}?ids={','.join(str(i) for i in ids)}")
+
     def get_urls(self):
         custom_urls = [
+            path(
+                "timeline/",
+                self.admin_site.admin_view(self.job_timeline_view),
+                name="job_timeline_view",
+            ),
             path(
                 "<path:job_id>/files/",
                 self.admin_site.admin_view(self.job_files_view),
@@ -489,6 +514,30 @@ class JobAdmin(admin.ModelAdmin):
             ),
         ]
         return custom_urls + super().get_urls()
+
+    def job_timeline_view(self, request):
+        """Gantt/concurrency timeline for the jobs selected in the changelist."""
+        raw_ids = [v for v in request.GET.get("ids", "").split(",") if v]
+        id_list = []
+        for raw_id in raw_ids:
+            try:
+                id_list.append(uuid.UUID(raw_id))
+            except ValueError:
+                continue
+        # one single query: the rendering iterates the jobs again, and re-running the queryset
+        # could come back empty (deleted in between) and break the rendering half way through
+        jobs = list(Job.objects.filter(id__in=id_list).select_related("author").prefetch_related("job_events"))
+        if not id_list or not jobs:
+            messages.error(request, "No jobs selected for the timeline.")
+            return redirect(reverse("admin:api_job_changelist"))
+
+        context = {
+            **self.admin_site.each_context(request),
+            **render_job_timeline(jobs),
+            "opts": self.model._meta,
+            "app_label": self.model._meta.app_label,
+        }
+        return render(request, "admin/api/job/timeline.html", context)
 
     def job_files_view(self, request, job_id):
         """Dedicated page listing all storage files for a job."""
@@ -623,6 +672,14 @@ class QiskitAdminSite(admin.AdminSite):
     def index(self, request, extra_context=None):
         extra_context = extra_context or {}
         extra_context["dashboard_stats"] = get_dashboard_stats()
+        recent_jobs = list(
+            Job.objects.filter(runner=Program.FLEETS)
+            .select_related("author")
+            .prefetch_related("job_events")
+            .order_by("-created")[:20]
+        )
+        if recent_jobs:
+            extra_context.update(render_job_timeline(recent_jobs))
         return super().index(request, extra_context)
 
 
