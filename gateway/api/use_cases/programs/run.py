@@ -5,6 +5,7 @@ import logging
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser, Group
+from django.db import transaction
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from api.access_policies.jobs import JobAccessPolicies
@@ -104,17 +105,23 @@ class RunFunctionUseCase:
 
         compute_profile, gpu = _runner_config(function, data.compute_profile)
         # ``Job.compute_profile`` (string column) and ``ComputeProfile.compute_profile_id``
-        # (the PK) are the same identifier, so both columns derive from the same
-        # value and cannot drift while they coexist.
+        # (the PK) are the same identifier: ``compute_profile_fk`` is looked up from the
+        # same string stored in ``compute_profile``, so the two columns cannot drift.
+        # A Fleets job always resolves to a profile string; if no ``ComputeProfile`` row
+        # is registered for it, that is a deployment misconfiguration and we refuse the
+        # job rather than persisting a null FK. The Ray path leaves ``compute_profile``
+        # None (profiles are a Fleets concept), so the FK stays null there.
         compute_profile_fk = ComputeProfile.objects.get_by_id(compute_profile)
-        jobconfig = JobConfig.objects.create(**data.config_data) if data.config_data else None
+        if compute_profile is not None and compute_profile_fk is None:
+            raise DRFValidationError(
+                f"Compute profile '{compute_profile}' is not registered. Contact administrator."
+            )
         job = Job(
             trial=trial,
             business_model=business_model,
             status=Job.QUEUED,
             program=function,
             author=user,
-            config=jobconfig,
             gpu=gpu,
             runner=function.runner,
             compute_profile=compute_profile,
@@ -143,11 +150,15 @@ class RunFunctionUseCase:
         job.env_vars = json.dumps(env)
 
         get_arguments_storage(job).save(data.arguments)
-        job.save()
-        JobEvent.objects.add_status_event(
-            job_id=job.id,
-            origin=JobEventOrigin.API,
-            context=JobEventContext.RUN_PROGRAM,
-            status=job.status,
-        )
+
+        with transaction.atomic():
+            if data.config_data:
+                job.config = JobConfig.objects.create(**data.config_data)
+            job.save()
+            JobEvent.objects.add_status_event(
+                job_id=job.id,
+                origin=JobEventOrigin.API,
+                context=JobEventContext.RUN_PROGRAM,
+                status=job.status,
+            )
         return job

@@ -428,23 +428,12 @@ class JobProgramFilter(admin.SimpleListFilter):
     parameter_name = "job_program"
 
     def lookups(self, request, model_admin):
-        qs = model_admin.get_queryset(request).select_related("program__provider")
-        seen = set()
-        choices = []
-        has_custom = False
-        for job in qs.only("program_id"):
-            pid = job.program_id
-            if pid is None:
-                has_custom = True
-                continue
-            if pid in seen:
-                continue
-            seen.add(pid)
-            program = Program.objects.select_related("provider").filter(pk=pid).first()
-            if program is None or program.provider is None:
-                has_custom = True
-            else:
-                choices.append((str(pid), f"{program.provider.name} / {program.title}"))
+        qs = model_admin.get_queryset(request)
+        program_ids = qs.exclude(program__isnull=True).values_list("program_id", flat=True).distinct()
+        has_custom = qs.filter(Q(program__isnull=True) | Q(program__provider__isnull=True)).exists()
+
+        programs = Program.objects.filter(pk__in=program_ids, provider__isnull=False).select_related("provider")
+        choices = [(str(program.pk), f"{program.provider.name} / {program.title}") for program in programs]
         choices.sort(key=lambda x: x[1])
         if has_custom:
             choices.insert(0, ("custom", "Custom"))
