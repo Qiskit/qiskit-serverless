@@ -32,7 +32,6 @@ STATUS_TEXT_COLOR = {
     "PENDING": "#1c1c1c",
     "RUNNING": "#1c1c1c",
 }
-OVERLAP_STROKE = "#dc2626"
 OUTCOME_LABEL = {
     "SUCCEEDED": ("SUCCEEDED", "#00aa00"),
     "FAILED": ("FAILED", "#cc0000"),
@@ -315,7 +314,11 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
 
         d = job["durations"]
         total_dur = (job["t_end"] - job["t_queue"]).total_seconds() if job["t_queue"] and job["t_end"] else None
-        outcome_text, outcome_color = OUTCOME_LABEL.get(job["status"], (job["status"], "#94a3b8"))
+        # a job whose current status isn't a terminal one has no real outcome to show yet, so the
+        # fallback just names that status again, in its own STATUS_COLOR rather than a generic gray
+        outcome_text, outcome_color = OUTCOME_LABEL.get(
+            job["status"], (job["status"], STATUS_COLOR.get(job["status"], "#94a3b8"))
+        )
 
         tooltip = (
             f"job_id: {job['id']}\n"
@@ -331,9 +334,11 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
             f"overlaps with {len(overlap_ids)} job(s)"
         )
 
+        overlaps_attr = ",".join(html.escape(i) for i in overlap_ids)
         svg.append(
             f'<g class="job-row" data-profile="{html.escape(job["profile"])}" '
-            f'data-runner="{html.escape(job["runner"])}" data-job-id="{html.escape(job["id"])}">'
+            f'data-runner="{html.escape(job["runner"])}" data-job-id="{html.escape(job["id"])}" '
+            f'data-overlaps="{overlaps_attr}">'
         )
         # the tooltip has to be the first child of the group: SVG uses the first <title> it finds
         svg.append(f"<title>{html.escape(tooltip)}</title>")
@@ -343,11 +348,9 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
         for seg_start, seg_end, seg_status in job["segments"]:
             sx1, sx2 = x(seg_start), x(seg_end)
             color = STATUS_COLOR.get(seg_status, "#64748b")
-            is_running_overlap = seg_status == "RUNNING" and overlap_ids
-            border_class = " qs-seg-overlap" if is_running_overlap else ""
             svg.append(
                 f'<rect x="{sx1:.1f}" y="{y}" width="{max(sx2 - sx1, 1.5):.1f}" height="{row_h}" '
-                f'class="qs-seg-border{border_class}" fill="{color}"/>'
+                f'class="qs-seg-border qs-seg-{seg_status.lower()}" fill="{color}"/>'
             )
             # the segment's own status and duration, drawn inside it when they fit; otherwise
             # they join the other segments that didn't fit in a summary drawn after the bar
@@ -396,7 +399,7 @@ def build_legend():
 
     The swatch colors live in `admin/css/job_timeline.css` (one class per swatch), because the
     Content Security Policy of this project rejects inline `style` attributes. Keep those classes
-    in sync with `STATUS_COLOR`, `OUTCOME_LABEL` and `OVERLAP_STROKE`.
+    in sync with `STATUS_COLOR` and `OUTCOME_LABEL`.
     """
     parts = []
     for label in ("QUEUED", "PENDING", "RUNNING"):
@@ -407,10 +410,7 @@ def build_legend():
             f'<span class="qs-legend-item qs-outcome qs-outcome--{outcome_status.lower()}">'
             f"{html.escape(text)}</span>"
         )
-    parts.append(
-        '<span class="qs-legend-item"><span class="qs-swatch qs-swatch--overlap"></span>'
-        "RUNNING segment overlapping another job</span>"
-    )
+    parts.append('<span class="qs-legend-item">⧉N = overlaps N other jobs — hover a job to see which</span>')
     return "".join(parts)
 
 

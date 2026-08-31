@@ -1,8 +1,8 @@
 /* The whole page, including the chart canvas, follows Django admin's own light/dark toggle via
    these variables: light by default, overridden for both "auto" (through prefers-color-scheme)
-   and the explicit dark toggle (html[data-theme="dark"]). Status colors (STATUS_COLOR,
-   OUTCOME_LABEL, OVERLAP_STROKE in api/domain/job_timeline.py) stay fixed regardless of theme,
-   matching the job list's own status badges, which do the same. */
+   and the explicit dark toggle (html[data-theme="dark"]). Status colors (STATUS_COLOR and
+   OUTCOME_LABEL in api/domain/job_timeline.py) stay fixed regardless of theme, matching the job
+   list's own status badges, which do the same. */
 .qs-timeline {
   --qs-bg: #f8fafc;
   --qs-fg: #0f172a;
@@ -65,7 +65,7 @@ html[data-theme="dark"] .qs-timeline {
 
 /* Neutral chart elements (background, gridlines, headings, muted labels): themed like the rest
    of the page. Status colors stay off this list on purpose (see the note at the top of this
-   file), and so does the overlap stroke, which needs to stay visually loud in both themes. */
+   file). */
 .qs-timeline #timeline-svg .qs-svg-bg { fill: var(--qs-bg); }
 .qs-timeline #timeline-svg .qs-heading { fill: var(--qs-fg); }
 .qs-timeline #timeline-svg .qs-muted-text { fill: var(--qs-muted); }
@@ -73,8 +73,13 @@ html[data-theme="dark"] .qs-timeline {
 .qs-timeline #timeline-svg .qs-grid-line { stroke: var(--qs-border); }
 .qs-timeline #timeline-svg .qs-hour-line { stroke: var(--qs-fg); }
 .qs-timeline #timeline-svg .qs-seg-border { stroke: var(--qs-bg); stroke-width: 0.5; }
-.qs-timeline #timeline-svg .qs-seg-border.qs-seg-overlap { stroke: #dc2626; stroke-width: 2; }
 .qs-timeline #timeline-svg .qs-panel-bg { fill: var(--qs-panel); }
+
+/* Which jobs a job overlaps with isn't obvious from the chart alone, so it only shows on
+   interaction: hovering any job previews its overlap partners (cyan, thin), and clicking one
+   pins the same partners (red, thicker) for as long as its details panel below stays open. */
+.qs-timeline #timeline-svg .job-row.is-overlap-hover .qs-seg-running { stroke: #38bdf8; stroke-width: 2; }
+.qs-timeline #timeline-svg .job-row.is-overlap-selected .qs-seg-running { stroke: #dc2626; stroke-width: 2.5; }
 .qs-timeline code { background: var(--qs-code-bg); color: var(--qs-fg); padding: 1px 4px; border-radius: 3px; }
 
 /* Visibility of the SVG pieces. The Content Security Policy of this project rejects inline

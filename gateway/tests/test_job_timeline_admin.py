@@ -119,9 +119,13 @@ def test_render_job_timeline_flags_overlapping_running_jobs():
 
     context = render_job_timeline(Job.objects.filter(pk__in=[job_a.pk, job_b.pk]).prefetch_related("job_events"))
 
+    svg = context["timeline_svg"]
     # both jobs share the same base timestamp, so their RUNNING windows fully overlap: each
-    # job's row label gets a "overlaps with 1 other job" badge
-    assert context["timeline_svg"].count("⧉1") == 2
+    # job's row label gets a "overlaps with 1 other job" badge, and each row names the other as
+    # its overlap partner so the JS can highlight it on hover/click
+    assert svg.count("⧉1") == 2
+    assert f'data-overlaps="{job_b.id}"' in svg
+    assert f'data-overlaps="{job_a.id}"' in svg
 
 
 @pytest.mark.django_db
