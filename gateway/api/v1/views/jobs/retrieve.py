@@ -20,9 +20,10 @@ from rest_framework.response import Response
 from api.use_cases.jobs.retrieve import JobRetrieveUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
+from api.v1.views.serializer_utils import ComputeProfileSerializer
 from api.v1.views.swagger_utils import standard_error_responses
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import ComputeProfile, Job, Program
+from core.models import Job, Program
 
 logger = logging.getLogger("api.api.v1.views.jobs.retrieve")
 
@@ -61,23 +62,6 @@ class ProgramSerializer(serializers.ModelSerializer):
             "type",
         ]
         ref_name = "JobsRetrieveProgramSerializer"
-
-
-class ComputeProfileSerializer(serializers.ModelSerializer):
-    """
-    Compute profile fields exposed for a job's `compute_profile_fk`.
-    """
-
-    class Meta:
-        model = ComputeProfile
-        fields = [
-            "compute_profile_id",
-            "name",
-            "cpu",
-            "gpu",
-            "memory",
-        ]
-        ref_name = "JobsRetrieveComputeProfileSerializer"
 
 
 class JobSerializer(serializers.ModelSerializer):

@@ -19,7 +19,7 @@ from rest_framework.response import Response
 
 from core.enums.type_filter import TypeFilter
 from core.model_managers.jobs import JobFilters
-from core.models import ComputeProfile, Job, Program
+from core.models import Job, Program
 from api.use_cases.jobs.list import JobsListUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
@@ -28,7 +28,7 @@ from api.v1.views.utils import (
     create_paginated_response,
 )
 from api.v1.views.swagger_utils import standard_error_responses
-from api.v1.views.serializer_utils import SanitizedCharField
+from api.v1.views.serializer_utils import ComputeProfileSerializer, SanitizedCharField
 
 logger = logging.getLogger("api.api.v1.views.jobs.list")
 
@@ -74,23 +74,6 @@ class ProgramSummarySerializer(serializers.ModelSerializer):
         model = Program
         fields = ["id", "title", "provider"]
         ref_name = "JobsListProgramSummaryInputSerializer"
-
-
-class ComputeProfileSerializer(serializers.ModelSerializer):
-    """
-    Compute profile fields exposed for a job's `compute_profile_fk`.
-    """
-
-    class Meta:
-        model = ComputeProfile
-        fields = [
-            "compute_profile_id",
-            "name",
-            "cpu",
-            "gpu",
-            "memory",
-        ]
-        ref_name = "JobsListComputeProfileSerializer"
 
 
 class JobSerializerWithoutResult(serializers.ModelSerializer):
