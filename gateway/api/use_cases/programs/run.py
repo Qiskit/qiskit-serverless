@@ -104,13 +104,13 @@ class RunFunctionUseCase:
             trial = business_model == BusinessModel.TRIAL
 
         compute_profile, gpu = _runner_config(function, data.compute_profile)
-        # ``Job.compute_profile`` (string column) and ``ComputeProfile.compute_profile_id``
-        # (the PK) are the same identifier: ``compute_profile_fk`` is looked up from the
-        # same string stored in ``compute_profile``, so the two columns cannot drift.
-        # A Fleets job always resolves to a profile string; if no ``ComputeProfile`` row
-        # is registered for it, that is a deployment misconfiguration and we refuse the
-        # job rather than persisting a null FK. The Ray path leaves ``compute_profile``
-        # None (profiles are a Fleets concept), so the FK stays null there.
+        # ``compute_profile`` (string) is transitional and will be removed; the FK
+        # ``compute_profile_fk`` is the source of truth going forward. We derive the FK
+        # from the same string, so they agree at creation.
+        # A Fleets job always resolves to a profile string. If no ``ComputeProfile`` row
+        # is registered for it, that is a deployment misconfiguration: we reject the job
+        # rather than store a null FK. Ray leaves ``compute_profile`` None (profiles are
+        # a Fleets concept), so the FK stays null there.
         compute_profile_fk = ComputeProfile.objects.get_by_id(compute_profile)
         if compute_profile is not None and compute_profile_fk is None:
             raise DRFValidationError(f"Compute profile '{compute_profile}' is not registered. Contact administrator.")
