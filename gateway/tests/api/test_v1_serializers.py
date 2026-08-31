@@ -10,6 +10,7 @@ from django.core.files import File
 from django.core.management import call_command
 
 from api.domain.authentication.channel import Channel
+from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
 from api.use_cases.programs.run import RunFunctionUseCase
 from api.use_cases.programs.run_input import RunFunctionInput
 from api.v1.views.jobs.retrieve import JobSerializer, JobSerializerWithoutResult
@@ -408,12 +409,12 @@ class TestSerializers:
         assert data["fleet_id"] == "fleet-xyz"
 
     def test_run_job_raises_validation_error_when_no_ce_project(self):
-        """RunFunctionUseCase raises ValidationError when Fleets program has no CE project."""
+        """RunFunctionUseCase raises FunctionConfigurationException when Fleets program has no CE project."""
         user = models.User.objects.get(username="test_user")
         TestUtils.create_program(program_title="fleets-program", author=user, runner=Program.FLEETS)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
-        with pytest.raises(ValidationError):
+        with pytest.raises(FunctionConfigurationException):
             RunFunctionUseCase().execute(
                 user,
                 accessible,

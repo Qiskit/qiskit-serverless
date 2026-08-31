@@ -2,8 +2,8 @@
 
 import pytest
 from django.contrib.auth.models import User
-from rest_framework.exceptions import ValidationError as DRFValidationError
 
+from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.use_cases.programs.upload import UploadFunctionUseCase
 from api.use_cases.programs.upload_input import UploadFunctionInput
@@ -99,7 +99,7 @@ class TestUploadFunctionUseCase:
         existing = Program.objects.create(title="my-fn", author=user, entrypoint="old.py", runner=Program.RAY)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
-        with pytest.raises(DRFValidationError):
+        with pytest.raises(FunctionConfigurationException):
             UploadFunctionUseCase().execute(
                 user,
                 accessible,

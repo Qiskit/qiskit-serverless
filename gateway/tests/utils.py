@@ -78,7 +78,11 @@ class TestUtils:
             provider.admin_groups.add(admin_group)
 
     @staticmethod
-    def get_or_create_provider(provider: Union[Provider, str], admin_group: Union[Group, str] = None) -> Provider:
+    def get_or_create_provider(
+        provider: Union[Provider, str],
+        admin_group: Union[Group, str] = None,
+        code_engine_project: CodeEngineProject = None,
+    ) -> Provider:
         """Get or create a Provider instance with optional admin group.
 
         Retrieves an existing Provider or creates a new one if it doesn't exist.
@@ -88,16 +92,24 @@ class TestUtils:
             provider: Provider instance or provider name string.
             admin_group: Optional Group instance or group name string to set as
                 admin group for the provider.
+            code_engine_project: Optional CodeEngineProject to dedicate this provider to.
+                Set even if the provider already existed.
 
         Returns:
             Provider instance.
         """
         if isinstance(provider, Provider):
+            if code_engine_project is not None and provider.code_engine_project_id != code_engine_project.id:
+                provider.code_engine_project = code_engine_project
+                provider.save(update_fields=["code_engine_project"])
             return provider
         provider, _ = Provider.objects.get_or_create(name=provider)  # provider name is unique
         # Setup Admin Groups if needed
         if admin_group:
             TestUtils.add_admin_group_to_provider(admin_group, provider)
+        if code_engine_project is not None and provider.code_engine_project_id != code_engine_project.id:
+            provider.code_engine_project = code_engine_project
+            provider.save(update_fields=["code_engine_project"])
         return provider
 
     @staticmethod
