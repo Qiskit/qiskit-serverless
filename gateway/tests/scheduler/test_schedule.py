@@ -8,6 +8,7 @@ from prometheus_client import CollectorRegistry
 
 import pytest
 from django.core.management import call_command
+from django.test import override_settings
 from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 
@@ -73,16 +74,14 @@ class TestScheduleApi(APITestCase):
         assert str(job1.id) in job_ids  # `test4_user` job
         assert str(job6.id) in job_ids  # `test_user` job
 
-    def test_fair_share_per_user_limit_is_runner_scoped(self, settings):
+    @override_settings(LIMITS_JOBS_PER_USER=2, LIMITS_JOBS_PER_USER_FLEETS=2)
+    def test_fair_share_per_user_limit_is_runner_scoped(self):
         """A user's Ray and Fleets running jobs are counted independently.
 
         With LIMITS_JOBS_PER_USER=2, a user with 2 running Ray jobs is at the Ray
         cap but must still be schedulable for Fleets, because Fleets has its own,
         separate per-user tally and limit.
         """
-        settings.LIMITS_JOBS_PER_USER = 2
-        settings.LIMITS_JOBS_PER_USER_FLEETS = 2
-
         user = TestUtils.get_user_and_username("mixed_user")[0]
         program = TestUtils.create_program(program_title="Program", author=user)
 
@@ -96,11 +95,9 @@ class TestScheduleApi(APITestCase):
 
         assert fleets_job in fleets_jobs
 
-    def test_fair_share_uses_fleets_specific_limit(self, settings):
+    @override_settings(LIMITS_JOBS_PER_USER=2, LIMITS_JOBS_PER_USER_FLEETS=5)
+    def test_fair_share_uses_fleets_specific_limit(self):
         """Fleets scheduling uses LIMITS_JOBS_PER_USER_FLEETS, not LIMITS_JOBS_PER_USER."""
-        settings.LIMITS_JOBS_PER_USER = 2
-        settings.LIMITS_JOBS_PER_USER_FLEETS = 5
-
         user = TestUtils.get_user_and_username("fleets_heavy_user")[0]
         program = TestUtils.create_program(program_title="Program", author=user)
 
