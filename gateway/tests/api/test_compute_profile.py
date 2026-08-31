@@ -17,7 +17,7 @@ _RESULT_STORAGE_MOD = "core.services.storage.result_storage_fleets.get_cos_clien
 
 # Every compute profile a Fleets job can resolve to must exist as a ComputeProfile
 # row, otherwise job creation is rejected as a misconfiguration.
-_KNOWN_COMPUTE_PROFILES = ["cx3d-4x16", "gx3d-24x120x1a100p", "mx2d-8x64", "bx2d-2x8"]
+_KNOWN_COMPUTE_PROFILES = ["bx3d-24x120", "cx3d-4x16", "gx3d-24x120x1a100p", "mx2d-8x64", "bx2d-2x8"]
 
 
 @pytest.fixture(autouse=True)
@@ -70,7 +70,7 @@ def program(user, ce_project):
     )
 
 
-@override_settings(DEFAULT_COMPUTE_PROFILE="cx3d-4x16")
+@override_settings(DEFAULT_COMPUTE_PROFILE="bx3d-24x120")
 def test_create_job_with_compute_profile(api_client, program):
     """Test creating a job with explicit compute_profile."""
     url = reverse("v1:programs-run")
@@ -91,7 +91,7 @@ def test_create_job_with_compute_profile(api_client, program):
     assert job.compute_profile == "gx3d-24x120x1a100p"
 
 
-@override_settings(DEFAULT_COMPUTE_PROFILE="cx3d-4x16")
+@override_settings(DEFAULT_COMPUTE_PROFILE="bx3d-24x120")
 def test_create_job_without_compute_profile_uses_default(api_client, program):
     """Test creating a job without compute_profile uses system default."""
     url = reverse("v1:programs-run")
@@ -104,11 +104,11 @@ def test_create_job_without_compute_profile_uses_default(api_client, program):
     response = api_client.post(url, data, format="json")
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.data["compute_profile"] == "cx3d-4x16"
+    assert response.data["compute_profile"] == "bx3d-24x120"
 
     # Verify job was created with default compute_profile
     job = Job.objects.get(id=response.data["id"])
-    assert job.compute_profile == "cx3d-4x16"
+    assert job.compute_profile == "bx3d-24x120"
 
 
 @pytest.mark.parametrize(
