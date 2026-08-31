@@ -3,9 +3,9 @@
 from unittest.mock import patch
 
 import pytest
-from rest_framework.exceptions import ValidationError
 
 from api.domain.authentication.channel import Channel
+from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
 from api.use_cases.programs.run import RunFunctionUseCase
 from api.use_cases.programs.run_input import RunFunctionInput
 from api.use_cases.programs.upload import UploadFunctionUseCase
@@ -114,6 +114,33 @@ class TestCEProjectResolutionViaUseCase:
 
         assert updated.code_engine_project == ce_project
 
+    def test_create_provider_fleets_program_without_dedicated_project_is_rejected(self, ce_project):
+        """A provider Fleets function is rejected rather than given the default project."""
+        user, _ = TestUtils.get_user_and_username("uploader")
+        provider = TestUtils.get_or_create_provider("acme")
+
+        with pytest.raises(FunctionConfigurationException, match="acme"):
+            UploadFunctionUseCase()._create(  # pylint: disable=protected-access
+                UploadFunctionInput(title="acme-func", entrypoint="main.py", runner=Program.FLEETS),
+                user=user,
+                provider=provider,
+            )
+
+    def test_create_provider_fleets_program_with_inactive_project_is_rejected(self, ce_project):
+        """The rejection message names the inactive project, not just the missing-project case."""
+        user, _ = TestUtils.get_user_and_username("uploader")
+        inactive = TestUtils.get_or_create_ce_project(
+            project_name="acme-project", project_id="acme-ce-project-id", active=False
+        )
+        provider = TestUtils.get_or_create_provider("acme", code_engine_project=inactive)
+
+        with pytest.raises(FunctionConfigurationException, match="acme-project.*not active"):
+            UploadFunctionUseCase()._create(  # pylint: disable=protected-access
+                UploadFunctionInput(title="acme-func", entrypoint="main.py", runner=Program.FLEETS),
+                user=user,
+                provider=provider,
+            )
+
     def test_select_default_raises_without_config(self, settings):
         """select_default raises ValueError when CE_DEFAULT_PROJECT_NAME is empty."""
         settings.CE_DEFAULT_PROJECT_NAME = ""
@@ -178,12 +205,43 @@ class TestJobCreationValidation:
         TestUtils.create_program(program_title="orphan-func", author=user, runner=Program.FLEETS)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
-        with pytest.raises(ValidationError, match="no Code Engine project assigned"):
+        with pytest.raises(FunctionConfigurationException, match="no Code Engine project assigned"):
             RunFunctionUseCase().execute(
                 user,
                 accessible,
                 RunFunctionInput(
                     title="orphan-func",
+                    provider_name=None,
+                    arguments="{}",
+                    config_data=None,
+                    compute_profile=None,
+                    channel=Channel.IBM_QUANTUM_PLATFORM,
+                    token="my_token",
+                    instance=None,
+                    account_id=None,
+                ),
+            )
+
+    def test_job_creation_fails_with_inactive_ce_project(self):
+        """Job creation raises ValidationError when the assigned CE project is no longer active."""
+        user, _ = TestUtils.get_user_and_username("runner")
+        inactive = TestUtils.get_or_create_ce_project(
+            project_name="deactivated-project", project_id="deactivated-ce-project-id", active=False
+        )
+        program = TestUtils.create_program(
+            program_title="stale-func",
+            author=user,
+            runner=Program.FLEETS,
+            code_engine_project=inactive,
+        )
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        with pytest.raises(FunctionConfigurationException, match="deactivated-project.*not active"):
+            RunFunctionUseCase().execute(
+                user,
+                accessible,
+                RunFunctionInput(
+                    title=program.title,
                     provider_name=None,
                     arguments="{}",
                     config_data=None,

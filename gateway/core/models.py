@@ -90,6 +90,15 @@ class Provider(models.Model):
     registry = models.CharField(max_length=255, null=True, blank=True, default=None)
     admin_groups = models.ManyToManyField(Group)
 
+    code_engine_project = models.ForeignKey(
+        "CodeEngineProject",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="providers",
+        help_text="Code Engine project this provider's Fleets functions run in; empty for the shared default project",
+    )
+
     objects = ProviderQuerySet.as_manager()
 
     class Meta:
