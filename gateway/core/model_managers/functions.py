@@ -45,6 +45,7 @@ class FunctionsQuerySet(QuerySet):
             filter_function_names = accessible_functions.get_functions_by_provider(permission)
             # Custom functions (provider=None) are always visible
             # Provider functions are gated by instance permissions, even if the user is the author.
+            # (The provider operations differ -- ownership grants those, see ProviderAccessPolicy.)
             author_criteria = Q(author=author, provider=None)
             provider_criteria = Q()
             for pname, titles in filter_function_names.items():

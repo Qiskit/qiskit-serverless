@@ -346,19 +346,40 @@ LIMITS_CPU_PER_TASK = int(os.environ.get("LIMITS_CPU_PER_TASK", "4"))
 LIMITS_GPU_PER_TASK = int(os.environ.get("LIMITS_GPU_PER_TASK", "1"))
 LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
 
-# Memory margin (MB) and CPU budget (seconds) given to the forked child that evaluates a Qiskit
-# Function's arguments schema (api/domain/isolated.py, api/domain/arguments_schema.py). Kept in
-# settings, not in the isolation mechanism itself, so a vendor whose legitimate schema needs more
-# than the default can be unblocked without a code deploy. Both values are clamped to a safe range
-# before use; see _memory_limit_mb and _cpu_limit_seconds in api/domain/arguments_schema.py for why.
+# Memory margin (MB) and CPU budget (seconds) for the forked child that evaluates an arguments schema.
+# Both are clamped in code, to 64-256 and 1-5. See specs/ARGUMENTS_LIMIT.md.
 ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB = int(os.environ.get("ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB", "128"))
 ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS = int(os.environ.get("ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS", "1"))
+
+# Longest arguments validated against a schema, in MB. Over it, a 400 naming the limit, checked before
+# anything is forked. Below the body limit because validating costs more than accepting: it forks a
+# child that parses the arguments again under the margin above.
+#
+# The cap of 64 is what keeps this the limit that fires. Measured on Linux, where RLIMIT_AS actually
+# applies: validating a batch of encoded circuits grows the child's address space by about as much as
+# the arguments weigh, so the default 128 MB margin would only refuse them around 127 MB. Staying under
+# that means the caller gets this message rather than a MemoryError in the child, which reads as the
+# function's schema being broken. A value above 64 is refused rather than lowered silently, so the limit
+# in force is always the configured one. specs/ARGUMENTS_LIMIT.md has the rest.
+MAX_ARGUMENTS_LENGTH_MB = int(os.environ.get("MAX_ARGUMENTS_LENGTH_MB", "32"))
+if MAX_ARGUMENTS_LENGTH_MB > 64:
+    raise ImproperlyConfigured(f"MAX_ARGUMENTS_LENGTH_MB is {MAX_ARGUMENTS_LENGTH_MB} and the maximum is 64.")
+
+# Largest JSON body or form field the gateway accepts, in MB. Over it, a 413. It does not bound an
+# uploaded file: Django counts only the non-file parts of a multipart request towards it, so
+# /files/upload and /programs/upload have no size limit of their own here.
+MAX_REQUEST_BODY_SIZE_MB = int(os.environ.get("MAX_REQUEST_BODY_SIZE_MB", "50"))
+
+# Django's own setting, which is what actually refuses the body. It defaults to 2.5 MB, and only
+# started applying to JSON bodies in Django REST Framework 3.17.2 (CVE-2026-73228), where that default
+# turned an ordinary batch of encoded circuits into a 500.
+DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_REQUEST_BODY_SIZE_MB * 1024 * 1024
 
 # ray cluster management
 RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
 RAY_CLUSTER_MODE_LOCAL = os.environ.get("RAY_CLUSTER_MODE_LOCAL", "false").lower() == "true"
 RAY_LOCAL_HOST = os.environ.get("RAY_LOCAL_HOST", "http://localhost:8265")
-RAY_NODE_IMAGE = os.environ.get("RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.35.0")
+RAY_NODE_IMAGE = os.environ.get("RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.35.1")
 RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "1"))
 RAY_CLUSTER_WORKER_REPLICAS_MAX = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS_MAX", "5"))
 RAY_CLUSTER_WORKER_MIN_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS", "1"))
@@ -414,6 +435,7 @@ CONTENT_SECURITY_POLICY = {
         "object-src": "'self'",
         "img-src": ("'self'", "data:"),
         "style-src-elem": "'self'",
+        "style-src-attr": "'unsafe-inline'",
         "script-src-elem": "'self'",
         "connect-src": "'self'",
         "worker-src": ("'self'", "blob:"),
@@ -468,7 +490,7 @@ CE_ICR_PULL_SECRET = os.environ.get("CE_ICR_PULL_SECRET", None)
 # override it via ce.fleetsDefaultImage.
 FLEETS_DEFAULT_IMAGE = os.environ.get(
     "FLEETS_DEFAULT_IMAGE",
-    "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.35.0",
+    "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.35.1",
 )
 # Compute profile settings for Fleets runner
 DEFAULT_COMPUTE_PROFILE = os.environ.get("DEFAULT_COMPUTE_PROFILE", "bx3d-24x120")  # 24 CPU, 120GB RAM
@@ -476,6 +498,14 @@ DEFAULT_COMPUTE_PROFILE = os.environ.get("DEFAULT_COMPUTE_PROFILE", "bx3d-24x120
 FLEETS_DEFAULT_MAX_INSTANCES = int(os.environ.get("FLEETS_DEFAULT_MAX_INSTANCES", "1"))
 
 CE_HMAC_SECRET_NAME = os.environ.get("CE_HMAC_SECRET_NAME", None)
+
+# Qiskit IBM Runtime service URLs injected into every Fleets job container.
+# Set via Helm in the internal repo; empty strings mean "don't inject".
+FLEETS_RUNTIME_IAM_URL = os.environ.get("FLEETS_RUNTIME_IAM_URL", "")
+FLEETS_RUNTIME_GLOBAL_SEARCH_URL = os.environ.get("FLEETS_RUNTIME_GLOBAL_SEARCH_URL", "")
+FLEETS_RUNTIME_GLOBAL_CATALOG_URL = os.environ.get("FLEETS_RUNTIME_GLOBAL_CATALOG_URL", "")
+# Set to "true" on staging to enable experimental features in the container.
+FLEETS_RUNTIME_EXPERIMENTAL = os.environ.get("FLEETS_RUNTIME_EXPERIMENTAL", "false").lower() == "true"
 CE_DEFAULT_PROJECT_NAME = os.environ.get("CE_DEFAULT_PROJECT_NAME", "")
 
 # Set to "true" to use the public COS endpoint instead of the private VPC endpoint.

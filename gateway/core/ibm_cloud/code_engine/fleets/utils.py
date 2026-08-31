@@ -194,6 +194,15 @@ def build_run_env_variables(
     if gateway_host:
         env["ENV_JOB_GATEWAY_HOST"] = gateway_host
 
+    if iam_url := getattr(settings, "FLEETS_RUNTIME_IAM_URL", ""):
+        env["IAM_URL"] = iam_url
+    if global_search_url := getattr(settings, "FLEETS_RUNTIME_GLOBAL_SEARCH_URL", ""):
+        env["GLOBAL_SEARCH_URL"] = global_search_url
+    if global_catalog_url := getattr(settings, "FLEETS_RUNTIME_GLOBAL_CATALOG_URL", ""):
+        env["GLOBAL_CATALOG_URL"] = global_catalog_url
+    if getattr(settings, "FLEETS_RUNTIME_EXPERIMENTAL", False):
+        env["QISKIT_FUNCTIONS_EXPERIMENTAL"] = "true"
+
     flush_interval = getattr(settings, "FLEETS_LOG_FLUSH_INTERVAL_SECONDS", 15)
     env.update(
         {
@@ -202,6 +211,7 @@ def build_run_env_variables(
             "RESULTS_PATH": paths.container_result_path,
             "LOG_FLUSH_INTERVAL_SECONDS": str(flush_interval),
             "LOG_SIZE_LIMIT_BYTES": str(getattr(settings, "FUNCTIONS_LOGS_SIZE_LIMIT", 52428800)),
+            "QISKIT_IBM_PRIVATE_ENDPOINT": "true",
         }
     )
     if paths.container_private_log_path is not None:

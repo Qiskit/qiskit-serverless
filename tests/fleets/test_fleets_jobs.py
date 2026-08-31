@@ -351,6 +351,9 @@ class TestFleetsJobs:
         # Verify the cancel actually propagated to the COS task-store (the layer
         # the worker consumes), not just the gateway's synchronous STOPPED write.
         fleet_id = row[1]
+        # Deliberately not pinning the task-store schema version: the gateway reads
+        # whichever version Code Engine wrote, so the test asserts the fleet and the
+        # state, not the layout revision.
         assert wait_for_s3_key_substring(
-            minio_client, "task-store-bucket", f"{fleet_id}/v2/queue/canceled/", timeout=30
+            minio_client, "task-store-bucket", [f"{fleet_id}/", "/queue/canceled/"], timeout=30
         ), f"cancel did not propagate to a COS canceled key for fleet {fleet_id}"

@@ -157,48 +157,14 @@ limit is skipped rather than set to a wrong value. The CPU limit is unaffected a
 platforms, so this is the one part of the protection that degrades in development and applies in production: a schema
 that only spends memory rather than CPU can validate without complaint on a laptop and still be refused once deployed.
 
-The memory margin above that base is `settings.ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB` (`gateway/main/settings.py`, default
-128), read by `api/domain/arguments_schema.py` and passed into `run_isolated`, which itself only knows a plain numeric
-default: the isolation mechanism stays free of Django so it can be reused outside a web request. Measured in a
-container at the pod's real limits (2 Gi memory, 3 CPU, `gunicorn --workers=2 --threads=1`): a 512 MB margin let a
-4 KB schema plus 1 MB of arguments drive one child to 526 MB, and two concurrent such requests, exactly the worker x
-thread concurrency, added about 960 MB to the cgroup and got a process OOM-killed by the kernel. Every legitimate
-shape tested, including a 1 MB batch of encoded circuits and 4000 objects under `uniqueItems`, passes at 64 MB.
-Because the setting is a way to weaken this by configuration, the value read from it is clamped to 64-256 MB before
-reaching the child, rather than used as given.
+How much that child may spend is configurable, as a memory margin and a CPU budget, and both are clamped before
+they reach it so a value cannot weaken the protection past what was measured. Alongside the CPU limit there is a
+wall-clock deadline that `run_isolated` derives from the budget rather than taking separately, because what matters
+is a tolerated slowdown: `RLIMIT_CPU` bounds how much CPU one request consumes, and the deadline bounds how long it
+can hold a worker while consuming it.
 
-The CPU budget is `settings.ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS` (default 1), read and clamped the same way, to 1-5
-seconds. It is configurable so that a vendor whose legitimate schema turns out to need longer than one second can be
-unblocked by a value change rather than a code deploy, and clamped more tightly than the memory margin because this is
-the whole bound on the work one request can ask for, and no endpoint is rate limited. Every legitimate schema measured
-validates in milliseconds, so a deployment should not need to raise it.
-
-Alongside `RLIMIT_CPU` there is a wall clock deadline, which is not configured separately: `run_isolated` derives it by
-multiplying the CPU budget by `_WALL_CLOCK_SLOWDOWN_FACTOR` (5.0), so the default budget of one second keeps the 5.0
-second deadline that was measured, and the highest configurable budget gets 25. The two are independent bounds rather
-than a limit and its fallback. `RLIMIT_CPU` bounds how much CPU one request consumes; the deadline bounds how long it
-can hold a worker while consuming it. Which of them fires depends on how much CPU the child actually gets, because a
-child on a fraction of a core spends its budget divided by that fraction in wall time. So the deadline's real parameter
-is a tolerated slowdown rather than a number of extra seconds, and adding a constant would tolerate less and less as the
-budget grew: four seconds on top of one tolerates a 5x slowdown, four on top of five only 1.8x, which would leave a
-schema legitimately needing 3 CPU seconds refused at a budget of 5 and make the highest budget the least usable one.
-
-Past a 5x slowdown the deadline fires first and reports itself, which is accurate rather than a misreport, and is the
-outcome to prefer: measured on a 16 core laptop against 40 CPU hogs, a child got 0.083 of a core and needed 60 wall
-seconds to spend 5 CPU seconds, and holding a worker for a minute is worse than refusing the request. In the deployed
-pod (3 CPU, `gunicorn --workers=2 --threads=1`) a child gets far more than a fifth of a core, so there the CPU budget
-is the bound that fires. Either way, raising the budget is paid for in worker occupancy: at the clamp maximum one child
-can hold a worker for 25 wall seconds.
-
-That 25 is also the figure to weigh against the HTTP server's own timeout, and it is why the clamp maximum is not usable
-in every deployment. `gunicorn --timeout` is what the chart sets from `application.httpServer.timeout`, defaulting to
-25, and its arbiter kills a worker that has not checked in for that long. A deadline reaching the timeout therefore means
-the worker is killed at the moment the gateway would have answered `400`: the caller gets a dropped connection rather
-than a rejection, and because the pod runs `--threads=1`, every other request on that worker dies with it. So at the
-default timeout of 25 the usable maximum budget is 3, not 5, and a deployment that sets a longer timeout can use the
-whole range. Raise the timeout before raising the budget. This relation is not enforced in code: it is documented at
-`_MAX_CPU_LIMIT_SECONDS` and next to `argumentsSchemaCpuLimitSeconds` in the chart's values, which is where the value is
-actually changed.
+The values, their clamps, what each one costs, and how to size them against the pod are in
+[ARGUMENTS_LIMIT.md](ARGUMENTS_LIMIT.md), together with the measurements and the method for repeating them.
 
 Inside the child, `jsonschema` runs unmodified, with one exception: `uniqueItems` is still replaced, by a single-pass
 hash of a canonical form of each element, rather than being left for the isolation alone to bound. `jsonschema`
@@ -209,16 +175,36 @@ hash-based replacement answers in 0.011s. `pattern`, by contrast, is on the stoc
 ordinary backtracking `re` and left for the isolation to bound; `uniqueItems` is the one place where isolation can
 only refuse the work rather than make it cheap.
 
+### `format` is asserted for six values and ignored for the rest
+
+`jsonschema` treats `format` as an annotation and checks nothing unless a checker is attached, so a vendor writing
+`format` would otherwise get no validation and no warning either. A checker is attached, but only for the formats whose
+cost is no more than the length of their input (`_ASSERTED_FORMATS`):
+
+| `format` | Asserted |
+|---|---|
+| `date`, `email`, `idn-email`, `ipv4`, `ipv6`, `uuid` | yes, a value that does not match is rejected with a `400` |
+| anything else, `uri`, `hostname` and `date-time` among them | no, it stays an annotation and rejects nothing |
+
+Two of the absences are deliberate rather than incidental. `regex` would compile caller input with Python's
+backtracking engine, which is the cost the isolation exists to bound rather than something to invite in, and
+`idn-hostname` spends its cost inside a third party library. The rest are simply not on the list, and JSON Schema says
+an unrecognised format is an annotation, so ignoring them is conforming behaviour rather than a gap.
+
+The practical consequence for a schema author is that `{"type": "string", "format": "email"}` does reject `"nope"`,
+while `{"type": "string", "format": "uri"}` accepts it. A constraint that has to hold is better written as a `pattern`,
+a `minLength`, or an `enum`, all of which are enforced whatever they describe.
+
 Before any of this runs, text limits are applied to the schema, and to the arguments:
 
-| Constant | Value | What it bounds |
+| Limit | Value | What it bounds |
 |---|---|---|
 | `MAX_SCHEMA_LENGTH` | 64 KB | How much combinatorial work a schema can spell out literally |
-| `MAX_ARGUMENTS_LENGTH` | 1 MB | Keywords whose cost grows with the instance |
+| `settings.MAX_ARGUMENTS_LENGTH_MB` | 32 MB by default | Keywords whose cost grows with the instance |
 | `MAX_DOCUMENT_DEPTH` | 64 | Nesting of schema and arguments; CPython gives up near 180 |
 | `MAX_SCHEMA_NODES` | 200 | Subschemas in the document, which bounds memory on every platform |
 
-`MAX_SCHEMA_LENGTH` is checked before anything is forked, on both entry points. `MAX_ARGUMENTS_LENGTH` only applies on
+`MAX_SCHEMA_LENGTH` is checked before anything is forked, on both entry points. The arguments length only applies on
 `/run` and `/validate_arguments/`: upload has no arguments to bound, only a schema. Where `MAX_DOCUMENT_DEPTH` and
 `MAX_SCHEMA_NODES` are checked on the schema differs by entry point: on `/run` and
 `/validate_arguments/` (`validate_arguments_in_isolation`), the caller already holds the schema as a parsed object and
@@ -298,13 +284,23 @@ To constrain a circuit argument, describe the encoded object:
 The practical advice for a vendor is to validate the plain arguments (counts, names, options, flags) and to check only
 the `__type__` tag of the Qiskit ones, since the payload itself is opaque base64.
 
-One consequence of encoding worth knowing: `MAX_ARGUMENTS_LENGTH` applies to the encoded text, which is much larger
-than the same arguments look in a notebook. A random 100 qubit, depth 100 circuit encodes to about 39 KB, so the 1 MB
-limit leaves room for a batch of roughly twenty five of them. It is set there deliberately: an earlier draft used 100000
-characters, which a batch of three such circuits already exceeded, and a limit that rejects ordinary work is worse than
-no limit, since the cost it was guarding against is bounded by other means. This limit only applies to functions that
-**declare a schema**: the length check runs after the "no schema, nothing to do" short-circuit, so functions without one
-are unaffected.
+One consequence of encoding worth knowing: the arguments length limit applies to the encoded text, which is much larger
+than the same arguments look in a notebook. A random 100 qubit, depth 100 circuit encodes to about 39 KB, so the 32 MB
+limit leaves room for a batch of roughly eight hundred of them. The figure has been raised twice for the same reason,
+that a limit which rejects ordinary work is worse than no limit, since the cost it was guarding against is bounded by
+other means: an early draft used 100000 characters, which a batch of three such circuits already exceeded, and the 1 MB
+that replaced it fitted about twenty five, which turned out to be under what callers send in one batch.
+
+### The limits, and the measurements behind them
+
+That length is one of four values that bound the size of a request, along with the body limit and the
+validation child's memory and CPU allowances. Which one refuses a caller first depends on the shape of the payload,
+not only on its size, and the whole set has to be sized against the pod's memory and its worker count.
+
+That, the measurements it rests on, and the method for repeating them live in one place:
+[ARGUMENTS_LIMIT.md](ARGUMENTS_LIMIT.md). The short version is that this limit sits below the body limit because
+validating costs more than accepting, and that for a batch of circuits it is usually not this limit that refuses a
+caller but the child's memory margin.
 
 ## Validating arguments
 
@@ -353,12 +349,41 @@ rejection instead of letting it escape. `RecursionError` is still caught by name
 `json.loads` rather than around evaluating a schema: parsing the arguments and parsing the schema, both inside the
 child, and parsing the schema in the use case before anything is forked.
 
-Messages are truncated at `MAX_MESSAGE_LENGTH` (500 characters). `jsonschema` builds its messages with
-`repr(instance)`, so without that a rejected payload came back to the caller in full.
-
 The metaschema check itself only runs once, at upload time (`check_uploaded_schema_in_isolation`), never again on a
 later run: it used to run on every request too, which cost 89 ms for a 63 KB schema and put a ceiling of about 22
 requests a second on the gateway.
+
+### The rejection message is built here, not taken from `jsonschema`
+
+The message a caller gets for a schema violation is **not** `jsonschema`'s own. `_validation_message`
+(`api/domain/arguments_schema.py`) builds it inside the child, from the failing keyword and the two values around it:
+
+```
+'type' validation failed, schema requires 'integer': rejected value 'wrong-type'
+```
+
+The reason is where `jsonschema` puts things. It writes `exc.message` as `f"{instance!r} <reason>"`, the rejected value
+first and the reason last, so truncating that to a fixed length keeps the front and drops the rest: a rejected value at
+or past the limit, such as a 39 KB base64 encoded circuit, came back as 500 characters of base64 with no reason at all.
+Building the message from `exc.validator` and `exc.validator_value` instead keeps the reason present whatever the size
+of the instance. A boolean schema has neither field, and is reported as `the schema rejects every value: rejected value
+...`, which says more than the two `None`s those fields would otherwise produce.
+
+Each of the two quoted values is cut to `MAX_EXCERPT_LENGTH` (150 characters) by `_excerpt`, and marked as cut when it
+was. Both need it, not just the rejected value: `validator_value` is a piece of the schema rather than of the instance,
+so it grows with the schema instead, and an `enum` of a few hundred options filled the whole message with enum and
+pushed the rejected value out of it.
+
+`_shortened` then applies `MAX_MESSAGE_LENGTH` (500 characters) to the finished message, as defence in depth, and
+`_shortened_path` applies the same limit to every string segment of `path`. The path needs it too, because a property
+name is as caller-controlled as the message beside it: an `additionalProperties` schema against a 900 000 character
+property name put that name into the path in full while the message next to it was already capped. Array indices are
+integers and are left alone.
+
+One consequence worth knowing when reading code that catches these: only `message` and `path` cross the isolation
+boundary. By the time the use case in `validate_arguments.py` sees a `jsonschema.ValidationError`, it has been rebuilt
+from those two fields alone, so `validator` and `validator_value` read back as unset there. That is why the message has
+to be composed inside the child.
 
 ### On `/run`
 
@@ -371,7 +396,7 @@ Order inside the use case:
 1. Resolve the function → `FunctionNotFoundException` (404)
 2. Function disabled → `FunctionDisabledException` (423)
 3. Active job limit → `ActiveJobLimitExceeded` (429)
-4. Fleets function missing a Code Engine project → DRF `ValidationError` (400)
+4. Fleets function missing a Code Engine project → Django REST Framework `ValidationError` (400)
 5. **Validate arguments** → `InvalidArgumentsException` (400)
 6. Create `JobConfig` and `Job`
 
@@ -404,13 +429,23 @@ The view (`api/v1/views/programs/validate_arguments.py`) only parses and sanitiz
 the caller cannot reach is reported as not found, never as a permission error, so the endpoint does not leak the
 existence of other vendors' functions.
 
-There is one deliberate difference from `/run`: **this endpoint does not check `function.disabled`**, so validating
-against a disabled function succeeds where running it would give a 423. `disabled` is an availability flag rather than
-a permission, and a disabled function's schema is already readable through `get_by_title` and `list`, so refusing here
-would remove something useful (preparing arguments while a function is temporarily unavailable) without protecting
-anything. The trade-off is that a successful validation is not a promise that `/run` will accept the job.
+What does not carry over are the two checks `/run` makes about *availability* rather than about permission. Both are
+left out deliberately, so a `200` here is not a promise that `/run` will accept the job:
+
+- **`function.disabled` is not checked**, so validating against a disabled function succeeds where running it would give
+  a 423. `disabled` is an availability flag rather than a permission, and a disabled function's schema is already
+  readable through `get_by_title` and `list`, so refusing here would remove something useful (preparing arguments while
+  a function is temporarily unavailable) without protecting anything.
+- **A Fleets function with no Code Engine project is not checked either**, so it validates here and is refused by `/run`
+  with a 400. That is a deployment gap in the function rather than anything about its arguments, and it is not something
+  the caller preparing the arguments can act on.
 
 Success is `200 {"valid": true}`.
+
+A function that declares no schema always answers `200 {"valid": true}`, whatever was sent, including `arguments` that
+are not JSON at all. The "no schema, nothing to validate" short-circuit runs before anything looks at the arguments, so
+there is nothing to check them against. A `200` therefore means "nothing rejected these arguments", not "these
+arguments were parsed and approved", and `arguments_schema` on the function is what tells the two apart.
 
 ## Error responses
 
@@ -435,20 +470,29 @@ except InvalidArgumentsException as error:
     )
 ```
 
-Keeping `path` is the reason for a dedicated exception rather than reusing DRF's `ValidationError`: the generic handler
+Keeping `path` is the reason for a dedicated exception rather than reusing Django REST Framework's `ValidationError`:
+the generic handler
 flattens a `ValidationError` to a single message, which would lose *which* field was wrong.
 
-At upload, a schema the gateway cannot evaluate is a DRF `ValidationError` and therefore a `400` with a flat message.
+At upload, a schema the gateway cannot evaluate is a Django REST Framework `ValidationError` and therefore a `400`
+with a flat message.
 At validation time, everything below is an `InvalidArgumentsException`, so a broken schema never becomes a `500`:
 
 | Situation | Status | Body |
 |---|---|---|
 | Arguments violate the schema | 400 | `{"message": "...", "path": [...]}` |
 | `arguments` is not valid JSON | 400 | `{"message": "arguments is not valid JSON: ...", "path": []}` |
-| `arguments` longer than `MAX_ARGUMENTS_LENGTH` or nested past `MAX_DOCUMENT_DEPTH` | 400 | `{"message": "...", "path": []}` |
+| `arguments` longer than the length limit or nested past `MAX_DOCUMENT_DEPTH` | 400 | `{"message": "...", "path": []}` |
 | Schema cannot be evaluated: an isolation limit was hit, a reference is unresolvable, evaluating it recurses without end, or it is not a valid JSON Schema (including not being an object or a boolean) | 400 | `{"message": "the function arguments schema cannot be used: ...", "path": []}` |
 | Function missing or not accessible | 404 | `{"message": "..."}` |
 | `arguments_schema` rejected at upload | 400 | `{"message": "arguments_schema ..."}` |
+| `arguments` sent as an empty string | 400 | `{"message": "This field may not be blank."}`, with **no** `path` |
+
+That last row is the one exception to the shape above, and it is worth knowing before writing a client against these
+responses. It never reaches the code in this document: `arguments` is a Django REST Framework `CharField`, which
+rejects a blank value in
+the serializer, so the response comes from the generic handler flattening a `ValidationError` rather than from
+`InvalidArgumentsException`, and it therefore has no `path` key at all. Every other `400` here carries one.
 
 ## Client SDK
 
@@ -505,7 +549,7 @@ Because the gateway returns the schema as text, `from_json` decodes it back into
   function that existed before this feature keeps working untouched.
 - **The schema is stored as text.** It is round-tripped verbatim rather than normalized through a JSON column, so what a
   vendor uploads is what they read back.
-- **A dedicated exception instead of DRF's `ValidationError`,** so the 400 response can keep the `path` to the offending
+- **A dedicated exception instead of Django REST Framework's `ValidationError`,** so the 400 response can keep the `path` to the offending
   field instead of collapsing to one flat message.
 - **A schema is refused at upload when the gateway knows how, not at run time.** The cost of evaluating a schema is a
   property of the schema, so the check belongs where the author can still act on the error, and upload does refuse
