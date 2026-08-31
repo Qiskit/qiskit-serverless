@@ -89,7 +89,7 @@ html[data-theme="dark"] .qs-timeline {
 .qs-timeline #hover-cursor { display: none; }
 .qs-timeline #hover-cursor.is-visible { display: block; }
 
-/* Legend. Keep these colors in sync with STATUS_COLOR, OUTCOME_LABEL and OVERLAP_STROKE in
+/* Legend. Keep these colors in sync with STATUS_COLOR and OUTCOME_LABEL in
    api/domain/job_timeline.py: fixed regardless of theme, same as the job list's status badges. */
 .qs-timeline .qs-legend-item { margin-right: 16px; }
 .qs-timeline .qs-swatch {
@@ -103,7 +103,6 @@ html[data-theme="dark"] .qs-timeline {
 .qs-timeline .qs-swatch--queued { background: #8a3ffc; }
 .qs-timeline .qs-swatch--pending { background: #f0ad4e; }
 .qs-timeline .qs-swatch--running { background: #5bc0de; }
-.qs-timeline .qs-swatch--overlap { background: #5bc0de; border: 2px solid #dc2626; }
 .qs-timeline .qs-outcome { font-weight: bold; }
 .qs-timeline .qs-outcome--succeeded { color: #00aa00; }
 .qs-timeline .qs-outcome--failed { color: #cc0000; }

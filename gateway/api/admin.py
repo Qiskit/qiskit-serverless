@@ -6,6 +6,7 @@ import uuid
 
 from django import forms
 from django.contrib import admin, messages
+from django.core.cache import cache
 from django.db.models import Count, F, Q
 from django.utils.html import format_html
 from django.urls import path, reverse
@@ -40,6 +41,12 @@ logger = logging.getLogger("gateway.admin")
 
 # How many jobs the "Timeline" admin action can carry in the redirect query string
 MAX_TIMELINE_JOBS = 200
+
+# The admin home page is hit far more often than the Timeline page itself, so the recent-Fleets
+# widget it embeds (query plus SVG build plus overlap detection) is cached for a short while
+# instead of being rebuilt on every single load.
+RECENT_TIMELINE_CACHE_KEY = "admin_dashboard_recent_fleets_timeline"
+RECENT_TIMELINE_CACHE_TTL_SECONDS = 30
 
 
 def get_dashboard_stats():
@@ -488,11 +495,17 @@ class JobAdmin(admin.ModelAdmin):
         The selection travels in the query string, so it has to be capped: "select all" on an
         unfiltered changelist would build a URL long enough for the webserver to reject the
         request with a 502 instead of showing an error.
+
+        The cap is detected from a single query (fetch one row past the limit) rather than a
+        separate `.count()` plus a slice: two independent queries against the same queryset could
+        observe different rows if something else inserts or deletes a matching job in between,
+        which would make the "showing N of TOTAL" message describe a total inconsistent with the
+        ids actually captured.
         """
-        total = queryset.count()
-        ids = list(queryset.values_list("id", flat=True)[:MAX_TIMELINE_JOBS])
-        if total > MAX_TIMELINE_JOBS:
-            messages.warning(request, f"Showing the first {MAX_TIMELINE_JOBS} of {total} selected jobs.")
+        ids = list(queryset.values_list("id", flat=True)[: MAX_TIMELINE_JOBS + 1])
+        if len(ids) > MAX_TIMELINE_JOBS:
+            ids = ids[:MAX_TIMELINE_JOBS]
+            messages.warning(request, f"Showing the first {MAX_TIMELINE_JOBS} of the selected jobs.")
         return redirect(f"{reverse('admin:job_timeline_view')}?ids={','.join(str(i) for i in ids)}")
 
     def get_urls(self):
@@ -672,14 +685,17 @@ class QiskitAdminSite(admin.AdminSite):
     def index(self, request, extra_context=None):
         extra_context = extra_context or {}
         extra_context["dashboard_stats"] = get_dashboard_stats()
-        recent_jobs = list(
-            Job.objects.filter(runner=Program.FLEETS)
-            .select_related("author")
-            .prefetch_related("job_events")
-            .order_by("-created")[:20]
-        )
-        if recent_jobs:
-            extra_context.update(render_job_timeline(recent_jobs))
+        timeline_context = cache.get(RECENT_TIMELINE_CACHE_KEY)
+        if timeline_context is None:
+            recent_jobs = list(
+                Job.objects.filter(runner=Program.FLEETS)
+                .select_related("author")
+                .prefetch_related("job_events")
+                .order_by("-created")[:20]
+            )
+            timeline_context = render_job_timeline(recent_jobs) if recent_jobs else {}
+            cache.set(RECENT_TIMELINE_CACHE_KEY, timeline_context, RECENT_TIMELINE_CACHE_TTL_SECONDS)
+        extra_context.update(timeline_context)
         return super().index(request, extra_context)
 
 
