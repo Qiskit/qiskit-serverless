@@ -14,7 +14,9 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, JobEvent, Program, Provider
 
 
-def _job_with_events(status=Job.SUCCEEDED, compute_profile="bx3d-24x120", base=None, **extra_fields):
+def _job_with_events(
+    status=Job.SUCCEEDED, compute_profile="bx3d-24x120", base=None, runner=Program.FLEETS, **extra_fields
+):
     """Create one Job plus a QUEUED/PENDING/RUNNING/<status> JobEvent trail with known gaps.
 
     `JobEvent.created` and `Job.created` are `auto_now_add`, so Django ignores any value passed
@@ -39,7 +41,7 @@ def _job_with_events(status=Job.SUCCEEDED, compute_profile="bx3d-24x120", base=N
         program=program,
         status=status,
         compute_profile=compute_profile,
-        runner=Program.FLEETS,
+        runner=runner,
         **extra_fields,
     )
 
@@ -72,9 +74,11 @@ def test_render_job_timeline_reports_per_state_durations_and_outcome():
     assert context["timeline_jobs_count"] == 1
     svg = context["timeline_svg"]
     assert str(job.id)[:8] in svg
-    assert "PENDING: 46s" in svg  # pending ran from base+5s to base+51s
-    assert "RUNNING: 48s" in svg  # running ran from base+51s to base+99s
-    assert ">OK<" in svg  # SUCCEEDED outcome marker
+    # pending ran from base+5s to base+51s, running from base+51s to base+99s: both segments
+    # are wide enough in a single-job chart to carry their own duration inline
+    assert ">46s<" in svg
+    assert ">48s<" in svg
+    assert ">SUCCEEDED<" in svg  # same wording as the job list's status badge
 
 
 @pytest.mark.django_db
@@ -86,7 +90,7 @@ def test_render_job_timeline_extends_an_unfinished_job_up_to_now():
 
     # RUNNING started at base+51s and the job has not finished, so its RUNNING segment runs on
     # until now: ten minutes minus those 51 seconds, that is nine minutes and change
-    assert "RUNNING: 9m" in context["timeline_svg"]
+    assert ">9m " in context["timeline_svg"]
 
 
 @pytest.mark.django_db
@@ -100,6 +104,40 @@ def test_render_job_timeline_flags_overlapping_running_jobs():
     # both jobs share the same base timestamp, so their RUNNING windows fully overlap: each
     # job's row label gets a "overlaps with 1 other job" badge
     assert context["timeline_svg"].count("⧉1") == 2
+
+
+@pytest.mark.django_db
+def test_render_job_timeline_does_not_flag_overlaps_across_runners():
+    shared_base = timezone.now().replace(microsecond=0)
+    job_ray = _job_with_events(base=shared_base, runner=Program.RAY)
+    job_fleets = _job_with_events(status=Job.FAILED, base=shared_base, runner=Program.FLEETS)
+
+    context = render_job_timeline(Job.objects.filter(pk__in=[job_ray.pk, job_fleets.pk]).prefetch_related("job_events"))
+
+    # same RUNNING window, but Ray and Fleets run on separate infrastructure, so neither job
+    # should be flagged as overlapping the other
+    assert "⧉" not in context["timeline_svg"]
+
+
+@pytest.mark.django_db
+def test_render_job_timeline_orders_jobs_by_creation_most_recent_first():
+    job_old = _job_with_events()
+    job_new = _job_with_events()
+
+    context = render_job_timeline(Job.objects.filter(pk__in=[job_old.pk, job_new.pk]).prefetch_related("job_events"))
+
+    svg = context["timeline_svg"]
+    assert svg.index(str(job_new.id)[:8]) < svg.index(str(job_old.id)[:8])
+
+
+@pytest.mark.django_db
+def test_render_job_timeline_builds_a_runner_filter_bar():
+    job = _job_with_events(runner=Program.RAY)
+
+    context = render_job_timeline(Job.objects.filter(pk=job.pk).prefetch_related("job_events"))
+
+    assert 'data-runner="ray"' in context["timeline_runner_filter_bar"]
+    assert "Ray" in context["timeline_runner_filter_bar"]
 
 
 @pytest.mark.django_db

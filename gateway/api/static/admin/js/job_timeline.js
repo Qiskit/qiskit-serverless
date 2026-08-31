@@ -5,21 +5,44 @@
 // a style attribute: visibility is driven by the CSS classes in admin/css/job_timeline.css, and
 // the chart geometry travels in data-* attributes on the <svg> element.
 
-// --- compute profile filter buttons ---
+// --- runner and compute profile filters (combined with AND) ---
 (function () {
-    document.querySelectorAll(".filter-btn").forEach(function (btn) {
+    let activeRunner = "__all__";
+    let activeProfile = "__all__";
+
+    function applyRowFilters() {
+        document.querySelectorAll(".job-row").forEach(function (row) {
+            const runnerMatch = activeRunner === "__all__" || row.dataset.runner === activeRunner;
+            const profileMatch = activeProfile === "__all__" || row.dataset.profile === activeProfile;
+            // runner mismatches make the row disappear entirely; profile mismatches only dim it,
+            // so a chosen profile still shows where the rest of the chart was
+            row.classList.toggle("qs-hidden", !runnerMatch);
+            row.style.opacity = profileMatch ? "1" : "0.08";
+        });
+    }
+
+    document.querySelectorAll(".filter-btn[data-runner]").forEach(function (btn) {
         btn.addEventListener("click", function () {
-            document.querySelectorAll(".filter-btn").forEach(function (other) {
+            document.querySelectorAll(".filter-btn[data-runner]").forEach(function (other) {
                 other.classList.remove("active");
             });
             btn.classList.add("active");
-            const profile = btn.dataset.profile;
-            document.querySelectorAll(".job-row").forEach(function (row) {
-                row.style.opacity = profile === "__all__" || row.dataset.profile === profile ? "1" : "0.08";
+            activeRunner = btn.dataset.runner;
+            applyRowFilters();
+        });
+    });
+
+    document.querySelectorAll(".filter-btn[data-profile]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            document.querySelectorAll(".filter-btn[data-profile]").forEach(function (other) {
+                other.classList.remove("active");
             });
+            btn.classList.add("active");
+            activeProfile = btn.dataset.profile;
             document.querySelectorAll(".conc-path").forEach(function (path) {
-                path.classList.toggle("is-visible", path.dataset.profile === profile);
+                path.classList.toggle("is-visible", path.dataset.profile === activeProfile);
             });
+            applyRowFilters();
         });
     });
 })();

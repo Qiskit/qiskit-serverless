@@ -18,19 +18,25 @@ from django.utils.safestring import mark_safe
 
 from core.model_managers.job_events import JobEventType
 
+# Same palette and names as the job list's status badges (`.qs-status-badge` in
+# api/static/admin/css/carbon_theme.css), so a status reads the same color in both places.
 STATUS_COLOR = {
-    "QUEUED": "#94a3b8",
-    "PENDING": "#a855f7",
-    "RUNNING": "#3b82f6",
-    "SUCCEEDED": "#22c55e",
-    "FAILED": "#ef4444",
-    "STOPPED": "#f59e0b",
+    "QUEUED": "#8a3ffc",
+    "PENDING": "#f0ad4e",
+    "RUNNING": "#5bc0de",
+}
+# Text color for a label drawn on top of a STATUS_COLOR segment, matching the badges' own choice
+# of dark text on the lighter PENDING/RUNNING backgrounds.
+STATUS_TEXT_COLOR = {
+    "QUEUED": "#ffffff",
+    "PENDING": "#1c1c1c",
+    "RUNNING": "#1c1c1c",
 }
 OVERLAP_STROKE = "#dc2626"
 OUTCOME_LABEL = {
-    "SUCCEEDED": ("OK", "#22c55e"),
-    "FAILED": ("FAIL", "#ef4444"),
-    "STOPPED": ("STOPPED", "#a16207"),
+    "SUCCEEDED": ("SUCCEEDED", "#00aa00"),
+    "FAILED": ("FAILED", "#cc0000"),
+    "STOPPED": ("STOPPED", "#888888"),
 }
 
 
@@ -49,6 +55,7 @@ def _jobs_from_queryset(jobs_qs):
             {
                 "id": str(job.id),
                 "status": job.status,
+                "runner": job.runner,
                 "profile": job.compute_profile or "-",
                 "created": job.created,
                 "updated": job.updated,
@@ -106,26 +113,28 @@ def compute_timeline(job):
     job["t_queue"] = by_status.get("QUEUED", job["created"])
     job["t_run"] = by_status.get("RUNNING", job["running_started_at"])
     job["t_end"] = points[-1][0] if points else job["updated"]
-    job["t_span_start"] = job["t_run"] or job["t_queue"]
     return job
 
 
 def sort_jobs(jobs):
-    """Sort jobs by timeline span start."""
-    return sorted(jobs, key=lambda j: j["t_span_start"])
+    """Sort jobs by creation date, most recent first."""
+    return sorted(jobs, key=lambda j: j["created"], reverse=True)
 
 
 def find_overlaps(jobs):
     """For every job with a RUNNING segment, how many other jobs overlap that segment.
 
-    A job whose running window is not a forward interval (inconsistent data, e.g. a
-    `running_started_at` later than the job's last event) is left out instead of corrupting
-    the overlap math.
+    Only jobs on the same runner can overlap: Ray and Fleets run on separate infrastructure, so
+    two jobs racing on different runners are not a real resource conflict. A job whose running
+    window is not a forward interval (inconsistent data, e.g. a `running_started_at` later than
+    the job's last event) is left out instead of corrupting the overlap math.
     """
     running = [j for j in jobs if j["t_run"] and j["t_end"] and j["t_run"] < j["t_end"]]
     overlaps = {j["id"]: set() for j in running}
     for i, a in enumerate(running):
         for b in running[i + 1 :]:
+            if a["runner"] != b["runner"]:
+                continue
             if a["t_run"] < b["t_end"] and b["t_run"] < a["t_end"]:
                 overlaps[a["id"]].add(b["id"])
                 overlaps[b["id"]].add(a["id"])
@@ -306,7 +315,6 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
 
         d = job["durations"]
         total_dur = (job["t_end"] - job["t_queue"]).total_seconds() if job["t_queue"] and job["t_end"] else None
-        right_prefix = f"PENDING: {fmt_dur(d.get('PENDING'))} - RUNNING: {fmt_dur(d.get('RUNNING'))} "
         outcome_text, outcome_color = OUTCOME_LABEL.get(job["status"], (job["status"], "#94a3b8"))
 
         tooltip = (
@@ -325,7 +333,7 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
 
         svg.append(
             f'<g class="job-row" data-profile="{html.escape(job["profile"])}" '
-            f'data-job-id="{html.escape(job["id"])}">'
+            f'data-runner="{html.escape(job["runner"])}" data-job-id="{html.escape(job["id"])}">'
         )
         # the tooltip has to be the first child of the group: SVG uses the first <title> it finds
         svg.append(f"<title>{html.escape(tooltip)}</title>")
@@ -341,6 +349,15 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
                 f'<rect x="{sx1:.1f}" y="{y}" width="{max(sx2 - sx1, 1.5):.1f}" height="{row_h}" '
                 f'fill="{color}" stroke="{stroke}" stroke-width="{stroke_w}"/>'
             )
+            # the segment's own duration, drawn inside it only when it actually fits; a segment
+            # too narrow for its own time just stays bare rather than spilling text outside it
+            seg_text = fmt_dur((seg_end - seg_start).total_seconds())
+            if len(seg_text) * 5.4 + 4 <= sx2 - sx1:
+                seg_text_color = STATUS_TEXT_COLOR.get(seg_status, "#0b1020")
+                svg.append(
+                    f'<text x="{(sx1 + sx2) / 2:.1f}" y="{cy_mid + 3:.1f}" fill="{seg_text_color}" '
+                    f'text-anchor="middle" font-size="9">{html.escape(seg_text)}</text>'
+                )
             bar_end_x = sx2
 
         svg.append(
@@ -348,9 +365,8 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
             f"{html.escape(left_label)}</text>"
         )
         svg.append(
-            f'<text x="{bar_end_x + 6:.1f}" y="{cy_mid + 3:.1f}" fill="#e2e8f0" text-anchor="start">'
-            f'{html.escape(right_prefix)}<tspan fill="{outcome_color}" font-weight="bold">'
-            f"{html.escape(outcome_text)}</tspan></text>"
+            f'<text x="{bar_end_x + 6:.1f}" y="{cy_mid + 3:.1f}" fill="{outcome_color}" text-anchor="start" '
+            f'font-weight="bold">{html.escape(outcome_text)}</text>'
         )
         svg.append("</g>")
 
@@ -447,20 +463,30 @@ def build_filter_bar(profiles):
     return "".join(buttons)
 
 
+def build_runner_filter_bar(runners):
+    """Build HTML filter buttons for the runner (ray/fleets)."""
+    buttons = ['<button class="filter-btn active" data-runner="__all__">All</button>']
+    for r in runners:
+        buttons.append(f'<button class="filter-btn" data-runner="{html.escape(r)}">{html.escape(r.title())}</button>')
+    return "".join(buttons)
+
+
 def render_job_timeline(jobs_qs):
     """Build the full template context for the Job Timeline admin page.
 
     `jobs_qs` must be non-empty; the empty-selection case is the caller's responsibility
-    (see `JobAdmin.job_timeline_view` in Task 2), so this function does not special-case it.
+    (see `JobAdmin.job_timeline_view`), so this function does not special-case it.
     """
     jobs = [compute_timeline(j) for j in _jobs_from_queryset(jobs_qs)]
     overlaps = find_overlaps(jobs)
     svg, t_min, t_max, profiles = build_svg(jobs, overlaps)
+    runners = sorted({j["runner"] for j in jobs})
     return {
         "timeline_jobs_count": len(jobs),
         "timeline_range": f"{fmt_dt(t_min)} to {fmt_dt(t_max)}",
         "timeline_svg": mark_safe(svg),
         "timeline_legend": mark_safe(build_legend()),
         "timeline_filter_bar": mark_safe(build_filter_bar(profiles)),
+        "timeline_runner_filter_bar": mark_safe(build_runner_filter_bar(runners)),
         "timeline_job_details": mark_safe(build_job_details(jobs)),
     }

@@ -671,6 +671,14 @@ class QiskitAdminSite(admin.AdminSite):
     def index(self, request, extra_context=None):
         extra_context = extra_context or {}
         extra_context["dashboard_stats"] = get_dashboard_stats()
+        recent_jobs = list(
+            Job.objects.filter(runner=Program.FLEETS)
+            .select_related("author")
+            .prefetch_related("job_events")
+            .order_by("-created")[:20]
+        )
+        if recent_jobs:
+            extra_context.update(render_job_timeline(recent_jobs))
         return super().index(request, extra_context)
 
 
