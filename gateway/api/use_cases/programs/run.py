@@ -52,7 +52,7 @@ def _runner_config(function: Function, compute_profile_requested: str | None) ->
 class RunFunctionUseCase:
     """Use case for running (enqueueing a job for) a Qiskit Function."""
 
-    def execute(  # pylint: disable=too-many-locals
+    def execute(  # pylint: disable=too-many-locals,too-many-branches
         self,
         user: AbstractUser,
         accessible_functions: FunctionAccessResult,
@@ -113,9 +113,7 @@ class RunFunctionUseCase:
         # None (profiles are a Fleets concept), so the FK stays null there.
         compute_profile_fk = ComputeProfile.objects.get_by_id(compute_profile)
         if compute_profile is not None and compute_profile_fk is None:
-            raise DRFValidationError(
-                f"Compute profile '{compute_profile}' is not registered. Contact administrator."
-            )
+            raise DRFValidationError(f"Compute profile '{compute_profile}' is not registered. Contact administrator.")
         job = Job(
             trial=trial,
             business_model=business_model,
