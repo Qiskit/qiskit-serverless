@@ -94,7 +94,8 @@ class CodeEngineProjectAdmin(admin.ModelAdmin):
 class ProviderAdmin(admin.ModelAdmin):
     """ProviderAdmin."""
 
-    search_fields = ["name"]
+    search_fields = ["name", "code_engine_project__project_name"]
+    list_display = ["name", "code_engine_project"]
     filter_horizontal = ["admin_groups"]
 
 
