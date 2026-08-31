@@ -58,7 +58,7 @@ def _runner_config(
         FunctionConfigurationException: If a resolved profile has no registered row.
     """
     if function.runner == Function.FLEETS:
-        requested = compute_profile_requested or getattr(settings, "DEFAULT_COMPUTE_PROFILE", "24x120")
+        requested = compute_profile_requested or settings.DEFAULT_COMPUTE_PROFILE
         # Normalize away any instance-family prefix so the bare id is what we
         # store and look the FK up by. Clients may still submit a prefixed value.
         compute_profile = normalize_compute_profile(requested)
