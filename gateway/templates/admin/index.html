@@ -74,8 +74,7 @@
     <div class="qs-bar-row">
       <span class="qs-bar-label">{{ row.status|capfirst }}</span>
       <div class="qs-bar-track">
-        <div class="qs-bar-fill{% if row.status == 'FAILED' or row.status == 'STOPPED' %} qs-bar-fill--dim{% endif %}"
-             style="width:{{ row.pct }}%"></div>
+        <div class="qs-bar-fill" style="width:{{ row.pct }}%"></div>
       </div>
       <span class="qs-bar-val">{{ row.count }}</span>
       <span class="qs-bar-pct">{{ row.pct }}%</span>
@@ -92,8 +91,7 @@
     <div class="qs-bar-row">
       <span class="qs-bar-label">{{ row.name }}</span>
       <div class="qs-bar-track">
-        <div class="qs-bar-fill{% if row.name == 'Custom' %} qs-bar-fill--dim{% endif %}"
-             style="width:{{ row.pct }}%"></div>
+        <div class="qs-bar-fill" style="width:{{ row.pct }}%"></div>
       </div>
       <span class="qs-bar-val">{{ row.count }}</span>
       <span class="qs-bar-pct">{{ row.pct }}%</span>
