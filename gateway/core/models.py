@@ -768,3 +768,8 @@ class Config(models.Model):
         """Get configuration value as string list."""
         value = cls.get(key)
         return [v.strip() for v in value.split(",")]
+
+    @classmethod
+    def get_int(cls, key: ConfigKey) -> int:
+        """Get configuration value as integer."""
+        return int(cls.get(key))

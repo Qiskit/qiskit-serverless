@@ -67,3 +67,13 @@ class TestConfig:
         # verify DB was also updated
         config = Config.objects.get(name=ConfigKey.MAINTENANCE.value)
         assert config.value == "true"
+
+    def test_get_int_returns_value_as_integer(self):
+        """Test that get_int() parses the stored string as an int, default included."""
+        Config.add_defaults()
+
+        assert Config.get_int(ConfigKey.FILLER_SLOTS) == 0
+
+        Config.set(ConfigKey.FILLER_SLOTS, "4")
+
+        assert Config.get_int(ConfigKey.FILLER_SLOTS) == 4

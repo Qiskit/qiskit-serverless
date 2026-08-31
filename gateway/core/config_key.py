@@ -9,3 +9,7 @@ class ConfigKey(Enum):
     MAINTENANCE = "scheduler.maintenance"
     UPLOAD_FILE_VALID_MIME_TYPES = "gateway.upload_file.valid_mime_types"
     RUNTIME_INSTANCES_API_ENABLED = "gateway.runtime_instances_api.enabled"
+    FILLER_ENABLED = "scheduler.filler.enabled"
+    FILLER_PROGRAM_ID = "scheduler.filler.program_id"
+    FILLER_COMPUTE_PROFILE = "scheduler.filler.compute_profile"
+    FILLER_SLOTS = "scheduler.filler.slots"

@@ -475,6 +475,28 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "type": "boolean",
         "description": "Enable external Runtime instances API for function-level access control.",
     },
+    "scheduler.filler.enabled": {
+        "default": "false",
+        "type": "boolean",
+        "description": "Enable the filler jobs feature: the scheduler keeps idle capacity of a scarce "
+        "compute profile busy with filler jobs.",
+    },
+    "scheduler.filler.program_id": {
+        "default": "",
+        "type": "string",
+        "description": "Id of the Program used to run filler jobs. Empty means the feature is off.",
+    },
+    "scheduler.filler.compute_profile": {
+        "default": "",
+        "type": "string",
+        "description": "The compute profile whose capacity is kept busy with filler jobs "
+        "(for example 160x1792x8h100).",
+    },
+    "scheduler.filler.slots": {
+        "default": "0",
+        "type": "integer",
+        "description": "Minimum number of jobs, real plus filler, to keep running for that compute profile.",
+    },
 }
 
 # Fleets / Code Engine credentials
