@@ -125,26 +125,18 @@
                 other.classList.remove("is-selected", "is-overlap-selected");
             });
             row.classList.add("is-selected");
-            rowsById(row.dataset.overlaps || "").forEach(function (partner) {
-                partner.classList.add("is-overlap-selected");
-            });
+            const partners = rowsById(row.dataset.overlaps || "");
+            if (partners.length) {
+                // the clicked job and everything it overlaps light up the same way, as one group
+                row.classList.add("is-overlap-selected");
+                partners.forEach(function (partner) {
+                    partner.classList.add("is-overlap-selected");
+                });
+            }
 
             const jobId = row.dataset.jobId;
             document.querySelectorAll(".qs-job-details").forEach(function (panel) {
                 panel.classList.toggle("is-visible", panel.dataset.jobId === jobId);
-            });
-        });
-
-        // a quick preview on hover, in a different color from the pinned click highlight above,
-        // so glancing across the chart and committing to one job read as clearly different things
-        row.addEventListener("mouseenter", function () {
-            rowsById(row.dataset.overlaps || "").forEach(function (partner) {
-                partner.classList.add("is-overlap-hover");
-            });
-        });
-        row.addEventListener("mouseleave", function () {
-            document.querySelectorAll(".job-row.is-overlap-hover").forEach(function (other) {
-                other.classList.remove("is-overlap-hover");
             });
         });
     });

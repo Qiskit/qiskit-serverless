@@ -76,10 +76,9 @@ html[data-theme="dark"] .qs-timeline {
 .qs-timeline #timeline-svg .qs-panel-bg { fill: var(--qs-panel); }
 
 /* Which jobs a job overlaps with isn't obvious from the chart alone, so it only shows on
-   interaction: hovering any job previews its overlap partners (cyan, thin), and clicking one
-   pins the same partners (red, thicker) for as long as its details panel below stays open. */
-.qs-timeline #timeline-svg .job-row.is-overlap-hover .qs-seg-running { stroke: #38bdf8; stroke-width: 2; }
-.qs-timeline #timeline-svg .job-row.is-overlap-selected .qs-seg-running { stroke: #dc2626; stroke-width: 2.5; }
+   interaction: clicking a job highlights it and everything it overlaps, all the same way, for
+   as long as its details panel below stays open. */
+.qs-timeline #timeline-svg .job-row.is-overlap-selected .qs-seg-running { stroke: #dc2626; stroke-width: 1.25; }
 .qs-timeline code { background: var(--qs-code-bg); color: var(--qs-fg); padding: 1px 4px; border-radius: 3px; }
 
 /* Visibility of the SVG pieces. The Content Security Policy of this project rejects inline
