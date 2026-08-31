@@ -17,6 +17,7 @@ from django.utils import timezone
 from django.utils.safestring import mark_safe
 
 from core.model_managers.job_events import JobEventType
+from core.models import Job
 
 # Same palette and names as the job list's status badges (`.qs-status-badge` in
 # api/static/admin/css/carbon_theme.css), so a status reads the same color in both places.
@@ -92,7 +93,7 @@ def compute_timeline(job):
     # status would get no segment, no duration and no weight in the concurrency chart. The
     # comparison keeps the points in chronological order if an event carries a future timestamp.
     now = timezone.now()
-    if points and job["status"] not in OUTCOME_LABEL and now > points[-1][0]:
+    if points and job["status"] not in Job.TERMINAL_STATUSES and now > points[-1][0]:
         points.append((now, job["status"]))
 
     job["points"] = points
@@ -160,6 +161,30 @@ def concurrency_series(jobs):
     return series
 
 
+def _merge_series_max(series_list):
+    """Combine several step series into one, taking the max value across them at every timestamp.
+
+    Used to combine per-runner concurrency series into a single curve: Ray and Fleets run on
+    separate infrastructure (the same rule `find_overlaps` already applies), so a job on one
+    runner never contends with a job on the other, and their counts must never be added
+    together. Comparing them instant-by-instant instead keeps the concurrency chart's "peak
+    overlap" consistent with the per-job overlap badges, which also never count cross-runner
+    pairs.
+    """
+    if not series_list:
+        return []
+    events = sorted(
+        ((ts, idx, count) for idx, series in enumerate(series_list) for ts, count in series),
+        key=lambda e: e[0],
+    )
+    current = [0] * len(series_list)
+    merged = []
+    for ts, idx, count in events:
+        current[idx] = count
+        merged.append((ts, max(current)))
+    return merged
+
+
 def fmt_dt(dt):
     """Format datetime for display."""
     return dt.strftime("%d-%b %H:%M:%S") if dt else "-"
@@ -203,12 +228,15 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
 
     all_starts = [j["t_queue"] for j in jobs if j["t_queue"]]
     all_ends = [j["t_end"] for j in jobs if j["t_end"]]
-    t_min = min(all_starts)
-    t_max = max(all_ends)
-    span = (t_max - t_min).total_seconds() or 1
+    # the real bounds of the selected jobs, returned as-is for the "range X to Y" display text
+    real_t_min = min(all_starts)
+    real_t_max = max(all_ends)
+    span = (real_t_max - real_t_min).total_seconds() or 1
     pad = span * 0.02
-    t_min -= timedelta(seconds=pad)
-    t_max += timedelta(seconds=pad)
+    # the chart itself gets a little breathing room on each side; this padded range drives the
+    # chart geometry only, never the displayed range text
+    t_min = real_t_min - timedelta(seconds=pad)
+    t_max = real_t_max + timedelta(seconds=pad)
     span = (t_max - t_min).total_seconds()
 
     def x(dt):
@@ -240,6 +268,11 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
     bottom_of_gantt = margin_top + concurrency_h + 30 + gantt_h
 
     # --- very faint lines, one per exact hour ---
+    # the loop below is driven by wall-clock span, not by job count, so a selection spanning
+    # weeks/months (still well within MAX_TIMELINE_JOBS) could otherwise emit thousands of lines;
+    # widen the step so the total stays bounded regardless of how wide the selection is
+    total_hours = max(span / 3600, 1)
+    hour_step = max(1, int(total_hours // 500) + 1)
     hour = t_min.replace(minute=0, second=0, microsecond=0)
     if hour < t_min:
         hour += timedelta(hours=1)
@@ -249,7 +282,7 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
             f'<line x1="{hx:.1f}" y1="{top_of_chart}" x2="{hx:.1f}" y2="{bottom_of_gantt}" '
             f'class="qs-hour-line" stroke-width="0.5" opacity="0.06"/>'
         )
-        hour += timedelta(hours=1)
+        hour += timedelta(hours=hour_step)
 
     # --- time gridlines (shared by both charts) ---
     n_ticks = 16
@@ -268,15 +301,27 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
         )
 
     # --- concurrency chart (overlaps), one series for "All" plus one per compute profile ---
+    # Ray and Fleets never contend for the same resource (see `find_overlaps`), so a runner's own
+    # concurrency series is computed independently and merged with `_merge_series_max`, never by
+    # summing counts across runners: that keeps this chart's "peak overlap" consistent with the
+    # per-job overlap badges, which also never count a Ray/Fleets pair as overlapping.
     def cy(count, max_count):
         return margin_top + concurrency_h - (count / max_count) * (concurrency_h - 10)
 
-    series_all = concurrency_series(jobs_sorted)
-    max_conc = max((c for _, c in series_all), default=0) or 1
+    runners_present = sorted({j["runner"] for j in jobs_sorted})
+
+    def runner_scoped_series(job_subset):
+        return _merge_series_max(
+            [concurrency_series([j for j in job_subset if j["runner"] == r]) for r in runners_present]
+        )
+
+    series_all = runner_scoped_series(jobs_sorted)
+    real_max_conc = max((c for _, c in series_all), default=0)
+    max_conc = real_max_conc or 1  # avoid a division by zero in cy() below; the heading uses real_max_conc
 
     svg.append(
         f'<text x="{margin_left}" y="{margin_top - 6}" class="qs-heading" font-weight="bold">'
-        f"Concurrent RUNNING jobs (peak overlap: {max_conc})</text>"
+        f"Concurrent RUNNING jobs (peak overlap: {real_max_conc})</text>"
     )
     path_d = build_concurrency_path(series_all, t_min, t_max, x, lambda c: cy(c, max_conc))
     if path_d:
@@ -285,7 +330,7 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
             f'fill="#3b82f6" opacity="0.35" stroke="#60a5fa" stroke-width="1.5"/>'
         )
     for profile in profiles:
-        series_p = concurrency_series([j for j in jobs_sorted if j["profile"] == profile])
+        series_p = runner_scoped_series([j for j in jobs_sorted if j["profile"] == profile])
         path_d = build_concurrency_path(series_p, t_min, t_max, x, lambda c: cy(c, max_conc))
         if path_d:
             svg.append(
@@ -350,7 +395,7 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
             color = STATUS_COLOR.get(seg_status, "#64748b")
             svg.append(
                 f'<rect x="{sx1:.1f}" y="{y}" width="{max(sx2 - sx1, 1.5):.1f}" height="{row_h}" '
-                f'class="qs-seg-border qs-seg-{seg_status.lower()}" fill="{color}"/>'
+                f'class="qs-seg-border qs-seg-{html.escape(seg_status.lower())}" fill="{color}"/>'
             )
             # the segment's own status and duration, drawn inside it when they fit; otherwise
             # they join the other segments that didn't fit in a summary drawn after the bar
@@ -391,7 +436,7 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
     )
 
     svg.append("</svg>")
-    return "\n".join(svg), t_min, t_max, profiles
+    return "\n".join(svg), real_t_min, real_t_max, profiles
 
 
 def build_legend():
@@ -410,7 +455,7 @@ def build_legend():
             f'<span class="qs-legend-item qs-outcome qs-outcome--{outcome_status.lower()}">'
             f"{html.escape(text)}</span>"
         )
-    parts.append('<span class="qs-legend-item">⧉N = overlaps N other jobs — hover a job to see which</span>')
+    parts.append('<span class="qs-legend-item">⧉N = overlaps N other jobs, click a job to see which</span>')
     return "".join(parts)
 
 
