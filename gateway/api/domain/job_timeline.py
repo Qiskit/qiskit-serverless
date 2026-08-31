@@ -300,7 +300,7 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
         cy_mid = y + row_h / 2
         short_id = job["id"][:8]
         overlap_ids = overlaps.get(job["id"], set())
-        left_label = f"{idx + 1:>2} {short_id} · {job['profile']}"
+        left_label = f"{short_id} · {job['profile']}"
         if overlap_ids:
             left_label += f"  ⧉{len(overlap_ids)}"
 
