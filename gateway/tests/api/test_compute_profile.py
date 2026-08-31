@@ -16,8 +16,10 @@ _ARGS_STORAGE_MOD = "core.services.storage.arguments_storage_fleets.FleetsArgume
 _RESULT_STORAGE_MOD = "core.services.storage.result_storage_fleets.get_cos_client"
 
 # Every compute profile a Fleets job can resolve to must exist as a ComputeProfile
-# row, otherwise job creation is rejected as a misconfiguration.
-_KNOWN_COMPUTE_PROFILES = ["bx3d-24x120", "cx3d-4x16", "gx3d-24x120x1a100p", "mx2d-8x64", "bx2d-2x8"]
+# row, otherwise job creation is rejected as a misconfiguration. Rows are stored
+# in the canonical bare (prefix-less) notation; the prefix is normalized away at
+# ingest, so a prefixed submission resolves to the matching bare row.
+_KNOWN_COMPUTE_PROFILES = ["24x120", "4x16", "24x120x1a100p", "8x64", "2x8"]
 
 
 @pytest.fixture(autouse=True)
@@ -70,9 +72,9 @@ def program(user, ce_project):
     )
 
 
-@override_settings(DEFAULT_COMPUTE_PROFILE="bx3d-24x120")
+@override_settings(DEFAULT_COMPUTE_PROFILE="24x120")
 def test_create_job_with_compute_profile(api_client, program):
-    """Test creating a job with explicit compute_profile."""
+    """A prefixed submission is accepted and stored in bare notation."""
     url = reverse("v1:programs-run")
     data = {
         "title": program.title,
@@ -84,14 +86,34 @@ def test_create_job_with_compute_profile(api_client, program):
     response = api_client.post(url, data, format="json")
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.data["compute_profile"] == "gx3d-24x120x1a100p"
+    # The prefix is normalized away: the canonical bare form is what we store.
+    assert response.data["compute_profile"] == "24x120x1a100p"
 
-    # Verify job was created with correct compute_profile
     job = Job.objects.get(id=response.data["id"])
-    assert job.compute_profile == "gx3d-24x120x1a100p"
+    assert job.compute_profile == "24x120x1a100p"
 
 
-@override_settings(DEFAULT_COMPUTE_PROFILE="bx3d-24x120")
+@override_settings(DEFAULT_COMPUTE_PROFILE="24x120")
+def test_create_job_with_bare_compute_profile(api_client, program):
+    """A bare submission is stored unchanged."""
+    url = reverse("v1:programs-run")
+    data = {
+        "title": program.title,
+        "arguments": "{}",
+        "config": {},
+        "compute_profile": "24x120x1a100p",
+    }
+
+    response = api_client.post(url, data, format="json")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["compute_profile"] == "24x120x1a100p"
+
+    job = Job.objects.get(id=response.data["id"])
+    assert job.compute_profile == "24x120x1a100p"
+
+
+@override_settings(DEFAULT_COMPUTE_PROFILE="24x120")
 def test_create_job_without_compute_profile_uses_default(api_client, program):
     """Test creating a job without compute_profile uses system default."""
     url = reverse("v1:programs-run")
@@ -104,36 +126,40 @@ def test_create_job_without_compute_profile_uses_default(api_client, program):
     response = api_client.post(url, data, format="json")
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.data["compute_profile"] == "bx3d-24x120"
+    assert response.data["compute_profile"] == "24x120"
 
     # Verify job was created with default compute_profile
     job = Job.objects.get(id=response.data["id"])
-    assert job.compute_profile == "bx3d-24x120"
+    assert job.compute_profile == "24x120"
 
 
 @pytest.mark.parametrize(
-    "profile",
+    "submitted,stored",
     [
-        "cx3d-4x16",
-        "gx3d-24x120x1a100p",
-        "mx2d-8x64",
-        "bx2d-2x8",
+        # Prefixed inputs are accepted and normalized to bare.
+        ("cx3d-4x16", "4x16"),
+        ("gx3d-24x120x1a100p", "24x120x1a100p"),
+        ("mx2d-8x64", "8x64"),
+        ("bx2d-2x8", "2x8"),
+        # Bare inputs are accepted and stored unchanged.
+        ("4x16", "4x16"),
+        ("24x120x1a100p", "24x120x1a100p"),
     ],
 )
-def test_compute_profile_validation_valid_formats(api_client, program, profile):
-    """Test compute_profile validation accepts valid formats."""
+def test_compute_profile_validation_valid_formats(api_client, program, submitted, stored):
+    """Valid formats (prefixed or bare) are accepted and stored bare."""
     url = reverse("v1:programs-run")
     data = {
         "title": program.title,
         "arguments": "{}",
         "config": {},
-        "compute_profile": profile,
+        "compute_profile": submitted,
     }
 
     response = api_client.post(url, data, format="json")
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.data["compute_profile"] == profile
+    assert response.data["compute_profile"] == stored
 
 
 @pytest.mark.parametrize(
@@ -143,7 +169,7 @@ def test_compute_profile_validation_valid_formats(api_client, program, profile):
         "CX3D-4x16",  # uppercase not allowed
         "cx3d_4x16",  # underscore not allowed
         "cx3d-4",  # missing memory spec
-        "4x16",  # missing prefix
+        "4",  # missing memory spec (bare)
         "",  # empty string
     ],
 )

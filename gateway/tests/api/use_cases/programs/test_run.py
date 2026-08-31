@@ -134,21 +134,34 @@ class TestRunFunctionUseCase:
         assert not Job.objects.exists()
         assert not JobConfig.objects.exists()
 
-    @override_settings(DEFAULT_COMPUTE_PROFILE="bx3d-24x120")
+    @override_settings(DEFAULT_COMPUTE_PROFILE="24x120")
     def test_fleets_job_sets_compute_profile_fk_from_default(self, user, ce_project, monkeypatch):
-        """A Fleets job resolves its FK from the same string it stores in compute_profile."""
+        """A Fleets job resolves its FK from the same bare string it stores in compute_profile."""
         make_fleets_function(user, ce_project)
-        profile = ComputeProfile.objects.create(compute_profile_id="bx3d-24x120", cpu="24", memory="120")
+        profile = ComputeProfile.objects.create(compute_profile_id="24x120", cpu="24", memory="120")
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
         # Arguments storage talks to COS; unrelated to the FK behavior under test.
         monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
 
         job = RunFunctionUseCase().execute(user, accessible, make_input())
 
-        assert job.compute_profile == "bx3d-24x120"
+        assert job.compute_profile == "24x120"
         assert job.compute_profile_fk == profile
 
-    @override_settings(DEFAULT_COMPUTE_PROFILE="bx3d-24x120")
+    @override_settings(DEFAULT_COMPUTE_PROFILE="24x120")
+    def test_fleets_job_prefixed_request_resolves_bare_fk(self, user, ce_project, monkeypatch):
+        """A prefixed requested profile is normalized to the bare stored value and FK row."""
+        make_fleets_function(user, ce_project)
+        profile = ComputeProfile.objects.create(compute_profile_id="24x120x1a100p", cpu="24", memory="120")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
+
+        job = RunFunctionUseCase().execute(user, accessible, make_input(compute_profile="gx3d-24x120x1a100p"))
+
+        assert job.compute_profile == "24x120x1a100p"
+        assert job.compute_profile_fk == profile
+
+    @override_settings(DEFAULT_COMPUTE_PROFILE="24x120")
     def test_fleets_job_rejected_when_compute_profile_not_registered(self, user, ce_project):
         """An unregistered profile is a misconfiguration: refuse the job, don't persist a null FK."""
         make_fleets_function(user, ce_project)

@@ -34,7 +34,9 @@ class InputSerializer(serializers.Serializer):  # pylint: disable=abstract-metho
     provider = serializers.CharField(required=False, allow_null=True)
     compute_profile = serializers.CharField(required=False, allow_null=True)
 
-    _COMPUTE_PROFILE_RE = re.compile(r"^[a-z]+\d+[a-z]?-\d+x\d+(?:x\d+[a-z0-9]+)?$")
+    # Instance-family prefix (e.g. "bx3d-") is optional: accepted for backward
+    # compatibility but normalized away at ingest. Canonical form is bare.
+    _COMPUTE_PROFILE_RE = re.compile(r"^([a-z]+\d+[a-z]?-)?\d+x\d+(?:x\d+[a-z0-9]+)?$")
 
     class Meta:
         ref_name = "ProgramsRunInput"
@@ -48,12 +50,13 @@ class InputSerializer(serializers.Serializer):  # pylint: disable=abstract-metho
         return sanitize_name(value) if value else value
 
     def validate_compute_profile(self, value):
-        """Validate compute profile format (e.g. 'cx3d-4x16')."""
+        """Validate compute profile format (e.g. '4x16' or 'cx3d-4x16')."""
         if value and not self._COMPUTE_PROFILE_RE.match(value):
             raise serializers.ValidationError(
                 f"Invalid compute profile format: '{value}'. "
-                f"Expected format: [type]-[cpu]x[memory] or [type]-[cpu]x[memory]x[gpu_count][gpu_type] "
-                f"(lowercase only, e.g., 'cx3d-4x16' or 'gx3d-24x120x1a100p')"
+                f"Expected format: [cpu]x[memory] or [cpu]x[memory]x[gpu_count][gpu_type], "
+                f"with an optional instance-family prefix "
+                f"(lowercase only, e.g., '4x16', 'cx3d-4x16', or 'gx3d-24x120x1a100p')"
             )
         return value
 

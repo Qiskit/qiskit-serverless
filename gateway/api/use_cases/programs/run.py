@@ -27,6 +27,7 @@ from core.models import (
     PLATFORM_PERMISSION_RUN,
     RUN_PROGRAM_PERMISSION,
 )
+from core.services.runners.compute_profile import normalize_compute_profile
 from core.services.storage import get_arguments_storage
 from core.utils import encrypt_env_vars
 
@@ -42,8 +43,10 @@ def _is_trial(function: Function, user) -> bool:
 
 def _runner_config(function: Function, compute_profile_requested: str | None) -> tuple[str | None, bool]:
     if function.runner == Function.FLEETS:
-        profile = compute_profile_requested or getattr(settings, "DEFAULT_COMPUTE_PROFILE", "cx3d-4x16")
-        return profile, False
+        requested = compute_profile_requested or getattr(settings, "DEFAULT_COMPUTE_PROFILE", "24x120")
+        # Normalize away any instance-family prefix so the bare id is what we
+        # store and look the FK up by. Clients may still submit a prefixed value.
+        return normalize_compute_profile(requested), False
     if function.provider and function.gpu:
         return None, True
     return None, False
