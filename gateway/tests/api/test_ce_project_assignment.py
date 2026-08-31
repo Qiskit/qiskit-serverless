@@ -10,8 +10,10 @@ from api.use_cases.programs.run import RunFunctionUseCase
 from api.use_cases.programs.run_input import RunFunctionInput
 from api.use_cases.programs.upload import UploadFunctionUseCase
 from api.use_cases.programs.upload_input import UploadFunctionInput
+from django.conf import settings
+
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import CodeEngineProject, Program
+from core.models import CodeEngineProject, ComputeProfile, Program
 from core.services.runners import RunnerError
 from core.services.runners.fleets_runner import FleetsRunner
 from tests.utils import TestUtils
@@ -139,6 +141,8 @@ class TestJobCreationValidation:
     def test_job_creation_succeeds_with_ce_project(self, mock_storage, ce_project):
         """Job creation succeeds when Fleets program has a CE project."""
         user, _ = TestUtils.get_user_and_username("runner")
+        # A Fleets job resolves to the default profile; its ComputeProfile row must exist.
+        ComputeProfile.objects.get_or_create(compute_profile_id=settings.DEFAULT_COMPUTE_PROFILE)
         program = TestUtils.create_program(
             program_title="good-func",
             author=user,

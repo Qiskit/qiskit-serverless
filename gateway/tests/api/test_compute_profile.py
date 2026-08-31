@@ -7,7 +7,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from unittest.mock import patch
 
-from core.models import Job, Program
+from core.models import ComputeProfile, Job, Program
 from tests.utils import TestUtils
 
 pytestmark = pytest.mark.django_db
@@ -15,12 +15,23 @@ pytestmark = pytest.mark.django_db
 _ARGS_STORAGE_MOD = "core.services.storage.arguments_storage_fleets.FleetsArgumentsStorage.save"
 _RESULT_STORAGE_MOD = "core.services.storage.result_storage_fleets.get_cos_client"
 
+# Every compute profile a Fleets job can resolve to must exist as a ComputeProfile
+# row, otherwise job creation is rejected as a misconfiguration.
+_KNOWN_COMPUTE_PROFILES = ["cx3d-4x16", "gx3d-24x120x1a100p", "mx2d-8x64", "bx2d-2x8"]
+
 
 @pytest.fixture(autouse=True)
 def mock_fleets_cos_clients():
     """Prevent Fleets storage classes from calling COS in unit tests."""
     with patch(_ARGS_STORAGE_MOD), patch(_RESULT_STORAGE_MOD):
         yield
+
+
+@pytest.fixture(autouse=True)
+def registered_compute_profiles():
+    """Register the ComputeProfile rows the tests resolve to."""
+    for profile_id in _KNOWN_COMPUTE_PROFILES:
+        ComputeProfile.objects.get_or_create(compute_profile_id=profile_id)
 
 
 @pytest.fixture
