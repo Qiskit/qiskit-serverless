@@ -13,6 +13,7 @@
 """Global pytest fixtures for gateway tests."""
 
 import pytest
+from django.core.cache import cache
 
 
 @pytest.fixture(autouse=True)
@@ -23,3 +24,14 @@ def media_root_tmp(tmp_path, settings):
     the source tree (gateway/media/) during test runs.
     """
     settings.MEDIA_ROOT = str(tmp_path)
+
+
+@pytest.fixture(autouse=True)
+def clear_django_cache():
+    """Clear the process-wide Django cache before every test.
+
+    `django_db` rolls back the database between tests, but Django's cache (e.g. the admin
+    dashboard's cached recent-Fleets-jobs timeline) is not tied to that transaction and would
+    otherwise leak a value cached by one test into the next.
+    """
+    cache.clear()
