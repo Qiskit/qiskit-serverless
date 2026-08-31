@@ -5,8 +5,8 @@ from unittest import mock
 import pytest
 from django.contrib.auth.models import User
 from django.test import override_settings
-from rest_framework.exceptions import ValidationError as DRFValidationError
 from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
+from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
 from api.domain.exceptions.function_disabled_exception import FunctionDisabledException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.domain.authentication.channel import Channel
@@ -167,7 +167,7 @@ class TestRunFunctionUseCase:
         make_fleets_function(user, ce_project)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
-        with pytest.raises(DRFValidationError):
+        with pytest.raises(FunctionConfigurationException):
             RunFunctionUseCase().execute(user, accessible, make_input())
 
         assert not Job.objects.exists()
