@@ -429,6 +429,7 @@ CONTENT_SECURITY_POLICY = {
         "object-src": "'self'",
         "img-src": ("'self'", "data:"),
         "style-src-elem": "'self'",
+        "style-src-attr": "'unsafe-inline'",
         "script-src-elem": "'self'",
         "connect-src": "'self'",
         "worker-src": ("'self'", "blob:"),

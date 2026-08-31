@@ -29,6 +29,7 @@ from .abstract_event_streams_client import EventStreamsClient
 logger = logging.getLogger("gateway.ibm_cloud.event_streams_client")
 
 LICENSE_FEE_METRIC_TYPE = "license"
+CLASSICAL_TIME_METRIC_TYPE_PREFIX = "classical"
 
 
 class KafkaEventStreamsClient(EventStreamsClient):
@@ -118,13 +119,17 @@ class KafkaEventStreamsClient(EventStreamsClient):
             return parts[5]
         return None
 
-    def emit_job_started(self, job, metric_type: str) -> None:
+    def emit_job_started(self, job, metric_type: str | None = None) -> None:
         """Publish a job-started event for the given metric (metric_value=0)."""
+        if metric_type is None:
+            metric_type = self._build_classical_metric_type(job)
         logger.info("job_id=%s Emitting job_started event", job.id)
         self._publish(job, metric_type=metric_type, metric_value=0, job_started=True, job_completed=False)
 
-    def emit_job_in_progress(self, job, metric_type: str) -> None:
+    def emit_job_in_progress(self, job, metric_type: str | None = None) -> None:
         """Publish a job-in-progress event for the given metric with current usage."""
+        if metric_type is None:
+            metric_type = self._build_classical_metric_type(job)
         self._publish(
             job,
             metric_type=metric_type,
@@ -133,8 +138,10 @@ class KafkaEventStreamsClient(EventStreamsClient):
             job_completed=False,
         )
 
-    def emit_job_completed(self, job, metric_type: str) -> None:
+    def emit_job_completed(self, job, metric_type: str | None = None) -> None:
         """Publish a job-completed event for the given metric with final usage."""
+        if metric_type is None:
+            metric_type = self._build_classical_metric_type(job)
         usage_ms = self._usage_ms(job)
         logger.info("job_id=%s Emitting job_completed event metric_value=%s", job.id, usage_ms)
         self._publish(
@@ -156,6 +163,19 @@ class KafkaEventStreamsClient(EventStreamsClient):
             business_model=billing_name_for(job.business_model),
         )
 
+    def _build_classical_metric_type(self, job: Job) -> str:
+        """Build classical metric type from job attributes: classical_PROVIDER_FUNCTION_COMPUTE_PROFILE."""
+        parts = [CLASSICAL_TIME_METRIC_TYPE_PREFIX]
+
+        if job.program and job.program.provider:
+            parts.append(job.program.provider.name)
+        if job.program:
+            parts.append(job.program.title)
+        if job.compute_profile:
+            parts.append(job.compute_profile)
+
+        return "_".join(parts)
+
     def _usage_ms(self, job) -> int:
         if job.running_started_at is None:
             return 0
@@ -175,7 +195,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
 
     def _publish(
         self,
-        job,
+        job: Job,
         *,
         metric_type: str,
         metric_value: int,
@@ -192,6 +212,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
             "instance_crn": job.instance_crn,
             "resource_id": str(job.id),
             "job_started": job_started,
+            "job_started_at": job.running_started_at.isoformat() if job.running_started_at else None,
             "job_completed": job_completed,
         }
         if business_model is not None:

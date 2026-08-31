@@ -154,7 +154,10 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
             logger.info("Fleet %s canceled — leaving the cancel key as terminal state", fleet_id)
         else:
             try:
-                self._write_cos_queue_key(project_id, fleet_id, f"{status}/{exit_code}")
+                # Measured in staging: real CE writes ``exit_<n>`` on success but
+                # ``error_exit_<n>`` on failure, so mirror both forms here.
+                code = f"exit_{exit_code}" if status == "succeeded" else f"error_exit_{exit_code}"
+                self._write_cos_queue_key(project_id, fleet_id, f"{status}/{code}")
             except (ClientError, BotoCoreError) as write_err:
                 logger.error("Failed to write terminal status for %s: %s", fleet_id, write_err)
 
@@ -320,9 +323,10 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
     def _queue_prefix(project_id: str, fleet_id: str) -> str:
         """Build the COS task-state queue key prefix for a fleet.
 
-        Single source for the ``ce/{project}/{fleet}/v2/queue/`` layout so the
+        Single source for the ``ce/{project}/{fleet}/v3/queue/`` layout so the
         cancel reader and the status writer cannot drift apart. Must stay in
-        sync with the gateway FleetsRunner prefix.
+        sync with the gateway's TASK_STORE_VERSIONS[0] (fleets/cos.py); the
+        gateway reads v2 as well, but the harness only ever writes the newest.
 
         Args:
             project_id: The CE project UUID.
@@ -331,7 +335,7 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
         Returns:
             The queue key prefix, ending in a trailing slash.
         """
-        return f"ce/{project_id}/{fleet_id}/v2/queue/"
+        return f"ce/{project_id}/{fleet_id}/v3/queue/"
 
     def _is_canceled(self, project_id: str, fleet_id: str) -> bool:
         """Check if a canceled queue key exists for this job.
