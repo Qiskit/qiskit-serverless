@@ -11,7 +11,7 @@ from django.core.management import call_command
 from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 
-from core.models import Job, ComputeResource, JobEvent
+from core.models import Job, ComputeResource, JobEvent, Program
 from core.services.runners import RunnerError
 from core.services.storage import get_logs_storage
 
@@ -72,6 +72,46 @@ class TestScheduleApi(APITestCase):
         assert len(jobs) == 2
         assert str(job1.id) in job_ids  # `test4_user` job
         assert str(job6.id) in job_ids  # `test_user` job
+
+    def test_fair_share_per_user_limit_is_runner_scoped(self, settings):
+        """A user's Ray and Fleets running jobs are counted independently.
+
+        With LIMITS_JOBS_PER_USER=2, a user with 2 running Ray jobs is at the Ray
+        cap but must still be schedulable for Fleets, because Fleets has its own,
+        separate per-user tally and limit.
+        """
+        settings.LIMITS_JOBS_PER_USER = 2
+        settings.LIMITS_JOBS_PER_USER_FLEETS = 2
+
+        user = TestUtils.get_user_and_username("mixed_user")[0]
+        program = TestUtils.create_program(program_title="Program", author=user)
+
+        # 2 running Ray jobs -> user is at the Ray cap.
+        TestUtils.create_job(author=user, program=program, status=Job.RUNNING, runner=Program.RAY)
+        TestUtils.create_job(author=user, program=program, status=Job.RUNNING, runner=Program.RAY)
+        # 1 queued Fleets job -> should NOT be blocked by the Ray running jobs.
+        fleets_job = TestUtils.create_job(author=user, program=program, status=Job.QUEUED, runner=Program.FLEETS)
+
+        fleets_jobs = get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS)
+
+        assert fleets_job in fleets_jobs
+
+    def test_fair_share_uses_fleets_specific_limit(self, settings):
+        """Fleets scheduling uses LIMITS_JOBS_PER_USER_FLEETS, not LIMITS_JOBS_PER_USER."""
+        settings.LIMITS_JOBS_PER_USER = 2
+        settings.LIMITS_JOBS_PER_USER_FLEETS = 5
+
+        user = TestUtils.get_user_and_username("fleets_heavy_user")[0]
+        program = TestUtils.create_program(program_title="Program", author=user)
+
+        # 3 running Fleets jobs: over the Ray limit (2) but under the Fleets limit (5).
+        for _ in range(3):
+            TestUtils.create_job(author=user, program=program, status=Job.RUNNING, runner=Program.FLEETS)
+        fleets_job = TestUtils.create_job(author=user, program=program, status=Job.QUEUED, runner=Program.FLEETS)
+
+        fleets_jobs = get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS)
+
+        assert fleets_job in fleets_jobs
 
     @patch("scheduler.schedule.get_runner")
     def test_execute_ray_job_success(self, mock_get_runner_client):
