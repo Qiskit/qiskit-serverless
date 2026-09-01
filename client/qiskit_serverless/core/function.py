@@ -82,6 +82,10 @@ def _decode_arguments_schema(raw_schema: Any) -> Optional[Union[Dict[str, Any], 
 
 def _decode_fields(data: Dict[str, Any], field_names: set) -> Dict[str, Any]:
     """Keep only known dataclass fields and decode the ones the gateway sends as text."""
+    # The gateway sends the catalog under "sizes"; the field is sizes_map so it does not
+    # collide with the sizes() accessor. Remap before the field-name filter drops it.
+    if "sizes" in data and "sizes_map" in field_names:
+        data = {**data, "sizes_map": data["sizes"]}
     decoded = {k: v for k, v in data.items() if k in field_names}
     if "arguments_schema" in decoded:
         decoded["arguments_schema"] = _decode_arguments_schema(decoded["arguments_schema"])
@@ -102,6 +106,12 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
         working_dir: directory where entrypoint file is located (max size 50MB)
         description: description of a program
         version: version of a program
+        sizes_map: raw ``{size_label: compute_profile}`` mapping carried in the representation,
+            read through :meth:`RunnableQiskitFunction.sizes`. None when the representation carries
+            no size information; an empty dict when the function declares no sizes.
+        default_size: the size used when a run omits an explicit size, read through
+            :meth:`RunnableQiskitFunction.get_default_size`. None when the function declares no
+            default (a run then falls back to the platform default).
         arguments_schema: JSON Schema describing valid arguments for this function. Normally an
             object; ``True`` and ``False`` are also valid schemas, accepting and rejecting every
             argument respectively. ``None`` means the function does not declare one, and setting
@@ -134,6 +144,11 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
     runner: str = "ray"
     arguments_schema: Optional[Union[Dict[str, Any], bool]] = None
     type: Union[GenericType, ApplicationType, CircuitType] = GENERIC
+    # Raw size data carried in the function representation. Stored under names that do not
+    # collide with the sizes()/get_default_size() accessors; the gateway's "sizes" key is
+    # remapped onto sizes_map in from_json.
+    sizes_map: Optional[Dict[str, str]] = None
+    default_size: Optional[str] = None
 
     def __post_init__(self):
         title_has_provider = "/" in self.title
@@ -200,14 +215,6 @@ class RunService(ABC):
         provider: Optional[str] = None,
     ) -> dict:
         """Validate arguments against a function's schema without creating a job."""
-
-    @abstractmethod
-    def sizes(self, title: str, provider: Optional[str] = None) -> Dict[str, str]:
-        """Return a function's declared size catalog as ``{label: compute_profile}``."""
-
-    @abstractmethod
-    def default_size(self, title: str, provider: Optional[str] = None) -> Optional[str]:
-        """Return a function's default size label, or None when it declares no default."""
 
 
 class RunnableQiskitFunction(QiskitFunction):
@@ -318,31 +325,27 @@ class RunnableQiskitFunction(QiskitFunction):
     def sizes(self) -> Dict[str, str]:
         """Return the sizes this function declares.
 
+        The catalog rides along in the function representation, so this reads the
+        already-fetched data without a further request. Re-fetch the function
+        (``client.function(...)``) to pick up sizes changed after it was loaded.
+
         Returns:
             dict: ``{size_label: compute_profile}`` mapping each declared size to
             the compute profile it runs on. Empty when the function declares no
             sizes.
-
-        Raises:
-            QiskitServerlessException: if the function is not found.
         """
-        if self._run_service is None:
-            raise ValueError("No client specified for this function.")
-        return self._run_service.sizes(title=self.title, provider=self.provider)
+        return self.sizes_map or {}
 
     def get_default_size(self) -> Optional[str]:
         """Return the size used when a run omits an explicit size.
 
+        Read from the already-fetched function representation (see :meth:`sizes`).
+
         Returns:
             str | None: the default size label, or None when the function
             declares no default (a run then falls back to the platform default).
-
-        Raises:
-            QiskitServerlessException: if the function is not found.
         """
-        if self._run_service is None:
-            raise ValueError("No client specified for this function.")
-        return self._run_service.default_size(title=self.title, provider=self.provider)
+        return self.default_size
 
 
 # pylint: disable=abstract-method
