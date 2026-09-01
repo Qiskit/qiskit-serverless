@@ -7,7 +7,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from unittest.mock import patch
 
-from core.models import ComputeProfile, Job, Program
+from core.models import ComputeProfile, FunctionSize, Job, Program
 from tests.utils import TestUtils
 
 pytestmark = pytest.mark.django_db
@@ -198,6 +198,85 @@ def test_compute_profile_validation_blank_is_rejected(api_client, program):
         "arguments": "{}",
         "config": {},
         "compute_profile": "",
+    }
+    job_count_before = Job.objects.count()
+
+    response = api_client.post(url, data, format="json")
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert Job.objects.count() == job_count_before
+
+
+def test_run_with_function_size_happy_path(api_client, program):
+    """A declared size resolves through the catalog to its compute profile."""
+    profile = ComputeProfile.objects.get(compute_profile_id="4x16")
+    FunctionSize.objects.create(function=program, function_size="m", compute_profile=profile)
+    url = reverse("v1:programs-run")
+    data = {
+        "title": program.title,
+        "arguments": "{}",
+        "config": {},
+        "function_size": "m",
+    }
+
+    response = api_client.post(url, data, format="json")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["compute_profile"] == "4x16"
+    assert response.data["size_source"] == Job.SIZE_SOURCE_REQUESTED
+
+    job = Job.objects.get(id=response.data["id"])
+    assert job.compute_profile == "4x16"
+    assert job.size_source == Job.SIZE_SOURCE_REQUESTED
+    assert job.function_size.function_size == "m"
+
+
+def test_run_with_function_size_is_normalized(api_client, program):
+    """The requested label is normalized (strip+casefold) before catalog lookup."""
+    profile = ComputeProfile.objects.get(compute_profile_id="4x16")
+    FunctionSize.objects.create(function=program, function_size="m", compute_profile=profile)
+    url = reverse("v1:programs-run")
+    data = {
+        "title": program.title,
+        "arguments": "{}",
+        "config": {},
+        "function_size": "  M  ",
+    }
+
+    response = api_client.post(url, data, format="json")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["compute_profile"] == "4x16"
+
+
+def test_run_with_both_compute_profile_and_function_size_returns_400(api_client, program):
+    """Sending both a size and a profile is ambiguous and rejected, with no Job created."""
+    profile = ComputeProfile.objects.get(compute_profile_id="4x16")
+    FunctionSize.objects.create(function=program, function_size="m", compute_profile=profile)
+    url = reverse("v1:programs-run")
+    data = {
+        "title": program.title,
+        "arguments": "{}",
+        "config": {},
+        "compute_profile": "4x16",
+        "function_size": "m",
+    }
+    job_count_before = Job.objects.count()
+
+    response = api_client.post(url, data, format="json")
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert Job.objects.count() == job_count_before
+
+
+def test_run_with_unknown_function_size_returns_400(api_client, program):
+    """A size the function does not declare is rejected, with no Job created."""
+    url = reverse("v1:programs-run")
+    data = {
+        "title": program.title,
+        "arguments": "{}",
+        "config": {},
+        "function_size": "nope",
     }
     job_count_before = Job.objects.count()
 
