@@ -149,17 +149,37 @@ class TestRunFunctionUseCase:
         assert job.compute_profile_fk == profile
 
     @override_settings(DEFAULT_COMPUTE_PROFILE="24x120")
-    def test_fleets_job_prefixed_request_resolves_bare_fk(self, user, ce_project, monkeypatch):
-        """A prefixed requested profile is normalized to the bare stored value and FK row."""
+    def test_fleets_job_sets_compute_profile_fk_from_explicit_request(self, user, ce_project, monkeypatch):
+        """An explicitly requested profile (already bare) is stored and resolves its FK row.
+
+        The use case no longer normalizes: ``RunFunctionInput.compute_profile`` is expected
+        to already be in canonical bare form, as it would arrive from the view.
+        """
         make_fleets_function(user, ce_project)
         profile = ComputeProfile.objects.create(compute_profile_id="24x120x1a100p", cpu="24", memory="120")
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
         monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
 
-        job = RunFunctionUseCase().execute(user, accessible, make_input(compute_profile="gx3d-24x120x1a100p"))
+        job = RunFunctionUseCase().execute(user, accessible, make_input(compute_profile="24x120x1a100p"))
 
         assert job.compute_profile == "24x120x1a100p"
         assert job.compute_profile_fk == profile
+
+    @override_settings(DEFAULT_COMPUTE_PROFILE="24x120")
+    def test_fleets_job_does_not_normalize_prefixed_request(self, user, ce_project):
+        """A prefixed value is used as-is and fails to resolve a FK.
+
+        Documents that normalization is now the view's responsibility, not the use case's:
+        the use case trusts ``RunFunctionInput.compute_profile`` to already be bare.
+        """
+        make_fleets_function(user, ce_project)
+        ComputeProfile.objects.create(compute_profile_id="24x120x1a100p", cpu="24", memory="120")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        with pytest.raises(FunctionConfigurationException):
+            RunFunctionUseCase().execute(user, accessible, make_input(compute_profile="gx3d-24x120x1a100p"))
+
+        assert not Job.objects.exists()
 
     @override_settings(DEFAULT_COMPUTE_PROFILE="24x120")
     def test_fleets_job_rejected_when_compute_profile_not_registered(self, user, ce_project):

@@ -10,14 +10,17 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Compute profile normalization.
+"""Compute profile format: validation and normalization.
 
 A compute profile may arrive with an IBM Cloud instance-family prefix
 (e.g. ``bx3d-24x120``, ``gx3d-24x120x1a100p``). The prefix selects nothing we
 use: sizing is driven entirely by the ``{cpu}x{memory}[x{count}{model}]``
 resource part. The bare resource id is the canonical form we persist, look up
-(``ComputeProfile`` primary key), bill on, and echo back to clients, so we strip
-the prefix once, as early as possible.
+(``ComputeProfile`` primary key), bill on, and echo back to clients.
+
+``is_valid`` and ``normalize`` share the same prefix pattern so the two can
+never drift apart: whatever ``normalize`` would strip is exactly what
+``is_valid`` treats as an optional prefix.
 """
 
 import re
@@ -27,8 +30,11 @@ from typing import Optional
 # alphanumerics, ended by a hyphen (e.g. "bx3d-", "gx3d-", "cx3d-").
 _PREFIX_RE = re.compile(r"^[a-z]+\d[a-z\d]*-(.+)$")
 
+# Resource part: {cpu}x{memory}[x{count}{model}] (e.g. "24x120", "24x120x1a100p").
+_RESOURCE_RE = re.compile(r"^\d+x\d+(?:x\d+[a-z0-9]+)?$")
 
-def normalize_compute_profile(value: Optional[str]) -> Optional[str]:
+
+def normalize(value: Optional[str]) -> Optional[str]:
     """Return the bare (prefix-less) compute profile id.
 
     Strips an optional instance-family prefix. Idempotent: an already-bare
@@ -43,3 +49,17 @@ def normalize_compute_profile(value: Optional[str]) -> Optional[str]:
         return None
     match = _PREFIX_RE.match(value)
     return match.group(1) if match else value
+
+
+def is_valid(value: str) -> bool:
+    """Return whether ``value`` is a compute profile, with or without prefix.
+
+    Examples:
+        ``bx3d-24x120``, ``24x120x1a100p`` -> ``True``
+        ``BX3D-24x120``, ``24x120x``, ``""`` -> ``False``
+    """
+    if not value:
+        return False
+    match = _PREFIX_RE.match(value)
+    resource = match.group(1) if match else value
+    return bool(_RESOURCE_RE.match(resource))

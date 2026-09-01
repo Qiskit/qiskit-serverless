@@ -11,6 +11,8 @@ class RunFunctionInput:  # pylint: disable=too-many-instance-attributes
     provider_name: str | None
     arguments: str
     config_data: dict | None
+    # Expected already in bare (prefix-less) canonical form; the view normalizes
+    # the raw client value before building this input.
     compute_profile: str | None
     channel: str
     token: str
