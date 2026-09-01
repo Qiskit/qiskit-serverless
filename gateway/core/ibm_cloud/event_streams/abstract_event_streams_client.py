@@ -49,7 +49,7 @@ class EventStreamsClient(ABC):
     def emit_license_fee(self, job) -> None:
         """Publish or log a license fee event."""
         if job.filler:
-            logger.debug("job_id=%s filler job, skipping emit_license_fee", job.id)
+            logger.info("job_id=%s filler job, skipping emit_license_fee", job.id)
             return
         self._emit_license_fee(job)
 
