@@ -50,11 +50,11 @@ class ProgramSerializer(serializers.ModelSerializer):
     provider = serializers.CharField(required=False)
     runner = serializers.CharField(required=False)
     arguments_schema = serializers.CharField(required=False)
-    # Both are write_only because this same class serializes the upload response.
-    # Neither is a plain attribute of Program: the catalog lives in the related
-    # FunctionSize table, and default_size is a ForeignKey whose serialized form
-    # would be an internal UUID rather than the name the uploader sent. The
-    # stored catalog is read back through programs/get_sizes.
+    # On input, sizes is a {label: compute_profile_id} map and default_size a
+    # label. Neither is a plain attribute of Program (the catalog lives in the
+    # related FunctionSize table and default_size is a ForeignKey to a UUID), so
+    # they are write_only and the stored catalog is rendered back onto the upload
+    # response by to_representation() below, in the same shape.
     sizes = serializers.JSONField(required=False, write_only=True)
     default_size = serializers.CharField(required=False, write_only=True)
 
@@ -81,6 +81,20 @@ class ProgramSerializer(serializers.ModelSerializer):
     def get_validators(self):
         """Exclude UniqueConstraint validators — upsert logic lives in the use case."""
         return [v for v in super().get_validators() if not isinstance(v, validators_module.UniqueTogetherValidator)]
+
+    def to_representation(self, instance):
+        """Render the stored size catalog onto the response.
+
+        ``sizes``/``default_size`` are write_only on input, so add them back on
+        output in the same shape a caller reads them elsewhere: ``sizes`` is
+        ``{label: compute_profile_id}`` and ``default_size`` is the label (or
+        null). This lets the client read a function's sizes from the object it
+        already has instead of a separate request.
+        """
+        data = super().to_representation(instance)
+        data["sizes"] = {size.function_size: size.compute_profile_id for size in instance.function_sizes.all()}
+        data["default_size"] = instance.default_size.function_size if instance.default_size_id else None
+        return data
 
     def validate_title(self, value):
         """Sanitize title."""
