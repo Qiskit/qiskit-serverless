@@ -494,8 +494,13 @@
         <span class="n">provider</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">compute_profile</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">function_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Job</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">"""Run a function and return its job."""</span>
+<span class="w">        </span><span class="sd">"""Run a function and return its job.</span>
+
+<span class="sd">        ``compute_profile`` is deprecated; use ``function_size`` instead. Passing</span>
+<span class="sd">        both is rejected by the server.</span>
+<span class="sd">        """</span>
 
     <span class="nd">@abstractmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">validate_arguments</span><span class="p">(</span>
@@ -549,11 +554,13 @@
 
         <span class="n">config</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">"config"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="n">compute_profile</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">"compute_profile"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">function_size</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">"function_size"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
             <span class="n">program</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
             <span class="n">arguments</span><span class="o">=</span><span class="n">kwargs</span><span class="p">,</span>
             <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
             <span class="n">compute_profile</span><span class="o">=</span><span class="n">compute_profile</span><span class="p">,</span>
+            <span class="n">function_size</span><span class="o">=</span><span class="n">function_size</span><span class="p">,</span>
         <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">get_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>

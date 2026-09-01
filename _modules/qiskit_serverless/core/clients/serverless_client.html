@@ -637,7 +637,15 @@
         <span class="n">provider</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">compute_profile</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">function_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Job</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">compute_profile</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">"'compute_profile' is deprecated; use 'function_size' instead."</span><span class="p">,</span>
+                <span class="ne">DeprecationWarning</span><span class="p">,</span>
+                <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+            <span class="p">)</span>
+
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">QiskitFunction</span><span class="p">):</span>
             <span class="n">title</span> <span class="o">=</span> <span class="n">program</span><span class="o">.</span><span class="n">title</span>
             <span class="n">provider</span> <span class="o">=</span> <span class="n">program</span><span class="o">.</span><span class="n">provider</span>
@@ -656,6 +664,7 @@
                 <span class="s2">"title"</span><span class="p">:</span> <span class="n">title</span><span class="p">,</span>
                 <span class="s2">"provider"</span><span class="p">:</span> <span class="n">provider</span><span class="p">,</span>
                 <span class="s2">"compute_profile"</span><span class="p">:</span> <span class="n">compute_profile</span><span class="p">,</span>
+                <span class="s2">"function_size"</span><span class="p">:</span> <span class="n">function_size</span><span class="p">,</span>
                 <span class="s2">"arguments"</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">arguments</span> <span class="ow">or</span> <span class="p">{},</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsEncoder</span><span class="p">),</span>
             <span class="p">}</span>  <span class="c1"># type: Dict[str, Any]</span>
             <span class="k">if</span> <span class="n">config</span><span class="p">:</span>
@@ -1360,6 +1369,7 @@
         <span class="n">provider</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">compute_profile</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">function_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">suppress_low_usage_warning</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"Job"</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Run a Qiskit Function with pre-flight validation before submitting to the gateway.</span>
@@ -1372,7 +1382,9 @@
 <span class="sd">                the backend access check but forwarded unchanged.</span>
 <span class="sd">            config: Optional execution configuration.</span>
 <span class="sd">            provider: Optional provider name override.</span>
-<span class="sd">            compute_profile: Optional compute-profile name.</span>
+<span class="sd">            compute_profile: Deprecated; use ``function_size`` instead. Sending both is rejected.</span>
+<span class="sd">            function_size: Declared size label (e.g. ``"m"``) to run at; resolves through the</span>
+<span class="sd">                function's size catalog on the gateway.</span>
 <span class="sd">            suppress_low_usage_warning: If ``True``, suppress the warning when remaining runtime</span>
 <span class="sd">                quota is below ``USAGE_LOW_THRESHOLD_SECONDS``. The exception for exhausted quota</span>
 <span class="sd">                (at or below ``USAGE_ZERO_EPSILON_SECONDS``) is still raised.</span>
@@ -1406,6 +1418,7 @@
             <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
             <span class="n">provider</span><span class="o">=</span><span class="n">provider</span><span class="p">,</span>
             <span class="n">compute_profile</span><span class="o">=</span><span class="n">compute_profile</span><span class="p">,</span>
+            <span class="n">function_size</span><span class="o">=</span><span class="n">function_size</span><span class="p">,</span>
         <span class="p">)</span></div>
 
 
