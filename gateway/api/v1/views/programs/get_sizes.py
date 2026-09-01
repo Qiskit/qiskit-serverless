@@ -59,7 +59,7 @@ class OutputSerializer(serializers.Serializer):  # pylint: disable=abstract-meth
         **standard_error_responses(not_found_example="Qiskit Function [XXX] doesn't exist."),
     },
 )
-@endpoint("programs/get_by_title/<str:title>/sizes", method="GET", name="programs-get-sizes")
+@endpoint("programs/<str:title>/sizes", method="GET", name="programs-get-sizes")
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
 def get_sizes(request: Request, title: str) -> Response:
