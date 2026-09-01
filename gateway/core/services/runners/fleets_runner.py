@@ -18,6 +18,7 @@ import os
 import re
 import tarfile
 import time
+from datetime import datetime, timezone
 from io import BytesIO
 
 from django.conf import settings
@@ -55,9 +56,25 @@ _WARNED_FLEETS_LIMIT = 10_000
 
 # Code Engine accepts lowercase alphanumerics and hyphens in a fleet name. The API client
 # does not declare a length ceiling, so we assume the 63 characters usual for its resource
-# names and spend all of it: a three character prefix plus three segments and two hyphens
-# lands exactly on 63 at 19 characters per segment.
-_FLEET_NAME_SEGMENT_MAX = 19
+# names and spend all of it: a three character prefix, three segments, a fourteen character
+# timestamp and four hyphens land exactly on 63 at fourteen characters per segment. Fourteen
+# is also what "160x1792x8h100" needs, so the scarce GPU profile this was built for survives
+# whole; a third fractional digit in the timestamp would clip it.
+_FLEET_NAME_SEGMENT_MAX = 14
+
+
+def _fleet_name_timestamp() -> str:
+    """Return the current UTC time as ``YYMMDDHHMMSShh``, hundredths of a second last.
+
+    Readable at a glance in the Code Engine console, unlike Unix seconds, and precise enough
+    that two runs of the same function by the same user on the same profile get different
+    names in practice.
+
+    Returns:
+        Fourteen digits.
+    """
+    now = datetime.now(timezone.utc)
+    return f"{now:%y%m%d%H%M%S}{now.microsecond // 10000:02d}"
 
 
 def _fleet_name_segment(value: str) -> str:
@@ -761,14 +778,14 @@ class FleetsRunner(AbstractRunner):
     def _build_fleet_name(self) -> str:
         """Build the Code Engine fleet name for this job.
 
-        Shaped as ``{job|fil}-{function}-{compute profile}-{username}`` so a fleet can be read at
-        a glance in Code Engine: what it runs, on which profile and for whom. Both prefixes are
-        three characters so every segment gets the same budget either way, and each segment is
-        sanitized and truncated by :func:`_fleet_name_segment`.
+        Shaped as ``{job|fil}-{function}-{compute profile}-{username}-{YYMMDDHHMMSShh}`` so a
+        fleet can be read at a glance in Code Engine: what it runs, on which profile, for whom
+        and when. Both prefixes are three characters so every segment gets the same budget
+        either way, and each segment is sanitized and truncated by :func:`_fleet_name_segment`.
 
-        The name carries nothing job-specific, so two runs of the same function on the same
-        profile by the same user produce the same name. ``job.fleet_id``, assigned by Code Engine,
-        remains the identifier the gateway stores and queries.
+        The timestamp is what separates two runs of the same function by the same user on the
+        same profile, so it is not decoration. It is still not an identifier: ``job.fleet_id``,
+        assigned by Code Engine, remains what the gateway stores and queries.
 
         Returns:
             The fleet name.
@@ -780,7 +797,7 @@ class FleetsRunner(AbstractRunner):
         # fleet after the profile it actually runs on rather than after the empty column.
         profile = _fleet_name_segment(self.job.compute_profile or settings.DEFAULT_COMPUTE_PROFILE)
         username = _fleet_name_segment(self.job.author.username)
-        return f"{prefix}-{function}-{profile}-{username}"
+        return f"{prefix}-{function}-{profile}-{username}-{_fleet_name_timestamp()}"
 
     def _parse_compute_profile(self) -> tuple[str, str, dict | None]:
         """Parse compute_profile into (cpu, memory, gpu).
