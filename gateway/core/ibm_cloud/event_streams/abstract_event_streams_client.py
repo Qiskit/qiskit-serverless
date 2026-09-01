@@ -21,13 +21,8 @@ logger = logging.getLogger("gateway.ibm_cloud.event_streams_client")
 class EventStreamsClient(ABC):
     """Interface for job usage event publishing.
 
-    Filler jobs (``job.filler`` is True) never generate billing events. The four
-    public ``emit_*`` methods enforce that exclusion once, here, so every concrete
-    client and every future call site gets it without repeating an ``if job.filler``
-    check at each of the four call sites in
-    ``scheduler/tasks/update_fleets_jobs_statuses.py``. Every public ``emit_*`` method
-    added in the future must begin with this same filler guard and delegate to a
-    private ``_emit_*`` implementation.
+    Filler jobs never generate billing events. Every public ``emit_*`` method must
+    skip them and delegate to its private ``_emit_*`` implementation.
     """
 
     def emit_job_started(self, job, metric_type: str | None = None) -> None:
