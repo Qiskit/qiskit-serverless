@@ -53,7 +53,7 @@ def execute_ray_job(job: Job) -> Job:
     return job
 
 
-def execute_fleets_job(job: Job, ctx) -> Job:
+def execute_fleets_job(job: Job, ctx, context: JobEventContext = JobEventContext.SCHEDULE_JOBS) -> Job:
     """Submits a Fleets (Code Engine) job and persists the result.
 
     Wraps submission under the scheduler.handle trace span propagated from the
@@ -63,6 +63,9 @@ def execute_fleets_job(job: Job, ctx) -> Job:
     Args:
         job: job to execute
         ctx: OpenTelemetry context extracted from job env_vars
+        context: JobEvent context to record for the status change. Defaults to
+            SCHEDULE_JOBS, which is what the fair-share scheduler uses; the
+            filler-jobs balancer passes FILLER_SUBMIT.
 
     Returns:
         job with updated status (PENDING on success, FAILED on error)
@@ -97,7 +100,7 @@ def execute_fleets_job(job: Job, ctx) -> Job:
         JobEvent.objects.add_status_event(
             job_id=job.id,
             origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.SCHEDULE_JOBS,
+            context=context,
             status=job.status,
         )
 

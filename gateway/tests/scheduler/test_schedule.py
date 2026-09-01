@@ -1,5 +1,6 @@
 """Tests scheduling."""
 
+import uuid
 from collections import deque
 from unittest.mock import MagicMock, patch
 
@@ -12,6 +13,7 @@ from django.test import override_settings
 from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 
+from core.model_managers.job_events import JobEventContext
 from core.models import Job, ComputeResource, JobEvent, Program
 from core.services.runners import RunnerError
 from core.services.storage import get_logs_storage
@@ -247,3 +249,31 @@ class TestScheduleApi(APITestCase):
             # The table was filled as following: Job creation, Job status change to running, job stopping
             # due exceeding time limit.
             assert len(job_events) == 3
+
+
+def test_execute_fleets_job_records_the_given_event_context():
+    """The JobEvent context is the caller's, defaulting to SCHEDULE_JOBS."""
+    mock_job = MagicMock()
+    mock_job.id = uuid.uuid4()
+
+    with (
+        patch("scheduler.schedule.get_runner"),
+        patch("scheduler.schedule.JobEvent") as mock_job_event,
+    ):
+        execute_fleets_job(mock_job, None, context=JobEventContext.FILLER_SUBMIT)
+
+    assert mock_job_event.objects.add_status_event.call_args.kwargs["context"] is JobEventContext.FILLER_SUBMIT
+
+
+def test_execute_fleets_job_defaults_to_the_schedule_jobs_context():
+    """Callers that pass no context still record SCHEDULE_JOBS."""
+    mock_job = MagicMock()
+    mock_job.id = uuid.uuid4()
+
+    with (
+        patch("scheduler.schedule.get_runner"),
+        patch("scheduler.schedule.JobEvent") as mock_job_event,
+    ):
+        execute_fleets_job(mock_job, None)
+
+    assert mock_job_event.objects.add_status_event.call_args.kwargs["context"] is JobEventContext.SCHEDULE_JOBS
