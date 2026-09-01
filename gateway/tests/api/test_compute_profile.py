@@ -19,7 +19,7 @@ _RESULT_STORAGE_MOD = "core.services.storage.result_storage_fleets.get_cos_clien
 # row, otherwise job creation is rejected as a misconfiguration. Rows are stored
 # in the canonical bare (prefix-less) notation; the prefix is normalized away at
 # ingest, so a prefixed submission resolves to the matching bare row.
-_KNOWN_COMPUTE_PROFILES = ["24x120", "4x16", "24x120x1a100p", "8x64", "2x8"]
+_KNOWN_COMPUTE_PROFILES = ["16x128", "4x16", "24x120x1a100p", "8x64", "2x8"]
 
 
 @pytest.fixture(autouse=True)
@@ -72,7 +72,7 @@ def program(user, ce_project):
     )
 
 
-@override_settings(DEFAULT_COMPUTE_PROFILE="24x120")
+@override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
 def test_create_job_with_compute_profile(api_client, program):
     """A prefixed submission is accepted and stored in bare notation."""
     url = reverse("v1:programs-run")
@@ -93,7 +93,7 @@ def test_create_job_with_compute_profile(api_client, program):
     assert job.compute_profile == "24x120x1a100p"
 
 
-@override_settings(DEFAULT_COMPUTE_PROFILE="24x120")
+@override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
 def test_create_job_with_bare_compute_profile(api_client, program):
     """A bare submission is stored unchanged."""
     url = reverse("v1:programs-run")
@@ -113,7 +113,7 @@ def test_create_job_with_bare_compute_profile(api_client, program):
     assert job.compute_profile == "24x120x1a100p"
 
 
-@override_settings(DEFAULT_COMPUTE_PROFILE="24x120")
+@override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
 def test_create_job_without_compute_profile_uses_default(api_client, program):
     """Test creating a job without compute_profile uses system default."""
     url = reverse("v1:programs-run")
@@ -126,11 +126,11 @@ def test_create_job_without_compute_profile_uses_default(api_client, program):
     response = api_client.post(url, data, format="json")
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.data["compute_profile"] == "24x120"
+    assert response.data["compute_profile"] == "16x128"
 
     # Verify job was created with default compute_profile
     job = Job.objects.get(id=response.data["id"])
-    assert job.compute_profile == "24x120"
+    assert job.compute_profile == "16x128"
 
 
 @pytest.mark.parametrize(

@@ -487,7 +487,7 @@ FLEETS_DEFAULT_IMAGE = os.environ.get(
     "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.35.1",
 )
 # Compute profile settings for Fleets runner
-DEFAULT_COMPUTE_PROFILE = os.environ.get("DEFAULT_COMPUTE_PROFILE", "24x120")  # 24 CPU, 120GB RAM
+DEFAULT_COMPUTE_PROFILE = os.environ.get("DEFAULT_COMPUTE_PROFILE", "16x128")  # 16 CPU, 128GB RAM
 # Size seeded for a function uploaded without an explicit size catalog, so every
 # function has a size to run with while declaring sizes is still optional. The
 # profile must name an existing ComputeProfile row; when no such row exists the
