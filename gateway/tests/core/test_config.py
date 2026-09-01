@@ -77,3 +77,24 @@ class TestConfig:
         Config.set(ConfigKey.FILLER_SLOTS, "4")
 
         assert Config.get_int(ConfigKey.FILLER_SLOTS) == 4
+
+    def test_get_int_returns_default_on_malformed_value(self):
+        """Test that get_int() falls back to the default instead of raising on bad input."""
+        Config.add_defaults()
+
+        Config.set(ConfigKey.FILLER_SLOTS, "not-a-number")
+        assert Config.get_int(ConfigKey.FILLER_SLOTS) == 0
+
+        Config.set(ConfigKey.FILLER_SLOTS, "")
+        assert Config.get_int(ConfigKey.FILLER_SLOTS) == 0
+
+        Config.set(ConfigKey.FILLER_SLOTS, "4.0")
+        assert Config.get_int(ConfigKey.FILLER_SLOTS) == 0
+
+    def test_get_int_honours_explicit_default_on_malformed_value(self):
+        """Test that a caller-supplied default is returned when the stored value is malformed."""
+        Config.add_defaults()
+
+        Config.set(ConfigKey.FILLER_SLOTS, "not-a-number")
+
+        assert Config.get_int(ConfigKey.FILLER_SLOTS, default=7) == 7

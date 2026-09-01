@@ -777,6 +777,23 @@ class Config(models.Model):
         return [v.strip() for v in value.split(",")]
 
     @classmethod
-    def get_int(cls, key: ConfigKey) -> int:
-        """Get configuration value as integer."""
-        return int(cls.get(key))
+    def get_int(cls, key: ConfigKey, default: int = 0) -> int:
+        """Get configuration value as integer.
+
+        Nothing validates the stored value on write (the admin has no validation on
+        `Config.value`, and the `"type": "integer"` metadata in
+        `settings.DYNAMIC_CONFIG_DEFAULTS` is documentation only), so a malformed value
+        such as `""`, `"four"` or `"4.0"` can end up in the database. Rather than raise
+        in that case, this returns `default` and logs a warning naming the key and the
+        offending value.
+
+        Args:
+            key: the configuration key to read.
+            default: value to return if the stored value cannot be parsed as an int.
+        """
+        value = cls.get(key)
+        try:
+            return int(value)
+        except ValueError:
+            logger.warning("Config key '%s' has a non-integer value '%s'; using default %s", key.value, value, default)
+            return default
