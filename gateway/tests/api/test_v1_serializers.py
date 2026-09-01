@@ -18,7 +18,7 @@ from api.v1.views.programs.run import InputSerializer as RunProgramSerializer, J
 from api.v1.views.programs.upload import ProgramSerializer as UploadProgramSerializer
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.business_models import BusinessModel
-from core.models import Job, JobConfig, Program
+from core.models import ComputeProfile, FunctionSize, Job, JobConfig, Program
 from rest_framework.exceptions import ValidationError
 from core.models import PLATFORM_PERMISSION_RUN
 from tests.utils import TestUtils, create_function_access_result
@@ -311,6 +311,31 @@ class TestSerializers:
 
         serializer = UploadProgramSerializer(data=data)
         assert serializer.is_valid()
+
+    def test_upload_program_serializer_renders_sizes_on_output(self):
+        """The upload response echoes the stored catalog as {label: profile} and the default label."""
+        user = models.User.objects.get(username="test_user")
+        program = TestUtils.create_program(program_title="sized-func", author=user)
+        small, _ = ComputeProfile.objects.get_or_create(compute_profile_id="4x16")
+        FunctionSize.objects.create(function=program, function_size="s", compute_profile=small)
+        default_row = FunctionSize.objects.create(function=program, function_size="m", compute_profile=small)
+        program.default_size = default_row
+        program.save(update_fields=["default_size"])
+
+        data = UploadProgramSerializer(program).data
+
+        assert data["sizes"] == {"s": "4x16", "m": "4x16"}
+        assert data["default_size"] == "m"
+
+    def test_upload_program_serializer_renders_empty_sizes_when_none(self):
+        """A function with no catalog serializes an empty map and null default."""
+        user = models.User.objects.get(username="test_user")
+        program = TestUtils.create_program(program_title="bare-func", author=user)
+
+        data = UploadProgramSerializer(program).data
+
+        assert data["sizes"] == {}
+        assert data["default_size"] is None
 
     # Dependency validation tests use 'mergedeep' and 'ffsim' as representative examples
     # from requirements-dynamic-dependencies.txt. These tests validate the dependency

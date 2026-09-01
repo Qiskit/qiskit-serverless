@@ -675,6 +675,66 @@ class TestValidateArgumentsMethod:
             mock_client.validate_arguments(title="my-function", arguments={"shots": "wrong"})
 
 
+class TestSizesMethod:
+    """Tests for RunnableQiskitFunction.sizes() / get_default_size(), read from the representation."""
+
+    def test_sizes_returns_catalog_from_representation(self, mock_client):
+        """sizes() returns the catalog carried on the function, with no extra request."""
+        function = RunnableQiskitFunction(
+            mock_client, title="my-function", sizes_map={"s": "4x16", "m": "8x64"}, default_size="m"
+        )
+
+        assert function.sizes() == {"s": "4x16", "m": "8x64"}
+
+    def test_get_default_size_returns_default_from_representation(self, mock_client):
+        """get_default_size() returns the default label carried on the function."""
+        function = RunnableQiskitFunction(mock_client, title="my-function", default_size="m")
+
+        assert function.get_default_size() == "m"
+
+    def test_sizes_empty_when_none_declared(self, mock_client):
+        """A function that declares no sizes reports an empty catalog and no default."""
+        function = RunnableQiskitFunction(mock_client, title="my-function", sizes_map={}, default_size=None)
+
+        assert function.sizes() == {}
+        assert function.get_default_size() is None
+
+    def test_sizes_empty_when_representation_carried_nothing(self, mock_client):
+        """sizes() normalizes a missing catalog (None) to an empty dict for the caller."""
+        function = RunnableQiskitFunction(mock_client, title="my-function")
+
+        assert function.sizes() == {}
+        assert function.get_default_size() is None
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.get")
+    def test_function_reads_sizes_from_get_by_title_response(self, mock_get, mock_client):
+        """A function fetched from the gateway carries sizes/default_size through from_json."""
+        payload = {
+            "title": "my-function",
+            "provider": "my-provider",
+            "id": "test-id",
+            "sizes": {"s": "4x16", "m": "8x64"},
+            "default_size": "m",
+        }
+        mock_response = Mock()
+        mock_response.ok = True
+        mock_response.text = json.dumps(payload)
+        mock_response.json.return_value = payload
+        mock_get.return_value = mock_response
+
+        function = mock_client.function(title="my-function", provider="my-provider")
+
+        assert function.sizes() == {"s": "4x16", "m": "8x64"}
+        assert function.get_default_size() == "m"
+
+    def test_from_json_remaps_sizes_key_onto_sizes_map(self):
+        """The gateway's "sizes" key is remapped so it is not dropped by the field filter."""
+        function = QiskitFunction.from_json({"title": "t", "sizes": {"s": "4x16"}, "default_size": "s"})
+
+        assert function.sizes_map == {"s": "4x16"}
+        assert function.default_size == "s"
+
+
 class TestArgumentsSchemaDecoding:
     """Tests for how a stored arguments_schema is decoded when a function is read back."""
 
