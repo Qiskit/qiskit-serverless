@@ -283,3 +283,18 @@ class TestRunFunctionUseCase:
         assert job.compute_profile_fk is None
         assert job.size_source == Job.SIZE_SOURCE_NONE
         assert job.function_size is None
+
+    def test_ray_job_rejects_when_both_compute_profile_and_function_size(self, user):
+        """Ambiguous sizing input is a 400 regardless of runner, even though Ray ignores both anyway.
+
+        The check runs before the Ray short-circuit deliberately: Ray should never receive
+        either of these, so a request that sends both is treated as a client mistake worth
+        surfacing rather than silently swallowed.
+        """
+        Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        with pytest.raises(FunctionConfigurationException):
+            RunFunctionUseCase().execute(user, accessible, make_input(function_size="m", compute_profile="16x128"))
+
+        assert not Job.objects.exists()
