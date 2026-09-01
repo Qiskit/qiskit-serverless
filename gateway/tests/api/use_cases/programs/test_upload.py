@@ -230,8 +230,37 @@ class TestUploadFunctionUseCase:
 
         assert not Program.objects.filter(title="my-fn").exists()
 
-    def test_create_with_sizes_and_matching_default_size_succeeds(self, user):
+    def test_create_with_sizes_and_matching_default_size_succeeds(self, user, ce_project):
         """Sending both together, with 'default_size' among 'sizes', creates the catalog and the default."""
+        ComputeProfile.objects.create(compute_profile_id="16x128")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        result = UploadFunctionUseCase().execute(
+            user,
+            accessible,
+            UploadFunctionInput(
+                title="my-fn", entrypoint="main.py", runner=Program.FLEETS, sizes={"m": "16x128"}, default_size="m"
+            ),
+        )
+
+        assert result.function_sizes.count() == 1
+        assert result.default_size is not None
+        assert result.default_size.function_size == "m"
+
+    def test_create_ray_function_without_sizes_does_not_seed_function_size(self, user):
+        """Sizing is a Fleets concept; a Ray function created without 'sizes' gets none seeded."""
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        result = UploadFunctionUseCase().execute(
+            user, accessible, UploadFunctionInput(title="my-fn", entrypoint="main.py")
+        )
+
+        assert result.runner == Program.RAY
+        assert result.function_sizes.count() == 0
+        assert result.default_size is None
+
+    def test_create_ray_function_with_valid_sizes_validates_but_does_not_persist(self, user):
+        """A self-consistent 'sizes'/'default_size' pair for Ray validates fine but is never written."""
         ComputeProfile.objects.create(compute_profile_id="16x128")
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
@@ -241,9 +270,38 @@ class TestUploadFunctionUseCase:
             UploadFunctionInput(title="my-fn", entrypoint="main.py", sizes={"m": "16x128"}, default_size="m"),
         )
 
-        assert result.function_sizes.count() == 1
-        assert result.default_size is not None
-        assert result.default_size.function_size == "m"
+        assert result.runner == Program.RAY
+        assert result.function_sizes.count() == 0
+        assert result.default_size is None
+
+    def test_create_ray_function_with_invalid_sizes_still_rejected(self, user):
+        """Validation runs the same regardless of runner: a mismatched 'default_size' is still a 400 for Ray."""
+        ComputeProfile.objects.create(compute_profile_id="16x128")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        with pytest.raises(DRFValidationError):
+            UploadFunctionUseCase().execute(
+                user,
+                accessible,
+                UploadFunctionInput(title="my-fn", entrypoint="main.py", sizes={"m": "16x128"}, default_size="l"),
+            )
+
+        assert not Program.objects.filter(title="my-fn").exists()
+
+    def test_update_ray_function_with_valid_sizes_validates_but_does_not_persist(self, user):
+        """Same as create: a valid 'sizes'/'default_size' pair sent to an existing Ray function is not persisted."""
+        Program.objects.create(title="my-fn", author=user, entrypoint="old.py")
+        ComputeProfile.objects.create(compute_profile_id="16x128")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        result = UploadFunctionUseCase().execute(
+            user,
+            accessible,
+            UploadFunctionInput(title="my-fn", entrypoint="new.py", sizes={"m": "16x128"}, default_size="m"),
+        )
+
+        assert result.function_sizes.count() == 0
+        assert result.default_size is None
 
     def test_create_fleets_function_without_sizes_seeds_default_from_settings(self, user, ce_project, settings):
         """No sizes declared: a Fleets function still gets a size, seeded from the deployment default."""

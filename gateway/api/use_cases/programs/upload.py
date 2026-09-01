@@ -61,12 +61,12 @@ def _no_ce_project_message(function: Function) -> str:
     return "No active Code Engine project available. Contact administrator."
 
 
-def _resolve_compute_profiles(sizes: dict[str, str]) -> dict[str, ComputeProfile]:
+def _validate_compute_profiles(sizes: dict[str, str]) -> dict[str, ComputeProfile]:
     """Map each declared size name to its ComputeProfile row.
 
     Raises DRFValidationError (400) naming the first identifier with no row, so
     a typo is refused at upload time rather than failing every later run of the
-    function inside the runner.
+    function inside the runner. Read-only: no rows are written here.
     """
     profiles = {}
     for name, compute_profile_id in sizes.items():
@@ -80,16 +80,45 @@ def _resolve_compute_profiles(sizes: dict[str, str]) -> dict[str, ComputeProfile
     return profiles
 
 
-def _replace_function_sizes(function: Function, sizes: dict[str, str]) -> dict[str, FunctionSize]:
-    """Replace a function's whole size catalog with ``sizes``.
+def _validate_declared_sizes(sizes: dict[str, str]) -> dict[str, ComputeProfile]:
+    """Validate a declared size catalog's shape and that every compute profile is registered.
 
-    Every profile is resolved before anything is written, so a bad identifier
-    leaves the stored catalog untouched. Names are normalized here so a caller
-    other than the serializer cannot write rows that never match at run time.
+    Read-only, so the caller can validate sizing input before deciding whether this
+    function's runner even wants it persisted (only Fleets does).
     """
-    sizes = parse_function_sizes(sizes)
-    profiles = _resolve_compute_profiles(sizes)
+    parsed = parse_function_sizes(sizes)
+    return _validate_compute_profiles(parsed)
 
+
+def _validate_declared_default(profiles: dict[str, ComputeProfile], default_size: str | None) -> str | None:
+    """Decide which declared size (if any) should become the default.
+
+    Validated against ``profiles`` (the catalog just declared, already resolved by
+    :func:`_validate_declared_sizes`), not against BD, so this never has to write
+    anything to answer the question.
+    """
+    if default_size is not None:
+        default_size = normalize_function_size(default_size)
+        if default_size not in profiles:
+            raise DRFValidationError(
+                f"'default_size' is '{default_size}', which is not one of this function's sizes: "
+                + ", ".join(sorted(profiles))
+            )
+        return default_size
+    if len(profiles) == 1:
+        # A single declared size is unambiguously the default; with several,
+        # default_size stays unset and runs fall back to DEFAULT_COMPUTE_PROFILE.
+        return next(iter(profiles))
+    return None
+
+
+def _persist_function_sizes(function: Function, profiles: dict[str, ComputeProfile]) -> dict[str, FunctionSize]:
+    """Write ``profiles`` (already validated) as the function's whole size catalog.
+
+    Only called for a Fleets function — sizing has nothing to persist to for any
+    other runner. Replaces the stored catalog wholesale: any existing size not in
+    ``profiles`` is deleted.
+    """
     rows = {}
     for name, profile in profiles.items():
         row, _ = FunctionSize.objects.update_or_create(
@@ -212,27 +241,22 @@ class UploadFunctionUseCase:
         with transaction.atomic():
             function.save()
             if data.sizes is not None:
-                _replace_function_sizes(function, data.sizes)
-                # data.default_size is guaranteed non-None here (checked above), so
-                # there is nothing to infer, unlike the update path below.
-                _apply_default_size(function, data.default_size)
-            else:
+                # Validated the same way whether this runner uses it or not (see
+                # module docstring / plan): a bad profile or a mismatched
+                # default_size is a 400 regardless of runner.
+                profiles = _validate_declared_sizes(data.sizes)
+                default_size = _validate_declared_default(profiles, data.default_size)
+                if function.runner == Function.FLEETS:
+                    rows = _persist_function_sizes(function, profiles)
+                    if default_size is not None:
+                        function.default_size = rows[default_size]
+                        function.save(update_fields=["default_size"])
+                # Any other runner: sizing does not apply here, so nothing above
+                # is written — validating it was still worth doing to catch a
+                # client mistake, but there is no catalog for it to join.
+            elif function.runner == Function.FLEETS:
                 self._seed_default_size(function)
         return function
-
-    def _apply_declared_default(self, function: Function, data: UploadFunctionInput) -> None:
-        """Set the default size the uploader named, or infer it when unambiguous.
-
-        Only reachable from ``_update``, where ``sizes`` can be sent without
-        ``default_size``; ``_create`` requires both together and applies
-        ``default_size`` directly.
-        """
-        if data.default_size is not None:
-            _apply_default_size(function, data.default_size)
-        elif len(data.sizes) == 1:
-            # A single declared size is unambiguously the default; with several,
-            # default_size stays unset and runs fall back to DEFAULT_COMPUTE_PROFILE.
-            _apply_default_size(function, next(iter(data.sizes)))
 
     def _seed_default_size(self, function: Function) -> None:
         """Give a function with no declared catalog the deployment's default size.
@@ -301,14 +325,19 @@ class UploadFunctionUseCase:
         # between its replacement and its deletion.
         with transaction.atomic():
             instance.save()
-            # Order matters: sizes first, so a request sending both fields
-            # validates default_size against the catalog it just declared. Sent
-            # alone, default_size matches against the stored sizes. Sizes are
-            # never re-seeded here: a removed size should not reappear.
             if data.sizes is not None:
-                _replace_function_sizes(instance, data.sizes)
-            if data.default_size is not None:
+                # Same validate-then-persist split as _create: the input is
+                # checked the same way regardless of runner, but only a Fleets
+                # function's catalog is actually written to.
+                profiles = _validate_declared_sizes(data.sizes)
+                default_size = _validate_declared_default(profiles, data.default_size)
+                if instance.runner == Function.FLEETS:
+                    rows = _persist_function_sizes(instance, profiles)
+                    if default_size is not None:
+                        instance.default_size = rows[default_size]
+                        instance.save(update_fields=["default_size"])
+            elif data.default_size is not None:
+                # 'default_size' alone matches against the stored catalog — sizes
+                # are never re-seeded here, a removed size should not reappear.
                 _apply_default_size(instance, data.default_size)
-            elif data.sizes is not None:
-                self._apply_declared_default(instance, data)
         return instance
