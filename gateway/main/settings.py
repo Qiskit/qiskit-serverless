@@ -524,11 +524,9 @@ FLEETS_RUNTIME_GLOBAL_CATALOG_URL = os.environ.get("FLEETS_RUNTIME_GLOBAL_CATALO
 FLEETS_RUNTIME_EXPERIMENTAL = os.environ.get("FLEETS_RUNTIME_EXPERIMENTAL", "false").lower() == "true"
 CE_DEFAULT_PROJECT_NAME = os.environ.get("CE_DEFAULT_PROJECT_NAME", "")
 
-# Username (the IBM Cloud IAM functional id) of the internal user set as author on every
-# filler job created by the scheduler. Not a numeric primary key: a later scheduler task
-# resolves it with User.objects.get(username=...). An environment variable and not a
-# Config key on purpose: changing it needs a deploy.
-FILLER_AUTHOR_USERNAME = os.environ.get("FILLER_AUTHOR_USERNAME", None)
+# Username of the user set as author on every filler job created by the scheduler.
+# Not a numeric primary key: the scheduler task will resolve it with User.objects.get(username=...)
+FILLER_AUTHOR_USERNAME = os.environ.get("FILLER_AUTHOR_USERNAME", "FillerId")
 
 # Set to "true" to use the public COS endpoint instead of the private VPC endpoint.
 # Only needed for local testing outside IBM Cloud (e.g. docker-compose).

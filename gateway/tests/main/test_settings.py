@@ -135,10 +135,10 @@ def test_template_dirs_use_etc_gateway_not_tmp():
 
 
 def test_filler_author_username_read_from_environment(monkeypatch):
-    """FILLER_AUTHOR_USERNAME comes from the environment and is None when unset."""
+    """FILLER_AUTHOR_USERNAME comes from the environment and falls back to a default."""
     monkeypatch.delenv("FILLER_AUTHOR_USERNAME", raising=False)
     importlib.reload(main.settings)
-    assert main.settings.FILLER_AUTHOR_USERNAME is None
+    assert main.settings.FILLER_AUTHOR_USERNAME == "FillerId"
 
     monkeypatch.setenv("FILLER_AUTHOR_USERNAME", "IBMid-1000000000")
     importlib.reload(main.settings)
