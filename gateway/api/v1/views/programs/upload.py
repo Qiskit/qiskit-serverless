@@ -18,7 +18,8 @@ from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 
 from api.domain.arguments_schema import MAX_SCHEMA_LENGTH, UnsupportedSchemaError, check_uploaded_schema_in_isolation
-from api.domain.function_sizes import InvalidFunctionSizesError, normalize_function_size, parse_function_sizes
+from api.domain.exceptions.invalid_function_sizes_error import InvalidFunctionSizesError
+from api.domain.function_sizes import normalize_function_size, parse_function_sizes
 from api.use_cases.programs.upload import UploadFunctionUseCase
 from api.use_cases.programs.upload_input import UploadFunctionInput
 from api.utils import check_whitelisted, sanitize_name

@@ -19,6 +19,8 @@ distinct row that will not resolve at run time, so it should be entered in its
 normalised form.
 """
 
+from api.domain.exceptions.invalid_function_sizes_error import InvalidFunctionSizesError
+
 # A size catalog is a hand written menu of machine shapes, so single digits are
 # the norm and this only exists to stop a caller from turning one upload into an
 # unbounded number of rows and profile lookups.
@@ -32,15 +34,6 @@ MAX_SIZE_NAME_LENGTH = 64
 # Bounded by ComputeProfile.compute_profile_id (CharField(max_length=255)), for
 # the same reason.
 MAX_COMPUTE_PROFILE_ID_LENGTH = 255
-
-
-class InvalidFunctionSizesError(ValueError):
-    """Raised when a declared size catalog is malformed.
-
-    A plain ``ValueError`` subclass rather than a DRF or Django exception so this
-    module stays free of framework imports; each caller translates it into the
-    error type its own layer returns.
-    """
 
 
 def normalize_function_size(function_size: str | None) -> str | None:
