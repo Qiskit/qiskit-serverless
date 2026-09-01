@@ -20,3 +20,10 @@ def test_filler_defaults_to_false_and_is_queryable():
     job.save()
 
     assert Job.objects.filter(filler=True).count() == 1
+
+
+def test_filler_partial_index_is_declared():
+    """A partial index covers the filler lookup the scheduler runs every second."""
+    index_names = [index.name for index in Job._meta.indexes]
+
+    assert "job_filler_true_idx" in index_names

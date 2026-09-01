@@ -600,6 +600,15 @@ class Job(models.Model):
 
     class Meta:
         app_label = "api"
+        indexes = [
+            # The filler-jobs balancer lists running filler jobs oldest-first once
+            # per scheduler loop. api_job is the fastest-growing table here and only
+            # a handful of rows are filler jobs, so a partial index keeps that off a
+            # sequential scan at almost no storage cost. It is keyed on created, not
+            # on filler: the partial predicate already selects the filler rows, and
+            # created is what serves the ordering.
+            models.Index(fields=["created"], condition=models.Q(filler=True), name="job_filler_true_idx"),
+        ]
 
     def __str__(self):
         return f"<Job {self.id} | {self.status}>"
