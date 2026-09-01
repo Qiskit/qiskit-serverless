@@ -2,6 +2,7 @@
 
 import pytest
 from django.contrib.auth.models import User
+from django.db import models
 
 from core.models import Job
 
@@ -23,7 +24,9 @@ def test_filler_defaults_to_false_and_is_queryable():
 
 
 def test_filler_partial_index_is_declared():
-    """A partial index covers the filler lookup the scheduler runs every second."""
-    index_names = [index.name for index in Job._meta.indexes]
+    """A partial index on created covers the filler lookup the scheduler runs every second."""
+    index = next((i for i in Job._meta.indexes if i.name == "job_filler_true_idx"), None)
 
-    assert "job_filler_true_idx" in index_names
+    assert index is not None
+    assert index.fields == ["created"]
+    assert index.condition == models.Q(filler=True)

@@ -53,7 +53,7 @@ def execute_ray_job(job: Job) -> Job:
     return job
 
 
-def execute_fleets_job(job: Job, ctx, context: JobEventContext = JobEventContext.SCHEDULE_JOBS) -> Job:
+def execute_fleets_job(job: Job, ctx, *, context: JobEventContext = JobEventContext.SCHEDULE_JOBS) -> Job:
     """Submits a Fleets (Code Engine) job and persists the result.
 
     Wraps submission under the scheduler.handle trace span propagated from the
