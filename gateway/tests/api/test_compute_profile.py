@@ -170,11 +170,10 @@ def test_compute_profile_validation_valid_formats(api_client, program, submitted
         "cx3d_4x16",  # underscore not allowed
         "cx3d-4",  # missing memory spec
         "4",  # missing memory spec (bare)
-        "",  # empty string
     ],
 )
 def test_compute_profile_validation_invalid_formats(api_client, program, profile):
-    """Test compute_profile validation rejects invalid formats."""
+    """Malformed compute_profile values are rejected with the format error message, no Job created."""
     url = reverse("v1:programs-run")
     data = {
         "title": program.title,
@@ -182,10 +181,30 @@ def test_compute_profile_validation_invalid_formats(api_client, program, profile
         "config": {},
         "compute_profile": profile,
     }
+    job_count_before = Job.objects.count()
 
     response = api_client.post(url, data, format="json")
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert f"Invalid compute profile format: '{profile}'" in response.data["message"]
+    assert Job.objects.count() == job_count_before
+
+
+def test_compute_profile_validation_blank_is_rejected(api_client, program):
+    """An explicit blank compute_profile is rejected (by the field itself, not the format check)."""
+    url = reverse("v1:programs-run")
+    data = {
+        "title": program.title,
+        "arguments": "{}",
+        "config": {},
+        "compute_profile": "",
+    }
+    job_count_before = Job.objects.count()
+
+    response = api_client.post(url, data, format="json")
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert Job.objects.count() == job_count_before
 
 
 def test_job_list_includes_compute_profile(api_client, user, program):

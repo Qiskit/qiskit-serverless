@@ -28,7 +28,6 @@ from core.models import (
     PLATFORM_PERMISSION_RUN,
     RUN_PROGRAM_PERMISSION,
 )
-from core.services.runners.compute_profile import normalize_compute_profile
 from core.services.storage import get_arguments_storage
 from core.utils import encrypt_env_vars
 
@@ -53,14 +52,15 @@ def _get_runner_config(function: Function, compute_profile_requested: str | None
     Ray leaves ``compute_profile`` None (profiles are a Fleets concept), so the FK
     stays null there.
 
+    ``compute_profile_requested`` is expected to already be in the bare
+    (prefix-less) canonical form: the view normalizes it before it ever reaches
+    this use case.
+
     Raises:
         FunctionConfigurationException: If a resolved profile has no registered row.
     """
     if function.runner == Function.FLEETS:
-        requested = compute_profile_requested or settings.DEFAULT_COMPUTE_PROFILE
-        # Normalize away any instance-family prefix so the bare id is what we
-        # store and look the FK up by. Clients may still submit a prefixed value.
-        compute_profile = normalize_compute_profile(requested)
+        compute_profile = compute_profile_requested or settings.DEFAULT_COMPUTE_PROFILE
     elif function.provider and function.gpu:
         return RunnerConfig(compute_profile=None, gpu=True, compute_profile_fk=None)
     else:
