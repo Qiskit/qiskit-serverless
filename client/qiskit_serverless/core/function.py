@@ -201,6 +201,14 @@ class RunService(ABC):
     ) -> dict:
         """Validate arguments against a function's schema without creating a job."""
 
+    @abstractmethod
+    def sizes(self, title: str, provider: Optional[str] = None) -> Dict[str, str]:
+        """Return a function's declared size catalog as ``{label: compute_profile}``."""
+
+    @abstractmethod
+    def default_size(self, title: str, provider: Optional[str] = None) -> Optional[str]:
+        """Return a function's default size label, or None when it declares no default."""
+
 
 class RunnableQiskitFunction(QiskitFunction):
     """Serverless QiskitPattern.
@@ -306,6 +314,35 @@ class RunnableQiskitFunction(QiskitFunction):
             arguments=arguments,
             provider=self.provider,
         )
+
+    def sizes(self) -> Dict[str, str]:
+        """Return the sizes this function declares.
+
+        Returns:
+            dict: ``{size_label: compute_profile}`` mapping each declared size to
+            the compute profile it runs on. Empty when the function declares no
+            sizes.
+
+        Raises:
+            QiskitServerlessException: if the function is not found.
+        """
+        if self._run_service is None:
+            raise ValueError("No client specified for this function.")
+        return self._run_service.sizes(title=self.title, provider=self.provider)
+
+    def get_default_size(self) -> Optional[str]:
+        """Return the size used when a run omits an explicit size.
+
+        Returns:
+            str | None: the default size label, or None when the function
+            declares no default (a run then falls back to the platform default).
+
+        Raises:
+            QiskitServerlessException: if the function is not found.
+        """
+        if self._run_service is None:
+            raise ValueError("No client specified for this function.")
+        return self._run_service.default_size(title=self.title, provider=self.provider)
 
 
 # pylint: disable=abstract-method

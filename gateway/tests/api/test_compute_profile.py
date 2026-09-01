@@ -286,6 +286,41 @@ def test_run_with_unknown_function_size_returns_400(api_client, program):
     assert Job.objects.count() == job_count_before
 
 
+def test_get_sizes_returns_catalog_and_default(api_client, program):
+    """The sizes endpoint reports the declared catalog and the default size label."""
+    small = ComputeProfile.objects.get(compute_profile_id="4x16")
+    large = ComputeProfile.objects.get(compute_profile_id="8x64")
+    FunctionSize.objects.create(function=program, function_size="s", compute_profile=small)
+    default_row = FunctionSize.objects.create(function=program, function_size="m", compute_profile=large)
+    program.default_size = default_row
+    program.save(update_fields=["default_size"])
+
+    url = reverse("v1:programs-get-sizes", kwargs={"title": program.title})
+    response = api_client.get(url, format="json")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["sizes"] == {"s": "4x16", "m": "8x64"}
+    assert response.data["default_size"] == "m"
+
+
+def test_get_sizes_empty_when_no_sizes_declared(api_client, program):
+    """A function with no declared sizes reports an empty catalog and null default."""
+    url = reverse("v1:programs-get-sizes", kwargs={"title": program.title})
+    response = api_client.get(url, format="json")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["sizes"] == {}
+    assert response.data["default_size"] is None
+
+
+def test_get_sizes_unknown_function_returns_404(api_client, user):
+    """Requesting sizes for a function the user cannot see returns 404, not a leak."""
+    url = reverse("v1:programs-get-sizes", kwargs={"title": "no-such-function"})
+    response = api_client.get(url, format="json")
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
 def test_job_list_includes_compute_profile(api_client, user, program):
     """Test that job list endpoint includes compute_profile."""
     # Create a job with compute_profile

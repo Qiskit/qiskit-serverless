@@ -675,6 +675,66 @@ class TestValidateArgumentsMethod:
             mock_client.validate_arguments(title="my-function", arguments={"shots": "wrong"})
 
 
+class TestSizesMethod:
+    """Tests for ServerlessClient.sizes() / default_size() and their function delegation."""
+
+    def _mock_sizes_response(self, sizes, default_size):
+        mock_response = Mock()
+        mock_response.ok = True
+        payload = {"sizes": sizes, "default_size": default_size}
+        mock_response.text = json.dumps(payload)
+        mock_response.json.return_value = payload
+        return mock_response
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.get")
+    def test_sizes_gets_endpoint_and_returns_catalog(self, mock_get, mock_client):
+        """sizes() GETs the per-function sizes endpoint and returns the catalog dict."""
+        mock_get.return_value = self._mock_sizes_response({"s": "4x16", "m": "8x64"}, "m")
+
+        result = mock_client.sizes(title="my-provider/my-function")
+
+        mock_get.assert_called_once()
+        url = mock_get.call_args[0][0]
+        params = mock_get.call_args[1]["params"]
+        assert url.endswith("/programs/my-function/sizes")
+        assert params["provider"] == "my-provider"
+        assert result == {"s": "4x16", "m": "8x64"}
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.get")
+    def test_default_size_returns_default_label(self, mock_get, mock_client):
+        """default_size() returns just the default_size field from the payload."""
+        mock_get.return_value = self._mock_sizes_response({"s": "4x16", "m": "8x64"}, "m")
+
+        assert mock_client.default_size(title="my-function", provider="my-provider") == "m"
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.get")
+    def test_sizes_empty_and_default_none(self, mock_get, mock_client):
+        """A function with no declared sizes reports an empty catalog and no default."""
+        mock_get.return_value = self._mock_sizes_response({}, None)
+
+        assert mock_client.sizes(title="my-function") == {}
+        assert mock_client.default_size(title="my-function") is None
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.get")
+    def test_runnable_function_sizes_delegates_to_service(self, mock_get, mock_client):
+        """RunnableQiskitFunction.sizes()/get_default_size() delegate to the client with its own title."""
+        mock_get.return_value = self._mock_sizes_response({"m": "8x64"}, "m")
+        function = RunnableQiskitFunction(mock_client, title="my-function", provider="my-provider")
+
+        assert function.sizes() == {"m": "8x64"}
+        assert function.get_default_size() == "m"
+        assert mock_get.call_args[0][0].endswith("/programs/my-function/sizes")
+        assert mock_get.call_args[1]["params"]["provider"] == "my-provider"
+
+    def test_runnable_function_sizes_raises_without_client(self):
+        """Calling sizes() on a function with no client is a clear error, not an AttributeError."""
+        function = RunnableQiskitFunction(None, title="my-function")
+        with pytest.raises(ValueError):
+            function.sizes()
+        with pytest.raises(ValueError):
+            function.get_default_size()
+
+
 class TestArgumentsSchemaDecoding:
     """Tests for how a stored arguments_schema is decoded when a function is read back."""
 

@@ -679,6 +679,52 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         )
         return response
 
+    def _sizes_payload(self, title: str, provider: Optional[str] = None) -> Dict[str, Any]:
+        """Fetch a function's size catalog and default size from the gateway.
+
+        Returns the raw ``{"sizes": {...}, "default_size": ...}`` payload; the
+        public ``sizes``/``default_size`` methods pick the piece they expose.
+        """
+        provider_name, function_title = format_provider_name_and_title(request_provider=provider, title=title)
+        return safe_json_request_as_dict(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/programs/{function_title}/sizes",
+                headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
+                params={"provider": provider_name},
+                timeout=REQUESTS_TIMEOUT,
+            )
+        )
+
+    def sizes(self, title: str, provider: Optional[str] = None) -> Dict[str, str]:
+        """Return a function's declared sizes as ``{label: compute_profile}``.
+
+        Args:
+            title: function title, optionally in "provider/title" format
+            provider: optional provider name
+
+        Returns:
+            dict: the size catalog, empty when the function declares no sizes.
+
+        Raises:
+            QiskitServerlessException: if the function is not found.
+        """
+        return self._sizes_payload(title, provider).get("sizes", {})
+
+    def default_size(self, title: str, provider: Optional[str] = None) -> Optional[str]:
+        """Return a function's default size label, or None when it has none.
+
+        Args:
+            title: function title, optionally in "provider/title" format
+            provider: optional provider name
+
+        Returns:
+            str | None: the default size label, or None.
+
+        Raises:
+            QiskitServerlessException: if the function is not found.
+        """
+        return self._sizes_payload(title, provider).get("default_size")
+
     #####################
     ####### FILES #######
     #####################
