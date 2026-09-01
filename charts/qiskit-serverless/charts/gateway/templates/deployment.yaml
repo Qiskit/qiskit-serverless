@@ -562,7 +562,7 @@ spec:
                   key: user
             # Multi-region Event Streams support: optional suffixed regional secrets
             # (kafka-credentials-eu-de, kafka-credentials-ap-sg, etc) are projected here if present
-            {{- range $region := (list "eu-de" "eu-gb" "ap-sg" "au-syd" "jp-osm") }}
+            {{- range $region := (list "eu-de") }}
             {{- if (lookup "v1" "Secret" $.Release.Namespace (print "kafka-credentials-" $region)) }}
             - name: EVENT_STREAMS_BOOTSTRAP_SERVERS_{{ upper (replace $region "-" "_") }}
               valueFrom:
