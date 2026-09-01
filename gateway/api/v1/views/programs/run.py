@@ -18,6 +18,7 @@ from api.use_cases.programs.run_input import RunFunctionInput
 from api.utils import sanitize_name
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
+from api.domain.function_sizes import normalize_function_size
 from core.domain import compute_profile
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import Job, JobConfig
@@ -32,7 +33,16 @@ class InputSerializer(serializers.Serializer):  # pylint: disable=abstract-metho
     arguments = serializers.CharField()
     config = serializers.JSONField()
     provider = serializers.CharField(required=False, allow_null=True)
-    compute_profile = serializers.CharField(required=False, allow_null=True)
+    compute_profile = serializers.CharField(
+        required=False,
+        allow_null=True,
+        help_text="Deprecated: use 'function_size' instead. Sending both is rejected.",
+    )
+    function_size = serializers.CharField(
+        required=False,
+        allow_null=True,
+        help_text="Declared size label (e.g. 'm') to run at; resolves through the function's size catalog.",
+    )
 
     class Meta:
         ref_name = "ProgramsRunInput"
@@ -60,6 +70,15 @@ class InputSerializer(serializers.Serializer):  # pylint: disable=abstract-metho
                 f"(lowercase only, e.g., '4x16', 'cx3d-4x16', or 'gx3d-24x120x1a100p')"
             )
         return compute_profile.normalize(value)
+
+    def validate_function_size(self, value):
+        """Normalize the requested size label to its canonical (strip+casefold) form.
+
+        Only normalization happens here, matching how compute_profile normalization
+        is the view's job. Whether the label is one the function declares is a
+        database question answered in the use case, which has the function.
+        """
+        return normalize_function_size(value)
 
 
 class JobConfigSerializer(serializers.ModelSerializer):
@@ -95,7 +114,7 @@ class OutputSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Job
-        fields = ["id", "result", "status", "program", "created", "arguments", "compute_profile"]
+        fields = ["id", "result", "status", "program", "created", "arguments", "compute_profile", "size_source"]
         ref_name = "ProgramsRunOutput"
 
 
@@ -120,6 +139,7 @@ def run_program(request: Request) -> Response:
     provider_name = serializer.validated_data.get("provider")
     arguments = serializer.validated_data.get("arguments")
     compute_profile_value = serializer.validated_data.get("compute_profile")
+    function_size_value = serializer.validated_data.get("function_size")
 
     config_data = None
     if serializer.validated_data.get("config"):
@@ -157,6 +177,7 @@ def run_program(request: Request) -> Response:
             arguments=arguments,
             config_data=config_data,
             compute_profile=compute_profile_value,
+            function_size=function_size_value,
             channel=channel,
             token=token,
             instance=instance,
