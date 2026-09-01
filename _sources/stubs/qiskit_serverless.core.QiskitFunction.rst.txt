@@ -28,6 +28,7 @@
       ~QiskitFunction.CIRCUIT
       ~QiskitFunction.GENERIC
       ~QiskitFunction.arguments_schema
+      ~QiskitFunction.default_size
       ~QiskitFunction.dependencies
       ~QiskitFunction.description
       ~QiskitFunction.entrypoint
@@ -36,6 +37,7 @@
       ~QiskitFunction.provider
       ~QiskitFunction.raw_data
       ~QiskitFunction.runner
+      ~QiskitFunction.sizes_map
       ~QiskitFunction.tags
       ~QiskitFunction.type
       ~QiskitFunction.version

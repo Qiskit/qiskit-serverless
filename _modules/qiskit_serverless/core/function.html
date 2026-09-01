@@ -392,6 +392,10 @@
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_decode_fields</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">field_names</span><span class="p">:</span> <span class="nb">set</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">"""Keep only known dataclass fields and decode the ones the gateway sends as text."""</span>
+    <span class="c1"># The gateway sends the catalog under "sizes"; the field is sizes_map so it does not</span>
+    <span class="c1"># collide with the sizes() accessor. Remap before the field-name filter drops it.</span>
+    <span class="k">if</span> <span class="s2">"sizes"</span> <span class="ow">in</span> <span class="n">data</span> <span class="ow">and</span> <span class="s2">"sizes_map"</span> <span class="ow">in</span> <span class="n">field_names</span><span class="p">:</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">data</span><span class="p">,</span> <span class="s2">"sizes_map"</span><span class="p">:</span> <span class="n">data</span><span class="p">[</span><span class="s2">"sizes"</span><span class="p">]}</span>
     <span class="n">decoded</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">field_names</span><span class="p">}</span>
     <span class="k">if</span> <span class="s2">"arguments_schema"</span> <span class="ow">in</span> <span class="n">decoded</span><span class="p">:</span>
         <span class="n">decoded</span><span class="p">[</span><span class="s2">"arguments_schema"</span><span class="p">]</span> <span class="o">=</span> <span class="n">_decode_arguments_schema</span><span class="p">(</span><span class="n">decoded</span><span class="p">[</span><span class="s2">"arguments_schema"</span><span class="p">])</span>
@@ -412,6 +416,12 @@
 <span class="sd">        working_dir: directory where entrypoint file is located (max size 50MB)</span>
 <span class="sd">        description: description of a program</span>
 <span class="sd">        version: version of a program</span>
+<span class="sd">        sizes_map: raw ``{size_label: compute_profile}`` mapping carried in the representation,</span>
+<span class="sd">            read through :meth:`RunnableQiskitFunction.sizes`. None when the representation carries</span>
+<span class="sd">            no size information; an empty dict when the function declares no sizes.</span>
+<span class="sd">        default_size: the size used when a run omits an explicit size, read through</span>
+<span class="sd">            :meth:`RunnableQiskitFunction.get_default_size`. None when the function declares no</span>
+<span class="sd">            default (a run then falls back to the platform default).</span>
 <span class="sd">        arguments_schema: JSON Schema describing valid arguments for this function. Normally an</span>
 <span class="sd">            object; ``True`` and ``False`` are also valid schemas, accepting and rejecting every</span>
 <span class="sd">            argument respectively. ``None`` means the function does not declare one, and setting</span>
@@ -444,6 +454,11 @@
     <span class="n">runner</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"ray"</span>
     <span class="n">arguments_schema</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="nb">bool</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="nb">type</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">GenericType</span><span class="p">,</span> <span class="n">ApplicationType</span><span class="p">,</span> <span class="n">CircuitType</span><span class="p">]</span> <span class="o">=</span> <span class="n">GENERIC</span>
+    <span class="c1"># Raw size data carried in the function representation. Stored under names that do not</span>
+    <span class="c1"># collide with the sizes()/get_default_size() accessors; the gateway's "sizes" key is</span>
+    <span class="c1"># remapped onto sizes_map in from_json.</span>
+    <span class="n">sizes_map</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">default_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">title_has_provider</span> <span class="o">=</span> <span class="s2">"/"</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">title</span>
@@ -616,6 +631,31 @@
             <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
             <span class="n">provider</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">provider</span><span class="p">,</span>
         <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">sizes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Return the sizes this function declares.</span>
+
+<span class="sd">        The catalog rides along in the function representation, so this reads the</span>
+<span class="sd">        already-fetched data without a further request. Re-fetch the function</span>
+<span class="sd">        (``client.function(...)``) to pick up sizes changed after it was loaded.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict: ``{size_label: compute_profile}`` mapping each declared size to</span>
+<span class="sd">            the compute profile it runs on. Empty when the function declares no</span>
+<span class="sd">            sizes.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">sizes_map</span> <span class="ow">or</span> <span class="p">{}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_default_size</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Return the size used when a run omits an explicit size.</span>
+
+<span class="sd">        Read from the already-fetched function representation (see :meth:`sizes`).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str | None: the default size label, or None when the function</span>
+<span class="sd">            declares no default (a run then falls back to the platform default).</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_size</span>
 
 
 <span class="c1"># pylint: disable=abstract-method</span>

@@ -28,6 +28,7 @@
       ~QiskitPattern.CIRCUIT
       ~QiskitPattern.GENERIC
       ~QiskitPattern.arguments_schema
+      ~QiskitPattern.default_size
       ~QiskitPattern.dependencies
       ~QiskitPattern.description
       ~QiskitPattern.entrypoint
@@ -36,6 +37,7 @@
       ~QiskitPattern.provider
       ~QiskitPattern.raw_data
       ~QiskitPattern.runner
+      ~QiskitPattern.sizes_map
       ~QiskitPattern.tags
       ~QiskitPattern.type
       ~QiskitPattern.version
