@@ -134,12 +134,12 @@ def test_template_dirs_use_etc_gateway_not_tmp():
     assert "/tmp/templates" not in dirs
 
 
-def test_filler_author_id_read_from_environment(monkeypatch):
-    """FILLER_AUTHOR_ID comes from the environment and is None when unset."""
-    monkeypatch.delenv("FILLER_AUTHOR_ID", raising=False)
+def test_filler_author_username_read_from_environment(monkeypatch):
+    """FILLER_AUTHOR_USERNAME comes from the environment and is None when unset."""
+    monkeypatch.delenv("FILLER_AUTHOR_USERNAME", raising=False)
     importlib.reload(main.settings)
-    assert main.settings.FILLER_AUTHOR_ID is None
+    assert main.settings.FILLER_AUTHOR_USERNAME is None
 
-    monkeypatch.setenv("FILLER_AUTHOR_ID", "1234-internal-filler-user")
+    monkeypatch.setenv("FILLER_AUTHOR_USERNAME", "IBMid-1000000000")
     importlib.reload(main.settings)
-    assert main.settings.FILLER_AUTHOR_ID == "1234-internal-filler-user"
+    assert main.settings.FILLER_AUTHOR_USERNAME == "IBMid-1000000000"
