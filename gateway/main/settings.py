@@ -486,16 +486,11 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "type": "string",
         "description": "Id of the Program used to run filler jobs. Empty means the feature is off.",
     },
-    "scheduler.filler.compute_profile": {
-        "default": "",
-        "type": "string",
-        "description": "The compute profile whose capacity is kept busy with filler jobs "
-        "(for example 160x1792x8h100).",
-    },
     "scheduler.filler.slots": {
         "default": "0",
         "type": "integer",
-        "description": "Minimum number of jobs, real plus filler, to keep running for that compute profile.",
+        "description": "Minimum number of jobs, real plus filler, to keep running for the compute "
+        "profile of the filler program.",
     },
 }
 
