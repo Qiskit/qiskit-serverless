@@ -140,7 +140,8 @@ class FleetsRunner(AbstractRunner):
             handler = self._get_handler()
 
             timestamp = int(time.time())
-            fleet_name = f"job-{self.job.id}-{timestamp}"
+            prefix = "filler" if self.job.filler else "job"
+            fleet_name = f"{prefix}-{self.job.id}-{timestamp}"
 
             logger.info(
                 "Submitting job_id=[%s] as fleet [%s] to project [%s]",

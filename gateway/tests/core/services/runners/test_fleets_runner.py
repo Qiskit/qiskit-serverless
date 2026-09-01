@@ -39,6 +39,7 @@ def _make_runner(fleet_id: str | None = None) -> tuple[FleetsRunner, MagicMock]:
     """
     mock_job = MagicMock()
     mock_job.fleet_id = fleet_id
+    mock_job.filler = False
     mock_job.SUCCEEDED = "SUCCEEDED"
     mock_job.FAILED = "FAILED"
     mock_job.STOPPED = "STOPPED"
@@ -95,6 +96,7 @@ def _make_submit_runner() -> tuple[FleetsRunner, MagicMock]:
     mock_job = MagicMock()
     mock_job.fleet_id = None
     mock_job.id = "job-uuid"
+    mock_job.filler = False
     mock_job.SUCCEEDED = "SUCCEEDED"
     mock_job.FAILED = "FAILED"
     mock_job.STOPPED = "STOPPED"
@@ -357,6 +359,27 @@ def test_submit_sets_fleet_id_with_cos():
 
     assert runner.job.fleet_id == "fleet-abc"
     mock_handler.submit_job.assert_called_once()
+
+
+def test_submit_fleet_name_uses_job_prefix_for_real_jobs():
+    """A real job's fleet is named job-<job id>-<timestamp>."""
+    runner, mock_handler = _make_submit_runner()
+
+    with _patch_settings():
+        runner.submit()
+
+    assert mock_handler.submit_job.call_args.kwargs["name"].startswith("job-")
+
+
+def test_submit_fleet_name_uses_filler_prefix_for_filler_jobs():
+    """A filler job's fleet is named filler-<job id>-<timestamp> so it stands out in Code Engine."""
+    runner, mock_handler = _make_submit_runner()
+    runner.job.filler = True
+
+    with _patch_settings():
+        runner.submit()
+
+    assert mock_handler.submit_job.call_args.kwargs["name"].startswith("filler-")
 
 
 def test_submit_raises_runner_error_when_cos_not_configured():
