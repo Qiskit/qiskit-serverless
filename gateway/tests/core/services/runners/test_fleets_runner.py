@@ -13,6 +13,7 @@
 """Unit tests for FleetsRunner."""
 
 import io
+import re
 import tarfile
 from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
@@ -40,6 +41,8 @@ def _make_runner(fleet_id: str | None = None) -> tuple[FleetsRunner, MagicMock]:
     mock_job = MagicMock()
     mock_job.fleet_id = fleet_id
     mock_job.filler = False
+    mock_job.program.title = "my-function"
+    mock_job.author.username = "IBMid-1000000000"
     mock_job.SUCCEEDED = "SUCCEEDED"
     mock_job.FAILED = "FAILED"
     mock_job.STOPPED = "STOPPED"
@@ -104,6 +107,8 @@ def _make_submit_runner() -> tuple[FleetsRunner, MagicMock]:
     mock_job.RUNNING = "RUNNING"
     mock_job.config = None
     mock_job.compute_profile = None
+    mock_job.program.title = "my-function"
+    mock_job.author.username = "IBMid-1000000000"
     mock_job.program.image = None
     mock_job.program.artifact = None
     mock_job.program.entrypoint = "main.py"
@@ -361,18 +366,24 @@ def test_submit_sets_fleet_id_with_cos():
     mock_handler.submit_job.assert_called_once()
 
 
-def test_submit_fleet_name_uses_job_prefix_for_real_jobs():
-    """A real job's fleet is named job-<job id>-<timestamp>."""
+def test_submit_fleet_name_describes_the_job():
+    """A real job's fleet is named job-<function>-<profile>-<username>-<timestamp>."""
     runner, mock_handler = _make_submit_runner()
+    runner.job.program.title = "my-function"
+    runner.job.compute_profile = "160x1792x8h100"
+    runner.job.author.username = "alice"
 
     with _patch_settings():
         runner.submit()
 
-    assert mock_handler.submit_job.call_args.kwargs["name"].startswith("job-")
+    name = mock_handler.submit_job.call_args.kwargs["name"]
+    prefix, timestamp = name.rsplit("-", 1)
+    assert prefix == "job-my-function-160x1792x8h100-alice"
+    assert timestamp.isdigit()
 
 
 def test_submit_fleet_name_uses_filler_prefix_for_filler_jobs():
-    """A filler job's fleet is named filler-<job id>-<timestamp> so it stands out in Code Engine."""
+    """A filler job's fleet takes the filler- prefix so it stands out in Code Engine."""
     runner, mock_handler = _make_submit_runner()
     runner.job.filler = True
 
@@ -380,6 +391,23 @@ def test_submit_fleet_name_uses_filler_prefix_for_filler_jobs():
         runner.submit()
 
     assert mock_handler.submit_job.call_args.kwargs["name"].startswith("filler-")
+
+
+def test_submit_fleet_name_is_sanitized_and_bounded():
+    """Characters Code Engine rejects are replaced, and the name stays within 63 characters."""
+    runner, mock_handler = _make_submit_runner()
+    runner.job.filler = True
+    runner.job.program.title = "My Function! With Spaces And A Very Long Title"
+    runner.job.compute_profile = "gx3d-24x120x1a100p"
+    runner.job.author.username = "IBMid-1000000000"
+
+    with _patch_settings():
+        runner.submit()
+
+    name = mock_handler.submit_job.call_args.kwargs["name"]
+    assert re.fullmatch(r"[a-z0-9-]+", name), name
+    assert len(name) <= 63, name
+    assert name.startswith("filler-my-function-")
 
 
 def test_submit_raises_runner_error_when_cos_not_configured():

@@ -53,6 +53,30 @@ _UNRESOLVED_WARNED: set[str] = set()
 _WARNED_FLEETS_LIMIT = 10_000
 
 
+# Code Engine accepts lowercase alphanumerics and hyphens in a fleet name. The API client
+# does not declare a length ceiling, so we assume the 63 characters usual for its resource
+# names and stay under it: budgeting 14 characters per descriptive segment leaves the longest
+# possible name at 62 ("filler" + three segments + a 10 digit timestamp + four hyphens).
+_FLEET_NAME_SEGMENT_MAX = 14
+
+
+def _fleet_name_segment(value: str) -> str:
+    """Reduce *value* to what a Code Engine fleet name accepts.
+
+    Lowercases it, collapses every run of unsupported characters into a single hyphen, and
+    truncates to :data:`_FLEET_NAME_SEGMENT_MAX`.
+
+    Args:
+        value: Raw text, such as a function title or a username.
+
+    Returns:
+        The sanitized segment, or ``"unknown"`` when nothing usable is left, so a fleet name
+        never carries an empty segment.
+    """
+    slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+    return slug[:_FLEET_NAME_SEGMENT_MAX].strip("-") or "unknown"
+
+
 def _retry_on_rate_limit(fn, retries=3, delays=(0.5, 1.0, 2.0)):
     """Call *fn* with retries on HTTP 429 (Too Many Requests).
 
@@ -140,9 +164,7 @@ class FleetsRunner(AbstractRunner):
         try:
             handler = self._get_handler()
 
-            timestamp = int(time.time())
-            prefix = "filler" if self.job.filler else "job"
-            fleet_name = f"{prefix}-{self.job.id}-{timestamp}"
+            fleet_name = self._build_fleet_name(int(time.time()))
 
             logger.info(
                 "Submitting job_id=[%s] as fleet [%s] to project [%s]",
@@ -732,6 +754,29 @@ class FleetsRunner(AbstractRunner):
         if self.job.program.image:
             return self.job.program.image
         return settings.FLEETS_DEFAULT_IMAGE
+
+    def _build_fleet_name(self, timestamp: int) -> str:
+        """Build the Code Engine fleet name for this job.
+
+        Shaped as ``{job|filler}-{function}-{compute profile}-{username}-{timestamp}`` so a
+        fleet can be read at a glance in Code Engine: what it runs, on which profile, for whom,
+        and when it started. Every segment is sanitized and truncated by
+        :func:`_fleet_name_segment`, so the name is not unique on its own and is not a way back
+        to the job row; ``job.fleet_id`` remains the identifier the gateway stores and queries.
+
+        Args:
+            timestamp: Unix seconds, appended last.
+
+        Returns:
+            The fleet name.
+        """
+        prefix = "filler" if self.job.filler else "job"
+        function = _fleet_name_segment(self.job.program.title if self.job.program else "")
+        # The effective profile, matching what _parse_compute_profile submits: the column
+        # itself may be empty and fall back to the default.
+        profile = _fleet_name_segment(self.job.compute_profile or settings.DEFAULT_COMPUTE_PROFILE)
+        username = _fleet_name_segment(self.job.author.username if self.job.author else "")
+        return f"{prefix}-{function}-{profile}-{username}-{timestamp}"
 
     def _parse_compute_profile(self) -> tuple[str, str, dict | None]:
         """Parse compute_profile into (cpu, memory, gpu).
