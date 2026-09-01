@@ -25,6 +25,7 @@ from django.template.loader import get_template
 from ibm_botocore.exceptions import ClientError
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
+from core.domain import compute_profile
 from core.models import Job, CodeEngineProject
 from core.services.runners.abstract_runner import AbstractRunner, RunnerError
 from core.ibm_cloud import get_ce_auth, get_cos_client
@@ -745,9 +746,11 @@ class FleetsRunner(AbstractRunner):
         """
         profile = self.job.compute_profile or settings.DEFAULT_COMPUTE_PROFILE
 
-        # Strip optional prefix (e.g. "gx3d-" or "cx3d-")
-        match = re.match(r"^[a-z]+\d[a-z\d]*-(.+)$", profile)
-        resources = match.group(1) if match else profile
+        # Normalize away any instance-family prefix. New jobs are already bare
+        # (the view normalizes at ingest), but this stays a safety net for
+        # jobs queued right at deploy time, created by the previous
+        # code path and picked up here by the new one.
+        resources = compute_profile.normalize(profile)
 
         # Parse: {cpu}x{memory}[x{count}{model}]
         parts = re.match(r"^(\d+)x(\d+)(?:x(\d+)([a-z]\w*))?$", resources)

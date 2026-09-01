@@ -16,6 +16,8 @@ from django_prometheus.models import ExportModelOperationsMixin
 from core.config_key import ConfigKey
 from core.domain.business_models import BusinessModel
 from core.model_managers.code_engine_projects import CodeEngineProjectQuerySet
+from core.model_managers.compute_profiles import ComputeProfileQuerySet
+from core.model_managers.function_sizes import FunctionSizeQuerySet
 from core.model_managers.functions import FunctionsQuerySet
 from core.model_managers.job_events import JobEventQuerySet
 from core.model_managers.jobs import JobQuerySet
@@ -416,6 +418,8 @@ class ComputeProfile(models.Model):
     )
     memory = models.CharField(max_length=64, help_text="Memory in GB (e.g., 120)")
 
+    objects: ComputeProfileQuerySet = ComputeProfileQuerySet.as_manager()
+
     class Meta:
         app_label = "api"
 
@@ -446,6 +450,8 @@ class FunctionSize(models.Model):
         on_delete=models.PROTECT,
         related_name="function_sizes",
     )
+
+    objects: FunctionSizeQuerySet = FunctionSizeQuerySet.as_manager()
 
     class Meta:
         app_label = "api"

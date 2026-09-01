@@ -509,7 +509,7 @@ FLEETS_DEFAULT_IMAGE = os.environ.get(
     "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.35.1",
 )
 # Compute profile settings for Fleets runner
-DEFAULT_COMPUTE_PROFILE = os.environ.get("DEFAULT_COMPUTE_PROFILE", "bx3d-24x120")  # 24 CPU, 120GB RAM
+DEFAULT_COMPUTE_PROFILE = os.environ.get("DEFAULT_COMPUTE_PROFILE", "24x120")  # 24 CPU, 120GB RAM
 # Default resource limits for fleet jobs (can be overridden per job)
 FLEETS_DEFAULT_MAX_INSTANCES = int(os.environ.get("FLEETS_DEFAULT_MAX_INSTANCES", "1"))
 
