@@ -247,20 +247,30 @@ class UploadFunctionUseCase:
         function.default_size = row
         function.save(update_fields=["default_size"])
 
+    @staticmethod
+    def _apply_scalar_updates(instance: Function, data: UploadFunctionInput) -> None:
+        """Copy the simple pass-through fields the request provided onto ``instance``.
+
+        Only fields sent (not None) overwrite; the rest keep their stored value.
+        Kept separate from :meth:`_update` so that method stays under pylint's
+        branch limit and the size/runner handling reads on its own.
+        """
+        for field in ("entrypoint", "artifact", "image", "description", "version", "arguments_schema"):
+            value = getattr(data, field)
+            if value is not None:
+                setattr(instance, field, value)
+
     def _update(self, instance: Function, data: UploadFunctionInput, user) -> Function:
         logger.info("user_id=%s program=%s | Updating function", user.id, instance.title)
 
-        if data.entrypoint is not None:
-            instance.entrypoint = data.entrypoint
+        self._apply_scalar_updates(instance, data)
+
+        # dependencies and env_vars are transformed rather than copied verbatim.
         if data.dependencies is not None:
             raw_deps = json.loads(data.dependencies)
             instance.dependencies = json.dumps([_normalize_dependency(d) for d in raw_deps])
         if data.env_vars is not None:
             instance.env_vars = json.dumps(encrypt_env_vars(json.loads(data.env_vars)))
-        if data.artifact is not None:
-            instance.artifact = data.artifact
-        if data.image is not None:
-            instance.image = data.image
         if data.runner is not None:
             instance.runner = data.runner
             CodeEngineProject.objects.assign_to_program(instance)
@@ -268,13 +278,6 @@ class UploadFunctionUseCase:
                 message = _no_ce_project_message(instance)
                 logger.warning("user_id=%s program=%s | %s", user.id, instance.title, message)
                 raise FunctionConfigurationException(message)
-
-        if data.description is not None:
-            instance.description = data.description
-        if data.version is not None:
-            instance.version = data.version
-        if data.arguments_schema is not None:
-            instance.arguments_schema = data.arguments_schema
 
         # atomic() so a failure mid-replacement cannot leave the old and new sizes
         # stored at once (the unique constraint does not catch it, the names
