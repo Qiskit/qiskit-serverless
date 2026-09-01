@@ -175,6 +175,36 @@ class TestSerializers:
             serializer.validate_entrypoint("../evil.py")
         assert serializer.validate_entrypoint("./main.py") == "main.py"
 
+    def test_upload_program_serializer_default_size_must_be_in_sizes(self):
+        """'default_size' must name one of the keys declared in 'sizes', when both are sent."""
+        data = {
+            "title": "Hello world",
+            "entrypoint": "main.py",
+            "arguments": {},
+            "dependencies": "[]",
+            "sizes": {"m": "16x128"},
+            "default_size": "l",
+        }
+
+        serializer = UploadProgramSerializer(data=data)
+        assert not serializer.is_valid()
+        assert "not one of the 'sizes' sent" in str(serializer.errors)
+
+    def test_upload_program_serializer_default_size_matching_sizes_is_valid(self):
+        """Sending 'default_size' as one of the declared 'sizes' passes serializer validation."""
+        data = {
+            "title": "Hello world",
+            "entrypoint": "main.py",
+            "arguments": {},
+            "dependencies": "[]",
+            "sizes": {"m": "16x128"},
+            "default_size": "m",
+        }
+
+        serializer = UploadProgramSerializer(data=data)
+        assert serializer.is_valid()
+        assert serializer.validated_data["default_size"] == "m"
+
     def test_run_program_serializer_check_emtpy_data(self):
         data = {}
 

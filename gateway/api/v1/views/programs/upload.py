@@ -241,6 +241,13 @@ class ProgramSerializer(serializers.ModelSerializer):
             except InvalidVersion as exc:
                 raise ValidationError("Invalid version - expected format x.y.z") from exc
 
+        sizes = attrs.get("sizes")
+        default_size = attrs.get("default_size")
+        if sizes is not None and default_size is not None and default_size not in sizes:
+            raise ValidationError(
+                f"'default_size' is '{default_size}', which is not one of the 'sizes' sent: " + ", ".join(sorted(sizes))
+            )
+
         return super().validate(attrs)
 
 

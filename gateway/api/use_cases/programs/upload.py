@@ -164,6 +164,15 @@ class UploadFunctionUseCase:
         if data.entrypoint is None and data.image is None:
             raise FunctionConfigurationException("At least one of attributes (entrypoint, image) is required.")
 
+        # Unlike an update, a new function has no stored catalog to fall back on, so
+        # 'sizes' and 'default_size' must be declared together or not at all: one
+        # without the other is either ambiguous (which of several sizes is default?)
+        # or meaningless (default pointing at a catalog that does not exist yet).
+        if data.sizes is not None and data.default_size is None:
+            raise DRFValidationError("'default_size' is required when 'sizes' is provided.")
+        if data.default_size is not None and data.sizes is None:
+            raise DRFValidationError("'sizes' is required when 'default_size' is provided.")
+
         env_vars = data.env_vars
         if env_vars:
             env_vars = json.dumps(encrypt_env_vars(json.loads(env_vars)))
@@ -204,13 +213,20 @@ class UploadFunctionUseCase:
             function.save()
             if data.sizes is not None:
                 _replace_function_sizes(function, data.sizes)
-                self._apply_declared_default(function, data)
+                # data.default_size is guaranteed non-None here (checked above), so
+                # there is nothing to infer, unlike the update path below.
+                _apply_default_size(function, data.default_size)
             else:
                 self._seed_default_size(function)
         return function
 
     def _apply_declared_default(self, function: Function, data: UploadFunctionInput) -> None:
-        """Set the default size the uploader named, or infer it when unambiguous."""
+        """Set the default size the uploader named, or infer it when unambiguous.
+
+        Only reachable from ``_update``, where ``sizes`` can be sent without
+        ``default_size``; ``_create`` requires both together and applies
+        ``default_size`` directly.
+        """
         if data.default_size is not None:
             _apply_default_size(function, data.default_size)
         elif len(data.sizes) == 1:
