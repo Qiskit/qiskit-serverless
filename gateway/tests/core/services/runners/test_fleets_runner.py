@@ -367,7 +367,7 @@ def test_submit_sets_fleet_id_with_cos():
 
 
 def test_submit_fleet_name_describes_the_job():
-    """A real job's fleet is named job-<function>-<profile>-<username>-<timestamp>."""
+    """A real job's fleet is named job-<function>-<profile>-<username>."""
     runner, mock_handler = _make_submit_runner()
     runner.job.program.title = "my-function"
     runner.job.compute_profile = "160x1792x8h100"
@@ -376,21 +376,21 @@ def test_submit_fleet_name_describes_the_job():
     with _patch_settings():
         runner.submit()
 
-    name = mock_handler.submit_job.call_args.kwargs["name"]
-    prefix, timestamp = name.rsplit("-", 1)
-    assert prefix == "job-my-function-160x1792x8h100-alice"
-    assert timestamp.isdigit()
+    assert mock_handler.submit_job.call_args.kwargs["name"] == "job-my-function-160x1792x8h100-alice"
 
 
 def test_submit_fleet_name_uses_filler_prefix_for_filler_jobs():
-    """A filler job's fleet takes the filler- prefix so it stands out in Code Engine."""
+    """A filler job's fleet takes the fil- prefix, the same width as job-."""
     runner, mock_handler = _make_submit_runner()
     runner.job.filler = True
+    runner.job.program.title = "my-function"
+    runner.job.compute_profile = "160x1792x8h100"
+    runner.job.author.username = "alice"
 
     with _patch_settings():
         runner.submit()
 
-    assert mock_handler.submit_job.call_args.kwargs["name"].startswith("filler-")
+    assert mock_handler.submit_job.call_args.kwargs["name"] == "fil-my-function-160x1792x8h100-alice"
 
 
 def test_submit_fleet_name_is_sanitized_and_bounded():
@@ -407,7 +407,7 @@ def test_submit_fleet_name_is_sanitized_and_bounded():
     name = mock_handler.submit_job.call_args.kwargs["name"]
     assert re.fullmatch(r"[a-z0-9-]+", name), name
     assert len(name) <= 63, name
-    assert name.startswith("filler-my-function-")
+    assert name == "fil-my-function-with-sp-gx3d-24x120x1a100p-ibmid-1000000000"
 
 
 def test_submit_raises_runner_error_when_cos_not_configured():
