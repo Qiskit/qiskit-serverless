@@ -482,10 +482,11 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "Enable the filler jobs feature: the scheduler keeps idle capacity of a scarce "
         "compute profile busy with filler jobs.",
     },
-    "scheduler.filler.program_id": {
-        "default": "",
+    "scheduler.filler.function": {
+        "default": "filler-provider/filler-function",
         "type": "string",
-        "description": "Id of the Program used to run filler jobs. Empty means the feature is off.",
+        "description": "Name of the function used to run filler jobs, as provider/title. The function must "
+        "belong to a provider: a personal one cannot be named this way. Empty means the feature is off.",
     },
     "scheduler.filler.slots": {
         "default": "0",

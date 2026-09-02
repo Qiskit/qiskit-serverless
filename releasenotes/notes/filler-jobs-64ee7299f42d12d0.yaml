@@ -3,7 +3,7 @@ features:
   - |
     The scheduler can now keep a scarce Fleets compute profile busy with filler
     jobs. When fewer than ``scheduler.filler.slots`` jobs are running on the
-    compute profile of the program named by ``scheduler.filler.program_id``, it
+    compute profile of the function named by ``scheduler.filler.function``, it
     starts filler jobs to make up the difference, and it stops them again in the
     same scheduler iteration that real jobs take the capacity. The feature is off until
     ``scheduler.filler.enabled`` is set to true, and all three values are dynamic
@@ -71,10 +71,12 @@ upgrade:
     running filler job is stopped.
   - |
     Filler jobs are also stopped when they no longer match the configured filler
-    program, not only when they no longer match its compute profile. Pointing
-    ``scheduler.filler.program_id`` at another program therefore drains the jobs
+    function, not only when they no longer match its compute profile. Pointing
+    ``scheduler.filler.function`` at another function therefore drains the jobs
     running the old one, and the balancer replaces them with jobs running the new
-    one.
+    one. That value is a name in ``provider/title`` form, so it reads the same in
+    every environment, and the function has to belong to a provider: a personal
+    one cannot be addressed this way.
   - |
     To switch the feature off, disable the filler function or set
     ``scheduler.filler.slots`` to zero, but never delete the filler ``Program``

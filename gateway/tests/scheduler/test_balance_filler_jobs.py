@@ -26,6 +26,8 @@ pytestmark = pytest.mark.django_db
 _MOD = "scheduler.tasks.balance_filler_jobs"
 _PROFILE = "160x1792x8h100"
 _AUTHOR = "FillerId"
+_PROVIDER = "filler-provider"
+_FUNCTION = f"{_PROVIDER}/filler-function"
 
 
 def _make_task():
@@ -41,6 +43,7 @@ def filler_program():
     program = TestUtils.create_program(
         program_title="filler-function",
         author="filler_program_owner",
+        provider=_PROVIDER,
         runner=Program.FLEETS,
         code_engine_project=TestUtils.get_or_create_ce_project(
             project_name="ce-filler", project_id="ce-id", cos_bucket_user_data_name="filler-bucket"
@@ -51,7 +54,7 @@ def filler_program():
     program.save()
     TestUtils.get_user_and_username(_AUTHOR)
     Config.set(ConfigKey.FILLER_ENABLED, "true")
-    Config.set(ConfigKey.FILLER_PROGRAM_ID, str(program.id))
+    Config.set(ConfigKey.FILLER_FUNCTION, _FUNCTION)
     Config.set(ConfigKey.FILLER_SLOTS, "4")
     return program
 
@@ -402,8 +405,9 @@ def test_zero_slots_stops_every_filler_job(filler_program):
     "config_key,value",
     [
         (ConfigKey.FILLER_ENABLED, "false"),
-        (ConfigKey.FILLER_PROGRAM_ID, ""),
-        (ConfigKey.FILLER_PROGRAM_ID, "not-a-uuid"),
+        (ConfigKey.FILLER_FUNCTION, ""),
+        (ConfigKey.FILLER_FUNCTION, "no-provider-in-this-name"),
+        (ConfigKey.FILLER_FUNCTION, "filler-provider/does-not-exist"),
         (ConfigKey.MAINTENANCE, "true"),
     ],
 )

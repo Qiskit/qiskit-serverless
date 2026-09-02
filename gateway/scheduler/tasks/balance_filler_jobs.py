@@ -8,7 +8,6 @@ from typing import Callable
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
 
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
@@ -427,32 +426,23 @@ class BalanceFillerJobs(SchedulerTask):
         if slots <= 0:
             return self._deactivated(f"{ConfigKey.FILLER_SLOTS.value} is {slots}")
 
-        program_id = Config.get(ConfigKey.FILLER_PROGRAM_ID).strip()
-        if not program_id:
-            return self._deactivated(f"{ConfigKey.FILLER_PROGRAM_ID.value} is empty")
-
-        try:
-            program = Program.objects.select_related("default_size__compute_profile", "code_engine_project").get(
-                id=program_id
-            )
-        except (Program.DoesNotExist, ValidationError, ValueError):
-            # Program.id is a UUIDField, so a value that is not a UUID raises
-            # ValidationError rather than DoesNotExist.
-            return self._deactivated(f"program {program_id} does not exist")
+        program = self._lookup_filler_function()
+        if program is None:
+            return None
 
         if program.runner != Program.FLEETS:
             # get_arguments_storage dispatches on program.runner, so a Ray program
             # would put the arguments where the Fleets submit cannot find them.
-            return self._deactivated(f"program {program_id} runner is {program.runner}, expected {Program.FLEETS}")
+            return self._deactivated(f"function {program} runner is {program.runner}, expected {Program.FLEETS}")
 
         if program.disabled:
-            return self._deactivated(f"program {program_id} is disabled")
+            return self._deactivated(f"function {program} is disabled")
 
         project = program.code_engine_project
         if project is None:
             # FleetsRunner._get_project raises without one, which would create a
             # FAILED job every loop.
-            return self._deactivated(f"program {program_id} has no Code Engine project")
+            return self._deactivated(f"function {program} has no Code Engine project")
 
         if not project.active:
             # Same raise, one line below it in _get_project, and a far more likely
@@ -464,7 +454,7 @@ class BalanceFillerJobs(SchedulerTask):
             return self._deactivated(f"Code Engine project {project.project_name} has no user data COS bucket")
 
         if program.default_size is None:
-            return self._deactivated(f"program {program_id} has no default size")
+            return self._deactivated(f"function {program} has no default size")
 
         if not User.objects.filter(username=settings.FILLER_AUTHOR_USERNAME).exists():
             # Incomplete configuration, not an incident: the chart ships the default
@@ -472,6 +462,39 @@ class BalanceFillerJobs(SchedulerTask):
             return self._deactivated(f"no user with username {settings.FILLER_AUTHOR_USERNAME}")
 
         return program
+
+    def _lookup_filler_function(self) -> Program | None:
+        """Return the Program the config key names, or None after saying why it cannot.
+
+        Split out from _get_filler_program so that reading the name, checking its shape
+        and resolving it stay together, and so that method keeps one branch per check.
+        """
+        name = Config.get(ConfigKey.FILLER_FUNCTION).strip()
+        if not name:
+            return self._deactivated(f"{ConfigKey.FILLER_FUNCTION.value} is empty")
+
+        # The provider/title convention already has a parser in api.utils
+        # (parse_title_and_provider), but the import-linter contracts forbid scheduler
+        # from importing api, so it is split by hand here. The duplication is deliberate.
+        parts = name.split("/")
+        if len(parts) != 2 or not all(parts):
+            return self._deactivated(f"{ConfigKey.FILLER_FUNCTION.value} is {name!r}, expected provider/title")
+        provider_name, title = parts
+
+        # get(), not filter().first(): the unique_provider_title constraint on
+        # (provider, title) makes at most one row match, so there is no ambiguity to
+        # resolve here and MultipleObjectsReturned cannot happen.
+        # Filtering on provider__name also requires the function to belong to a
+        # provider, which excludes personal ones. That is deliberate: upload permission
+        # on a provider function comes from write access to the provider and not from
+        # authorship, so a person updates it with their own API key while the jobs stay
+        # owned by FILLER_AUTHOR_USERNAME, who needs no key at all.
+        try:
+            return Program.objects.select_related("default_size__compute_profile", "code_engine_project").get(
+                provider__name=provider_name, title=title
+            )
+        except Program.DoesNotExist:
+            return self._deactivated(f"function {name} does not exist")
 
     def _deactivated(self, reason: str) -> None:
         """Log the deactivated state, throttled, and return None implicitly.
