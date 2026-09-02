@@ -76,11 +76,13 @@ class BalanceFillerJobs(SchedulerTask):
         program = self._get_filler_program()
         target = 0
         compute_profile = None
+        profile_row_id = None
         if program is None:
             self._clear_throttle("status")
         if program is not None:
             self._clear_throttle("deactivated")
             profile_row = program.default_size.compute_profile
+            profile_row_id = profile_row.pk
             compute_profile = self._compute_profile_of(program)
             slots = self._slots()
             real_running = Job.objects.filter(
@@ -105,8 +107,12 @@ class BalanceFillerJobs(SchedulerTask):
         # A filler job on any other compute profile holds capacity nobody asked it
         # to hold, so it is always stopped. This is also what cleans everything up
         # when the feature is off, because then there is no derived profile to match.
-        stale = [job for job in filler_jobs if job.compute_profile != compute_profile]
-        current = [job for job in filler_jobs if job.compute_profile == compute_profile]
+        # Classified on the same key the occupancy count uses, compute_profile_fk:
+        # two ComputeProfile rows can normalize to the same string, and comparing
+        # strings here while counting on the row would leave filler jobs sitting on
+        # a profile the balancer no longer protects, with nothing to stop them.
+        stale = [job for job in filler_jobs if job.compute_profile_fk_id != profile_row_id]
+        current = [job for job in filler_jobs if job.compute_profile_fk_id == profile_row_id]
 
         if stale:
             self._log_throttled(
