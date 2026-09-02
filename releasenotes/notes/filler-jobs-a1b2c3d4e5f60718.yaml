@@ -1,0 +1,30 @@
+---
+features:
+  - |
+    The scheduler can now keep a scarce Fleets compute profile busy with filler
+    jobs. When fewer than ``scheduler.filler.slots`` jobs are running on the
+    compute profile of the program named by ``scheduler.filler.program_id``, it
+    starts filler jobs to make up the difference, and it stops them again on the
+    next scheduler iteration after real jobs take the capacity. The feature is off until
+    ``scheduler.filler.enabled`` is set to true, and all three values are dynamic
+    configuration that can change without a redeploy. The user the filler jobs
+    belong to comes from the ``FILLER_AUTHOR_USERNAME`` environment variable, and
+    the feature stays off until that user exists.
+  - |
+    Filler jobs are reported on their own metrics: ``scheduler_filler_jobs_count``
+    for how many are active, ``scheduler_filler_jobs_created_total`` and
+    ``scheduler_filler_jobs_stopped_total`` for how often they are being cycled.
+upgrade:
+  - |
+    Filler jobs are excluded from ``scheduler_job_status_count``,
+    ``scheduler_jobs_terminal_total``, ``scheduler_job_execution_duration_seconds``
+    and the job totals on the admin dashboard, because they run continuously and
+    would otherwise look like user demand. Dashboards or alerts that expect those
+    series to include every job need the filler metrics added to them. Filler jobs
+    also never emit billing events.
+  - |
+    Turning on maintenance mode now stops any running filler job, as well as
+    preventing new ones. This frees the capacity so the platform can be drained,
+    and the filler jobs come back within a second of maintenance ending. Note that
+    it means switching on maintenance cancels jobs that are occupying scarce GPU
+    nodes.
