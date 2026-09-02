@@ -63,54 +63,74 @@ class BalanceFillerJobs(SchedulerTask):
         self._retry_after: dict[str, int] = {}
 
     def run(self):
-        """Create or stop filler jobs so the configured minimum is met."""
+        """Stop every filler job when the feature is off, otherwise balance them."""
         self._discard_unsubmitted_filler_jobs()
 
         program = self._get_filler_program()
-        target = 0
-        compute_profile = None
-        expected = None
-        if program is None:
-            self._clear_throttle("status")
-        else:
-            self._clear_throttle("deactivated")
-            profile_row = program.default_size.compute_profile
-            expected = (program.pk, profile_row.pk)
-            compute_profile = self._compute_profile_of(program)
-            slots = Config.get_int(ConfigKey.FILLER_SLOTS)
-            real_running = Job.objects.filter(
-                compute_profile_fk=profile_row,
-                runner=Program.FLEETS,
-                status__in=Job.RUNNING_STATUSES,
-                filler=False,
-            ).count()
-            target = max(0, slots - real_running)
-            self._log_throttled(
-                "status",
-                logging.INFO,
-                "[BalanceFillerJobs] profile=%s slots=%s real_running=%s target=%s",
-                compute_profile,
-                slots,
-                real_running,
-                target,
-            )
-
         filler_jobs = list(Job.objects.filter(filler=True, status__in=Job.RUNNING_STATUSES).order_by("created"))
 
-        # A filler job is current only while it matches both halves: the configured
-        # program and the profile derived from it. Another profile holds capacity
-        # nobody asked it to hold, and another program holds the right capacity with
-        # the code the operator replaced, so both are stopped. With the feature off
-        # there is nothing to match, which is what drains every filler job.
+        if program is None:
+            self._drain_filler_jobs(filler_jobs)
+        else:
+            self._balance_filler_jobs(program, filler_jobs)
+
+        self._forget_finished_jobs(filler_jobs)
+
+    def _drain_filler_jobs(self, filler_jobs: list[Job]) -> None:
+        """Stop every filler job, because the feature is off or misconfigured.
+
+        _get_filler_program has already said which of the two at INFO, so this only
+        reports the cleanup that follows from it.
+        """
+        self._clear_throttle("status")
+        self._clear_throttle("stale")
+        if not filler_jobs:
+            self._clear_throttle("drain")
+            return
+        self._log_throttled(
+            "drain",
+            logging.INFO,
+            "[BalanceFillerJobs] stopping %s filler job(s), the feature is off",
+            len(filler_jobs),
+        )
+        self._stop_filler_jobs(filler_jobs)
+
+    def _balance_filler_jobs(self, program: Program, filler_jobs: list[Job]) -> None:
+        """Stop the filler jobs that no longer belong, then close the gap to the target."""
+        self._clear_throttle("deactivated")
+        self._clear_throttle("drain")
+
+        profile_row = program.default_size.compute_profile
+        compute_profile = self._compute_profile_of(program)
+        slots = Config.get_int(ConfigKey.FILLER_SLOTS)
+        real_running = Job.objects.filter(
+            compute_profile_fk=profile_row,
+            runner=Program.FLEETS,
+            status__in=Job.RUNNING_STATUSES,
+            filler=False,
+        ).count()
+        target = max(0, slots - real_running)
+        self._log_throttled(
+            "status",
+            logging.INFO,
+            "[BalanceFillerJobs] profile=%s slots=%s real_running=%s target=%s",
+            compute_profile,
+            slots,
+            real_running,
+            target,
+        )
+
+        # A filler job belongs to the feature only while it matches both halves: the
+        # configured program and the profile derived from it. Another profile holds
+        # capacity nobody asked it to hold, and another program holds the right
+        # capacity with the code the operator replaced, so both are stopped.
         # The profile half is compared on compute_profile_fk, the same key the
         # occupancy count uses: two ComputeProfile rows can normalize to the same
         # string, so comparing strings here would leave jobs sitting on a profile the
         # balancer no longer protects, with nothing to stop them.
-        if expected is None:
-            stale, current = filler_jobs, []
-        else:
-            stale = [job for job in filler_jobs if (job.program_id, job.compute_profile_fk_id) != expected]
-            current = [job for job in filler_jobs if (job.program_id, job.compute_profile_fk_id) == expected]
+        expected = (program.pk, profile_row.pk)
+        stale = [job for job in filler_jobs if (job.program_id, job.compute_profile_fk_id) != expected]
+        current = [job for job in filler_jobs if (job.program_id, job.compute_profile_fk_id) == expected]
 
         if stale:
             self._log_throttled(
@@ -127,8 +147,6 @@ class BalanceFillerJobs(SchedulerTask):
             self._create_filler_job(program, compute_profile)
         elif len(current) > target:
             self._stop_filler_jobs(current[: len(current) - target])
-
-        self._forget_finished_jobs(filler_jobs)
 
     def _log_throttled(self, key: str, level: int, message: str, *args) -> None:
         """Log at `level` when this key's arguments change, at DEBUG when they repeat.
