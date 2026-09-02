@@ -8,6 +8,7 @@ from typing import Callable
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
@@ -466,35 +467,53 @@ class BalanceFillerJobs(SchedulerTask):
     def _lookup_filler_function(self) -> Program | None:
         """Return the Program the config key names, or None after saying why it cannot.
 
-        Split out from _get_filler_program so that reading the name, checking its shape
+        The key takes either form: with a slash it is ``provider/title``, and without
+        one it is the Program's id.
+
+        The two are not equivalent, and what separates them is who can update the
+        function afterwards. Matching on provider__name requires the function to belong
+        to a provider, and upload permission on a provider function comes from write
+        access to the provider rather than from authorship, so a person updates it with
+        their own API key while the jobs stay owned by FILLER_AUTHOR_USERNAME, who needs
+        no key at all. An id can just as well name a personal function, and updating one
+        of those means being its author, which is the very thing the provider form
+        avoids. That is an operator's choice rather than a fault, but the id form gives
+        that property up.
+
+        Split out from _get_filler_program so that reading the value, checking its shape
         and resolving it stay together, and so that method keeps one branch per check.
         """
-        name = Config.get(ConfigKey.FILLER_FUNCTION).strip()
-        if not name:
+        value = Config.get(ConfigKey.FILLER_FUNCTION).strip()
+        if not value:
             return self._deactivated(f"{ConfigKey.FILLER_FUNCTION.value} is empty")
 
-        # The provider/title convention already has a parser in api.utils
-        # (parse_title_and_provider), but the import-linter contracts forbid scheduler
-        # from importing api, so it is split by hand here. The duplication is deliberate.
-        parts = name.split("/")
-        if len(parts) != 2 or not all(parts):
-            return self._deactivated(f"{ConfigKey.FILLER_FUNCTION.value} is {name!r}, expected provider/title")
-        provider_name, title = parts
-
-        # get(), not filter().first(): the unique_provider_title constraint on
-        # (provider, title) makes at most one row match, so there is no ambiguity to
-        # resolve here and MultipleObjectsReturned cannot happen.
-        # Filtering on provider__name also requires the function to belong to a
-        # provider, which excludes personal ones. That is deliberate: upload permission
-        # on a provider function comes from write access to the provider and not from
-        # authorship, so a person updates it with their own API key while the jobs stay
-        # owned by FILLER_AUTHOR_USERNAME, who needs no key at all.
+        programs = Program.objects.select_related("default_size__compute_profile", "code_engine_project")
         try:
-            return Program.objects.select_related("default_size__compute_profile", "code_engine_project").get(
-                provider__name=provider_name, title=title
-            )
+            if "/" in value:
+                # The provider/title convention already has a parser in api.utils
+                # (parse_title_and_provider), but the import-linter contracts forbid
+                # scheduler from importing api, so it is split by hand here. The
+                # duplication is deliberate.
+                parts = value.split("/")
+                if len(parts) != 2 or not all(parts):
+                    return self._deactivated(
+                        f"{ConfigKey.FILLER_FUNCTION.value} is {value!r}, expected provider/title or an id"
+                    )
+                # get(), not filter().first(): the unique_provider_title constraint on
+                # (provider, title) makes at most one row match, so there is no ambiguity
+                # to resolve here and MultipleObjectsReturned cannot happen.
+                return programs.get(provider__name=parts[0], title=parts[1])
+            return programs.get(id=value)
         except Program.DoesNotExist:
-            return self._deactivated(f"function {name} does not exist")
+            return self._deactivated(f"function {value} does not exist")
+        except ValidationError:
+            # Only the id branch reaches this. Program.id is a UUIDField, so a value
+            # that is not a UUID raises ValidationError while the field is cleaned,
+            # before any query runs, and never DoesNotExist. Measured on this code:
+            # get(id="not-a-uuid") raises ValidationError('"not-a-uuid" is not a valid
+            # UUID.'). Without this the scheduler would log a traceback once a second
+            # instead of deactivating and saying which value is wrong.
+            return self._deactivated(f"{ConfigKey.FILLER_FUNCTION.value} is {value!r}, which is not a function id")
 
     def _deactivated(self, reason: str) -> None:
         """Log the deactivated state, throttled, and return None implicitly.

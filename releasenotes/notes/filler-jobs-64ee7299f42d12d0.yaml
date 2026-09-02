@@ -57,9 +57,11 @@ upgrade:
     function, not only when they no longer match its compute profile. Pointing
     ``scheduler.filler.function`` at another function therefore drains the jobs
     running the old one, and the balancer replaces them with jobs running the new
-    one. That value is a name in ``provider/title`` form, so it reads the same in
-    every environment, and the function has to belong to a provider: a personal
-    one cannot be addressed this way.
+    one. That value takes either form: a ``provider/title`` name, which reads the
+    same in every environment, or the function's id. Prefer the name, because it
+    requires a provider function, and a provider function can be updated by anyone
+    with write access to the provider. A personal function can only be named by id,
+    and only its author can update it.
   - |
     To switch the feature off, disable the filler function or set
     ``scheduler.filler.slots`` to zero, but never delete the filler ``Program``

@@ -264,6 +264,17 @@ def test_creates_filler_jobs_up_to_the_configured_slots(filler_program):
     assert submit.call_args.kwargs["context"] is JobEventContext.FILLER_SUBMIT
 
 
+def test_the_function_can_be_named_by_id_instead_of_provider_and_title(filler_program):
+    """A value with no slash is the Program id, which resolves to the same function."""
+    Config.set(ConfigKey.FILLER_FUNCTION, str(filler_program.id))
+    task = _make_task()
+
+    submit, _, _ = _run(task)
+
+    assert submit.call_count == 1
+    assert Job.objects.filter(filler=True).count() == 1
+
+
 def test_real_running_jobs_reduce_the_number_of_filler_jobs(filler_program):
     """Two real jobs on the profile leave room for two filler jobs."""
     for index in range(2):
@@ -406,7 +417,8 @@ def test_zero_slots_stops_every_filler_job(filler_program):
     [
         (ConfigKey.FILLER_ENABLED, "false"),
         (ConfigKey.FILLER_FUNCTION, ""),
-        (ConfigKey.FILLER_FUNCTION, "no-provider-in-this-name"),
+        (ConfigKey.FILLER_FUNCTION, "neither-a-name-nor-an-id"),
+        (ConfigKey.FILLER_FUNCTION, "filler-provider/"),
         (ConfigKey.FILLER_FUNCTION, "filler-provider/does-not-exist"),
         (ConfigKey.MAINTENANCE, "true"),
     ],

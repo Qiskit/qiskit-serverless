@@ -485,8 +485,10 @@ DYNAMIC_CONFIG_DEFAULTS = {
     "scheduler.filler.function": {
         "default": "filler-provider/filler-function",
         "type": "string",
-        "description": "Name of the function used to run filler jobs, as provider/title. The function must "
-        "belong to a provider: a personal one cannot be named this way. Empty means the feature is off.",
+        "description": "The function used to run filler jobs, either as provider/title or as its id. "
+        "The provider/title form requires a provider function, and that is the form to prefer: it can be "
+        "updated by anyone with write access to the provider, while a personal function named by id can "
+        "only be updated by its author. Empty means the feature is off.",
     },
     "scheduler.filler.slots": {
         "default": "0",
