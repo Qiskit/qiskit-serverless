@@ -320,6 +320,22 @@
 <section id="new-features">
 <span id="release-notes-upcoming-qiskit-serverless-release-new-features"></span><h3>New Features<a class="headerlink" href="#new-features" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
+<li><p>Filler jobs are now reported separately in the scheduler metrics.
+<code class="docutils literal notranslate"><span class="pre">scheduler_filler_jobs_count</span></code> is a gauge of how many are active, labelled by
+status, and stale label combinations are cleared on every scheduler iteration so
+a status that empties stops reporting rather than freezing at its last value.</p></li>
+</ul>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">scheduler_filler_jobs_ended_total</span></code> counts filler jobs that reached a terminal
+state on the status-update path, labelled by <code class="docutils literal notranslate"><span class="pre">final_status</span></code>. That path is only
+reached when nothing asked the job to stop, so <code class="docutils literal notranslate"><span class="pre">FAILED</span></code> or <code class="docutils literal notranslate"><span class="pre">SUCCEEDED</span></code> there
+is a filler function that exited by itself, which it is not meant to do. Being a
+counter it only ever rises, so read it as a rate over a window rather than raw:
+any sustained rate once <code class="docutils literal notranslate"><span class="pre">STOPPED</span></code> is filtered out means filler jobs are being
+started and lost for nothing. <code class="docutils literal notranslate"><span class="pre">STOPPED</span></code> on this counter is the
+<code class="docutils literal notranslate"><span class="pre">PROGRAM_TIMEOUT</span></code> path.</p></li>
+</ul>
+<ul class="simple">
 <li><p>Added <code class="docutils literal notranslate"><span class="pre">LICENSED</span></code> as the new name of the <code class="docutils literal notranslate"><span class="pre">SUBSIDIZED</span></code> business model. The
 Runtime API may still answer <code class="docutils literal notranslate"><span class="pre">SUBSIDIZED</span></code> for a function, and that value is
 still accepted, but it is turned into <code class="docutils literal notranslate"><span class="pre">LICENSED</span></code> as soon as it is read, so
@@ -350,6 +366,15 @@ hand with <code class="docutils literal notranslate"><span class="pre">CREATE</s
 <li><p>The <code class="docutils literal notranslate"><span class="pre">api_program.default_compute_profile</span></code> column is now dropped from the
 database. The field was removed from Qiskit Functions in the
 earlier release.</p></li>
+</ul>
+<ul class="simple">
+<li><p>Filler jobs are excluded from <code class="docutils literal notranslate"><span class="pre">scheduler_job_status_count</span></code>,
+<code class="docutils literal notranslate"><span class="pre">scheduler_jobs_terminal_total</span></code>, <code class="docutils literal notranslate"><span class="pre">scheduler_job_execution_duration_seconds</span></code>
+and <code class="docutils literal notranslate"><span class="pre">scheduler_queue_wait_seconds</span></code>. They are meant to run continuously and to
+be replaced when they end, so leaving them in those series would make a constant
+floor look like user demand, and their lifetimes and queue waits say nothing
+about how long real work takes or waits. Dashboards or alerts that expect those
+series to cover every job need the filler series added to them.</p></li>
 </ul>
 <ul class="simple">
 <li><p>An unrecognised task state in the Code Engine task store no longer fails the job.
