@@ -312,11 +312,13 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
             f"{html.escape(t.strftime('%d-%b %H:%M'))}</text>"
         )
 
-    # --- concurrency chart (overlaps), one series for "All" plus one per compute profile ---
+    # --- concurrency chart (overlaps), one area for "All" plus one per compute profile ---
     # Ray and Fleets never contend for the same resource (see `find_overlaps`), so a runner's own
     # concurrency series is computed independently and merged with `_merge_series_max`, never by
     # summing counts across runners: that keeps this chart's "peak overlap" consistent with the
-    # per-job overlap badges, which also never count a Ray/Fleets pair as overlapping.
+    # per-job overlap badges, which also never count a Ray/Fleets pair as overlapping. Note the
+    # compute profile buttons pick which of these areas is shown, but the runner buttons only
+    # filter the gantt rows below, so an area always reflects every runner in the selection.
     def cy(count, max_count):
         return margin_top + concurrency_h - (count / max_count) * (concurrency_h - 10)
 
@@ -335,20 +337,45 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
         f'<text x="{margin_left}" y="{margin_top - 6}" class="qs-heading" font-weight="bold">'
         f"Concurrent RUNNING jobs (peak overlap: {real_max_conc})</text>"
     )
-    path_d = build_concurrency_path(series_all, t_min, t_max, x, lambda c: cy(c, max_conc))
-    if path_d:
-        svg.append(
-            f'<path class="conc-path is-visible" data-profile="__all__" d="{path_d}" '
-            f'fill="#3b82f6" opacity="0.35" stroke="#60a5fa" stroke-width="1.5"/>'
+
+    def append_concurrency_area(job_subset, profile_attr, visible):
+        """Draw one profile's concurrency area, split into its real and filler halves.
+
+        Filler jobs hold the compute profile for real, so they belong in this count, but a single
+        aggregated curve would not say how much of a peak is real demand. The total is drawn first
+        with the hatch pattern the gantt uses for filler jobs, and the real-jobs-only curve goes on
+        top of it: the hatched band the top curve leaves uncovered is the filler contribution. When
+        the subset has no filler job at all the two curves are identical, so only the real one is
+        drawn and the chart looks exactly as it did before.
+        """
+        visible_class = " is-visible" if visible else ""
+        if any(j["filler"] for j in job_subset):
+            total_path = build_concurrency_path(
+                runner_scoped_series(job_subset), t_min, t_max, x, lambda c: cy(c, max_conc)
+            )
+            if total_path:
+                svg.append(
+                    f'<path class="conc-path{visible_class}" data-profile="{profile_attr}" d="{total_path}" '
+                    f'fill="url(#qs-filler-hatch)" stroke="#60a5fa" stroke-width="1.5" stroke-dasharray="4 2"/>'
+                )
+        real_path = build_concurrency_path(
+            runner_scoped_series([j for j in job_subset if not j["filler"]]),
+            t_min,
+            t_max,
+            x,
+            lambda c: cy(c, max_conc),
         )
-    for profile in profiles:
-        series_p = runner_scoped_series([j for j in jobs_sorted if j["profile"] == profile])
-        path_d = build_concurrency_path(series_p, t_min, t_max, x, lambda c: cy(c, max_conc))
-        if path_d:
+        if real_path:
             svg.append(
-                f'<path class="conc-path" data-profile="{html.escape(profile)}" d="{path_d}" '
+                f'<path class="conc-path{visible_class}" data-profile="{profile_attr}" d="{real_path}" '
                 f'fill="#3b82f6" opacity="0.35" stroke="#60a5fa" stroke-width="1.5"/>'
             )
+
+    append_concurrency_area(jobs_sorted, "__all__", visible=True)
+    for profile in profiles:
+        append_concurrency_area(
+            [j for j in jobs_sorted if j["profile"] == profile], html.escape(profile), visible=False
+        )
     for c in range(0, max_conc + 1):
         yy = cy(c, max_conc)
         svg.append(f'<text x="{margin_left - 8}" y="{yy + 3:.1f}" class="qs-muted-text" text-anchor="end">{c}</text>')

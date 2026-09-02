@@ -88,9 +88,38 @@ def test_render_job_timeline_marks_filler_jobs_with_a_hatch_and_grey_text():
     context = render_job_timeline(Job.objects.filter(pk=job.pk).prefetch_related("job_events"))
 
     svg = context["timeline_svg"]
-    assert 'fill="url(#qs-filler-hatch)"' in svg
+    # pointer-events="none" is only on the hatch drawn over a gantt bar, not on the concurrency area
+    assert 'fill="url(#qs-filler-hatch)" pointer-events="none"' in svg
     assert f'fill="{FILLER_TEXT_COLOR}"' in svg
     assert "qs-swatch--filler" in context["timeline_legend"]
+
+
+@pytest.mark.django_db
+def test_render_job_timeline_hatches_the_filler_half_of_the_concurrency_area():
+    """The concurrency chart counts filler jobs, and says how much of the count they are."""
+    base = timezone.now().replace(microsecond=0) - timedelta(minutes=10)
+    real_job = _job_with_events(status=Job.RUNNING, base=base)
+    filler_job = _job_with_events(status=Job.RUNNING, base=base, filler=True)
+
+    context = render_job_timeline(
+        Job.objects.filter(pk__in=[real_job.pk, filler_job.pk]).prefetch_related("job_events")
+    )
+
+    svg = context["timeline_svg"]
+    # the hatched total goes under the real-jobs curve, so the band left over is the filler share
+    assert 'class="conc-path is-visible" data-profile="__all__"' in svg
+    assert 'fill="url(#qs-filler-hatch)" stroke="#60a5fa" stroke-width="1.5" stroke-dasharray="4 2"' in svg
+    assert 'fill="#3b82f6" opacity="0.35"' in svg
+
+
+@pytest.mark.django_db
+def test_render_job_timeline_draws_a_single_concurrency_area_without_filler_jobs():
+    """With no filler job in the selection the chart looks exactly as it did before."""
+    job = _job_with_events(status=Job.RUNNING, base=timezone.now().replace(microsecond=0) - timedelta(minutes=10))
+
+    context = render_job_timeline(Job.objects.filter(pk=job.pk).prefetch_related("job_events"))
+
+    assert "url(#qs-filler-hatch)" not in context["timeline_svg"]
 
 
 @pytest.mark.django_db
