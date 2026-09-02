@@ -125,7 +125,7 @@ class TestKafkaEventStreamsClient:
         assert published["source"] == "qiskit-serverless/scheduler/fleets"
         assert published["subject"] == str(job.id)
         assert published["data"] == {
-            "metric_type": "classical_ibm-dev_test-circuit-function_24x120",
+            "metric_type": "classical_24x120",
             "metric_value": 0,
             "instance_crn": job.instance_crn,
             "resource_id": str(job.id),
@@ -160,7 +160,7 @@ class TestKafkaEventStreamsClient:
                         client.emit_job_in_progress(job)
 
         published = json.loads(mock_producer.produce.call_args[1]["value"])
-        assert published["data"]["metric_type"] == "classical_ibm-dev_test-circuit-function_24x120"
+        assert published["data"]["metric_type"] == "classical_24x120"
         assert published["data"]["metric_value"] == 5_000
         assert published["data"]["job_started"] is False
         assert published["data"]["job_completed"] is False
@@ -190,7 +190,7 @@ class TestKafkaEventStreamsClient:
                         client.emit_job_completed(job)
 
         published = json.loads(mock_producer.produce.call_args[1]["value"])
-        assert published["data"]["metric_type"] == "classical_ibm-dev_test-circuit-function_24x120"
+        assert published["data"]["metric_type"] == "classical_24x120"
         assert published["data"]["metric_value"] == 30_000
         assert published["data"]["job_started"] is False
         assert published["data"]["job_completed"] is True
