@@ -132,3 +132,14 @@ def test_template_dirs_use_etc_gateway_not_tmp():
     dirs = [str(path) for path in settings.TEMPLATES[0]["DIRS"]]
     assert "/etc/gateway/templates" in dirs
     assert "/tmp/templates" not in dirs
+
+
+def test_filler_author_username_read_from_environment(monkeypatch):
+    """FILLER_AUTHOR_USERNAME comes from the environment and falls back to a default."""
+    monkeypatch.delenv("FILLER_AUTHOR_USERNAME", raising=False)
+    importlib.reload(main.settings)
+    assert main.settings.FILLER_AUTHOR_USERNAME == "FillerId"
+
+    monkeypatch.setenv("FILLER_AUTHOR_USERNAME", "IBMid-1000000000")
+    importlib.reload(main.settings)
+    assert main.settings.FILLER_AUTHOR_USERNAME == "IBMid-1000000000"

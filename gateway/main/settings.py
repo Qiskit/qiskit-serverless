@@ -475,6 +475,23 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "type": "boolean",
         "description": "Enable external Runtime instances API for function-level access control.",
     },
+    "scheduler.filler.enabled": {
+        "default": "false",
+        "type": "boolean",
+        "description": "Enable the filler jobs feature: the scheduler keeps idle capacity of a scarce "
+        "compute profile busy with filler jobs.",
+    },
+    "scheduler.filler.program_id": {
+        "default": "",
+        "type": "string",
+        "description": "Id of the Program used to run filler jobs. Empty means the feature is off.",
+    },
+    "scheduler.filler.slots": {
+        "default": "0",
+        "type": "integer",
+        "description": "Minimum number of jobs, real plus filler, to keep running for the compute "
+        "profile of the filler program.",
+    },
 }
 
 # Fleets / Code Engine credentials
@@ -507,6 +524,10 @@ FLEETS_RUNTIME_GLOBAL_CATALOG_URL = os.environ.get("FLEETS_RUNTIME_GLOBAL_CATALO
 # Set to "true" on staging to enable experimental features in the container.
 FLEETS_RUNTIME_EXPERIMENTAL = os.environ.get("FLEETS_RUNTIME_EXPERIMENTAL", "false").lower() == "true"
 CE_DEFAULT_PROJECT_NAME = os.environ.get("CE_DEFAULT_PROJECT_NAME", "")
+
+# Username of the user set as author on every filler job created by the scheduler.
+# Not a numeric primary key: the scheduler task will resolve it with User.objects.get(username=...)
+FILLER_AUTHOR_USERNAME = os.environ.get("FILLER_AUTHOR_USERNAME", "FillerId")
 
 # Set to "true" to use the public COS endpoint instead of the private VPC endpoint.
 # Only needed for local testing outside IBM Cloud (e.g. docker-compose).

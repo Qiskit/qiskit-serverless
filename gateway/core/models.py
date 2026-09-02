@@ -541,6 +541,13 @@ class Job(models.Model):
     arguments = models.TextField(null=False, blank=True, default="{}")
     env_vars = models.TextField(null=False, blank=True, default="{}")
     gpu = models.BooleanField(default=False, null=False)
+    filler = models.BooleanField(
+        default=False,
+        db_default=False,
+        null=False,
+        help_text="True when this job was created by the filler-jobs balancer to occupy idle GPU "
+        "capacity, instead of coming from a real user request.",
+    )
     compute_profile = models.CharField(
         max_length=255,
         null=True,
@@ -808,3 +815,13 @@ class Config(models.Model):
         """Get configuration value as string list."""
         value = cls.get(key)
         return [v.strip() for v in value.split(",")]
+
+    @classmethod
+    def get_int(cls, key: ConfigKey, default: int = 0) -> int:
+        """Get configuration value as integer."""
+        value = cls.get(key)
+        try:
+            return int(value)
+        except ValueError:
+            logger.warning("Config key '%s' has a non-integer value '%s'; using default %s", key.value, value, default)
+            return default

@@ -76,14 +76,14 @@ class KafkaEventStreamsClient(EventStreamsClient):
         # LOG: Client created successfully
         logger.info("KafkaEventStreamsClient initialized successfully topic=%s", self.topic)
 
-    def emit_job_started(self, job, metric_type: str | None = None) -> None:
+    def _emit_job_started(self, job, metric_type: str | None = None) -> None:
         """Publish a job-started event for the given metric (metric_value=0)."""
         if metric_type is None:
             metric_type = self._build_classical_metric_type(job)
         logger.info("job_id=%s Emitting job_started event", job.id)
         self._publish(job, metric_type=metric_type, metric_value=0, job_started=True, job_completed=False)
 
-    def emit_job_in_progress(self, job, metric_type: str | None = None) -> None:
+    def _emit_job_in_progress(self, job, metric_type: str | None = None) -> None:
         """Publish a job-in-progress event for the given metric with current usage."""
         if metric_type is None:
             metric_type = self._build_classical_metric_type(job)
@@ -95,7 +95,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
             job_completed=False,
         )
 
-    def emit_job_completed(self, job, metric_type: str | None = None) -> None:
+    def _emit_job_completed(self, job, metric_type: str | None = None) -> None:
         """Publish a job-completed event for the given metric with final usage."""
         if metric_type is None:
             metric_type = self._build_classical_metric_type(job)
@@ -109,7 +109,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
             job_completed=True,
         )
 
-    def emit_license_fee(self, job: Job) -> None:
+    def _emit_license_fee(self, job: Job) -> None:
         metric_type = "_".join([LICENSE_FEE_METRIC_TYPE, job.program.provider.name, job.program.title])
         self._publish(
             job,
