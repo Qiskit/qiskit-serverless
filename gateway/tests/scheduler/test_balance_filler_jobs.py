@@ -18,7 +18,7 @@ from core.model_managers.job_events import JobEventContext
 from core.services.runners import RunnerError
 from scheduler.main import Main
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs, _Throttle
+from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs, RETRY_AFTER_LOOPS, _Attempt, _Throttle
 from tests.utils import TestUtils
 
 pytestmark = pytest.mark.django_db
@@ -80,56 +80,153 @@ def _fake_submit(job, ctx, context=None):  # pylint: disable=unused-argument
 
 
 class TestThrottle:
-    """The per-key log throttling and retry backoff the balancer runs on."""
+    """The reporting and retry pacing the balancer runs on.
 
-    def test_a_repeated_message_drops_to_debug(self, caplog):
+    Tested through the surface the task uses, because the point of that surface is
+    that the class owns the keys: what is worth asserting is the invariants a caller
+    can no longer get wrong, not which key holds what.
+    """
+
+    @staticmethod
+    def _recorder(runs: list, outcome):
+        """Return a piece of work that records that it ran and reports `outcome`."""
+
+        def work():
+            runs.append(outcome)
+            return outcome
+
+        return work
+
+    def test_a_repeated_report_drops_to_debug(self, caplog):
         """The loop runs once a second, so the same line must not be reported twice."""
         throttle = _Throttle()
 
         with caplog.at_level(logging.DEBUG, logger="scheduler.BalanceFillerJobs"):
-            throttle.log("status", logging.INFO, "profile=%s", _PROFILE)
-            throttle.log("status", logging.INFO, "profile=%s", _PROFILE)
+            throttle.deactivated("filler is off")
+            throttle.deactivated("filler is off")
 
         assert [record.levelno for record in caplog.records] == [logging.INFO, logging.DEBUG]
 
-    def test_clear_lets_a_recurrence_be_reported_again(self, caplog):
-        """Throttling silences repeats, not recurrences."""
+    def test_a_changed_argument_is_reported_again(self, caplog):
+        """The arguments are the throttle, so a different reason is a different line."""
         throttle = _Throttle()
 
         with caplog.at_level(logging.DEBUG, logger="scheduler.BalanceFillerJobs"):
-            throttle.log("status", logging.INFO, "profile=%s", _PROFILE)
-            throttle.clear("status")
-            throttle.log("status", logging.INFO, "profile=%s", _PROFILE)
+            throttle.deactivated("filler is off")
+            throttle.deactivated("program is disabled")
 
         assert [record.levelno for record in caplog.records] == [logging.INFO, logging.INFO]
 
-    def test_a_retry_delay_counts_down_and_runs_out(self):
-        """The countdown advances per call, so it only moves on loops that ask for it."""
+    def test_balancing_makes_a_later_drain_reportable_again(self, caplog):
+        """Switching the feature off after it ran must never be silent."""
         throttle = _Throttle()
-        throttle.set_retry("create", 2)
 
-        assert [throttle.wait_before_retry("create") for _ in range(3)] == [True, True, False]
+        with caplog.at_level(logging.DEBUG, logger="scheduler.BalanceFillerJobs"):
+            throttle.drained(2)
+            throttle.drained(2)
+            throttle.balancing(_PROFILE, 4, 0, 4)
+            throttle.drained(2)
 
-    def test_clear_does_not_cancel_a_pending_retry(self):
-        """The two halves are independent: reportable again is not the same as due again."""
+        levels = [record.levelno for record in caplog.records]
+        assert levels == [logging.INFO, logging.DEBUG, logging.INFO, logging.INFO]
+
+    def test_draining_makes_a_later_balancing_reportable_again(self, caplog):
+        """And switching it back on after a drain must not be silent either."""
         throttle = _Throttle()
-        throttle.set_retry("create", 1)
 
-        throttle.clear("create")
+        with caplog.at_level(logging.DEBUG, logger="scheduler.BalanceFillerJobs"):
+            throttle.balancing(_PROFILE, 4, 0, 4)
+            throttle.balancing(_PROFILE, 4, 0, 4)
+            throttle.drained(1)
+            throttle.balancing(_PROFILE, 4, 0, 4)
 
-        assert throttle.wait_before_retry("create") is True
+        levels = [record.levelno for record in caplog.records]
+        assert levels == [logging.INFO, logging.DEBUG, logging.INFO, logging.INFO]
 
-    def test_forget_stale_drops_only_the_keys_that_are_gone(self):
+    def test_nothing_to_drain_is_not_an_event(self):
+        """A zero only makes the line reportable again, it does not report one."""
+        throttle = _Throttle()
+
+        with patch(f"{_MOD}.logger") as log:
+            throttle.drained(0)
+            throttle.stale(0)
+
+        assert log.log.call_args_list == []
+        assert log.debug.call_args_list == []
+
+    def test_a_failed_attempt_waits_out_the_delay_before_running_again(self):
+        """The whole point of the backoff: broken work is not retried once a second."""
+        throttle = _Throttle()
+        runs: list = []
+        work = self._recorder(runs, _Attempt.FAILED)
+
+        throttle.attempt_create(work)
+        assert len(runs) == 1
+
+        for _ in range(RETRY_AFTER_LOOPS):
+            throttle.attempt_create(work)
+        assert len(runs) == 1, "the work ran while its delay was still being served"
+
+        throttle.attempt_create(work)
+        assert len(runs) == 2
+
+    def test_a_skipped_attempt_buys_no_delay(self):
+        """Not reaching the work is not the work failing, so nothing is penalised."""
+        throttle = _Throttle()
+        runs: list = []
+        work = self._recorder(runs, _Attempt.SKIPPED)
+
+        throttle.attempt_create(work)
+        throttle.attempt_create(work)
+
+        assert len(runs) == 2
+
+    def test_a_successful_attempt_buys_no_delay(self):
+        """Work that succeeded is due again as soon as the balancer wants it."""
+        throttle = _Throttle()
+        runs: list = []
+        work = self._recorder(runs, _Attempt.DONE)
+
+        throttle.attempt_create(work)
+        throttle.attempt_create(work)
+
+        assert len(runs) == 2
+
+    def test_reporting_does_not_cancel_a_pending_retry(self):
+        """The two halves of a key are independent: reportable again is not due again."""
+        throttle = _Throttle()
+        job_id = "job-1"
+        throttle.attempt_stop(job_id, self._recorder([], _Attempt.FAILED))
+
+        throttle.stop_failed(job_id, RunnerError("still stuck"))
+
+        runs: list = []
+        throttle.attempt_stop(job_id, self._recorder(runs, _Attempt.DONE))
+        assert runs == [], "reporting the failure cancelled the backoff it belongs to"
+
+    def test_one_stuck_job_does_not_delay_another(self):
+        """Stop state is per job, so a fleet that will not cancel holds up only itself."""
+        throttle = _Throttle()
+        throttle.attempt_stop("stuck", self._recorder([], _Attempt.FAILED))
+
+        runs: list = []
+        throttle.attempt_stop("stuck", self._recorder(runs, _Attempt.DONE))
+        throttle.attempt_stop("other", self._recorder(runs, _Attempt.DONE))
+
+        assert runs == [_Attempt.DONE], "the other job's stop was delayed by the stuck one"
+
+    def test_forget_jobs_drops_only_the_jobs_that_are_gone(self):
         """State keyed by job has to be pruned as filler jobs come and go."""
         throttle = _Throttle()
-        for key in ("stop:gone", "stop:live", "create"):
-            throttle.set_retry(key, 5)
+        for job_id in ("gone", "live"):
+            throttle.attempt_stop(job_id, self._recorder([], _Attempt.FAILED))
 
-        throttle.forget_stale("stop:", {"stop:live"})
+        throttle.forget_jobs({"live"})
 
-        assert throttle.wait_before_retry("stop:gone") is False
-        assert throttle.wait_before_retry("stop:live") is True
-        assert throttle.wait_before_retry("create") is True
+        runs: list = []
+        throttle.attempt_stop("gone", self._recorder(runs, _Attempt.DONE))
+        throttle.attempt_stop("live", self._recorder(runs, _Attempt.DONE))
+        assert runs == [_Attempt.DONE], "the pruned job was still serving out a delay"
 
 
 def test_creates_filler_jobs_up_to_the_configured_slots(filler_program):

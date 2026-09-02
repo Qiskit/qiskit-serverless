@@ -2,6 +2,9 @@
 
 import logging
 from dataclasses import dataclass
+from enum import auto, Enum
+from functools import partial
+from typing import Callable
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -25,21 +28,71 @@ logger = logging.getLogger("scheduler.BalanceFillerJobs")
 
 User = get_user_model()
 
-# Loops to skip after a failure before trying the same thing again, which turns
-# tens of thousands of doomed retries a day into about 1,400. It counts loops, not
-# seconds: the countdown only advances on loops that reach the same code path, so a
-# creation delay pauses while real jobs fill the slots.
+# Loops to skip after a failure before trying the same thing again. It is not about
+# log volume: it is what stops real work from being repeated once a second when the
+# thing it needs is broken. One creation attempt costs a COS upload, a Code Engine
+# submit, and a row written and then marked STOPPED; one stop attempt costs a fleet
+# cancellation call. At one loop a second a broken dependency would mean about
+# 86,000 of those a day, and because this loop is single-threaded and shared with
+# the status-update tasks, spending it on doomed calls delays the promotion of real
+# jobs. Sixty loops brings it down to about 1,400 attempts a day.
+#
+# It counts loops, not seconds, and the countdown only advances on loops that reach
+# the same code path, so a creation delay pauses while real jobs fill the slots
+# instead of expiring during a period when nothing was being attempted.
 RETRY_AFTER_LOOPS = 60
+
+
+class _Attempt(Enum):
+    """What one run of a throttled piece of work did.
+
+    FAILED is the only outcome that starts a backoff. SKIPPED exists because not
+    reaching the work is not the same as the work failing: a shutdown signal or a
+    vanished author must not buy a minute of silence for a dependency that may be
+    perfectly healthy.
+    """
+
+    DONE = auto()
+    FAILED = auto()
+    SKIPPED = auto()
+
+
+class _Key(str, Enum):
+    """The fixed throttling keys of this task, so a typo is an error and not silence.
+
+    A key is only a name to index state under. These are the conditions of the task
+    as a whole; state that belongs to one job is keyed by _Throttle._job_key.
+    """
+
+    STATUS = "status"
+    DEACTIVATED = "deactivated"
+    DRAIN = "drain"
+    STALE = "stale"
+    CREATE_ERROR = "create-error"
+    CREATE = "create"
+
+
+_JOB_KEY_PREFIX = "stop:"
 
 
 @dataclass
 class _KeyState:
-    """The two halves of one key's throttling state, which stay independent.
+    """The two halves of one key's throttling state, which are worth different things.
 
-    last_args is what the key logged last, and retry_loops is how many loops it
-    still owes before the same work is attempted again. They live in one entry
-    because they are always indexed by the same key, not because one implies the
-    other: forgetting what was logged must not cancel a backoff in flight.
+    last_args is what the key logged last. It changes only what gets printed: the
+    balancer does exactly the same work with it or without it. What it buys is a log
+    pipeline that is readable, instead of tens of thousands of identical lines a day
+    burying everything else.
+
+    retry_loops is how many loops the key still owes before its work is attempted
+    again. That one avoids real work: COS uploads, Code Engine submits and fleet
+    cancellations that are going to fail again a second from now (see
+    RETRY_AFTER_LOOPS).
+
+    They live in one entry because they are always indexed by the same key, not
+    because one implies the other, and that is why forgetting what was said never
+    cancels a backoff: being worth reporting again says nothing about being due
+    again.
     """
 
     last_args: tuple | None = None
@@ -47,23 +100,137 @@ class _KeyState:
 
 
 class _Throttle:
-    """Log throttling and retry backoff per key, for a task that runs once a second.
+    """Everything this task says out loud, and how often it retries what failed.
 
-    Every repeating log line in this task goes through log(), and every failure
-    that must not be retried at one hertz goes through set_retry(). Both are keyed
-    the same way, by a fixed name for a condition of the whole task ("status",
-    "create-error") or by one job ("stop:<id>").
+    The task hands over facts ("balancing on this profile", "this creation failed")
+    and this class decides the level, whether the line is a repeat, and which other
+    conditions the fact invalidates. Callers never name a key, so a key cannot be
+    misspelled on one side of a pair, and the mutual invalidation between the
+    balancing and drained states is an invariant here rather than a convention
+    spread over the call sites.
     """
 
     def __init__(self):
         self._state: dict[str, _KeyState] = {}
 
-    def log(self, key: str, level: int, message: str, *args) -> None:
-        """Log at `level` when this key's arguments change, at DEBUG when they repeat.
+    # -- Reporting -------------------------------------------------------------
 
-        The scheduler loop runs about once a second, so any unconditional log line
-        in this task becomes tens of thousands of identical entries a day.
+    def balancing(self, profile: str, slots: int, real_running: int, target: int) -> None:
+        """Report the state of a loop that is balancing a profile.
+
+        The arguments are the throttle: the line speaks at INFO again the moment any
+        of these four numbers moves, which is when an operator wants to see it, and
+        stays quiet while the platform is idle. Being here at all means the feature
+        is on, so the two states that say otherwise are made reportable again.
         """
+        self._log(
+            _Key.STATUS,
+            logging.INFO,
+            "[BalanceFillerJobs] profile=%s slots=%s real_running=%s target=%s",
+            profile,
+            slots,
+            real_running,
+            target,
+        )
+        self._clear(_Key.DRAIN)
+        self._clear(_Key.DEACTIVATED)
+
+    def drained(self, count: int) -> None:
+        """Report the cleanup of `count` filler jobs because the feature is off.
+
+        Nothing to stop is not an event, so a zero only makes the line reportable
+        again. Either way the balancing state is made reportable again, so switching
+        the feature back on is never silent.
+        """
+        self._clear(_Key.STATUS)
+        self._clear(_Key.STALE)
+        if count:
+            self._log(
+                _Key.DRAIN,
+                logging.INFO,
+                "[BalanceFillerJobs] stopping %s filler job(s), the feature is off",
+                count,
+            )
+        else:
+            self._clear(_Key.DRAIN)
+
+    def deactivated(self, reason: str) -> None:
+        """Report why the feature is not active. The reason is the throttle."""
+        self._log(_Key.DEACTIVATED, logging.INFO, "[BalanceFillerJobs] deactivated: %s", reason)
+
+    def stale(self, count: int) -> None:
+        """Report `count` filler jobs stopped for belonging to another program or profile.
+
+        A zero is the normal case and not an event, so it only makes the line
+        reportable again for the next time it happens.
+        """
+        if count:
+            self._log(
+                _Key.STALE,
+                logging.INFO,
+                "[BalanceFillerJobs] stopping %s filler job(s) on another program or compute profile",
+                count,
+            )
+        else:
+            self._clear(_Key.STALE)
+
+    def create_ok(self) -> None:
+        """Note that a creation worked, so the next failure is reported at ERROR."""
+        self._clear(_Key.CREATE_ERROR)
+
+    def create_failed(self, ex: Exception) -> None:
+        """Report a creation failure at ERROR, once per distinct message.
+
+        Reported here rather than left to the scheduler's generic handler, which
+        would log a traceback once a second. A COS misconfiguration is a
+        configuration fault, not an incident. A different message is a different
+        symptom, so it speaks again.
+        """
+        self._log(_Key.CREATE_ERROR, logging.ERROR, "[BalanceFillerJobs] could not create filler job: %s", str(ex))
+
+    def stop_failed(self, job_id, ex: Exception) -> None:
+        """Report at ERROR that this job's fleet would not cancel.
+
+        Keyed by the job, the same way its backoff is, so one stuck fleet neither
+        silences another nor delays it.
+        """
+        self._log(
+            self._job_key(job_id),
+            logging.ERROR,
+            "[BalanceFillerJobs] job_id=%s error stopping filler job: %s",
+            job_id,
+            str(ex),
+        )
+
+    # -- Retrying --------------------------------------------------------------
+
+    def attempt_create(self, work: Callable[[], _Attempt]) -> None:
+        """Run `work` unless a creation delay is pending, and start one if it fails."""
+        self._attempt(_Key.CREATE, work)
+
+    def attempt_stop(self, job_id, work: Callable[[], _Attempt]) -> None:
+        """Run `work` unless this job's stop delay is pending, and start one if it fails."""
+        self._attempt(self._job_key(job_id), work)
+
+    def forget_jobs(self, live_ids) -> None:
+        """Drop the state of every job outside `live_ids`, so it cannot grow forever.
+
+        The state lives as long as the process and filler jobs come and go, so
+        without this the dict would keep an entry per job the balancer ever stopped.
+        """
+        live = {self._job_key(job_id) for job_id in live_ids}
+        for key in [k for k in self._state if k.startswith(_JOB_KEY_PREFIX) and k not in live]:
+            del self._state[key]
+
+    # -- Internals -------------------------------------------------------------
+
+    @staticmethod
+    def _job_key(job_id) -> str:
+        """Return the key that holds one job's state, so no caller ever builds it."""
+        return f"{_JOB_KEY_PREFIX}{job_id}"
+
+    def _log(self, key: str, level: int, message: str, *args) -> None:
+        """Log at `level` when this key's arguments change, at DEBUG when they repeat."""
         entry = self._state.setdefault(key, _KeyState())
         if entry.last_args != args:
             logger.log(level, message, *args)
@@ -71,39 +238,25 @@ class _Throttle:
         else:
             logger.debug(message, *args)
 
-    def clear(self, key: str) -> None:
-        """Forget a key's last arguments so its next occurrence logs at its own level.
-
-        Throttling is meant to silence repeats, not recurrences: without this, a
-        condition that clears and comes back would never be reported again for the
-        life of the scheduler process. It leaves retry_loops alone, because a
-        condition being reportable again says nothing about whether the work behind
-        it is due to be retried.
-        """
+    def _clear(self, key: str) -> None:
+        """Forget what `key` last said, leaving any backoff of its own untouched."""
         entry = self._state.get(key)
         if entry is not None:
             entry.last_args = None
 
-    def wait_before_retry(self, key: str) -> bool:
-        """Return True while `key` is still serving out its retry delay.
+    def _attempt(self, key: str, work: Callable[[], _Attempt]) -> None:
+        """Serve out `key`'s delay, otherwise run `work` and start a delay if it failed.
 
-        The countdown advances here rather than on a timer, so it only moves on
-        loops that reach this same code path.
+        Only a failure creates state, so a key that never fails never takes up an
+        entry.
         """
         entry = self._state.get(key)
-        if entry is None or entry.retry_loops <= 0:
-            return False
-        entry.retry_loops -= 1
-        return True
-
-    def set_retry(self, key: str, loops: int) -> None:
-        """Make `key` wait `loops` more loops before its work is attempted again."""
-        self._state.setdefault(key, _KeyState()).retry_loops = loops
-
-    def forget_stale(self, prefix: str, live: set[str]) -> None:
-        """Drop every key under `prefix` that is not in `live`, so the state cannot grow."""
-        for key in [k for k in self._state if k.startswith(prefix) and k not in live]:
-            del self._state[key]
+        if entry is not None and entry.retry_loops > 0:
+            # The countdown advances here, so it only moves on loops that got this far.
+            entry.retry_loops -= 1
+            return
+        if work() is _Attempt.FAILED:
+            self._state.setdefault(key, _KeyState()).retry_loops = RETRY_AFTER_LOOPS
 
 
 class BalanceFillerJobs(SchedulerTask):
@@ -149,24 +302,11 @@ class BalanceFillerJobs(SchedulerTask):
         # occupancy series go away rather than claim a measurement nobody took.
         self.metrics.set_filler_profile_slots(0)
         self.metrics.clear_filler_profile_jobs()
-        self.throttle.clear("status")
-        self.throttle.clear("stale")
-        if not filler_jobs:
-            self.throttle.clear("drain")
-            return
-        self.throttle.log(
-            "drain",
-            logging.INFO,
-            "[BalanceFillerJobs] stopping %s filler job(s), the feature is off",
-            len(filler_jobs),
-        )
+        self.throttle.drained(len(filler_jobs))
         self._stop_filler_jobs(filler_jobs)
 
     def _balance_filler_jobs(self, program: Program, filler_jobs: list[Job]) -> None:
         """Stop the filler jobs that no longer belong, then close the gap to the target."""
-        self.throttle.clear("deactivated")
-        self.throttle.clear("drain")
-
         profile_row = program.default_size.compute_profile
         compute_profile = self._compute_profile_of(program)
         slots = Config.get_int(ConfigKey.FILLER_SLOTS)
@@ -177,15 +317,7 @@ class BalanceFillerJobs(SchedulerTask):
             filler=False,
         ).count()
         target = max(0, slots - real_running)
-        self.throttle.log(
-            "status",
-            logging.INFO,
-            "[BalanceFillerJobs] profile=%s slots=%s real_running=%s target=%s",
-            compute_profile,
-            slots,
-            real_running,
-            target,
-        )
+        self.throttle.balancing(compute_profile, slots, real_running, target)
         self.metrics.set_filler_profile_slots(slots)
         self.metrics.set_filler_profile_jobs(real_running, "real")
 
@@ -204,16 +336,8 @@ class BalanceFillerJobs(SchedulerTask):
         # occupancy the decisions below were taken on.
         self.metrics.set_filler_profile_jobs(len(current), "filler")
 
-        if stale:
-            self.throttle.log(
-                "stale",
-                logging.INFO,
-                "[BalanceFillerJobs] stopping %s filler job(s) on another program or compute profile",
-                len(stale),
-            )
-            self._stop_filler_jobs(stale)
-        else:
-            self.throttle.clear("stale")
+        self.throttle.stale(len(stale))
+        self._stop_filler_jobs(stale)
 
         if len(current) < target:
             self._create_filler_job(program, compute_profile)
@@ -221,12 +345,8 @@ class BalanceFillerJobs(SchedulerTask):
             self._stop_filler_jobs(current[: len(current) - target])
 
     def _forget_finished_jobs(self, filler_jobs: list[Job]) -> None:
-        """Drop the throttling state of jobs that are no longer active.
-
-        Which keys belong to a job is knowledge this task has and _Throttle does
-        not, so the live set is built here.
-        """
-        self.throttle.forget_stale("stop:", {f"stop:{job.id}" for job in filler_jobs})
+        """Drop the throttling state of jobs that are no longer active."""
+        self.throttle.forget_jobs({job.id for job in filler_jobs})
 
     def _compute_profile_of(self, program: Program) -> str:
         """Return the program's default compute profile in canonical form.
@@ -313,7 +433,7 @@ class BalanceFillerJobs(SchedulerTask):
 
         Do not add an explicit `return None`: pylint rejects it (R1711).
         """
-        self.throttle.log("deactivated", logging.INFO, "[BalanceFillerJobs] deactivated: %s", reason)
+        self.throttle.deactivated(reason)
 
     def _discard_unsubmitted_filler_jobs(self) -> None:
         """Stop filler jobs stuck in QUEUED with no fleet.
@@ -346,24 +466,28 @@ class BalanceFillerJobs(SchedulerTask):
         upload plus the Code Engine submit that each job costs stay off the critical
         path of the status updates that share this single-threaded loop.
         """
-        if self.throttle.wait_before_retry("create"):
-            return
+        self.throttle.attempt_create(partial(self._resolve_author_and_submit, program, compute_profile))
 
+    def _resolve_author_and_submit(self, program: Program, compute_profile: str) -> _Attempt:
+        """Resolve the author, honour a shutdown, and submit one filler job.
+
+        Both checks live inside the attempt rather than in front of it, so the author
+        query is not run on the loops that are only serving out a delay. Neither is a
+        failure of the work, so both report SKIPPED and buy no backoff.
+        """
         author = User.objects.filter(username=settings.FILLER_AUTHOR_USERNAME).first()
         if author is None:
             # _get_filler_program checked this, so only a deletion in between gets
             # here. Next loop it deactivates cleanly instead of raising.
-            return
+            return _Attempt.SKIPPED
 
         if self.kill_signal.received:
-            return
-        if not self._submit_filler_job(program, compute_profile, author):
-            # Whatever broke will still be broken a second from now, so wait before
-            # trying again.
-            self.throttle.set_retry("create", RETRY_AFTER_LOOPS)
+            return _Attempt.SKIPPED
 
-    def _submit_filler_job(self, program: Program, compute_profile: str, author) -> bool:
-        """Create and submit one filler job. Return True when it reached PENDING."""
+        return self._submit_filler_job(program, compute_profile, author)
+
+    def _submit_filler_job(self, program: Program, compute_profile: str, author) -> _Attempt:
+        """Create and submit one filler job. DONE when it reached PENDING."""
         project = program.code_engine_project
         job = Job(
             program=program,
@@ -416,52 +540,42 @@ class BalanceFillerJobs(SchedulerTask):
                 self._mark_stopped(job)
             return self._creation_failed(ex)
 
-        self.throttle.clear("create-error")
+        self.throttle.create_ok()
         submitted = job.status == Job.PENDING
         self.metrics.increment_filler_jobs_created("submitted" if submitted else "failed")
         logger.info("[BalanceFillerJobs] job_id=%s filler job submitted with status=%s", job.id, job.status)
-        return submitted
+        # A submit that came back without reaching PENDING swallowed a RunnerError
+        # inside execute_fleets_job, so it is a failure like any other here.
+        return _Attempt.DONE if submitted else _Attempt.FAILED
 
-    def _creation_failed(self, ex: Exception) -> bool:
-        """Report a failed creation, throttled, and return False for the caller.
-
-        Caught here rather than in the scheduler's generic handler, which would log a
-        traceback once a second. A COS problem, for instance, is a configuration
-        fault and not an incident.
-        """
-        self.throttle.log("create-error", logging.ERROR, "[BalanceFillerJobs] could not create filler job: %s", str(ex))
+    def _creation_failed(self, ex: Exception) -> _Attempt:
+        """Report a failed creation and give the caller the outcome to return."""
+        self.throttle.create_failed(ex)
         self.metrics.increment_filler_jobs_created("failed")
-        return False
+        return _Attempt.FAILED
 
     def _stop_filler_jobs(self, jobs: list[Job]) -> None:
         """Stop the given filler jobs, cancelling the fleet before writing STOPPED."""
         for job in jobs:
             if self.kill_signal.received:
                 return
+            self.throttle.attempt_stop(job.id, partial(self._stop_one_filler_job, job))
 
-            key = f"stop:{job.id}"
-            if self.throttle.wait_before_retry(key):
-                continue
+    def _stop_one_filler_job(self, job: Job) -> _Attempt:
+        """Cancel this job's fleet if it has one, then write STOPPED on the row."""
+        if job.fleet_id:
+            try:
+                get_runner(job).stop()
+            except RunnerError as ex:
+                # Leave the job active and try again later. Writing STOPPED first
+                # would hide a fleet that is still holding the scarce node, and the
+                # balancer would then create another filler job on top.
+                self.throttle.stop_failed(job.id, ex)
+                return _Attempt.FAILED
 
-            if job.fleet_id:
-                try:
-                    get_runner(job).stop()
-                except RunnerError as ex:
-                    # Leave the job active and try again later. Writing STOPPED first
-                    # would hide a fleet that is still holding the scarce node, and
-                    # the balancer would then create another filler job on top.
-                    self.throttle.log(
-                        key,
-                        logging.ERROR,
-                        "[BalanceFillerJobs] job_id=%s error stopping filler job: %s",
-                        job.id,
-                        str(ex),
-                    )
-                    self.throttle.set_retry(key, RETRY_AFTER_LOOPS)
-                    continue
-
-            self._mark_stopped(job)
-            logger.info("[BalanceFillerJobs] job_id=%s filler job stopped", job.id)
+        self._mark_stopped(job)
+        logger.info("[BalanceFillerJobs] job_id=%s filler job stopped", job.id)
+        return _Attempt.DONE
 
     def _mark_stopped(self, job: Job) -> None:
         """Write STOPPED on the job, record the event, and count it.
