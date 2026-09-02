@@ -1112,6 +1112,24 @@ class IBMServerlessClient(ServerlessClient):
         )
 
 
+def _sizes_payload(program: QiskitFunction) -> Dict[str, Any]:
+    """Build the size-catalog fields of an upload request.
+
+    ``sizes_map`` carries the ``{size_label: compute_profile}`` catalog on the
+    function; it is sent back to the gateway under the key it expects, ``sizes``,
+    as a JSON object, and ``default_size`` as a plain string. Each is omitted when
+    unset so an upload that does not touch sizes leaves any stored catalog
+    untouched (the gateway treats an absent field as "not sent") rather than
+    clearing it.
+    """
+    payload: Dict[str, Any] = {}
+    if program.sizes_map is not None:
+        payload["sizes"] = json.dumps(program.sizes_map)
+    if program.default_size is not None:
+        payload["default_size"] = program.default_size
+    return payload
+
+
 def _upload_with_docker_image(  # pylint: disable=too-many-positional-arguments
     program: QiskitFunction,
     url: str,
@@ -1151,6 +1169,7 @@ def _upload_with_docker_image(  # pylint: disable=too-many-positional-arguments
                     if program.arguments_schema is not None
                     else {}
                 ),
+                **_sizes_payload(program),
             },
             headers=get_headers(token=token, instance=instance, channel=channel),
             timeout=REQUESTS_TIMEOUT,
@@ -1230,6 +1249,7 @@ def _upload_with_artifact(  # pylint:  disable=too-many-positional-arguments, to
                             if program.arguments_schema is not None
                             else {}
                         ),
+                        **_sizes_payload(program),
                     },
                     files={"artifact": file},
                     headers=get_headers(token=token, instance=instance, channel=channel),
