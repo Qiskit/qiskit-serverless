@@ -352,9 +352,12 @@ metadata:
   labels:
     {{- include "scheduler.labels" . | nindent 4 }}
 spec:
-  {{- if not .Values.autoscaling.enabled }}
+  # The scheduler loop is not safe to run twice: replicas stays at 1 whatever
+  # autoscaling does to the gateway, and Recreate keeps the old pod from
+  # overlapping with the new one during a rollout.
   replicas: 1
-  {{- end }}
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       {{- include "scheduler.selectorLabels" . | nindent 6 }}
