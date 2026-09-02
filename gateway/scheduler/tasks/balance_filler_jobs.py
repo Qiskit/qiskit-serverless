@@ -81,7 +81,7 @@ class BalanceFillerJobs(SchedulerTask):
         self.metrics.set_filler_profile_slots(0)
         self.metrics.clear_filler_profile_jobs()
         if filler_jobs:
-            logger.debug("[BalanceFillerJobs] stopping %s filler job(s), the feature is off", len(filler_jobs))
+            logger.info("[BalanceFillerJobs] stopping %s filler job(s), the feature is off", len(filler_jobs))
         self._stop_filler_jobs(filler_jobs)
 
     def _balance_filler_jobs(self, program: Program, filler_jobs: list[Job]) -> None:
@@ -96,10 +96,10 @@ class BalanceFillerJobs(SchedulerTask):
             filler=False,
         ).count()
         target = max(0, slots - real_running)
-        # DEBUG because this runs every second and says the same thing every time. The
-        # numbers an operator needs are in scheduler_filler_profile_slots and
-        # scheduler_filler_profile_jobs, set just below.
-        logger.debug(
+        # Runs every loop, so it repeats while nothing changes. The same numbers are
+        # in scheduler_filler_profile_slots and scheduler_filler_profile_jobs, set
+        # just below, if this ever needs to be quieter.
+        logger.info(
             "[BalanceFillerJobs] profile=%s slots=%s real_running=%s target=%s",
             compute_profile,
             slots,
@@ -125,7 +125,7 @@ class BalanceFillerJobs(SchedulerTask):
         self.metrics.set_filler_profile_jobs(len(current), "filler")
 
         if stale:
-            logger.debug(
+            logger.info(
                 "[BalanceFillerJobs] stopping %s filler job(s) on another program or compute profile", len(stale)
             )
             self._stop_filler_jobs(stale)
@@ -258,7 +258,7 @@ class BalanceFillerJobs(SchedulerTask):
 
         Do not add an explicit `return None`: pylint rejects it (R1711).
         """
-        logger.debug("[BalanceFillerJobs] deactivated: %s", reason)
+        logger.info("[BalanceFillerJobs] deactivated: %s", reason)
 
     def _discard_unsubmitted_filler_jobs(self) -> None:
         """Stop filler jobs stuck in QUEUED with no fleet.
