@@ -325,7 +325,15 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         provider: Optional[str] = None,
         *,
         compute_profile: Optional[str] = None,
+        function_size: Optional[str] = None,
     ) -> Job:
+        if compute_profile is not None:
+            warnings.warn(
+                "'compute_profile' is deprecated; use 'function_size' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         if isinstance(program, QiskitFunction):
             title = program.title
             provider = program.provider
@@ -344,6 +352,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 "title": title,
                 "provider": provider,
                 "compute_profile": compute_profile,
+                "function_size": function_size,
                 "arguments": json.dumps(arguments or {}, cls=QiskitObjectsEncoder),
             }  # type: Dict[str, Any]
             if config:
@@ -1048,6 +1057,7 @@ class IBMServerlessClient(ServerlessClient):
         provider: Optional[str] = None,
         *,
         compute_profile: Optional[str] = None,
+        function_size: Optional[str] = None,
         suppress_low_usage_warning: bool = False,
     ) -> "Job":
         """Run a Qiskit Function with pre-flight validation before submitting to the gateway.
@@ -1060,7 +1070,9 @@ class IBMServerlessClient(ServerlessClient):
                 the backend access check but forwarded unchanged.
             config: Optional execution configuration.
             provider: Optional provider name override.
-            compute_profile: Optional compute-profile name.
+            compute_profile: Deprecated; use ``function_size`` instead. Sending both is rejected.
+            function_size: Declared size label (e.g. ``"m"``) to run at; resolves through the
+                function's size catalog on the gateway.
             suppress_low_usage_warning: If ``True``, suppress the warning when remaining runtime
                 quota is below ``USAGE_LOW_THRESHOLD_SECONDS``. The exception for exhausted quota
                 (at or below ``USAGE_ZERO_EPSILON_SECONDS``) is still raised.
@@ -1094,7 +1106,26 @@ class IBMServerlessClient(ServerlessClient):
             config=config,
             provider=provider,
             compute_profile=compute_profile,
+            function_size=function_size,
         )
+
+
+def _sizes_payload(program: QiskitFunction) -> Dict[str, Any]:
+    """Build the size-catalog fields of an upload request.
+
+    ``sizes_map`` carries the ``{size_label: compute_profile}`` catalog on the
+    function; it is sent back to the gateway under the key it expects, ``sizes``,
+    as a JSON object, and ``default_size`` as a plain string. Each is omitted when
+    unset so an upload that does not touch sizes leaves any stored catalog
+    untouched (the gateway treats an absent field as "not sent") rather than
+    clearing it.
+    """
+    payload: Dict[str, Any] = {}
+    if program.sizes_map is not None:
+        payload["sizes"] = json.dumps(program.sizes_map)
+    if program.default_size is not None:
+        payload["default_size"] = program.default_size
+    return payload
 
 
 def _upload_with_docker_image(  # pylint: disable=too-many-positional-arguments
@@ -1136,6 +1167,7 @@ def _upload_with_docker_image(  # pylint: disable=too-many-positional-arguments
                     if program.arguments_schema is not None
                     else {}
                 ),
+                **_sizes_payload(program),
             },
             headers=get_headers(token=token, instance=instance, channel=channel),
             timeout=REQUESTS_TIMEOUT,
@@ -1215,6 +1247,7 @@ def _upload_with_artifact(  # pylint:  disable=too-many-positional-arguments, to
                             if program.arguments_schema is not None
                             else {}
                         ),
+                        **_sizes_payload(program),
                     },
                     files={"artifact": file},
                     headers=get_headers(token=token, instance=instance, channel=channel),

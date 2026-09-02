@@ -11,7 +11,14 @@ class RunFunctionInput:  # pylint: disable=too-many-instance-attributes
     provider_name: str | None
     arguments: str
     config_data: dict | None
+    # Deprecated: prefer ``function_size``. Expected already in bare (prefix-less)
+    # canonical form; the view normalizes the raw client value before building
+    # this input.
     compute_profile: str | None
+    # A declared size label (e.g. "m"), already normalized (strip+casefold) by
+    # the view. Resolved to a compute profile through the function's FunctionSize
+    # catalog in the use case. Replaces ``compute_profile`` as the run input.
+    function_size: str | None
     channel: str
     token: str
     instance: str | None
