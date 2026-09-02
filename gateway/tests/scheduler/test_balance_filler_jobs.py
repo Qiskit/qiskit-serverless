@@ -98,6 +98,7 @@ def test_real_running_jobs_reduce_the_number_of_filler_jobs(filler_program):
             status=Job.RUNNING,
             runner=Program.FLEETS,
             compute_profile=_PROFILE,
+            compute_profile_fk=filler_program.default_size.compute_profile,
         )
     task = _make_task()
 
@@ -108,12 +109,14 @@ def test_real_running_jobs_reduce_the_number_of_filler_jobs(filler_program):
 
 def test_real_jobs_on_another_profile_do_not_count(filler_program):
     """A running job on a different compute profile leaves all four slots to fill."""
+    other = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
     TestUtils.create_job(
         author="real_user",
         program=filler_program,
         status=Job.RUNNING,
         runner=Program.FLEETS,
-        compute_profile="24x120",
+        compute_profile=other.compute_profile_id,
+        compute_profile_fk=other,
     )
     task = _make_task()
 

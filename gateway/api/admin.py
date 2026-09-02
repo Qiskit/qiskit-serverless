@@ -478,7 +478,7 @@ class JobAdmin(admin.ModelAdmin):
     ordering = ["-created"]
     actions = ["timeline_action"]
     inlines = []
-    autocomplete_fields = ["author", "program", "compute_resource", "config", "compute_profile_fk"]
+    autocomplete_fields = ["author", "program", "compute_resource", "config", "compute_profile_fk", "function_size"]
     change_form_template = "admin/api/job/change_form.html"
     fieldsets = [
         (
@@ -506,6 +506,8 @@ class JobAdmin(admin.ModelAdmin):
                     "fleet_id",
                     "compute_profile",
                     "compute_profile_fk",
+                    "size_source",
+                    "function_size",
                     "ce_project_name",
                     "ce_region",
                     "code_engine_project",

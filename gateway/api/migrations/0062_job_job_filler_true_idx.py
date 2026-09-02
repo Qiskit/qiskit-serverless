@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("api", "0060_job_filler"),
+        ("api", "0061_job_filler"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

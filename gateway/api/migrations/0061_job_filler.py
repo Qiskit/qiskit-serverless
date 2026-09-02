@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("api", "0059_provider_code_engine_project"),
+        ("api", "0060_job_size_source_and_more"),
     ]
 
     operations = [

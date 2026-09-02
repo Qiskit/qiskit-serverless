@@ -7,7 +7,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from unittest.mock import patch
 
-from core.models import ComputeProfile, Job, Program
+from core.models import ComputeProfile, FunctionSize, Job, Program
 from tests.utils import TestUtils
 
 pytestmark = pytest.mark.django_db
@@ -19,7 +19,7 @@ _RESULT_STORAGE_MOD = "core.services.storage.result_storage_fleets.get_cos_clien
 # row, otherwise job creation is rejected as a misconfiguration. Rows are stored
 # in the canonical bare (prefix-less) notation; the prefix is normalized away at
 # ingest, so a prefixed submission resolves to the matching bare row.
-_KNOWN_COMPUTE_PROFILES = ["24x120", "4x16", "24x120x1a100p", "8x64", "2x8"]
+_KNOWN_COMPUTE_PROFILES = ["16x128", "4x16", "24x120x1a100p", "8x64", "2x8"]
 
 
 @pytest.fixture(autouse=True)
@@ -72,7 +72,7 @@ def program(user, ce_project):
     )
 
 
-@override_settings(DEFAULT_COMPUTE_PROFILE="24x120")
+@override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
 def test_create_job_with_compute_profile(api_client, program):
     """A prefixed submission is accepted and stored in bare notation."""
     url = reverse("v1:programs-run")
@@ -93,7 +93,7 @@ def test_create_job_with_compute_profile(api_client, program):
     assert job.compute_profile == "24x120x1a100p"
 
 
-@override_settings(DEFAULT_COMPUTE_PROFILE="24x120")
+@override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
 def test_create_job_with_bare_compute_profile(api_client, program):
     """A bare submission is stored unchanged."""
     url = reverse("v1:programs-run")
@@ -113,7 +113,7 @@ def test_create_job_with_bare_compute_profile(api_client, program):
     assert job.compute_profile == "24x120x1a100p"
 
 
-@override_settings(DEFAULT_COMPUTE_PROFILE="24x120")
+@override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
 def test_create_job_without_compute_profile_uses_default(api_client, program):
     """Test creating a job without compute_profile uses system default."""
     url = reverse("v1:programs-run")
@@ -126,11 +126,11 @@ def test_create_job_without_compute_profile_uses_default(api_client, program):
     response = api_client.post(url, data, format="json")
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.data["compute_profile"] == "24x120"
+    assert response.data["compute_profile"] == "16x128"
 
     # Verify job was created with default compute_profile
     job = Job.objects.get(id=response.data["id"])
-    assert job.compute_profile == "24x120"
+    assert job.compute_profile == "16x128"
 
 
 @pytest.mark.parametrize(
@@ -205,6 +205,128 @@ def test_compute_profile_validation_blank_is_rejected(api_client, program):
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert Job.objects.count() == job_count_before
+
+
+def test_run_with_function_size_happy_path(api_client, program):
+    """A declared size resolves through the catalog to its compute profile."""
+    profile = ComputeProfile.objects.get(compute_profile_id="4x16")
+    FunctionSize.objects.create(function=program, function_size="m", compute_profile=profile)
+    url = reverse("v1:programs-run")
+    data = {
+        "title": program.title,
+        "arguments": "{}",
+        "config": {},
+        "function_size": "m",
+    }
+
+    response = api_client.post(url, data, format="json")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["compute_profile"] == "4x16"
+    assert response.data["size_source"] == Job.SIZE_SOURCE_REQUESTED
+
+    job = Job.objects.get(id=response.data["id"])
+    assert job.compute_profile == "4x16"
+    assert job.size_source == Job.SIZE_SOURCE_REQUESTED
+    assert job.function_size.function_size == "m"
+
+
+def test_run_with_function_size_is_normalized(api_client, program):
+    """The requested label is normalized (strip+casefold) before catalog lookup."""
+    profile = ComputeProfile.objects.get(compute_profile_id="4x16")
+    FunctionSize.objects.create(function=program, function_size="m", compute_profile=profile)
+    url = reverse("v1:programs-run")
+    data = {
+        "title": program.title,
+        "arguments": "{}",
+        "config": {},
+        "function_size": "  M  ",
+    }
+
+    response = api_client.post(url, data, format="json")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["compute_profile"] == "4x16"
+
+
+def test_run_with_both_compute_profile_and_function_size_returns_400(api_client, program):
+    """Sending both a size and a profile is ambiguous and rejected, with no Job created."""
+    profile = ComputeProfile.objects.get(compute_profile_id="4x16")
+    FunctionSize.objects.create(function=program, function_size="m", compute_profile=profile)
+    url = reverse("v1:programs-run")
+    data = {
+        "title": program.title,
+        "arguments": "{}",
+        "config": {},
+        "compute_profile": "4x16",
+        "function_size": "m",
+    }
+    job_count_before = Job.objects.count()
+
+    response = api_client.post(url, data, format="json")
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert Job.objects.count() == job_count_before
+
+
+def test_run_with_unknown_function_size_returns_400(api_client, program):
+    """A size the function does not declare is rejected, with no Job created."""
+    url = reverse("v1:programs-run")
+    data = {
+        "title": program.title,
+        "arguments": "{}",
+        "config": {},
+        "function_size": "nope",
+    }
+    job_count_before = Job.objects.count()
+
+    response = api_client.post(url, data, format="json")
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert Job.objects.count() == job_count_before
+
+
+def test_get_by_title_includes_sizes_and_default(api_client, user, program):
+    """The function representation carries the declared catalog and default size label."""
+    small = ComputeProfile.objects.get(compute_profile_id="4x16")
+    large = ComputeProfile.objects.get(compute_profile_id="8x64")
+    FunctionSize.objects.create(function=program, function_size="s", compute_profile=small)
+    default_row = FunctionSize.objects.create(function=program, function_size="m", compute_profile=large)
+    program.default_size = default_row
+    program.save(update_fields=["default_size"])
+
+    url = reverse("v1:programs-get-by-title", kwargs={"title": program.title})
+    response = api_client.get(url, format="json")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["sizes"] == {"s": "4x16", "m": "8x64"}
+    assert response.data["default_size"] == "m"
+
+
+def test_get_by_title_sizes_empty_when_none_declared(api_client, user, program):
+    """A function with no declared sizes reports an empty catalog and null default."""
+    url = reverse("v1:programs-get-by-title", kwargs={"title": program.title})
+    response = api_client.get(url, format="json")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["sizes"] == {}
+    assert response.data["default_size"] is None
+
+
+def test_list_includes_sizes_and_default(api_client, user, program):
+    """The function list carries each function's declared catalog and default size."""
+    small = ComputeProfile.objects.get(compute_profile_id="4x16")
+    default_row = FunctionSize.objects.create(function=program, function_size="s", compute_profile=small)
+    program.default_size = default_row
+    program.save(update_fields=["default_size"])
+
+    url = reverse("v1:programs-list")
+    response = api_client.get(url, format="json")
+
+    assert response.status_code == status.HTTP_200_OK
+    entry = next(item for item in response.data if item["title"] == program.title)
+    assert entry["sizes"] == {"s": "4x16"}
+    assert entry["default_size"] == "s"
 
 
 def test_job_list_includes_compute_profile(api_client, user, program):

@@ -517,6 +517,23 @@ class Job(models.Model):
         (BusinessModel.CONSUMPTION, "Consumption"),
     ]
 
+    # How the job's size/compute profile was determined at creation time. The
+    # size is the source of truth (size -> compute profile; the reverse is not
+    # unique), so provenance is captured here rather than inferred from the
+    # stored compute profile.
+    SIZE_SOURCE_REQUESTED = "REQUESTED"  # user asked for this size
+    SIZE_SOURCE_DEFAULT_SIZE = "DEFAULT_SIZE"  # function's default_size filled in
+    SIZE_SOURCE_SETTINGS_DEFAULT = "SETTINGS_DEFAULT"  # deployment-wide default profile
+    SIZE_SOURCE_COMPUTE_PROFILE = "COMPUTE_PROFILE"  # deprecated compute_profile input
+    SIZE_SOURCE_NONE = "NONE"  # sizing not applicable (Ray / non-Fleets)
+    SIZE_SOURCES = [
+        (SIZE_SOURCE_REQUESTED, "Requested by user"),
+        (SIZE_SOURCE_DEFAULT_SIZE, "Function default size"),
+        (SIZE_SOURCE_SETTINGS_DEFAULT, "Deployment default profile"),
+        (SIZE_SOURCE_COMPUTE_PROFILE, "Deprecated compute_profile input"),
+        (SIZE_SOURCE_NONE, "Not applicable"),
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, null=True)
@@ -585,6 +602,23 @@ class Job(models.Model):
         help_text=(
             "Compute profile used by the job, captured at creation time so the "
             "historical compute profile is preserved even if the profile changes later."
+        ),
+    )
+    size_source = models.CharField(
+        max_length=32,
+        choices=SIZE_SOURCES,
+        default=SIZE_SOURCE_NONE,
+        help_text="How the job's size/compute profile was determined (requested, defaulted, legacy, or N/A).",
+    )
+    function_size = models.ForeignKey(
+        to="FunctionSize",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="jobs",
+        help_text=(
+            "Size row the job resolved to at creation; null when sized by the deployment "
+            "default profile, the deprecated compute_profile input, or a non-Fleets runner."
         ),
     )
 

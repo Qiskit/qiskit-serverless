@@ -80,10 +80,11 @@ class BalanceFillerJobs(SchedulerTask):
             self._clear_throttle("status")
         if program is not None:
             self._clear_throttle("deactivated")
+            profile_row = program.default_size.compute_profile
             compute_profile = self._compute_profile_of(program)
             slots = self._slots()
             real_running = Job.objects.filter(
-                compute_profile=compute_profile,
+                compute_profile_fk=profile_row,
                 runner=Program.FLEETS,
                 status__in=Job.RUNNING_STATUSES,
                 filler=False,
@@ -194,10 +195,11 @@ class BalanceFillerJobs(SchedulerTask):
         """Return the program's default compute profile in canonical form.
 
         ComputeProfile primary keys are free text with no validation anywhere, so a
-        row can carry the prefixed form. Jobs always store the prefix-less form, so
-        normalizing here is what makes the comparison with real jobs meaningful.
-        The same normalized value is written on the filler jobs this task creates,
-        so that the next loop recognizes them as its own.
+        row can carry the prefixed form. This value is what the filler jobs store in
+        Job.compute_profile and what the next loop matches them by, so normalizing
+        keeps it stable. Occupancy is counted on compute_profile_fk instead, because
+        a job sized through the t-shirt size paths stores the primary key verbatim
+        rather than the canonical form.
         """
         # normalize() is typed Optional[str] because it maps None and "" to None,
         # but compute_profile_id is a non-empty primary key, so this is always a str.
@@ -363,6 +365,10 @@ class BalanceFillerJobs(SchedulerTask):
             runner=Program.FLEETS,
             compute_profile=compute_profile,
             compute_profile_fk=program.default_size.compute_profile,
+            # A filler job is sized by the program's default size, so it records the
+            # same provenance a real job resolved that way would.
+            size_source=Job.SIZE_SOURCE_DEFAULT_SIZE,
+            function_size=program.default_size,
             status=Job.QUEUED,
             env_vars="{}",
             ce_project_name=project.project_name,

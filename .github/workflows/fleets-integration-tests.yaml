@@ -48,7 +48,7 @@ jobs:
           docker compose -f docker-compose-fleets-test.yaml exec -T gateway
           python manage.py shell -c
           "from core.models import ComputeProfile;
-          ComputeProfile.objects.get_or_create(compute_profile_id='24x120', defaults={'cpu': '24', 'memory': '120'})"
+          ComputeProfile.objects.get_or_create(compute_profile_id='16x128', defaults={'cpu': '16', 'memory': '128'})"
       - name: Run fleets integration tests
         run: tox -c tests/tox.ini -e py312-fleets
       - name: Print logs on failure
