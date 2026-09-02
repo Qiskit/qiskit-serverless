@@ -1,11 +1,21 @@
 ---
 fix:
   - |
-    ``Job.updated`` now records the last time the row actually changed. Every job
-    status transition goes through ``save_direct`` or ``update_fields``, which issue
+    ``Job.updated`` now records the last time the row actually changed. Most job
+    status transitions go through ``save_direct`` or ``update_fields``, which issue
     a queryset ``UPDATE`` to skip the optimistic-locking check, and a queryset
     ``UPDATE`` does not fire the field's ``auto_now``. The column therefore kept the
     value it was given when the job was created, which is what the job list in the
     admin showed, and what the job timeline used as the end time when a job had no
     status events to derive one from. Setting a job's ``sub_status`` now moves it as
     well.
+  - |
+    Stopping a job through the API also left ``Job.updated`` stale: unlike the
+    scheduler's paths, it goes through a plain ``Model.save(update_fields=["status"])``,
+    and Django only fires a field's ``auto_now`` when that field is itself named in
+    ``update_fields`` — omitting it silently skips the timestamp rather than raising.
+    ``updated`` is now named alongside ``status``.
+  - |
+    ``Config.set()`` had the same queryset-``UPDATE`` gap as the job status paths
+    above, so the "updated" column the admin shows for dynamic config values never
+    moved when a value was changed through it.

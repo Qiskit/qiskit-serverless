@@ -805,7 +805,9 @@ class Config(models.Model):
     @classmethod
     def set(cls, key: ConfigKey, value: str):
         """Changes a configuration value in DB and cache."""
-        cls.objects.filter(name=key.value).update(value=value)
+        # A queryset UPDATE does not fire auto_now, so updated has to be stamped
+        # by hand or the admin's "updated" column would never move.
+        cls.objects.filter(name=key.value).update(value=value, updated=timezone.now())
         cache.set(cls._get_cache_key(key), value, settings.DYNAMIC_CONFIG_CACHE_TTL)
 
     @classmethod
