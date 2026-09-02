@@ -26,13 +26,10 @@ logger = logging.getLogger("scheduler.BalanceFillerJobs")
 User = get_user_model()
 
 # A COS upload plus a Code Engine submit per job, on the single-threaded scheduler
-# loop: cap them so a mistyped slot count cannot block status updates for minutes.
+# loop. FILLER_SLOTS is honored as configured, so this is the only thing standing
+# between a mistyped slot count and a loop that blocks status updates for minutes:
+# a large target converges over several loops instead of being met in one.
 MAX_SUBMITS_PER_LOOP = 4
-
-# Sanity cap on FILLER_SLOTS, which is free text in the admin. Filler jobs count
-# against LIMITS_MAX_FLEETS, so a mistyped few hundred would starve every real
-# Fleets job on the platform.
-MAX_SLOTS = 16
 
 # Loops to skip after a failure before trying the same thing again, which turns
 # tens of thousands of doomed retries a day into about 1,400. It counts loops, not
@@ -56,6 +53,9 @@ class BalanceFillerJobs(SchedulerTask):
 
     The compute profile is not configured directly: it is derived from the filler
     program's default size, so it cannot drift away from the program it belongs to.
+    A filler job belongs to the feature only while it matches both, the configured
+    program and that program's profile, so re-pointing either one drains the jobs
+    left behind.
 
     Filler jobs skip the queue that ScheduleFleetsJobs feeds. Fair-share picks at
     most one queued job per author per loop and every filler job shares one author,
@@ -76,15 +76,15 @@ class BalanceFillerJobs(SchedulerTask):
         program = self._get_filler_program()
         target = 0
         compute_profile = None
-        profile_row_id = None
+        expected = None
         if program is None:
             self._clear_throttle("status")
-        if program is not None:
+        else:
             self._clear_throttle("deactivated")
             profile_row = program.default_size.compute_profile
-            profile_row_id = profile_row.pk
+            expected = (program.pk, profile_row.pk)
             compute_profile = self._compute_profile_of(program)
-            slots = self._slots()
+            slots = Config.get_int(ConfigKey.FILLER_SLOTS)
             real_running = Job.objects.filter(
                 compute_profile_fk=profile_row,
                 runner=Program.FLEETS,
@@ -104,21 +104,26 @@ class BalanceFillerJobs(SchedulerTask):
 
         filler_jobs = list(Job.objects.filter(filler=True, status__in=Job.RUNNING_STATUSES).order_by("created"))
 
-        # A filler job on any other compute profile holds capacity nobody asked it
-        # to hold, so it is always stopped. This is also what cleans everything up
-        # when the feature is off, because then there is no derived profile to match.
-        # Classified on the same key the occupancy count uses, compute_profile_fk:
-        # two ComputeProfile rows can normalize to the same string, and comparing
-        # strings here while counting on the row would leave filler jobs sitting on
-        # a profile the balancer no longer protects, with nothing to stop them.
-        stale = [job for job in filler_jobs if job.compute_profile_fk_id != profile_row_id]
-        current = [job for job in filler_jobs if job.compute_profile_fk_id == profile_row_id]
+        # A filler job is current only while it matches both halves: the configured
+        # program and the profile derived from it. Another profile holds capacity
+        # nobody asked it to hold, and another program holds the right capacity with
+        # the code the operator replaced, so both are stopped. With the feature off
+        # there is nothing to match, which is what drains every filler job.
+        # The profile half is compared on compute_profile_fk, the same key the
+        # occupancy count uses: two ComputeProfile rows can normalize to the same
+        # string, so comparing strings here would leave jobs sitting on a profile the
+        # balancer no longer protects, with nothing to stop them.
+        if expected is None:
+            stale, current = filler_jobs, []
+        else:
+            stale = [job for job in filler_jobs if (job.program_id, job.compute_profile_fk_id) != expected]
+            current = [job for job in filler_jobs if (job.program_id, job.compute_profile_fk_id) == expected]
 
         if stale:
             self._log_throttled(
                 "stale",
                 logging.INFO,
-                "[BalanceFillerJobs] stopping %s filler job(s) on another compute profile",
+                "[BalanceFillerJobs] stopping %s filler job(s) on another program or compute profile",
                 len(stale),
             )
             self._stop_filler_jobs(stale)
@@ -168,34 +173,6 @@ class BalanceFillerJobs(SchedulerTask):
         for key in [k for k in self._retry_after if k.startswith("stop:") and k not in live]:
             del self._retry_after[key]
             self._last_logged.pop(key, None)
-
-    def _slots(self) -> int:
-        """Return the configured slot count, clamped to MAX_SLOTS."""
-        slots = Config.get_int(ConfigKey.FILLER_SLOTS)
-        if slots < 0:
-            self._log_throttled(
-                "negative-slots",
-                logging.WARNING,
-                "[BalanceFillerJobs] %s is %s, treating it as 0",
-                ConfigKey.FILLER_SLOTS.value,
-                slots,
-            )
-            self._clear_throttle("clamp")
-            return 0
-        if slots > MAX_SLOTS:
-            self._log_throttled(
-                "clamp",
-                logging.WARNING,
-                "[BalanceFillerJobs] %s is %s, clamped to MAX_SLOTS=%s",
-                ConfigKey.FILLER_SLOTS.value,
-                slots,
-                MAX_SLOTS,
-            )
-            self._clear_throttle("negative-slots")
-            return MAX_SLOTS
-        self._clear_throttle("clamp")
-        self._clear_throttle("negative-slots")
-        return slots
 
     def _compute_profile_of(self, program: Program) -> str:
         """Return the program's default compute profile in canonical form.
@@ -257,6 +234,13 @@ class BalanceFillerJobs(SchedulerTask):
 
         if not Config.get_bool(ConfigKey.FILLER_ENABLED):
             return self._deactivated(f"{ConfigKey.FILLER_ENABLED.value} is false")
+
+        # Zero slots means the same as switched off, and it is how the feature is
+        # drained: the caller stops every filler job when this returns None. Read
+        # again in run(), off the same DYNAMIC_CONFIG_CACHE_TTL cache.
+        slots = Config.get_int(ConfigKey.FILLER_SLOTS)
+        if slots <= 0:
+            return self._deactivated(f"{ConfigKey.FILLER_SLOTS.value} is {slots}")
 
         program_id = Config.get(ConfigKey.FILLER_PROGRAM_ID).strip()
         if not program_id:

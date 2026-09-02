@@ -37,12 +37,25 @@ upgrade:
     often than real ones, so they accumulate cancelled fleets in the project faster
     than user jobs do.
   - |
-    Two things can silently reduce the number of filler jobs running, both worth
-    alerting on. The balancer stops creating filler jobs, and logs at ERROR, when
-    three of them have ended by themselves within five minutes, because a filler
-    program is meant to run until something needs its slot. And
-    ``scheduler.filler.slots`` is capped in code at 16: a larger configured value
-    is clamped down to that cap, with a warning logged, rather than honored.
+    The balancer stops creating filler jobs, and logs at ERROR, when three of them
+    have ended by themselves within five minutes, because a filler program is meant
+    to run until something needs its slot. This silently reduces the number of
+    filler jobs running, so it is worth alerting on.
+  - |
+    ``scheduler.filler.slots`` is honored as configured, with no upper bound, so a
+    mistyped value does take that many slots out of ``LIMITS_MAX_FLEETS``. No more
+    than four filler jobs are submitted per scheduler iteration, so a large value
+    converges over several iterations rather than blocking the loop.
+  - |
+    Setting ``scheduler.filler.slots`` to zero, or to any value below it, means the
+    same as ``scheduler.filler.enabled`` being false: nothing is created and every
+    running filler job is stopped.
+  - |
+    Filler jobs are also stopped when they no longer match the configured filler
+    program, not only when they no longer match its compute profile. Pointing
+    ``scheduler.filler.program_id`` at another program therefore drains the jobs
+    running the old one, and the balancer replaces them with jobs running the new
+    one.
   - |
     To switch the feature off, disable the filler function or set
     ``scheduler.filler.slots`` to zero, but never delete the filler ``Program``

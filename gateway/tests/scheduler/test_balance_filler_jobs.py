@@ -18,7 +18,7 @@ from core.model_managers.job_events import JobEventContext
 from core.services.runners import RunnerError
 from scheduler.main import Main
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs, MAX_SLOTS, MAX_SUBMITS_PER_LOOP
+from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs, MAX_SUBMITS_PER_LOOP
 from tests.utils import TestUtils
 
 pytestmark = pytest.mark.django_db
@@ -316,19 +316,6 @@ def test_a_disabled_filler_program_deactivates_the_feature(filler_program):
     assert Job.objects.filter(filler=True).count() == 0
 
 
-def test_the_slot_count_is_clamped(filler_program, caplog):
-    """A mistyped slot count cannot starve every real Fleets job."""
-    Config.set(ConfigKey.FILLER_SLOTS, "400")
-    task = _make_task()
-
-    with caplog.at_level(logging.WARNING, logger="scheduler.BalanceFillerJobs"):
-        _run(task)
-
-    assert f"clamped to MAX_SLOTS={MAX_SLOTS}" in caplog.text
-    # MAX_SLOTS caps the target; MAX_SUBMITS_PER_LOOP caps this loop's share of it.
-    assert Job.objects.filter(filler=True).count() == MAX_SUBMITS_PER_LOOP
-
-
 def test_a_filler_job_that_was_never_submitted_is_discarded(filler_program):
     """A filler job stuck in QUEUED with no fleet would otherwise hold a slot forever."""
     stuck = TestUtils.create_job(
@@ -377,6 +364,38 @@ def test_filler_jobs_on_another_profile_are_always_stopped(filler_program):
     stale.refresh_from_db()
     assert stale.status == Job.STOPPED
     # The stale one never counted towards the target, so all four slots are filled.
+    assert submit.call_count == 4
+
+
+def test_filler_jobs_of_another_program_are_always_stopped(filler_program):
+    """Re-pointing the feature at another program stops the filler jobs of the old one.
+
+    They sit on the right compute profile, so the profile check alone leaves them
+    running: the operator changed which code should hold that capacity, and these
+    jobs are running the code that was replaced.
+    """
+    old_program = TestUtils.create_program(
+        program_title="old-filler-function",
+        author="filler_program_owner",
+        runner=Program.FLEETS,
+    )
+    stale = TestUtils.create_job(
+        author=_AUTHOR,
+        program=old_program,
+        status=Job.RUNNING,
+        runner=Program.FLEETS,
+        compute_profile=_PROFILE,
+        compute_profile_fk=filler_program.default_size.compute_profile,
+        filler=True,
+        fleet_id="fleet-old-program",
+    )
+    task = _make_task()
+
+    submit, _, _ = _run(task)
+
+    stale.refresh_from_db()
+    assert stale.status == Job.STOPPED
+    # It never counted towards the target either, so all four slots are filled.
     assert submit.call_count == 4
 
 
