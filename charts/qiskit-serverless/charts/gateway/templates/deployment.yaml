@@ -355,12 +355,6 @@ spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: 1
   {{- end }}
-  # Exactly one scheduler must run: the filler-jobs balancer reads how many filler
-  # jobs exist and then creates the difference, so two overlapping schedulers each
-  # create a full set. The cost is that a rollout to a broken image leaves no
-  # scheduler at all until it is rolled back.
-  strategy:
-    type: Recreate
   selector:
     matchLabels:
       {{- include "scheduler.selectorLabels" . | nindent 6 }}

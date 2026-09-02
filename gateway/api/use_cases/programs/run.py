@@ -18,7 +18,6 @@ from api.use_cases.programs.validate_arguments import validate_arguments
 from api.utils import active_jobs_limit_reached, build_env_variables
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.business_models import BusinessModel
-from core.domain.compute_profile import normalize as normalize_compute_profile
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import (
     ComputeProfile,
@@ -162,15 +161,7 @@ def _get_runner_config(
         )
 
     # (4b) No default size either: the deployment-wide default profile.
-    # The view normalizes what a client asks for, but nothing normalizes this
-    # fallback, and a prefixed value here would store a non-canonical profile on
-    # the job. The second term is only for typing: normalize() returns
-    # Optional[str] while _config_for_profile_id takes a str. An empty setting
-    # still fails closed, because get_by_id() returns None for it.
-    return _config_for_profile_id(
-        normalize_compute_profile(settings.DEFAULT_COMPUTE_PROFILE) or settings.DEFAULT_COMPUTE_PROFILE,
-        size_source=Job.SIZE_SOURCE_SETTINGS_DEFAULT,
-    )
+    return _config_for_profile_id(settings.DEFAULT_COMPUTE_PROFILE, size_source=Job.SIZE_SOURCE_SETTINGS_DEFAULT)
 
 
 class RunFunctionUseCase:

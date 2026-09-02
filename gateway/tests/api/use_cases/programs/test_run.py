@@ -10,11 +10,10 @@ from api.domain.exceptions.function_configuration_exception import FunctionConfi
 from api.domain.exceptions.function_disabled_exception import FunctionDisabledException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.domain.authentication.channel import Channel
-from api.use_cases.programs.run import RunFunctionUseCase, _get_runner_config
+from api.use_cases.programs.run import RunFunctionUseCase
 from api.use_cases.programs.run_input import RunFunctionInput
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import CodeEngineProject, ComputeProfile, FunctionSize, Job, JobConfig, JobEvent, Program
-from tests.utils import TestUtils
 
 pytestmark = pytest.mark.django_db
 
@@ -299,17 +298,3 @@ class TestRunFunctionUseCase:
             RunFunctionUseCase().execute(user, accessible, make_input(function_size="m", compute_profile="16x128"))
 
         assert not Job.objects.exists()
-
-
-def test_the_default_compute_profile_is_normalized(settings):
-    """A prefixed DEFAULT_COMPUTE_PROFILE still stores the canonical form on the job."""
-    settings.DEFAULT_COMPUTE_PROFILE = "bx3d-24x120"
-    ComputeProfile.objects.get_or_create(compute_profile_id="24x120", defaults={"cpu": "24", "memory": "120"})
-    function = TestUtils.create_program(
-        program_title="normalize-default-function", author="normalize_user", runner=Program.FLEETS
-    )
-
-    config = _get_runner_config(function, None, None)
-
-    assert config.compute_profile == "24x120"
-    assert config.size_source == Job.SIZE_SOURCE_SETTINGS_DEFAULT

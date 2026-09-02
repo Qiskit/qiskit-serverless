@@ -35,11 +35,7 @@ upgrade:
     but not at a deployment that sets that limit low. A stopped filler job's Code
     Engine fleet is cancelled but never deleted, and filler jobs cycle far more
     often than real ones, so they accumulate cancelled fleets in the project faster
-    than user jobs do. Separately, the scheduler Deployment now uses the
-    ``Recreate`` strategy instead of a rolling update, so a rollout to a broken
-    scheduler image leaves zero schedulers running, rather than keeping the old one
-    up, until it is rolled back; no queued job is promoted and no timeout is
-    enforced in the meantime.
+    than user jobs do.
   - |
     Two things can silently reduce the number of filler jobs running, both worth
     alerting on. The balancer stops creating filler jobs, and logs at ERROR, when
