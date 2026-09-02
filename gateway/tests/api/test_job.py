@@ -283,7 +283,7 @@ class TestJobApi:
             provider_name="default",
             function_title="Docker-Image-Program",
             permissions={PLATFORM_PERMISSION_JOBS_READ},
-            business_model=BusinessModel.SUBSIDIZED,
+            business_model=BusinessModel.LICENSED,
         )
         accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[entry])
         self._authorize("test_user", accessible_functions=accessible)
@@ -974,7 +974,7 @@ class TestRetrieveJob:
         )
         assert response.status_code == status.HTTP_200_OK
         assert response.data.get("result") == '{"ultimate": 42}'
-        assert response.data.get("business_model") == BusinessModel.SUBSIDIZED
+        assert response.data.get("business_model") == BusinessModel.LICENSED
 
     def test_author_retrieves_without_result_param(self, authorize):
         """?with_result=false returns the job without the result field."""
@@ -986,7 +986,18 @@ class TestRetrieveJob:
         )
         assert response.status_code == status.HTTP_200_OK
         assert response.data.get("result") is None
-        assert response.data.get("business_model") == BusinessModel.SUBSIDIZED
+        assert response.data.get("business_model") == BusinessModel.LICENSED
+
+    def test_old_subsidized_job_is_retrieved_as_licensed(self, authorize):
+        """A job stored with the old SUBSIDIZED name is reported to the client as LICENSED."""
+        job_id = "8317718f-5c0d-4fb6-9947-72e480b8a348"
+        Job.objects.filter(pk=job_id).update(business_model=BusinessModel.SUBSIDIZED)
+        client = authorize("test_user")
+
+        response = client.get(reverse("v1:retrieve", args=[job_id]) + "?with_result=false", format="json")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data.get("business_model") == BusinessModel.LICENSED
 
     def test_author_retrieves_inline_result(self, authorize):
         """Author retrieves a job whose result is stored inline in the DB."""
@@ -1062,7 +1073,7 @@ class TestRetrieveJob:
                 provider_name="default",
                 function_title="fn",
                 permissions={PLATFORM_PERMISSION_JOBS_READ},
-                business_model=BusinessModel.SUBSIDIZED,
+                business_model=BusinessModel.LICENSED,
             )
             accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[entry])
             client = authorize("test_user", accessible_functions=accessible)
