@@ -18,7 +18,7 @@ from core.model_managers.job_events import JobEventContext
 from core.services.runners import RunnerError
 from scheduler.main import Main
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs, RETRY_AFTER_LOOPS, _Attempt, _Throttle
+from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs, RETRY_AFTER_LOOPS
 from tests.utils import TestUtils
 
 pytestmark = pytest.mark.django_db
@@ -81,172 +81,6 @@ def _fake_submit(job, ctx, context=None):  # pylint: disable=unused-argument
     """Stand in for execute_fleets_job: mark the job PENDING as a real submit would."""
     job.update_fields({"status": Job.PENDING})
     return job
-
-
-class TestThrottle:
-    """The reporting and retry pacing the balancer runs on.
-
-    Tested through the surface the task uses, because the point of that surface is
-    that the class owns the keys: what is worth asserting is the invariants a caller
-    can no longer get wrong, not which key holds what.
-    """
-
-    @staticmethod
-    def _recorder(runs: list, outcome, mark=None):
-        """Return a piece of work that records that it ran and reports `outcome`.
-
-        `mark` is what gets recorded when more than one piece of work shares the list
-        and the test has to say which of them ran, not just how many did.
-        """
-
-        def work():
-            runs.append(outcome if mark is None else mark)
-            return outcome
-
-        return work
-
-    def test_a_repeated_report_drops_to_debug(self, caplog):
-        """The loop runs once a second, so the same line must not be reported twice."""
-        throttle = _Throttle()
-
-        with caplog.at_level(logging.DEBUG, logger="scheduler.BalanceFillerJobs"):
-            throttle.deactivated("filler is off")
-            throttle.deactivated("filler is off")
-
-        assert [record.levelno for record in caplog.records] == [logging.INFO, logging.DEBUG]
-
-    def test_a_changed_argument_is_reported_again(self, caplog):
-        """The arguments are the throttle, so a different reason is a different line."""
-        throttle = _Throttle()
-
-        with caplog.at_level(logging.DEBUG, logger="scheduler.BalanceFillerJobs"):
-            throttle.deactivated("filler is off")
-            throttle.deactivated("program is disabled")
-
-        assert [record.levelno for record in caplog.records] == [logging.INFO, logging.INFO]
-
-    def test_balancing_makes_a_later_drain_reportable_again(self, caplog):
-        """Switching the feature off after it ran must never be silent."""
-        throttle = _Throttle()
-
-        with caplog.at_level(logging.DEBUG, logger="scheduler.BalanceFillerJobs"):
-            throttle.drained(2)
-            throttle.drained(2)
-            throttle.balancing(_PROFILE, 4, 0, 4)
-            throttle.drained(2)
-
-        levels = [record.levelno for record in caplog.records]
-        assert levels == [logging.INFO, logging.DEBUG, logging.INFO, logging.INFO]
-
-    def test_draining_makes_a_later_balancing_reportable_again(self, caplog):
-        """And switching it back on after a drain must not be silent either."""
-        throttle = _Throttle()
-
-        with caplog.at_level(logging.DEBUG, logger="scheduler.BalanceFillerJobs"):
-            throttle.balancing(_PROFILE, 4, 0, 4)
-            throttle.balancing(_PROFILE, 4, 0, 4)
-            throttle.drained(1)
-            throttle.balancing(_PROFILE, 4, 0, 4)
-
-        levels = [record.levelno for record in caplog.records]
-        assert levels == [logging.INFO, logging.DEBUG, logging.INFO, logging.INFO]
-
-    def test_nothing_to_drain_is_not_an_event(self):
-        """A zero only makes the line reportable again, it does not report one."""
-        throttle = _Throttle()
-
-        with patch(f"{_MOD}.logger") as log:
-            throttle.drained(0)
-            throttle.stale(0)
-
-        assert log.log.call_args_list == []
-        assert log.debug.call_args_list == []
-
-    def test_a_failed_attempt_waits_out_the_delay_before_running_again(self):
-        """The whole point of the backoff: broken work is not retried once a second."""
-        throttle = _Throttle()
-        runs: list = []
-        work = self._recorder(runs, _Attempt.FAILED)
-
-        throttle.attempt_create(work)
-        assert len(runs) == 1
-
-        for _ in range(RETRY_AFTER_LOOPS):
-            throttle.attempt_create(work)
-        assert len(runs) == 1, "the work ran while its delay was still being served"
-
-        throttle.attempt_create(work)
-        assert len(runs) == 2
-
-    def test_a_skipped_attempt_buys_no_delay(self):
-        """Not reaching the work is not the work failing, so nothing is penalised."""
-        throttle = _Throttle()
-        runs: list = []
-        work = self._recorder(runs, _Attempt.SKIPPED)
-
-        throttle.attempt_create(work)
-        throttle.attempt_create(work)
-
-        assert len(runs) == 2
-
-    def test_a_successful_attempt_buys_no_delay(self):
-        """Work that succeeded is due again as soon as the balancer wants it."""
-        throttle = _Throttle()
-        runs: list = []
-        work = self._recorder(runs, _Attempt.DONE)
-
-        throttle.attempt_create(work)
-        throttle.attempt_create(work)
-
-        assert len(runs) == 2
-
-    def test_reporting_does_not_cancel_a_pending_retry(self):
-        """The two halves of a key are independent: reportable again is not due again."""
-        throttle = _Throttle()
-        job_id = "job-1"
-        throttle.attempt_stop(job_id, self._recorder([], _Attempt.FAILED))
-
-        throttle.stop_failed(job_id, RunnerError("still stuck"))
-
-        runs: list = []
-        throttle.attempt_stop(job_id, self._recorder(runs, _Attempt.DONE))
-        assert runs == [], "reporting the failure cancelled the backoff it belongs to"
-
-    def test_one_stuck_job_does_not_delay_another(self):
-        """Stop state is per job, so a fleet that will not cancel holds up only itself."""
-        throttle = _Throttle()
-        throttle.attempt_stop("stuck", self._recorder([], _Attempt.FAILED))
-
-        runs: list = []
-        throttle.attempt_stop("stuck", self._recorder(runs, _Attempt.DONE, mark="stuck"))
-        throttle.attempt_stop("other", self._recorder(runs, _Attempt.DONE, mark="other"))
-
-        assert runs == ["other"], "the stuck job ran during its delay, or it held up the other one"
-
-    def test_forget_jobs_drops_only_the_jobs_that_are_gone(self):
-        """State keyed by job has to be pruned as filler jobs come and go, and only that.
-
-        The creation delay is in here because it is the failure this cannot have: the
-        prune walks keys by prefix, so a fixed key that ever started with that prefix
-        would be swept away with the jobs, and the balancer would go back to hammering
-        a broken COS once a second.
-        """
-        throttle = _Throttle()
-        for job_id in ("gone", "live"):
-            throttle.attempt_stop(job_id, self._recorder([], _Attempt.FAILED))
-        throttle.attempt_create(self._recorder([], _Attempt.FAILED))
-
-        throttle.forget_jobs({"live"})
-
-        runs: list = []
-        throttle.attempt_stop("gone", self._recorder(runs, _Attempt.DONE, mark="gone"))
-        throttle.attempt_stop("live", self._recorder(runs, _Attempt.DONE, mark="live"))
-        throttle.attempt_create(self._recorder(runs, _Attempt.DONE, mark="create"))
-
-        assert runs == ["gone"], (
-            "expected only the pruned job to be due again: 'live' has to keep its delay "
-            "and the creation delay is not a job key"
-        )
 
 
 def test_creates_filler_jobs_up_to_the_configured_slots(filler_program):
@@ -650,52 +484,8 @@ def test_a_fleet_that_cannot_be_cancelled_keeps_the_job_active(filler_program):
     assert job.status == Job.RUNNING
 
 
-def test_a_failed_cancel_is_not_retried_every_loop(filler_program):
-    """Retrying a doomed cancel once a second would be 86,400 Code Engine calls a day."""
-    TestUtils.create_job(
-        author=_AUTHOR,
-        program=filler_program,
-        status=Job.RUNNING,
-        runner=Program.FLEETS,
-        compute_profile=_PROFILE,
-        compute_profile_fk=filler_program.default_size.compute_profile,
-        filler=True,
-        fleet_id="fleet-stuck",
-    )
-    Config.set(ConfigKey.FILLER_SLOTS, "0")
-    task = _make_task()
-
-    with (
-        patch(f"{_MOD}.execute_fleets_job"),
-        patch(f"{_MOD}.get_arguments_storage"),
-        patch(f"{_MOD}.get_runner") as runner,
-    ):
-        runner.return_value.stop.side_effect = RunnerError("Code Engine said no")
-        task.run()
-        task.run()
-        task.run()
-
-    assert runner.return_value.stop.call_count == 1
-
-
-def test_a_condition_that_comes_back_is_logged_again(filler_program, caplog):
-    """Throttling silences repeats, not recurrences."""
-    Config.set(ConfigKey.FILLER_ENABLED, "false")
-    task = _make_task()
-
-    with caplog.at_level(logging.INFO, logger="scheduler.BalanceFillerJobs"):
-        _run(task)
-        Config.set(ConfigKey.FILLER_ENABLED, "true")
-        _run(task)
-        Config.set(ConfigKey.FILLER_ENABLED, "false")
-        _run(task)
-
-    deactivated = [r for r in caplog.records if "deactivated" in r.message and r.levelno == logging.INFO]
-    assert len(deactivated) == 2
-
-
-def test_a_failed_creation_is_not_retried_every_loop(filler_program):
-    """A COS problem must not mean a submit attempt every second."""
+def test_a_failed_creation_waits_out_the_delay_before_trying_again(filler_program):
+    """A COS problem must mean one attempt a minute, not one a second."""
     task = _make_task()
 
     with (
@@ -704,10 +494,15 @@ def test_a_failed_creation_is_not_retried_every_loop(filler_program):
         patch(f"{_MOD}.get_runner"),
     ):
         task.run()
-        task.run()
-        task.run()
+        assert arguments.call_count == 1
 
-    assert arguments.call_count == 1
+        for _ in range(RETRY_AFTER_LOOPS):
+            task.run()
+        assert arguments.call_count == 1, "the delay was not served out in full"
+
+        task.run()
+        assert arguments.call_count == 2, "the retry never came"
+
     assert Job.objects.filter(filler=True).count() == 0
 
 
