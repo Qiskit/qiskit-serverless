@@ -18,7 +18,7 @@ from api.v1.views.programs.run import InputSerializer as RunProgramSerializer, J
 from api.v1.views.programs.upload import ProgramSerializer as UploadProgramSerializer
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.business_models import BusinessModel
-from core.models import Job, JobConfig, Program
+from core.models import ComputeProfile, FunctionSize, Job, JobConfig, Program
 from rest_framework.exceptions import ValidationError
 from core.models import PLATFORM_PERMISSION_RUN
 from tests.utils import TestUtils, create_function_access_result
@@ -175,6 +175,36 @@ class TestSerializers:
             serializer.validate_entrypoint("../evil.py")
         assert serializer.validate_entrypoint("./main.py") == "main.py"
 
+    def test_upload_program_serializer_default_size_must_be_in_sizes(self):
+        """'default_size' must name one of the keys declared in 'sizes', when both are sent."""
+        data = {
+            "title": "Hello world",
+            "entrypoint": "main.py",
+            "arguments": {},
+            "dependencies": "[]",
+            "sizes": {"m": "16x128"},
+            "default_size": "l",
+        }
+
+        serializer = UploadProgramSerializer(data=data)
+        assert not serializer.is_valid()
+        assert "not one of the 'sizes' sent" in str(serializer.errors)
+
+    def test_upload_program_serializer_default_size_matching_sizes_is_valid(self):
+        """Sending 'default_size' as one of the declared 'sizes' passes serializer validation."""
+        data = {
+            "title": "Hello world",
+            "entrypoint": "main.py",
+            "arguments": {},
+            "dependencies": "[]",
+            "sizes": {"m": "16x128"},
+            "default_size": "m",
+        }
+
+        serializer = UploadProgramSerializer(data=data)
+        assert serializer.is_valid()
+        assert serializer.validated_data["default_size"] == "m"
+
     def test_run_program_serializer_check_emtpy_data(self):
         data = {}
 
@@ -229,6 +259,7 @@ class TestSerializers:
                 arguments="{}",
                 config_data={"workers": None, "min_workers": 1, "max_workers": 5, "auto_scaling": True},
                 compute_profile=None,
+                function_size=None,
                 channel=Channel.IBM_QUANTUM_PLATFORM,
                 token="my_token",
                 instance=None,
@@ -264,6 +295,7 @@ class TestSerializers:
                 arguments="{}",
                 config_data=None,
                 compute_profile=None,
+                function_size=None,
                 channel=Channel.IBM_QUANTUM_PLATFORM,
                 token="my_token",
                 instance=None,
@@ -279,6 +311,31 @@ class TestSerializers:
 
         serializer = UploadProgramSerializer(data=data)
         assert serializer.is_valid()
+
+    def test_upload_program_serializer_renders_sizes_on_output(self):
+        """The upload response echoes the stored catalog as {label: profile} and the default label."""
+        user = models.User.objects.get(username="test_user")
+        program = TestUtils.create_program(program_title="sized-func", author=user)
+        small, _ = ComputeProfile.objects.get_or_create(compute_profile_id="4x16")
+        FunctionSize.objects.create(function=program, function_size="s", compute_profile=small)
+        default_row = FunctionSize.objects.create(function=program, function_size="m", compute_profile=small)
+        program.default_size = default_row
+        program.save(update_fields=["default_size"])
+
+        data = UploadProgramSerializer(program).data
+
+        assert data["sizes"] == {"s": "4x16", "m": "4x16"}
+        assert data["default_size"] == "m"
+
+    def test_upload_program_serializer_renders_empty_sizes_when_none(self):
+        """A function with no catalog serializes an empty map and null default."""
+        user = models.User.objects.get(username="test_user")
+        program = TestUtils.create_program(program_title="bare-func", author=user)
+
+        data = UploadProgramSerializer(program).data
+
+        assert data["sizes"] == {}
+        assert data["default_size"] is None
 
     # Dependency validation tests use 'mergedeep' and 'ffsim' as representative examples
     # from requirements-dynamic-dependencies.txt. These tests validate the dependency
@@ -424,6 +481,7 @@ class TestSerializers:
                     arguments="{}",
                     config_data=None,
                     compute_profile=None,
+                    function_size=None,
                     channel=Channel.IBM_QUANTUM_PLATFORM,
                     token="my_token",
                     instance=None,

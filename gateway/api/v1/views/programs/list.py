@@ -14,13 +14,14 @@ from rest_framework.response import Response
 from api.use_cases.programs.list import ListFunctionsUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
+from api.v1.views.programs.sizes_fields import SizesFieldsMixin
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import Program
 
 logger = logging.getLogger("api.api.v1.views.programs.list")
 
 
-class OutputSerializer(serializers.ModelSerializer):
+class OutputSerializer(SizesFieldsMixin, serializers.ModelSerializer):
     """Qiskit Function representation for list responses."""
 
     provider = serializers.CharField(source="provider.name", read_only=True)
@@ -40,6 +41,8 @@ class OutputSerializer(serializers.ModelSerializer):
             "version",
             "runner",
             "arguments_schema",
+            "sizes",
+            "default_size",
         ]
         ref_name = "ProgramsListOutput"
 

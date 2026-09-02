@@ -4,6 +4,7 @@
 
 {% block extrastyle %}{{ block.super }}
 <link rel="stylesheet" href="{% static 'admin/css/admin_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'admin/css/job_timeline.css' %}">
 {% endblock %}
 
 {% block content_title %}<h1>Overview</h1>{% endblock %}
@@ -102,4 +103,13 @@
   </div>
 
 </div>
+
+<!-- RECENT FLEETS JOBS TIMELINE -->
+<h2>{% translate "Recent fleets jobs timeline" %}</h2>
+{% if timeline_svg %}
+{% include "admin/api/job/_timeline_widget.html" %}
+<script src="{% static 'admin/js/job_timeline.js' %}" defer></script>
+{% else %}
+<p style="color:var(--body-quiet-color);font-size:0.75rem">No fleets jobs yet</p>
+{% endif %}
 {% endblock %}
