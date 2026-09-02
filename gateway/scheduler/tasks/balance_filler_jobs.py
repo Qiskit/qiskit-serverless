@@ -170,6 +170,7 @@ class BalanceFillerJobs(SchedulerTask):
                 ConfigKey.FILLER_SLOTS.value,
                 slots,
             )
+            self._clear_throttle("clamp")
             return 0
         if slots > MAX_SLOTS:
             self._log_throttled(
@@ -180,8 +181,10 @@ class BalanceFillerJobs(SchedulerTask):
                 slots,
                 MAX_SLOTS,
             )
+            self._clear_throttle("negative-slots")
             return MAX_SLOTS
         self._clear_throttle("clamp")
+        self._clear_throttle("negative-slots")
         return slots
 
     def _compute_profile_of(self, program: Program) -> str:
@@ -219,7 +222,7 @@ class BalanceFillerJobs(SchedulerTask):
         self._log_throttled(
             "churn",
             logging.ERROR,
-            "[BalanceFillerJobs] %s filler jobs created in the last %s ended on their own; "
+            "[BalanceFillerJobs] %s filler jobs ended on their own in the last %s; "
             "not creating more until that stops",
             recent_deaths,
             CHURN_WINDOW,
@@ -317,7 +320,14 @@ class BalanceFillerJobs(SchedulerTask):
 
     def _create_filler_jobs(self, program: Program, compute_profile: str, count: int) -> None:
         """Create and submit up to MAX_SUBMITS_PER_LOOP filler jobs for the program."""
-        if self._wait_before_retry("create") or self._is_churning():
+        if self._wait_before_retry("create"):
+            return
+        if self._is_churning():
+            # Back off too: the churn count is an unindexed join on api_jobevent, and
+            # re-running it every second for the length of an incident is the worst
+            # moment to add load. Nothing about a tripped breaker needs re-checking
+            # at one hertz.
+            self._retry_after["create"] = RETRY_AFTER_LOOPS
             return
 
         author = User.objects.filter(username=settings.FILLER_AUTHOR_USERNAME).first()
