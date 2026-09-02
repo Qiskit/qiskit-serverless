@@ -1,0 +1,17 @@
+---
+upgrade:
+  - |
+    The gateway and the scheduler now refuse to start when
+    ``DEFAULT_COMPUTE_PROFILE`` or ``DEFAULT_FUNCTION_SIZE_PROFILE`` does not
+    hold a compute profile, raising ``ImproperlyConfigured`` at startup instead
+    of failing later on the first run or function upload that needs them. An
+    empty value is rejected too. Both settings are also normalized to the bare
+    (prefix-less) form, so a value such as ``bx3d-24x120`` is stored and billed
+    as ``24x120`` wherever it is read.
+  - |
+    A new migration adds a partial index on ``api_job`` for filler jobs. Django
+    runs it as a plain ``CREATE INDEX``, which holds an ACCESS EXCLUSIVE lock on
+    the table for the length of a full heap scan and blocks writes in the
+    meantime. On a deployment where ``api_job`` is large, create the index by
+    hand with ``CREATE INDEX CONCURRENTLY`` and then apply the migration with
+    ``--fake``.
