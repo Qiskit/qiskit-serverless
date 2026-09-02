@@ -42,7 +42,6 @@ def mock_client():
             token="test-token",
             instance="test-instance",
             channel="ibm_quantum_platform",
-            version="v1",
         )
     return client
 
