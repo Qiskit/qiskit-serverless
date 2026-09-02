@@ -350,13 +350,23 @@ def test_a_filler_job_that_was_never_submitted_is_discarded(filler_program):
 
 
 def test_filler_jobs_on_another_profile_are_always_stopped(filler_program):
-    """Re-pointing the profile stops the filler jobs left on the old one."""
+    """Re-pointing the profile stops the filler jobs left on the old one.
+
+    The old row's id normalizes to the SAME string as the protected one, which is
+    what makes this test worth having: classifying on the string would leave these
+    jobs alone forever, holding a profile the balancer no longer protects. Only the
+    ComputeProfile row tells them apart.
+    """
+    old_row = ComputeProfile.objects.create(
+        compute_profile_id="gx3d-160x1792x8h100", cpu="160", memory="1792", gpu="8h100"
+    )
     stale = TestUtils.create_job(
         author=_AUTHOR,
         program=filler_program,
         status=Job.RUNNING,
         runner=Program.FLEETS,
-        compute_profile="24x120",
+        compute_profile=_PROFILE,
+        compute_profile_fk=old_row,
         filler=True,
         fleet_id="fleet-stale",
     )
