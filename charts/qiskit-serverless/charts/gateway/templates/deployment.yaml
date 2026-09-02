@@ -540,8 +540,6 @@ spec:
               value: {{ .Values.ce.fleetsRuntimeGlobalCatalogUrl | quote }}
             - name: FLEETS_RUNTIME_EXPERIMENTAL
               value: {{ .Values.ce.fleetsRuntimeExperimental | quote }}
-            - name: FILLER_AUTHOR_USERNAME
-              value: {{ .Values.ce.fillerAuthorUsername | quote }}
             {{- end }}
             - name: EVENT_STREAMS_ENABLED
               value: {{ .Values.application.eventStreams.enabled | default false | quote }}

@@ -114,7 +114,6 @@ ce:
   fleetsRuntimeGlobalSearchUrl: ""
   fleetsRuntimeGlobalCatalogUrl: ""
   fleetsRuntimeExperimental: "false"
-  fillerAuthorUsername: "FillerId"
 
 secrets:
   secretKey:

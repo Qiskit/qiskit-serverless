@@ -112,6 +112,25 @@ class TestScheduleApi(APITestCase):
 
         assert fleets_job in fleets_jobs
 
+    @override_settings(LIMITS_JOBS_PER_USER_FLEETS=2)
+    def test_fair_share_ignores_filler_jobs_in_the_per_user_tally(self):
+        """Filler jobs are not user demand, so they must not use up their author's cap.
+
+        The filler jobs belong to the author of the filler function, so counting them
+        would stop that person's own jobs from being promoted.
+        """
+        user = TestUtils.get_user_and_username("filler_function_owner")[0]
+        program = TestUtils.create_program(program_title="Program", author=user)
+
+        # Enough filler jobs to put the author over the cap on their own.
+        for _ in range(3):
+            TestUtils.create_job(author=user, program=program, status=Job.RUNNING, runner=Program.FLEETS, filler=True)
+        real_job = TestUtils.create_job(author=user, program=program, status=Job.QUEUED, runner=Program.FLEETS)
+
+        fleets_jobs = get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS)
+
+        assert real_job in fleets_jobs
+
     @patch("scheduler.schedule.get_runner")
     def test_execute_ray_job_success(self, mock_get_runner_client):
         """Tests successful Ray job execution via runner.submit()."""

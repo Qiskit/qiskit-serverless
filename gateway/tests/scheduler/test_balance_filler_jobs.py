@@ -25,7 +25,9 @@ pytestmark = pytest.mark.django_db
 
 _MOD = "scheduler.tasks.balance_filler_jobs"
 _PROFILE = "160x1792x8h100"
-_AUTHOR = "FillerId"
+# The filler jobs are owned by whoever owns the filler function, so the author of the
+# program and the author the balancer writes on its jobs are the same user.
+_AUTHOR = "filler_program_owner"
 _PROVIDER = "filler-provider"
 _FUNCTION = f"{_PROVIDER}/filler-function"
 
@@ -42,7 +44,7 @@ def filler_program():
     Config.add_defaults()
     program = TestUtils.create_program(
         program_title="filler-function",
-        author="filler_program_owner",
+        author=_AUTHOR,
         provider=_PROVIDER,
         runner=Program.FLEETS,
         code_engine_project=TestUtils.get_or_create_ce_project(
@@ -52,7 +54,6 @@ def filler_program():
     profile = ComputeProfile.objects.create(compute_profile_id=_PROFILE, cpu="160", memory="1792", gpu="8h100")
     program.default_size = FunctionSize.objects.create(function=program, function_size="l", compute_profile=profile)
     program.save()
-    TestUtils.get_user_and_username(_AUTHOR)
     Config.set(ConfigKey.FILLER_ENABLED, "true")
     Config.set(ConfigKey.FILLER_FUNCTION, _FUNCTION)
     Config.set(ConfigKey.FILLER_SLOTS, "4")
@@ -260,7 +261,7 @@ def test_creates_filler_jobs_up_to_the_configured_slots(filler_program):
     assert arguments.call_count == 4
     assert {job.compute_profile for job in fillers} == {_PROFILE}
     assert {job.runner for job in fillers} == {Program.FLEETS}
-    assert {job.author.username for job in fillers} == {_AUTHOR}
+    assert {job.author for job in fillers} == {filler_program.author}
     assert submit.call_args.kwargs["context"] is JobEventContext.FILLER_SUBMIT
 
 
@@ -460,17 +461,6 @@ def test_a_ray_program_deactivates_the_feature(filler_program):
     """A filler program on the Ray runner would write its arguments to the wrong storage."""
     filler_program.runner = Program.RAY
     filler_program.save()
-    task = _make_task()
-
-    submit, _, _ = _run(task)
-
-    assert submit.call_count == 0
-    assert Job.objects.filter(filler=True).count() == 0
-
-
-def test_a_missing_filler_author_deactivates_the_feature(filler_program, settings):
-    """Without the configured author there is nobody to own the filler jobs."""
-    settings.FILLER_AUTHOR_USERNAME = "nobody-here"
     task = _make_task()
 
     submit, _, _ = _run(task)

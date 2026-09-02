@@ -131,8 +131,17 @@ def get_jobs_to_schedule_fair_share(slots: int, gpu: bool, runner: str = Program
     else:
         jobs_per_user = settings.LIMITS_JOBS_PER_USER
 
+    # Filler jobs are excluded from the tally for the same reason they are excluded
+    # from billing, from the job metrics and from the admin dashboard: they are not
+    # user demand. Counting them would penalise their author twice, because the
+    # balancer already steps a filler job aside as soon as real work needs its slot,
+    # and their author is the author of the filler function, so without this a person
+    # who owns that function would stop having their own jobs promoted. One query
+    # serves both caps, LIMITS_JOBS_PER_USER and LIMITS_JOBS_PER_USER_FLEETS, so this
+    # covers Ray and Fleets alike.
     running_jobs_per_user = (
         Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=runner)
+        .exclude(filler=True)
         .values("author")
         .annotate(running_jobs_count=Count("id"))
     )

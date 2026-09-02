@@ -6,8 +6,6 @@ from enum import auto, Enum
 from functools import partial
 from typing import Callable
 
-from django.conf import settings
-from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
@@ -25,8 +23,6 @@ from scheduler.schedule import execute_fleets_job
 from .task import SchedulerTask
 
 logger = logging.getLogger("scheduler.BalanceFillerJobs")
-
-User = get_user_model()
 
 # Loops to skip after a failure before trying the same thing again.
 #
@@ -61,9 +57,8 @@ class _Attempt(Enum):
     """What one run of a throttled piece of work did.
 
     FAILED is the only outcome that starts a backoff. SKIPPED exists because not
-    reaching the work is not the same as the work failing: a shutdown signal or a
-    vanished author must not buy a minute of silence for a dependency that may be
-    perfectly healthy.
+    reaching the work is not the same as the work failing: a shutdown signal must not
+    buy a minute of silence for a dependency that may be perfectly healthy.
 
     There is deliberately no outcome for work that is still going, because nothing
     here waits for anything to finish. A filler job that was submitted but has not
@@ -457,11 +452,6 @@ class BalanceFillerJobs(SchedulerTask):
         if program.default_size is None:
             return self._deactivated(f"function {program} has no default size")
 
-        if not User.objects.filter(username=settings.FILLER_AUTHOR_USERNAME).exists():
-            # Incomplete configuration, not an incident: the chart ships the default
-            # username and nobody creates that User row until the feature is prepared.
-            return self._deactivated(f"no user with username {settings.FILLER_AUTHOR_USERNAME}")
-
         return program
 
     def _lookup_filler_function(self) -> Program | None:
@@ -473,12 +463,13 @@ class BalanceFillerJobs(SchedulerTask):
         The two are not equivalent, and what separates them is who can update the
         function afterwards. Matching on provider__name requires the function to belong
         to a provider, and upload permission on a provider function comes from write
-        access to the provider rather than from authorship, so a person updates it with
-        their own API key while the jobs stay owned by FILLER_AUTHOR_USERNAME, who needs
-        no key at all. An id can just as well name a personal function, and updating one
-        of those means being its author, which is the very thing the provider form
-        avoids. That is an operator's choice rather than a fault, but the id form gives
-        that property up.
+        access to the provider rather than from authorship, so anyone on the team can
+        push a new version with their own API key. An id can just as well name a
+        personal function, and updating one of those means being its author, so the
+        feature then depends on one person's key. That is an operator's choice rather
+        than a fault, but the id form gives that property up. Either way the filler
+        jobs are owned by the function's author, so they appear in that person's job
+        list.
 
         Split out from _get_filler_program so that reading the value, checking its shape
         and resolving it stay together, and so that method keeps one branch per check.
@@ -553,32 +544,31 @@ class BalanceFillerJobs(SchedulerTask):
         upload plus the Code Engine submit that each job costs stay off the critical
         path of the status updates that share this single-threaded loop.
         """
-        self.throttle.attempt_create(partial(self._resolve_author_and_submit, program, compute_profile))
+        self.throttle.attempt_create(partial(self._submit_unless_stopping, program, compute_profile))
 
-    def _resolve_author_and_submit(self, program: Program, compute_profile: str) -> _Attempt:
-        """Resolve the author, honour a shutdown, and submit one filler job.
+    def _submit_unless_stopping(self, program: Program, compute_profile: str) -> _Attempt:
+        """Submit one filler job unless the process is shutting down.
 
-        Both checks live inside the attempt rather than in front of it, so the author
-        query is not run on the loops that are only serving out a delay. Neither is a
-        failure of the work, so both report SKIPPED and buy no backoff.
+        The check lives inside the attempt rather than in front of it so that it is
+        made as late as possible, right before the COS upload and the Code Engine
+        submit that a shutdown should not start. A shutdown is not a failure of the
+        work, so it reports SKIPPED and buys no backoff.
         """
-        author = User.objects.filter(username=settings.FILLER_AUTHOR_USERNAME).first()
-        if author is None:
-            # _get_filler_program checked this, so only a deletion in between gets
-            # here. Next loop it deactivates cleanly instead of raising.
-            return _Attempt.SKIPPED
-
         if self.kill_signal.received:
             return _Attempt.SKIPPED
 
-        return self._submit_filler_job(program, compute_profile, author)
+        return self._submit_filler_job(program, compute_profile)
 
-    def _submit_filler_job(self, program: Program, compute_profile: str, author) -> _Attempt:
+    def _submit_filler_job(self, program: Program, compute_profile: str) -> _Attempt:
         """Create and submit one filler job. DONE when it reached PENDING."""
         project = program.code_engine_project
         job = Job(
             program=program,
-            author=author,
+            # The filler jobs belong to whoever owns the function they run. Nothing in
+            # this task reads the author, and the balancer excludes filler jobs from
+            # billing, from the metrics and from the fair-share tally, so a dedicated
+            # service user would buy nothing over the one the function already has.
+            author=program.author,
             filler=True,
             runner=Program.FLEETS,
             compute_profile=compute_profile,

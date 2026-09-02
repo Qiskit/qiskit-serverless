@@ -7,9 +7,12 @@ features:
     starts filler jobs to make up the difference, and it stops them again in the
     same scheduler iteration that real jobs take the capacity. The feature is off until
     ``scheduler.filler.enabled`` is set to true, and all three values are dynamic
-    configuration that can change without a redeploy. The user the filler jobs
-    belong to comes from the ``FILLER_AUTHOR_USERNAME`` environment variable, and
-    the feature stays off until that user exists.
+    configuration that can change without a redeploy. Every filler job is owned by
+    the author of the filler function itself, so there is no service account to
+    create and no environment variable to set for it. That has two consequences for
+    that person: the filler jobs show up in their job list, because the jobs API
+    filters by author, and the filler jobs do not use up their concurrent job
+    allowance, because the scheduler's fair-share tally now leaves filler jobs out.
   - |
     The balancer counts its own actions on ``scheduler_filler_jobs_created_total``,
     labelled by whether the submit reached PENDING, and on
