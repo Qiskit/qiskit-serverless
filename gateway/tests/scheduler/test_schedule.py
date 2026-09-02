@@ -114,11 +114,7 @@ class TestScheduleApi(APITestCase):
 
     @override_settings(LIMITS_JOBS_PER_USER_FLEETS=2)
     def test_fair_share_ignores_filler_jobs_in_the_per_user_tally(self):
-        """Filler jobs are not user demand, so they must not use up their author's cap.
-
-        The filler jobs belong to the author of the filler function, so counting them
-        would stop that person's own jobs from being promoted.
-        """
+        """Filler jobs are not user demand, so they must not use up their author's cap."""
         user = TestUtils.get_user_and_username("filler_function_owner")[0]
         program = TestUtils.create_program(program_title="Program", author=user)
 

@@ -63,9 +63,8 @@ def filler_program():
 def _run(task, times=1):
     """Run `times` scheduler iterations with the three external boundaries mocked out.
 
-    The task creates one filler job per iteration, so a test that wants a profile
-    filled asks for as many iterations as there are slots. The mocks stay in place
-    across all of them, so the returned call counts are the totals.
+    One filler job is created per iteration, so filling N slots takes N iterations, and
+    the returned call counts are the totals across all of them.
     """
     with (
         patch(f"{_MOD}.execute_fleets_job", side_effect=_fake_submit) as submit,
@@ -131,10 +130,8 @@ def test_real_running_jobs_reduce_the_number_of_filler_jobs(filler_program):
 def test_a_prefixed_profile_row_still_counts_real_jobs(filler_program):
     """Occupancy is counted on the ComputeProfile row, not on the profile string.
 
-    ComputeProfile primary keys are free text, so a row can carry the prefixed form.
-    The t-shirt size paths store that key verbatim on the job while this task
-    normalizes it, so a string comparison would count zero and over-provision the
-    node. This is the case the foreign-key count exists for.
+    The size paths store the prefixed key verbatim while this task normalizes it, so a
+    string comparison would count zero real jobs and over-provision the node.
     """
     prefixed = ComputeProfile.objects.create(
         compute_profile_id="gx3d-160x1792x8h100", cpu="160", memory="1792", gpu="8h100"
@@ -351,10 +348,8 @@ def test_a_filler_job_that_was_never_submitted_is_discarded(filler_program):
 def test_filler_jobs_on_another_profile_are_always_stopped(filler_program):
     """Re-pointing the profile stops the filler jobs left on the old one.
 
-    The old row's id normalizes to the SAME string as the protected one, which is
-    what makes this test worth having: classifying on the string would leave these
-    jobs alone forever, holding a profile the balancer no longer protects. Only the
-    ComputeProfile row tells them apart.
+    The old row normalizes to the same string as the protected one, so only the row
+    tells them apart: classifying on the string would leave these jobs running forever.
     """
     old_row = ComputeProfile.objects.create(
         compute_profile_id="gx3d-160x1792x8h100", cpu="160", memory="1792", gpu="8h100"
@@ -382,9 +377,8 @@ def test_filler_jobs_on_another_profile_are_always_stopped(filler_program):
 def test_filler_jobs_of_another_program_are_always_stopped(filler_program):
     """Re-pointing the feature at another program stops the filler jobs of the old one.
 
-    They sit on the right compute profile, so the profile check alone leaves them
-    running: the operator changed which code should hold that capacity, and these
-    jobs are running the code that was replaced.
+    They sit on the right profile, so the profile half of the check alone leaves them
+    running while they hold that capacity with the code the operator replaced.
     """
     old_program = TestUtils.create_program(
         program_title="old-filler-function",
@@ -423,11 +417,7 @@ def test_one_filler_job_is_submitted_per_loop(filler_program):
 
 
 def test_the_occupancy_of_the_protected_profile_is_reported(filler_program):
-    """The gauge that says whether the feature is doing its job at all.
-
-    Two real jobs and four slots means two filler jobs, so the profile is held by
-    four, and an operator can tell which half is which.
-    """
+    """The gauge that says whether the feature is doing its job at all."""
     for index in range(2):
         TestUtils.create_job(
             author=f"real_user_{index}",
@@ -525,10 +515,8 @@ def test_a_creation_that_fails_before_the_submit_discards_the_row(filler_program
 def test_the_balancer_runs_after_the_fleets_status_update(settings):
     """The balancer must see the freshest real-job count, so its position matters.
 
-    UpdateFleetsJobsStatuses must run before BalanceFillerJobs (so real jobs that
-    finished this loop are already reflected), and FreeResources must run after it
-    (Ray-only cleanup has nothing to do with when the balancer runs, but the plan
-    fixes this as the position).
+    UpdateFleetsJobsStatuses runs first so that real jobs which finished this loop are
+    already reflected in the count the balancer reads.
     """
     # A different port from tests/scheduler/test_main.py, which also constructs a
     # real Main and binds SITE_HOST, so the two cannot collide.

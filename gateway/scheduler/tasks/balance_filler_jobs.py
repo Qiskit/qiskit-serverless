@@ -20,41 +20,21 @@ from .task import SchedulerTask
 
 logger = logging.getLogger("scheduler.BalanceFillerJobs")
 
-# Loops to skip after a failed creation before trying again.
-#
-# Why the retry exists at all: this task keeps no memory of what it tried. Every loop
-# it looks at the world, works out what is missing, and acts. A failure leaves the
-# world exactly as it was, so the next loop reaches the same conclusion and repeats the
-# same attempt a second later, and the one after that too. Nobody schedules those
-# retries, they fall out of the loop, and this counter is the only memory the loop has
-# to hold them back.
-#
-# What it saves is real work rather than log volume. One attempt costs a COS upload and
-# a Code Engine submit, and when the submit is what failed it also leaves a row behind
-# in FAILED with its status event, so a broken dependency would mean about 86,000 of
-# those a day. This loop is single-threaded and shared with the status-update tasks, so
-# spending it on doomed calls also delays the promotion of real jobs. Sixty loops brings
-# it down to about 1,400 attempts a day, and it spaces the retry out rather than giving
-# up, so the first attempt after a fix fills the slots with nobody having to intervene.
-#
-# It counts loops, not seconds, and the countdown only advances on loops that reach the
-# creation path, so the delay pauses while real jobs fill the slots instead of expiring
-# during a period when nothing was being attempted.
+# Loops to skip after a failed creation. This task keeps no memory of what it tried, so
+# a failure leaves the world unchanged and the next loop would repeat the same attempt a
+# second later, forever. Counted in loops, not seconds, and only decremented on loops
+# that reach the creation path, so the delay pauses while real jobs fill the slots.
 RETRY_AFTER_LOOPS = 60
 
 
 class BalanceFillerJobs(SchedulerTask):
     """Keep real plus filler jobs on one compute profile at the configured minimum.
 
-    The compute profile is not configured directly: it is derived from the filler
-    program's default size, so it cannot drift away from the program it belongs to.
-    A filler job belongs to the feature only while it matches both, the configured
-    program and that program's profile, so re-pointing either one drains the jobs
-    left behind.
-
-    Filler jobs skip the queue that ScheduleFleetsJobs feeds. Going through it would
-    put them in competition with real queued jobs for the free Fleets slots, and
-    would leave the balancer unable to say when the capacity it protects is held.
+    The compute profile is derived from the filler program's default size rather than
+    configured on its own, and a filler job belongs to the feature only while it matches
+    both the configured program and that profile, so re-pointing either one drains the
+    jobs left behind. Filler jobs are submitted directly instead of through the queue
+    ScheduleFleetsJobs feeds, which would put them in competition with real queued jobs.
     """
 
     def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
@@ -76,8 +56,7 @@ class BalanceFillerJobs(SchedulerTask):
 
     def _drain_filler_jobs(self, filler_jobs: list[Job]) -> None:
         """Stop every filler job, because the feature is off or misconfigured."""
-        # Nothing is protecting a profile now, so the target is zero and the
-        # occupancy series go away rather than claim a measurement nobody took.
+        # Cleared rather than zeroed: nothing is measuring that profile now.
         self.metrics.set_filler_profile_slots(0)
         self.metrics.clear_filler_profile_jobs()
         if filler_jobs:
@@ -96,9 +75,6 @@ class BalanceFillerJobs(SchedulerTask):
             filler=False,
         ).count()
         target = max(0, slots - real_running)
-        # Runs every loop, so it repeats while nothing changes. The same numbers are
-        # in scheduler_filler_profile_slots and scheduler_filler_profile_jobs, set
-        # just below, if this ever needs to be quieter.
         logger.info(
             "[BalanceFillerJobs] profile=%s slots=%s real_running=%s target=%s",
             compute_profile,
@@ -109,19 +85,12 @@ class BalanceFillerJobs(SchedulerTask):
         self.metrics.set_filler_profile_slots(slots)
         self.metrics.set_filler_profile_jobs(real_running, "real")
 
-        # A filler job belongs to the feature only while it matches both halves: the
-        # configured program and the profile derived from it. Another profile holds
-        # capacity nobody asked it to hold, and another program holds the right
-        # capacity with the code the operator replaced, so both are stopped.
-        # The profile half is compared on compute_profile_fk, the same key the
-        # occupancy count uses: two ComputeProfile rows can normalize to the same
-        # string, so comparing strings here would leave jobs sitting on a profile the
-        # balancer no longer protects, with nothing to stop them.
+        # Compared on compute_profile_fk, not on the normalized string: two
+        # ComputeProfile rows can normalize to the same string, and jobs on a profile
+        # the balancer no longer protects would then never be stopped.
         expected = (program.pk, profile_row.pk)
         stale = [job for job in filler_jobs if (job.program_id, job.compute_profile_fk_id) != expected]
         current = [job for job in filler_jobs if (job.program_id, job.compute_profile_fk_id) == expected]
-        # Reported after the split and before this loop acts, so the gauge is the
-        # occupancy the decisions below were taken on.
         self.metrics.set_filler_profile_jobs(len(current), "filler")
 
         if stale:
@@ -138,23 +107,16 @@ class BalanceFillerJobs(SchedulerTask):
     def _compute_profile_of(self, program: Program) -> str:
         """Return the program's default compute profile in canonical form.
 
-        ComputeProfile primary keys are free text with no validation anywhere, so a
-        row can carry the prefixed form. This value is what the filler jobs store in
-        Job.compute_profile and what the next loop matches them by, so normalizing
-        keeps it stable. Occupancy is counted on compute_profile_fk instead, because
-        a job sized through the t-shirt size paths stores the primary key verbatim
-        rather than the canonical form.
+        ComputeProfile primary keys are free text, so a row can carry the prefixed form.
+        Normalizing keeps the value the filler jobs store stable across loops.
         """
-        # normalize() is typed Optional[str] because it maps None and "" to None,
-        # but compute_profile_id is a non-empty primary key, so this is always a str.
         return compute_profile_domain.normalize(program.default_size.compute_profile.compute_profile_id)
 
     def _get_filler_program(self) -> Program | None:  # pylint: disable=too-many-return-statements
         """Return the configured filler program, or None when the feature is off.
 
-        Every reason to return None is treated the same way by the caller: no new
-        filler job, and the running ones are stopped. Switched off on purpose and
-        misconfigured are the same operational decision, not a system error.
+        Every reason to return None is handled the same way by the caller: no new filler
+        job, and the running ones are stopped.
         """
         if Config.get_bool(ConfigKey.MAINTENANCE):
             return self._deactivated("maintenance mode is on")
@@ -162,9 +124,6 @@ class BalanceFillerJobs(SchedulerTask):
         if not Config.get_bool(ConfigKey.FILLER_ENABLED):
             return self._deactivated(f"{ConfigKey.FILLER_ENABLED.value} is false")
 
-        # Zero slots means the same as switched off, and it is how the feature is
-        # drained: the caller stops every filler job when this returns None. Read
-        # again in run(), off the same DYNAMIC_CONFIG_CACHE_TTL cache.
         slots = Config.get_int(ConfigKey.FILLER_SLOTS)
         if slots <= 0:
             return self._deactivated(f"{ConfigKey.FILLER_SLOTS.value} is {slots}")
@@ -174,26 +133,23 @@ class BalanceFillerJobs(SchedulerTask):
             return None
 
         if program.runner != Program.FLEETS:
-            # get_arguments_storage dispatches on program.runner, so a Ray program
-            # would put the arguments where the Fleets submit cannot find them.
+            # get_arguments_storage dispatches on runner, so a Ray program would put
+            # the arguments where the Fleets submit cannot find them.
             return self._deactivated(f"function {program} runner is {program.runner}, expected {Program.FLEETS}")
 
         if program.disabled:
             return self._deactivated(f"function {program} is disabled")
 
+        # These three mirror what FleetsRunner and the arguments storage raise on, so
+        # the feature deactivates instead of creating a FAILED job every loop.
         project = program.code_engine_project
         if project is None:
-            # FleetsRunner._get_project raises without one, which would create a
-            # FAILED job every loop.
             return self._deactivated(f"function {program} has no Code Engine project")
 
         if not project.active:
-            # Same raise, one line below it in _get_project, and a far more likely
-            # state: deactivating a project is ordinary operational work.
             return self._deactivated(f"Code Engine project {project.project_name} is not active")
 
         if not project.cos_bucket_user_data_name:
-            # FleetsArgumentsStorage raises ValueError at construction without it.
             return self._deactivated(f"Code Engine project {project.project_name} has no user data COS bucket")
 
         if program.default_size is None:
@@ -204,22 +160,10 @@ class BalanceFillerJobs(SchedulerTask):
     def _lookup_filler_function(self) -> Program | None:
         """Return the Program the config key names, or None after saying why it cannot.
 
-        The key takes either form: with a slash it is ``provider/title``, and without
-        one it is the Program's id.
-
-        The two are not equivalent, and what separates them is who can update the
-        function afterwards. Matching on provider__name requires the function to belong
-        to a provider, and upload permission on a provider function comes from write
-        access to the provider rather than from authorship, so anyone on the team can
-        push a new version with their own API key. An id can just as well name a
-        personal function, and updating one of those means being its author, so the
-        feature then depends on one person's key. That is an operator's choice rather
-        than a fault, but the id form gives that property up. Either way the filler
-        jobs are owned by the function's author, so they appear in that person's job
-        list.
-
-        Split out from _get_filler_program so that reading the value, checking its shape
-        and resolving it stay together, and so that method keeps one branch per check.
+        With a slash the value is ``provider/title``, without one it is the Program's id.
+        The name form needs a provider function, which anyone with write access to the
+        provider can update, while an id can name a personal function that only its
+        author can update, leaving the feature dependent on one person's key.
         """
         value = Config.get(ConfigKey.FILLER_FUNCTION).strip()
         if not value:
@@ -250,19 +194,12 @@ class BalanceFillerJobs(SchedulerTask):
     def _discard_unsubmitted_filler_jobs(self) -> None:
         """Stop filler jobs stuck in QUEUED with no fleet.
 
-        Creation submits in the same call that saves the row, so a filler job can
-        only sit in QUEUED if something failed in between. Such a row is unusable:
-        UpdateFleetsJobsStatuses looks at RUNNING_STATUSES only, so not even the 24h
-        timeout can reach it. (get_jobs_to_schedule_fair_share does not filter on
-        filler, so ScheduleFleetsJobs may well pick it up first and submit it with
-        the SCHEDULE_JOBS context; this path is the safety net for when it does not.)
+        Creation submits in the same call that saves the row, so QUEUED means something
+        failed in between. Nothing else ever looks at such a row again: the status
+        updates only cover RUNNING_STATUSES, so not even the 24h timeout reaches it.
         """
         stuck = Job.objects.filter(filler=True, status=Job.QUEUED, fleet_id__isnull=True)
         for job in stuck:
-            # ERROR, not WARNING: FleetsRunner.submit() sets fleet_id in memory and
-            # execute_fleets_job is what persists it, so a failure in between leaves
-            # a fleet running in Code Engine that this row can no longer name. There
-            # is nothing to cancel, so the operator has to be told to go and look.
             logger.error(
                 "[BalanceFillerJobs] job_id=%s filler job was never submitted, discarding it; "
                 "check Code Engine for an orphan fleet",
@@ -273,10 +210,8 @@ class BalanceFillerJobs(SchedulerTask):
     def _create_filler_job(self, program: Program, compute_profile: str) -> None:
         """Create and submit one filler job, the most this task creates per loop.
 
-        One per loop rather than the whole shortfall at once. The loop runs about
-        once a second, so a four-slot profile is full in four seconds, and the COS
-        upload plus the Code Engine submit that each job costs stay off the critical
-        path of the status updates that share this single-threaded loop.
+        One per loop rather than the whole shortfall, so the COS upload and the Code
+        Engine submit each one costs stay off the critical path of this shared loop.
         """
         if self._retry_loops > 0:
             self._retry_loops -= 1
@@ -292,17 +227,13 @@ class BalanceFillerJobs(SchedulerTask):
         project = program.code_engine_project
         job = Job(
             program=program,
-            # The filler jobs belong to whoever owns the function they run. Nothing in
-            # this task reads the author, and the balancer excludes filler jobs from
-            # billing, from the metrics and from the fair-share tally, so a dedicated
-            # service user would buy nothing over the one the function already has.
+            # Filler jobs are excluded from billing, metrics and the fair-share tally
+            # by Job.filler, so they need no service user of their own.
             author=program.author,
             filler=True,
             runner=Program.FLEETS,
             compute_profile=compute_profile,
             compute_profile_fk=program.default_size.compute_profile,
-            # A filler job is sized by the program's default size, so it records the
-            # same provenance a real job resolved that way would.
             size_source=Job.SIZE_SOURCE_DEFAULT_SIZE,
             function_size=program.default_size,
             status=Job.QUEUED,
@@ -310,18 +241,15 @@ class BalanceFillerJobs(SchedulerTask):
             ce_project_name=project.project_name,
             ce_region=project.region,
         )
-        # Two steps, two except blocks, because a failure means something different
-        # on each side of job.save(): before it there is no row, after it there is a
-        # row that only this method can still reach.
+        # Two except blocks because a failure before job.save() leaves no row, and one
+        # after it leaves a row nothing else can reach.
         try:
-            # Upload the arguments before the row exists, the same order
-            # /programs/run uses: a COS failure then leaves no orphan job.
+            # Arguments first: a COS failure then leaves no orphan row behind.
             get_arguments_storage(job).save("{}")
             job.save()
         except DB_EXCEPTIONS:
-            # Never swallow these: main.py counts consecutive database failures and
-            # restarts the pod, and returning normally here would clear a streak
-            # other tasks had accumulated.
+            # Never swallowed: main.py counts consecutive database failures to restart
+            # the pod, and returning normally here would clear a streak.
             raise
         except Exception as ex:  # pylint: disable=broad-exception-caught
             return self._creation_failed(ex)
@@ -336,29 +264,23 @@ class BalanceFillerJobs(SchedulerTask):
             raise
         except Exception as ex:  # pylint: disable=broad-exception-caught
             if job.status == Job.QUEUED and not job.fleet_id:
-                # execute_fleets_job raised before it reached runner.submit(), so no
-                # fleet exists and this row is already unreachable: nothing ever looks
-                # at a QUEUED filler job again. Discarding it here saves a loop for
-                # _discard_unsubmitted_filler_jobs, which stays as the safety net for
-                # what no except block can reach, a save_direct that fails after the
-                # fleet was created and the process dying in between.
+                # It raised before runner.submit(), so no fleet exists and this row is
+                # already unreachable. _discard_unsubmitted_filler_jobs is the net for
+                # the cases no except block sees.
                 self._mark_stopped(job)
             return self._creation_failed(ex)
 
         submitted = job.status == Job.PENDING
         self.metrics.increment_filler_jobs_created("submitted" if submitted else "failed")
         logger.info("[BalanceFillerJobs] job_id=%s filler job submitted with status=%s", job.id, job.status)
-        # A submit that came back without reaching PENDING swallowed a RunnerError
-        # inside execute_fleets_job, so it is a failure like any other here.
+        # Not reaching PENDING means execute_fleets_job swallowed a RunnerError.
         return submitted
 
     def _creation_failed(self, ex: Exception) -> bool:
         """Report a failed creation and give the caller the value to return.
 
-        Reported here rather than left to the scheduler's generic handler, which would
-        log a traceback once a second. Unconditional: RETRY_AFTER_LOOPS already limits
-        this to one line a minute, because the line is only written when an attempt is
-        made.
+        Caught here rather than by the scheduler's generic handler, which would log a
+        traceback once a second. RETRY_AFTER_LOOPS already limits this to one a minute.
         """
         logger.error("[BalanceFillerJobs] could not create filler job: %s", str(ex))
         self.metrics.increment_filler_jobs_created("failed")
@@ -377,9 +299,8 @@ class BalanceFillerJobs(SchedulerTask):
             try:
                 get_runner(job).stop()
             except RunnerError as ex:
-                # Leave the job active and try again next loop. Writing STOPPED
-                # first would hide a fleet that is still holding the scarce node, and
-                # the balancer would then create another filler job on top.
+                # Left active on purpose: writing STOPPED would hide a fleet still
+                # holding the node, and the balancer would create another on top.
                 logger.error("[BalanceFillerJobs] job_id=%s error stopping filler job: %s", job.id, str(ex))
                 return
 
@@ -387,12 +308,7 @@ class BalanceFillerJobs(SchedulerTask):
         logger.info("[BalanceFillerJobs] job_id=%s filler job stopped", job.id)
 
     def _mark_stopped(self, job: Job) -> None:
-        """Write STOPPED on the job, record the event, and count it.
-
-        The counter lives here so that scheduler_filler_jobs_stopped_total always
-        equals the number of FILLER_STOP events, which is the natural cross-check
-        when reading an incident.
-        """
+        """Write STOPPED on the job, record the event, and count it."""
         job.update_fields({"status": Job.STOPPED, "sub_status": None})
         JobEvent.objects.add_status_event(
             job_id=job.id,

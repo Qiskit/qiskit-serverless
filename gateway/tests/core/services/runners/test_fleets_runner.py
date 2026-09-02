@@ -506,8 +506,7 @@ def test_submit_uses_default_profile_when_no_compute_profile():
 def test_submit_default_profile_in_settings_is_parseable():
     """Whatever settings.py defaults DEFAULT_COMPUTE_PROFILE to, the runner parses it.
 
-    Reads the real setting rather than a copy of its value, so that changing the
-    default in settings.py cannot leave this test passing against a stale literal.
+    Reads the real setting, not a copy, so a changed default cannot leave this passing.
     """
     runner, mock_handler = _make_submit_runner()
     default = django_settings.DEFAULT_COMPUTE_PROFILE
