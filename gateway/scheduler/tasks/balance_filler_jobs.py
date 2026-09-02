@@ -225,7 +225,7 @@ class BalanceFillerJobs(SchedulerTask):
         if not value:
             return self._deactivated(f"{ConfigKey.FILLER_FUNCTION.value} is empty")
 
-        programs = Program.objects.select_related("default_size__compute_profile", "code_engine_project")
+        programs = Program.objects.select_related("author", "default_size__compute_profile", "code_engine_project")
         try:
             if "/" in value:
                 parts = value.split("/")
