@@ -1,0 +1,11 @@
+---
+fix:
+  - |
+    ``Job.updated`` now records the last time the row actually changed. Every job
+    status transition goes through ``save_direct`` or ``update_fields``, which issue
+    a queryset ``UPDATE`` to skip the optimistic-locking check, and a queryset
+    ``UPDATE`` does not fire the field's ``auto_now``. The column therefore kept the
+    value it was given when the job was created, which is what the job list in the
+    admin showed, and what the job timeline used as the end time when a job had no
+    status events to derive one from. Setting a job's ``sub_status`` now moves it as
+    well.

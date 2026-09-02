@@ -11,6 +11,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.db.models import F
+from django.utils import timezone
 from django_prometheus.models import ExportModelOperationsMixin
 
 from core.config_key import ConfigKey
@@ -665,8 +666,14 @@ class Job(models.Model):
         refresh_from_db is required afterwards to bring the instance version
         in sync with the value that was actually written to the DB, so
         subsequent saves from this same instance don't conflict with themselves.
+
+        updated is stamped here because auto_now only fires on Model.save(), and
+        skipping save() is the whole point of this method. Without it the column
+        would keep the value it got when the row was created.
         """
         update_kwargs = {field: getattr(self, field) for field in fields}
+        update_kwargs.setdefault("updated", timezone.now())
+        self.updated = update_kwargs["updated"]
         update_kwargs["version"] = F("version") + 1
         Job.objects.filter(pk=self.id).update(**update_kwargs)
         self.refresh_from_db(fields=["version"])
@@ -677,7 +684,11 @@ class Job(models.Model):
         Like save_direct, but the caller provides values directly instead of
         reading them from the instance. Also updates the instance attributes so
         the in-memory object stays consistent with the DB.
+
+        updated is stamped for the same reason it is in save_direct, and a caller
+        that passes it explicitly wins.
         """
+        fields_map = {"updated": timezone.now(), **fields_map}
         for field, value in fields_map.items():
             setattr(self, field, value)
         update_kwargs = dict(fields_map)
