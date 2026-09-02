@@ -228,30 +228,17 @@ class BalanceFillerJobs(SchedulerTask):
         programs = Program.objects.select_related("default_size__compute_profile", "code_engine_project")
         try:
             if "/" in value:
-                # The provider/title convention already has a parser in api.utils
-                # (parse_title_and_provider), but the import-linter contracts forbid
-                # scheduler from importing api, so it is split by hand here. The
-                # duplication is deliberate.
                 parts = value.split("/")
                 if len(parts) != 2 or not all(parts):
                     return self._deactivated(
                         f"{ConfigKey.FILLER_FUNCTION.value} is {value!r}, expected provider/title or an id"
                     )
-                # get(), not filter().first(): the unique_provider_title constraint on
-                # (provider, title) makes at most one row match, so there is no ambiguity
-                # to resolve here and MultipleObjectsReturned cannot happen.
                 return programs.get(provider__name=parts[0], title=parts[1])
             return programs.get(id=value)
         except Program.DoesNotExist:
             return self._deactivated(f"function {value} does not exist")
         except ValidationError:
-            # Only the id branch reaches this. Program.id is a UUIDField, so a value
-            # that is not a UUID raises ValidationError while the field is cleaned,
-            # before any query runs, and never DoesNotExist. Measured on this code:
-            # get(id="not-a-uuid") raises ValidationError('"not-a-uuid" is not a valid
-            # UUID.'). Without this the scheduler would log a traceback once a second
-            # instead of deactivating and saying which value is wrong.
-            return self._deactivated(f"{ConfigKey.FILLER_FUNCTION.value} is {value!r}, which is not a function id")
+            return self._deactivated(f"{ConfigKey.FILLER_FUNCTION.value} is {value!r}, which is not a valid uuid")
 
     def _deactivated(self, reason: str) -> None:
         """Log why the feature is not active and return None implicitly.
