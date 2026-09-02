@@ -329,6 +329,26 @@ earlier release.</p></li>
 It is logged by name and treated as “no status yet”, so a future Code Engine
 change to the state names cannot mark every in-flight job as <code class="docutils literal notranslate"><span class="pre">FAILED</span></code> at once.</p></li>
 </ul>
+<ul class="simple">
+<li><p>The scheduler Deployment now uses the <code class="docutils literal notranslate"><span class="pre">Recreate</span></code> strategy and pins
+<code class="docutils literal notranslate"><span class="pre">replicas</span></code> to 1 unconditionally. The scheduler loop is not safe to run in
+two pods at once, and a rolling update on a single replica starts the new pod
+before the old one is torn down, so every rollout used to run two schedulers
+for a few seconds. The trade-off is that a rollout to a broken scheduler image
+now leaves zero schedulers running instead of keeping the old pod up: no queued
+job is promoted and <code class="docutils literal notranslate"><span class="pre">PROGRAM_TIMEOUT</span></code> is not enforced until the rollout is
+rolled back. The scheduler has a liveness probe but no readiness probe, so
+nothing reports this and the only symptom is that jobs stop moving. Watch a
+scheduler rollout to completion, and roll back on a crash loop.</p></li>
+</ul>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">replicas</span></code> on the scheduler Deployment no longer depends on
+<code class="docutils literal notranslate"><span class="pre">autoscaling.enabled</span></code>. That value belongs to the gateway, and any deployment
+with gateway autoscaling on rendered the scheduler with no <code class="docutils literal notranslate"><span class="pre">replicas</span></code> field
+at all, leaving the pod count unmanaged by the chart. The count was 1 in
+practice, so this changes nothing at rest, but a scheduler that was scaled out
+of band is now scaled back to 1 on the next upgrade.</p></li>
+</ul>
 </section>
 <section id="bug-fixes">
 <span id="release-notes-upcoming-qiskit-serverless-release-bug-fixes"></span><h3>Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permalink to this heading">¶</a></h3>
