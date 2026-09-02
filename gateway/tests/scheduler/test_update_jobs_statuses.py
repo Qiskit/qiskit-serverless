@@ -95,16 +95,3 @@ class TestRayJobStatusUpdate:
             task.update_job_status(job)
 
         assert mock_runner.logs.call_count == 1
-
-
-def test_filler_jobs_are_left_out_of_the_job_metrics():
-    """A filler job neither counts as a terminal job nor contributes an execution duration."""
-    task = _make_task()
-    mock_job = MagicMock(spec=Job)
-    mock_job.filler = True
-
-    task._increment_terminal_counter(mock_job)
-    task._record_execution_duration(mock_job)
-
-    task.metrics.increment_jobs_terminal.assert_not_called()
-    task.metrics.observe_job_execution_duration.assert_not_called()

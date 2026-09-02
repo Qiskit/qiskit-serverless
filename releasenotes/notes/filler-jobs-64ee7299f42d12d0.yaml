@@ -11,9 +11,10 @@ features:
     belong to comes from the ``FILLER_AUTHOR_USERNAME`` environment variable, and
     the feature stays off until that user exists.
   - |
-    Filler jobs are reported on their own metrics: ``scheduler_filler_jobs_count``
-    for how many are active, ``scheduler_filler_jobs_created_total`` and
-    ``scheduler_filler_jobs_stopped_total`` for how often they are being cycled.
+    The balancer counts its own actions on ``scheduler_filler_jobs_created_total``,
+    labelled by whether the submit reached PENDING, and on
+    ``scheduler_filler_jobs_stopped_total``. Together they say how often filler jobs
+    are being cycled.
   - |
     Two gauges say whether the feature is doing its job at all, which is what to
     alert on. ``scheduler_filler_profile_slots`` is the configured target, and
@@ -26,27 +27,9 @@ features:
     id as a label, because only one profile is protected at a time and a label that
     changes when an operator re-points the filler program would leave stale series
     behind; the balancer's log line names the profile.
-  - |
-    ``scheduler_filler_jobs_ended_total`` counts filler jobs that reached a terminal
-    state without the balancer asking, labelled by ``final_status``. A filler
-    function is meant to run until its slot is needed, so ``FAILED`` or
-    ``SUCCEEDED`` there is a misconfigured filler program, and the balancer replaces
-    each one a second later, for as long as it keeps happening. Nothing stops that on
-    its own, so this is the counter to alert on. Being a counter it only ever rises,
-    so read it as a rate over a window rather than raw: any sustained rate once
-    ``STOPPED`` is filtered out means filler jobs are being started and lost for
-    nothing, and the protected capacity is not being held. A creation that fails
-    outright is counted separately by ``scheduler_filler_jobs_created_total``.
-    ``STOPPED`` on this counter is the ``PROGRAM_TIMEOUT`` path; the stops the
-    balancer asks for are in ``scheduler_filler_jobs_stopped_total``.
 upgrade:
   - |
-    Filler jobs are excluded from ``scheduler_job_status_count``,
-    ``scheduler_jobs_terminal_total``, ``scheduler_job_execution_duration_seconds``
-    and ``scheduler_queue_wait_seconds``, because they run continuously and
-    would otherwise look like user demand. Dashboards or alerts that expect those
-    series to include every job need the filler metrics added to them. Filler jobs
-    also never emit billing events.
+    Filler jobs never emit billing events.
   - |
     Turning on maintenance mode now stops any running filler job, as well as
     preventing new ones. This frees the capacity so the platform can be drained,

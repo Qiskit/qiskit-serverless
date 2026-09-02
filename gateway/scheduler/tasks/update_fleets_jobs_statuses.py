@@ -163,24 +163,11 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
 
     def _increment_terminal_counter(self, job: Job) -> None:
         """Increment terminal jobs counter."""
-        if job.filler:
-            # A filler job stopped to free capacity is not a job that finished, so it
-            # stays out of the counter that describes user demand. It gets its own,
-            # because a filler job reaching a terminal state here ended without the
-            # balancer asking it to: FAILED or SUCCEEDED is a filler program that
-            # exits on its own, and STOPPED is the PROGRAM_TIMEOUT path. Stops the
-            # balancer asks for go through _mark_stopped and never reach this method.
-            self.metrics.increment_filler_jobs_ended(job.status)
-            return
         provider = job.program.provider.name if job.program_id and job.program.provider_id else "custom"
         self.metrics.increment_jobs_terminal(provider=provider, final_status=job.status)
 
     def _record_execution_duration(self, job: Job) -> None:
         """Record execution duration for a successfully completed job."""
-        if job.filler:
-            # Filler jobs run until something needs their slot, so their lifetime
-            # says nothing about how long real work takes.
-            return
         running_event = JobEvent.objects.filter(job=job, data__status=Job.RUNNING).order_by("-created").first()
         if running_event is None:
             return

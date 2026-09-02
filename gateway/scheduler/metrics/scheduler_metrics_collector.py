@@ -54,13 +54,6 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes
             labelnames=("status", "provider"),
             registry=self.registry,
         )
-        self.filler_jobs_count = Gauge(
-            "scheduler_filler_jobs_count",
-            "Number of active filler jobs per status. Filler jobs are excluded from "
-            "scheduler_job_status_count, which describes user demand.",
-            labelnames=("status",),
-            registry=self.registry,
-        )
         self.jobs_terminal_total = Counter(
             "scheduler_jobs_terminal_total",
             "Total jobs that reached a terminal state (SUCCEEDED, FAILED, STOPPED).",
@@ -76,16 +69,6 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes
         self.filler_jobs_stopped_total = Counter(
             "scheduler_filler_jobs_stopped_total",
             "Filler jobs the balancer stopped to free capacity.",
-            registry=self.registry,
-        )
-        self.filler_jobs_ended_total = Counter(
-            "scheduler_filler_jobs_ended_total",
-            "Filler jobs that reached a terminal state without the balancer stopping them. "
-            "FAILED or SUCCEEDED means the filler function ended on its own, which it is "
-            "not meant to do, so a rising counter is a misconfigured filler program. "
-            "STOPPED here is the PROGRAM_TIMEOUT path: stops the balancer asks for are "
-            "counted by scheduler_filler_jobs_stopped_total instead.",
-            labelnames=("final_status",),
             registry=self.registry,
         )
         self.filler_profile_slots = Gauge(
@@ -147,14 +130,6 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes
         """Set job count for a specific status and provider."""
         self.job_status_count.labels(status=status, provider=provider).set(count)
 
-    def clear_filler_jobs_counts(self) -> None:
-        """Remove all label combinations from filler_jobs_count to avoid stale values."""
-        self.filler_jobs_count.clear()
-
-    def set_filler_jobs_count(self, count: int, status: str) -> None:
-        """Set filler job count for a specific status."""
-        self.filler_jobs_count.labels(status=status).set(count)
-
     def observe_job_execution_duration(self, duration_seconds: float, provider: str) -> None:
         """Record execution time from RUNNING to SUCCEEDED."""
         self.job_execution_duration.labels(provider=provider).observe(duration_seconds)
@@ -170,10 +145,6 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes
     def increment_filler_jobs_stopped(self) -> None:
         """Count one filler job stopped by the balancer."""
         self.filler_jobs_stopped_total.inc()
-
-    def increment_filler_jobs_ended(self, final_status: str) -> None:
-        """Count one filler job that reached a terminal state on its own."""
-        self.filler_jobs_ended_total.labels(final_status=final_status).inc()
 
     def set_filler_profile_slots(self, slots: int) -> None:
         """Set the slot target of the protected compute profile."""
