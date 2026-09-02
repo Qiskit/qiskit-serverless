@@ -114,6 +114,9 @@ ce:
   fleetsRuntimeGlobalSearchUrl: ""
   fleetsRuntimeGlobalCatalogUrl: ""
   fleetsRuntimeExperimental: "false"
+  # Username of the internal user that owns every filler job the scheduler creates.
+  # Empty falls back to "FillerId" in the deployment template.
+  fillerAuthorUsername: ""
 
 secrets:
   secretKey:

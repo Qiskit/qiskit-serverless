@@ -355,6 +355,8 @@ spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: 1
   {{- end }}
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       {{- include "scheduler.selectorLabels" . | nindent 6 }}
@@ -537,6 +539,8 @@ spec:
               value: {{ .Values.ce.fleetsRuntimeGlobalCatalogUrl | quote }}
             - name: FLEETS_RUNTIME_EXPERIMENTAL
               value: {{ .Values.ce.fleetsRuntimeExperimental | quote }}
+            - name: FILLER_AUTHOR_USERNAME
+              value: {{ .Values.ce.fillerAuthorUsername | default "FillerId" | quote }}
             {{- end }}
             - name: EVENT_STREAMS_ENABLED
               value: {{ .Values.application.eventStreams.enabled | default false | quote }}
