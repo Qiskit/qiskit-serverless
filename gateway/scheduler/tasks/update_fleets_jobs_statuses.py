@@ -163,11 +163,25 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
 
     def _increment_terminal_counter(self, job: Job) -> None:
         """Increment terminal jobs counter."""
+        if job.filler:
+            # A filler job runs continuously, so counting it here would make a
+            # constant floor look like user demand. It gets its own counter, which
+            # is worth having because reaching a terminal state on this path means
+            # nothing asked the job to stop: FAILED or SUCCEEDED is a filler
+            # function that exited by itself, and STOPPED is the PROGRAM_TIMEOUT
+            # path. The scheduler task that will stop filler jobs deliberately
+            # writes their terminal status itself and never reaches this method.
+            self.metrics.increment_filler_jobs_ended(job.status)
+            return
         provider = job.program.provider.name if job.program_id and job.program.provider_id else "custom"
         self.metrics.increment_jobs_terminal(provider=provider, final_status=job.status)
 
     def _record_execution_duration(self, job: Job) -> None:
         """Record execution duration for a successfully completed job."""
+        if job.filler:
+            # Filler jobs run until something needs their slot, so their lifetime
+            # says nothing about how long real work takes.
+            return
         running_event = JobEvent.objects.filter(job=job, data__status=Job.RUNNING).order_by("-created").first()
         if running_event is None:
             return
