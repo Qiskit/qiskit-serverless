@@ -430,7 +430,7 @@ class TestProgramApi(APITestCase):
 
             assert job.status == Job.QUEUED
             assert job.trial is False
-            assert job.business_model == BusinessModel.SUBSIDIZED
+            assert job.business_model == BusinessModel.LICENSED
             assert env_vars["PROGRAM_ENV1"] == "VALUE1"
             assert env_vars["PROGRAM_ENV2"] == "VALUE2"
             assert job.config.min_workers == 1
@@ -1548,7 +1548,7 @@ class TestProgramApiRuntimeInstances:
             "business_model,expected_trial",
             [
                 (BusinessModel.TRIAL, True),
-                (BusinessModel.SUBSIDIZED, False),
+                (BusinessModel.LICENSED, False),
                 (BusinessModel.CONSUMPTION, False),
             ],
         )

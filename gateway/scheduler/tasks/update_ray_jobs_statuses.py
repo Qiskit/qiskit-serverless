@@ -6,7 +6,6 @@ from collections import deque
 from datetime import datetime, timezone
 
 from django.conf import settings
-from django.db.models import F
 
 from core.services.runners.ray_runner import FilteredLogs
 from core.services.storage import get_logs_storage
@@ -55,9 +54,7 @@ class UpdateRayJobsStatuses(SchedulerTask):
             job.status = Job.FAILED
             job.sub_status = None
             job.env_vars = "{}"
-            Job.objects.filter(pk=job.id).update(
-                status=job.status, sub_status=job.sub_status, env_vars=job.env_vars, version=F("version") + 1
-            )
+            job.save_direct(["status", "sub_status", "env_vars"])
             JobEvent.objects.add_status_event(
                 job_id=job.id,
                 origin=JobEventOrigin.SCHEDULER,
@@ -135,13 +132,7 @@ class UpdateRayJobsStatuses(SchedulerTask):
                 save_logs_to_storage(job, lines)
 
         if status_has_changed:
-            Job.objects.filter(pk=job.id).update(
-                status=job.status,
-                sub_status=job.sub_status,
-                env_vars=job.env_vars,
-                version=F("version") + 1,
-            )
-            job.refresh_from_db(fields=["version"])
+            job.save_direct(["status", "sub_status", "env_vars"])
             JobEvent.objects.add_status_event(
                 job_id=job.id,
                 origin=JobEventOrigin.SCHEDULER,
