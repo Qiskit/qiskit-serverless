@@ -95,6 +95,57 @@ class TestKafkaEventStreamsClient:
 
         assert client.topic == "quantum.staging.function-usage.v1"
 
+    def test_custom_user_in_default_region(self):
+        with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
+            with patch.dict(
+                os.environ,
+                {
+                    "EVENT_STREAMS_BOOTSTRAP_SERVERS": "broker1:9093",
+                    "EVENT_STREAMS_API_KEY": "my-key",
+                    "EVENT_STREAMS_USER": "custom-user",
+                    "ENVIRONMENT": "staging",
+                },
+            ):
+                KafkaEventStreamsClient()
+
+        mock_producer_cls.assert_called_once_with(
+            {
+                "bootstrap.servers": "broker1:9093",
+                "security.protocol": "SASL_SSL",
+                "sasl.mechanisms": "PLAIN",
+                "sasl.username": "custom-user",
+                "sasl.password": "my-key",
+                "enable.idempotence": True,
+                "acks": "all",
+            }
+        )
+
+    def test_custom_user_in_regional_producer(self):
+        with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
+            with patch.dict(
+                os.environ,
+                {
+                    "EVENT_STREAMS_BOOTSTRAP_SERVERS": "broker-us:9093",
+                    "EVENT_STREAMS_API_KEY": "us-key",
+                    "EVENT_STREAMS_USER": "default-user",
+                    "EVENT_STREAMS_BOOTSTRAP_SERVERS_EU_DE": "broker-eu:9093",
+                    "EVENT_STREAMS_API_KEY_EU_DE": "eu-key",
+                    "EVENT_STREAMS_USER_EU_DE": "custom-eu-user",
+                    "ENVIRONMENT": "production",
+                },
+                clear=True,
+            ):
+                KafkaEventStreamsClient()
+
+        calls = mock_producer_cls.call_args_list
+        assert len(calls) == 2
+
+        default_call = [c for c in calls if "broker-us" in str(c)][0]
+        eu_call = [c for c in calls if "broker-eu" in str(c)][0]
+
+        assert default_call[0][0]["sasl.username"] == "default-user"
+        assert eu_call[0][0]["sasl.username"] == "custom-eu-user"
+
     def test_emit_job_started_publishes_correct_payload(self):
         job = _make_job()
 

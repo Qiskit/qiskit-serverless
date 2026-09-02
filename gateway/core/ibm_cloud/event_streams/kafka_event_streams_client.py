@@ -46,8 +46,10 @@ class KafkaEventStreamsClient(EventStreamsClient):
     Configured from environment variables per region:
       EVENT_STREAMS_BOOTSTRAP_SERVERS         — comma-separated broker list (default region)
       EVENT_STREAMS_API_KEY                   — SASL/PLAIN password (default region)
+      EVENT_STREAMS_USER                      — SASL/PLAIN username (default: 'token')
       EVENT_STREAMS_BOOTSTRAP_SERVERS_<REGION> — broker list for additional regions
       EVENT_STREAMS_API_KEY_<REGION>          — API key for additional regions
+      EVENT_STREAMS_USER_<REGION>             — SASL/PLAIN username for additional regions
       EVENT_STREAMS_DEFAULT_REGION            — default region (default: us-east)
       ENVIRONMENT                             — deployment environment (e.g. production, staging)
     """
@@ -63,8 +65,12 @@ class KafkaEventStreamsClient(EventStreamsClient):
         # Register default region from unsuffixed variables
         default_bootstrap_servers = os.environ.get("EVENT_STREAMS_BOOTSTRAP_SERVERS")
         default_api_key = os.environ.get("EVENT_STREAMS_API_KEY")
+        default_user = os.environ.get("EVENT_STREAMS_USER", "token")
         if default_bootstrap_servers and default_api_key:
-            self._producers[default_region] = self._create_producer(default_bootstrap_servers, default_api_key)
+            logger.debug("Registering default region producer: region=%s", default_region)
+            self._producers[default_region] = self._create_producer(
+                default_bootstrap_servers, default_api_key, default_user
+            )
 
         # Discover regional producers by scanning for suffixed env vars
         for env_key in os.environ:
@@ -73,12 +79,15 @@ class KafkaEventStreamsClient(EventStreamsClient):
                 region = suffix.lower().replace("_", "-")
                 bootstrap_servers = os.environ[env_key]
                 api_key_env = f"EVENT_STREAMS_API_KEY_{suffix}"
+                user_env = f"EVENT_STREAMS_USER_{suffix}"
                 api_key = os.environ.get(api_key_env)
+                user = os.environ.get(user_env, "token")
 
                 if api_key is None:
                     raise ValueError(f"Region {region}: found {env_key} but missing {api_key_env}")
 
-                self._producers[region] = self._create_producer(bootstrap_servers, api_key)
+                logger.debug("Registering regional producer: region=%s", region)
+                self._producers[region] = self._create_producer(bootstrap_servers, api_key, user)
 
         self.topic = f"quantum.{environment}.function-usage.v1"
 
@@ -90,14 +99,14 @@ class KafkaEventStreamsClient(EventStreamsClient):
             default_region,
         )
 
-    def _create_producer(self, bootstrap_servers: str, api_key: str) -> Producer:
+    def _create_producer(self, bootstrap_servers: str, api_key: str, user: str = "token") -> Producer:
         """Create and return a Kafka producer with the given credentials."""
         return Producer(
             {
                 "bootstrap.servers": bootstrap_servers,
                 "security.protocol": "SASL_SSL",
                 "sasl.mechanisms": "PLAIN",
-                "sasl.username": "token",
+                "sasl.username": user,
                 "sasl.password": api_key,
                 "enable.idempotence": True,
                 "acks": "all",
@@ -235,11 +244,6 @@ class KafkaEventStreamsClient(EventStreamsClient):
             region = self._default_region
         producer = self._producers.get(region)
         if producer is None:
-            logger.warning(
-                "job_id=%s region=%s No Event Streams bus configured; event not published",
-                job.id,
-                region,
-            )
             raise RuntimeError(
                 f"KafkaEventStreamsClient: No producer configured for region {region} "
                 f"(job_id={job.id}, event_id={event_id})"
