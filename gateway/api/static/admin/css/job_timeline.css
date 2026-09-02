@@ -1,0 +1,135 @@
+/* The whole page, including the chart canvas, follows Django admin's own light/dark toggle via
+   these variables: light by default, overridden for both "auto" (through prefers-color-scheme)
+   and the explicit dark toggle (html[data-theme="dark"]). Status colors (STATUS_COLOR and
+   OUTCOME_LABEL in api/domain/job_timeline.py) stay fixed regardless of theme, matching the job
+   list's own status badges, which do the same. */
+.qs-timeline {
+  --qs-bg: #f8fafc;
+  --qs-fg: #0f172a;
+  --qs-muted: #64748b;
+  --qs-border: #cbd5e1;
+  --qs-panel: #ffffff;
+  --qs-code-bg: #e2e8f0;
+  background: var(--qs-bg);
+  color: var(--qs-fg);
+  font-family: -apple-system, sans-serif;
+  padding: 16px;
+  border-radius: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) .qs-timeline {
+    --qs-bg: #0b1020;
+    --qs-fg: #e2e8f0;
+    --qs-muted: #94a3b8;
+    --qs-border: #1e2740;
+    --qs-panel: #1e2740;
+    --qs-code-bg: #1e2740;
+  }
+}
+html[data-theme="dark"] .qs-timeline {
+  --qs-bg: #0b1020;
+  --qs-fg: #e2e8f0;
+  --qs-muted: #94a3b8;
+  --qs-border: #1e2740;
+  --qs-panel: #1e2740;
+  --qs-code-bg: #1e2740;
+}
+
+.qs-timeline h1, .qs-timeline h2 { color: var(--qs-fg); }
+.qs-timeline .qs-meta { color: var(--qs-muted); font-size: 13px; margin-bottom: 12px; }
+.qs-timeline .qs-legend { margin: 12px 0 16px; font-size: 12px; color: var(--qs-fg); }
+.qs-timeline .qs-filters { margin: 0 0 16px; font-size: 12px; color: var(--qs-fg); }
+.qs-timeline .filter-btn {
+  background: var(--qs-panel);
+  color: var(--qs-fg);
+  border: 1px solid var(--qs-border);
+  border-radius: 14px;
+  padding: 4px 12px;
+  margin-right: 6px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.qs-timeline .filter-btn.active { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+.qs-timeline .qs-chart-wrap {
+  overflow: auto;
+  max-height: 70vh;
+  border: 1px solid var(--qs-border);
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--qs-bg);
+}
+.qs-timeline .job-row { transition: opacity 0.15s; cursor: pointer; }
+.qs-timeline .job-row.is-selected rect { stroke: #60a5fa; stroke-width: 2; }
+.qs-timeline .job-row.qs-hidden { display: none; }
+
+/* Neutral chart elements (background, gridlines, headings, muted labels): themed like the rest
+   of the page. Status colors stay off this list on purpose (see the note at the top of this
+   file). */
+.qs-timeline #timeline-svg .qs-svg-bg { fill: var(--qs-bg); }
+.qs-timeline #timeline-svg .qs-heading { fill: var(--qs-fg); }
+.qs-timeline #timeline-svg .qs-muted-text { fill: var(--qs-muted); }
+.qs-timeline #timeline-svg .qs-fg-text { fill: var(--qs-fg); }
+.qs-timeline #timeline-svg .qs-grid-line { stroke: var(--qs-border); }
+.qs-timeline #timeline-svg .qs-hour-line { stroke: var(--qs-fg); }
+.qs-timeline #timeline-svg .qs-seg-border { stroke: var(--qs-bg); stroke-width: 0.5; }
+.qs-timeline #timeline-svg .qs-panel-bg { fill: var(--qs-panel); }
+
+/* Which jobs a job overlaps with isn't obvious from the chart alone, so it only shows on
+   interaction: clicking a job highlights it and everything it overlaps, all the same way, for
+   as long as its details panel below stays open. */
+.qs-timeline #timeline-svg .job-row.is-overlap-selected .qs-seg-running { stroke: #dc2626; stroke-width: 1.25; }
+.qs-timeline code { background: var(--qs-code-bg); color: var(--qs-fg); padding: 1px 4px; border-radius: 3px; }
+
+/* Visibility of the SVG pieces. The Content Security Policy of this project rejects inline
+   style attributes, so the page starts every optional element hidden here and the JavaScript
+   in admin/js/job_timeline.js adds or removes .is-visible. */
+.qs-timeline .conc-path { display: none; }
+.qs-timeline .conc-path.is-visible { display: block; }
+.qs-timeline #hover-cursor { display: none; }
+.qs-timeline #hover-cursor.is-visible { display: block; }
+
+/* Legend. Keep these colors in sync with STATUS_COLOR and OUTCOME_LABEL in
+   api/domain/job_timeline.py: fixed regardless of theme, same as the job list's status badges. */
+.qs-timeline .qs-legend-item { margin-right: 16px; }
+.qs-timeline .qs-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.qs-timeline .qs-swatch--queued { background: #8a3ffc; }
+.qs-timeline .qs-swatch--pending { background: #f0ad4e; }
+.qs-timeline .qs-swatch--running { background: #5bc0de; }
+.qs-timeline .qs-outcome { font-weight: bold; }
+.qs-timeline .qs-outcome--succeeded { color: #00aa00; }
+.qs-timeline .qs-outcome--failed { color: #cc0000; }
+.qs-timeline .qs-outcome--stopped { color: #888888; }
+
+/* Job details panel, shown below the chart when a job row is clicked. */
+.qs-timeline .qs-job-details-wrap {
+  background: var(--qs-panel);
+  border: 1px solid var(--qs-border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: var(--qs-fg);
+}
+.qs-timeline .qs-job-details { display: none; }
+.qs-timeline .qs-job-details.is-visible { display: block; }
+.qs-timeline .qs-job-details h3 {
+  margin: 12px 0 6px;
+  font-size: 12px;
+  color: var(--qs-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.qs-timeline .qs-job-details h3:first-child { margin-top: 0; }
+.qs-timeline .qs-detail-row { display: flex; gap: 8px; padding: 2px 0; font-size: 13px; }
+.qs-timeline .qs-detail-label { width: 140px; flex-shrink: 0; color: var(--qs-muted); }
+.qs-timeline .qs-detail-value {
+  color: var(--qs-fg);
+  font-family: ui-monospace, Menlo, monospace;
+  word-break: break-all;
+}

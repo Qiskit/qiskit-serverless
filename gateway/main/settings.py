@@ -327,6 +327,10 @@ FLEETS_GATEWAY_HOST = os.environ.get("FLEETS_GATEWAY_HOST", SITE_HOST)
 
 # resources limitations
 LIMITS_JOBS_PER_USER = int(os.environ.get("LIMITS_JOBS_PER_USER", "2"))
+# Per-user concurrent running-job limit for the Fleets (Code Engine) runner.
+# Fleets scales differently from Ray (no per-cluster capacity), so it gets its
+# own, higher default independent of the Ray-oriented LIMITS_JOBS_PER_USER.
+LIMITS_JOBS_PER_USER_FLEETS = int(os.environ.get("LIMITS_JOBS_PER_USER_FLEETS", "50"))
 LIMITS_ACTIVE_JOBS_PER_USER = int(os.environ.get("LIMITS_ACTIVE_JOBS_PER_USER", "50"))
 LIMITS_MAX_CLUSTERS = int(os.environ.get("LIMITS_MAX_CLUSTERS", "6"))
 LIMITS_GPU_CLUSTERS = int(os.environ.get("LIMITS_MAX_GPU_CLUSTERS", "1"))
@@ -475,6 +479,23 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "type": "boolean",
         "description": "Enable external Runtime instances API for function-level access control.",
     },
+    "scheduler.filler.enabled": {
+        "default": "false",
+        "type": "boolean",
+        "description": "Enable the filler jobs feature: the scheduler keeps idle capacity of a scarce "
+        "compute profile busy with filler jobs.",
+    },
+    "scheduler.filler.program_id": {
+        "default": "",
+        "type": "string",
+        "description": "Id of the Program used to run filler jobs. Empty means the feature is off.",
+    },
+    "scheduler.filler.slots": {
+        "default": "0",
+        "type": "integer",
+        "description": "Minimum number of jobs, real plus filler, to keep running for the compute "
+        "profile of the filler program.",
+    },
 }
 
 # Fleets / Code Engine credentials
@@ -487,7 +508,13 @@ FLEETS_DEFAULT_IMAGE = os.environ.get(
     "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.35.1",
 )
 # Compute profile settings for Fleets runner
-DEFAULT_COMPUTE_PROFILE = os.environ.get("DEFAULT_COMPUTE_PROFILE", "bx3d-24x120")  # 24 CPU, 120GB RAM
+DEFAULT_COMPUTE_PROFILE = os.environ.get("DEFAULT_COMPUTE_PROFILE", "16x128")  # 16 CPU, 128GB RAM
+# Size seeded for a function uploaded without an explicit size catalog, so every
+# function has a size to run with while declaring sizes is still optional. The
+# profile must name an existing ComputeProfile row; when no such row exists the
+# function is created with no sizes and runs fall back to DEFAULT_COMPUTE_PROFILE.
+DEFAULT_FUNCTION_SIZE = os.environ.get("DEFAULT_FUNCTION_SIZE", "m")
+DEFAULT_FUNCTION_SIZE_PROFILE = os.environ.get("DEFAULT_FUNCTION_SIZE_PROFILE", "16x128")  # 16 CPU, 128GB RAM
 # Default resource limits for fleet jobs (can be overridden per job)
 FLEETS_DEFAULT_MAX_INSTANCES = int(os.environ.get("FLEETS_DEFAULT_MAX_INSTANCES", "1"))
 
@@ -501,6 +528,10 @@ FLEETS_RUNTIME_GLOBAL_CATALOG_URL = os.environ.get("FLEETS_RUNTIME_GLOBAL_CATALO
 # Set to "true" on staging to enable experimental features in the container.
 FLEETS_RUNTIME_EXPERIMENTAL = os.environ.get("FLEETS_RUNTIME_EXPERIMENTAL", "false").lower() == "true"
 CE_DEFAULT_PROJECT_NAME = os.environ.get("CE_DEFAULT_PROJECT_NAME", "")
+
+# Username of the user set as author on every filler job created by the scheduler.
+# Not a numeric primary key: the scheduler task will resolve it with User.objects.get(username=...)
+FILLER_AUTHOR_USERNAME = os.environ.get("FILLER_AUTHOR_USERNAME", "FillerId")
 
 # Set to "true" to use the public COS endpoint instead of the private VPC endpoint.
 # Only needed for local testing outside IBM Cloud (e.g. docker-compose).

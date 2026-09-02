@@ -43,6 +43,7 @@ def _make_job(
     job.running_started_at = running_started_at or datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
     job.business_model = business_model
     job.compute_profile = compute_profile
+    job.filler = False
 
     provider = MagicMock()
     provider.name = provider_name
@@ -350,7 +351,7 @@ class TestKafkaEventStreamsClient:
         published = json.loads(mock_producer.produce.call_args[1]["value"])
         assert "business_model" not in published["data"]
         assert published["data"]["job_started_at"] == job.running_started_at.isoformat()
-        
+
     def test_default_region_producer_from_unsuffixed_vars(self):
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
             with patch.dict(
@@ -562,3 +563,32 @@ class TestKafkaEventStreamsClient:
         assert KafkaEventStreamsClient._region_from_crn(None) is None
         assert KafkaEventStreamsClient._region_from_crn("") is None
         assert KafkaEventStreamsClient._region_from_crn("not:a:valid:crn") is None
+
+    def test_filler_job_publishes_nothing(self):
+        """A filler job generates no usage events: the base class short-circuits all four emits."""
+        job = _make_job()
+        job.filler = True
+
+        with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
+            with patch(f"{_CLIENT_MOD}.uuid"):
+                with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
+                    with patch.dict(
+                        os.environ,
+                        {
+                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                            "EVENT_STREAMS_API_KEY": "k",
+                            "ENVIRONMENT": "production",
+                        },
+                    ):
+                        mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 1, tzinfo=timezone.utc)
+
+                        client = KafkaEventStreamsClient()
+                        mock_producer = mock_producer_cls.return_value
+                        mock_producer.flush.return_value = 0
+
+                        client.emit_job_started(job)
+                        client.emit_job_in_progress(job)
+                        client.emit_job_completed(job)
+                        client.emit_license_fee(job)
+
+        mock_producer.produce.assert_not_called()
