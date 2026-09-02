@@ -6,6 +6,7 @@ from django.test import Client
 
 from api.admin import get_dashboard_stats
 from core.models import CodeEngineProject, Job, Program, Provider
+from tests.utils import TestUtils
 
 
 @pytest.mark.django_db
@@ -123,3 +124,19 @@ def test_index_shows_a_placeholder_when_there_are_no_fleets_jobs():
 
     assert response.status_code == 200
     assert "No fleets jobs yet" in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_dashboard_stats_exclude_filler_jobs():
+    """Filler jobs are reported on their own line, not mixed into the job totals."""
+    program = TestUtils.create_program(program_title="dashboard-function", author="dashboard_user")
+    TestUtils.create_job(author="dashboard_user", program=program, status=Job.RUNNING)
+    TestUtils.create_job(author="dashboard_user", program=program, status=Job.RUNNING, filler=True)
+
+    stats = get_dashboard_stats()
+
+    assert stats["jobs_count"] == 1
+    assert stats["jobs_active"] == 1
+    assert stats["jobs_filler_active"] == 1
+    assert sum(row["count"] for row in stats["jobs_by_status"]) == 1
+    assert sum(row["count"] for row in stats["jobs_by_provider"]) == 1
