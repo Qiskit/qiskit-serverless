@@ -112,6 +112,30 @@ def test_index_renders_the_recent_fleets_jobs_timeline():
 
 
 @pytest.mark.django_db
+def test_index_recent_fleets_jobs_timeline_excludes_filler_jobs():
+    """Filler jobs must not show up in the admin home's recent-Fleets-jobs timeline."""
+    user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
+    author = User.objects.create_user(username="author", password="x")
+    real_job = Job.objects.create(author=author, program=None, status=Job.SUCCEEDED, runner=Program.FLEETS)
+    filler_job_1 = Job.objects.create(
+        author=author, program=None, status=Job.RUNNING, runner=Program.FLEETS, filler=True
+    )
+    filler_job_2 = Job.objects.create(
+        author=author, program=None, status=Job.RUNNING, runner=Program.FLEETS, filler=True
+    )
+
+    client = Client()
+    client.force_login(user)
+    response = client.get("/backoffice/")
+
+    body = response.content.decode()
+    assert response.status_code == 200
+    assert str(real_job.id)[:8] in body
+    assert str(filler_job_1.id)[:8] not in body
+    assert str(filler_job_2.id)[:8] not in body
+
+
+@pytest.mark.django_db
 def test_index_shows_a_placeholder_when_there_are_no_fleets_jobs():
     """A Ray-only (or empty) database shouldn't try to render a timeline with no fleets jobs."""
     user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")

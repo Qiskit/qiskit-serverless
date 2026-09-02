@@ -40,3 +40,17 @@ upgrade:
     scheduler image leaves zero schedulers running, rather than keeping the old one
     up, until it is rolled back; no queued job is promoted and no timeout is
     enforced in the meantime.
+  - |
+    Two things can silently reduce the number of filler jobs running, both worth
+    alerting on. The balancer stops creating filler jobs, and logs at ERROR, when
+    three of them have ended by themselves within five minutes, because a filler
+    program is meant to run until something needs its slot. And
+    ``scheduler.filler.slots`` is capped in code at 16: a larger configured value
+    is clamped down to that cap, with a warning logged, rather than honored.
+  - |
+    To switch the feature off, disable the filler function or set
+    ``scheduler.filler.slots`` to zero, but never delete the filler ``Program``
+    row or deactivate its Code Engine project while filler jobs are running. In
+    either case the balancer can no longer cancel the fleets it created for that
+    program, and they keep running in Code Engine until an operator finds and
+    cancels them by hand.

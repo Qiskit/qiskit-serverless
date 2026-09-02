@@ -44,8 +44,11 @@ RETRY_AFTER_LOOPS = 60
 # rejected, or SUCCEEDED because the program exited) is replaced a second later,
 # forever, with nothing counting it. STOPPED is excluded: that is the balancer
 # making room for real work, or the 24h timeout, and both are the feature working.
+# Three, not five: the create path backs off for RETRY_AFTER_LOOPS after each
+# failure, so a steadily-failing filler program only produces about four deaths
+# per window and a limit of five would sit right on that boundary.
 CHURN_WINDOW = timedelta(minutes=5)
-CHURN_LIMIT = 5
+CHURN_LIMIT = 3
 
 
 class BalanceFillerJobs(SchedulerTask):
@@ -385,7 +388,7 @@ class BalanceFillerJobs(SchedulerTask):
             # handler, which would log a traceback once a second. A COS problem, for
             # instance, is a configuration fault and not an incident.
             self._log_throttled(
-                "create-error", logging.ERROR, "[BalanceFillerJobs] could not create filler job: %s", ex
+                "create-error", logging.ERROR, "[BalanceFillerJobs] could not create filler job: %s", str(ex)
             )
             self.metrics.increment_filler_jobs_created("failed")
             return False
@@ -418,7 +421,7 @@ class BalanceFillerJobs(SchedulerTask):
                         logging.ERROR,
                         "[BalanceFillerJobs] job_id=%s error stopping filler job: %s",
                         job.id,
-                        ex,
+                        str(ex),
                     )
                     self._retry_after[key] = RETRY_AFTER_LOOPS
                     continue
