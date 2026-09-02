@@ -18,7 +18,7 @@ from core.model_managers.job_events import JobEventContext
 from core.services.runners import RunnerError
 from scheduler.main import Main
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs
+from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs, _Throttle
 from tests.utils import TestUtils
 
 pytestmark = pytest.mark.django_db
@@ -77,6 +77,59 @@ def _fake_submit(job, ctx, context=None):  # pylint: disable=unused-argument
     """Stand in for execute_fleets_job: mark the job PENDING as a real submit would."""
     job.update_fields({"status": Job.PENDING})
     return job
+
+
+class TestThrottle:
+    """The per-key log throttling and retry backoff the balancer runs on."""
+
+    def test_a_repeated_message_drops_to_debug(self, caplog):
+        """The loop runs once a second, so the same line must not be reported twice."""
+        throttle = _Throttle()
+
+        with caplog.at_level(logging.DEBUG, logger="scheduler.BalanceFillerJobs"):
+            throttle.log("status", logging.INFO, "profile=%s", _PROFILE)
+            throttle.log("status", logging.INFO, "profile=%s", _PROFILE)
+
+        assert [record.levelno for record in caplog.records] == [logging.INFO, logging.DEBUG]
+
+    def test_clear_lets_a_recurrence_be_reported_again(self, caplog):
+        """Throttling silences repeats, not recurrences."""
+        throttle = _Throttle()
+
+        with caplog.at_level(logging.DEBUG, logger="scheduler.BalanceFillerJobs"):
+            throttle.log("status", logging.INFO, "profile=%s", _PROFILE)
+            throttle.clear("status")
+            throttle.log("status", logging.INFO, "profile=%s", _PROFILE)
+
+        assert [record.levelno for record in caplog.records] == [logging.INFO, logging.INFO]
+
+    def test_a_retry_delay_counts_down_and_runs_out(self):
+        """The countdown advances per call, so it only moves on loops that ask for it."""
+        throttle = _Throttle()
+        throttle.set_retry("create", 2)
+
+        assert [throttle.wait_before_retry("create") for _ in range(3)] == [True, True, False]
+
+    def test_clear_does_not_cancel_a_pending_retry(self):
+        """The two halves are independent: reportable again is not the same as due again."""
+        throttle = _Throttle()
+        throttle.set_retry("create", 1)
+
+        throttle.clear("create")
+
+        assert throttle.wait_before_retry("create") is True
+
+    def test_forget_stale_drops_only_the_keys_that_are_gone(self):
+        """State keyed by job has to be pruned as filler jobs come and go."""
+        throttle = _Throttle()
+        for key in ("stop:gone", "stop:live", "create"):
+            throttle.set_retry(key, 5)
+
+        throttle.forget_stale("stop:", {"stop:live"})
+
+        assert throttle.wait_before_retry("stop:gone") is False
+        assert throttle.wait_before_retry("stop:live") is True
+        assert throttle.wait_before_retry("create") is True
 
 
 def test_creates_filler_jobs_up_to_the_configured_slots(filler_program):

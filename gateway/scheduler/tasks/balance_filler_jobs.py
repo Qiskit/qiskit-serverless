@@ -1,6 +1,7 @@
 """Keep a minimum number of jobs running on a scarce Fleets compute profile."""
 
 import logging
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 from django.conf import settings
@@ -42,6 +43,80 @@ CHURN_WINDOW = timedelta(minutes=5)
 CHURN_LIMIT = 3
 
 
+@dataclass
+class _KeyState:
+    """The two halves of one key's throttling state, which stay independent.
+
+    last_args is what the key logged last, and retry_loops is how many loops it
+    still owes before the same work is attempted again. They live in one entry
+    because they are always indexed by the same key, not because one implies the
+    other: forgetting what was logged must not cancel a backoff in flight.
+    """
+
+    last_args: tuple | None = None
+    retry_loops: int = 0
+
+
+class _Throttle:
+    """Log throttling and retry backoff per key, for a task that runs once a second.
+
+    Every repeating log line in this task goes through log(), and every failure
+    that must not be retried at one hertz goes through set_retry(). Both are keyed
+    the same way, by a fixed name for a condition of the whole task ("status",
+    "churn") or by one job ("stop:<id>").
+    """
+
+    def __init__(self):
+        self._state: dict[str, _KeyState] = {}
+
+    def log(self, key: str, level: int, message: str, *args) -> None:
+        """Log at `level` when this key's arguments change, at DEBUG when they repeat.
+
+        The scheduler loop runs about once a second, so any unconditional log line
+        in this task becomes tens of thousands of identical entries a day.
+        """
+        entry = self._state.setdefault(key, _KeyState())
+        if entry.last_args != args:
+            logger.log(level, message, *args)
+            entry.last_args = args
+        else:
+            logger.debug(message, *args)
+
+    def clear(self, key: str) -> None:
+        """Forget a key's last arguments so its next occurrence logs at its own level.
+
+        Throttling is meant to silence repeats, not recurrences: without this, a
+        condition that clears and comes back would never be reported again for the
+        life of the scheduler process. It leaves retry_loops alone, because a
+        condition being reportable again says nothing about whether the work behind
+        it is due to be retried.
+        """
+        entry = self._state.get(key)
+        if entry is not None:
+            entry.last_args = None
+
+    def wait_before_retry(self, key: str) -> bool:
+        """Return True while `key` is still serving out its retry delay.
+
+        The countdown advances here rather than on a timer, so it only moves on
+        loops that reach this same code path.
+        """
+        entry = self._state.get(key)
+        if entry is None or entry.retry_loops <= 0:
+            return False
+        entry.retry_loops -= 1
+        return True
+
+    def set_retry(self, key: str, loops: int) -> None:
+        """Make `key` wait `loops` more loops before its work is attempted again."""
+        self._state.setdefault(key, _KeyState()).retry_loops = loops
+
+    def forget_stale(self, prefix: str, live: set[str]) -> None:
+        """Drop every key under `prefix` that is not in `live`, so the state cannot grow."""
+        for key in [k for k in self._state if k.startswith(prefix) and k not in live]:
+            del self._state[key]
+
+
 class BalanceFillerJobs(SchedulerTask):
     """Keep real plus filler jobs on one compute profile at the configured minimum.
 
@@ -59,8 +134,7 @@ class BalanceFillerJobs(SchedulerTask):
     def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
         self.kill_signal = kill_signal
         self.metrics = metrics
-        self._last_logged: dict[str, tuple] = {}
-        self._retry_after: dict[str, int] = {}
+        self.throttle = _Throttle()
 
     def run(self):
         """Stop every filler job when the feature is off, otherwise balance them."""
@@ -82,12 +156,12 @@ class BalanceFillerJobs(SchedulerTask):
         _get_filler_program has already said which of the two at INFO, so this only
         reports the cleanup that follows from it.
         """
-        self._clear_throttle("status")
-        self._clear_throttle("stale")
+        self.throttle.clear("status")
+        self.throttle.clear("stale")
         if not filler_jobs:
-            self._clear_throttle("drain")
+            self.throttle.clear("drain")
             return
-        self._log_throttled(
+        self.throttle.log(
             "drain",
             logging.INFO,
             "[BalanceFillerJobs] stopping %s filler job(s), the feature is off",
@@ -97,8 +171,8 @@ class BalanceFillerJobs(SchedulerTask):
 
     def _balance_filler_jobs(self, program: Program, filler_jobs: list[Job]) -> None:
         """Stop the filler jobs that no longer belong, then close the gap to the target."""
-        self._clear_throttle("deactivated")
-        self._clear_throttle("drain")
+        self.throttle.clear("deactivated")
+        self.throttle.clear("drain")
 
         profile_row = program.default_size.compute_profile
         compute_profile = self._compute_profile_of(program)
@@ -110,7 +184,7 @@ class BalanceFillerJobs(SchedulerTask):
             filler=False,
         ).count()
         target = max(0, slots - real_running)
-        self._log_throttled(
+        self.throttle.log(
             "status",
             logging.INFO,
             "[BalanceFillerJobs] profile=%s slots=%s real_running=%s target=%s",
@@ -133,7 +207,7 @@ class BalanceFillerJobs(SchedulerTask):
         current = [job for job in filler_jobs if (job.program_id, job.compute_profile_fk_id) == expected]
 
         if stale:
-            self._log_throttled(
+            self.throttle.log(
                 "stale",
                 logging.INFO,
                 "[BalanceFillerJobs] stopping %s filler job(s) on another program or compute profile",
@@ -141,49 +215,20 @@ class BalanceFillerJobs(SchedulerTask):
             )
             self._stop_filler_jobs(stale)
         else:
-            self._clear_throttle("stale")
+            self.throttle.clear("stale")
 
         if len(current) < target:
             self._create_filler_job(program, compute_profile)
         elif len(current) > target:
             self._stop_filler_jobs(current[: len(current) - target])
 
-    def _log_throttled(self, key: str, level: int, message: str, *args) -> None:
-        """Log at `level` when this key's arguments change, at DEBUG when they repeat.
-
-        The scheduler loop runs about once a second, so any unconditional log line
-        in this task becomes tens of thousands of identical entries a day. Every
-        repeating line here goes through this method for that reason.
-        """
-        if self._last_logged.get(key) != args:
-            logger.log(level, message, *args)
-            self._last_logged[key] = args
-        else:
-            logger.debug(message, *args)
-
-    def _clear_throttle(self, key: str) -> None:
-        """Forget a key's last arguments so its next occurrence logs at its own level.
-
-        Throttling is meant to silence repeats, not recurrences: without this, a
-        condition that clears and comes back would never be reported again for the
-        life of the scheduler process.
-        """
-        self._last_logged.pop(key, None)
-
-    def _wait_before_retry(self, key: str) -> bool:
-        """Return True while `key` is still serving out its retry delay."""
-        remaining = self._retry_after.get(key, 0)
-        if remaining <= 0:
-            return False
-        self._retry_after[key] = remaining - 1
-        return True
-
     def _forget_finished_jobs(self, filler_jobs: list[Job]) -> None:
-        """Drop retry state for jobs that are no longer active, so it cannot grow."""
-        live = {f"stop:{job.id}" for job in filler_jobs}
-        for key in [k for k in self._retry_after if k.startswith("stop:") and k not in live]:
-            del self._retry_after[key]
-            self._last_logged.pop(key, None)
+        """Drop the throttling state of jobs that are no longer active.
+
+        Which keys belong to a job is knowledge this task has and _Throttle does
+        not, so the live set is built here.
+        """
+        self.throttle.forget_stale("stop:", {f"stop:{job.id}" for job in filler_jobs})
 
     def _compute_profile_of(self, program: Program) -> str:
         """Return the program's default compute profile in canonical form.
@@ -221,9 +266,9 @@ class BalanceFillerJobs(SchedulerTask):
             .count()
         )
         if recent_deaths < CHURN_LIMIT:
-            self._clear_throttle("churn")
+            self.throttle.clear("churn")
             return False
-        self._log_throttled(
+        self.throttle.log(
             "churn",
             logging.ERROR,
             "[BalanceFillerJobs] %s filler jobs ended on their own in the last %s; "
@@ -304,7 +349,7 @@ class BalanceFillerJobs(SchedulerTask):
 
         Do not add an explicit `return None`: pylint rejects it (R1711).
         """
-        self._log_throttled("deactivated", logging.INFO, "[BalanceFillerJobs] deactivated: %s", reason)
+        self.throttle.log("deactivated", logging.INFO, "[BalanceFillerJobs] deactivated: %s", reason)
 
     def _discard_unsubmitted_filler_jobs(self) -> None:
         """Stop filler jobs stuck in QUEUED with no fleet.
@@ -337,14 +382,14 @@ class BalanceFillerJobs(SchedulerTask):
         upload plus the Code Engine submit that each job costs stay off the critical
         path of the status updates that share this single-threaded loop.
         """
-        if self._wait_before_retry("create"):
+        if self.throttle.wait_before_retry("create"):
             return
         if self._is_churning():
             # Back off too: the churn count is an unindexed join on api_jobevent, and
             # re-running it every second for the length of an incident is the worst
             # moment to add load. Nothing about a tripped breaker needs re-checking
             # at one hertz.
-            self._retry_after["create"] = RETRY_AFTER_LOOPS
+            self.throttle.set_retry("create", RETRY_AFTER_LOOPS)
             return
 
         author = User.objects.filter(username=settings.FILLER_AUTHOR_USERNAME).first()
@@ -358,7 +403,7 @@ class BalanceFillerJobs(SchedulerTask):
         if not self._submit_filler_job(program, compute_profile, author):
             # Whatever broke will still be broken a second from now, so wait before
             # trying again.
-            self._retry_after["create"] = RETRY_AFTER_LOOPS
+            self.throttle.set_retry("create", RETRY_AFTER_LOOPS)
 
     def _submit_filler_job(self, program: Program, compute_profile: str, author) -> bool:
         """Create and submit one filler job. Return True when it reached PENDING."""
@@ -414,7 +459,7 @@ class BalanceFillerJobs(SchedulerTask):
                 self._mark_stopped(job)
             return self._creation_failed(ex)
 
-        self._clear_throttle("create-error")
+        self.throttle.clear("create-error")
         submitted = job.status == Job.PENDING
         self.metrics.increment_filler_jobs_created("submitted" if submitted else "failed")
         logger.info("[BalanceFillerJobs] job_id=%s filler job submitted with status=%s", job.id, job.status)
@@ -427,9 +472,7 @@ class BalanceFillerJobs(SchedulerTask):
         traceback once a second. A COS problem, for instance, is a configuration
         fault and not an incident.
         """
-        self._log_throttled(
-            "create-error", logging.ERROR, "[BalanceFillerJobs] could not create filler job: %s", str(ex)
-        )
+        self.throttle.log("create-error", logging.ERROR, "[BalanceFillerJobs] could not create filler job: %s", str(ex))
         self.metrics.increment_filler_jobs_created("failed")
         return False
 
@@ -440,7 +483,7 @@ class BalanceFillerJobs(SchedulerTask):
                 return
 
             key = f"stop:{job.id}"
-            if self._wait_before_retry(key):
+            if self.throttle.wait_before_retry(key):
                 continue
 
             if job.fleet_id:
@@ -450,14 +493,14 @@ class BalanceFillerJobs(SchedulerTask):
                     # Leave the job active and try again later. Writing STOPPED first
                     # would hide a fleet that is still holding the scarce node, and
                     # the balancer would then create another filler job on top.
-                    self._log_throttled(
+                    self.throttle.log(
                         key,
                         logging.ERROR,
                         "[BalanceFillerJobs] job_id=%s error stopping filler job: %s",
                         job.id,
                         str(ex),
                     )
-                    self._retry_after[key] = RETRY_AFTER_LOOPS
+                    self.throttle.set_retry(key, RETRY_AFTER_LOOPS)
                     continue
 
             self._mark_stopped(job)
