@@ -31,11 +31,14 @@ features:
     state without the balancer asking, labelled by ``final_status``. A filler
     function is meant to run until its slot is needed, so ``FAILED`` or
     ``SUCCEEDED`` there is a misconfigured filler program, and the balancer replaces
-    each one a second later. That is the counter to alert on to catch a filler image
-    or program that dies on its own, since a creation that fails outright is counted
-    separately by ``scheduler_filler_jobs_created_total``. ``STOPPED`` on this
-    counter is the ``PROGRAM_TIMEOUT`` path; the stops the balancer asks for are in
-    ``scheduler_filler_jobs_stopped_total``.
+    each one a second later, for as long as it keeps happening. Nothing stops that on
+    its own, so this is the counter to alert on. Being a counter it only ever rises,
+    so read it as a rate over a window rather than raw: any sustained rate once
+    ``STOPPED`` is filtered out means filler jobs are being started and lost for
+    nothing, and the protected capacity is not being held. A creation that fails
+    outright is counted separately by ``scheduler_filler_jobs_created_total``.
+    ``STOPPED`` on this counter is the ``PROGRAM_TIMEOUT`` path; the stops the
+    balancer asks for are in ``scheduler_filler_jobs_stopped_total``.
 upgrade:
   - |
     Filler jobs are excluded from ``scheduler_job_status_count``,
@@ -58,11 +61,6 @@ upgrade:
     Engine fleet is cancelled but never deleted, and filler jobs cycle far more
     often than real ones, so they accumulate cancelled fleets in the project faster
     than user jobs do.
-  - |
-    The balancer stops creating filler jobs, and logs at ERROR, when three of them
-    have ended by themselves within five minutes, because a filler program is meant
-    to run until something needs its slot. This silently reduces the number of
-    filler jobs running, so it is worth alerting on.
   - |
     ``scheduler.filler.slots`` is honored as configured, with no upper bound, so a
     mistyped value does take that many slots out of ``LIMITS_MAX_FLEETS``. The

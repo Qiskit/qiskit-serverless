@@ -469,46 +469,6 @@ def test_one_filler_job_is_submitted_per_loop(filler_program):
     assert Job.objects.filter(filler=True).count() == 3
 
 
-def test_the_churn_breaker_stops_creating_when_filler_jobs_die_on_their_own(filler_program):
-    """Five filler jobs that ended by themselves recently block further creation."""
-    for index in range(5):
-        TestUtils.create_job(
-            author=_AUTHOR,
-            program=filler_program,
-            status=Job.FAILED,
-            runner=Program.FLEETS,
-            compute_profile=_PROFILE,
-            compute_profile_fk=filler_program.default_size.compute_profile,
-            filler=True,
-            fleet_id=f"dead-{index}",
-        )
-    task = _make_task()
-
-    submit, _, _ = _run(task)
-
-    assert submit.call_count == 0
-
-
-def test_stopped_filler_jobs_do_not_trip_the_churn_breaker(filler_program):
-    """Filler jobs the balancer stopped are the feature working, not churn."""
-    for index in range(6):
-        TestUtils.create_job(
-            author=_AUTHOR,
-            program=filler_program,
-            status=Job.STOPPED,
-            runner=Program.FLEETS,
-            compute_profile=_PROFILE,
-            compute_profile_fk=filler_program.default_size.compute_profile,
-            filler=True,
-            fleet_id=f"stopped-{index}",
-        )
-    task = _make_task()
-
-    submit, _, _ = _run(task, times=4)
-
-    assert submit.call_count == 4
-
-
 def test_the_occupancy_of_the_protected_profile_is_reported(filler_program):
     """The gauge that says whether the feature is doing its job at all.
 

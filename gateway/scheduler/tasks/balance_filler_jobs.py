@@ -2,7 +2,6 @@
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -32,16 +31,6 @@ User = get_user_model()
 # creation delay pauses while real jobs fill the slots.
 RETRY_AFTER_LOOPS = 60
 
-# Churn breaker. A filler job that ends on its own (FAILED because the submit was
-# rejected, or SUCCEEDED because the program exited) is replaced a second later,
-# forever, with nothing counting it. STOPPED is excluded: that is the balancer
-# making room for real work, or the 24h timeout, and both are the feature working.
-# Three, not five: the create path backs off for RETRY_AFTER_LOOPS after each
-# failure, so a steadily-failing filler program only produces about four deaths
-# per window and a limit of five would sit right on that boundary.
-CHURN_WINDOW = timedelta(minutes=5)
-CHURN_LIMIT = 3
-
 
 @dataclass
 class _KeyState:
@@ -63,7 +52,7 @@ class _Throttle:
     Every repeating log line in this task goes through log(), and every failure
     that must not be retried at one hertz goes through set_retry(). Both are keyed
     the same way, by a fixed name for a condition of the whole task ("status",
-    "churn") or by one job ("stop:<id>").
+    "create-error") or by one job ("stop:<id>").
     """
 
     def __init__(self):
@@ -253,40 +242,6 @@ class BalanceFillerJobs(SchedulerTask):
         # but compute_profile_id is a non-empty primary key, so this is always a str.
         return compute_profile_domain.normalize(program.default_size.compute_profile.compute_profile_id)
 
-    def _is_churning(self) -> bool:
-        """Return True when filler jobs have been dying on their own.
-
-        This counts the terminal JobEvent, not the Job row. Counting rows by
-        Job.created only catches deaths faster than CHURN_WINDOW: a fleet that
-        fails six minutes after it was created is already outside the window by
-        the time it reaches FAILED, so the breaker would never fire for it.
-        JobEvent.created is auto_now_add and records when the death happened.
-        (Job.updated cannot be used for this: update_fields and save_direct issue
-        a raw UPDATE that skips auto_now.)
-        """
-        recent_deaths = (
-            JobEvent.objects.filter(
-                job__filler=True,
-                data__status__in=[Job.FAILED, Job.SUCCEEDED],
-                created__gte=datetime.now(timezone.utc) - CHURN_WINDOW,
-            )
-            .values("job_id")
-            .distinct()
-            .count()
-        )
-        if recent_deaths < CHURN_LIMIT:
-            self.throttle.clear("churn")
-            return False
-        self.throttle.log(
-            "churn",
-            logging.ERROR,
-            "[BalanceFillerJobs] %s filler jobs ended on their own in the last %s; "
-            "not creating more until that stops",
-            recent_deaths,
-            CHURN_WINDOW,
-        )
-        return True
-
     def _get_filler_program(self) -> Program | None:  # pylint: disable=too-many-return-statements
         """Return the configured filler program, or None when the feature is off.
 
@@ -392,13 +347,6 @@ class BalanceFillerJobs(SchedulerTask):
         path of the status updates that share this single-threaded loop.
         """
         if self.throttle.wait_before_retry("create"):
-            return
-        if self._is_churning():
-            # Back off too: the churn count is an unindexed join on api_jobevent, and
-            # re-running it every second for the length of an incident is the worst
-            # moment to add load. Nothing about a tripped breaker needs re-checking
-            # at one hertz.
-            self.throttle.set_retry("create", RETRY_AFTER_LOOPS)
             return
 
         author = User.objects.filter(username=settings.FILLER_AUTHOR_USERNAME).first()
