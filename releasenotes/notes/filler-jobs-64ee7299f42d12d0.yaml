@@ -42,9 +42,8 @@ features:
 upgrade:
   - |
     Filler jobs are excluded from ``scheduler_job_status_count``,
-    ``scheduler_jobs_terminal_total``, ``scheduler_job_execution_duration_seconds``,
-    ``scheduler_queue_wait_seconds``, and from the job totals and the recent-jobs
-    timeline on the admin dashboard, because they run continuously and
+    ``scheduler_jobs_terminal_total``, ``scheduler_job_execution_duration_seconds``
+    and ``scheduler_queue_wait_seconds``, because they run continuously and
     would otherwise look like user demand. Dashboards or alerts that expect those
     series to include every job need the filler metrics added to them. Filler jobs
     also never emit billing events.

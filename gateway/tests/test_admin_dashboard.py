@@ -6,7 +6,6 @@ from django.test import Client
 
 from api.admin import get_dashboard_stats
 from core.models import CodeEngineProject, Job, Program, Provider
-from tests.utils import TestUtils
 
 
 @pytest.mark.django_db
@@ -112,30 +111,6 @@ def test_index_renders_the_recent_fleets_jobs_timeline():
 
 
 @pytest.mark.django_db
-def test_index_recent_fleets_jobs_timeline_excludes_filler_jobs():
-    """Filler jobs must not show up in the admin home's recent-Fleets-jobs timeline."""
-    user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
-    author = User.objects.create_user(username="author", password="x")
-    real_job = Job.objects.create(author=author, program=None, status=Job.SUCCEEDED, runner=Program.FLEETS)
-    filler_job_1 = Job.objects.create(
-        author=author, program=None, status=Job.RUNNING, runner=Program.FLEETS, filler=True
-    )
-    filler_job_2 = Job.objects.create(
-        author=author, program=None, status=Job.RUNNING, runner=Program.FLEETS, filler=True
-    )
-
-    client = Client()
-    client.force_login(user)
-    response = client.get("/backoffice/")
-
-    body = response.content.decode()
-    assert response.status_code == 200
-    assert str(real_job.id)[:8] in body
-    assert str(filler_job_1.id)[:8] not in body
-    assert str(filler_job_2.id)[:8] not in body
-
-
-@pytest.mark.django_db
 def test_index_shows_a_placeholder_when_there_are_no_fleets_jobs():
     """A Ray-only (or empty) database shouldn't try to render a timeline with no fleets jobs."""
     user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
@@ -148,20 +123,3 @@ def test_index_shows_a_placeholder_when_there_are_no_fleets_jobs():
 
     assert response.status_code == 200
     assert "No fleets jobs yet" in response.content.decode()
-
-
-@pytest.mark.django_db
-def test_dashboard_stats_exclude_filler_jobs():
-    """Filler jobs are reported on their own line, not mixed into the job totals."""
-    program = TestUtils.create_program(program_title="dashboard-function", author="dashboard_user")
-    TestUtils.create_job(author="dashboard_user", program=program, status=Job.RUNNING)
-    TestUtils.create_job(author="dashboard_user", program=program, status=Job.RUNNING, filler=True)
-
-    stats = get_dashboard_stats()
-
-    assert stats["jobs_count"] == 1
-    assert stats["jobs_active"] == 1
-    assert stats["jobs_filler_active"] == 1
-    assert sum(row["count"] for row in stats["jobs_by_status"]) == 1
-    assert sum(row["count"] for row in stats["jobs_by_provider"]) == 1
-    assert stats["jobs_by_status"][0]["pct"] == 100

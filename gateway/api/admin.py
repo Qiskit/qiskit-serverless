@@ -52,16 +52,10 @@ RECENT_TIMELINE_CACHE_TTL_SECONDS = 30
 
 
 def get_dashboard_stats():
-    """Return platform-wide stats for the admin dashboard.
+    """Return platform-wide stats for the admin dashboard."""
+    total_jobs = Job.objects.count()
 
-    Filler jobs are counted separately: they are created by the scheduler to keep
-    scarce GPU capacity busy, so mixing them into these figures would overstate
-    how much of the platform users are asking for.
-    """
-    real_jobs = Job.objects.exclude(filler=True)
-    total_jobs = real_jobs.count()
-
-    status_rows = real_jobs.values("status").annotate(count=Count("id")).order_by("-count")
+    status_rows = Job.objects.values("status").annotate(count=Count("id")).order_by("-count")
     jobs_by_status = [
         {
             "status": row["status"],
@@ -71,7 +65,7 @@ def get_dashboard_stats():
         for row in status_rows
     ]
 
-    provider_rows = real_jobs.values(name=F("program__provider__name")).annotate(count=Count("id")).order_by("-count")
+    provider_rows = Job.objects.values(name=F("program__provider__name")).annotate(count=Count("id")).order_by("-count")
     jobs_by_provider = [
         {
             "name": row["name"] or "Custom",
@@ -87,8 +81,7 @@ def get_dashboard_stats():
         "programs_count": Program.objects.count(),
         "programs_disabled": Program.objects.filter(disabled=True).count(),
         "jobs_count": total_jobs,
-        "jobs_active": real_jobs.filter(status__in=Job.ACTIVE_STATUSES).count(),
-        "jobs_filler_active": Job.objects.filter(filler=True, status__in=Job.ACTIVE_STATUSES).count(),
+        "jobs_active": Job.objects.filter(status__in=Job.ACTIVE_STATUSES).count(),
         "ce_projects_count": CodeEngineProject.objects.count(),
         "ce_projects_active": CodeEngineProject.objects.filter(active=True).count(),
         "jobs_by_status": jobs_by_status,
@@ -472,7 +465,7 @@ class JobAdmin(admin.ModelAdmin):
     """JobAdmin."""
 
     search_fields = ["id", "author__username", "program__title"]
-    list_filter = ["status", "runner", "filler", JobProgramFilter]
+    list_filter = ["status", "runner", JobProgramFilter]
     list_display = ["runner", "author", "get_program", "status_badge", "created", "updated"]
     list_select_related = ["author", "program", "program__provider"]
     ordering = ["-created"]
@@ -724,7 +717,6 @@ class QiskitAdminSite(admin.AdminSite):
         if timeline_context is None:
             recent_jobs = list(
                 Job.objects.filter(runner=Program.FLEETS)
-                .exclude(filler=True)
                 .select_related("author")
                 .prefetch_related("job_events")
                 .order_by("-created")[:20]
