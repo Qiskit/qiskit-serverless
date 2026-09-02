@@ -513,7 +513,7 @@ class TestEventStreamsIntegration:
 def test_filler_jobs_are_left_out_of_the_job_metrics():
     """A filler job neither counts as a terminal job nor contributes an execution duration."""
     task = _make_task()
-    mock_job = MagicMock()
+    mock_job = MagicMock(spec=Job)
     mock_job.filler = True
 
     task._increment_terminal_counter(mock_job)

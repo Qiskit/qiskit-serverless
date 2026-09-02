@@ -140,3 +140,4 @@ def test_dashboard_stats_exclude_filler_jobs():
     assert stats["jobs_filler_active"] == 1
     assert sum(row["count"] for row in stats["jobs_by_status"]) == 1
     assert sum(row["count"] for row in stats["jobs_by_provider"]) == 1
+    assert stats["jobs_by_status"][0]["pct"] == 100

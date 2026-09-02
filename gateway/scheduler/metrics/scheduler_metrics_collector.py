@@ -56,7 +56,7 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes
         )
         self.filler_jobs_count = Gauge(
             "scheduler_filler_jobs_count",
-            "Number of filler jobs per status. Filler jobs are excluded from "
+            "Number of active filler jobs per status. Filler jobs are excluded from "
             "scheduler_job_status_count, which describes user demand.",
             labelnames=("status",),
             registry=self.registry,

@@ -38,7 +38,7 @@ class UpdateJobStatusCounts(SchedulerTask):
         for (status, provider), count in counts.items():
             self.metrics.set_job_status_count(count, status, provider)
 
-        filler_rows = active.filter(filler=True).values("status").annotate(count=Count("id"))
+        filler_rows = list(active.filter(filler=True).values("status").annotate(count=Count("id")))
         self.metrics.clear_filler_jobs_counts()
         for row in filler_rows:
             self.metrics.set_filler_jobs_count(row["count"], row["status"])

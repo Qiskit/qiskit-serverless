@@ -722,6 +722,7 @@ class QiskitAdminSite(admin.AdminSite):
         if timeline_context is None:
             recent_jobs = list(
                 Job.objects.filter(runner=Program.FLEETS)
+                .exclude(filler=True)
                 .select_related("author")
                 .prefetch_related("job_events")
                 .order_by("-created")[:20]
