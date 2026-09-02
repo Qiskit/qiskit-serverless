@@ -503,6 +503,7 @@ class JobAdmin(admin.ModelAdmin):
             "Fleets",
             {
                 "fields": [
+                    "filler",
                     "fleet_id",
                     "compute_profile",
                     "compute_profile_fk",
