@@ -15,6 +15,7 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Config, Job, JobEvent, Program
 from core.services.runners import get_runner, RunnerError
 from core.services.storage import get_arguments_storage
+from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.schedule import execute_fleets_job
@@ -161,6 +162,15 @@ class BalanceFillerJobs(SchedulerTask):
     def _slots(self) -> int:
         """Return the configured slot count, clamped to MAX_SLOTS."""
         slots = Config.get_int(ConfigKey.FILLER_SLOTS)
+        if slots < 0:
+            self._log_throttled(
+                "negative-slots",
+                logging.WARNING,
+                "[BalanceFillerJobs] %s is %s, treating it as 0",
+                ConfigKey.FILLER_SLOTS.value,
+                slots,
+            )
+            return 0
         if slots > MAX_SLOTS:
             self._log_throttled(
                 "clamp",
@@ -190,12 +200,17 @@ class BalanceFillerJobs(SchedulerTask):
     def _is_churning(self) -> bool:
         """Return True when filler jobs have been dying on their own.
 
-        Job.created is auto_now_add, so it is reliable here; Job.updated is not,
-        because update_fields and save_direct issue a raw UPDATE that skips auto_now.
+        This counts the terminal JobEvent, not the Job row. Counting rows by
+        Job.created only catches deaths faster than CHURN_WINDOW: a fleet that
+        fails six minutes after it was created is already outside the window by
+        the time it reaches FAILED, so the breaker would never fire for it.
+        JobEvent.created is auto_now_add and records when the death happened.
+        (Job.updated cannot be used for this: update_fields and save_direct issue
+        a raw UPDATE that skips auto_now.)
         """
-        recent_deaths = Job.objects.filter(
-            filler=True,
-            status__in=[Job.FAILED, Job.SUCCEEDED],
+        recent_deaths = JobEvent.objects.filter(
+            job__filler=True,
+            data__status__in=[Job.FAILED, Job.SUCCEEDED],
             created__gte=datetime.now(timezone.utc) - CHURN_WINDOW,
         ).count()
         if recent_deaths < CHURN_LIMIT:
@@ -281,10 +296,11 @@ class BalanceFillerJobs(SchedulerTask):
         """Stop filler jobs stuck in QUEUED with no fleet.
 
         Creation submits in the same call that saves the row, so a filler job can
-        only sit in QUEUED if something failed in between. Nothing else would ever
-        clear it: UpdateFleetsJobsStatuses looks at RUNNING_STATUSES only, so even
-        the 24h timeout cannot reach it, and it would be counted as occupancy
-        forever, permanently losing one slot of scarce capacity.
+        only sit in QUEUED if something failed in between. Such a row is unusable:
+        UpdateFleetsJobsStatuses looks at RUNNING_STATUSES only, so not even the 24h
+        timeout can reach it. (get_jobs_to_schedule_fair_share does not filter on
+        filler, so ScheduleFleetsJobs may well pick it up first and submit it with
+        the SCHEDULE_JOBS context; this path is the safety net for when it does not.)
         """
         stuck = Job.objects.filter(filler=True, status=Job.QUEUED, fleet_id__isnull=True)
         for job in stuck:
@@ -344,6 +360,11 @@ class BalanceFillerJobs(SchedulerTask):
                 TraceContextTextMapPropagator().extract(carrier={}),
                 context=JobEventContext.FILLER_SUBMIT,
             )
+        except DB_EXCEPTIONS:
+            # Never swallow these: main.py counts consecutive database failures and
+            # restarts the pod, and returning normally here would clear a streak
+            # other tasks had accumulated.
+            raise
         except Exception as ex:  # pylint: disable=broad-exception-caught
             # Everything is caught here rather than in the scheduler's generic
             # handler, which would log a traceback once a second. A COS problem, for

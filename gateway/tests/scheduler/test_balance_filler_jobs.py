@@ -10,11 +10,14 @@ import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
+from prometheus_client import CollectorRegistry
 
 from core.config_key import ConfigKey
 from core.models import ComputeProfile, Config, FunctionSize, Job, JobEvent, Program
 from core.model_managers.job_events import JobEventContext
 from core.services.runners import RunnerError
+from scheduler.main import Main
+from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs, MAX_SLOTS, MAX_SUBMITS_PER_LOOP
 from tests.utils import TestUtils
 
@@ -463,3 +466,22 @@ def test_a_failed_creation_is_not_retried_every_loop(filler_program):
 
     assert arguments.call_count == 1
     assert Job.objects.filter(filler=True).count() == 0
+
+
+def test_the_balancer_runs_after_the_fleets_status_update(settings):
+    """The balancer must see the freshest real-job count, so its position matters.
+
+    UpdateFleetsJobsStatuses must run before BalanceFillerJobs (so real jobs that
+    finished this loop are already reflected), and FreeResources must run after it
+    (Ray-only cleanup has nothing to do with when the balancer runs, but the plan
+    fixes this as the position).
+    """
+    # A different port from tests/scheduler/test_main.py, which also constructs a
+    # real Main and binds SITE_HOST, so the two cannot collide.
+    settings.SITE_HOST = "http://127.0.0.1:8201"
+    scheduler_main = Main(metrics=SchedulerMetrics(CollectorRegistry()))
+    try:
+        names = [type(task).__name__ for task in scheduler_main.tasks]
+        assert names.index("UpdateFleetsJobsStatuses") < names.index("BalanceFillerJobs") < names.index("FreeResources")
+    finally:
+        scheduler_main.stop_http_server()
