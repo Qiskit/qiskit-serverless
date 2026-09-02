@@ -36,7 +36,7 @@ from ibm_botocore.exceptions import BotoCoreError, ClientError as BotoClientErro
 
 from core.ibm_cloud.clients import IBMCloudClientProvider
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
-from core.ibm_cloud.code_engine.fleets.cos import JobCOS, queue_prefix
+from core.ibm_cloud.code_engine.fleets.cos import JobCOS, queue_prefix, task_state_from_key
 from core.ibm_cloud.cos.cos_client import COSClient, CosHmacCredentials
 from core.models import CodeEngineProject
 
@@ -315,21 +315,25 @@ def _mock_get_job_status(self, identifier):  # pylint: disable=unused-argument
     bucket = _task_store_bucket(self.project_id)
     prefix = queue_prefix(self.project_id, fleet_id)
 
-    # Status segments the worker writes, in priority order. No '/canceling/':
-    # the harness never produces a canceling key (cancel writes '/canceled/'
-    # directly), so a branch for it would be dead code.
+    # Task states the worker writes, mapped to the CE API status strings this
+    # endpoint reports (the API says "successful" where the queue says
+    # "succeeded"). No "canceling": the harness never produces one, because cancel
+    # writes a "canceled" key directly. Defaults to "pending" on an empty listing
+    # because that is what the real CE API reports for a fresh fleet, unlike
+    # FleetsRunner.status() which returns None for "no state yet".
+    state_to_api_status = {
+        "succeeded": "successful",
+        "failed": "failed",
+        "canceled": "canceled",
+        "running": "running",
+        "pending": "pending",
+    }
     status = "pending"
     try:
         resp = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
-        keys = [obj["Key"] for obj in resp.get("Contents", [])]
-        for pattern, mapped in [
-            ("/succeeded/", "successful"),
-            ("/failed/", "failed"),
-            ("/canceled/", "canceled"),
-            ("/running/", "running"),
-            ("/pending/", "pending"),
-        ]:
-            if any(pattern in k for k in keys):
+        states = {task_state_from_key(prefix, obj["Key"]) for obj in resp.get("Contents", [])}
+        for state, mapped in state_to_api_status.items():
+            if state in states:
                 status = mapped
                 break
     except BotoClientError:

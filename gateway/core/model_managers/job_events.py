@@ -41,6 +41,12 @@ class JobEventContext(StrEnum):
     SAVE_MODEL = "SAVE_MODEL"
     SEND_ERROR = "SEND_ERROR"
 
+    # Scheduler: a filler job was created and submitted to Fleets (status PENDING or FAILED)
+    FILLER_SUBMIT = "FILLER_SUBMIT"
+
+    # Scheduler: a filler job was stopped to free capacity (status STOPPED)
+    FILLER_STOP = "FILLER_STOP"
+
 
 class JobEventType(StrEnum):
     """Job events type enum."""

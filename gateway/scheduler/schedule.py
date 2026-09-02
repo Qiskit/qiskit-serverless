@@ -120,14 +120,22 @@ def get_jobs_to_schedule_fair_share(slots: int, gpu: bool, runner: str = Program
 
     max_limit = min(slots, settings.LIMITS_MAX_FLEETS)
 
+    # Per-user concurrency is tracked independently per runner: Fleets and Ray
+    # have separate limits and separate running-job tallies, so a user's Fleets
+    # jobs don't count against their Ray budget and vice versa.
+    if runner == Program.FLEETS:
+        jobs_per_user = settings.LIMITS_JOBS_PER_USER_FLEETS
+    else:
+        jobs_per_user = settings.LIMITS_JOBS_PER_USER
+
     running_jobs_per_user = (
-        Job.objects.filter(status__in=Job.RUNNING_STATUSES).values("author").annotate(running_jobs_count=Count("id"))
+        Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=runner)
+        .values("author")
+        .annotate(running_jobs_count=Count("id"))
     )
 
     users_at_max_capacity = [
-        entry["author"]
-        for entry in running_jobs_per_user
-        if entry["running_jobs_count"] >= settings.LIMITS_JOBS_PER_USER
+        entry["author"] for entry in running_jobs_per_user if entry["running_jobs_count"] >= jobs_per_user
     ]
 
     author_date_pull = (

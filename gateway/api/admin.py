@@ -2,13 +2,15 @@
 
 import json
 import logging
+import uuid
 
 from django import forms
 from django.contrib import admin, messages
+from django.core.cache import cache
 from django.db.models import Count, F, Q
 from django.utils.html import format_html
-from django.urls import path
-from django.shortcuts import render, get_object_or_404
+from django.urls import path, reverse
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.admin.views.main import PAGE_VAR
 
 from api.domain.arguments_schema import (
@@ -16,11 +18,14 @@ from api.domain.arguments_schema import (
     UnsupportedSchemaError,
     check_uploaded_schema_in_isolation,
 )
+from api.domain.job_timeline import render_job_timeline
 from api.domain.exceptions.invalid_arguments_exception import InvalidArgumentsException
 from api.use_cases.programs.validate_arguments import validate_arguments
 from core.models import (
     CodeEngineProject,
+    ComputeProfile,
     Config,
+    FunctionSize,
     GroupMetadata,
     JobConfig,
     JobEvent,
@@ -35,6 +40,15 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobE
 from core.services.storage.job_file_explorer import JobFileExplorer
 
 logger = logging.getLogger("gateway.admin")
+
+# How many jobs the "Timeline" admin action can carry in the redirect query string
+MAX_TIMELINE_JOBS = 200
+
+# The admin home page is hit far more often than the Timeline page itself, so the recent-Fleets
+# widget it embeds (query plus SVG build plus overlap detection) is cached for a short while
+# instead of being rebuilt on every single load.
+RECENT_TIMELINE_CACHE_KEY = "admin_dashboard_recent_fleets_timeline"
+RECENT_TIMELINE_CACHE_TTL_SECONDS = 30
 
 
 def get_dashboard_stats():
@@ -94,8 +108,32 @@ class CodeEngineProjectAdmin(admin.ModelAdmin):
 class ProviderAdmin(admin.ModelAdmin):
     """ProviderAdmin."""
 
-    search_fields = ["name"]
+    search_fields = ["name", "code_engine_project__project_name"]
+    list_display = ["name", "code_engine_project"]
     filter_horizontal = ["admin_groups"]
+
+
+@admin.register(ComputeProfile)
+class ComputeProfileAdmin(admin.ModelAdmin):
+    """ComputeProfileAdmin."""
+
+    # search_fields is required for FunctionSizeAdmin's autocomplete on compute_profile
+    search_fields = ["compute_profile_id", "name"]
+    list_display = ["compute_profile_id", "name", "cpu", "gpu", "memory", "updated"]
+    ordering = ["compute_profile_id"]
+    readonly_fields = ["created", "updated"]
+
+
+@admin.register(FunctionSize)
+class FunctionSizeAdmin(admin.ModelAdmin):
+    """FunctionSizeAdmin."""
+
+    list_display = ["function", "function_size", "compute_profile", "updated"]
+    list_filter = ["function_size"]
+    search_fields = ["function__title", "function_size", "compute_profile__compute_profile_id"]
+    autocomplete_fields = ["function", "compute_profile"]
+    list_select_related = ["function", "compute_profile"]
+    readonly_fields = ["created", "updated"]
 
 
 def _arguments_schema_error(value: str | None) -> str | None:
@@ -403,23 +441,12 @@ class JobProgramFilter(admin.SimpleListFilter):
     parameter_name = "job_program"
 
     def lookups(self, request, model_admin):
-        qs = model_admin.get_queryset(request).select_related("program__provider")
-        seen = set()
-        choices = []
-        has_custom = False
-        for job in qs.only("program_id"):
-            pid = job.program_id
-            if pid is None:
-                has_custom = True
-                continue
-            if pid in seen:
-                continue
-            seen.add(pid)
-            program = Program.objects.select_related("provider").filter(pk=pid).first()
-            if program is None or program.provider is None:
-                has_custom = True
-            else:
-                choices.append((str(pid), f"{program.provider.name} / {program.title}"))
+        qs = model_admin.get_queryset(request)
+        program_ids = qs.exclude(program__isnull=True).values_list("program_id", flat=True).distinct()
+        has_custom = qs.filter(Q(program__isnull=True) | Q(program__provider__isnull=True)).exists()
+
+        programs = Program.objects.filter(pk__in=program_ids, provider__isnull=False).select_related("provider")
+        choices = [(str(program.pk), f"{program.provider.name} / {program.title}") for program in programs]
         choices.sort(key=lambda x: x[1])
         if has_custom:
             choices.insert(0, ("custom", "Custom"))
@@ -442,8 +469,9 @@ class JobAdmin(admin.ModelAdmin):
     list_display = ["runner", "author", "get_program", "status_badge", "created", "updated"]
     list_select_related = ["author", "program", "program__provider"]
     ordering = ["-created"]
+    actions = ["timeline_action"]
     inlines = []
-    autocomplete_fields = ["author", "program", "compute_resource", "config"]
+    autocomplete_fields = ["author", "program", "compute_resource", "config", "compute_profile_fk", "function_size"]
     change_form_template = "admin/api/job/change_form.html"
     fieldsets = [
         (
@@ -470,6 +498,9 @@ class JobAdmin(admin.ModelAdmin):
                 "fields": [
                     "fleet_id",
                     "compute_profile",
+                    "compute_profile_fk",
+                    "size_source",
+                    "function_size",
                     "ce_project_name",
                     "ce_region",
                     "code_engine_project",
@@ -485,8 +516,33 @@ class JobAdmin(admin.ModelAdmin):
             formfield.widget.can_delete_related = False
         return formfield
 
+    @admin.action(description="Timeline")
+    def timeline_action(self, request, queryset):
+        """Redirect to the Gantt/concurrency timeline for the selected jobs.
+
+        The selection travels in the query string, so it has to be capped: "select all" on an
+        unfiltered changelist would build a URL long enough for the webserver to reject the
+        request with a 502 instead of showing an error.
+
+        The cap is detected from a single query (fetch one row past the limit) rather than a
+        separate `.count()` plus a slice: two independent queries against the same queryset could
+        observe different rows if something else inserts or deletes a matching job in between,
+        which would make the "showing N of TOTAL" message describe a total inconsistent with the
+        ids actually captured.
+        """
+        ids = list(queryset.values_list("id", flat=True)[: MAX_TIMELINE_JOBS + 1])
+        if len(ids) > MAX_TIMELINE_JOBS:
+            ids = ids[:MAX_TIMELINE_JOBS]
+            messages.warning(request, f"Showing the first {MAX_TIMELINE_JOBS} of the selected jobs.")
+        return redirect(f"{reverse('admin:job_timeline_view')}?ids={','.join(str(i) for i in ids)}")
+
     def get_urls(self):
         custom_urls = [
+            path(
+                "timeline/",
+                self.admin_site.admin_view(self.job_timeline_view),
+                name="job_timeline_view",
+            ),
             path(
                 "<path:job_id>/files/",
                 self.admin_site.admin_view(self.job_files_view),
@@ -499,6 +555,30 @@ class JobAdmin(admin.ModelAdmin):
             ),
         ]
         return custom_urls + super().get_urls()
+
+    def job_timeline_view(self, request):
+        """Gantt/concurrency timeline for the jobs selected in the changelist."""
+        raw_ids = [v for v in request.GET.get("ids", "").split(",") if v]
+        id_list = []
+        for raw_id in raw_ids:
+            try:
+                id_list.append(uuid.UUID(raw_id))
+            except ValueError:
+                continue
+        # one single query: the rendering iterates the jobs again, and re-running the queryset
+        # could come back empty (deleted in between) and break the rendering half way through
+        jobs = list(Job.objects.filter(id__in=id_list).select_related("author").prefetch_related("job_events"))
+        if not id_list or not jobs:
+            messages.error(request, "No jobs selected for the timeline.")
+            return redirect(reverse("admin:api_job_changelist"))
+
+        context = {
+            **self.admin_site.each_context(request),
+            **render_job_timeline(jobs),
+            "opts": self.model._meta,
+            "app_label": self.model._meta.app_label,
+        }
+        return render(request, "admin/api/job/timeline.html", context)
 
     def job_files_view(self, request, job_id):
         """Dedicated page listing all storage files for a job."""
@@ -633,6 +713,17 @@ class QiskitAdminSite(admin.AdminSite):
     def index(self, request, extra_context=None):
         extra_context = extra_context or {}
         extra_context["dashboard_stats"] = get_dashboard_stats()
+        timeline_context = cache.get(RECENT_TIMELINE_CACHE_KEY)
+        if timeline_context is None:
+            recent_jobs = list(
+                Job.objects.filter(runner=Program.FLEETS)
+                .select_related("author")
+                .prefetch_related("job_events")
+                .order_by("-created")[:20]
+            )
+            timeline_context = render_job_timeline(recent_jobs) if recent_jobs else {}
+            cache.set(RECENT_TIMELINE_CACHE_KEY, timeline_context, RECENT_TIMELINE_CACHE_TTL_SECONDS)
+        extra_context.update(timeline_context)
         return super().index(request, extra_context)
 
 

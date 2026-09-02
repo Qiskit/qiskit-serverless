@@ -18,6 +18,7 @@ import os
 import re
 import tarfile
 import time
+from datetime import datetime, timezone
 from io import BytesIO
 
 from django.conf import settings
@@ -25,12 +26,18 @@ from django.template.loader import get_template
 from ibm_botocore.exceptions import ClientError
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
+from core.domain import compute_profile
 from core.models import Job, CodeEngineProject
 from core.services.runners.abstract_runner import AbstractRunner, RunnerError
 from core.ibm_cloud import get_ce_auth, get_cos_client
 from core.utils import decrypt_env_vars
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
-from core.ibm_cloud.code_engine.fleets.cos import JobCOS, queue_prefix
+from core.ibm_cloud.code_engine.fleets.cos import (
+    TASK_STORE_VERSIONS,
+    JobCOS,
+    queue_prefix,
+    task_state_from_key,
+)
 from core.ibm_cloud.code_engine.fleets.utils import (
     FleetJobPaths,
     build_job_paths,
@@ -39,6 +46,55 @@ from core.ibm_cloud.code_engine.fleets.utils import (
 )
 
 logger = logging.getLogger("FleetsRunner")
+
+# Fleets already warned about an unresolved task state. The scheduler is a single
+# long-lived, single-threaded process, so this keeps one warning per fleet instead of
+# one per poll. Bounded because a scheduler runs for weeks.
+_UNRESOLVED_WARNED: set[str] = set()
+_WARNED_FLEETS_LIMIT = 10_000
+
+
+# Code Engine accepts lowercase alphanumerics and hyphens in a fleet name. The API client
+# does not declare a length ceiling, so we assume the 63 characters usual for its resource
+# names and spend all of it: a three character prefix, three segments, a fourteen character
+# timestamp and four hyphens land exactly on 63 at fourteen characters per segment. Fourteen
+# is also what "160x1792x8h100" needs, so the scarce GPU profile this was built for survives
+# whole; a third fractional digit in the timestamp would clip it.
+_FLEET_NAME_SEGMENT_MAX = 14
+
+
+def _fleet_name_timestamp() -> str:
+    """Return the current UTC time as ``YYMMDDHHMMSShh``, hundredths of a second last.
+
+    Readable at a glance in the Code Engine console, unlike Unix seconds, and precise enough
+    that two runs of the same function by the same user on the same profile get different
+    names in practice.
+
+    Returns:
+        Fourteen digits.
+    """
+    now = datetime.now(timezone.utc)
+    return f"{now:%y%m%d%H%M%S}{now.microsecond // 10000:02d}"
+
+
+def _fleet_name_segment(value: str) -> str:
+    """Reduce *value* to what a Code Engine fleet name accepts.
+
+    Lowercases it, collapses every run of unsupported characters into a single hyphen, and
+    truncates to :data:`_FLEET_NAME_SEGMENT_MAX`.
+
+    Args:
+        value: Raw text, such as a function title or a username. A Fleets job always has all
+            of them, so this does not accept ``None``: a missing one is a bug and should
+            surface as one rather than be papered over here.
+
+    Returns:
+        The sanitized segment, or ``"unknown"`` when the value held no usable character at all
+        (a title of pure punctuation, say), because an empty segment would make Code Engine
+        reject the whole name for a reason nothing in the log would explain.
+    """
+    slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+    return slug[:_FLEET_NAME_SEGMENT_MAX].strip("-") or "unknown"
 
 
 def _retry_on_rate_limit(fn, retries=3, delays=(0.5, 1.0, 2.0)):
@@ -128,8 +184,7 @@ class FleetsRunner(AbstractRunner):
         try:
             handler = self._get_handler()
 
-            timestamp = int(time.time())
-            fleet_name = f"job-{self.job.id}-{timestamp}"
+            fleet_name = self._build_fleet_name()
 
             logger.info(
                 "Submitting job_id=[%s] as fleet [%s] to project [%s]",
@@ -214,23 +269,30 @@ class FleetsRunner(AbstractRunner):
             logger.error("Failed to submit job_id=[%s]: %s", self.job.id, ex)
             raise RunnerError(f"Failed to submit job_id=[{self.job.id}] to Code Engine Fleets", ex) from ex
 
-    _COS_STATUS_PRIORITY = [
-        ("/succeeded/", Job.SUCCEEDED),
-        ("/failed/", Job.FAILED),
-        ("/canceled/", Job.STOPPED),
-        ("/canceling/", Job.STOPPED),
-        ("/running/", Job.RUNNING),
-        ("/pending/", Job.PENDING),
-    ]
+    # Task states Code Engine writes under ``{version}/queue/``, mapped to job
+    # statuses, in PRIORITY ORDER: a terminal state wins over running or pending when
+    # more than one state key is present. A tuple rather than a dict so the ordering
+    # is structural; sorting a dict of these alphabetically would put "pending" ahead
+    # of "succeeded" and report finished jobs as pending.
+    _STATE_TO_JOB_STATUS: tuple[tuple[str, str], ...] = (
+        ("succeeded", Job.SUCCEEDED),
+        ("failed", Job.FAILED),
+        ("canceled", Job.STOPPED),
+        ("canceling", Job.STOPPED),
+        ("running", Job.RUNNING),
+        ("pending", Job.PENDING),
+    )
 
     def status(self) -> str | None:
         """Return the job status by checking COS task state PDS bucket.
 
-        Reads keys under ``ce/{project_id}/{fleet_id}/v2/queue/`` and matches
-        against known status patterns in priority order.
+        Reads the task state from the first schema version in
+        ``TASK_STORE_VERSIONS`` that holds any key, so both the current and the
+        legacy layout work without pinning a version.
 
         Returns:
-            Mapped status string or ``None`` when COS has no state yet.
+            Mapped status string, or ``None`` when no state has been written yet,
+            the COS call failed, or no known state was found.
 
         Raises:
             RunnerError: On non-recoverable errors.
@@ -247,30 +309,94 @@ class FleetsRunner(AbstractRunner):
                 f"CodeEngineProject '{self._project.project_name}' has no cos_bucket_task_store_name configured"
             )
 
-        prefix = queue_prefix(self._project.project_id, self.job.fleet_id)
-        keys = self._list_task_state_keys(bucket, prefix)
+        prefix, keys = self._resolve_task_state_keys(bucket, self._project.project_id, self.job.fleet_id)
         if not keys:
-            # CE takes 10-15s after fleet creation to write the first queue/ key.
-            # Scheduler retries on next cycle.
+            # Either nothing written yet or the COS call failed; both are retried on
+            # the next scheduler cycle, and the scheduler bounds the wait.
+            logger.debug("Fleet [%s] has no task state key yet", self.job.fleet_id)
             return None
 
-        for pattern, status in self._COS_STATUS_PRIORITY:
-            for key in keys:
-                if pattern in key:
+        found: dict[str, str] = {}
+        for key in keys:
+            state = task_state_from_key(prefix, key)
+            if state:
+                found.setdefault(state, key)
+
+        for state, status in self._STATE_TO_JOB_STATUS:
+            if state in found:
+                _UNRESOLVED_WARNED.discard(self.job.fleet_id)
+                if status in Job.TERMINAL_STATUSES:
+                    # The segment after the state is the result code, so a terminal
+                    # state alone does not prove the task exited zero. Log the whole
+                    # key to keep that answerable from production logs. Taking any
+                    # terminal key is only correct because a job runs a single task
+                    # (tasks_specification indices "0" in submit()).
+                    logger.info("Fleet [%s] reached %s from key %s", self.job.fleet_id, status, found[state])
+                else:
                     logger.debug("Fleet [%s] COS status: %s", self.job.fleet_id, status)
-                    return status
+                return status
 
-        raise RunnerError(f"Unrecognized COS task state for fleet [{self.job.fleet_id}]: {keys}")
+        self._warn_unresolved_state(prefix, keys, found)
+        return None
 
-    def _list_task_state_keys(self, bucket: str, prefix: str) -> list[str]:
-        """List task state keys from COS, returning empty list on failure.
+    def _warn_unresolved_state(self, prefix: str, keys: list[str], found: dict[str, str]) -> None:
+        """Report a listing that held keys but no state this gateway recognises.
+
+        Warns once per fleet rather than once per poll: the scheduler re-polls every
+        running job roughly every second, and the condition this reports, a Code Engine
+        state rename, would hit every fleet at once and bury the logs exactly when they
+        are needed.
+
+        Args:
+            prefix: The queue prefix that was read.
+            keys: The keys found under it.
+            found: States parsed from those keys, mapped to the key that produced each.
+        """
+        message = "Fleet [%s] has %s task state key(s) under %s but no known state (found %s, samples %s)"
+        args = (self.job.fleet_id, len(keys), prefix, sorted(found), keys[:3])
+        if self.job.fleet_id in _UNRESOLVED_WARNED:
+            logger.debug(message, *args)
+            return
+        if len(_UNRESOLVED_WARNED) >= _WARNED_FLEETS_LIMIT:
+            _UNRESOLVED_WARNED.clear()
+        _UNRESOLVED_WARNED.add(self.job.fleet_id)
+        logger.warning(message, *args)
+
+    def _resolve_task_state_keys(self, bucket: str, project_id: str, fleet_id: str) -> tuple[str, list[str]]:
+        """Find the queue prefix holding this fleet's task state, with its keys.
+
+        Args:
+            bucket: COS bucket name to query.
+            project_id: The CE project UUID.
+            fleet_id: The fleet UUID.
+
+        Returns:
+            The prefix that was read and the keys under it. The key list is empty
+            when no version holds any state yet, or when a COS call failed.
+        """
+        prefix = ""
+        for version in TASK_STORE_VERSIONS:
+            prefix = queue_prefix(project_id, fleet_id, version)
+            keys = self._list_task_state_keys(bucket, prefix)
+            if keys is None:
+                # COS is unreachable, so probing the other versions would only
+                # repeat the same failure and the same warning.
+                return prefix, []
+            if keys:
+                return prefix, keys
+        return prefix, []
+
+    def _list_task_state_keys(self, bucket: str, prefix: str) -> list[str] | None:
+        """List task state keys from COS.
 
         Args:
             bucket: COS bucket name to query.
             prefix: Key prefix to filter results.
 
         Returns:
-            List of matching key strings, or an empty list if the COS call fails.
+            The matching keys, or ``None`` when the COS call failed. An empty list
+            means the prefix genuinely holds nothing, which callers must be able to
+            tell apart from a failure.
         """
         try:
             return self._get_cos().list_keys(bucket_name=bucket, prefix=prefix)
@@ -279,12 +405,12 @@ class FleetsRunner(AbstractRunner):
             logger.warning(
                 "COS list_keys failed for fleet [%s] (code=%s); will retry on next cycle", self.job.fleet_id, code
             )
-            return []
+            return None
         except ValueError:
             raise
         except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.warning("COS list_keys failed for fleet [%s]: %s; will retry on next cycle", self.job.fleet_id, exc)
-            return []
+            return None
 
     def get_result_from_cos(self) -> str | None:
         """Retrieve job results from COS.
@@ -649,6 +775,30 @@ class FleetsRunner(AbstractRunner):
             return self.job.program.image
         return settings.FLEETS_DEFAULT_IMAGE
 
+    def _build_fleet_name(self) -> str:
+        """Build the Code Engine fleet name for this job.
+
+        Shaped as ``{job|fil}-{function}-{compute profile}-{username}-{YYMMDDHHMMSShh}`` so a
+        fleet can be read at a glance in Code Engine: what it runs, on which profile, for whom
+        and when. Both prefixes are three characters so every segment gets the same budget
+        either way, and each segment is sanitized and truncated by :func:`_fleet_name_segment`.
+
+        The timestamp is what separates two runs of the same function by the same user on the
+        same profile, so it is not decoration. It is still not an identifier: ``job.fleet_id``,
+        assigned by Code Engine, remains what the gateway stores and queries.
+
+        Returns:
+            The fleet name.
+        """
+        prefix = "fil" if self.job.filler else "job"
+        function = _fleet_name_segment(self.job.program.title)
+        # Unlike the title and the username, compute_profile is nullable, and submit() runs on
+        # settings.DEFAULT_COMPUTE_PROFILE when it is unset (see _parse_compute_profile). Name the
+        # fleet after the profile it actually runs on rather than after the empty column.
+        profile = _fleet_name_segment(self.job.compute_profile or settings.DEFAULT_COMPUTE_PROFILE)
+        username = _fleet_name_segment(self.job.author.username)
+        return f"{prefix}-{function}-{profile}-{username}-{_fleet_name_timestamp()}"
+
     def _parse_compute_profile(self) -> tuple[str, str, dict | None]:
         """Parse compute_profile into (cpu, memory, gpu).
 
@@ -662,9 +812,11 @@ class FleetsRunner(AbstractRunner):
         """
         profile = self.job.compute_profile or settings.DEFAULT_COMPUTE_PROFILE
 
-        # Strip optional prefix (e.g. "gx3d-" or "cx3d-")
-        match = re.match(r"^[a-z]+\d[a-z\d]*-(.+)$", profile)
-        resources = match.group(1) if match else profile
+        # Normalize away any instance-family prefix. New jobs are already bare
+        # (the view normalizes at ingest), but this stays a safety net for
+        # jobs queued right at deploy time, created by the previous
+        # code path and picked up here by the new one.
+        resources = compute_profile.normalize(profile)
 
         # Parse: {cpu}x{memory}[x{count}{model}]
         parts = re.match(r"^(\d+)x(\d+)(?:x(\d+)([a-z]\w*))?$", resources)
