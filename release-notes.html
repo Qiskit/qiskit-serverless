@@ -320,6 +320,23 @@
 <section id="upgrade-notes">
 <span id="release-notes-upcoming-qiskit-serverless-release-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
+<li><p>The gateway and the scheduler now refuse to start when
+<code class="docutils literal notranslate"><span class="pre">DEFAULT_COMPUTE_PROFILE</span></code> or <code class="docutils literal notranslate"><span class="pre">DEFAULT_FUNCTION_SIZE_PROFILE</span></code> does not
+hold a compute profile, raising <code class="docutils literal notranslate"><span class="pre">ImproperlyConfigured</span></code> at startup instead
+of failing later on the first run or function upload that needs them. An
+empty value is rejected too. Both settings are also normalized to the bare
+(prefix-less) form, so a value such as <code class="docutils literal notranslate"><span class="pre">bx3d-24x120</span></code> is stored and billed
+as <code class="docutils literal notranslate"><span class="pre">24x120</span></code> wherever it is read.</p></li>
+</ul>
+<ul class="simple">
+<li><p>A new migration adds a partial index on <code class="docutils literal notranslate"><span class="pre">api_job</span></code> for filler jobs. Django
+runs it as a plain <code class="docutils literal notranslate"><span class="pre">CREATE</span> <span class="pre">INDEX</span></code>, which holds an ACCESS EXCLUSIVE lock on
+the table for the length of a full heap scan and blocks writes in the
+meantime. On a deployment where <code class="docutils literal notranslate"><span class="pre">api_job</span></code> is large, create the index by
+hand with <code class="docutils literal notranslate"><span class="pre">CREATE</span> <span class="pre">INDEX</span> <span class="pre">CONCURRENTLY</span></code> and then apply the migration with
+<code class="docutils literal notranslate"><span class="pre">--fake</span></code>.</p></li>
+</ul>
+<ul class="simple">
 <li><p>The <code class="docutils literal notranslate"><span class="pre">api_program.default_compute_profile</span></code> column is now dropped from the
 database. The field was removed from Qiskit Functions in the
 earlier release.</p></li>
