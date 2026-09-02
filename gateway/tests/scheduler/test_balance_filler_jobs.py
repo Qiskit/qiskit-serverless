@@ -88,11 +88,15 @@ class TestThrottle:
     """
 
     @staticmethod
-    def _recorder(runs: list, outcome):
-        """Return a piece of work that records that it ran and reports `outcome`."""
+    def _recorder(runs: list, outcome, mark=None):
+        """Return a piece of work that records that it ran and reports `outcome`.
+
+        `mark` is what gets recorded when more than one piece of work shares the list
+        and the test has to say which of them ran, not just how many did.
+        """
 
         def work():
-            runs.append(outcome)
+            runs.append(outcome if mark is None else mark)
             return outcome
 
         return work
@@ -210,23 +214,35 @@ class TestThrottle:
         throttle.attempt_stop("stuck", self._recorder([], _Attempt.FAILED))
 
         runs: list = []
-        throttle.attempt_stop("stuck", self._recorder(runs, _Attempt.DONE))
-        throttle.attempt_stop("other", self._recorder(runs, _Attempt.DONE))
+        throttle.attempt_stop("stuck", self._recorder(runs, _Attempt.DONE, mark="stuck"))
+        throttle.attempt_stop("other", self._recorder(runs, _Attempt.DONE, mark="other"))
 
-        assert runs == [_Attempt.DONE], "the other job's stop was delayed by the stuck one"
+        assert runs == ["other"], "the stuck job ran during its delay, or it held up the other one"
 
     def test_forget_jobs_drops_only_the_jobs_that_are_gone(self):
-        """State keyed by job has to be pruned as filler jobs come and go."""
+        """State keyed by job has to be pruned as filler jobs come and go, and only that.
+
+        The creation delay is in here because it is the failure this cannot have: the
+        prune walks keys by prefix, so a fixed key that ever started with that prefix
+        would be swept away with the jobs, and the balancer would go back to hammering
+        a broken COS once a second.
+        """
         throttle = _Throttle()
         for job_id in ("gone", "live"):
             throttle.attempt_stop(job_id, self._recorder([], _Attempt.FAILED))
+        throttle.attempt_create(self._recorder([], _Attempt.FAILED))
 
         throttle.forget_jobs({"live"})
 
         runs: list = []
-        throttle.attempt_stop("gone", self._recorder(runs, _Attempt.DONE))
-        throttle.attempt_stop("live", self._recorder(runs, _Attempt.DONE))
-        assert runs == [_Attempt.DONE], "the pruned job was still serving out a delay"
+        throttle.attempt_stop("gone", self._recorder(runs, _Attempt.DONE, mark="gone"))
+        throttle.attempt_stop("live", self._recorder(runs, _Attempt.DONE, mark="live"))
+        throttle.attempt_create(self._recorder(runs, _Attempt.DONE, mark="create"))
+
+        assert runs == ["gone"], (
+            "expected only the pruned job to be due again: 'live' has to keep its delay "
+            "and the creation delay is not a job key"
+        )
 
 
 def test_creates_filler_jobs_up_to_the_configured_slots(filler_program):

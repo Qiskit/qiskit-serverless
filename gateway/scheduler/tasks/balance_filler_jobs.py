@@ -28,14 +28,28 @@ logger = logging.getLogger("scheduler.BalanceFillerJobs")
 
 User = get_user_model()
 
-# Loops to skip after a failure before trying the same thing again. It is not about
-# log volume: it is what stops real work from being repeated once a second when the
-# thing it needs is broken. One creation attempt costs a COS upload, a Code Engine
-# submit, and a row written and then marked STOPPED; one stop attempt costs a fleet
-# cancellation call. At one loop a second a broken dependency would mean about
-# 86,000 of those a day, and because this loop is single-threaded and shared with
-# the status-update tasks, spending it on doomed calls delays the promotion of real
-# jobs. Sixty loops brings it down to about 1,400 attempts a day.
+# Loops to skip after a failure before trying the same thing again.
+#
+# Why the retry exists at all: this task keeps no memory of what it tried. Every loop
+# it looks at the world, works out what is missing, and acts. A failure leaves the
+# world exactly as it was, so the next loop reaches the same conclusion and repeats
+# the same attempt a second later, and the one after that too. Nobody schedules those
+# retries, they fall out of the loop, and this delay is the only memory the loop has
+# to hold them back.
+#
+# So this is not about log volume, it is about real work. One creation attempt costs a
+# COS upload, a Code Engine submit, and a row written and then marked STOPPED; one
+# stop attempt costs a fleet cancellation call. At one loop a second a broken
+# dependency would mean about 86,000 of those a day, and because this loop is
+# single-threaded and shared with the status-update tasks, spending it on doomed calls
+# delays the promotion of real jobs. Sixty loops brings that down to about 1,400
+# attempts a day.
+#
+# It spaces the retry out, it does not give up: the balancer keeps trying for as long
+# as the cause lasts, so the first attempt after a fix succeeds and the slots fill
+# with nobody having to touch anything. Nothing in this balancer gives up any more.
+# The one thing that did was the churn breaker, and it was removed in favour of the
+# scheduler_filler_jobs_ended_total metric.
 #
 # It counts loops, not seconds, and the countdown only advances on loops that reach
 # the same code path, so a creation delay pauses while real jobs fill the slots
@@ -50,6 +64,12 @@ class _Attempt(Enum):
     reaching the work is not the same as the work failing: a shutdown signal or a
     vanished author must not buy a minute of silence for a dependency that may be
     perfectly healthy.
+
+    There is deliberately no outcome for work that is still going, because nothing
+    here waits for anything to finish. A filler job that was submitted but has not
+    started running yet sits in PENDING, and PENDING is one of RUNNING_STATUSES, so it
+    already counts as occupancy and the balancer sees no shortfall to fill on top of
+    it. That is the occupancy count holding the slot, not this class.
     """
 
     DONE = auto()
@@ -62,6 +82,14 @@ class _Key(str, Enum):
 
     A key is only a name to index state under. These are the conditions of the task
     as a whole; state that belongs to one job is keyed by _Throttle._job_key.
+
+    The two halves of _KeyState never meet on the same fixed key, and that is load
+    bearing. Only CREATE ever carries a delay, and only STATUS, STALE, DRAIN,
+    DEACTIVATED and CREATE_ERROR are ever cleared, so "forgetting what was said cannot
+    cancel a delay" holds by construction and not merely because _clear happens to
+    touch one field today. Folding CREATE and CREATE_ERROR into a single key, which
+    looks like an obvious tidy-up, is what would break it: clearing the report after a
+    successful creation would then reach the backoff of a failed one.
     """
 
     STATUS = "status"
@@ -113,7 +141,11 @@ class _Throttle:
     def __init__(self):
         self._state: dict[str, _KeyState] = {}
 
-    # -- Reporting -------------------------------------------------------------
+    # -- Reporting ------------------------------------------------------------------
+    #
+    # These only decide what gets printed and at which level. None of them changes
+    # what the balancer does: it takes the same actions whether or not a line was
+    # suppressed as a repeat.
 
     def balancing(self, profile: str, slots: int, real_running: int, target: int) -> None:
         """Report the state of a loop that is balancing a profile.
@@ -202,14 +234,27 @@ class _Throttle:
             str(ex),
         )
 
-    # -- Retrying --------------------------------------------------------------
+    # -- Retrying -------------------------------------------------------------------
+    #
+    # These two do change what the balancer does, by not doing it: for the length of a
+    # delay the work is simply not attempted. That is the half worth having, and
+    # RETRY_AFTER_LOOPS explains why the work would otherwise repeat every second.
 
     def attempt_create(self, work: Callable[[], _Attempt]) -> None:
-        """Run `work` unless a creation delay is pending, and start one if it fails."""
+        """Run `work` unless a creation delay is pending, and start one if it fails.
+
+        What this spaces out is a COS upload followed by a Code Engine submit, so a
+        broken one of either costs one attempt a minute instead of one a second.
+        """
         self._attempt(_Key.CREATE, work)
 
     def attempt_stop(self, job_id, work: Callable[[], _Attempt]) -> None:
-        """Run `work` unless this job's stop delay is pending, and start one if it fails."""
+        """Run `work` unless this job's stop delay is pending, and start one if it fails.
+
+        What this spaces out is a fleet cancellation call, and the delay is per job, so
+        one fleet that will not cancel costs one call a minute and holds up no other
+        job in the same loop.
+        """
         self._attempt(self._job_key(job_id), work)
 
     def forget_jobs(self, live_ids) -> None:
