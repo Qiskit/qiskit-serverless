@@ -43,9 +43,9 @@ upgrade:
     filler jobs running, so it is worth alerting on.
   - |
     ``scheduler.filler.slots`` is honored as configured, with no upper bound, so a
-    mistyped value does take that many slots out of ``LIMITS_MAX_FLEETS``. No more
-    than four filler jobs are submitted per scheduler iteration, so a large value
-    converges over several iterations rather than blocking the loop.
+    mistyped value does take that many slots out of ``LIMITS_MAX_FLEETS``. The
+    balancer creates one filler job per scheduler iteration, so the configured number
+    is reached over as many iterations, about one per second, rather than in one.
   - |
     Setting ``scheduler.filler.slots`` to zero, or to any value below it, means the
     same as ``scheduler.filler.enabled`` being false: nothing is created and every

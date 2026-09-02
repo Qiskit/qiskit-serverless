@@ -25,12 +25,6 @@ logger = logging.getLogger("scheduler.BalanceFillerJobs")
 
 User = get_user_model()
 
-# A COS upload plus a Code Engine submit per job, on the single-threaded scheduler
-# loop. FILLER_SLOTS is honored as configured, so this is the only thing standing
-# between a mistyped slot count and a loop that blocks status updates for minutes:
-# a large target converges over several loops instead of being met in one.
-MAX_SUBMITS_PER_LOOP = 4
-
 # Loops to skip after a failure before trying the same thing again, which turns
 # tens of thousands of doomed retries a day into about 1,400. It counts loops, not
 # seconds: the countdown only advances on loops that reach the same code path, so a
@@ -57,10 +51,9 @@ class BalanceFillerJobs(SchedulerTask):
     program and that program's profile, so re-pointing either one drains the jobs
     left behind.
 
-    Filler jobs skip the queue that ScheduleFleetsJobs feeds. Fair-share picks at
-    most one queued job per author per loop and every filler job shares one author,
-    so filling four slots through the queue would take four loops and would compete
-    with real queued jobs for the same slots.
+    Filler jobs skip the queue that ScheduleFleetsJobs feeds. Going through it would
+    put them in competition with real queued jobs for the free Fleets slots, and
+    would leave the balancer unable to say when the capacity it protects is held.
     """
 
     def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
@@ -131,7 +124,7 @@ class BalanceFillerJobs(SchedulerTask):
             self._clear_throttle("stale")
 
         if len(current) < target:
-            self._create_filler_jobs(program, compute_profile, target - len(current))
+            self._create_filler_job(program, compute_profile)
         elif len(current) > target:
             self._stop_filler_jobs(current[: len(current) - target])
 
@@ -318,8 +311,14 @@ class BalanceFillerJobs(SchedulerTask):
             )
             self._mark_stopped(job)
 
-    def _create_filler_jobs(self, program: Program, compute_profile: str, count: int) -> None:
-        """Create and submit up to MAX_SUBMITS_PER_LOOP filler jobs for the program."""
+    def _create_filler_job(self, program: Program, compute_profile: str) -> None:
+        """Create and submit one filler job, the most this task creates per loop.
+
+        One per loop rather than the whole shortfall at once. The loop runs about
+        once a second, so a four-slot profile is full in four seconds, and the COS
+        upload plus the Code Engine submit that each job costs stay off the critical
+        path of the status updates that share this single-threaded loop.
+        """
         if self._wait_before_retry("create"):
             return
         if self._is_churning():
@@ -336,16 +335,14 @@ class BalanceFillerJobs(SchedulerTask):
             # here. Next loop it deactivates cleanly instead of raising.
             return
 
-        for _ in range(min(count, MAX_SUBMITS_PER_LOOP)):
-            if self.kill_signal.received:
-                return
-            if not self._create_one_filler_job(program, compute_profile, author):
-                # Whatever broke will still be broken for the next one in this same
-                # loop, so stop here and wait before trying again.
-                self._retry_after["create"] = RETRY_AFTER_LOOPS
-                return
+        if self.kill_signal.received:
+            return
+        if not self._submit_filler_job(program, compute_profile, author):
+            # Whatever broke will still be broken a second from now, so wait before
+            # trying again.
+            self._retry_after["create"] = RETRY_AFTER_LOOPS
 
-    def _create_one_filler_job(self, program: Program, compute_profile: str, author) -> bool:
+    def _submit_filler_job(self, program: Program, compute_profile: str, author) -> bool:
         """Create and submit one filler job. Return True when it reached PENDING."""
         project = program.code_engine_project
         job = Job(

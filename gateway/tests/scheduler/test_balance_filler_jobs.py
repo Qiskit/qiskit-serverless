@@ -18,7 +18,7 @@ from core.model_managers.job_events import JobEventContext
 from core.services.runners import RunnerError
 from scheduler.main import Main
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs, MAX_SUBMITS_PER_LOOP
+from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs
 from tests.utils import TestUtils
 
 pytestmark = pytest.mark.django_db
@@ -56,14 +56,20 @@ def filler_program():
     return program
 
 
-def _run(task):
-    """Run the task with the three external boundaries mocked out."""
+def _run(task, times=1):
+    """Run `times` scheduler iterations with the three external boundaries mocked out.
+
+    The task creates one filler job per iteration, so a test that wants a profile
+    filled asks for as many iterations as there are slots. The mocks stay in place
+    across all of them, so the returned call counts are the totals.
+    """
     with (
         patch(f"{_MOD}.execute_fleets_job", side_effect=_fake_submit) as submit,
         patch(f"{_MOD}.get_arguments_storage") as arguments,
         patch(f"{_MOD}.get_runner") as runner,
     ):
-        task.run()
+        for _ in range(times):
+            task.run()
     return submit, arguments, runner
 
 
@@ -74,10 +80,10 @@ def _fake_submit(job, ctx, context=None):  # pylint: disable=unused-argument
 
 
 def test_creates_filler_jobs_up_to_the_configured_slots(filler_program):
-    """With no real jobs and four slots, the task creates four filler jobs."""
+    """With no real jobs and four slots, four iterations create four filler jobs."""
     task = _make_task()
 
-    submit, arguments, _ = _run(task)
+    submit, arguments, _ = _run(task, times=4)
 
     fillers = Job.objects.filter(filler=True)
     assert fillers.count() == 4
@@ -102,7 +108,7 @@ def test_real_running_jobs_reduce_the_number_of_filler_jobs(filler_program):
         )
     task = _make_task()
 
-    _run(task)
+    _run(task, times=4)
 
     assert Job.objects.filter(filler=True).count() == 2
 
@@ -130,7 +136,7 @@ def test_a_prefixed_profile_row_still_counts_real_jobs(filler_program):
     )
     task = _make_task()
 
-    _run(task)
+    _run(task, times=4)
 
     assert Job.objects.filter(filler=True).count() == 3
 
@@ -148,7 +154,7 @@ def test_real_jobs_on_another_profile_do_not_count(filler_program):
     )
     task = _make_task()
 
-    _run(task)
+    _run(task, times=4)
 
     assert Job.objects.filter(filler=True).count() == 4
 
@@ -359,7 +365,7 @@ def test_filler_jobs_on_another_profile_are_always_stopped(filler_program):
     )
     task = _make_task()
 
-    submit, _, _ = _run(task)
+    submit, _, _ = _run(task, times=4)
 
     stale.refresh_from_db()
     assert stale.status == Job.STOPPED
@@ -391,7 +397,7 @@ def test_filler_jobs_of_another_program_are_always_stopped(filler_program):
     )
     task = _make_task()
 
-    submit, _, _ = _run(task)
+    submit, _, _ = _run(task, times=4)
 
     stale.refresh_from_db()
     assert stale.status == Job.STOPPED
@@ -399,14 +405,15 @@ def test_filler_jobs_of_another_program_are_always_stopped(filler_program):
     assert submit.call_count == 4
 
 
-def test_no_more_than_four_filler_jobs_are_submitted_per_loop(filler_program):
-    """A large slot count converges over several loops instead of blocking one."""
+def test_one_filler_job_is_submitted_per_loop(filler_program):
+    """The shortfall is filled one job per iteration, not all at once."""
     Config.set(ConfigKey.FILLER_SLOTS, "10")
     task = _make_task()
 
-    submit, _, _ = _run(task)
+    submit, _, _ = _run(task, times=3)
 
-    assert submit.call_count == 4
+    assert submit.call_count == 3
+    assert Job.objects.filter(filler=True).count() == 3
 
 
 def test_the_churn_breaker_stops_creating_when_filler_jobs_die_on_their_own(filler_program):
@@ -444,7 +451,7 @@ def test_stopped_filler_jobs_do_not_trip_the_churn_breaker(filler_program):
         )
     task = _make_task()
 
-    submit, _, _ = _run(task)
+    submit, _, _ = _run(task, times=4)
 
     assert submit.call_count == 4
 
