@@ -89,3 +89,37 @@ def test_app_index_shows_model_list_not_the_home_dashboard():
     body = response.content.decode()
     assert '<a href="/backoffice/api/job/">Jobs</a>' in body
     assert "qs-kpi-grid" not in body
+
+
+@pytest.mark.django_db
+def test_index_renders_the_recent_fleets_jobs_timeline():
+    """The home dashboard embeds the last 20 fleets jobs' timeline, Ray jobs left out."""
+    user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
+    author = User.objects.create_user(username="author", password="x")
+    fleets_job = Job.objects.create(author=author, program=None, status=Job.SUCCEEDED, runner=Program.FLEETS)
+    Job.objects.create(author=author, program=None, status=Job.SUCCEEDED, runner=Program.RAY)
+
+    client = Client()
+    client.force_login(user)
+    response = client.get("/backoffice/")
+
+    body = response.content.decode()
+    assert response.status_code == 200
+    assert "Recent fleets jobs timeline" in body
+    assert str(fleets_job.id)[:8] in body
+    assert "No fleets jobs yet" not in body
+
+
+@pytest.mark.django_db
+def test_index_shows_a_placeholder_when_there_are_no_fleets_jobs():
+    """A Ray-only (or empty) database shouldn't try to render a timeline with no fleets jobs."""
+    user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
+    author = User.objects.create_user(username="author", password="x")
+    Job.objects.create(author=author, program=None, status=Job.SUCCEEDED, runner=Program.RAY)
+
+    client = Client()
+    client.force_login(user)
+    response = client.get("/backoffice/")
+
+    assert response.status_code == 200
+    assert "No fleets jobs yet" in response.content.decode()

@@ -25,6 +25,10 @@ class UploadFunctionInput:  # pylint: disable=too-many-instance-attributes
     version: str | None = None
     type: str | None = None
     arguments_schema: str | None = None
+    # None means "not sent", which leaves the stored catalog untouched. A sent
+    # value replaces it wholesale.
+    sizes: dict[str, str] | None = None
+    default_size: str | None = None
 
     @classmethod
     def from_validated_data(cls, data: dict) -> "UploadFunctionInput":
@@ -43,4 +47,6 @@ class UploadFunctionInput:  # pylint: disable=too-many-instance-attributes
             version=data.get("version"),
             type=data.get("type"),
             arguments_schema=data.get("arguments_schema"),
+            sizes=data.get("sizes"),
+            default_size=data.get("default_size"),
         )

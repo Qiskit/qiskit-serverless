@@ -16,6 +16,8 @@ from django_prometheus.models import ExportModelOperationsMixin
 from core.config_key import ConfigKey
 from core.domain.business_models import BusinessModel
 from core.model_managers.code_engine_projects import CodeEngineProjectQuerySet
+from core.model_managers.compute_profiles import ComputeProfileQuerySet
+from core.model_managers.function_sizes import FunctionSizeQuerySet
 from core.model_managers.functions import FunctionsQuerySet
 from core.model_managers.job_events import JobEventQuerySet
 from core.model_managers.jobs import JobQuerySet
@@ -87,6 +89,15 @@ class Provider(models.Model):
     icon_url = models.TextField(null=True, blank=True, default=None)
     registry = models.CharField(max_length=255, null=True, blank=True, default=None)
     admin_groups = models.ManyToManyField(Group)
+
+    code_engine_project = models.ForeignKey(
+        "CodeEngineProject",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="providers",
+        help_text="Code Engine project this provider's Fleets functions run in; empty for the shared default project",
+    )
 
     objects = ProviderQuerySet.as_manager()
 
@@ -407,6 +418,8 @@ class ComputeProfile(models.Model):
     )
     memory = models.CharField(max_length=64, help_text="Memory in GB (e.g., 120)")
 
+    objects: ComputeProfileQuerySet = ComputeProfileQuerySet.as_manager()
+
     class Meta:
         app_label = "api"
 
@@ -437,6 +450,8 @@ class FunctionSize(models.Model):
         on_delete=models.PROTECT,
         related_name="function_sizes",
     )
+
+    objects: FunctionSizeQuerySet = FunctionSizeQuerySet.as_manager()
 
     class Meta:
         app_label = "api"
@@ -502,6 +517,23 @@ class Job(models.Model):
         (BusinessModel.CONSUMPTION, "Consumption"),
     ]
 
+    # How the job's size/compute profile was determined at creation time. The
+    # size is the source of truth (size -> compute profile; the reverse is not
+    # unique), so provenance is captured here rather than inferred from the
+    # stored compute profile.
+    SIZE_SOURCE_REQUESTED = "REQUESTED"  # user asked for this size
+    SIZE_SOURCE_DEFAULT_SIZE = "DEFAULT_SIZE"  # function's default_size filled in
+    SIZE_SOURCE_SETTINGS_DEFAULT = "SETTINGS_DEFAULT"  # deployment-wide default profile
+    SIZE_SOURCE_COMPUTE_PROFILE = "COMPUTE_PROFILE"  # deprecated compute_profile input
+    SIZE_SOURCE_NONE = "NONE"  # sizing not applicable (Ray / non-Fleets)
+    SIZE_SOURCES = [
+        (SIZE_SOURCE_REQUESTED, "Requested by user"),
+        (SIZE_SOURCE_DEFAULT_SIZE, "Function default size"),
+        (SIZE_SOURCE_SETTINGS_DEFAULT, "Deployment default profile"),
+        (SIZE_SOURCE_COMPUTE_PROFILE, "Deprecated compute_profile input"),
+        (SIZE_SOURCE_NONE, "Not applicable"),
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, null=True)
@@ -509,6 +541,13 @@ class Job(models.Model):
     arguments = models.TextField(null=False, blank=True, default="{}")
     env_vars = models.TextField(null=False, blank=True, default="{}")
     gpu = models.BooleanField(default=False, null=False)
+    filler = models.BooleanField(
+        default=False,
+        db_default=False,
+        null=False,
+        help_text="True when this job was created by the filler-jobs balancer to occupy idle GPU "
+        "capacity, instead of coming from a real user request.",
+    )
     compute_profile = models.CharField(
         max_length=255,
         null=True,
@@ -563,6 +602,23 @@ class Job(models.Model):
         help_text=(
             "Compute profile used by the job, captured at creation time so the "
             "historical compute profile is preserved even if the profile changes later."
+        ),
+    )
+    size_source = models.CharField(
+        max_length=32,
+        choices=SIZE_SOURCES,
+        default=SIZE_SOURCE_NONE,
+        help_text="How the job's size/compute profile was determined (requested, defaulted, legacy, or N/A).",
+    )
+    function_size = models.ForeignKey(
+        to="FunctionSize",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="jobs",
+        help_text=(
+            "Size row the job resolved to at creation; null when sized by the deployment "
+            "default profile, the deprecated compute_profile input, or a non-Fleets runner."
         ),
     )
 
@@ -759,3 +815,13 @@ class Config(models.Model):
         """Get configuration value as string list."""
         value = cls.get(key)
         return [v.strip() for v in value.split(",")]
+
+    @classmethod
+    def get_int(cls, key: ConfigKey, default: int = 0) -> int:
+        """Get configuration value as integer."""
+        value = cls.get(key)
+        try:
+            return int(value)
+        except ValueError:
+            logger.warning("Config key '%s' has a non-integer value '%s'; using default %s", key.value, value, default)
+            return default

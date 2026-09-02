@@ -13,6 +13,7 @@
 """Tests for ServerlessClient job-related operations."""
 
 import json
+import warnings
 from unittest.mock import Mock, patch
 
 import pytest
@@ -381,6 +382,40 @@ class TestRunMethod:
             assert "config" in request_json
             assert request_json["config"]["workers"] == 4
             assert request_json["config"]["auto_scaling"] is True
+
+    def test_run_with_function_size_sends_it_in_body(self, mock_client, mock_function):
+        """A ``function_size`` kwarg is forwarded in the request body and warns nothing."""
+        mock_response = {"id": "new-job-id"}
+
+        with requests_mock.Mocker() as mocker:
+            mock_request = mocker.post(
+                "https://test-host.com/api/v1/programs/run/",
+                json=mock_response,
+            )
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("error")  # any DeprecationWarning would fail the test
+                job = mock_client.run(program=mock_function, function_size="m")
+
+            assert job.job_id == "new-job-id"
+            request_json = mock_request.last_request.json()
+            assert request_json["function_size"] == "m"
+
+    def test_run_with_compute_profile_warns_deprecation(self, mock_client, mock_function):
+        """``compute_profile`` still works but emits a single DeprecationWarning."""
+        mock_response = {"id": "new-job-id"}
+
+        with requests_mock.Mocker() as mocker:
+            mock_request = mocker.post(
+                "https://test-host.com/api/v1/programs/run/",
+                json=mock_response,
+            )
+
+            with pytest.warns(DeprecationWarning):
+                mock_client.run(program=mock_function, compute_profile="4x16")
+
+            request_json = mock_request.last_request.json()
+            assert request_json["compute_profile"] == "4x16"
 
     def test_run_without_configuration_uses_default(self, mock_client, mock_function):
         """Test run() uses default Configuration when none provided."""

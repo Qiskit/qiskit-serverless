@@ -21,6 +21,7 @@ import pytest
 
 from qiskit_serverless.core.clients.serverless_client import (
     ServerlessClient,
+    _sizes_payload,
     _upload_with_docker_image,
     _upload_with_artifact,
 )
@@ -674,6 +675,66 @@ class TestValidateArgumentsMethod:
             mock_client.validate_arguments(title="my-function", arguments={"shots": "wrong"})
 
 
+class TestSizesMethod:
+    """Tests for RunnableQiskitFunction.sizes() / get_default_size(), read from the representation."""
+
+    def test_sizes_returns_catalog_from_representation(self, mock_client):
+        """sizes() returns the catalog carried on the function, with no extra request."""
+        function = RunnableQiskitFunction(
+            mock_client, title="my-function", sizes_map={"s": "4x16", "m": "8x64"}, default_size="m"
+        )
+
+        assert function.sizes() == {"s": "4x16", "m": "8x64"}
+
+    def test_get_default_size_returns_default_from_representation(self, mock_client):
+        """get_default_size() returns the default label carried on the function."""
+        function = RunnableQiskitFunction(mock_client, title="my-function", default_size="m")
+
+        assert function.get_default_size() == "m"
+
+    def test_sizes_empty_when_none_declared(self, mock_client):
+        """A function that declares no sizes reports an empty catalog and no default."""
+        function = RunnableQiskitFunction(mock_client, title="my-function", sizes_map={}, default_size=None)
+
+        assert function.sizes() == {}
+        assert function.get_default_size() is None
+
+    def test_sizes_empty_when_representation_carried_nothing(self, mock_client):
+        """sizes() normalizes a missing catalog (None) to an empty dict for the caller."""
+        function = RunnableQiskitFunction(mock_client, title="my-function")
+
+        assert function.sizes() == {}
+        assert function.get_default_size() is None
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.get")
+    def test_function_reads_sizes_from_get_by_title_response(self, mock_get, mock_client):
+        """A function fetched from the gateway carries sizes/default_size through from_json."""
+        payload = {
+            "title": "my-function",
+            "provider": "my-provider",
+            "id": "test-id",
+            "sizes": {"s": "4x16", "m": "8x64"},
+            "default_size": "m",
+        }
+        mock_response = Mock()
+        mock_response.ok = True
+        mock_response.text = json.dumps(payload)
+        mock_response.json.return_value = payload
+        mock_get.return_value = mock_response
+
+        function = mock_client.function(title="my-function", provider="my-provider")
+
+        assert function.sizes() == {"s": "4x16", "m": "8x64"}
+        assert function.get_default_size() == "m"
+
+    def test_from_json_remaps_sizes_key_onto_sizes_map(self):
+        """The gateway's "sizes" key is remapped so it is not dropped by the field filter."""
+        function = QiskitFunction.from_json({"title": "t", "sizes": {"s": "4x16"}, "default_size": "s"})
+
+        assert function.sizes_map == {"s": "4x16"}
+        assert function.default_size == "s"
+
+
 class TestArgumentsSchemaDecoding:
     """Tests for how a stored arguments_schema is decoded when a function is read back."""
 
@@ -698,3 +759,133 @@ class TestArgumentsSchemaDecoding:
         """A column value that is not JSON must raise the SDK exception, not a bare JSON error."""
         with pytest.raises(QiskitServerlessException):
             QiskitFunction.from_json({"title": "t", "arguments_schema": "not json at all"})
+
+
+class TestSizesPayload:
+    """Unit tests for _sizes_payload, the size-catalog part of an upload body."""
+
+    def test_sends_sizes_map_under_gateway_key_as_json(self):
+        """sizes_map goes out under the gateway's key ``sizes`` as a JSON object, not a dict."""
+        program = QiskitFunction(
+            title="t", entrypoint="e.py", runner="fleets", sizes_map={"s": "24x120", "m": "16x128"}
+        )
+
+        payload = _sizes_payload(program)
+
+        assert payload == {"sizes": json.dumps({"s": "24x120", "m": "16x128"})}
+        assert json.loads(payload["sizes"]) == {"s": "24x120", "m": "16x128"}
+
+    def test_sends_default_size_as_plain_string(self):
+        """default_size is a bare string, not JSON-encoded."""
+        program = QiskitFunction(title="t", entrypoint="e.py", runner="fleets", default_size="m")
+
+        assert _sizes_payload(program) == {"default_size": "m"}
+
+    def test_sends_both_when_both_set(self):
+        """Both fields go out together when both are set."""
+        program = QiskitFunction(
+            title="t", entrypoint="e.py", runner="fleets", sizes_map={"s": "24x120"}, default_size="s"
+        )
+
+        payload = _sizes_payload(program)
+
+        assert set(payload) == {"sizes", "default_size"}
+        assert payload["default_size"] == "s"
+
+    def test_omits_unset_fields_so_stored_catalog_is_untouched(self):
+        """Neither field is sent when unset: the gateway reads an absent field as "not sent"."""
+        program = QiskitFunction(title="t", entrypoint="e.py", runner="fleets")
+
+        assert _sizes_payload(program) == {}
+
+    def test_empty_sizes_map_is_still_sent(self):
+        """An empty dict is a deliberate value (declare no sizes), distinct from None (not sent)."""
+        program = QiskitFunction(title="t", entrypoint="e.py", runner="fleets", sizes_map={})
+
+        assert _sizes_payload(program) == {"sizes": json.dumps({})}
+
+
+def _ok_response(response_json):
+    """An ok requests response object carrying response_json (what requests.post returns)."""
+    mock_response = Mock()
+    mock_response.ok = True
+    mock_response.status_code = 200
+    mock_response.text = json.dumps(response_json)
+    mock_response.json.return_value = response_json
+    return mock_response
+
+
+class TestUploadHelpersSendSizes:
+    """The upload helpers must place the size fields into the POST body (regression lock)."""
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_docker_image_upload_includes_sizes(self, mock_post):
+        """A docker-image upload carries sizes and default_size in its POST body."""
+        mock_post.return_value = _ok_response({"title": "t"})
+
+        program = QiskitFunction(
+            title="t", image="registry/img:1", runner="fleets", sizes_map={"s": "24x120"}, default_size="s"
+        )
+        _upload_with_docker_image(
+            program=program,
+            url="http://gw/upload/",
+            token="tok",
+            span=MagicMock(),
+            client=MagicMock(spec=ServerlessClient),
+            instance=None,
+            channel=None,
+        )
+
+        data = mock_post.call_args[1]["data"]
+        assert data["sizes"] == json.dumps({"s": "24x120"})
+        assert data["default_size"] == "s"
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_docker_image_upload_omits_sizes_when_unset(self, mock_post):
+        """With no catalog set, neither size field appears in the POST body."""
+        mock_post.return_value = _ok_response({"title": "t"})
+
+        program = QiskitFunction(title="t", image="registry/img:1", runner="fleets")
+        _upload_with_docker_image(
+            program=program,
+            url="http://gw/upload/",
+            token="tok",
+            span=MagicMock(),
+            client=MagicMock(spec=ServerlessClient),
+            instance=None,
+            channel=None,
+        )
+
+        data = mock_post.call_args[1]["data"]
+        assert "sizes" not in data
+        assert "default_size" not in data
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_artifact_upload_includes_sizes(self, mock_post):
+        """An artifact upload carries sizes and default_size in its POST body."""
+        mock_post.return_value = _ok_response({"title": "t"})
+
+        with tempfile.TemporaryDirectory() as working_dir:
+            with open(os.path.join(working_dir, "entrypoint.py"), "w", encoding="utf-8") as handle:
+                handle.write("# entrypoint\n")
+            program = QiskitFunction(
+                title="t",
+                entrypoint="entrypoint.py",
+                working_dir=working_dir,
+                runner="fleets",
+                sizes_map={"s": "24x120", "m": "16x128"},
+                default_size="m",
+            )
+            _upload_with_artifact(
+                program=program,
+                url="http://gw/upload/",
+                token="tok",
+                span=MagicMock(),
+                client=MagicMock(spec=ServerlessClient),
+                instance=None,
+                channel=None,
+            )
+
+        data = mock_post.call_args[1]["data"]
+        assert data["sizes"] == json.dumps({"s": "24x120", "m": "16x128"})
+        assert data["default_size"] == "m"
