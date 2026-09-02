@@ -4,8 +4,8 @@ features:
     The scheduler can now keep a scarce Fleets compute profile busy with filler
     jobs. When fewer than ``scheduler.filler.slots`` jobs are running on the
     compute profile of the program named by ``scheduler.filler.program_id``, it
-    starts filler jobs to make up the difference, and it stops them again on the
-    next scheduler iteration after real jobs take the capacity. The feature is off until
+    starts filler jobs to make up the difference, and it stops them again in the
+    same scheduler iteration that real jobs take the capacity. The feature is off until
     ``scheduler.filler.enabled`` is set to true, and all three values are dynamic
     configuration that can change without a redeploy. The user the filler jobs
     belong to comes from the ``FILLER_AUTHOR_USERNAME`` environment variable, and
@@ -17,8 +17,9 @@ features:
 upgrade:
   - |
     Filler jobs are excluded from ``scheduler_job_status_count``,
-    ``scheduler_jobs_terminal_total``, ``scheduler_job_execution_duration_seconds``
-    and the job totals on the admin dashboard, because they run continuously and
+    ``scheduler_jobs_terminal_total``, ``scheduler_job_execution_duration_seconds``,
+    ``scheduler_queue_wait_seconds``, and from the job totals and the recent-jobs
+    timeline on the admin dashboard, because they run continuously and
     would otherwise look like user demand. Dashboards or alerts that expect those
     series to include every job need the filler metrics added to them. Filler jobs
     also never emit billing events.
@@ -26,5 +27,16 @@ upgrade:
     Turning on maintenance mode now stops any running filler job, as well as
     preventing new ones. This frees the capacity so the platform can be drained,
     and the filler jobs come back within a second of maintenance ending. Note that
-    it means switching on maintenance cancels jobs that are occupying scarce GPU
-    nodes.
+    it means switching on maintenance cancels the filler jobs occupying the
+    protected compute profile.
+  - |
+    Filler jobs count against ``LIMITS_MAX_FLEETS``, so enabling ``N`` slots reduces
+    the global Fleets budget by ``N``. This is negligible at the default of 1000,
+    but not at a deployment that sets that limit low. A stopped filler job's Code
+    Engine fleet is cancelled but never deleted, and filler jobs cycle far more
+    often than real ones, so they accumulate cancelled fleets in the project faster
+    than user jobs do. Separately, the scheduler Deployment now uses the
+    ``Recreate`` strategy instead of a rolling update, so a rollout to a broken
+    scheduler image leaves zero schedulers running, rather than keeping the old one
+    up, until it is rolled back; no queued job is promoted and no timeout is
+    enforced in the meantime.

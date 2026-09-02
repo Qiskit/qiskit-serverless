@@ -310,7 +310,7 @@ spec:
               value: {{ .Values.ce.icrPullSecret | quote }}
 
             - name: DEFAULT_COMPUTE_PROFILE
-              value: {{ .Values.ce.defaultComputeProfile | quote }}
+              value: {{ .Values.ce.defaultComputeProfile | default "24x120" | quote }}
             - name: FLEETS_DEFAULT_MAX_INSTANCES
               value: {{ .Values.ce.fleetsDefaultMaxInstances | quote }}
             - name: FLEETS_RUNTIME_IAM_URL
@@ -355,6 +355,10 @@ spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: 1
   {{- end }}
+  # Exactly one scheduler must run: the filler-jobs balancer reads how many filler
+  # jobs exist and then creates the difference, so two overlapping schedulers each
+  # create a full set. The cost is that a rollout to a broken image leaves no
+  # scheduler at all until it is rolled back.
   strategy:
     type: Recreate
   selector:
@@ -528,7 +532,7 @@ spec:
               value: {{ .Values.ce.icrPullSecret | quote }}
 
             - name: DEFAULT_COMPUTE_PROFILE
-              value: {{ .Values.ce.defaultComputeProfile | quote }}
+              value: {{ .Values.ce.defaultComputeProfile | default "24x120" | quote }}
             - name: FLEETS_DEFAULT_MAX_INSTANCES
               value: {{ .Values.ce.fleetsDefaultMaxInstances | quote }}
             - name: FLEETS_RUNTIME_IAM_URL

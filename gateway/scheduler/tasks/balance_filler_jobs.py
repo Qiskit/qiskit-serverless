@@ -211,11 +211,16 @@ class BalanceFillerJobs(SchedulerTask):
         (Job.updated cannot be used for this: update_fields and save_direct issue
         a raw UPDATE that skips auto_now.)
         """
-        recent_deaths = JobEvent.objects.filter(
-            job__filler=True,
-            data__status__in=[Job.FAILED, Job.SUCCEEDED],
-            created__gte=datetime.now(timezone.utc) - CHURN_WINDOW,
-        ).count()
+        recent_deaths = (
+            JobEvent.objects.filter(
+                job__filler=True,
+                data__status__in=[Job.FAILED, Job.SUCCEEDED],
+                created__gte=datetime.now(timezone.utc) - CHURN_WINDOW,
+            )
+            .values("job_id")
+            .distinct()
+            .count()
+        )
         if recent_deaths < CHURN_LIMIT:
             self._clear_throttle("churn")
             return False
