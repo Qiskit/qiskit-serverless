@@ -38,6 +38,16 @@ OUTCOME_LABEL = {
     "FAILED": ("FAILED", "#cc0000"),
     "STOPPED": ("STOPPED", "#888888"),
 }
+# Filler jobs (Job.filler) get a hatched overlay on their segments (see FILLER_HATCH_PATTERN below)
+# and their texts in this grey instead of the usual status/outcome colors, so they read as
+# "not real demand" at a glance without needing a separate legend row per status.
+FILLER_TEXT_COLOR = "#888888"
+FILLER_HATCH_PATTERN = (
+    '<defs><pattern id="qs-filler-hatch" width="6" height="6" patternUnits="userSpaceOnUse" '
+    'patternTransform="rotate(45)">'
+    '<line x1="0" y1="0" x2="0" y2="6" stroke="#525252" stroke-width="3" stroke-opacity="0.55"/>'
+    "</pattern></defs>"
+)
 
 
 def _jobs_from_queryset(jobs_qs):
@@ -56,6 +66,7 @@ def _jobs_from_queryset(jobs_qs):
                 "id": str(job.id),
                 "status": job.status,
                 "runner": job.runner,
+                "filler": job.filler,
                 "profile": job.compute_profile or "-",
                 "created": job.created,
                 "updated": job.updated,
@@ -217,7 +228,7 @@ def build_concurrency_path(series, t_min, t_max, x, cy):
     return path_d
 
 
-def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-statements
+def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-statements,too-many-branches
     """Build SVG timeline visualization."""
     margin_left, margin_right = 260, 260
     margin_top, margin_bottom = 20, 60
@@ -262,6 +273,7 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
         f'data-t-min-ms="{t_min_ms}" data-span-ms="{span_ms}" '
         f'xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace, Menlo, monospace" font-size="10">'
     )
+    svg.append(FILLER_HATCH_PATTERN)
     svg.append(f'<rect x="0" y="0" width="{total_w}" height="{total_h}" class="qs-svg-bg"/>')
 
     top_of_chart = margin_top
@@ -364,6 +376,8 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
         outcome_text, outcome_color = OUTCOME_LABEL.get(
             job["status"], (job["status"], STATUS_COLOR.get(job["status"], "#94a3b8"))
         )
+        if job["filler"]:
+            outcome_color = FILLER_TEXT_COLOR
 
         tooltip = (
             f"job_id: {job['id']}\n"
@@ -397,12 +411,17 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
                 f'<rect x="{sx1:.1f}" y="{y}" width="{max(sx2 - sx1, 1.5):.1f}" height="{row_h}" '
                 f'class="qs-seg-border qs-seg-{html.escape(seg_status.lower())}" fill="{color}"/>'
             )
+            if job["filler"]:
+                svg.append(
+                    f'<rect x="{sx1:.1f}" y="{y}" width="{max(sx2 - sx1, 1.5):.1f}" height="{row_h}" '
+                    f'fill="url(#qs-filler-hatch)" pointer-events="none"/>'
+                )
             # the segment's own status and duration, drawn inside it when they fit; otherwise
             # they join the other segments that didn't fit in a summary drawn after the bar
             seg_time = fmt_dur((seg_end - seg_start).total_seconds())
             inline_text = f"{seg_status} {seg_time}"
             if len(inline_text) * 5.4 + 4 <= sx2 - sx1:
-                seg_text_color = STATUS_TEXT_COLOR.get(seg_status, "#0b1020")
+                seg_text_color = FILLER_TEXT_COLOR if job["filler"] else STATUS_TEXT_COLOR.get(seg_status, "#0b1020")
                 svg.append(
                     f'<text x="{(sx1 + sx2) / 2:.1f}" y="{cy_mid + 3:.1f}" fill="{seg_text_color}" '
                     f'text-anchor="middle" font-size="9">{html.escape(inline_text)}</text>'
@@ -455,6 +474,7 @@ def build_legend():
             f'<span class="qs-legend-item qs-outcome qs-outcome--{outcome_status.lower()}">'
             f"{html.escape(text)}</span>"
         )
+    parts.append('<span class="qs-legend-item"><span class="qs-swatch qs-swatch--filler"></span>Filler job</span>')
     parts.append('<span class="qs-legend-item">⧉N = overlaps N other jobs, click a job to see which</span>')
     return "".join(parts)
 

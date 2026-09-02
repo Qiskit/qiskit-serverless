@@ -8,7 +8,7 @@ from django.contrib.auth.models import User
 from django.urls import reverse
 from django.utils import timezone
 
-from api.domain.job_timeline import render_job_timeline
+from api.domain.job_timeline import FILLER_TEXT_COLOR, render_job_timeline
 from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, JobEvent, Program, Provider
@@ -79,6 +79,18 @@ def test_render_job_timeline_reports_per_state_durations_and_outcome():
     assert ">PENDING 46s<" in svg
     assert ">RUNNING 48s<" in svg
     assert ">SUCCEEDED<" in svg  # same wording as the job list's status badge
+
+
+@pytest.mark.django_db
+def test_render_job_timeline_marks_filler_jobs_with_a_hatch_and_grey_text():
+    job = _job_with_events(filler=True)
+
+    context = render_job_timeline(Job.objects.filter(pk=job.pk).prefetch_related("job_events"))
+
+    svg = context["timeline_svg"]
+    assert 'fill="url(#qs-filler-hatch)"' in svg
+    assert f'fill="{FILLER_TEXT_COLOR}"' in svg
+    assert "qs-swatch--filler" in context["timeline_legend"]
 
 
 @pytest.mark.django_db
