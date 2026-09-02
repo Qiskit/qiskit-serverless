@@ -128,7 +128,7 @@ class BalanceFillerJobs(SchedulerTask):
             logger.debug(
                 "[BalanceFillerJobs] stopping %s filler job(s) on another program or compute profile", len(stale)
             )
-        self._stop_filler_jobs(stale)
+            self._stop_filler_jobs(stale)
 
         if len(current) < target:
             self._create_filler_job(program, compute_profile)
