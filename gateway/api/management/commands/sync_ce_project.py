@@ -22,7 +22,6 @@ _REQUIRED_KEYS = [
     "project_name",
     "region",
     "resource_group_id",
-    "subnet_pool_id",
     "pds_name_state",
     "pds_name_users",
     "pds_name_providers",
@@ -32,6 +31,48 @@ _REQUIRED_KEYS = [
     "cos_bucket_user_data_name",
     "cos_bucket_provider_data_name",
 ]
+
+
+def _resolve_subnet_pool_defaults(project_id: str, data: dict) -> dict | None:
+    """Build the subnet-pool fields for the upsert defaults.
+
+    Config supplies either ``subnet_pool_id`` directly, or ``subnet_pool_name``
+    (with the id resolved and cached at submit time by the fleets runner). At least
+    one must be present.
+
+    When only a name is given, the cached ``subnet_pool_id`` on an existing row must
+    survive re-sync — ``update_or_create`` overwrites every default on every boot, so
+    a blank id in the defaults would wipe the cache each boot and force a needless
+    re-resolution. The id is therefore only blanked when the configured name differs
+    from the stored one (a rename that must invalidate the cache).
+
+    Args:
+        project_id: The CE project UUID.
+        data: The config entry.
+
+    Returns:
+        A dict of subnet-pool fields to merge into the upsert defaults, or ``None``
+        when neither id nor name is configured.
+    """
+    subnet_pool_id = data.get("subnet_pool_id")
+    subnet_pool_name = data.get("subnet_pool_name")
+
+    if not subnet_pool_id and not subnet_pool_name:
+        logger.error("project_id=%s missing both subnet_pool_id and subnet_pool_name", project_id)
+        return None
+
+    defaults = {"subnet_pool_name": subnet_pool_name or None}
+
+    if subnet_pool_id:
+        # Explicit id in config wins and is written through.
+        defaults["subnet_pool_id"] = subnet_pool_id
+        return defaults
+
+    # Name-only config: keep any cached id unless the name changed (rename → invalidate).
+    existing = CodeEngineProject.objects.filter(project_id=project_id).values("subnet_pool_name").first()
+    if existing is not None and existing["subnet_pool_name"] != subnet_pool_name:
+        defaults["subnet_pool_id"] = None
+    return defaults
 
 
 def _upsert_project(project_id: str, data: dict) -> bool:
@@ -49,7 +90,12 @@ def _upsert_project(project_id: str, data: dict) -> bool:
         logger.error("project_id=%s missing required fields: %s", project_id, ", ".join(missing))
         return False
 
+    subnet_defaults = _resolve_subnet_pool_defaults(project_id, data)
+    if subnet_defaults is None:
+        return False
+
     defaults = {k: data[k] for k in _REQUIRED_KEYS}
+    defaults.update(subnet_defaults)
     defaults["active"] = True
 
     _, created = CodeEngineProject.objects.update_or_create(

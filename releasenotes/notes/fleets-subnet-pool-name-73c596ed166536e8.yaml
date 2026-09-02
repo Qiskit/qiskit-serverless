@@ -1,0 +1,13 @@
+---
+features:
+  - |
+    A Code Engine project can now be configured with a subnet pool **name**
+    (``subnet_pool_name``) instead of its id. The IBM Cloud console shows a pool's
+    name readily but not its id, so requiring the id added friction to every project
+    onboarding. When only a name is configured, the gateway resolves it to the id
+    against the Code Engine API on the first job submission for that project and caches
+    the id back onto the project, so later jobs reuse it without another lookup.
+    Supplying ``subnet_pool_id`` directly still works and skips resolution. Because a
+    pool name is not guaranteed unique within a project, a name that matches more than
+    one pool fails the submission with an error listing the matching ids rather than
+    guessing which pool to use.

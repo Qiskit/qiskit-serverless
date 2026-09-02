@@ -366,6 +366,64 @@ def test_submit_sets_fleet_id_with_cos():
     mock_handler.submit_job.assert_called_once()
 
 
+def test_submit_uses_configured_subnet_pool_id_without_resolving():
+    """A project with subnet_pool_id set places the fleet on it and never lists pools."""
+    runner, mock_handler = _make_submit_runner()
+    runner._project.subnet_pool_id = "subnet-1"
+    runner._project.subnet_pool_name = "any-name"
+
+    with _patch_settings():
+        runner.submit()
+
+    placements = mock_handler.submit_job.call_args.kwargs["network_placements"]
+    assert placements == [{"type": "subnet_pool", "reference": "subnet-1"}]
+    mock_handler.resolve_subnet_pool_id.assert_not_called()
+
+
+def test_submit_resolves_and_caches_subnet_pool_id_from_name():
+    """With only a name set, submit() resolves the id, uses it, and caches it back."""
+    runner, mock_handler = _make_submit_runner()
+    runner._project.subnet_pool_id = None
+    runner._project.subnet_pool_name = "my-pool"
+    mock_handler.resolve_subnet_pool_id.return_value = "resolved-id"
+
+    with _patch_settings():
+        runner.submit()
+
+    mock_handler.resolve_subnet_pool_id.assert_called_once_with("my-pool")
+    placements = mock_handler.submit_job.call_args.kwargs["network_placements"]
+    assert placements == [{"type": "subnet_pool", "reference": "resolved-id"}]
+    # cached back onto the project row
+    assert runner._project.subnet_pool_id == "resolved-id"
+    runner._project.save.assert_called_once()
+    assert "subnet_pool_id" in runner._project.save.call_args.kwargs["update_fields"]
+
+
+def test_submit_raises_when_neither_subnet_pool_id_nor_name_set():
+    """A project missing both fields fails loud rather than submitting a bad placement."""
+    runner, mock_handler = _make_submit_runner()
+    runner._project.subnet_pool_id = None
+    runner._project.subnet_pool_name = None
+
+    with _patch_settings(), pytest.raises(RunnerError):
+        runner.submit()
+
+    mock_handler.submit_job.assert_not_called()
+
+
+def test_submit_wraps_ambiguous_subnet_pool_as_runner_error():
+    """A ValueError from resolution (not found / ambiguous) surfaces as RunnerError."""
+    runner, mock_handler = _make_submit_runner()
+    runner._project.subnet_pool_id = None
+    runner._project.subnet_pool_name = "dup"
+    mock_handler.resolve_subnet_pool_id.side_effect = ValueError("ambiguous: id-1, id-2")
+
+    with _patch_settings(), pytest.raises(RunnerError, match="ambiguous"):
+        runner.submit()
+
+    mock_handler.submit_job.assert_not_called()
+
+
 def test_submit_fleet_name_describes_the_job():
     """A real job's fleet is named job-<function>-<profile>-<username>."""
     runner, mock_handler = _make_submit_runner()

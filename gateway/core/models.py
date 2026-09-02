@@ -327,7 +327,24 @@ class CodeEngineProject(models.Model):
     resource_group_id = models.CharField(max_length=255, help_text="IBM Cloud resource group ID")
 
     # Networking
-    subnet_pool_id = models.CharField(max_length=255, help_text="Subnet pool ID for fleet networking")
+    subnet_pool_name = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text=(
+            "Subnet pool name for fleet networking. When set and subnet_pool_id is empty, the id "
+            "is resolved from this name on first job submission and cached into subnet_pool_id."
+        ),
+    )
+    subnet_pool_id = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text=(
+            "Subnet pool ID for fleet networking. May be supplied directly in config, or left "
+            "empty and resolved from subnet_pool_name (then cached here)."
+        ),
+    )
     zone = models.CharField(
         max_length=64,
         null=True,

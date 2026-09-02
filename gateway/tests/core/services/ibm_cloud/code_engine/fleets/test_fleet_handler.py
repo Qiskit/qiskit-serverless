@@ -657,3 +657,81 @@ def test_wait_until_terminal_delegates_to_wait_until_state(project_id):
             timeout_seconds=10,
             poll_interval_seconds=1,
         )
+
+
+def _pool(name: str, pool_id: str, region: str = "us-east") -> MagicMock:
+    """Return a stub V2SubnetPool with the fields the resolver reads."""
+    pool = MagicMock()
+    pool.name = name
+    pool.id = pool_id
+    pool.region = region
+    return pool
+
+
+def _page(pools: list, start: str | None = None) -> MagicMock:
+    """Return a stub V2SubnetPoolList page, optionally pointing at a next page."""
+    page = MagicMock()
+    page.subnet_pools = pools
+    page.next = MagicMock(start=start) if start else None
+    return page
+
+
+class TestResolveSubnetPoolId:
+    """Tests for FleetHandler.resolve_subnet_pool_id."""
+
+    def _handler(self, project_id: str) -> tuple[FleetHandler, MagicMock]:
+        """Build a handler with a mocked SubnetPoolsApi."""
+        with patch(f"{_HANDLER_MOD}.FleetsApi"), patch(f"{_HANDLER_MOD}.SubnetPoolsApi") as mock_api_cls:
+            mock_api = MagicMock()
+            mock_api_cls.return_value = mock_api
+            handler = FleetHandler(ce_api_client=MagicMock(), project_id=project_id)
+        return handler, mock_api
+
+    def test_single_match_returns_its_id(self, project_id):
+        """A name matching exactly one pool resolves to that pool's id."""
+        handler, mock_api = self._handler(project_id)
+        mock_api.list_subnet_pools.return_value = _page([_pool("alpha", "id-a"), _pool("beta", "id-b")])
+
+        assert handler.resolve_subnet_pool_id("beta") == "id-b"
+
+    def test_no_match_raises_listing_available(self, project_id):
+        """A name matching no pool raises, and names the available pools."""
+        handler, mock_api = self._handler(project_id)
+        mock_api.list_subnet_pools.return_value = _page([_pool("alpha", "id-a")])
+
+        with pytest.raises(ValueError) as exc:
+            handler.resolve_subnet_pool_id("missing")
+        assert "missing" in str(exc.value)
+        assert "alpha" in str(exc.value)
+
+    def test_duplicate_names_raise_naming_both_ids(self, project_id):
+        """A name matching more than one pool fails loud, naming every match's id."""
+        handler, mock_api = self._handler(project_id)
+        mock_api.list_subnet_pools.return_value = _page([_pool("dup", "id-1"), _pool("dup", "id-2")])
+
+        with pytest.raises(ValueError) as exc:
+            handler.resolve_subnet_pool_id("dup")
+        message = str(exc.value)
+        assert "id-1" in message
+        assert "id-2" in message
+        assert "ambiguous" in message
+
+    def test_follows_pagination(self, project_id):
+        """The resolver walks every page via next.start before matching."""
+        handler, mock_api = self._handler(project_id)
+        mock_api.list_subnet_pools.side_effect = [
+            _page([_pool("a", "id-a")], start="tok2"),
+            _page([_pool("target", "id-t")]),
+        ]
+
+        assert handler.resolve_subnet_pool_id("target") == "id-t"
+        assert mock_api.list_subnet_pools.call_count == 2
+        assert mock_api.list_subnet_pools.call_args_list[1].kwargs.get("start") == "tok2"
+
+    def test_empty_page_list_raises(self, project_id):
+        """A project with no subnet pools raises rather than returning None."""
+        handler, mock_api = self._handler(project_id)
+        mock_api.list_subnet_pools.return_value = _page([])
+
+        with pytest.raises(ValueError):
+            handler.resolve_subnet_pool_id("anything")

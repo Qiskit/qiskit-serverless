@@ -53,3 +53,68 @@ class TestSyncCeProject:
         settings.CE_PROJECTS = []
         call_command("sync_ce_project")
         assert CodeEngineProject.objects.count() == 0
+
+    def test_id_only_config_still_works(self, settings):
+        """A config with subnet_pool_id (no name) upserts the id as before."""
+        settings.CE_PROJECTS = [_project(subnet_pool_id="subnet-1")]
+        call_command("sync_ce_project")
+
+        project = CodeEngineProject.objects.get(project_id="ce-1")
+        assert project.subnet_pool_id == "subnet-1"
+        assert project.subnet_pool_name is None
+
+    def test_name_only_config_is_accepted_and_leaves_id_empty(self, settings):
+        """A name-only config stores the name and leaves the id for the runner to fill."""
+        entry = _project(subnet_pool_name="my-pool")
+        del entry["subnet_pool_id"]
+        settings.CE_PROJECTS = [entry]
+        call_command("sync_ce_project")
+
+        project = CodeEngineProject.objects.get(project_id="ce-1")
+        assert project.subnet_pool_name == "my-pool"
+        assert not project.subnet_pool_id
+
+    def test_entry_with_neither_id_nor_name_is_rejected(self, settings):
+        """An entry missing both subnet pool fields does not create a row."""
+        entry = _project()
+        del entry["subnet_pool_id"]
+        settings.CE_PROJECTS = [entry]
+        call_command("sync_ce_project")
+
+        assert CodeEngineProject.objects.count() == 0
+
+    def test_resync_preserves_cached_id_when_name_unchanged(self, settings):
+        """A cached id survives re-sync of a name-only config (not blanked every boot)."""
+        entry = _project(subnet_pool_name="my-pool")
+        del entry["subnet_pool_id"]
+        settings.CE_PROJECTS = [entry]
+        call_command("sync_ce_project")
+
+        # simulate the runner caching a resolved id
+        project = CodeEngineProject.objects.get(project_id="ce-1")
+        project.subnet_pool_id = "cached-id"
+        project.save(update_fields=["subnet_pool_id"])
+
+        call_command("sync_ce_project")
+        project.refresh_from_db()
+        assert project.subnet_pool_id == "cached-id"
+
+    def test_resync_invalidates_cached_id_when_name_changes(self, settings):
+        """Renaming the pool in config blanks the cached id so it re-resolves."""
+        entry = _project(subnet_pool_name="old-pool")
+        del entry["subnet_pool_id"]
+        settings.CE_PROJECTS = [entry]
+        call_command("sync_ce_project")
+
+        project = CodeEngineProject.objects.get(project_id="ce-1")
+        project.subnet_pool_id = "cached-id"
+        project.save(update_fields=["subnet_pool_id"])
+
+        renamed = _project(subnet_pool_name="new-pool")
+        del renamed["subnet_pool_id"]
+        settings.CE_PROJECTS = [renamed]
+        call_command("sync_ce_project")
+
+        project.refresh_from_db()
+        assert project.subnet_pool_name == "new-pool"
+        assert not project.subnet_pool_id

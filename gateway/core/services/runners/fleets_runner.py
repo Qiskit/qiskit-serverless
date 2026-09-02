@@ -231,12 +231,14 @@ class FleetsRunner(AbstractRunner):
             else:
                 raise RunnerError(f"COS is not configured for job_id=[{self.job.id}] — cannot submit Fleets job")
 
+            subnet_pool_id = self._ensure_subnet_pool_id(handler)
+
             fleet = _retry_on_rate_limit(
                 lambda: handler.submit_job(
                     name=fleet_name,
                     image_reference=self._get_image(),
                     image_secret=settings.CE_ICR_PULL_SECRET,
-                    network_placements=[{"type": "subnet_pool", "reference": self._project.subnet_pool_id}],
+                    network_placements=[{"type": "subnet_pool", "reference": subnet_pool_id}],
                     scale_cpu_limit=cpu_limit,
                     scale_memory_limit=memory_limit,
                     scale_max_instances=self._get_max_instances(),
@@ -268,6 +270,50 @@ class FleetsRunner(AbstractRunner):
         except Exception as ex:
             logger.error("Failed to submit job_id=[%s]: %s", self.job.id, ex)
             raise RunnerError(f"Failed to submit job_id=[{self.job.id}] to Code Engine Fleets", ex) from ex
+
+    def _ensure_subnet_pool_id(self, handler: FleetHandler) -> str:
+        """Return the project's subnet pool id, resolving it from the name if needed.
+
+        Config may supply ``subnet_pool_id`` directly, or supply ``subnet_pool_name``
+        and leave the id empty. In the latter case the id is resolved from the name
+        via the CE API on the first submission for the project and cached back onto
+        the ``CodeEngineProject`` row, so later jobs reuse it without another CE call.
+        A pool renamed in config re-blanks the id in ``sync_ce_project``, which
+        triggers re-resolution here.
+
+        Args:
+            handler: The initialised :class:`FleetHandler` for this project.
+
+        Returns:
+            The subnet pool id to place the fleet on.
+
+        Raises:
+            RunnerError: When neither id nor name is configured, or the name cannot
+                be resolved to exactly one pool.
+        """
+        if self._project.subnet_pool_id:
+            return self._project.subnet_pool_id
+
+        if not self._project.subnet_pool_name:
+            raise RunnerError(
+                f"CodeEngineProject '{self._project.project_name}' has neither subnet_pool_id nor "
+                f"subnet_pool_name configured"
+            )
+
+        try:
+            resolved = handler.resolve_subnet_pool_id(self._project.subnet_pool_name)
+        except ValueError as ex:
+            raise RunnerError(str(ex), ex) from ex
+
+        self._project.subnet_pool_id = resolved
+        self._project.save(update_fields=["subnet_pool_id", "updated"])
+        logger.info(
+            "Resolved subnet pool name [%s] to id [%s] for project [%s]",
+            self._project.subnet_pool_name,
+            resolved,
+            self._project.project_name,
+        )
+        return resolved
 
     # Task states Code Engine writes under ``{version}/queue/``, mapped to job
     # statuses, in PRIORITY ORDER: a terminal state wins over running or pending when
