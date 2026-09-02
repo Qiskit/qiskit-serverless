@@ -339,36 +339,35 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
     )
 
     def append_concurrency_area(job_subset, profile_attr, visible):
-        """Draw one profile's concurrency area, split into its real and filler halves.
+        """Draw one profile's concurrency area, with the filler jobs stacked at the bottom of it.
 
-        Filler jobs hold the compute profile for real, so they belong in this count, but a single
-        aggregated curve would not say how much of a peak is real demand. The total is drawn first
-        with the hatch pattern the gantt uses for filler jobs, and the real-jobs-only curve goes on
-        top of it: the hatched band the top curve leaves uncovered is the filler contribution. When
-        the subset has no filler job at all the two curves are identical, so only the real one is
-        drawn and the chart looks exactly as it did before.
+        Filler jobs hold the compute profile for real, so the area is the whole count, filler jobs
+        included, and its top edge is the "peak overlap" in the heading. What a single area cannot
+        say is how much of a peak is real demand, so the filler jobs' own count is drawn over the
+        bottom of it with the hatch pattern the gantt bars use: below the hatch top edge the jobs
+        are filler, above it they are real. A subset with no filler job gets the plain area alone,
+        exactly as the chart looked before.
         """
         visible_class = " is-visible" if visible else ""
-        if any(j["filler"] for j in job_subset):
-            total_path = build_concurrency_path(
-                runner_scoped_series(job_subset), t_min, t_max, x, lambda c: cy(c, max_conc)
+        total_path = build_concurrency_path(
+            runner_scoped_series(job_subset), t_min, t_max, x, lambda c: cy(c, max_conc)
+        )
+        if total_path:
+            svg.append(
+                f'<path class="conc-path{visible_class}" data-profile="{profile_attr}" d="{total_path}" '
+                f'fill="#3b82f6" opacity="0.35" stroke="#60a5fa" stroke-width="1.5"/>'
             )
-            if total_path:
-                svg.append(
-                    f'<path class="conc-path{visible_class}" data-profile="{profile_attr}" d="{total_path}" '
-                    f'fill="url(#qs-filler-hatch)" stroke="#60a5fa" stroke-width="1.5" stroke-dasharray="4 2"/>'
-                )
-        real_path = build_concurrency_path(
-            runner_scoped_series([j for j in job_subset if not j["filler"]]),
+        filler_path = build_concurrency_path(
+            runner_scoped_series([j for j in job_subset if j["filler"]]),
             t_min,
             t_max,
             x,
             lambda c: cy(c, max_conc),
         )
-        if real_path:
+        if filler_path:
             svg.append(
-                f'<path class="conc-path{visible_class}" data-profile="{profile_attr}" d="{real_path}" '
-                f'fill="#3b82f6" opacity="0.35" stroke="#60a5fa" stroke-width="1.5"/>'
+                f'<path class="conc-path{visible_class}" data-profile="{profile_attr}" d="{filler_path}" '
+                f'fill="url(#qs-filler-hatch)" stroke="#60a5fa" stroke-width="1.5" stroke-dasharray="4 2"/>'
             )
 
     append_concurrency_area(jobs_sorted, "__all__", visible=True)
@@ -537,6 +536,7 @@ def build_job_details(jobs):
         )
         fleets_rows = _detail_rows(
             [
+                ("filler", "yes" if job["filler"] else "no"),
                 ("fleet id", job["fleet_id"]),
                 ("compute profile", job["profile"]),
                 ("ce project name", job["ce_project_name"]),
