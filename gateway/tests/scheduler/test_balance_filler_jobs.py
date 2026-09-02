@@ -518,6 +518,22 @@ def test_a_failed_creation_is_not_retried_every_loop(filler_program):
     assert Job.objects.filter(filler=True).count() == 0
 
 
+def test_a_creation_that_fails_before_the_submit_discards_the_row(filler_program):
+    """A row that was saved but never submitted is discarded in the same loop."""
+    task = _make_task()
+
+    with (
+        patch(f"{_MOD}.execute_fleets_job", side_effect=ValueError("no runner")),
+        patch(f"{_MOD}.get_arguments_storage"),
+        patch(f"{_MOD}.get_runner"),
+    ):
+        task.run()
+
+    job = Job.objects.get(filler=True)
+    assert job.status == Job.STOPPED
+    assert JobEvent.objects.filter(job=job, context=JobEventContext.FILLER_STOP).exists()
+
+
 def test_the_balancer_runs_after_the_fleets_status_update(settings):
     """The balancer must see the freshest real-job count, so its position matters.
 

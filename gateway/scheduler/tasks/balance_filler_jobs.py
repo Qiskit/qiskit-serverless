@@ -380,11 +380,13 @@ class BalanceFillerJobs(SchedulerTask):
             ce_project_name=project.project_name,
             ce_region=project.region,
         )
+        saved = False
         try:
             # Upload the arguments before the row exists, the same order
             # /programs/run uses: a COS failure then leaves no orphan job.
             get_arguments_storage(job).save("{}")
             job.save()
+            saved = True
             job = execute_fleets_job(
                 job,
                 TraceContextTextMapPropagator().extract(carrier={}),
@@ -403,6 +405,17 @@ class BalanceFillerJobs(SchedulerTask):
                 "create-error", logging.ERROR, "[BalanceFillerJobs] could not create filler job: %s", str(ex)
             )
             self.metrics.increment_filler_jobs_created("failed")
+            if saved and job.status == Job.QUEUED and not job.fleet_id:
+                # execute_fleets_job raised before it reached runner.submit(), so no
+                # fleet exists and this row is already unreachable: nothing ever looks
+                # at a QUEUED filler job again. Discarding it here saves a loop for
+                # _discard_unsubmitted_filler_jobs, which stays as the safety net for
+                # what no except block can reach, a save_direct that fails after the
+                # fleet was created and the process dying in between.
+                # The flag is what says the row exists: Job.id is a UUIDField with a
+                # default, so job.pk is already set before the save and cannot tell a
+                # saved row from an unsaved one.
+                self._mark_stopped(job)
             return False
 
         self._clear_throttle("create-error")
