@@ -19,6 +19,7 @@ from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
 
+from core.domain import compute_profile
 from core.utils import sanitize_file_path
 
 RELEASE_VERSION = os.environ.get("VERSION", "UNKNOWN")
@@ -503,14 +504,41 @@ FLEETS_DEFAULT_IMAGE = os.environ.get(
     "FLEETS_DEFAULT_IMAGE",
     "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.35.1",
 )
+
+
+def _canonical_compute_profile(name: str, default: str) -> str:
+    """Read a compute profile from the environment in the form the rest of the code expects.
+
+    Compute profiles are persisted, looked up (ComputeProfile primary key), billed
+    on and echoed back to clients in their bare form, so a value carrying an IBM
+    Cloud instance-family prefix (bx3d-24x120) has to be stripped before anything
+    uses it. Every reader would otherwise have to remember to do that, and today
+    not all of them do. Normalizing once here is what makes the setting safe to
+    read raw anywhere else.
+
+    Raises:
+        ImproperlyConfigured: the value is empty or is not a compute profile at all.
+            Failing at import beats accepting it: an unusable profile would
+            otherwise surface much later as a rejected run or a function created
+            with no sizes, far from the environment variable that caused it.
+    """
+    value = os.environ.get(name, default)
+    normalized = compute_profile.normalize(value)
+    if normalized is None or not compute_profile.is_valid(normalized):
+        raise ImproperlyConfigured(f"{name} is not a compute profile: {value!r}")
+    return normalized
+
+
 # Compute profile settings for Fleets runner
-DEFAULT_COMPUTE_PROFILE = os.environ.get("DEFAULT_COMPUTE_PROFILE", "16x128")  # 16 CPU, 128GB RAM
+DEFAULT_COMPUTE_PROFILE = _canonical_compute_profile("DEFAULT_COMPUTE_PROFILE", "16x128")  # 16 CPU, 128GB RAM
 # Size seeded for a function uploaded without an explicit size catalog, so every
 # function has a size to run with while declaring sizes is still optional. The
 # profile must name an existing ComputeProfile row; when no such row exists the
 # function is created with no sizes and runs fall back to DEFAULT_COMPUTE_PROFILE.
 DEFAULT_FUNCTION_SIZE = os.environ.get("DEFAULT_FUNCTION_SIZE", "m")
-DEFAULT_FUNCTION_SIZE_PROFILE = os.environ.get("DEFAULT_FUNCTION_SIZE_PROFILE", "16x128")  # 16 CPU, 128GB RAM
+DEFAULT_FUNCTION_SIZE_PROFILE = _canonical_compute_profile(
+    "DEFAULT_FUNCTION_SIZE_PROFILE", "16x128"
+)  # 16 CPU, 128GB RAM
 # Default resource limits for fleet jobs (can be overridden per job)
 FLEETS_DEFAULT_MAX_INSTANCES = int(os.environ.get("FLEETS_DEFAULT_MAX_INSTANCES", "1"))
 

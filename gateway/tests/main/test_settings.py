@@ -41,6 +41,8 @@ def restore_settings_module():
     previous_debug = os.environ.get("DEBUG")
     os.environ["DEBUG"] = "1"
     os.environ.pop("SETTINGS_AUTH_MECHANISM", None)
+    os.environ.pop("DEFAULT_COMPUTE_PROFILE", None)
+    os.environ.pop("DEFAULT_FUNCTION_SIZE_PROFILE", None)
     try:
         importlib.reload(main.settings)
     finally:
@@ -132,6 +134,34 @@ def test_template_dirs_use_etc_gateway_not_tmp():
     dirs = [str(path) for path in settings.TEMPLATES[0]["DIRS"]]
     assert "/etc/gateway/templates" in dirs
     assert "/tmp/templates" not in dirs
+
+
+class TestComputeProfileSettings:
+    """Tests for the compute profile settings read by _canonical_compute_profile."""
+
+    def test_instance_family_prefix_is_stripped(self, monkeypatch):
+        """A prefixed value is stored in the bare form the rest of the code looks up."""
+        monkeypatch.setenv("DEFAULT_COMPUTE_PROFILE", "bx3d-24x120")
+        monkeypatch.setenv("DEFAULT_FUNCTION_SIZE_PROFILE", "gx3d-24x120x1a100p")
+
+        importlib.reload(main.settings)
+
+        assert main.settings.DEFAULT_COMPUTE_PROFILE == "24x120"
+        assert main.settings.DEFAULT_FUNCTION_SIZE_PROFILE == "24x120x1a100p"
+
+    def test_a_value_that_is_not_a_profile_fails_closed(self, monkeypatch):
+        """A malformed value stops the process at import rather than on the first run."""
+        monkeypatch.setenv("DEFAULT_COMPUTE_PROFILE", "not-a-profile")
+
+        with pytest.raises(ImproperlyConfigured):
+            importlib.reload(main.settings)
+
+    def test_an_empty_value_fails_closed(self, monkeypatch):
+        """An empty environment variable is rejected, not treated as unset."""
+        monkeypatch.setenv("DEFAULT_FUNCTION_SIZE_PROFILE", "")
+
+        with pytest.raises(ImproperlyConfigured):
+            importlib.reload(main.settings)
 
 
 def test_filler_author_username_read_from_environment(monkeypatch):
