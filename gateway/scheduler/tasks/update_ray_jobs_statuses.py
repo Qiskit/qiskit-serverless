@@ -155,11 +155,18 @@ class UpdateRayJobsStatuses(SchedulerTask):
 
     def _increment_terminal_counter(self, job: Job) -> None:
         """Increment terminal jobs counter."""
+        if job.filler:
+            # A filler job stopped to free capacity is not a job that finished.
+            return
         provider = job.program.provider.name if job.program_id and job.program.provider_id else "custom"
         self.metrics.increment_jobs_terminal(provider=provider, final_status=job.status)
 
     def _record_execution_duration(self, job: Job) -> None:
         """Record execution duration for a successfully completed job."""
+        if job.filler:
+            # Filler jobs run until something needs their slot, so their lifetime
+            # says nothing about how long real work takes.
+            return
         running_event = JobEvent.objects.filter(job=job, data__status=Job.RUNNING).order_by("-created").first()
         if running_event is None:
             return

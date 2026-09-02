@@ -34,6 +34,7 @@ def _make_fleets_job(status=Job.RUNNING, fleet_id="fleet-123"):
     job.sub_status = None
     job.running_started_at = None
     job.instance_crn = "crn:v1:bluemix:public:quantum-computing:us-east:a/abc:def::"
+    job.filler = False
     job.in_terminal_state.return_value = status in Job.TERMINAL_STATUSES
 
     def _apply_update_fields(fields_map):
@@ -507,3 +508,16 @@ class TestEventStreamsIntegration:
 
         assert call_order == ["started", "license", "db"]
         task.event_streams_client.emit_license_fee.assert_called_once_with(job)
+
+
+def test_filler_jobs_are_left_out_of_the_job_metrics():
+    """A filler job neither counts as a terminal job nor contributes an execution duration."""
+    task = _make_task()
+    mock_job = MagicMock()
+    mock_job.filler = True
+
+    task._increment_terminal_counter(mock_job)
+    task._record_execution_duration(mock_job)
+
+    task.metrics.increment_jobs_terminal.assert_not_called()
+    task.metrics.observe_job_execution_duration.assert_not_called()
