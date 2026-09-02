@@ -14,6 +14,28 @@ features:
     Filler jobs are reported on their own metrics: ``scheduler_filler_jobs_count``
     for how many are active, ``scheduler_filler_jobs_created_total`` and
     ``scheduler_filler_jobs_stopped_total`` for how often they are being cycled.
+  - |
+    Two gauges say whether the feature is doing its job at all, which is what to
+    alert on. ``scheduler_filler_profile_slots`` is the configured target, and
+    ``scheduler_filler_profile_jobs`` is how many jobs are actually holding the
+    protected compute profile, split by a ``kind`` label into ``real`` and
+    ``filler``. Their sum staying below the target for several minutes means the
+    protected capacity is sitting idle, whatever the reason. Both go quiet while the
+    feature is off: the target reads zero and the occupancy series are removed, so
+    nothing reports a measurement that was never taken. Neither carries the profile
+    id as a label, because only one profile is protected at a time and a label that
+    changes when an operator re-points the filler program would leave stale series
+    behind; the balancer's log line names the profile.
+  - |
+    ``scheduler_filler_jobs_ended_total`` counts filler jobs that reached a terminal
+    state without the balancer asking, labelled by ``final_status``. A filler
+    function is meant to run until its slot is needed, so ``FAILED`` or
+    ``SUCCEEDED`` there is a misconfigured filler program, and the balancer replaces
+    each one a second later. That is the counter to alert on to catch a filler image
+    or program that dies on its own, since a creation that fails outright is counted
+    separately by ``scheduler_filler_jobs_created_total``. ``STOPPED`` on this
+    counter is the ``PROGRAM_TIMEOUT`` path; the stops the balancer asks for are in
+    ``scheduler_filler_jobs_stopped_total``.
 upgrade:
   - |
     Filler jobs are excluded from ``scheduler_job_status_count``,

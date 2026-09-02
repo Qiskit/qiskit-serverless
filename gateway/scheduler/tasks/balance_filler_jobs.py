@@ -156,6 +156,10 @@ class BalanceFillerJobs(SchedulerTask):
         _get_filler_program has already said which of the two at INFO, so this only
         reports the cleanup that follows from it.
         """
+        # Nothing is protecting a profile now, so the target is zero and the
+        # occupancy series go away rather than claim a measurement nobody took.
+        self.metrics.set_filler_profile_slots(0)
+        self.metrics.clear_filler_profile_jobs()
         self.throttle.clear("status")
         self.throttle.clear("stale")
         if not filler_jobs:
@@ -193,6 +197,8 @@ class BalanceFillerJobs(SchedulerTask):
             real_running,
             target,
         )
+        self.metrics.set_filler_profile_slots(slots)
+        self.metrics.set_filler_profile_jobs(real_running, "real")
 
         # A filler job belongs to the feature only while it matches both halves: the
         # configured program and the profile derived from it. Another profile holds
@@ -205,6 +211,9 @@ class BalanceFillerJobs(SchedulerTask):
         expected = (program.pk, profile_row.pk)
         stale = [job for job in filler_jobs if (job.program_id, job.compute_profile_fk_id) != expected]
         current = [job for job in filler_jobs if (job.program_id, job.compute_profile_fk_id) == expected]
+        # Reported after the split and before this loop acts, so the gauge is the
+        # occupancy the decisions below were taken on.
+        self.metrics.set_filler_profile_jobs(len(current), "filler")
 
         if stale:
             self.throttle.log(

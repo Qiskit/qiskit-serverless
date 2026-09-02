@@ -78,6 +78,31 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes
             "Filler jobs the balancer stopped to free capacity.",
             registry=self.registry,
         )
+        self.filler_jobs_ended_total = Counter(
+            "scheduler_filler_jobs_ended_total",
+            "Filler jobs that reached a terminal state without the balancer stopping them. "
+            "FAILED or SUCCEEDED means the filler function ended on its own, which it is "
+            "not meant to do, so a rising counter is a misconfigured filler program. "
+            "STOPPED here is the PROGRAM_TIMEOUT path: stops the balancer asks for are "
+            "counted by scheduler_filler_jobs_stopped_total instead.",
+            labelnames=("final_status",),
+            registry=self.registry,
+        )
+        self.filler_profile_slots = Gauge(
+            "scheduler_filler_profile_slots",
+            "Configured minimum of real plus filler jobs to hold on the compute profile "
+            "the filler feature protects. Zero while the feature is off.",
+            registry=self.registry,
+        )
+        self.filler_profile_jobs = Gauge(
+            "scheduler_filler_profile_jobs",
+            "Jobs holding the protected compute profile, split into real user jobs and "
+            "filler jobs. Their sum staying below scheduler_filler_profile_slots is the "
+            "feature failing to do its job. Absent while the feature is off, because then "
+            "nothing measures that profile.",
+            labelnames=("kind",),
+            registry=self.registry,
+        )
         self.job_execution_duration = Histogram(
             "scheduler_job_execution_duration_seconds",
             "Time successful jobs spend executing from RUNNING to SUCCEEDED.",
@@ -145,3 +170,19 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes
     def increment_filler_jobs_stopped(self) -> None:
         """Count one filler job stopped by the balancer."""
         self.filler_jobs_stopped_total.inc()
+
+    def increment_filler_jobs_ended(self, final_status: str) -> None:
+        """Count one filler job that reached a terminal state on its own."""
+        self.filler_jobs_ended_total.labels(final_status=final_status).inc()
+
+    def set_filler_profile_slots(self, slots: int) -> None:
+        """Set the slot target of the protected compute profile."""
+        self.filler_profile_slots.set(slots)
+
+    def set_filler_profile_jobs(self, count: int, kind: str) -> None:
+        """Set the occupancy of the protected compute profile. kind is "real" or "filler"."""
+        self.filler_profile_jobs.labels(kind=kind).set(count)
+
+    def clear_filler_profile_jobs(self) -> None:
+        """Remove the occupancy series, for when nothing is measuring that profile."""
+        self.filler_profile_jobs.clear()

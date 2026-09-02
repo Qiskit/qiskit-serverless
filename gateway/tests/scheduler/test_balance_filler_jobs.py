@@ -509,6 +509,41 @@ def test_stopped_filler_jobs_do_not_trip_the_churn_breaker(filler_program):
     assert submit.call_count == 4
 
 
+def test_the_occupancy_of_the_protected_profile_is_reported(filler_program):
+    """The gauge that says whether the feature is doing its job at all.
+
+    Two real jobs and four slots means two filler jobs, so the profile is held by
+    four, and an operator can tell which half is which.
+    """
+    for index in range(2):
+        TestUtils.create_job(
+            author=f"real_user_{index}",
+            program=filler_program,
+            status=Job.RUNNING,
+            runner=Program.FLEETS,
+            compute_profile=_PROFILE,
+            compute_profile_fk=filler_program.default_size.compute_profile,
+        )
+    task = _make_task()
+
+    _run(task, times=4)
+
+    task.metrics.set_filler_profile_slots.assert_called_with(4)
+    task.metrics.set_filler_profile_jobs.assert_any_call(2, "real")
+    task.metrics.set_filler_profile_jobs.assert_any_call(2, "filler")
+
+
+def test_the_occupancy_series_go_away_when_the_feature_is_off(filler_program):
+    """An absent series says nothing was measured, which beats a zero that lies."""
+    Config.set(ConfigKey.FILLER_ENABLED, "false")
+    task = _make_task()
+
+    _run(task)
+
+    task.metrics.set_filler_profile_slots.assert_called_once_with(0)
+    task.metrics.clear_filler_profile_jobs.assert_called_once()
+
+
 def test_a_fleet_that_cannot_be_cancelled_keeps_the_job_active(filler_program):
     """A failed cancel leaves the job active so the next loop retries it."""
     job = TestUtils.create_job(

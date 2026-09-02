@@ -521,3 +521,20 @@ def test_filler_jobs_are_left_out_of_the_job_metrics():
 
     task.metrics.increment_jobs_terminal.assert_not_called()
     task.metrics.observe_job_execution_duration.assert_not_called()
+
+
+def test_a_filler_job_that_ends_on_its_own_is_counted():
+    """Reaching a terminal state here means the balancer did not ask for it.
+
+    This is the counter that reveals a filler program which exits by itself, which
+    the balancer would otherwise replace once a second forever.
+    """
+    task = _make_task()
+    mock_job = MagicMock(spec=Job)
+    mock_job.filler = True
+    mock_job.status = Job.FAILED
+
+    task._increment_terminal_counter(mock_job)
+
+    task.metrics.increment_filler_jobs_ended.assert_called_once_with(Job.FAILED)
+    task.metrics.increment_jobs_terminal.assert_not_called()
