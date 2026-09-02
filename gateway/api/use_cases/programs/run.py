@@ -18,6 +18,7 @@ from api.use_cases.programs.validate_arguments import validate_arguments
 from api.utils import active_jobs_limit_reached, build_env_variables
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.business_models import BusinessModel
+from core.domain.compute_profile import normalize as normalize_compute_profile
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import (
     ComputeProfile,
@@ -54,13 +55,23 @@ def _get_runner_config(function: Function, compute_profile_requested: str | None
 
     ``compute_profile_requested`` is expected to already be in the bare
     (prefix-less) canonical form: the view normalizes it before it ever reaches
-    this use case.
+    this use case. The ``DEFAULT_COMPUTE_PROFILE`` fallback is normalized here,
+    because nothing else does it for that path.
 
     Raises:
         FunctionConfigurationException: If a resolved profile has no registered row.
     """
     if function.runner == Function.FLEETS:
-        compute_profile = compute_profile_requested or settings.DEFAULT_COMPUTE_PROFILE
+        # The view normalizes what the client asks for, but not this fallback, and a
+        # prefixed value here would store a non-canonical profile on the job. The
+        # last term keeps an empty setting failing closed: normalize("") is None,
+        # and a None profile would skip the "not registered" guard below and persist
+        # a job with no profile at all, which then crashes inside the runner.
+        compute_profile = (
+            compute_profile_requested
+            or normalize_compute_profile(settings.DEFAULT_COMPUTE_PROFILE)
+            or settings.DEFAULT_COMPUTE_PROFILE
+        )
     elif function.provider and function.gpu:
         return RunnerConfig(compute_profile=None, gpu=True, compute_profile_fk=None)
     else:

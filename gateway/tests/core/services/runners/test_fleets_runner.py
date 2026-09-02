@@ -504,7 +504,7 @@ def test_submit_default_profile_in_settings_is_parseable():
     """DEFAULT_COMPUTE_PROFILE default value in settings.py parses without error."""
     runner, mock_handler = _make_submit_runner()
 
-    with _patch_settings(DEFAULT_COMPUTE_PROFILE="bx3d-24x120"):
+    with _patch_settings(DEFAULT_COMPUTE_PROFILE="24x120"):
         runner.submit()
 
     call_kwargs = mock_handler.submit_job.call_args.kwargs
