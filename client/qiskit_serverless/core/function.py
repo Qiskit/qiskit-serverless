@@ -106,12 +106,22 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
         working_dir: directory where entrypoint file is located (max size 50MB)
         description: description of a program
         version: version of a program
-        sizes_map: raw ``{size_label: compute_profile}`` mapping carried in the representation,
-            read through :meth:`RunnableQiskitFunction.sizes`. None when the representation carries
-            no size information; an empty dict when the function declares no sizes.
-        default_size: the size used when a run omits an explicit size, read through
+        sizes_map: the function's ``{size_label: compute_profile}`` t-shirt size catalog,
+            e.g. ``{"s": "24x120", "m": "16x128"}``. Set it to declare the catalog on upload;
+            it is also how the catalog is carried back in a fetched function, read through
+            :meth:`RunnableQiskitFunction.sizes`. A size is picked per run with
+            ``function.run(function_size="s")``; labels are matched case-insensitively and each
+            compute profile must name one the deployment has registered, or the upload is
+            rejected. Only meaningful for the ``"fleets"`` runner. On upload, ``None`` leaves any
+            stored catalog untouched and a sent mapping replaces it wholesale; a fetched function
+            carries ``None`` when the representation has no size information and an empty dict when
+            it declares no sizes.
+        default_size: the size label used when a run omits an explicit size. Set it on upload to
+            declare the default (it must be one of the labels in ``sizes_map`` and requires
+            ``sizes_map`` to be declared); also read back through
             :meth:`RunnableQiskitFunction.get_default_size`. None when the function declares no
-            default (a run then falls back to the platform default).
+            default (a run then falls back to the platform default). Only meaningful for the
+            ``"fleets"`` runner.
         arguments_schema: JSON Schema describing valid arguments for this function. Normally an
             object; ``True`` and ``False`` are also valid schemas, accepting and rejecting every
             argument respectively. ``None`` means the function does not declare one, and setting

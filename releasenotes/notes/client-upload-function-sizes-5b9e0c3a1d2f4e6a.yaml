@@ -1,0 +1,30 @@
+---
+features:
+  - |
+    :class:`~qiskit_serverless.QiskitFunction` now sends its ``sizes_map`` and
+    ``default_size`` when the function is uploaded, letting a Fleets function
+    declare its t-shirt size catalog straight from the client. Previously these
+    fields were only populated when reading a function back (via
+    :meth:`~qiskit_serverless.RunnableQiskitFunction.sizes` and
+    :meth:`~qiskit_serverless.RunnableQiskitFunction.get_default_size`) and were
+    dropped on upload, so a catalog could only be declared through the gateway
+    API or the admin. ``sizes_map`` maps each size label to the compute profile
+    it runs on (e.g. ``{"s": "24x120", "m": "16x128"}``) and ``default_size``
+    names the label a run falls back to when it requests none. A size is then
+    selected per run with ``function.run(function_size="s")``.
+
+    .. code-block:: python
+
+        function = QiskitFunction(
+            title="my-function",
+            entrypoint="entrypoint.py",
+            working_dir="./src/",
+            runner="fleets",
+            sizes_map={"s": "24x120", "m": "16x128"},
+            default_size="m",
+        )
+        serverless.upload(function)
+
+    Size labels are matched case-insensitively, each compute profile identifier
+    must name a profile the deployment has registered, and both fields are only
+    meaningful for the ``"fleets"`` runner.
