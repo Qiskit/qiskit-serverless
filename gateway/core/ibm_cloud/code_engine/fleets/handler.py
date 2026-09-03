@@ -45,6 +45,7 @@ from typing import Any
 
 from core.ibm_cloud.code_engine.ce_client import ApiClient
 from core.ibm_cloud.code_engine.ce_client.api.fleets_api import FleetsApi
+from core.ibm_cloud.code_engine.ce_client.api.subnet_pools_api import SubnetPoolsApi
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
 logger = logging.getLogger("FleetHandler")
@@ -71,6 +72,7 @@ class FleetHandler:
         self.project_id = project_id
         self._client = ce_api_client
         self._fleets_api = FleetsApi(ce_api_client)
+        self._subnet_pools_api = SubnetPoolsApi(ce_api_client)
 
     def submit_job(  # pylint: disable=too-many-arguments
         self,
@@ -139,6 +141,60 @@ class FleetHandler:
                 exc.reason,
             )
             raise
+
+    def resolve_subnet_pool_id(self, name: str) -> str:
+        """Resolve a subnet pool name to its id within this project.
+
+        Lists every subnet pool in the project (following pagination) and matches
+        by exact name. The CE API identifies pools by id and only *advises* that
+        names be unique within a project, so a name can match more than one pool;
+        this fails loud rather than guess, because picking the wrong pool would
+        place the fleet on the wrong VPC subnet.
+
+        Args:
+            name: The subnet pool name to resolve.
+
+        Returns:
+            The id of the single pool whose name matches.
+
+        Raises:
+            ValueError: When no pool or more than one pool carries the name.
+            ApiException: When the CE list call fails.
+        """
+        pools = self._list_all_subnet_pools()
+        matches = [p for p in pools if p.name == name]
+
+        if not matches:
+            available = sorted(p.name for p in pools)
+            raise ValueError(f"No subnet pool named '{name}' in project [{self.project_id}]. Available: {available}")
+        if len(matches) > 1:
+            details = ", ".join(f"id={p.id} region={p.region}" for p in matches)
+            raise ValueError(
+                f"Subnet pool name '{name}' is ambiguous in project [{self.project_id}]: "
+                f"matches {len(matches)} pools ({details}). Set subnet_pool_id explicitly in the "
+                f"project config to disambiguate."
+            )
+        return matches[0].id
+
+    def _list_all_subnet_pools(self) -> list[Any]:
+        """Return every subnet pool in the project, following pagination.
+
+        Returns:
+            A list of ``V2SubnetPool`` objects.
+
+        Raises:
+            ApiException: When a CE list call fails.
+        """
+        pools: list[Any] = []
+        start: str | None = None
+        while True:
+            kwargs: dict[str, Any] = {"start": start} if start else {}
+            page = self._subnet_pools_api.list_subnet_pools(project_id=self.project_id, **kwargs)
+            pools.extend(page.subnet_pools or [])
+            nxt = getattr(page, "next", None)
+            start = getattr(nxt, "start", None) if nxt else None
+            if not start:
+                return pools
 
     def get_job_status(self, identifier: str) -> dict[str, Any]:
         """
