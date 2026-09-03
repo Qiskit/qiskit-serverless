@@ -95,6 +95,7 @@ def test_creates_filler_jobs_up_to_the_configured_slots(filler_program):
     assert {job.compute_profile for job in fillers} == {_PROFILE}
     assert {job.runner for job in fillers} == {Program.FLEETS}
     assert {job.author for job in fillers} == {filler_program.author}
+    assert {job.size_source for job in fillers} == {Job.SIZE_SOURCE_NONE}
     assert submit.call_args.kwargs["context"] is JobEventContext.FILLER_SUBMIT
 
 
