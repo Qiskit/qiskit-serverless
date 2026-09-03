@@ -320,6 +320,39 @@
 <section id="new-features">
 <span id="release-notes-upcoming-qiskit-serverless-release-new-features"></span><h3>New Features<a class="headerlink" href="#new-features" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
+<li><p>The scheduler can now keep a scarce Fleets compute profile busy with filler
+jobs. When fewer than <code class="docutils literal notranslate"><span class="pre">scheduler.filler.slots</span></code> jobs are running on the
+compute profile of the function named by <code class="docutils literal notranslate"><span class="pre">scheduler.filler.function</span></code>, it
+starts filler jobs to make up the difference, and it stops them again in the
+same scheduler iteration that real jobs take the capacity. The feature is off until
+<code class="docutils literal notranslate"><span class="pre">scheduler.filler.enabled</span></code> is set to true, and all three values are dynamic
+configuration that can change without a redeploy. Every filler job is owned by
+the author of the filler function itself, so there is no service account to
+create and no environment variable to set for it. That has two consequences for
+that person: the filler jobs show up in their job list, because the jobs API
+filters by author, and the filler jobs do not use up their concurrent job
+allowance, because the scheduler’s fair-share tally now leaves filler jobs out.</p></li>
+</ul>
+<ul class="simple">
+<li><p>The balancer counts its own actions on <code class="docutils literal notranslate"><span class="pre">scheduler_filler_jobs_created_total</span></code>,
+labelled by whether the submit reached PENDING, and on
+<code class="docutils literal notranslate"><span class="pre">scheduler_filler_jobs_stopped_total</span></code>. Together they say how often filler jobs
+are being cycled.</p></li>
+</ul>
+<ul class="simple">
+<li><p>Two gauges say whether the feature is doing its job at all, which is what to
+alert on. <code class="docutils literal notranslate"><span class="pre">scheduler_filler_profile_slots</span></code> is the configured target, and
+<code class="docutils literal notranslate"><span class="pre">scheduler_filler_profile_jobs</span></code> is how many jobs are actually holding the
+protected compute profile, split by a <code class="docutils literal notranslate"><span class="pre">kind</span></code> label into <code class="docutils literal notranslate"><span class="pre">real</span></code> and
+<code class="docutils literal notranslate"><span class="pre">filler</span></code>. Their sum staying below the target for several minutes means the
+protected capacity is sitting idle, whatever the reason. Both go quiet while the
+feature is off: the target reads zero and the occupancy series are removed, so
+nothing reports a measurement that was never taken. Neither carries the profile
+id as a label, because only one profile is protected at a time and a label that
+changes when an operator re-points the filler program would leave stale series
+behind; the balancer’s log line names the profile.</p></li>
+</ul>
+<ul class="simple">
 <li><p>Filler jobs are now reported separately in the scheduler metrics.
 <code class="docutils literal notranslate"><span class="pre">scheduler_filler_jobs_count</span></code> is a gauge of how many are active, labelled by
 status, and stale label combinations are cleared on every scheduler iteration so
@@ -366,6 +399,54 @@ hand with <code class="docutils literal notranslate"><span class="pre">CREATE</s
 <li><p>The <code class="docutils literal notranslate"><span class="pre">api_program.default_compute_profile</span></code> column is now dropped from the
 database. The field was removed from Qiskit Functions in the
 earlier release.</p></li>
+</ul>
+<ul class="simple">
+<li><p>Filler jobs never emit billing events.</p></li>
+</ul>
+<ul class="simple">
+<li><p>Turning on maintenance mode now stops any running filler job, as well as
+preventing new ones. This frees the capacity so the platform can be drained,
+and the filler jobs come back within a second of maintenance ending. Note that
+it means switching on maintenance cancels the filler jobs occupying the
+protected compute profile.</p></li>
+</ul>
+<ul class="simple">
+<li><p>Filler jobs count against <code class="docutils literal notranslate"><span class="pre">LIMITS_MAX_FLEETS</span></code>, so enabling <code class="docutils literal notranslate"><span class="pre">N</span></code> slots reduces
+the global Fleets budget by <code class="docutils literal notranslate"><span class="pre">N</span></code>. This is negligible at the default of 1000,
+but not at a deployment that sets that limit low. A stopped filler job’s Code
+Engine fleet is cancelled but never deleted, and filler jobs cycle far more
+often than real ones, so they accumulate cancelled fleets in the project faster
+than user jobs do.</p></li>
+</ul>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">scheduler.filler.slots</span></code> is honored as configured, with no upper bound, so a
+mistyped value does take that many slots out of <code class="docutils literal notranslate"><span class="pre">LIMITS_MAX_FLEETS</span></code>. The
+balancer creates one filler job per scheduler iteration, so the configured number
+is reached over as many iterations, about one per second, rather than in one.</p></li>
+</ul>
+<ul class="simple">
+<li><p>Setting <code class="docutils literal notranslate"><span class="pre">scheduler.filler.slots</span></code> to zero, or to any value below it, means the
+same as <code class="docutils literal notranslate"><span class="pre">scheduler.filler.enabled</span></code> being false: nothing is created and every
+running filler job is stopped.</p></li>
+</ul>
+<ul class="simple">
+<li><p>Filler jobs are also stopped when they no longer match the configured filler
+function, not only when they no longer match its compute profile. Pointing
+<code class="docutils literal notranslate"><span class="pre">scheduler.filler.function</span></code> at another function therefore drains the jobs
+running the old one, and the balancer replaces them with jobs running the new
+one. That value takes either form: a <code class="docutils literal notranslate"><span class="pre">provider/title</span></code> name, which reads the
+same in every environment, or the function’s id. Prefer the name, because it
+requires a provider function, and a provider function can be updated by anyone
+with write access to the provider. A personal function can only be named by id,
+and only its author can update it.</p></li>
+</ul>
+<ul class="simple">
+<li><p>To switch the feature off, disable the filler function or set
+<code class="docutils literal notranslate"><span class="pre">scheduler.filler.slots</span></code> to zero, but never delete the filler <code class="docutils literal notranslate"><span class="pre">Program</span></code>
+row or deactivate its Code Engine project while filler jobs are running. In
+either case the balancer can no longer cancel the fleets it created for that
+program, and they keep running in Code Engine until an operator finds and
+cancels them by hand.</p></li>
 </ul>
 <ul class="simple">
 <li><p>Filler jobs are excluded from <code class="docutils literal notranslate"><span class="pre">scheduler_job_status_count</span></code>,
