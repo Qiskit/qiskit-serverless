@@ -173,13 +173,9 @@ class KafkaEventStreamsClient(EventStreamsClient):
         )
 
     def _build_classical_metric_type(self, job: Job) -> str:
-        """Build classical metric type from job attributes: classical_PROVIDER_FUNCTION_COMPUTE_PROFILE."""
+        """Build classical metric type from job attributes: classical_COMPUTE_PROFILE."""
         parts = [CLASSICAL_TIME_METRIC_TYPE_PREFIX]
 
-        if job.program and job.program.provider:
-            parts.append(job.program.provider.name)
-        if job.program:
-            parts.append(job.program.title)
         if job.compute_profile:
             parts.append(job.compute_profile)
 
