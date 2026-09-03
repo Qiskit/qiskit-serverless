@@ -57,10 +57,10 @@ class Command(BaseCommand):
 
         pending = Job.objects.filter(business_model=BusinessModel.SUBSIDIZED)
         total = pending.count()
-        logger.info("[migrate_job_business_model] %s jobs still hold %s", total, BusinessModel.SUBSIDIZED)
+        logger.info("%s jobs still hold %s", total, BusinessModel.SUBSIDIZED)
 
         if dry_run:
-            logger.info("[migrate_job_business_model] Dry run, nothing written")
+            logger.info("Dry run, nothing written")
             return
 
         updated = 0
@@ -72,7 +72,7 @@ class Command(BaseCommand):
                 break
 
             updated += affected
-            logger.info("[migrate_job_business_model] Updated %s of %s jobs", updated, total)
+            logger.info("Updated %s of %s jobs", updated, total)
 
             if affected < batch_size:
                 break
@@ -83,4 +83,4 @@ class Command(BaseCommand):
         if remaining:
             raise CommandError(f"{remaining} jobs still hold {BusinessModel.SUBSIDIZED} after {updated} updated")
 
-        logger.info("[migrate_job_business_model] Finished, %s jobs updated", updated)
+        logger.info("Finished, %s jobs updated", updated)
