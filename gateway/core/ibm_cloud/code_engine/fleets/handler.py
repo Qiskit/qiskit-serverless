@@ -51,6 +51,14 @@ logger = logging.getLogger("FleetHandler")
 
 _UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
+# Literal JSON field name sent in the cancel_fleet request body. cancel_job passes a plain
+# dict as the body, which bypasses the swagger model's attribute_map (snake<->camel)
+# conversion in ApiClient.sanitize_for_serialization, so this string is the wire key
+# verbatim. snake_case matches the CE engineer's guidance and the snake_case body already
+# built in submit_job (e.g. scale_cpu_limit). If CE rejects it, flip the casing here — this
+# is the single source of truth.
+_CANCEL_PROCESSING_TASKS_KEY = "cancel_processing_tasks"
+
 
 class FleetHandler:
     """Uses the swagger-generated FleetsAPI to manage fleet jobs."""
@@ -223,6 +231,7 @@ class FleetHandler:
         *,
         wait: bool = True,
         delete: bool = False,
+        cancel_processing_tasks: bool = True,
         timeout_seconds: int = 300,
         poll_interval_seconds: float = 2.0,
     ) -> None:
@@ -240,6 +249,11 @@ class FleetHandler:
             identifier: Fleet UUID or fleet name.
             wait: If True, poll the fleet until terminal after the cancel decision.
             delete: If True, delete the fleet after optional wait.
+            cancel_processing_tasks: If True, Code Engine kills the running task immediately
+                instead of waiting for it to finish before completing the cancelation.
+                Defaults to True so a cancel is honored even when the task never terminates
+                on its own, which otherwise leaves the fleet stuck in "Canceling"
+                indefinitely.
             timeout_seconds: Max time to wait for terminal state when wait=True.
             poll_interval_seconds: Delay between polls.
 
@@ -266,7 +280,11 @@ class FleetHandler:
 
         if should_attempt_cancel:
             try:
-                self._fleets_api.cancel_fleet(project_id=self.project_id, id=fleet_id)
+                self._fleets_api.cancel_fleet(
+                    project_id=self.project_id,
+                    id=fleet_id,
+                    body={_CANCEL_PROCESSING_TASKS_KEY: cancel_processing_tasks},
+                )
             except ApiException as exc:
                 if exc.status != 404:
                     raise
