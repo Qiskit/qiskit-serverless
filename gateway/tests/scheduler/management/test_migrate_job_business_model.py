@@ -37,6 +37,18 @@ def test_all_old_jobs_are_updated_in_batches(jobs):
     assert _stored_business_model(trial) == BusinessModel.TRIAL
 
 
+def test_bumps_version_so_a_concurrent_save_detects_the_change(jobs):
+    """version is a django-concurrency field: a stale save() must still be able to detect this write."""
+    old, _ = jobs
+
+    versions_before = [job.version for job in old]
+    call_command("migrate_job_business_model", batch_size=2, sleep=0)
+
+    for job, version_before in zip(old, versions_before):
+        job.refresh_from_db(fields=["version"])
+        assert job.version == version_before + 1
+
+
 def test_dry_run_writes_nothing(jobs):
     old, _ = jobs
 
