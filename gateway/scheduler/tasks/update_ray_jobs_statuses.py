@@ -6,7 +6,6 @@ from collections import deque
 from datetime import datetime, timezone
 
 from django.conf import settings
-from django.db.models import F
 
 from core.services.runners.ray_runner import FilteredLogs
 from core.services.storage import get_logs_storage
@@ -55,9 +54,7 @@ class UpdateRayJobsStatuses(SchedulerTask):
             job.status = Job.FAILED
             job.sub_status = None
             job.env_vars = "{}"
-            Job.objects.filter(pk=job.id).update(
-                status=job.status, sub_status=job.sub_status, env_vars=job.env_vars, version=F("version") + 1
-            )
+            job.save_direct(["status", "sub_status", "env_vars"])
             JobEvent.objects.add_status_event(
                 job_id=job.id,
                 origin=JobEventOrigin.SCHEDULER,
@@ -135,13 +132,7 @@ class UpdateRayJobsStatuses(SchedulerTask):
                 save_logs_to_storage(job, lines)
 
         if status_has_changed:
-            Job.objects.filter(pk=job.id).update(
-                status=job.status,
-                sub_status=job.sub_status,
-                env_vars=job.env_vars,
-                version=F("version") + 1,
-            )
-            job.refresh_from_db(fields=["version"])
+            job.save_direct(["status", "sub_status", "env_vars"])
             JobEvent.objects.add_status_event(
                 job_id=job.id,
                 origin=JobEventOrigin.SCHEDULER,
@@ -155,11 +146,18 @@ class UpdateRayJobsStatuses(SchedulerTask):
 
     def _increment_terminal_counter(self, job: Job) -> None:
         """Increment terminal jobs counter."""
+        if job.filler:
+            # A filler job stopped to free capacity is not a job that finished.
+            return
         provider = job.program.provider.name if job.program_id and job.program.provider_id else "custom"
         self.metrics.increment_jobs_terminal(provider=provider, final_status=job.status)
 
     def _record_execution_duration(self, job: Job) -> None:
         """Record execution duration for a successfully completed job."""
+        if job.filler:
+            # Filler jobs run until something needs their slot, so their lifetime
+            # says nothing about how long real work takes.
+            return
         running_event = JobEvent.objects.filter(job=job, data__status=Job.RUNNING).order_by("-created").first()
         if running_event is None:
             return
