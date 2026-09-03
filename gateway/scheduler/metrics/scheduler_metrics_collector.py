@@ -76,6 +76,32 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes
             labelnames=("provider", "final_status"),
             registry=self.registry,
         )
+        self.filler_jobs_created_total = Counter(
+            "scheduler_filler_jobs_created_total",
+            "Filler jobs the balancer created, by whether the submit reached PENDING.",
+            labelnames=("result",),
+            registry=self.registry,
+        )
+        self.filler_jobs_stopped_total = Counter(
+            "scheduler_filler_jobs_stopped_total",
+            "Filler jobs the balancer stopped to free capacity.",
+            registry=self.registry,
+        )
+        self.filler_profile_slots = Gauge(
+            "scheduler_filler_profile_slots",
+            "Configured minimum of real plus filler jobs to hold on the compute profile "
+            "the filler feature protects. Zero while the feature is off.",
+            registry=self.registry,
+        )
+        self.filler_profile_jobs = Gauge(
+            "scheduler_filler_profile_jobs",
+            "Jobs holding the protected compute profile, split into real user jobs and "
+            "filler jobs. Their sum staying below scheduler_filler_profile_slots is the "
+            "feature failing to do its job. Absent while the feature is off, because then "
+            "nothing measures that profile.",
+            labelnames=("kind",),
+            registry=self.registry,
+        )
         self.job_execution_duration = Histogram(
             "scheduler_job_execution_duration_seconds",
             "Time successful jobs spend executing from RUNNING to SUCCEEDED.",
@@ -139,3 +165,23 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes
     def increment_jobs_terminal(self, provider: str, final_status: str) -> None:
         """Increment counter when a job reaches a terminal state."""
         self.jobs_terminal_total.labels(provider=provider, final_status=final_status).inc()
+
+    def increment_filler_jobs_created(self, result: str) -> None:
+        """Count one filler job creation attempt. result is "submitted" or "failed"."""
+        self.filler_jobs_created_total.labels(result=result).inc()
+
+    def increment_filler_jobs_stopped(self) -> None:
+        """Count one filler job stopped by the balancer."""
+        self.filler_jobs_stopped_total.inc()
+
+    def set_filler_profile_slots(self, slots: int) -> None:
+        """Set the slot target of the protected compute profile."""
+        self.filler_profile_slots.set(slots)
+
+    def set_filler_profile_jobs(self, count: int, kind: str) -> None:
+        """Set the occupancy of the protected compute profile. kind is "real" or "filler"."""
+        self.filler_profile_jobs.labels(kind=kind).set(count)
+
+    def clear_filler_profile_jobs(self) -> None:
+        """Remove the occupancy series, for when nothing is measuring that profile."""
+        self.filler_profile_jobs.clear()
