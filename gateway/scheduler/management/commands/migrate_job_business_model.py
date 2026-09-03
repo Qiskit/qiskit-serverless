@@ -72,4 +72,8 @@ class Command(BaseCommand):
 
             time.sleep(sleep_seconds)
 
+        remaining = pending.count()
+        if remaining:
+            raise CommandError(f"{remaining} jobs still hold {BusinessModel.SUBSIDIZED} after {updated} updated")
+
         logger.info("[migrate_job_business_model] Finished, %s jobs updated", updated)

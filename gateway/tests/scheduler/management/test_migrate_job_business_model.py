@@ -4,6 +4,7 @@ import pytest
 from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.db.models import QuerySet
 
 from core.domain.business_models import BusinessModel
 from core.models import Job
@@ -64,3 +65,21 @@ def test_rejects_negative_sleep(jobs):
 
     for job in old:
         assert _stored_business_model(job) == BusinessModel.SUBSIDIZED
+
+
+def test_raises_when_jobs_are_still_pending_after_the_loop(jobs, monkeypatch):
+    """A row that reappears between the last batch and the completion check must fail loud."""
+    old, trial = jobs
+    original_count = QuerySet.count
+    calls = {"n": 0}
+
+    def fake_count(self):
+        calls["n"] += 1
+        if calls["n"] == 2:
+            Job.objects.create(author=trial.author, business_model=BusinessModel.SUBSIDIZED)
+        return original_count(self)
+
+    monkeypatch.setattr(QuerySet, "count", fake_count)
+
+    with pytest.raises(CommandError, match="still hold"):
+        call_command("migrate_job_business_model", batch_size=len(old), sleep=0)
