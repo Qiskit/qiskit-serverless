@@ -63,13 +63,12 @@ class Command(BaseCommand):
 
         updated = 0
         while True:
-            batch_ids = list(pending.order_by("id").values_list("id", flat=True)[:batch_size])
-            if not batch_ids:
-                break
-
-            affected = Job.objects.filter(id__in=batch_ids).update(
+            affected = Job.objects.filter(id__in=pending.values_list("id")[:batch_size]).update(
                 business_model=BusinessModel.LICENSED, version=F("version") + 1
             )
+            if not affected:
+                break
+
             updated += affected
             logger.info("[migrate_job_business_model] Updated %s of %s jobs", updated, total)
 
