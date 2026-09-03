@@ -51,12 +51,8 @@ logger = logging.getLogger("FleetHandler")
 
 _UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
-# Literal JSON field name sent in the cancel_fleet request body. cancel_job passes a plain
-# dict as the body, which bypasses the swagger model's attribute_map (snake<->camel)
-# conversion in ApiClient.sanitize_for_serialization, so this string is the wire key
-# verbatim. snake_case matches the CE engineer's guidance and the snake_case body already
-# built in submit_job (e.g. scale_cpu_limit). If CE rejects it, flip the casing here — this
-# is the single source of truth.
+# Literal JSON key in the cancel_fleet body (a plain dict bypasses the model's
+# attribute_map). Flip the casing here if CE rejects the field.
 _CANCEL_PROCESSING_TASKS_KEY = "cancel_processing_tasks"
 
 
