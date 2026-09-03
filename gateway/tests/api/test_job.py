@@ -504,6 +504,9 @@ class TestJobApi:
         """Tests job stop."""
         self._authorize("test_user")
 
+        job_before = Job.objects.filter(id__exact="8317718f-5c0d-4fb6-9947-72e480b8a348").first()
+        updated_before = job_before.updated
+
         job_stop_response = self.client.post(
             reverse(
                 "v1:jobs-stop",
@@ -514,6 +517,8 @@ class TestJobApi:
         assert job_stop_response.status_code == status.HTTP_200_OK
         job = Job.objects.filter(id__exact="8317718f-5c0d-4fb6-9947-72e480b8a348").first()
         assert job.status == Job.STOPPED
+        assert job.updated is not None
+        assert job.updated != updated_before
         assert "Job has been stopped." in job_stop_response.data.get("message")
 
         job_events = JobEvent.objects.filter(job=job)

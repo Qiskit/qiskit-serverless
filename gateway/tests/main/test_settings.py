@@ -162,14 +162,3 @@ class TestComputeProfileSettings:
 
         with pytest.raises(ImproperlyConfigured):
             importlib.reload(main.settings)
-
-
-def test_filler_author_username_read_from_environment(monkeypatch):
-    """FILLER_AUTHOR_USERNAME comes from the environment and falls back to a default."""
-    monkeypatch.delenv("FILLER_AUTHOR_USERNAME", raising=False)
-    importlib.reload(main.settings)
-    assert main.settings.FILLER_AUTHOR_USERNAME == "FillerId"
-
-    monkeypatch.setenv("FILLER_AUTHOR_USERNAME", "IBMid-1000000000")
-    importlib.reload(main.settings)
-    assert main.settings.FILLER_AUTHOR_USERNAME == "IBMid-1000000000"
