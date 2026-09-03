@@ -3,7 +3,7 @@
 import logging
 import time
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 from core.domain.business_models import BusinessModel
 from core.models import Job
@@ -46,6 +46,11 @@ class Command(BaseCommand):
         batch_size = options["batch_size"]
         sleep_seconds = options["sleep"]
         dry_run = options["dry_run"]
+
+        if batch_size < 1:
+            raise CommandError(f"--batch-size must be at least 1, got {batch_size}")
+        if sleep_seconds < 0:
+            raise CommandError(f"--sleep must be non-negative, got {sleep_seconds}")
 
         pending = Job.objects.filter(business_model=BusinessModel.SUBSIDIZED)
         total = pending.count()

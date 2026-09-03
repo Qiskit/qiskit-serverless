@@ -3,6 +3,7 @@
 import pytest
 from django.contrib.auth.models import User
 from django.core.management import call_command
+from django.core.management.base import CommandError
 
 from core.domain.business_models import BusinessModel
 from core.models import Job
@@ -39,6 +40,27 @@ def test_dry_run_writes_nothing(jobs):
     old, _ = jobs
 
     call_command("migrate_job_business_model", dry_run=True, sleep=0)
+
+    for job in old:
+        assert _stored_business_model(job) == BusinessModel.SUBSIDIZED
+
+
+@pytest.mark.parametrize("batch_size", [0, -1])
+def test_rejects_non_positive_batch_size(jobs, batch_size):
+    old, _ = jobs
+
+    with pytest.raises(CommandError, match="--batch-size"):
+        call_command("migrate_job_business_model", batch_size=batch_size, sleep=0)
+
+    for job in old:
+        assert _stored_business_model(job) == BusinessModel.SUBSIDIZED
+
+
+def test_rejects_negative_sleep(jobs):
+    old, _ = jobs
+
+    with pytest.raises(CommandError, match="--sleep"):
+        call_command("migrate_job_business_model", sleep=-1)
 
     for job in old:
         assert _stored_business_model(job) == BusinessModel.SUBSIDIZED
