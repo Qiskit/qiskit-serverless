@@ -310,7 +310,7 @@ spec:
               value: {{ .Values.ce.icrPullSecret | quote }}
 
             - name: DEFAULT_COMPUTE_PROFILE
-              value: {{ .Values.ce.defaultComputeProfile | quote }}
+              value: {{ .Values.ce.defaultComputeProfile | default "16x128" | quote }}
             - name: FLEETS_DEFAULT_MAX_INSTANCES
               value: {{ .Values.ce.fleetsDefaultMaxInstances | quote }}
             - name: FLEETS_RUNTIME_IAM_URL
@@ -352,9 +352,12 @@ metadata:
   labels:
     {{- include "scheduler.labels" . | nindent 4 }}
 spec:
-  {{- if not .Values.autoscaling.enabled }}
+  # The scheduler loop is not safe to run twice: replicas stays at 1 whatever
+  # autoscaling does to the gateway, and Recreate keeps the old pod from
+  # overlapping with the new one during a rollout.
   replicas: 1
-  {{- end }}
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       {{- include "scheduler.selectorLabels" . | nindent 6 }}
@@ -526,7 +529,7 @@ spec:
               value: {{ .Values.ce.icrPullSecret | quote }}
 
             - name: DEFAULT_COMPUTE_PROFILE
-              value: {{ .Values.ce.defaultComputeProfile | quote }}
+              value: {{ .Values.ce.defaultComputeProfile | default "16x128" | quote }}
             - name: FLEETS_DEFAULT_MAX_INSTANCES
               value: {{ .Values.ce.fleetsDefaultMaxInstances | quote }}
             - name: FLEETS_RUNTIME_IAM_URL
