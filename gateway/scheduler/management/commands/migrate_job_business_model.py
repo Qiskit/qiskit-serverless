@@ -16,13 +16,15 @@ DEFAULT_SLEEP_SECONDS = 1.0
 
 
 class Command(BaseCommand):
-    """Rewrite api_job.business_model from SUBSIDIZED to LICENSED in batches.
+    """Rewrite api_job.business_model from SUBSIDIZED to LICENSED in batches."""
 
-    One UPDATE per batch with a pause in between, so a table with a long job history
-    does not hold a single long write nor saturate the database. Safe to interrupt and
-    run again: each batch selects rows that still hold the old name, so a second run
-    picks up where the first one stopped.
-    """
+    help = (
+        "Rewrite api_job.business_model from SUBSIDIZED to LICENSED in batches, with a "
+        "pause between them, so a table with a long job history is not touched by one "
+        "long write. Safe to interrupt and run again: each batch only selects rows that "
+        "still hold the old name, so a second run picks up where the first one stopped. "
+        "Use --dry-run first to see how many rows would move."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(
