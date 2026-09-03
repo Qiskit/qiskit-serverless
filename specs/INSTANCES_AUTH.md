@@ -52,9 +52,9 @@ Represents a single function that the user's instance can access. Contains:
 - `provider_name`: the provider that owns the function
 - `function_title`: the function's title
 - `permissions`: the set of allowed actions (`PLATFORM_PERMISSION_*` strings)
-- `business_model`: how jobs will be billed when the function is run (`TRIAL`, `SUBSIDIZED`, or `CONSUMPTION`)
+- `business_model`: how jobs will be billed when the function is run (`TRIAL`, `LICENSED`, or `CONSUMPTION`)
 
-The `business_model` field is validated against the allowed values at construction time. It is only meaningful when `PLATFORM_PERMISSION_RUN` is present in `permissions`.
+The `business_model` field is validated against the allowed values at construction time. `SUBSIDIZED` is the old name of `LICENSED`: the Runtime API may still send it, and it is turned into `LICENSED` on the spot, so no new job is stored with the old name. It is only meaningful when `PLATFORM_PERMISSION_RUN` is present in `permissions`.
 
 ### `FunctionAccessResult`
 

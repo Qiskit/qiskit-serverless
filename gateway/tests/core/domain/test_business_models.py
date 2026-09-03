@@ -21,6 +21,7 @@ from core.domain.business_models import BusinessModel, billing_name_for
     "business_model,expected",
     [
         (BusinessModel.SUBSIDIZED, "licensed"),
+        (BusinessModel.LICENSED, "licensed"),
         (BusinessModel.TRIAL, "trial"),
         (BusinessModel.CONSUMPTION, "consumption"),
     ],

@@ -1,0 +1,11 @@
+---
+fix:
+  - |
+    A Fleets job that is running is no longer marked as ``FAILED`` when the scheduler
+    cannot read its status because of a configuration problem. Marking a Code Engine
+    project inactive, clearing its task store bucket or deleting a function used to
+    fail every running job of that project on the next scheduler iteration, while the
+    fleets themselves kept running in Code Engine. The status is now left unchanged
+    and ``PROGRAM_TIMEOUT`` still bounds the wait, which is what already happened when
+    the status read itself failed. Submitting a new job to an inactive project still
+    fails, as it should.
