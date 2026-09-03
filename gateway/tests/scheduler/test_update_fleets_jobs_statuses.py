@@ -9,6 +9,7 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, Program
 from core.services.runners import RunnerError
 from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses
+from tests.utils import TestUtils
 
 _MOD = "scheduler.tasks.update_fleets_jobs_statuses"
 
@@ -34,6 +35,7 @@ def _make_fleets_job(status=Job.RUNNING, fleet_id="fleet-123"):
     job.sub_status = None
     job.running_started_at = None
     job.instance_crn = "crn:v1:bluemix:public:quantum-computing:us-east:a/abc:def::"
+    job.filler = False
     job.in_terminal_state.return_value = status in Job.TERMINAL_STATUSES
 
     def _apply_update_fields(fields_map):
@@ -57,20 +59,22 @@ class TestUpdateJobStatus:
         assert result is False
         mock_get_runner.assert_not_called()
 
-    def test_runner_error_calls_to_terminal_failed_and_returns_false(self):
+    def test_runner_error_leaves_the_status_alone_and_checks_the_timeout(self):
         task = _make_task()
         job = _make_fleets_job()
 
         mock_runner = MagicMock()
-        mock_runner.status.side_effect = RunnerError("connection error")
+        mock_runner.status.side_effect = RunnerError("Code Engine project 'p' is not active")
 
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
             patch.object(task, "to_terminal") as mock_terminal,
+            patch.object(task, "stop_job_if_timeout") as mock_timeout,
         ):
             result = task.update_job_status(job)
 
-        mock_terminal.assert_called_once_with(job, Job.FAILED)
+        mock_terminal.assert_not_called()
+        mock_timeout.assert_called_once_with(job)
         assert result is False
 
     def test_succeeded_calls_to_terminal_and_records_duration(self):
@@ -507,3 +511,59 @@ class TestEventStreamsIntegration:
 
         assert call_order == ["started", "license", "db"]
         task.event_streams_client.emit_license_fee.assert_called_once_with(job)
+
+
+def test_filler_jobs_are_left_out_of_the_job_metrics():
+    """A filler job neither counts as a terminal job nor contributes an execution duration."""
+    task = _make_task()
+    mock_job = MagicMock(spec=Job)
+    mock_job.filler = True
+
+    task._increment_terminal_counter(mock_job)
+    task._record_execution_duration(mock_job)
+
+    task.metrics.increment_jobs_terminal.assert_not_called()
+    task.metrics.observe_job_execution_duration.assert_not_called()
+
+
+def test_a_filler_job_that_ends_on_its_own_is_counted():
+    """Reaching a terminal state here means the balancer did not ask for it.
+
+    This is the counter that reveals a filler program which exits by itself, which
+    the balancer would otherwise replace once a second forever.
+    """
+    task = _make_task()
+    mock_job = MagicMock(spec=Job)
+    mock_job.filler = True
+    mock_job.status = Job.FAILED
+
+    task._increment_terminal_counter(mock_job)
+
+    task.metrics.increment_filler_jobs_ended.assert_called_once_with(Job.FAILED)
+    task.metrics.increment_jobs_terminal.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_an_inactive_project_does_not_fail_a_running_job():
+    """A deactivated Code Engine project is a config problem, not a job that failed.
+
+    Exercises the real FleetsRunner so the RunnerError comes from the inactive
+    project rather than from a mock, which is how this reached production: the
+    fleet keeps running in Code Engine while the row says FAILED.
+    """
+    project = TestUtils.get_or_create_ce_project(
+        project_name="inactive-project",
+        project_id="project-uuid",
+        active=False,
+        cos_bucket_user_data_name="bucket",
+    )
+    program = TestUtils.create_program("inactive-project-program", runner=Program.FLEETS, code_engine_project=project)
+    job = Job.objects.create(
+        program=program, author=program.author, runner=Program.FLEETS, status=Job.RUNNING, fleet_id="fleet-abc"
+    )
+
+    task = _make_task()
+    task.update_job_status(job)
+
+    job.refresh_from_db()
+    assert job.status == Job.RUNNING

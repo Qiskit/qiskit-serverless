@@ -5,7 +5,7 @@ from core.domain.authorization.function_access_result import FunctionAccessResul
 from core.models import PLATFORM_PERMISSION_RUN, PLATFORM_PERMISSION_READ, PLATFORM_PERMISSION_JOBS_READ
 
 
-def _entry(provider_name, function_title, permissions, business_model="SUBSIDIZED"):
+def _entry(provider_name, function_title, permissions, business_model="LICENSED"):
     return FunctionAccessEntry(
         provider_name=provider_name,
         function_title=function_title,

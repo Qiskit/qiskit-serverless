@@ -10,5 +10,5 @@ class ConfigKey(Enum):
     UPLOAD_FILE_VALID_MIME_TYPES = "gateway.upload_file.valid_mime_types"
     RUNTIME_INSTANCES_API_ENABLED = "gateway.runtime_instances_api.enabled"
     FILLER_ENABLED = "scheduler.filler.enabled"
-    FILLER_PROGRAM_ID = "scheduler.filler.program_id"
+    FILLER_FUNCTION = "scheduler.filler.function"
     FILLER_SLOTS = "scheduler.filler.slots"

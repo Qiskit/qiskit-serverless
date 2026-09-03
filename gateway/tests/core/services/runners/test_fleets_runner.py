@@ -19,6 +19,9 @@ from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
 import pytest
+from django.conf import settings as django_settings
+
+from core.domain.compute_profile import normalize as normalize_compute_profile
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
 from core.models import Job, Program
@@ -501,15 +504,20 @@ def test_submit_uses_default_profile_when_no_compute_profile():
 
 
 def test_submit_default_profile_in_settings_is_parseable():
-    """DEFAULT_COMPUTE_PROFILE default value in settings.py parses without error."""
-    runner, mock_handler = _make_submit_runner()
+    """Whatever settings.py defaults DEFAULT_COMPUTE_PROFILE to, the runner parses it.
 
-    with _patch_settings(DEFAULT_COMPUTE_PROFILE="bx3d-24x120"):
+    Reads the real setting, not a copy, so a changed default cannot leave this passing.
+    """
+    runner, mock_handler = _make_submit_runner()
+    default = django_settings.DEFAULT_COMPUTE_PROFILE
+    cpu, memory = normalize_compute_profile(default).split("x")[:2]
+
+    with _patch_settings(DEFAULT_COMPUTE_PROFILE=default):
         runner.submit()
 
     call_kwargs = mock_handler.submit_job.call_args.kwargs
-    assert call_kwargs["scale_cpu_limit"] == "24"
-    assert call_kwargs["scale_memory_limit"] == "120G"
+    assert call_kwargs["scale_cpu_limit"] == cpu
+    assert call_kwargs["scale_memory_limit"] == f"{memory}G"
     assert "scale_gpu" not in (call_kwargs.get("extra_fields") or {})
 
 
