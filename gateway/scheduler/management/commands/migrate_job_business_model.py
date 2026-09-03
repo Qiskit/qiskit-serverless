@@ -11,6 +11,9 @@ from core.models import Job
 
 logger = logging.getLogger("commands")
 
+# Not settings.JOB_LOGS_MIGRATION_BATCH_SIZE: that setting sizes per-row storage I/O for
+# the sibling migrate_old_job_* commands, while this one is a single bulk UPDATE per
+# batch, so it can afford a much larger batch for the same amount of database work.
 DEFAULT_BATCH_SIZE = 500
 DEFAULT_SLEEP_SECONDS = 1.0
 
