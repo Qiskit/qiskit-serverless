@@ -226,7 +226,6 @@ class BalanceFillerJobs(SchedulerTask):
             runner=Program.FLEETS,
             compute_profile=compute_profile,
             compute_profile_fk=program.default_size.compute_profile,
-            # Nobody asked for a size, so the attribution does not apply.
             size_source=Job.SIZE_SOURCE_NONE,
             function_size=program.default_size,
             status=Job.QUEUED,
