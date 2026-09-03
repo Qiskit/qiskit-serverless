@@ -67,8 +67,10 @@ class Command(BaseCommand):
             if not batch_ids:
                 break
 
-            Job.objects.filter(id__in=batch_ids).update(business_model=BusinessModel.LICENSED, version=F("version") + 1)
-            updated += len(batch_ids)
+            affected = Job.objects.filter(id__in=batch_ids).update(
+                business_model=BusinessModel.LICENSED, version=F("version") + 1
+            )
+            updated += affected
             logger.info("[migrate_job_business_model] Updated %s of %s jobs", updated, total)
 
             time.sleep(sleep_seconds)

@@ -1,5 +1,7 @@
 """Tests for the migrate_job_business_model command."""
 
+import logging
+
 import pytest
 from django.contrib.auth.models import User
 from django.core.management import call_command
@@ -47,6 +49,26 @@ def test_bumps_version_so_a_concurrent_save_detects_the_change(jobs):
     for job, version_before in zip(old, versions_before):
         job.refresh_from_db(fields=["version"])
         assert job.version == version_before + 1
+
+
+def test_updated_count_reflects_affected_rows_not_selected_ids(jobs, monkeypatch, caplog):
+    """A row deleted between the SELECT and the UPDATE must not inflate the reported count."""
+    old, _ = jobs
+    original_update = QuerySet.update
+    deleted = {"done": False}
+
+    def fake_update(self, **kwargs):
+        if not deleted["done"]:
+            deleted["done"] = True
+            old[0].delete()
+        return original_update(self, **kwargs)
+
+    monkeypatch.setattr(QuerySet, "update", fake_update)
+
+    with caplog.at_level(logging.INFO, logger="commands"):
+        call_command("migrate_job_business_model", batch_size=len(old), sleep=0)
+
+    assert "Finished, 2 jobs updated" in caplog.text
 
 
 def test_dry_run_writes_nothing(jobs):
