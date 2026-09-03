@@ -184,7 +184,7 @@ class BalanceFillerJobs(SchedulerTask):
         logger.info("[BalanceFillerJobs] deactivated: %s", reason)
 
     def _discard_unsubmitted_filler_jobs(self) -> None:
-        """Stop filler jobs stuck in QUEUED with no fleet.
+        """Fail filler jobs stuck in QUEUED with no fleet.
 
         Creation submits in the same call that saves the row, so QUEUED means something
         failed in between. Nothing else ever looks at such a row again: the status
@@ -197,7 +197,7 @@ class BalanceFillerJobs(SchedulerTask):
                 "check Code Engine for an orphan fleet",
                 job.id,
             )
-            self._mark_stopped(job)
+            self._mark_failed(job)
 
     def _create_filler_job(self, program: Program, compute_profile: str) -> None:
         """Create and submit one filler job, the most this task creates per loop.
@@ -259,7 +259,7 @@ class BalanceFillerJobs(SchedulerTask):
                 # It raised before runner.submit(), so no fleet exists and this row is
                 # already unreachable. _discard_unsubmitted_filler_jobs is the net for
                 # the cases no except block sees.
-                self._mark_stopped(job)
+                self._mark_failed(job)
             return self._creation_failed(ex)
 
         submitted = job.status == Job.PENDING
@@ -298,6 +298,20 @@ class BalanceFillerJobs(SchedulerTask):
 
         self._mark_stopped(job)
         logger.info("[BalanceFillerJobs] job_id=%s filler job stopped", job.id)
+
+    def _mark_failed(self, job: Job) -> None:
+        """Write FAILED on a job whose submit never happened.
+
+        Not _mark_stopped: nothing stopped it, its creation broke, and that counter is
+        cross-checked against the FILLER_STOP events.
+        """
+        job.update_fields({"status": Job.FAILED, "sub_status": None})
+        JobEvent.objects.add_status_event(
+            job_id=job.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.FILLER_FAILED,
+            status=Job.FAILED,
+        )
 
     def _mark_stopped(self, job: Job) -> None:
         """Write STOPPED on the job, record the event, and count it."""

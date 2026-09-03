@@ -341,8 +341,8 @@ def test_a_filler_job_that_was_never_submitted_is_discarded(filler_program):
     _run(task)
 
     stuck.refresh_from_db()
-    assert stuck.status == Job.STOPPED
-    assert JobEvent.objects.filter(job=stuck, context=JobEventContext.FILLER_STOP).exists()
+    assert stuck.status == Job.FAILED
+    assert JobEvent.objects.filter(job=stuck, context=JobEventContext.FILLER_FAILED).exists()
 
 
 def test_filler_jobs_on_another_profile_are_always_stopped(filler_program):
@@ -508,8 +508,8 @@ def test_a_creation_that_fails_before_the_submit_discards_the_row(filler_program
         task.run()
 
     job = Job.objects.get(filler=True)
-    assert job.status == Job.STOPPED
-    assert JobEvent.objects.filter(job=job, context=JobEventContext.FILLER_STOP).exists()
+    assert job.status == Job.FAILED
+    assert JobEvent.objects.filter(job=job, context=JobEventContext.FILLER_FAILED).exists()
 
 
 def test_the_balancer_runs_after_the_fleets_status_update(settings):
