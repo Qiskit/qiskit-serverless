@@ -28,10 +28,10 @@ class BalanceFillerJobs(SchedulerTask):
     """Keep real plus filler jobs on one compute profile at the configured minimum.
 
     - The compute profile is derived from the filler program's default size.
-    
+
     - A filler job belongs to the feature only while it matches the program.id and that profile
     Changing the filler function or the compute profile will stop all the previous job filler
-    
+
     - Filler jobs are submitted directly instead of through the queue
     ScheduleFleetsJobs feeds, which would put them in competition with real queued jobs.
     """
@@ -65,7 +65,8 @@ class BalanceFillerJobs(SchedulerTask):
     def _balance_filler_jobs(self, program: Program, filler_jobs: list[Job]) -> None:
         """Stop the filler jobs that no longer belong, then close the gap to the target."""
         profile_row = program.default_size.compute_profile
-        compute_profile = self._compute_profile_of(program)
+        # Primary keys are free text, so a row may carry the instance-family prefix.
+        compute_profile = compute_profile_domain.normalize(profile_row.compute_profile_id)
         slots = Config.get_int(ConfigKey.FILLER_SLOTS)
         real_running = Job.objects.filter(
             compute_profile_fk=profile_row,
@@ -102,14 +103,6 @@ class BalanceFillerJobs(SchedulerTask):
             self._create_filler_job(program, compute_profile)
         elif len(current) > target:
             self._stop_filler_jobs(current[: len(current) - target])
-
-    def _compute_profile_of(self, program: Program) -> str:
-        """Return the program's default compute profile in canonical form.
-
-        ComputeProfile primary keys are free text, so a row can carry the prefixed form.
-        Normalizing keeps the value the filler jobs store stable across loops.
-        """
-        return compute_profile_domain.normalize(program.default_size.compute_profile.compute_profile_id)
 
     def _get_filler_program(self) -> Program | None:  # pylint: disable=too-many-return-statements
         """Return the configured filler program, or None when the feature is off.
