@@ -36,7 +36,6 @@ def mock_client():
             host="https://test-host.com",
             token="test-token",
             instance="test-instance",
-            version="v1",
         )
         return client
 
