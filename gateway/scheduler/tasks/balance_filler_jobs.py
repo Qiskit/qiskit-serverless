@@ -20,20 +20,19 @@ from .task import SchedulerTask
 
 logger = logging.getLogger("scheduler.BalanceFillerJobs")
 
-# Loops to skip after a failed creation. This task keeps no memory of what it tried, so
-# a failure leaves the world unchanged and the next loop would repeat the same attempt a
-# second later, forever. Counted in loops, not seconds, and only decremented on loops
-# that reach the creation path, so the delay pauses while real jobs fill the slots.
+# Loops to skip after a failed creation to avoid create a failed job per second if CE is down.
 RETRY_AFTER_LOOPS = 60
 
 
 class BalanceFillerJobs(SchedulerTask):
     """Keep real plus filler jobs on one compute profile at the configured minimum.
 
-    The compute profile is derived from the filler program's default size rather than
-    configured on its own, and a filler job belongs to the feature only while it matches
-    both the configured program and that profile, so re-pointing either one drains the
-    jobs left behind. Filler jobs are submitted directly instead of through the queue
+    - The compute profile is derived from the filler program's default size.
+    
+    - A filler job belongs to the feature only while it matches the program.id and that profile
+    Changing the filler function or the compute profile will stop all the previous job filler
+    
+    - Filler jobs are submitted directly instead of through the queue
     ScheduleFleetsJobs feeds, which would put them in competition with real queued jobs.
     """
 
