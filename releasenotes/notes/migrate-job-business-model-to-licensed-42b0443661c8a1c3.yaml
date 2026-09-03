@@ -1,0 +1,10 @@
+---
+upgrade:
+  - |
+    Added ``migrate_job_business_model``, an operator-run management command that
+    rewrites every job row still holding the old ``SUBSIDIZED`` business model to
+    ``LICENSED``. Run it from the deployment repo as a Kubernetes Job, the same way
+    as the existing ``migrate_old_job_*`` commands. It writes in batches (``--batch-size``,
+    default 500) with a pause between them (``--sleep``, default 1 second), is safe to
+    interrupt and run again, and takes ``--dry-run`` to report how many rows would move
+    without writing.
