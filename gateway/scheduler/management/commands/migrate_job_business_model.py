@@ -72,6 +72,9 @@ class Command(BaseCommand):
             updated += affected
             logger.info("[migrate_job_business_model] Updated %s of %s jobs", updated, total)
 
+            if affected < batch_size:
+                break
+
             time.sleep(sleep_seconds)
 
         remaining = pending.count()
