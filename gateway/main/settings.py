@@ -374,7 +374,7 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_REQUEST_BODY_SIZE_MB * 1024 * 1024
 RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
 RAY_CLUSTER_MODE_LOCAL = os.environ.get("RAY_CLUSTER_MODE_LOCAL", "false").lower() == "true"
 RAY_LOCAL_HOST = os.environ.get("RAY_LOCAL_HOST", "http://localhost:8265")
-RAY_NODE_IMAGE = os.environ.get("RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.35.1")
+RAY_NODE_IMAGE = os.environ.get("RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.36.0")
 RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "1"))
 RAY_CLUSTER_WORKER_REPLICAS_MAX = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS_MAX", "5"))
 RAY_CLUSTER_WORKER_MIN_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS", "1"))
@@ -505,7 +505,7 @@ CE_ICR_PULL_SECRET = os.environ.get("CE_ICR_PULL_SECRET", None)
 # override it via ce.fleetsDefaultImage.
 FLEETS_DEFAULT_IMAGE = os.environ.get(
     "FLEETS_DEFAULT_IMAGE",
-    "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.35.1",
+    "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.36.0",
 )
 
 
