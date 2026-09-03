@@ -52,10 +52,18 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         try:
             new_status = runner.status()
         except RunnerError as ex:
+            # status() raises on configuration and data problems, not on a job that
+            # failed: a deleted program, a missing or inactive Code Engine project, an
+            # unconfigured task store bucket. A COS read that fails returns None
+            # instead. So the status is unknown and the fleet may well still be
+            # running; leave it alone and let the timeout bound the wait.
             logger.error(
-                "job_id=%s user_id=%s error=%s Error getting status, set job as FAILED", job.id, job.author.id, str(ex)
+                "job_id=%s user_id=%s error=%s Error getting status, leaving it unchanged",
+                job.id,
+                job.author.id,
+                str(ex),
             )
-            self.to_terminal(job, Job.FAILED)
+            self.stop_job_if_timeout(job)
             return False
 
         if new_status is None:
