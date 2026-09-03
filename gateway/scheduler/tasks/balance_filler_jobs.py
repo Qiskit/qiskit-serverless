@@ -111,14 +111,17 @@ class BalanceFillerJobs(SchedulerTask):
         job, and the running ones are stopped.
         """
         if Config.get_bool(ConfigKey.MAINTENANCE):
-            return self._deactivated("maintenance mode is on")
+            self._log_deactivated("maintenance mode is on")
+            return None
 
         if not Config.get_bool(ConfigKey.FILLER_ENABLED):
-            return self._deactivated(f"{ConfigKey.FILLER_ENABLED.value} is false")
+            self._log_deactivated(f"{ConfigKey.FILLER_ENABLED.value} is false")
+            return None
 
         slots = Config.get_int(ConfigKey.FILLER_SLOTS)
         if slots <= 0:
-            return self._deactivated(f"{ConfigKey.FILLER_SLOTS.value} is {slots}")
+            self._log_deactivated(f"{ConfigKey.FILLER_SLOTS.value} is {slots}")
+            return None
 
         program = self._lookup_filler_function()
         if program is None:
@@ -127,25 +130,31 @@ class BalanceFillerJobs(SchedulerTask):
         if program.runner != Program.FLEETS:
             # get_arguments_storage dispatches on runner, so a Ray program would put
             # the arguments where the Fleets submit cannot find them.
-            return self._deactivated(f"function {program} runner is {program.runner}, expected {Program.FLEETS}")
+            self._log_deactivated(f"function {program} runner is {program.runner}, expected {Program.FLEETS}")
+            return None
 
         if program.disabled:
-            return self._deactivated(f"function {program} is disabled")
+            self._log_deactivated(f"function {program} is disabled")
+            return None
 
         # These three mirror what FleetsRunner and the arguments storage raise on, so
         # the feature deactivates instead of creating a FAILED job every loop.
         project = program.code_engine_project
         if project is None:
-            return self._deactivated(f"function {program} has no Code Engine project")
+            self._log_deactivated(f"function {program} has no Code Engine project")
+            return None
 
         if not project.active:
-            return self._deactivated(f"Code Engine project {project.project_name} is not active")
+            self._log_deactivated(f"Code Engine project {project.project_name} is not active")
+            return None
 
         if not project.cos_bucket_user_data_name:
-            return self._deactivated(f"Code Engine project {project.project_name} has no user data COS bucket")
+            self._log_deactivated(f"Code Engine project {project.project_name} has no user data COS bucket")
+            return None
 
         if program.default_size is None:
-            return self._deactivated(f"function {program} has no default size")
+            self._log_deactivated(f"function {program} has no default size")
+            return None
 
         return program
 
@@ -159,28 +168,29 @@ class BalanceFillerJobs(SchedulerTask):
         """
         value = Config.get(ConfigKey.FILLER_FUNCTION).strip()
         if not value:
-            return self._deactivated(f"{ConfigKey.FILLER_FUNCTION.value} is empty")
+            self._log_deactivated(f"{ConfigKey.FILLER_FUNCTION.value} is empty")
+            return None
 
         programs = Program.objects.select_related("author", "default_size__compute_profile", "code_engine_project")
         try:
             if "/" in value:
                 parts = value.split("/")
                 if len(parts) != 2 or not all(parts):
-                    return self._deactivated(
+                    self._log_deactivated(
                         f"{ConfigKey.FILLER_FUNCTION.value} is {value!r}, expected provider/title or an id"
                     )
+                    return None
                 return programs.get(provider__name=parts[0], title=parts[1])
             return programs.get(id=value)
         except Program.DoesNotExist:
-            return self._deactivated(f"function {value} does not exist")
+            self._log_deactivated(f"function {value} does not exist")
+            return None
         except ValidationError:
-            return self._deactivated(f"{ConfigKey.FILLER_FUNCTION.value} is {value!r}, which is not a valid uuid")
+            self._log_deactivated(f"{ConfigKey.FILLER_FUNCTION.value} is {value!r}, which is not a valid uuid")
+            return None
 
-    def _deactivated(self, reason: str) -> None:
-        """Log why the feature is not active and return None implicitly.
-
-        Do not add an explicit `return None`: pylint rejects it (R1711).
-        """
+    def _log_deactivated(self, reason: str) -> None:
+        """Log why the feature is not active."""
         logger.info("[BalanceFillerJobs] deactivated: %s", reason)
 
     def _discard_unsubmitted_filler_jobs(self) -> None:
@@ -244,7 +254,8 @@ class BalanceFillerJobs(SchedulerTask):
             # the pod, and returning normally here would clear a streak.
             raise
         except Exception as ex:  # pylint: disable=broad-exception-caught
-            return self._creation_failed(ex)
+            self._log_creation_failed(ex)
+            return False
 
         try:
             job = execute_fleets_job(
@@ -260,7 +271,8 @@ class BalanceFillerJobs(SchedulerTask):
                 # already unreachable. _discard_unsubmitted_filler_jobs is the net for
                 # the cases no except block sees.
                 self._mark_failed(job)
-            return self._creation_failed(ex)
+            self._log_creation_failed(ex)
+            return False
 
         submitted = job.status == Job.PENDING
         self.metrics.increment_filler_jobs_created("submitted" if submitted else "failed")
@@ -268,15 +280,14 @@ class BalanceFillerJobs(SchedulerTask):
         # Not reaching PENDING means execute_fleets_job swallowed a RunnerError.
         return submitted
 
-    def _creation_failed(self, ex: Exception) -> bool:
-        """Report a failed creation and give the caller the value to return.
+    def _log_creation_failed(self, ex: Exception) -> None:
+        """Report a failed creation.
 
         Caught here rather than by the scheduler's generic handler, which would log a
         traceback once a second. RETRY_AFTER_LOOPS already limits this to one a minute.
         """
         logger.error("[BalanceFillerJobs] could not create filler job: %s", str(ex))
         self.metrics.increment_filler_jobs_created("failed")
-        return False
 
     def _stop_filler_jobs(self, jobs: list[Job]) -> None:
         """Stop the given filler jobs, cancelling the fleet before writing STOPPED."""
