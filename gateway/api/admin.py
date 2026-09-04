@@ -5,6 +5,7 @@ import logging
 import uuid
 
 from django import forms
+from django.conf import settings
 from django.contrib import admin, messages
 from django.core.cache import cache
 from django.db.models import Count, F, Q
@@ -20,6 +21,7 @@ from api.domain.arguments_schema import (
 )
 from api.domain.job_timeline import render_job_timeline
 from api.domain.exceptions.invalid_arguments_exception import InvalidArgumentsException
+from api.use_cases.programs.upload import no_ce_project_message, seed_default_size
 from api.use_cases.programs.validate_arguments import validate_arguments
 from core.models import (
     CodeEngineProject,
@@ -126,9 +128,36 @@ class ComputeProfileAdmin(admin.ModelAdmin):
 
     # search_fields is required for FunctionSizeAdmin's autocomplete on compute_profile
     search_fields = ["compute_profile_id", "name"]
-    list_display = ["compute_profile_id", "name", "cpu", "gpu", "memory", "updated"]
+    list_display = ["compute_profile_id", "name", "cpu", "gpu", "memory", "sizes_using", "updated"]
     ordering = ["compute_profile_id"]
     readonly_fields = ["created", "updated"]
+
+    def get_queryset(self, request):
+        # Annotate the reference count once per changelist so `sizes_using` does not run a
+        # query per row. The FK to ComputeProfile is PROTECT, so this count is exactly what an
+        # operator needs to see before editing or trying to delete a profile.
+        return super().get_queryset(request).annotate(sizes_using_count=Count("function_sizes"))
+
+    @admin.display(description="Sizes using", ordering="sizes_using_count")
+    def sizes_using(self, obj):
+        """How many FunctionSize rows reference this profile (PROTECTs deletion when > 0)."""
+        return obj.sizes_using_count
+
+
+class FunctionSizeInline(admin.TabularInline):
+    """A function's size catalog (its sizes map) shown inline on the function page.
+
+    Each row maps a size key (e.g. ``s``/``m``/``l``) to the compute profile it runs on. Editing
+    the catalog here, next to ``default_size``, is what the upload endpoint's ``sizes`` payload
+    builds; the separate FunctionSize changelist stays available for cross-function views.
+    """
+
+    model = FunctionSize
+    extra = 0
+    fields = ["function_size", "compute_profile", "updated"]
+    readonly_fields = ["updated"]
+    autocomplete_fields = ["compute_profile"]
+    verbose_name_plural = "Sizes (compute profile per size)"
 
 
 @admin.register(FunctionSize)
@@ -215,6 +244,41 @@ class ProgramAdminForm(forms.ModelForm):
 
         return value
 
+    def clean(self):
+        """Assign a Code Engine project to a Fleets function, and refuse the save if none is available.
+
+        The upload endpoint auto-assigns a CE project (provider's project, or the deployment default)
+        and rejects a Fleets function it cannot place, since one is not runnable without an active
+        project. A plain admin save skips that, so replicate it here: fail loud with the same wording
+        rather than let an operator persist a function that can never run.
+
+        Runs before ``_post_clean`` copies cleaned values onto the instance, so the assigned project
+        is written back into ``cleaned_data`` for the save to pick up. Leaving a project the operator
+        chose alone falls out of ``assign_to_program`` being a no-op when one is already set.
+        """
+        cleaned_data = super().clean()
+
+        if cleaned_data.get("runner") != Program.FLEETS:
+            return cleaned_data
+
+        # Mirror the request onto the instance so the manager sees the values being saved, not the
+        # stored ones, then let it assign (in place) exactly as the upload use case does.
+        self.instance.runner = Program.FLEETS
+        self.instance.provider = cleaned_data.get("provider")
+        self.instance.code_engine_project = cleaned_data.get("code_engine_project")
+        try:
+            CodeEngineProject.objects.assign_to_program(self.instance)
+        except ValueError:
+            # select_default() raises when CE_DEFAULT_PROJECT_NAME is unconfigured; treat it as
+            # "no project available" and fall through to the rejection below.
+            pass
+
+        if not self.instance.code_engine_project:
+            raise forms.ValidationError(no_ce_project_message(self.instance))
+
+        cleaned_data["code_engine_project"] = self.instance.code_engine_project
+        return cleaned_data
+
 
 class ValidateArgumentsForm(forms.Form):
     """Arguments to try against a function's stored schema."""
@@ -263,6 +327,7 @@ class ProgramAdmin(admin.ModelAdmin):
     """ProgramAdmin."""
 
     form = ProgramAdminForm
+    inlines = [FunctionSizeInline]
     search_fields = ["title", "author__username"]
     list_filter = ["provider", "type", "runner", "disabled"]
     filter_horizontal = ["instances", "trial_instances"]
@@ -288,6 +353,18 @@ class ProgramAdmin(admin.ModelAdmin):
             "Execution",
             {"fields": ["runner", "gpu", "entrypoint", "artifact", "image", "dependencies", "arguments_schema"]},
         ),
+        (
+            "Sizes",
+            {
+                "fields": ["default_size"],
+                "description": (
+                    "T-shirt sizes for the Fleets runner. Edit the size catalog (each size &rarr; "
+                    "compute profile) in the <b>Sizes</b> table below, then pick the "
+                    "<code>default_size</code> used when a run omits a size. The default must be one "
+                    "of this function's own sizes."
+                ),
+            },
+        ),
         ("Fleets", {"fields": ["code_engine_project"]}),
         ("Ownership", {"fields": ["author", "provider", "instances", "trial_instances"]}),
     ]
@@ -298,14 +375,87 @@ class ProgramAdmin(admin.ModelAdmin):
         "author",
         "type",
         "runner",
+        "sizes_summary",
         "disabled",
     ]
+
+    def get_queryset(self, request):
+        # Count the size rows once per changelist for `sizes_summary`, and pull default_size along
+        # so rendering the default's label does not fire a query per row.
+        return (
+            super()
+            .get_queryset(request)
+            .select_related("default_size")
+            .annotate(declared_sizes_count=Count("function_sizes"))
+        )
+
+    @admin.display(description="Sizes", ordering="declared_sizes_count")
+    def sizes_summary(self, obj):
+        """At-a-glance size config: how many sizes are declared and which is the default."""
+        if not obj.declared_sizes_count:
+            return "-"
+        default = obj.default_size.function_size if obj.default_size_id else "none"
+        return f"{obj.declared_sizes_count} (default: {default})"
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # default_size must belong to this same function (Program.clean() enforces it), so the
+        # dropdown is limited to this function's own sizes rather than every FunctionSize row.
+        # On the add form there is no function yet and therefore no sizes to choose from.
+        if db_field.name == "default_size":
+            resolver_match = getattr(request, "resolver_match", None)
+            object_id = resolver_match.kwargs.get("object_id") if resolver_match else None
+            kwargs["queryset"] = (
+                FunctionSize.objects.filter(function_id=object_id) if object_id else FunctionSize.objects.none()
+            )
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def get_readonly_fields(self, request, obj=None):
         readonly_fields = list(super().get_readonly_fields(request, obj))
         if obj:
             readonly_fields.append("title")
         return readonly_fields
+
+    def save_related(self, request, form, formsets, change):
+        """After the inline size rows are saved, seed a default size for a size-less Fleets function.
+
+        This mirrors the upload use case, which gives every Fleets function a size so runs resolve a
+        compute profile. It runs here rather than in ``save_model`` because the inline ``FunctionSize``
+        formset is only written by ``super().save_related``; before that a function whose operator
+        just declared sizes inline still looks size-less. The CE project is already guaranteed by the
+        form's ``clean`` for Fleets, so only sizing is left to do.
+        """
+        super().save_related(request, form, formsets, change)
+
+        obj = form.instance
+        if obj.runner != Program.FLEETS:
+            return
+
+        self._ensure_default_size(request, obj)
+
+    def _ensure_default_size(self, request, obj):
+        """Seed the deployment default size when a Fleets function declares none, like upload does.
+
+        Skipped when the operator already picked a default or declared any sizes inline, so an edit
+        never overwrites their choice. Seeding is non-fatal: if the default compute profile is not
+        registered the helper leaves the function size-less (it falls back to the platform default
+        profile at run time), and we say so rather than failing the save.
+        """
+        if obj.default_size_id:
+            return
+        if FunctionSize.objects.filter(function=obj).exists():
+            return
+
+        seed_default_size(obj)
+
+        # seed_default_size sets default_size on obj in place; a still-empty default means the
+        # configured DEFAULT_FUNCTION_SIZE_PROFILE has no ComputeProfile row.
+        if not obj.default_size_id:
+            messages.warning(
+                request,
+                f"Default compute profile '{settings.DEFAULT_FUNCTION_SIZE_PROFILE}' is not registered, "
+                "so this function was left with no default size and will run on the platform default "
+                "compute profile. Register the profile or add a size to give it an explicit default.",
+            )
 
     def render_change_form(self, request, context, *args, **kwargs):
         """Warn at the top of the page when the stored arguments_schema is unusable.
