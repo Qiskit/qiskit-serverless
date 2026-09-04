@@ -4,7 +4,9 @@ import pytest
 from django.contrib.auth.models import User
 
 from api.use_cases.programs.list import ListFunctionsUseCase
+from core.domain.authorization.function_access_entry import FunctionAccessEntry
 from core.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.business_models import BusinessModel
 from core.models import Program, Provider, PLATFORM_PERMISSION_READ
 from tests.utils import create_function_access_result
 
@@ -69,5 +71,41 @@ class TestListFunctionsUseCase:
         accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[])
 
         result = ListFunctionsUseCase().execute(user, accessible, None)
+
+        assert result == []
+
+    def test_provider_filter_narrows_catalog_to_that_provider(self, user):
+        provider_a = Provider.objects.create(name="provider-a")
+        provider_b = Provider.objects.create(name="provider-b")
+        Program.objects.create(title="fn-a", author=user, provider=provider_a)
+        Program.objects.create(title="fn-b", author=user, provider=provider_b)
+        accessible = FunctionAccessResult(
+            use_legacy_authorization=False,
+            functions=[
+                FunctionAccessEntry(
+                    provider_name="provider-a",
+                    function_title="fn-a",
+                    business_model=BusinessModel.SUBSIDIZED,
+                    permissions={PLATFORM_PERMISSION_READ},
+                ),
+                FunctionAccessEntry(
+                    provider_name="provider-b",
+                    function_title="fn-b",
+                    business_model=BusinessModel.SUBSIDIZED,
+                    permissions={PLATFORM_PERMISSION_READ},
+                ),
+            ],
+        )
+
+        result = ListFunctionsUseCase().execute(user, accessible, "catalog", provider="provider-a")
+
+        assert [f.title for f in result] == ["fn-a"]
+
+    def test_provider_filter_does_not_bypass_permissions(self, user, provider):
+        # The function exists under the provider, but the user has no access to it.
+        Program.objects.create(title="provider-fn", author=user, provider=provider)
+        accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[])
+
+        result = ListFunctionsUseCase().execute(user, accessible, "catalog", provider="my-provider")
 
         assert result == []
