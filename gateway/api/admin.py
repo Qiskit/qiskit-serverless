@@ -126,9 +126,36 @@ class ComputeProfileAdmin(admin.ModelAdmin):
 
     # search_fields is required for FunctionSizeAdmin's autocomplete on compute_profile
     search_fields = ["compute_profile_id", "name"]
-    list_display = ["compute_profile_id", "name", "cpu", "gpu", "memory", "updated"]
+    list_display = ["compute_profile_id", "name", "cpu", "gpu", "memory", "sizes_using", "updated"]
     ordering = ["compute_profile_id"]
     readonly_fields = ["created", "updated"]
+
+    def get_queryset(self, request):
+        # Annotate the reference count once per changelist so `sizes_using` does not run a
+        # query per row. The FK to ComputeProfile is PROTECT, so this count is exactly what an
+        # operator needs to see before editing or trying to delete a profile.
+        return super().get_queryset(request).annotate(sizes_using_count=Count("function_sizes"))
+
+    @admin.display(description="Sizes using", ordering="sizes_using_count")
+    def sizes_using(self, obj):
+        """How many FunctionSize rows reference this profile (PROTECTs deletion when > 0)."""
+        return obj.sizes_using_count
+
+
+class FunctionSizeInline(admin.TabularInline):
+    """A function's size catalog (its sizes map) shown inline on the function page.
+
+    Each row maps a size key (e.g. ``s``/``m``/``l``) to the compute profile it runs on. Editing
+    the catalog here, next to ``default_size``, is what the upload endpoint's ``sizes`` payload
+    builds; the separate FunctionSize changelist stays available for cross-function views.
+    """
+
+    model = FunctionSize
+    extra = 0
+    fields = ["function_size", "compute_profile", "updated"]
+    readonly_fields = ["updated"]
+    autocomplete_fields = ["compute_profile"]
+    verbose_name_plural = "Sizes (compute profile per size)"
 
 
 @admin.register(FunctionSize)
@@ -263,6 +290,7 @@ class ProgramAdmin(admin.ModelAdmin):
     """ProgramAdmin."""
 
     form = ProgramAdminForm
+    inlines = [FunctionSizeInline]
     search_fields = ["title", "author__username"]
     list_filter = ["provider", "type", "runner", "disabled"]
     filter_horizontal = ["instances", "trial_instances"]
@@ -288,6 +316,18 @@ class ProgramAdmin(admin.ModelAdmin):
             "Execution",
             {"fields": ["runner", "gpu", "entrypoint", "artifact", "image", "dependencies", "arguments_schema"]},
         ),
+        (
+            "Sizes",
+            {
+                "fields": ["default_size"],
+                "description": (
+                    "T-shirt sizes for the Fleets runner. Edit the size catalog (each size &rarr; "
+                    "compute profile) in the <b>Sizes</b> table below, then pick the "
+                    "<code>default_size</code> used when a run omits a size. The default must be one "
+                    "of this function's own sizes."
+                ),
+            },
+        ),
         ("Fleets", {"fields": ["code_engine_project"]}),
         ("Ownership", {"fields": ["author", "provider", "instances", "trial_instances"]}),
     ]
@@ -298,8 +338,39 @@ class ProgramAdmin(admin.ModelAdmin):
         "author",
         "type",
         "runner",
+        "sizes_summary",
         "disabled",
     ]
+
+    def get_queryset(self, request):
+        # Count the size rows once per changelist for `sizes_summary`, and pull default_size along
+        # so rendering the default's label does not fire a query per row.
+        return (
+            super()
+            .get_queryset(request)
+            .select_related("default_size")
+            .annotate(declared_sizes_count=Count("function_sizes"))
+        )
+
+    @admin.display(description="Sizes", ordering="declared_sizes_count")
+    def sizes_summary(self, obj):
+        """At-a-glance size config: how many sizes are declared and which is the default."""
+        if not obj.declared_sizes_count:
+            return "-"
+        default = obj.default_size.function_size if obj.default_size_id else "none"
+        return f"{obj.declared_sizes_count} (default: {default})"
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # default_size must belong to this same function (Program.clean() enforces it), so the
+        # dropdown is limited to this function's own sizes rather than every FunctionSize row.
+        # On the add form there is no function yet and therefore no sizes to choose from.
+        if db_field.name == "default_size":
+            resolver_match = getattr(request, "resolver_match", None)
+            object_id = resolver_match.kwargs.get("object_id") if resolver_match else None
+            kwargs["queryset"] = (
+                FunctionSize.objects.filter(function_id=object_id) if object_id else FunctionSize.objects.none()
+            )
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def get_readonly_fields(self, request, obj=None):
         readonly_fields = list(super().get_readonly_fields(request, obj))
