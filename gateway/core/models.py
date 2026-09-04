@@ -550,12 +550,6 @@ class Job(models.Model):
         help_text="True when this job was created by the filler-jobs balancer to occupy idle GPU "
         "capacity, instead of coming from a real user request.",
     )
-    compute_profile = models.CharField(
-        max_length=255,
-        null=True,
-        blank=True,
-        help_text="Code Engine compute profile for Fleets runner (e.g., gx3d-24x120x1a100p)",
-    )
     logs = models.TextField(default="No logs yet.")
     runner = models.CharField(
         max_length=20, choices=Program.RUNNER_CHOICES, default=Program.RAY, help_text="Execution backend: ray or fleets"
@@ -657,6 +651,16 @@ class Job(models.Model):
     def in_terminal_state(self):
         """Returns true if job is in terminal state."""
         return self.status in self.TERMINAL_STATUSES
+
+    @property
+    def compute_profile_id(self) -> str | None:
+        """Bare compute-profile string from the FK (the source of truth).
+
+        Returns None for Ray jobs and any historical row with no
+        ``compute_profile_fk``. Reads ``compute_profile_fk_id`` first so an
+        unset FK costs no extra query.
+        """
+        return self.compute_profile_fk.compute_profile_id if self.compute_profile_fk_id else None
 
     def save_direct(self, fields: list[str]) -> None:
         """Persist selected fields bypassing optimistic-locking validation.

@@ -199,7 +199,7 @@ class FleetsRunner(AbstractRunner):
             logger.info(
                 "job_id=[%s] profile [%s] → cpu=%s memory=%s gpu=%s",
                 self.job.id,
-                self.job.compute_profile or "default",
+                self.job.compute_profile_id or "default",
                 cpu_limit,
                 memory_limit,
                 scale_gpu,
@@ -792,10 +792,10 @@ class FleetsRunner(AbstractRunner):
         """
         prefix = "fil" if self.job.filler else "job"
         function = _fleet_name_segment(self.job.program.title)
-        # Unlike the title and the username, compute_profile is nullable, and submit() runs on
+        # Unlike the title and the username, the compute profile is nullable, and submit() runs on
         # settings.DEFAULT_COMPUTE_PROFILE when it is unset (see _parse_compute_profile). Name the
-        # fleet after the profile it actually runs on rather than after the empty column.
-        profile = _fleet_name_segment(self.job.compute_profile or settings.DEFAULT_COMPUTE_PROFILE)
+        # fleet after the profile it actually runs on rather than after the empty value.
+        profile = _fleet_name_segment(self.job.compute_profile_id or settings.DEFAULT_COMPUTE_PROFILE)
         username = _fleet_name_segment(self.job.author.username)
         return f"{prefix}-{function}-{profile}-{username}-{_fleet_name_timestamp()}"
 
@@ -810,7 +810,7 @@ class FleetsRunner(AbstractRunner):
             is the V2GPUScalePrototype dict or ``None`` when no GPU is
             specified in the profile.
         """
-        profile = self.job.compute_profile or settings.DEFAULT_COMPUTE_PROFILE
+        profile = self.job.compute_profile_id or settings.DEFAULT_COMPUTE_PROFILE
 
         # Normalize away any instance-family prefix. New jobs are already bare
         # (the view normalizes at ingest), but this stays a safety net for
