@@ -86,11 +86,10 @@ def test_create_job_with_compute_profile(api_client, program):
     response = api_client.post(url, data, format="json")
 
     assert response.status_code == status.HTTP_200_OK
-    # The prefix is normalized away: the canonical bare form is what we store.
-    assert response.data["compute_profile"] == "24x120x1a100p"
 
+    # The prefix is normalized away: the canonical bare form is what we store (on the FK).
     job = Job.objects.get(id=response.data["id"])
-    assert job.compute_profile == "24x120x1a100p"
+    assert job.compute_profile_id == "24x120x1a100p"
 
 
 @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
@@ -107,10 +106,9 @@ def test_create_job_with_bare_compute_profile(api_client, program):
     response = api_client.post(url, data, format="json")
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.data["compute_profile"] == "24x120x1a100p"
 
     job = Job.objects.get(id=response.data["id"])
-    assert job.compute_profile == "24x120x1a100p"
+    assert job.compute_profile_id == "24x120x1a100p"
 
 
 @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
@@ -126,11 +124,10 @@ def test_create_job_without_compute_profile_uses_default(api_client, program):
     response = api_client.post(url, data, format="json")
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.data["compute_profile"] == "16x128"
 
     # Verify job was created with default compute_profile
     job = Job.objects.get(id=response.data["id"])
-    assert job.compute_profile == "16x128"
+    assert job.compute_profile_id == "16x128"
 
 
 @pytest.mark.parametrize(
@@ -159,7 +156,8 @@ def test_compute_profile_validation_valid_formats(api_client, program, submitted
     response = api_client.post(url, data, format="json")
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.data["compute_profile"] == stored
+    job = Job.objects.get(id=response.data["id"])
+    assert job.compute_profile_id == stored
 
 
 @pytest.mark.parametrize(
@@ -222,11 +220,10 @@ def test_run_with_function_size_happy_path(api_client, program):
     response = api_client.post(url, data, format="json")
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.data["compute_profile"] == "4x16"
     assert response.data["size_source"] == Job.SIZE_SOURCE_REQUESTED
 
     job = Job.objects.get(id=response.data["id"])
-    assert job.compute_profile == "4x16"
+    assert job.compute_profile_id == "4x16"
     assert job.size_source == Job.SIZE_SOURCE_REQUESTED
     assert job.function_size.function_size == "m"
 
@@ -246,7 +243,8 @@ def test_run_with_function_size_is_normalized(api_client, program):
     response = api_client.post(url, data, format="json")
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.data["compute_profile"] == "4x16"
+    job = Job.objects.get(id=response.data["id"])
+    assert job.compute_profile_id == "4x16"
 
 
 def test_run_with_both_compute_profile_and_function_size_returns_400(api_client, program):
@@ -330,12 +328,12 @@ def test_list_includes_sizes_and_default(api_client, user, program):
 
 
 def test_job_list_includes_compute_profile(api_client, user, program):
-    """Test that job list endpoint includes compute_profile."""
-    # Create a job with compute_profile
+    """Test that job list endpoint includes the compute profile (via compute_profile_fk)."""
+    profile = ComputeProfile.objects.get(compute_profile_id="24x120x1a100p")
     job = TestUtils.create_job(
         author=user,
         program=program,
-        compute_profile="gx3d-24x120x1a100p",
+        compute_profile_fk=profile,
     )
 
     url = reverse("v1:jobs-list")
@@ -348,20 +346,20 @@ def test_job_list_includes_compute_profile(api_client, user, program):
     # Response data is paginated with results field containing list of job dicts
     job_data = next((j for j in response.data["results"] if j.get("id") == str(job.id)), None)
     assert job_data is not None
-    assert job_data.get("compute_profile") == "gx3d-24x120x1a100p"
+    assert job_data["compute_profile_fk"]["compute_profile_id"] == "24x120x1a100p"
 
 
 def test_job_detail_includes_compute_profile(api_client, user, program):
-    """Test that job detail endpoint includes compute_profile."""
-    # Create a job with compute_profile
+    """Test that job detail endpoint includes the compute profile (via compute_profile_fk)."""
+    profile = ComputeProfile.objects.get(compute_profile_id="24x120x1a100p")
     job = TestUtils.create_job(
         author=user,
         program=program,
-        compute_profile="gx3d-24x120x1a100p",
+        compute_profile_fk=profile,
     )
 
     url = reverse("v1:retrieve", kwargs={"job_id": job.id})
     response = api_client.get(url, format="json")
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.data["compute_profile"] == "gx3d-24x120x1a100p"
+    assert response.data["compute_profile_fk"]["compute_profile_id"] == "24x120x1a100p"
