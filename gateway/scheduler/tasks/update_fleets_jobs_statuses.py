@@ -142,14 +142,21 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             Job.RUNNING,
         )
+        # running_started_at is persisted before the events because the events carry it as
+        # job_started_at, and because it must survive a failed emit: publishing raises, the
+        # status stays PENDING and the job is retried next tick, but the moment the fleet was
+        # first seen RUNNING is already recorded. Stamping it after a successful emit instead
+        # would push it later by however many ticks failed. It is written only once — a retry
+        # reuses the stored value rather than moving the start time forward.
+        if job.running_started_at is None:
+            job.update_fields({"running_started_at": django_timezone.now()})
+
         self.event_streams_client.emit_job_started(job)
         # prevent custom function to emit license fee
         # since licenses is a provider feature
         if job.program.provider:
             self.event_streams_client.emit_license_fee(job)
-        # running_started_at is set only on first transition; already-RUNNING jobs picked up
-        # after a scheduler restart will have running_started_at=None (metric_value=0).
-        job.update_fields({"status": Job.RUNNING, "running_started_at": django_timezone.now()})
+        job.update_fields({"status": Job.RUNNING})
         JobEvent.objects.add_status_event(
             job_id=job.id,
             origin=JobEventOrigin.SCHEDULER,
