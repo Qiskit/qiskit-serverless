@@ -174,6 +174,12 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             return
 
         logger.warning("job_id=%s user_id=%s timeout=%s hours: job stopped.", job.id, job.author.id, timeout)
+        try:
+            get_runner(job).stop()
+        except RunnerError as ex:
+            # Logged, not returned: the row must still reach STOPPED so the timeout keeps
+            # bounding the user's concurrency slot even when Code Engine is unreachable.
+            logger.error("job_id=%s error cancelling Fleets job on timeout: %s", job.id, str(ex))
         self.to_terminal(job, Job.STOPPED)
 
     def _increment_terminal_counter(self, job: Job) -> None:
