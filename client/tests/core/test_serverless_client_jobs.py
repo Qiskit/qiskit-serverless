@@ -1140,15 +1140,12 @@ class TestComputeProfile:
                 json=mock_response,
             )
 
-            job = mock_client.run(program="test-program", compute_profile="gx3d-24x120x1a100p")
+            mock_client.run(program="test-program", compute_profile="gx3d-24x120x1a100p")
 
-            # Verify client sent compute_profile to API
+            # Verify client sent the (deprecated) compute_profile input to the API
             request_data = json.loads(mock_request.last_request.text)
             assert "compute_profile" in request_data
             assert request_data["compute_profile"] == "gx3d-24x120x1a100p"
-
-            # Verify Job.compute_profile property works
-            assert job.compute_profile == "gx3d-24x120x1a100p"
 
     def test_run_without_compute_profile(self, mock_client):
         """Test run() without compute_profile - backend applies default."""
@@ -1169,11 +1166,8 @@ class TestComputeProfile:
                 json=mock_response,
             )
 
-            job = mock_client.run(program="test-program")
+            mock_client.run(program="test-program")
 
             # Verify client sent compute_profile as None (backend will apply default)
             request_data = json.loads(mock_request.last_request.text)
             assert request_data["compute_profile"] is None
-
-            # Verify backend applied the default
-            assert job.compute_profile == "cx3d-4x16"

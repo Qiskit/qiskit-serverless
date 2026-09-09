@@ -109,7 +109,7 @@ def _make_submit_runner() -> tuple[FleetsRunner, MagicMock]:
     mock_job.PENDING = "PENDING"
     mock_job.RUNNING = "RUNNING"
     mock_job.config = None
-    mock_job.compute_profile = None
+    mock_job.compute_profile_id = None
     mock_job.program.title = "my-function"
     mock_job.author.username = "IBMid-1000000000"
     mock_job.program.image = None
@@ -373,7 +373,7 @@ def test_submit_fleet_name_describes_the_job():
     """A real job's fleet is named job-<function>-<profile>-<username>."""
     runner, mock_handler = _make_submit_runner()
     runner.job.program.title = "my-function"
-    runner.job.compute_profile = "160x1792x8h100"
+    runner.job.compute_profile_id = "160x1792x8h100"
     runner.job.author.username = "alice"
 
     with _patch_settings():
@@ -390,7 +390,7 @@ def test_submit_fleet_name_uses_filler_prefix_for_filler_jobs():
     runner, mock_handler = _make_submit_runner()
     runner.job.filler = True
     runner.job.program.title = "my-function"
-    runner.job.compute_profile = "160x1792x8h100"
+    runner.job.compute_profile_id = "160x1792x8h100"
     runner.job.author.username = "alice"
 
     with _patch_settings():
@@ -404,7 +404,7 @@ def test_submit_fleet_name_is_sanitized_and_bounded():
     runner, mock_handler = _make_submit_runner()
     runner.job.filler = True
     runner.job.program.title = "My Function! With Spaces And A Very Long Title"
-    runner.job.compute_profile = "gx3d-24x120x1a100p"
+    runner.job.compute_profile_id = "gx3d-24x120x1a100p"
     runner.job.author.username = "IBMid-1000000000"
 
     with _patch_settings():
@@ -452,7 +452,7 @@ def test_submit_raises_runner_error_when_no_fleet_id_returned():
 def test_submit_parses_compute_profile_with_gpu():
     """submit() parses compute_profile into cpu, memory, and gpu."""
     runner, mock_handler = _make_submit_runner()
-    runner.job.compute_profile = "gx3d-24x120x1a100p"
+    runner.job.compute_profile_id = "gx3d-24x120x1a100p"
 
     with _patch_settings():
         runner.submit()
@@ -466,7 +466,7 @@ def test_submit_parses_compute_profile_with_gpu():
 def test_submit_parses_compute_profile_without_prefix():
     """submit() parses profiles without a prefix like '24x120x2a100p'."""
     runner, mock_handler = _make_submit_runner()
-    runner.job.compute_profile = "24x120x2a100p"
+    runner.job.compute_profile_id = "24x120x2a100p"
 
     with _patch_settings():
         runner.submit()
@@ -480,7 +480,7 @@ def test_submit_parses_compute_profile_without_prefix():
 def test_submit_parses_compute_profile_without_gpu():
     """submit() parses a CPU-only profile correctly."""
     runner, mock_handler = _make_submit_runner()
-    runner.job.compute_profile = "cx3d-4x16"
+    runner.job.compute_profile_id = "cx3d-4x16"
 
     with _patch_settings():
         runner.submit()
@@ -524,7 +524,7 @@ def test_submit_default_profile_in_settings_is_parseable():
 def test_submit_raises_on_unparseable_compute_profile():
     """submit() raises RunnerError when compute_profile cannot be parsed."""
     runner, _ = _make_submit_runner()
-    runner.job.compute_profile = "not-a-valid-profile"
+    runner.job.compute_profile_id = "not-a-valid-profile"
 
     with _patch_settings():
         with pytest.raises(RunnerError, match="Could not parse compute_profile"):

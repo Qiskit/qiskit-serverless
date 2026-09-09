@@ -50,7 +50,7 @@ class OutputSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Job
-        fields = ["id", "result", "status", "program", "created", "sub_status", "fleet_id", "compute_profile"]
+        fields = ["id", "result", "status", "program", "created", "sub_status", "fleet_id"]
         ref_name = "ProgramsGetJobsOutput"
 
 
@@ -65,7 +65,7 @@ class OutputSerializerWithoutResult(serializers.ModelSerializer):
 
     class Meta:
         model = Job
-        fields = ["id", "status", "program", "created", "sub_status", "fleet_id", "compute_profile"]
+        fields = ["id", "status", "program", "created", "sub_status", "fleet_id"]
         ref_name = "ProgramsGetJobsOutputWithoutResult"
 
 

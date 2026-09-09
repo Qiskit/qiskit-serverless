@@ -505,7 +505,6 @@ class JobAdmin(admin.ModelAdmin):
                 "fields": [
                     "filler",
                     "fleet_id",
-                    "compute_profile",
                     "compute_profile_fk",
                     "size_source",
                     "function_size",
@@ -575,7 +574,11 @@ class JobAdmin(admin.ModelAdmin):
                 continue
         # one single query: the rendering iterates the jobs again, and re-running the queryset
         # could come back empty (deleted in between) and break the rendering half way through
-        jobs = list(Job.objects.filter(id__in=id_list).select_related("author").prefetch_related("job_events"))
+        jobs = list(
+            Job.objects.filter(id__in=id_list)
+            .select_related("author", "compute_profile_fk")
+            .prefetch_related("job_events")
+        )
         if not id_list or not jobs:
             messages.error(request, "No jobs selected for the timeline.")
             return redirect(reverse("admin:api_job_changelist"))
@@ -725,7 +728,7 @@ class QiskitAdminSite(admin.AdminSite):
         if timeline_context is None:
             recent_jobs = list(
                 Job.objects.filter(runner=Program.FLEETS)
-                .select_related("author")
+                .select_related("author", "compute_profile_fk")
                 .prefetch_related("job_events")
                 .order_by("-created")[:20]
             )

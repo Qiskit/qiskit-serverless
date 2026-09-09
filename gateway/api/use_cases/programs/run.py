@@ -72,12 +72,11 @@ def _get_runner_config(
 ) -> RunnerConfig:
     """Resolve the compute profile and sizing provenance for a run.
 
-    ``compute_profile`` (string) is transitional and will be removed; the FK
-    ``compute_profile_fk`` is the source of truth going forward. They always agree
-    at creation. A Fleets job always resolves to a profile string; if no
-    ``ComputeProfile`` row is registered for it, that is a deployment
-    misconfiguration and we reject the job rather than store a null FK. Ray leaves
-    ``compute_profile`` None (profiles are a Fleets concept), so the FK stays null.
+    ``compute_profile_fk`` is the source of truth for the profile a job runs at
+    and is what gets stored on the job. A Fleets job always resolves to a profile;
+    if no ``ComputeProfile`` row is registered for it, that is a deployment
+    misconfiguration and we reject the job rather than store a null FK. Ray is not
+    profiled (profiles are a Fleets concept), so its FK stays null.
 
     Because the size determines the compute profile (and not the reverse -- two
     sizes can map to one profile), the returned :class:`RunnerConfig` also records
@@ -237,7 +236,6 @@ class RunFunctionUseCase:
             author=user,
             gpu=runner_config.gpu,
             runner=function.runner,
-            compute_profile=runner_config.compute_profile,
             compute_profile_fk=runner_config.compute_profile_fk,
             size_source=runner_config.size_source,
             function_size=runner_config.function_size,

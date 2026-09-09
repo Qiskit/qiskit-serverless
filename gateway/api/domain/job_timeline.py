@@ -67,7 +67,7 @@ def _jobs_from_queryset(jobs_qs):
                 "status": job.status,
                 "runner": job.runner,
                 "filler": job.filler,
-                "profile": job.compute_profile or "-",
+                "profile": job.compute_profile_id or "-",
                 "created": job.created,
                 "updated": job.updated,
                 "running_started_at": job.running_started_at,
