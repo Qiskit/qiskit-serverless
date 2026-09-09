@@ -378,6 +378,23 @@ class TestStopJobIfTimeout:
 class TestRun:
     """Tests for run()."""
 
+    def test_excludes_filler_jobs_from_the_query(self):
+        """Filler jobs are owned end-to-end by BalanceFillerJobs, this task must not touch them."""
+        task = _make_task()
+
+        with (
+            patch(f"{_MOD}.settings") as mock_settings,
+            patch(f"{_MOD}.Job") as mock_job_cls,
+        ):
+            mock_settings.LIMITS_MAX_FLEETS = 10
+            mock_job_cls.objects.filter.return_value = []
+            mock_job_cls.RUNNING_STATUSES = Job.RUNNING_STATUSES
+            task.run()
+
+        mock_job_cls.objects.filter.assert_called_once_with(
+            status__in=Job.RUNNING_STATUSES, runner=Program.FLEETS, filler=False
+        )
+
     def test_early_return_when_fleets_disabled(self):
         task = _make_task()
 
