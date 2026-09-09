@@ -27,7 +27,7 @@ def _entry(provider_name, permissions):
         provider_name=provider_name,
         function_title="fnc",
         permissions=permissions,
-        business_model=BusinessModel.SUBSIDIZED,
+        business_model=BusinessModel.LICENSED,
     )
 
 

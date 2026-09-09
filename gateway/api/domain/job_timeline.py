@@ -38,6 +38,16 @@ OUTCOME_LABEL = {
     "FAILED": ("FAILED", "#cc0000"),
     "STOPPED": ("STOPPED", "#888888"),
 }
+# Filler jobs (Job.filler) get a hatched overlay on their segments (see FILLER_HATCH_PATTERN below)
+# and their texts in this grey instead of the usual status/outcome colors, so they read as
+# "not real demand" at a glance without needing a separate legend row per status.
+FILLER_TEXT_COLOR = "#888888"
+FILLER_HATCH_PATTERN = (
+    '<defs><pattern id="qs-filler-hatch" width="6" height="6" patternUnits="userSpaceOnUse" '
+    'patternTransform="rotate(45)">'
+    '<line x1="0" y1="0" x2="0" y2="6" stroke="#525252" stroke-width="3" stroke-opacity="0.55"/>'
+    "</pattern></defs>"
+)
 
 
 def _jobs_from_queryset(jobs_qs):
@@ -56,6 +66,7 @@ def _jobs_from_queryset(jobs_qs):
                 "id": str(job.id),
                 "status": job.status,
                 "runner": job.runner,
+                "filler": job.filler,
                 "profile": job.compute_profile or "-",
                 "created": job.created,
                 "updated": job.updated,
@@ -217,7 +228,7 @@ def build_concurrency_path(series, t_min, t_max, x, cy):
     return path_d
 
 
-def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-statements
+def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-statements,too-many-branches
     """Build SVG timeline visualization."""
     margin_left, margin_right = 260, 260
     margin_top, margin_bottom = 20, 60
@@ -262,6 +273,7 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
         f'data-t-min-ms="{t_min_ms}" data-span-ms="{span_ms}" '
         f'xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace, Menlo, monospace" font-size="10">'
     )
+    svg.append(FILLER_HATCH_PATTERN)
     svg.append(f'<rect x="0" y="0" width="{total_w}" height="{total_h}" class="qs-svg-bg"/>')
 
     top_of_chart = margin_top
@@ -300,11 +312,13 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
             f"{html.escape(t.strftime('%d-%b %H:%M'))}</text>"
         )
 
-    # --- concurrency chart (overlaps), one series for "All" plus one per compute profile ---
+    # --- concurrency chart (overlaps), one area for "All" plus one per compute profile ---
     # Ray and Fleets never contend for the same resource (see `find_overlaps`), so a runner's own
     # concurrency series is computed independently and merged with `_merge_series_max`, never by
     # summing counts across runners: that keeps this chart's "peak overlap" consistent with the
-    # per-job overlap badges, which also never count a Ray/Fleets pair as overlapping.
+    # per-job overlap badges, which also never count a Ray/Fleets pair as overlapping. Note the
+    # compute profile buttons pick which of these areas is shown, but the runner buttons only
+    # filter the gantt rows below, so an area always reflects every runner in the selection.
     def cy(count, max_count):
         return margin_top + concurrency_h - (count / max_count) * (concurrency_h - 10)
 
@@ -323,20 +337,44 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
         f'<text x="{margin_left}" y="{margin_top - 6}" class="qs-heading" font-weight="bold">'
         f"Concurrent RUNNING jobs (peak overlap: {real_max_conc})</text>"
     )
-    path_d = build_concurrency_path(series_all, t_min, t_max, x, lambda c: cy(c, max_conc))
-    if path_d:
-        svg.append(
-            f'<path class="conc-path is-visible" data-profile="__all__" d="{path_d}" '
-            f'fill="#3b82f6" opacity="0.35" stroke="#60a5fa" stroke-width="1.5"/>'
+
+    def append_concurrency_area(job_subset, profile_attr, visible):
+        """Draw one profile's concurrency area, with the filler jobs stacked at the bottom of it.
+
+        Filler jobs hold the compute profile for real, so the area is the whole count, filler jobs
+        included, and its top edge is the "peak overlap" in the heading. What a single area cannot
+        say is how much of a peak is real demand, so the filler jobs' own count is drawn over the
+        bottom of it with the hatch pattern the gantt bars use: below the hatch top edge the jobs
+        are filler, above it they are real. A subset with no filler job gets the plain area alone,
+        exactly as the chart looked before.
+        """
+        visible_class = " is-visible" if visible else ""
+        total_path = build_concurrency_path(
+            runner_scoped_series(job_subset), t_min, t_max, x, lambda c: cy(c, max_conc)
         )
-    for profile in profiles:
-        series_p = runner_scoped_series([j for j in jobs_sorted if j["profile"] == profile])
-        path_d = build_concurrency_path(series_p, t_min, t_max, x, lambda c: cy(c, max_conc))
-        if path_d:
+        if total_path:
             svg.append(
-                f'<path class="conc-path" data-profile="{html.escape(profile)}" d="{path_d}" '
+                f'<path class="conc-path{visible_class}" data-profile="{profile_attr}" d="{total_path}" '
                 f'fill="#3b82f6" opacity="0.35" stroke="#60a5fa" stroke-width="1.5"/>'
             )
+        filler_path = build_concurrency_path(
+            runner_scoped_series([j for j in job_subset if j["filler"]]),
+            t_min,
+            t_max,
+            x,
+            lambda c: cy(c, max_conc),
+        )
+        if filler_path:
+            svg.append(
+                f'<path class="conc-path{visible_class}" data-profile="{profile_attr}" d="{filler_path}" '
+                f'fill="url(#qs-filler-hatch)" stroke="#60a5fa" stroke-width="1.5" stroke-dasharray="4 2"/>'
+            )
+
+    append_concurrency_area(jobs_sorted, "__all__", visible=True)
+    for profile in profiles:
+        append_concurrency_area(
+            [j for j in jobs_sorted if j["profile"] == profile], html.escape(profile), visible=False
+        )
     for c in range(0, max_conc + 1):
         yy = cy(c, max_conc)
         svg.append(f'<text x="{margin_left - 8}" y="{yy + 3:.1f}" class="qs-muted-text" text-anchor="end">{c}</text>')
@@ -364,6 +402,8 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
         outcome_text, outcome_color = OUTCOME_LABEL.get(
             job["status"], (job["status"], STATUS_COLOR.get(job["status"], "#94a3b8"))
         )
+        if job["filler"]:
+            outcome_color = FILLER_TEXT_COLOR
 
         tooltip = (
             f"job_id: {job['id']}\n"
@@ -397,12 +437,17 @@ def build_svg(jobs, overlaps):  # pylint: disable=too-many-locals,too-many-state
                 f'<rect x="{sx1:.1f}" y="{y}" width="{max(sx2 - sx1, 1.5):.1f}" height="{row_h}" '
                 f'class="qs-seg-border qs-seg-{html.escape(seg_status.lower())}" fill="{color}"/>'
             )
+            if job["filler"]:
+                svg.append(
+                    f'<rect x="{sx1:.1f}" y="{y}" width="{max(sx2 - sx1, 1.5):.1f}" height="{row_h}" '
+                    f'fill="url(#qs-filler-hatch)" pointer-events="none"/>'
+                )
             # the segment's own status and duration, drawn inside it when they fit; otherwise
             # they join the other segments that didn't fit in a summary drawn after the bar
             seg_time = fmt_dur((seg_end - seg_start).total_seconds())
             inline_text = f"{seg_status} {seg_time}"
             if len(inline_text) * 5.4 + 4 <= sx2 - sx1:
-                seg_text_color = STATUS_TEXT_COLOR.get(seg_status, "#0b1020")
+                seg_text_color = FILLER_TEXT_COLOR if job["filler"] else STATUS_TEXT_COLOR.get(seg_status, "#0b1020")
                 svg.append(
                     f'<text x="{(sx1 + sx2) / 2:.1f}" y="{cy_mid + 3:.1f}" fill="{seg_text_color}" '
                     f'text-anchor="middle" font-size="9">{html.escape(inline_text)}</text>'
@@ -455,6 +500,7 @@ def build_legend():
             f'<span class="qs-legend-item qs-outcome qs-outcome--{outcome_status.lower()}">'
             f"{html.escape(text)}</span>"
         )
+    parts.append('<span class="qs-legend-item"><span class="qs-swatch qs-swatch--filler"></span>Filler job</span>')
     parts.append('<span class="qs-legend-item">⧉N = overlaps N other jobs, click a job to see which</span>')
     return "".join(parts)
 
@@ -490,6 +536,7 @@ def build_job_details(jobs):
         )
         fleets_rows = _detail_rows(
             [
+                ("filler", "yes" if job["filler"] else "no"),
                 ("fleet id", job["fleet_id"]),
                 ("compute profile", job["profile"]),
                 ("ce project name", job["ce_project_name"]),

@@ -52,10 +52,18 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         try:
             new_status = runner.status()
         except RunnerError as ex:
+            # status() raises on configuration and data problems, not on a job that
+            # failed: a deleted program, a missing or inactive Code Engine project, an
+            # unconfigured task store bucket. A COS read that fails returns None
+            # instead. So the status is unknown and the fleet may well still be
+            # running; leave it alone and let the timeout bound the wait.
             logger.error(
-                "job_id=%s user_id=%s error=%s Error getting status, set job as FAILED", job.id, job.author.id, str(ex)
+                "job_id=%s user_id=%s error=%s Error getting status, leaving it unchanged",
+                job.id,
+                job.author.id,
+                str(ex),
             )
-            self.to_terminal(job, Job.FAILED)
+            self.stop_job_if_timeout(job)
             return False
 
         if new_status is None:
@@ -134,14 +142,21 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             Job.RUNNING,
         )
+        # running_started_at is persisted before the events because the events carry it as
+        # job_started_at, and because it must survive a failed emit: publishing raises, the
+        # status stays PENDING and the job is retried next tick, but the moment the fleet was
+        # first seen RUNNING is already recorded. Stamping it after a successful emit instead
+        # would push it later by however many ticks failed. It is written only once — a retry
+        # reuses the stored value rather than moving the start time forward.
+        if job.running_started_at is None:
+            job.update_fields({"running_started_at": django_timezone.now()})
+
         self.event_streams_client.emit_job_started(job)
         # prevent custom function to emit license fee
         # since licenses is a provider feature
         if job.program.provider:
             self.event_streams_client.emit_license_fee(job)
-        # running_started_at is set only on first transition; already-RUNNING jobs picked up
-        # after a scheduler restart will have running_started_at=None (metric_value=0).
-        job.update_fields({"status": Job.RUNNING, "running_started_at": django_timezone.now()})
+        job.update_fields({"status": Job.RUNNING})
         JobEvent.objects.add_status_event(
             job_id=job.id,
             origin=JobEventOrigin.SCHEDULER,
@@ -163,11 +178,25 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
 
     def _increment_terminal_counter(self, job: Job) -> None:
         """Increment terminal jobs counter."""
+        if job.filler:
+            # A filler job runs continuously, so counting it here would make a
+            # constant floor look like user demand. It gets its own counter, which
+            # is worth having because reaching a terminal state on this path means
+            # nothing asked the job to stop: FAILED or SUCCEEDED is a filler
+            # function that exited by itself, and STOPPED is the PROGRAM_TIMEOUT
+            # path. The scheduler task that will stop filler jobs deliberately
+            # writes their terminal status itself and never reaches this method.
+            self.metrics.increment_filler_jobs_ended(job.status)
+            return
         provider = job.program.provider.name if job.program_id and job.program.provider_id else "custom"
         self.metrics.increment_jobs_terminal(provider=provider, final_status=job.status)
 
     def _record_execution_duration(self, job: Job) -> None:
         """Record execution duration for a successfully completed job."""
+        if job.filler:
+            # Filler jobs run until something needs their slot, so their lifetime
+            # says nothing about how long real work takes.
+            return
         running_event = JobEvent.objects.filter(job=job, data__status=Job.RUNNING).order_by("-created").first()
         if running_event is None:
             return

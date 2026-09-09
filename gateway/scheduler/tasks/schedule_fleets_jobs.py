@@ -77,6 +77,11 @@ class ScheduleFleetsJobs(SchedulerTask):
 
     def add_queue_wait_time_metric(self, job: Job):
         """Add queue wait time metric."""
+        if job.filler:
+            # Filler jobs skip the queue by design; one that reaches here was
+            # rescued from QUEUED by fair-share, and its wait says nothing about
+            # how long real work waits.
+            return
         now = datetime.now(timezone.utc)
         wait_seconds = (now - job.created).total_seconds()
         job_compute_type = "gpu" if job.gpu else "cpu"

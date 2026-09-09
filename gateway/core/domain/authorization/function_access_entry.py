@@ -5,10 +5,11 @@ from dataclasses import dataclass
 from typing import Set
 
 from core.domain.business_models import BusinessModel
+from core.domain.subsidized_license_mapping import licensed_instead_of_subsidized
 
 logger = logging.getLogger("api.FunctionAccessEntry")
 
-VALID_BUSINESS_MODELS = {BusinessModel.TRIAL, BusinessModel.SUBSIDIZED, BusinessModel.CONSUMPTION}
+VALID_BUSINESS_MODELS = {BusinessModel.TRIAL, BusinessModel.LICENSED, BusinessModel.CONSUMPTION}
 
 
 @dataclass
@@ -22,7 +23,7 @@ class FunctionAccessEntry:
     permissions: Set[str]
 
     def __post_init__(self):
-        self.business_model = self.business_model.upper()
+        self.business_model = licensed_instead_of_subsidized(self.business_model.upper())
         if self.business_model not in VALID_BUSINESS_MODELS:
             logger.error(
                 "Invalid business_model '%s' for %s.%s. Valid: %s",

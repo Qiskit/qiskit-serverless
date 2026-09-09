@@ -609,7 +609,7 @@ def create_function_access_result(
     provider_name,
     function_title,
     permissions,
-    business_model=BusinessModel.SUBSIDIZED,
+    business_model=BusinessModel.LICENSED,
 ):
     """Create a FunctionAccessResult for testing authorization.
 
@@ -620,7 +620,7 @@ def create_function_access_result(
         provider_name: Name of the provider offering the function.
         function_title: Title of the function to grant access to.
         permissions: Permissions to grant for the function.
-        business_model: Business model for the function. Default is SUBSIDIZED.
+        business_model: Business model for the function. Default is LICENSED.
 
     Returns:
         FunctionAccessResult instance with a single function entry.

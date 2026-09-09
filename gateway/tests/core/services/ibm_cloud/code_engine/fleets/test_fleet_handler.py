@@ -25,7 +25,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
-from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
+from core.ibm_cloud.code_engine.fleets.handler import _CANCEL_PROCESSING_TASKS_KEY, FleetHandler
 from core.ibm_cloud.code_engine.fleets.utils import (
     FleetJobPaths,
     build_run_env_variables,
@@ -297,7 +297,9 @@ def test_cancel_job_happy_path_waits_no_delete_by_default(project_id):
         ):
             handler.cancel_job(fleet_uuid, wait=True, timeout_seconds=10, poll_interval_seconds=0.01)
 
-    fleets_api.cancel_fleet.assert_called_once_with(project_id=project_id, id=fleet_uuid)
+    fleets_api.cancel_fleet.assert_called_once_with(
+        project_id=project_id, id=fleet_uuid, body={_CANCEL_PROCESSING_TASKS_KEY: True}
+    )
     waiter.assert_called_once()
     fleets_api.delete_fleet.assert_not_called()
 
@@ -317,7 +319,9 @@ def test_cancel_job_waits_and_deletes_when_flag_set(project_id):
         ):
             handler.cancel_job(fleet_uuid, wait=True, delete=True)
 
-    fleets_api.cancel_fleet.assert_called_once_with(project_id=project_id, id=fleet_uuid)
+    fleets_api.cancel_fleet.assert_called_once_with(
+        project_id=project_id, id=fleet_uuid, body={_CANCEL_PROCESSING_TASKS_KEY: True}
+    )
     waiter.assert_called_once()
     fleets_api.delete_fleet.assert_called_once_with(project_id=project_id, id=fleet_uuid)
 
@@ -337,7 +341,9 @@ def test_cancel_job_no_wait_skips_poller(project_id):
         ):
             handler.cancel_job(fleet_uuid, wait=False)
 
-    fleets_api.cancel_fleet.assert_called_once_with(project_id=project_id, id=fleet_uuid)
+    fleets_api.cancel_fleet.assert_called_once_with(
+        project_id=project_id, id=fleet_uuid, body={_CANCEL_PROCESSING_TASKS_KEY: True}
+    )
     waiter.assert_not_called()
     fleets_api.delete_fleet.assert_not_called()
 
@@ -380,7 +386,9 @@ def test_cancel_job_raises_on_non_404_delete_error(project_id):
                 handler.cancel_job(fleet_uuid, wait=True, delete=True)
 
     assert exc.value.status == 409
-    fleets_api.cancel_fleet.assert_called_once_with(project_id=project_id, id=fleet_uuid)
+    fleets_api.cancel_fleet.assert_called_once_with(
+        project_id=project_id, id=fleet_uuid, body={_CANCEL_PROCESSING_TASKS_KEY: True}
+    )
     fleets_api.delete_fleet.assert_called_once_with(project_id=project_id, id=fleet_uuid)
 
 
@@ -456,8 +464,55 @@ def test_cancel_job_times_out_raises_assertion(project_id):
             with pytest.raises(AssertionError):
                 handler.cancel_job(fleet_uuid, wait=True, delete=False, timeout_seconds=0)
 
-    fleets_api.cancel_fleet.assert_called_once_with(project_id=project_id, id=fleet_uuid)
+    fleets_api.cancel_fleet.assert_called_once_with(
+        project_id=project_id, id=fleet_uuid, body={_CANCEL_PROCESSING_TASKS_KEY: True}
+    )
     fleets_api.delete_fleet.assert_not_called()
+
+
+def test_cancel_job_sends_cancel_processing_tasks_true_by_default(project_id):
+    """cancel_job sends cancel_processing_tasks=true so CE kills a never-ending task.
+
+    Asserts the literal wire key (not the constant) to pin the on-the-wire field name and
+    catch an accidental rename or snake_case/camelCase flip. This is the regression guard
+    for the "fleet stuck in Canceling forever" bug.
+    """
+    with patch(f"{_HANDLER_MOD}.FleetsApi") as mock_fleets_api_cls:
+        fleets_api = MagicMock()
+        mock_fleets_api_cls.return_value = fleets_api
+        fleet_uuid = "f-00000000-0000-0000-0000-00000000000a"
+
+        handler = FleetHandler(ce_api_client=MagicMock(), project_id=project_id)
+        with (
+            patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid),
+            patch.object(handler, "_wait_until_terminal_or_canceled"),
+            patch.object(handler, "get_job_status", return_value={"status": "running"}),
+        ):
+            handler.cancel_job(fleet_uuid, wait=False)
+
+    fleets_api.cancel_fleet.assert_called_once_with(
+        project_id=project_id, id=fleet_uuid, body={"cancel_processing_tasks": True}
+    )
+
+
+def test_cancel_job_honors_cancel_processing_tasks_false(project_id):
+    """cancel_job forwards cancel_processing_tasks=false when explicitly requested."""
+    with patch(f"{_HANDLER_MOD}.FleetsApi") as mock_fleets_api_cls:
+        fleets_api = MagicMock()
+        mock_fleets_api_cls.return_value = fleets_api
+        fleet_uuid = "f-00000000-0000-0000-0000-00000000000b"
+
+        handler = FleetHandler(ce_api_client=MagicMock(), project_id=project_id)
+        with (
+            patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid),
+            patch.object(handler, "_wait_until_terminal_or_canceled"),
+            patch.object(handler, "get_job_status", return_value={"status": "running"}),
+        ):
+            handler.cancel_job(fleet_uuid, wait=False, cancel_processing_tasks=False)
+
+    fleets_api.cancel_fleet.assert_called_once_with(
+        project_id=project_id, id=fleet_uuid, body={"cancel_processing_tasks": False}
+    )
 
 
 def test_delete_job_happy_path(project_id):

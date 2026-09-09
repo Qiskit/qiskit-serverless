@@ -1,7 +1,7 @@
 """Unit tests for UpdateFleetsJobsStatuses."""
 
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -9,6 +9,7 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, Program
 from core.services.runners import RunnerError
 from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses
+from tests.utils import TestUtils
 
 _MOD = "scheduler.tasks.update_fleets_jobs_statuses"
 
@@ -34,6 +35,7 @@ def _make_fleets_job(status=Job.RUNNING, fleet_id="fleet-123"):
     job.sub_status = None
     job.running_started_at = None
     job.instance_crn = "crn:v1:bluemix:public:quantum-computing:us-east:a/abc:def::"
+    job.filler = False
     job.in_terminal_state.return_value = status in Job.TERMINAL_STATUSES
 
     def _apply_update_fields(fields_map):
@@ -57,20 +59,22 @@ class TestUpdateJobStatus:
         assert result is False
         mock_get_runner.assert_not_called()
 
-    def test_runner_error_calls_to_terminal_failed_and_returns_false(self):
+    def test_runner_error_leaves_the_status_alone_and_checks_the_timeout(self):
         task = _make_task()
         job = _make_fleets_job()
 
         mock_runner = MagicMock()
-        mock_runner.status.side_effect = RunnerError("connection error")
+        mock_runner.status.side_effect = RunnerError("Code Engine project 'p' is not active")
 
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
             patch.object(task, "to_terminal") as mock_terminal,
+            patch.object(task, "stop_job_if_timeout") as mock_timeout,
         ):
             result = task.update_job_status(job)
 
-        mock_terminal.assert_called_once_with(job, Job.FAILED)
+        mock_terminal.assert_not_called()
+        mock_timeout.assert_called_once_with(job)
         assert result is False
 
     def test_succeeded_calls_to_terminal_and_records_duration(self):
@@ -269,12 +273,65 @@ class TestToRunning:
             mock_dt.now.return_value = fake_now
             task.to_running(job)
 
-        job.update_fields.assert_called_once_with(
-            {
-                "status": Job.RUNNING,
-                "running_started_at": fake_now,
-            }
-        )
+        assert job.update_fields.call_args_list == [
+            call({"running_started_at": fake_now}),
+            call({"status": Job.RUNNING}),
+        ]
+
+    def test_to_running_persists_running_started_at_before_emitting_events(self):
+        """The events carry running_started_at as job_started_at, so it must be set first."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.PENDING)
+        fake_now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        seen = {}
+
+        task.event_streams_client.emit_job_started.side_effect = lambda j: seen.update(started=j.running_started_at)
+        task.event_streams_client.emit_license_fee.side_effect = lambda j: seen.update(license=j.running_started_at)
+
+        with (
+            patch(f"{_MOD}.JobEvent"),
+            patch(f"{_MOD}.django_timezone") as mock_dt,
+        ):
+            mock_dt.now.return_value = fake_now
+            task.to_running(job)
+
+        assert seen == {"started": fake_now, "license": fake_now}
+
+    def test_to_running_keeps_existing_running_started_at_on_retry(self):
+        """A retry after a failed emit must reuse the stored start time, not move it forward."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.PENDING)
+        original = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        job.running_started_at = original
+
+        with (
+            patch(f"{_MOD}.JobEvent"),
+            patch(f"{_MOD}.django_timezone") as mock_dt,
+        ):
+            mock_dt.now.return_value = datetime(2026, 1, 1, 12, 30, 0, tzinfo=timezone.utc)
+            task.to_running(job)
+
+        assert job.running_started_at == original
+        job.update_fields.assert_called_once_with({"status": Job.RUNNING})
+
+    def test_to_running_keeps_running_started_at_when_emit_fails(self):
+        """A failed publish leaves the job PENDING but the recorded start time persisted."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.PENDING)
+        fake_now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        task.event_streams_client.emit_job_started.side_effect = RuntimeError("kafka down")
+
+        with (
+            patch(f"{_MOD}.JobEvent"),
+            patch(f"{_MOD}.django_timezone") as mock_dt,
+        ):
+            mock_dt.now.return_value = fake_now
+            with pytest.raises(RuntimeError):
+                task.to_running(job)
+
+        assert job.running_started_at == fake_now
+        assert job.status == Job.PENDING
+        job.update_fields.assert_called_once_with({"running_started_at": fake_now})
 
 
 class TestStopJobIfTimeout:
@@ -380,19 +437,20 @@ class TestRun:
 class TestEventStreamsIntegration:
     """Tests that emit methods are called at the right lifecycle points."""
 
-    def test_to_running_emits_job_started_before_db_update(self):
+    def test_to_running_emits_job_started_before_the_status_is_written(self):
+        """running_started_at is persisted first, but the status must not be until the emit lands."""
         task = _make_task()
         job = _make_fleets_job(status=Job.PENDING)
 
         call_order = []
         task.event_streams_client.emit_job_started.side_effect = lambda j: call_order.append("publish")
-        job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db"))
+        job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db:" + ",".join(f)))
 
         with patch(f"{_MOD}.JobEvent"):
             with patch(f"{_MOD}.django_timezone"):
                 task.to_running(job)
 
-        assert call_order == ["publish", "db"]
+        assert call_order == ["db:running_started_at", "publish", "db:status"]
         task.event_streams_client.emit_job_started.assert_called_once_with(job)
 
     def test_to_running_raises_if_publish_fails(self):
@@ -401,11 +459,16 @@ class TestEventStreamsIntegration:
         job = _make_fleets_job(status=Job.PENDING)
 
         with patch(f"{_MOD}.JobEvent"):
-            with patch(f"{_MOD}.django_timezone"):
+            with patch(f"{_MOD}.django_timezone") as mock_dt:
+                fake_now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+                mock_dt.now.return_value = fake_now
                 with pytest.raises(Exception, match="broker down"):
                     task.to_running(job)
 
-        job.update_fields.assert_not_called()
+        # The start time is kept so a retry reports when the fleet really started, but the
+        # status is not written: the job stays PENDING and is picked up again next tick.
+        job.update_fields.assert_called_once_with({"running_started_at": fake_now})
+        assert job.status == Job.PENDING
 
     def test_to_terminal_emits_job_completed_before_db_update(self):
         task = _make_task()
@@ -499,11 +562,67 @@ class TestEventStreamsIntegration:
         call_order = []
         task.event_streams_client.emit_job_started.side_effect = lambda j: call_order.append("started")
         task.event_streams_client.emit_license_fee.side_effect = lambda j: call_order.append("license")
-        job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db"))
+        job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db:" + ",".join(f)))
 
         with patch(f"{_MOD}.JobEvent"):
             with patch(f"{_MOD}.django_timezone"):
                 task.to_running(job)
 
-        assert call_order == ["started", "license", "db"]
+        assert call_order == ["db:running_started_at", "started", "license", "db:status"]
         task.event_streams_client.emit_license_fee.assert_called_once_with(job)
+
+
+def test_filler_jobs_are_left_out_of_the_job_metrics():
+    """A filler job neither counts as a terminal job nor contributes an execution duration."""
+    task = _make_task()
+    mock_job = MagicMock(spec=Job)
+    mock_job.filler = True
+
+    task._increment_terminal_counter(mock_job)
+    task._record_execution_duration(mock_job)
+
+    task.metrics.increment_jobs_terminal.assert_not_called()
+    task.metrics.observe_job_execution_duration.assert_not_called()
+
+
+def test_a_filler_job_that_ends_on_its_own_is_counted():
+    """Reaching a terminal state here means the balancer did not ask for it.
+
+    This is the counter that reveals a filler program which exits by itself, which
+    the balancer would otherwise replace once a second forever.
+    """
+    task = _make_task()
+    mock_job = MagicMock(spec=Job)
+    mock_job.filler = True
+    mock_job.status = Job.FAILED
+
+    task._increment_terminal_counter(mock_job)
+
+    task.metrics.increment_filler_jobs_ended.assert_called_once_with(Job.FAILED)
+    task.metrics.increment_jobs_terminal.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_an_inactive_project_does_not_fail_a_running_job():
+    """A deactivated Code Engine project is a config problem, not a job that failed.
+
+    Exercises the real FleetsRunner so the RunnerError comes from the inactive
+    project rather than from a mock, which is how this reached production: the
+    fleet keeps running in Code Engine while the row says FAILED.
+    """
+    project = TestUtils.get_or_create_ce_project(
+        project_name="inactive-project",
+        project_id="project-uuid",
+        active=False,
+        cos_bucket_user_data_name="bucket",
+    )
+    program = TestUtils.create_program("inactive-project-program", runner=Program.FLEETS, code_engine_project=project)
+    job = Job.objects.create(
+        program=program, author=program.author, runner=Program.FLEETS, status=Job.RUNNING, fleet_id="fleet-abc"
+    )
+
+    task = _make_task()
+    task.update_job_status(job)
+
+    job.refresh_from_db()
+    assert job.status == Job.RUNNING

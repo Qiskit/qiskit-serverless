@@ -37,7 +37,10 @@ class StopJobUseCase:
 
         if not job.in_terminal_state():
             job.status = Job.STOPPED
-            job.save(update_fields=["status"])
+            # "updated" has auto_now=True, but auto_now only fires for fields listed
+            # in update_fields, so it has to be named here explicitly or the column
+            # keeps the value it got when the job was created.
+            job.save(update_fields=["status", "updated"])
             JobEvent.objects.add_status_event(
                 job_id=job.id,
                 origin=JobEventOrigin.API,

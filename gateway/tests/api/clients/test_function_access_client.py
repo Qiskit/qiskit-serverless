@@ -27,7 +27,8 @@ def test_returns_function_from_200_response(instances_server):
     assert entry is not None
     assert entry.provider_name == "ibm"
     assert entry.function_title == "sampler"
-    assert entry.business_model == "SUBSIDIZED"
+    # The Runtime API still answers "subsidized": we store it as its new name, LICENSED
+    assert entry.business_model == "LICENSED"
     assert PLATFORM_PERMISSION_RUN in entry.permissions
 
     assert PLATFORM_PERMISSION_CUSTOM_RUN in result.custom_function_permissions

@@ -224,7 +224,7 @@ class RunFunctionUseCase:
 
         if business_model is None:
             trial = _is_trial(function, user)
-            business_model = BusinessModel.TRIAL if trial else BusinessModel.SUBSIDIZED
+            business_model = BusinessModel.TRIAL if trial else BusinessModel.LICENSED
         else:
             trial = business_model == BusinessModel.TRIAL
 

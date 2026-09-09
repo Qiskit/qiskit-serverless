@@ -68,6 +68,17 @@ class TestConfig:
         config = Config.objects.get(name=ConfigKey.MAINTENANCE.value)
         assert config.value == "true"
 
+    def test_set_moves_the_updated_timestamp(self):
+        """set() issues a queryset UPDATE, which does not fire auto_now on its own."""
+        Config.add_defaults()
+        before = Config.objects.get(name=ConfigKey.MAINTENANCE.value).updated
+
+        Config.set(ConfigKey.MAINTENANCE, "true")
+
+        after = Config.objects.get(name=ConfigKey.MAINTENANCE.value).updated
+        assert after is not None
+        assert after != before
+
     def test_get_int_returns_value_as_integer(self):
         """Test that get_int() parses the stored string as an int, default included."""
         Config.add_defaults()

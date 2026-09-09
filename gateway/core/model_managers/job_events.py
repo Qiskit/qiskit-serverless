@@ -47,6 +47,8 @@ class JobEventContext(StrEnum):
     # Scheduler: a filler job was stopped to free capacity (status STOPPED)
     FILLER_STOP = "FILLER_STOP"
 
+    FILLER_FAILED = "FILLER_FAILED"
+
 
 class JobEventType(StrEnum):
     """Job events type enum."""

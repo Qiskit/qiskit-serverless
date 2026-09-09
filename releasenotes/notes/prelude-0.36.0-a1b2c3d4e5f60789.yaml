@@ -1,0 +1,12 @@
+---
+prelude: >
+    ``qiskit_serverless v0.36.0`` updates the pinned ``qiskit-ibm-runtime``
+    requirement to ``0.49.0`` and refreshes the client, gateway and test
+    dependency groups. The rest of the release is internal platform work and is
+    not part of the public surface; upgrading is optional for users of the
+    Python client.
+upgrade:
+  - |
+    ``qiskit-ibm-runtime`` is now required at ``0.49.0`` (raised from
+    ``0.47.0``). Environments that pin the client's transitive dependencies
+    should widen the constraint accordingly.

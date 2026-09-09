@@ -17,7 +17,7 @@ def make_result(provider_name, function_title, permissions):
         provider_name=provider_name,
         function_title=function_title,
         permissions=permissions,
-        business_model=BusinessModel.SUBSIDIZED,
+        business_model=BusinessModel.LICENSED,
     )
     return FunctionAccessResult(use_legacy_authorization=False, functions=[entry])
 
