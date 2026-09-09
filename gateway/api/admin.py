@@ -471,9 +471,10 @@ class JobProgramFilter(admin.SimpleListFilter):
 class JobAdmin(admin.ModelAdmin):
     """JobAdmin."""
 
-    search_fields = ["id", "author__username", "program__title"]
+    search_fields = ["id", "author__username", "program__title", "fleet_id"]
     list_filter = ["status", "runner", "filler", JobProgramFilter]
-    list_display = ["runner", "author", "get_program", "status_badge", "created", "updated"]
+    list_display = ["runner_column", "author", "get_program", "status_badge", "created", "updated"]
+    list_display_links = []
     list_select_related = ["author", "program", "program__provider"]
     ordering = ["-created"]
     actions = ["timeline_action"]
@@ -639,6 +640,18 @@ class JobAdmin(admin.ModelAdmin):
 
     class Media:
         js = ["admin/js/clickable_rows.js"]
+
+    @admin.display(description="Runner")
+    def runner_column(self, obj):
+        """Show the engine job id (ray_job_id or fleet_id) linked to the job page, engine name below."""
+        engine_job_id = obj.fleet_id if obj.runner == Program.FLEETS else obj.ray_job_id
+        url = reverse("admin:api_job_change", args=[obj.pk])
+        return format_html(
+            '<a href="{}">{}</a><br><span class="qs-runner-label">{}</span>',
+            url,
+            engine_job_id or "-",
+            obj.get_runner_display(),
+        )
 
     @admin.display(description="Status")
     def status_badge(self, obj):

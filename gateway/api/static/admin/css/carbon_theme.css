@@ -940,6 +940,16 @@ body.login #content h1 {
 .qs-status-badge[data-status="STOPPED"]   { --qs-badge-bg: #888888; }
 .qs-status-badge[data-status="FAILED"]    { --qs-badge-bg: #cc0000; }
 
+/* JOB LIST — runner column (engine job id link + engine name below) */
+
+.qs-runner-label {
+    display: block;
+    font-size: 0.6875rem;
+    color: #6f6f6f;
+    text-transform: uppercase;
+    letter-spacing: 0.32px;
+}
+
 /* NAV SIDEBAR — hide +Add links */
 
 #nav-sidebar .addlink {
