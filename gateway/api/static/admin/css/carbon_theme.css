@@ -436,9 +436,10 @@ thead th.sorted {
 }
 
 /* JOB LIST — created/updated timestamps are secondary, so the same small size as the cells' second lines */
-#result_list .field-created,
-#result_list .field-updated {
+#result_list .field-created_column,
+#result_list .field-updated_column {
     font-size: 0.6875rem;
+    white-space: nowrap;
 }
 
 /* BUTTONS — softly rounded, generous horizontal padding */

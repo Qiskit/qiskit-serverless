@@ -4,6 +4,7 @@ import pytest
 from django.contrib.auth.models import User
 from django.test import Client
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.http import urlencode
 
 from api.admin import JobAdmin
@@ -212,13 +213,17 @@ def test_every_click_to_search_link_actually_narrows_the_changelist_to_that_job(
 
 
 @pytest.mark.django_db
-def test_changelist_marks_created_and_updated_cells_for_the_smaller_font_css():
+def test_changelist_shows_short_sortable_timestamps():
     user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
-    Job.objects.create(author=user, status=Job.RUNNING)
+    job = Job.objects.create(author=user, status=Job.RUNNING)
 
     client = Client()
     client.force_login(user)
     body = client.get("/backoffice/api/job/").content.decode()
 
-    assert "field-created" in body
-    assert "field-updated" in body
+    # The cells the smaller-font CSS hooks onto.
+    assert "field-created_column" in body
+    assert "field-updated_column" in body
+    assert timezone.localtime(job.created).strftime("%y/%m/%d %H:%M:%S") in body
+    # Sorting by clicking the header still works, so the column keeps its ordering field.
+    assert client.get("/backoffice/api/job/?o=6").status_code == 200

@@ -8,6 +8,7 @@ from django import forms
 from django.contrib import admin, messages
 from django.core.cache import cache
 from django.db.models import Count, F, Q
+from django.utils import timezone
 from django.utils.html import format_html, format_html_join
 from django.utils.http import urlencode
 from django.utils.safestring import mark_safe
@@ -446,6 +447,13 @@ class JobEventInline(admin.TabularInline):
 CODE_CHIP_MAX_LENGTH = 12
 
 
+def _short_datetime(value):
+    """Compact local timestamp for the changelist, YY/MM/DD hh:mm:ss, so the date columns stay narrow."""
+    if value is None:
+        return ""
+    return timezone.localtime(value).strftime("%y/%m/%d %H:%M:%S")
+
+
 def _code_chip(value):
     """A short monospace chip showing at most CODE_CHIP_MAX_LENGTH characters; the full value is the title."""
     display_value = value[:CODE_CHIP_MAX_LENGTH]
@@ -502,8 +510,8 @@ class JobAdmin(admin.ModelAdmin):
         "status_badge",
         "runner_column",
         "compute_profile_column",
-        "created",
-        "updated",
+        "created_column",
+        "updated_column",
     ]
     list_display_links = ["id_column"]
     list_select_related = [
@@ -700,6 +708,16 @@ class JobAdmin(admin.ModelAdmin):
         else:
             lines.append(format_html('<span class="qs-runner-label">{}</span>', obj.get_runner_display()))
         return format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines))
+
+    @admin.display(description="Created", ordering="created")
+    def created_column(self, obj):
+        """Creation timestamp in the compact changelist format."""
+        return _short_datetime(obj.created)
+
+    @admin.display(description="Updated", ordering="updated")
+    def updated_column(self, obj):
+        """Last-update timestamp in the compact changelist format."""
+        return _short_datetime(obj.updated)
 
     @admin.display(description="Status")
     def status_badge(self, obj):
