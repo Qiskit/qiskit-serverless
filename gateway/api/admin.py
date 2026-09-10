@@ -8,7 +8,7 @@ from django import forms
 from django.contrib import admin, messages
 from django.core.cache import cache
 from django.db.models import Count, F, Q
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
 from django.urls import path, reverse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.admin.views.main import PAGE_VAR
@@ -471,11 +471,33 @@ class JobProgramFilter(admin.SimpleListFilter):
 class JobAdmin(admin.ModelAdmin):
     """JobAdmin."""
 
-    search_fields = ["id", "author__username", "program__title", "fleet_id"]
+    search_fields = [
+        "id",
+        "author__username",
+        "program__title",
+        "fleet_id",
+        "compute_profile_fk__compute_profile_id",
+    ]
     list_filter = ["status", "runner", "filler", JobProgramFilter]
-    list_display = ["id", "author_column", "get_program", "status_badge", "runner_column", "created", "updated"]
+    list_display = [
+        "id",
+        "author_column",
+        "get_program",
+        "status_badge",
+        "runner_column",
+        "compute_profile_column",
+        "created",
+        "updated",
+    ]
     list_display_links = ["id"]
-    list_select_related = ["author", "program", "program__provider"]
+    list_select_related = [
+        "author",
+        "program",
+        "program__provider",
+        "compute_profile_fk",
+        "function_size",
+        "function_size__function",
+    ]
     ordering = ["-created"]
     actions = ["timeline_action"]
     inlines = []
@@ -524,6 +546,14 @@ class JobAdmin(admin.ModelAdmin):
         if db_field.name == "program" and hasattr(formfield.widget, "can_delete_related"):
             formfield.widget.can_delete_related = False
         return formfield
+
+    def lookup_allowed(self, lookup, value, request):
+        # The Program column links to the changelist filtered by provider, a two-hop relation
+        # (program -> provider) that Django's default check rejects unless it matches a
+        # registered list_filter. There's no dedicated provider filter here, so allow it explicitly.
+        if lookup == "program__provider__id__exact":
+            return True
+        return super().lookup_allowed(lookup, value, request)
 
     @admin.action(description="Timeline")
     def timeline_action(self, request, queryset):
@@ -640,35 +670,56 @@ class JobAdmin(admin.ModelAdmin):
 
     @admin.display(description="Fleet Id")
     def runner_column(self, obj):
-        """Show the engine job id (ray_job_id or fleet_id) as a code chip, engine name below."""
+        """Engine job id as a code chip, engine name below, and for Fleets the CE project/region below that."""
         engine_job_id = obj.fleet_id if obj.runner == Program.FLEETS else obj.ray_job_id
-        return format_html(
-            '<span class="qs-runner-id" title="{0}">{0}</span><br><span class="qs-runner-label">{1}</span>',
-            engine_job_id or "-",
-            obj.get_runner_display(),
-        )
+        lines = [
+            format_html('<span class="qs-runner-id" title="{0}">{0}</span>', engine_job_id or "-"),
+            format_html('<span class="qs-runner-label">{}</span>', obj.get_runner_display()),
+        ]
+        if obj.runner == Program.FLEETS:
+            project_and_region = " ".join(part for part in [obj.ce_project_name, obj.ce_region] if part)
+            if project_and_region:
+                lines.append(format_html('<span class="qs-runner-meta">{}</span>', project_and_region))
+        return format_html_join("<br>", "{}", ((line,) for line in lines))
 
     @admin.display(description="Status")
     def status_badge(self, obj):
-        """Render status as a colored badge."""
-        return format_html('<span class="qs-status-badge" data-status="{}">{}</span>', obj.status, obj.status)
+        """Render status as a colored badge that filters the changelist by that status."""
+        url = f"{reverse('admin:api_job_changelist')}?status__exact={obj.status}"
+        return format_html('<a href="{}" class="qs-status-badge" data-status="{}">{}</a>', url, obj.status, obj.status)
 
     @admin.display(description="Author")
     def author_column(self, obj):
-        """Link the author's name to their user admin page."""
-        url = reverse("admin:auth_user_change", args=[obj.author_id])
-        return format_html('<a href="{}">{}</a>', url, obj.author)
+        """Link the author's name to the job list filtered by that author, instance CRN below (also filterable)."""
+        author_url = f"{reverse('admin:api_job_changelist')}?author__id__exact={obj.author_id}"
+        lines = [format_html('<a href="{}">{}</a>', author_url, obj.author)]
+        if obj.instance_crn:
+            crn_url = f"{reverse('admin:api_job_changelist')}?instance_crn__exact={obj.instance_crn}"
+            lines.append(format_html('<a href="{}" class="qs-runner-meta">{}</a>', crn_url, obj.instance_crn))
+        return format_html_join("<br>", "{}", ((line,) for line in lines))
+
+    @admin.display(description="Compute Profile")
+    def compute_profile_column(self, obj):
+        """Fleets compute profile, linked to filter the changelist by it, function size below. Empty for Ray."""
+        if obj.runner != Program.FLEETS or obj.compute_profile_fk is None:
+            return ""
+        url = f"{reverse('admin:api_job_changelist')}?compute_profile_fk__exact={obj.compute_profile_fk_id}"
+        lines = [format_html('<a href="{}">{}</a>', url, obj.compute_profile_fk)]
+        if obj.function_size is not None:
+            lines.append(format_html('<span class="qs-runner-meta">{}</span>', obj.function_size))
+        return format_html_join("<br>", "{}", ((line,) for line in lines))
 
     @admin.display(description="Program")
     def get_program(self, obj):
-        """Return provider/program label for list display, each part linking to its own admin page."""
+        """Return provider/program label, each part filtering the changelist by that provider or program."""
         if obj.program is None:
             return "-"
-        program_url = reverse("admin:api_program_change", args=[obj.program.pk])
+        changelist_url = reverse("admin:api_job_changelist")
+        program_url = f"{changelist_url}?job_program={obj.program.pk}"
         provider = obj.program.provider
         if provider is None:
             return format_html('<a href="{}">{}</a>', program_url, obj.program.title)
-        provider_url = reverse("admin:api_provider_change", args=[provider.pk])
+        provider_url = f"{changelist_url}?program__provider__id__exact={provider.pk}"
         return format_html(
             '<a href="{}">{}</a>/<a href="{}">{}</a>',
             provider_url,

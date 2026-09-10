@@ -408,10 +408,6 @@ tr:nth-child(odd) + .row-form-errors .errorlist {
     background: transparent;
 }
 
-#result_list tbody tr {
-    cursor: pointer;
-}
-
 #result_list tbody tr:hover {
     background: var(--qs-row-hover);
 }
@@ -920,6 +916,7 @@ body.login #content h1 {
     font-weight: 600;
     letter-spacing: 0.32px;
     text-transform: uppercase;
+    text-decoration: none;
     color: #ffffff;
     background-color: var(--qs-badge-bg, #6f6f6f);
 }
@@ -964,6 +961,20 @@ body.login #content h1 {
     color: #6f6f6f;
     text-transform: uppercase;
     letter-spacing: 0.32px;
+}
+
+.qs-runner-meta {
+    display: block;
+    font-size: 0.6875rem;
+    color: #6f6f6f;
+}
+
+a.qs-runner-meta {
+    text-decoration: none;
+}
+
+a.qs-runner-meta:hover {
+    text-decoration: underline;
 }
 
 /* NAV SIDEBAR — hide +Add links */
