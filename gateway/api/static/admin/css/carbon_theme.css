@@ -940,7 +940,23 @@ body.login #content h1 {
 .qs-status-badge[data-status="STOPPED"]   { --qs-badge-bg: #888888; }
 .qs-status-badge[data-status="FAILED"]    { --qs-badge-bg: #cc0000; }
 
-/* JOB LIST — runner column (engine job id link + engine name below) */
+/* JOB LIST — Fleet Id column (engine job id as a code chip + engine name below) */
+
+.qs-runner-id {
+    display: inline-block;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+    font-family: var(--font-family-monospace);
+    font-size: 0.8125rem;
+    color: var(--qs-code-fg);
+    background: var(--qs-code-bg);
+    border: 1px solid var(--qs-code-border);
+    border-radius: 4px;
+    padding: 2px 6px;
+}
 
 .qs-runner-label {
     display: block;

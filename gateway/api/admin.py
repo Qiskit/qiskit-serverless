@@ -473,8 +473,8 @@ class JobAdmin(admin.ModelAdmin):
 
     search_fields = ["id", "author__username", "program__title", "fleet_id"]
     list_filter = ["status", "runner", "filler", JobProgramFilter]
-    list_display = ["runner_column", "author", "get_program", "status_badge", "created", "updated"]
-    list_display_links = []
+    list_display = ["id", "author_column", "get_program", "status_badge", "runner_column", "created", "updated"]
+    list_display_links = ["id"]
     list_select_related = ["author", "program", "program__provider"]
     ordering = ["-created"]
     actions = ["timeline_action"]
@@ -638,17 +638,12 @@ class JobAdmin(admin.ModelAdmin):
         }
         return render(request, "admin/api/job/events.html", context)
 
-    class Media:
-        js = ["admin/js/clickable_rows.js"]
-
-    @admin.display(description="Runner")
+    @admin.display(description="Fleet Id")
     def runner_column(self, obj):
-        """Show the engine job id (ray_job_id or fleet_id) linked to the job page, engine name below."""
+        """Show the engine job id (ray_job_id or fleet_id) as a code chip, engine name below."""
         engine_job_id = obj.fleet_id if obj.runner == Program.FLEETS else obj.ray_job_id
-        url = reverse("admin:api_job_change", args=[obj.pk])
         return format_html(
-            '<a href="{}">{}</a><br><span class="qs-runner-label">{}</span>',
-            url,
+            '<span class="qs-runner-id" title="{0}">{0}</span><br><span class="qs-runner-label">{1}</span>',
             engine_job_id or "-",
             obj.get_runner_display(),
         )
@@ -658,15 +653,29 @@ class JobAdmin(admin.ModelAdmin):
         """Render status as a colored badge."""
         return format_html('<span class="qs-status-badge" data-status="{}">{}</span>', obj.status, obj.status)
 
+    @admin.display(description="Author")
+    def author_column(self, obj):
+        """Link the author's name to their user admin page."""
+        url = reverse("admin:auth_user_change", args=[obj.author_id])
+        return format_html('<a href="{}">{}</a>', url, obj.author)
+
     @admin.display(description="Program")
     def get_program(self, obj):
-        """Return provider / program label for list display."""
+        """Return provider/program label for list display, each part linking to its own admin page."""
         if obj.program is None:
             return "-"
+        program_url = reverse("admin:api_program_change", args=[obj.program.pk])
         provider = obj.program.provider
-        if provider:
-            return f"{provider.name} / {obj.program.title}"
-        return obj.program.title
+        if provider is None:
+            return format_html('<a href="{}">{}</a>', program_url, obj.program.title)
+        provider_url = reverse("admin:api_provider_change", args=[provider.pk])
+        return format_html(
+            '<a href="{}">{}</a>/<a href="{}">{}</a>',
+            provider_url,
+            provider.name,
+            program_url,
+            obj.program.title,
+        )
 
     def save_model(self, request, obj, form, change):
         if change:
