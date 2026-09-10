@@ -347,6 +347,7 @@ class TestStopJobIfTimeout:
         with (
             patch(f"{_MOD}.settings") as mock_settings,
             patch(f"{_MOD}.JobEvent") as mock_event,
+            patch(f"{_MOD}.get_runner", return_value=MagicMock()),
         ):
             mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
@@ -355,6 +356,49 @@ class TestStopJobIfTimeout:
         assert job.status == Job.STOPPED
         assert job.sub_status is None
         task.metrics.increment_jobs_terminal.assert_called_once()
+
+    def test_cancels_the_fleet_before_marking_stopped(self):
+        """The timeout must not just write STOPPED, it must cancel the Code Engine job too."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        past_event = MagicMock()
+        past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
+        mock_runner = MagicMock()
+
+        with (
+            patch(f"{_MOD}.settings") as mock_settings,
+            patch(f"{_MOD}.JobEvent") as mock_event,
+            patch(f"{_MOD}.get_runner", return_value=mock_runner) as mock_get_runner,
+        ):
+            mock_settings.PROGRAM_TIMEOUT = 1
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
+            task.stop_job_if_timeout(job)
+
+        mock_get_runner.assert_called_once_with(job)
+        mock_runner.stop.assert_called_once_with()
+        assert job.status == Job.STOPPED
+
+    def test_still_marks_stopped_when_the_fleet_cannot_be_cancelled(self):
+        """A Code Engine outage must not make the timeout immortal too."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        past_event = MagicMock()
+        past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
+        mock_runner = MagicMock()
+        mock_runner.stop.side_effect = RunnerError("Code Engine project 'p' is not active")
+
+        with (
+            patch(f"{_MOD}.settings") as mock_settings,
+            patch(f"{_MOD}.JobEvent") as mock_event,
+            patch(f"{_MOD}.get_runner", return_value=mock_runner),
+        ):
+            mock_settings.PROGRAM_TIMEOUT = 1
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
+            task.stop_job_if_timeout(job)
+
+        assert job.status == Job.STOPPED
 
     def test_job_unchanged_when_within_timeout(self):
         task = _make_task()
@@ -374,26 +418,28 @@ class TestStopJobIfTimeout:
         assert job.status == Job.RUNNING
         job.update_fields.assert_not_called()
 
-
-class TestRun:
-    """Tests for run()."""
-
-    def test_excludes_filler_jobs_from_the_query(self):
-        """Filler jobs are owned end-to-end by BalanceFillerJobs, this task must not touch them."""
+    def test_filler_job_never_stopped_regardless_of_age(self):
         task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+        job.filler = True
+
+        past_event = MagicMock()
+        past_event.created = datetime.now(timezone.utc) - timedelta(hours=1000)
 
         with (
             patch(f"{_MOD}.settings") as mock_settings,
-            patch(f"{_MOD}.Job") as mock_job_cls,
+            patch(f"{_MOD}.JobEvent") as mock_event,
         ):
-            mock_settings.LIMITS_MAX_FLEETS = 10
-            mock_job_cls.objects.filter.return_value = []
-            mock_job_cls.RUNNING_STATUSES = Job.RUNNING_STATUSES
-            task.run()
+            mock_settings.PROGRAM_TIMEOUT = 1
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
+            task.stop_job_if_timeout(job)
 
-        mock_job_cls.objects.filter.assert_called_once_with(
-            status__in=Job.RUNNING_STATUSES, runner=Program.FLEETS, filler=False
-        )
+        assert job.status == Job.RUNNING
+        job.update_fields.assert_not_called()
+
+
+class TestRun:
+    """Tests for run()."""
 
     def test_early_return_when_fleets_disabled(self):
         task = _make_task()
