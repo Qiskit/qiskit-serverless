@@ -347,6 +347,7 @@ class TestStopJobIfTimeout:
         with (
             patch(f"{_MOD}.settings") as mock_settings,
             patch(f"{_MOD}.JobEvent") as mock_event,
+            patch(f"{_MOD}.get_runner", return_value=MagicMock()),
         ):
             mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
@@ -355,6 +356,49 @@ class TestStopJobIfTimeout:
         assert job.status == Job.STOPPED
         assert job.sub_status is None
         task.metrics.increment_jobs_terminal.assert_called_once()
+
+    def test_cancels_the_fleet_before_marking_stopped(self):
+        """The timeout must not just write STOPPED, it must cancel the Code Engine job too."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        past_event = MagicMock()
+        past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
+        mock_runner = MagicMock()
+
+        with (
+            patch(f"{_MOD}.settings") as mock_settings,
+            patch(f"{_MOD}.JobEvent") as mock_event,
+            patch(f"{_MOD}.get_runner", return_value=mock_runner) as mock_get_runner,
+        ):
+            mock_settings.PROGRAM_TIMEOUT = 1
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
+            task.stop_job_if_timeout(job)
+
+        mock_get_runner.assert_called_once_with(job)
+        mock_runner.stop.assert_called_once_with()
+        assert job.status == Job.STOPPED
+
+    def test_still_marks_stopped_when_the_fleet_cannot_be_cancelled(self):
+        """A Code Engine outage must not make the timeout immortal too."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        past_event = MagicMock()
+        past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
+        mock_runner = MagicMock()
+        mock_runner.stop.side_effect = RunnerError("Code Engine project 'p' is not active")
+
+        with (
+            patch(f"{_MOD}.settings") as mock_settings,
+            patch(f"{_MOD}.JobEvent") as mock_event,
+            patch(f"{_MOD}.get_runner", return_value=mock_runner),
+        ):
+            mock_settings.PROGRAM_TIMEOUT = 1
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
+            task.stop_job_if_timeout(job)
+
+        assert job.status == Job.STOPPED
 
     def test_job_unchanged_when_within_timeout(self):
         task = _make_task()
