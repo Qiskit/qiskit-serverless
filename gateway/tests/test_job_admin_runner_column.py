@@ -15,7 +15,7 @@ def _search_url(value):
 
 
 @pytest.mark.django_db
-def test_runner_column_shows_fleet_id_as_a_code_chip_with_project_and_region_on_separate_lines():
+def test_runner_column_shows_fleet_id_as_a_code_chip_with_project_and_region_below_and_no_fleets_label():
     user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
     job = Job.objects.create(
         author=user,
@@ -29,11 +29,25 @@ def test_runner_column_shows_fleet_id_as_a_code_chip_with_project_and_region_on_
     html = JobAdmin(Job, None).runner_column(job)
 
     assert '<span class="qs-runner-id" title="fleet-123">fleet-123</span>' in html
-    assert '<span class="qs-runner-label">Fleets</span>' in html
     assert '<span class="qs-runner-meta">my-project us-south</span>' in html
+    # The column header already says Fleets, so the engine name is only spelled out for Ray.
+    assert "Fleets" not in html
     # A real line break, not the literal text "<br>".
-    assert html.count("<br>") == 2
+    assert html.count("<br>") == 1
     assert "&lt;br&gt;" not in html
+
+
+@pytest.mark.django_db
+def test_runner_column_leaves_the_chip_out_entirely_when_there_is_no_engine_job_id():
+    user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
+    job = Job.objects.create(author=user, runner=Program.FLEETS, status=Job.QUEUED, ce_project_name="my-project")
+
+    html = JobAdmin(Job, None).runner_column(job)
+
+    assert "qs-runner-id" not in html
+    assert ">-<" not in html
+    assert '<span class="qs-runner-meta">my-project</span>' in html
+    assert "<br>" not in html
 
 
 @pytest.mark.django_db
@@ -69,7 +83,7 @@ def test_author_column_searches_for_the_author_and_shows_instance_crn_on_its_own
 
     html = JobAdmin(Job, None).author_column(job)
 
-    assert f'href="{_search_url("admin")}"' in html
+    assert f'href="{_search_url("admin")}" class="qs-cell-link"' in html
     assert ">admin<" in html
     assert f'href="{_search_url("crn:v1:bluemix:public:my-service")}"' in html
     assert html.count("<br>") == 1
@@ -110,7 +124,7 @@ def test_get_program_searches_by_provider_and_by_program_with_no_space_around_th
     assert f'href="{_search_url("TestProvider")}"' in html
     assert f'href="{_search_url("prog1")}"' in html
     assert ">TestProvider</a>/<a " in html
-    assert html.count('class="qs-truncate"') == 2
+    assert html.count('class="qs-cell-link"') == 2
 
 
 @pytest.mark.django_db
@@ -134,11 +148,11 @@ def test_compute_profile_column_is_empty_for_a_ray_job():
 
 
 @pytest.mark.django_db
-def test_compute_profile_column_searches_by_the_profile_and_shows_the_function_size_for_fleets():
+def test_compute_profile_column_searches_by_the_profile_and_shows_the_function_size_name_for_fleets():
     user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
     program = Program.objects.create(title="prog1", author=user, provider=None)
     profile = ComputeProfile.objects.create(compute_profile_id="24x120x1l40", cpu="24", memory="120")
-    size = FunctionSize.objects.create(function=program, function_size="24x120x1l40", compute_profile=profile)
+    size = FunctionSize.objects.create(function=program, function_size="medium", compute_profile=profile)
     job = Job.objects.create(
         author=user,
         runner=Program.FLEETS,
@@ -150,9 +164,11 @@ def test_compute_profile_column_searches_by_the_profile_and_shows_the_function_s
     html = JobAdmin(Job, None).compute_profile_column(job)
 
     assert f'href="{_search_url("24x120x1l40")}"' in html
-    assert 'class="qs-truncate"' in html
+    assert 'class="qs-cell-link"' in html
     assert ">24x120x1l40<" in html
-    assert str(size) in html
+    # The size's own name, not its primary key nor the "program (size)" label of str(FunctionSize).
+    assert '<span class="qs-runner-meta">medium</span>' in html
+    assert str(size.pk) not in html
     assert html.count("<br>") == 1
     assert "&lt;br&gt;" not in html
 

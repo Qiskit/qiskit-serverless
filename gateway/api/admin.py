@@ -448,8 +448,6 @@ CODE_CHIP_MAX_LENGTH = 12
 
 def _code_chip(value):
     """A short monospace chip showing at most CODE_CHIP_MAX_LENGTH characters; the full value is the title."""
-    if not value:
-        return mark_safe('<span class="qs-runner-id" title="">-</span>')
     display_value = value[:CODE_CHIP_MAX_LENGTH]
     if len(value) > CODE_CHIP_MAX_LENGTH:
         display_value += "…"
@@ -514,7 +512,6 @@ class JobAdmin(admin.ModelAdmin):
         "program__provider",
         "compute_profile_fk",
         "function_size",
-        "function_size__function",
     ]
     ordering = ["-created"]
     actions = ["timeline_action"]
@@ -689,16 +686,19 @@ class JobAdmin(admin.ModelAdmin):
 
     @admin.display(description="Fleet Id")
     def runner_column(self, obj):
-        """Engine job id as a code chip, engine name below, and for Fleets the CE project/region below that."""
-        engine_job_id = obj.fleet_id if obj.runner == Program.FLEETS else obj.ray_job_id
-        lines = [
-            _code_chip(engine_job_id),
-            format_html('<span class="qs-runner-label">{}</span>', obj.get_runner_display()),
-        ]
-        if obj.runner == Program.FLEETS:
+        """Engine job id as a code chip, with the CE project/region for Fleets and the engine name for Ray below it."""
+        is_fleets = obj.runner == Program.FLEETS
+        engine_job_id = obj.fleet_id if is_fleets else obj.ray_job_id
+        lines = []
+        if engine_job_id:
+            lines.append(_code_chip(engine_job_id))
+        if is_fleets:
+            # The column header already says Fleets, so only Ray jobs need the engine spelled out.
             project_and_region = " ".join(part for part in [obj.ce_project_name, obj.ce_region] if part)
             if project_and_region:
                 lines.append(format_html('<span class="qs-runner-meta">{}</span>', project_and_region))
+        else:
+            lines.append(format_html('<span class="qs-runner-label">{}</span>', obj.get_runner_display()))
         return format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines))
 
     @admin.display(description="Status")
@@ -714,7 +714,9 @@ class JobAdmin(admin.ModelAdmin):
     @admin.display(description="Author")
     def author_column(self, obj):
         """Link the author's name to a changelist search for them, instance CRN below (same search)."""
-        lines = [format_html('<a href="{}">{}</a>', self._search_link(obj.author.username), obj.author)]
+        lines = [
+            format_html('<a href="{}" class="qs-cell-link">{}</a>', self._search_link(obj.author.username), obj.author)
+        ]
         if obj.instance_crn:
             lines.append(
                 format_html(
@@ -730,13 +732,13 @@ class JobAdmin(admin.ModelAdmin):
             return ""
         lines = [
             format_html(
-                '<a href="{}" class="qs-truncate">{}</a>',
+                '<a href="{}" class="qs-cell-link">{}</a>',
                 self._search_link(obj.compute_profile_fk_id),
                 obj.compute_profile_fk,
             )
         ]
         if obj.function_size is not None:
-            lines.append(format_html('<span class="qs-runner-meta">{}</span>', obj.function_size))
+            lines.append(format_html('<span class="qs-runner-meta">{}</span>', obj.function_size.function_size))
         return format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines))
 
     @admin.display(description="Program")
@@ -747,9 +749,9 @@ class JobAdmin(admin.ModelAdmin):
         program_url = self._search_link(obj.program.title)
         provider = obj.program.provider
         if provider is None:
-            return format_html('<a href="{}" class="qs-truncate">{}</a>', program_url, obj.program.title)
+            return format_html('<a href="{}" class="qs-cell-link">{}</a>', program_url, obj.program.title)
         return format_html(
-            '<a href="{}" class="qs-truncate">{}</a>/<a href="{}" class="qs-truncate">{}</a>',
+            '<a href="{}" class="qs-cell-link">{}</a>/<a href="{}" class="qs-cell-link">{}</a>',
             self._search_link(provider.name),
             provider.name,
             program_url,

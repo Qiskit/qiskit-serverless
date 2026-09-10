@@ -96,6 +96,9 @@ html[data-theme="light"],
     --qs-code-bg: #161616;
     --qs-code-fg: #f4f4f4;
     --qs-code-border: #393939;
+    --qs-chip-bg: #e0e0e0;
+    --qs-chip-fg: #161616;
+    --qs-chip-border: #c6c6c6;
 
     --font-family-primary:
         "IBM Plex Sans",
@@ -161,6 +164,9 @@ html[data-theme="light"],
         --qs-code-bg: #262626;
         --qs-code-fg: #f4f4f4;
         --qs-code-border: #525252;
+        --qs-chip-bg: #393939;
+        --qs-chip-fg: #f4f4f4;
+        --qs-chip-border: #525252;
     }
 }
 
@@ -211,6 +217,9 @@ html[data-theme="dark"] {
     --qs-code-bg: #262626;
     --qs-code-fg: #f4f4f4;
     --qs-code-border: #525252;
+    --qs-chip-bg: #393939;
+    --qs-chip-fg: #f4f4f4;
+    --qs-chip-border: #525252;
 }
 
 /* BASE */
@@ -952,12 +961,12 @@ body.login #content h1 {
     white-space: nowrap;
     vertical-align: bottom;
     font-family: var(--font-family-monospace);
-    font-size: 0.8125rem;
-    color: var(--qs-code-fg);
-    background: var(--qs-code-bg);
-    border: 1px solid var(--qs-code-border);
+    font-size: 0.75rem;
+    color: var(--qs-chip-fg);
+    background: var(--qs-chip-bg);
+    border: 1px solid var(--qs-chip-border);
     border-radius: 4px;
-    padding: 2px 6px;
+    padding: 1px 5px;
 }
 
 .qs-runner-label {
@@ -987,14 +996,19 @@ a.qs-runner-meta:hover {
     text-decoration: underline;
 }
 
-/* Program/provider and Compute Profile links: never wrap, ellipsis instead */
-.qs-truncate {
+/* Author, Program/provider and Compute Profile links: never wrap, ellipsis instead, underline on hover */
+.qs-cell-link {
     display: inline-block;
     max-width: 160px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     vertical-align: bottom;
+    text-decoration: none;
+}
+
+a.qs-cell-link:hover {
+    text-decoration: underline;
 }
 
 /* NAV SIDEBAR — hide +Add links */
