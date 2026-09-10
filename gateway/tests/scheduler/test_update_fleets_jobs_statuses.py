@@ -374,26 +374,28 @@ class TestStopJobIfTimeout:
         assert job.status == Job.RUNNING
         job.update_fields.assert_not_called()
 
-
-class TestRun:
-    """Tests for run()."""
-
-    def test_excludes_filler_jobs_from_the_query(self):
-        """Filler jobs are owned end-to-end by BalanceFillerJobs, this task must not touch them."""
+    def test_filler_job_never_stopped_regardless_of_age(self):
         task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+        job.filler = True
+
+        past_event = MagicMock()
+        past_event.created = datetime.now(timezone.utc) - timedelta(hours=1000)
 
         with (
             patch(f"{_MOD}.settings") as mock_settings,
-            patch(f"{_MOD}.Job") as mock_job_cls,
+            patch(f"{_MOD}.JobEvent") as mock_event,
         ):
-            mock_settings.LIMITS_MAX_FLEETS = 10
-            mock_job_cls.objects.filter.return_value = []
-            mock_job_cls.RUNNING_STATUSES = Job.RUNNING_STATUSES
-            task.run()
+            mock_settings.PROGRAM_TIMEOUT = 1
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
+            task.stop_job_if_timeout(job)
 
-        mock_job_cls.objects.filter.assert_called_once_with(
-            status__in=Job.RUNNING_STATUSES, runner=Program.FLEETS, filler=False
-        )
+        assert job.status == Job.RUNNING
+        job.update_fields.assert_not_called()
+
+
+class TestRun:
+    """Tests for run()."""
 
     def test_early_return_when_fleets_disabled(self):
         task = _make_task()
