@@ -58,6 +58,13 @@ class OutputSerializer(SizesFieldsMixin, serializers.ModelSerializer):
             type=openapi.TYPE_STRING,
             required=False,
         ),
+        openapi.Parameter(
+            "provider",
+            openapi.IN_QUERY,
+            description="Return only functions belonging to this provider",
+            type=openapi.TYPE_STRING,
+            required=False,
+        ),
     ],
     responses={status.HTTP_200_OK: OutputSerializer(many=True)},
 )
@@ -67,15 +74,22 @@ class OutputSerializer(SizesFieldsMixin, serializers.ModelSerializer):
 def list_programs(request: Request) -> Response:
     """List Qiskit Functions accessible to the authenticated user."""
     type_filter = request.query_params.get("filter")
+    provider = request.query_params.get("provider")
     user = cast(AbstractUser, request.user)
     accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
     logger.info(
-        "[programs-list] user_id=%s filter=%s accessible_functions=%s",
+        "[programs-list] user_id=%s filter=%s provider=%s accessible_functions=%s",
         user.id,
         type_filter,
+        provider,
         accessible_functions,
     )
 
-    functions = ListFunctionsUseCase().execute(user, accessible_functions, type_filter)
-    logger.info("[programs-list] user_id=%s filter=%s | Functions listed ok", user.id, type_filter)
+    functions = ListFunctionsUseCase().execute(user, accessible_functions, type_filter, provider)
+    logger.info(
+        "[programs-list] user_id=%s filter=%s provider=%s | Functions listed ok",
+        user.id,
+        type_filter,
+        provider,
+    )
     return Response(OutputSerializer(functions, many=True).data)

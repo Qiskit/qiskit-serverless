@@ -218,6 +218,20 @@ class TestFunctionsMethod:
         assert call_kwargs["params"] == {"limit": 5, "offset": 10, "provider": "test-provider"}
 
     @patch("qiskit_serverless.core.clients.serverless_client.requests.get")
+    def test_functions_passes_provider_filter(self, mock_get, mock_client):
+        """functions(provider=...) forwards the provider as a query parameter."""
+        mock_response = Mock()
+        mock_response.ok = True
+        mock_response.text = "[]"
+        mock_response.json.return_value = []
+        mock_get.return_value = mock_response
+
+        mock_client.functions(provider="q-ctrl")
+
+        mock_get.assert_called_once()
+        assert mock_get.call_args[1]["params"] == {"provider": "q-ctrl"}
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.get")
     def test_functions_returns_empty_list_when_no_functions(self, mock_get, mock_client):
         """functions() returns an empty list when no functions are available."""
         mock_response = Mock()
