@@ -908,6 +908,8 @@ body.login #content h1 {
 
 /* JOB LIST — status badges (same palette as event-badge inline) */
 
+/* !important: this is an <a> now (clicking it searches by status), and Django's own
+   a:link/a:visited rules are more specific than a single class, so they'd otherwise win. */
 .qs-status-badge {
     display: inline-block;
     padding: 2px 9px;
@@ -917,7 +919,7 @@ body.login #content h1 {
     letter-spacing: 0.32px;
     text-transform: uppercase;
     text-decoration: none;
-    color: #ffffff;
+    color: #ffffff !important;
     background-color: var(--qs-badge-bg, #6f6f6f);
 }
 
@@ -925,12 +927,12 @@ body.login #content h1 {
 
 .qs-status-badge[data-status="PENDING"] {
     --qs-badge-bg: #f0ad4e;
-    color: #1c1c1c;
+    color: #1c1c1c !important;
 }
 
 .qs-status-badge[data-status="RUNNING"] {
     --qs-badge-bg: #5bc0de;
-    color: #1c1c1c;
+    color: #1c1c1c !important;
 }
 
 .qs-status-badge[data-status="SUCCEEDED"] { --qs-badge-bg: #00aa00; }

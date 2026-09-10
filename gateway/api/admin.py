@@ -9,6 +9,8 @@ from django.contrib import admin, messages
 from django.core.cache import cache
 from django.db.models import Count, F, Q
 from django.utils.html import format_html, format_html_join
+from django.utils.http import urlencode
+from django.utils.safestring import mark_safe
 from django.urls import path, reverse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.admin.views.main import PAGE_VAR
@@ -475,8 +477,11 @@ class JobAdmin(admin.ModelAdmin):
         "id",
         "author__username",
         "program__title",
+        "program__provider__name",
         "fleet_id",
         "compute_profile_fk__compute_profile_id",
+        "status",
+        "instance_crn",
     ]
     list_filter = ["status", "runner", "filler", JobProgramFilter]
     list_display = [
@@ -547,13 +552,9 @@ class JobAdmin(admin.ModelAdmin):
             formfield.widget.can_delete_related = False
         return formfield
 
-    def lookup_allowed(self, lookup, value, request):
-        # The Program column links to the changelist filtered by provider, a two-hop relation
-        # (program -> provider) that Django's default check rejects unless it matches a
-        # registered list_filter. There's no dedicated provider filter here, so allow it explicitly.
-        if lookup == "program__provider__id__exact":
-            return True
-        return super().lookup_allowed(lookup, value, request)
+    def _search_link(self, value):
+        """Changelist URL that searches for value, so the search box shows what's filtered."""
+        return f"{reverse('admin:api_job_changelist')}?{urlencode({'q': value})}"
 
     @admin.action(description="Timeline")
     def timeline_action(self, request, queryset):
@@ -680,49 +681,54 @@ class JobAdmin(admin.ModelAdmin):
             project_and_region = " ".join(part for part in [obj.ce_project_name, obj.ce_region] if part)
             if project_and_region:
                 lines.append(format_html('<span class="qs-runner-meta">{}</span>', project_and_region))
-        return format_html_join("<br>", "{}", ((line,) for line in lines))
+        return format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines))
 
     @admin.display(description="Status")
     def status_badge(self, obj):
-        """Render status as a colored badge that filters the changelist by that status."""
-        url = f"{reverse('admin:api_job_changelist')}?status__exact={obj.status}"
-        return format_html('<a href="{}" class="qs-status-badge" data-status="{}">{}</a>', url, obj.status, obj.status)
+        """Render status as a colored badge; clicking it searches the changelist for that status."""
+        return format_html(
+            '<a href="{}" class="qs-status-badge" data-status="{}">{}</a>',
+            self._search_link(obj.status),
+            obj.status,
+            obj.status,
+        )
 
     @admin.display(description="Author")
     def author_column(self, obj):
-        """Link the author's name to the job list filtered by that author, instance CRN below (also filterable)."""
-        author_url = f"{reverse('admin:api_job_changelist')}?author__id__exact={obj.author_id}"
-        lines = [format_html('<a href="{}">{}</a>', author_url, obj.author)]
+        """Link the author's name to a changelist search for them, instance CRN below (same search)."""
+        lines = [format_html('<a href="{}">{}</a>', self._search_link(obj.author.username), obj.author)]
         if obj.instance_crn:
-            crn_url = f"{reverse('admin:api_job_changelist')}?instance_crn__exact={obj.instance_crn}"
-            lines.append(format_html('<a href="{}" class="qs-runner-meta">{}</a>', crn_url, obj.instance_crn))
-        return format_html_join("<br>", "{}", ((line,) for line in lines))
+            lines.append(
+                format_html(
+                    '<a href="{}" class="qs-runner-meta">{}</a>', self._search_link(obj.instance_crn), obj.instance_crn
+                )
+            )
+        return format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines))
 
     @admin.display(description="Compute Profile")
     def compute_profile_column(self, obj):
-        """Fleets compute profile, linked to filter the changelist by it, function size below. Empty for Ray."""
+        """Fleets compute profile, clicking it searches the changelist for it; function size below. Empty for Ray."""
         if obj.runner != Program.FLEETS or obj.compute_profile_fk is None:
             return ""
-        url = f"{reverse('admin:api_job_changelist')}?compute_profile_fk__exact={obj.compute_profile_fk_id}"
-        lines = [format_html('<a href="{}">{}</a>', url, obj.compute_profile_fk)]
+        lines = [
+            format_html('<a href="{}">{}</a>', self._search_link(obj.compute_profile_fk_id), obj.compute_profile_fk)
+        ]
         if obj.function_size is not None:
             lines.append(format_html('<span class="qs-runner-meta">{}</span>', obj.function_size))
-        return format_html_join("<br>", "{}", ((line,) for line in lines))
+        return format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines))
 
     @admin.display(description="Program")
     def get_program(self, obj):
-        """Return provider/program label, each part filtering the changelist by that provider or program."""
+        """Return provider/program label, each part searching the changelist for that provider or program."""
         if obj.program is None:
             return "-"
-        changelist_url = reverse("admin:api_job_changelist")
-        program_url = f"{changelist_url}?job_program={obj.program.pk}"
+        program_url = self._search_link(obj.program.title)
         provider = obj.program.provider
         if provider is None:
             return format_html('<a href="{}">{}</a>', program_url, obj.program.title)
-        provider_url = f"{changelist_url}?program__provider__id__exact={provider.pk}"
         return format_html(
             '<a href="{}">{}</a>/<a href="{}">{}</a>',
-            provider_url,
+            self._search_link(provider.name),
             provider.name,
             program_url,
             obj.program.title,
