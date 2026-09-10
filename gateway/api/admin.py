@@ -448,8 +448,12 @@ CODE_CHIP_MAX_LENGTH = 12
 
 def _code_chip(value):
     """A short monospace chip showing at most CODE_CHIP_MAX_LENGTH characters; the full value is the title."""
-    display_value = value[:CODE_CHIP_MAX_LENGTH] if value else "-"
-    return format_html('<span class="qs-runner-id" title="{}">{}</span>', value or "", display_value)
+    if not value:
+        return mark_safe('<span class="qs-runner-id" title="">-</span>')
+    display_value = value[:CODE_CHIP_MAX_LENGTH]
+    if len(value) > CODE_CHIP_MAX_LENGTH:
+        display_value += "…"
+    return format_html('<span class="qs-runner-id" title="{}">{}</span>', value, display_value)
 
 
 class JobProgramFilter(admin.SimpleListFilter):
@@ -725,7 +729,11 @@ class JobAdmin(admin.ModelAdmin):
         if obj.runner != Program.FLEETS or obj.compute_profile_fk is None:
             return ""
         lines = [
-            format_html('<a href="{}">{}</a>', self._search_link(obj.compute_profile_fk_id), obj.compute_profile_fk)
+            format_html(
+                '<a href="{}" class="qs-truncate">{}</a>',
+                self._search_link(obj.compute_profile_fk_id),
+                obj.compute_profile_fk,
+            )
         ]
         if obj.function_size is not None:
             lines.append(format_html('<span class="qs-runner-meta">{}</span>', obj.function_size))
@@ -739,9 +747,9 @@ class JobAdmin(admin.ModelAdmin):
         program_url = self._search_link(obj.program.title)
         provider = obj.program.provider
         if provider is None:
-            return format_html('<a href="{}">{}</a>', program_url, obj.program.title)
+            return format_html('<a href="{}" class="qs-truncate">{}</a>', program_url, obj.program.title)
         return format_html(
-            '<a href="{}">{}</a>/<a href="{}">{}</a>',
+            '<a href="{}" class="qs-truncate">{}</a>/<a href="{}" class="qs-truncate">{}</a>',
             self._search_link(provider.name),
             provider.name,
             program_url,

@@ -949,6 +949,7 @@ body.login #content h1 {
 
 .qs-runner-id {
     display: inline-block;
+    white-space: nowrap;
     vertical-align: bottom;
     font-family: var(--font-family-monospace);
     font-size: 0.8125rem;
@@ -967,8 +968,13 @@ body.login #content h1 {
     letter-spacing: 0.32px;
 }
 
+/* Secondary text lines (CRN, CE project/region, function size): never wrap, ellipsis instead */
 .qs-runner-meta {
     display: block;
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-size: 0.6875rem;
     color: #6f6f6f;
 }
@@ -979,6 +985,16 @@ a.qs-runner-meta {
 
 a.qs-runner-meta:hover {
     text-decoration: underline;
+}
+
+/* Program/provider and Compute Profile links: never wrap, ellipsis instead */
+.qs-truncate {
+    display: inline-block;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
 }
 
 /* NAV SIDEBAR — hide +Add links */

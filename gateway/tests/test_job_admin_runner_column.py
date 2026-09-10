@@ -37,13 +37,13 @@ def test_runner_column_shows_fleet_id_as_a_code_chip_with_project_and_region_on_
 
 
 @pytest.mark.django_db
-def test_runner_column_truncates_a_long_ray_job_id_to_12_chars_but_keeps_the_full_value_as_title():
+def test_runner_column_truncates_a_long_ray_job_id_to_12_chars_plus_ellipsis_but_keeps_the_full_value_as_title():
     user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
     job = Job.objects.create(author=user, runner=Program.RAY, ray_job_id="raysubmit_abcdef", status=Job.RUNNING)
 
     html = JobAdmin(Job, None).runner_column(job)
 
-    assert '<span class="qs-runner-id" title="raysubmit_abcdef">raysubmit_ab</span>' in html
+    assert '<span class="qs-runner-id" title="raysubmit_abcdef">raysubmit_ab…</span>' in html
     assert '<span class="qs-runner-label">Ray</span>' in html
     assert "qs-runner-meta" not in html
     assert html.count("<br>") == 1
@@ -51,14 +51,14 @@ def test_runner_column_truncates_a_long_ray_job_id_to_12_chars_but_keeps_the_ful
 
 
 @pytest.mark.django_db
-def test_id_column_shows_a_12_char_chip_of_the_uuid_with_the_full_value_as_title():
+def test_id_column_shows_a_12_char_chip_of_the_uuid_plus_ellipsis_with_the_full_value_as_title():
     user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
     job = Job.objects.create(author=user, status=Job.RUNNING)
 
     html = JobAdmin(Job, None).id_column(job)
 
     full_id = str(job.pk)
-    assert f'<span class="qs-runner-id" title="{full_id}">{full_id[:12]}</span>' in html
+    assert f'<span class="qs-runner-id" title="{full_id}">{full_id[:12]}…</span>' in html
     assert len(full_id) > 12
 
 
@@ -110,6 +110,7 @@ def test_get_program_searches_by_provider_and_by_program_with_no_space_around_th
     assert f'href="{_search_url("TestProvider")}"' in html
     assert f'href="{_search_url("prog1")}"' in html
     assert ">TestProvider</a>/<a " in html
+    assert html.count('class="qs-truncate"') == 2
 
 
 @pytest.mark.django_db
@@ -149,6 +150,7 @@ def test_compute_profile_column_searches_by_the_profile_and_shows_the_function_s
     html = JobAdmin(Job, None).compute_profile_column(job)
 
     assert f'href="{_search_url("24x120x1l40")}"' in html
+    assert 'class="qs-truncate"' in html
     assert ">24x120x1l40<" in html
     assert str(size) in html
     assert html.count("<br>") == 1
