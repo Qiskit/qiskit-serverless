@@ -443,6 +443,15 @@ class JobEventInline(admin.TabularInline):
         css = {"all": ["admin/css/admin_job_event_inline.css"]}
 
 
+CODE_CHIP_MAX_LENGTH = 12
+
+
+def _code_chip(value):
+    """A short monospace chip showing at most CODE_CHIP_MAX_LENGTH characters; the full value is the title."""
+    display_value = value[:CODE_CHIP_MAX_LENGTH] if value else "-"
+    return format_html('<span class="qs-runner-id" title="{}">{}</span>', value or "", display_value)
+
+
 class JobProgramFilter(admin.SimpleListFilter):
     """Filter jobs by provider / program."""
 
@@ -485,7 +494,7 @@ class JobAdmin(admin.ModelAdmin):
     ]
     list_filter = ["status", "runner", "filler", JobProgramFilter]
     list_display = [
-        "id",
+        "id_column",
         "author_column",
         "get_program",
         "status_badge",
@@ -494,7 +503,7 @@ class JobAdmin(admin.ModelAdmin):
         "created",
         "updated",
     ]
-    list_display_links = ["id"]
+    list_display_links = ["id_column"]
     list_select_related = [
         "author",
         "program",
@@ -669,12 +678,17 @@ class JobAdmin(admin.ModelAdmin):
         }
         return render(request, "admin/api/job/events.html", context)
 
+    @admin.display(description="Id")
+    def id_column(self, obj):
+        """Show the job UUID as a short code chip; list_display_links turns it into the link to the job page."""
+        return _code_chip(str(obj.pk))
+
     @admin.display(description="Fleet Id")
     def runner_column(self, obj):
         """Engine job id as a code chip, engine name below, and for Fleets the CE project/region below that."""
         engine_job_id = obj.fleet_id if obj.runner == Program.FLEETS else obj.ray_job_id
         lines = [
-            format_html('<span class="qs-runner-id" title="{0}">{0}</span>', engine_job_id or "-"),
+            _code_chip(engine_job_id),
             format_html('<span class="qs-runner-label">{}</span>', obj.get_runner_display()),
         ]
         if obj.runner == Program.FLEETS:

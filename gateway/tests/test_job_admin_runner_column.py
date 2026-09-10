@@ -37,17 +37,29 @@ def test_runner_column_shows_fleet_id_as_a_code_chip_with_project_and_region_on_
 
 
 @pytest.mark.django_db
-def test_runner_column_shows_ray_job_id_with_no_project_or_region_line():
+def test_runner_column_truncates_a_long_ray_job_id_to_12_chars_but_keeps_the_full_value_as_title():
     user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
-    job = Job.objects.create(author=user, runner=Program.RAY, ray_job_id="raysubmit_abc", status=Job.RUNNING)
+    job = Job.objects.create(author=user, runner=Program.RAY, ray_job_id="raysubmit_abcdef", status=Job.RUNNING)
 
     html = JobAdmin(Job, None).runner_column(job)
 
-    assert '<span class="qs-runner-id" title="raysubmit_abc">raysubmit_abc</span>' in html
+    assert '<span class="qs-runner-id" title="raysubmit_abcdef">raysubmit_ab</span>' in html
     assert '<span class="qs-runner-label">Ray</span>' in html
     assert "qs-runner-meta" not in html
     assert html.count("<br>") == 1
     assert "&lt;br&gt;" not in html
+
+
+@pytest.mark.django_db
+def test_id_column_shows_a_12_char_chip_of_the_uuid_with_the_full_value_as_title():
+    user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
+    job = Job.objects.create(author=user, status=Job.RUNNING)
+
+    html = JobAdmin(Job, None).id_column(job)
+
+    full_id = str(job.pk)
+    assert f'<span class="qs-runner-id" title="{full_id}">{full_id[:12]}</span>' in html
+    assert len(full_id) > 12
 
 
 @pytest.mark.django_db
@@ -174,3 +186,16 @@ def test_every_click_to_search_link_actually_narrows_the_changelist_to_that_job(
         response = client.get(_search_url(term))
         assert response.status_code == 200, f"{term!r} was rejected"
         assert str(job.pk) in response.content.decode(), f"{term!r} did not find the job"
+
+
+@pytest.mark.django_db
+def test_changelist_marks_created_and_updated_cells_for_the_smaller_font_css():
+    user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
+    Job.objects.create(author=user, status=Job.RUNNING)
+
+    client = Client()
+    client.force_login(user)
+    body = client.get("/backoffice/api/job/").content.decode()
+
+    assert "field-created" in body
+    assert "field-updated" in body

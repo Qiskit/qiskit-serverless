@@ -426,6 +426,12 @@ thead th.sorted {
     font-size: 0.8125rem;
 }
 
+/* JOB LIST — created/updated timestamps are secondary, so a smaller font */
+#result_list .field-created,
+#result_list .field-updated {
+    font-size: 0.75rem;
+}
+
 /* BUTTONS — softly rounded, generous horizontal padding */
 
 .button, input[type=submit], input[type=button], .submit-row input, a.button {
@@ -939,14 +945,10 @@ body.login #content h1 {
 .qs-status-badge[data-status="STOPPED"]   { --qs-badge-bg: #888888; }
 .qs-status-badge[data-status="FAILED"]    { --qs-badge-bg: #cc0000; }
 
-/* JOB LIST — Fleet Id column (engine job id as a code chip + engine name below) */
+/* JOB LIST — Id and Fleet Id columns (short, fixed-length code chips; the full value is the title) */
 
 .qs-runner-id {
     display: inline-block;
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
     vertical-align: bottom;
     font-family: var(--font-family-monospace);
     font-size: 0.8125rem;
