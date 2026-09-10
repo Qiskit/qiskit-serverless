@@ -131,7 +131,7 @@ class TestJob:
     @patch("requests.get", Mock(return_value=ResponseMock()))
     def test_filtered_logs(self):
         """Tests job filtered log."""
-        client = ServerlessClient(host="host", token="token", instance="instance", version="version")
+        client = ServerlessClient(host="host", token="token", instance="instance")
         client.logs = MagicMock(
             return_value="This is the line 1\nThis is the second line\nOK.  This is the last line.\n",  # pylint: disable=line-too-long
         )
@@ -142,7 +142,7 @@ class TestJob:
     @patch("requests.get", Mock(return_value=ResponseMock()))
     def test_error_message(self):
         """Tests job filtered log."""
-        client = ServerlessClient(host="host", token="token", instance="instance", version="version")
+        client = ServerlessClient(host="host", token="token", instance="instance")
         client.status = MagicMock(
             return_value="ERROR",
         )
@@ -167,7 +167,7 @@ class TestJob:
     )
     def test_runtime_sessions(self):
         """Tests runtime session id retrieval for serverless job."""
-        client = ServerlessClient(host="host", token="token", instance="instance", version="v1")
+        client = ServerlessClient(host="host", token="token", instance="instance")
 
         job_id = "8317718f-5c0d-4fb6-9947-72e480b8a348"
         runtime_sessions = client.runtime_sessions(job_id)
@@ -182,7 +182,7 @@ class TestJob:
     )
     def test_runtime_jobs(self):
         """Tests runtime job id retrieval for serverless job."""
-        client = ServerlessClient(host="host", token="token", instance="instance", version="v1")
+        client = ServerlessClient(host="host", token="token", instance="instance")
 
         job_id = "8317718f-5c0d-4fb6-9947-72e480b8a348"
         runtime_jobs = client.runtime_jobs(job_id)

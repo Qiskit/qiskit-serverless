@@ -107,7 +107,6 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
     def __init__(  # pylint:  disable=too-many-positional-arguments
         self,
         host: Optional[str] = None,
-        version: Optional[str] = None,
         token: Optional[str] = None,
         instance: Optional[str] = None,
         channel: Optional[str] = None,
@@ -117,7 +116,6 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
 
         Args:
             host: host of gateway. If None, it uses the ENV_GATEWAY_PROVIDER_HOST env var
-            version: version of gateway
             token: authorization token
             instance: IBM Cloud CRN
             channel: identifies the method to use to authenticate the user
@@ -127,7 +125,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             raise QiskitServerlessException("Please provide `host` of gateway.")
         host = host.rstrip("/")
 
-        version = version or os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
+        version = os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
         if version is None:
             version = GATEWAY_PROVIDER_VERSION_DEFAULT
 
