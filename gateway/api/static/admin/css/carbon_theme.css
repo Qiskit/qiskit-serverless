@@ -435,10 +435,10 @@ thead th.sorted {
     font-size: 0.8125rem;
 }
 
-/* JOB LIST — created/updated timestamps are secondary, so a smaller font */
+/* JOB LIST — created/updated timestamps are secondary, so the same small size as the cells' second lines */
 #result_list .field-created,
 #result_list .field-updated {
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
 }
 
 /* BUTTONS — softly rounded, generous horizontal padding */
@@ -988,11 +988,13 @@ body.login #content h1 {
     color: #6f6f6f;
 }
 
-a.qs-runner-meta {
+a.qs-runner-meta,
+.qs-runner-meta a {
     text-decoration: none;
 }
 
-a.qs-runner-meta:hover {
+a.qs-runner-meta:hover,
+.qs-runner-meta a:hover {
     text-decoration: underline;
 }
 

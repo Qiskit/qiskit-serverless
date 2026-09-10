@@ -743,20 +743,26 @@ class JobAdmin(admin.ModelAdmin):
 
     @admin.display(description="Program")
     def get_program(self, obj):
-        """Return provider/program label, each part searching the changelist for that provider or program."""
+        """Function name, with its provider below it, or "Custom" when the function has no provider."""
         if obj.program is None:
             return "-"
-        program_url = self._search_link(obj.program.title)
+        lines = [
+            format_html(
+                '<a href="{}" class="qs-cell-link">{}</a>', self._search_link(obj.program.title), obj.program.title
+            )
+        ]
         provider = obj.program.provider
         if provider is None:
-            return format_html('<a href="{}" class="qs-cell-link">{}</a>', program_url, obj.program.title)
-        return format_html(
-            '<a href="{}" class="qs-cell-link">{}</a>/<a href="{}" class="qs-cell-link">{}</a>',
-            self._search_link(provider.name),
-            provider.name,
-            program_url,
-            obj.program.title,
-        )
+            lines.append(mark_safe('<span class="qs-runner-meta">Custom</span>'))
+        else:
+            lines.append(
+                format_html(
+                    '<span class="qs-runner-meta">Provider: <a href="{}">{}</a></span>',
+                    self._search_link(provider.name),
+                    provider.name,
+                )
+            )
+        return format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines))
 
     def save_model(self, request, obj, form, change):
         if change:

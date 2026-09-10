@@ -113,7 +113,7 @@ def test_status_badge_searches_for_that_status():
 
 
 @pytest.mark.django_db
-def test_get_program_searches_by_provider_and_by_program_with_no_space_around_the_slash():
+def test_get_program_shows_the_function_name_with_its_provider_on_a_second_line():
     user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
     provider = Provider.objects.create(name="TestProvider")
     program = Program.objects.create(title="prog1", author=user, provider=provider)
@@ -121,22 +121,27 @@ def test_get_program_searches_by_provider_and_by_program_with_no_space_around_th
 
     html = JobAdmin(Job, None).get_program(job)
 
-    assert f'href="{_search_url("TestProvider")}"' in html
-    assert f'href="{_search_url("prog1")}"' in html
-    assert ">TestProvider</a>/<a " in html
-    assert html.count('class="qs-cell-link"') == 2
+    assert f'<a href="{_search_url("prog1")}" class="qs-cell-link">prog1</a>' in html
+    assert (
+        f'<span class="qs-runner-meta">Provider: <a href="{_search_url("TestProvider")}">TestProvider</a></span>'
+        in html
+    )
+    assert html.count("<br>") == 1
+    assert "&lt;br&gt;" not in html
 
 
 @pytest.mark.django_db
-def test_get_program_links_just_the_program_when_it_has_no_provider():
+def test_get_program_says_custom_below_a_function_that_has_no_provider():
     user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
     program = Program.objects.create(title="custom-prog", author=user, provider=None)
     job = Job.objects.create(author=user, program=program, status=Job.RUNNING)
 
     html = JobAdmin(Job, None).get_program(job)
 
-    assert f'href="{_search_url("custom-prog")}"' in html
-    assert ">custom-prog</a>" in html
+    assert f'<a href="{_search_url("custom-prog")}" class="qs-cell-link">custom-prog</a>' in html
+    assert '<span class="qs-runner-meta">Custom</span>' in html
+    assert "Provider:" not in html
+    assert html.count("<br>") == 1
 
 
 @pytest.mark.django_db
