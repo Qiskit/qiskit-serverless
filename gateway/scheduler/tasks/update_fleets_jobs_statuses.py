@@ -166,6 +166,12 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
 
     def stop_job_if_timeout(self, job: Job) -> None:
         """Stop job if it has exceeded the maximum allowed duration."""
+        if job.filler:
+            # Filler jobs are meant to run indefinitely; BalanceFillerJobs is the
+            # only task that stops them, when they no longer match the configured
+            # filler program or compute profile.
+            return
+
         timeout = settings.PROGRAM_TIMEOUT
         latest_event = JobEvent.objects.filter(job=job).order_by("-created").first()
         reference_time = latest_event.created if latest_event else job.created

@@ -374,6 +374,25 @@ class TestStopJobIfTimeout:
         assert job.status == Job.RUNNING
         job.update_fields.assert_not_called()
 
+    def test_filler_job_never_stopped_regardless_of_age(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+        job.filler = True
+
+        past_event = MagicMock()
+        past_event.created = datetime.now(timezone.utc) - timedelta(hours=1000)
+
+        with (
+            patch(f"{_MOD}.settings") as mock_settings,
+            patch(f"{_MOD}.JobEvent") as mock_event,
+        ):
+            mock_settings.PROGRAM_TIMEOUT = 1
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
+            task.stop_job_if_timeout(job)
+
+        assert job.status == Job.RUNNING
+        job.update_fields.assert_not_called()
+
 
 class TestRun:
     """Tests for run()."""
