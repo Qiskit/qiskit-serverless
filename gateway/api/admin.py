@@ -5,7 +5,6 @@ import logging
 import uuid
 
 from django import forms
-from django.conf import settings
 from django.contrib import admin, messages
 from django.core.cache import cache
 from django.db.models import Count, F, Q
@@ -21,7 +20,7 @@ from api.domain.arguments_schema import (
 )
 from api.domain.job_timeline import render_job_timeline
 from api.domain.exceptions.invalid_arguments_exception import InvalidArgumentsException
-from api.use_cases.programs.upload import no_ce_project_message, seed_default_size
+from api.use_cases.programs.upload import no_ce_project_message
 from api.use_cases.programs.validate_arguments import validate_arguments
 from core.models import (
     CodeEngineProject,
@@ -414,48 +413,6 @@ class ProgramAdmin(admin.ModelAdmin):
         if obj:
             readonly_fields.append("title")
         return readonly_fields
-
-    def save_related(self, request, form, formsets, change):
-        """After the inline size rows are saved, seed a default size for a size-less Fleets function.
-
-        This mirrors the upload use case, which gives every Fleets function a size so runs resolve a
-        compute profile. It runs here rather than in ``save_model`` because the inline ``FunctionSize``
-        formset is only written by ``super().save_related``; before that a function whose operator
-        just declared sizes inline still looks size-less. The CE project is already guaranteed by the
-        form's ``clean`` for Fleets, so only sizing is left to do.
-        """
-        super().save_related(request, form, formsets, change)
-
-        obj = form.instance
-        if obj.runner != Program.FLEETS:
-            return
-
-        self._ensure_default_size(request, obj)
-
-    def _ensure_default_size(self, request, obj):
-        """Seed the deployment default size when a Fleets function declares none, like upload does.
-
-        Skipped when the operator already picked a default or declared any sizes inline, so an edit
-        never overwrites their choice. Seeding is non-fatal: if the default compute profile is not
-        registered the helper leaves the function size-less (it falls back to the platform default
-        profile at run time), and we say so rather than failing the save.
-        """
-        if obj.default_size_id:
-            return
-        if FunctionSize.objects.filter(function=obj).exists():
-            return
-
-        seed_default_size(obj)
-
-        # seed_default_size sets default_size on obj in place; a still-empty default means the
-        # configured DEFAULT_FUNCTION_SIZE_PROFILE has no ComputeProfile row.
-        if not obj.default_size_id:
-            messages.warning(
-                request,
-                f"Default compute profile '{settings.DEFAULT_FUNCTION_SIZE_PROFILE}' is not registered, "
-                "so this function was left with no default size and will run on the platform default "
-                "compute profile. Register the profile or add a size to give it an explicit default.",
-            )
 
     def render_change_form(self, request, context, *args, **kwargs):
         """Warn at the top of the page when the stored arguments_schema is unusable.

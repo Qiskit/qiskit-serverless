@@ -160,39 +160,6 @@ def _apply_default_size(function: Function, default_size: str) -> None:
     function.save(update_fields=["default_size"])
 
 
-def seed_default_size(function: Function) -> None:
-    """Give a function with no declared catalog the deployment's default size.
-
-    Declaring sizes is still optional, so this is what gets every function to
-    a size. The seed is skipped rather than fatal when the profile row is
-    absent (an operator may not have populated ComputeProfile yet), leaving
-    the function to run on DEFAULT_COMPUTE_PROFILE as it did before sizes
-    existed.
-
-    Module-level so the Django admin can reuse the exact same seeding on a
-    hand-created Fleets function, keeping one source of truth.
-    """
-    compute_profile_id = settings.DEFAULT_FUNCTION_SIZE_PROFILE
-    profile = ComputeProfile.objects.get_by_id(compute_profile_id)
-    if profile is None:
-        logger.warning(
-            "program=%s | Default compute profile [%s] is not registered; "
-            "function created with no sizes and will run on the default compute profile.",
-            function.title,
-            compute_profile_id,
-        )
-        return
-
-    size_name = settings.DEFAULT_FUNCTION_SIZE
-    row = FunctionSize.objects.create(
-        function=function,
-        function_size=size_name,
-        compute_profile=profile,
-    )
-    function.default_size = row
-    function.save(update_fields=["default_size"])
-
-
 class UploadFunctionUseCase:
     """Use case for uploading (creating or updating) a Qiskit Function."""
 
@@ -295,12 +262,33 @@ class UploadFunctionUseCase:
         return function
 
     def _seed_default_size(self, function: Function) -> None:
-        """Seed the deployment default size; delegates to the module-level helper.
+        """Give a function with no declared catalog the deployment's default size.
 
-        Kept as a method so the ``_create`` call site and any caller reaching in
-        through the use-case stay unchanged, while the logic lives in one place.
+        Declaring sizes is still optional, so this is what gets every function to
+        a size. The seed is skipped rather than fatal when the profile row is
+        absent (an operator may not have populated ComputeProfile yet), leaving
+        the function to run on DEFAULT_COMPUTE_PROFILE as it did before sizes
+        existed.
         """
-        seed_default_size(function)
+        compute_profile_id = settings.DEFAULT_FUNCTION_SIZE_PROFILE
+        profile = ComputeProfile.objects.get_by_id(compute_profile_id)
+        if profile is None:
+            logger.warning(
+                "program=%s | Default compute profile [%s] is not registered; "
+                "function created with no sizes and will run on the default compute profile.",
+                function.title,
+                compute_profile_id,
+            )
+            return
+
+        size_name = settings.DEFAULT_FUNCTION_SIZE
+        row = FunctionSize.objects.create(
+            function=function,
+            function_size=size_name,
+            compute_profile=profile,
+        )
+        function.default_size = row
+        function.save(update_fields=["default_size"])
 
     @staticmethod
     def _apply_scalar_updates(instance: Function, data: UploadFunctionInput) -> None:
