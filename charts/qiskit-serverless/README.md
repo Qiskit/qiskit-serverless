@@ -71,3 +71,29 @@ Gateway is the API that we offer to manage Qiskit Patterns. Scheduler is the par
 | secrets.servicePsql.*                     | `name` and `key` let you to specify the secret and `value` the value for the secret                                                                                                           |
 | secrets.superuser.create                  | Port number that service will be exposed externally                                                                                                                                           |
 | secrets.superuser.*                       | `name` and `key` let you to specify the secret and `value` the value for the secret                                                                                                           |
+
+**Event Streams (Multi-Region)**
+
+Event Streams is an IBM Cloud service for publishing function usage events to regional Kafka buses. The service is configured with a default region and optional additional regional buses. See [Multi-region Event Streams routing design](../../../2026-08-06-multi-region-kafka-design.md) for full details.
+
+| Name                                    | Description                                                                                                |
+|-----------------------------------------|------------------------------------------------------------------------------------------------------------|
+| application.eventStreams.enabled        | enable / disable event publishing to Kafka                                                                 |
+| application.eventStreams.environment    | deployment environment name (e.g. production, staging); passed to Kafka topic name                         |
+| application.eventStreams.defaultRegion  | default region served by unsuffixed `kafka-credentials` secret (default: `us-east`)                        |
+
+**Event Streams Secrets**
+
+The default region uses the `kafka-credentials` secret with keys `bootstrap_servers` and `api_key`. Additional regions use suffixed secrets: `kafka-credentials-eu-de`, `kafka-credentials-ap-sg`, etc. Each regional secret requires the same keys.
+
+```bash
+# Default region (required if eventStreams.enabled is true)
+kubectl create secret generic kafka-credentials \
+  --from-literal=bootstrap_servers='broker1:9093,broker2:9093' \
+  --from-literal=api_key='your-api-key'
+
+# Additional region (optional; automatically detected if present)
+kubectl create secret generic kafka-credentials-eu-de \
+  --from-literal=bootstrap_servers='broker-eu1:9093,broker-eu2:9093' \
+  --from-literal=api_key='your-eu-api-key'
+```
