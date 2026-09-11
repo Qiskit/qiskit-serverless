@@ -644,6 +644,8 @@ class Job(models.Model):
             # on filler: the partial predicate already selects the filler rows, and
             # created is what serves the ordering.
             models.Index(fields=["created"], condition=models.Q(filler=True), name="job_filler_true_idx"),
+            # Backs the admin changelist search by fleet_id.
+            models.Index(fields=["fleet_id"], name="job_fleet_id_idx"),
         ]
 
     @classmethod
