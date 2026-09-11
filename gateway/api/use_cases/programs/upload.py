@@ -44,11 +44,14 @@ def _normalize_dependency(raw_dependency) -> str:
     return dependency_name + dependency_version
 
 
-def _no_ce_project_message(function: Function) -> str:
+def no_ce_project_message(function: Function) -> str:
     """Message for a Fleets function with no Code Engine project, naming its provider if it has one.
 
     Distinguishes a provider with no project linked at all from one whose linked project
     is inactive, since those call for different administrator action.
+
+    Public because the Django admin reuses it to reject a Fleets function that cannot be
+    assigned an active project, keeping the admin's wording identical to this endpoint's.
     """
     if function.provider:
         project = function.provider.code_engine_project
@@ -229,7 +232,7 @@ class UploadFunctionUseCase:
 
         CodeEngineProject.objects.assign_to_program(function)
         if function.runner == Function.FLEETS and not function.code_engine_project:
-            message = _no_ce_project_message(function)
+            message = no_ce_project_message(function)
             logger.warning("user_id=%s program=%s | %s", user.id, function.title, message)
             raise FunctionConfigurationException(message)
 
@@ -315,7 +318,7 @@ class UploadFunctionUseCase:
             instance.runner = data.runner
             CodeEngineProject.objects.assign_to_program(instance)
             if instance.runner == Function.FLEETS and not instance.code_engine_project:
-                message = _no_ce_project_message(instance)
+                message = no_ce_project_message(instance)
                 logger.warning("user_id=%s program=%s | %s", user.id, instance.title, message)
                 raise FunctionConfigurationException(message)
 
