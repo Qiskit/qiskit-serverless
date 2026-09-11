@@ -7,6 +7,7 @@ ray[default]>=2.58.0, <3
 Django>=6.0.8, <7
 gunicorn>=26.2.0, <27
 requests>=2.34.2, <3
+aiohttp>=3.14.3, <4
 psycopg2-binary>=2.9.12, <3
 kubernetes>=36.0.3, <37
 opentelemetry-distro>=0.65b0
