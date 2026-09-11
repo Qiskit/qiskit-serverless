@@ -16,3 +16,25 @@
         </li>
     {% endif %}
 {% endblock %}
+
+{# Render every fieldset except "Default size", which we render after the Sizes inline below so the
+   size catalog (the inline table) comes first and the default_size pointer sits right under it. #}
+{% block field_sets %}
+{% for fieldset in adminform %}
+    {% if fieldset.name != "Default size" %}
+        {% include "admin/includes/fieldset.html" with heading_level=2 prefix="fieldset" id_prefix=0 id_suffix=forloop.counter0 %}
+    {% endif %}
+{% endfor %}
+{% endblock %}
+
+{# Sizes inline (the catalog), then the "Default size" fieldset that points into it. #}
+{% block inline_field_sets %}
+{% for inline_admin_formset in inline_admin_formsets %}
+    {% include inline_admin_formset.opts.template %}
+{% endfor %}
+{% for fieldset in adminform %}
+    {% if fieldset.name == "Default size" %}
+        {% include "admin/includes/fieldset.html" with heading_level=2 prefix="fieldset" id_prefix=0 id_suffix=forloop.counter0 %}
+    {% endif %}
+{% endfor %}
+{% endblock %}

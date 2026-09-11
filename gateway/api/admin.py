@@ -353,20 +353,20 @@ class ProgramAdmin(admin.ModelAdmin):
             "Execution",
             {"fields": ["runner", "gpu", "entrypoint", "artifact", "image", "dependencies", "arguments_schema"]},
         ),
+        ("Fleets", {"fields": ["code_engine_project"]}),
+        ("Ownership", {"fields": ["author", "provider", "instances", "trial_instances"]}),
         (
-            "Sizes",
+            "Default size",
             {
                 "fields": ["default_size"],
                 "description": (
                     "T-shirt sizes for the Fleets runner. Edit the size catalog (each size &rarr; "
-                    "compute profile) in the <b>Sizes</b> table below, then pick the "
+                    "compute profile) in the <b>Sizes</b> table above, then pick the "
                     "<code>default_size</code> used when a run omits a size. The default must be one "
                     "of this function's own sizes."
                 ),
             },
         ),
-        ("Fleets", {"fields": ["code_engine_project"]}),
-        ("Ownership", {"fields": ["author", "provider", "instances", "trial_instances"]}),
     ]
 
     list_display = [
