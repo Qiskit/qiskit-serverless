@@ -35,3 +35,5 @@ jsonschema>=4.26.0,<5
 confluent-kafka>=2.15.0,<3
 mozilla-django-oidc>=5.0.2, <6
 python-dotenv>=1.2.3, <2
+# Pin pyasn1 to patched version to address CVE-2026-59884, CVE-2026-59885, CVE-2026-59886
+pyasn1>=0.6.4, <1
