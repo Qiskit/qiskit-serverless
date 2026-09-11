@@ -28,6 +28,7 @@ from __future__ import absolute_import
 
 from core.ibm_cloud.code_engine.ce_client.api.fleets_api import FleetsApi
 from core.ibm_cloud.code_engine.ce_client.api.secrets_and_configmaps_api import SecretsAndConfigmapsApi
+from core.ibm_cloud.code_engine.ce_client.api.subnet_pools_api import SubnetPoolsApi
 
 from core.ibm_cloud.code_engine.ce_client.api_client import ApiClient
 from core.ibm_cloud.code_engine.ce_client.configuration import Configuration
@@ -45,3 +46,5 @@ from core.ibm_cloud.code_engine.ce_client.models.v2_fleet_volume_mount import V2
 from core.ibm_cloud.code_engine.ce_client.models.v2_network_placement import V2NetworkPlacement
 from core.ibm_cloud.code_engine.ce_client.models.v2_secret import V2Secret
 from core.ibm_cloud.code_engine.ce_client.models.v2_secret_list import V2SecretList
+from core.ibm_cloud.code_engine.ce_client.models.v2_subnet_pool import V2SubnetPool
+from core.ibm_cloud.code_engine.ce_client.models.v2_subnet_pool_list import V2SubnetPoolList
