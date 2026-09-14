@@ -141,6 +141,7 @@ secrets:
     secretRef: ""
     secretStoreName: qiskit-serverless
   kafka:
+    createExternalSecret: false
     name: ""
     secretRef: ""
     secretStoreName: qiskit-serverless
