@@ -102,6 +102,12 @@ gateway:
       name: ""
       secretRef: ""
       secretStoreName: qiskit-serverless
+    kafkaEuDe:
+      # Second Kafka instance in the eu-de region. Same decoupling as above.
+      createExternalSecret: false
+      name: ""
+      secretRef: ""
+      secretStoreName: qiskit-serverless
     ibmCloudFidApiKey:
       name: ""
       secretRef: ""
