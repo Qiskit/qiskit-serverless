@@ -95,6 +95,10 @@ gateway:
       secretRef: ""
       secretStoreName: qiskit-serverless
     kafka:
+      # Creation of the Kafka ExternalSecret is independent of
+      # application.eventStreams.enabled, so the credential can be provisioned
+      # and verified before billing events are switched on.
+      createExternalSecret: false
       name: ""
       secretRef: ""
       secretStoreName: qiskit-serverless

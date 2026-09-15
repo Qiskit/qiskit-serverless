@@ -96,6 +96,9 @@ html[data-theme="light"],
     --qs-code-bg: #161616;
     --qs-code-fg: #f4f4f4;
     --qs-code-border: #393939;
+    --qs-chip-bg: #e0e0e0;
+    --qs-chip-fg: #161616;
+    --qs-chip-border: #c6c6c6;
 
     --font-family-primary:
         "IBM Plex Sans",
@@ -161,6 +164,9 @@ html[data-theme="light"],
         --qs-code-bg: #262626;
         --qs-code-fg: #f4f4f4;
         --qs-code-border: #525252;
+        --qs-chip-bg: #393939;
+        --qs-chip-fg: #f4f4f4;
+        --qs-chip-border: #525252;
     }
 }
 
@@ -211,6 +217,9 @@ html[data-theme="dark"] {
     --qs-code-bg: #262626;
     --qs-code-fg: #f4f4f4;
     --qs-code-border: #525252;
+    --qs-chip-bg: #393939;
+    --qs-chip-fg: #f4f4f4;
+    --qs-chip-border: #525252;
 }
 
 /* BASE */
@@ -408,10 +417,6 @@ tr:nth-child(odd) + .row-form-errors .errorlist {
     background: transparent;
 }
 
-#result_list tbody tr {
-    cursor: pointer;
-}
-
 #result_list tbody tr:hover {
     background: var(--qs-row-hover);
 }
@@ -428,6 +433,13 @@ thead th.sorted {
 #result_list tbody th a {
     font-family: var(--font-family-monospace);
     font-size: 0.8125rem;
+}
+
+/* JOB LIST — created/updated timestamps are secondary, so the same small size as the cells' second lines */
+#result_list .field-created_column,
+#result_list .field-updated_column {
+    font-size: 0.6875rem;
+    white-space: nowrap;
 }
 
 /* BUTTONS — softly rounded, generous horizontal padding */
@@ -912,6 +924,8 @@ body.login #content h1 {
 
 /* JOB LIST — status badges (same palette as event-badge inline) */
 
+/* !important: this is an <a> now (clicking it searches by status), and Django's own
+   a:link/a:visited rules are more specific than a single class, so they'd otherwise win. */
 .qs-status-badge {
     display: inline-block;
     padding: 2px 9px;
@@ -920,7 +934,8 @@ body.login #content h1 {
     font-weight: 600;
     letter-spacing: 0.32px;
     text-transform: uppercase;
-    color: #ffffff;
+    text-decoration: none;
+    color: #ffffff !important;
     background-color: var(--qs-badge-bg, #6f6f6f);
 }
 
@@ -928,17 +943,76 @@ body.login #content h1 {
 
 .qs-status-badge[data-status="PENDING"] {
     --qs-badge-bg: #f0ad4e;
-    color: #1c1c1c;
+    color: #1c1c1c !important;
 }
 
 .qs-status-badge[data-status="RUNNING"] {
     --qs-badge-bg: #5bc0de;
-    color: #1c1c1c;
+    color: #1c1c1c !important;
 }
 
 .qs-status-badge[data-status="SUCCEEDED"] { --qs-badge-bg: #00aa00; }
 .qs-status-badge[data-status="STOPPED"]   { --qs-badge-bg: #888888; }
 .qs-status-badge[data-status="FAILED"]    { --qs-badge-bg: #cc0000; }
+
+/* JOB LIST — Id and Fleet Id columns (short, fixed-length code chips; the full value is the title) */
+
+.qs-runner-id {
+    display: inline-block;
+    white-space: nowrap;
+    vertical-align: bottom;
+    font-family: var(--font-family-monospace);
+    font-size: 0.75rem;
+    color: var(--qs-chip-fg);
+    background: var(--qs-chip-bg);
+    border: 1px solid var(--qs-chip-border);
+    border-radius: 4px;
+    padding: 1px 5px;
+}
+
+.qs-runner-label {
+    display: block;
+    font-size: 0.6875rem;
+    color: #6f6f6f;
+    text-transform: uppercase;
+    letter-spacing: 0.32px;
+}
+
+/* Secondary text lines (CRN, CE project/region, function size): never wrap, ellipsis instead */
+.qs-runner-meta {
+    display: block;
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.6875rem;
+    color: #6f6f6f;
+}
+
+a.qs-runner-meta,
+.qs-runner-meta a {
+    text-decoration: none;
+}
+
+a.qs-runner-meta:hover,
+.qs-runner-meta a:hover {
+    text-decoration: underline;
+}
+
+/* Author, Program/provider and Compute Profile links: never wrap, ellipsis instead, underline on hover */
+.qs-cell-link {
+    display: inline-block;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+    text-decoration: none;
+}
+
+a.qs-cell-link:hover {
+    text-decoration: underline;
+}
 
 /* NAV SIDEBAR — hide +Add links */
 

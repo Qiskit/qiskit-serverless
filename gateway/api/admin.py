@@ -8,7 +8,10 @@ from django import forms
 from django.contrib import admin, messages
 from django.core.cache import cache
 from django.db.models import Count, F, Q
-from django.utils.html import format_html
+from django.utils import timezone
+from django.utils.html import format_html, format_html_join
+from django.utils.http import urlencode
+from django.utils.safestring import mark_safe
 from django.urls import path, reverse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.admin.views.main import PAGE_VAR
@@ -441,6 +444,24 @@ class JobEventInline(admin.TabularInline):
         css = {"all": ["admin/css/admin_job_event_inline.css"]}
 
 
+CODE_CHIP_MAX_LENGTH = 12
+
+
+def _short_datetime(value):
+    """Compact local timestamp for the changelist, YY/MM/DD hh:mm:ss, so the date columns stay narrow."""
+    if value is None:
+        return ""
+    return timezone.localtime(value).strftime("%y/%m/%d %H:%M:%S")
+
+
+def _code_chip(value):
+    """A short monospace chip showing at most CODE_CHIP_MAX_LENGTH characters; the full value is the title."""
+    display_value = value[:CODE_CHIP_MAX_LENGTH]
+    if len(value) > CODE_CHIP_MAX_LENGTH:
+        display_value += "…"
+    return format_html('<span class="qs-runner-id" title="{}">{}</span>', value, display_value)
+
+
 class JobProgramFilter(admin.SimpleListFilter):
     """Filter jobs by provider / program."""
 
@@ -471,10 +492,35 @@ class JobProgramFilter(admin.SimpleListFilter):
 class JobAdmin(admin.ModelAdmin):
     """JobAdmin."""
 
-    search_fields = ["id", "author__username", "program__title"]
+    search_fields = [
+        "id",
+        "author__username",
+        "program__title",
+        "program__provider__name",
+        "fleet_id",
+        "compute_profile_fk__compute_profile_id",
+        "status",
+        "instance_crn",
+    ]
     list_filter = ["status", "runner", "filler", JobProgramFilter]
-    list_display = ["runner", "author", "get_program", "status_badge", "created", "updated"]
-    list_select_related = ["author", "program", "program__provider"]
+    list_display = [
+        "id_column",
+        "author_column",
+        "get_program",
+        "status_badge",
+        "runner_column",
+        "compute_profile_column",
+        "created_column",
+        "updated_column",
+    ]
+    list_display_links = ["id_column"]
+    list_select_related = [
+        "author",
+        "program",
+        "program__provider",
+        "compute_profile_fk",
+        "function_size",
+    ]
     ordering = ["-created"]
     actions = ["timeline_action"]
     inlines = []
@@ -523,6 +569,10 @@ class JobAdmin(admin.ModelAdmin):
         if db_field.name == "program" and hasattr(formfield.widget, "can_delete_related"):
             formfield.widget.can_delete_related = False
         return formfield
+
+    def _search_link(self, value):
+        """Changelist URL that searches for value, so the search box shows what's filtered."""
+        return f"{reverse('admin:api_job_changelist')}?{urlencode({'q': value})}"
 
     @admin.action(description="Timeline")
     def timeline_action(self, request, queryset):
@@ -637,23 +687,100 @@ class JobAdmin(admin.ModelAdmin):
         }
         return render(request, "admin/api/job/events.html", context)
 
-    class Media:
-        js = ["admin/js/clickable_rows.js"]
+    @admin.display(description="Id")
+    def id_column(self, obj):
+        """Show the job UUID as a short code chip; list_display_links turns it into the link to the job page."""
+        return _code_chip(str(obj.pk))
+
+    @admin.display(description="Fleet Id")
+    def runner_column(self, obj):
+        """Engine job id as a code chip, with the CE project/region for Fleets and the engine name for Ray below it."""
+        is_fleets = obj.runner == Program.FLEETS
+        engine_job_id = obj.fleet_id if is_fleets else obj.ray_job_id
+        lines = []
+        if engine_job_id:
+            lines.append(_code_chip(engine_job_id))
+        if is_fleets:
+            # The column header already says Fleets, so only Ray jobs need the engine spelled out.
+            project_and_region = " ".join(part for part in [obj.ce_project_name, obj.ce_region] if part)
+            if project_and_region:
+                lines.append(format_html('<span class="qs-runner-meta">{}</span>', project_and_region))
+        else:
+            lines.append(format_html('<span class="qs-runner-label">{}</span>', obj.get_runner_display()))
+        return format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines))
+
+    @admin.display(description="Created", ordering="created")
+    def created_column(self, obj):
+        """Creation timestamp in the compact changelist format."""
+        return _short_datetime(obj.created)
+
+    @admin.display(description="Updated", ordering="updated")
+    def updated_column(self, obj):
+        """Last-update timestamp in the compact changelist format."""
+        return _short_datetime(obj.updated)
 
     @admin.display(description="Status")
     def status_badge(self, obj):
-        """Render status as a colored badge."""
-        return format_html('<span class="qs-status-badge" data-status="{}">{}</span>', obj.status, obj.status)
+        """Render status as a colored badge; clicking it searches the changelist for that status."""
+        return format_html(
+            '<a href="{}" class="qs-status-badge" data-status="{}">{}</a>',
+            self._search_link(obj.status),
+            obj.status,
+            obj.status,
+        )
+
+    @admin.display(description="Author")
+    def author_column(self, obj):
+        """Link the author's name to a changelist search for them, instance CRN below (same search)."""
+        lines = [
+            format_html('<a href="{}" class="qs-cell-link">{}</a>', self._search_link(obj.author.username), obj.author)
+        ]
+        if obj.instance_crn:
+            lines.append(
+                format_html(
+                    '<a href="{}" class="qs-runner-meta">{}</a>', self._search_link(obj.instance_crn), obj.instance_crn
+                )
+            )
+        return format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines))
+
+    @admin.display(description="Compute Profile")
+    def compute_profile_column(self, obj):
+        """Fleets compute profile, clicking it searches the changelist for it; function size below. Empty for Ray."""
+        if obj.runner != Program.FLEETS or obj.compute_profile_fk is None:
+            return ""
+        lines = [
+            format_html(
+                '<a href="{}" class="qs-cell-link">{}</a>',
+                self._search_link(obj.compute_profile_fk_id),
+                obj.compute_profile_fk,
+            )
+        ]
+        if obj.function_size is not None:
+            lines.append(format_html('<span class="qs-runner-meta">{}</span>', obj.function_size.function_size))
+        return format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines))
 
     @admin.display(description="Program")
     def get_program(self, obj):
-        """Return provider / program label for list display."""
+        """Function name, with its provider below it, or "Custom" when the function has no provider."""
         if obj.program is None:
             return "-"
+        lines = [
+            format_html(
+                '<a href="{}" class="qs-cell-link">{}</a>', self._search_link(obj.program.title), obj.program.title
+            )
+        ]
         provider = obj.program.provider
-        if provider:
-            return f"{provider.name} / {obj.program.title}"
-        return obj.program.title
+        if provider is None:
+            lines.append(mark_safe('<span class="qs-runner-meta">Custom</span>'))
+        else:
+            lines.append(
+                format_html(
+                    '<span class="qs-runner-meta">Provider: <a href="{}">{}</a></span>',
+                    self._search_link(provider.name),
+                    provider.name,
+                )
+            )
+        return format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines))
 
     def save_model(self, request, obj, form, change):
         if change:
