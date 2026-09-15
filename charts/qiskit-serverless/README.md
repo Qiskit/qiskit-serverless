@@ -74,17 +74,17 @@ Gateway is the API that we offer to manage Qiskit Patterns. Scheduler is the par
 
 **Event Streams (Multi-Region)**
 
-Event Streams is an IBM Cloud service for publishing function usage events to regional Kafka buses. The service is configured with a default region and optional additional regional buses. See [Multi-region Event Streams routing design](../../../2026-08-06-multi-region-kafka-design.md) for full details.
+Event Streams is an IBM Cloud service for publishing function usage events to regional Kafka buses. The service is configured with a main region and optional additional regional buses. See [Multi-region Event Streams routing design](../../../2026-08-06-multi-region-kafka-design.md) for full details.
 
 | Name                                    | Description                                                                                                |
 |-----------------------------------------|------------------------------------------------------------------------------------------------------------|
 | application.eventStreams.enabled        | enable / disable event publishing to Kafka                                                                 |
 | application.eventStreams.environment    | deployment environment name (e.g. production, staging); passed to Kafka topic name                         |
-| application.eventStreams.defaultRegion  | default region served by unsuffixed `kafka-credentials` secret (default: `us-east`)                        |
+| application.eventStreams.mainRegion     | main region served by unsuffixed `kafka-credentials` secret (default: `eu-de`)                            |
 
 **Event Streams Secrets**
 
-The default region uses the `kafka-credentials` secret with keys `bootstrap_servers` and `api_key`. Additional regions use suffixed secrets: `kafka-credentials-eu-de`, `kafka-credentials-ap-sg`, etc. Each regional secret requires the same keys.
+The main region uses the `kafka-credentials` secret with keys `bootstrap_servers` and `api_key`. Additional regions use suffixed secrets: `kafka-credentials-eu-de`, `kafka-credentials-ap-sg`, etc. Each regional secret requires the same keys.
 
 ```bash
 # Default region (required if eventStreams.enabled is true)

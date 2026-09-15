@@ -44,39 +44,41 @@ class KafkaEventStreamsClient(EventStreamsClient):
     carry `business_model`.
 
     Configured from environment variables per region:
-      EVENT_STREAMS_BOOTSTRAP_SERVERS         — comma-separated broker list (default region)
-      EVENT_STREAMS_API_KEY                   — SASL/PLAIN password (default region)
+      EVENT_STREAMS_BOOTSTRAP_SERVERS         — comma-separated broker list (main region)
+      EVENT_STREAMS_API_KEY                   — SASL/PLAIN password (main region)
       EVENT_STREAMS_USER                      — SASL/PLAIN username (default: 'token')
       EVENT_STREAMS_BOOTSTRAP_SERVERS_<REGION> — broker list for additional regions
       EVENT_STREAMS_API_KEY_<REGION>          — API key for additional regions
       EVENT_STREAMS_USER_<REGION>             — SASL/PLAIN username for additional regions
-      EVENT_STREAMS_DEFAULT_REGION            — default region (default: us-east)
+      EVENT_STREAMS_MAIN_REGION               — main region (default: eu-de)
       ENVIRONMENT                             — deployment environment (e.g. production, staging)
     """
 
     def __init__(self) -> None:
         environment = os.environ["ENVIRONMENT"]
-        default_region = os.environ.get("EVENT_STREAMS_DEFAULT_REGION", "us-east")
 
         # Initialize producers from environment variables
         self._producers: dict[str, Producer] = {}
-        self._default_region = default_region
 
-        # Register default region from unsuffixed variables
-        default_bootstrap_servers = os.environ.get("EVENT_STREAMS_BOOTSTRAP_SERVERS")
-        default_api_key = os.environ.get("EVENT_STREAMS_API_KEY")
-        default_user = os.environ.get("EVENT_STREAMS_USER", "token")
-        if default_bootstrap_servers and default_api_key:
-            logger.debug("Registering default region producer: region=%s", default_region)
-            self._producers[default_region] = self._create_producer(
-                default_bootstrap_servers, default_api_key, default_user
-            )
+        # Register main region from unsuffixed variables
+        main_bootstrap_servers = os.environ.get("EVENT_STREAMS_BOOTSTRAP_SERVERS")
+        main_api_key = os.environ.get("EVENT_STREAMS_API_KEY")
+        main_user = os.environ.get("EVENT_STREAMS_USER", "token")
+        main_region = os.environ.get("EVENT_STREAMS_MAIN_REGION", "eu-de")
+
+        if main_bootstrap_servers and main_api_key:
+            logger.debug("Registering main region producer: region=%s", main_region)
+            self._producers[main_region] = self._create_producer(main_bootstrap_servers, main_api_key, main_user)
+            self._main_region = main_region
+        else:
+            raise ValueError("EVENT_STREAMS_BOOTSTRAP_SERVERS and EVENT_STREAMS_API_KEY are required")
 
         # Discover regional producers by scanning for suffixed env vars
         for env_key in os.environ:
             if env_key.startswith("EVENT_STREAMS_BOOTSTRAP_SERVERS_"):
                 suffix = env_key[len("EVENT_STREAMS_BOOTSTRAP_SERVERS_") :]
                 region = suffix.lower().replace("_", "-")
+                logger.debug("Discovered environment variable for region: env_key=%s region=%s", env_key, region)
                 bootstrap_servers = os.environ[env_key]
                 api_key_env = f"EVENT_STREAMS_API_KEY_{suffix}"
                 user_env = f"EVENT_STREAMS_USER_{suffix}"
@@ -94,9 +96,9 @@ class KafkaEventStreamsClient(EventStreamsClient):
         # Log initialized regions
         regions = sorted(self._producers.keys())
         logger.info(
-            "Event Streams producers initialized: regions=%s (default=%s)",
+            "Event Streams producers initialized: regions=%s (main=%s)",
             regions,
-            default_region,
+            main_region,
         )
 
     def _create_producer(self, bootstrap_servers: str, api_key: str, user: str = "token") -> Producer:
@@ -237,7 +239,10 @@ class KafkaEventStreamsClient(EventStreamsClient):
         # Route to the appropriate regional producer
         region = self._region_from_crn(job.instance_crn)
         if region is None:
-            region = self._default_region
+            raise RuntimeError(
+                f"KafkaEventStreamsClient: Cannot determine region from CRN "
+                f"(job_id={job.id}, event_id={event_id}, crn={job.instance_crn})"
+            )
         producer = self._producers.get(region)
         if producer is None:
             raise RuntimeError(
