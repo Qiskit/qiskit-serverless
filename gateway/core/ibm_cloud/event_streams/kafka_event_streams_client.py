@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import uuid
 from datetime import datetime, timezone
@@ -38,7 +39,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
 
     Publishes CloudEvents 1.0 usage events for Fleets jobs. Each event carries a
     single metric in its `data` payload: `metric_type` (what is being billed) and
-    `metric_value` (how much, in milliseconds for time-based metrics), plus
+    `metric_value` (how much, in whole seconds for time-based metrics), plus
     `job_started` / `job_completed` flags so consumers can detect lifecycle
     boundaries without interpreting the metric type. License fee events also
     carry `business_model`.
@@ -90,7 +91,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
         self._publish(
             job,
             metric_type=metric_type,
-            metric_value=self._usage_ms(job),
+            metric_value=self._usage_seconds(job),
             job_started=False,
             job_completed=False,
         )
@@ -99,12 +100,12 @@ class KafkaEventStreamsClient(EventStreamsClient):
         """Publish a job-completed event for the given metric with final usage."""
         if metric_type is None:
             metric_type = self._build_classical_metric_type(job)
-        usage_ms = self._usage_ms(job)
-        logger.info("job_id=%s Emitting job_completed event metric_value=%s", job.id, usage_ms)
+        usage_seconds = self._usage_seconds(job)
+        logger.info("job_id=%s Emitting job_completed event metric_value=%s", job.id, usage_seconds)
         self._publish(
             job,
             metric_type=metric_type,
-            metric_value=usage_ms,
+            metric_value=usage_seconds,
             job_started=False,
             job_completed=True,
         )
@@ -129,11 +130,12 @@ class KafkaEventStreamsClient(EventStreamsClient):
 
         return "_".join(parts)
 
-    def _usage_ms(self, job) -> int:
+    def _usage_seconds(self, job) -> int:
+        """Usage in whole seconds, rounded up so that any partial second is billed."""
         if job.running_started_at is None:
             return 0
         delta = datetime.now(timezone.utc) - job.running_started_at
-        return int(delta.total_seconds() * 1e3)
+        return math.ceil(delta.total_seconds())
 
     def _delivery_callback(self, err, msg):
         """Callback for message delivery reports."""
