@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import cast
 
 from django.conf import settings
+from django.db import transaction
 from django.utils import timezone as django_timezone
 
 from core.ibm_cloud.event_streams.abstract_event_streams_client import EventStreamsClient
@@ -142,27 +143,30 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             Job.RUNNING,
         )
-        # running_started_at is persisted before the events because the events carry it as
-        # job_started_at, and because it must survive a failed emit: publishing raises, the
-        # status stays PENDING and the job is retried next tick, but the moment the fleet was
-        # first seen RUNNING is already recorded. Stamping it after a successful emit instead
-        # would push it later by however many ticks failed. It is written only once — a retry
-        # reuses the stored value rather than moving the start time forward.
-        if job.running_started_at is None:
-            job.update_fields({"running_started_at": django_timezone.now()})
+        # The status and running_started_at are committed together, and independently of
+        # Kafka: an event-stream outage must not leave the job stuck retrying PENDING
+        # forever, so the emit below is best-effort and never rolls this back.
+        with transaction.atomic():
+            job.update_fields({"status": Job.RUNNING, "running_started_at": django_timezone.now()})
+            JobEvent.objects.add_status_event(
+                job_id=job.id,
+                origin=JobEventOrigin.SCHEDULER,
+                context=JobEventContext.UPDATE_JOB_STATUS,
+                status=job.status,
+            )
 
-        self.event_streams_client.emit_job_started(job)
-        # prevent custom function to emit license fee
-        # since licenses is a provider feature
-        if job.program.provider:
-            self.event_streams_client.emit_license_fee(job)
-        job.update_fields({"status": Job.RUNNING})
-        JobEvent.objects.add_status_event(
-            job_id=job.id,
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.UPDATE_JOB_STATUS,
-            status=job.status,
-        )
+        try:
+            self.event_streams_client.emit_job_started(job)
+            # prevent custom function to emit license fee
+            # since licenses is a provider feature
+            if job.program.provider:
+                self.event_streams_client.emit_license_fee(job)
+        except RuntimeError as ex:
+            logger.error(
+                "job_id=%s error emitting job_started/license_fee event to Kafka, event dropped: %s",
+                job.id,
+                str(ex),
+            )
 
     def stop_job_if_timeout(self, job: Job) -> None:
         """Stop job if it has exceeded the maximum allowed duration."""
