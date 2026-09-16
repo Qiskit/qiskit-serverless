@@ -42,26 +42,32 @@ def _is_trial(function: Function, user) -> bool:
     return function.trial_instances.filter(pk__in=user_run_groups).exists()
 
 
-def _config_for_profile_id(compute_profile: str, *, size_source: str) -> RunnerConfig:
+def _config_for_profile_id(
+    compute_profile: str, *, size_source: str, attach_platform_default: bool = False
+) -> RunnerConfig:
     """Build a Fleets RunnerConfig from a bare compute profile id.
 
     The id must name a registered ``ComputeProfile`` row; a missing row is a
     deployment misconfiguration and we reject the job rather than store a null FK.
-    No ``FunctionSize`` row backs a profile resolved this way (the deprecated
-    ``compute_profile`` input or the deployment default), so ``function_size``
-    is null; ``size_source`` records which of those it was.
+    No ``FunctionSize`` row backs a profile resolved this way unless
+    ``attach_platform_default`` is True: the deprecated ``compute_profile``
+    input leaves ``function_size`` null, while ``SETTINGS_DEFAULT`` (the
+    deployment fallback) resolves the platform-wide default size row.
     """
     compute_profile_fk = ComputeProfile.objects.get_by_id(compute_profile)
     if compute_profile_fk is None:
         raise FunctionConfigurationException(
             f"Compute profile '{compute_profile}' is not registered. Contact administrator."
         )
+    function_size = None
+    if attach_platform_default:
+        function_size = FunctionSize.objects.get_platform_default(compute_profile_fk)
     return RunnerConfig(
         compute_profile=compute_profile,
         gpu=False,
         compute_profile_fk=compute_profile_fk,
         size_source=size_source,
-        function_size=None,
+        function_size=function_size,
     )
 
 
@@ -90,7 +96,8 @@ def _get_runner_config(
            catalog (source REQUESTED); an undeclared size is rejected.
         3. ``compute_profile`` (deprecated) -> used as-is (source COMPUTE_PROFILE).
         4. Neither -> the function's ``default_size`` (source DEFAULT_SIZE), else
-           ``settings.DEFAULT_COMPUTE_PROFILE`` (source SETTINGS_DEFAULT).
+           the platform-wide default size (source SETTINGS_DEFAULT); both resolve to
+           ``ComputeProfile`` FK and a ``FunctionSize`` row.
 
     Both requested values are expected already normalized by the view:
     ``compute_profile`` to bare (prefix-less) form, ``function_size`` to its
@@ -160,8 +167,13 @@ def _get_runner_config(
             function_size=function_size,
         )
 
-    # (4b) No default size either: the deployment-wide default profile.
-    return _config_for_profile_id(settings.DEFAULT_COMPUTE_PROFILE, size_source=Job.SIZE_SOURCE_SETTINGS_DEFAULT)
+    # (4b) No default size either: the platform-wide default size (resolves to the
+    # deployment-wide default profile).
+    return _config_for_profile_id(
+        settings.DEFAULT_COMPUTE_PROFILE,
+        size_source=Job.SIZE_SOURCE_SETTINGS_DEFAULT,
+        attach_platform_default=True,
+    )
 
 
 class RunFunctionUseCase:

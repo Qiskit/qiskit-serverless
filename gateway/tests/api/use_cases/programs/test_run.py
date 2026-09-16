@@ -137,7 +137,7 @@ class TestRunFunctionUseCase:
 
     @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
     def test_fleets_job_sets_compute_profile_fk_from_default(self, user, ce_project, monkeypatch):
-        """A Fleets job resolves its FK from the same bare string it stores in compute_profile."""
+        """A Fleets job resolves its FK and the platform-default size from the default profile."""
         make_fleets_function(user, ce_project)
         profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
@@ -148,10 +148,13 @@ class TestRunFunctionUseCase:
 
         assert job.compute_profile == "16x128"
         assert job.compute_profile_fk == profile
-        # Nothing requested and no default_size: sized by the deployment default,
-        # so no FunctionSize row backs it.
+        # Nothing requested and no default_size: sized by the platform default,
+        # which is a FunctionSize row (function_size='platform-default', function=None).
         assert job.size_source == Job.SIZE_SOURCE_SETTINGS_DEFAULT
-        assert job.function_size is None
+        assert job.function_size is not None
+        assert job.function_size.function_size == FunctionSize.PLATFORM_DEFAULT_SIZE
+        assert job.function_size.function is None
+        assert job.function_size.compute_profile == profile
 
     @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
     def test_fleets_job_sets_compute_profile_fk_from_explicit_request(self, user, ce_project, monkeypatch):
@@ -298,3 +301,42 @@ class TestRunFunctionUseCase:
             RunFunctionUseCase().execute(user, accessible, make_input(function_size="m", compute_profile="16x128"))
 
         assert not Job.objects.exists()
+
+    @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
+    def test_platform_default_size_is_shared_across_jobs(self, user, ce_project, monkeypatch):
+        """Multiple jobs under SETTINGS_DEFAULT resolve to the same platform-default FunctionSize row."""
+        make_fleets_function(user, ce_project)
+        profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
+
+        job1 = RunFunctionUseCase().execute(user, accessible, make_input())
+        job2 = RunFunctionUseCase().execute(user, accessible, make_input())
+
+        # Both jobs reference the same platform-default size row.
+        assert job1.function_size == job2.function_size
+        # Only one row should exist for function=None.
+        assert FunctionSize.objects.filter(function__isnull=True).count() == 1
+
+    @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
+    def test_platform_default_size_repoints_on_profile_change(self, user, ce_project, monkeypatch, settings):
+        """When DEFAULT_COMPUTE_PROFILE changes, the platform-default row is updated in-place."""
+        make_fleets_function(user, ce_project)
+        profile1 = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+        profile2 = ComputeProfile.objects.create(compute_profile_id="24x120", cpu="24", memory="120")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
+
+        # First job uses profile1.
+        job1 = RunFunctionUseCase().execute(user, accessible, make_input())
+        size_row_id = job1.function_size.id
+
+        # Change the default profile and run another job.
+        settings.DEFAULT_COMPUTE_PROFILE = "24x120"
+        job2 = RunFunctionUseCase().execute(user, accessible, make_input())
+
+        # Same FunctionSize row (same id), but now pointing to profile2.
+        assert job2.function_size.id == size_row_id
+        assert job2.function_size.compute_profile == profile2
+        # Still only one row.
+        assert FunctionSize.objects.filter(function__isnull=True).count() == 1

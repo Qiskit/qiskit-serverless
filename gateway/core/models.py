@@ -434,8 +434,11 @@ class FunctionSize(models.Model):
 
     A ``(function, function_size)`` row identifies the license fee rate
     (billing looks up ``license_fee_<function>_<size>`` in its metric table)
-    and carries the ``compute_profile`` used.
+    and carries the ``compute_profile`` used. When ``function`` is null, the row
+    is the platform-wide default size (``function_size="platform-default"``).
     """
+
+    PLATFORM_DEFAULT_SIZE = "platform-default"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True, editable=False)
@@ -445,6 +448,8 @@ class FunctionSize(models.Model):
         to=Program,
         on_delete=models.CASCADE,
         related_name="function_sizes",
+        null=True,
+        blank=True,
     )
     function_size = models.CharField(max_length=64)
     compute_profile = models.ForeignKey(
@@ -462,10 +467,16 @@ class FunctionSize(models.Model):
                 fields=["function", "function_size"],
                 name="unique_function_size",
             ),
+            models.UniqueConstraint(
+                fields=["function_size"],
+                condition=models.Q(function__isnull=True),
+                name="unique_platform_default_function_size",
+            ),
         ]
 
     def __str__(self):
-        return f"{self.function} ({self.function_size})"
+        func_label = self.function if self.function else "platform"
+        return f"{func_label} ({self.function_size})"
 
 
 class Job(models.Model):

@@ -109,3 +109,37 @@ def test_referenced_compute_profile_is_protected(program, profile):
             profile.delete()
 
     assert ComputeProfile.objects.filter(pk="16x128").exists()
+
+
+def test_platform_default_size_can_be_created(profile):
+    """A FunctionSize row with function=None is valid (the platform default)."""
+    row = FunctionSize.objects.create(
+        function=None, function_size=FunctionSize.PLATFORM_DEFAULT_SIZE, compute_profile=profile
+    )
+
+    row.refresh_from_db()
+    assert row.function is None
+    assert row.function_size == FunctionSize.PLATFORM_DEFAULT_SIZE
+    assert row.compute_profile == profile
+
+
+def test_only_one_platform_default_size_per_label(profile):
+    """A second platform-default row with the same function_size label raises IntegrityError."""
+    FunctionSize.objects.create(
+        function=None, function_size=FunctionSize.PLATFORM_DEFAULT_SIZE, compute_profile=profile
+    )
+
+    with pytest.raises(IntegrityError):
+        with transaction.atomic():
+            FunctionSize.objects.create(
+                function=None, function_size=FunctionSize.PLATFORM_DEFAULT_SIZE, compute_profile=profile
+            )
+
+
+def test_platform_default_size_str_representation(profile):
+    """__str__ on a platform-default size reads nicely."""
+    row = FunctionSize.objects.create(
+        function=None, function_size=FunctionSize.PLATFORM_DEFAULT_SIZE, compute_profile=profile
+    )
+
+    assert str(row) == f"platform ({FunctionSize.PLATFORM_DEFAULT_SIZE})"
