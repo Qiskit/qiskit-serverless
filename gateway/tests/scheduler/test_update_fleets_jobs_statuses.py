@@ -264,40 +264,39 @@ class TestToRunning:
             status=Job.RUNNING,
         )
 
-    def test_to_running_sets_running_started_at(self):
+    def test_to_running_sets_running_started_at_from_the_event_created_timestamp(self):
+        """running_started_at must be the JobEvent's own created, not a separate now()."""
         task = _make_task()
         job = _make_fleets_job(status=Job.PENDING)
+        fake_created = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
         with (
-            patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.django_timezone") as mock_dt,
+            patch(f"{_MOD}.JobEvent") as mock_job_event,
             patch(f"{_MOD}.transaction"),
         ):
-            fake_now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-            mock_dt.now.return_value = fake_now
+            mock_job_event.objects.add_status_event.return_value.created = fake_created
             task.to_running(job)
 
-        job.update_fields.assert_called_once_with({"status": Job.RUNNING, "running_started_at": fake_now})
+        job.update_fields.assert_called_once_with({"status": Job.RUNNING, "running_started_at": fake_created})
 
     def test_to_running_persists_running_started_at_before_emitting_events(self):
         """The events carry running_started_at as job_started_at, so it must be set first."""
         task = _make_task()
         job = _make_fleets_job(status=Job.PENDING)
-        fake_now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        fake_created = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         seen = {}
 
         task.event_streams_client.emit_job_started.side_effect = lambda j: seen.update(started=j.running_started_at)
         task.event_streams_client.emit_license_fee.side_effect = lambda j: seen.update(license=j.running_started_at)
 
         with (
-            patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.django_timezone") as mock_dt,
+            patch(f"{_MOD}.JobEvent") as mock_job_event,
             patch(f"{_MOD}.transaction"),
         ):
-            mock_dt.now.return_value = fake_now
+            mock_job_event.objects.add_status_event.return_value.created = fake_created
             task.to_running(job)
 
-        assert seen == {"started": fake_now, "license": fake_now}
+        assert seen == {"started": fake_created, "license": fake_created}
 
     def test_to_running_persists_the_status_and_the_event_atomically(self):
         """The job row and its JobEvent are written inside the same transaction.atomic()."""
@@ -306,7 +305,6 @@ class TestToRunning:
 
         with (
             patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.django_timezone"),
             patch(f"{_MOD}.transaction") as mock_transaction,
         ):
             task.to_running(job)
@@ -322,7 +320,6 @@ class TestToRunning:
 
         with (
             patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.django_timezone"),
             patch(f"{_MOD}.transaction"),
         ):
             task.to_running(job)  # must not raise
@@ -336,7 +333,6 @@ class TestToRunning:
 
         with (
             patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.django_timezone"),
             patch(f"{_MOD}.transaction"),
             patch(f"{_MOD}.logger") as mock_logger,
         ):
@@ -526,7 +522,6 @@ class TestEventStreamsIntegration:
 
         with (
             patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.django_timezone"),
             patch(f"{_MOD}.transaction"),
         ):
             task.to_running(job)
@@ -538,18 +533,17 @@ class TestEventStreamsIntegration:
         task = _make_task()
         task.event_streams_client.emit_job_started.side_effect = RuntimeError("broker down")
         job = _make_fleets_job(status=Job.PENDING)
+        fake_created = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
         with (
-            patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.django_timezone") as mock_dt,
+            patch(f"{_MOD}.JobEvent") as mock_job_event,
             patch(f"{_MOD}.transaction"),
         ):
-            fake_now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-            mock_dt.now.return_value = fake_now
+            mock_job_event.objects.add_status_event.return_value.created = fake_created
             task.to_running(job)  # must not raise
 
         # The status transition already landed before the emit was attempted.
-        job.update_fields.assert_called_once_with({"status": Job.RUNNING, "running_started_at": fake_now})
+        job.update_fields.assert_called_once_with({"status": Job.RUNNING, "running_started_at": fake_created})
         assert job.status == Job.RUNNING
 
     def test_to_terminal_emits_job_completed_before_db_update(self):
@@ -648,7 +642,6 @@ class TestEventStreamsIntegration:
 
         with (
             patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.django_timezone"),
             patch(f"{_MOD}.transaction"),
         ):
             task.to_running(job)

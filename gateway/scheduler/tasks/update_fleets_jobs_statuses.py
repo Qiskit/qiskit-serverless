@@ -6,7 +6,6 @@ from typing import cast
 
 from django.conf import settings
 from django.db import transaction
-from django.utils import timezone as django_timezone
 
 from core.ibm_cloud.event_streams.abstract_event_streams_client import EventStreamsClient
 from core.ibm_cloud.event_streams.kafka_event_streams_client import KafkaEventStreamsClient
@@ -144,13 +143,13 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             Job.RUNNING,
         )
         with transaction.atomic():
-            job.update_fields({"status": Job.RUNNING, "running_started_at": django_timezone.now()})
-            JobEvent.objects.add_status_event(
+            event = JobEvent.objects.add_status_event(
                 job_id=job.id,
                 origin=JobEventOrigin.SCHEDULER,
                 context=JobEventContext.UPDATE_JOB_STATUS,
-                status=job.status,
+                status=Job.RUNNING,
             )
+            job.update_fields({"status": Job.RUNNING, "running_started_at": event.created})
 
         try:
             self.event_streams_client.emit_job_started(job)
