@@ -143,9 +143,6 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             Job.RUNNING,
         )
-        # The status and running_started_at are committed together, and independently of
-        # Kafka: an event-stream outage must not leave the job stuck retrying PENDING
-        # forever, so the emit below is best-effort and never rolls this back.
         with transaction.atomic():
             job.update_fields({"status": Job.RUNNING, "running_started_at": django_timezone.now()})
             JobEvent.objects.add_status_event(
