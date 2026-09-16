@@ -660,6 +660,16 @@ class Job(models.Model):
         """Returns true if job is in terminal state."""
         return self.status in self.TERMINAL_STATUSES
 
+    @property
+    def compute_profile_id(self) -> str | None:
+        """Bare compute-profile string from the FK (the source of truth).
+
+        Returns None for Ray jobs and any historical row with no
+        ``compute_profile_fk``. Reads ``compute_profile_fk_id`` first so an
+        unset FK costs no extra query.
+        """
+        return self.compute_profile_fk.compute_profile_id if self.compute_profile_fk_id else None
+
     def save_direct(self, fields: list[str]) -> None:
         """Persist selected fields bypassing optimistic-locking validation.
 
