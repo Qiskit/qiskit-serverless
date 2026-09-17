@@ -22,6 +22,7 @@ from core.model_managers.compute_profiles import ComputeProfileQuerySet
 from core.model_managers.function_sizes import FunctionSizeQuerySet
 from core.model_managers.functions import FunctionsQuerySet
 from core.model_managers.job_events import JobEventQuerySet
+from core.model_managers.job_outbox import JobOutboxQuerySet
 from core.model_managers.jobs import JobQuerySet
 from core.model_managers.providers import ProviderQuerySet
 
@@ -746,6 +747,37 @@ class JobEvent(models.Model):
     class Meta:
         app_label = "api"
         ordering = ("-created",)
+
+
+class JobOutbox(models.Model):
+    """Outbox row for a live Fleets job with an instance CRN: what still needs to be
+    sent to Kafka billing (this PR) and mirrored to the Runtime API (second PR).
+    One row per live job, created in RunFunctionUseCase.execute() and deleted once
+    every fact tracked here has been sent. See
+    .claude/specs/2026-09-16-job-outbox-design.md.
+    """
+
+    job = models.OneToOneField(
+        to=Job,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        related_name="outbox",
+    )
+    job_status = models.CharField(max_length=10, choices=Job.JOB_STATUSES)
+    status_changed_at = models.DateTimeField()
+    has_run = models.BooleanField(default=False)
+    workload_status = models.CharField(max_length=10, choices=Job.JOB_STATUSES, null=True, blank=True)
+    license_fee_required = models.BooleanField()
+    license_fee_sent_at = models.DateTimeField(null=True, blank=True)
+    billing_sent_at = models.DateTimeField(null=True, blank=True)
+
+    objects: JobOutboxQuerySet = JobOutboxQuerySet.as_manager()
+
+    class Meta:
+        app_label = "api"
+
+    def __str__(self):
+        return f"<JobOutbox job={self.job_id} job_status={self.job_status}>"
 
 
 class GroupMetadata(models.Model):
