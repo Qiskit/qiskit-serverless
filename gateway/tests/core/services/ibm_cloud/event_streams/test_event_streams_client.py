@@ -95,7 +95,7 @@ class TestKafkaEventStreamsClient:
 
         assert client.topic == "quantum.staging.function-usage.v1"
 
-    def test_custom_user_in_default_region(self):
+    def test_custom_user_in_main_region(self):
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
             with patch.dict(
                 os.environ,
