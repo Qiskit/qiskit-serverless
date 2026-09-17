@@ -180,7 +180,7 @@ class TestFailureHandling:
 
         task.event_streams_client.emit_job_completed.assert_not_called()
         task.event_streams_client.emit_license_fee.assert_not_called()
-        task.metrics.set_outbox_kafka_breaker_open.assert_called_with(True)
+        task.metrics.set_outbox_breaker_open.assert_called_with(True)
 
 
 class TestBudgetAndKillSignal:

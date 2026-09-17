@@ -116,9 +116,9 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
             registry=self.registry,
             buckets=(1, 5, 10, 30, 60, 120, 300, 600, 1800, 3600, float("inf")),
         )
-        self.outbox_kafka_sends_total = Counter(
-            "scheduler_outbox_kafka_sends_total",
-            "Kafka outbox sends by fact and outcome.",
+        self.outbox_sends_total = Counter(
+            "scheduler_outbox_sends_total",
+            "Outbox sends by fact and outcome.",
             labelnames=("fact", "outcome"),
             registry=self.registry,
         )
@@ -141,9 +141,9 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
             labelnames=("fact",),
             registry=self.registry,
         )
-        self.outbox_kafka_breaker_open = Gauge(
-            "scheduler_outbox_kafka_breaker_open",
-            "1 while the Kafka outbox task's circuit breaker is open, 0 otherwise.",
+        self.outbox_breaker_open = Gauge(
+            "scheduler_outbox_breaker_open",
+            "1 while the outbox task's circuit breaker is open, 0 otherwise.",
             registry=self.registry,
         )
 
@@ -168,10 +168,10 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
         """Record queue wait time for a scheduled job."""
         self.queue_wait_seconds.labels(compute_type=compute_type).observe(wait_seconds)
 
-    def increment_outbox_kafka_send(self, fact: str, outcome: str) -> None:
-        """Count one Kafka outbox send attempt. fact: "license_fee" or "billing_event".
+    def increment_outbox_send(self, fact: str, outcome: str) -> None:
+        """Count one outbox send attempt. fact: "license_fee" or "billing_event".
         outcome: "success" or "failure"."""
-        self.outbox_kafka_sends_total.labels(fact=fact, outcome=outcome).inc()
+        self.outbox_sends_total.labels(fact=fact, outcome=outcome).inc()
 
     def increment_outbox_license_fee_irrecoverable(self) -> None:
         """Count one license fee send abandoned because its Program/Provider no longer exists."""
@@ -185,9 +185,9 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
         """Set the age of the oldest outbox row pending a given fact."""
         self.outbox_oldest_pending_age_seconds.labels(fact=fact).set(age_seconds)
 
-    def set_outbox_kafka_breaker_open(self, is_open: bool) -> None:
-        """Record whether the Kafka outbox task's circuit breaker is currently open."""
-        self.outbox_kafka_breaker_open.set(1 if is_open else 0)
+    def set_outbox_breaker_open(self, is_open: bool) -> None:
+        """Record whether the outbox task's circuit breaker is currently open."""
+        self.outbox_breaker_open.set(1 if is_open else 0)
 
     def clear_job_status_counts(self) -> None:
         """Remove all label combinations from job_status_count to avoid stale values."""

@@ -55,7 +55,7 @@ class PublishOutbox(SchedulerTask):
         if not Config.get_bool(ConfigKey.OUTBOX_ENABLED):
             return
 
-        self.metrics.set_outbox_kafka_breaker_open(self._breaker.is_open)
+        self.metrics.set_outbox_breaker_open(self._breaker.is_open)
         self._report_pending_gauges()
 
         if self._breaker.is_open:
@@ -111,12 +111,12 @@ class PublishOutbox(SchedulerTask):
             return False
         except RuntimeError as ex:
             logger.error("job_id=%s error publishing license fee to Kafka: %s", row.job_id, str(ex))
-            self.metrics.increment_outbox_kafka_send(FACT_LICENSE_FEE, "failure")
+            self.metrics.increment_outbox_send(FACT_LICENSE_FEE, "failure")
             self._breaker.record_failure()
             return False
 
         row.license_fee_sent_at = timezone.now()
-        self.metrics.increment_outbox_kafka_send(FACT_LICENSE_FEE, "success")
+        self.metrics.increment_outbox_send(FACT_LICENSE_FEE, "success")
         self._breaker.record_success()
         return True
 
@@ -126,12 +126,12 @@ class PublishOutbox(SchedulerTask):
             self.event_streams_client.emit_job_completed(row.job, row.status_changed_at)
         except RuntimeError as ex:
             logger.error("job_id=%s error publishing billing event to Kafka: %s", row.job_id, str(ex))
-            self.metrics.increment_outbox_kafka_send(FACT_BILLING_EVENT, "failure")
+            self.metrics.increment_outbox_send(FACT_BILLING_EVENT, "failure")
             self._breaker.record_failure()
             return False
 
         row.billing_sent_at = timezone.now()
-        self.metrics.increment_outbox_kafka_send(FACT_BILLING_EVENT, "success")
+        self.metrics.increment_outbox_send(FACT_BILLING_EVENT, "success")
         self._breaker.record_success()
         return True
 
