@@ -114,7 +114,13 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         return True
 
     def to_terminal(self, job: Job, new_status: str) -> None:
-        """Persist a terminal status transition."""
+        """Persist a terminal status transition.
+
+        Kafka publishing for this transition is not done here: it is picked up by
+        PublishKafkaOutbox from the outbox row that add_status_event just updated,
+        so a Kafka outage never blocks this transition. See
+        .claude/specs/2026-09-16-job-outbox-design.md sections 2 and 9.
+        """
         logger.info(
             "job_id=%s user_id=%s Changing status from %s to %s",
             job.id,
@@ -122,15 +128,14 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             new_status,
         )
-        self.event_streams_client.emit_job_completed(job)
-        logger.info("job_id=%s job_completed event emitted successfully", job.id)
-        job.update_fields({"status": new_status, "sub_status": None, "env_vars": "{}"})
-        JobEvent.objects.add_status_event(
-            job_id=job.id,
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.UPDATE_JOB_STATUS,
-            status=job.status,
-        )
+        with transaction.atomic():
+            job.update_fields({"status": new_status, "sub_status": None, "env_vars": "{}"})
+            JobEvent.objects.add_status_event(
+                job_id=job.id,
+                origin=JobEventOrigin.SCHEDULER,
+                context=JobEventContext.UPDATE_JOB_STATUS,
+                status=job.status,
+            )
         self._increment_terminal_counter(job)
 
     def to_running(self, job: Job) -> None:
@@ -153,13 +158,9 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
 
         try:
             self.event_streams_client.emit_job_started(job)
-            # prevent custom function to emit license fee
-            # since licenses is a provider feature
-            if job.program.provider:
-                self.event_streams_client.emit_license_fee(job)
         except RuntimeError as ex:
             logger.error(
-                "job_id=%s error emitting job_started/license_fee event to Kafka, event dropped: %s",
+                "job_id=%s error emitting job_started event to Kafka, event dropped: %s",
                 job.id,
                 str(ex),
             )

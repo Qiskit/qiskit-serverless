@@ -210,7 +210,10 @@ class TestToTerminal:
         job.sub_status = "pending"
         job.env_vars = '{"key": "value"}'
 
-        with patch(f"{_MOD}.JobEvent") as mock_job_event:
+        with (
+            patch(f"{_MOD}.JobEvent") as mock_job_event,
+            patch(f"{_MOD}.transaction"),
+        ):
             task.to_terminal(job, Job.SUCCEEDED)
 
         assert job.status == Job.SUCCEEDED
@@ -229,7 +232,10 @@ class TestToTerminal:
         job.sub_status = "pending"
         job.env_vars = '{"key": "value"}'
 
-        with patch(f"{_MOD}.JobEvent") as mock_job_event:
+        with (
+            patch(f"{_MOD}.JobEvent") as mock_job_event,
+            patch(f"{_MOD}.transaction"),
+        ):
             task.to_terminal(job, Job.FAILED)
 
         assert job.status == Job.FAILED
@@ -241,6 +247,32 @@ class TestToTerminal:
             context=JobEventContext.UPDATE_JOB_STATUS,
             status=Job.FAILED,
         )
+
+    def test_never_touches_the_event_streams_client(self):
+        """Kafka publishing for a terminal job now happens only via the outbox task."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        with (
+            patch(f"{_MOD}.JobEvent"),
+            patch(f"{_MOD}.transaction"),
+        ):
+            task.to_terminal(job, Job.SUCCEEDED)
+
+        task.event_streams_client.emit_job_completed.assert_not_called()
+
+    def test_persists_the_status_and_the_event_atomically(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        with (
+            patch(f"{_MOD}.JobEvent"),
+            patch(f"{_MOD}.transaction") as mock_transaction,
+        ):
+            task.to_terminal(job, Job.SUCCEEDED)
+
+        mock_transaction.atomic.assert_called_once_with()
+        mock_transaction.atomic.return_value.__enter__.assert_called_once()
 
 
 class TestToRunning:
@@ -287,7 +319,6 @@ class TestToRunning:
         seen = {}
 
         task.event_streams_client.emit_job_started.side_effect = lambda j: seen.update(started=j.running_started_at)
-        task.event_streams_client.emit_license_fee.side_effect = lambda j: seen.update(license=j.running_started_at)
 
         with (
             patch(f"{_MOD}.JobEvent") as mock_job_event,
@@ -296,7 +327,8 @@ class TestToRunning:
             mock_job_event.objects.add_status_event.return_value.created = fake_created
             task.to_running(job)
 
-        assert seen == {"started": fake_created, "license": fake_created}
+        assert seen == {"started": fake_created}
+        task.event_streams_client.emit_license_fee.assert_not_called()
 
     def test_to_running_persists_the_status_and_the_event_atomically(self):
         """The job row and its JobEvent are written inside the same transaction.atomic()."""
@@ -339,7 +371,7 @@ class TestToRunning:
             task.to_running(job)
 
         mock_logger.error.assert_called_once_with(
-            "job_id=%s error emitting job_started/license_fee event to Kafka, event dropped: %s",
+            "job_id=%s error emitting job_started event to Kafka, event dropped: %s",
             job.id,
             "kafka down",
         )
@@ -359,6 +391,7 @@ class TestStopJobIfTimeout:
             patch(f"{_MOD}.settings") as mock_settings,
             patch(f"{_MOD}.JobEvent") as mock_event,
             patch(f"{_MOD}.get_runner", return_value=MagicMock()),
+            patch(f"{_MOD}.transaction"),
         ):
             mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
@@ -381,6 +414,7 @@ class TestStopJobIfTimeout:
             patch(f"{_MOD}.settings") as mock_settings,
             patch(f"{_MOD}.JobEvent") as mock_event,
             patch(f"{_MOD}.get_runner", return_value=mock_runner) as mock_get_runner,
+            patch(f"{_MOD}.transaction"),
         ):
             mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
@@ -404,6 +438,7 @@ class TestStopJobIfTimeout:
             patch(f"{_MOD}.settings") as mock_settings,
             patch(f"{_MOD}.JobEvent") as mock_event,
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
+            patch(f"{_MOD}.transaction"),
         ):
             mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
@@ -546,31 +581,6 @@ class TestEventStreamsIntegration:
         job.update_fields.assert_called_once_with({"status": Job.RUNNING, "running_started_at": fake_created})
         assert job.status == Job.RUNNING
 
-    def test_to_terminal_emits_job_completed_before_db_update(self):
-        task = _make_task()
-        job = _make_fleets_job(status=Job.RUNNING)
-
-        call_order = []
-        task.event_streams_client.emit_job_completed.side_effect = lambda j: call_order.append("publish")
-        job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db"))
-
-        with patch(f"{_MOD}.JobEvent"):
-            task.to_terminal(job, Job.SUCCEEDED)
-
-        assert call_order == ["publish", "db"]
-        task.event_streams_client.emit_job_completed.assert_called_once_with(job)
-
-    def test_to_terminal_raises_if_publish_fails(self):
-        task = _make_task()
-        task.event_streams_client.emit_job_completed.side_effect = Exception("broker down")
-        job = _make_fleets_job(status=Job.RUNNING)
-
-        with patch(f"{_MOD}.JobEvent"):
-            with pytest.raises(Exception, match="broker down"):
-                task.to_terminal(job, Job.SUCCEEDED)
-
-        job.update_fields.assert_not_called()
-
     def test_update_job_status_emits_job_in_progress_for_running_job(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
@@ -630,24 +640,6 @@ class TestEventStreamsIntegration:
             task.update_job_status(job)
 
         task.event_streams_client.emit_job_in_progress.assert_not_called()
-
-    def test_to_running_emits_license_fee_after_job_started(self):
-        task = _make_task()
-        job = _make_fleets_job(status=Job.PENDING)
-
-        call_order = []
-        task.event_streams_client.emit_job_started.side_effect = lambda j: call_order.append("started")
-        task.event_streams_client.emit_license_fee.side_effect = lambda j: call_order.append("license")
-        job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db:" + ",".join(f)))
-
-        with (
-            patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.transaction"),
-        ):
-            task.to_running(job)
-
-        assert call_order == ["db:status,running_started_at", "started", "license"]
-        task.event_streams_client.emit_license_fee.assert_called_once_with(job)
 
 
 def test_filler_jobs_are_left_out_of_the_job_metrics():
