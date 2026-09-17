@@ -145,16 +145,16 @@ class KafkaEventStreamsClient(EventStreamsClient):
         self._publish(
             job,
             metric_type=metric_type,
-            metric_value=self._usage_seconds(job),
+            metric_value=self._usage_seconds(job, datetime.now(timezone.utc)),
             job_started=False,
             job_completed=False,
         )
 
-    def _emit_job_completed(self, job, metric_type: str | None = None) -> None:
-        """Publish a job-completed event for the given metric with final usage."""
+    def _emit_job_completed(self, job, ended_at, metric_type: str | None = None) -> None:
+        """Publish a job-completed event for the given metric with final usage as of ended_at."""
         if metric_type is None:
             metric_type = self._build_classical_metric_type(job)
-        usage_seconds = self._usage_seconds(job)
+        usage_seconds = self._usage_seconds(job, ended_at)
         logger.info("job_id=%s Emitting job_completed event metric_value=%s", job.id, usage_seconds)
         self._publish(
             job,
@@ -165,6 +165,13 @@ class KafkaEventStreamsClient(EventStreamsClient):
         )
 
     def _emit_license_fee(self, job: Job) -> None:
+        """Publish a license fee event.
+
+        Raises AttributeError if job.program or job.program.provider is gone (both
+        are SET_NULL foreign keys): the caller (PublishKafkaOutbox) treats that as
+        an unrecoverable payload and records it instead of retrying forever. See
+        .claude/specs/2026-09-16-job-outbox-design.md section 7.
+        """
         metric_type = "_".join([LICENSE_FEE_METRIC_TYPE, job.program.provider.name, job.program.title])
         self._publish(
             job,
@@ -184,11 +191,11 @@ class KafkaEventStreamsClient(EventStreamsClient):
 
         return "_".join(parts)
 
-    def _usage_seconds(self, job) -> int:
-        """Usage in whole seconds, rounded up so that any partial second is billed."""
+    def _usage_seconds(self, job, as_of) -> int:
+        """Usage in whole seconds up to as_of, rounded up so any partial second is billed."""
         if job.running_started_at is None:
             return 0
-        delta = datetime.now(timezone.utc) - job.running_started_at
+        delta = as_of - job.running_started_at
         return math.ceil(delta.total_seconds())
 
     def _delivery_callback(self, err, msg):

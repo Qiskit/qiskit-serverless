@@ -39,12 +39,14 @@ class EventStreamsClient(ABC):
             return
         self._emit_job_in_progress(job, metric_type)
 
-    def emit_job_completed(self, job, metric_type: str | None = None) -> None:
-        """Publish or log a function_job_completed event for the given metric."""
+    def emit_job_completed(self, job, ended_at, metric_type: str | None = None) -> None:
+        """Publish or log a function_job_completed event for the given metric, using ended_at
+        (not the current time) to compute usage seconds. See
+        .claude/specs/2026-09-16-job-outbox-design.md section 7."""
         if job.filler:
             logger.debug("job_id=%s filler job, skipping emit_job_completed", job.id)
             return
-        self._emit_job_completed(job, metric_type)
+        self._emit_job_completed(job, ended_at, metric_type)
 
     def emit_license_fee(self, job) -> None:
         """Publish or log a license fee event."""
@@ -62,7 +64,7 @@ class EventStreamsClient(ABC):
         """Publish or log a function_job_in_progress event for the given metric."""
 
     @abstractmethod
-    def _emit_job_completed(self, job, metric_type: str | None = None) -> None:
+    def _emit_job_completed(self, job, ended_at, metric_type: str | None = None) -> None:
         """Publish or log a function_job_completed event for the given metric."""
 
     @abstractmethod

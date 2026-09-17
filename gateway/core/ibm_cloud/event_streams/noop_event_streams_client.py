@@ -35,7 +35,7 @@ class NoOpEventStreamsClient(EventStreamsClient):
     def _emit_job_in_progress(self, job, metric_type: str | None = None) -> None:
         logger.info("job_id=%s metric_type=%s [noop] emit_job_in_progress", job.id, metric_type)
 
-    def _emit_job_completed(self, job, metric_type: str | None = None) -> None:
+    def _emit_job_completed(self, job, ended_at, metric_type: str | None = None) -> None:
         logger.info("job_id=%s metric_type=%s [noop] emit_job_completed", job.id, metric_type)
 
     def _emit_license_fee(self, job) -> None:
