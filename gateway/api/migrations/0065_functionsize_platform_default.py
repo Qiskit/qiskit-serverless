@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=models.deletion.CASCADE,
                 related_name="function_sizes",
-                to="core.program",
+                to="api.program",
             ),
         ),
         migrations.AddConstraint(

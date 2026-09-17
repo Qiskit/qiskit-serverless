@@ -61,7 +61,7 @@ def _config_for_profile_id(
         )
     function_size = None
     if attach_platform_default:
-        function_size = FunctionSize.objects.get_platform_default(compute_profile_fk)
+        function_size = FunctionSize.objects.get_platform_default()
     return RunnerConfig(
         compute_profile=compute_profile,
         gpu=False,

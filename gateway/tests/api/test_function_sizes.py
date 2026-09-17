@@ -143,3 +143,20 @@ def test_platform_default_size_str_representation(profile):
     )
 
     assert str(row) == f"platform ({FunctionSize.PLATFORM_DEFAULT_SIZE})"
+
+
+def test_get_platform_default_returns_existing_row(profile):
+    """get_platform_default() returns the existing platform-default row."""
+    expected = FunctionSize.objects.create(
+        function=None, function_size=FunctionSize.PLATFORM_DEFAULT_SIZE, compute_profile=profile
+    )
+
+    result = FunctionSize.objects.get_platform_default()
+
+    assert result == expected
+
+
+def test_get_platform_default_raises_when_not_found():
+    """get_platform_default() raises DoesNotExist if the row does not exist."""
+    with pytest.raises(FunctionSize.DoesNotExist):
+        FunctionSize.objects.get_platform_default()

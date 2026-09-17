@@ -79,26 +79,16 @@ class FunctionSizeQuerySet(QuerySet):
 
         return row.compute_profile
 
-    def get_platform_default(self, compute_profile: "ComputeProfile") -> "FunctionSize":
-        """Return the platform-wide default FunctionSize row, creating/repointing it as needed.
+    def get_platform_default(self) -> "FunctionSize":
+        """Return the platform-wide default FunctionSize row.
 
         The platform default (``function_size='platform-default'``, ``function=None``)
-        resolves jobs with no explicit size and no function default to the system's
-        configured compute profile. If the profile is later changed, the row is
-        updated in-place rather than duplicating it.
-
-        Args:
-            compute_profile: the compute profile the platform default should map to
+        must be created during migration and already exist in the database.
 
         Returns:
             FunctionSize: the platform default row
+
+        Raises:
+            DoesNotExist: if the platform default row does not exist
         """
-        row, created = self.get_or_create(
-            function=None,
-            function_size=self.model.PLATFORM_DEFAULT_SIZE,
-            defaults={"compute_profile": compute_profile},
-        )
-        if not created and row.compute_profile_id != compute_profile.pk:
-            row.compute_profile = compute_profile
-            row.save(update_fields=["compute_profile"])
-        return row
+        return self.get(function__isnull=True, function_size=self.model.PLATFORM_DEFAULT_SIZE)
