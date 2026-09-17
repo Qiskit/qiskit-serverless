@@ -1,5 +1,6 @@
 """Tests for the Job Timeline admin page."""
 
+import re
 from datetime import timedelta
 from uuid import uuid4
 
@@ -8,7 +9,7 @@ from django.contrib.auth.models import User
 from django.urls import reverse
 from django.utils import timezone
 
-from api.domain.job_timeline import render_job_timeline
+from api.domain.job_timeline import FILLER_TEXT_COLOR, render_job_timeline
 from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, JobEvent, Program, Provider
@@ -79,6 +80,53 @@ def test_render_job_timeline_reports_per_state_durations_and_outcome():
     assert ">PENDING 46s<" in svg
     assert ">RUNNING 48s<" in svg
     assert ">SUCCEEDED<" in svg  # same wording as the job list's status badge
+
+
+@pytest.mark.django_db
+def test_render_job_timeline_marks_filler_jobs_with_a_hatch_and_grey_text():
+    job = _job_with_events(filler=True)
+
+    context = render_job_timeline(Job.objects.filter(pk=job.pk).prefetch_related("job_events"))
+
+    svg = context["timeline_svg"]
+    # pointer-events="none" is only on the hatch drawn over a gantt bar, not on the concurrency area
+    assert 'fill="url(#qs-filler-hatch)" pointer-events="none"' in svg
+    assert f'fill="{FILLER_TEXT_COLOR}"' in svg
+    assert "qs-swatch--filler" in context["timeline_legend"]
+
+
+def _area_top(svg, fill):
+    """Highest point (smallest y, since y grows downwards) of the concurrency area with this fill."""
+    path_d = re.search(rf'<path class="conc-path is-visible"[^>]*d="([^"]+)"[^>]*fill="{re.escape(fill)}"', svg)
+    assert path_d, f"no visible concurrency area filled with {fill}"
+    return min(float(y) for y in re.findall(r"[ML] [\d.]+ ([\d.]+)", path_d.group(1)))
+
+
+@pytest.mark.django_db
+def test_render_job_timeline_stacks_the_filler_jobs_under_the_concurrency_area():
+    """The area counts every job, and the hatch over its bottom says how many of them are filler."""
+    base = timezone.now().replace(microsecond=0) - timedelta(minutes=10)
+    real_jobs = [_job_with_events(status=Job.RUNNING, base=base) for _ in range(2)]
+    filler_job = _job_with_events(status=Job.RUNNING, base=base, filler=True)
+
+    context = render_job_timeline(
+        Job.objects.filter(pk__in=[job.pk for job in real_jobs] + [filler_job.pk]).prefetch_related("job_events")
+    )
+
+    svg = context["timeline_svg"]
+    assert "peak overlap: 3" in svg  # the three jobs overlap, filler job included
+    # one filler out of three jobs, so the hatch has to stop well below the top of the area
+    assert _area_top(svg, "url(#qs-filler-hatch)") > _area_top(svg, "#3b82f6")
+
+
+@pytest.mark.django_db
+def test_render_job_timeline_draws_a_single_concurrency_area_without_filler_jobs():
+    """With no filler job in the selection the chart looks exactly as it did before."""
+    job = _job_with_events(status=Job.RUNNING, base=timezone.now().replace(microsecond=0) - timedelta(minutes=10))
+
+    context = render_job_timeline(Job.objects.filter(pk=job.pk).prefetch_related("job_events"))
+
+    assert "url(#qs-filler-hatch)" not in context["timeline_svg"]
 
 
 @pytest.mark.django_db
@@ -160,6 +208,18 @@ def test_render_job_timeline_builds_a_runner_filter_bar():
 
     assert 'data-runner="ray"' in context["timeline_runner_filter_bar"]
     assert "Ray" in context["timeline_runner_filter_bar"]
+
+
+@pytest.mark.django_db
+def test_the_job_change_page_lets_an_operator_flip_the_filler_flag(client):
+    """Marking a job as filler by hand is how the hatching is checked without running the balancer."""
+    job = _job_with_events()
+    client.force_login(User.objects.create_superuser(username="admin", password="x", email="a@b.c"))
+
+    response = client.get(reverse("admin:api_job_change", args=[job.pk]))
+
+    assert response.status_code == 200
+    assert 'name="filler"' in response.content.decode()
 
 
 @pytest.mark.django_db
@@ -246,4 +306,17 @@ def test_render_job_timeline_shows_job_and_fleets_details():
     assert "bx3d-24x120" in details  # compute_profile, listed under "Fleets"
     assert "proj-1" in details
     assert "us-south" in details
+    assert '<span class="qs-detail-label">filler</span><span class="qs-detail-value">no</span>' in details
     assert f'data-job-id="{job.id}"' in context["timeline_svg"]  # the row itself is clickable
+
+
+@pytest.mark.django_db
+def test_render_job_timeline_details_say_when_a_job_is_filler():
+    job = _job_with_events(filler=True)
+
+    context = render_job_timeline(Job.objects.filter(pk=job.pk).select_related("author").prefetch_related("job_events"))
+
+    assert (
+        '<span class="qs-detail-label">filler</span><span class="qs-detail-value">yes</span>'
+        in context["timeline_job_details"]
+    )

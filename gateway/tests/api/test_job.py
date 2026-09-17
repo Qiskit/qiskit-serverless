@@ -283,7 +283,7 @@ class TestJobApi:
             provider_name="default",
             function_title="Docker-Image-Program",
             permissions={PLATFORM_PERMISSION_JOBS_READ},
-            business_model=BusinessModel.SUBSIDIZED,
+            business_model=BusinessModel.LICENSED,
         )
         accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[entry])
         self._authorize("test_user", accessible_functions=accessible)
@@ -504,6 +504,9 @@ class TestJobApi:
         """Tests job stop."""
         self._authorize("test_user")
 
+        job_before = Job.objects.filter(id__exact="8317718f-5c0d-4fb6-9947-72e480b8a348").first()
+        updated_before = job_before.updated
+
         job_stop_response = self.client.post(
             reverse(
                 "v1:jobs-stop",
@@ -514,6 +517,8 @@ class TestJobApi:
         assert job_stop_response.status_code == status.HTTP_200_OK
         job = Job.objects.filter(id__exact="8317718f-5c0d-4fb6-9947-72e480b8a348").first()
         assert job.status == Job.STOPPED
+        assert job.updated is not None
+        assert job.updated != updated_before
         assert "Job has been stopped." in job_stop_response.data.get("message")
 
         job_events = JobEvent.objects.filter(job=job)
@@ -969,7 +974,7 @@ class TestRetrieveJob:
         )
         assert response.status_code == status.HTTP_200_OK
         assert response.data.get("result") == '{"ultimate": 42}'
-        assert response.data.get("business_model") == BusinessModel.SUBSIDIZED
+        assert response.data.get("business_model") == BusinessModel.LICENSED
 
     def test_author_retrieves_without_result_param(self, authorize):
         """?with_result=false returns the job without the result field."""
@@ -981,7 +986,18 @@ class TestRetrieveJob:
         )
         assert response.status_code == status.HTTP_200_OK
         assert response.data.get("result") is None
-        assert response.data.get("business_model") == BusinessModel.SUBSIDIZED
+        assert response.data.get("business_model") == BusinessModel.LICENSED
+
+    def test_old_subsidized_job_is_retrieved_as_licensed(self, authorize):
+        """A job stored with the old SUBSIDIZED name is reported to the client as LICENSED."""
+        job_id = "8317718f-5c0d-4fb6-9947-72e480b8a348"
+        Job.objects.filter(pk=job_id).update(business_model=BusinessModel.SUBSIDIZED)
+        client = authorize("test_user")
+
+        response = client.get(reverse("v1:retrieve", args=[job_id]) + "?with_result=false", format="json")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data.get("business_model") == BusinessModel.LICENSED
 
     def test_author_retrieves_inline_result(self, authorize):
         """Author retrieves a job whose result is stored inline in the DB."""
@@ -1057,7 +1073,7 @@ class TestRetrieveJob:
                 provider_name="default",
                 function_title="fn",
                 permissions={PLATFORM_PERMISSION_JOBS_READ},
-                business_model=BusinessModel.SUBSIDIZED,
+                business_model=BusinessModel.LICENSED,
             )
             accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[entry])
             client = authorize("test_user", accessible_functions=accessible)

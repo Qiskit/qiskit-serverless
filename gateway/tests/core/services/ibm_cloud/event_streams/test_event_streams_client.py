@@ -31,10 +31,10 @@ def _make_job(
     job_id=None,
     instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/abc:def::",
     running_started_at=None,
-    business_model=BusinessModel.SUBSIDIZED,
+    business_model=BusinessModel.LICENSED,
     provider_name="ibm-dev",
     program_title="test-circuit-function",
-    compute_profile="24x120",
+    compute_profile="16x128",
 ):
     job = MagicMock()
     job.id = job_id or uuid_module.uuid4()
@@ -125,7 +125,7 @@ class TestKafkaEventStreamsClient:
         assert published["source"] == "qiskit-serverless/scheduler/fleets"
         assert published["subject"] == str(job.id)
         assert published["data"] == {
-            "metric_type": "classical_ibm-dev_test-circuit-function_24x120",
+            "metric_type": "classical_16x128",
             "metric_value": 0,
             "instance_crn": job.instance_crn,
             "resource_id": str(job.id),
@@ -136,7 +136,7 @@ class TestKafkaEventStreamsClient:
         assert call_kwargs["key"] == str(job.id).encode("utf-8")
         mock_producer.flush.assert_called_once()
 
-    def test_emit_job_in_progress_computes_usage_milliseconds(self):
+    def test_emit_job_in_progress_computes_usage_seconds(self):
         started_at = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         job = _make_job(running_started_at=started_at)
 
@@ -160,13 +160,13 @@ class TestKafkaEventStreamsClient:
                         client.emit_job_in_progress(job)
 
         published = json.loads(mock_producer.produce.call_args[1]["value"])
-        assert published["data"]["metric_type"] == "classical_ibm-dev_test-circuit-function_24x120"
-        assert published["data"]["metric_value"] == 5_000
+        assert published["data"]["metric_type"] == "classical_16x128"
+        assert published["data"]["metric_value"] == 5
         assert published["data"]["job_started"] is False
         assert published["data"]["job_completed"] is False
         assert published["data"]["job_started_at"] == started_at.isoformat()
 
-    def test_emit_job_completed_computes_usage_milliseconds(self):
+    def test_emit_job_completed_computes_usage_seconds(self):
         started_at = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         job = _make_job(running_started_at=started_at)
 
@@ -190,11 +190,37 @@ class TestKafkaEventStreamsClient:
                         client.emit_job_completed(job)
 
         published = json.loads(mock_producer.produce.call_args[1]["value"])
-        assert published["data"]["metric_type"] == "classical_ibm-dev_test-circuit-function_24x120"
-        assert published["data"]["metric_value"] == 30_000
+        assert published["data"]["metric_type"] == "classical_16x128"
+        assert published["data"]["metric_value"] == 30
         assert published["data"]["job_started"] is False
         assert published["data"]["job_completed"] is True
         assert published["data"]["job_started_at"] == started_at.isoformat()
+
+    def test_emit_job_completed_rounds_partial_second_up(self):
+        started_at = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        job = _make_job(running_started_at=started_at)
+
+        with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
+            with patch(f"{_CLIENT_MOD}.uuid") as mock_uuid_mod:
+                with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
+                    with patch.dict(
+                        os.environ,
+                        {
+                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                            "EVENT_STREAMS_API_KEY": "k",
+                            "ENVIRONMENT": "production",
+                        },
+                    ):
+                        mock_uuid_mod.uuid4.return_value = uuid_module.uuid4()
+                        mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 30, 1, tzinfo=timezone.utc)
+
+                        client = KafkaEventStreamsClient()
+                        mock_producer = mock_producer_cls.return_value
+                        mock_producer.flush.return_value = 0
+                        client.emit_job_completed(job)
+
+        published = json.loads(mock_producer.produce.call_args[1]["value"])
+        assert published["data"]["metric_value"] == 31
 
     def test_emit_raises_when_flush_times_out(self):
         job = _make_job()
@@ -295,6 +321,7 @@ class TestKafkaEventStreamsClient:
         "business_model,expected",
         [
             (BusinessModel.SUBSIDIZED, "licensed"),
+            (BusinessModel.LICENSED, "licensed"),
             (BusinessModel.TRIAL, "trial"),
             (BusinessModel.CONSUMPTION, "consumption"),
         ],
