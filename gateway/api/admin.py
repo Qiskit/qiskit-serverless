@@ -783,6 +783,8 @@ class JobAdmin(admin.ModelAdmin):
         return format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines))
 
     def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+
         if change:
             if "status" in form.changed_data:
                 JobEvent.objects.add_status_event(
@@ -800,7 +802,9 @@ class JobAdmin(admin.ModelAdmin):
                     sub_status=obj.sub_status,
                 )
 
-        super().save_model(request, obj, form, change)
+    def has_delete_permission(self, request, obj=None):
+        """Disabled: a Job with a pending outbox row must not be deleted casually from the admin."""
+        return False
 
 
 @admin.register(RuntimeJob)
