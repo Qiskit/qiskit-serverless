@@ -131,14 +131,14 @@ class KafkaEventStreamsClient(EventStreamsClient):
             return parts[5]
         return None
 
-    def _emit_job_started(self, job, metric_type: str | None = None) -> None:
+    def _emit_job_started(self, job: Job, metric_type: str | None = None) -> None:
         """Publish a job-started event for the given metric (metric_value=0)."""
         if metric_type is None:
             metric_type = self._build_classical_metric_type(job)
         logger.info("job_id=%s Emitting job_started event", job.id)
         self._publish(job, metric_type=metric_type, metric_value=0, job_started=True, job_completed=False)
 
-    def _emit_job_in_progress(self, job, metric_type: str | None = None) -> None:
+    def _emit_job_in_progress(self, job: Job, metric_type: str | None = None) -> None:
         """Publish a job-in-progress event for the given metric with current usage."""
         if metric_type is None:
             metric_type = self._build_classical_metric_type(job)
@@ -150,7 +150,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
             job_completed=False,
         )
 
-    def _emit_job_completed(self, job, ended_at, metric_type: str | None = None) -> None:
+    def _emit_job_completed(self, job: Job, ended_at: datetime, metric_type: str | None = None) -> None:
         """Publish a job-completed event for the given metric with final usage as of ended_at."""
         if metric_type is None:
             metric_type = self._build_classical_metric_type(job)
@@ -190,7 +190,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
 
         return "_".join(parts)
 
-    def _usage_seconds(self, job, as_of) -> int:
+    def _usage_seconds(self, job: Job, as_of: datetime) -> int:
         """Usage in whole seconds up to as_of, rounded up so any partial second is billed."""
         if job.running_started_at is None:
             return 0
