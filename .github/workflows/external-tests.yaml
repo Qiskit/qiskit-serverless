@@ -1,4 +1,4 @@
-name: Integration tests
+name: Ray Integration tests
 
 on:
   workflow_dispatch:
