@@ -6,6 +6,7 @@ import uuid
 
 from enum import StrEnum
 
+from django.db import transaction
 from django.db.models import QuerySet
 
 logger = logging.getLogger("core.JobEvents")
@@ -72,7 +73,11 @@ class JobEventQuerySet(QuerySet):
 
         Also updates a matching JobOutbox row if one exists (Ray, filler, and
         pre-deployment jobs have none, and the update below then touches zero
-        rows)
+        rows). The two writes are wrapped in their own transaction so the event
+        and the outbox row it drives never diverge, regardless of whether the
+        caller wraps this call in a transaction of its own (nested atomic blocks
+        share the same underlying database transaction via a savepoint, so this
+        adds no separate commit).
         """
         from core.models import Job, JobOutbox  # pylint: disable=import-outside-toplevel, cyclic-import
 
@@ -85,18 +90,19 @@ class JobEventQuerySet(QuerySet):
             context,
         )
 
-        event = self.create(
-            job_id=job_id,
-            origin=origin,
-            context=context,
-            event_type=JobEventType.STATUS_CHANGE,
-            data={"status": status},
-        )
+        with transaction.atomic():
+            event = self.create(
+                job_id=job_id,
+                origin=origin,
+                context=context,
+                event_type=JobEventType.STATUS_CHANGE,
+                data={"status": status},
+            )
 
-        outbox_fields = {"job_status": status, "status_changed_at": event.created}
-        if status == Job.RUNNING:
-            outbox_fields["has_run"] = True
-        JobOutbox.objects.filter(job_id=job_id).update(**outbox_fields)
+            outbox_fields = {"job_status": status, "status_changed_at": event.created}
+            if status == Job.RUNNING:
+                outbox_fields["has_run"] = True
+            JobOutbox.objects.filter(job_id=job_id).update(**outbox_fields)
 
         return event
 

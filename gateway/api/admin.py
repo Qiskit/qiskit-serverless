@@ -7,6 +7,7 @@ import uuid
 from django import forms
 from django.contrib import admin, messages
 from django.core.cache import cache
+from django.db import transaction
 from django.db.models import Count, F, Q
 from django.utils import timezone
 from django.utils.html import format_html, format_html_join
@@ -783,24 +784,25 @@ class JobAdmin(admin.ModelAdmin):
         return format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines))
 
     def save_model(self, request, obj, form, change):
-        if change:
-            if "status" in form.changed_data:
-                JobEvent.objects.add_status_event(
-                    job_id=obj.id,
-                    origin=JobEventOrigin.BACKOFFICE,
-                    context=JobEventContext.SAVE_MODEL,
-                    status=obj.status,
-                )
+        with transaction.atomic():
+            if change:
+                if "status" in form.changed_data:
+                    JobEvent.objects.add_status_event(
+                        job_id=obj.id,
+                        origin=JobEventOrigin.BACKOFFICE,
+                        context=JobEventContext.SAVE_MODEL,
+                        status=obj.status,
+                    )
 
-            if "sub_status" in form.changed_data:
-                JobEvent.objects.add_sub_status_event(
-                    job_id=obj.id,
-                    origin=JobEventOrigin.BACKOFFICE,
-                    context=JobEventContext.SAVE_MODEL,
-                    sub_status=obj.sub_status,
-                )
+                if "sub_status" in form.changed_data:
+                    JobEvent.objects.add_sub_status_event(
+                        job_id=obj.id,
+                        origin=JobEventOrigin.BACKOFFICE,
+                        context=JobEventContext.SAVE_MODEL,
+                        sub_status=obj.sub_status,
+                    )
 
-        super().save_model(request, obj, form, change)
+            super().save_model(request, obj, form, change)
 
     def has_delete_permission(self, request, obj=None):
         """Disabled: a Job with a pending outbox row must not be deleted casually from the admin."""

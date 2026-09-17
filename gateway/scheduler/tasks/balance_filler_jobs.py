@@ -3,6 +3,7 @@
 import logging
 
 from django.core.exceptions import ValidationError
+from django.db import transaction
 
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
@@ -316,21 +317,23 @@ class BalanceFillerJobs(SchedulerTask):
         Not _mark_stopped: nothing stopped it, its creation broke, and that counter is
         cross-checked against the FILLER_STOP events.
         """
-        job.update_fields({"status": Job.FAILED, "sub_status": None})
-        JobEvent.objects.add_status_event(
-            job_id=job.id,
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.FILLER_FAILED,
-            status=Job.FAILED,
-        )
+        with transaction.atomic():
+            job.update_fields({"status": Job.FAILED, "sub_status": None})
+            JobEvent.objects.add_status_event(
+                job_id=job.id,
+                origin=JobEventOrigin.SCHEDULER,
+                context=JobEventContext.FILLER_FAILED,
+                status=Job.FAILED,
+            )
 
     def _mark_stopped(self, job: Job) -> None:
         """Write STOPPED on the job, record the event, and count it."""
-        job.update_fields({"status": Job.STOPPED, "sub_status": None})
-        JobEvent.objects.add_status_event(
-            job_id=job.id,
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.FILLER_STOP,
-            status=Job.STOPPED,
-        )
+        with transaction.atomic():
+            job.update_fields({"status": Job.STOPPED, "sub_status": None})
+            JobEvent.objects.add_status_event(
+                job_id=job.id,
+                origin=JobEventOrigin.SCHEDULER,
+                context=JobEventContext.FILLER_STOP,
+                status=Job.STOPPED,
+            )
         self.metrics.increment_filler_jobs_stopped()
