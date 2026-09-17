@@ -3,11 +3,11 @@ pytest>=9.1.1
 pytest-order>=1.5.0
 pytest-randomly>=5.0.0
 pytest-timeout>=2.4.0
-boto3>=1.43.89
-psycopg2-binary>=2.9.12
+boto3>=1.43.93
+psycopg2-binary>=2.9.13
 # new versions of testcontainers don't support docker compose
 testcontainers>=4.15.0
-tox>=4.61.2
+tox>=4.61.4
 black[jupyter]~=26.5
 requests-mock>=1.12.1
 pylint>=4.0.8
