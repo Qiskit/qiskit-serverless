@@ -110,11 +110,9 @@ class JobConfigSerializer(serializers.ModelSerializer):
 class OutputSerializer(serializers.ModelSerializer):
     """Response serializer for a queued job."""
 
-    compute_profile = serializers.CharField(required=False, allow_null=True, allow_blank=True, default=None)
-
     class Meta:
         model = Job
-        fields = ["id", "result", "status", "program", "created", "arguments", "compute_profile", "size_source"]
+        fields = ["id", "result", "status", "program", "created", "arguments", "size_source"]
         ref_name = "ProgramsRunOutput"
 
 

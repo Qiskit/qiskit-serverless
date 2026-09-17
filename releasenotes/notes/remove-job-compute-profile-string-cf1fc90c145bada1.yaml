@@ -1,0 +1,15 @@
+---
+upgrade:
+  - |
+    The transitional ``compute_profile`` string field has been removed from job
+    API responses and from the client ``Job`` object. It was superseded by
+    ``compute_profile_fk`` (the registered compute profile, exposed as a nested
+    object on the job list and retrieve responses), which is the source of truth
+    for the profile a job ran on. Read the compute profile from
+    ``compute_profile_fk`` instead.
+
+    The deprecated ``compute_profile`` input to ``function.run(...)`` is
+    unaffected by this change; prefer ``function_size``.
+
+    The underlying database column is retained for one release and dropped in a
+    later one, so this change is safe to roll back.

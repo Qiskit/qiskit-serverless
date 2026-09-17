@@ -146,7 +146,7 @@ class TestRunFunctionUseCase:
 
         job = RunFunctionUseCase().execute(user, accessible, make_input())
 
-        assert job.compute_profile == "16x128"
+        assert job.compute_profile_id == "16x128"
         assert job.compute_profile_fk == profile
         # Nothing requested and no default_size: sized by the deployment default,
         # so no FunctionSize row backs it.
@@ -167,7 +167,7 @@ class TestRunFunctionUseCase:
 
         job = RunFunctionUseCase().execute(user, accessible, make_input(compute_profile="24x120x1a100p"))
 
-        assert job.compute_profile == "24x120x1a100p"
+        assert job.compute_profile_id == "24x120x1a100p"
         assert job.compute_profile_fk == profile
         # Sized by the deprecated compute_profile input; no size row applies.
         assert job.size_source == Job.SIZE_SOURCE_COMPUTE_PROFILE
@@ -207,7 +207,7 @@ class TestRunFunctionUseCase:
 
         job = RunFunctionUseCase().execute(user, accessible, make_input())
 
-        assert job.compute_profile is None
+        assert job.compute_profile_id is None
         assert job.compute_profile_fk is None
         assert job.size_source == Job.SIZE_SOURCE_NONE
         assert job.function_size is None
@@ -222,7 +222,7 @@ class TestRunFunctionUseCase:
 
         job = RunFunctionUseCase().execute(user, accessible, make_input(function_size="m"))
 
-        assert job.compute_profile == "16x128"
+        assert job.compute_profile_id == "16x128"
         assert job.compute_profile_fk == profile
         # A user-requested size records REQUESTED and the exact size row (so a
         # different size mapping to the same profile stays distinguishable).
@@ -265,7 +265,7 @@ class TestRunFunctionUseCase:
 
         job = RunFunctionUseCase().execute(user, accessible, make_input())
 
-        assert job.compute_profile == "16x128"
+        assert job.compute_profile_id == "16x128"
         assert job.compute_profile_fk == default_profile
         # Platform filled in the default: distinguishable from a user picking the
         # same size, which would record REQUESTED.
@@ -279,7 +279,7 @@ class TestRunFunctionUseCase:
 
         job = RunFunctionUseCase().execute(user, accessible, make_input(function_size="m"))
 
-        assert job.compute_profile is None
+        assert job.compute_profile_id is None
         assert job.compute_profile_fk is None
         assert job.size_source == Job.SIZE_SOURCE_NONE
         assert job.function_size is None
