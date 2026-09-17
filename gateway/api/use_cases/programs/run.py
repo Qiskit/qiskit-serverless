@@ -25,6 +25,7 @@ from core.models import (
     Job,
     JobConfig,
     JobEvent,
+    JobOutbox,
     Program as Function,
     PLATFORM_PERMISSION_RUN,
     RUN_PROGRAM_PERMISSION,
@@ -270,10 +271,18 @@ class RunFunctionUseCase:
             if data.config_data:
                 job.config = JobConfig.objects.create(**data.config_data)
             job.save()
-            JobEvent.objects.add_status_event(
+            event = JobEvent.objects.add_status_event(
                 job_id=job.id,
                 origin=JobEventOrigin.API,
                 context=JobEventContext.RUN_PROGRAM,
                 status=job.status,
             )
+            if function.runner == Function.FLEETS and not job.filler and job.instance_crn:
+                JobOutbox.objects.create(
+                    job=job,
+                    job_status=job.status,
+                    status_changed_at=event.created,
+                    has_run=False,
+                    license_fee_required=function.provider_id is not None,
+                )
         return job
