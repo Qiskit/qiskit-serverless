@@ -1,10 +1,8 @@
 """In-memory circuit breaker for a scheduler task's outbound sends.
 
-Not persisted: a process restart resets it to closed. See
-.claude/specs/2026-09-16-job-outbox-design.md section 9.1 for why that trade-off
-is accepted. The scheduler is single-threaded (one instance per task, used only
-from the main loop), so no locking is needed here, unlike SchedulerHealth which
-is also read from the HTTP probe thread.
+Not persisted: a process restart resets it to closed. The scheduler is single-threaded (one instance
+per task, used only from the main loop), so no locking is needed here, unlike SchedulerHealth which is
+also read from the HTTP probe thread.
 """
 
 import time

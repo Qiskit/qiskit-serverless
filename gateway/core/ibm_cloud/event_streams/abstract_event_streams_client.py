@@ -40,9 +40,7 @@ class EventStreamsClient(ABC):
         self._emit_job_in_progress(job, metric_type)
 
     def emit_job_completed(self, job, ended_at, metric_type: str | None = None) -> None:
-        """Publish or log a function_job_completed event for the given metric, using ended_at
-        (not the current time) to compute usage seconds. See
-        .claude/specs/2026-09-16-job-outbox-design.md section 7."""
+        """Publish or log a function_job_completed event for the given metric."""
         if job.filler:
             logger.debug("job_id=%s filler job, skipping emit_job_completed", job.id)
             return

@@ -117,9 +117,8 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         """Persist a terminal status transition.
 
         Kafka publishing for this transition is not done here: it is picked up by
-        PublishKafkaOutbox from the outbox row that add_status_event just updated,
-        so a Kafka outage never blocks this transition. See
-        .claude/specs/2026-09-16-job-outbox-design.md sections 2 and 9.
+        PublishOutbox from the outbox row that add_status_event just updated,
+        so a Kafka outage never blocks this transition.
         """
         logger.info(
             "job_id=%s user_id=%s Changing status from %s to %s",

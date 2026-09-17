@@ -278,6 +278,7 @@ class RunFunctionUseCase:
                 status=job.status,
             )
             if function.runner == Function.FLEETS and not job.filler and job.instance_crn:
+                # This is the only place where the JobOutbox is created
                 JobOutbox.objects.create(
                     job=job,
                     job_status=job.status,

@@ -20,13 +20,13 @@ from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .circuit_breaker import CircuitBreaker
 from .task import SchedulerTask
 
-logger = logging.getLogger("scheduler.PublishKafkaOutbox")
+logger = logging.getLogger("scheduler.PublishOutbox")
 
 FACT_LICENSE_FEE = "license_fee"
 FACT_BILLING_EVENT = "billing_event"
 
 
-class PublishKafkaOutbox(SchedulerTask):
+class PublishOutbox(SchedulerTask):
     """Send the license fee and the final usage event for terminal Fleets jobs."""
 
     def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
@@ -34,8 +34,8 @@ class PublishKafkaOutbox(SchedulerTask):
         self.metrics = metrics
         self._event_streams_client: EventStreamsClient | None = None
         self._breaker = CircuitBreaker(
-            failure_threshold=Config.get_int(ConfigKey.KAFKA_OUTBOX_BREAKER_FAILURES, default=5),
-            pause_seconds=Config.get_int(ConfigKey.KAFKA_OUTBOX_BREAKER_PAUSE_SECONDS, default=60),
+            failure_threshold=Config.get_int(ConfigKey.OUTBOX_BREAKER_FAILURES, default=5),
+            pause_seconds=Config.get_int(ConfigKey.OUTBOX_BREAKER_PAUSE_SECONDS, default=60),
         )
 
     @property
@@ -52,7 +52,7 @@ class PublishKafkaOutbox(SchedulerTask):
 
     def run(self):
         """Drain one batch of pending outbox rows, within the configured time budget."""
-        if not Config.get_bool(ConfigKey.KAFKA_OUTBOX_ENABLED):
+        if not Config.get_bool(ConfigKey.OUTBOX_ENABLED):
             return
 
         self.metrics.set_outbox_kafka_breaker_open(self._breaker.is_open)
@@ -61,8 +61,8 @@ class PublishKafkaOutbox(SchedulerTask):
         if self._breaker.is_open:
             return
 
-        batch_size = Config.get_int(ConfigKey.KAFKA_OUTBOX_BATCH_SIZE, default=20)
-        budget_ms = Config.get_int(ConfigKey.KAFKA_OUTBOX_BUDGET_MS, default=500)
+        batch_size = Config.get_int(ConfigKey.OUTBOX_BATCH_SIZE, default=20)
+        budget_ms = Config.get_int(ConfigKey.OUTBOX_BUDGET_MS, default=500)
         deadline = time.monotonic() + (budget_ms / 1000)
 
         rows = list(JobOutbox.objects.pending_kafka_outbox(limit=batch_size))

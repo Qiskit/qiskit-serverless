@@ -1,17 +1,17 @@
-"""Unit tests for PublishKafkaOutbox."""
+"""Unit tests for PublishOutbox."""
 
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
-from scheduler.tasks.publish_kafka_outbox import PublishKafkaOutbox
+from scheduler.tasks.publish_outbox import PublishOutbox
 
-_MOD = "scheduler.tasks.publish_kafka_outbox"
+_MOD = "scheduler.tasks.publish_outbox"
 
 
 def _make_task():
     kill_signal = MagicMock()
     kill_signal.received = False
-    task = PublishKafkaOutbox.__new__(PublishKafkaOutbox)
+    task = PublishOutbox.__new__(PublishOutbox)
     task.kill_signal = kill_signal
     task.metrics = MagicMock()
     task._event_streams_client = MagicMock()

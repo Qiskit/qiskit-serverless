@@ -751,10 +751,9 @@ class JobEvent(models.Model):
 
 class JobOutbox(models.Model):
     """Outbox row for a live Fleets job with an instance CRN: what still needs to be
-    sent to Kafka billing (this PR) and mirrored to the Runtime API (second PR).
+    sent to Kafka billing (this PR) and mirrored to the Runtime API workloads.
     One row per live job, created in RunFunctionUseCase.execute() and deleted once
-    every fact tracked here has been sent. See
-    .claude/specs/2026-09-16-job-outbox-design.md.
+    every fact tracked here has been sent.
     """
 
     job = models.OneToOneField(

@@ -72,7 +72,7 @@ class JobEventQuerySet(QuerySet):
 
         Also updates a matching JobOutbox row if one exists (Ray, filler, and
         pre-deployment jobs have none, and the update below then touches zero
-        rows). See .claude/specs/2026-09-16-job-outbox-design.md section 6.
+        rows)
         """
         from core.models import Job, JobOutbox  # pylint: disable=import-outside-toplevel, cyclic-import
 

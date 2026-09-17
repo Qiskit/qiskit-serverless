@@ -168,9 +168,8 @@ class KafkaEventStreamsClient(EventStreamsClient):
         """Publish a license fee event.
 
         Raises AttributeError if job.program or job.program.provider is gone (both
-        are SET_NULL foreign keys): the caller (PublishKafkaOutbox) treats that as
-        an unrecoverable payload and records it instead of retrying forever. See
-        .claude/specs/2026-09-16-job-outbox-design.md section 7.
+        are SET_NULL foreign keys): the caller (PublishOutbox) treats that as
+        an unrecoverable payload and records it instead of retrying forever.
         """
         metric_type = "_".join([LICENSE_FEE_METRIC_TYPE, job.program.provider.name, job.program.title])
         self._publish(
