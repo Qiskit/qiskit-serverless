@@ -65,37 +65,38 @@ class PublishOutbox(SchedulerTask):
         budget_ms = Config.get_int(ConfigKey.OUTBOX_BUDGET_MS, default=500)
         deadline = time.monotonic() + (budget_ms / 1000)
 
-        rows = list(JobOutbox.objects.pending_kafka_outbox(limit=batch_size))
+        license_fee_rows = list(JobOutbox.objects.pending_license_fee().order_by("status_changed_at")[:batch_size])
+        if not self._drain(license_fee_rows, self._send_license_fee, deadline):
+            return
+
+        billing_event_rows = list(JobOutbox.objects.pending_billing_event().order_by("status_changed_at")[:batch_size])
+        self._drain(billing_event_rows, self._send_billing_event, deadline)
+
+    def _drain(self, rows: list[JobOutbox], send_fact, deadline: float) -> bool:
+        """Send one fact for each row, oldest first, then delete the row if everything is settled.
+
+        Returns False if the drain was cut short by the kill signal or the time
+        budget, so the caller knows not to start the next fact's batch this tick.
+
+        Each row here already owes this fact by construction of the queryset that
+        produced it (pending_license_fee or pending_billing_event), so send_fact
+        is called unconditionally instead of re-checking the row's fields.
+        """
         for row in rows:
             if self.kill_signal.received:
-                logger.info("Kill signal received, stopping Kafka outbox drain")
-                return
+                logger.info("Kill signal received, stopping outbox drain")
+                return False
             if time.monotonic() >= deadline:
-                logger.info("Time budget spent, stopping Kafka outbox drain for this tick")
-                return
-            self._process_row(row)
+                logger.info("Time budget spent, stopping outbox drain for this tick")
+                return False
 
-    def _process_row(self, row: JobOutbox) -> None:
-        """Send whatever this row still owes, then delete it if everything is settled.
+            if send_fact(row):
+                row.save()
 
-        row.save() is only called when a send actually changed a field: a row that
-        failed every attempt it made this pass must be left untouched, so the next
-        pass still finds it via pending_kafka_outbox instead of relying on a write
-        that recorded nothing.
-        """
-        changed = False
+            if JobOutbox.objects.ready_to_delete().filter(pk=row.pk).exists():
+                row.delete()
 
-        if row.license_fee_required and row.license_fee_sent_at is None:
-            changed |= self._send_license_fee(row)
-
-        if row.billing_sent_at is None:
-            changed |= self._send_billing_event(row)
-
-        if changed:
-            row.save()
-
-        if JobOutbox.objects.ready_to_delete().filter(pk=row.pk).exists():
-            row.delete()
+        return True
 
     def _send_license_fee(self, row: JobOutbox) -> bool:
         """Attempt to send the license fee event. Returns True if the row changed."""

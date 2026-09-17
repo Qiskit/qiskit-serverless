@@ -10,9 +10,8 @@ from django.db.models import Q, QuerySet
 class JobOutboxQuerySet(QuerySet):
     """Query helpers for JobOutbox rows."""
 
-    @staticmethod
-    def _license_fee_pending_q() -> Q:
-        """The license fee is owed and has not been sent yet.
+    def pending_license_fee(self):
+        """Rows whose license fee is owed and has not been sent yet.
 
         Pseudo-SQL:
             license_fee_required = true
@@ -28,13 +27,13 @@ class JobOutboxQuerySet(QuerySet):
         """
         from core.models import Job  # pylint: disable=import-outside-toplevel, cyclic-import
 
-        return Q(license_fee_required=True, license_fee_sent_at__isnull=True) & (
-            Q(has_run=True) | Q(job_status=Job.SUCCEEDED)
+        return self.filter(
+            Q(license_fee_required=True, license_fee_sent_at__isnull=True)
+            & (Q(has_run=True) | Q(job_status=Job.SUCCEEDED))
         )
 
-    @staticmethod
-    def _billing_event_pending_q() -> Q:
-        """The final usage event has not been sent yet.
+    def pending_billing_event(self):
+        """Rows whose final usage event has not been sent yet.
 
         Pseudo-SQL:
             billing_sent_at IS NULL
@@ -47,25 +46,7 @@ class JobOutboxQuerySet(QuerySet):
         """
         from core.models import Job  # pylint: disable=import-outside-toplevel, cyclic-import
 
-        return Q(billing_sent_at__isnull=True, job_status__in=Job.TERMINAL_STATUSES)
-
-    def pending_license_fee(self):
-        """Rows whose license fee is owed and has not been sent yet."""
-        return self.filter(self._license_fee_pending_q())
-
-    def pending_billing_event(self):
-        """Rows whose final usage event has not been sent yet."""
-        return self.filter(self._billing_event_pending_q())
-
-    def pending_kafka_outbox(self, limit: int):
-        """Rows owing a license fee or a final usage event, oldest status change first.
-
-        The union of the two pending conditions above, so a row shows up here as
-        soon as either fact is outstanding.
-        """
-        return self.filter(self._license_fee_pending_q() | self._billing_event_pending_q()).order_by(
-            "status_changed_at"
-        )[:limit]
+        return self.filter(billing_sent_at__isnull=True, job_status__in=Job.TERMINAL_STATUSES)
 
     def ready_to_delete(self):
         """Rows where every fact this PR tracks is settled.
@@ -84,7 +65,7 @@ class JobOutboxQuerySet(QuerySet):
         RUNNING with no license fee due) reads as vacuously "nothing pending" and
         would be deleted while still alive.
 
-        The license fee clause is the full negation of _license_fee_pending_q's
+        The license fee clause is the full negation of pending_license_fee's
         three terms, not just the first two. Dropping the third term (a job that
         never ran because it was cancelled in queue or failed to submit) once
         left those rows permanently pending: they never owed the fee, but they

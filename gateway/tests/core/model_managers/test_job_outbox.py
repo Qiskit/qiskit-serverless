@@ -1,7 +1,5 @@
 """Unit tests for JobOutboxQuerySet."""
 
-from datetime import timedelta
-
 import pytest
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -96,26 +94,6 @@ class TestPendingBillingEvent:
         row = _make_outbox(job, job_status=Job.SUCCEEDED, billing_sent_at=timezone.now())
 
         assert row not in JobOutbox.objects.pending_billing_event()
-
-
-class TestPendingKafkaOutbox:
-    def test_orders_oldest_first(self, user):
-        older_job = _make_job(user, status=Job.SUCCEEDED)
-        newer_job = _make_job(user, status=Job.SUCCEEDED)
-        now = timezone.now()
-        newer = _make_outbox(newer_job, job_status=Job.SUCCEEDED, status_changed_at=now)
-        older = _make_outbox(older_job, job_status=Job.SUCCEEDED, status_changed_at=now - timedelta(hours=1))
-
-        result = list(JobOutbox.objects.pending_kafka_outbox(limit=10))
-
-        assert result == [older, newer]
-
-    def test_respects_the_limit(self, user):
-        for _ in range(3):
-            job = _make_job(user, status=Job.SUCCEEDED)
-            _make_outbox(job, job_status=Job.SUCCEEDED)
-
-        assert len(list(JobOutbox.objects.pending_kafka_outbox(limit=2))) == 2
 
 
 class TestReadyToDelete:

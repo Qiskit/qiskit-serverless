@@ -38,6 +38,16 @@ def _make_row(
     return row
 
 
+def _configure_pending(mock_job_outbox, license_fee_rows=None, billing_event_rows=None):
+    """Wire the two batches PublishOutbox.run() fetches, one per fact."""
+    mock_job_outbox.objects.pending_license_fee.return_value.order_by.return_value.__getitem__.return_value = (
+        license_fee_rows or []
+    )
+    mock_job_outbox.objects.pending_billing_event.return_value.order_by.return_value.__getitem__.return_value = (
+        billing_event_rows or []
+    )
+
+
 class TestDisabledFlag:
     def test_returns_immediately_when_disabled(self):
         task = _make_task()
@@ -47,7 +57,8 @@ class TestDisabledFlag:
             with patch(f"{_MOD}.JobOutbox") as mock_job_outbox:
                 task.run()
 
-        mock_job_outbox.objects.pending_kafka_outbox.assert_not_called()
+        mock_job_outbox.objects.pending_license_fee.assert_not_called()
+        mock_job_outbox.objects.pending_billing_event.assert_not_called()
 
 
 class TestHappyPath:
@@ -64,7 +75,7 @@ class TestHappyPath:
             mock_config.get_int.side_effect = lambda key, default=None: {"batch_size": 20, "budget_ms": 500}.get(
                 key.value.rsplit(".", 1)[-1], default
             )
-            mock_job_outbox.objects.pending_kafka_outbox.return_value = [row]
+            _configure_pending(mock_job_outbox, license_fee_rows=[row], billing_event_rows=[row])
             mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = True
             now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
             mock_timezone.now.return_value = now
@@ -75,7 +86,9 @@ class TestHappyPath:
         task.event_streams_client.emit_job_completed.assert_called_once_with(row.job, row.status_changed_at)
         assert row.license_fee_sent_at == now
         assert row.billing_sent_at == now
-        row.save.assert_called_once()
+        # The row owes both facts, so it is drained twice this tick: once in the
+        # license fee batch, once in the billing event batch.
+        assert row.save.call_count == 2
 
     def test_skips_license_fee_when_not_required(self):
         task = _make_task()
@@ -88,7 +101,7 @@ class TestHappyPath:
         ):
             mock_config.get_bool.return_value = True
             mock_config.get_int.return_value = 20
-            mock_job_outbox.objects.pending_kafka_outbox.return_value = [row]
+            _configure_pending(mock_job_outbox, billing_event_rows=[row])
             mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = True
 
             task.run()
@@ -108,7 +121,7 @@ class TestHappyPath:
         ):
             mock_config.get_bool.return_value = True
             mock_config.get_int.return_value = 20
-            mock_job_outbox.objects.pending_kafka_outbox.return_value = [row]
+            _configure_pending(mock_job_outbox, license_fee_rows=[row])
             mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = True
 
             task.run()
@@ -131,7 +144,7 @@ class TestFailureHandling:
         ):
             mock_config.get_bool.return_value = True
             mock_config.get_int.return_value = 20
-            mock_job_outbox.objects.pending_kafka_outbox.return_value = [row]
+            _configure_pending(mock_job_outbox, billing_event_rows=[row])
 
             task.run()
 
@@ -151,7 +164,7 @@ class TestFailureHandling:
         ):
             mock_config.get_bool.return_value = True
             mock_config.get_int.return_value = 20
-            mock_job_outbox.objects.pending_kafka_outbox.return_value = [row]
+            _configure_pending(mock_job_outbox, license_fee_rows=[row], billing_event_rows=[row])
             mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = False
             mock_timezone.now.return_value = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
@@ -166,15 +179,13 @@ class TestFailureHandling:
     def test_skips_the_breaker_when_open(self):
         task = _make_task()
         task._breaker.is_open = True
-        row = _make_row()
 
         with (
             patch(f"{_MOD}.Config") as mock_config,
-            patch(f"{_MOD}.JobOutbox") as mock_job_outbox,
+            patch(f"{_MOD}.JobOutbox"),
         ):
             mock_config.get_bool.return_value = True
             mock_config.get_int.return_value = 20
-            mock_job_outbox.objects.pending_kafka_outbox.return_value = [row]
 
             task.run()
 
@@ -198,7 +209,7 @@ class TestBudgetAndKillSignal:
             mock_config.get_int.side_effect = lambda key, default=None: {"budget_ms": 500, "batch_size": 20}.get(
                 key.value.rsplit(".", 1)[-1], default
             )
-            mock_job_outbox.objects.pending_kafka_outbox.return_value = rows
+            _configure_pending(mock_job_outbox, billing_event_rows=rows)
             mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = True
 
             task.run()
@@ -222,7 +233,7 @@ class TestBudgetAndKillSignal:
         ):
             mock_config.get_bool.return_value = True
             mock_config.get_int.return_value = 20
-            mock_job_outbox.objects.pending_kafka_outbox.return_value = rows
+            _configure_pending(mock_job_outbox, billing_event_rows=rows)
             mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = True
 
             task.run()
@@ -242,7 +253,7 @@ class TestDeletion:
         ):
             mock_config.get_bool.return_value = True
             mock_config.get_int.return_value = 20
-            mock_job_outbox.objects.pending_kafka_outbox.return_value = [row]
+            _configure_pending(mock_job_outbox, billing_event_rows=[row])
             mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = True
 
             task.run()
@@ -260,7 +271,7 @@ class TestDeletion:
         ):
             mock_config.get_bool.return_value = True
             mock_config.get_int.return_value = 20
-            mock_job_outbox.objects.pending_kafka_outbox.return_value = [row]
+            _configure_pending(mock_job_outbox, billing_event_rows=[row])
             mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = False
 
             task.run()

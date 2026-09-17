@@ -1,8 +1,7 @@
 """In-memory circuit breaker for a scheduler task's outbound sends.
 
 Not persisted: a process restart resets it to closed. The scheduler is single-threaded (one instance
-per task, used only from the main loop), so no locking is needed here, unlike SchedulerHealth which is
-also read from the HTTP probe thread.
+per task, used only from the main loop), so no locking is needed here.
 """
 
 import time
