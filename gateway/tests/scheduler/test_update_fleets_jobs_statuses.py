@@ -1,7 +1,7 @@
 """Unit tests for UpdateFleetsJobsStatuses."""
 
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -250,7 +250,10 @@ class TestToRunning:
         task = _make_task()
         job = _make_fleets_job(status=Job.PENDING)
 
-        with patch(f"{_MOD}.JobEvent") as mock_job_event:
+        with (
+            patch(f"{_MOD}.JobEvent") as mock_job_event,
+            patch(f"{_MOD}.transaction"),
+        ):
             task.to_running(job)
 
         assert job.status == Job.RUNNING
@@ -261,77 +264,85 @@ class TestToRunning:
             status=Job.RUNNING,
         )
 
-    def test_to_running_sets_running_started_at(self):
+    def test_to_running_sets_running_started_at_from_the_event_created_timestamp(self):
+        """running_started_at must be the JobEvent's own created, not a separate now()."""
         task = _make_task()
         job = _make_fleets_job(status=Job.PENDING)
+        fake_created = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
         with (
-            patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.django_timezone") as mock_dt,
+            patch(f"{_MOD}.JobEvent") as mock_job_event,
+            patch(f"{_MOD}.transaction"),
         ):
-            fake_now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-            mock_dt.now.return_value = fake_now
+            mock_job_event.objects.add_status_event.return_value.created = fake_created
             task.to_running(job)
 
-        assert job.update_fields.call_args_list == [
-            call({"running_started_at": fake_now}),
-            call({"status": Job.RUNNING}),
-        ]
+        job.update_fields.assert_called_once_with({"status": Job.RUNNING, "running_started_at": fake_created})
 
     def test_to_running_persists_running_started_at_before_emitting_events(self):
         """The events carry running_started_at as job_started_at, so it must be set first."""
         task = _make_task()
         job = _make_fleets_job(status=Job.PENDING)
-        fake_now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        fake_created = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         seen = {}
 
         task.event_streams_client.emit_job_started.side_effect = lambda j: seen.update(started=j.running_started_at)
         task.event_streams_client.emit_license_fee.side_effect = lambda j: seen.update(license=j.running_started_at)
 
         with (
-            patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.django_timezone") as mock_dt,
+            patch(f"{_MOD}.JobEvent") as mock_job_event,
+            patch(f"{_MOD}.transaction"),
         ):
-            mock_dt.now.return_value = fake_now
+            mock_job_event.objects.add_status_event.return_value.created = fake_created
             task.to_running(job)
 
-        assert seen == {"started": fake_now, "license": fake_now}
+        assert seen == {"started": fake_created, "license": fake_created}
 
-    def test_to_running_keeps_existing_running_started_at_on_retry(self):
-        """A retry after a failed emit must reuse the stored start time, not move it forward."""
+    def test_to_running_persists_the_status_and_the_event_atomically(self):
+        """The job row and its JobEvent are written inside the same transaction.atomic()."""
         task = _make_task()
         job = _make_fleets_job(status=Job.PENDING)
-        original = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-        job.running_started_at = original
 
         with (
             patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.django_timezone") as mock_dt,
+            patch(f"{_MOD}.transaction") as mock_transaction,
         ):
-            mock_dt.now.return_value = datetime(2026, 1, 1, 12, 30, 0, tzinfo=timezone.utc)
             task.to_running(job)
 
-        assert job.running_started_at == original
-        job.update_fields.assert_called_once_with({"status": Job.RUNNING})
+        mock_transaction.atomic.assert_called_once_with()
+        mock_transaction.atomic.return_value.__enter__.assert_called_once()
 
-    def test_to_running_keeps_running_started_at_when_emit_fails(self):
-        """A failed publish leaves the job PENDING but the recorded start time persisted."""
+    def test_to_running_reaches_running_even_when_kafka_is_down(self):
+        """A Kafka outage must not leave the job stuck retrying PENDING forever."""
         task = _make_task()
         job = _make_fleets_job(status=Job.PENDING)
-        fake_now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         task.event_streams_client.emit_job_started.side_effect = RuntimeError("kafka down")
 
         with (
             patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.django_timezone") as mock_dt,
+            patch(f"{_MOD}.transaction"),
         ):
-            mock_dt.now.return_value = fake_now
-            with pytest.raises(RuntimeError):
-                task.to_running(job)
+            task.to_running(job)  # must not raise
 
-        assert job.running_started_at == fake_now
-        assert job.status == Job.PENDING
-        job.update_fields.assert_called_once_with({"running_started_at": fake_now})
+        assert job.status == Job.RUNNING
+
+    def test_to_running_logs_the_kafka_failure_instead_of_swallowing_it_silently(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.PENDING)
+        task.event_streams_client.emit_job_started.side_effect = RuntimeError("kafka down")
+
+        with (
+            patch(f"{_MOD}.JobEvent"),
+            patch(f"{_MOD}.transaction"),
+            patch(f"{_MOD}.logger") as mock_logger,
+        ):
+            task.to_running(job)
+
+        mock_logger.error.assert_called_once_with(
+            "job_id=%s error emitting job_started/license_fee event to Kafka, event dropped: %s",
+            job.id,
+            "kafka down",
+        )
 
 
 class TestStopJobIfTimeout:
@@ -500,8 +511,8 @@ class TestRun:
 class TestEventStreamsIntegration:
     """Tests that emit methods are called at the right lifecycle points."""
 
-    def test_to_running_emits_job_started_before_the_status_is_written(self):
-        """running_started_at is persisted first, but the status must not be until the emit lands."""
+    def test_to_running_writes_the_status_before_emitting_events(self):
+        """The DB transition is committed first; the Kafka emit is best-effort afterwards."""
         task = _make_task()
         job = _make_fleets_job(status=Job.PENDING)
 
@@ -509,29 +520,31 @@ class TestEventStreamsIntegration:
         task.event_streams_client.emit_job_started.side_effect = lambda j: call_order.append("publish")
         job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db:" + ",".join(f)))
 
-        with patch(f"{_MOD}.JobEvent"):
-            with patch(f"{_MOD}.django_timezone"):
-                task.to_running(job)
+        with (
+            patch(f"{_MOD}.JobEvent"),
+            patch(f"{_MOD}.transaction"),
+        ):
+            task.to_running(job)
 
-        assert call_order == ["db:running_started_at", "publish", "db:status"]
+        assert call_order == ["db:status,running_started_at", "publish"]
         task.event_streams_client.emit_job_started.assert_called_once_with(job)
 
-    def test_to_running_raises_if_publish_fails(self):
+    def test_to_running_does_not_raise_if_publish_fails(self):
         task = _make_task()
-        task.event_streams_client.emit_job_started.side_effect = Exception("broker down")
+        task.event_streams_client.emit_job_started.side_effect = RuntimeError("broker down")
         job = _make_fleets_job(status=Job.PENDING)
+        fake_created = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
-        with patch(f"{_MOD}.JobEvent"):
-            with patch(f"{_MOD}.django_timezone") as mock_dt:
-                fake_now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-                mock_dt.now.return_value = fake_now
-                with pytest.raises(Exception, match="broker down"):
-                    task.to_running(job)
+        with (
+            patch(f"{_MOD}.JobEvent") as mock_job_event,
+            patch(f"{_MOD}.transaction"),
+        ):
+            mock_job_event.objects.add_status_event.return_value.created = fake_created
+            task.to_running(job)  # must not raise
 
-        # The start time is kept so a retry reports when the fleet really started, but the
-        # status is not written: the job stays PENDING and is picked up again next tick.
-        job.update_fields.assert_called_once_with({"running_started_at": fake_now})
-        assert job.status == Job.PENDING
+        # The status transition already landed before the emit was attempted.
+        job.update_fields.assert_called_once_with({"status": Job.RUNNING, "running_started_at": fake_created})
+        assert job.status == Job.RUNNING
 
     def test_to_terminal_emits_job_completed_before_db_update(self):
         task = _make_task()
@@ -627,11 +640,13 @@ class TestEventStreamsIntegration:
         task.event_streams_client.emit_license_fee.side_effect = lambda j: call_order.append("license")
         job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db:" + ",".join(f)))
 
-        with patch(f"{_MOD}.JobEvent"):
-            with patch(f"{_MOD}.django_timezone"):
-                task.to_running(job)
+        with (
+            patch(f"{_MOD}.JobEvent"),
+            patch(f"{_MOD}.transaction"),
+        ):
+            task.to_running(job)
 
-        assert call_order == ["db:running_started_at", "started", "license", "db:status"]
+        assert call_order == ["db:status,running_started_at", "started", "license"]
         task.event_streams_client.emit_license_fee.assert_called_once_with(job)
 
 
