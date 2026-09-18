@@ -667,11 +667,12 @@ class Job(models.Model):
     def compute_profile_id(self) -> str | None:
         """Bare compute-profile string from the FK (the source of truth).
 
-        Returns None for Ray jobs and any historical row with no
-        ``compute_profile_fk``. Reads ``compute_profile_fk_id`` first so an
-        unset FK costs no extra query.
+        ``ComputeProfile`` uses ``compute_profile_id`` as its ``CharField``
+        primary key, so Django stores that string directly in
+        ``compute_profile_fk_id`` on this row — no extra query needed.
+        Returns ``None`` for Ray jobs and any row with no FK set.
         """
-        return self.compute_profile_fk.compute_profile_id if self.compute_profile_fk_id else None
+        return self.compute_profile_fk_id
 
     def save_direct(self, fields: list[str]) -> None:
         """Persist selected fields bypassing optimistic-locking validation.

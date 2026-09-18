@@ -626,7 +626,7 @@ class JobAdmin(admin.ModelAdmin):
         # could come back empty (deleted in between) and break the rendering half way through
         jobs = list(
             Job.objects.filter(id__in=id_list)
-            .select_related("author", "compute_profile_fk")
+            .select_related("author")
             .prefetch_related("job_events")
         )
         if not id_list or not jobs:
@@ -855,7 +855,7 @@ class QiskitAdminSite(admin.AdminSite):
         if timeline_context is None:
             recent_jobs = list(
                 Job.objects.filter(runner=Program.FLEETS)
-                .select_related("author", "compute_profile_fk")
+                .select_related("author")
                 .prefetch_related("job_events")
                 .order_by("-created")[:20]
             )
