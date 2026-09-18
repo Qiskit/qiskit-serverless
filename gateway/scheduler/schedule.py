@@ -96,12 +96,11 @@ def execute_fleets_job(job: Job, ctx, *, context: JobEventContext = JobEventCont
 
         # Env vars have been forwarded to Code Engine; wipe them from the DB now.
         job.env_vars = "{}"
-        job.save_direct(["status", "fleet_id", "env_vars"])
-        JobEvent.objects.add_status_event(
-            job_id=job.id,
+        job.change_status(
             origin=JobEventOrigin.SCHEDULER,
             context=context,
             status=job.status,
+            job_fields={"fleet_id": job.fleet_id, "env_vars": job.env_vars},
         )
 
     return job
