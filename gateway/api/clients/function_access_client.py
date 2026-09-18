@@ -37,8 +37,41 @@ class FunctionAccessClient:
         parsed = urlparse(base_url)
         return urlunparse(parsed._replace(netloc=f"{region}.{parsed.netloc}"))
 
+    def _instance_entitlements(self, response_json: dict, instance_crn: str) -> dict:
+        """Return the ``instance_entitlements`` element holding what ``instance_crn`` is entitled to.
+
+        The response carries one element per requested CRN, so a single-CRN request gets a single
+        element. It is picked by CRN rather than by position because the set of instances described
+        is not guaranteed to be the set this client named, and picking the wrong element would
+        authorize the caller against another instance's grants.
+
+        An element carries either entitlements or an ``error``, and an error is that instance's
+        authoritative answer. It is raised rather than read as an instance entitled to nothing,
+        because the latter reaches the legacy authorization fallback, which allows.
+        """
+        for element in response_json.get("instance_entitlements") or []:
+            if element.get("instance_crn") != instance_crn:
+                continue
+            error = element.get("error") or {}
+            if error:
+                logger.warning(
+                    "FunctionAccessClient: entitlements error %s for CRN %s: %s",
+                    error.get("code"),
+                    instance_crn,
+                    error.get("message"),
+                )
+                raise RuntimeFunctionsException(f"Runtime API error {error.get('code')} for CRN {instance_crn}")
+            return element
+
+        logger.warning("FunctionAccessClient: no entitlements element for CRN %s", instance_crn)
+        raise RuntimeFunctionsException(f"No entitlements for CRN {instance_crn}")
+
     def get_accessible_functions(self, instance_crn: str, api_key: str) -> FunctionAccessResult:
         """Return all functions accessible to the given instance CRN with their permissions."""
+        # The Runtime API trims every CRN it is sent and resolves it by exact match, then echoes its
+        # own stored value back, so trimming here keeps the CRN sent, the CRN compared against the
+        # response and the cache key one and the same string.
+        instance_crn = (instance_crn or "").strip()
         enabled = Config.get_bool(ConfigKey.RUNTIME_INSTANCES_API_ENABLED)
         base_url = self._regional_base_url(settings.RUNTIME_API_BASE_URL, instance_crn)
         if not enabled:
@@ -55,7 +88,7 @@ class FunctionAccessClient:
 
         try:
             response = requests.get(
-                f"{base_url}/api/v1/functions",
+                f"{base_url}/api/v1/entitlements",
                 headers={"Service-CRN": instance_crn, "Authorization": f"apikey {api_key}"},
                 timeout=5,
             )
@@ -77,9 +110,9 @@ class FunctionAccessClient:
             )
             raise RuntimeFunctionsException(f"Unexpected status {response.status_code} for CRN {instance_crn}")
         else:
-            response_json = response.json()
+            entitlements = self._instance_entitlements(response.json(), instance_crn)
             functions = []
-            for entry in response_json.get("functions", []):
+            for entry in entitlements.get("functions", []):
                 try:
                     function_entry = FunctionAccessEntry(
                         provider_name=entry["provider"],
@@ -92,9 +125,9 @@ class FunctionAccessClient:
                     # entry with missing field or incorrect business model
                     logger.error("FunctionAccessClient: invalid entry %s — %s", entry, exc)
 
-            # custom_functions may be present but null (cleared), so coalesce both levels to avoid
-            # AttributeError on None.get(...).
-            custom_function_permissions = set((response_json.get("custom_functions") or {}).get("permissions") or [])
+            # custom_functions is absent when the instance is granted none, and present but null when
+            # a grant was cleared, so coalesce both levels to avoid AttributeError on None.get(...).
+            custom_function_permissions = set((entitlements.get("custom_functions") or {}).get("permissions") or [])
             result = FunctionAccessResult(
                 use_legacy_authorization=False,
                 functions=functions,

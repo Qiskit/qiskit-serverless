@@ -63,7 +63,7 @@ def test_runtime_none_level_is_empty_not_204(instance, runtime):
     # Read the Runtime API directly and inspect the raw result (single read, no polling: the
     # advancing PATCH timestamp forces an immediate re-sync, so one read reflects the new state).
     assert_runtime_matches(runtime, NONE_FUNCTIONS, NONE_CUSTOM)
-    result = runtime.get_functions(RECONFIG_CRN)
+    result = runtime.get_entitlements(RECONFIG_CRN)
     assert not result.not_configured, (
         "Runtime API returned 204 for functions=[]; expected 200 with an empty list (clean deny). "
         "If this fails, functions=[] is being treated as 'not configured' (legacy fallback)."

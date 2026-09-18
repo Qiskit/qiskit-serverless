@@ -201,7 +201,7 @@ def assert_runtime_matches(runtime, expected_functions, expected_custom):
     may echo a different case). Reads once (no polling): the PATCH timestamp makes the Runtime API
     re-sync immediately, so the state is expected to match right after the instance is reconfigured.
     """
-    result = runtime.get_functions(RECONFIG_CRN)
+    result = runtime.get_entitlements(RECONFIG_CRN)
     reason = _describe_runtime_difference(result, expected_functions, expected_custom)
     if reason is not None:
         # raise explicitly (not `assert`) so the failure survives `python -O`.
