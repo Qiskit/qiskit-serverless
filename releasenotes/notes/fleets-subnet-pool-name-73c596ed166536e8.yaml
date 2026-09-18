@@ -2,12 +2,23 @@
 features:
   - |
     A Code Engine project can now be configured with a subnet pool **name**
-    (``subnet_pool_name``) instead of its id. The IBM Cloud console shows a pool's
-    name readily but not its id, so requiring the id added friction to every project
-    onboarding. When only a name is configured, the gateway resolves it to the id
-    against the Code Engine API on the first job submission for that project and caches
-    the id back onto the project, so later jobs reuse it without another lookup.
-    Supplying ``subnet_pool_id`` directly still works and skips resolution. Because a
-    pool name is not guaranteed unique within a project, a name that matches more than
-    one pool fails the submission with an error listing the matching ids rather than
-    guessing which pool to use.
+    (``subnet_pool_name``) instead of its id. The IBM Cloud console shows a pool's name
+    readily but not its id, so onboarding a project meant looking the id up by hand.
+    The name is resolved to an id when ``sync_ce_project`` seeds the project, and only
+    the id is stored, so nothing changes in the job submit path. Supplying
+    ``subnet_pool_id`` directly still works, makes no call to IBM Cloud, and is used as
+    the fallback if a configured name cannot be resolved. Because a pool name is not
+    guaranteed unique within a project, a name matching more than one pool fails the
+    sync with an error listing the matching ids rather than guessing which pool to use.
+
+    ``sync_ce_project`` now exits non-zero when an entry cannot be synced, so an
+    unresolvable or ambiguous name is reported where it is applied instead of surfacing
+    later as a failed job, and it takes a ``--dry-run`` flag that resolves and reports
+    without writing. Resolving a name needs ``IBM_CLOUD_API_KEY``; without it, entries
+    that configure a name fail the command before anything is written.
+
+    Two notes for operators. A subnet pool deleted and recreated under the same name is
+    picked up by re-running the sync, since resolution triggers on the configured name
+    rather than on a missing id. And when adopting a name, add it alongside the existing
+    ``subnet_pool_id`` first: the id then acts as the fallback while the lookup proves
+    itself, and can be removed afterwards.
