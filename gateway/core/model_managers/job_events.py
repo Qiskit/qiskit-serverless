@@ -106,6 +106,40 @@ class JobEventQuerySet(QuerySet):
 
         return event
 
+    def transition_status(self, job, *, origin: JobEventOrigin, context: JobEventContext, status: str, job_fields=None):
+        """Create the status-change JobEvent, then persist that same status (and
+        any extra job_fields) on the job, atomically and always in that order
+        (event, then job).
+
+        Event-then-job is the fixed lock order every caller that transitions an
+        existing job's status must use, to avoid a lock-order deadlock between
+        two concurrent writers of the same job's Job and JobOutbox rows (one
+        writer locking Job then waiting on JobOutbox while another locks
+        JobOutbox then waits on Job).
+        """
+        with transaction.atomic():
+            event = self.add_status_event(job_id=job.id, origin=origin, context=context, status=status)
+            fields = {"status": status, **(job_fields or {})}
+            job.update_fields(fields)
+        return event
+
+    def first_running_at(self, job_id: uuid.UUID):
+        """When this job first reached RUNNING, from its own event history.
+
+        Returns None if it never did (still queued/pending, or terminated
+        without running). Ordered explicitly ascending: JobEvent.Meta.ordering
+        is descending by default, and the first RUNNING event is the one that
+        counts here, not the latest.
+        """
+        from core.models import Job  # pylint: disable=import-outside-toplevel, cyclic-import
+
+        event = (
+            self.filter(job_id=job_id, event_type=JobEventType.STATUS_CHANGE, data__status=Job.RUNNING)
+            .order_by("created")
+            .first()
+        )
+        return event.created if event else None
+
     def add_sub_status_event(  # pylint:  disable=too-many-positional-arguments
         self,
         job_id: uuid.UUID,

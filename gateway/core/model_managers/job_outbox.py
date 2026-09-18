@@ -40,7 +40,7 @@ class JobOutboxQuerySet(QuerySet):
             AND job_status IN ('SUCCEEDED', 'FAILED', 'STOPPED')
 
         Unlike the license fee, this is owed regardless of whether the job ever
-        ran: usage seconds are computed from running_started_at and
+        ran: usage seconds are computed from the job's first RUNNING JobEvent and
         status_changed_at, and come out as zero for a job that never reached
         RUNNING, so sending the event for a job cancelled in queue is harmless.
         """

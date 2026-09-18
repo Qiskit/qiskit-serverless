@@ -6,7 +6,7 @@ import pytest
 from django.contrib.auth.models import User
 from django.utils import timezone
 
-from core.model_managers.job_events import JobEventContext, JobEventOrigin
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import Job, JobEvent, JobOutbox, Program
 
 pytestmark = pytest.mark.django_db
@@ -101,3 +101,81 @@ class TestExistingOutboxRow:
         _add_status_event(job, Job.PENDING)
 
         assert JobOutbox.objects.get(job=job).has_run is False
+
+
+class TestTransitionStatus:
+    """Unit tests for JobEventQuerySet.transition_status()."""
+
+    def test_persists_status_and_job_fields(self, job):
+        JobEvent.objects.transition_status(
+            job,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            status=Job.RUNNING,
+            job_fields={"sub_status": "mapping"},
+        )
+
+        job.refresh_from_db()
+        assert job.status == Job.RUNNING
+        assert job.sub_status == "mapping"
+
+    def test_creates_the_status_change_event(self, job):
+        event = JobEvent.objects.transition_status(
+            job,
+            origin=JobEventOrigin.API,
+            context=JobEventContext.STOP_JOB,
+            status=Job.STOPPED,
+        )
+
+        assert event.data == {"status": Job.STOPPED}
+        assert event.origin == JobEventOrigin.API
+        assert event.context == JobEventContext.STOP_JOB
+
+    def test_rolls_back_the_event_if_the_job_write_fails(self, job, monkeypatch):
+        """Event-then-job must be all-or-nothing: a failed job write must not leave
+        a JobEvent behind with no matching state change."""
+
+        def _boom(self, fields_map):  # pylint: disable=unused-argument
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(Job, "update_fields", _boom)
+
+        with pytest.raises(RuntimeError, match="boom"):
+            JobEvent.objects.transition_status(
+                job,
+                origin=JobEventOrigin.SCHEDULER,
+                context=JobEventContext.UPDATE_JOB_STATUS,
+                status=Job.RUNNING,
+            )
+
+        assert JobEvent.objects.filter(job=job).count() == 0
+
+
+class TestFirstRunningAt:
+    """Unit tests for JobEventQuerySet.first_running_at()."""
+
+    def test_returns_none_when_the_job_never_ran(self, job):
+        assert JobEvent.objects.first_running_at(job.id) is None
+
+    def test_returns_the_created_timestamp_of_the_running_event(self, job):
+        event = _add_status_event(job, Job.RUNNING)
+
+        assert JobEvent.objects.first_running_at(job.id) == event.created
+
+    def test_returns_the_first_one_not_the_latest(self, job):
+        first = _add_status_event(job, Job.RUNNING)
+        _add_status_event(job, Job.SUCCEEDED)
+        _add_status_event(job, Job.RUNNING)  # unusual, but must not shadow the first one
+
+        assert JobEvent.objects.first_running_at(job.id) == first.created
+
+    def test_ignores_non_status_change_events_even_if_data_has_a_status_key(self, job):
+        JobEvent.objects.create(
+            job_id=job.id,
+            origin=JobEventOrigin.API,
+            context=JobEventContext.SEND_ERROR,
+            event_type=JobEventType.ERROR,
+            data={"status": Job.RUNNING},
+        )
+
+        assert JobEvent.objects.first_running_at(job.id) is None

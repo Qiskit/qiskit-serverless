@@ -5,7 +5,6 @@ from datetime import datetime, timedelta, timezone
 from typing import cast
 
 from django.conf import settings
-from django.db import transaction
 
 from core.ibm_cloud.event_streams.abstract_event_streams_client import EventStreamsClient
 from core.ibm_cloud.event_streams.kafka_event_streams_client import KafkaEventStreamsClient
@@ -127,14 +126,13 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             new_status,
         )
-        with transaction.atomic():
-            job.update_fields({"status": new_status, "sub_status": None, "env_vars": "{}"})
-            JobEvent.objects.add_status_event(
-                job_id=job.id,
-                origin=JobEventOrigin.SCHEDULER,
-                context=JobEventContext.UPDATE_JOB_STATUS,
-                status=job.status,
-            )
+        JobEvent.objects.transition_status(
+            job,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            status=new_status,
+            job_fields={"sub_status": None, "env_vars": "{}"},
+        )
         self._increment_terminal_counter(job)
 
     def to_running(self, job: Job) -> None:
@@ -146,14 +144,12 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             Job.RUNNING,
         )
-        with transaction.atomic():
-            event = JobEvent.objects.add_status_event(
-                job_id=job.id,
-                origin=JobEventOrigin.SCHEDULER,
-                context=JobEventContext.UPDATE_JOB_STATUS,
-                status=Job.RUNNING,
-            )
-            job.update_fields({"status": Job.RUNNING, "running_started_at": event.created})
+        JobEvent.objects.transition_status(
+            job,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            status=Job.RUNNING,
+        )
 
         try:
             self.event_streams_client.emit_job_started(job)

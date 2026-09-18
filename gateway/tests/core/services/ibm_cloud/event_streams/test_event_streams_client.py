@@ -27,11 +27,12 @@ from core.ibm_cloud.event_streams.kafka_event_streams_client import KafkaEventSt
 
 _CLIENT_MOD = "core.ibm_cloud.event_streams.kafka_event_streams_client"
 
+_DEFAULT_RUNNING_STARTED_AT = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+
 
 def _make_job(
     job_id=None,
     instance_crn="crn:v1:bluemix:public:quantum-computing:eu-de:a/abc:def::",
-    running_started_at=None,
     business_model=BusinessModel.LICENSED,
     provider_name="ibm-dev",
     program_title="test-circuit-function",
@@ -40,7 +41,6 @@ def _make_job(
     job = MagicMock()
     job.id = job_id or uuid_module.uuid4()
     job.instance_crn = instance_crn
-    job.running_started_at = running_started_at or datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
     job.business_model = business_model
     job.compute_profile = compute_profile
     job.filler = False
@@ -54,6 +54,11 @@ def _make_job(
 
     job.program = program
     return job
+
+
+def _patch_first_running_at(mock_job_event, running_started_at=_DEFAULT_RUNNING_STARTED_AT):
+    """Every test's job started running at this instant, per its JobEvent history, unless overridden."""
+    mock_job_event.objects.first_running_at.return_value = running_started_at
 
 
 class TestKafkaEventStreamsClient:
@@ -150,25 +155,27 @@ class TestKafkaEventStreamsClient:
         job = _make_job()
 
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
-            with patch(f"{_CLIENT_MOD}.uuid") as mock_uuid_mod:
-                with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
-                    with patch.dict(
-                        os.environ,
-                        {
-                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
-                            "EVENT_STREAMS_API_KEY": "k",
-                            "ENVIRONMENT": "production",
-                        },
-                    ):
-                        fake_event_id = uuid_module.UUID("00000000-0000-0000-0000-000000000001")
-                        mock_uuid_mod.uuid4.return_value = fake_event_id
-                        fake_now = datetime(2026, 1, 1, 12, 0, 1, tzinfo=timezone.utc)
-                        mock_dt.now.return_value = fake_now
+            with patch(f"{_CLIENT_MOD}.JobEvent") as mock_job_event:
+                with patch(f"{_CLIENT_MOD}.uuid") as mock_uuid_mod:
+                    with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
+                        with patch.dict(
+                            os.environ,
+                            {
+                                "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                                "EVENT_STREAMS_API_KEY": "k",
+                                "ENVIRONMENT": "production",
+                            },
+                        ):
+                            _patch_first_running_at(mock_job_event)
+                            fake_event_id = uuid_module.UUID("00000000-0000-0000-0000-000000000001")
+                            mock_uuid_mod.uuid4.return_value = fake_event_id
+                            fake_now = datetime(2026, 1, 1, 12, 0, 1, tzinfo=timezone.utc)
+                            mock_dt.now.return_value = fake_now
 
-                        client = KafkaEventStreamsClient()
-                        mock_producer = mock_producer_cls.return_value
-                        mock_producer.flush.return_value = 0
-                        client.emit_job_started(job)
+                            client = KafkaEventStreamsClient()
+                            mock_producer = mock_producer_cls.return_value
+                            mock_producer.flush.return_value = 0
+                            client.emit_job_started(job)
 
         call_kwargs = mock_producer.produce.call_args[1]
         published = json.loads(call_kwargs["value"])
@@ -183,33 +190,35 @@ class TestKafkaEventStreamsClient:
             "resource_id": str(job.id),
             "job_started": True,
             "job_completed": False,
-            "job_started_at": job.running_started_at.isoformat(),
+            "job_started_at": _DEFAULT_RUNNING_STARTED_AT.isoformat(),
         }
         assert call_kwargs["key"] == str(job.id).encode("utf-8")
         mock_producer.flush.assert_called_once()
 
     def test_emit_job_in_progress_computes_usage_seconds(self):
         started_at = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-        job = _make_job(running_started_at=started_at)
+        job = _make_job()
 
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
-            with patch(f"{_CLIENT_MOD}.uuid") as mock_uuid_mod:
-                with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
-                    with patch.dict(
-                        os.environ,
-                        {
-                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
-                            "EVENT_STREAMS_API_KEY": "k",
-                            "ENVIRONMENT": "production",
-                        },
-                    ):
-                        mock_uuid_mod.uuid4.return_value = uuid_module.uuid4()
-                        mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 5, tzinfo=timezone.utc)
+            with patch(f"{_CLIENT_MOD}.JobEvent") as mock_job_event:
+                with patch(f"{_CLIENT_MOD}.uuid") as mock_uuid_mod:
+                    with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
+                        with patch.dict(
+                            os.environ,
+                            {
+                                "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                                "EVENT_STREAMS_API_KEY": "k",
+                                "ENVIRONMENT": "production",
+                            },
+                        ):
+                            _patch_first_running_at(mock_job_event, started_at)
+                            mock_uuid_mod.uuid4.return_value = uuid_module.uuid4()
+                            mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 5, tzinfo=timezone.utc)
 
-                        client = KafkaEventStreamsClient()
-                        mock_producer = mock_producer_cls.return_value
-                        mock_producer.flush.return_value = 0
-                        client.emit_job_in_progress(job)
+                            client = KafkaEventStreamsClient()
+                            mock_producer = mock_producer_cls.return_value
+                            mock_producer.flush.return_value = 0
+                            client.emit_job_in_progress(job)
 
         published = json.loads(mock_producer.produce.call_args[1]["value"])
         assert published["data"]["metric_type"] == "classical_16x128"
@@ -221,24 +230,26 @@ class TestKafkaEventStreamsClient:
     def test_emit_job_completed_computes_usage_seconds(self):
         started_at = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         ended_at = datetime(2026, 1, 1, 12, 0, 30, tzinfo=timezone.utc)
-        job = _make_job(running_started_at=started_at)
+        job = _make_job()
 
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
-            with patch(f"{_CLIENT_MOD}.uuid") as mock_uuid_mod:
-                with patch.dict(
-                    os.environ,
-                    {
-                        "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
-                        "EVENT_STREAMS_API_KEY": "k",
-                        "ENVIRONMENT": "production",
-                    },
-                ):
-                    mock_uuid_mod.uuid4.return_value = uuid_module.uuid4()
+            with patch(f"{_CLIENT_MOD}.JobEvent") as mock_job_event:
+                with patch(f"{_CLIENT_MOD}.uuid") as mock_uuid_mod:
+                    with patch.dict(
+                        os.environ,
+                        {
+                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                            "EVENT_STREAMS_API_KEY": "k",
+                            "ENVIRONMENT": "production",
+                        },
+                    ):
+                        _patch_first_running_at(mock_job_event, started_at)
+                        mock_uuid_mod.uuid4.return_value = uuid_module.uuid4()
 
-                    client = KafkaEventStreamsClient()
-                    mock_producer = mock_producer_cls.return_value
-                    mock_producer.flush.return_value = 0
-                    client.emit_job_completed(job, ended_at)
+                        client = KafkaEventStreamsClient()
+                        mock_producer = mock_producer_cls.return_value
+                        mock_producer.flush.return_value = 0
+                        client.emit_job_completed(job, ended_at)
 
         published = json.loads(mock_producer.produce.call_args[1]["value"])
         assert published["data"]["metric_type"] == "classical_16x128"
@@ -250,48 +261,51 @@ class TestKafkaEventStreamsClient:
     def test_emit_job_completed_rounds_partial_second_up(self):
         started_at = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         ended_at = datetime(2026, 1, 1, 12, 0, 30, 1, tzinfo=timezone.utc)
-        job = _make_job(running_started_at=started_at)
+        job = _make_job()
 
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
-            with patch(f"{_CLIENT_MOD}.uuid") as mock_uuid_mod:
-                with patch.dict(
-                    os.environ,
-                    {
-                        "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
-                        "EVENT_STREAMS_API_KEY": "k",
-                        "ENVIRONMENT": "production",
-                    },
-                ):
-                    mock_uuid_mod.uuid4.return_value = uuid_module.uuid4()
+            with patch(f"{_CLIENT_MOD}.JobEvent") as mock_job_event:
+                with patch(f"{_CLIENT_MOD}.uuid") as mock_uuid_mod:
+                    with patch.dict(
+                        os.environ,
+                        {
+                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                            "EVENT_STREAMS_API_KEY": "k",
+                            "ENVIRONMENT": "production",
+                        },
+                    ):
+                        _patch_first_running_at(mock_job_event, started_at)
+                        mock_uuid_mod.uuid4.return_value = uuid_module.uuid4()
 
-                    client = KafkaEventStreamsClient()
-                    mock_producer = mock_producer_cls.return_value
-                    mock_producer.flush.return_value = 0
-                    client.emit_job_completed(job, ended_at)
+                        client = KafkaEventStreamsClient()
+                        mock_producer = mock_producer_cls.return_value
+                        mock_producer.flush.return_value = 0
+                        client.emit_job_completed(job, ended_at)
 
         published = json.loads(mock_producer.produce.call_args[1]["value"])
         assert published["data"]["metric_value"] == 31
 
     def test_emit_job_completed_returns_zero_usage_when_running_started_at_is_none(self):
-        job = _make_job(running_started_at=None)
-        job.running_started_at = None
+        job = _make_job()
 
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
-            with patch(f"{_CLIENT_MOD}.uuid") as mock_uuid_mod:
-                with patch.dict(
-                    os.environ,
-                    {
-                        "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
-                        "EVENT_STREAMS_API_KEY": "k",
-                        "ENVIRONMENT": "production",
-                    },
-                ):
-                    mock_uuid_mod.uuid4.return_value = uuid_module.uuid4()
+            with patch(f"{_CLIENT_MOD}.JobEvent") as mock_job_event:
+                with patch(f"{_CLIENT_MOD}.uuid") as mock_uuid_mod:
+                    with patch.dict(
+                        os.environ,
+                        {
+                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                            "EVENT_STREAMS_API_KEY": "k",
+                            "ENVIRONMENT": "production",
+                        },
+                    ):
+                        _patch_first_running_at(mock_job_event, None)
+                        mock_uuid_mod.uuid4.return_value = uuid_module.uuid4()
 
-                    client = KafkaEventStreamsClient()
-                    mock_producer = mock_producer_cls.return_value
-                    mock_producer.flush.return_value = 0
-                    client.emit_job_completed(job, datetime(2026, 1, 1, 12, 5, 0, tzinfo=timezone.utc))
+                        client = KafkaEventStreamsClient()
+                        mock_producer = mock_producer_cls.return_value
+                        mock_producer.flush.return_value = 0
+                        client.emit_job_completed(job, datetime(2026, 1, 1, 12, 5, 0, tzinfo=timezone.utc))
 
         published = json.loads(mock_producer.produce.call_args[1]["value"])
         assert published["data"]["metric_value"] == 0
@@ -300,46 +314,49 @@ class TestKafkaEventStreamsClient:
         job = _make_job()
 
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
-            with patch(f"{_CLIENT_MOD}.uuid"):
-                with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
-                    with patch.dict(
-                        os.environ,
-                        {
-                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
-                            "EVENT_STREAMS_API_KEY": "k",
-                            "ENVIRONMENT": "production",
-                        },
-                    ):
-                        mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-                        client = KafkaEventStreamsClient()
-                        mock_producer = mock_producer_cls.return_value
-                        mock_producer.flush.return_value = 1  # 1 message undelivered
+            with patch(f"{_CLIENT_MOD}.JobEvent") as mock_job_event:
+                with patch(f"{_CLIENT_MOD}.uuid"):
+                    with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
+                        with patch.dict(
+                            os.environ,
+                            {
+                                "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                                "EVENT_STREAMS_API_KEY": "k",
+                                "ENVIRONMENT": "production",
+                            },
+                        ):
+                            _patch_first_running_at(mock_job_event)
+                            mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+                            client = KafkaEventStreamsClient()
+                            mock_producer = mock_producer_cls.return_value
+                            mock_producer.flush.return_value = 1  # 1 message undelivered
 
-                        with pytest.raises(RuntimeError, match="not delivered after flush timeout"):
-                            client.emit_job_started(job)
+                            with pytest.raises(RuntimeError, match="not delivered after flush timeout"):
+                                client.emit_job_started(job)
 
     def test_emit_job_in_progress_returns_zero_usage_when_running_started_at_is_none(self):
-        job = _make_job(running_started_at=None)
-        job.running_started_at = None  # override the default
+        job = _make_job()
 
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
-            with patch(f"{_CLIENT_MOD}.uuid") as mock_uuid_mod:
-                with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
-                    with patch.dict(
-                        os.environ,
-                        {
-                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
-                            "EVENT_STREAMS_API_KEY": "k",
-                            "ENVIRONMENT": "production",
-                        },
-                    ):
-                        mock_uuid_mod.uuid4.return_value = uuid_module.uuid4()
-                        mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 5, tzinfo=timezone.utc)
+            with patch(f"{_CLIENT_MOD}.JobEvent") as mock_job_event:
+                with patch(f"{_CLIENT_MOD}.uuid") as mock_uuid_mod:
+                    with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
+                        with patch.dict(
+                            os.environ,
+                            {
+                                "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                                "EVENT_STREAMS_API_KEY": "k",
+                                "ENVIRONMENT": "production",
+                            },
+                        ):
+                            _patch_first_running_at(mock_job_event, None)
+                            mock_uuid_mod.uuid4.return_value = uuid_module.uuid4()
+                            mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 5, tzinfo=timezone.utc)
 
-                        client = KafkaEventStreamsClient()
-                        mock_producer = mock_producer_cls.return_value
-                        mock_producer.flush.return_value = 0
-                        client.emit_job_in_progress(job)
+                            client = KafkaEventStreamsClient()
+                            mock_producer = mock_producer_cls.return_value
+                            mock_producer.flush.return_value = 0
+                            client.emit_job_in_progress(job)
 
         published = json.loads(mock_producer.produce.call_args[1]["value"])
         assert published["data"]["metric_value"] == 0
@@ -352,25 +369,27 @@ class TestKafkaEventStreamsClient:
         job.program.title = "test-program"
 
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
-            with patch(f"{_CLIENT_MOD}.uuid") as mock_uuid_mod:
-                with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
-                    with patch.dict(
-                        os.environ,
-                        {
-                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
-                            "EVENT_STREAMS_API_KEY": "k",
-                            "ENVIRONMENT": "production",
-                        },
-                    ):
-                        fake_event_id = uuid_module.UUID("00000000-0000-0000-0000-000000000002")
-                        mock_uuid_mod.uuid4.return_value = fake_event_id
-                        fake_now = datetime(2026, 1, 1, 12, 0, 1, tzinfo=timezone.utc)
-                        mock_dt.now.return_value = fake_now
+            with patch(f"{_CLIENT_MOD}.JobEvent") as mock_job_event:
+                with patch(f"{_CLIENT_MOD}.uuid") as mock_uuid_mod:
+                    with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
+                        with patch.dict(
+                            os.environ,
+                            {
+                                "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                                "EVENT_STREAMS_API_KEY": "k",
+                                "ENVIRONMENT": "production",
+                            },
+                        ):
+                            _patch_first_running_at(mock_job_event)
+                            fake_event_id = uuid_module.UUID("00000000-0000-0000-0000-000000000002")
+                            mock_uuid_mod.uuid4.return_value = fake_event_id
+                            fake_now = datetime(2026, 1, 1, 12, 0, 1, tzinfo=timezone.utc)
+                            mock_dt.now.return_value = fake_now
 
-                        client = KafkaEventStreamsClient()
-                        mock_producer = mock_producer_cls.return_value
-                        mock_producer.flush.return_value = 0
-                        client.emit_license_fee(job)
+                            client = KafkaEventStreamsClient()
+                            mock_producer = mock_producer_cls.return_value
+                            mock_producer.flush.return_value = 0
+                            client.emit_license_fee(job)
 
         call_kwargs = mock_producer.produce.call_args[1]
         published = json.loads(call_kwargs["value"])
@@ -385,7 +404,7 @@ class TestKafkaEventStreamsClient:
             "resource_id": str(job.id),
             "job_started": True,
             "job_completed": True,
-            "job_started_at": job.running_started_at.isoformat(),
+            "job_started_at": _DEFAULT_RUNNING_STARTED_AT.isoformat(),
             "business_model": "licensed",
         }
         assert call_kwargs["key"] == str(job.id).encode("utf-8")
@@ -407,22 +426,24 @@ class TestKafkaEventStreamsClient:
         job.program.title = "test-program"
 
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
-            with patch(f"{_CLIENT_MOD}.uuid"):
-                with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
-                    with patch.dict(
-                        os.environ,
-                        {
-                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
-                            "EVENT_STREAMS_API_KEY": "k",
-                            "ENVIRONMENT": "production",
-                        },
-                    ):
-                        mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 1, tzinfo=timezone.utc)
+            with patch(f"{_CLIENT_MOD}.JobEvent") as mock_job_event:
+                with patch(f"{_CLIENT_MOD}.uuid"):
+                    with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
+                        with patch.dict(
+                            os.environ,
+                            {
+                                "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                                "EVENT_STREAMS_API_KEY": "k",
+                                "ENVIRONMENT": "production",
+                            },
+                        ):
+                            _patch_first_running_at(mock_job_event)
+                            mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 1, tzinfo=timezone.utc)
 
-                        client = KafkaEventStreamsClient()
-                        mock_producer = mock_producer_cls.return_value
-                        mock_producer.flush.return_value = 0
-                        client.emit_license_fee(job)
+                            client = KafkaEventStreamsClient()
+                            mock_producer = mock_producer_cls.return_value
+                            mock_producer.flush.return_value = 0
+                            client.emit_license_fee(job)
 
         published = json.loads(mock_producer.produce.call_args[1]["value"])
         assert published["data"]["business_model"] == expected
@@ -431,26 +452,28 @@ class TestKafkaEventStreamsClient:
         job = _make_job()
 
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
-            with patch(f"{_CLIENT_MOD}.uuid"):
-                with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
-                    with patch.dict(
-                        os.environ,
-                        {
-                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
-                            "EVENT_STREAMS_API_KEY": "k",
-                            "ENVIRONMENT": "production",
-                        },
-                    ):
-                        mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 1, tzinfo=timezone.utc)
+            with patch(f"{_CLIENT_MOD}.JobEvent") as mock_job_event:
+                with patch(f"{_CLIENT_MOD}.uuid"):
+                    with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
+                        with patch.dict(
+                            os.environ,
+                            {
+                                "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                                "EVENT_STREAMS_API_KEY": "k",
+                                "ENVIRONMENT": "production",
+                            },
+                        ):
+                            _patch_first_running_at(mock_job_event)
+                            mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 1, tzinfo=timezone.utc)
 
-                        client = KafkaEventStreamsClient()
-                        mock_producer = mock_producer_cls.return_value
-                        mock_producer.flush.return_value = 0
-                        client.emit_job_started(job, "classical_time")
+                            client = KafkaEventStreamsClient()
+                            mock_producer = mock_producer_cls.return_value
+                            mock_producer.flush.return_value = 0
+                            client.emit_job_started(job, "classical_time")
 
         published = json.loads(mock_producer.produce.call_args[1]["value"])
         assert "business_model" not in published["data"]
-        assert published["data"]["job_started_at"] == job.running_started_at.isoformat()
+        assert published["data"]["job_started_at"] == _DEFAULT_RUNNING_STARTED_AT.isoformat()
 
     def test_main_region_producer_from_unsuffixed_vars(self):
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
@@ -520,24 +543,26 @@ class TestKafkaEventStreamsClient:
             return MagicMock()
 
         with patch(f"{_CLIENT_MOD}.Producer", side_effect=create_producer_side_effect):
-            with patch(f"{_CLIENT_MOD}.uuid"):
-                with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
-                    with patch.dict(
-                        os.environ,
-                        {
-                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "broker-main:9093",
-                            "EVENT_STREAMS_API_KEY": "main-key",
-                            "EVENT_STREAMS_BOOTSTRAP_SERVERS_AU_SYD": "broker-regional:9093",
-                            "EVENT_STREAMS_API_KEY_AU_SYD": "regional-key",
-                            "ENVIRONMENT": "production",
-                        },
-                        clear=True,
-                    ):
-                        mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-                        client = KafkaEventStreamsClient()
+            with patch(f"{_CLIENT_MOD}.JobEvent") as mock_job_event:
+                with patch(f"{_CLIENT_MOD}.uuid"):
+                    with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
+                        with patch.dict(
+                            os.environ,
+                            {
+                                "EVENT_STREAMS_BOOTSTRAP_SERVERS": "broker-main:9093",
+                                "EVENT_STREAMS_API_KEY": "main-key",
+                                "EVENT_STREAMS_BOOTSTRAP_SERVERS_AU_SYD": "broker-regional:9093",
+                                "EVENT_STREAMS_API_KEY_AU_SYD": "regional-key",
+                                "ENVIRONMENT": "production",
+                            },
+                            clear=True,
+                        ):
+                            _patch_first_running_at(mock_job_event)
+                            mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+                            client = KafkaEventStreamsClient()
 
-                        client.emit_job_started(job_main, "classical_24x120")
-                        client.emit_job_started(job_regional, "classical_24x120")
+                            client.emit_job_started(job_main, "classical_24x120")
+                            client.emit_job_started(job_regional, "classical_24x120")
 
         assert mock_producer_main.produce.called
         assert mock_producer_regional.produce.called
@@ -546,70 +571,76 @@ class TestKafkaEventStreamsClient:
         job = _make_job(instance_crn="crn:v1:bluemix:public:quantum-computing:au-syd:a/abc:def::")
 
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
-            with patch(f"{_CLIENT_MOD}.uuid"):
-                with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
-                    with patch.dict(
-                        os.environ,
-                        {
-                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
-                            "EVENT_STREAMS_API_KEY": "k",
-                            "ENVIRONMENT": "production",
-                        },
-                        clear=True,
-                    ):
-                        mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-                        client = KafkaEventStreamsClient()
-                        mock_producer = mock_producer_cls.return_value
-                        mock_producer.flush.return_value = 0
+            with patch(f"{_CLIENT_MOD}.JobEvent") as mock_job_event:
+                with patch(f"{_CLIENT_MOD}.uuid"):
+                    with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
+                        with patch.dict(
+                            os.environ,
+                            {
+                                "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                                "EVENT_STREAMS_API_KEY": "k",
+                                "ENVIRONMENT": "production",
+                            },
+                            clear=True,
+                        ):
+                            _patch_first_running_at(mock_job_event)
+                            mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+                            client = KafkaEventStreamsClient()
+                            mock_producer = mock_producer_cls.return_value
+                            mock_producer.flush.return_value = 0
 
-                        with pytest.raises(RuntimeError, match="No producer configured for region au-syd"):
-                            client.emit_job_started(job, "classical_24x120")
+                            with pytest.raises(RuntimeError, match="No producer configured for region au-syd"):
+                                client.emit_job_started(job, "classical_24x120")
 
     def test_null_crn_raises(self):
         job = _make_job(instance_crn=None)
 
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
-            with patch(f"{_CLIENT_MOD}.uuid"):
-                with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
-                    with patch.dict(
-                        os.environ,
-                        {
-                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
-                            "EVENT_STREAMS_API_KEY": "k",
-                            "ENVIRONMENT": "production",
-                        },
-                        clear=True,
-                    ):
-                        mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-                        client = KafkaEventStreamsClient()
-                        mock_producer = mock_producer_cls.return_value
-                        mock_producer.flush.return_value = 0
+            with patch(f"{_CLIENT_MOD}.JobEvent") as mock_job_event:
+                with patch(f"{_CLIENT_MOD}.uuid"):
+                    with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
+                        with patch.dict(
+                            os.environ,
+                            {
+                                "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                                "EVENT_STREAMS_API_KEY": "k",
+                                "ENVIRONMENT": "production",
+                            },
+                            clear=True,
+                        ):
+                            _patch_first_running_at(mock_job_event)
+                            mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+                            client = KafkaEventStreamsClient()
+                            mock_producer = mock_producer_cls.return_value
+                            mock_producer.flush.return_value = 0
 
-                        with pytest.raises(RuntimeError, match="Cannot determine region from CRN"):
-                            client.emit_job_started(job, "classical_24x120")
+                            with pytest.raises(RuntimeError, match="Cannot determine region from CRN"):
+                                client.emit_job_started(job, "classical_24x120")
 
     def test_malformed_crn_raises(self):
         job = _make_job(instance_crn="not:a:valid:crn")
 
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
-            with patch(f"{_CLIENT_MOD}.uuid"):
-                with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
-                    with patch.dict(
-                        os.environ,
-                        {
-                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
-                            "EVENT_STREAMS_API_KEY": "k",
-                            "ENVIRONMENT": "production",
-                        },
-                        clear=True,
-                    ):
-                        mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-                        client = KafkaEventStreamsClient()
-                        mock_producer = mock_producer_cls.return_value
-                        mock_producer.flush.return_value = 0
+            with patch(f"{_CLIENT_MOD}.JobEvent") as mock_job_event:
+                with patch(f"{_CLIENT_MOD}.uuid"):
+                    with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
+                        with patch.dict(
+                            os.environ,
+                            {
+                                "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                                "EVENT_STREAMS_API_KEY": "k",
+                                "ENVIRONMENT": "production",
+                            },
+                            clear=True,
+                        ):
+                            _patch_first_running_at(mock_job_event)
+                            mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+                            client = KafkaEventStreamsClient()
+                            mock_producer = mock_producer_cls.return_value
+                            mock_producer.flush.return_value = 0
 
-                        with pytest.raises(RuntimeError, match="Cannot determine region from CRN"):
-                            client.emit_job_started(job, "classical_24x120")
+                            with pytest.raises(RuntimeError, match="Cannot determine region from CRN"):
+                                client.emit_job_started(job, "classical_24x120")
 
     def test_broker_list_without_matching_api_key_raises_at_init(self):
         with patch(f"{_CLIENT_MOD}.Producer"):
@@ -686,25 +717,27 @@ class TestKafkaEventStreamsClient:
         job.filler = True
 
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
-            with patch(f"{_CLIENT_MOD}.uuid"):
-                with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
-                    with patch.dict(
-                        os.environ,
-                        {
-                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
-                            "EVENT_STREAMS_API_KEY": "k",
-                            "ENVIRONMENT": "production",
-                        },
-                    ):
-                        mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 1, tzinfo=timezone.utc)
+            with patch(f"{_CLIENT_MOD}.JobEvent") as mock_job_event:
+                with patch(f"{_CLIENT_MOD}.uuid"):
+                    with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
+                        with patch.dict(
+                            os.environ,
+                            {
+                                "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                                "EVENT_STREAMS_API_KEY": "k",
+                                "ENVIRONMENT": "production",
+                            },
+                        ):
+                            _patch_first_running_at(mock_job_event)
+                            mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 1, tzinfo=timezone.utc)
 
-                        client = KafkaEventStreamsClient()
-                        mock_producer = mock_producer_cls.return_value
-                        mock_producer.flush.return_value = 0
+                            client = KafkaEventStreamsClient()
+                            mock_producer = mock_producer_cls.return_value
+                            mock_producer.flush.return_value = 0
 
-                        client.emit_job_started(job)
-                        client.emit_job_in_progress(job)
-                        client.emit_job_completed(job, datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc))
-                        client.emit_license_fee(job)
+                            client.emit_job_started(job)
+                            client.emit_job_in_progress(job)
+                            client.emit_job_completed(job, datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc))
+                            client.emit_license_fee(job)
 
         mock_producer.produce.assert_not_called()
