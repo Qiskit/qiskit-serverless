@@ -4,7 +4,8 @@ import pytest
 from django.contrib.auth.models import User
 from django.db import models
 
-from core.models import Job
+from core.model_managers.job_events import JobEventContext, JobEventOrigin
+from core.models import Job, JobEvent
 
 pytestmark = pytest.mark.django_db
 
@@ -55,3 +56,56 @@ def test_save_direct_moves_the_updated_timestamp():
 
     assert job.updated > before
     assert Job.objects.get(pk=job.pk).updated == job.updated
+
+
+class TestChangeStatus:
+    """Unit tests for Job.change_status()."""
+
+    def test_persists_status_and_job_fields(self):
+        author = User.objects.create_user(username="change-status-author-1")
+        job = Job.objects.create(author=author, status=Job.QUEUED)
+
+        job.change_status(
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            status=Job.RUNNING,
+            job_fields={"sub_status": "mapping"},
+        )
+
+        job.refresh_from_db()
+        assert job.status == Job.RUNNING
+        assert job.sub_status == "mapping"
+
+    def test_creates_the_status_change_event(self):
+        author = User.objects.create_user(username="change-status-author-2")
+        job = Job.objects.create(author=author, status=Job.RUNNING)
+
+        event = job.change_status(
+            origin=JobEventOrigin.API,
+            context=JobEventContext.STOP_JOB,
+            status=Job.STOPPED,
+        )
+
+        assert event.data == {"status": Job.STOPPED}
+        assert event.origin == JobEventOrigin.API
+        assert event.context == JobEventContext.STOP_JOB
+
+    def test_rolls_back_the_event_if_the_job_write_fails(self, monkeypatch):
+        """Event-then-job must be all-or-nothing: a failed job write must not leave
+        a JobEvent behind with no matching state change."""
+        author = User.objects.create_user(username="change-status-author-3")
+        job = Job.objects.create(author=author, status=Job.QUEUED)
+
+        def _boom(self, fields_map):  # pylint: disable=unused-argument
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(Job, "update_fields", _boom)
+
+        with pytest.raises(RuntimeError, match="boom"):
+            job.change_status(
+                origin=JobEventOrigin.SCHEDULER,
+                context=JobEventContext.UPDATE_JOB_STATUS,
+                status=Job.RUNNING,
+            )
+
+        assert JobEvent.objects.filter(job=job).count() == 0

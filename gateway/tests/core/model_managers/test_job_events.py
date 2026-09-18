@@ -103,54 +103,6 @@ class TestExistingOutboxRow:
         assert JobOutbox.objects.get(job=job).has_run is False
 
 
-class TestTransitionStatus:
-    """Unit tests for JobEventQuerySet.transition_status()."""
-
-    def test_persists_status_and_job_fields(self, job):
-        JobEvent.objects.transition_status(
-            job,
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.UPDATE_JOB_STATUS,
-            status=Job.RUNNING,
-            job_fields={"sub_status": "mapping"},
-        )
-
-        job.refresh_from_db()
-        assert job.status == Job.RUNNING
-        assert job.sub_status == "mapping"
-
-    def test_creates_the_status_change_event(self, job):
-        event = JobEvent.objects.transition_status(
-            job,
-            origin=JobEventOrigin.API,
-            context=JobEventContext.STOP_JOB,
-            status=Job.STOPPED,
-        )
-
-        assert event.data == {"status": Job.STOPPED}
-        assert event.origin == JobEventOrigin.API
-        assert event.context == JobEventContext.STOP_JOB
-
-    def test_rolls_back_the_event_if_the_job_write_fails(self, job, monkeypatch):
-        """Event-then-job must be all-or-nothing: a failed job write must not leave
-        a JobEvent behind with no matching state change."""
-
-        def _boom(self, fields_map):  # pylint: disable=unused-argument
-            raise RuntimeError("boom")
-
-        monkeypatch.setattr(Job, "update_fields", _boom)
-
-        with pytest.raises(RuntimeError, match="boom"):
-            JobEvent.objects.transition_status(
-                job,
-                origin=JobEventOrigin.SCHEDULER,
-                context=JobEventContext.UPDATE_JOB_STATUS,
-                status=Job.RUNNING,
-            )
-
-        assert JobEvent.objects.filter(job=job).count() == 0
-
-
 class TestFirstRunningAt:
     """Unit tests for JobEventQuerySet.first_running_at()."""
 

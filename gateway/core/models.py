@@ -9,7 +9,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
-from django.db import models
+from django.db import models, transaction
 from django.db.models import F
 from django.utils import timezone
 from django_prometheus.models import ExportModelOperationsMixin
@@ -704,6 +704,22 @@ class Job(models.Model):
         update_kwargs["version"] = F("version") + 1
         Job.objects.filter(pk=self.id).update(**update_kwargs)
         self.refresh_from_db(fields=["version"])
+
+    def change_status(self, *, origin, context, status: str, job_fields: dict | None = None):
+        """Create the status-change JobEvent, then persist that same status (and
+        any extra job_fields) on this job, atomically and always in that order
+        (event, then job).
+
+        Event-then-job is the fixed lock order every caller that transitions an
+        existing job's status must use, to avoid a lock-order deadlock between
+        two concurrent writers of the same job's Job and JobOutbox rows (one
+        writer locking Job then waiting on JobOutbox while another locks
+        JobOutbox then waits on Job).
+        """
+        with transaction.atomic():
+            event = JobEvent.objects.add_status_event(job_id=self.id, origin=origin, context=context, status=status)
+            self.update_fields({"status": status, **(job_fields or {})})
+        return event
 
 
 class RuntimeJob(models.Model):

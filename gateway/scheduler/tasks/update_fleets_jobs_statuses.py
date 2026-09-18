@@ -126,8 +126,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             new_status,
         )
-        JobEvent.objects.transition_status(
-            job,
+        job.change_status(
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,
             status=new_status,
@@ -144,8 +143,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             Job.RUNNING,
         )
-        JobEvent.objects.transition_status(
-            job,
+        job.change_status(
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,
             status=Job.RUNNING,

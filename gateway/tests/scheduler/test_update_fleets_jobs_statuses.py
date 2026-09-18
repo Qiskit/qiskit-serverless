@@ -43,16 +43,15 @@ def _make_fleets_job(status=Job.RUNNING, fleet_id="fleet-123"):
             setattr(job, field, value)
 
     job.update_fields = MagicMock(side_effect=_apply_update_fields)
+
+    def _apply_change_status(*, origin, context, status, job_fields=None):  # pylint: disable=unused-argument
+        """Real Job.change_status() creates a JobEvent and writes the job; here job
+        is already the mock, so only the job write side (update_fields) is
+        reproduced, which is all these tests can observe anyway."""
+        job.update_fields({"status": status, **(job_fields or {})})
+
+    job.change_status = MagicMock(side_effect=_apply_change_status)
     return job
-
-
-def _fake_transition_status(job, *, origin, context, status, job_fields=None):  # pylint: disable=unused-argument
-    """Stand-in for JobEvent.objects.transition_status when JobEvent itself is mocked.
-
-    Applies the same job.update_fields({"status": status, **job_fields}) the real
-    method does, so tests that check the job's resulting state still see it change.
-    """
-    job.update_fields({"status": status, **(job_fields or {})})
 
 
 class TestUpdateJobStatus:
@@ -219,15 +218,12 @@ class TestToTerminal:
         job.sub_status = "pending"
         job.env_vars = '{"key": "value"}'
 
-        with patch(f"{_MOD}.JobEvent") as mock_job_event:
-            mock_job_event.objects.transition_status.side_effect = _fake_transition_status
-            task.to_terminal(job, Job.SUCCEEDED)
+        task.to_terminal(job, Job.SUCCEEDED)
 
         assert job.status == Job.SUCCEEDED
         assert job.sub_status is None
         assert job.env_vars == "{}"
-        mock_job_event.objects.transition_status.assert_called_once_with(
-            job,
+        job.change_status.assert_called_once_with(
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,
             status=Job.SUCCEEDED,
@@ -240,15 +236,12 @@ class TestToTerminal:
         job.sub_status = "pending"
         job.env_vars = '{"key": "value"}'
 
-        with patch(f"{_MOD}.JobEvent") as mock_job_event:
-            mock_job_event.objects.transition_status.side_effect = _fake_transition_status
-            task.to_terminal(job, Job.FAILED)
+        task.to_terminal(job, Job.FAILED)
 
         assert job.status == Job.FAILED
         assert job.sub_status is None
         assert job.env_vars == "{}"
-        mock_job_event.objects.transition_status.assert_called_once_with(
-            job,
+        job.change_status.assert_called_once_with(
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,
             status=Job.FAILED,
@@ -260,8 +253,7 @@ class TestToTerminal:
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
-        with patch(f"{_MOD}.JobEvent"):
-            task.to_terminal(job, Job.SUCCEEDED)
+        task.to_terminal(job, Job.SUCCEEDED)
 
         task.event_streams_client.emit_job_completed.assert_not_called()
 
@@ -273,13 +265,10 @@ class TestToRunning:
         task = _make_task()
         job = _make_fleets_job(status=Job.PENDING)
 
-        with patch(f"{_MOD}.JobEvent") as mock_job_event:
-            mock_job_event.objects.transition_status.side_effect = _fake_transition_status
-            task.to_running(job)
+        task.to_running(job)
 
         assert job.status == Job.RUNNING
-        mock_job_event.objects.transition_status.assert_called_once_with(
-            job,
+        job.change_status.assert_called_once_with(
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,
             status=Job.RUNNING,
@@ -291,9 +280,7 @@ class TestToRunning:
         job = _make_fleets_job(status=Job.PENDING)
         task.event_streams_client.emit_job_started.side_effect = RuntimeError("kafka down")
 
-        with patch(f"{_MOD}.JobEvent") as mock_job_event:
-            mock_job_event.objects.transition_status.side_effect = _fake_transition_status
-            task.to_running(job)  # must not raise
+        task.to_running(job)  # must not raise
 
         assert job.status == Job.RUNNING
 
@@ -302,10 +289,7 @@ class TestToRunning:
         job = _make_fleets_job(status=Job.PENDING)
         task.event_streams_client.emit_job_started.side_effect = RuntimeError("kafka down")
 
-        with (
-            patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.logger") as mock_logger,
-        ):
+        with patch(f"{_MOD}.logger") as mock_logger:
             task.to_running(job)
 
         mock_logger.error.assert_called_once_with(
@@ -332,7 +316,6 @@ class TestStopJobIfTimeout:
         ):
             mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
-            mock_event.objects.transition_status.side_effect = _fake_transition_status
             task.stop_job_if_timeout(job)
 
         assert job.status == Job.STOPPED
@@ -355,7 +338,6 @@ class TestStopJobIfTimeout:
         ):
             mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
-            mock_event.objects.transition_status.side_effect = _fake_transition_status
             task.stop_job_if_timeout(job)
 
         mock_get_runner.assert_called_once_with(job)
@@ -379,7 +361,6 @@ class TestStopJobIfTimeout:
         ):
             mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
-            mock_event.objects.transition_status.side_effect = _fake_transition_status
             task.stop_job_if_timeout(job)
 
         assert job.status == Job.STOPPED
@@ -491,14 +472,15 @@ class TestEventStreamsIntegration:
 
         call_order = []
         task.event_streams_client.emit_job_started.side_effect = lambda j: call_order.append("publish")
+        original_change_status = job.change_status.side_effect
 
-        def fake_transition(job, **_kwargs):
+        def fake_change_status(**kwargs):
             call_order.append("db")
-            _fake_transition_status(job, **_kwargs)
+            original_change_status(**kwargs)
 
-        with patch(f"{_MOD}.JobEvent") as mock_job_event:
-            mock_job_event.objects.transition_status.side_effect = fake_transition
-            task.to_running(job)
+        job.change_status.side_effect = fake_change_status
+
+        task.to_running(job)
 
         assert call_order == ["db", "publish"]
         task.event_streams_client.emit_job_started.assert_called_once_with(job)
@@ -508,13 +490,10 @@ class TestEventStreamsIntegration:
         task.event_streams_client.emit_job_started.side_effect = RuntimeError("broker down")
         job = _make_fleets_job(status=Job.PENDING)
 
-        with patch(f"{_MOD}.JobEvent") as mock_job_event:
-            mock_job_event.objects.transition_status.side_effect = _fake_transition_status
-            task.to_running(job)  # must not raise
+        task.to_running(job)  # must not raise
 
         # The status transition already landed before the emit was attempted.
-        mock_job_event.objects.transition_status.assert_called_once_with(
-            job,
+        job.change_status.assert_called_once_with(
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,
             status=Job.RUNNING,

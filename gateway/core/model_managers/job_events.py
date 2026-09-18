@@ -106,23 +106,6 @@ class JobEventQuerySet(QuerySet):
 
         return event
 
-    def transition_status(self, job, *, origin: JobEventOrigin, context: JobEventContext, status: str, job_fields=None):
-        """Create the status-change JobEvent, then persist that same status (and
-        any extra job_fields) on the job, atomically and always in that order
-        (event, then job).
-
-        Event-then-job is the fixed lock order every caller that transitions an
-        existing job's status must use, to avoid a lock-order deadlock between
-        two concurrent writers of the same job's Job and JobOutbox rows (one
-        writer locking Job then waiting on JobOutbox while another locks
-        JobOutbox then waits on Job).
-        """
-        with transaction.atomic():
-            event = self.add_status_event(job_id=job.id, origin=origin, context=context, status=status)
-            fields = {"status": status, **(job_fields or {})}
-            job.update_fields(fields)
-        return event
-
     def first_running_at(self, job_id: uuid.UUID):
         """When this job first reached RUNNING, from its own event history.
 
