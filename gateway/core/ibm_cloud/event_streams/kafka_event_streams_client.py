@@ -51,7 +51,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
       EVENT_STREAMS_BOOTSTRAP_SERVERS_<REGION> — broker list for additional regions
       EVENT_STREAMS_API_KEY_<REGION>          — API key for additional regions
       EVENT_STREAMS_USER_<REGION>             — SASL/PLAIN username for additional regions
-      EVENT_STREAMS_MAIN_REGION               — main region (default: eu-de)
+      EVENT_STREAMS_MAIN_REGION               — main region (default: us-east)
       ENVIRONMENT                             — deployment environment (e.g. production, staging)
     """
 
@@ -65,7 +65,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
         main_bootstrap_servers = os.environ.get("EVENT_STREAMS_BOOTSTRAP_SERVERS")
         main_api_key = os.environ.get("EVENT_STREAMS_API_KEY")
         main_user = os.environ.get("EVENT_STREAMS_USER", "token")
-        main_region = os.environ.get("EVENT_STREAMS_MAIN_REGION", "eu-de")
+        main_region = os.environ.get("EVENT_STREAMS_MAIN_REGION", "us-east")
 
         if main_bootstrap_servers and main_api_key:
             logger.debug("Registering main region producer: region=%s", main_region)

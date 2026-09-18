@@ -547,7 +547,7 @@ spec:
             - name: ENVIRONMENT
               value: {{ .Values.application.eventStreams.environment | default "" | quote }}
             - name: EVENT_STREAMS_MAIN_REGION
-              value: {{ .Values.application.eventStreams.mainRegion | default "eu-de" | quote }}
+              value: {{ .Values.application.eventStreams.mainRegion | default "us-east" | quote }}
             - name: EVENT_STREAMS_BOOTSTRAP_SERVERS
               valueFrom:
                 secretKeyRef:

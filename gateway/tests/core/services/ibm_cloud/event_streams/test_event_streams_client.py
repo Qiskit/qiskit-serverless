@@ -443,7 +443,7 @@ class TestKafkaEventStreamsClient:
             ):
                 client = KafkaEventStreamsClient()
 
-        assert "eu-de" in client._producers
+        assert "us-east" in client._producers
         mock_producer_cls.assert_called_once()
 
     def test_suffixed_vars_discovered_by_scan(self):
