@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import cast
 
 from django.conf import settings
-from django.utils import timezone as django_timezone
+from django.db import transaction
 
 from core.ibm_cloud.event_streams.abstract_event_streams_client import EventStreamsClient
 from core.ibm_cloud.event_streams.kafka_event_streams_client import KafkaEventStreamsClient
@@ -142,23 +142,33 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             Job.RUNNING,
         )
-        self.event_streams_client.emit_job_started(job)
-        # prevent custom function to emit license fee
-        # since licenses is a provider feature
-        if job.program.provider:
-            self.event_streams_client.emit_license_fee(job)
-        # running_started_at is set only on first transition; already-RUNNING jobs picked up
-        # after a scheduler restart will have running_started_at=None (metric_value=0).
-        job.update_fields({"status": Job.RUNNING, "running_started_at": django_timezone.now()})
-        JobEvent.objects.add_status_event(
-            job_id=job.id,
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.UPDATE_JOB_STATUS,
-            status=job.status,
-        )
+        with transaction.atomic():
+            event = JobEvent.objects.add_status_event(
+                job_id=job.id,
+                origin=JobEventOrigin.SCHEDULER,
+                context=JobEventContext.UPDATE_JOB_STATUS,
+                status=Job.RUNNING,
+            )
+            job.update_fields({"status": Job.RUNNING, "running_started_at": event.created})
+
+        try:
+            self.event_streams_client.emit_job_started(job)
+            # prevent custom function to emit license fee
+            # since licenses is a provider feature
+            if job.program.provider:
+                self.event_streams_client.emit_license_fee(job)
+        except RuntimeError as ex:
+            logger.error(
+                "job_id=%s error emitting job_started/license_fee event to Kafka, event dropped: %s",
+                job.id,
+                str(ex),
+            )
 
     def stop_job_if_timeout(self, job: Job) -> None:
         """Stop job if it has exceeded the maximum allowed duration."""
+        if job.filler:
+            return
+
         timeout = settings.PROGRAM_TIMEOUT
         latest_event = JobEvent.objects.filter(job=job).order_by("-created").first()
         reference_time = latest_event.created if latest_event else job.created
@@ -167,6 +177,12 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             return
 
         logger.warning("job_id=%s user_id=%s timeout=%s hours: job stopped.", job.id, job.author.id, timeout)
+        try:
+            get_runner(job).stop()
+        except RunnerError as ex:
+            # Logged, not returned: the row must still reach STOPPED so the timeout keeps
+            # bounding the user's concurrency slot even when Code Engine is unreachable.
+            logger.error("job_id=%s error cancelling Fleets job on timeout: %s", job.id, str(ex))
         self.to_terminal(job, Job.STOPPED)
 
     def _increment_terminal_counter(self, job: Job) -> None:

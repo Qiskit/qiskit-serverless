@@ -264,22 +264,24 @@ class UploadFunctionUseCase:
     def _seed_default_size(self, function: Function) -> None:
         """Give a function with no declared catalog the deployment's default size.
 
-        Declaring sizes is still optional, so this is what gets every function to
-        a size. The seed is skipped rather than fatal when the profile row is
-        absent (an operator may not have populated ComputeProfile yet), leaving
-        the function to run on DEFAULT_COMPUTE_PROFILE as it did before sizes
-        existed.
+        Declaring sizes is still optional, so this is what gets every Fleets function
+        to a size, on both create and an update that leaves an empty catalog untouched.
+        The seed profile must already be registered -- if it is not, this is a
+        deployment misconfiguration and the upload is rejected rather than silently
+        leaving the function sizeless (a sizeless Fleets function can no longer run,
+        see run.py's _get_runner_config).
         """
         compute_profile_id = settings.DEFAULT_FUNCTION_SIZE_PROFILE
         profile = ComputeProfile.objects.get_by_id(compute_profile_id)
         if profile is None:
             logger.warning(
-                "program=%s | Default compute profile [%s] is not registered; "
-                "function created with no sizes and will run on the default compute profile.",
+                "program=%s | Default compute profile [%s] is not registered; rejecting upload.",
                 function.title,
                 compute_profile_id,
             )
-            return
+            raise FunctionConfigurationException(
+                f"Default compute profile '{compute_profile_id}' is not registered. Contact administrator."
+            )
 
         size_name = settings.DEFAULT_FUNCTION_SIZE
         row = FunctionSize.objects.create(
@@ -343,4 +345,10 @@ class UploadFunctionUseCase:
                 # 'default_size' alone matches against the stored catalog — sizes
                 # are never re-seeded here, a removed size should not reappear.
                 _apply_default_size(instance, data.default_size)
+            elif instance.runner == Function.FLEETS and not instance.function_sizes.exists():
+                # Neither sent and the function has no catalog of its own yet (e.g. it
+                # just switched to Fleets, or predates size seeding): give it the same
+                # deployment default a freshly created function would get. A function
+                # that already declares its own sizes is left untouched.
+                self._seed_default_size(instance)
         return instance

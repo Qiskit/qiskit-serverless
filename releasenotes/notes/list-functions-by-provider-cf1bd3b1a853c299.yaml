@@ -1,0 +1,10 @@
+---
+features:
+  - |
+    Listing Qiskit Functions now accepts a ``provider`` argument that returns only the
+    functions belonging to that provider::
+
+        client.functions(provider="q-ctrl")
+
+    The filter narrows the functions the caller can already see, so it never widens access,
+    and a provider the caller has no functions under returns an empty list.
