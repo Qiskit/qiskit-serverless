@@ -525,6 +525,9 @@ class Job(models.Model):
     # stored compute profile.
     SIZE_SOURCE_REQUESTED = "REQUESTED"  # user asked for this size
     SIZE_SOURCE_DEFAULT_SIZE = "DEFAULT_SIZE"  # function's default_size filled in
+    # No longer produced by RunFunctionUseCase (a Fleets function with no default_size
+    # is now rejected instead of falling back to this): kept only so existing Job rows
+    # stay readable. Candidate for deprecation/removal once none remain.
     SIZE_SOURCE_SETTINGS_DEFAULT = "SETTINGS_DEFAULT"  # deployment-wide default profile
     SIZE_SOURCE_COMPUTE_PROFILE = "COMPUTE_PROFILE"  # deprecated compute_profile input
     SIZE_SOURCE_NONE = "NONE"  # sizing not applicable (Ray / non-Fleets)
