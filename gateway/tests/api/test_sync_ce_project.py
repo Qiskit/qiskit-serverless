@@ -47,6 +47,17 @@ def _name_only(**overrides):
 class TestSyncCeProject:
     """sync_ce_project upserts CodeEngineProject rows from settings.CE_PROJECTS."""
 
+    @pytest.fixture(autouse=True)
+    def _api_key(self, settings):
+        """Give every test an API key, so none of them depend on the ambient environment.
+
+        Any entry configuring a subnet_pool_name is refused outright when
+        settings.IBM_CLOUD_API_KEY is empty, and that setting is read from the process
+        environment. Without this the outcome differs between a developer machine that
+        happens to export the variable and CI, which does not.
+        """
+        settings.IBM_CLOUD_API_KEY = "test-api-key"
+
     def test_creates_then_updates_in_place(self, settings):
         """A second run with a changed field updates the same row (idempotent upsert)."""
         settings.CE_PROJECTS = [_project(region="us-east")]
