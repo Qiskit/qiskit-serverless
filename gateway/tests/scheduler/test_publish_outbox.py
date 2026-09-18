@@ -75,7 +75,6 @@ class TestHappyPath:
                 key.value.rsplit(".", 1)[-1], default
             )
             _configure_pending(mock_job_outbox, license_fee_pks=[row.pk], billing_event_pks=[row.pk], rows=[row])
-            mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = True
             now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
             mock_timezone.now.return_value = now
 
@@ -99,7 +98,6 @@ class TestHappyPath:
             mock_config.get_bool.return_value = True
             mock_config.get_int.return_value = 20
             _configure_pending(mock_job_outbox, billing_event_pks=[row.pk], rows=[row])
-            mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = True
 
             task.run()
 
@@ -119,7 +117,6 @@ class TestHappyPath:
             mock_config.get_bool.return_value = True
             mock_config.get_int.return_value = 20
             _configure_pending(mock_job_outbox, license_fee_pks=[row.pk], rows=[row])
-            mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = True
 
             task.run()
 
@@ -162,7 +159,6 @@ class TestFailureHandling:
             mock_config.get_bool.return_value = True
             mock_config.get_int.return_value = 20
             _configure_pending(mock_job_outbox, license_fee_pks=[row.pk], billing_event_pks=[row.pk], rows=[row])
-            mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = False
             mock_timezone.now.return_value = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
             task.run()
@@ -207,7 +203,6 @@ class TestBudgetAndKillSignal:
                 key.value.rsplit(".", 1)[-1], default
             )
             _configure_pending(mock_job_outbox, billing_event_pks=[r.pk for r in rows], rows=rows)
-            mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = True
 
             task.run()
 
@@ -231,7 +226,6 @@ class TestBudgetAndKillSignal:
             mock_config.get_bool.return_value = True
             mock_config.get_int.return_value = 20
             _configure_pending(mock_job_outbox, billing_event_pks=[r.pk for r in rows], rows=rows)
-            mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = True
 
             task.run()
 
@@ -239,7 +233,11 @@ class TestBudgetAndKillSignal:
 
 
 class TestDeletion:
-    def test_deletes_the_row_once_ready(self):
+    def test_issues_a_conditional_delete_for_the_row(self):
+        """Deletion is a single DELETE ... WHERE carrying ready_to_delete()'s predicate,
+        not a separate exists() check followed by a conditional delete(): whether the
+        row actually goes away is entirely up to the SQL WHERE clause, not a Python
+        branch, so there is nothing here to test beyond "the call happens"."""
         task = _make_task()
         row = _make_row(license_fee_required=False)
 
@@ -251,29 +249,11 @@ class TestDeletion:
             mock_config.get_bool.return_value = True
             mock_config.get_int.return_value = 20
             _configure_pending(mock_job_outbox, billing_event_pks=[row.pk], rows=[row])
-            mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = True
 
             task.run()
 
-        row.delete.assert_called_once()
-
-    def test_keeps_the_row_when_not_ready(self):
-        task = _make_task()
-        row = _make_row(license_fee_required=False)
-
-        with (
-            patch(f"{_MOD}.Config") as mock_config,
-            patch(f"{_MOD}.JobOutbox") as mock_job_outbox,
-            patch(f"{_MOD}.timezone"),
-        ):
-            mock_config.get_bool.return_value = True
-            mock_config.get_int.return_value = 20
-            _configure_pending(mock_job_outbox, billing_event_pks=[row.pk], rows=[row])
-            mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = False
-
-            task.run()
-
-        row.delete.assert_not_called()
+        mock_job_outbox.objects.ready_to_delete.return_value.filter.assert_called_once_with(pk=row.pk)
+        mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.delete.assert_called_once_with()
 
 
 class TestEligibilityFromQuerySetMembership:
@@ -299,7 +279,6 @@ class TestEligibilityFromQuerySetMembership:
             # event pk set, even though row.billing_sent_at is None like every
             # unsent row.
             _configure_pending(mock_job_outbox, license_fee_pks=[row.pk], rows=[row])
-            mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = False
 
             task.run()
 
@@ -322,7 +301,6 @@ class TestEligibilityFromQuerySetMembership:
             # fee pk set, even though license_fee_required=True and
             # license_fee_sent_at is None like any job that owes the fee.
             _configure_pending(mock_job_outbox, billing_event_pks=[row.pk], rows=[row])
-            mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = False
 
             task.run()
 

@@ -94,7 +94,14 @@ class PublishOutbox(SchedulerTask):
             )
 
     def _process_row(self, row: JobOutbox, *, needs_license_fee: bool, needs_billing_event: bool) -> None:
-        """Send whichever facts this row owes, save once if anything changed, then delete if settled."""
+        """Send whichever facts this row owes, save once if anything changed, then delete if settled.
+
+        The delete is a single DELETE ... WHERE statement carrying the
+        ready_to_delete() predicate, not a separate exists() check followed by a
+        conditional delete(): if the row is not actually ready, this just deletes
+        zero rows, which is exactly as cheap as checking and skipping would have
+        been, but never costs two round trips when it is ready.
+        """
         changed = False
 
         if needs_license_fee:
@@ -106,8 +113,7 @@ class PublishOutbox(SchedulerTask):
         if changed:
             row.save()
 
-        if JobOutbox.objects.ready_to_delete().filter(pk=row.pk).exists():
-            row.delete()
+        JobOutbox.objects.ready_to_delete().filter(pk=row.pk).delete()
 
     def _send_license_fee(self, row: JobOutbox) -> bool:
         """Attempt to send the license fee event. Returns True if the row changed."""
