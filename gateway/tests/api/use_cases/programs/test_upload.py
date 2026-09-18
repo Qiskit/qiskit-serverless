@@ -9,7 +9,7 @@ from api.domain.exceptions.function_not_found_exception import FunctionNotFoundE
 from api.use_cases.programs.upload import UploadFunctionUseCase
 from api.use_cases.programs.upload_input import UploadFunctionInput
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import ComputeProfile, Program, Provider
+from core.models import ComputeProfile, FunctionSize, Program, Provider
 from tests.utils import TestUtils
 
 pytestmark = pytest.mark.django_db
@@ -122,6 +122,10 @@ class TestUploadFunctionUseCase:
 
     def test_reupload_without_changing_runner_ignores_missing_ce_project(self, user, settings):
         settings.CE_DEFAULT_PROJECT_NAME = "nonexistent-project"
+        # Registered so the no-sizes-declared update seeds a default size without
+        # tripping over the (here irrelevant) unregistered-profile rejection; this
+        # test is about the CE project check, not sizing.
+        ComputeProfile.objects.create(compute_profile_id=settings.DEFAULT_FUNCTION_SIZE_PROFILE)
         Program.objects.create(title="my-fn", author=user, entrypoint="old.py", runner=Program.FLEETS)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
@@ -322,18 +326,86 @@ class TestUploadFunctionUseCase:
         assert sizes[0].compute_profile.compute_profile_id == "16x128"
         assert result.default_size == sizes[0]
 
-    def test_create_fleets_function_without_sizes_skips_seed_when_profile_unregistered(
+    def test_create_fleets_function_without_sizes_and_unregistered_profile_is_rejected(
         self, user, ce_project, settings
     ):
-        """No sizes declared and the seed profile is missing: created sizeless rather than failing."""
+        """No sizes declared and the seed profile is missing: rejected rather than created sizeless."""
         settings.DEFAULT_FUNCTION_SIZE_PROFILE = "unregistered-profile"
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        with pytest.raises(FunctionConfigurationException):
+            UploadFunctionUseCase().execute(
+                user,
+                accessible,
+                UploadFunctionInput(title="my-fn", entrypoint="main.py", runner=Program.FLEETS),
+            )
+
+        assert not Program.objects.filter(title="my-fn").exists()
+
+    def test_update_fleets_function_without_sizes_seeds_default_from_settings(self, user, ce_project, settings):
+        """Updating a Fleets function with no catalog and no sizes/default_size seeds it, like create does."""
+        settings.DEFAULT_FUNCTION_SIZE_PROFILE = "16x128"
+        settings.DEFAULT_FUNCTION_SIZE = "m"
+        ComputeProfile.objects.create(compute_profile_id="16x128")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+        Program.objects.create(
+            title="my-fn", author=user, entrypoint="main.py", runner=Program.FLEETS, code_engine_project=ce_project
+        )
 
         result = UploadFunctionUseCase().execute(
             user,
             accessible,
-            UploadFunctionInput(title="my-fn", entrypoint="main.py", runner=Program.FLEETS),
+            UploadFunctionInput(title="my-fn", entrypoint="main.py"),
         )
 
-        assert result.function_sizes.count() == 0
-        assert result.default_size is None
+        sizes = list(result.function_sizes.all())
+        assert len(sizes) == 1
+        assert sizes[0].function_size == "m"
+        assert sizes[0].compute_profile.compute_profile_id == "16x128"
+        assert result.default_size == sizes[0]
+
+    def test_update_fleets_function_without_sizes_and_unregistered_profile_is_rejected(
+        self, user, ce_project, settings
+    ):
+        """Same as create: the update is rejected outright, not left sizeless, when the seed profile is missing."""
+        settings.DEFAULT_FUNCTION_SIZE_PROFILE = "unregistered-profile"
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+        Program.objects.create(
+            title="my-fn", author=user, entrypoint="main.py", runner=Program.FLEETS, code_engine_project=ce_project
+        )
+
+        with pytest.raises(FunctionConfigurationException):
+            UploadFunctionUseCase().execute(
+                user,
+                accessible,
+                UploadFunctionInput(title="my-fn", entrypoint="main.py"),
+            )
+
+        assert Program.objects.get(title="my-fn").function_sizes.count() == 0
+
+    def test_update_fleets_function_with_existing_sizes_is_not_reseeded(self, user, ce_project, settings):
+        """A Fleets function that already declares its own sizes keeps them untouched."""
+        settings.DEFAULT_FUNCTION_SIZE_PROFILE = "16x128"
+        settings.DEFAULT_FUNCTION_SIZE = "m"
+        ComputeProfile.objects.create(compute_profile_id="16x128")
+        custom_profile = ComputeProfile.objects.create(compute_profile_id="24x120x1a100p")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+        function = Program.objects.create(
+            title="my-fn", author=user, entrypoint="main.py", runner=Program.FLEETS, code_engine_project=ce_project
+        )
+        existing_size = FunctionSize.objects.create(
+            function=function, function_size="custom", compute_profile=custom_profile
+        )
+        function.default_size = existing_size
+        function.save(update_fields=["default_size"])
+
+        result = UploadFunctionUseCase().execute(
+            user,
+            accessible,
+            UploadFunctionInput(title="my-fn", entrypoint="new.py"),
+        )
+
+        sizes = list(result.function_sizes.all())
+        assert len(sizes) == 1
+        assert sizes[0].function_size == "custom"
+        assert result.default_size == existing_size

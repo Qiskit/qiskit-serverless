@@ -5,6 +5,7 @@ import os
 import tempfile
 
 import pytest
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
 from django.urls import reverse
@@ -15,6 +16,7 @@ from api.domain.arguments_schema import MAX_SCHEMA_LENGTH
 from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import (
+    ComputeProfile,
     Job,
     JobEvent,
     PLATFORM_PERMISSION_JOBS_READ,
@@ -1204,6 +1206,8 @@ class TestProgramApi(APITestCase):
 
         TestUtils.authorize_client(user="test_user_2", client=self.client)
         TestUtils.get_or_create_ce_project(project_name="test-project", project_id="test-id")
+        # No sizes declared: the use case seeds one from this, unrelated to the runner field under test.
+        ComputeProfile.objects.get_or_create(compute_profile_id=settings.DEFAULT_FUNCTION_SIZE_PROFILE)
 
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT, CE_DEFAULT_PROJECT_NAME="test-project"):
             programs_response = self.client.post(
@@ -1461,6 +1465,9 @@ class TestProgramApi(APITestCase):
                 arguments_schema=schema,
             )
             original_artifact = program.artifact.name
+            # No sizes on the existing program: the reupload's no-sizes-declared
+            # path seeds one from this, unrelated to what this test checks.
+            ComputeProfile.objects.get_or_create(compute_profile_id=settings.DEFAULT_FUNCTION_SIZE_PROFILE)
 
             response = self.client.post(
                 "/api/v1/programs/upload/",

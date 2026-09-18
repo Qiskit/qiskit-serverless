@@ -13,7 +13,7 @@ from api.use_cases.programs.upload_input import UploadFunctionInput
 from django.conf import settings
 
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import CodeEngineProject, ComputeProfile, Program
+from core.models import CodeEngineProject, ComputeProfile, FunctionSize, Program
 from core.services.runners import RunnerError
 from core.services.runners.fleets_runner import FleetsRunner
 from tests.utils import TestUtils
@@ -88,6 +88,8 @@ class TestCEProjectResolutionViaUseCase:
     def test_create_fleets_program_gets_default_project(self, ce_project):
         """Fleets program created via use case gets the active CE project."""
         user, _ = TestUtils.get_user_and_username("uploader")
+        # No sizes declared: the use case seeds one from this, unrelated to CE project resolution.
+        ComputeProfile.objects.get_or_create(compute_profile_id=settings.DEFAULT_FUNCTION_SIZE_PROFILE)
         program = UploadFunctionUseCase()._create(  # pylint: disable=protected-access
             UploadFunctionInput(title="fleets-func", entrypoint="main.py", runner=Program.FLEETS),
             user=user,
@@ -105,6 +107,8 @@ class TestCEProjectResolutionViaUseCase:
             runner=Program.RAY,
         )
         assert program.code_engine_project is None
+        # No sizes declared: the use case seeds one from this, unrelated to CE project resolution.
+        ComputeProfile.objects.get_or_create(compute_profile_id=settings.DEFAULT_FUNCTION_SIZE_PROFILE)
 
         updated = UploadFunctionUseCase()._update(  # pylint: disable=protected-access
             program,
@@ -168,14 +172,18 @@ class TestJobCreationValidation:
     def test_job_creation_succeeds_with_ce_project(self, mock_storage, ce_project):
         """Job creation succeeds when Fleets program has a CE project."""
         user, _ = TestUtils.get_user_and_username("runner")
-        # A Fleets job resolves to the default profile; its ComputeProfile row must exist.
-        ComputeProfile.objects.get_or_create(compute_profile_id=settings.DEFAULT_COMPUTE_PROFILE)
+        profile, _ = ComputeProfile.objects.get_or_create(compute_profile_id=settings.DEFAULT_COMPUTE_PROFILE)
         program = TestUtils.create_program(
             program_title="good-func",
             author=user,
             runner=Program.FLEETS,
             code_engine_project=ce_project,
         )
+        # A Fleets job needs a resolvable size; nothing is requested here, so give
+        # the program a default one (this test is about CE project, not sizing).
+        size = FunctionSize.objects.create(function=program, function_size="m", compute_profile=profile)
+        program.default_size = size
+        program.save(update_fields=["default_size"])
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
         job = RunFunctionUseCase().execute(

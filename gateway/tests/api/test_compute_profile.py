@@ -114,8 +114,8 @@ def test_create_job_with_bare_compute_profile(api_client, program):
 
 
 @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
-def test_create_job_without_compute_profile_uses_default(api_client, program):
-    """Test creating a job without compute_profile uses system default."""
+def test_create_job_without_compute_profile_and_without_default_size_is_rejected(api_client, program):
+    """A Fleets function with no default_size and nothing requested is rejected, not defaulted."""
     url = reverse("v1:programs-run")
     data = {
         "title": program.title,
@@ -125,12 +125,8 @@ def test_create_job_without_compute_profile_uses_default(api_client, program):
 
     response = api_client.post(url, data, format="json")
 
-    assert response.status_code == status.HTTP_200_OK
-    assert response.data["compute_profile"] == "16x128"
-
-    # Verify job was created with default compute_profile
-    job = Job.objects.get(id=response.data["id"])
-    assert job.compute_profile == "16x128"
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert not Job.objects.exists()
 
 
 @pytest.mark.parametrize(
