@@ -146,22 +146,16 @@ class TestRunFunctionUseCase:
         assert not JobConfig.objects.exists()
 
     @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
-    def test_fleets_job_sets_compute_profile_fk_from_default(self, user, ce_project, monkeypatch):
-        """A Fleets job resolves its FK from the same bare string it stores in compute_profile."""
+    def test_fleets_job_rejected_when_no_default_size_and_nothing_requested(self, user, ce_project):
+        """Nothing requested and no default_size: rejected rather than sized by the deployment default."""
         make_fleets_function(user, ce_project)
-        profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+        ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
-        # Arguments storage talks to COS; unrelated to the FK behavior under test.
-        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
 
-        job = RunFunctionUseCase().execute(user, accessible, make_input())
+        with pytest.raises(FunctionConfigurationException):
+            RunFunctionUseCase().execute(user, accessible, make_input())
 
-        assert job.compute_profile == "16x128"
-        assert job.compute_profile_fk == profile
-        # Nothing requested and no default_size: sized by the deployment default,
-        # so no FunctionSize row backs it.
-        assert job.size_source == Job.SIZE_SOURCE_SETTINGS_DEFAULT
-        assert job.function_size is None
+        assert not Job.objects.exists()
 
     @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
     def test_fleets_job_sets_compute_profile_fk_from_explicit_request(self, user, ce_project, monkeypatch):

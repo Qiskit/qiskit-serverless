@@ -3,7 +3,6 @@
 import json
 import logging
 
-from django.conf import settings
 from django.contrib.auth.models import AbstractUser, Group
 from django.db import transaction
 
@@ -49,8 +48,7 @@ def _config_for_profile_id(compute_profile: str, *, size_source: str) -> RunnerC
     The id must name a registered ``ComputeProfile`` row; a missing row is a
     deployment misconfiguration and we reject the job rather than store a null FK.
     No ``FunctionSize`` row backs a profile resolved this way (the deprecated
-    ``compute_profile`` input or the deployment default), so ``function_size``
-    is null; ``size_source`` records which of those it was.
+    ``compute_profile`` input), so ``function_size`` is null.
     """
     compute_profile_fk = ComputeProfile.objects.get_by_id(compute_profile)
     if compute_profile_fk is None:
@@ -90,8 +88,9 @@ def _get_runner_config(
         2. ``function_size`` -> resolved through the function's ``FunctionSize``
            catalog (source REQUESTED); an undeclared size is rejected.
         3. ``compute_profile`` (deprecated) -> used as-is (source COMPUTE_PROFILE).
-        4. Neither -> the function's ``default_size`` (source DEFAULT_SIZE), else
-           ``settings.DEFAULT_COMPUTE_PROFILE`` (source SETTINGS_DEFAULT).
+        4. Neither -> the function's ``default_size`` (source DEFAULT_SIZE); a
+           Fleets function with no ``default_size`` either is rejected rather than
+           falling back to ``settings.DEFAULT_COMPUTE_PROFILE``.
 
     Both requested values are expected already normalized by the view:
     ``compute_profile`` to bare (prefix-less) form, ``function_size`` to its
@@ -161,8 +160,12 @@ def _get_runner_config(
             function_size=function_size,
         )
 
-    # (4b) No default size either: the deployment-wide default profile.
-    return _config_for_profile_id(settings.DEFAULT_COMPUTE_PROFILE, size_source=Job.SIZE_SOURCE_SETTINGS_DEFAULT)
+    # (4b) No default size either: reject rather than silently fall back to a
+    # deployment-wide default -- a Fleets function must have a size to run.
+    raise FunctionConfigurationException(
+        "This function has no default size and none was requested. "
+        "Ask an administrator to give it a size, or pass 'function_size' explicitly."
+    )
 
 
 class RunFunctionUseCase:
