@@ -65,38 +65,49 @@ class PublishOutbox(SchedulerTask):
         budget_ms = Config.get_int(ConfigKey.OUTBOX_BUDGET_MS, default=500)
         deadline = time.monotonic() + (budget_ms / 1000)
 
-        license_fee_rows = list(JobOutbox.objects.pending_license_fee().order_by("status_changed_at")[:batch_size])
-        if not self._drain(license_fee_rows, self._send_license_fee, deadline):
-            return
+        # Membership in these two sets is what decides which fact(s) a row owes.
+        # Re-deriving that from the row's own fields instead (e.g. "billing_sent_at
+        # is None") would also be true for a row pulled in only because it owes the
+        # license fee while still RUNNING, and would wrongly emit a completed event
+        # for a job that has not finished.
+        license_fee_pks = set(JobOutbox.objects.pending_license_fee().values_list("pk", flat=True))
+        billing_event_pks = set(JobOutbox.objects.pending_billing_event().values_list("pk", flat=True))
 
-        billing_event_rows = list(JobOutbox.objects.pending_billing_event().order_by("status_changed_at")[:batch_size])
-        self._drain(billing_event_rows, self._send_billing_event, deadline)
+        rows = list(
+            (JobOutbox.objects.pending_license_fee() | JobOutbox.objects.pending_billing_event()).order_by(
+                "status_changed_at"
+            )[:batch_size]
+        )
 
-    def _drain(self, rows: list[JobOutbox], send_fact, deadline: float) -> bool:
-        """Send one fact for each row, oldest first, then delete the row if everything is settled.
-
-        Returns False if the drain was cut short by the kill signal or the time
-        budget, so the caller knows not to start the next fact's batch this tick.
-
-        Each row here already owes this fact by construction of the queryset that
-        produced it (pending_license_fee or pending_billing_event), so send_fact
-        is called unconditionally instead of re-checking the row's fields.
-        """
         for row in rows:
             if self.kill_signal.received:
                 logger.info("Kill signal received, stopping outbox drain")
-                return False
+                return
             if time.monotonic() >= deadline:
                 logger.info("Time budget spent, stopping outbox drain for this tick")
-                return False
+                return
 
-            if send_fact(row):
-                row.save()
+            self._process_row(
+                row,
+                needs_license_fee=row.pk in license_fee_pks,
+                needs_billing_event=row.pk in billing_event_pks,
+            )
 
-            if JobOutbox.objects.ready_to_delete().filter(pk=row.pk).exists():
-                row.delete()
+    def _process_row(self, row: JobOutbox, *, needs_license_fee: bool, needs_billing_event: bool) -> None:
+        """Send whichever facts this row owes, save once if anything changed, then delete if settled."""
+        changed = False
 
-        return True
+        if needs_license_fee:
+            changed |= self._send_license_fee(row)
+
+        if needs_billing_event:
+            changed |= self._send_billing_event(row)
+
+        if changed:
+            row.save()
+
+        if JobOutbox.objects.ready_to_delete().filter(pk=row.pk).exists():
+            row.delete()
 
     def _send_license_fee(self, row: JobOutbox) -> bool:
         """Attempt to send the license fee event. Returns True if the row changed."""

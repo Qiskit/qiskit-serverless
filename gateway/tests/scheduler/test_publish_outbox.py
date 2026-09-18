@@ -1,6 +1,6 @@
 """Unit tests for PublishOutbox."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 from scheduler.tasks.publish_outbox import PublishOutbox
@@ -28,6 +28,7 @@ def _make_row(
     status_changed_at=None,
 ):
     row = MagicMock()
+    row.pk = job_id
     row.job_id = job_id
     row.job = MagicMock()
     row.license_fee_required = license_fee_required
@@ -38,14 +39,12 @@ def _make_row(
     return row
 
 
-def _configure_pending(mock_job_outbox, license_fee_rows=None, billing_event_rows=None):
-    """Wire the two batches PublishOutbox.run() fetches, one per fact."""
-    mock_job_outbox.objects.pending_license_fee.return_value.order_by.return_value.__getitem__.return_value = (
-        license_fee_rows or []
-    )
-    mock_job_outbox.objects.pending_billing_event.return_value.order_by.return_value.__getitem__.return_value = (
-        billing_event_rows or []
-    )
+def _configure_pending(mock_job_outbox, license_fee_pks=None, billing_event_pks=None, rows=None):
+    """Wire the pk-set lookups and the combined ordered batch PublishOutbox.run() fetches."""
+    mock_job_outbox.objects.pending_license_fee.return_value.values_list.return_value = license_fee_pks or []
+    mock_job_outbox.objects.pending_billing_event.return_value.values_list.return_value = billing_event_pks or []
+    combined = mock_job_outbox.objects.pending_license_fee.return_value.__or__.return_value
+    combined.order_by.return_value.__getitem__.return_value = rows or []
 
 
 class TestDisabledFlag:
@@ -75,7 +74,7 @@ class TestHappyPath:
             mock_config.get_int.side_effect = lambda key, default=None: {"batch_size": 20, "budget_ms": 500}.get(
                 key.value.rsplit(".", 1)[-1], default
             )
-            _configure_pending(mock_job_outbox, license_fee_rows=[row], billing_event_rows=[row])
+            _configure_pending(mock_job_outbox, license_fee_pks=[row.pk], billing_event_pks=[row.pk], rows=[row])
             mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = True
             now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
             mock_timezone.now.return_value = now
@@ -86,9 +85,7 @@ class TestHappyPath:
         task.event_streams_client.emit_job_completed.assert_called_once_with(row.job, row.status_changed_at)
         assert row.license_fee_sent_at == now
         assert row.billing_sent_at == now
-        # The row owes both facts, so it is drained twice this tick: once in the
-        # license fee batch, once in the billing event batch.
-        assert row.save.call_count == 2
+        row.save.assert_called_once()
 
     def test_skips_license_fee_when_not_required(self):
         task = _make_task()
@@ -101,7 +98,7 @@ class TestHappyPath:
         ):
             mock_config.get_bool.return_value = True
             mock_config.get_int.return_value = 20
-            _configure_pending(mock_job_outbox, billing_event_rows=[row])
+            _configure_pending(mock_job_outbox, billing_event_pks=[row.pk], rows=[row])
             mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = True
 
             task.run()
@@ -121,7 +118,7 @@ class TestHappyPath:
         ):
             mock_config.get_bool.return_value = True
             mock_config.get_int.return_value = 20
-            _configure_pending(mock_job_outbox, license_fee_rows=[row])
+            _configure_pending(mock_job_outbox, license_fee_pks=[row.pk], rows=[row])
             mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = True
 
             task.run()
@@ -144,7 +141,7 @@ class TestFailureHandling:
         ):
             mock_config.get_bool.return_value = True
             mock_config.get_int.return_value = 20
-            _configure_pending(mock_job_outbox, billing_event_rows=[row])
+            _configure_pending(mock_job_outbox, billing_event_pks=[row.pk], rows=[row])
 
             task.run()
 
@@ -164,7 +161,7 @@ class TestFailureHandling:
         ):
             mock_config.get_bool.return_value = True
             mock_config.get_int.return_value = 20
-            _configure_pending(mock_job_outbox, license_fee_rows=[row], billing_event_rows=[row])
+            _configure_pending(mock_job_outbox, license_fee_pks=[row.pk], billing_event_pks=[row.pk], rows=[row])
             mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = False
             mock_timezone.now.return_value = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
@@ -209,7 +206,7 @@ class TestBudgetAndKillSignal:
             mock_config.get_int.side_effect = lambda key, default=None: {"budget_ms": 500, "batch_size": 20}.get(
                 key.value.rsplit(".", 1)[-1], default
             )
-            _configure_pending(mock_job_outbox, billing_event_rows=rows)
+            _configure_pending(mock_job_outbox, billing_event_pks=[r.pk for r in rows], rows=rows)
             mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = True
 
             task.run()
@@ -233,7 +230,7 @@ class TestBudgetAndKillSignal:
         ):
             mock_config.get_bool.return_value = True
             mock_config.get_int.return_value = 20
-            _configure_pending(mock_job_outbox, billing_event_rows=rows)
+            _configure_pending(mock_job_outbox, billing_event_pks=[r.pk for r in rows], rows=rows)
             mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = True
 
             task.run()
@@ -253,7 +250,7 @@ class TestDeletion:
         ):
             mock_config.get_bool.return_value = True
             mock_config.get_int.return_value = 20
-            _configure_pending(mock_job_outbox, billing_event_rows=[row])
+            _configure_pending(mock_job_outbox, billing_event_pks=[row.pk], rows=[row])
             mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = True
 
             task.run()
@@ -271,9 +268,63 @@ class TestDeletion:
         ):
             mock_config.get_bool.return_value = True
             mock_config.get_int.return_value = 20
-            _configure_pending(mock_job_outbox, billing_event_rows=[row])
+            _configure_pending(mock_job_outbox, billing_event_pks=[row.pk], rows=[row])
             mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = False
 
             task.run()
 
         row.delete.assert_not_called()
+
+
+class TestEligibilityFromQuerySetMembership:
+    def test_a_row_pulled_in_only_for_the_license_fee_does_not_get_a_completed_event(self):
+        """Regression test for the pre-existing bug found while redesigning this loop:
+
+        naively re-checking eligibility from the row's own fields (e.g.
+        "billing_sent_at is None") would also be true for a row included only
+        because it owes the license fee while still RUNNING, and would wrongly
+        send a completed event for a job that has not finished.
+        """
+        task = _make_task()
+        row = _make_row(license_fee_required=True, billing_sent_at=None)
+
+        with (
+            patch(f"{_MOD}.Config") as mock_config,
+            patch(f"{_MOD}.JobOutbox") as mock_job_outbox,
+            patch(f"{_MOD}.timezone"),
+        ):
+            mock_config.get_bool.return_value = True
+            mock_config.get_int.return_value = 20
+            # The row is pending only the license fee: it is NOT in the billing
+            # event pk set, even though row.billing_sent_at is None like every
+            # unsent row.
+            _configure_pending(mock_job_outbox, license_fee_pks=[row.pk], rows=[row])
+            mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = False
+
+            task.run()
+
+        task.event_streams_client.emit_license_fee.assert_called_once()
+        task.event_streams_client.emit_job_completed.assert_not_called()
+
+    def test_a_row_pulled_in_only_for_the_billing_event_does_not_get_a_license_fee(self):
+        """Symmetric case: a job cancelled in queue never owed the license fee."""
+        task = _make_task()
+        row = _make_row(license_fee_required=True, license_fee_sent_at=None)
+
+        with (
+            patch(f"{_MOD}.Config") as mock_config,
+            patch(f"{_MOD}.JobOutbox") as mock_job_outbox,
+            patch(f"{_MOD}.timezone"),
+        ):
+            mock_config.get_bool.return_value = True
+            mock_config.get_int.return_value = 20
+            # The row is pending only the billing event: it is NOT in the license
+            # fee pk set, even though license_fee_required=True and
+            # license_fee_sent_at is None like any job that owes the fee.
+            _configure_pending(mock_job_outbox, billing_event_pks=[row.pk], rows=[row])
+            mock_job_outbox.objects.ready_to_delete.return_value.filter.return_value.exists.return_value = False
+
+            task.run()
+
+        task.event_streams_client.emit_job_completed.assert_called_once()
+        task.event_streams_client.emit_license_fee.assert_not_called()
