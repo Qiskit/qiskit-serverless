@@ -14,11 +14,13 @@
 # Fleets worker image (Python 3.12) — the Fleets-runner counterpart of
 # docker-images/ray-node/Dockerfile, split into the same two stages:
 #   base:     slim public image (client only, no dynamic deps). Function providers
-#             build custom Fleets images FROM it, and the integration-test worker
-#             (tests/fleets/fleet-worker/Dockerfile) builds FROM it.
+#             build custom Fleets images FROM it.
 #   selector: base + requirements-dynamic-dependencies.txt (the qiskit workload
 #             stack). The full runtime the gateway deploys for imageless Fleets
-#             jobs. It is the LAST stage, so a build with no --target resolves to it.
+#             jobs, and what the integration-test worker
+#             (tests/fleets/fleet-worker/Dockerfile) builds FROM, so the test runs
+#             against the production runtime. It is the LAST stage, so a build with
+#             no --target resolves to it.
 #
 # Build from repo root (client/ must be in the build context):
 #   docker build --platform linux/amd64 -f docker-images/fleet-node/Dockerfile -t fleet-node:latest .                 # full (selector)
