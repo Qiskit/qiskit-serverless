@@ -300,25 +300,56 @@ narrow it performs (step 2), until the narrowed function disappears, instead of 
 > direct reads. The single remaining poll is for the asynchronous account narrow in the propagation
 > test.
 
-### Runtime API ground truth (`/functions`)
+### Runtime API ground truth (`/entitlements`)
 
 When the serverless client calls the gateway, the gateway asks the Runtime API which functions the
 caller's instance is entitled to (`function_access_client.py`):
 
 ```
-GET {RUNTIME_API_BASE_URL}/api/v1/functions
+GET {RUNTIME_API_BASE_URL}/api/v1/entitlements
 Headers:  Service-CRN: <crn>   Authorization: apikey <user_token>
 ```
 
 with the **same token the user presented to the gateway** (for channel `ibm_quantum_platform` that
-is the IBM Cloud API key, i.e. our `GATEWAY_TOKEN`). A `204` means "instance not configured" (legacy
-fallback); a `200` returns `{"functions": [{provider, name, permissions[], business_model}], "custom_functions": {"permissions": []}}`.
+is the IBM Cloud API key, i.e. our `GATEWAY_TOKEN`). `Service-CRN` takes one CRN or several comma
+separated; the gateway always sends exactly one. A `204` means the **account** has no Functions
+configuration for any plan, which is the legacy fallback, and it says nothing about any individual
+instance. A `400` arrives when no CRN was supplied or none of the supplied CRNs resolved.
 
-Note that `custom_functions` may also come back as `null` (not just `{"permissions": []}`): an
-instance whose custom grants were cleared is stored with `custom_functions: null` (see the
-three-state contract above), and the Runtime API echoes that shape back on the read. Both the
-`RuntimeApiClient` here and the gateway's `FunctionAccessClient` must coalesce a `null`
-`custom_functions` to an empty permission set rather than dereferencing it.
+A `200` returns one element per requested CRN, **in request order**:
+
+```json
+{
+  "instance_entitlements": [
+    {
+      "instance_crn": "crn:...:inst1::",
+      "functions": [{"provider": "ibm", "name": "sampler", "business_model": "subsidized", "permissions": []}],
+      "custom_functions": {"permissions": []}
+    },
+    {"instance_crn": "crn:...:inst2::"},
+    {"instance_crn": "crn:...:inst3::", "error": {"code": 1279, "message": "Instance ... not found."}}
+  ]
+}
+```
+
+An element carries **either** entitlements **or** an `error`, never both. `functions` and
+`custom_functions` appear only when the instance is granted that type with a non-empty permission
+set, so an **absent field is a denial rather than missing data**, and an instance granted nothing is
+an element carrying only `instance_crn`. The two per-instance error codes are `1279`
+`InstanceNotFoundError`, which covers unknown, malformed and belonging-to-another-region alike since
+nothing validates CRN syntax, and `1289` `InstanceDeprovisionedError`. An error is that instance's
+authoritative answer, so both the `RuntimeApiClient` here and the gateway's `FunctionAccessClient`
+raise on it: reading it as an instance entitled to nothing would reach the legacy fallback, which
+allows.
+
+Because a CRN sent twice yields two elements, `instance_crn` is not a unique key and position is the
+reliable way to match an element back to a request. Both clients here nonetheless select by CRN,
+since each sends a single CRN and the set of instances described is not guaranteed to be the set it
+named.
+
+`custom_functions` may also come back as `null`: an instance whose custom grants were cleared is
+stored with `custom_functions: null` (see the three-state contract above). Both clients coalesce the
+absent and the `null` shapes to an empty permission set rather than dereferencing it.
 
 `runtime_api_client.py` (`RuntimeApiClient`) reproduces this exact call so the tests can read the
 ground truth **directly, independent of the gateway**. `test_runtime_api.py` configures the instance
