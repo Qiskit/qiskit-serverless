@@ -39,6 +39,16 @@ jobs:
           timeout 60 bash -c 'until docker compose -f docker-compose-fleets-test.yaml logs fleet-worker | grep -q "s3fs mounts ready"; do sleep 2; done'
       - name: Verify CE project provisioned
         run: docker compose -f docker-compose-fleets-test.yaml exec -T gateway python manage.py sync_ce_project
+      - name: Register default compute profile
+        # A Fleets job resolves to DEFAULT_COMPUTE_PROFILE (normalized to the bare
+        # form at ingest) and job creation is rejected unless a matching
+        # ComputeProfile row exists (staging/prod seed these via backoffice, in
+        # bare notation). Seed the same bare default the integration env uses.
+        run: >-
+          docker compose -f docker-compose-fleets-test.yaml exec -T gateway
+          python manage.py shell -c
+          "from core.models import ComputeProfile;
+          ComputeProfile.objects.get_or_create(compute_profile_id='16x128', defaults={'cpu': '16', 'memory': '128'})"
       - name: Run fleets integration tests
         run: tox -c tests/tox.ini -e py312-fleets
       - name: Print logs on failure

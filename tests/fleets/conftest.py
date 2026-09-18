@@ -181,5 +181,15 @@ def test_provider(pg_conn):  # pylint: disable=redefined-outer-name
         "INSERT INTO api_provider_admin_groups (provider_id, group_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
         (provider_id, group_id),
     )
+
+    # Link to its dedicated CodeEngineProject (seeded by sync_ce_project from CE_PROJECTS
+    # at gateway startup, before this fixture runs). Provider.code_engine_project is a
+    # FK, so — unlike the old provider_name string match — this link must be set explicitly.
+    cur.execute(
+        "UPDATE api_provider SET code_engine_project_id = "
+        "(SELECT id FROM api_codeengineproject WHERE project_id = 'test-provider-project-id') "
+        "WHERE id = %s",
+        (provider_id,),
+    )
     cur.close()
     return provider_name

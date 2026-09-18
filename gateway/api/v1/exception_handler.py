@@ -13,6 +13,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework import status
 
 from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
+from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
 from api.domain.exceptions.function_disabled_exception import FunctionDisabledException
 from api.domain.exceptions.invalid_access_exception import InvalidAccessException
 from api.domain.exceptions.invalid_arguments_exception import InvalidArgumentsException
@@ -45,7 +46,7 @@ def endpoint_handle_exceptions(view_func: Callable):
     - NotFoundError and subclasses (JobNotFoundException, ProviderNotFoundException,
       FunctionNotFoundException, FileNotFoundException) -> 404 NOT FOUND
     - InvalidAccessException -> 403 FORBIDDEN
-    - ValidationError, InvalidArgumentsException -> 400 BAD REQUEST
+    - ValidationError, InvalidArgumentsException, FunctionConfigurationException -> 400 BAD REQUEST
     - RequestDataTooBig -> 413 REQUEST ENTITY TOO LARGE
     - All other exceptions -> 500 INTERNAL SERVER ERROR
     """
@@ -82,6 +83,11 @@ def endpoint_handle_exceptions(view_func: Callable):
         except InvalidArgumentsException as error:
             return Response(
                 {"message": error.message, "path": error.path},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except FunctionConfigurationException as error:
+            return Response(
+                {"message": error.message},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         except ActiveJobLimitExceeded as error:

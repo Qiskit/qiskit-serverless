@@ -1,5 +1,5 @@
 requests>=2.34.2, <3
-importlib-metadata>=9.0.0, <10
+importlib-metadata>=9.0.1, <10
 qiskit>=2.2, <3
 qiskit-ibm-runtime>=0.49.0, <0.50.0
 # cloudpickle is imported unconditionally by the client (decorators). Keep the pin

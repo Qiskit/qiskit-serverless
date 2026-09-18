@@ -53,7 +53,7 @@ def execute_ray_job(job: Job) -> Job:
     return job
 
 
-def execute_fleets_job(job: Job, ctx) -> Job:
+def execute_fleets_job(job: Job, ctx, *, context: JobEventContext = JobEventContext.SCHEDULE_JOBS) -> Job:
     """Submits a Fleets (Code Engine) job and persists the result.
 
     Wraps submission under the scheduler.handle trace span propagated from the
@@ -63,6 +63,9 @@ def execute_fleets_job(job: Job, ctx) -> Job:
     Args:
         job: job to execute
         ctx: OpenTelemetry context extracted from job env_vars
+        context: JobEvent context to record for the status change. Defaults to
+            SCHEDULE_JOBS, which is what the fair-share scheduler uses; the
+            filler-jobs balancer passes FILLER_SUBMIT.
 
     Returns:
         job with updated status (PENDING on success, FAILED on error)
@@ -97,7 +100,7 @@ def execute_fleets_job(job: Job, ctx) -> Job:
         JobEvent.objects.add_status_event(
             job_id=job.id,
             origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.SCHEDULE_JOBS,
+            context=context,
             status=job.status,
         )
 
@@ -120,14 +123,26 @@ def get_jobs_to_schedule_fair_share(slots: int, gpu: bool, runner: str = Program
 
     max_limit = min(slots, settings.LIMITS_MAX_FLEETS)
 
+    # Per-user concurrency is tracked independently per runner: Fleets and Ray
+    # have separate limits and separate running-job tallies, so a user's Fleets
+    # jobs don't count against their Ray budget and vice versa.
+    if runner == Program.FLEETS:
+        jobs_per_user = settings.LIMITS_JOBS_PER_USER_FLEETS
+    else:
+        jobs_per_user = settings.LIMITS_JOBS_PER_USER
+
+    # Filler jobs are not user demand, and they belong to the author of the filler
+    # function, so counting them would stop that person's own jobs being promoted.
+    # This one query serves both LIMITS_JOBS_PER_USER and its Fleets variant.
     running_jobs_per_user = (
-        Job.objects.filter(status__in=Job.RUNNING_STATUSES).values("author").annotate(running_jobs_count=Count("id"))
+        Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=runner)
+        .exclude(filler=True)
+        .values("author")
+        .annotate(running_jobs_count=Count("id"))
     )
 
     users_at_max_capacity = [
-        entry["author"]
-        for entry in running_jobs_per_user
-        if entry["running_jobs_count"] >= settings.LIMITS_JOBS_PER_USER
+        entry["author"] for entry in running_jobs_per_user if entry["running_jobs_count"] >= jobs_per_user
     ]
 
     author_date_pull = (

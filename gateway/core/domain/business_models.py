@@ -5,15 +5,17 @@ class BusinessModel:  # pylint: disable=too-few-public-methods
     """Constants for the business model types of provider functions."""
 
     TRIAL = "TRIAL"
+    # Old name of LICENSED, still stored in old jobs: see core/domain/subsidized_license_mapping.py
     SUBSIDIZED = "SUBSIDIZED"
+    LICENSED = "LICENSED"
     CONSUMPTION = "CONSUMPTION"
 
 
-# Business model names as the billing service expects them. Subsidized functions
-# are billed as licensed; the rest keep their own name, lowercased. Every
-# BusinessModel constant must appear here.
+# Business model names as the billing service expects them: the model's own name,
+# lowercased. Every BusinessModel constant must appear here.
 BILLING_NAMES = {
     BusinessModel.SUBSIDIZED: "licensed",
+    BusinessModel.LICENSED: "licensed",
     BusinessModel.TRIAL: "trial",
     BusinessModel.CONSUMPTION: "consumption",
 }

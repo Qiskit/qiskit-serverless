@@ -5,6 +5,7 @@ import os
 import tempfile
 
 import pytest
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
 from django.urls import reverse
@@ -15,6 +16,7 @@ from api.domain.arguments_schema import MAX_SCHEMA_LENGTH
 from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import (
+    ComputeProfile,
     Job,
     JobEvent,
     PLATFORM_PERMISSION_JOBS_READ,
@@ -330,6 +332,38 @@ class TestProgramApi(APITestCase):
         assert len(programs_response.data) == 1
         assert programs_response.data[0].get("title") == "Program"
 
+    def test_provider_programs_filtered_by_provider(self):
+        """Tests the provider query param narrows the catalog list to one provider."""
+
+        user = TestUtils.authorize_client(user="test_user_4", client=self.client)
+        TestUtils.get_or_create_group(group="runner", permissions=[self.runner_permission])
+        TestUtils.add_user_to_group(user=user, group="runner")
+
+        # Two accessible provider functions under different providers.
+        TestUtils.create_program(
+            program_title="Ibm-Program",
+            author="test_user_3",
+            provider="ibm",
+            instances=["runner"],
+        )
+        TestUtils.create_program(
+            program_title="QCtrl-Program",
+            author="test_user_3",
+            provider="q-ctrl",
+            instances=["runner"],
+        )
+
+        programs_response = self.client.get(
+            reverse("v1:programs-list"),
+            {"filter": "catalog", "provider": "q-ctrl"},
+            format="json",
+        )
+
+        assert programs_response.status_code == status.HTTP_200_OK
+        assert len(programs_response.data) == 1
+        assert programs_response.data[0].get("title") == "QCtrl-Program"
+        assert programs_response.data[0].get("provider") == "q-ctrl"
+
     def test_run(self):
         """Tests run existing authorized."""
 
@@ -430,7 +464,7 @@ class TestProgramApi(APITestCase):
 
             assert job.status == Job.QUEUED
             assert job.trial is False
-            assert job.business_model == BusinessModel.SUBSIDIZED
+            assert job.business_model == BusinessModel.LICENSED
             assert env_vars["PROGRAM_ENV1"] == "VALUE1"
             assert env_vars["PROGRAM_ENV2"] == "VALUE2"
             assert job.config.min_workers == 1
@@ -1172,6 +1206,8 @@ class TestProgramApi(APITestCase):
 
         TestUtils.authorize_client(user="test_user_2", client=self.client)
         TestUtils.get_or_create_ce_project(project_name="test-project", project_id="test-id")
+        # No sizes declared: the use case seeds one from this, unrelated to the runner field under test.
+        ComputeProfile.objects.get_or_create(compute_profile_id=settings.DEFAULT_FUNCTION_SIZE_PROFILE)
 
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT, CE_DEFAULT_PROJECT_NAME="test-project"):
             programs_response = self.client.post(
@@ -1429,6 +1465,9 @@ class TestProgramApi(APITestCase):
                 arguments_schema=schema,
             )
             original_artifact = program.artifact.name
+            # No sizes on the existing program: the reupload's no-sizes-declared
+            # path seeds one from this, unrelated to what this test checks.
+            ComputeProfile.objects.get_or_create(compute_profile_id=settings.DEFAULT_FUNCTION_SIZE_PROFILE)
 
             response = self.client.post(
                 "/api/v1/programs/upload/",
@@ -1548,7 +1587,7 @@ class TestProgramApiRuntimeInstances:
             "business_model,expected_trial",
             [
                 (BusinessModel.TRIAL, True),
-                (BusinessModel.SUBSIDIZED, False),
+                (BusinessModel.LICENSED, False),
                 (BusinessModel.CONSUMPTION, False),
             ],
         )

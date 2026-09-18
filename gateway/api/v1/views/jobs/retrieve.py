@@ -20,6 +20,7 @@ from rest_framework.response import Response
 from api.use_cases.jobs.retrieve import JobRetrieveUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
+from api.v1.views.serializer_utils import ComputeProfileSerializer
 from api.v1.views.swagger_utils import standard_error_responses
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import Job, Program
@@ -69,6 +70,7 @@ class JobSerializer(serializers.ModelSerializer):
     """
 
     program = ProgramSerializer(many=False)
+    compute_profile_fk = ComputeProfileSerializer(read_only=True)
 
     class Meta:
         model = Job
@@ -81,6 +83,7 @@ class JobSerializer(serializers.ModelSerializer):
             "sub_status",
             "fleet_id",
             "compute_profile",
+            "compute_profile_fk",
             "business_model",
         ]
         ref_name = "JobsRetrieveJobSerializer"
@@ -99,10 +102,21 @@ class JobSerializerWithoutResult(serializers.ModelSerializer):
     """
 
     program = ProgramSummary(read_only=True)
+    compute_profile_fk = ComputeProfileSerializer(read_only=True)
 
     class Meta:
         model = Job
-        fields = ["id", "status", "program", "created", "sub_status", "fleet_id", "compute_profile", "business_model"]
+        fields = [
+            "id",
+            "status",
+            "program",
+            "created",
+            "sub_status",
+            "fleet_id",
+            "compute_profile",
+            "compute_profile_fk",
+            "business_model",
+        ]
 
 
 def serialize_output(job: Job, with_result: bool) -> Job:

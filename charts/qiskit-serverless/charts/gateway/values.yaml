@@ -28,7 +28,7 @@ application:
     enable: true
   maintenance: false
   ray:
-    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.35.1"
+    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.36.0"
     cpu: 2
     memory: 2
     gpu: 1
@@ -88,6 +88,10 @@ application:
   eventStreams:
     enabled: false
     environment: ""
+    # Default region served by unsuffixed broker/API key secrets. Additional regions
+    # are configured via suffixed secrets (kafka-credentials-eu-de, etc).
+    # See: Multi-region Event Streams routing design (2026-08-06)
+    defaultRegion: "us-east"
   # Optional IBM w3id SSO backoffice login. The provider base url is not
   # sensitive and lives here; credentials go in secrets.w3idSso (see below).
   w3idSso:
@@ -110,8 +114,8 @@ cos:
 ce:
   fleetsGatewayHost: "http://127.0.0.1:8000"
   defaultProjectName: ""
-  defaultComputeProfile: "bx3d-24x120"
-  fleetsDefaultImage: "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.35.1"
+  defaultComputeProfile: "16x128"
+  fleetsDefaultImage: "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.36.0"
   fleetsDefaultMaxInstances: 1
   fleetsRuntimeIamUrl: ""
   fleetsRuntimeGlobalSearchUrl: ""
@@ -144,6 +148,12 @@ secrets:
     secretRef: ""
     secretStoreName: qiskit-serverless
   kafka:
+    createExternalSecret: false
+    name: ""
+    secretRef: ""
+    secretStoreName: qiskit-serverless
+  kafkaEuDe:
+    createExternalSecret: false
     name: ""
     secretRef: ""
     secretStoreName: qiskit-serverless

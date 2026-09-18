@@ -20,26 +20,32 @@ class ListFunctionsUseCase:
         user: AbstractUser,
         accessible_functions: FunctionAccessResult,
         type_filter: str | None,
+        provider: str | None = None,
     ) -> list[Function]:
-        """Return functions the user can see, filtered by type_filter."""
+        """Return functions the user can see, filtered by type_filter and provider.
+
+        When provider is given, results are narrowed to that provider's functions. The
+        narrowing is applied after permission scoping, so it can only reduce the set the
+        user is already allowed to see -- an unknown or inaccessible provider yields [].
+        """
         if type_filter == TypeFilter.SERVERLESS:
-            return list(Function.objects.user_functions(user))
-
-        if type_filter == TypeFilter.CATALOG:
-            return list(
-                Function.objects.provider_functions().with_permission(
-                    user,
-                    accessible_functions=accessible_functions,
-                    legacy_permission_name=RUN_PROGRAM_PERMISSION,
-                    permission=PLATFORM_PERMISSION_READ,
-                )
+            queryset = Function.objects.user_functions(user)
+        elif type_filter == TypeFilter.CATALOG:
+            queryset = Function.objects.provider_functions().with_permission(
+                user,
+                accessible_functions=accessible_functions,
+                legacy_permission_name=RUN_PROGRAM_PERMISSION,
+                permission=PLATFORM_PERMISSION_READ,
             )
-
-        return list(
-            Function.objects.with_permission(
+        else:
+            queryset = Function.objects.with_permission(
                 user,
                 accessible_functions=accessible_functions,
                 legacy_permission_name=VIEW_PROGRAM_PERMISSION,
                 permission=PLATFORM_PERMISSION_READ,
             )
-        )
+
+        if provider:
+            queryset = queryset.filter(provider__name=provider)
+
+        return list(queryset)

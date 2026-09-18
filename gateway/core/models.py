@@ -11,11 +11,15 @@ from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.db.models import F
+from django.utils import timezone
 from django_prometheus.models import ExportModelOperationsMixin
 
 from core.config_key import ConfigKey
 from core.domain.business_models import BusinessModel
+from core.domain.subsidized_license_mapping import licensed_job_from_db
 from core.model_managers.code_engine_projects import CodeEngineProjectQuerySet
+from core.model_managers.compute_profiles import ComputeProfileQuerySet
+from core.model_managers.function_sizes import FunctionSizeQuerySet
 from core.model_managers.functions import FunctionsQuerySet
 from core.model_managers.job_events import JobEventQuerySet
 from core.model_managers.jobs import JobQuerySet
@@ -87,6 +91,15 @@ class Provider(models.Model):
     icon_url = models.TextField(null=True, blank=True, default=None)
     registry = models.CharField(max_length=255, null=True, blank=True, default=None)
     admin_groups = models.ManyToManyField(Group)
+
+    code_engine_project = models.ForeignKey(
+        "CodeEngineProject",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="providers",
+        help_text="Code Engine project this provider's Fleets functions run in; empty for the shared default project",
+    )
 
     objects = ProviderQuerySet.as_manager()
 
@@ -407,6 +420,8 @@ class ComputeProfile(models.Model):
     )
     memory = models.CharField(max_length=64, help_text="Memory in GB (e.g., 120)")
 
+    objects: ComputeProfileQuerySet = ComputeProfileQuerySet.as_manager()
+
     class Meta:
         app_label = "api"
 
@@ -437,6 +452,8 @@ class FunctionSize(models.Model):
         on_delete=models.PROTECT,
         related_name="function_sizes",
     )
+
+    objects: FunctionSizeQuerySet = FunctionSizeQuerySet.as_manager()
 
     class Meta:
         app_label = "api"
@@ -498,8 +515,28 @@ class Job(models.Model):
 
     BUSINESS_MODELS = [
         (BusinessModel.TRIAL, "Trial"),
-        (BusinessModel.SUBSIDIZED, "Subsidized"),
+        (BusinessModel.LICENSED, "Licensed"),
         (BusinessModel.CONSUMPTION, "Consumption"),
+    ]
+
+    # How the job's size/compute profile was determined at creation time. The
+    # size is the source of truth (size -> compute profile; the reverse is not
+    # unique), so provenance is captured here rather than inferred from the
+    # stored compute profile.
+    SIZE_SOURCE_REQUESTED = "REQUESTED"  # user asked for this size
+    SIZE_SOURCE_DEFAULT_SIZE = "DEFAULT_SIZE"  # function's default_size filled in
+    # No longer produced by RunFunctionUseCase (a Fleets function with no default_size
+    # is now rejected instead of falling back to this): kept only so existing Job rows
+    # stay readable. Candidate for deprecation/removal once none remain.
+    SIZE_SOURCE_SETTINGS_DEFAULT = "SETTINGS_DEFAULT"  # deployment-wide default profile
+    SIZE_SOURCE_COMPUTE_PROFILE = "COMPUTE_PROFILE"  # deprecated compute_profile input
+    SIZE_SOURCE_NONE = "NONE"  # sizing not applicable (Ray / non-Fleets)
+    SIZE_SOURCES = [
+        (SIZE_SOURCE_REQUESTED, "Requested by user"),
+        (SIZE_SOURCE_DEFAULT_SIZE, "Function default size"),
+        (SIZE_SOURCE_SETTINGS_DEFAULT, "Deployment default profile"),
+        (SIZE_SOURCE_COMPUTE_PROFILE, "Deprecated compute_profile input"),
+        (SIZE_SOURCE_NONE, "Not applicable"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -509,6 +546,13 @@ class Job(models.Model):
     arguments = models.TextField(null=False, blank=True, default="{}")
     env_vars = models.TextField(null=False, blank=True, default="{}")
     gpu = models.BooleanField(default=False, null=False)
+    filler = models.BooleanField(
+        default=False,
+        db_default=False,
+        null=False,
+        help_text="True when this job was created by the filler-jobs balancer to occupy idle GPU "
+        "capacity, instead of coming from a real user request.",
+    )
     compute_profile = models.CharField(
         max_length=255,
         null=True,
@@ -529,7 +573,7 @@ class Job(models.Model):
     )
     sub_status = models.CharField(max_length=255, choices=SUB_STATUSES, default=None, null=True, blank=True)
     trial = models.BooleanField(default=False, null=False)
-    business_model = models.CharField(max_length=50, choices=BUSINESS_MODELS, default=BusinessModel.SUBSIDIZED)
+    business_model = models.CharField(max_length=50, choices=BUSINESS_MODELS, default=BusinessModel.LICENSED)
     version = IntegerVersionField()
 
     author = models.ForeignKey(
@@ -565,6 +609,23 @@ class Job(models.Model):
             "historical compute profile is preserved even if the profile changes later."
         ),
     )
+    size_source = models.CharField(
+        max_length=32,
+        choices=SIZE_SOURCES,
+        default=SIZE_SOURCE_NONE,
+        help_text="How the job's size/compute profile was determined (requested, defaulted, legacy, or N/A).",
+    )
+    function_size = models.ForeignKey(
+        to="FunctionSize",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="jobs",
+        help_text=(
+            "Size row the job resolved to at creation; null when sized by the deployment "
+            "default profile, the deprecated compute_profile input, or a non-Fleets runner."
+        ),
+    )
 
     account_id = models.CharField(max_length=255, null=True, blank=True)
     instance_crn = models.CharField(max_length=255, null=True, blank=True)
@@ -578,6 +639,22 @@ class Job(models.Model):
 
     class Meta:
         app_label = "api"
+        indexes = [
+            # The filler-jobs balancer lists running filler jobs oldest-first once
+            # per scheduler loop. api_job is the fastest-growing table here and only
+            # a handful of rows are filler jobs, so a partial index keeps that off a
+            # sequential scan at almost no storage cost. It is keyed on created, not
+            # on filler: the partial predicate already selects the filler rows, and
+            # created is what serves the ordering.
+            models.Index(fields=["created"], condition=models.Q(filler=True), name="job_filler_true_idx"),
+            # Backs the admin changelist search by fleet_id.
+            models.Index(fields=["fleet_id"], name="job_fleet_id_idx"),
+        ]
+
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        """Read a job row, translating the old business model name (temporary)."""
+        return licensed_job_from_db(super().from_db(db, field_names, values), field_names)
 
     def __str__(self):
         return f"<Job {self.id} | {self.status}>"
@@ -600,8 +677,14 @@ class Job(models.Model):
         refresh_from_db is required afterwards to bring the instance version
         in sync with the value that was actually written to the DB, so
         subsequent saves from this same instance don't conflict with themselves.
+
+        updated is stamped here because auto_now only fires on Model.save(), and
+        skipping save() is the whole point of this method. Without it the column
+        would keep the value it got when the row was created.
         """
         update_kwargs = {field: getattr(self, field) for field in fields}
+        update_kwargs.setdefault("updated", timezone.now())
+        self.updated = update_kwargs["updated"]
         update_kwargs["version"] = F("version") + 1
         Job.objects.filter(pk=self.id).update(**update_kwargs)
         self.refresh_from_db(fields=["version"])
@@ -612,7 +695,11 @@ class Job(models.Model):
         Like save_direct, but the caller provides values directly instead of
         reading them from the instance. Also updates the instance attributes so
         the in-memory object stays consistent with the DB.
+
+        updated is stamped for the same reason it is in save_direct, and a caller
+        that passes it explicitly wins.
         """
+        fields_map = {"updated": timezone.now(), **fields_map}
         for field, value in fields_map.items():
             setattr(self, field, value)
         update_kwargs = dict(fields_map)
@@ -729,7 +816,9 @@ class Config(models.Model):
     @classmethod
     def set(cls, key: ConfigKey, value: str):
         """Changes a configuration value in DB and cache."""
-        cls.objects.filter(name=key.value).update(value=value)
+        # A queryset UPDATE does not fire auto_now, so updated has to be stamped
+        # by hand or the admin's "updated" column would never move.
+        cls.objects.filter(name=key.value).update(value=value, updated=timezone.now())
         cache.set(cls._get_cache_key(key), value, settings.DYNAMIC_CONFIG_CACHE_TTL)
 
     @classmethod
@@ -759,3 +848,13 @@ class Config(models.Model):
         """Get configuration value as string list."""
         value = cls.get(key)
         return [v.strip() for v in value.split(",")]
+
+    @classmethod
+    def get_int(cls, key: ConfigKey, default: int = 0) -> int:
+        """Get configuration value as integer."""
+        value = cls.get(key)
+        try:
+            return int(value)
+        except ValueError:
+            logger.warning("Config key '%s' has a non-integer value '%s'; using default %s", key.value, value, default)
+            return default
