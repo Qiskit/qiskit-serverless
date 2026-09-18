@@ -482,7 +482,7 @@ class TestKafkaEventStreamsClient:
         assert "eu-gb" in client._producers
 
     def test_routing_selects_right_producer(self):
-        job_main = _make_job(instance_crn="crn:v1:bluemix:public:quantum-computing:eu-de:a/abc:def::")
+        job_main = _make_job(instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/abc:def::")
         job_regional = _make_job(instance_crn="crn:v1:bluemix:public:quantum-computing:au-syd:a/abc:def::")
 
         mock_producer_main = MagicMock()
@@ -622,7 +622,7 @@ class TestKafkaEventStreamsClient:
 
         assert "Event Streams producers initialized" in caplog.text
         assert "regions=" in caplog.text
-        assert "main=eu-de" in caplog.text
+        assert "main=us-east" in caplog.text
 
     def test_region_from_crn_extracts_correctly(self):
         assert (
