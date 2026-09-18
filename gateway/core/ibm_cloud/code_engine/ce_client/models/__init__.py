@@ -40,3 +40,5 @@ from core.ibm_cloud.code_engine.ce_client.models.v2_fleet_volume_mount import V2
 from core.ibm_cloud.code_engine.ce_client.models.v2_network_placement import V2NetworkPlacement
 from core.ibm_cloud.code_engine.ce_client.models.v2_secret import V2Secret
 from core.ibm_cloud.code_engine.ce_client.models.v2_secret_list import V2SecretList
+from core.ibm_cloud.code_engine.ce_client.models.v2_subnet_pool import V2SubnetPool
+from core.ibm_cloud.code_engine.ce_client.models.v2_subnet_pool_list import V2SubnetPoolList
