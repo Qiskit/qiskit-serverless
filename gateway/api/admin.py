@@ -661,7 +661,6 @@ class JobAdmin(admin.ModelAdmin):
                 "fields": [
                     "filler",
                     "fleet_id",
-                    "compute_profile",
                     "compute_profile_fk",
                     "size_source",
                     "function_size",
