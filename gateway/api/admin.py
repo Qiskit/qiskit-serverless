@@ -7,6 +7,7 @@ import uuid
 from django import forms
 from django.contrib import admin, messages
 from django.core.cache import cache
+from django.core.exceptions import PermissionDenied
 from django.db.models import Count, F, Q
 from django.utils import timezone
 from django.utils.html import format_html, format_html_join
@@ -633,6 +634,7 @@ class JobAdmin(admin.ModelAdmin):
     inlines = []
     autocomplete_fields = ["author", "program", "compute_resource", "config", "compute_profile_fk", "function_size"]
     change_form_template = "admin/api/job/change_form.html"
+    readonly_fields = ["status", "sub_status", "job_actions"]
     fieldsets = [
         (
             "Info",
@@ -643,6 +645,7 @@ class JobAdmin(admin.ModelAdmin):
                     "runner",
                     "status",
                     "sub_status",
+                    "job_actions",
                     "running_started_at",
                     "trial",
                     "business_model",
@@ -718,8 +721,30 @@ class JobAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.job_events_view),
                 name="job_events_view",
             ),
+            path("<path:job_id>/stop/", self.admin_site.admin_view(self.stop_job_view), name="job_stop_job_view"),
         ]
         return custom_urls + super().get_urls()
+
+    def stop_job_view(self, request, job_id):
+        """Stop job button target: sets a non-terminal Ray job's status to STOPPED, nothing else.
+        Hit via JS fetch, not a form submit, so it never runs the Job change form (which
+        requires fields some jobs don't have, and would save unrelated edits on the page)."""
+        job = get_object_or_404(Job, pk=job_id)
+        if not self.has_change_permission(request, job):
+            raise PermissionDenied
+        if request.method == "POST" and self._can_stop(job):
+            job.status = Job.STOPPED
+            job.save(update_fields=["status", "updated", "version"])
+            JobEvent.objects.add_status_event(
+                job_id=job.id,
+                origin=JobEventOrigin.BACKOFFICE,
+                context=JobEventContext.STOP_JOB,
+                status=job.status,
+            )
+            messages.success(request, "Job stopped.")
+        else:
+            messages.error(request, "This job can't be stopped from here.")
+        return redirect(reverse("admin:api_job_change", args=[job.pk]))
 
     def job_timeline_view(self, request):
         """Gantt/concurrency timeline for the jobs selected in the changelist."""
@@ -889,25 +914,26 @@ class JobAdmin(admin.ModelAdmin):
             )
         return format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines))
 
-    def save_model(self, request, obj, form, change):
-        if change:
-            if "status" in form.changed_data:
-                JobEvent.objects.add_status_event(
-                    job_id=obj.id,
-                    origin=JobEventOrigin.BACKOFFICE,
-                    context=JobEventContext.SAVE_MODEL,
-                    status=obj.status,
-                )
+    def _can_stop(self, job):
+        return job.runner == Program.RAY and job.status not in Job.TERMINAL_STATUSES
 
-            if "sub_status" in form.changed_data:
-                JobEvent.objects.add_sub_status_event(
-                    job_id=obj.id,
-                    origin=JobEventOrigin.BACKOFFICE,
-                    context=JobEventContext.SAVE_MODEL,
-                    sub_status=obj.sub_status,
-                )
-
-        super().save_model(request, obj, form, change)
+    @admin.display(description="Actions")
+    def job_actions(self, obj):
+        """Stop job button for non-terminal Ray jobs; posts via a separate fetch (not the
+        change form) so it can't be blocked by required fields or save other edits on the page."""
+        # _state.adding, not obj.pk: id defaults to a fresh uuid before the row is ever saved.
+        if obj._state.adding or not self._can_stop(obj):  # pylint: disable=protected-access
+            return "-"
+        stop_url = reverse("admin:job_stop_job_view", args=[obj.pk])
+        onclick = (
+            "if(!confirm('Stop this job? This only marks it as STOPPED in the database, "
+            "it does not cancel anything running on Ray.'))return false;"
+            "if(!confirm('Are you sure? This cannot be undone.'))return false;"
+            "var m=document.cookie.match(/csrftoken=([^;]+)/);"
+            "fetch('" + stop_url + "',{method:'POST',headers:{'X-CSRFToken':m?m[1]:''}})"
+            ".then(function(){location.reload();});"
+        )
+        return format_html('<button type="button" class="button" onclick="{}">{}</button>', onclick, "Stop job")
 
 
 @admin.register(RuntimeJob)
