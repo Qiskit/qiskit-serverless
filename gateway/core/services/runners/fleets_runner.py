@@ -445,30 +445,31 @@ class FleetsRunner(AbstractRunner):
             return None
 
     def stop(self) -> bool:
-        """Delete the fleet to stop it if it is pending or running.
+        """Ask Code Engine to cancel the fleet.
+
+        The fleet's status is not read first: Code Engine's answer to the cancel is what decides,
+        and reading the status beforehand meant a fleet in a status the generated client does not
+        recognise could not be cancelled at all.
 
         Returns:
-            ``True`` if the fleet was stopped, ``False`` if not stoppable.
+            ``True`` if Code Engine accepted the request, ``False`` if there was nothing left to
+            cancel because the fleet is gone or is already being cancelled. ``True`` does not say
+            the job was running: Code Engine also accepts a cancel for a fleet that has finished.
 
         Raises:
-            RunnerError: On API errors.
+            RunnerError: If the cancel could not be delivered, so the caller can retry.
         """
         self._ensure_connected()
         if not self.job.fleet_id:
             raise RunnerError("Job has no fleet_id assigned")
 
+        handler = self._get_handler()
+
         try:
-            handler = self._get_handler()
-            status_info = handler.get_job_status(self.job.fleet_id)
-            current_status = (status_info.get("status") or "").lower()
-
-            if current_status in {"running", "pending"}:
-                handler.cancel_job(self.job.fleet_id, wait=False, delete=False)
+            cancelled = handler.cancel_job(self.job.fleet_id, wait=False, delete=False)
+            if cancelled:
                 logger.info("Cancelled fleet [%s]", self.job.fleet_id)
-                return True
-
-            logger.info("Fleet [%s] not stoppable (status: %s)", self.job.fleet_id, current_status)
-            return False
+            return cancelled
 
         except ApiException as ex:
             logger.error(

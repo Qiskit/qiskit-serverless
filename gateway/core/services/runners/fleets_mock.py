@@ -273,15 +273,14 @@ def _mock_submit_job(self, **kwargs):  # pylint: disable=unused-argument,too-man
 def _mock_get_job_status(self, identifier):  # pylint: disable=unused-argument
     """Read fleet status from COS queue keys in the task-store bucket.
 
-    Only called by ``FleetsRunner.stop()`` and ``FleetsRunner.is_active()`` —
-    the main status polling path (``FleetsRunner.status()``) reads COS queue
-    keys directly via ``_get_cos().list_keys()`` without calling this method.
+    Nothing in the stack reaches this any more. ``stop()`` sends the cancel without reading the
+    status, ``is_active()`` only checks ``fleet_id``, and ``FleetsRunner.status()`` reads the COS
+    queue keys directly through ``_get_cos().list_keys()``. The one reference left is
+    ``FleetsRunner._get_fleet_name()``, which has no callers of its own.
 
-    Mirrors real CE by raising ``ApiException(404)`` for a fleet that was never
-    created. The archived manifest (written by ``_mock_submit_job`` and never
-    deleted by the worker) is the fleet's existence signal, so ``is_active()``
-    and ``stop()`` can detect orphaned/missing fleets instead of always seeing
-    a live fleet.
+    Kept because it mirrors real CE: it raises ``ApiException(404)`` for a fleet that was never
+    created, using the archived manifest (written by ``_mock_submit_job`` and never deleted by the
+    worker) as the fleet's existence signal.
 
     Args:
         self: The FleetHandler instance.
@@ -358,6 +357,10 @@ def _mock_cancel_job(self, identifier, **kwargs):  # pylint: disable=unused-argu
         self: The FleetHandler instance.
         identifier: The fleet ID to cancel.
         **kwargs: Additional arguments (ignored).
+
+    Returns:
+        ``True``, matching the real ``cancel_job``, which reports whether Code Engine accepted the
+        cancel. Returning nothing would make every mocked stop read as "nothing to cancel".
     """
     s3 = _get_mock_s3()
     # Resolve the job's own project bucket (like _mock_get_job_status), not the
@@ -365,6 +368,7 @@ def _mock_cancel_job(self, identifier, **kwargs):  # pylint: disable=unused-argu
     bucket = _task_store_bucket(self.project_id)
     cancel_key = f"{queue_prefix(self.project_id, identifier)}canceled/0/{identifier}-0/canceled"
     s3.put_object(Bucket=bucket, Key=cancel_key, Body=b"")
+    return True
 
 
 def install_mocks():

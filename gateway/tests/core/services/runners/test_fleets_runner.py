@@ -336,10 +336,10 @@ class TestCosStatusDetection:
         assert runner.status() is None
 
 
-def test_stop_deletes_fleet_when_running():
-    """stop() calls delete_job when fleet is in running state."""
+def test_stop_returns_true_when_the_cancel_was_accepted():
+    """stop() reports True only when Code Engine accepted the cancel."""
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
-    mock_handler.get_job_status.return_value = {"status": "running"}
+    mock_handler.cancel_job.return_value = True
 
     result = runner.stop()
 
@@ -347,15 +347,30 @@ def test_stop_deletes_fleet_when_running():
     mock_handler.cancel_job.assert_called_once_with("fleet-123", wait=False, delete=False)
 
 
-def test_stop_returns_false_when_already_terminal():
-    """stop() returns False without calling cancel_job when fleet is already terminal."""
+def test_stop_returns_false_when_there_was_nothing_to_cancel():
+    """stop() reports False when Code Engine says the fleet is gone or already being cancelled.
+
+    It still sends the cancel, and it does not read the fleet status to decide. That pre-read is
+    what stopped a fleet in an unrecognised status from being cancelled at all, so assert it is
+    gone rather than just that the result is right.
+    """
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
-    mock_handler.get_job_status.return_value = {"status": "succeeded"}
+    mock_handler.cancel_job.return_value = False
 
     result = runner.stop()
 
     assert result is False
-    mock_handler.cancel_job.assert_not_called()
+    mock_handler.cancel_job.assert_called_once_with("fleet-123", wait=False, delete=False)
+    mock_handler.get_job_status.assert_not_called()
+
+
+def test_stop_raises_runner_error_when_the_cancel_could_not_be_sent():
+    """A Code Engine error means the cancel was not delivered, so the caller can retry."""
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    mock_handler.cancel_job.side_effect = ApiException(status=429, reason="Too Many Requests")
+
+    with pytest.raises(RunnerError, match="Code Engine API error"):
+        runner.stop()
 
 
 def test_submit_sets_fleet_id_with_cos():
