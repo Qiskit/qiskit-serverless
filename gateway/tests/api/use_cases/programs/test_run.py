@@ -75,6 +75,15 @@ def make_fleets_function(user, ce_project):
     )
 
 
+def give_default_size(function, compute_profile_id="16x128"):
+    """Size a Fleets function so it can run without the caller requesting a size."""
+    profile = ComputeProfile.objects.create(compute_profile_id=compute_profile_id, cpu="16", memory="128")
+    size = FunctionSize.objects.create(function=function, function_size="m", compute_profile=profile)
+    function.default_size = size
+    function.save(update_fields=["default_size"])
+    return size
+
+
 class TestRunFunctionUseCase:
     def test_creates_job_for_own_function(self, user):
         function = Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
@@ -306,8 +315,7 @@ class TestRunFunctionUseCase:
 
 class TestOutboxRowCreation:
     def test_creates_a_row_for_a_fleets_job_with_instance_crn(self, user, ce_project, monkeypatch):
-        make_fleets_function(user, ce_project)
-        ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+        give_default_size(make_fleets_function(user, ce_project))
         monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
@@ -331,8 +339,7 @@ class TestOutboxRowCreation:
         assert JobOutbox.objects.filter(job=job).count() == 0
 
     def test_no_row_without_instance_crn(self, user, ce_project, monkeypatch):
-        make_fleets_function(user, ce_project)
-        ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+        give_default_size(make_fleets_function(user, ce_project))
         monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
@@ -342,7 +349,7 @@ class TestOutboxRowCreation:
 
     def test_license_fee_required_when_the_function_has_a_provider(self, user, ce_project, monkeypatch):
         provider = Provider.objects.create(name="ibm-dev")
-        Program.objects.create(
+        function = Program.objects.create(
             title="my-fn",
             author=user,
             entrypoint="main.py",
@@ -350,7 +357,7 @@ class TestOutboxRowCreation:
             code_engine_project=ce_project,
             provider=provider,
         )
-        ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+        give_default_size(function)
         monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 

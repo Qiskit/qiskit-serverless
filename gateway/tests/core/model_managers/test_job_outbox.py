@@ -45,12 +45,6 @@ class TestPendingLicenseFee:
 
         assert row in JobOutbox.objects.pending_license_fee()
 
-    def test_pending_when_succeeded_without_having_run(self, user):
-        job = _make_job(user, status=Job.SUCCEEDED)
-        row = _make_outbox(job, job_status=Job.SUCCEEDED, has_run=False, license_fee_required=True)
-
-        assert row in JobOutbox.objects.pending_license_fee()
-
     def test_not_pending_when_cancelled_before_running(self, user):
         job = _make_job(user, status=Job.STOPPED)
         row = _make_outbox(job, job_status=Job.STOPPED, has_run=False, license_fee_required=True)

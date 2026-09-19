@@ -16,21 +16,30 @@ class JobOutboxQuerySet(QuerySet):
         Pseudo-SQL:
             license_fee_required = true
             AND license_fee_sent_at IS NULL
-            AND (has_run = true OR job_status = 'SUCCEEDED')
+            AND has_run = true
 
-        `license_fee_required` drops jobs whose program has no provider: they
-        never owe a fee, so without this term they would read as pending forever.
-        `has_run OR SUCCEEDED` closes the gap where status polling jumps straight
-        from PENDING to SUCCEEDED without the job ever being observed in RUNNING:
-        it still executed, so it owes the fee, whereas a job cancelled in queue or
-        one whose submission failed (FAILED/STOPPED without having run) does not.
+        `license_fee_required` + `license_fee_sent_at` NULL = fees not sent yet
+
+        `license_fee_required` is false when the function has no provider: those jobs
+        never owe a fee, and without this term they would read as pending forever.
+
+        `has_run` is the proof that the job executed, which is what the fee pays for.
+        The row is created while the job is still queued, so without this term it would
+        read as pending from the moment it exists. add_status_event sets it, on RUNNING
+        and on SUCCEEDED.
+
+        A job that jumps from PENDING straight to FAILED or STOPPED leaves has_run false
+        and is not charged: those two states prove nothing on their own, and a job that
+        never started (submission failed, or cancelled in queue) must not pay. So the fee
+        is lost when the job really did run, but only for a run short enough to fit
+        between two scheduler polls.
+
+        A job that ran and then failed does owe the fee here. If that policy ever
+        becomes "only successful jobs pay", this predicate is the only rule to
+        edit, but ready_to_delete() mirrors its negation by hand and has to be
+        edited with it.
         """
-        from core.models import Job  # pylint: disable=import-outside-toplevel, cyclic-import
-
-        return self.filter(
-            Q(license_fee_required=True, license_fee_sent_at__isnull=True)
-            & (Q(has_run=True) | Q(job_status=Job.SUCCEEDED))
-        )
+        return self.filter(license_fee_required=True, license_fee_sent_at__isnull=True, has_run=True)
 
     def pending_billing_event(self):
         """Rows whose final usage event has not been sent yet.
@@ -39,10 +48,14 @@ class JobOutboxQuerySet(QuerySet):
             billing_sent_at IS NULL
             AND job_status IN ('SUCCEEDED', 'FAILED', 'STOPPED')
 
-        Unlike the license fee, this is owed regardless of whether the job ever
-        ran: usage seconds are computed from the job's first RUNNING JobEvent and
-        status_changed_at, and come out as zero for a job that never reached
-        RUNNING, so sending the event for a job cancelled in queue is harmless.
+        The terminal state is the term that matters here, no matter which one it is: this
+        event has to carry final usage, and `has_run` stays true while the job is still
+        RUNNING, so it cannot tell a finished job from a live one.
+
+        `has_run` is left out on purpose. Adding it would only drop the jobs that never
+        ran, and those are harmless: `_usage_seconds` returns zero when the job has no
+        RUNNING event, so a job cancelled in queue reports zero seconds instead of a wrong
+        figure. Unlike the license fee, nothing is charged for merely having existed.
         """
         from core.models import Job  # pylint: disable=import-outside-toplevel, cyclic-import
 
@@ -56,7 +69,7 @@ class JobOutboxQuerySet(QuerySet):
             AND (
                 license_fee_required = false
                 OR license_fee_sent_at IS NOT NULL
-                OR (has_run = false AND job_status != 'SUCCEEDED')
+                OR has_run = false
             )
             AND billing_sent_at IS NOT NULL
 
@@ -65,12 +78,13 @@ class JobOutboxQuerySet(QuerySet):
         RUNNING with no license fee due) reads as vacuously "nothing pending" and
         would be deleted while still alive.
 
-        The license fee clause is the full negation of pending_license_fee's
-        three terms, not just the first two. Dropping the third term (a job that
-        never ran because it was cancelled in queue or failed to submit) once
-        left those rows permanently pending: they never owed the fee, but they
-        did not satisfy either of the other two branches either, so they were
-        never deleted. Found in adversarial review, see spec section 5.2.
+        The license fee clause is pending_license_fee()'s three terms negated by
+        hand, so the two definitions have to be edited together. Dropping the
+        third term (a job that never ran because it was cancelled in queue or
+        failed to submit) once left those rows permanently pending: they never
+        owed the fee, but they did not satisfy either of the other two branches
+        either, so they were never deleted. Found in adversarial review, see spec
+        section 5.2.
 
         The mirror clause (workload_status) is added in the second PR, once a
         task reads and writes it; until then it plays no part in this query (see
@@ -79,10 +93,6 @@ class JobOutboxQuerySet(QuerySet):
         from core.models import Job  # pylint: disable=import-outside-toplevel, cyclic-import
 
         terminal = Q(job_status__in=Job.TERMINAL_STATUSES)
-        license_fee_settled = (
-            Q(license_fee_required=False)
-            | Q(license_fee_sent_at__isnull=False)
-            | (Q(has_run=False) & ~Q(job_status=Job.SUCCEEDED))
-        )
+        license_fee_settled = Q(license_fee_required=False) | Q(license_fee_sent_at__isnull=False) | Q(has_run=False)
         billing_event_settled = Q(billing_sent_at__isnull=False)
         return self.filter(terminal & license_fee_settled & billing_event_settled)

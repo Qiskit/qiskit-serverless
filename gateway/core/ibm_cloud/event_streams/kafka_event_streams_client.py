@@ -136,13 +136,14 @@ class KafkaEventStreamsClient(EventStreamsClient):
         if metric_type is None:
             metric_type = self._build_classical_metric_type(job)
         logger.info("job_id=%s Emitting job_started event", job.id)
+        running_started_at = JobEvent.objects.first_running_at(job.id)
         self._publish(
             job,
             metric_type=metric_type,
             metric_value=0,
             job_started=True,
             job_completed=False,
-            running_started_at=JobEvent.objects.first_running_at(job.id),
+            running_started_at=running_started_at,
         )
 
     def _emit_job_in_progress(self, job: Job, metric_type: str | None = None) -> None:
@@ -150,10 +151,11 @@ class KafkaEventStreamsClient(EventStreamsClient):
         if metric_type is None:
             metric_type = self._build_classical_metric_type(job)
         running_started_at = JobEvent.objects.first_running_at(job.id)
+        usage_seconds = self._usage_seconds(running_started_at, datetime.now(timezone.utc))
         self._publish(
             job,
             metric_type=metric_type,
-            metric_value=self._usage_seconds(running_started_at, datetime.now(timezone.utc)),
+            metric_value=usage_seconds,
             job_started=False,
             job_completed=False,
             running_started_at=running_started_at,
@@ -183,6 +185,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
         an unrecoverable payload and records it instead of retrying forever.
         """
         metric_type = "_".join([LICENSE_FEE_METRIC_TYPE, job.program.provider.name, job.program.title])
+        running_started_at = JobEvent.objects.first_running_at(job.id)
         self._publish(
             job,
             metric_type=metric_type,
@@ -190,7 +193,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
             job_started=True,
             job_completed=True,
             business_model=billing_name_for(job.business_model),
-            running_started_at=JobEvent.objects.first_running_at(job.id),
+            running_started_at=running_started_at,
         )
 
     def _build_classical_metric_type(self, job: Job) -> str:

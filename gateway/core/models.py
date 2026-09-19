@@ -21,7 +21,7 @@ from core.model_managers.code_engine_projects import CodeEngineProjectQuerySet
 from core.model_managers.compute_profiles import ComputeProfileQuerySet
 from core.model_managers.function_sizes import FunctionSizeQuerySet
 from core.model_managers.functions import FunctionsQuerySet
-from core.model_managers.job_events import JobEventQuerySet
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventQuerySet
 from core.model_managers.job_outbox import JobOutboxQuerySet
 from core.model_managers.jobs import JobQuerySet
 from core.model_managers.providers import ProviderQuerySet
@@ -708,18 +708,20 @@ class Job(models.Model):
         Job.objects.filter(pk=self.id).update(**update_kwargs)
         self.refresh_from_db(fields=["version"])
 
-    def change_status(self, *, origin, context, status: str, job_fields: dict | None = None):
+    def change_status(
+        self, *, origin: JobEventOrigin, context: JobEventContext, status: str, job_fields: dict | None = None
+    ):
         """Create the status-change JobEvent, then persist that same status (and
         any extra job_fields) on this job, atomically and always in that order
         (event, then job).
-
-        Event-then-job is the fixed lock order every caller that transitions an
-        existing job's status must use, to avoid a lock-order deadlock between
-        two concurrent writers of the same job's Job and JobOutbox rows (one
-        writer locking Job then waiting on JobOutbox while another locks
-        JobOutbox then waits on Job).
         """
         with transaction.atomic():
+            # Order matters: Event first, then-job.
+            # This fixed lock order every caller that transitions an
+            # existing job's status must use, to avoid a lock-order deadlock between
+            # two concurrent writers of the same job's Job and JobOutbox rows (one
+            # writer locking Job then waiting on JobOutbox while another locks
+            # JobOutbox then waits on Job.
             event = JobEvent.objects.add_status_event(job_id=self.id, origin=origin, context=context, status=status)
             self.update_fields({"status": status, **(job_fields or {})})
         return event

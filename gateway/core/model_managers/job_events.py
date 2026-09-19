@@ -100,7 +100,11 @@ class JobEventQuerySet(QuerySet):
             )
 
             outbox_fields = {"job_status": status, "status_changed_at": event.created}
-            if status == Job.RUNNING:
+            if status in (Job.RUNNING, Job.SUCCEEDED):
+                # SUCCEEDED also proves the job ran, and it is not redundant with RUNNING:
+                # a job that starts and finishes between two scheduler polls is only ever
+                # observed as PENDING and then SUCCEEDED, so this is the single place that
+                # records that it executed. Setting True over True is a no-op.
                 outbox_fields["has_run"] = True
             JobOutbox.objects.filter(job_id=job_id).update(**outbox_fields)
 

@@ -70,6 +70,34 @@ class TestExistingOutboxRow:
         _add_status_event(job, Job.SUCCEEDED)
         assert JobOutbox.objects.get(job=job).has_run is True
 
+    def test_sets_has_run_true_on_succeeded_with_no_running_event(self, job):
+        """A job fast enough to fit between two scheduler polls is never seen RUNNING."""
+        JobOutbox.objects.create(
+            job=job,
+            job_status=Job.PENDING,
+            status_changed_at=timezone.now(),
+            has_run=False,
+            license_fee_required=True,
+        )
+
+        _add_status_event(job, Job.SUCCEEDED)
+
+        assert JobOutbox.objects.get(job=job).has_run is True
+
+    def test_does_not_set_has_run_on_a_terminal_status_other_than_succeeded(self, job):
+        """FAILED and STOPPED prove nothing: the job may never have started."""
+        JobOutbox.objects.create(
+            job=job,
+            job_status=Job.PENDING,
+            status_changed_at=timezone.now(),
+            has_run=False,
+            license_fee_required=True,
+        )
+
+        _add_status_event(job, Job.STOPPED)
+
+        assert JobOutbox.objects.get(job=job).has_run is False
+
     def test_does_not_touch_license_fee_sent_at_or_billing_sent_at(self, job):
         """The funnel must never clear a sent marker: that would cause a resend."""
         sent = timezone.now() - timedelta(minutes=5)
