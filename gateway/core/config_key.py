@@ -12,3 +12,8 @@ class ConfigKey(Enum):
     FILLER_ENABLED = "scheduler.filler.enabled"
     FILLER_FUNCTION = "scheduler.filler.function"
     FILLER_SLOTS = "scheduler.filler.slots"
+    OUTBOX_ENABLED = "scheduler.outbox.enabled"
+    OUTBOX_BATCH_SIZE = "scheduler.outbox.batch_size"
+    OUTBOX_BUDGET_MS = "scheduler.outbox.budget_ms"
+    OUTBOX_BREAKER_FAILURES = "scheduler.outbox.breaker_failures"
+    OUTBOX_BREAKER_PAUSE_SECONDS = "scheduler.outbox.breaker_pause_seconds"

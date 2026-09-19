@@ -13,6 +13,7 @@ from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.kill_signal import KillSignal
 from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs
 from scheduler.tasks.free_resources import FreeResources
+from scheduler.tasks.publish_outbox import PublishOutbox
 from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
 from scheduler.tasks.schedule_ray_jobs import ScheduleRayJobs
 from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses
@@ -44,6 +45,8 @@ class Main:
             ScheduleFleetsJobs(self.kill_signal, self.metrics),
             UpdateRayJobsStatuses(self.kill_signal, self.metrics),
             UpdateFleetsJobsStatuses(self.kill_signal, self.metrics),
+            # after the status updates, so it sees this tick's freshest terminal jobs
+            PublishOutbox(self.kill_signal, self.metrics),
             # after the status updates, so it counts the freshest real jobs
             BalanceFillerJobs(self.kill_signal, self.metrics),
             FreeResources(self.kill_signal, self.metrics),  # Ray only

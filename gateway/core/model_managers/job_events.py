@@ -6,6 +6,7 @@ import uuid
 
 from enum import StrEnum
 
+from django.db import transaction
 from django.db.models import QuerySet
 
 logger = logging.getLogger("core.JobEvents")
@@ -68,7 +69,17 @@ class JobEventQuerySet(QuerySet):
         context: JobEventContext,
         status: str,
     ):
-        """Status change event for jobs."""
+        """Status change event for jobs.
+
+        Also updates a matching JobOutbox row if one exists (Ray, filler, and
+        pre-deployment jobs have none, and the update below then touches zero
+        rows). The two writes are wrapped in their own transaction so the event
+        and the outbox row it drives never diverge, regardless of whether the
+        caller wraps this call in a transaction of its own (nested atomic blocks
+        share the same underlying database transaction via a savepoint, so this
+        adds no separate commit).
+        """
+        from core.models import Job, JobOutbox  # pylint: disable=import-outside-toplevel, cyclic-import
 
         logger.info(
             "[add_status_event] job_id=%s | Set status to %s | %s %s %s",
@@ -79,13 +90,42 @@ class JobEventQuerySet(QuerySet):
             context,
         )
 
-        return self.create(
-            job_id=job_id,
-            origin=origin,
-            context=context,
-            event_type=JobEventType.STATUS_CHANGE,
-            data={"status": status},
+        with transaction.atomic():
+            event = self.create(
+                job_id=job_id,
+                origin=origin,
+                context=context,
+                event_type=JobEventType.STATUS_CHANGE,
+                data={"status": status},
+            )
+
+            outbox_fields = {"job_status": status, "status_changed_at": event.created}
+            if status in (Job.RUNNING, Job.SUCCEEDED):
+                # SUCCEEDED also proves the job ran, and it is not redundant with RUNNING:
+                # a job that starts and finishes between two scheduler polls is only ever
+                # observed as PENDING and then SUCCEEDED, so this is the single place that
+                # records that it executed. Setting True over True is a no-op.
+                outbox_fields["has_run"] = True
+            JobOutbox.objects.filter(job_id=job_id).update(**outbox_fields)
+
+        return event
+
+    def first_running_at(self, job_id: uuid.UUID):
+        """When this job first reached RUNNING, from its own event history.
+
+        Returns None if it never did (still queued/pending, or terminated
+        without running). Ordered explicitly ascending: JobEvent.Meta.ordering
+        is descending by default, and the first RUNNING event is the one that
+        counts here, not the latest.
+        """
+        from core.models import Job  # pylint: disable=import-outside-toplevel, cyclic-import
+
+        event = (
+            self.filter(job_id=job_id, event_type=JobEventType.STATUS_CHANGE, data__status=Job.RUNNING)
+            .order_by("created")
+            .first()
         )
+        return event.created if event else None
 
     def add_sub_status_event(  # pylint:  disable=too-many-positional-arguments
         self,

@@ -13,7 +13,17 @@ from api.domain.authentication.channel import Channel
 from api.use_cases.programs.run import RunFunctionUseCase
 from api.use_cases.programs.run_input import RunFunctionInput
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import CodeEngineProject, ComputeProfile, FunctionSize, Job, JobConfig, JobEvent, Program
+from core.models import (
+    CodeEngineProject,
+    ComputeProfile,
+    FunctionSize,
+    Job,
+    JobConfig,
+    JobEvent,
+    JobOutbox,
+    Program,
+    Provider,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -63,6 +73,15 @@ def make_fleets_function(user, ce_project):
         runner=Program.FLEETS,
         code_engine_project=ce_project,
     )
+
+
+def give_default_size(function, compute_profile_id="16x128"):
+    """Size a Fleets function so it can run without the caller requesting a size."""
+    profile = ComputeProfile.objects.create(compute_profile_id=compute_profile_id, cpu="16", memory="128")
+    size = FunctionSize.objects.create(function=function, function_size="m", compute_profile=profile)
+    function.default_size = size
+    function.save(update_fields=["default_size"])
+    return size
 
 
 class TestRunFunctionUseCase:
@@ -292,3 +311,63 @@ class TestRunFunctionUseCase:
             RunFunctionUseCase().execute(user, accessible, make_input(function_size="m", compute_profile="16x128"))
 
         assert not Job.objects.exists()
+
+
+class TestOutboxRowCreation:
+    def test_creates_a_row_for_a_fleets_job_with_instance_crn(self, user, ce_project, monkeypatch):
+        give_default_size(make_fleets_function(user, ce_project))
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        job = RunFunctionUseCase().execute(
+            user, accessible, make_input(instance="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::")
+        )
+
+        row = JobOutbox.objects.get(job=job)
+        assert row.job_status == Job.QUEUED
+        assert row.has_run is False
+        assert row.license_fee_required is False
+
+    def test_no_row_for_ray_jobs(self, user):
+        Program.objects.create(title="my-fn", author=user, entrypoint="main.py")  # default runner: ray
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        job = RunFunctionUseCase().execute(
+            user, accessible, make_input(instance="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::")
+        )
+
+        assert JobOutbox.objects.filter(job=job).count() == 0
+
+    def test_no_row_without_instance_crn(self, user, ce_project, monkeypatch):
+        give_default_size(make_fleets_function(user, ce_project))
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        job = RunFunctionUseCase().execute(user, accessible, make_input(instance=None))
+
+        assert JobOutbox.objects.filter(job=job).count() == 0
+
+    def test_license_fee_required_when_the_function_has_a_provider(self, user, ce_project, monkeypatch):
+        provider = Provider.objects.create(name="ibm-dev")
+        function = Program.objects.create(
+            title="my-fn",
+            author=user,
+            entrypoint="main.py",
+            runner=Program.FLEETS,
+            code_engine_project=ce_project,
+            provider=provider,
+        )
+        give_default_size(function)
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        job = RunFunctionUseCase().execute(
+            user,
+            accessible,
+            make_input(
+                provider_name="ibm-dev",
+                instance="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::",
+            ),
+        )
+
+        assert JobOutbox.objects.get(job=job).license_fee_required is True

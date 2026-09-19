@@ -5,7 +5,7 @@ from uuid import UUID
 from django.contrib.auth.models import AbstractUser
 from qiskit_ibm_runtime import QiskitRuntimeService, RuntimeInvalidStateError
 
-from core.models import Job, JobEvent, RuntimeJob
+from core.models import Job, RuntimeJob
 from core.services.runners import get_runner, RunnerError
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
@@ -36,16 +36,10 @@ class StopJobUseCase:
         self.stopped_sessions = []
 
         if not job.in_terminal_state():
-            job.status = Job.STOPPED
-            # "updated" has auto_now=True, but auto_now only fires for fields listed
-            # in update_fields, so it has to be named here explicitly or the column
-            # keeps the value it got when the job was created.
-            job.save(update_fields=["status", "updated"])
-            JobEvent.objects.add_status_event(
-                job_id=job.id,
+            job.change_status(
                 origin=JobEventOrigin.API,
                 context=JobEventContext.STOP_JOB,
-                status=job.status,
+                status=Job.STOPPED,
             )
             self.status_messages.append("Job has been stopped.")
         else:

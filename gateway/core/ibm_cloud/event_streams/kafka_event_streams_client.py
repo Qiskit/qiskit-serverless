@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 
 from confluent_kafka import Producer
 from core.domain.business_models import billing_name_for
-from core.models import Job
+from core.models import Job, JobEvent
 
 from .abstract_event_streams_client import EventStreamsClient
 
@@ -131,30 +131,42 @@ class KafkaEventStreamsClient(EventStreamsClient):
             return parts[5]
         return None
 
-    def _emit_job_started(self, job, metric_type: str | None = None) -> None:
+    def _emit_job_started(self, job: Job, metric_type: str | None = None) -> None:
         """Publish a job-started event for the given metric (metric_value=0)."""
         if metric_type is None:
             metric_type = self._build_classical_metric_type(job)
         logger.info("job_id=%s Emitting job_started event", job.id)
-        self._publish(job, metric_type=metric_type, metric_value=0, job_started=True, job_completed=False)
-
-    def _emit_job_in_progress(self, job, metric_type: str | None = None) -> None:
-        """Publish a job-in-progress event for the given metric with current usage."""
-        if metric_type is None:
-            metric_type = self._build_classical_metric_type(job)
+        running_started_at = JobEvent.objects.first_running_at(job.id)
         self._publish(
             job,
             metric_type=metric_type,
-            metric_value=self._usage_seconds(job),
-            job_started=False,
+            metric_value=0,
+            job_started=True,
             job_completed=False,
+            running_started_at=running_started_at,
         )
 
-    def _emit_job_completed(self, job, metric_type: str | None = None) -> None:
-        """Publish a job-completed event for the given metric with final usage."""
+    def _emit_job_in_progress(self, job: Job, metric_type: str | None = None) -> None:
+        """Publish a job-in-progress event for the given metric with current usage."""
         if metric_type is None:
             metric_type = self._build_classical_metric_type(job)
-        usage_seconds = self._usage_seconds(job)
+        running_started_at = JobEvent.objects.first_running_at(job.id)
+        usage_seconds = self._usage_seconds(running_started_at, datetime.now(timezone.utc))
+        self._publish(
+            job,
+            metric_type=metric_type,
+            metric_value=usage_seconds,
+            job_started=False,
+            job_completed=False,
+            running_started_at=running_started_at,
+        )
+
+    def _emit_job_completed(self, job: Job, ended_at: datetime, metric_type: str | None = None) -> None:
+        """Publish a job-completed event for the given metric with final usage as of ended_at."""
+        if metric_type is None:
+            metric_type = self._build_classical_metric_type(job)
+        running_started_at = JobEvent.objects.first_running_at(job.id)
+        usage_seconds = self._usage_seconds(running_started_at, ended_at)
         logger.info("job_id=%s Emitting job_completed event metric_value=%s", job.id, usage_seconds)
         self._publish(
             job,
@@ -162,10 +174,18 @@ class KafkaEventStreamsClient(EventStreamsClient):
             metric_value=usage_seconds,
             job_started=False,
             job_completed=True,
+            running_started_at=running_started_at,
         )
 
     def _emit_license_fee(self, job: Job) -> None:
+        """Publish a license fee event.
+
+        Raises AttributeError if job.program or job.program.provider is gone (both
+        are SET_NULL foreign keys): the caller (PublishOutbox) treats that as
+        an unrecoverable payload and records it instead of retrying forever.
+        """
         metric_type = "_".join([LICENSE_FEE_METRIC_TYPE, job.program.provider.name, job.program.title])
+        running_started_at = JobEvent.objects.first_running_at(job.id)
         self._publish(
             job,
             metric_type=metric_type,
@@ -173,6 +193,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
             job_started=True,
             job_completed=True,
             business_model=billing_name_for(job.business_model),
+            running_started_at=running_started_at,
         )
 
     def _build_classical_metric_type(self, job: Job) -> str:
@@ -184,11 +205,11 @@ class KafkaEventStreamsClient(EventStreamsClient):
 
         return "_".join(parts)
 
-    def _usage_seconds(self, job) -> int:
-        """Usage in whole seconds, rounded up so that any partial second is billed."""
-        if job.running_started_at is None:
+    def _usage_seconds(self, running_started_at: datetime | None, as_of: datetime) -> int:
+        """Usage in whole seconds up to as_of, rounded up so any partial second is billed."""
+        if running_started_at is None:
             return 0
-        delta = datetime.now(timezone.utc) - job.running_started_at
+        delta = as_of - running_started_at
         return math.ceil(delta.total_seconds())
 
     def _delivery_callback(self, err, msg):
@@ -210,6 +231,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
         metric_value: int,
         job_started: bool,
         job_completed: bool,
+        running_started_at: datetime | None,
         business_model: str | None = None,
     ) -> None:
         now = datetime.now(timezone.utc)
@@ -221,7 +243,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
             "instance_crn": job.instance_crn,
             "resource_id": str(job.id),
             "job_started": job_started,
-            "job_started_at": job.running_started_at.isoformat() if job.running_started_at else None,
+            "job_started_at": running_started_at.isoformat() if running_started_at else None,
             "job_completed": job_completed,
         }
         if business_model is not None:

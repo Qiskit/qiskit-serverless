@@ -9,7 +9,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
-from django.db import models
+from django.db import models, transaction
 from django.db.models import F
 from django.utils import timezone
 from django_prometheus.models import ExportModelOperationsMixin
@@ -21,7 +21,8 @@ from core.model_managers.code_engine_projects import CodeEngineProjectQuerySet
 from core.model_managers.compute_profiles import ComputeProfileQuerySet
 from core.model_managers.function_sizes import FunctionSizeQuerySet
 from core.model_managers.functions import FunctionsQuerySet
-from core.model_managers.job_events import JobEventQuerySet
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventQuerySet
+from core.model_managers.job_outbox import JobOutboxQuerySet
 from core.model_managers.jobs import JobQuerySet
 from core.model_managers.providers import ProviderQuerySet
 
@@ -718,6 +719,24 @@ class Job(models.Model):
         Job.objects.filter(pk=self.id).update(**update_kwargs)
         self.refresh_from_db(fields=["version"])
 
+    def change_status(
+        self, *, origin: JobEventOrigin, context: JobEventContext, status: str, job_fields: dict | None = None
+    ):
+        """Create the status-change JobEvent, then persist that same status (and
+        any extra job_fields) on this job, atomically and always in that order
+        (event, then job).
+        """
+        with transaction.atomic():
+            # Order matters: Event first, then-job.
+            # This fixed lock order every caller that transitions an
+            # existing job's status must use, to avoid a lock-order deadlock between
+            # two concurrent writers of the same job's Job and JobOutbox rows (one
+            # writer locking Job then waiting on JobOutbox while another locks
+            # JobOutbox then waits on Job.
+            event = JobEvent.objects.add_status_event(job_id=self.id, origin=origin, context=context, status=status)
+            self.update_fields({"status": status, **(job_fields or {})})
+        return event
+
 
 class RuntimeJob(models.Model):
     """Runtime Job model."""
@@ -760,6 +779,36 @@ class JobEvent(models.Model):
     class Meta:
         app_label = "api"
         ordering = ("-created",)
+
+
+class JobOutbox(models.Model):
+    """Outbox row for a live Fleets job with an instance CRN: what still needs to be
+    sent to Kafka billing (this PR) and mirrored to the Runtime API workloads.
+    One row per live job, created in RunFunctionUseCase.execute() and deleted once
+    every fact tracked here has been sent.
+    """
+
+    job = models.OneToOneField(
+        to=Job,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        related_name="outbox",
+    )
+    job_status = models.CharField(max_length=10, choices=Job.JOB_STATUSES)
+    status_changed_at = models.DateTimeField()
+    has_run = models.BooleanField(default=False)
+    workload_status = models.CharField(max_length=10, choices=Job.JOB_STATUSES, null=True, blank=True)
+    license_fee_required = models.BooleanField()
+    license_fee_sent_at = models.DateTimeField(null=True, blank=True)
+    billing_sent_at = models.DateTimeField(null=True, blank=True)
+
+    objects: JobOutboxQuerySet = JobOutboxQuerySet.as_manager()
+
+    class Meta:
+        app_label = "api"
+
+    def __str__(self):
+        return f"<JobOutbox job={self.job_id} job_status={self.job_status}>"
 
 
 class GroupMetadata(models.Model):

@@ -9,7 +9,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from core.config_key import ConfigKey
 from core.domain import compute_profile as compute_profile_domain
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import Config, Job, JobEvent, Program
+from core.models import Config, Job, Program
 from core.services.runners import get_runner, RunnerError
 from core.services.storage import get_arguments_storage
 from scheduler.health import DB_EXCEPTIONS
@@ -316,21 +316,19 @@ class BalanceFillerJobs(SchedulerTask):
         Not _mark_stopped: nothing stopped it, its creation broke, and that counter is
         cross-checked against the FILLER_STOP events.
         """
-        job.update_fields({"status": Job.FAILED, "sub_status": None})
-        JobEvent.objects.add_status_event(
-            job_id=job.id,
+        job.change_status(
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.FILLER_FAILED,
             status=Job.FAILED,
+            job_fields={"sub_status": None},
         )
 
     def _mark_stopped(self, job: Job) -> None:
         """Write STOPPED on the job, record the event, and count it."""
-        job.update_fields({"status": Job.STOPPED, "sub_status": None})
-        JobEvent.objects.add_status_event(
-            job_id=job.id,
+        job.change_status(
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.FILLER_STOP,
             status=Job.STOPPED,
+            job_fields={"sub_status": None},
         )
         self.metrics.increment_filler_jobs_stopped()
