@@ -8,6 +8,11 @@
 
 {% block content_subtitle %}{% endblock %}
 
+{% block field_sets %}
+    {{ block.super }}
+    <script src="{% static 'admin/js/job_stop_button.js' %}" defer></script>
+{% endblock %}
+
 {% block object-tools %}
 {% if change and not is_popup %}
     {% if original %}

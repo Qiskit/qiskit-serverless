@@ -16,7 +16,9 @@
 # s3fs/fuse to mock CE's COS mount against MinIO, boto3, and the worker scripts.
 #
 # BASE_IMAGE must be built first (e.g. `make build-fleet-node` or the CI
-# "Build fleet-node base image" step) and tagged fleet-node:latest.
+# "Build fleet-node selector image" step) and tagged fleet-node:latest. It is the
+# selector stage, not base: that is the image the gateway deploys for imageless
+# Fleets jobs, so the test runs against the same runtime production does.
 ARG BASE_IMAGE=fleet-node:latest
 FROM ${BASE_IMAGE}
 

@@ -22,9 +22,17 @@ jobs:
       - name: Install tox
         run: pip install tox>=4.0.0
       - name: Build fleet-node base image
-        # The fleet-worker image is FROM fleet-node:latest, and `compose build`
+        # The slim stage function providers build their custom Fleets images FROM.
+        # Nothing else in CI builds it (build-containers-test.yaml builds the
+        # default/last stage), so build it here to keep it from silently breaking.
+        # Also warms the shared layers for the selector build below.
+        run: docker build --platform linux/amd64 --target base -f docker-images/fleet-node/Dockerfile -t fleet-node:base .
+      - name: Build fleet-node selector image
+        # The full runtime the gateway deploys for imageless Fleets jobs, and what
+        # the fleet-worker image is FROM (tagged fleet-node:latest) so the test
+        # exercises the same image production fleet tasks run in. `compose build`
         # does not build FROM-referenced bases, so build it first.
-        run: docker build --platform linux/amd64 -f docker-images/fleet-node/Dockerfile -t fleet-node:latest .
+        run: docker build --platform linux/amd64 --target selector -f docker-images/fleet-node/Dockerfile -t fleet-node:latest .
       - name: Build containers
         run: docker compose -f docker-compose-fleets-test.yaml build
       - name: Start services

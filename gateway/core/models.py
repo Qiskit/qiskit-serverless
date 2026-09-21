@@ -664,6 +664,17 @@ class Job(models.Model):
         """Returns true if job is in terminal state."""
         return self.status in self.TERMINAL_STATUSES
 
+    @property
+    def compute_profile_id(self) -> str | None:
+        """Bare compute-profile string from the FK (the source of truth).
+
+        ``ComputeProfile`` uses ``compute_profile_id`` as its ``CharField``
+        primary key, so Django stores that string directly in
+        ``compute_profile_fk_id`` on this row — no extra query needed.
+        Returns ``None`` for Ray jobs and any row with no FK set.
+        """
+        return self.compute_profile_fk_id
+
     def save_direct(self, fields: list[str]) -> None:
         """Persist selected fields bypassing optimistic-locking validation.
 

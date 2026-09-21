@@ -7,7 +7,7 @@ import uuid
 from django import forms
 from django.contrib import admin, messages
 from django.core.cache import cache
-from django.db import transaction
+from django.core.exceptions import PermissionDenied
 from django.db.models import Count, F, Q
 from django.utils import timezone
 from django.utils.html import format_html, format_html_join
@@ -24,6 +24,7 @@ from api.domain.arguments_schema import (
 )
 from api.domain.job_timeline import render_job_timeline
 from api.domain.exceptions.invalid_arguments_exception import InvalidArgumentsException
+from api.use_cases.programs.upload import no_ce_project_message
 from api.use_cases.programs.validate_arguments import validate_arguments
 from core.models import (
     CodeEngineProject,
@@ -130,9 +131,36 @@ class ComputeProfileAdmin(admin.ModelAdmin):
 
     # search_fields is required for FunctionSizeAdmin's autocomplete on compute_profile
     search_fields = ["compute_profile_id", "name"]
-    list_display = ["compute_profile_id", "name", "cpu", "gpu", "memory", "updated"]
+    list_display = ["compute_profile_id", "name", "cpu", "gpu", "memory", "sizes_using", "updated"]
     ordering = ["compute_profile_id"]
     readonly_fields = ["created", "updated"]
+
+    def get_queryset(self, request):
+        # Annotate the reference count once per changelist so `sizes_using` does not run a
+        # query per row. The FK to ComputeProfile is PROTECT, so this count is exactly what an
+        # operator needs to see before editing or trying to delete a profile.
+        return super().get_queryset(request).annotate(sizes_using_count=Count("function_sizes"))
+
+    @admin.display(description="Sizes using", ordering="sizes_using_count")
+    def sizes_using(self, obj):
+        """How many FunctionSize rows reference this profile (PROTECTs deletion when > 0)."""
+        return obj.sizes_using_count
+
+
+class FunctionSizeInline(admin.TabularInline):
+    """A function's size catalog (its sizes map) shown inline on the function page.
+
+    Each row maps a size key (e.g. ``s``/``m``/``l``) to the compute profile it runs on. Editing
+    the catalog here, next to ``default_size``, is what the upload endpoint's ``sizes`` payload
+    builds; the separate FunctionSize changelist stays available for cross-function views.
+    """
+
+    model = FunctionSize
+    extra = 0
+    fields = ["function_size", "compute_profile", "updated"]
+    readonly_fields = ["updated"]
+    autocomplete_fields = ["compute_profile"]
+    verbose_name_plural = "Sizes (compute profile per size)"
 
 
 @admin.register(FunctionSize)
@@ -219,6 +247,41 @@ class ProgramAdminForm(forms.ModelForm):
 
         return value
 
+    def clean(self):
+        """Assign a Code Engine project to a Fleets function, and refuse the save if none is available.
+
+        The upload endpoint auto-assigns a CE project (provider's project, or the deployment default)
+        and rejects a Fleets function it cannot place, since one is not runnable without an active
+        project. A plain admin save skips that, so replicate it here: fail loud with the same wording
+        rather than let an operator persist a function that can never run.
+
+        Runs before ``_post_clean`` copies cleaned values onto the instance, so the assigned project
+        is written back into ``cleaned_data`` for the save to pick up. Leaving a project the operator
+        chose alone falls out of ``assign_to_program`` being a no-op when one is already set.
+        """
+        cleaned_data = super().clean()
+
+        if cleaned_data.get("runner") != Program.FLEETS:
+            return cleaned_data
+
+        # Mirror the request onto the instance so the manager sees the values being saved, not the
+        # stored ones, then let it assign (in place) exactly as the upload use case does.
+        self.instance.runner = Program.FLEETS
+        self.instance.provider = cleaned_data.get("provider")
+        self.instance.code_engine_project = cleaned_data.get("code_engine_project")
+        try:
+            CodeEngineProject.objects.assign_to_program(self.instance)
+        except ValueError:
+            # select_default() raises when CE_DEFAULT_PROJECT_NAME is unconfigured; treat it as
+            # "no project available" and fall through to the rejection below.
+            pass
+
+        if not self.instance.code_engine_project:
+            raise forms.ValidationError(no_ce_project_message(self.instance))
+
+        cleaned_data["code_engine_project"] = self.instance.code_engine_project
+        return cleaned_data
+
 
 class ValidateArgumentsForm(forms.Form):
     """Arguments to try against a function's stored schema."""
@@ -267,6 +330,7 @@ class ProgramAdmin(admin.ModelAdmin):
     """ProgramAdmin."""
 
     form = ProgramAdminForm
+    inlines = [FunctionSizeInline]
     search_fields = ["title", "author__username"]
     list_filter = ["provider", "type", "runner", "disabled"]
     filter_horizontal = ["instances", "trial_instances"]
@@ -294,6 +358,18 @@ class ProgramAdmin(admin.ModelAdmin):
         ),
         ("Fleets", {"fields": ["code_engine_project"]}),
         ("Ownership", {"fields": ["author", "provider", "instances", "trial_instances"]}),
+        (
+            "Default size",
+            {
+                "fields": ["default_size"],
+                "description": (
+                    "T-shirt sizes for the Fleets runner. Edit the size catalog (each size &rarr; "
+                    "compute profile) in the <b>Sizes</b> table above, then pick the "
+                    "<code>default_size</code> used when a run omits a size. The default must be one "
+                    "of this function's own sizes."
+                ),
+            },
+        ),
     ]
 
     list_display = [
@@ -302,8 +378,39 @@ class ProgramAdmin(admin.ModelAdmin):
         "author",
         "type",
         "runner",
+        "sizes_summary",
         "disabled",
     ]
+
+    def get_queryset(self, request):
+        # Count the size rows once per changelist for `sizes_summary`, and pull default_size along
+        # so rendering the default's label does not fire a query per row.
+        return (
+            super()
+            .get_queryset(request)
+            .select_related("default_size")
+            .annotate(declared_sizes_count=Count("function_sizes"))
+        )
+
+    @admin.display(description="Sizes", ordering="declared_sizes_count")
+    def sizes_summary(self, obj):
+        """At-a-glance size config: how many sizes are declared and which is the default."""
+        if not obj.declared_sizes_count:
+            return "-"
+        default = obj.default_size.function_size if obj.default_size_id else "none"
+        return f"{obj.declared_sizes_count} (default: {default})"
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # default_size must belong to this same function (Program.clean() enforces it), so the
+        # dropdown is limited to this function's own sizes rather than every FunctionSize row.
+        # On the add form there is no function yet and therefore no sizes to choose from.
+        if db_field.name == "default_size":
+            resolver_match = getattr(request, "resolver_match", None)
+            object_id = resolver_match.kwargs.get("object_id") if resolver_match else None
+            kwargs["queryset"] = (
+                FunctionSize.objects.filter(function_id=object_id) if object_id else FunctionSize.objects.none()
+            )
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def get_readonly_fields(self, request, obj=None):
         readonly_fields = list(super().get_readonly_fields(request, obj))
@@ -527,6 +634,7 @@ class JobAdmin(admin.ModelAdmin):
     inlines = []
     autocomplete_fields = ["author", "program", "compute_resource", "config", "compute_profile_fk", "function_size"]
     change_form_template = "admin/api/job/change_form.html"
+    readonly_fields = ["runner", "status_badge", "sub_status", "job_actions"]
     fieldsets = [
         (
             "Info",
@@ -535,8 +643,9 @@ class JobAdmin(admin.ModelAdmin):
                     "program",
                     "author",
                     "runner",
-                    "status",
+                    "status_badge",
                     "sub_status",
+                    "job_actions",
                     "running_started_at",
                     "trial",
                     "business_model",
@@ -552,7 +661,6 @@ class JobAdmin(admin.ModelAdmin):
                 "fields": [
                     "filler",
                     "fleet_id",
-                    "compute_profile",
                     "compute_profile_fk",
                     "size_source",
                     "function_size",
@@ -564,6 +672,12 @@ class JobAdmin(admin.ModelAdmin):
         ),
         ("Ray", {"fields": ["ray_job_id", "compute_resource", "gpu", "config"]}),
     ]
+
+    def get_fieldsets(self, request, obj=None):
+        """Hide whichever Fleets/Ray section doesn't match the runner (Program.RAY when obj is None)."""
+        runner = obj.runner if obj is not None else Program.RAY
+        hidden_section = "Fleets" if runner == Program.RAY else "Ray"
+        return [fs for fs in super().get_fieldsets(request, obj) if fs[0] != hidden_section]
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         formfield = super().formfield_for_foreignkey(db_field, request, **kwargs)
@@ -612,8 +726,30 @@ class JobAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.job_events_view),
                 name="job_events_view",
             ),
+            path("<path:job_id>/stop/", self.admin_site.admin_view(self.stop_job_view), name="job_stop_job_view"),
         ]
         return custom_urls + super().get_urls()
+
+    def stop_job_view(self, request, job_id):
+        """Stop job button target: sets a non-terminal Ray job's status to STOPPED, nothing else.
+        Hit via JS fetch, not a form submit, so it never runs the Job change form (which
+        requires fields some jobs don't have, and would save unrelated edits on the page)."""
+        job = get_object_or_404(Job, pk=job_id)
+        if not self.has_change_permission(request, job):
+            raise PermissionDenied
+        if request.method == "POST" and self._can_stop(job):
+            job.status = Job.STOPPED
+            job.save(update_fields=["status", "updated", "version"])
+            JobEvent.objects.add_status_event(
+                job_id=job.id,
+                origin=JobEventOrigin.BACKOFFICE,
+                context=JobEventContext.STOP_JOB,
+                status=job.status,
+            )
+            messages.success(request, "Job stopped.")
+        else:
+            messages.error(request, "This job can't be stopped from here.")
+        return redirect(reverse("admin:api_job_change", args=[job.pk]))
 
     def job_timeline_view(self, request):
         """Gantt/concurrency timeline for the jobs selected in the changelist."""
@@ -783,26 +919,21 @@ class JobAdmin(admin.ModelAdmin):
             )
         return format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines))
 
-    def save_model(self, request, obj, form, change):
-        with transaction.atomic():
-            if change:
-                if "status" in form.changed_data:
-                    JobEvent.objects.add_status_event(
-                        job_id=obj.id,
-                        origin=JobEventOrigin.BACKOFFICE,
-                        context=JobEventContext.SAVE_MODEL,
-                        status=obj.status,
-                    )
+    def _can_stop(self, job):
+        return job.runner == Program.RAY and job.status not in Job.TERMINAL_STATUSES
 
-                if "sub_status" in form.changed_data:
-                    JobEvent.objects.add_sub_status_event(
-                        job_id=obj.id,
-                        origin=JobEventOrigin.BACKOFFICE,
-                        context=JobEventContext.SAVE_MODEL,
-                        sub_status=obj.sub_status,
-                    )
-
-            super().save_model(request, obj, form, change)
+    @admin.display(description="Actions")
+    def job_actions(self, obj):
+        """Stop job button for non-terminal Ray jobs; posts via a separate fetch (not the change
+        form, which requires fields some jobs don't have and would save unrelated page edits).
+        Click handling lives in job_stop_button.js, not an onclick attribute, since the CSP here
+        (script-src 'none') silently blocks inline event handlers.
+        _state.adding, not obj.pk, below: id defaults to a fresh uuid before the row is saved."""
+        if obj._state.adding or not self._can_stop(obj):  # pylint: disable=protected-access
+            return "-"
+        stop_url = reverse("admin:job_stop_job_view", args=[obj.pk])
+        button = f'<button type="button" class="button qs-stop-job-btn" data-stop-url="{stop_url}">Stop job</button>'
+        return mark_safe(button)
 
     def has_delete_permission(self, request, obj=None):
         """Disabled: a Job with a pending outbox row must not be deleted casually from the admin."""
