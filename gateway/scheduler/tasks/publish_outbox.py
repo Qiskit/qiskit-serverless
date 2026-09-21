@@ -5,6 +5,7 @@ See .claude/specs/2026-09-16-job-outbox-design.md, sections 9 and 9.1.
 
 import logging
 import time
+from datetime import datetime
 
 from django.conf import settings
 from django.utils import timezone
@@ -24,6 +25,8 @@ logger = logging.getLogger("scheduler.PublishOutbox")
 
 FACT_LICENSE_FEE = "license_fee"
 FACT_BILLING_EVENT = "billing_event"
+
+BATCH_SIZE = 100
 
 
 class PublishOutbox(SchedulerTask):
@@ -51,7 +54,8 @@ class PublishOutbox(SchedulerTask):
         return self._event_streams_client
 
     def run(self):
-        """Drain one batch of pending outbox rows, within the configured time budget."""
+        """Drain outbox rows in successive small batches, until either nothing is left to
+        send or the time budget for this tick runs out."""
         if not Config.get_bool(ConfigKey.OUTBOX_ENABLED):
             return
 
@@ -61,37 +65,57 @@ class PublishOutbox(SchedulerTask):
         if self._breaker.is_open:
             return
 
-        batch_size = Config.get_int(ConfigKey.OUTBOX_BATCH_SIZE, default=20)
         budget_ms = Config.get_int(ConfigKey.OUTBOX_BUDGET_MS, default=500)
         deadline = time.monotonic() + (budget_ms / 1000)
 
-        # Membership in these two sets is what decides which fact(s) a row owes.
-        # Re-deriving that from the row's own fields instead (e.g. "billing_sent_at
-        # is None") would also be true for a row pulled in only because it owes the
-        # license fee while still RUNNING, and would wrongly emit a completed event
-        # for a job that has not finished.
-        license_fee_pks = set(JobOutbox.objects.pending_license_fee().values_list("pk", flat=True))
-        billing_event_pks = set(JobOutbox.objects.pending_billing_event().values_list("pk", flat=True))
-
-        rows = list(
-            (JobOutbox.objects.pending_license_fee() | JobOutbox.objects.pending_billing_event()).order_by(
-                "status_changed_at"
-            )[:batch_size]
-        )
-
-        for row in rows:
-            if self.kill_signal.received:
-                logger.info("Kill signal received, stopping outbox drain")
-                return
+        while True:
             if time.monotonic() >= deadline:
                 logger.info("Time budget spent, stopping outbox drain for this tick")
                 return
 
-            self._process_row(
-                row,
-                needs_license_fee=row.pk in license_fee_pks,
-                needs_billing_event=row.pk in billing_event_pks,
+            batch = self._fetch_batch()
+            if not batch:
+                return
+
+            # Membership in these two sets is what decides which fact(s) a row owes,
+            # scoped to just this batch. Re-deriving that from a row's own fields
+            # instead (e.g. "billing_sent_at is None") would also be true for a row
+            # pulled in only because it owes the license fee while still RUNNING,
+            # and would wrongly emit a completed event for a job that has not
+            # finished.
+            batch_pks = [row.pk for row in batch]
+            license_fee_pks = set(
+                JobOutbox.objects.pending_license_fee().filter(pk__in=batch_pks).values_list("pk", flat=True)
             )
+            billing_event_pks = set(
+                JobOutbox.objects.pending_billing_event().filter(pk__in=batch_pks).values_list("pk", flat=True)
+            )
+
+            for row in batch:
+                if self.kill_signal.received:
+                    return
+                if time.monotonic() >= deadline:
+                    logger.info("Time budget spent, stopping outbox drain for this tick")
+                    return
+
+                self._process_row(
+                    row,
+                    needs_license_fee=row.pk in license_fee_pks,
+                    needs_billing_event=row.pk in billing_event_pks,
+                )
+
+    @staticmethod
+    def _fetch_batch() -> list["JobOutbox"]:
+        """Fetch one bounded batch of rows pending either fact, oldest first.
+
+        BATCH_SIZE only bounds this single query's size; it is not the cap on how much a
+        tick sends, that is run()'s time budget.
+        """
+        return list(
+            (JobOutbox.objects.pending_license_fee() | JobOutbox.objects.pending_billing_event()).order_by(
+                "status_changed_at"
+            )[:BATCH_SIZE]
+        )
 
     def _process_row(self, row: JobOutbox, *, needs_license_fee: bool, needs_billing_event: bool) -> None:
         """Send whichever facts this row owes, save once if anything changed, then delete if settled.
@@ -105,18 +129,24 @@ class PublishOutbox(SchedulerTask):
         changed = False
 
         if needs_license_fee:
-            changed |= self._send_license_fee(row)
+            license_fee_sent_at = self._send_license_fee(row)
+            if license_fee_sent_at is not None:
+                row.license_fee_sent_at = license_fee_sent_at
+                changed = True
 
         if needs_billing_event:
-            changed |= self._send_billing_event(row)
+            billing_sent_at = self._send_billing_event(row)
+            if billing_sent_at is not None:
+                row.billing_sent_at = billing_sent_at
+                changed = True
 
         if changed:
             row.save()
 
         JobOutbox.objects.ready_to_delete().filter(pk=row.pk).delete()
 
-    def _send_license_fee(self, row: JobOutbox) -> bool:
-        """Attempt to send the license fee event. Returns True if the row changed."""
+    def _send_license_fee(self, row: JobOutbox) -> datetime | None:
+        """Attempt to send the license fee event. Returns the sent timestamp on success, None otherwise."""
         try:
             self.event_streams_client.emit_license_fee(row.job)
         except AttributeError as ex:
@@ -126,32 +156,30 @@ class PublishOutbox(SchedulerTask):
                 str(ex),
             )
             self.metrics.increment_outbox_license_fee_irrecoverable()
-            return False
+            return None
         except RuntimeError as ex:
             logger.error("job_id=%s error publishing license fee to Kafka: %s", row.job_id, str(ex))
             self.metrics.increment_outbox_send(FACT_LICENSE_FEE, "failure")
             self._breaker.record_failure()
-            return False
+            return None
 
-        row.license_fee_sent_at = timezone.now()
         self.metrics.increment_outbox_send(FACT_LICENSE_FEE, "success")
         self._breaker.record_success()
-        return True
+        return timezone.now()
 
-    def _send_billing_event(self, row: JobOutbox) -> bool:
-        """Attempt to send the final usage event. Returns True if the row changed."""
+    def _send_billing_event(self, row: JobOutbox) -> datetime | None:
+        """Attempt to send the final usage event. Returns the sent timestamp on success, None otherwise."""
         try:
             self.event_streams_client.emit_job_completed(row.job, row.status_changed_at)
         except RuntimeError as ex:
             logger.error("job_id=%s error publishing billing event to Kafka: %s", row.job_id, str(ex))
             self.metrics.increment_outbox_send(FACT_BILLING_EVENT, "failure")
             self._breaker.record_failure()
-            return False
+            return None
 
-        row.billing_sent_at = timezone.now()
         self.metrics.increment_outbox_send(FACT_BILLING_EVENT, "success")
         self._breaker.record_success()
-        return True
+        return timezone.now()
 
     def _report_pending_gauges(self) -> None:
         """Report how many rows are pending each fact, and the oldest one's age."""

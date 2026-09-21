@@ -506,11 +506,6 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "Enable the outbox task: sends the license fee and final usage event "
         "for terminal Fleets jobs. While off, nothing publishes these two events at all.",
     },
-    "scheduler.outbox.batch_size": {
-        "default": "20",
-        "type": "integer",
-        "description": "Maximum outbox rows the outbox task processes per scheduler loop tick.",
-    },
     "scheduler.outbox.budget_ms": {
         "default": "500",
         "type": "integer",

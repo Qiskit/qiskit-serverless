@@ -1,6 +1,7 @@
 """Unit tests for PublishOutbox."""
 
 from datetime import datetime, timezone
+from itertools import chain, repeat
 from unittest.mock import MagicMock, patch
 
 from scheduler.tasks.publish_outbox import PublishOutbox
@@ -39,12 +40,24 @@ def _make_row(
     return row
 
 
-def _configure_pending(mock_job_outbox, license_fee_pks=None, billing_event_pks=None, rows=None):
-    """Wire the pk-set lookups and the combined ordered batch PublishOutbox.run() fetches."""
-    mock_job_outbox.objects.pending_license_fee.return_value.values_list.return_value = license_fee_pks or []
-    mock_job_outbox.objects.pending_billing_event.return_value.values_list.return_value = billing_event_pks or []
+def _configure_pending(mock_job_outbox, license_fee_pks=None, billing_event_pks=None, rows=None, batches=None):
+    """Wire the pk-set lookups (scoped to a batch, via filter(pk__in=...)) and the sequence
+    of batches PublishOutbox.run() fetches, one per outer-loop iteration.
+
+    Pass `rows` for a single batch, or `batches` (a list of row-lists) to exercise more than
+    one iteration of the outer loop. Either way, the sequence is padded with empty batches
+    so the loop always has a batch to end on, however many times it asks.
+    """
+    mock_job_outbox.objects.pending_license_fee.return_value.filter.return_value.values_list.return_value = (
+        license_fee_pks or []
+    )
+    mock_job_outbox.objects.pending_billing_event.return_value.filter.return_value.values_list.return_value = (
+        billing_event_pks or []
+    )
     combined = mock_job_outbox.objects.pending_license_fee.return_value.__or__.return_value
-    combined.order_by.return_value.__getitem__.return_value = rows or []
+    combined.order_by.return_value.__getitem__.side_effect = chain(
+        batches if batches is not None else [rows or []], repeat([])
+    )
 
 
 class TestDisabledFlag:
@@ -71,9 +84,7 @@ class TestHappyPath:
             patch(f"{_MOD}.timezone") as mock_timezone,
         ):
             mock_config.get_bool.return_value = True
-            mock_config.get_int.side_effect = lambda key, default=None: {"batch_size": 20, "budget_ms": 500}.get(
-                key.value.rsplit(".", 1)[-1], default
-            )
+            mock_config.get_int.return_value = 500
             _configure_pending(mock_job_outbox, license_fee_pks=[row.pk], billing_event_pks=[row.pk], rows=[row])
             now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
             mock_timezone.now.return_value = now
@@ -189,6 +200,10 @@ class TestFailureHandling:
 
 class TestBudgetAndKillSignal:
     def test_stops_once_the_time_budget_is_spent(self):
+        """time.monotonic() is called once for the deadline, once at the top of the
+        outer loop before fetching the batch, then once per row inside it: the first
+        row's check (still under budget) lets it through, the second row's check
+        (over budget) stops the drain before it is even attempted."""
         task = _make_task()
         rows = [_make_row(job_id=f"job-{i}", license_fee_required=False) for i in range(3)]
 
@@ -196,12 +211,10 @@ class TestBudgetAndKillSignal:
             patch(f"{_MOD}.Config") as mock_config,
             patch(f"{_MOD}.JobOutbox") as mock_job_outbox,
             patch(f"{_MOD}.timezone"),
-            patch(f"{_MOD}.time.monotonic", side_effect=[0.0, 0.0, 0.6, 0.6]),
+            patch(f"{_MOD}.time.monotonic", side_effect=[0.0, 0.0, 0.0, 0.6]),
         ):
             mock_config.get_bool.return_value = True
-            mock_config.get_int.side_effect = lambda key, default=None: {"budget_ms": 500, "batch_size": 20}.get(
-                key.value.rsplit(".", 1)[-1], default
-            )
+            mock_config.get_int.return_value = 500
             _configure_pending(mock_job_outbox, billing_event_pks=[r.pk for r in rows], rows=rows)
 
             task.run()
@@ -226,6 +239,64 @@ class TestBudgetAndKillSignal:
             mock_config.get_bool.return_value = True
             mock_config.get_int.return_value = 20
             _configure_pending(mock_job_outbox, billing_event_pks=[r.pk for r in rows], rows=rows)
+
+            task.run()
+
+        assert task.event_streams_client.emit_job_completed.call_count == 1
+
+
+class TestMultipleBatches:
+    def test_keeps_fetching_batches_until_none_are_left(self):
+        """A healthy Kafka should drain everything pending within the time budget,
+        not just the first batch: once a batch comes back empty there is nothing
+        left to send, and the outer loop stops on its own without needing the
+        time budget to cut it off."""
+        task = _make_task()
+        row_a = _make_row(job_id="job-a", license_fee_required=False)
+        row_b = _make_row(job_id="job-b", license_fee_required=False)
+
+        with (
+            patch(f"{_MOD}.Config") as mock_config,
+            patch(f"{_MOD}.JobOutbox") as mock_job_outbox,
+            patch(f"{_MOD}.timezone"),
+        ):
+            mock_config.get_bool.return_value = True
+            mock_config.get_int.return_value = 500
+            _configure_pending(
+                mock_job_outbox,
+                billing_event_pks=[row_a.pk, row_b.pk],
+                batches=[[row_a], [row_b]],
+            )
+
+            task.run()
+
+        assert task.event_streams_client.emit_job_completed.call_count == 2
+        row_a.save.assert_called_once()
+        row_b.save.assert_called_once()
+
+    def test_stops_between_batches_when_kill_signal_received(self):
+        task = _make_task()
+        row_a = _make_row(job_id="job-a", license_fee_required=False)
+        row_b = _make_row(job_id="job-b", license_fee_required=False)
+
+        def receive_after_first_batch(*_args, **_kwargs):
+            task.kill_signal.received = True
+            return MagicMock()
+
+        task.event_streams_client.emit_job_completed.side_effect = receive_after_first_batch
+
+        with (
+            patch(f"{_MOD}.Config") as mock_config,
+            patch(f"{_MOD}.JobOutbox") as mock_job_outbox,
+            patch(f"{_MOD}.timezone"),
+        ):
+            mock_config.get_bool.return_value = True
+            mock_config.get_int.return_value = 500
+            _configure_pending(
+                mock_job_outbox,
+                billing_event_pks=[row_a.pk, row_b.pk],
+                batches=[[row_a], [row_b]],
+            )
 
             task.run()
 
