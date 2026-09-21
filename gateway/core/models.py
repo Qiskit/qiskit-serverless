@@ -723,18 +723,13 @@ class Job(models.Model):
         self, *, origin: JobEventOrigin, context: JobEventContext, status: str, job_fields: dict | None = None
     ):
         """Transition this job's status: the JobEvent, the JobOutbox row that mirrors
-        it, and the job itself (plus any extra job_fields), atomically and always in
-        that order.
+        it, and the job itself (plus any extra job_fields), atomically. The event goes
+        first because the outbox row stamps its status_changed_at from it.
 
         This is the only entry point for a status transition, so it is also the only
         place that keeps the outbox row in step with the job.
         """
         with transaction.atomic():
-            # Order matters: event, then outbox row, then job. Every caller that
-            # transitions an existing job's status must take the Job and JobOutbox row
-            # locks in this same order, or two concurrent writers of the same job
-            # deadlock, one holding Job and waiting on JobOutbox while the other holds
-            # JobOutbox and waits on Job.
             event = JobEvent.objects.add_status_event(job_id=self.id, origin=origin, context=context, status=status)
             outbox_fields = {"job_status": status, "status_changed_at": event.created}
             if status in (Job.RUNNING, Job.SUCCEEDED):
