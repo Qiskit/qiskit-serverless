@@ -7,6 +7,7 @@ import uuid
 from django import forms
 from django.contrib import admin, messages
 from django.core.cache import cache
+from django.core.exceptions import PermissionDenied
 from django.db.models import Count, F, Q
 from django.utils import timezone
 from django.utils.html import format_html, format_html_join
@@ -633,6 +634,7 @@ class JobAdmin(admin.ModelAdmin):
     inlines = []
     autocomplete_fields = ["author", "program", "compute_resource", "config", "compute_profile_fk", "function_size"]
     change_form_template = "admin/api/job/change_form.html"
+    readonly_fields = ["runner", "status_badge", "sub_status", "job_actions"]
     fieldsets = [
         (
             "Info",
@@ -641,8 +643,9 @@ class JobAdmin(admin.ModelAdmin):
                     "program",
                     "author",
                     "runner",
-                    "status",
+                    "status_badge",
                     "sub_status",
+                    "job_actions",
                     "running_started_at",
                     "trial",
                     "business_model",
@@ -669,6 +672,12 @@ class JobAdmin(admin.ModelAdmin):
         ),
         ("Ray", {"fields": ["ray_job_id", "compute_resource", "gpu", "config"]}),
     ]
+
+    def get_fieldsets(self, request, obj=None):
+        """Hide whichever Fleets/Ray section doesn't match the runner (Program.RAY when obj is None)."""
+        runner = obj.runner if obj is not None else Program.RAY
+        hidden_section = "Fleets" if runner == Program.RAY else "Ray"
+        return [fs for fs in super().get_fieldsets(request, obj) if fs[0] != hidden_section]
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         formfield = super().formfield_for_foreignkey(db_field, request, **kwargs)
@@ -717,8 +726,30 @@ class JobAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.job_events_view),
                 name="job_events_view",
             ),
+            path("<path:job_id>/stop/", self.admin_site.admin_view(self.stop_job_view), name="job_stop_job_view"),
         ]
         return custom_urls + super().get_urls()
+
+    def stop_job_view(self, request, job_id):
+        """Stop job button target: sets a non-terminal Ray job's status to STOPPED, nothing else.
+        Hit via JS fetch, not a form submit, so it never runs the Job change form (which
+        requires fields some jobs don't have, and would save unrelated edits on the page)."""
+        job = get_object_or_404(Job, pk=job_id)
+        if not self.has_change_permission(request, job):
+            raise PermissionDenied
+        if request.method == "POST" and self._can_stop(job):
+            job.status = Job.STOPPED
+            job.save(update_fields=["status", "updated", "version"])
+            JobEvent.objects.add_status_event(
+                job_id=job.id,
+                origin=JobEventOrigin.BACKOFFICE,
+                context=JobEventContext.STOP_JOB,
+                status=job.status,
+            )
+            messages.success(request, "Job stopped.")
+        else:
+            messages.error(request, "This job can't be stopped from here.")
+        return redirect(reverse("admin:api_job_change", args=[job.pk]))
 
     def job_timeline_view(self, request):
         """Gantt/concurrency timeline for the jobs selected in the changelist."""
@@ -888,25 +919,21 @@ class JobAdmin(admin.ModelAdmin):
             )
         return format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines))
 
-    def save_model(self, request, obj, form, change):
-        if change:
-            if "status" in form.changed_data:
-                JobEvent.objects.add_status_event(
-                    job_id=obj.id,
-                    origin=JobEventOrigin.BACKOFFICE,
-                    context=JobEventContext.SAVE_MODEL,
-                    status=obj.status,
-                )
+    def _can_stop(self, job):
+        return job.runner == Program.RAY and job.status not in Job.TERMINAL_STATUSES
 
-            if "sub_status" in form.changed_data:
-                JobEvent.objects.add_sub_status_event(
-                    job_id=obj.id,
-                    origin=JobEventOrigin.BACKOFFICE,
-                    context=JobEventContext.SAVE_MODEL,
-                    sub_status=obj.sub_status,
-                )
-
-        super().save_model(request, obj, form, change)
+    @admin.display(description="Actions")
+    def job_actions(self, obj):
+        """Stop job button for non-terminal Ray jobs; posts via a separate fetch (not the change
+        form, which requires fields some jobs don't have and would save unrelated page edits).
+        Click handling lives in job_stop_button.js, not an onclick attribute, since the CSP here
+        (script-src 'none') silently blocks inline event handlers.
+        _state.adding, not obj.pk, below: id defaults to a fresh uuid before the row is saved."""
+        if obj._state.adding or not self._can_stop(obj):  # pylint: disable=protected-access
+            return "-"
+        stop_url = reverse("admin:job_stop_job_view", args=[obj.pk])
+        button = f'<button type="button" class="button qs-stop-job-btn" data-stop-url="{stop_url}">Stop job</button>'
+        return mark_safe(button)
 
 
 @admin.register(RuntimeJob)
