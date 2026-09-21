@@ -1,5 +1,8 @@
 """Admin module."""
 
+# This module holds every ModelAdmin in the app and sits just over pylint's 1000-line cap.
+# pylint: disable=too-many-lines
+
 import json
 import logging
 import uuid

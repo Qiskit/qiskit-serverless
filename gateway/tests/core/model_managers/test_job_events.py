@@ -1,10 +1,11 @@
-"""Unit tests for JobEventQuerySet.add_status_event() updating the outbox row."""
+"""Unit tests for JobEventQuerySet.
 
-from datetime import timedelta
+The outbox row that mirrors a status event is written by Job.change_status, so those
+tests live in tests/core/test_job_model.py.
+"""
 
 import pytest
 from django.contrib.auth.models import User
-from django.utils import timezone
 
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import Job, JobEvent, JobOutbox, Program
@@ -31,104 +32,23 @@ def _add_status_event(job, status):
     )
 
 
-class TestNoOutboxRow:
-    def test_does_not_create_a_row_and_does_not_raise(self, job):
-        """Ray, filler, and pre-deployment jobs have no row; nothing should happen."""
-        _add_status_event(job, Job.PENDING)
-
-        assert JobOutbox.objects.count() == 0
-
-
-class TestExistingOutboxRow:
-    def test_updates_job_status_and_status_changed_at_from_the_events_own_created(self, job):
+class TestAddStatusEvent:
+    def test_records_the_event_and_leaves_the_outbox_alone(self, job):
+        """Creation and the Ray paths call this directly; only change_status writes the row."""
         JobOutbox.objects.create(
             job=job,
             job_status=Job.QUEUED,
-            status_changed_at=timezone.now() - timedelta(hours=1),
+            status_changed_at=job.created,
             has_run=False,
             license_fee_required=True,
         )
 
-        event = _add_status_event(job, Job.PENDING)
+        event = _add_status_event(job, Job.RUNNING)
 
+        assert event.data == {"status": Job.RUNNING}
         row = JobOutbox.objects.get(job=job)
-        assert row.job_status == Job.PENDING
-        assert row.status_changed_at == event.created
-
-    def test_sets_has_run_true_on_running_and_never_back_to_false(self, job):
-        JobOutbox.objects.create(
-            job=job,
-            job_status=Job.PENDING,
-            status_changed_at=timezone.now(),
-            has_run=False,
-            license_fee_required=True,
-        )
-
-        _add_status_event(job, Job.RUNNING)
-        assert JobOutbox.objects.get(job=job).has_run is True
-
-        _add_status_event(job, Job.SUCCEEDED)
-        assert JobOutbox.objects.get(job=job).has_run is True
-
-    def test_sets_has_run_true_on_succeeded_with_no_running_event(self, job):
-        """A job fast enough to fit between two scheduler polls is never seen RUNNING."""
-        JobOutbox.objects.create(
-            job=job,
-            job_status=Job.PENDING,
-            status_changed_at=timezone.now(),
-            has_run=False,
-            license_fee_required=True,
-        )
-
-        _add_status_event(job, Job.SUCCEEDED)
-
-        assert JobOutbox.objects.get(job=job).has_run is True
-
-    def test_does_not_set_has_run_on_a_terminal_status_other_than_succeeded(self, job):
-        """FAILED and STOPPED prove nothing: the job may never have started."""
-        JobOutbox.objects.create(
-            job=job,
-            job_status=Job.PENDING,
-            status_changed_at=timezone.now(),
-            has_run=False,
-            license_fee_required=True,
-        )
-
-        _add_status_event(job, Job.STOPPED)
-
-        assert JobOutbox.objects.get(job=job).has_run is False
-
-    def test_does_not_touch_license_fee_sent_at_or_billing_sent_at(self, job):
-        """The funnel must never clear a sent marker: that would cause a resend."""
-        sent = timezone.now() - timedelta(minutes=5)
-        JobOutbox.objects.create(
-            job=job,
-            job_status=Job.RUNNING,
-            status_changed_at=timezone.now(),
-            has_run=True,
-            license_fee_required=True,
-            license_fee_sent_at=sent,
-            billing_sent_at=sent,
-        )
-
-        _add_status_event(job, Job.SUCCEEDED)
-
-        row = JobOutbox.objects.get(job=job)
-        assert row.license_fee_sent_at == sent
-        assert row.billing_sent_at == sent
-
-    def test_pending_status_does_not_set_has_run(self, job):
-        JobOutbox.objects.create(
-            job=job,
-            job_status=Job.QUEUED,
-            status_changed_at=timezone.now(),
-            has_run=False,
-            license_fee_required=True,
-        )
-
-        _add_status_event(job, Job.PENDING)
-
-        assert JobOutbox.objects.get(job=job).has_run is False
+        assert row.job_status == Job.QUEUED
+        assert row.has_run is False
 
 
 class TestFirstRunningAt:

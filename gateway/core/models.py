@@ -722,18 +722,32 @@ class Job(models.Model):
     def change_status(
         self, *, origin: JobEventOrigin, context: JobEventContext, status: str, job_fields: dict | None = None
     ):
-        """Create the status-change JobEvent, then persist that same status (and
-        any extra job_fields) on this job, atomically and always in that order
-        (event, then job).
+        """Transition this job's status: the JobEvent, the JobOutbox row that mirrors
+        it, and the job itself (plus any extra job_fields), atomically and always in
+        that order.
+
+        This is the only entry point for a status transition, so it is also the only
+        place that keeps the outbox row in step with the job.
         """
         with transaction.atomic():
-            # Order matters: Event first, then-job.
-            # This fixed lock order every caller that transitions an
-            # existing job's status must use, to avoid a lock-order deadlock between
-            # two concurrent writers of the same job's Job and JobOutbox rows (one
-            # writer locking Job then waiting on JobOutbox while another locks
-            # JobOutbox then waits on Job.
+            # Order matters: event, then outbox row, then job. Every caller that
+            # transitions an existing job's status must take the Job and JobOutbox row
+            # locks in this same order, or two concurrent writers of the same job
+            # deadlock, one holding Job and waiting on JobOutbox while the other holds
+            # JobOutbox and waits on Job.
             event = JobEvent.objects.add_status_event(job_id=self.id, origin=origin, context=context, status=status)
+            outbox_fields = {"job_status": status, "status_changed_at": event.created}
+            if status in (Job.RUNNING, Job.SUCCEEDED):
+                # SUCCEEDED also proves the job ran, and it is not redundant with RUNNING:
+                # a job that starts and finishes between two scheduler polls is only ever
+                # observed as PENDING and then SUCCEEDED, so this is the single place that
+                # records that it executed. Setting True over True is a no-op.
+                outbox_fields["has_run"] = True
+            # Filler jobs have no outbox row, so for them this update matches nothing and
+            # does nothing. An explicit `if not self.filler` would say that out loud, but
+            # it would not be the whole rule: Ray jobs and pre-deployment jobs have no row
+            # either, and the only thing that decides it is whether the row exists.
+            JobOutbox.objects.filter(job_id=self.id).update(**outbox_fields)
             self.update_fields({"status": status, **(job_fields or {})})
         return event
 
