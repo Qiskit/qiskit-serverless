@@ -1,0 +1,8 @@
+---
+fixes:
+  - |
+    A Fleets job whose Kafka event-stream publish failed while transitioning from
+    ``PENDING`` to ``RUNNING`` stayed stuck in ``PENDING`` forever, retried every scheduler
+    tick with no way to recover. The status and its ``JobEvent`` are now written together in
+    a single transaction regardless of Kafka's availability, and a failed publish is logged
+    and dropped instead of blocking the transition.

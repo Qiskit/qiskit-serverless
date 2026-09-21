@@ -12,7 +12,7 @@ from django.utils import timezone
 from api.domain.job_timeline import FILLER_TEXT_COLOR, render_job_timeline
 from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import Job, JobEvent, Program, Provider
+from core.models import ComputeProfile, Job, JobEvent, Program, Provider
 
 
 def _job_with_events(
@@ -37,11 +37,16 @@ def _job_with_events(
     user = User.objects.create_user(username=f"u{uuid4().hex[:8]}", password="x")
     provider = Provider.objects.create(name=f"P{uuid4().hex[:8]}")
     program = Program.objects.create(title="t", author=user, provider=provider)
+    # The timeline reads the profile through job.compute_profile_id (the FK), so the
+    # value under test has to live on a ComputeProfile row, not a bare string column.
+    compute_profile_fk = None
+    if compute_profile is not None:
+        compute_profile_fk, _ = ComputeProfile.objects.get_or_create(compute_profile_id=compute_profile)
     job = Job.objects.create(
         author=user,
         program=program,
         status=status,
-        compute_profile=compute_profile,
+        compute_profile_fk=compute_profile_fk,
         runner=runner,
         **extra_fields,
     )

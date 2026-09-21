@@ -525,6 +525,9 @@ class Job(models.Model):
     # stored compute profile.
     SIZE_SOURCE_REQUESTED = "REQUESTED"  # user asked for this size
     SIZE_SOURCE_DEFAULT_SIZE = "DEFAULT_SIZE"  # function's default_size filled in
+    # No longer produced by RunFunctionUseCase (a Fleets function with no default_size
+    # is now rejected instead of falling back to this): kept only so existing Job rows
+    # stay readable. Candidate for deprecation/removal once none remain.
     SIZE_SOURCE_SETTINGS_DEFAULT = "SETTINGS_DEFAULT"  # deployment-wide default profile
     SIZE_SOURCE_COMPUTE_PROFILE = "COMPUTE_PROFILE"  # deprecated compute_profile input
     SIZE_SOURCE_NONE = "NONE"  # sizing not applicable (Ray / non-Fleets)
@@ -659,6 +662,17 @@ class Job(models.Model):
     def in_terminal_state(self):
         """Returns true if job is in terminal state."""
         return self.status in self.TERMINAL_STATUSES
+
+    @property
+    def compute_profile_id(self) -> str | None:
+        """Bare compute-profile string from the FK (the source of truth).
+
+        ``ComputeProfile`` uses ``compute_profile_id`` as its ``CharField``
+        primary key, so Django stores that string directly in
+        ``compute_profile_fk_id`` on this row — no extra query needed.
+        Returns ``None`` for Ray jobs and any row with no FK set.
+        """
+        return self.compute_profile_fk_id
 
     def save_direct(self, fields: list[str]) -> None:
         """Persist selected fields bypassing optimistic-locking validation.
