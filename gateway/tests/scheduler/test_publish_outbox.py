@@ -361,10 +361,10 @@ class TestMultipleBatches:
 
 class TestDeletion:
     def test_issues_a_conditional_delete_for_the_row(self):
-        """Deletion is a single DELETE ... WHERE carrying ready_to_delete()'s predicate,
-        not a separate exists() check followed by a conditional delete(): whether the
-        row actually goes away is entirely up to the SQL WHERE clause, not a Python
-        branch, so there is nothing here to test beyond "the call happens"."""
+        """See _process_row's docstring for why this is a single conditional DELETE rather
+        than a separate exists() check: that leaves nothing here to test beyond "the call
+        happens", since whether the row actually goes away is entirely up to the SQL WHERE
+        clause, not a Python branch."""
         task = _make_task()
         row = _make_row(license_fee_required=False)
 
@@ -385,13 +385,9 @@ class TestDeletion:
 
 class TestEligibilityFromQuerySetMembership:
     def test_a_row_pulled_in_only_for_the_license_fee_does_not_get_a_completed_event(self):
-        """Regression test for the pre-existing bug found while redesigning this loop:
-
-        naively re-checking eligibility from the row's own fields (e.g.
-        "billing_sent_at is None") would also be true for a row included only
-        because it owes the license fee while still RUNNING, and would wrongly
-        send a completed event for a job that has not finished.
-        """
+        """Regression test for the pre-existing bug found while redesigning this loop: see the
+        comment above the pk-set computation in run() for what naively re-deriving eligibility
+        from the row's own fields would have gotten wrong here."""
         task = _make_task()
         row = _make_row(license_fee_required=True, billing_sent_at=None)
 
