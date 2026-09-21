@@ -23,8 +23,15 @@
         fetch(button.dataset.stopUrl, {
             method: "POST",
             headers: { "X-CSRFToken": match ? match[1] : "" },
-        }).then(function () {
-            location.reload();
-        });
+        })
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error("Request failed with status " + response.status);
+                }
+                location.reload();
+            })
+            .catch(function (error) {
+                alert("Could not stop the job: " + error.message);
+            });
     });
 })();
