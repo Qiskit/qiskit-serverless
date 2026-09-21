@@ -197,6 +197,62 @@ class TestFailureHandling:
         task.event_streams_client.emit_license_fee.assert_not_called()
         task.metrics.set_outbox_breaker_open.assert_called_with(True)
 
+    def test_stops_within_the_same_batch_once_the_breaker_opens_mid_tick(self):
+        """The breaker is only checked once before the outer loop starts. If a failure
+        trips it while a batch is being processed, the drain must not keep attempting
+        further rows in that same batch: this is a regression test for that gap."""
+        task = _make_task()
+        rows = [_make_row(job_id=f"job-{i}", license_fee_required=False) for i in range(2)]
+
+        def fail_and_open_breaker(*_args, **_kwargs):
+            task._breaker.is_open = True
+            raise RuntimeError("kafka down")
+
+        task.event_streams_client.emit_job_completed.side_effect = fail_and_open_breaker
+
+        with (
+            patch(f"{_MOD}.Config") as mock_config,
+            patch(f"{_MOD}.JobOutbox") as mock_job_outbox,
+            patch(f"{_MOD}.timezone"),
+        ):
+            mock_config.get_bool.return_value = True
+            mock_config.get_int.return_value = 500
+            _configure_pending(mock_job_outbox, billing_event_pks=[r.pk for r in rows], rows=rows)
+
+            task.run()
+
+        assert task.event_streams_client.emit_job_completed.call_count == 1
+
+    def test_stops_before_the_next_batch_once_the_breaker_opens_mid_tick(self):
+        """Symmetric case at the batch boundary: a breaker tripped while draining the
+        first batch must stop the loop before it ever fetches a second one."""
+        task = _make_task()
+        row_a = _make_row(job_id="job-a", license_fee_required=False)
+        row_b = _make_row(job_id="job-b", license_fee_required=False)
+
+        def fail_and_open_breaker(*_args, **_kwargs):
+            task._breaker.is_open = True
+            raise RuntimeError("kafka down")
+
+        task.event_streams_client.emit_job_completed.side_effect = fail_and_open_breaker
+
+        with (
+            patch(f"{_MOD}.Config") as mock_config,
+            patch(f"{_MOD}.JobOutbox") as mock_job_outbox,
+            patch(f"{_MOD}.timezone"),
+        ):
+            mock_config.get_bool.return_value = True
+            mock_config.get_int.return_value = 500
+            _configure_pending(
+                mock_job_outbox,
+                billing_event_pks=[row_a.pk, row_b.pk],
+                batches=[[row_a], [row_b]],
+            )
+
+            task.run()
+
+        assert task.event_streams_client.emit_job_completed.call_count == 1
+
 
 class TestBudgetAndKillSignal:
     def test_stops_once_the_time_budget_is_spent(self):

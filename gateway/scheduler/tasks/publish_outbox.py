@@ -69,8 +69,7 @@ class PublishOutbox(SchedulerTask):
         deadline = time.monotonic() + (budget_ms / 1000)
 
         while True:
-            if time.monotonic() >= deadline:
-                logger.info("Time budget spent, stopping outbox drain for this tick")
+            if self._should_stop_draining(deadline):
                 return
 
             batch = self._fetch_batch()
@@ -92,10 +91,7 @@ class PublishOutbox(SchedulerTask):
             )
 
             for row in batch:
-                if self.kill_signal.received:
-                    return
-                if time.monotonic() >= deadline:
-                    logger.info("Time budget spent, stopping outbox drain for this tick")
+                if self._should_stop_draining(deadline):
                     return
 
                 self._process_row(
@@ -103,6 +99,25 @@ class PublishOutbox(SchedulerTask):
                     needs_license_fee=row.pk in license_fee_pks,
                     needs_billing_event=row.pk in billing_event_pks,
                 )
+
+    def _should_stop_draining(self, deadline: float) -> bool:
+        """Whether the drain should stop before fetching or sending any more, logging why.
+
+        Shared between the top of the outer loop (between batches) and the inner one
+        (between rows of the same batch), so a kill signal, a spent time budget, or a
+        breaker that trips mid-tick all take effect at the next row or batch, not just
+        at the start of the next scheduler tick.
+        """
+        if self.kill_signal.received:
+            logger.info("Kill signal received, stopping outbox drain")
+            return True
+        if time.monotonic() >= deadline:
+            logger.info("Time budget spent, stopping outbox drain for this tick")
+            return True
+        if self._breaker.is_open:
+            logger.info("Circuit breaker opened, stopping outbox drain")
+            return True
+        return False
 
     @staticmethod
     def _fetch_batch() -> list["JobOutbox"]:
