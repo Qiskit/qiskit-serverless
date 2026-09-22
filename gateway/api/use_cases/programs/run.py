@@ -87,9 +87,8 @@ def _get_runner_config(
         2. ``function_size`` -> resolved through the function's ``FunctionSize``
            catalog (source REQUESTED); an undeclared size is rejected.
         3. ``compute_profile`` (deprecated) -> used as-is (source COMPUTE_PROFILE).
-        4. Neither -> the function's ``default_size`` (source DEFAULT_SIZE); a
-           Fleets function with no ``default_size`` either is rejected rather than
-           falling back to ``settings.DEFAULT_COMPUTE_PROFILE``.
+        4. Neither -> the function's ``default_size`` (source DEFAULT_SIZE), which
+           is guaranteed to exist for Fleets functions.
 
     Both requested values are expected already normalized by the view:
     ``compute_profile`` to bare (prefix-less) form, ``function_size`` to its
@@ -147,23 +146,16 @@ def _get_runner_config(
         )
         return _config_for_profile_id(compute_profile_requested, size_source=Job.SIZE_SOURCE_COMPUTE_PROFILE)
 
-    # (4a) Nothing requested: the function's default size.
-    if function.default_size_id:
-        function_size = function.default_size
-        profile = function_size.compute_profile
-        return RunnerConfig(
-            compute_profile=profile.compute_profile_id,
-            gpu=False,
-            compute_profile_fk=profile,
-            size_source=Job.SIZE_SOURCE_DEFAULT_SIZE,
-            function_size=function_size,
-        )
-
-    # (4b) No default size either: reject rather than silently fall back to a
-    # deployment-wide default -- a Fleets function must have a size to run.
-    raise FunctionConfigurationException(
-        "This function has no default size and none was requested. "
-        "Ask an administrator to give it a size, or pass 'function_size' explicitly."
+    # (4) Nothing requested: use the function's default size, which is guaranteed
+    # to exist for Fleets functions after PR #2490.
+    function_size = function.default_size
+    profile = function_size.compute_profile
+    return RunnerConfig(
+        compute_profile=profile.compute_profile_id,
+        gpu=False,
+        compute_profile_fk=profile,
+        size_source=Job.SIZE_SOURCE_DEFAULT_SIZE,
+        function_size=function_size,
     )
 
 

@@ -57,7 +57,6 @@ class KafkaEventStreamsClient(EventStreamsClient):
 
     def __init__(self) -> None:
         environment = os.environ["ENVIRONMENT"]
-        default_region = os.environ.get("EVENT_STREAMS_DEFAULT_REGION", "us-east")
 
         # Initialize producers from environment variables
         self._producers: dict[str, Producer] = {}
@@ -168,10 +167,9 @@ class KafkaEventStreamsClient(EventStreamsClient):
     def _emit_license_fee(self, job: Job) -> None:
         parts = [LICENSE_FEE_METRIC_TYPE, job.program.provider.name, job.program.title]
 
-        # Include function size if available
+        # Include function size; all Fleets jobs have one (see PR #2490)
         function_size = self._resolve_function_size(job)
-        if function_size:
-            parts.append(function_size)
+        parts.append(function_size)
 
         metric_type = "_".join(parts)
         self._publish(
@@ -183,19 +181,15 @@ class KafkaEventStreamsClient(EventStreamsClient):
             business_model=billing_name_for(job.business_model),
         )
 
-    def _resolve_function_size(self, job: Job) -> str | None:
+    def _resolve_function_size(self, job: Job) -> str:
         """Resolve the function size for the job.
 
-        Returns the job's explicit size if set, otherwise falls back to the function's
-        default size. Returns None if neither is set.
+        Returns the job's explicit size if set, otherwise the function's default size.
+        Guaranteed to find a size for any Fleets job.
         """
         if job.function_size:
             return job.function_size.function_size
-
-        if job.program and job.program.default_size:
-            return job.program.default_size.function_size
-
-        return None
+        return job.program.default_size.function_size
 
     def _build_classical_metric_type(self, job: Job) -> str:
         """Build classical metric type from job attributes: classical_COMPUTE_PROFILE."""
