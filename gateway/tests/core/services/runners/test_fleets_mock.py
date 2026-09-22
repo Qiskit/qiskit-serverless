@@ -48,7 +48,7 @@ def test_mock_cancel_job_reports_the_cancel_as_delivered():
     Nothing else in the suite catches this. ``install_mocks()`` replaces ``cancel_job`` wholesale,
     both scheduler callers ignore what ``stop()`` returns, and the stop endpoint writes ``STOPPED``
     before it calls the runner. So a falsy return would surface only as the local stack telling a
-    user their job "was already not running" after a cancel that worked.
+    user their job was "already stopping or no longer running" after a cancel that worked.
     """
     fleets_mock = _load_fleets_mock()
 

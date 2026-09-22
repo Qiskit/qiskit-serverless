@@ -417,8 +417,9 @@ def test_generated_model_rejects_a_status_code_engine_really_returns():
     after a fleet is created and again once its task ends. This test exists so that nobody
     "simplifies" the status read back into the cancel path without seeing what it breaks.
 
-    Delete this test if the client is ever regenerated with ``standby`` in ``allowed_values``: it
-    asserts vendored behaviour, and that regeneration is exactly the fix it is standing in for.
+    Drop the ``standby`` assertion if the client is ever regenerated with ``standby`` in
+    ``allowed_values``. Keep the sparse-body one: a 2xx body missing a required field raises the same
+    wording, so that half of what ``cancel_job`` matches on outlives the regeneration.
     """
     fleet = V2Fleet.__new__(V2Fleet)
 
