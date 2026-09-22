@@ -15,6 +15,7 @@ from api.domain.exceptions.function_not_found_exception import FunctionNotFoundE
 from api.domain.function_sizes import normalize_function_size, parse_function_sizes
 from api.use_cases.programs.upload_input import UploadFunctionInput
 from core.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.function_sizes import VALID_FUNCTION_SIZES
 from core.models import (
     CodeEngineProject,
     ComputeProfile,
@@ -283,7 +284,18 @@ class UploadFunctionUseCase:
                 f"Default compute profile '{compute_profile_id}' is not registered. Contact administrator."
             )
 
-        size_name = settings.DEFAULT_FUNCTION_SIZE
+        size_name = normalize_function_size(settings.DEFAULT_FUNCTION_SIZE)
+        if size_name not in VALID_FUNCTION_SIZES:
+            logger.warning(
+                "program=%s | DEFAULT_FUNCTION_SIZE [%s] is not one of the valid sizes; rejecting upload.",
+                function.title,
+                settings.DEFAULT_FUNCTION_SIZE,
+            )
+            raise FunctionConfigurationException(
+                f"DEFAULT_FUNCTION_SIZE '{settings.DEFAULT_FUNCTION_SIZE}' is not one of the valid "
+                f"sizes ({', '.join(size.upper() for size in VALID_FUNCTION_SIZES)}). "
+                "Contact administrator."
+            )
         row = FunctionSize.objects.create(
             function=function,
             function_size=size_name,

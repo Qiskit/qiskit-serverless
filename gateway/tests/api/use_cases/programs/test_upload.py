@@ -342,6 +342,22 @@ class TestUploadFunctionUseCase:
 
         assert not Program.objects.filter(title="my-fn").exists()
 
+    def test_create_fleets_function_with_invalid_default_size_setting_is_rejected(self, user, ce_project, settings):
+        """A deployment misconfiguration (DEFAULT_FUNCTION_SIZE outside the catalog) is rejected."""
+        settings.DEFAULT_FUNCTION_SIZE_PROFILE = "16x128"
+        settings.DEFAULT_FUNCTION_SIZE = "tiny"
+        ComputeProfile.objects.create(compute_profile_id="16x128")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        with pytest.raises(FunctionConfigurationException):
+            UploadFunctionUseCase().execute(
+                user,
+                accessible,
+                UploadFunctionInput(title="my-fn", entrypoint="main.py", runner=Program.FLEETS),
+            )
+
+        assert not Program.objects.filter(title="my-fn").exists()
+
     def test_update_fleets_function_without_sizes_seeds_default_from_settings(self, user, ce_project, settings):
         """Updating a Fleets function with no catalog and no sizes/default_size seeds it, like create does."""
         settings.DEFAULT_FUNCTION_SIZE_PROFILE = "16x128"
