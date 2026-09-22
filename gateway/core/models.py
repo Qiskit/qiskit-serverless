@@ -449,14 +449,22 @@ class FunctionSize(models.Model):
     (billing looks up ``license_fee_<function>_<size>`` in its metric table)
     and carries the ``compute_profile`` used.
 
-    ``function_size`` is always uppercase. ``save()`` uppercases it on every write
-    (so ``FunctionSize.objects.create(function_size="m", ...)`` stores ``"M"``,
-    whatever case a caller passes), and ``from_db()`` uppercases it on every read
-    (so a row written around ``save()``, e.g. via a queryset ``.update()`` or a
-    row that predates this convention, still comes back uppercase). Together they
-    mean nothing above this model, not even code in this same process, ever sees
-    a lowercase label -- matching the pattern ``Job.from_db()`` already uses for
-    its own legacy-value translation, in ``core.domain.subsidized_license_mapping``.
+    ``function_size`` is always uppercase from a model instance's point of view.
+    ``save()`` uppercases it on every write (so ``FunctionSize.objects.create(function_size="m",
+    ...)`` stores ``"M"``, whatever case a caller passes), and ``from_db()`` uppercases it on
+    every read (so a row written around ``save()``, e.g. via a queryset ``.update()``, or one
+    left over from before this model enforced case, still comes back uppercase). This mirrors
+    the pattern ``Job.from_db()`` already uses for its own legacy-value translation, in
+    ``core.domain.subsidized_license_mapping``.
+
+    There is deliberately no migration that rewrites pre-existing rows: the database is allowed
+    to keep a mix of cases indefinitely, because every path that matters normalizes at the
+    boundary instead. The one exception to "uppercase everywhere" is a raw queryset read that
+    never builds a model instance -- ``.values_list("function_size", ...)`` or a manual
+    ``.filter(function_size=...)`` -- which sees exactly what is stored. The single such lookup
+    this app relies on, ``FunctionSizeQuerySet.get_function_size()``, matches case-insensitively
+    (``__iexact``) for exactly this reason; a new raw lookup added elsewhere would need the same
+    care, since ``choices`` and ``save()``/``from_db()`` do not reach it.
     """
 
     VALID_SIZES: tuple[str, ...] = ("S", "M", "L", "XL")

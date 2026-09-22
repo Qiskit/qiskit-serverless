@@ -16,9 +16,13 @@ run path agreeing on which sizes a function declares, and matches the case
 that passes this module's validation is already in the exact form the row
 will be stored and read back in.
 
-The Django admin enforces the size-name catalog itself via the model field's
-``choices`` constraint, preventing casing drift or out-of-catalog labels at
-save time. However, the admin still bypasses the shape and capacity rules that
+The Django admin's ``FunctionSizeInline``/``FunctionSizeAdmin`` render the model
+field's ``choices`` as a dropdown, which blocks a *new* out-of-catalog label from
+being typed in. It does not protect a row that already held one before ``choices``
+existed: Django's ``Select`` widget shows no option selected for a value outside
+the list, and saving the form then writes back whatever the browser defaulted to,
+silently replacing the original label. This module's own validation never runs for
+an admin save either way. The admin also bypasses the shape and capacity rules that
 live only in ``parse_function_sizes()``: the per-function size-count cap
 (``MAX_SIZES_PER_FUNCTION``) and the compute-profile-id length cap
 (``MAX_COMPUTE_PROFILE_ID_LENGTH``), since those are upload-payload-shape

@@ -3,10 +3,9 @@ upgrade:
   - |
     ``FunctionSize.function_size`` (the T-shirt size label declared for a
     function) is now restricted to ``S``, ``M``, ``L``, ``XL``. A size
-    outside this catalog is rejected on ``/programs/upload`` and in the
-    Django admin. A size is accepted case-insensitively and always stored
-    and read back in uppercase, on both the API path and direct database
-    reads/writes; a migration uppercases any pre-existing row that was
-    stored in lowercase. A row whose name is outside the catalog entirely
-    is left as-is and is only rejected the next time it is re-uploaded or
-    edited.
+    outside this catalog is rejected on ``/programs/upload``, and typing
+    one into the Django admin's now-restricted dropdown is not possible
+    either. A size is accepted case-insensitively; it is stored and read
+    back in uppercase on every path this application controls, whether or
+    not the underlying row happens to be stored in a different case. No
+    existing ``FunctionSize`` row is modified by this change.

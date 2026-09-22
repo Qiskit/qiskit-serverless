@@ -72,7 +72,7 @@ class InputSerializer(serializers.Serializer):  # pylint: disable=abstract-metho
         return compute_profile.normalize(value)
 
     def validate_function_size(self, value):
-        """Normalize the requested size label to its canonical (strip+casefold) form.
+        """Normalize the requested size label to its canonical (strip+upper) form.
 
         Only normalization happens here, matching how compute_profile normalization
         is the view's job. Whether the label is one the function declares is a

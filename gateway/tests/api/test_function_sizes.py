@@ -145,3 +145,17 @@ def test_legacy_lowercase_row_reads_back_uppercase(program, profile):
     refreshed = FunctionSize.objects.get(pk=size.pk)
 
     assert refreshed.function_size == "M"
+
+
+def test_get_function_size_resolves_a_row_stored_in_lowercase(program, profile):
+    """get_function_size() matches case-insensitively, since a legacy row is never migrated.
+
+    Unlike a model-instance read, this goes through a queryset filter (__iexact), which is
+    the one place that must not rely on FunctionSize.from_db() to see an uppercase value.
+    """
+    size = FunctionSize.objects.create(function=program, function_size="M", compute_profile=profile)
+    FunctionSize.objects.filter(pk=size.pk).update(function_size="m")
+
+    found = FunctionSize.objects.get_function_size(program, "M")
+
+    assert found.pk == size.pk
