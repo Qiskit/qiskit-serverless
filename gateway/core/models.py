@@ -16,7 +16,6 @@ from django_prometheus.models import ExportModelOperationsMixin
 
 from core.config_key import ConfigKey
 from core.domain.business_models import BusinessModel
-from core.domain.function_sizes import VALID_FUNCTION_SIZES
 from core.domain.subsidized_license_mapping import licensed_job_from_db
 from core.model_managers.code_engine_projects import CodeEngineProjectQuerySet
 from core.model_managers.compute_profiles import ComputeProfileQuerySet
@@ -430,13 +429,37 @@ class ComputeProfile(models.Model):
         return self.compute_profile_id
 
 
+def _uppercase_function_size(size, field_names):
+    """Uppercase a just-read FunctionSize row's function_size, in place.
+
+    A plain helper taking a duck-typed row rather than doing this inline in
+    FunctionSize.from_db(), matching the shape of Job.from_db()'s own
+    licensed_job_from_db() -- and, as a side effect, keeping pylint's static
+    analysis from treating the row as a bare ``Model`` with no such field.
+    """
+    if "function_size" in field_names and size.function_size:
+        size.function_size = size.function_size.upper()
+    return size
+
+
 class FunctionSize(models.Model):
     """Function size model.
 
     A ``(function, function_size)`` row identifies the license fee rate
     (billing looks up ``license_fee_<function>_<size>`` in its metric table)
     and carries the ``compute_profile`` used.
+
+    ``function_size`` is always uppercase. ``save()`` uppercases it on every write
+    (so ``FunctionSize.objects.create(function_size="m", ...)`` stores ``"M"``,
+    whatever case a caller passes), and ``from_db()`` uppercases it on every read
+    (so a row written around ``save()``, e.g. via a queryset ``.update()`` or a
+    row that predates this convention, still comes back uppercase). Together they
+    mean nothing above this model, not even code in this same process, ever sees
+    a lowercase label -- matching the pattern ``Job.from_db()`` already uses for
+    its own legacy-value translation, in ``core.domain.subsidized_license_mapping``.
     """
+
+    VALID_SIZES: tuple[str, ...] = ("S", "M", "L", "XL")
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True, editable=False)
@@ -449,7 +472,7 @@ class FunctionSize(models.Model):
     )
     function_size = models.CharField(
         max_length=64,
-        choices=[(size, size.upper()) for size in VALID_FUNCTION_SIZES],
+        choices=[(size, size) for size in VALID_SIZES],
     )
     compute_profile = models.ForeignKey(
         to=ComputeProfile,
@@ -467,6 +490,17 @@ class FunctionSize(models.Model):
                 name="unique_function_size",
             ),
         ]
+
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        """Read a size row, uppercasing function_size regardless of what is actually stored."""
+        return _uppercase_function_size(super().from_db(db, field_names, values), field_names)
+
+    def save(self, *args, **kwargs):
+        """Uppercase function_size before every write, whatever case the caller used."""
+        if self.function_size:
+            self.function_size = self.function_size.upper()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.function} ({self.function_size})"

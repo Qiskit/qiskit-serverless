@@ -76,7 +76,7 @@ def test_same_size_keyword_allowed_for_different_functions(program, other_progra
     FunctionSize.objects.create(function=program, function_size="m", compute_profile=profile)
     FunctionSize.objects.create(function=other_program, function_size="m", compute_profile=other_profile)
 
-    assert FunctionSize.objects.filter(function_size="m").count() == 2
+    assert FunctionSize.objects.filter(function_size="M").count() == 2
 
 
 def test_deleting_program_cascades_to_its_sizes(program, profile):
@@ -112,7 +112,7 @@ def test_referenced_compute_profile_is_protected(program, profile):
 
 
 def test_size_outside_catalog_rejected_by_full_clean(program, profile):
-    """A FunctionSize whose name is outside {s, m, l, xl} fails full_clean.
+    """A FunctionSize whose name is outside {S, M, L, XL} fails full_clean.
 
     This is what actually protects the admin: admin.py's FunctionSizeInline
     uses a ModelForm, and ModelForm.save() calls full_clean() before saving.
@@ -123,3 +123,25 @@ def test_size_outside_catalog_rejected_by_full_clean(program, profile):
         size.full_clean()
 
     assert "function_size" in exc_info.value.message_dict
+
+
+def test_function_size_is_stored_uppercase_regardless_of_input_case(program, profile):
+    """save() uppercases the label, whatever case it was created with."""
+    size = FunctionSize.objects.create(function=program, function_size="m", compute_profile=profile)
+
+    assert size.function_size == "M"
+    assert FunctionSize.objects.get(pk=size.pk).function_size == "M"
+
+
+def test_legacy_lowercase_row_reads_back_uppercase(program, profile):
+    """A row written before this convention (or around save(), e.g. .update()) still reads back uppercase.
+
+    FunctionSize.from_db() is the safety net for this: it normalizes whatever is
+    actually stored on every read, independently of save()'s write-side normalization.
+    """
+    size = FunctionSize.objects.create(function=program, function_size="M", compute_profile=profile)
+    FunctionSize.objects.filter(pk=size.pk).update(function_size="m")
+
+    refreshed = FunctionSize.objects.get(pk=size.pk)
+
+    assert refreshed.function_size == "M"
