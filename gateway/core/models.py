@@ -431,12 +431,7 @@ class ComputeProfile(models.Model):
 
 
 def _uppercase_function_size(size, field_names):
-    """Uppercase a just-read FunctionSize row's function_size, in place.
-
-    A plain helper taking a duck-typed row rather than doing this inline in
-    FunctionSize.from_db(), matching the shape of Job.from_db()'s own
-    licensed_job_from_db() -- and, as a side effect, keeping pylint's static
-    analysis from treating the row as a bare ``Model`` with no such field.
+    """Uppercase a just-read FunctionSize row's function_size, in place."""
     """
     if "function_size" in field_names and size.function_size:
         size.function_size = size.function_size.upper()

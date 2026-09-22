@@ -151,8 +151,6 @@ def _apply_default_size(function: Function, default_size: str) -> None:
     default_size = normalize_function_size(default_size)
     row = FunctionSize.objects.get_function_size(function, default_size)
     if row is None:
-        # Uppercased and deduplicated: a raw queryset value bypasses FunctionSize.from_db(),
-        # so a pre-existing lowercase row would otherwise show up as-is here.
         sizes = FunctionSize.objects.function_sizes(function).values_list("function_size", flat=True)
         available = sorted({size.upper() for size in sizes})
         raise DRFValidationError(
