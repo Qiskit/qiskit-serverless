@@ -146,8 +146,13 @@ def _get_runner_config(
         )
         return _config_for_profile_id(compute_profile_requested, size_source=Job.SIZE_SOURCE_COMPUTE_PROFILE)
 
-    # (4) Nothing requested: use the function's default size, which is guaranteed
-    # to exist for Fleets functions after PR #2490.
+    # (4) Nothing requested: the function's default size.
+    # All Fleets functions must have one (guaranteed by PR #2490 for new functions,
+    # seeded during upload for legacy ones); if missing, reject the job.
+    if not function.default_size_id:
+        raise FunctionConfigurationException(
+            "This function has no size. Ask an administrator to give it one, or pass 'function_size' explicitly."
+        )
     function_size = function.default_size
     profile = function_size.compute_profile
     return RunnerConfig(

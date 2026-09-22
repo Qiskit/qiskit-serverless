@@ -136,6 +136,18 @@ class TestRunFunctionUseCase:
         assert not JobConfig.objects.exists()
 
     @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
+    def test_fleets_job_rejected_when_no_default_size_and_nothing_requested(self, user, ce_project):
+        """Nothing requested and no default_size: rejected with clear 400 error."""
+        make_fleets_function(user, ce_project)
+        ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        with pytest.raises(FunctionConfigurationException):
+            RunFunctionUseCase().execute(user, accessible, make_input())
+
+        assert not Job.objects.exists()
+
+    @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
     def test_fleets_job_sets_compute_profile_fk_from_explicit_request(self, user, ce_project, monkeypatch):
         """An explicitly requested profile (already bare) is stored and resolves its FK row.
 
