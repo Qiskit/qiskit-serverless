@@ -1,0 +1,9 @@
+---
+upgrade:
+  - |
+    ``FunctionSize.function_size`` (the T-shirt size label declared for a
+    function) is now restricted to ``S``, ``M``, ``L``, ``XL``. A size
+    outside this catalog is rejected on ``/programs/upload`` and in the
+    Django admin. Existing ``FunctionSize`` rows are not modified; a row
+    with a name outside the catalog is only rejected the next time it is
+    re-uploaded or edited.
