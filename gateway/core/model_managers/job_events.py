@@ -68,14 +68,8 @@ class JobEventQuerySet(QuerySet):
         context: JobEventContext,
         status: str,
     ):
-        """Status change event for jobs.
+        """Status change event for jobs."""
 
-        The event only. The JobOutbox row that mirrors it is written by
-        Job.change_status, the single entry point for a status transition. The
-        callers that reach this method directly either have no outbox row at all
-        (Ray jobs, and the admin's Ray-only stop button) or create the row
-        themselves right afterwards, when the job itself is being created.
-        """
         logger.info(
             "[add_status_event] job_id=%s | Set status to %s | %s %s %s",
             job_id,

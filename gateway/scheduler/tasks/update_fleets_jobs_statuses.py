@@ -113,12 +113,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         return True
 
     def to_terminal(self, job: Job, new_status: str) -> None:
-        """Persist a terminal status transition.
-
-        Kafka publishing for this transition is not done here: it is picked up by
-        PublishOutbox from the outbox row that add_status_event just updated,
-        so a Kafka outage never blocks this transition.
-        """
+        """Persist a terminal status transition."""
         logger.info(
             "job_id=%s user_id=%s Changing status from %s to %s",
             job.id,
@@ -126,6 +121,9 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             new_status,
         )
+        # No Kafka call happens here: this only marks the JobOutbox row's final usage
+        # event as pending (the job reached a terminal status). PublishOutbox is the
+        # one that actually sends it, later, on its own schedule.
         job.change_status(
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,
@@ -143,6 +141,10 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             Job.RUNNING,
         )
+        # No Kafka call happens here either: this only marks the JobOutbox row's
+        # license fee as pending (has_run=True). PublishOutbox sends that one later,
+        # on its own schedule, independently of the emit_job_started() call below,
+        # which is a different billing fact (classical compute time) sent inline.
         job.change_status(
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,

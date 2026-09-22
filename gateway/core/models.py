@@ -736,12 +736,9 @@ class Job(models.Model):
                 # SUCCEEDED also proves the job ran, and it is not redundant with RUNNING:
                 # a job that starts and finishes between two scheduler polls is only ever
                 # observed as PENDING and then SUCCEEDED, so this is the single place that
-                # records that it executed. Setting True over True is a no-op.
+                # records that it executed.
                 outbox_fields["has_run"] = True
-            # Filler jobs have no outbox row, so for them this update matches nothing and
-            # does nothing. An explicit `if not self.filler` would say that out loud, but
-            # it would not be the whole rule: Ray jobs and pre-deployment jobs have no row
-            # either, and the only thing that decides it is whether the row exists.
+            # Filler and Ray jobs have no outbox row, so for them this update matches nothing
             JobOutbox.objects.filter(job_id=self.id).update(**outbox_fields)
             self.update_fields({"status": status, **(job_fields or {})})
         return event
