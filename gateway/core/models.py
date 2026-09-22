@@ -473,6 +473,7 @@ class Job(models.Model):
 
     PENDING = "PENDING"
     RUNNING = "RUNNING"
+    STOPPING = "STOPPING"
     STOPPED = "STOPPED"
     SUCCEEDED = "SUCCEEDED"
     FAILED = "FAILED"
@@ -480,6 +481,7 @@ class Job(models.Model):
     JOB_STATUSES = [
         (PENDING, "Pending"),
         (RUNNING, "Running"),
+        (STOPPING, "Stopping"),
         (STOPPED, "Stopped"),
         (SUCCEEDED, "Succeeded"),
         (QUEUED, "Queued"),
@@ -494,7 +496,10 @@ class Job(models.Model):
     POST_PROCESSING = "POST_PROCESSING"
 
     TERMINAL_STATUSES = [SUCCEEDED, FAILED, STOPPED]
-    RUNNING_STATUSES = [RUNNING, PENDING]
+    # STOPPING is running, because the engine still holds the node until it confirms the cancel, and
+    # it is deliberately not active: ACTIVE_STATUSES gates LIMITS_ACTIVE_JOBS_PER_USER, so a stopping
+    # job frees the user's submission quota, and it also rejects new sub_status and error events.
+    RUNNING_STATUSES = [RUNNING, PENDING, STOPPING]
     ACTIVE_STATUSES = [QUEUED, PENDING, RUNNING]
 
     RUNNING_SUB_STATUSES = [

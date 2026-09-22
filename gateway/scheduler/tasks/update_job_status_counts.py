@@ -20,12 +20,15 @@ class UpdateJobStatusCounts(SchedulerTask):
         self.metrics = metrics
 
     def run(self):
-        """Update job counts per status and provider (active states only).
+        """Update job counts per status and provider, for every status before a job ends.
+
+        Deliberately not ``ACTIVE_STATUSES``: ``STOPPING`` is counted here but kept out of that
+        list, because it frees the user's submission quota while the engine winds the job down.
 
         Filler jobs run continuously, so counting them here would make a constant
         floor look like user demand. They get their own gauge instead.
         """
-        statuses = [Job.QUEUED, Job.PENDING, Job.RUNNING]
+        statuses = [Job.QUEUED, Job.PENDING, Job.RUNNING, Job.STOPPING]
         active = Job.objects.filter(status__in=statuses)
 
         rows = active.exclude(filler=True).values("status", "program__provider__name").annotate(count=Count("id"))
