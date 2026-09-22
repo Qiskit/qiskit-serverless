@@ -55,6 +55,9 @@ def test_mock_cancel_job_reports_the_cancel_as_delivered():
     handler = MagicMock()
     handler.project_id = "test-project-id"
     s3 = MagicMock()
+    # No cancel key yet. This also covers the "COS blew up" case, which takes the same branch on
+    # purpose: a failed existence probe must never stop us writing the cancel.
+    s3.head_object.side_effect = Exception("NoSuchKey")
 
     with (
         patch.object(fleets_mock, "_get_mock_s3", return_value=s3),
@@ -70,3 +73,26 @@ def test_mock_cancel_job_reports_the_cancel_as_delivered():
         Key=f"{prefix}canceled/0/fleet-123-0/canceled",
         Body=b"",
     )
+
+
+def test_mock_cancel_job_reports_nothing_to_cancel_when_one_is_already_in_flight():
+    """A second cancel returns False, the way the real ``cancel_job`` answers a 409.
+
+    This is the only way the local stack can reach ``stop()``'s False branch, since
+    ``install_mocks`` replaces ``cancel_job`` wholesale and the handler's own 404/409 mapping never
+    runs there.
+    """
+    fleets_mock = _load_fleets_mock()
+
+    handler = MagicMock()
+    handler.project_id = "test-project-id"
+    s3 = MagicMock()  # head_object succeeds, so a cancel key is already present
+
+    with (
+        patch.object(fleets_mock, "_get_mock_s3", return_value=s3),
+        patch.object(fleets_mock, "_task_store_bucket", return_value="task-store-bucket"),
+    ):
+        result = fleets_mock._mock_cancel_job(handler, "fleet-123")  # pylint: disable=protected-access
+
+    assert result is False
+    s3.put_object.assert_not_called()

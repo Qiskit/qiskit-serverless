@@ -359,14 +359,34 @@ def _mock_cancel_job(self, identifier, **kwargs):  # pylint: disable=unused-argu
         **kwargs: Additional arguments (ignored).
 
     Returns:
-        ``True``, matching the real ``cancel_job``, which reports whether Code Engine accepted the
-        cancel. Returning nothing would make every mocked stop read as "nothing to cancel".
+        ``True`` when this call wrote the cancel key, ``False`` when one was already there. That
+        mirrors the real ``cancel_job``, which answers ``False`` to Code Engine's
+        ``fleet_already_canceled`` 409 for a fleet whose cancel is already in flight, and it makes
+        the "nothing to cancel" path reachable from the local stack: cancel a job twice and the
+        second call reports it.
+
+        Fleet existence is deliberately **not** checked, even though ``_mock_get_job_status`` does.
+        The archive manifest is written at submit and nothing removes it while a job runs, so the
+        check would always pass for a live job, and the only ways it could fail are a COS error or a
+        cancel arriving after a test's cleanup. In both of those the job is still running and the
+        write below is the only thing that stops it, so ``False`` would be the wrong answer.
     """
     s3 = _get_mock_s3()
     # Resolve the job's own project bucket (like _mock_get_job_status), not the
     # first active project, so cancel writes where status() reads.
     bucket = _task_store_bucket(self.project_id)
     cancel_key = f"{queue_prefix(self.project_id, identifier)}canceled/0/{identifier}-0/canceled"
+
+    try:
+        s3.head_object(Bucket=bucket, Key=cancel_key)
+    except Exception:  # pylint: disable=broad-except
+        # Any failure here has to fall through to the write. Narrowing this to a 404-shaped
+        # ClientError would let a connectivity blip skip the cancel, and for a running mocked job
+        # this write is the only signal that stops it. Erring toward cancelling is the safe side.
+        pass
+    else:
+        return False
+
     s3.put_object(Bucket=bucket, Key=cancel_key, Body=b"")
     return True
 
