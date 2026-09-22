@@ -15,10 +15,13 @@ Canonicalising through ``normalize_function_size`` keeps the
 run path agreeing on which sizes a function declares. ``casefold()`` rather than
 ``lower()`` so non-ASCII labels fold correctly.
 
-Rows created directly in the admin backoffice bypass this module, since the
-admin runs no API validation. A label typed there with different casing is a
-distinct row that will not resolve at run time, so it should be entered in its
-normalised form.
+The Django admin enforces the size-name catalog itself via the model field's
+``choices`` constraint, preventing casing drift or out-of-catalog labels at
+save time. However, the admin still bypasses the shape and capacity rules that
+live only in ``parse_function_sizes()``: the per-function size-count cap
+(``MAX_SIZES_PER_FUNCTION``) and the compute-profile-id length cap
+(``MAX_COMPUTE_PROFILE_ID_LENGTH``), since those are upload-payload-shape
+validation and have no equivalent in the admin form.
 """
 
 from api.domain.exceptions.invalid_function_sizes_error import InvalidFunctionSizesError
