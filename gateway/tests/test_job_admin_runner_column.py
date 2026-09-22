@@ -173,7 +173,7 @@ def test_compute_profile_column_searches_by_the_profile_and_shows_the_function_s
     assert 'class="qs-cell-link"' in html
     assert ">24x120x1l40<" in html
     # The size's own name, not its primary key nor the "program (size)" label of str(FunctionSize).
-    assert '<span class="qs-runner-meta">medium</span>' in html
+    assert '<span class="qs-runner-meta">MEDIUM</span>' in html
     assert str(size.pk) not in html
     assert html.count("<br>") == 1
     assert "&lt;br&gt;" not in html

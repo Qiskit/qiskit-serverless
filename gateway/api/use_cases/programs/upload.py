@@ -15,7 +15,6 @@ from api.domain.exceptions.function_not_found_exception import FunctionNotFoundE
 from api.domain.function_sizes import normalize_function_size, parse_function_sizes
 from api.use_cases.programs.upload_input import UploadFunctionInput
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.domain.function_sizes import VALID_FUNCTION_SIZES
 from core.models import (
     CodeEngineProject,
     ComputeProfile,
@@ -285,7 +284,7 @@ class UploadFunctionUseCase:
             )
 
         size_name = normalize_function_size(settings.DEFAULT_FUNCTION_SIZE)
-        if size_name not in VALID_FUNCTION_SIZES:
+        if size_name not in FunctionSize.VALID_SIZES:
             logger.warning(
                 "program=%s | DEFAULT_FUNCTION_SIZE [%s] is not one of the valid sizes; rejecting upload.",
                 function.title,
@@ -293,8 +292,7 @@ class UploadFunctionUseCase:
             )
             raise FunctionConfigurationException(
                 f"DEFAULT_FUNCTION_SIZE '{settings.DEFAULT_FUNCTION_SIZE}' is not one of the valid "
-                f"sizes ({', '.join(size.upper() for size in VALID_FUNCTION_SIZES)}). "
-                "Contact administrator."
+                f"sizes ({', '.join(FunctionSize.VALID_SIZES)}). Contact administrator."
             )
         row = FunctionSize.objects.create(
             function=function,
