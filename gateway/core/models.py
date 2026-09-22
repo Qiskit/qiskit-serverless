@@ -16,6 +16,7 @@ from django_prometheus.models import ExportModelOperationsMixin
 
 from core.config_key import ConfigKey
 from core.domain.business_models import BusinessModel
+from core.domain.function_sizes import VALID_SIZES as FUNCTION_SIZE_VALID_SIZES
 from core.domain.subsidized_license_mapping import licensed_job_from_db
 from core.model_managers.code_engine_projects import CodeEngineProjectQuerySet
 from core.model_managers.compute_profiles import ComputeProfileQuerySet
@@ -467,7 +468,11 @@ class FunctionSize(models.Model):
     care, since ``choices`` and ``save()``/``from_db()`` do not reach it.
     """
 
-    VALID_SIZES: tuple[str, ...] = ("S", "M", "L", "XL")
+    # Re-exported from core.domain.function_sizes, not defined here: main/settings.py
+    # needs this same list to validate DEFAULT_FUNCTION_SIZE at import time, before
+    # Django's app registry exists, so the canonical list has to live somewhere that
+    # importing it never requires a model (see that module's docstring).
+    VALID_SIZES: tuple[str, ...] = FUNCTION_SIZE_VALID_SIZES
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True, editable=False)

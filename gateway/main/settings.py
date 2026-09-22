@@ -20,6 +20,7 @@ from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 
 from core.domain import compute_profile
+from core.domain.function_sizes import VALID_SIZES as FUNCTION_SIZE_VALID_SIZES
 from core.utils import sanitize_file_path
 
 RELEASE_VERSION = os.environ.get("VERSION", "UNKNOWN")
@@ -536,13 +537,38 @@ def _canonical_compute_profile(name: str, default: str) -> str:
     return normalized
 
 
+def _canonical_function_size(name: str, default: str) -> str:
+    """Read a function size label from the environment, checked against the catalog.
+
+    core.domain.function_sizes.VALID_SIZES (not core.models.FunctionSize.VALID_SIZES,
+    the same tuple re-exported there) is what makes this checkable here at all: this
+    module runs before Django's app registry exists, so it cannot import anything
+    that defines a model. The ``.strip().upper()`` below duplicates
+    api.domain.function_sizes.normalize_function_size rather than calling it, for the
+    same reason: that module itself imports ``core.models.FunctionSize``, so importing
+    it from here would hit the same ``AppRegistryNotReady`` this function exists to
+    avoid, one hop removed.
+
+    Raises:
+        ImproperlyConfigured: the value is not one of VALID_SIZES. Failing at import
+            beats accepting it: an unusable default would otherwise surface much
+            later as a rejected upload, far from the environment variable that
+            caused it -- the same reasoning as _canonical_compute_profile above.
+    """
+    value = os.environ.get(name, default)
+    normalized = value.strip().upper()
+    if normalized not in FUNCTION_SIZE_VALID_SIZES:
+        raise ImproperlyConfigured(f"{name} is not one of {FUNCTION_SIZE_VALID_SIZES}: {value!r}")
+    return normalized
+
+
 # Compute profile settings for Fleets runner
 DEFAULT_COMPUTE_PROFILE = _canonical_compute_profile("DEFAULT_COMPUTE_PROFILE", "16x128")  # 16 CPU, 128GB RAM
 # Size seeded for a function uploaded without an explicit size catalog, so every
 # function has a size to run with while declaring sizes is still optional. The
 # profile must name an existing ComputeProfile row; when no such row exists the
 # function is created with no sizes and runs fall back to DEFAULT_COMPUTE_PROFILE.
-DEFAULT_FUNCTION_SIZE = os.environ.get("DEFAULT_FUNCTION_SIZE", "m")
+DEFAULT_FUNCTION_SIZE = _canonical_function_size("DEFAULT_FUNCTION_SIZE", "M")
 DEFAULT_FUNCTION_SIZE_PROFILE = _canonical_compute_profile(
     "DEFAULT_FUNCTION_SIZE_PROFILE", "16x128"
 )  # 16 CPU, 128GB RAM
