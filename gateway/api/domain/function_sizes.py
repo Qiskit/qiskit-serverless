@@ -1,7 +1,9 @@
 """Domain rules for the function size catalog declared at upload time.
 
 A function declares its sizes as a mapping of size label to compute profile
-identifier, e.g. ``{"m": "16x128", "XL": "80x1280x8a100"}``, where the value
+identifier, e.g. ``{"m": "16x128", "XL": "80x1280x8a100"}``, where the label
+must be one of ``core.domain.function_sizes.VALID_FUNCTION_SIZES`` (shown to
+users as S/M/L/XL) and the value
 names an existing ``ComputeProfile`` row. This module owns the shape and the
 naming rules for that mapping; whether a profile actually exists is a database
 question and is answered in the use case, per ``specs/VIEWS.md``.
@@ -20,6 +22,7 @@ normalised form.
 """
 
 from api.domain.exceptions.invalid_function_sizes_error import InvalidFunctionSizesError
+from core.domain.function_sizes import VALID_FUNCTION_SIZES
 
 # A size catalog is a hand written menu of machine shapes, so single digits are
 # the norm and this only exists to stop a caller from turning one upload into an
@@ -87,6 +90,11 @@ def parse_function_sizes(sizes) -> dict[str, str]:
             raise InvalidFunctionSizesError(
                 f"Compute profile for size '{raw_name}' is longer than "
                 f"the maximum of {MAX_COMPUTE_PROFILE_ID_LENGTH} characters."
+            )
+        if name not in VALID_FUNCTION_SIZES:
+            raise InvalidFunctionSizesError(
+                f"Invalid size '{raw_name}'. Valid sizes are: "
+                f"{', '.join(size.upper() for size in VALID_FUNCTION_SIZES)}."
             )
         if name in parsed:
             raise InvalidFunctionSizesError(
