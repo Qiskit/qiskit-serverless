@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="functionsize",
             name="function_size",
-            field=models.CharField(choices=[("s", "S"), ("m", "M"), ("l", "L"), ("xl", "XL")], max_length=64),
+            field=models.CharField(choices=[("S", "S"), ("M", "M"), ("L", "L"), ("XL", "XL")], max_length=64),
         ),
     ]
