@@ -432,7 +432,6 @@ class ComputeProfile(models.Model):
 
 def _uppercase_function_size(size, field_names):
     """Uppercase a just-read FunctionSize row's function_size, in place."""
-    """
     if "function_size" in field_names and size.function_size:
         size.function_size = size.function_size.upper()
     return size
@@ -445,22 +444,11 @@ class FunctionSize(models.Model):
     (billing looks up ``license_fee_<function>_<size>`` in its metric table)
     and carries the ``compute_profile`` used.
 
-    ``function_size`` is always uppercase from a model instance's point of view.
-    ``save()`` uppercases it on every write (so ``FunctionSize.objects.create(function_size="m",
-    ...)`` stores ``"M"``, whatever case a caller passes), and ``from_db()`` uppercases it on
-    every read (so a row written around ``save()``, e.g. via a queryset ``.update()``, or one
-    left over from before this model enforced case, still comes back uppercase). This mirrors
-    the pattern ``Job.from_db()`` already uses for its own legacy-value translation, in
-    ``core.domain.subsidized_license_mapping``.
-
-    There is deliberately no migration that rewrites pre-existing rows: the database is allowed
-    to keep a mix of cases indefinitely, because every path that matters normalizes at the
-    boundary instead. The one exception to "uppercase everywhere" is a raw queryset read that
-    never builds a model instance -- ``.values_list("function_size", ...)`` or a manual
-    ``.filter(function_size=...)`` -- which sees exactly what is stored. The single such lookup
-    this app relies on, ``FunctionSizeQuerySet.get_function_size()``, matches case-insensitively
-    (``__iexact``) for exactly this reason; a new raw lookup added elsewhere would need the same
-    care, since ``choices`` and ``save()``/``from_db()`` do not reach it.
+    ``function_size`` is always uppercase: ``save()`` uppercases on write, ``from_db()`` on read,
+    mirroring ``Job.from_db()``'s own legacy-value translation. No migration rewrites pre-existing
+    rows -- a raw queryset read (``.values_list()``, ``.filter(function_size=...)``) sees whatever
+    is actually stored, which is why ``FunctionSizeQuerySet.get_function_size()`` matches
+    case-insensitively instead of relying on that.
     """
 
     VALID_SIZES: tuple[str, ...] = FUNCTION_SIZE_VALID_SIZES

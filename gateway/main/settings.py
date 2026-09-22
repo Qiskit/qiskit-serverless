@@ -540,12 +540,7 @@ def _canonical_compute_profile(name: str, default: str) -> str:
 # Compute profile settings for Fleets runner
 DEFAULT_COMPUTE_PROFILE = _canonical_compute_profile("DEFAULT_COMPUTE_PROFILE", "16x128")  # 16 CPU, 128GB RAM
 # Size seeded for a function uploaded without an explicit size catalog, so every
-# function has a size to run with while declaring sizes is still optional. Checked
-# against core.domain.function_sizes.VALID_SIZES here (a plain module with no Django
-# import) rather than core.models.FunctionSize.VALID_SIZES, since this module runs
-# before Django's app registry exists and cannot import anything that defines a model.
-# Failing at import beats accepting it: an unusable default would otherwise surface
-# much later as a rejected upload, far from the environment variable that caused it.
+# function has a size to run with while declaring sizes is still optional.
 DEFAULT_FUNCTION_SIZE = os.environ.get("DEFAULT_FUNCTION_SIZE", "M").strip().upper()
 if DEFAULT_FUNCTION_SIZE not in FUNCTION_SIZE_VALID_SIZES:
     raise ImproperlyConfigured(

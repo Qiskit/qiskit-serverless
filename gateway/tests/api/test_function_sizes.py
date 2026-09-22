@@ -134,11 +134,7 @@ def test_function_size_is_stored_uppercase_regardless_of_input_case(program, pro
 
 
 def test_legacy_lowercase_row_reads_back_uppercase(program, profile):
-    """A row written before this convention (or around save(), e.g. .update()) still reads back uppercase.
-
-    FunctionSize.from_db() is the safety net for this: it normalizes whatever is
-    actually stored on every read, independently of save()'s write-side normalization.
-    """
+    """from_db() uppercases the label, whatever case is actually stored."""
     size = FunctionSize.objects.create(function=program, function_size="M", compute_profile=profile)
     FunctionSize.objects.filter(pk=size.pk).update(function_size="m")
 
@@ -148,11 +144,7 @@ def test_legacy_lowercase_row_reads_back_uppercase(program, profile):
 
 
 def test_get_function_size_resolves_a_row_stored_in_lowercase(program, profile):
-    """get_function_size() matches case-insensitively, since a legacy row is never migrated.
-
-    Unlike a model-instance read, this goes through a queryset filter (__iexact), which is
-    the one place that must not rely on FunctionSize.from_db() to see an uppercase value.
-    """
+    """get_function_size() matches case-insensitively, since a legacy row is never migrated."""
     size = FunctionSize.objects.create(function=program, function_size="M", compute_profile=profile)
     FunctionSize.objects.filter(pk=size.pk).update(function_size="m")
 

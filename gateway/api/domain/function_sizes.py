@@ -9,24 +9,15 @@ question and is answered in the use case, per ``specs/VIEWS.md``.
 
 A size label is a user-facing name, so it is compared case-insensitively: an
 uploader writing ``"xl"`` and a client running ``" Xl "`` mean the same size.
-Canonicalising through ``normalize_function_size`` (uppercase) keeps the
-``unique_function_size`` constraint meaningful, keeps the upload path and the
-run path agreeing on which sizes a function declares, and matches the case
-``FunctionSize.save()``/``from_db()`` enforce on the model itself -- so a value
-that passes this module's validation is already in the exact form the row
-will be stored and read back in.
+``normalize_function_size`` upper-cases it, matching what ``FunctionSize.save()``
+stores.
 
-The Django admin's ``FunctionSizeInline``/``FunctionSizeAdmin`` render the model
-field's ``choices`` as a dropdown, which blocks a *new* out-of-catalog label from
-being typed in. It does not protect a row that already held one before ``choices``
-existed: Django's ``Select`` widget shows no option selected for a value outside
-the list, and saving the form then writes back whatever the browser defaulted to,
-silently replacing the original label. This module's own validation never runs for
-an admin save either way. The admin also bypasses the shape and capacity rules that
-live only in ``parse_function_sizes()``: the per-function size-count cap
-(``MAX_SIZES_PER_FUNCTION``) and the compute-profile-id length cap
-(``MAX_COMPUTE_PROFILE_ID_LENGTH``), since those are upload-payload-shape
-validation and have no equivalent in the admin form.
+The Django admin's ``choices`` dropdown blocks a *new* out-of-catalog label, but
+does not protect a row that already held one: Django's ``Select`` widget shows no
+option selected for such a value, and saving the form silently overwrites it with
+whatever the browser defaulted to. The admin also bypasses this module's shape
+rules (``MAX_SIZES_PER_FUNCTION``, ``MAX_COMPUTE_PROFILE_ID_LENGTH``), which have
+no equivalent in the admin form.
 """
 
 from api.domain.exceptions.invalid_function_sizes_error import InvalidFunctionSizesError

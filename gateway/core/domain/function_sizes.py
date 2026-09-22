@@ -12,13 +12,8 @@
 
 """The closed catalog of valid function size labels.
 
-A plain module with no Django import on purpose: ``main/settings.py`` needs this list
-to validate ``DEFAULT_FUNCTION_SIZE`` at import time, and settings.py is read before
-Django's app registry exists, so it cannot import anything that defines a model (doing
-so raises ``AppRegistryNotReady``). ``FunctionSize`` (``core.models``) re-exports this
-same tuple as ``FunctionSize.VALID_SIZES`` for application code, matching how ``Job``
-and ``Program`` carry their own catalogs as class attributes; this module is only about
-being importable before that model can be.
+No Django import on purpose: ``main/settings.py`` needs this list before Django's app
+registry exists, so it can't import a model. ``FunctionSize.VALID_SIZES`` re-exports it.
 """
 
 VALID_SIZES: tuple[str, ...] = ("S", "M", "L", "XL")

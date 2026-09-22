@@ -40,13 +40,9 @@ class FunctionSizeQuerySet(QuerySet):
     def get_function_size(self, function: "Function", function_size: Optional[str]) -> Optional["FunctionSize"]:
         """Return a single ``(function, size)`` row.
 
-        Matched case-insensitively (``__iexact``), not by exact string, because nothing
-        migrates a row written before ``FunctionSize.save()`` started uppercasing on write:
-        an old row stored as ``"m"`` must still resolve for a caller passing the now-canonical
-        ``"M"``. Normally at most one row matches, per the ``unique_function_size`` constraint
-        -- that constraint is itself case-sensitive, though, so a pre-existing ``"m"``/``"M"``
-        pair for the same function (a data problem predating this restriction) would match both,
-        and ``.first()`` picks one arbitrarily rather than raising.
+        Matched case-insensitively (``__iexact``), not by exact string, since no migration
+        rewrites a row stored before ``FunctionSize.save()`` started uppercasing. At most one
+        row normally matches, per the ``unique_function_size`` constraint.
 
         Args:
             function: Program the size belongs to
