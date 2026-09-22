@@ -124,8 +124,6 @@ def _get_runner_config(
     if function_size_requested:
         function_size = FunctionSize.objects.get_function_size(function, function_size_requested)
         if function_size is None:
-            # Uppercased and deduplicated: a raw queryset value bypasses FunctionSize.from_db(),
-            # so a pre-existing lowercase row would otherwise show up as-is here.
             sizes = FunctionSize.objects.function_sizes(function).values_list("function_size", flat=True)
             available = sorted({size.upper() for size in sizes})
             available_msg = ", ".join(available) if available else "this function declares no sizes."
