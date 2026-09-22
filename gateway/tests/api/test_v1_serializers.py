@@ -203,7 +203,7 @@ class TestSerializers:
 
         serializer = UploadProgramSerializer(data=data)
         assert serializer.is_valid()
-        assert serializer.validated_data["default_size"] == "m"
+        assert serializer.validated_data["default_size"] == "M"
 
     def test_run_program_serializer_check_emtpy_data(self):
         data = {}
@@ -324,8 +324,8 @@ class TestSerializers:
 
         data = UploadProgramSerializer(program).data
 
-        assert data["sizes"] == {"s": "4x16", "m": "4x16"}
-        assert data["default_size"] == "m"
+        assert data["sizes"] == {"S": "4x16", "M": "4x16"}
+        assert data["default_size"] == "M"
 
     def test_upload_program_serializer_renders_empty_sizes_when_none(self):
         """A function with no catalog serializes an empty map and null default."""

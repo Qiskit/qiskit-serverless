@@ -150,7 +150,7 @@ class ComputeProfileAdmin(admin.ModelAdmin):
 class FunctionSizeInline(admin.TabularInline):
     """A function's size catalog (its sizes map) shown inline on the function page.
 
-    Each row maps a size key (e.g. ``s``/``m``/``l``) to the compute profile it runs on. Editing
+    Each row maps a size key (e.g. ``S``/``M``/``L``) to the compute profile it runs on. Editing
     the catalog here, next to ``default_size``, is what the upload endpoint's ``sizes`` payload
     builds; the separate FunctionSize changelist stays available for cross-function views.
     """

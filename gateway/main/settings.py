@@ -20,6 +20,7 @@ from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 
 from core.domain import compute_profile
+from core.domain.function_sizes import VALID_SIZES as FUNCTION_SIZE_VALID_SIZES
 from core.utils import sanitize_file_path
 
 RELEASE_VERSION = os.environ.get("VERSION", "UNKNOWN")
@@ -539,10 +540,12 @@ def _canonical_compute_profile(name: str, default: str) -> str:
 # Compute profile settings for Fleets runner
 DEFAULT_COMPUTE_PROFILE = _canonical_compute_profile("DEFAULT_COMPUTE_PROFILE", "16x128")  # 16 CPU, 128GB RAM
 # Size seeded for a function uploaded without an explicit size catalog, so every
-# function has a size to run with while declaring sizes is still optional. The
-# profile must name an existing ComputeProfile row; when no such row exists the
-# function is created with no sizes and runs fall back to DEFAULT_COMPUTE_PROFILE.
-DEFAULT_FUNCTION_SIZE = os.environ.get("DEFAULT_FUNCTION_SIZE", "m")
+# function has a size to run with while declaring sizes is still optional.
+DEFAULT_FUNCTION_SIZE = os.environ.get("DEFAULT_FUNCTION_SIZE", "M").strip().upper()
+if DEFAULT_FUNCTION_SIZE not in FUNCTION_SIZE_VALID_SIZES:
+    raise ImproperlyConfigured(
+        f"DEFAULT_FUNCTION_SIZE is not one of {FUNCTION_SIZE_VALID_SIZES}: {DEFAULT_FUNCTION_SIZE!r}"
+    )
 DEFAULT_FUNCTION_SIZE_PROFILE = _canonical_compute_profile(
     "DEFAULT_FUNCTION_SIZE_PROFILE", "16x128"
 )  # 16 CPU, 128GB RAM

@@ -224,11 +224,11 @@ def test_run_with_function_size_happy_path(api_client, program):
     job = Job.objects.get(id=response.data["id"])
     assert job.compute_profile == "4x16"
     assert job.size_source == Job.SIZE_SOURCE_REQUESTED
-    assert job.function_size.function_size == "m"
+    assert job.function_size.function_size == "M"
 
 
 def test_run_with_function_size_is_normalized(api_client, program):
-    """The requested label is normalized (strip+casefold) before catalog lookup."""
+    """The requested label is normalized (strip+upper) before catalog lookup."""
     profile = ComputeProfile.objects.get(compute_profile_id="4x16")
     FunctionSize.objects.create(function=program, function_size="m", compute_profile=profile)
     url = reverse("v1:programs-run")
@@ -295,8 +295,8 @@ def test_get_by_title_includes_sizes_and_default(api_client, user, program):
     response = api_client.get(url, format="json")
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.data["sizes"] == {"s": "4x16", "m": "8x64"}
-    assert response.data["default_size"] == "m"
+    assert response.data["sizes"] == {"S": "4x16", "M": "8x64"}
+    assert response.data["default_size"] == "M"
 
 
 def test_get_by_title_sizes_empty_when_none_declared(api_client, user, program):
@@ -321,8 +321,8 @@ def test_list_includes_sizes_and_default(api_client, user, program):
 
     assert response.status_code == status.HTTP_200_OK
     entry = next(item for item in response.data if item["title"] == program.title)
-    assert entry["sizes"] == {"s": "4x16"}
-    assert entry["default_size"] == "s"
+    assert entry["sizes"] == {"S": "4x16"}
+    assert entry["default_size"] == "S"
 
 
 def test_job_list_includes_compute_profile(api_client, user, program):

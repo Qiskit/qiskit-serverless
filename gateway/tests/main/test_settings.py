@@ -43,6 +43,7 @@ def restore_settings_module():
     os.environ.pop("SETTINGS_AUTH_MECHANISM", None)
     os.environ.pop("DEFAULT_COMPUTE_PROFILE", None)
     os.environ.pop("DEFAULT_FUNCTION_SIZE_PROFILE", None)
+    os.environ.pop("DEFAULT_FUNCTION_SIZE", None)
     try:
         importlib.reload(main.settings)
     finally:
@@ -159,6 +160,25 @@ class TestComputeProfileSettings:
     def test_an_empty_value_fails_closed(self, monkeypatch):
         """An empty environment variable is rejected, not treated as unset."""
         monkeypatch.setenv("DEFAULT_FUNCTION_SIZE_PROFILE", "")
+
+        with pytest.raises(ImproperlyConfigured):
+            importlib.reload(main.settings)
+
+
+class TestFunctionSizeSetting:
+    """Tests for DEFAULT_FUNCTION_SIZE, validated against FunctionSize.VALID_SIZES at import."""
+
+    def test_lowercase_value_normalizes_to_uppercase(self, monkeypatch):
+        """A case-insensitive value loads fine and is stored in its canonical uppercase form."""
+        monkeypatch.setenv("DEFAULT_FUNCTION_SIZE", "l")
+
+        importlib.reload(main.settings)
+
+        assert main.settings.DEFAULT_FUNCTION_SIZE == "L"
+
+    def test_a_value_outside_the_catalog_fails_closed(self, monkeypatch):
+        """A size outside {S, M, L, XL} stops the process at import, not on the first upload."""
+        monkeypatch.setenv("DEFAULT_FUNCTION_SIZE", "tiny")
 
         with pytest.raises(ImproperlyConfigured):
             importlib.reload(main.settings)

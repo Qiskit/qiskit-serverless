@@ -214,7 +214,7 @@ class TestRunFunctionUseCase:
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
         monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
 
-        job = RunFunctionUseCase().execute(user, accessible, make_input(function_size="m"))
+        job = RunFunctionUseCase().execute(user, accessible, make_input(function_size="M"))
 
         assert job.compute_profile == "16x128"
         assert job.compute_profile_fk == profile
