@@ -16,6 +16,7 @@ from django_prometheus.models import ExportModelOperationsMixin
 
 from core.config_key import ConfigKey
 from core.domain.business_models import BusinessModel
+from core.domain.function_sizes import VALID_FUNCTION_SIZES
 from core.domain.subsidized_license_mapping import licensed_job_from_db
 from core.model_managers.code_engine_projects import CodeEngineProjectQuerySet
 from core.model_managers.compute_profiles import ComputeProfileQuerySet
@@ -446,7 +447,10 @@ class FunctionSize(models.Model):
         on_delete=models.CASCADE,
         related_name="function_sizes",
     )
-    function_size = models.CharField(max_length=64)
+    function_size = models.CharField(
+        max_length=64,
+        choices=[(size, size.upper()) for size in VALID_FUNCTION_SIZES],
+    )
     compute_profile = models.ForeignKey(
         to=ComputeProfile,
         on_delete=models.PROTECT,

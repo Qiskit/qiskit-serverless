@@ -109,3 +109,17 @@ def test_referenced_compute_profile_is_protected(program, profile):
             profile.delete()
 
     assert ComputeProfile.objects.filter(pk="16x128").exists()
+
+
+def test_size_outside_catalog_rejected_by_full_clean(program, profile):
+    """A FunctionSize whose name is outside {s, m, l, xl} fails full_clean.
+
+    This is what actually protects the admin: admin.py's FunctionSizeInline
+    uses a ModelForm, and ModelForm.save() calls full_clean() before saving.
+    """
+    size = FunctionSize(function=program, function_size="tiny", compute_profile=profile)
+
+    with pytest.raises(ValidationError) as exc_info:
+        size.full_clean()
+
+    assert "function_size" in exc_info.value.message_dict
