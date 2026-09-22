@@ -286,10 +286,6 @@ class UploadFunctionUseCase:
                 f"Default compute profile '{compute_profile_id}' is not registered. Contact administrator."
             )
 
-        # No catalog-membership check here: main/settings.py already validates
-        # DEFAULT_FUNCTION_SIZE against FunctionSize.VALID_SIZES at import time,
-        # so by the time any request reaches this code the setting is guaranteed
-        # to already be a valid, uppercase size name.
         row = FunctionSize.objects.create(
             function=function,
             function_size=settings.DEFAULT_FUNCTION_SIZE,
