@@ -686,3 +686,175 @@ class TestKafkaEventStreamsClient:
                         client.emit_license_fee(job)
 
         mock_producer.produce.assert_not_called()
+
+    def test_consumer_created_on_demand(self):
+        """Verify a Consumer is created lazily on first call to _get_consumer()."""
+        with patch(f"{_CLIENT_MOD}.Producer"):
+            with patch(f"{_CLIENT_MOD}.Consumer") as mock_consumer_cls:
+                with patch.dict(
+                    os.environ,
+                    {
+                        "EVENT_STREAMS_BOOTSTRAP_SERVERS": "broker-main:9093",
+                        "EVENT_STREAMS_API_KEY": "main-key",
+                        "ENVIRONMENT": "production",
+                    },
+                    clear=True,
+                ):
+                    client = KafkaEventStreamsClient()
+                    # Consumer not created during __init__
+                    assert mock_consumer_cls.call_count == 0
+                    # But created on demand via _get_consumer()
+                    _ = client._get_consumer("us-east")
+                    assert mock_consumer_cls.call_count == 1
+
+    def test_consumer_config_includes_sasl_and_group_id(self):
+        """Verify consumer config has SASL/SSL + group.id + auto commit disabled."""
+        with patch(f"{_CLIENT_MOD}.Producer"):
+            with patch(f"{_CLIENT_MOD}.Consumer") as mock_consumer_cls:
+                with patch.dict(
+                    os.environ,
+                    {
+                        "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                        "EVENT_STREAMS_API_KEY": "k",
+                        "EVENT_STREAMS_MAIN_REGION": "us-east",
+                        "ENVIRONMENT": "production",
+                    },
+                    clear=True,
+                ):
+                    client = KafkaEventStreamsClient()
+                    _ = client._get_consumer("us-east")
+
+        call_args = mock_consumer_cls.call_args[0][0]
+        assert call_args["bootstrap.servers"] == "b:9093"
+        assert call_args["security.protocol"] == "SASL_SSL"
+        assert call_args["sasl.mechanisms"] == "PLAIN"
+        assert call_args["sasl.username"] == "token"
+        assert call_args["sasl.password"] == "k"
+        assert call_args["group.id"] == "qiskit-serverless-scheduler-blocked-accounts-production"
+        assert call_args["enable.auto.commit"] is False
+        assert call_args["auto.offset.reset"] == "earliest"
+
+    def test_consume_events_processes_json_message(self, caplog):
+        """Verify consume_events() deserializes and logs blocked-account events."""
+        with patch(f"{_CLIENT_MOD}.Producer"):
+            with patch(f"{_CLIENT_MOD}.Consumer") as mock_consumer_cls:
+                with patch.dict(
+                    os.environ,
+                    {
+                        "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                        "EVENT_STREAMS_API_KEY": "k",
+                        "ENVIRONMENT": "production",
+                    },
+                ):
+                    client = KafkaEventStreamsClient()
+                    mock_consumer_inst = MagicMock()
+                    mock_consumer_cls.return_value = mock_consumer_inst
+
+                    # Simulate a message with event data
+                    event_data = {
+                        "account_id": "acct-123",
+                        "plan_id": "plan-456",
+                        "subscription_id": "sub-789",
+                        "deleted": True,
+                        "total_non_quantum_micro_ru": 1000,
+                        "non_quantum_limit_micro_ru": 2000,
+                    }
+                    mock_msg = MagicMock()
+                    mock_msg.value.return_value = json.dumps(event_data).encode("utf-8")
+                    mock_msg.error.return_value = None
+
+                    mock_consumer_inst.poll.side_effect = [mock_msg, None]
+                    mock_consumer_inst.commit = MagicMock()
+
+                    with caplog.at_level(logging.INFO):
+                        client.consume_events()
+
+        assert "Blocked account event" in caplog.text
+        assert "acct-123" in caplog.text
+        assert "plan-456" in caplog.text
+        assert "sub-789" in caplog.text
+        mock_consumer_inst.commit.assert_called_once()
+
+    def test_consume_events_handles_poll_error(self, caplog):
+        """Verify consume_events() handles consumer poll errors gracefully."""
+        with patch(f"{_CLIENT_MOD}.Producer"):
+            with patch(f"{_CLIENT_MOD}.Consumer") as mock_consumer_cls:
+                with patch.dict(
+                    os.environ,
+                    {
+                        "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                        "EVENT_STREAMS_API_KEY": "k",
+                        "ENVIRONMENT": "production",
+                    },
+                ):
+                    client = KafkaEventStreamsClient()
+                    mock_consumer_inst = MagicMock()
+                    mock_consumer_cls.return_value = mock_consumer_inst
+
+                    mock_msg = MagicMock()
+                    mock_msg.error.return_value = "Consumer error code"
+
+                    mock_consumer_inst.poll.side_effect = [mock_msg, None]
+
+                    with caplog.at_level(logging.ERROR):
+                        client.consume_events()
+
+        assert "Consumer error" in caplog.text
+        # Should not commit when there were only errors
+        mock_consumer_inst.commit.assert_not_called()
+
+    def test_consume_events_commits_after_processing(self):
+        """Verify consume_events() commits offsets after processing messages."""
+        with patch(f"{_CLIENT_MOD}.Producer"):
+            with patch(f"{_CLIENT_MOD}.Consumer") as mock_consumer_cls:
+                with patch.dict(
+                    os.environ,
+                    {
+                        "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                        "EVENT_STREAMS_API_KEY": "k",
+                        "ENVIRONMENT": "production",
+                    },
+                ):
+                    client = KafkaEventStreamsClient()
+                    mock_consumer_inst = MagicMock()
+                    mock_consumer_cls.return_value = mock_consumer_inst
+
+                    event_data = {
+                        "account_id": "acct-123",
+                        "plan_id": "plan-456",
+                        "subscription_id": "sub-789",
+                        "deleted": False,
+                    }
+                    mock_msg = MagicMock()
+                    mock_msg.value.return_value = json.dumps(event_data).encode("utf-8")
+                    mock_msg.error.return_value = None
+
+                    mock_consumer_inst.poll.side_effect = [mock_msg, None]
+
+                    client.consume_events()
+
+        mock_consumer_inst.commit.assert_called_once_with(asynchronous=False)
+
+    def test_consume_events_none_poll_result_stops_polling(self):
+        """Verify consume_events() stops polling when poll() returns None."""
+        with patch(f"{_CLIENT_MOD}.Producer"):
+            with patch(f"{_CLIENT_MOD}.Consumer") as mock_consumer_cls:
+                with patch.dict(
+                    os.environ,
+                    {
+                        "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                        "EVENT_STREAMS_API_KEY": "k",
+                        "ENVIRONMENT": "production",
+                    },
+                ):
+                    client = KafkaEventStreamsClient()
+                    mock_consumer_inst = MagicMock()
+                    mock_consumer_cls.return_value = mock_consumer_inst
+
+                    mock_consumer_inst.poll.return_value = None
+
+                    client.consume_events()
+
+        # Should poll once, get None, and exit loop without committing (no messages processed)
+        assert mock_consumer_inst.poll.call_count == 1
+        mock_consumer_inst.commit.assert_not_called()

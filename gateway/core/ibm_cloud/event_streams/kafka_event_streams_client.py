@@ -18,10 +18,11 @@ import json
 import logging
 import math
 import os
+import time
 import uuid
 from datetime import datetime, timezone
 
-from confluent_kafka import Producer
+from confluent_kafka import Consumer, Producer
 from core.domain.business_models import billing_name_for
 from core.models import Job
 
@@ -60,6 +61,8 @@ class KafkaEventStreamsClient(EventStreamsClient):
 
         # Initialize producers from environment variables
         self._producers: dict[str, Producer] = {}
+        # Store region configs for consumer creation (credentials needed for both)
+        self._region_configs: dict[str, dict] = {}
 
         # Register main region from unsuffixed variables
         main_bootstrap_servers = os.environ.get("EVENT_STREAMS_BOOTSTRAP_SERVERS")
@@ -70,6 +73,11 @@ class KafkaEventStreamsClient(EventStreamsClient):
         if main_bootstrap_servers and main_api_key:
             logger.debug("Registering main region producer: region=%s", main_region)
             self._producers[main_region] = self._create_producer(main_bootstrap_servers, main_api_key, main_user)
+            self._region_configs[main_region] = {
+                "bootstrap_servers": main_bootstrap_servers,
+                "api_key": main_api_key,
+                "user": main_user,
+            }
             self._main_region = main_region
         else:
             raise ValueError("EVENT_STREAMS_BOOTSTRAP_SERVERS and EVENT_STREAMS_API_KEY are required")
@@ -91,8 +99,18 @@ class KafkaEventStreamsClient(EventStreamsClient):
 
                 logger.debug("Registering regional producer: region=%s", region)
                 self._producers[region] = self._create_producer(bootstrap_servers, api_key, user)
+                self._region_configs[region] = {
+                    "bootstrap_servers": bootstrap_servers,
+                    "api_key": api_key,
+                    "user": user,
+                }
 
         self.topic = f"quantum.{environment}.function-usage.v1"
+        self.blocked_accounts_topic = os.environ.get(
+            "EVENT_STREAMS_BLOCKED_ACCOUNTS_TOPIC", "blocked-account-plans-non-quantum.v1"
+        )
+        self._blocked_accounts_group_id = f"qiskit-serverless-scheduler-blocked-accounts-{environment}"
+        self._consumers: dict[str, Consumer] = {}
 
         # Log initialized regions
         regions = sorted(self._producers.keys())
@@ -270,3 +288,94 @@ class KafkaEventStreamsClient(EventStreamsClient):
                 f"KafkaEventStreamsClient: Failed to publish event "
                 f"(job_id={job.id}, event_id={event_id}, metric_type={metric_type}): {str(e)}"
             ) from e
+
+    def _get_consumer(self, region: str) -> Consumer:
+        """Get or create a consumer for the given region."""
+        if region in self._consumers:
+            return self._consumers[region]
+
+        config = self._region_configs[region]
+        consumer = Consumer(
+            {
+                "bootstrap.servers": config["bootstrap_servers"],
+                "security.protocol": "SASL_SSL",
+                "sasl.mechanisms": "PLAIN",
+                "sasl.username": config["user"],
+                "sasl.password": config["api_key"],
+                "group.id": self._blocked_accounts_group_id,
+                "enable.auto.commit": False,
+                "auto.offset.reset": "earliest",
+            }
+        )
+        consumer.subscribe([self.blocked_accounts_topic])
+        self._consumers[region] = consumer
+        logger.debug("Created consumer for region: region=%s topic=%s", region, self.blocked_accounts_topic)
+        return consumer
+
+    def _deserialize_blocked_account_event(self, msg) -> dict:
+        """Deserialize a blocked-account-plan event (JSON payload)."""
+        return json.loads(msg.value().decode("utf-8"))
+
+    def _poll_region(self, region: str, consumer: Consumer) -> None:
+        """Poll and process blocked-account events from one region (bounded per iteration)."""
+        max_messages = 500
+        deadline = time.time() + 2.0
+        messages_processed = 0
+
+        while time.time() < deadline and messages_processed < max_messages:
+            msg = consumer.poll(timeout=0.2)
+            if msg is None:
+                break
+
+            if msg.error():
+                logger.error(
+                    "Consumer error for region=%s error=%s",
+                    region,
+                    msg.error(),
+                )
+                continue
+
+            try:
+                event = self._deserialize_blocked_account_event(msg)
+                logger.info(
+                    "Blocked account event: region=%s account_id=%s plan_id=%s "
+                    "subscription_id=%s deleted=%s total_non_quantum_micro_ru=%s "
+                    "non_quantum_limit_micro_ru=%s",
+                    region,
+                    event.get("account_id"),
+                    event.get("plan_id"),
+                    event.get("subscription_id"),
+                    event.get("deleted"),
+                    event.get("total_non_quantum_micro_ru"),
+                    event.get("non_quantum_limit_micro_ru"),
+                )
+                messages_processed += 1
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                logger.error(
+                    "Failed to process blocked account event: region=%s error=%s",
+                    region,
+                    str(e),
+                )
+
+        if messages_processed > 0:
+            try:
+                consumer.commit(asynchronous=False)
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                logger.error(
+                    "Failed to commit offsets for region=%s error=%s",
+                    region,
+                    str(e),
+                )
+
+    def consume_events(self) -> None:
+        """Poll pending blocked-account-plan events and process them."""
+        for region in self._producers:
+            try:
+                consumer = self._get_consumer(region)
+                self._poll_region(region, consumer)
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                logger.error(
+                    "Error consuming blocked-account events from region=%s error=%s",
+                    region,
+                    str(e),
+                )
