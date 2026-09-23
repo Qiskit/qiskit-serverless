@@ -221,13 +221,6 @@ class KafkaEventStreamsClient(EventStreamsClient):
         """
         return job.function_size.function_size
 
-    def _resolve_function_size(self, job: Job) -> str:
-        """Resolve the function size for the job.
-
-        All Fleets jobs have an explicit size set (see PR #2490).
-        """
-        return job.function_size.function_size
-
     def _build_classical_metric_type(self, job: Job) -> str:
         """Build classical metric type from job attributes: classical_COMPUTE_PROFILE."""
         parts = [CLASSICAL_TIME_METRIC_TYPE_PREFIX]

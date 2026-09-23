@@ -187,6 +187,31 @@ class TestRunFunctionUseCase:
         assert job.function_size is None
 
     @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
+    def test_fleets_job_rejects_compute_profile_for_a_licensed_function(self, user, ce_project):
+        """A licensed function's usage event needs a FunctionSize row to bill correctly
+        (see _resolve_function_size in the Kafka event streams client), and the
+        deprecated 'compute_profile' path never records one, so it is rejected outright
+        instead of accepted and left unbillable."""
+        provider = Provider.objects.create(name="ibm-dev")
+        Program.objects.create(
+            title="my-fn",
+            author=user,
+            entrypoint="main.py",
+            runner=Program.FLEETS,
+            code_engine_project=ce_project,
+            provider=provider,
+        )
+        ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        with pytest.raises(FunctionConfigurationException):
+            RunFunctionUseCase().execute(
+                user, accessible, make_input(provider_name="ibm-dev", compute_profile="16x128")
+            )
+
+        assert not Job.objects.exists()
+
+    @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
     def test_fleets_job_does_not_normalize_prefixed_request(self, user, ce_project):
         """A prefixed value is used as-is and fails to resolve a FK.
 

@@ -126,12 +126,12 @@ class PublishOutbox(SchedulerTask):
         BATCH_SIZE only bounds this single query's size; it is not the cap on how much a
         tick sends, that is run()'s time budget.
 
-        select_related("job", "job__program__provider") pulls the whole batch's Job,
-        Program and Provider in one JOIN, instead of one query per row per relation.
+        select_related(...) pulls the whole batch's Job, Program, Provider and
+        FunctionSize in one JOIN, instead of one query per row per relation.
         """
         return list(
             (JobOutbox.objects.pending_license_fee() | JobOutbox.objects.pending_billing_event())
-            .select_related("job", "job__program__provider")
+            .select_related("job", "job__program__provider", "job__function_size")
             .order_by("status_changed_at")[:BATCH_SIZE]
         )
 
@@ -169,16 +169,24 @@ class PublishOutbox(SchedulerTask):
 
         Returns the JobOutbox field(s) to write: {"license_fee_sent_at": ts} on success,
         {"license_fee_required": False} when the payload can never be built because
-        program or provider is gone (the fee is waived, not owed: this waives the row
-        without a new column, since license_fee_required=False already means "never
-        owes a fee" to pending_license_fee()/ready_to_delete()), or {} when nothing
-        changed yet (a transient Kafka failure or an unroutable region/config gap, see
-        fix 3): the row stays pending for a retry.
+        program, provider, or function_size is gone (the fee is waived, not owed: this
+        waives the row without a new column, since license_fee_required=False already
+        means "never owes a fee" to pending_license_fee()/ready_to_delete()), or {} when
+        nothing changed yet (a transient Kafka failure or an unroutable region/config
+        gap, see fix 3): the row stays pending for a retry.
+
+        function_size is checked here too, not just program/provider: run.py rejects a
+        licensed function submitted via the deprecated 'compute_profile' parameter
+        precisely because that path leaves function_size null, but function_size is
+        also a SET_NULL foreign key, so a FunctionSize row deleted after the job was
+        already submitted reaches this same null state later, past the point where
+        run.py's check could catch it.
         """
-        program = row.job.program
-        if program is None or program.provider is None:
+        job = row.job
+        if job.program is None or job.program.provider is None or job.function_size is None:
             logger.error(
-                "job_id=%s license fee payload cannot be built: program or provider missing, waiving the fee",
+                "job_id=%s license fee payload cannot be built: program, provider, or function_size "
+                "missing, waiving the fee",
                 row.job_id,
             )
             self.metrics.increment_outbox_license_fee_irrecoverable()

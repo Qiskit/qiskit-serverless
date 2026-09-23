@@ -262,6 +262,31 @@ class TestFailureHandling:
         task.metrics.increment_outbox_license_fee_irrecoverable.assert_called_once()
         mock_job_outbox.objects.filter.return_value.update.assert_called_once_with(license_fee_required=False)
 
+    def test_license_fee_waived_when_function_size_is_missing(self):
+        """function_size is a SET_NULL foreign key too: a FunctionSize row deleted after
+        the job was submitted reaches this same null state, past the point where
+        run.py's submission-time check could have caught it."""
+        task = _make_task()
+        row = _make_row(license_fee_required=True)
+        row.job.function_size = None
+
+        with (
+            patch(f"{_MOD}.Config") as mock_config,
+            patch(f"{_MOD}.JobOutbox") as mock_job_outbox,
+            patch(f"{_MOD}.timezone") as mock_timezone,
+        ):
+            mock_config.get_bool.return_value = True
+            mock_config.get_int.return_value = 20
+            _configure_pending(mock_job_outbox, license_fee_pks=[row.pk], rows=[row])
+            now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+            mock_timezone.now.return_value = now
+
+            task.run()
+
+        task.event_streams_client.emit_license_fee.assert_not_called()
+        task.metrics.increment_outbox_license_fee_irrecoverable.assert_called_once()
+        mock_job_outbox.objects.filter.return_value.update.assert_called_once_with(license_fee_required=False)
+
     def test_unexpected_attribute_error_from_the_client_propagates(self):
         """AttributeError is no longer caught here: a stray one from a real bug (program
         and provider are both present) must not be silently treated as irrecoverable."""
