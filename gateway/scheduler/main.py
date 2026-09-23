@@ -7,14 +7,13 @@ from django.conf import settings
 from django.db import connection
 
 from core.models import Config
-from core.services.job_transitions import JobTransitionService
 from scheduler.health import DB_EXCEPTIONS, SchedulerHealth
 from scheduler.http_server import SchedulerHttpServer
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.kill_signal import KillSignal
 from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs
+from scheduler.tasks.consume_blocked_account_events import ConsumeBlockedAccountEvents
 from scheduler.tasks.free_resources import FreeResources
-from scheduler.tasks.outbox import OutboxTask
 from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
 from scheduler.tasks.schedule_ray_jobs import ScheduleRayJobs
 from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses
@@ -39,20 +38,17 @@ class Main:
         # Write new defaults that this version might have (this is also done in the Gateway, first come, first write)
         Config.add_defaults()
 
-        # One service for every task that changes a job status, so the Kafka producers are created once
-        transitions = JobTransitionService()
-
         self.tasks = [
             UpdateJobStatusCounts(self.kill_signal, self.metrics),
-            # submit jobs, status change from QUEUED to PENDING/FAILED
+            # submit jobs, status change from QUEUED to PENDING
             ScheduleRayJobs(self.kill_signal, self.metrics),
-            ScheduleFleetsJobs(self.kill_signal, self.metrics, transitions),
+            ScheduleFleetsJobs(self.kill_signal, self.metrics),
             UpdateRayJobsStatuses(self.kill_signal, self.metrics),
-            UpdateFleetsJobsStatuses(self.kill_signal, self.metrics, transitions),
-            # after the status updates, so it sees this tick's freshest terminal jobs
-            OutboxTask(self.kill_signal, self.metrics),
+            UpdateFleetsJobsStatuses(self.kill_signal, self.metrics),
+            # consume blocked-account events from Kafka (for account/plan blocking)
+            ConsumeBlockedAccountEvents(self.kill_signal, self.metrics),
             # after the status updates, so it counts the freshest real jobs
-            BalanceFillerJobs(self.kill_signal, self.metrics, transitions),
+            BalanceFillerJobs(self.kill_signal, self.metrics),
             FreeResources(self.kill_signal, self.metrics),  # Ray only
         ]
 
