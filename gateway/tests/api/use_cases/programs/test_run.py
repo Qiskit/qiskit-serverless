@@ -189,9 +189,9 @@ class TestRunFunctionUseCase:
     @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
     def test_fleets_job_rejects_compute_profile_for_a_licensed_function(self, user, ce_project):
         """A licensed function's usage event needs a FunctionSize row to bill correctly
-        (see _resolve_function_size in the Kafka event streams client), and the
-        deprecated 'compute_profile' path never records one, so it is rejected outright
-        instead of accepted and left unbillable."""
+        (see _emit_license_fee in the Kafka event streams client), and the deprecated
+        'compute_profile' path never records one, so it is rejected outright instead of
+        accepted and left unbillable."""
         provider = Provider.objects.create(name="ibm-dev")
         Program.objects.create(
             title="my-fn",

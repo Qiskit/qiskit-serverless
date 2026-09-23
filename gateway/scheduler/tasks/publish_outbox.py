@@ -167,20 +167,10 @@ class PublishOutbox(SchedulerTask):
     def _send_license_fee(self, row: JobOutbox) -> dict[str, datetime | bool]:
         """Attempt to send the license fee event.
 
-        Returns the JobOutbox field(s) to write: {"license_fee_sent_at": ts} on success,
-        {"license_fee_required": False} when the payload can never be built because
-        program, provider, or function_size is gone (the fee is waived, not owed: this
-        waives the row without a new column, since license_fee_required=False already
-        means "never owes a fee" to pending_license_fee()/ready_to_delete()), or {} when
-        nothing changed yet (a transient Kafka failure or an unroutable region/config
-        gap, see fix 3): the row stays pending for a retry.
-
-        function_size is checked here too, not just program/provider: run.py rejects a
-        licensed function submitted via the deprecated 'compute_profile' parameter
-        precisely because that path leaves function_size null, but function_size is
-        also a SET_NULL foreign key, so a FunctionSize row deleted after the job was
-        already submitted reaches this same null state later, past the point where
-        run.py's check could catch it.
+        Returns the JobOutbox field(s) to write:
+            {"license_fee_sent_at": ts} on success,
+            {"license_fee_required": False} when the payload can never be built because
+              program, provider, or function_size disappeared during the job execution  (very boundary case)
         """
         job = row.job
         if job.program is None or job.program.provider is None or job.function_size is None:

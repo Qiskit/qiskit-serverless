@@ -191,11 +191,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
 
     def _emit_license_fee(self, job: Job) -> None:
         """Publish a license fee event."""
-        parts = [LICENSE_FEE_METRIC_TYPE, job.program.provider.name, job.program.title]
-
-        # Include function size; all Fleets jobs have one (see PR #2490)
-        function_size = self._resolve_function_size(job)
-        parts.append(function_size)
+        parts = [LICENSE_FEE_METRIC_TYPE, job.program.provider.name, job.program.title, job.function_size.function_size]
 
         metric_type = "_".join(parts)
         running_started_at = JobEvent.objects.first_running_at(job.id)
@@ -209,13 +205,6 @@ class KafkaEventStreamsClient(EventStreamsClient):
             business_model=billing_name_for(job.business_model),
             running_started_at=running_started_at,
         )
-
-    def _resolve_function_size(self, job: Job) -> str:
-        """Resolve the function size for the job.
-
-        All Fleets jobs have an explicit size set (see PR #2490).
-        """
-        return job.function_size.function_size
 
     def _build_classical_metric_type(self, job: Job) -> str:
         """Build classical metric type from job attributes: classical_COMPUTE_PROFILE."""
