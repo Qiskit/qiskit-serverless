@@ -163,6 +163,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
             metric_type = self._build_classical_metric_type(job)
         running_started_at = JobEvent.objects.first_running_at(job.id)
         usage_seconds = self._usage_seconds(running_started_at, datetime.now(timezone.utc))
+        logger.info("job_id=%s Emitting job_in_progress event metric_value=%s", job.id, usage_seconds)
         self._publish(
             job,
             metric_type=metric_type,
@@ -191,10 +192,12 @@ class KafkaEventStreamsClient(EventStreamsClient):
     def _emit_license_fee(self, job: Job) -> None:
         """Publish a license fee event.
 
-        Assumes job.program and job.program.provider are present: both are SET_NULL
-        foreign keys that can go null, so the caller (PublishOutbox) checks for that
-        before calling this and waives the fee instead of calling it. A stray
-        AttributeError here is a real bug and is not caught by the caller.
+        Assumes job.program, job.program.provider, and job.function_size are all
+        present: program and provider are SET_NULL foreign keys, and function_size is
+        one too, so all three can go null after the job was created. The caller
+        (PublishOutbox) checks for that before calling this and waives the fee instead
+        of calling it. A stray AttributeError here is a real bug and is not caught by
+        the caller.
         """
         parts = [LICENSE_FEE_METRIC_TYPE, job.program.provider.name, job.program.title]
 
@@ -204,6 +207,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
 
         metric_type = "_".join(parts)
         running_started_at = JobEvent.objects.first_running_at(job.id)
+        logger.info("job_id=%s Emitting license_fee event metric_type=%s", job.id, metric_type)
         self._publish(
             job,
             metric_type=metric_type,
