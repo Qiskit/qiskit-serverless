@@ -362,10 +362,8 @@ class TestKafkaEventStreamsClient:
         job.program = MagicMock()
         job.program.provider.name = "ibm"
         job.program.title = "test-program"
-        job.function_size = None
-        default_size = MagicMock()
-        default_size.function_size = "m"
-        job.program.default_size = default_size
+        job.function_size = MagicMock()
+        job.function_size.function_size = "m"
 
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
             with patch(f"{_CLIENT_MOD}.uuid") as mock_uuid_mod:
@@ -390,7 +388,7 @@ class TestKafkaEventStreamsClient:
 
         call_kwargs = mock_producer.produce.call_args[1]
         published = json.loads(call_kwargs["value"])
-        assert published["data"]["metric_type"] == "license_ibm_test-program_M"
+        assert published["data"]["metric_type"] == "license_ibm_test-program_m"
         assert published["data"]["business_model"] == "licensed"
 
     @pytest.mark.parametrize(
@@ -407,10 +405,8 @@ class TestKafkaEventStreamsClient:
         job.program = MagicMock()
         job.program.provider.name = "ibm"
         job.program.title = "test-program"
-        job.function_size = None
-        default_size = MagicMock()
-        default_size.function_size = "M"
-        job.program.default_size = default_size
+        job.function_size = MagicMock()
+        job.function_size.function_size = "m"
 
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
             with patch(f"{_CLIENT_MOD}.uuid"):
