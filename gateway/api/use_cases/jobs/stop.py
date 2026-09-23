@@ -109,11 +109,11 @@ class StopJobUseCase:
         runner = get_runner(job)
         if runner.is_active():
             try:
-                was_running = runner.stop()
-                if was_running:
-                    self.status_messages.append("Serverless job was running and has been stopped.")
+                stop_accepted = runner.stop()
+                if stop_accepted:
+                    self.status_messages.append("Serverless job stop has been requested.")
                 else:
-                    self.status_messages.append("Serverless job was already not running.")
+                    self.status_messages.append("Serverless job was already stopping or no longer running.")
             except RunnerError:
                 if job.compute_resource:
                     logger.warning("Serverless job was not accessible from: %s", job.compute_resource)
