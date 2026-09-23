@@ -364,7 +364,7 @@ class TestKafkaEventStreamsClient:
         job.program.title = "test-program"
         job.function_size = None
         default_size = MagicMock()
-        default_size.function_size = "M"
+        default_size.function_size = "m"
         job.program.default_size = default_size
 
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
