@@ -190,15 +190,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
         )
 
     def _emit_license_fee(self, job: Job) -> None:
-        """Publish a license fee event.
-
-        Assumes job.program, job.program.provider, and job.function_size are all
-        present: program and provider are SET_NULL foreign keys, and function_size is
-        one too, so all three can go null after the job was created. The caller
-        (PublishOutbox) checks for that before calling this and waives the fee instead
-        of calling it. A stray AttributeError here is a real bug and is not caught by
-        the caller.
-        """
+        """Publish a license fee event."""
         parts = [LICENSE_FEE_METRIC_TYPE, job.program.provider.name, job.program.title]
 
         # Include function size; all Fleets jobs have one (see PR #2490)
