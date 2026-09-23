@@ -812,6 +812,9 @@ class JobOutbox(models.Model):
 
     class Meta:
         app_label = "api"
+        indexes = [
+            models.Index(fields=["status_changed_at"], name="job_outbox_status_changed_at_idx"),
+        ]
 
     def __str__(self):
         return f"<JobOutbox job={self.job_id} job_status={self.job_status}>"

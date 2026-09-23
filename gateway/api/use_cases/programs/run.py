@@ -280,7 +280,7 @@ class RunFunctionUseCase:
                 context=JobEventContext.RUN_PROGRAM,
                 status=job.status,
             )
-            if function.runner == Function.FLEETS and not job.filler and job.instance_crn:
+            if function.runner == Function.FLEETS and job.instance_crn:
                 # This is the only creation site: see JobOutbox's docstring for the
                 # "one row per live job" invariant that depends on it staying that way.
                 JobOutbox.objects.create(

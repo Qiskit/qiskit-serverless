@@ -649,7 +649,6 @@ class JobAdmin(admin.ModelAdmin):
                     "status_badge",
                     "sub_status",
                     "job_actions",
-                    "running_started_at",
                     "trial",
                     "business_model",
                     "account_id",

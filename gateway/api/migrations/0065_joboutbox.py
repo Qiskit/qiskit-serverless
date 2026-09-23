@@ -60,5 +60,10 @@ class Migration(migrations.Migration):
                 ("license_fee_sent_at", models.DateTimeField(blank=True, null=True)),
                 ("billing_sent_at", models.DateTimeField(blank=True, null=True)),
             ],
+            options={
+                "indexes": [
+                    models.Index(fields=["status_changed_at"], name="job_outbox_status_changed_at_idx"),
+                ],
+            },
         ),
     ]

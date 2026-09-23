@@ -2,8 +2,16 @@
 
 from datetime import datetime, timezone
 from itertools import chain, repeat
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
+import pytest
+from django.contrib.auth.models import User
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+from django.utils import timezone as dj_timezone
+
+from core.ibm_cloud.event_streams.kafka_event_streams_client import UnroutableRegionError
+from core.models import Job, JobOutbox, Program, Provider
 from scheduler.tasks.publish_outbox import PublishOutbox
 
 _MOD = "scheduler.tasks.publish_outbox"
@@ -28,6 +36,11 @@ def _make_row(
     billing_sent_at=None,
     status_changed_at=None,
 ):
+    """A row's job has a program and a provider by default (both auto-created MagicMocks,
+    so neither is None), matching the common case where the license fee payload can be
+    built. Pass `row.job.program = None` (or `row.job.program.provider = None`) after
+    construction to exercise the waiver path.
+    """
     row = MagicMock()
     row.pk = job_id
     row.job_id = job_id
@@ -36,7 +49,6 @@ def _make_row(
     row.license_fee_sent_at = license_fee_sent_at
     row.billing_sent_at = billing_sent_at
     row.status_changed_at = status_changed_at or datetime(2026, 1, 1, tzinfo=timezone.utc)
-    row.save = MagicMock()
     return row
 
 
@@ -55,7 +67,7 @@ def _configure_pending(mock_job_outbox, license_fee_pks=None, billing_event_pks=
         billing_event_pks or []
     )
     combined = mock_job_outbox.objects.pending_license_fee.return_value.__or__.return_value
-    combined.order_by.return_value.__getitem__.side_effect = chain(
+    combined.select_related.return_value.order_by.return_value.__getitem__.side_effect = chain(
         batches if batches is not None else [rows or []], repeat([])
     )
 
@@ -74,7 +86,7 @@ class TestDisabledFlag:
 
 
 class TestHappyPath:
-    def test_sends_license_fee_and_billing_event_and_marks_both_sent(self):
+    def test_sends_license_fee_and_billing_event_and_writes_both_via_update(self):
         task = _make_task()
         row = _make_row(license_fee_required=True)
 
@@ -93,9 +105,10 @@ class TestHappyPath:
 
         task.event_streams_client.emit_license_fee.assert_called_once_with(row.job)
         task.event_streams_client.emit_job_completed.assert_called_once_with(row.job, row.status_changed_at)
-        assert row.license_fee_sent_at == now
-        assert row.billing_sent_at == now
-        row.save.assert_called_once()
+        mock_job_outbox.objects.filter.assert_called_once_with(pk=row.pk)
+        mock_job_outbox.objects.filter.return_value.update.assert_called_once_with(
+            license_fee_sent_at=now, billing_sent_at=now
+        )
 
     def test_skips_license_fee_when_not_required(self):
         task = _make_task()
@@ -104,16 +117,19 @@ class TestHappyPath:
         with (
             patch(f"{_MOD}.Config") as mock_config,
             patch(f"{_MOD}.JobOutbox") as mock_job_outbox,
-            patch(f"{_MOD}.timezone"),
+            patch(f"{_MOD}.timezone") as mock_timezone,
         ):
             mock_config.get_bool.return_value = True
             mock_config.get_int.return_value = 20
             _configure_pending(mock_job_outbox, billing_event_pks=[row.pk], rows=[row])
+            now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+            mock_timezone.now.return_value = now
 
             task.run()
 
         task.event_streams_client.emit_license_fee.assert_not_called()
         task.event_streams_client.emit_job_completed.assert_called_once()
+        mock_job_outbox.objects.filter.return_value.update.assert_called_once_with(billing_sent_at=now)
 
     def test_skips_billing_event_when_already_sent(self):
         task = _make_task()
@@ -123,21 +139,23 @@ class TestHappyPath:
         with (
             patch(f"{_MOD}.Config") as mock_config,
             patch(f"{_MOD}.JobOutbox") as mock_job_outbox,
-            patch(f"{_MOD}.timezone"),
+            patch(f"{_MOD}.timezone") as mock_timezone,
         ):
             mock_config.get_bool.return_value = True
             mock_config.get_int.return_value = 20
             _configure_pending(mock_job_outbox, license_fee_pks=[row.pk], rows=[row])
+            now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+            mock_timezone.now.return_value = now
 
             task.run()
 
         task.event_streams_client.emit_job_completed.assert_not_called()
         task.event_streams_client.emit_license_fee.assert_called_once()
-        assert row.billing_sent_at == already_sent
+        mock_job_outbox.objects.filter.return_value.update.assert_called_once_with(license_fee_sent_at=now)
 
 
 class TestFailureHandling:
-    def test_network_failure_does_not_mark_sent_and_records_failure_on_the_breaker(self):
+    def test_network_failure_does_not_write_anything_and_records_failure_on_the_breaker(self):
         task = _make_task()
         row = _make_row(license_fee_required=False)
         task.event_streams_client.emit_job_completed.side_effect = RuntimeError("kafka down")
@@ -153,14 +171,53 @@ class TestFailureHandling:
 
             task.run()
 
-        assert row.billing_sent_at is None
         task._breaker.record_failure.assert_called_once()
-        row.save.assert_not_called()
+        mock_job_outbox.objects.filter.assert_not_called()
 
-    def test_license_fee_payload_failure_is_recorded_without_blocking_the_billing_event(self):
+    def test_license_fee_unroutable_region_does_not_trip_the_breaker(self):
         task = _make_task()
         row = _make_row(license_fee_required=True)
-        task.event_streams_client.emit_license_fee.side_effect = AttributeError("'NoneType' object has no 'provider'")
+        task.event_streams_client.emit_license_fee.side_effect = UnroutableRegionError("no producer for region")
+
+        with (
+            patch(f"{_MOD}.Config") as mock_config,
+            patch(f"{_MOD}.JobOutbox") as mock_job_outbox,
+            patch(f"{_MOD}.timezone"),
+        ):
+            mock_config.get_bool.return_value = True
+            mock_config.get_int.return_value = 20
+            _configure_pending(mock_job_outbox, license_fee_pks=[row.pk], rows=[row])
+
+            task.run()
+
+        task._breaker.record_failure.assert_not_called()
+        task.metrics.increment_outbox_send.assert_any_call("license_fee", "unroutable")
+        mock_job_outbox.objects.filter.assert_not_called()
+
+    def test_billing_event_unroutable_region_does_not_trip_the_breaker(self):
+        task = _make_task()
+        row = _make_row(license_fee_required=False)
+        task.event_streams_client.emit_job_completed.side_effect = UnroutableRegionError("no producer for region")
+
+        with (
+            patch(f"{_MOD}.Config") as mock_config,
+            patch(f"{_MOD}.JobOutbox") as mock_job_outbox,
+            patch(f"{_MOD}.timezone"),
+        ):
+            mock_config.get_bool.return_value = True
+            mock_config.get_int.return_value = 20
+            _configure_pending(mock_job_outbox, billing_event_pks=[row.pk], rows=[row])
+
+            task.run()
+
+        task._breaker.record_failure.assert_not_called()
+        task.metrics.increment_outbox_send.assert_any_call("billing_event", "unroutable")
+        mock_job_outbox.objects.filter.assert_not_called()
+
+    def test_license_fee_waived_when_program_is_missing_and_does_not_block_the_billing_event(self):
+        task = _make_task()
+        row = _make_row(license_fee_required=True)
+        row.job.program = None
 
         with (
             patch(f"{_MOD}.Config") as mock_config,
@@ -170,15 +227,61 @@ class TestFailureHandling:
             mock_config.get_bool.return_value = True
             mock_config.get_int.return_value = 20
             _configure_pending(mock_job_outbox, license_fee_pks=[row.pk], billing_event_pks=[row.pk], rows=[row])
-            mock_timezone.now.return_value = datetime(2026, 1, 1, tzinfo=timezone.utc)
+            now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+            mock_timezone.now.return_value = now
 
             task.run()
 
-        assert row.license_fee_sent_at is None
+        task.event_streams_client.emit_license_fee.assert_not_called()
         task.metrics.increment_outbox_license_fee_irrecoverable.assert_called_once()
         task.event_streams_client.emit_job_completed.assert_called_once()
-        assert row.billing_sent_at is not None
+        mock_job_outbox.objects.filter.return_value.update.assert_called_once_with(
+            license_fee_required=False, billing_sent_at=now
+        )
         task._breaker.record_failure.assert_not_called()
+
+    def test_license_fee_waived_when_provider_is_missing(self):
+        task = _make_task()
+        row = _make_row(license_fee_required=True)
+        row.job.program.provider = None
+
+        with (
+            patch(f"{_MOD}.Config") as mock_config,
+            patch(f"{_MOD}.JobOutbox") as mock_job_outbox,
+            patch(f"{_MOD}.timezone") as mock_timezone,
+        ):
+            mock_config.get_bool.return_value = True
+            mock_config.get_int.return_value = 20
+            _configure_pending(mock_job_outbox, license_fee_pks=[row.pk], rows=[row])
+            now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+            mock_timezone.now.return_value = now
+
+            task.run()
+
+        task.event_streams_client.emit_license_fee.assert_not_called()
+        task.metrics.increment_outbox_license_fee_irrecoverable.assert_called_once()
+        mock_job_outbox.objects.filter.return_value.update.assert_called_once_with(license_fee_required=False)
+
+    def test_unexpected_attribute_error_from_the_client_propagates(self):
+        """AttributeError is no longer caught here: a stray one from a real bug (program
+        and provider are both present) must not be silently treated as irrecoverable."""
+        task = _make_task()
+        row = _make_row(license_fee_required=True)
+        task.event_streams_client.emit_license_fee.side_effect = AttributeError("some real bug")
+
+        with (
+            patch(f"{_MOD}.Config") as mock_config,
+            patch(f"{_MOD}.JobOutbox") as mock_job_outbox,
+            patch(f"{_MOD}.timezone"),
+        ):
+            mock_config.get_bool.return_value = True
+            mock_config.get_int.return_value = 20
+            _configure_pending(mock_job_outbox, license_fee_pks=[row.pk], rows=[row])
+
+            with pytest.raises(AttributeError):
+                task.run()
+
+        task.metrics.increment_outbox_license_fee_irrecoverable.assert_not_called()
 
     def test_skips_the_breaker_when_open(self):
         task = _make_task()
@@ -327,8 +430,8 @@ class TestMultipleBatches:
             task.run()
 
         assert task.event_streams_client.emit_job_completed.call_count == 2
-        row_a.save.assert_called_once()
-        row_b.save.assert_called_once()
+        assert mock_job_outbox.objects.filter.call_args_list == [call(pk=row_a.pk), call(pk=row_b.pk)]
+        assert mock_job_outbox.objects.filter.return_value.update.call_count == 2
 
     def test_stops_between_batches_when_kill_signal_received(self):
         task = _make_task()
@@ -429,3 +532,38 @@ class TestEligibilityFromQuerySetMembership:
 
         task.event_streams_client.emit_job_completed.assert_called_once()
         task.event_streams_client.emit_license_fee.assert_not_called()
+
+
+@pytest.mark.django_db
+class TestFetchBatchQueryEfficiency:
+    """Fix 4/5a: _fetch_batch() must not cost one extra query per row per relation."""
+
+    def test_fetch_batch_uses_select_related_to_avoid_n_plus_one(self):
+        user = User.objects.create_user(username="author")
+        provider = Provider.objects.create(name="TestProvider")
+        program = Program.objects.create(title="prog", author=user, provider=provider)
+
+        for _ in range(5):
+            job = Job.objects.create(
+                author=user,
+                program=program,
+                status=Job.SUCCEEDED,
+                instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/abc:def::",
+            )
+            JobOutbox.objects.create(
+                job=job,
+                job_status=Job.SUCCEEDED,
+                status_changed_at=dj_timezone.now(),
+                has_run=True,
+                license_fee_required=True,
+            )
+
+        with CaptureQueriesContext(connection) as ctx:
+            batch = PublishOutbox._fetch_batch()
+            for row in batch:
+                # Access the FKs the batch will need: this must not add queries beyond
+                # the single one select_related already joined.
+                _ = row.job.program.provider.name
+
+        assert len(batch) == 5
+        assert len(ctx.captured_queries) <= 2

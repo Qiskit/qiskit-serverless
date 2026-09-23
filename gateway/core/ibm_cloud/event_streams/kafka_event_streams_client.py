@@ -33,6 +33,17 @@ LICENSE_FEE_METRIC_TYPE = "license"
 CLASSICAL_TIME_METRIC_TYPE_PREFIX = "classical"
 
 
+class UnroutableRegionError(RuntimeError):
+    """Raised when an event cannot be routed to a producer: the CRN's region could not be
+    determined, or no producer is configured for that region.
+
+    Unlike a plain RuntimeError from a failed produce()/flush() call, this is not a
+    transient Kafka outage: it is either bad data on the row or a deployment config gap,
+    and neither is fixed by pausing sends, so callers should not count it against a shared
+    circuit breaker.
+    """
+
+
 class KafkaEventStreamsClient(EventStreamsClient):
     """
     Kafka producer client for IBM Cloud Event Streams.
@@ -180,9 +191,10 @@ class KafkaEventStreamsClient(EventStreamsClient):
     def _emit_license_fee(self, job: Job) -> None:
         """Publish a license fee event.
 
-        Raises AttributeError if job.program or job.program.provider is gone (both
-        are SET_NULL foreign keys): the caller (PublishOutbox) treats that as
-        an unrecoverable payload and records it instead of retrying forever.
+        Assumes job.program and job.program.provider are present: both are SET_NULL
+        foreign keys that can go null, so the caller (PublishOutbox) checks for that
+        before calling this and waives the fee instead of calling it. A stray
+        AttributeError here is a real bug and is not caught by the caller.
         """
         metric_type = "_".join([LICENSE_FEE_METRIC_TYPE, job.program.provider.name, job.program.title])
         running_started_at = JobEvent.objects.first_running_at(job.id)
@@ -263,13 +275,13 @@ class KafkaEventStreamsClient(EventStreamsClient):
         # Route to the appropriate regional producer
         region = self._region_from_crn(job.instance_crn)
         if region is None:
-            raise RuntimeError(
+            raise UnroutableRegionError(
                 f"KafkaEventStreamsClient: Cannot determine region from CRN "
                 f"(job_id={job.id}, event_id={event_id}, crn={job.instance_crn})"
             )
         producer = self._producers.get(region)
         if producer is None:
-            raise RuntimeError(
+            raise UnroutableRegionError(
                 f"KafkaEventStreamsClient: No producer configured for region {region} "
                 f"(job_id={job.id}, event_id={event_id})"
             )

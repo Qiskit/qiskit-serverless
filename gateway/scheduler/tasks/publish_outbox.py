@@ -12,7 +12,7 @@ from django.utils import timezone
 
 from core.config_key import ConfigKey
 from core.ibm_cloud.event_streams.abstract_event_streams_client import EventStreamsClient
-from core.ibm_cloud.event_streams.kafka_event_streams_client import KafkaEventStreamsClient
+from core.ibm_cloud.event_streams.kafka_event_streams_client import KafkaEventStreamsClient, UnroutableRegionError
 from core.ibm_cloud.event_streams.noop_event_streams_client import NoOpEventStreamsClient
 from core.models import Config, JobOutbox
 
@@ -37,8 +37,8 @@ class PublishOutbox(SchedulerTask):
         self.metrics = metrics
         self._event_streams_client: EventStreamsClient | None = None
         self._breaker = CircuitBreaker(
-            failure_threshold=Config.get_int(ConfigKey.OUTBOX_BREAKER_FAILURES, default=5),
-            pause_seconds=Config.get_int(ConfigKey.OUTBOX_BREAKER_PAUSE_SECONDS, default=60),
+            failure_threshold=lambda: Config.get_int(ConfigKey.OUTBOX_BREAKER_FAILURES, default=5),
+            pause_seconds=lambda: Config.get_int(ConfigKey.OUTBOX_BREAKER_PAUSE_SECONDS, default=60),
         )
 
     @property
@@ -125,15 +125,23 @@ class PublishOutbox(SchedulerTask):
 
         BATCH_SIZE only bounds this single query's size; it is not the cap on how much a
         tick sends, that is run()'s time budget.
+
+        select_related("job", "job__program__provider") pulls the whole batch's Job,
+        Program and Provider in one JOIN, instead of one query per row per relation.
         """
         return list(
-            (JobOutbox.objects.pending_license_fee() | JobOutbox.objects.pending_billing_event()).order_by(
-                "status_changed_at"
-            )[:BATCH_SIZE]
+            (JobOutbox.objects.pending_license_fee() | JobOutbox.objects.pending_billing_event())
+            .select_related("job", "job__program__provider")
+            .order_by("status_changed_at")[:BATCH_SIZE]
         )
 
     def _process_row(self, row: JobOutbox, *, needs_license_fee: bool, needs_billing_event: bool) -> None:
-        """Send whichever facts this row owes, save once if anything changed, then delete if settled.
+        """Send whichever facts this row owes, write once if anything changed, then delete if settled.
+
+        Fields are written with a single UPDATE ... WHERE pk=... rather than mutating
+        `row` and calling row.save(): a concurrent writer (Job.change_status) can update
+        this row between when it was fetched and when this task writes back, and a bare
+        save() would blindly overwrite whatever it changed.
 
         The delete is a single DELETE ... WHERE statement carrying the
         ready_to_delete() predicate, not a separate exists() check followed by a
@@ -141,51 +149,65 @@ class PublishOutbox(SchedulerTask):
         zero rows, which is exactly as cheap as checking and skipping would have
         been, but never costs two round trips when it is ready.
         """
-        changed = False
+        changed_fields = {}
 
         if needs_license_fee:
-            license_fee_sent_at = self._send_license_fee(row)
-            if license_fee_sent_at is not None:
-                row.license_fee_sent_at = license_fee_sent_at
-                changed = True
+            changed_fields.update(self._send_license_fee(row))
 
         if needs_billing_event:
             billing_sent_at = self._send_billing_event(row)
             if billing_sent_at is not None:
-                row.billing_sent_at = billing_sent_at
-                changed = True
+                changed_fields["billing_sent_at"] = billing_sent_at
 
-        if changed:
-            row.save()
+        if changed_fields:
+            JobOutbox.objects.filter(pk=row.pk).update(**changed_fields)
 
         JobOutbox.objects.ready_to_delete().filter(pk=row.pk).delete()
 
-    def _send_license_fee(self, row: JobOutbox) -> datetime | None:
-        """Attempt to send the license fee event. Returns the sent timestamp on success, None otherwise."""
-        try:
-            self.event_streams_client.emit_license_fee(row.job)
-        except AttributeError as ex:
+    def _send_license_fee(self, row: JobOutbox) -> dict[str, datetime | bool]:
+        """Attempt to send the license fee event.
+
+        Returns the JobOutbox field(s) to write: {"license_fee_sent_at": ts} on success,
+        {"license_fee_required": False} when the payload can never be built because
+        program or provider is gone (the fee is waived, not owed: this waives the row
+        without a new column, since license_fee_required=False already means "never
+        owes a fee" to pending_license_fee()/ready_to_delete()), or {} when nothing
+        changed yet (a transient Kafka failure or an unroutable region/config gap, see
+        fix 3): the row stays pending for a retry.
+        """
+        program = row.job.program
+        if program is None or program.provider is None:
             logger.error(
-                "job_id=%s license fee payload cannot be built, abandoning: %s",
+                "job_id=%s license fee payload cannot be built: program or provider missing, waiving the fee",
                 row.job_id,
-                str(ex),
             )
             self.metrics.increment_outbox_license_fee_irrecoverable()
-            return None
+            return {"license_fee_required": False}
+
+        try:
+            self.event_streams_client.emit_license_fee(row.job)
+        except UnroutableRegionError as ex:
+            logger.error("job_id=%s license fee event unroutable, will retry: %s", row.job_id, str(ex))
+            self.metrics.increment_outbox_send(FACT_LICENSE_FEE, "unroutable")
+            return {}
         except RuntimeError as ex:
             logger.error("job_id=%s error publishing license fee to Kafka: %s", row.job_id, str(ex))
             self.metrics.increment_outbox_send(FACT_LICENSE_FEE, "failure")
             self._breaker.record_failure()
-            return None
+            return {}
 
         self.metrics.increment_outbox_send(FACT_LICENSE_FEE, "success")
         self._breaker.record_success()
-        return timezone.now()
+        return {"license_fee_sent_at": timezone.now()}
 
     def _send_billing_event(self, row: JobOutbox) -> datetime | None:
         """Attempt to send the final usage event. Returns the sent timestamp on success, None otherwise."""
         try:
             self.event_streams_client.emit_job_completed(row.job, row.status_changed_at)
+        except UnroutableRegionError as ex:
+            logger.error("job_id=%s billing event unroutable, will retry: %s", row.job_id, str(ex))
+            self.metrics.increment_outbox_send(FACT_BILLING_EVENT, "unroutable")
+            return None
         except RuntimeError as ex:
             logger.error("job_id=%s error publishing billing event to Kafka: %s", row.job_id, str(ex))
             self.metrics.increment_outbox_send(FACT_BILLING_EVENT, "failure")

@@ -124,9 +124,10 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
         )
         self.outbox_license_fee_irrecoverable_total = Counter(
             "scheduler_outbox_license_fee_irrecoverable_total",
-            "License fee sends abandoned because the referenced Program or Provider no longer "
-            "exists. These rows stay pending forever by design; this counter is what surfaces "
-            "that instead of the outbox table's row count.",
+            "License fee sends waived because the referenced Program or Provider no longer "
+            "exists. The fee is waived, not owed, so the row is not stuck: it proceeds to be "
+            "deleted once the billing event also settles. This counter is what surfaces the "
+            "waiver, since the row itself leaves no trace once deleted.",
             registry=self.registry,
         )
         self.outbox_pending_rows = Gauge(
@@ -170,11 +171,13 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
 
     def increment_outbox_send(self, fact: str, outcome: str) -> None:
         """Count one outbox send attempt. fact: "license_fee" or "billing_event".
-        outcome: "success" or "failure"."""
+        outcome: "success", "failure", or "unroutable" (the CRN's region could not be
+        determined, or no producer is configured for it; not counted as a "failure"
+        because it does not trip the shared circuit breaker)."""
         self.outbox_sends_total.labels(fact=fact, outcome=outcome).inc()
 
     def increment_outbox_license_fee_irrecoverable(self) -> None:
-        """Count one license fee send abandoned because its Program/Provider no longer exists."""
+        """Count one license fee waived because its Program/Provider no longer exists."""
         self.outbox_license_fee_irrecoverable_total.inc()
 
     def set_outbox_pending_rows(self, count: int, fact: str) -> None:

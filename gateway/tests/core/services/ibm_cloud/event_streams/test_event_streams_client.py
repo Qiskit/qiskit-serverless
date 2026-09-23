@@ -23,7 +23,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 from core.domain.business_models import BusinessModel
-from core.ibm_cloud.event_streams.kafka_event_streams_client import KafkaEventStreamsClient
+from core.ibm_cloud.event_streams.kafka_event_streams_client import KafkaEventStreamsClient, UnroutableRegionError
 
 _CLIENT_MOD = "core.ibm_cloud.event_streams.kafka_event_streams_client"
 
@@ -567,7 +567,7 @@ class TestKafkaEventStreamsClient:
         assert mock_producer_main.produce.called
         assert mock_producer_regional.produce.called
 
-    def test_unconfigured_region_raises(self):
+    def test_unconfigured_region_raises_unroutable(self):
         job = _make_job(instance_crn="crn:v1:bluemix:public:quantum-computing:au-syd:a/abc:def::")
 
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
@@ -589,10 +589,15 @@ class TestKafkaEventStreamsClient:
                             mock_producer = mock_producer_cls.return_value
                             mock_producer.flush.return_value = 0
 
-                            with pytest.raises(RuntimeError, match="No producer configured for region au-syd"):
+                            with pytest.raises(UnroutableRegionError, match="No producer configured for region au-syd"):
                                 client.emit_job_started(job, "classical_24x120")
 
-    def test_null_crn_raises(self):
+    def test_unroutable_region_error_is_a_runtime_error(self):
+        """A broad `except RuntimeError` elsewhere in the codebase must still catch this,
+        so it has to remain a RuntimeError subclass."""
+        assert issubclass(UnroutableRegionError, RuntimeError)
+
+    def test_null_crn_raises_unroutable(self):
         job = _make_job(instance_crn=None)
 
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
@@ -614,10 +619,10 @@ class TestKafkaEventStreamsClient:
                             mock_producer = mock_producer_cls.return_value
                             mock_producer.flush.return_value = 0
 
-                            with pytest.raises(RuntimeError, match="Cannot determine region from CRN"):
+                            with pytest.raises(UnroutableRegionError, match="Cannot determine region from CRN"):
                                 client.emit_job_started(job, "classical_24x120")
 
-    def test_malformed_crn_raises(self):
+    def test_malformed_crn_raises_unroutable(self):
         job = _make_job(instance_crn="not:a:valid:crn")
 
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
@@ -639,8 +644,38 @@ class TestKafkaEventStreamsClient:
                             mock_producer = mock_producer_cls.return_value
                             mock_producer.flush.return_value = 0
 
-                            with pytest.raises(RuntimeError, match="Cannot determine region from CRN"):
+                            with pytest.raises(UnroutableRegionError, match="Cannot determine region from CRN"):
                                 client.emit_job_started(job, "classical_24x120")
+
+    def test_produce_failure_raises_plain_runtime_error_not_unroutable(self):
+        """A producer.produce()/flush() failure is a transient Kafka outage, not a routing
+        or config gap: it must stay a plain RuntimeError so it keeps tripping the caller's
+        circuit breaker."""
+        job = _make_job()
+
+        with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
+            with patch(f"{_CLIENT_MOD}.JobEvent") as mock_job_event:
+                with patch(f"{_CLIENT_MOD}.uuid"):
+                    with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
+                        with patch.dict(
+                            os.environ,
+                            {
+                                "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                                "EVENT_STREAMS_API_KEY": "k",
+                                "ENVIRONMENT": "production",
+                                "EVENT_STREAMS_MAIN_REGION": "eu-de",
+                            },
+                            clear=True,
+                        ):
+                            _patch_first_running_at(mock_job_event)
+                            mock_dt.now.return_value = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+                            client = KafkaEventStreamsClient()
+                            mock_producer = mock_producer_cls.return_value
+                            mock_producer.produce.side_effect = Exception("broker unreachable")
+
+                            with pytest.raises(RuntimeError, match="Failed to publish event") as exc_info:
+                                client.emit_job_started(job, "classical_24x120")
+                            assert not isinstance(exc_info.value, UnroutableRegionError)
 
     def test_broker_list_without_matching_api_key_raises_at_init(self):
         with patch(f"{_CLIENT_MOD}.Producer"):
