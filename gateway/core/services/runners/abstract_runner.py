@@ -129,7 +129,7 @@ class AbstractRunner(ABC):
         Automatically connects if not connected.
 
         Returns:
-            True if job was running and stopped
+            True if a stop was accepted, False if there was nothing left to stop.
 
         Raises:
             RunnerError: If unable to stop the job

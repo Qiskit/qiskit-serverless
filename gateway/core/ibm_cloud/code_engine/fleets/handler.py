@@ -31,9 +31,9 @@ Example usage::
         project_id=project_id,
     )
 
-    handler.submit_job(name="my-fleet", ...)
-    handler.get_job_status("my-fleet")
-    handler.cancel_job("my-fleet", wait=True, delete=True)
+    fleet = handler.submit_job(name="my-fleet", ...)
+    handler.get_job_status(fleet.id)
+    handler.cancel_job(fleet.id)
 """
 
 from __future__ import annotations
@@ -51,9 +51,28 @@ logger = logging.getLogger("FleetHandler")
 
 _UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
-# Literal JSON key in the cancel_fleet body (a plain dict bypasses the model's
-# attribute_map). Flip the casing here if CE rejects the field.
+# Literal JSON key in the cancel_fleet body (a plain dict bypasses the model's attribute_map).
 _CANCEL_PROCESSING_TASKS_KEY = "cancel_processing_tasks"
+
+# Code Engine's error code for a cancel on a fleet it is already cancelling. Matched on the code
+# rather than on the bare 409, so an unrelated conflict still surfaces instead of being read as
+# "nothing to cancel".
+_ALREADY_CANCELED_CODE = "fleet_already_canceled"
+
+# How the generated models word their own validation failures, e.g.
+# "Invalid value for `status` (standby), must be one of [...]". Used to tell a response body the
+# model would not map from a ValueError raised before the request was ever sent. If the client is
+# regenerated with different wording this stops matching, which fails safe: the cancel is reported
+# as not delivered and retried, and the retry answers 409.
+_MODEL_VALIDATION_ERROR = "Invalid value for"
+
+
+def _is_already_canceled(exc: ApiException) -> bool:
+    """Return True if an error body carries Code Engine's already-cancelling code.
+
+    The status is not checked here. The caller pairs this with the 409 it applies to.
+    """
+    return _ALREADY_CANCELED_CODE in str(getattr(exc, "body", "") or "")
 
 
 class FleetHandler:
@@ -164,8 +183,16 @@ class FleetHandler:
                 "raw": <the full SDK model as dict>
             }
 
+        Known limitation: the generated ``V2Fleet`` validates ``status`` against a fixed list of
+        eight values and raises ``ValueError`` for anything else. Code Engine returns ``standby``,
+        which is not on that list, so this raises for such a fleet. ``cancel_job`` deliberately does
+        not call this for that reason. Neither remaining caller is exposed to it:
+        ``_get_fleet_name`` swallows every exception and has no callers of its own, and
+        ``_wait_until_state`` is unreachable in production.
+
         Raises:
-            ValueError: if identifier is a name and cannot be resolved.
+            ValueError: if identifier is a name and cannot be resolved, or if Code Engine reports a
+                status the generated model does not know.
             ApiException: if the GET call fails (e.g., 404/403).
         """
         fleet_id = self._resolve_fleet_id(identifier)
@@ -225,25 +252,31 @@ class FleetHandler:
         self,
         identifier: str,
         *,
-        wait: bool = True,
+        wait: bool = False,
         delete: bool = False,
         cancel_processing_tasks: bool = True,
         timeout_seconds: int = 300,
         poll_interval_seconds: float = 2.0,
-    ) -> None:
+    ) -> bool:
         """
-        Attempt to cancel a fleet ("job") only if it is pending or running, then optionally wait
-        for terminal and optionally delete.
+        Ask Code Engine to cancel a fleet ("job"), then optionally wait for terminal and delete.
+
+        The fleet's status is deliberately not read first. Code Engine already answers whether a
+        cancel was accepted, and reading the status beforehand made two things go wrong: a status
+        the generated model does not recognise raised before we ever asked, and a rate-limited read
+        silently skipped the cancel while the caller was told it had been sent.
 
         Steps:
         1) Resolve identifier (name or UUID) to a fleet UUID.
-        2) Inspect status. If 'pending' or 'running', issue cancel (best-effort). Otherwise skip cancel.
+        2) Issue the cancel and interpret the response.
         3) If wait=True, poll until the fleet reaches a terminal state (or disappears).
         4) If delete=True, attempt to delete. Treat 404 as success.
 
         Args:
             identifier: Fleet UUID or fleet name.
-            wait: If True, poll the fleet until terminal after the cancel decision.
+            wait: If True, poll the fleet until terminal after the cancel. Defaults to False: the
+                poller blocks for up to timeout_seconds and reads statuses through the generated
+                model, neither of which belongs on a retry path.
             delete: If True, delete the fleet after optional wait.
             cancel_processing_tasks: If True, Code Engine kills the running task immediately
                 instead of waiting for it to finish before completing the cancelation.
@@ -253,37 +286,55 @@ class FleetHandler:
             timeout_seconds: Max time to wait for terminal state when wait=True.
             poll_interval_seconds: Delay between polls.
 
+        Returns:
+            ``True`` if Code Engine accepted the request, ``False`` if there was nothing left to
+            cancel because the fleet is gone or a cancel is already in progress.
+
+            ``True`` does not mean the fleet was doing anything. Code Engine answers 202 for a
+            fleet whose task has already finished, and for one in ``standby``, both measured on
+            staging. Deciding whether a cancel is worth sending belongs to the caller, which is
+            what the scheduler will do once it holds the task-store state.
+
         Raises:
-            ValueError: If identifier is a name that cannot be resolved.
-            ApiException: If delete_fleet fails with an error other than 404.
+            ValueError: If identifier is a name that cannot be resolved, or if the cancel never
+                left the process. A ValueError from the model refusing a 2xx body is swallowed
+                instead, because that one means the cancel landed.
+            ApiException: If the cancel could not be delivered, so the caller can retry. Also if
+                delete_fleet fails with an error other than 404.
             AssertionError: If waiting is enabled and the fleet never reaches terminal before timeout.
         """
         fleet_id = self._resolve_fleet_id(identifier)
+        cancel_sent = True
 
-        # Decide whether to cancel based on current status.
-        # 404 → already gone, skip cancel. 429 → rate limited, skip cancel
-        # conservatively. Any other error → attempt cancel best-effort.
-        should_attempt_cancel = False
         try:
-            info = self.get_job_status(fleet_id)
-            status = (info.get("status") or "").lower()
-            should_attempt_cancel = status in {"pending", "running"}
+            self._fleets_api.cancel_fleet(
+                project_id=self.project_id,
+                id=fleet_id,
+                body={_CANCEL_PROCESSING_TASKS_KEY: cancel_processing_tasks},
+            )
         except ApiException as exc:
-            if exc.status in {404, 429}:
-                should_attempt_cancel = False
+            # A non-2xx is raised by the transport before the body is deserialized into the model,
+            # so a 404 or 409 here is Code Engine's own answer. The converse does not hold: parsing
+            # a 2xx body can raise ApiException(status=0) too. 404 and an already-cancelling 409
+            # mean there is nothing left to do; anything else, a 429 above all, means the cancel was
+            # not delivered, so raise rather than claim it was.
+            if exc.status == 404 or (exc.status == 409 and _is_already_canceled(exc)):
+                logger.info("Fleet [%s] had nothing to cancel (HTTP %s)", fleet_id, exc.status)
+                cancel_sent = False
             else:
-                should_attempt_cancel = True
-
-        if should_attempt_cancel:
-            try:
-                self._fleets_api.cancel_fleet(
-                    project_id=self.project_id,
-                    id=fleet_id,
-                    body={_CANCEL_PROCESSING_TASKS_KEY: cancel_processing_tasks},
-                )
-            except ApiException as exc:
-                if exc.status != 404:
-                    raise
+                raise
+        except ValueError as exc:
+            # The generated model refuses a 2xx body it cannot map: a status outside its fixed list,
+            # or a body too sparse for its required fields. Both read "Invalid value for `<field>`".
+            # Only those mean the cancel landed, because a non-2xx raises ApiException above.
+            #
+            # Every other ValueError means the request never left the process, and reporting one as
+            # a delivered cancel would be the exact bug this method was changed to remove. Two are
+            # reachable: the generated client's own missing-parameter check, and urllib3's
+            # LocationValueError / LocationParseError, which are ValueError subclasses.
+            if _MODEL_VALIDATION_ERROR not in str(exc):
+                raise
+            logger.info("Fleet [%s] cancel accepted, response body not parseable", fleet_id)
 
         # Optionally wait for terminal to avoid delete races.
         if wait:
@@ -296,6 +347,8 @@ class FleetHandler:
         # Optionally delete; fleet_id is already resolved so pass it directly.
         if delete:
             self.delete_job(fleet_id)
+
+        return cancel_sent
 
     def delete_job(self, identifier: str) -> None:
         """
@@ -339,6 +392,11 @@ class FleetHandler:
 
             pending, running, canceling, canceled, deleting, failed,
             succeeded, successful
+
+        That list is incomplete: Code Engine also returns ``standby``, which the generated model
+        rejects, so ``get_job_status`` raises ``ValueError`` for such a fleet and this loop, which
+        catches only ``ApiException``, would not survive it. Unreachable in production, because the
+        only caller is ``cancel_job(wait=True)`` and nothing passes that.
 
         Args:
             fleet_id: Fleet UUID to poll.

@@ -1,4 +1,4 @@
-coverage>=7.16.0
+coverage>=7.16.1
 pylint>=4.0.8
 nbqa>=1.9.1
 treon>=0.1.4
@@ -16,6 +16,6 @@ black[jupyter]~=26.5
 requests-mock>=1.12.1
 # new versions of testcontainers don't support docker compose
 testcontainers>=4.15.0
-tox>=4.61.2
+tox>=4.63.0
 pre-commit>=4.6.2
 setuptools>=84.0.0

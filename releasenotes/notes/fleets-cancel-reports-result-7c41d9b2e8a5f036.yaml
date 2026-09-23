@@ -1,0 +1,16 @@
+---
+fixes:
+  - |
+    Stopping a Fleets job now reports whether Code Engine accepted the cancel. Two
+    cases were wrong. A job whose fleet was in a state the Code Engine client did
+    not recognise, ``standby`` among them, could not be cancelled at all and was
+    reported as unreachable. And a cancel that Code Engine rate-limited could be
+    reported as a completed stop even though nothing had been sent. The fleet's
+    status is no longer read before cancelling: the cancel is sent and Code
+    Engine's response decides.
+upgrade:
+  - |
+    Stopping a job now answers "Serverless job stop has been requested." where it
+    used to say the job "was running and has been stopped". Code Engine accepts a
+    cancel for a fleet that has already finished, so the old wording claimed more
+    than the response supports.
