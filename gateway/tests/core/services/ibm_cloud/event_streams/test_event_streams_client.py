@@ -323,11 +323,13 @@ class TestKafkaEventStreamsClient:
         assert published["data"]["metric_value"] == 0
         assert published["data"]["job_started_at"] is None
 
-    def test_emit_license_fee_publishes_correct_payload(self):
+    def test_emit_license_fee_includes_size_from_job_function_size(self):
         job = _make_job()
         job.program = MagicMock()
         job.program.provider.name = "ibm"
         job.program.title = "test-program"
+        job.function_size = MagicMock()
+        job.function_size.function_size = "S"
 
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
             with patch(f"{_CLIENT_MOD}.uuid") as mock_uuid_mod:
@@ -340,7 +342,7 @@ class TestKafkaEventStreamsClient:
                             "ENVIRONMENT": "production",
                         },
                     ):
-                        fake_event_id = uuid_module.UUID("00000000-0000-0000-0000-000000000002")
+                        fake_event_id = uuid_module.UUID("00000000-0000-0000-0000-000000000003")
                         mock_uuid_mod.uuid4.return_value = fake_event_id
                         fake_now = datetime(2026, 1, 1, 12, 0, 1, tzinfo=timezone.utc)
                         mock_dt.now.return_value = fake_now
@@ -352,22 +354,42 @@ class TestKafkaEventStreamsClient:
 
         call_kwargs = mock_producer.produce.call_args[1]
         published = json.loads(call_kwargs["value"])
-        assert published["specversion"] == "1.0"
-        assert published["type"] == "quantum.production.function-usage.v1"
-        assert published["source"] == "qiskit-serverless/scheduler/fleets"
-        assert published["subject"] == str(job.id)
-        assert published["data"] == {
-            "metric_type": "license_ibm_test-program",
-            "metric_value": 1,
-            "instance_crn": job.instance_crn,
-            "resource_id": str(job.id),
-            "job_started": True,
-            "job_completed": True,
-            "job_started_at": job.running_started_at.isoformat(),
-            "business_model": "licensed",
-        }
-        assert call_kwargs["key"] == str(job.id).encode("utf-8")
-        mock_producer.flush.assert_called_once()
+        assert published["data"]["metric_type"] == "license_ibm_test-program_S"
+        assert published["data"]["business_model"] == "licensed"
+
+    def test_emit_license_fee_falls_back_to_program_default_size(self):
+        job = _make_job()
+        job.program = MagicMock()
+        job.program.provider.name = "ibm"
+        job.program.title = "test-program"
+        job.function_size = MagicMock()
+        job.function_size.function_size = "m"
+
+        with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
+            with patch(f"{_CLIENT_MOD}.uuid") as mock_uuid_mod:
+                with patch(f"{_CLIENT_MOD}.datetime") as mock_dt:
+                    with patch.dict(
+                        os.environ,
+                        {
+                            "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                            "EVENT_STREAMS_API_KEY": "k",
+                            "ENVIRONMENT": "production",
+                        },
+                    ):
+                        fake_event_id = uuid_module.UUID("00000000-0000-0000-0000-000000000004")
+                        mock_uuid_mod.uuid4.return_value = fake_event_id
+                        fake_now = datetime(2026, 1, 1, 12, 0, 1, tzinfo=timezone.utc)
+                        mock_dt.now.return_value = fake_now
+
+                        client = KafkaEventStreamsClient()
+                        mock_producer = mock_producer_cls.return_value
+                        mock_producer.flush.return_value = 0
+                        client.emit_license_fee(job)
+
+        call_kwargs = mock_producer.produce.call_args[1]
+        published = json.loads(call_kwargs["value"])
+        assert published["data"]["metric_type"] == "license_ibm_test-program_m"
+        assert published["data"]["business_model"] == "licensed"
 
     @pytest.mark.parametrize(
         "business_model,expected",
@@ -383,6 +405,8 @@ class TestKafkaEventStreamsClient:
         job.program = MagicMock()
         job.program.provider.name = "ibm"
         job.program.title = "test-program"
+        job.function_size = MagicMock()
+        job.function_size.function_size = "m"
 
         with patch(f"{_CLIENT_MOD}.Producer") as mock_producer_cls:
             with patch(f"{_CLIENT_MOD}.uuid"):

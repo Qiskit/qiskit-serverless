@@ -137,7 +137,7 @@ class TestRunFunctionUseCase:
 
     @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
     def test_fleets_job_rejected_when_no_default_size_and_nothing_requested(self, user, ce_project):
-        """Nothing requested and no default_size: rejected rather than sized by the deployment default."""
+        """Nothing requested and no default_size: rejected with clear 400 error."""
         make_fleets_function(user, ce_project)
         ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])

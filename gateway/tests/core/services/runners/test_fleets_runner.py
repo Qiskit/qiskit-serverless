@@ -384,6 +384,17 @@ def test_submit_sets_fleet_id_with_cos():
     mock_handler.submit_job.assert_called_once()
 
 
+def test_submit_places_the_fleet_on_the_projects_subnet_pool():
+    """submit() passes the project's subnet_pool_id through as the network placement."""
+    runner, mock_handler = _make_submit_runner()
+
+    with _patch_settings():
+        runner.submit()
+
+    placements = mock_handler.submit_job.call_args.kwargs["network_placements"]
+    assert placements == [{"type": "subnet_pool", "reference": "subnet-1"}]
+
+
 def test_submit_fleet_name_describes_the_job():
     """A real job's fleet is named job-<function>-<profile>-<username>."""
     runner, mock_handler = _make_submit_runner()
