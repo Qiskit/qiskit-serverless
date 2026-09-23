@@ -68,7 +68,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
         main_region = os.environ.get("EVENT_STREAMS_MAIN_REGION", "us-east")
 
         if main_bootstrap_servers and main_api_key:
-            logger.debug("Registering main region producer: region=%s", main_region)
+            logger.info("Registering main region producer: region=%s", main_region)
             self._producers[main_region] = self._create_producer(main_bootstrap_servers, main_api_key, main_user)
             self._main_region = main_region
         else:
@@ -79,7 +79,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
             if env_key.startswith("EVENT_STREAMS_BOOTSTRAP_SERVERS_"):
                 suffix = env_key[len("EVENT_STREAMS_BOOTSTRAP_SERVERS_") :]
                 region = suffix.lower().replace("_", "-")
-                logger.debug("Discovered environment variable for region: env_key=%s region=%s", env_key, region)
+                logger.info("Discovered environment variable for region: env_key=%s region=%s", env_key, region)
                 bootstrap_servers = os.environ[env_key]
                 api_key_env = f"EVENT_STREAMS_API_KEY_{suffix}"
                 user_env = f"EVENT_STREAMS_USER_{suffix}"
@@ -89,7 +89,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
                 if api_key is None:
                     raise ValueError(f"Region {region}: found {env_key} but missing {api_key_env}")
 
-                logger.debug("Registering regional producer: region=%s", region)
+                logger.info("Registering regional producer: region=%s", region)
                 self._producers[region] = self._create_producer(bootstrap_servers, api_key, user)
 
         self.topic = f"quantum.{environment}.function-usage.v1"
