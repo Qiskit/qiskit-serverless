@@ -45,3 +45,10 @@ def test_noop_client_skips_filler_jobs():
         real_job = _make_job(filler=False)
         client.emit_job_started(real_job)
         mock_emit.assert_called_once_with(real_job, None)
+
+
+def test_noop_client_consume_events_does_not_raise():
+    """NoOpEventStreamsClient.consume_events() should not raise an exception."""
+    client = NoOpEventStreamsClient()
+    # Should complete without error
+    client.consume_events()
