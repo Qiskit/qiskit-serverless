@@ -42,7 +42,11 @@ def _make_job(
     job.instance_crn = instance_crn
     job.running_started_at = running_started_at or datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
     job.business_model = business_model
+    # On a real Job these are the same value: ComputeProfile's primary key *is* the profile
+    # string, so Job.compute_profile_id returns compute_profile_fk_id. Set both so the metric
+    # type stays byte-identical whether the emitter reads the transitional string or the FK.
     job.compute_profile = compute_profile
+    job.compute_profile_id = compute_profile
     job.filler = False
 
     provider = MagicMock()
