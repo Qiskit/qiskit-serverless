@@ -189,11 +189,17 @@ class KafkaEventStreamsClient(EventStreamsClient):
         return job.function_size.function_size
 
     def _build_classical_metric_type(self, job: Job) -> str:
-        """Build classical metric type from job attributes: classical_COMPUTE_PROFILE."""
+        """Build classical metric type from job attributes: classical_COMPUTE_PROFILE.
+
+        Reads the profile through ``Job.compute_profile_id`` (the FK), not the
+        transitional ``Job.compute_profile`` string. The emitted value is
+        unchanged: ``ComputeProfile`` keys on the profile string, so the FK's
+        primary key is that same string, and every writer sets both together.
+        """
         parts = [CLASSICAL_TIME_METRIC_TYPE_PREFIX]
 
-        if job.compute_profile:
-            parts.append(job.compute_profile)
+        if job.compute_profile_id:
+            parts.append(job.compute_profile_id)
 
         return "_".join(parts)
 

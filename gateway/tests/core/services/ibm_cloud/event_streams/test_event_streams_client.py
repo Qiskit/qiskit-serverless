@@ -24,6 +24,8 @@ from unittest.mock import MagicMock, patch
 
 from core.domain.business_models import BusinessModel
 from core.ibm_cloud.event_streams.kafka_event_streams_client import KafkaEventStreamsClient
+from core.models import ComputeProfile
+from tests.utils import TestUtils
 
 _CLIENT_MOD = "core.ibm_cloud.event_streams.kafka_event_streams_client"
 
@@ -714,3 +716,45 @@ class TestKafkaEventStreamsClient:
                         client.emit_license_fee(job)
 
         mock_producer.produce.assert_not_called()
+
+
+class TestClassicalMetricTypeFromRealJob:
+    """Build the classical metric type from a real ``Job``, not a ``MagicMock``.
+
+    Every other test in this file mocks the job, which cannot catch a reader
+    pointed at an attribute a real ``Job`` does not have: a ``MagicMock``
+    answers any attribute access. These tests hit the database so the metric
+    type is built from a genuine model instance.
+    """
+
+    @pytest.mark.django_db
+    def test_metric_type_reads_the_profile_through_the_fk(self):
+        """A job with the FK set emits ``classical_<profile>``."""
+        profile, _ = ComputeProfile.objects.get_or_create(compute_profile_id="16x128")
+        user, _ = TestUtils.get_user_and_username(author="test_user")
+        program = TestUtils.create_program(program_title="metric-type-func", author=user)
+        job = TestUtils.create_job(author=user, program=program, compute_profile_fk=profile)
+
+        metric_type = KafkaEventStreamsClient._build_classical_metric_type(  # pylint: disable=protected-access
+            None, job
+        )
+
+        assert metric_type == "classical_16x128"
+
+    @pytest.mark.django_db
+    def test_metric_type_without_a_profile_is_the_bare_prefix(self):
+        """A job with no profile (e.g. Ray) emits the prefix alone.
+
+        Pinned deliberately: this is a *different* billing metric type rather than
+        an error, so the degradation is silent. Recorded here so a future change to
+        that behaviour is a visible test change and not a surprise on an invoice.
+        """
+        user, _ = TestUtils.get_user_and_username(author="test_user")
+        program = TestUtils.create_program(program_title="no-profile-func", author=user)
+        job = TestUtils.create_job(author=user, program=program)
+
+        metric_type = KafkaEventStreamsClient._build_classical_metric_type(  # pylint: disable=protected-access
+            None, job
+        )
+
+        assert metric_type == "classical"
