@@ -17,7 +17,7 @@ from core.models import Job, JobConfig, JobEvent, Program, Provider, ComputeReso
 from core.model_managers.job_events import JobEventOrigin, JobEventContext, JobEventType
 
 # literal for job status
-JobStatusType = Literal[Job.PENDING, Job.RUNNING, Job.STOPPED, Job.SUCCEEDED, Job.FAILED, Job.QUEUED]
+JobStatusType = Literal[Job.PENDING, Job.RUNNING, Job.STOPPING, Job.STOPPED, Job.SUCCEEDED, Job.FAILED, Job.QUEUED]
 JobSubStatusType = Literal[
     Job.MAPPING, Job.OPTIMIZING_HARDWARE, Job.WAITING_QPU, Job.EXECUTING_QPU, Job.POST_PROCESSING
 ]
