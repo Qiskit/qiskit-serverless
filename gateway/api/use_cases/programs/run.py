@@ -87,10 +87,7 @@ def _get_runner_config(
         1. Both ``function_size`` and ``compute_profile`` -> rejected as ambiguous.
         2. ``function_size`` -> resolved through the function's ``FunctionSize``
            catalog (source REQUESTED); an undeclared size is rejected.
-        3. ``compute_profile`` (deprecated) -> used as-is (source COMPUTE_PROFILE),
-           unless the function has a provider: that path never records a
-           ``FunctionSize``, and a licensed function's usage needs one to be billed
-           correctly, so the job is rejected instead of accepted unbillable.
+        3. ``compute_profile`` (deprecated) -> used as-is (source COMPUTE_PROFILE).
         4. Neither -> the function's ``default_size`` (source DEFAULT_SIZE), which
            is guaranteed to exist for Fleets functions.
 
@@ -99,8 +96,7 @@ def _get_runner_config(
     canonical (strip+casefold) label.
 
     Raises:
-        FunctionConfigurationException: on ambiguous input, an undeclared size,
-            ``compute_profile`` requested for a licensed function, or
+        FunctionConfigurationException: on ambiguous input, an undeclared size, or
             a resolved profile with no registered row.
     """
     # Ambiguous input is always a 400, whatever the runner, so check before the
@@ -145,16 +141,6 @@ def _get_runner_config(
 
     # (3) Deprecated explicit compute profile.
     if compute_profile_requested:
-        if function.provider_id is not None:
-            # This path never associates a FunctionSize row (see _config_for_profile_id),
-            # and a licensed function's usage event needs one to be billed correctly
-            # (the function size is part of the price key on the billing side, not just
-            # a label). Rather than accept the job and fail to bill it correctly later,
-            # reject it here so the caller can retry with 'function_size'.
-            raise FunctionConfigurationException(
-                "'compute_profile' cannot be used for a licensed function. Pass 'function_size' instead, "
-                "so the license fee can be billed correctly."
-            )
         logger.warning(
             "program=%s | 'compute_profile' is deprecated; use 'function_size'.",
             function.title,
@@ -162,7 +148,8 @@ def _get_runner_config(
         return _config_for_profile_id(compute_profile_requested, size_source=Job.SIZE_SOURCE_COMPUTE_PROFILE)
 
     # (4) Nothing requested: the function's default size.
-    # All Fleets functions must have one; if missing, reject the job.
+    # All Fleets functions must have one (guaranteed by PR #2490 for new functions,
+    # seeded during upload for legacy ones); if missing, reject the job.
     if not function.default_size_id:
         raise FunctionConfigurationException(
             "This function has no size. Ask an administrator to give it one, or pass 'function_size' explicitly."
@@ -291,8 +278,7 @@ class RunFunctionUseCase:
                 status=job.status,
             )
             if function.runner == Function.FLEETS and job.instance_crn:
-                # This is the only creation site: see JobOutbox's docstring for the
-                # "one row per live job" invariant that depends on it staying that way.
+                # This is the only where the JobOutbox is created
                 JobOutbox.objects.create(
                     job=job,
                     job_status=job.status,

@@ -35,13 +35,7 @@ CLASSICAL_TIME_METRIC_TYPE_PREFIX = "classical"
 
 class UnroutableRegionError(RuntimeError):
     """Raised when an event cannot be routed to a producer: the CRN's region could not be
-    determined, or no producer is configured for that region.
-
-    Unlike a plain RuntimeError from a failed produce()/flush() call, this is not a
-    transient Kafka outage: it is either bad data on the row or a deployment config gap,
-    and neither is fixed by pausing sends, so callers should not count it against a shared
-    circuit breaker.
-    """
+    determined, or no producer is configured for that region."""
 
 
 class KafkaEventStreamsClient(EventStreamsClient):

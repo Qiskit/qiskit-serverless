@@ -926,9 +926,10 @@ class JobAdmin(admin.ModelAdmin):
 
     @admin.display(description="Actions")
     def job_actions(self, obj):
-        """Stop job button for non-terminal Ray jobs; posts via a separate fetch, same reason as
-        stop_job_view. Click handling lives in job_stop_button.js, not an onclick attribute, since
-        the CSP here (script-src 'none') silently blocks inline event handlers.
+        """Stop job button for non-terminal Ray jobs; posts via a separate fetch (not the change
+        form, which requires fields some jobs don't have and would save unrelated page edits).
+        Click handling lives in job_stop_button.js, not an onclick attribute, since the CSP here
+        (script-src 'none') silently blocks inline event handlers.
         _state.adding, not obj.pk, below: id defaults to a fresh uuid before the row is saved."""
         if obj._state.adding or not self._can_stop(obj):  # pylint: disable=protected-access
             return "-"
