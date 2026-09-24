@@ -496,11 +496,15 @@ class Job(models.Model):
     POST_PROCESSING = "POST_PROCESSING"
 
     TERMINAL_STATUSES = [SUCCEEDED, FAILED, STOPPED]
-    # STOPPING is running, because the engine still holds the node until it confirms the cancel, and
-    # it is deliberately not active: ACTIVE_STATUSES gates LIMITS_ACTIVE_JOBS_PER_USER, so a stopping
-    # job frees the user's submission quota, and it also rejects new sub_status and error events.
+    # ACTIVE_STATUSES is the exact complement of TERMINAL_STATUSES: every status a job holds before
+    # it ends. RUNNING_STATUSES is the narrower "engine is holding capacity" set, and stays a subset
+    # of it, QUEUED being the only difference.
+    # STOPPING belongs in both. Running, because the engine keeps the node until it confirms the
+    # cancel, so it counts against LIMITS_JOBS_PER_USER and LIMITS_MAX_FLEETS. Active, because a
+    # cancel still in flight should count against LIMITS_ACTIVE_JOBS_PER_USER, and because a job
+    # being torn down is exactly when its error event is worth recording.
     RUNNING_STATUSES = [RUNNING, PENDING, STOPPING]
-    ACTIVE_STATUSES = [QUEUED, PENDING, RUNNING]
+    ACTIVE_STATUSES = [QUEUED, PENDING, RUNNING, STOPPING]
 
     RUNNING_SUB_STATUSES = [
         MAPPING,
