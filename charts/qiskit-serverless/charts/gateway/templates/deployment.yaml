@@ -563,21 +563,19 @@ spec:
                 secretKeyRef:
                   name: kafka-credentials
                   key: user
-            # Multi-region Event Streams support: optional suffixed regional secrets
-            # (kafka-credentials-eu-de, kafka-credentials-ap-sg, etc) are projected here if present
-            {{- range $region := (list "eu-de") }}
-            {{- if (lookup "v1" "Secret" $.Release.Namespace (print "kafka-credentials-" $region)) }}
-            - name: EVENT_STREAMS_BOOTSTRAP_SERVERS_{{ $region | replace "-" "_" | upper }}
+            # Multi-region Event Streams support: regional credentials are projected
+            # when the matching regional secret is configured in values.
+            {{- if .Values.secrets.kafkaEuDe.createExternalSecret }}
+            - name: EVENT_STREAMS_BOOTSTRAP_SERVERS_EU_DE
               valueFrom:
                 secretKeyRef:
-                  name: kafka-credentials-{{ $region }}
+                  name: {{ .Values.secrets.kafkaEuDe.name }}
                   key: bootstrap_servers
-            - name: EVENT_STREAMS_API_KEY_{{ $region | replace "-" "_" | upper }}
+            - name: EVENT_STREAMS_API_KEY_EU_DE
               valueFrom:
                 secretKeyRef:
-                  name: kafka-credentials-{{ $region }}
+                  name: {{ .Values.secrets.kafkaEuDe.name }}
                   key: api_key
-            {{- end }}
             {{- end }}
             {{- end }}
       {{- with .Values.nodeSelector }}

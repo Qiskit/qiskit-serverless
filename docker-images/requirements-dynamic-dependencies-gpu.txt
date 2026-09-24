@@ -1,0 +1,28 @@
+# GPU add-on to requirements-dynamic-dependencies.txt. Installed into the fleet
+# selector image alongside the shared file, in the same pip invocation, by the
+# deps stage of docker-images/fleet-node/Dockerfile.
+#
+# It stays a separate file rather than being merged into the shared one for two
+# reasons. The gateway reads only the shared file, as the provider allow-list for
+# GET /api/v1/dependencies-versions, so keeping the CUDA pins here ships them in
+# the image without advertising them as dependencies a function on a CPU compute
+# profile could request and then fail on for want of a device. And these are
+# x86_64-only wheels, while the shared file also feeds ray-node, which has an
+# arm64 local-dev variant they would break.
+#
+# These wheels are ~765 MB compressed, roughly 2 GB installed, and Fleets pulls
+# the image per job, so this file is the bulk of that image.
+#
+# cupy-cuda12x is pinned even though gpu4pyscf-cuda12x already pulls it, because
+# that dependency is open-ended (!=13.4.0,>=13.0) and the version decides CUDA
+# compatibility for a 136 MB binary wheel. It also constrains numpy to <2.6,
+# which is a further reason to keep it out of the shared image.
+# gpu4pyscf-libxc-cuda12x needs no pin here: gpu4pyscf-cuda12x pins it exactly.
+#
+# No CUDA driver or toolkit is installed: these wheels bundle the CUDA libraries
+# they need, and Code Engine's NVIDIA container runtime injects the driver and
+# nvidia-smi into GPU workers at runtime (see the note at the top of
+# fleet-node/Dockerfile).
+cupy-cuda12x==14.2.0
+cutensor-cu12==2.8.0
+gpu4pyscf-cuda12x==1.8.1
