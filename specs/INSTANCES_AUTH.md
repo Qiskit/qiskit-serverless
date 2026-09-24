@@ -151,7 +151,7 @@ The `accessible_functions` parameter is required (not optional) in all use cases
 The `tests/instances/` suite exercises the instance-based authorization end to end against a real
 staging deployment. Instead of standing up a fixed instance per permission level, it drives a
 **single reconfigurable service instance** through the NTC APIs and reuses the same battery of
-`/entitlements` assertions at every level (NONE / USER / PROVIDER / ALL). The relevant pieces:
+entitlement assertions at every level (NONE / USER / PROVIDER / ALL). The relevant pieces:
 
 - `instances/ntc_client.py` (`NtcAdminClient`): the generic HTTP client that mutates account plans
   and instance entitlements in NTC. It knows nothing about this suite (no CRN, no superset, no levels).
@@ -170,7 +170,7 @@ staging deployment. Instead of standing up a fixed instance per permission level
   and the custom-function variant) that run the shared assertion battery.
 - `instances/test_runtime_api.py`: asserts the Runtime API reflects each configured level exactly.
 - `instances/test_instance_propagation.py`: black-box tests of the account -> instance sync.
-- `instances/permission_checks.py`: the shared `/entitlements` assertions reused at every level.
+- `instances/permission_checks.py`: the shared entitlement assertions reused at every level.
 
 The **staging tests** (everything that talks to NTC) are **skipped** unless `NTC_API_KEY`,
 `NTC_ACCOUNT_ID` and `TEST_RECONFIG_INSTANCE` are set, so they are inert in CI without staging
@@ -339,8 +339,8 @@ an element carrying only `instance_crn`. The two per-instance error codes are `1
 `InstanceNotFoundError`, which covers unknown, malformed and belonging-to-another-region alike since
 nothing validates CRN syntax, and `1289` `InstanceDeprovisionedError`. An error is that instance's
 authoritative answer, so both the `RuntimeApiClient` here and the gateway's `FunctionAccessClient`
-raise on it: reading it as an instance entitled to nothing would reach the legacy fallback, which
-allows.
+raise on it: reading it as an instance entitled to nothing would turn "unknown" into a clean deny.
+The legacy fallback is reached only on a `204`.
 
 Both clients select their element **by `instance_crn`**.
 
@@ -475,7 +475,7 @@ Cross-cutting checks:
 ### Propagation tests (account -> instance)
 
 `test_instance_propagation.py` is black-box and exercises the narrow-only sync semantics directly
-through `/entitlements`, rather than a single level:
+through the serverless client, rather than a single level:
 
 | Test | Sequence | What it verifies |
 |------|----------|------------------|
@@ -485,7 +485,7 @@ through `/entitlements`, rather than a single level:
 > The step-2 narrow deliberately keeps the instance non-empty (the sibling stays). Clearing the
 > account entirely would narrow the instance to zero entitlements, which returns 204 and falls back
 > to legacy Django authorization, under which the function can remain visible — so an empty-account
-> narrow cannot be observed reliably through `/entitlements`.
+> narrow cannot be observed reliably through the function listing.
 
 ### Offline client tests
 

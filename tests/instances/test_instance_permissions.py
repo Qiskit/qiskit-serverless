@@ -1,5 +1,5 @@
 # pylint: disable=import-error, invalid-name, line-too-long, unused-argument, attribute-defined-outside-init, too-few-public-methods, too-many-arguments, too-many-positional-arguments
-"""Instance-based permission tests through the Runtime API /functions endpoint.
+"""Instance-based permission tests through the Runtime API /entitlements endpoint.
 
 These tests verify that each implemented endpoint correctly grants or denies access
 depending on the effective permissions of the instance CRN used to authenticate.
@@ -11,15 +11,15 @@ shared assertion battery from permission_checks.py.
 Setup (see conftest.py for the full list):
   - GATEWAY_HOST/GATEWAY_TOKEN/GATEWAY_CHANNEL for the serverless client.
   - NTC_API_KEY, NTC_ACCOUNT_ID, TEST_RECONFIG_INSTANCE to configure the instance via NTC.
-  - Feature gateway.runtime_instances_api.enabled must be true and the /functions cache disabled.
+  - Feature gateway.runtime_instances_api.enabled must be true and the /entitlements cache disabled.
 
 Effective-permissions model (confirmed in the ntc repo):
-  - GET /functions returns the INSTANCE entitlements as-is (it never intersects the account
+  - GET /entitlements returns the INSTANCE entitlements as-is (it never intersects the account
     at read time).
   - Saving the account narrows the instance entitlements (account->instance sync; only narrows).
   - The broker rejects an instance PATCH that exceeds the account plan.
 The account is kept at a superset before each test so the configured level is exactly what
-/functions returns. The account->instance propagation itself is covered in
+/entitlements returns. The account->instance propagation itself is covered in
 test_instance_propagation.py.
 """
 

@@ -1,5 +1,5 @@
 # pylint: disable=import-error, invalid-name, line-too-long, redefined-outer-name, unused-argument
-"""Verify that NTC writes are reflected on the Runtime API /functions endpoint (the gateway's
+"""Verify that NTC writes are reflected on the Runtime API /entitlements endpoint (the gateway's
 ground truth).
 
 The permission tests in test_instance_permissions.py observe behaviour THROUGH the gateway. These

@@ -4,7 +4,7 @@
 These tests run against a SINGLE service instance whose entitlements are reconfigured
 on the fly through the NTC admin/resource-controller APIs (see ntc_client.py). The
 instance is taken to NONE/USER/PROVIDER/ALL states before each test so the same battery
-of /functions assertions (permission_checks.py) can be reused.
+of entitlement assertions (permission_checks.py) can be reused.
 
 Required environment variables for the STAGING tests (those that talk to NTC are skipped if any is
 missing; the offline client tests in test_ntc_client.py / test_runtime_api_client.py do not use these
@@ -74,7 +74,7 @@ NTC_RC_BASE = os.environ.get("NTC_RC_BASE", "https://resource-controller.test.cl
 NTC_IAM_BASE = os.environ.get("NTC_IAM_BASE", "https://iam.test.cloud.ibm.com")
 NTC_SUBSCRIPTION_NAME = os.environ.get("NTC_SUBSCRIPTION_NAME", "flex")
 
-# The Runtime API /functions endpoint is the gateway's ground truth (see
+# The Runtime API /entitlements endpoint is the gateway's ground truth (see
 # gateway/api/clients/function_access_client.py): the gateway reads it with the user's token as
 # "apikey" and the instance CRN as "Service-CRN". We query the SAME endpoint directly from the
 # tests to observe propagation before the gateway cache and to verify what NTC actually stored.
@@ -86,7 +86,7 @@ RUNTIME_API_KEY = os.environ.get("RUNTIME_API_KEY", GATEWAY_TOKEN)
 
 # Instance entitlements are read back immediately after each NTC reconfiguration, with no sleep and
 # no polling: the advancing PATCH timestamp (see ntc_client.set_instance_entitlements) makes the
-# Runtime API re-sync at once, and the test deployment runs with the gateway /functions cache
+# Runtime API re-sync at once, and the test deployment runs with the gateway /entitlements cache
 # disabled. Reads go straight to the gateway (permission tests) or the Runtime API
 # (test_runtime_api.py / test_instance_propagation.py).
 
@@ -319,7 +319,7 @@ def serverless_client():
 
 @fixture(scope="session")
 def runtime():
-    """Read-only client for the Runtime API /functions endpoint (the gateway's ground truth).
+    """Read-only client for the Runtime API /entitlements endpoint (the gateway's ground truth).
 
     Lets the tests observe what NTC actually propagated (before the gateway cache) and verify the
     entitlement content. Uses RUNTIME_API_KEY (defaults to GATEWAY_TOKEN), the token the gateway
