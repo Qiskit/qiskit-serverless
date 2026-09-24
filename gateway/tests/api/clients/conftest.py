@@ -116,7 +116,7 @@ class InstancesServer:
         return self._set_element({})
 
     def error(self, status: int = 500) -> "InstancesServer":
-        """Respond with an error status (gateway falls back to Django groups)."""
+        """Respond with the given status and no body. A 204 selects the legacy fallback; any other non-200 raises."""
         self._httpd.response_config = {"status": status}
         return self
 

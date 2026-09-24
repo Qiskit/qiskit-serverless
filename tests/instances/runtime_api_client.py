@@ -9,8 +9,9 @@ Runtime API which functions the caller's instance is entitled to. That call is (
     Headers:  Service-CRN: <crn>   Authorization: apikey <user_token>
 
 with the SAME token the user presented to the gateway (for channel ``ibm_quantum_platform`` that is
-the IBM Cloud API key, i.e. our ``GATEWAY_TOKEN``). A 204 means "instance not configured" and makes
-the gateway fall back to legacy Django authorization.
+the IBM Cloud API key, i.e. our ``GATEWAY_TOKEN``). A 204 means the account has no Functions
+configuration for any plan and makes the gateway fall back to legacy Django authorization; it says
+nothing about any individual instance.
 
 The body holds one ``instance_entitlements`` element per requested CRN, each carrying either the
 entitlements or an ``error`` (1279 for a CRN naming no instance in the region, 1289 for a

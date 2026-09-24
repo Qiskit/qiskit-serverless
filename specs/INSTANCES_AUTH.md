@@ -259,8 +259,9 @@ per-CRN entitlements from the Runtime API, and the two "no functions" cases are 
   a function can still be visible/usable through Django group membership. This 204 path is the
   expected, correct behavior for not-yet-migrated accounts and must keep working.
 - **Instance configured with an explicit empty list** (`functions: []`) -> Runtime API responds
-  **HTTP 200** with an empty functions list. The gateway treats this as NTC authorization with zero
-  entitlements: a **clean deny**, no legacy fallback.
+  **HTTP 200** with the `functions` field omitted, since the endpoint leaves out an empty collection
+  rather than returning `[]`. The gateway treats this as NTC authorization with zero entitlements: a
+  **clean deny**, no legacy fallback.
 
 The practical consequence for the suite: emptying an instance **through the account** (narrow to
 empty) lands on the 204 + legacy path, so the function may remain visible. Setting the instance's
