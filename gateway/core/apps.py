@@ -4,6 +4,7 @@ import importlib
 import inspect
 import logging
 import os
+from threading import Thread
 
 from django.apps import AppConfig
 from django.conf import settings
@@ -38,8 +39,29 @@ class CoreConfig(AppConfig):
             from core.models import Config  # pylint: disable=import-outside-toplevel
 
             Config.add_defaults()
+
+            # Start blocked-account events listener in background thread (only if enabled)
+            if settings.EVENT_STREAMS_ENABLED:
+                listener_thread = Thread(target=self._start_blocked_accounts_listener, daemon=True)
+                listener_thread.start()
         else:
             logger.info("[BOOT] CoreApp.ready in command %s", settings.COMMAND)
+
+    @staticmethod
+    def _start_blocked_accounts_listener():
+        """Listen for blocked-account-plan events from Kafka in background."""
+        logger.info("Starting blocked-account events listener thread")
+        try:
+            from core.ibm_cloud.event_streams.kafka_event_streams_client import (  # pylint: disable=import-outside-toplevel
+                KafkaEventStreamsClient,
+            )
+
+            client = KafkaEventStreamsClient()
+            logger.info("Blocked-account events listener initialized, starting poll loop")
+            while True:
+                client.consume_events()
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.error("Blocked-account events listener crashed: %s", str(e), exc_info=True)
 
 
 def check_model_labels(app_configs, **kwargs):
