@@ -70,11 +70,15 @@ def test_the_gauges_split_real_and_filler_jobs_against_a_real_database():
     task = UpdateJobStatusCounts(kill_signal=MagicMock(received=False), metrics=metrics)
     program = TestUtils.create_program(program_title="counts-function", author="counts_user")
     TestUtils.create_job(author="counts_user", program=program, status=Job.RUNNING)
+    # STOPPING is in the gauge's hand-rolled status list but not in ACTIVE_STATUSES, so nothing
+    # derives it for us. Without this a stopping job would silently vanish from the metric.
+    TestUtils.create_job(author="counts_user", program=program, status=Job.STOPPING)
     filler = TestUtils.create_job(author="counts_user", program=program, status=Job.RUNNING, filler=True)
 
     task.run()
 
     assert metrics.job_status_count.labels(status=Job.RUNNING, provider="custom")._value.get() == 1
+    assert metrics.job_status_count.labels(status=Job.STOPPING, provider="custom")._value.get() == 1
     assert metrics.filler_jobs_count.labels(status=Job.RUNNING)._value.get() == 1
 
     filler.delete()
