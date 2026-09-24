@@ -40,11 +40,6 @@ class FunctionAccessClient:
     def _instance_entitlements(self, response_json: dict, instance_crn: str) -> dict:
         """Return the ``instance_entitlements`` element holding what ``instance_crn`` is entitled to.
 
-        The response carries one element per requested CRN, so a single-CRN request gets a single
-        element. It is picked by CRN rather than by position because the set of instances described
-        is not guaranteed to be the set this client named, and picking the wrong element would
-        authorize the caller against another instance's grants.
-
         An element carries either entitlements or an ``error``, and an error is that instance's
         authoritative answer. It is raised rather than read as an instance entitled to nothing,
         because the latter reaches the legacy authorization fallback, which allows.

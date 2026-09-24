@@ -316,7 +316,7 @@ separated; the gateway always sends exactly one. A `204` means the **account** h
 configuration for any plan, which is the legacy fallback, and it says nothing about any individual
 instance. A `400` arrives when no CRN was supplied or none of the supplied CRNs resolved.
 
-A `200` returns one element per requested CRN, **in request order**:
+A `200` returns one element per requested CRN, in the order requested:
 
 ```json
 {
@@ -342,10 +342,11 @@ authoritative answer, so both the `RuntimeApiClient` here and the gateway's `Fun
 raise on it: reading it as an instance entitled to nothing would reach the legacy fallback, which
 allows.
 
-Because a CRN sent twice yields two elements, `instance_crn` is not a unique key and position is the
-reliable way to match an element back to a request. Both clients here nonetheless select by CRN,
-since each sends a single CRN and the set of instances described is not guaranteed to be the set it
-named.
+Both clients select their element **by `instance_crn`**.
+
+Selecting by CRN assumes the element names the CRN as it was sent. The Runtime API trims every CRN
+and echoes its own stored value back, which is why `FunctionAccessClient` trims before it sends,
+compares and builds its cache key.
 
 `custom_functions` may also come back as `null`: an instance whose custom grants were cleared is
 stored with `custom_functions: null` (see the three-state contract above). Both clients coalesce the

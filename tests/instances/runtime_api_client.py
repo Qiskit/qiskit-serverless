@@ -98,10 +98,7 @@ class RuntimeApiClient:  # pylint: disable=too-few-public-methods
     def _element(self, payload, crn, url):
         """Return the ``instance_entitlements`` element for ``crn``, matching the gateway.
 
-        Selected by CRN rather than by position for the same reason the gateway does it: the set of
-        instances described is not guaranteed to be the set that was named. An ``error`` element is
-        that instance's authoritative answer, so it is raised instead of being read as an instance
-        entitled to nothing.
+        An ``error`` element is raised as an exception instead of being read as an instance entitled to nothing.
         """
         for element in payload.get("instance_entitlements") or []:
             if element.get("instance_crn") != crn:
