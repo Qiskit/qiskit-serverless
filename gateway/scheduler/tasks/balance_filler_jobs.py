@@ -65,8 +65,8 @@ class BalanceFillerJobs(SchedulerTask):
     def _balance_filler_jobs(self, program: Program, filler_jobs: list[Job]) -> None:
         """Stop the filler jobs that no longer belong, then close the gap to the target."""
         profile_row = program.default_size.compute_profile
-        # Primary keys are free text, so a row may carry the instance-family prefix.
-        compute_profile = compute_profile_domain.normalize(profile_row.compute_profile_id)
+        # Log label only: primary keys are free text, so a row may carry the instance-family prefix.
+        profile_label = compute_profile_domain.normalize(profile_row.compute_profile_id)
         slots = Config.get_int(ConfigKey.FILLER_SLOTS)
         real_running = Job.objects.filter(
             compute_profile_fk=profile_row,
@@ -77,7 +77,7 @@ class BalanceFillerJobs(SchedulerTask):
         target = max(0, slots - real_running)
         logger.info(
             "[BalanceFillerJobs] profile=%s slots=%s real_running=%s target=%s",
-            compute_profile,
+            profile_label,
             slots,
             real_running,
             target,
@@ -100,7 +100,7 @@ class BalanceFillerJobs(SchedulerTask):
             self._stop_filler_jobs(stale)
 
         if len(current) < target:
-            self._create_filler_job(program, compute_profile)
+            self._create_filler_job(program)
         elif len(current) > target:
             self._stop_filler_jobs(current[: len(current) - target])
 
@@ -209,7 +209,7 @@ class BalanceFillerJobs(SchedulerTask):
             )
             self._mark_failed(job)
 
-    def _create_filler_job(self, program: Program, compute_profile: str) -> None:
+    def _create_filler_job(self, program: Program) -> None:
         """Create and submit one filler job, the most this task creates per loop.
 
         One per loop rather than the whole shortfall, so the COS upload and the Code
@@ -221,10 +221,10 @@ class BalanceFillerJobs(SchedulerTask):
         # A shutdown is not a failure of the work, so it buys no delay.
         if self.kill_signal.received:
             return
-        if not self._submit_filler_job(program, compute_profile):
+        if not self._submit_filler_job(program):
             self._retry_loops = RETRY_AFTER_LOOPS
 
-    def _submit_filler_job(self, program: Program, compute_profile: str) -> bool:
+    def _submit_filler_job(self, program: Program) -> bool:
         """Create and submit one filler job. True when it reached PENDING."""
         project = program.code_engine_project
         job = Job(
@@ -234,7 +234,6 @@ class BalanceFillerJobs(SchedulerTask):
             author=program.author,
             filler=True,
             runner=Program.FLEETS,
-            compute_profile=compute_profile,
             compute_profile_fk=program.default_size.compute_profile,
             size_source=Job.SIZE_SOURCE_NONE,
             function_size=program.default_size,
