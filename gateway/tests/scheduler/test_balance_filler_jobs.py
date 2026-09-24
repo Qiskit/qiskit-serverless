@@ -92,7 +92,8 @@ def test_creates_filler_jobs_up_to_the_configured_slots(filler_program):
     assert fillers.count() == 4
     assert submit.call_count == 4
     assert arguments.call_count == 4
-    assert {job.compute_profile for job in fillers} == {_PROFILE}
+    assert {job.compute_profile_fk for job in fillers} == {filler_program.default_size.compute_profile}
+    assert {job.compute_profile_id for job in fillers} == {_PROFILE}
     assert {job.runner for job in fillers} == {Program.FLEETS}
     assert {job.author for job in fillers} == {filler_program.author}
     assert {job.size_source for job in fillers} == {Job.SIZE_SOURCE_NONE}
@@ -118,7 +119,6 @@ def test_real_running_jobs_reduce_the_number_of_filler_jobs(filler_program):
             program=filler_program,
             status=Job.RUNNING,
             runner=Program.FLEETS,
-            compute_profile=_PROFILE,
             compute_profile_fk=filler_program.default_size.compute_profile,
         )
     task = _make_task()
@@ -144,7 +144,6 @@ def test_a_prefixed_profile_row_still_counts_real_jobs(filler_program):
         program=filler_program,
         status=Job.RUNNING,
         runner=Program.FLEETS,
-        compute_profile=prefixed.compute_profile_id,
         compute_profile_fk=prefixed,
     )
     task = _make_task()
@@ -162,7 +161,6 @@ def test_real_jobs_on_another_profile_do_not_count(filler_program):
         program=filler_program,
         status=Job.RUNNING,
         runner=Program.FLEETS,
-        compute_profile=other.compute_profile_id,
         compute_profile_fk=other,
     )
     task = _make_task()
@@ -180,7 +178,6 @@ def test_stops_the_oldest_filler_jobs_when_there_are_too_many(filler_program):
             program=filler_program,
             status=Job.RUNNING,
             runner=Program.FLEETS,
-            compute_profile=_PROFILE,
             compute_profile_fk=filler_program.default_size.compute_profile,
             filler=True,
             fleet_id=f"fleet-{index}",
@@ -210,7 +207,6 @@ def test_does_nothing_when_the_count_already_matches(filler_program):
             program=filler_program,
             status=Job.RUNNING,
             runner=Program.FLEETS,
-            compute_profile=_PROFILE,
             compute_profile_fk=filler_program.default_size.compute_profile,
             filler=True,
             fleet_id=f"fleet-{index}",
@@ -231,7 +227,6 @@ def test_zero_slots_stops_every_filler_job(filler_program):
         program=filler_program,
         status=Job.RUNNING,
         runner=Program.FLEETS,
-        compute_profile=_PROFILE,
         compute_profile_fk=filler_program.default_size.compute_profile,
         filler=True,
         fleet_id="fleet-0",
@@ -263,7 +258,6 @@ def test_deactivated_stops_every_filler_job(filler_program, config_key, value):
         program=filler_program,
         status=Job.RUNNING,
         runner=Program.FLEETS,
-        compute_profile=_PROFILE,
         compute_profile_fk=filler_program.default_size.compute_profile,
         filler=True,
         fleet_id="fleet-0",
@@ -333,7 +327,6 @@ def test_a_filler_job_that_was_never_submitted_is_discarded(filler_program):
         program=filler_program,
         status=Job.QUEUED,
         runner=Program.FLEETS,
-        compute_profile=_PROFILE,
         compute_profile_fk=filler_program.default_size.compute_profile,
         filler=True,
     )
@@ -360,7 +353,6 @@ def test_filler_jobs_on_another_profile_are_always_stopped(filler_program):
         program=filler_program,
         status=Job.RUNNING,
         runner=Program.FLEETS,
-        compute_profile=_PROFILE,
         compute_profile_fk=old_row,
         filler=True,
         fleet_id="fleet-stale",
@@ -391,7 +383,6 @@ def test_filler_jobs_of_another_program_are_always_stopped(filler_program):
         program=old_program,
         status=Job.RUNNING,
         runner=Program.FLEETS,
-        compute_profile=_PROFILE,
         compute_profile_fk=filler_program.default_size.compute_profile,
         filler=True,
         fleet_id="fleet-old-program",
@@ -425,7 +416,6 @@ def test_the_occupancy_of_the_protected_profile_is_reported(filler_program):
             program=filler_program,
             status=Job.RUNNING,
             runner=Program.FLEETS,
-            compute_profile=_PROFILE,
             compute_profile_fk=filler_program.default_size.compute_profile,
         )
     task = _make_task()
@@ -455,7 +445,6 @@ def test_a_fleet_that_cannot_be_cancelled_keeps_the_job_active(filler_program):
         program=filler_program,
         status=Job.RUNNING,
         runner=Program.FLEETS,
-        compute_profile=_PROFILE,
         compute_profile_fk=filler_program.default_size.compute_profile,
         filler=True,
         fleet_id="fleet-stuck",
