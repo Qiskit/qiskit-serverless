@@ -107,12 +107,12 @@ class FunctionAccessClient:
         else:
             entitlements = self._instance_entitlements(response.json(), instance_crn)
             functions = []
-            for entry in entitlements.get("functions", []):
+            for entry in entitlements.get("functions") or []:
                 try:
                     function_entry = FunctionAccessEntry(
                         provider_name=entry["provider"],
                         function_title=entry["name"],
-                        permissions=set(entry.get("permissions", [])),
+                        permissions=set(entry.get("permissions") or []),
                         business_model=entry["business_model"],
                     )
                     functions.append(function_entry)
