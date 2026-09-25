@@ -248,26 +248,29 @@ never re-adds**:
 `GET /entitlements` returns the instance entitlements as-is, with no account intersection applied at
 read time; the intersection only happens at account-save time.
 
-### Empty instance (204) vs. configured-empty (200): the legacy fallback
+### Unconfigured account (204) vs. configured-empty (200): the legacy fallback
 
 This is the most important peculiarity for interpreting test results. The gateway reads the
-per-CRN entitlements from the Runtime API, and the two "no functions" cases are **not equivalent**:
+per-CRN entitlements from the Runtime API, and the two "no functions" cases are **not equivalent**.
+The first is a statement about the **account** and says nothing about any instance:
 
-- **Instance has no entitlements configured at all** -> Runtime API responds **HTTP 204**. The
-  gateway interprets 204 as "this account/instance has not been migrated to the new system" and
-  **falls back to the legacy Django authorization** (`use_legacy_authorization=True`). Under legacy,
-  a function can still be visible/usable through Django group membership. This 204 path is the
-  expected, correct behavior for not-yet-migrated accounts and must keep working.
-- **Instance configured with an explicit empty list** (`functions: []`) -> Runtime API responds
-  **HTTP 200** with the `functions` field omitted, since the endpoint leaves out an empty collection
-  rather than returning `[]`. The gateway treats this as NTC authorization with zero entitlements: a
-  **clean deny**, no legacy fallback.
+- **The account has no Functions configuration for any plan** -> Runtime API responds **HTTP 204**.
+  The gateway interprets 204 as "this account has not been migrated to the new system" and **falls
+  back to the legacy Django authorization** (`use_legacy_authorization=True`). Under legacy, a
+  function can still be visible/usable through Django group membership. This 204 path is the
+  expected, correct behavior for not-yet-migrated accounts and must keep working. Whether an account
+  counts as configured is the Runtime API's call: an account configured with an empty `functions`
+  list is still configured, and answers 200.
+- **The instance is granted nothing under a configured account** -> Runtime API responds **HTTP 200**
+  with the `functions` field omitted, since the endpoint leaves out an empty collection rather than
+  returning `[]`. The gateway treats this as NTC authorization with zero entitlements: a **clean
+  deny**, no legacy fallback.
 
-The practical consequence for the suite: emptying an instance **through the account** (narrow to
-empty) lands on the 204 + legacy path, so the function may remain visible. Setting the instance's
-own `functions` to `[]` lands on the 200 + clean-deny path. The propagation test relies on this
-distinction, and the NONE level is built by PATCHing the instance to `functions: []` (not by
-emptying the account).
+The practical consequence for the suite: emptying an instance **through the account** and setting the
+instance's own `functions` to `[]` both land on the 200 + clean-deny path, since an account with an
+empty `functions` list is still configured. Reaching the 204 + legacy path takes an account the
+Runtime API considers unconfigured. The NONE level is built by PATCHing the instance to
+`functions: []`.
 
 ### Gateway entitlements cache and direct reads
 
@@ -480,13 +483,13 @@ through the serverless client, rather than a single level:
 
 | Test | Sequence | What it verifies |
 |------|----------|------------------|
-| `test_account_narrows_instance_and_does_not_restore` | (1) account superset + instance ALL → (2) narrow the **account** to a sibling function only → (3) re-add the function to the **account** → (4) re-add it to the **instance** | (1) the function is usable; (2) narrowing it out of the account removes it from the instance while the sibling remains, so the function disappears (run → 404) and the sibling stays visible — proving a per-function narrow on the 200 path, not a 204 wipe; (3) re-adding to the account does **not** restore it (sync only narrows); (4) only a direct instance PATCH brings it back. |
+| `test_account_narrows_instance_and_does_not_restore` | (1) account superset + instance ALL → (2) narrow the **account** to a sibling function only → (3) re-add the function to the **account** → (4) re-add it to the **instance** | (1) the function is usable; (2) narrowing it out of the account removes it from the instance while the sibling remains, so the function disappears (run → 404) and the sibling stays visible — proving a per-function narrow rather than a wipe of every entitlement; (3) re-adding to the account does **not** restore it (sync only narrows); (4) only a direct instance PATCH brings it back. |
 | `test_instance_patch_rejected_when_exceeding_account` | account grants only `function.read`; instance PATCH asks for `function.read` + `function.run` | the broker rejects an instance PATCH that exceeds the account grant with a `4xx` validation error. |
 
-> The step-2 narrow deliberately keeps the instance non-empty (the sibling stays). Clearing the
-> account entirely would narrow the instance to zero entitlements, which returns 204 and falls back
-> to legacy Django authorization, under which the function can remain visible — so an empty-account
-> narrow cannot be observed reliably through the function listing.
+> The step-2 narrow deliberately keeps the instance non-empty (the sibling stays), so the assertion
+> tells a per-function narrow apart from a wipe of every entitlement. Narrowing the account to
+> nothing would empty the instance as well, which still answers 200 with no entitlements and denies
+> cleanly, so it could not distinguish those two outcomes.
 
 ### Offline client tests
 
@@ -498,4 +501,4 @@ contract (set / clear-with-null / preserve). These run in CI without staging cre
 
 `test_runtime_api_client.py` covers `RuntimeApiClient` the same way: the `Service-CRN` + `apikey`
 headers, parsing of the `200` payload (functions, permissions, custom permissions), the `204`
-not-configured case, the `200`-with-empty-list case, and a non-200/204 raising `RuntimeApiError`.
+account-not-configured case, the `200`-with-empty-list case, and a non-200/204 raising `RuntimeApiError`.

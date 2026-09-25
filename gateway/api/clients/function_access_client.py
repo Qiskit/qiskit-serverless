@@ -88,9 +88,9 @@ class FunctionAccessClient:
 
         if response.status_code == 204:
             # We agreed with Runtime that 204 response means there is no functions configured
-            # for this instance, so we should fallback to Django
+            # for the account this instance belongs to, so we should fallback to Django
             result = FunctionAccessResult(
-                use_legacy_authorization=True, message="Instance not configured, migration pending"
+                use_legacy_authorization=True, message="Account not configured, migration pending"
             )
         elif response.status_code != 200:
             logger.warning(
