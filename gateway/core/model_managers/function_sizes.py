@@ -40,11 +40,13 @@ class FunctionSizeQuerySet(QuerySet):
     def get_function_size(self, function: "Function", function_size: Optional[str]) -> Optional["FunctionSize"]:
         """Return a single ``(function, size)`` row.
 
-        At most one row can match, per the ``unique_function_size`` constraint.
+        Matched case-insensitively (``__iexact``), not by exact string, since no migration
+        rewrites a row stored before ``FunctionSize.save()`` started uppercasing. At most one
+        row normally matches, per the ``unique_function_size`` constraint.
 
         Args:
             function: Program the size belongs to
-            function_size: size key (e.g. ``"s"``). May be None.
+            function_size: size key (e.g. ``"S"``). May be None.
 
         Returns:
             FunctionSize | None: the matching row, or None when the size is
@@ -52,7 +54,7 @@ class FunctionSizeQuerySet(QuerySet):
         """
         if not function_size:
             return None
-        return self.function_sizes(function).filter(function_size=function_size).first()
+        return self.function_sizes(function).filter(function_size__iexact=function_size).first()
 
     def resolve_compute_profile(self, function: "Function", function_size: Optional[str]) -> Optional["ComputeProfile"]:
         """Resolve a function size to the compute profile it maps to.

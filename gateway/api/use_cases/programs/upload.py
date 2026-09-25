@@ -151,7 +151,8 @@ def _apply_default_size(function: Function, default_size: str) -> None:
     default_size = normalize_function_size(default_size)
     row = FunctionSize.objects.get_function_size(function, default_size)
     if row is None:
-        available = sorted(FunctionSize.objects.function_sizes(function).values_list("function_size", flat=True))
+        sizes = FunctionSize.objects.function_sizes(function).values_list("function_size", flat=True)
+        available = sorted({size.upper() for size in sizes})
         raise DRFValidationError(
             f"'default_size' is '{default_size}', which is not one of this function's sizes: "
             + (", ".join(available) if available else "this function declares no sizes.")
@@ -283,10 +284,9 @@ class UploadFunctionUseCase:
                 f"Default compute profile '{compute_profile_id}' is not registered. Contact administrator."
             )
 
-        size_name = settings.DEFAULT_FUNCTION_SIZE
         row = FunctionSize.objects.create(
             function=function,
-            function_size=size_name,
+            function_size=settings.DEFAULT_FUNCTION_SIZE,
             compute_profile=profile,
         )
         function.default_size = row
