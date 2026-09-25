@@ -1,4 +1,4 @@
-name: Ray Integration tests
+name: Ray external tests
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   verify-integration:
-    name: External integration tests [lint, test]
+    name: Ray external tests [lint, test]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false # keep running if one leg fails
