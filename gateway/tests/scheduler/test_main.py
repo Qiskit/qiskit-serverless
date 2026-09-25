@@ -9,7 +9,7 @@ from prometheus_client import CollectorRegistry
 from scheduler.health import UNHEALTHY_THRESHOLD
 from scheduler.main import Main
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.tasks.publish_outbox import PublishOutbox
+from scheduler.tasks.drain_outbox import DrainOutbox
 from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses
 from scheduler.views.probes import make_liveness
 
@@ -70,11 +70,11 @@ class TestMain:
         assert str(error) == "boom"
 
     def test_registers_publish_outbox_after_the_status_update_tasks(self):
-        """PublishOutbox must run after UpdateFleetsJobsStatuses, in the same tick."""
+        """DrainOutbox must run after UpdateFleetsJobsStatuses, in the same tick."""
         task_types = [type(task) for task in self.scheduler_main.tasks]
 
-        assert PublishOutbox in task_types
-        assert task_types.index(PublishOutbox) > task_types.index(UpdateFleetsJobsStatuses)
+        assert DrainOutbox in task_types
+        assert task_types.index(DrainOutbox) > task_types.index(UpdateFleetsJobsStatuses)
 
     def test_http_server_starts_and_stops(self):
         """HTTP server should start and stop after loop ends."""

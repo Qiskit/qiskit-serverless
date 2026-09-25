@@ -122,14 +122,6 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
             labelnames=("fact", "outcome"),
             registry=self.registry,
         )
-        self.outbox_license_fee_irrecoverable_total = Counter(
-            "scheduler_outbox_license_fee_irrecoverable_total",
-            "License fee sends waived because the referenced Program or Provider no longer "
-            "exists. The fee is waived, not owed, so the row is not stuck: it proceeds to be "
-            "deleted once the billing event also settles. This counter is what surfaces the "
-            "waiver, since the row itself leaves no trace once deleted.",
-            registry=self.registry,
-        )
         self.outbox_pending_rows = Gauge(
             "scheduler_outbox_pending_rows",
             "Outbox rows pending each fact.",
@@ -144,7 +136,8 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
         )
         self.outbox_breaker_open = Gauge(
             "scheduler_outbox_breaker_open",
-            "1 while the outbox task's circuit breaker is open, 0 otherwise.",
+            "1 while a given outbox channel's circuit breaker is open, 0 otherwise.",
+            labelnames=("channel",),
             registry=self.registry,
         )
 
@@ -176,10 +169,6 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
         because it does not trip the shared circuit breaker)."""
         self.outbox_sends_total.labels(fact=fact, outcome=outcome).inc()
 
-    def increment_outbox_license_fee_irrecoverable(self) -> None:
-        """Count one license fee waived because its Program/Provider no longer exists."""
-        self.outbox_license_fee_irrecoverable_total.inc()
-
     def set_outbox_pending_rows(self, count: int, fact: str) -> None:
         """Set how many outbox rows are pending a given fact."""
         self.outbox_pending_rows.labels(fact=fact).set(count)
@@ -188,9 +177,9 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
         """Set the age of the oldest outbox row pending a given fact."""
         self.outbox_oldest_pending_age_seconds.labels(fact=fact).set(age_seconds)
 
-    def set_outbox_breaker_open(self, is_open: bool) -> None:
-        """Record whether the outbox task's circuit breaker is currently open."""
-        self.outbox_breaker_open.set(1 if is_open else 0)
+    def set_outbox_breaker_open(self, is_open: bool, channel: str) -> None:
+        """Record whether a given outbox channel's circuit breaker is currently open."""
+        self.outbox_breaker_open.labels(channel=channel).set(1 if is_open else 0)
 
     def clear_job_status_counts(self) -> None:
         """Remove all label combinations from job_status_count to avoid stale values."""
