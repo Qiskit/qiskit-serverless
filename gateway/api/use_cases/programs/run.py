@@ -139,8 +139,14 @@ def _get_runner_config(
             function_size=function_size,
         )
 
-    # (3) Deprecated explicit compute profile.
+    # (3) Deprecated explicit compute profile. Rejected outright for a function with a
+    # provider: this path never records a FunctionSize row, and the license fee message
+    # built at the job's terminal transition needs one (core/domain/billing_events.py).
     if compute_profile_requested:
+        if function.provider_id is not None:
+            raise FunctionConfigurationException(
+                "'compute_profile' is not available for a licensed function. Use 'function_size'."
+            )
         logger.warning(
             "program=%s | 'compute_profile' is deprecated; use 'function_size'.",
             function.title,
