@@ -31,6 +31,18 @@ from core.models import Program, Provider
 logger = logging.getLogger("api.api.v1.views.programs.upload")
 
 
+def _strip_private_endpoint(reference: str) -> str:
+    """Drop a ``private.`` host prefix from an image or registry reference.
+
+    IBM Cloud Container Registry answers on two names for the same content:
+    ``icr.io`` for push and in-cluster pull, and ``private.icr.io`` for the
+    in-cloud pull that Code Engine uses. A provider configured with one must
+    accept the other.
+    """
+    prefix = "private."
+    return reference[len(prefix) :] if reference.startswith(prefix) else reference
+
+
 def _image_in_registry(image: str, registry: str) -> bool:
     """Return True only when ``image`` is hosted under ``registry``.
 
@@ -38,7 +50,8 @@ def _image_in_registry(image: str, registry: str) -> bool:
     satisfied by ``docker.io.attacker.com/evil`` (the bug a bare
     ``str.startswith`` introduces).
     """
-    registry = registry.rstrip("/")
+    registry = _strip_private_endpoint(registry.rstrip("/"))
+    image = _strip_private_endpoint(image)
     return image == registry or image.startswith(registry + "/")
 
 
