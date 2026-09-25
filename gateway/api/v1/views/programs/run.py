@@ -18,6 +18,7 @@ from api.use_cases.programs.run_input import RunFunctionInput
 from api.utils import sanitize_name
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
+from api.v1.views.serializer_utils import ComputeProfileSerializer
 from api.domain.function_sizes import normalize_function_size
 from core.domain import compute_profile
 from core.domain.authorization.function_access_result import FunctionAccessResult
@@ -110,11 +111,11 @@ class JobConfigSerializer(serializers.ModelSerializer):
 class OutputSerializer(serializers.ModelSerializer):
     """Response serializer for a queued job."""
 
-    compute_profile = serializers.CharField(required=False, allow_null=True, allow_blank=True, default=None)
+    compute_profile_fk = ComputeProfileSerializer(read_only=True)
 
     class Meta:
         model = Job
-        fields = ["id", "result", "status", "program", "created", "arguments", "compute_profile", "size_source"]
+        fields = ["id", "result", "status", "program", "created", "arguments", "compute_profile_fk", "size_source"]
         ref_name = "ProgramsRunOutput"
 
 
