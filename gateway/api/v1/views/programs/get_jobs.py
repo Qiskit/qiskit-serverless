@@ -14,6 +14,7 @@ from rest_framework.response import Response
 from api.use_cases.programs.get_jobs import GetJobsUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
+from api.v1.views.serializer_utils import ComputeProfileSerializer
 from api.v1.views.swagger_utils import standard_error_responses
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import Job, Program
@@ -47,10 +48,11 @@ class OutputSerializer(serializers.ModelSerializer):
     """Job representation for program job list responses."""
 
     program = ProgramSerializer(many=False)
+    compute_profile_fk = ComputeProfileSerializer(read_only=True)
 
     class Meta:
         model = Job
-        fields = ["id", "result", "status", "program", "created", "sub_status", "fleet_id", "compute_profile"]
+        fields = ["id", "result", "status", "program", "created", "sub_status", "fleet_id", "compute_profile_fk"]
         ref_name = "ProgramsGetJobsOutput"
 
 
@@ -62,10 +64,11 @@ class OutputSerializerWithoutResult(serializers.ModelSerializer):
     """
 
     program = ProgramSerializer(many=False)
+    compute_profile_fk = ComputeProfileSerializer(read_only=True)
 
     class Meta:
         model = Job
-        fields = ["id", "status", "program", "created", "sub_status", "fleet_id", "compute_profile"]
+        fields = ["id", "status", "program", "created", "sub_status", "fleet_id", "compute_profile_fk"]
         ref_name = "ProgramsGetJobsOutputWithoutResult"
 
 
