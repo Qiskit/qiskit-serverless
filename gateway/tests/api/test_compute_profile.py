@@ -1,7 +1,9 @@
 """Tests for compute_profile functionality."""
 
 import pytest
+from django.db import connection
 from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -363,3 +365,30 @@ def test_job_detail_includes_compute_profile(api_client, user, program):
 
     assert response.status_code == status.HTTP_200_OK
     assert response.data["compute_profile_fk"]["compute_profile_id"] == "24x120x1a100p"
+
+
+@pytest.mark.parametrize(
+    "url_name, url_kwargs_from_program",
+    [
+        ("v1:jobs-list", None),
+        ("v1:programs-get-jobs", lambda program: {"pk": str(program.id)}),
+    ],
+)
+def test_listing_jobs_does_not_query_each_compute_profile(api_client, user, program, url_name, url_kwargs_from_program):
+    """Both job listings nest compute_profile_fk, so the FK must be fetched in the page
+    query rather than once per row. Counting ComputeProfile queries (rather than asserting
+    a total) keeps this test insensitive to the unrelated per-row `program` query.
+    """
+    profile = ComputeProfile.objects.get(compute_profile_id="24x120x1a100p")
+    for _ in range(3):
+        TestUtils.create_job(author=user, program=program, compute_profile_fk=profile)
+
+    url = reverse(url_name, kwargs=url_kwargs_from_program(program) if url_kwargs_from_program else None)
+    with CaptureQueriesContext(connection) as captured:
+        response = api_client.get(url, format="json")
+
+    assert response.status_code == status.HTTP_200_OK
+    # A standalone `FROM "api_computeprofile"` is a per-row fetch; the select_related
+    # version reads `FROM "api_job" ... JOIN "api_computeprofile"`, so match the FROM.
+    per_row_fetches = [q for q in captured.captured_queries if 'FROM "api_computeprofile"' in q["sql"]]
+    assert per_row_fetches == [], f"profile should be joined into the page query, got {len(per_row_fetches)} fetches"
