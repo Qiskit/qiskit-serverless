@@ -112,10 +112,9 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             new_status,
         )
-        # change_status updates the JobOutbox row's job_status and status_changed_at, and
-        # (only when new_status is SUCCEEDED) has_run=True — covering a job that starts and
-        # finishes between two scheduler polls and is never observed as RUNNING. PublishOutbox
-        # reads that row later, on its own schedule, to decide what still needs sending.
+        # change_status builds and enqueues this job's outbox messages, if any, as part of
+        # this same transition (core/models.py). DrainOutbox sends them later, on its own
+        # schedule.
         job.change_status(
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,
@@ -134,11 +133,10 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                 job.status,
                 Job.RUNNING,
             )
-            # change_status updates the JobOutbox row's job_status and status_changed_at, and
-            # has_run=True (new_status is RUNNING) — that has_run flip is what makes the
-            # license fee eligible to be sent. PublishOutbox sends that fee later, on its own
-            # schedule, independently of the emit_job_started() call below, which is a
-            # different billing fact (classical compute time) sent inline.
+            # This transition to RUNNING enqueues nothing in the outbox: outbox messages are
+            # only built on a terminal transition (core/models.py's change_status). The
+            # emit_job_started() call below is unrelated: a different billing fact (classical
+            # compute time), sent inline, best-effort, never through the outbox.
             job.change_status(
                 origin=JobEventOrigin.SCHEDULER,
                 context=JobEventContext.UPDATE_JOB_STATUS,
