@@ -21,12 +21,22 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(body)
 
     def _body(self, cfg) -> bytes:
-        """Serialize the configured response.
+        """Serialize the response this test asked for.
 
-        An ``element`` is wrapped in the endpoint's envelope here rather than in ``InstancesServer``,
-        because only the handler sees the request and the element has to carry the CRN that was
-        asked for: the client selects its element by that field. A ``body`` is sent verbatim, which
-        is how a test produces an envelope describing some other instance.
+        The endpoint has a single response shape. The keys in ``cfg`` tell ``InstancesServer`` what
+        to send; they are not formats the real endpoint returns:
+
+        - ``cfg["element"]`` holds one instance's entitlements. This method reads the CRN from the
+          request's ``Service-CRN`` header, takes the entitlements from ``cfg["element"]``, and
+          includes both as the single item of ``instance_entitlements`` in the response payload, so
+          ``{"functions": [...]}`` is sent as
+          ``{"instance_entitlements": [{"instance_crn": "<CRN requested>", "functions": [...]}]}``.
+          The CRN is read here because the handler is the only place that sees the request, and the
+          client finds its element by that field.
+        - ``cfg["body"]`` holds a whole response payload. This method sends it unchanged and reads
+          nothing from the request, which is how a test produces a payload the element path cannot,
+          such as one naming a different instance.
+        - Neither key means an empty body, which is what a 204 needs.
         """
         if "element" in cfg:
             element = {"instance_crn": self.headers.get("Service-CRN"), **cfg["element"]}
