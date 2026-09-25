@@ -62,10 +62,6 @@ class FunctionAccessClient:
 
     def get_accessible_functions(self, instance_crn: str, api_key: str) -> FunctionAccessResult:
         """Return all functions accessible to the given instance CRN with their permissions."""
-        # The Runtime API trims every CRN it is sent and resolves it by exact match, then echoes its
-        # own stored value back, so trimming here keeps the CRN sent, the CRN compared against the
-        # response and the cache key one and the same string.
-        instance_crn = (instance_crn or "").strip()
         enabled = Config.get_bool(ConfigKey.RUNTIME_INSTANCES_API_ENABLED)
         base_url = self._regional_base_url(settings.RUNTIME_API_BASE_URL, instance_crn)
         if not enabled:
