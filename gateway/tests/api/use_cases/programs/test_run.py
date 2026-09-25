@@ -74,15 +74,6 @@ def make_fleets_function(user, ce_project):
     )
 
 
-def give_default_size(function, compute_profile_id="16x128"):
-    """Size a Fleets function so it can run without the caller requesting a size."""
-    profile = ComputeProfile.objects.create(compute_profile_id=compute_profile_id, cpu="16", memory="128")
-    size = FunctionSize.objects.create(function=function, function_size="m", compute_profile=profile)
-    function.default_size = size
-    function.save(update_fields=["default_size"])
-    return size
-
-
 class TestRunFunctionUseCase:
     def test_creates_job_for_own_function(self, user):
         function = Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
