@@ -44,36 +44,35 @@ services:
       timeout: 5s
       retries: 5
   # S3-compatible object store for the fleets tests. Formerly MinIO (EOL Feb
-  # 2026, removed from Docker Hub); now LocalStack's S3 emulator. The service is
+  # 2026, removed from Docker Hub); now SeaweedFS's S3 gateway. The service is
   # still named "minio" and still serves on :9000 so MINIO_ENDPOINT,
   # MINIO_PUBLIC_ENDPOINT and every depends_on keep working unchanged — the code
   # only ever spoke plain S3 (boto3 / ibm_boto3), never the MinIO SDK.
+  #
+  # NB: LocalStack's free s3-latest image was discontinued (2026-03-23) and now
+  # refuses to start, pointing at the paid Pro image — unusable for public CI.
+  # SeaweedFS is Apache-2.0, a single binary, and its `server -s3` mode accepts
+  # any credentials, so the historical minioadmin/minioadmin values still work.
   minio:
-    image: localstack/localstack:s3-latest
-    environment:
-      # LocalStack's edge listener defaults to :4566; move it to :9000 so the
-      # existing http://minio:9000 (internal) and http://127.0.0.1:9000
-      # (published, for presigned URLs) endpoints stay valid.
-      - GATEWAY_LISTEN=0.0.0.0:9000
-      - SERVICES=s3
-      # Credentials are not enforced by LocalStack, but boto3 requires some to
-      # be set; keep the historical minioadmin/minioadmin values so no env in
-      # this file or in the tests has to change.
-      - AWS_DEFAULT_REGION=us-east-1
+    image: chrislusf/seaweedfs:latest
+    # Run master + volume + filer + S3 gateway in one process; pin the S3 API to
+    # :9000 to preserve the endpoint contract above.
+    command: server -s3 -s3.port=9000 -dir=/data
     networks:
       - safe-tier
     ports:
       - 9000:9000
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:9000/_localstack/health || exit 1"]
+      # The S3 gateway serves HTTP 200 on /status once it is ready.
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/status || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 5
   minio-init:
-    # Bucket bootstrap, formerly the MinIO `mc` CLI. LocalStack ships no client,
-    # so use the official awscli image with `s3api create-bucket` against the
-    # emulator. Idempotent: an existing bucket returns BucketAlreadyOwnedByYou,
-    # which we swallow so re-runs stay green.
+    # Bucket bootstrap, formerly the MinIO `mc` CLI. SeaweedFS ships no S3
+    # client, so use the official awscli image with `s3api create-bucket`.
+    # Idempotent: re-creating an existing bucket errors, which we swallow so
+    # re-runs stay green.
     image: amazon/aws-cli:2.31.15
     depends_on:
       minio:
