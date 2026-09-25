@@ -80,11 +80,12 @@ def build_license_fee_message(job: Job, event: JobEvent, running_started_at: dat
     """The provider license fee. Callers must only call this once they have already decided the
     job ran (see Job.change_status): this function does not repeat that check.
 
-    Returns None silently when the function has no provider (the normal case for most jobs), and
-    returns None after logging an error when the function has a provider but a referenced
-    Program or FunctionSize is missing (a SET_NULL deletion racing the transition, made rare, not
-    impossible, by building here instead of at send time). That second case is an anomaly worth a
-    log line; the first is not.
+    Returns None silently when the function has no provider, or when its Program has itself been
+    deleted (SET_NULL) so having a provider can no longer even be checked (the normal case for
+    most jobs either way). Returns None after logging an error only when the Program and its
+    provider are both still there but FunctionSize is missing (a SET_NULL deletion racing the
+    transition, made rare, not impossible, by building here instead of at send time). That last
+    case is an anomaly worth a log line; the others are not.
     """
     # pylint: disable=unused-argument
     if job.program is None or job.program.provider is None:

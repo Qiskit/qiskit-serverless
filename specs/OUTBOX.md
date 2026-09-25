@@ -4,8 +4,9 @@ This document describes the transactional outbox that publishes best-effort mess
 to external systems in a deferred way. Today the only channel is `billing`, which
 publishes two Fleets job billing facts to Kafka: the provider license fee and the
 job's final usage event. The design is generic: a later PR is expected to add a
-`workload` channel that mirrors job state to NTC's Runtime API, and it will not need
-any change to the table or the drain task, only a new sender.
+`workload` channel that mirrors job state to NTC's Runtime API, and it will not need any
+change to the table or the drain task, only a new sender plus a builder that enqueues
+that channel's rows (see "Adding a channel" below).
 
 This is the canonical, committed reference for the outbox. Module docstrings in the
 code point here first; a local, uncommitted design document with the original
@@ -36,8 +37,8 @@ channel, deleted independently once its own send succeeds.
 
 - `job`: a `ForeignKey` to `Job`. Delivery never uses it, the payload is
   self-contained (it carries the job's id and instance CRN inside), so a sender never
-  needs to re-read the `Job` to send a message. It exists only so a pending row can be
-  found from its job (admin, debugging), and is indexed with `channel` for that.
+  needs to re-read the `Job` to send a message. It exists only so a pending row can
+  be found from its job (admin, debugging).
 - `channel`: a plain string (`"billing"` today), not a Django `choices=` field.
   Registering a new channel is adding an entry to the `{channel: sender}` dict
   `DrainOutbox` holds, not a migration.
@@ -46,6 +47,9 @@ channel, deleted independently once its own send succeeds.
   out.
 - `created`: set once, at insert (`auto_now_add`), used to drain oldest first and to
   measure how long a row has been waiting.
+
+A composite index on `(channel, created)` backs the drain query, which always
+filters by `channel` and orders by `created`.
 
 A row is deleted as soon as it is sent successfully. There is no history of what was
 already sent in this table.
@@ -86,10 +90,12 @@ known to have run:
 
 Both builders live in `gateway/core/domain/billing_events.py` and are pure: they take
 `job`, the just-created `JobEvent`, and `running_started_at`, and return a dict (or
-`None`), without querying the database themselves. `build_license_fee_message`
-returns `None` silently when the function has no provider, and returns `None` after
-logging an error when the function has a provider but its `Program` or
-`FunctionSize` is missing, an anomaly rather than a normal case.
+`None`), without querying the database themselves. `build_license_fee_message` returns
+`None` silently in two cases that are both treated as "this function owes no fee": the
+function has no provider, or its `Program` has itself been deleted (`SET_NULL`) so
+whether it had a provider can no longer even be checked. It returns `None` after
+logging an error only in a third case, when the `Program` and its provider are both
+still there but `job.function_size` is missing, an anomaly rather than a normal case.
 
 Each builder that returns a message becomes one `Outbox.objects.create(job=job,
 channel="billing", payload=message)` call, inside the same transaction as the status
@@ -184,14 +190,16 @@ Prometheus metrics:
   currently open. This carries a `channel` label precisely because there is now one
   breaker per channel, not one breaker overall.
 
-The old `scheduler_outbox_license_fee_irrecoverable_total` counter is gone. The case
-it measured (a license fee that could not be built because the referenced `Program`
-or `FunctionSize` had been deleted) is not impossible, but the race window that
-causes it shrank from "the whole time a row sat in the outbox" to "the duration of
-one database transaction" once messages are built inside `change_status` rather than
-at send time. It is still visible through a `logger.error(...)` call from
+The old `scheduler_outbox_license_fee_irrecoverable_total` counter is gone. The one
+case it measured that is still an anomaly today, a licensed function whose
+`FunctionSize` has been deleted, is not impossible, but the race window that causes
+it shrank from "the whole time a row sat in the outbox" to "the duration of one
+database transaction" once messages are built inside `change_status` rather than at
+send time. It is now visible only through a `logger.error(...)` call from
 `build_license_fee_message`, not through a metric: `core` cannot import
-`SchedulerMetrics` from `scheduler`, and `import-linter` enforces that boundary.
+`SchedulerMetrics` from `scheduler`, and `import-linter` enforces that boundary. A
+deleted `Program` (so a function with no known provider) is not part of this: it is
+treated as the normal "this job owes no fee" case, silently, with no log line at all.
 
 ## Adding a channel
 
