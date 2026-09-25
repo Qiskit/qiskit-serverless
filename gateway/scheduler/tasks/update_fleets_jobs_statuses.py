@@ -88,16 +88,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             self.stop_job_if_timeout(job)
 
         elif new_status == Job.RUNNING:
-            if job.status == Job.PENDING:
-                # Transition from PENDING to RUNNING
-                self.to_running(job)
-            else:
-                # Job already RUNNING — emit in-progress before checking timeout.
-                # A job transitioning to terminal via stop_job_if_timeout in this same tick
-                # will produce both an in-progress and a completed event; consumers key on
-                # the job_started / job_completed flags.
-                self.event_streams_client.emit_job_in_progress(job)
-
+            self.to_running(job)
             self.stop_job_if_timeout(job)
 
         else:
@@ -121,9 +112,10 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             new_status,
         )
-        # No Kafka call happens here: this only marks the JobOutbox row's final usage
-        # event as pending (the job reached a terminal status). PublishOutbox is the
-        # one that actually sends it, later, on its own schedule.
+        # change_status updates the JobOutbox row's job_status and status_changed_at, and
+        # (only when new_status is SUCCEEDED) has_run=True — covering a job that starts and
+        # finishes between two scheduler polls and is never observed as RUNNING. PublishOutbox
+        # reads that row later, on its own schedule, to decide what still needs sending.
         job.change_status(
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,
@@ -133,32 +125,40 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         self._increment_terminal_counter(job)
 
     def to_running(self, job: Job) -> None:
-        """Transition job from PENDING to RUNNING."""
-        logger.info(
-            "job_id=%s user_id=%s Changing status from %s to %s",
-            job.id,
-            job.author.id,
-            job.status,
-            Job.RUNNING,
-        )
-        # No Kafka call happens here either: this only marks the JobOutbox row's
-        # license fee as pending (has_run=True). PublishOutbox sends that one later,
-        # on its own schedule, independently of the emit_job_started() call below,
-        # which is a different billing fact (classical compute time) sent inline.
-        job.change_status(
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.UPDATE_JOB_STATUS,
-            status=Job.RUNNING,
-        )
-
-        try:
-            self.event_streams_client.emit_job_started(job)
-        except RuntimeError as ex:
-            logger.error(
-                "job_id=%s error emitting job_started event to Kafka, event dropped: %s",
+        """Transition job from PENDING to RUNNING, or emit an in-progress event if it already is."""
+        if job.status == Job.PENDING:
+            logger.info(
+                "job_id=%s user_id=%s Changing status from %s to %s",
                 job.id,
-                str(ex),
+                job.author.id,
+                job.status,
+                Job.RUNNING,
             )
+            # change_status updates the JobOutbox row's job_status and status_changed_at, and
+            # has_run=True (new_status is RUNNING) — that has_run flip is what makes the
+            # license fee eligible to be sent. PublishOutbox sends that fee later, on its own
+            # schedule, independently of the emit_job_started() call below, which is a
+            # different billing fact (classical compute time) sent inline.
+            job.change_status(
+                origin=JobEventOrigin.SCHEDULER,
+                context=JobEventContext.UPDATE_JOB_STATUS,
+                status=Job.RUNNING,
+            )
+
+            try:
+                self.event_streams_client.emit_job_started(job)
+            except RuntimeError as ex:
+                logger.error(
+                    "job_id=%s error emitting job_started event to Kafka, event dropped: %s",
+                    job.id,
+                    str(ex),
+                )
+        else:
+            # Job already RUNNING — emit in-progress before checking timeout.
+            # A job transitioning to terminal via stop_job_if_timeout in this same tick
+            # will produce both an in-progress and a completed event; consumers key on
+            # the job_started / job_completed flags.
+            self.event_streams_client.emit_job_in_progress(job)
 
     def stop_job_if_timeout(self, job: Job) -> None:
         """Stop job if it has exceeded the maximum allowed duration."""

@@ -118,7 +118,10 @@ class TestUpdateJobStatus:
 
         mock_running.assert_called_once_with(job)
 
-    def test_running_to_running_skips_to_running(self):
+    def test_running_to_running_calls_to_running(self):
+        """to_running is called unconditionally for a RUNNING poll result; it is the one
+        that decides internally whether this is a PENDING->RUNNING transition or an
+        already-RUNNING job that just needs an in-progress emit."""
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
@@ -132,7 +135,7 @@ class TestUpdateJobStatus:
         ):
             task.update_job_status(job)
 
-        mock_running.assert_not_called()
+        mock_running.assert_called_once_with(job)
 
     def test_none_status_skips_update_and_returns_false(self):
         task = _make_task()
@@ -297,6 +300,16 @@ class TestToRunning:
             job.id,
             "kafka down",
         )
+
+    def test_already_running_job_emits_in_progress_instead_of_transitioning(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        task.to_running(job)
+
+        task.event_streams_client.emit_job_in_progress.assert_called_once_with(job)
+        job.change_status.assert_not_called()
+        task.event_streams_client.emit_job_started.assert_not_called()
 
 
 class TestStopJobIfTimeout:
