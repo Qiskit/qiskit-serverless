@@ -15,7 +15,7 @@ from api.use_cases.programs.run import RunFunctionUseCase
 from api.use_cases.programs.run_input import RunFunctionInput
 from api.v1.views.jobs.retrieve import JobSerializer, JobSerializerWithoutResult
 from api.v1.views.programs.run import InputSerializer as RunProgramSerializer, JobConfigSerializer
-from api.v1.views.programs.upload import ProgramSerializer as UploadProgramSerializer
+from api.v1.views.programs.upload import ProgramSerializer as UploadProgramSerializer, _image_in_registry
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.business_models import BusinessModel
 from core.models import ComputeProfile, FunctionSize, Job, JobConfig, Program
@@ -130,6 +130,15 @@ class TestSerializers:
         serializer = UploadProgramSerializer(data=data)
         assert not serializer.is_valid()
         assert "Custom images must be in docker.io/awesome." in str(serializer.errors)
+
+    def test_image_in_registry_accepts_the_private_endpoint(self):
+        """``private.icr.io`` and ``icr.io`` are one registry, so either form matches.
+
+        The path boundary still rejects a lookalike host behind the same prefix.
+        """
+        assert _image_in_registry("private.icr.io/namespace/image:latest", "icr.io")
+        assert _image_in_registry("icr.io/namespace/image:latest", "private.icr.io")
+        assert not _image_in_registry("private.icr.io.attacker.com/evil:latest", "icr.io")
 
     def test_upload_program_with_custom_image_and_title_provider(self):
         """Tests image upload serializer."""
