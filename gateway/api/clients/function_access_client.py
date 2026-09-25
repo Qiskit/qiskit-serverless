@@ -37,6 +37,29 @@ class FunctionAccessClient:
         parsed = urlparse(base_url)
         return urlunparse(parsed._replace(netloc=f"{region}.{parsed.netloc}"))
 
+    def _instance_entitlements(self, response_json: dict, instance_crn: str) -> dict:
+        """Return the ``instance_entitlements`` element holding what ``instance_crn`` is entitled to.
+
+        An element carries either entitlements or an ``error``. It is raised rather than read as an
+        instance entitled to nothing, which would turn "unknown" into a clean deny.
+        """
+        for element in response_json.get("instance_entitlements") or []:
+            if element.get("instance_crn") != instance_crn:
+                continue
+            error = element.get("error") or {}
+            if error:
+                logger.warning(
+                    "FunctionAccessClient: entitlements error %s for CRN %s: %s",
+                    error.get("code"),
+                    instance_crn,
+                    error.get("message"),
+                )
+                raise RuntimeFunctionsException(f"Runtime API error {error.get('code')} for CRN {instance_crn}")
+            return element
+
+        logger.warning("FunctionAccessClient: no entitlements element for CRN %s", instance_crn)
+        raise RuntimeFunctionsException(f"No entitlements for CRN {instance_crn}")
+
     def get_accessible_functions(self, instance_crn: str, api_key: str) -> FunctionAccessResult:
         """Return all functions accessible to the given instance CRN with their permissions."""
         enabled = Config.get_bool(ConfigKey.RUNTIME_INSTANCES_API_ENABLED)
@@ -55,7 +78,7 @@ class FunctionAccessClient:
 
         try:
             response = requests.get(
-                f"{base_url}/api/v1/functions",
+                f"{base_url}/api/v1/entitlements",
                 headers={"Service-CRN": instance_crn, "Authorization": f"apikey {api_key}"},
                 timeout=5,
             )
@@ -65,9 +88,9 @@ class FunctionAccessClient:
 
         if response.status_code == 204:
             # We agreed with Runtime that 204 response means there is no functions configured
-            # for this instance, so we should fallback to Django
+            # for the account this instance belongs to, so we should fallback to Django
             result = FunctionAccessResult(
-                use_legacy_authorization=True, message="Instance not configured, migration pending"
+                use_legacy_authorization=True, message="Account not configured, migration pending"
             )
         elif response.status_code != 200:
             logger.warning(
@@ -77,14 +100,14 @@ class FunctionAccessClient:
             )
             raise RuntimeFunctionsException(f"Unexpected status {response.status_code} for CRN {instance_crn}")
         else:
-            response_json = response.json()
+            entitlements = self._instance_entitlements(response.json(), instance_crn)
             functions = []
-            for entry in response_json.get("functions", []):
+            for entry in entitlements.get("functions") or []:
                 try:
                     function_entry = FunctionAccessEntry(
                         provider_name=entry["provider"],
                         function_title=entry["name"],
-                        permissions=set(entry.get("permissions", [])),
+                        permissions=set(entry.get("permissions") or []),
                         business_model=entry["business_model"],
                     )
                     functions.append(function_entry)
@@ -92,9 +115,9 @@ class FunctionAccessClient:
                     # entry with missing field or incorrect business model
                     logger.error("FunctionAccessClient: invalid entry %s — %s", entry, exc)
 
-            # custom_functions may be present but null (cleared), so coalesce both levels to avoid
-            # AttributeError on None.get(...).
-            custom_function_permissions = set((response_json.get("custom_functions") or {}).get("permissions") or [])
+            # custom_functions is absent when the instance is granted none, and present but null when
+            # a grant was cleared, so coalesce both levels to avoid AttributeError on None.get(...).
+            custom_function_permissions = set((entitlements.get("custom_functions") or {}).get("permissions") or [])
             result = FunctionAccessResult(
                 use_legacy_authorization=False,
                 functions=functions,
