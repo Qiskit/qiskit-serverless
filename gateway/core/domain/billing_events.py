@@ -85,6 +85,7 @@ def build_license_fee_message(job: Job, event: JobEvent, running_started_at: dat
     impossible, by building here instead of at send time). That second case is an anomaly worth a
     log line; the first is not.
     """
+    # pylint: disable=unused-argument
     if job.program is None or job.program.provider is None:
         return None
 
