@@ -721,26 +721,51 @@ class Job(models.Model):
     def change_status(
         self, *, origin: JobEventOrigin, context: JobEventContext, status: str, job_fields: dict | None = None
     ):
-        """Transition this job's status: the JobEvent, the JobOutbox row that mirrors
-        it, and the job itself (plus any extra job_fields), atomically. The event goes
-        first because the outbox row stamps its status_changed_at from it.
+        """Transition this job's status: the JobEvent, any outbox message this transition owes,
+        and the job itself (plus any extra job_fields), atomically. This is the only entry point
+        for a status transition, so it is also the only place that enqueues outbox messages.
 
-        This is the only entry point for a status transition, so it is also the only
-        place that keeps the outbox row in step with the job.
+        Outbox messages are only ever built on a transition to a terminal status
+        (SUCCEEDED/FAILED/STOPPED), and only for a job that can reach the outbox pipeline: Fleets,
+        not filler, with an instance CRN. See core/domain/billing_events.py.
         """
         with transaction.atomic():
             event = JobEvent.objects.add_status_event(job_id=self.id, origin=origin, context=context, status=status)
-            outbox_fields = {"job_status": status, "status_changed_at": event.created}
-            if status in (Job.RUNNING, Job.SUCCEEDED):
-                # SUCCEEDED also proves the job ran, and it is not redundant with RUNNING:
-                # a job that starts and finishes between two scheduler polls is only ever
-                # observed as PENDING and then SUCCEEDED, so this is the single place that
-                # records that it executed.
-                outbox_fields["has_run"] = True
-            # Filler and Ray jobs have no outbox row, so for them this update matches nothing
-            JobOutbox.objects.filter(job_id=self.id).update(**outbox_fields)
+            if status in Job.TERMINAL_STATUSES and self._eligible_for_outbox():
+                self._enqueue_billing_messages(event, new_status=status)
             self.update_fields({"status": status, **(job_fields or {})})
         return event
+
+    def _eligible_for_outbox(self) -> bool:
+        """Fleets, not filler, with an instance CRN: the only jobs that get outbox messages."""
+        return self.runner == Program.FLEETS and not self.filler and bool(self.instance_crn)
+
+    def _enqueue_billing_messages(self, event: "JobEvent", *, new_status: str) -> None:
+        """Build and store whichever billing outbox messages this terminal transition owes.
+
+        One query, not two: first_running_at() both decides license fee eligibility for a
+        FAILED/STOPPED transition and provides the value both builders need for their own
+        content (job_started_at, usage seconds). SUCCEEDED never needs it for eligibility (it
+        proves the job ran by definition) but still needs the value for the payloads' content.
+        """
+        # Deferred import: core/domain/billing_events.py imports Job/JobEvent from this module at
+        # its own top level, so this module cannot import it at its own top level too (see
+        # core/model_managers/job_outbox.py for the same pattern already in this codebase).
+        from core.domain.billing_events import (  # pylint: disable=import-outside-toplevel, cyclic-import
+            build_billing_event_message,
+            build_license_fee_message,
+        )
+
+        running_started_at = JobEvent.objects.first_running_at(self.id)
+        ran = new_status == Job.SUCCEEDED or running_started_at is not None
+
+        billing_message = build_billing_event_message(self, event, running_started_at)
+        Outbox.objects.create(job=self, channel="billing", payload=billing_message)
+
+        if ran:
+            license_fee_message = build_license_fee_message(self, event, running_started_at)
+            if license_fee_message is not None:
+                Outbox.objects.create(job=self, channel="billing", payload=license_fee_message)
 
 
 class RuntimeJob(models.Model):

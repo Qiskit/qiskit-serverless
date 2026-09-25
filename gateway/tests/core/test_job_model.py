@@ -1,31 +1,18 @@
 """Tests for Job model fields."""
 
-from datetime import timedelta
-
 import pytest
 from django.contrib.auth.models import User
 from django.db import models
-from django.utils import timezone
 
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import Job, JobEvent, JobOutbox, Program
+from core.models import ComputeProfile, FunctionSize, Job, JobEvent, Outbox, Program, Provider
 
 pytestmark = pytest.mark.django_db
 
 
-def _job_with_outbox(username, status=Job.QUEUED, has_run=False, **outbox_overrides):
-    """A Fleets job plus the outbox row a real submission would have created for it."""
-    author = User.objects.create_user(username=username)
-    job = Job.objects.create(author=author, runner=Program.FLEETS, status=status)
-    row = JobOutbox.objects.create(
-        job=job,
-        job_status=status,
-        status_changed_at=timezone.now() - timedelta(hours=1),
-        has_run=has_run,
-        license_fee_required=True,
-        **outbox_overrides,
-    )
-    return job, row
+@pytest.fixture
+def user():
+    return User.objects.create_user(username="author")
 
 
 def test_filler_defaults_to_false_and_is_queryable():
@@ -129,79 +116,141 @@ class TestChangeStatus:
         assert JobEvent.objects.filter(job=job).count() == 0
 
 
-class TestChangeStatusOutboxRow:
-    """Job.change_status() keeping the JobOutbox row in step with the job."""
+class TestChangeStatusEnqueuesOutboxMessages:
+    """Job.change_status is the only place that builds and stores outbox messages, and only for
+    an eligible job (Fleets, not filler, with an instance CRN) transitioning to a terminal
+    status."""
 
-    def _transition(self, job, status):
-        return job.change_status(
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.UPDATE_JOB_STATUS,
-            status=status,
+    def test_succeeded_enqueues_both_messages_even_without_a_running_event(self, user):
+        """The short-job-between-two-polls case: never observed RUNNING, still owes the fee."""
+        provider = Provider.objects.create(name="ibm-dev")
+        program = Program.objects.create(
+            title="my-fn", author=user, entrypoint="main.py", runner=Program.FLEETS, provider=provider
+        )
+        profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+        size = FunctionSize.objects.create(function=program, function_size="m", compute_profile=profile)
+        job = Job.objects.create(
+            author=user,
+            program=program,
+            runner=Program.FLEETS,
+            instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::",
+            function_size=size,
+            status=Job.PENDING,
         )
 
-    def test_does_nothing_when_the_job_has_no_outbox_row(self):
-        """Filler jobs, Ray jobs and pre-deployment jobs have no row: the update matches nothing."""
-        author = User.objects.create_user(username="outbox-author-1")
-        job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.QUEUED, filler=True)
+        job.change_status(
+            origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, status=Job.SUCCEEDED
+        )
 
-        self._transition(job, Job.RUNNING)
+        rows = list(Outbox.objects.filter(job=job, channel="billing"))
+        assert len(rows) == 2
+        metric_types = {row.payload["data"]["metric_type"] for row in rows}
+        assert any(m.startswith("license_") for m in metric_types)
+        assert any(m.startswith("classical") for m in metric_types)
 
-        assert JobOutbox.objects.count() == 0
+    def test_stopped_while_still_queued_enqueues_only_the_billing_event(self, user):
+        provider = Provider.objects.create(name="ibm-dev")
+        program = Program.objects.create(
+            title="my-fn", author=user, entrypoint="main.py", runner=Program.FLEETS, provider=provider
+        )
+        job = Job.objects.create(
+            author=user,
+            program=program,
+            runner=Program.FLEETS,
+            instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::",
+            status=Job.QUEUED,
+        )
 
-    def test_copies_the_status_and_takes_the_timestamp_from_the_event(self):
-        job, _ = _job_with_outbox("outbox-author-2")
+        job.change_status(origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB, status=Job.STOPPED)
 
-        event = self._transition(job, Job.PENDING)
+        rows = list(Outbox.objects.filter(job=job, channel="billing"))
+        assert len(rows) == 1
+        assert rows[0].payload["data"]["metric_value"] == 0
 
-        row = JobOutbox.objects.get(job=job)
-        assert row.job_status == Job.PENDING
-        assert row.status_changed_at == event.created
+    def test_failed_after_running_enqueues_both_messages(self, user):
+        provider = Provider.objects.create(name="ibm-dev")
+        program = Program.objects.create(
+            title="my-fn", author=user, entrypoint="main.py", runner=Program.FLEETS, provider=provider
+        )
+        profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+        size = FunctionSize.objects.create(function=program, function_size="m", compute_profile=profile)
+        job = Job.objects.create(
+            author=user,
+            program=program,
+            runner=Program.FLEETS,
+            instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::",
+            function_size=size,
+            status=Job.PENDING,
+        )
+        job.change_status(
+            origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, status=Job.RUNNING
+        )
+        Outbox.objects.filter(job=job).delete()  # RUNNING must not have enqueued anything; clear defensively
 
-    def test_sets_has_run_on_running_and_never_back_to_false(self):
-        job, _ = _job_with_outbox("outbox-author-3", status=Job.PENDING)
+        job.change_status(origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, status=Job.FAILED)
 
-        self._transition(job, Job.RUNNING)
-        assert JobOutbox.objects.get(job=job).has_run is True
+        assert Outbox.objects.filter(job=job, channel="billing").count() == 2
 
-        self._transition(job, Job.SUCCEEDED)
-        assert JobOutbox.objects.get(job=job).has_run is True
+    def test_running_transition_enqueues_nothing(self, user):
+        provider = Provider.objects.create(name="ibm-dev")
+        program = Program.objects.create(
+            title="my-fn", author=user, entrypoint="main.py", runner=Program.FLEETS, provider=provider
+        )
+        job = Job.objects.create(
+            author=user,
+            program=program,
+            runner=Program.FLEETS,
+            instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::",
+            status=Job.PENDING,
+        )
 
-    def test_sets_has_run_on_succeeded_with_no_running_event(self):
-        """A job fast enough to fit between two scheduler polls is never seen RUNNING."""
-        job, _ = _job_with_outbox("outbox-author-4", status=Job.PENDING)
+        job.change_status(
+            origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, status=Job.RUNNING
+        )
 
-        self._transition(job, Job.SUCCEEDED)
+        assert Outbox.objects.filter(job=job).count() == 0
 
-        assert JobOutbox.objects.get(job=job).has_run is True
-
-    def test_does_not_set_has_run_on_a_terminal_status_other_than_succeeded(self):
-        """FAILED and STOPPED prove nothing: the job may never have started."""
-        job, _ = _job_with_outbox("outbox-author-5", status=Job.PENDING)
-
-        self._transition(job, Job.STOPPED)
-
-        assert JobOutbox.objects.get(job=job).has_run is False
-
-    def test_does_not_set_has_run_on_pending(self):
-        job, _ = _job_with_outbox("outbox-author-6")
-
-        self._transition(job, Job.PENDING)
-
-        assert JobOutbox.objects.get(job=job).has_run is False
-
-    def test_does_not_touch_the_sent_markers(self):
-        """Clearing a sent marker would send the same billing fact twice."""
-        sent = timezone.now() - timedelta(minutes=5)
-        job, _ = _job_with_outbox(
-            "outbox-author-7",
+    def test_filler_job_enqueues_nothing_even_terminal(self, user):
+        job = Job.objects.create(
+            author=user,
+            runner=Program.FLEETS,
+            filler=True,
+            instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::",
             status=Job.RUNNING,
-            has_run=True,
-            license_fee_sent_at=sent,
-            billing_sent_at=sent,
         )
 
-        self._transition(job, Job.SUCCEEDED)
+        job.change_status(origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_STOP, status=Job.STOPPED)
 
-        row = JobOutbox.objects.get(job=job)
-        assert row.license_fee_sent_at == sent
-        assert row.billing_sent_at == sent
+        assert Outbox.objects.filter(job=job).count() == 0
+
+    def test_ray_job_enqueues_nothing(self, user):
+        job = Job.objects.create(author=user, runner=Program.RAY, status=Job.PENDING)
+
+        job.change_status(origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB, status=Job.STOPPED)
+
+        assert Outbox.objects.filter(job=job).count() == 0
+
+    def test_fleets_job_without_instance_crn_enqueues_nothing(self, user):
+        job = Job.objects.create(author=user, runner=Program.FLEETS, instance_crn=None, status=Job.PENDING)
+
+        job.change_status(origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB, status=Job.STOPPED)
+
+        assert Outbox.objects.filter(job=job).count() == 0
+
+    def test_function_without_provider_enqueues_only_the_billing_event(self, user):
+        program = Program.objects.create(title="my-fn", author=user, entrypoint="main.py", runner=Program.FLEETS)
+        job = Job.objects.create(
+            author=user,
+            program=program,
+            runner=Program.FLEETS,
+            instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::",
+            status=Job.PENDING,
+        )
+
+        job.change_status(
+            origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, status=Job.SUCCEEDED
+        )
+
+        rows = list(Outbox.objects.filter(job=job, channel="billing"))
+        assert len(rows) == 1
+        assert rows[0].payload["data"]["metric_type"].startswith("classical")
