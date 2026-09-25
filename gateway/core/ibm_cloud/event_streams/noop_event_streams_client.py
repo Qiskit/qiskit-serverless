@@ -13,7 +13,6 @@
 """No-op Event Streams client for use when publishing is disabled."""
 
 import logging
-from datetime import datetime
 
 from core.models import Job
 
@@ -37,9 +36,3 @@ class NoOpEventStreamsClient(EventStreamsClient):
 
     def _emit_job_in_progress(self, job: Job, metric_type: str | None = None) -> None:
         logger.info("job_id=%s metric_type=%s [noop] emit_job_in_progress", job.id, metric_type)
-
-    def _emit_job_completed(self, job: Job, ended_at: datetime, metric_type: str | None = None) -> None:
-        logger.info("job_id=%s metric_type=%s [noop] emit_job_completed", job.id, metric_type)
-
-    def _emit_license_fee(self, job: Job) -> None:
-        logger.info("job_id=%s metric_type=license [noop] emit_license_fee", job.id)
