@@ -47,34 +47,49 @@ services:
       # postgres under emulation. Without a start_period, retries x interval marks it unhealthy at
       # ~9s and compose aborts the whole stack rather than waiting for it to recover.
       start_period: 30s
+  # S3-compatible object store for the fleets tests. Formerly MinIO (EOL Feb
+  # 2026, removed from Docker Hub); now SeaweedFS's S3 gateway. The service is
+  # still named "minio" and still serves on :9000 so MINIO_ENDPOINT,
+  # MINIO_PUBLIC_ENDPOINT and every depends_on keep working unchanged — the code
+  # only ever spoke plain S3 (boto3 / ibm_boto3), never the MinIO SDK.
+  #
+  # NB: LocalStack's free s3-latest image was discontinued (2026-03-23) and now
+  # refuses to start, pointing at the paid Pro image — unusable for public CI.
+  # SeaweedFS is Apache-2.0, a single binary, and its `server -s3` mode accepts
+  # any credentials, so the historical minioadmin/minioadmin values still work.
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
-    command: server /data
-    environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
+    image: chrislusf/seaweedfs:latest
+    # Run master + volume + filer + S3 gateway in one process; pin the S3 API to
+    # :9000 to preserve the endpoint contract above.
+    command: server -s3 -s3.port=9000 -dir=/data
     networks:
       - safe-tier
     ports:
       - 9000:9000
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:9000/minio/health/live || exit 1"]
+      # The S3 gateway serves HTTP 200 on /status once it is ready.
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/status || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 5
   minio-init:
-    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    # Bucket bootstrap, formerly the MinIO `mc` CLI. SeaweedFS ships no S3
+    # client, so use the official awscli image with `s3api create-bucket`.
+    # Idempotent: re-creating an existing bucket errors, which we swallow so
+    # re-runs stay green.
+    image: amazon/aws-cli:2.31.15
     depends_on:
       minio:
         condition: service_healthy
+    environment:
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_DEFAULT_REGION=us-east-1
     entrypoint: >
       /bin/sh -c "
-      mc alias set local http://minio:9000 minioadmin minioadmin &&
-      mc mb --ignore-existing local/user-data-bucket &&
-      mc mb --ignore-existing local/provider-data-bucket &&
-      mc mb --ignore-existing local/task-store-bucket &&
-      mc mb --ignore-existing local/fleet-state &&
-      mc mb --ignore-existing local/fleet-state-archive &&
+      for b in user-data-bucket provider-data-bucket task-store-bucket fleet-state fleet-state-archive; do
+        aws --endpoint-url http://minio:9000 s3api create-bucket --bucket \"$$b\" 2>/dev/null || true;
+      done &&
       echo 'Buckets created successfully'
       "
     networks:
