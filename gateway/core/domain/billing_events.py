@@ -7,8 +7,9 @@ license fee eligibility, and there is no reason to query it twice. Neither build
 Kafka transport either: CloudEvents' own `type` field (which equals the Kafka topic name) is
 added later, by KafkaOutboxSender at send time, not here.
 
-See .claude/specs/2026-09-25-generic-outbox-design.md (local, not committed) for the full
-rationale.
+See specs/OUTBOX.md at the repository root for the full design. For the original design
+rationale, if you have it locally, see .claude/specs/2026-09-25-generic-outbox-design.md
+(local, not committed).
 """
 
 import logging

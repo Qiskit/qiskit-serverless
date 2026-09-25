@@ -13,7 +13,9 @@
 """Kafka-backed Event Streams client for the two best-effort, inline-published events:
 job_started and job_in_progress. The other two facts that used to live here (license fee, job
 completed) are now built by core/domain/billing_events.py and sent by KafkaOutboxSender, never
-inline: see .claude/specs/2026-09-25-generic-outbox-design.md (local, not committed).
+inline: see specs/OUTBOX.md at the repository root for the full design. For the original design
+rationale, if you have it locally, see .claude/specs/2026-09-25-generic-outbox-design.md
+(local, not committed).
 """
 
 from __future__ import annotations

@@ -1,6 +1,8 @@
 """Drain the outbox: send whatever each registered channel's messages need, independently, each
 with its own circuit breaker and time budget, so a failure on one channel never stops another.
-See .claude/specs/2026-09-25-generic-outbox-design.md (local, not committed).
+See specs/OUTBOX.md at the repository root for the full design. For the original design
+rationale, if you have it locally, see .claude/specs/2026-09-25-generic-outbox-design.md
+(local, not committed).
 """
 
 import logging
