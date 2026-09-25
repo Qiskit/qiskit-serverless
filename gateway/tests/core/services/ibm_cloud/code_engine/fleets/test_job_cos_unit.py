@@ -22,7 +22,12 @@ import pytest
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud import get_cos_client
 from core.ibm_cloud.clients import COS_PUBLIC_URL_TEMPLATE
-from core.ibm_cloud.code_engine.fleets.cos import JobCOS
+from core.ibm_cloud.code_engine.fleets.cos import (
+    TASK_STORE_VERSIONS,
+    JobCOS,
+    queue_prefix,
+    task_state_from_key,
+)
 
 _IBM_CLOUD_MOD = "core.ibm_cloud"
 
@@ -307,3 +312,52 @@ def test_get_cos_client_raises_when_hmac_secret_name_missing() -> None:
 
         with pytest.raises(ValueError, match="CE_HMAC_SECRET_NAME"):
             get_cos_client(project)
+
+
+class TestQueuePrefixAndState:
+    """The task-store layout helpers, which the status reader depends on."""
+
+    def test_queue_prefix_defaults_to_the_newest_version(self):
+        """A writer that names no version writes the layout Code Engine uses now."""
+        assert queue_prefix("proj", "fleet") == "ce/proj/fleet/v3/queue/"
+        assert TASK_STORE_VERSIONS[0] == "v3"
+
+    def test_queue_prefix_accepts_the_legacy_version(self):
+        """Readers walk older versions, so the prefix has to be buildable for them."""
+        assert queue_prefix("proj", "fleet", "v2") == "ce/proj/fleet/v2/queue/"
+
+    def test_state_is_the_segment_after_the_prefix(self):
+        """Segment orders differ per state, so only the first one may be read.
+
+        Keys are the real shapes observed on a v3 fleet: pending carries a retry
+        count, running a worker and two timestamps, succeeded a result code first.
+        """
+        prefix = queue_prefix("proj", "fleet")
+        cases = {
+            f"{prefix}pending/000-00000-0/default/0/2026-08-26T19:09:39Z/uuid": "pending",
+            f"{prefix}running/fleet-0/2026-08-26T19:10:14Z/2026-08-26T19:09:39Z/000-00000-0/default/uuid": "running",
+            f"{prefix}succeeded/exit_0/fleet-0/t2/t1/t0/000-00000-0/default/uuid": "succeeded",
+        }
+        for key, expected in cases.items():
+            assert task_state_from_key(prefix, key) == expected
+
+    def test_state_is_read_whatever_the_version_segment_is(self):
+        """The helper never parses the version, so any version works."""
+        for version in ("v2", "v3", "v9", "rev-two"):
+            prefix = queue_prefix("proj", "fleet", version)
+            assert task_state_from_key(prefix, f"{prefix}succeeded/exit_0/rest") == "succeeded"
+
+    def test_key_outside_the_prefix_has_no_state(self):
+        """A key from another version must not be read as if it were this one."""
+        assert task_state_from_key(queue_prefix("proj", "fleet", "v3"), "ce/proj/fleet/v2/queue/succeeded/0/x") is None
+
+    def test_directory_marker_has_no_state(self):
+        """A zero-byte marker for the prefix itself carries nothing."""
+        prefix = queue_prefix("proj", "fleet")
+        assert task_state_from_key(prefix, prefix) is None
+
+    def test_deeper_segments_cannot_be_mistaken_for_the_state(self):
+        """The batch name is user supplied, so it must not be able to forge a state."""
+        prefix = queue_prefix("proj", "fleet")
+        key = f"{prefix}pending/000-00000-0/succeeded/0/2026-08-26T19:09:39Z/uuid"
+        assert task_state_from_key(prefix, key) == "pending"

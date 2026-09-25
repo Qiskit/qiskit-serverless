@@ -6,11 +6,14 @@ import logging
 from functools import wraps
 from typing import Callable
 
+from django.conf import settings
+from django.core.exceptions import RequestDataTooBig
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from rest_framework import status
 
 from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
+from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
 from api.domain.exceptions.function_disabled_exception import FunctionDisabledException
 from api.domain.exceptions.invalid_access_exception import InvalidAccessException
 from api.domain.exceptions.invalid_arguments_exception import InvalidArgumentsException
@@ -43,7 +46,8 @@ def endpoint_handle_exceptions(view_func: Callable):
     - NotFoundError and subclasses (JobNotFoundException, ProviderNotFoundException,
       FunctionNotFoundException, FileNotFoundException) -> 404 NOT FOUND
     - InvalidAccessException -> 403 FORBIDDEN
-    - ValidationError, InvalidArgumentsException -> 400 BAD REQUEST
+    - ValidationError, InvalidArgumentsException, FunctionConfigurationException -> 400 BAD REQUEST
+    - RequestDataTooBig -> 413 REQUEST ENTITY TOO LARGE
     - All other exceptions -> 500 INTERNAL SERVER ERROR
     """
 
@@ -81,10 +85,22 @@ def endpoint_handle_exceptions(view_func: Callable):
                 {"message": error.message, "path": error.path},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        except FunctionConfigurationException as error:
+            return Response(
+                {"message": error.message},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         except ActiveJobLimitExceeded as error:
             return Response(
                 {"message": error.message},
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+        except RequestDataTooBig:
+            limit_mb = settings.DATA_UPLOAD_MAX_MEMORY_SIZE / (1024 * 1024)
+            logger.warning("Request body over the %g MB limit", limit_mb)
+            return Response(
+                {"message": f"the request body is larger than the maximum of {limit_mb:g} MB"},
+                status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             )
         except Exception as error:  # pylint: disable=broad-exception-caught
             logger.error(

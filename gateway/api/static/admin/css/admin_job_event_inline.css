@@ -9,7 +9,7 @@
     background-color: var(--event-color, #ff00ff);
 }
 
-.event-badge[data-event-status="QUEUED"] { --event-color: #f0ad4e; }
+.event-badge[data-event-status="QUEUED"] { --event-color: #8a3ffc; }
 .event-badge[data-event-status="PENDING"] { --event-color: #f0ad4e; }
 
 .event-badge[data-event-status="RUNNING"],

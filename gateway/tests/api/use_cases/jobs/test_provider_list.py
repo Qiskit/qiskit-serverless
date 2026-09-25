@@ -38,7 +38,23 @@ def provider_with_admin(provider, admin_user):
 
 
 @pytest.fixture()
-def function(provider, user):
+def function_owner():
+    """Author of the functions under test.
+
+    Deliberately NOT `user`: ownership grants every provider operation, so functions authored
+    by the caller would make the access-denied assertions below pass for the wrong reason.
+    """
+    return User.objects.create_user(username="function-owner")
+
+
+@pytest.fixture()
+def function(provider, function_owner):
+    return Program.objects.create(title="my-function", author=function_owner, provider=provider)
+
+
+@pytest.fixture()
+def function_owned_by_caller(provider, user):
+    """The same function, but authored by the caller -- for the ownership-bypass test."""
     return Program.objects.create(title="my-function", author=user, provider=provider)
 
 
@@ -50,13 +66,13 @@ def jobs(function, user, admin_user):
 
 
 @pytest.fixture()
-def function_a(provider, user):
-    return Program.objects.create(title="function-a", author=user, provider=provider)
+def function_a(provider, function_owner):
+    return Program.objects.create(title="function-a", author=function_owner, provider=provider)
 
 
 @pytest.fixture()
-def function_b(provider, user):
-    return Program.objects.create(title="function-b", author=user, provider=provider)
+def function_b(provider, function_owner):
+    return Program.objects.create(title="function-b", author=function_owner, provider=provider)
 
 
 @pytest.fixture()
@@ -193,3 +209,96 @@ class TestListJobs:
                     filters=filters,
                     accessible_functions=FunctionAccessResult(use_legacy_authorization=False, functions=[]),
                 )
+
+
+class TestOwnership:
+    """The unfiltered provider job list degrades to "jobs of the functions you author".
+
+    `_check` answers a question about one named function, and there is no function filter here,
+    so these branches consult ownership directly via `_owned_function_titles`.
+    """
+
+    def test_owner_without_function_filter_sees_own_function_jobs(self, user, provider, function_owned_by_caller):
+        """An owner who is neither admin nor entitled now gets their own function's jobs."""
+        Job.objects.create(author=user, program=function_owned_by_caller)
+        filters = JobFilters(provider="my-provider", limit=20, offset=0)
+
+        result_jobs, total = JobsProviderListUseCase().execute(
+            user=user,
+            filters=filters,
+            accessible_functions=FunctionAccessResult(use_legacy_authorization=False, functions=[]),
+        )
+
+        assert total == 1
+        assert [job.program.title for job in result_jobs] == ["my-function"]
+
+    def test_owner_without_function_filter_sees_own_function_jobs_on_legacy_path(
+        self, user, provider, function_owned_by_caller
+    ):
+        """Same on the legacy path: not a provider admin, but the author of the function."""
+        Job.objects.create(author=user, program=function_owned_by_caller)
+        filters = JobFilters(provider="my-provider", limit=20, offset=0)
+
+        result_jobs, total = JobsProviderListUseCase().execute(
+            user=user,
+            filters=filters,
+            accessible_functions=FunctionAccessResult(use_legacy_authorization=True),
+        )
+
+        assert total == 1
+        assert [job.program.title for job in result_jobs] == ["my-function"]
+
+    def test_owned_titles_union_with_entitled_titles(self, user, provider, function_owner, admin_user):
+        """Entitlements and ownership add up rather than one replacing the other."""
+        entitled = Program.objects.create(title="entitled-fn", author=function_owner, provider=provider)
+        owned = Program.objects.create(title="owned-fn", author=user, provider=provider)
+        unrelated = Program.objects.create(title="unrelated-fn", author=function_owner, provider=provider)
+        Job.objects.create(author=admin_user, program=entitled)
+        Job.objects.create(author=admin_user, program=owned)
+        Job.objects.create(author=admin_user, program=unrelated)
+
+        filters = JobFilters(provider="my-provider", limit=20, offset=0)
+        accessible = create_function_access_result("my-provider", "entitled-fn", {PLATFORM_PERMISSION_JOBS_READ})
+
+        result_jobs, total = JobsProviderListUseCase().execute(
+            user=user, filters=filters, accessible_functions=accessible
+        )
+
+        assert total == 2
+        assert sorted(job.program.title for job in result_jobs) == ["entitled-fn", "owned-fn"]
+
+    def test_ownership_does_not_cross_providers(self, user, function_owner):
+        """Owning provider-a/my-fn must not open up provider-b's job list."""
+        provider_a = Provider.objects.create(name="provider-a")
+        provider_b = Provider.objects.create(name="provider-b")
+        Program.objects.create(title="my-fn", author=user, provider=provider_a)
+        fn_b = Program.objects.create(title="my-fn", author=function_owner, provider=provider_b)
+        Job.objects.create(author=user, program=fn_b)
+
+        accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[])
+
+        with pytest.raises(ProviderNotFoundException):
+            JobsProviderListUseCase().execute(
+                user=user,
+                filters=JobFilters(provider="provider-b", limit=20, offset=0),
+                accessible_functions=accessible,
+            )
+
+
+def test_provider_admin_sees_only_their_provider(admin_user, provider_with_admin, jobs, user):
+    """A provider admin gets no function-level filter, so `filters.provider` is the only guard.
+
+    Before the fix this returned every job in the system -- other providers' jobs included.
+    """
+    # Same function title under another provider -- must not be returned.
+    other = Provider.objects.create(name="other-provider")
+    Job.objects.create(author=user, program=Program.objects.create(title="my-function", author=user, provider=other))
+
+    result_jobs, total = JobsProviderListUseCase().execute(
+        user=admin_user,
+        filters=JobFilters(provider="my-provider", limit=20, offset=0),
+        accessible_functions=_no_response(),
+    )
+
+    assert total == 2
+    assert all(job.program.provider.name == "my-provider" for job in result_jobs)

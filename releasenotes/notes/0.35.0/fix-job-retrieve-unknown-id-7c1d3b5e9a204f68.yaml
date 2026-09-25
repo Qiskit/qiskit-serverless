@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    Requesting a job that does not exist through ``GET /api/v1/jobs/{job_id}/``
+    now returns HTTP 404 with a ``Job [job_id] not found`` message instead of
+    HTTP 500. The lookup relied on a ``None`` check that the Django ORM never
+    triggers, so ``Job.DoesNotExist`` escaped as an unexpected error.

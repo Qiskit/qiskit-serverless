@@ -28,7 +28,7 @@ application:
     enable: true
   maintenance: false
   ray:
-    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.34.0"
+    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.36.0"
     cpu: 2
     memory: 2
     gpu: 1
@@ -47,6 +47,27 @@ application:
     maxGpuResources: 1
     keepClusterOnComplete: False
     programTimeoutHours: 24
+    # Memory margin (MB) and CPU seconds for the child that validates arguments against a schema.
+    # Clamped in code to 64-256 and 1-5. The CPU budget also caps how long one request can hold a
+    # worker, at five times its value, which has to stay under httpServer.timeout above.
+    argumentsSchemaMemoryLimitMb: 128
+    argumentsSchemaCpuLimitSeconds: 1
+    # Largest JSON body or form field accepted, in MB, with or without a schema. Over it, a 413. Sets
+    # MAX_REQUEST_BODY_SIZE_MB and, through it, Django's own DATA_UPLOAD_MAX_MEMORY_SIZE, which is
+    # what refuses the body and which defaults to 2.5 MB. That default only began applying to JSON
+    # bodies in Django REST Framework 3.17.2, and 2.5 MB is below one batch of encoded circuits, which
+    # is why this is set here at all. It does not bound an uploaded file: Django counts only the
+    # non-file parts of a multipart request.
+    #
+    # Size this against resources.limits.memory and httpServer.workers above rather than against one
+    # request: a body costs about 3.2x its size in the worker holding it, and every worker can hold
+    # one at once, so raising it without checking that is how a worker gets OOM-killed instead of the
+    # gateway answering 413. specs/ARGUMENTS_LIMIT.md has the table of what fits per pod memory and
+    # worker count, the measurements behind it, and how to repeat them.
+    maxRequestBodySizeMb: 50
+    # Longest arguments validated against a schema, in MB. Over it, a 400. A value above 64 is refused
+    # at boot rather than lowered silently; the reason for that 64 is in the gateway's settings.py.
+    maxArgumentsLengthMb: 32
   qiskitRuntime:
     url: "https://cloud.ibm.com"
   runtimeApi:
@@ -64,6 +85,10 @@ application:
   eventStreams:
     enabled: false
     environment: ""
+    # Default region served by unsuffixed broker/API key secrets. Additional regions
+    # are configured via suffixed secrets (kafka-credentials-eu-de, etc).
+    # See: Multi-region Event Streams routing design (2026-08-06)
+    defaultRegion: "us-east"
   # Optional IBM w3id SSO backoffice login. The provider base url is not
   # sensitive and lives here; credentials go in secrets.w3idSso (see below).
   w3idSso:
@@ -86,8 +111,13 @@ cos:
 ce:
   fleetsGatewayHost: "http://127.0.0.1:8000"
   defaultProjectName: ""
-  defaultComputeProfile: "bx3d-24x120"
+  defaultComputeProfile: "16x128"
+  fleetsDefaultImage: "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.36.0"
   fleetsDefaultMaxInstances: 1
+  fleetsRuntimeIamUrl: ""
+  fleetsRuntimeGlobalSearchUrl: ""
+  fleetsRuntimeGlobalCatalogUrl: ""
+  fleetsRuntimeExperimental: "false"
 
 secrets:
   secretKey:
@@ -115,6 +145,12 @@ secrets:
     secretRef: ""
     secretStoreName: qiskit-serverless
   kafka:
+    createExternalSecret: false
+    name: ""
+    secretRef: ""
+    secretStoreName: qiskit-serverless
+  kafkaEuDe:
+    createExternalSecret: false
     name: ""
     secretRef: ""
     secretStoreName: qiskit-serverless

@@ -3,7 +3,6 @@ import logging
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
-from django.core.exceptions import ObjectDoesNotExist
 from qiskit_ibm_runtime import QiskitRuntimeService, RuntimeInvalidStateError
 
 from core.models import Job, JobEvent, RuntimeJob
@@ -25,9 +24,8 @@ class StopJobUseCase:
         self.stopped_sessions = []
 
     def execute(self, job_id: UUID, service_str: str, user: AbstractUser) -> str:
-        try:
-            job = Job.objects.get(id=job_id)
-        except ObjectDoesNotExist:
+        job = Job.objects.filter(id=job_id).first()
+        if job is None:
             raise JobNotFoundException(job_id)
 
         if not JobAccessPolicies.can_stop(user, job):
@@ -39,7 +37,10 @@ class StopJobUseCase:
 
         if not job.in_terminal_state():
             job.status = Job.STOPPED
-            job.save(update_fields=["status"])
+            # "updated" has auto_now=True, but auto_now only fires for fields listed
+            # in update_fields, so it has to be named here explicitly or the column
+            # keeps the value it got when the job was created.
+            job.save(update_fields=["status", "updated"])
             JobEvent.objects.add_status_event(
                 job_id=job.id,
                 origin=JobEventOrigin.API,
@@ -114,11 +115,11 @@ class StopJobUseCase:
         runner = get_runner(job)
         if runner.is_active():
             try:
-                was_running = runner.stop()
-                if was_running:
-                    self.status_messages.append("Serverless job was running and has been stopped.")
+                stop_accepted = runner.stop()
+                if stop_accepted:
+                    self.status_messages.append("Serverless job stop has been requested.")
                 else:
-                    self.status_messages.append("Serverless job was already not running.")
+                    self.status_messages.append("Serverless job was already stopping or no longer running.")
             except RunnerError:
                 if job.compute_resource:
                     logger.warning("Serverless job was not accessible from: %s", job.compute_resource)

@@ -13,15 +13,20 @@
 """Unit tests for FleetsRunner."""
 
 import io
+import re
 import tarfile
 from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
 import pytest
+from django.conf import settings as django_settings
+
+from core.domain.compute_profile import normalize as normalize_compute_profile
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
 from core.models import Job, Program
 from core.services.runners.abstract_runner import RunnerError
+from core.services.runners import fleets_runner as fleets_runner_module
 from core.services.runners.fleets_runner import FleetsRunner
 
 _RUNNER_MOD = "core.services.runners.fleets_runner"
@@ -38,6 +43,9 @@ def _make_runner(fleet_id: str | None = None) -> tuple[FleetsRunner, MagicMock]:
     """
     mock_job = MagicMock()
     mock_job.fleet_id = fleet_id
+    mock_job.filler = False
+    mock_job.program.title = "my-function"
+    mock_job.author.username = "IBMid-1000000000"
     mock_job.SUCCEEDED = "SUCCEEDED"
     mock_job.FAILED = "FAILED"
     mock_job.STOPPED = "STOPPED"
@@ -94,13 +102,16 @@ def _make_submit_runner() -> tuple[FleetsRunner, MagicMock]:
     mock_job = MagicMock()
     mock_job.fleet_id = None
     mock_job.id = "job-uuid"
+    mock_job.filler = False
     mock_job.SUCCEEDED = "SUCCEEDED"
     mock_job.FAILED = "FAILED"
     mock_job.STOPPED = "STOPPED"
     mock_job.PENDING = "PENDING"
     mock_job.RUNNING = "RUNNING"
     mock_job.config = None
-    mock_job.compute_profile = None
+    mock_job.compute_profile_id = None
+    mock_job.program.title = "my-function"
+    mock_job.author.username = "IBMid-1000000000"
     mock_job.program.image = None
     mock_job.program.artifact = None
     mock_job.program.entrypoint = "main.py"
@@ -154,6 +165,61 @@ def test_status_raises_runner_error_when_no_fleet_id():
         runner.status()
 
 
+@pytest.fixture(autouse=True)
+def _clear_unresolved_warned():
+    """Keep tests independent of the runner's per-fleet warning throttle.
+
+    The throttle is module state so the scheduler warns once per fleet rather than
+    once per poll, which would otherwise make these tests order dependent.
+    """
+    fleets_runner_module._UNRESOLVED_WARNED.clear()
+    yield
+    fleets_runner_module._UNRESOLVED_WARNED.clear()
+
+
+def _cos_by_version(keys_by_version):
+    """Build a ``list_keys`` stub that answers per task-store schema version.
+
+    status() lists one version prefix at a time, so a stub with a single
+    return_value would hand v2 keys back when the runner asked for v3.
+
+    Args:
+        keys_by_version: Mapping of version segment ("v3", "v2") to the keys that
+            version holds.
+
+    Returns:
+        A callable suitable for ``list_keys.side_effect``.
+    """
+
+    def _list_keys(*, bucket_name, prefix):  # pylint: disable=unused-argument
+        for version, keys in keys_by_version.items():
+            if f"/{version}/queue/" in prefix:
+                return keys
+        return []
+
+    return _list_keys
+
+
+_V3 = "ce/test-project-id/fleet-123/v3/queue/"
+_V2 = "ce/test-project-id/fleet-123/v2/queue/"
+_TASK = "000-00000-0/default/8d76aa17-efb0-56da-88fd-488e8444b46d"
+_WORKER = "fleet-123-0"
+_T0, _T1, _T2 = "2026-08-26T19:09:39Z", "2026-08-26T19:10:14Z", "2026-08-26T19:11:05Z"
+
+# Segment orders observed on real v3 fleets in staging (pending, running, succeeded, failed).
+# Note succeeded and failed use different result-code forms, "exit_0" against
+# "error_exit_1", and failed carries an extra retry segment, which is precisely why the
+# reader reads only the state segment and treats the rest as opaque. The canceled shape
+# is the documented one rather than a measured one: cancelling a real fleet wrote no
+# canceled queue key at all, on either schema version, so only our test harness
+# produces one.
+_V3_PENDING = f"{_V3}pending/000-00000-0/default/0/{_T0}/8d76aa17"
+_V3_RUNNING = f"{_V3}running/{_WORKER}/{_T1}/{_T0}/{_TASK}"
+_V3_SUCCEEDED = f"{_V3}succeeded/exit_0/{_WORKER}/{_T2}/{_T1}/{_T0}/{_TASK}"
+_V3_FAILED = f"{_V3}failed/error_exit_1/{_WORKER}/{_T2}/{_T1}/{_T0}/0/{_TASK}"
+_V3_CANCELED = f"{_V3}canceled/{_WORKER}/{_T2}/{_T1}/{_T0}/{_TASK}"
+
+
 def test_status_returns_none_when_cos_empty():
     """status() returns None when COS has no keys yet (fleet just created)."""
     runner, _ = _make_runner(fleet_id="fleet-123")
@@ -165,80 +231,97 @@ def test_status_returns_none_when_cos_empty():
 class TestCosStatusDetection:
     """Tests for COS-based fleet status detection."""
 
-    def test_cos_succeeded_returns_succeeded(self):
-        """status() returns SUCCEEDED when COS has a succeeded key."""
+    def test_v3_pending_returns_pending(self):
+        """status() returns PENDING from a v3 pending key."""
         runner, mock_handler = _make_runner(fleet_id="fleet-123")
-        runner._cos.list_keys.return_value = [
-            "ce/test-project-id/fleet-123/v2/queue/succeeded/0/fleet-123-0/2026-01-01T00:00:00Z/..."
-        ]
+        runner._cos.list_keys.side_effect = _cos_by_version({"v3": [_V3_PENDING]})
 
-        result = runner.status()
-
-        assert result == Job.SUCCEEDED
+        assert runner.status() == Job.PENDING
         mock_handler.get_job_status.assert_not_called()
 
-    def test_cos_failed_returns_failed(self):
-        """status() returns FAILED when COS has a failed key."""
-        runner, mock_handler = _make_runner(fleet_id="fleet-123")
-        runner._cos.list_keys.return_value = [
-            "ce/test-project-id/fleet-123/v2/queue/failed/1/fleet-123-0/2026-01-01T00:00:00Z/..."
-        ]
-
-        result = runner.status()
-
-        assert result == Job.FAILED
-        mock_handler.get_job_status.assert_not_called()
-
-    def test_cos_running_returns_running(self):
-        """status() returns RUNNING when COS has a running key."""
-        runner, mock_handler = _make_runner(fleet_id="fleet-123")
-        runner._cos.list_keys.return_value = [
-            "ce/test-project-id/fleet-123/v2/queue/running/fleet-123-0/2026-01-01T00:00:00Z/..."
-        ]
-
-        result = runner.status()
-
-        assert result == Job.RUNNING
-        mock_handler.get_job_status.assert_not_called()
-
-    def test_cos_pending_returns_pending(self):
-        """status() returns PENDING when COS has only a pending key."""
-        runner, mock_handler = _make_runner(fleet_id="fleet-123")
-        runner._cos.list_keys.return_value = [
-            "ce/test-project-id/fleet-123/v2/queue/pending/000-00000-0/2026-01-01T00:00:00Z/..."
-        ]
-
-        result = runner.status()
-
-        assert result == Job.PENDING
-        mock_handler.get_job_status.assert_not_called()
-
-    def test_cos_terminal_takes_priority_over_running(self):
-        """status() returns SUCCEEDED even if running key is also present."""
-        runner, mock_handler = _make_runner(fleet_id="fleet-123")
-        runner._cos.list_keys.return_value = [
-            "ce/test-project-id/fleet-123/v2/queue/running/fleet-123-0/...",
-            "ce/test-project-id/fleet-123/v2/queue/succeeded/0/fleet-123-0/...",
-        ]
-
-        result = runner.status()
-
-        assert result == Job.SUCCEEDED
-
-    def test_cos_unrecognized_keys_raises_runner_error(self):
-        """status() raises RunnerError when COS keys don't match any known pattern."""
+    def test_v3_running_returns_running(self):
+        """status() returns RUNNING from a v3 running key."""
         runner, _ = _make_runner(fleet_id="fleet-123")
-        runner._cos.list_keys.return_value = ["ce/test-project-id/fleet-123/v2/queue/unknown-state/..."]
+        runner._cos.list_keys.side_effect = _cos_by_version({"v3": [_V3_RUNNING]})
 
-        with pytest.raises(RunnerError, match="Unrecognized COS task state"):
-            runner.status()
+        assert runner.status() == Job.RUNNING
 
-    def test_cos_exception_returns_none(self):
-        """status() returns None when COS list_keys raises."""
+    def test_v3_succeeded_returns_succeeded(self):
+        """status() returns SUCCEEDED from a v3 succeeded key, result code and all."""
+        runner, _ = _make_runner(fleet_id="fleet-123")
+        runner._cos.list_keys.side_effect = _cos_by_version({"v3": [_V3_SUCCEEDED]})
+
+        assert runner.status() == Job.SUCCEEDED
+
+    def test_v3_failed_returns_failed(self):
+        """status() returns FAILED from a v3 failed key."""
+        runner, _ = _make_runner(fleet_id="fleet-123")
+        runner._cos.list_keys.side_effect = _cos_by_version({"v3": [_V3_FAILED]})
+
+        assert runner.status() == Job.FAILED
+
+    def test_v3_canceled_returns_stopped(self):
+        """status() returns STOPPED from a v3 canceled key."""
+        runner, _ = _make_runner(fleet_id="fleet-123")
+        runner._cos.list_keys.side_effect = _cos_by_version({"v3": [_V3_CANCELED]})
+
+        assert runner.status() == Job.STOPPED
+
+    def test_v2_keys_still_read_through_the_fallback(self):
+        """A fleet on the legacy layout is read when v3 holds nothing."""
+        runner, _ = _make_runner(fleet_id="fleet-123")
+        runner._cos.list_keys.side_effect = _cos_by_version(
+            {"v2": [f"{_V2}succeeded/0/{_WORKER}/2026-01-01T00:00:00Z/..."]}
+        )
+
+        assert runner.status() == Job.SUCCEEDED
+        assert runner._cos.list_keys.call_count == 2
+
+    def test_terminal_state_takes_priority_over_running(self):
+        """A terminal key wins even when a running key is present too."""
+        runner, _ = _make_runner(fleet_id="fleet-123")
+        runner._cos.list_keys.side_effect = _cos_by_version({"v3": [_V3_RUNNING, _V3_SUCCEEDED]})
+
+        assert runner.status() == Job.SUCCEEDED
+
+    def test_batch_name_cannot_forge_a_terminal_state(self):
+        """A batch named after a state does not change the answer.
+
+        The batch name is user supplied and appears deeper in the key, so only the
+        segment straight after ``queue/`` may decide the status.
+        """
+        runner, _ = _make_runner(fleet_id="fleet-123")
+        runner._cos.list_keys.side_effect = _cos_by_version(
+            {"v3": [f"{_V3}pending/000-00000-0/succeeded/0/{_T0}/8d76aa17"]}
+        )
+
+        assert runner.status() == Job.PENDING
+
+    def test_directory_marker_alone_returns_none(self):
+        """A zero-byte ``queue/`` marker carries no state."""
+        runner, _ = _make_runner(fleet_id="fleet-123")
+        runner._cos.list_keys.side_effect = _cos_by_version({"v3": [_V3]})
+
+        assert runner.status() is None
+
+    def test_unknown_state_returns_none_without_raising(self):
+        """An unrecognised state is reported as no status, never as a failure.
+
+        Raising here would make the scheduler mark the job FAILED, so a single
+        Code Engine rename would fail every in-flight job at once.
+        """
+        runner, _ = _make_runner(fleet_id="fleet-123")
+        runner._cos.list_keys.side_effect = _cos_by_version({"v3": [f"{_V3}unknown-state/x"]})
+
+        assert runner.status() is None
+
+    def test_cos_failure_does_not_probe_the_other_version(self):
+        """A COS fault stops the version walk instead of repeating the failure."""
         runner, _ = _make_runner(fleet_id="fleet-123")
         runner._cos.list_keys.side_effect = Exception("connection error")
 
         assert runner.status() is None
+        assert runner._cos.list_keys.call_count == 1
 
     def test_cos_client_error_returns_none(self):
         """status() returns None when COS raises ClientError."""
@@ -253,10 +336,10 @@ class TestCosStatusDetection:
         assert runner.status() is None
 
 
-def test_stop_deletes_fleet_when_running():
-    """stop() calls delete_job when fleet is in running state."""
+def test_stop_returns_true_when_the_cancel_was_accepted():
+    """stop() reports True only when Code Engine accepted the cancel."""
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
-    mock_handler.get_job_status.return_value = {"status": "running"}
+    mock_handler.cancel_job.return_value = True
 
     result = runner.stop()
 
@@ -264,15 +347,30 @@ def test_stop_deletes_fleet_when_running():
     mock_handler.cancel_job.assert_called_once_with("fleet-123", wait=False, delete=False)
 
 
-def test_stop_returns_false_when_already_terminal():
-    """stop() returns False without calling cancel_job when fleet is already terminal."""
+def test_stop_returns_false_when_there_was_nothing_to_cancel():
+    """stop() reports False when Code Engine says the fleet is gone or already being cancelled.
+
+    It still sends the cancel, and it does not read the fleet status to decide. That pre-read is
+    what stopped a fleet in an unrecognised status from being cancelled at all, so assert it is
+    gone rather than just that the result is right.
+    """
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
-    mock_handler.get_job_status.return_value = {"status": "succeeded"}
+    mock_handler.cancel_job.return_value = False
 
     result = runner.stop()
 
     assert result is False
-    mock_handler.cancel_job.assert_not_called()
+    mock_handler.cancel_job.assert_called_once_with("fleet-123", wait=False, delete=False)
+    mock_handler.get_job_status.assert_not_called()
+
+
+def test_stop_raises_runner_error_when_the_cancel_could_not_be_sent():
+    """A Code Engine error means the cancel was not delivered, so the caller can retry."""
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    mock_handler.cancel_job.side_effect = ApiException(status=429, reason="Too Many Requests")
+
+    with pytest.raises(RunnerError, match="Code Engine API error"):
+        runner.stop()
 
 
 def test_submit_sets_fleet_id_with_cos():
@@ -284,6 +382,64 @@ def test_submit_sets_fleet_id_with_cos():
 
     assert runner.job.fleet_id == "fleet-abc"
     mock_handler.submit_job.assert_called_once()
+
+
+def test_submit_places_the_fleet_on_the_projects_subnet_pool():
+    """submit() passes the project's subnet_pool_id through as the network placement."""
+    runner, mock_handler = _make_submit_runner()
+
+    with _patch_settings():
+        runner.submit()
+
+    placements = mock_handler.submit_job.call_args.kwargs["network_placements"]
+    assert placements == [{"type": "subnet_pool", "reference": "subnet-1"}]
+
+
+def test_submit_fleet_name_describes_the_job():
+    """A real job's fleet is named job-<function>-<profile>-<username>."""
+    runner, mock_handler = _make_submit_runner()
+    runner.job.program.title = "my-function"
+    runner.job.compute_profile_id = "160x1792x8h100"
+    runner.job.author.username = "alice"
+
+    with _patch_settings():
+        runner.submit()
+
+    name = mock_handler.submit_job.call_args.kwargs["name"]
+    described, stamp = name.rsplit("-", 1)
+    assert described == "job-my-function-160x1792x8h100-alice"
+    assert re.fullmatch(r"\d{14}", stamp), stamp
+
+
+def test_submit_fleet_name_uses_filler_prefix_for_filler_jobs():
+    """A filler job's fleet takes the fil- prefix, the same width as job-."""
+    runner, mock_handler = _make_submit_runner()
+    runner.job.filler = True
+    runner.job.program.title = "my-function"
+    runner.job.compute_profile_id = "160x1792x8h100"
+    runner.job.author.username = "alice"
+
+    with _patch_settings():
+        runner.submit()
+
+    assert mock_handler.submit_job.call_args.kwargs["name"].startswith("fil-my-function-160x1792x8h100-alice-")
+
+
+def test_submit_fleet_name_is_sanitized_and_bounded():
+    """Characters Code Engine rejects are replaced, and the name stays within 63 characters."""
+    runner, mock_handler = _make_submit_runner()
+    runner.job.filler = True
+    runner.job.program.title = "My Function! With Spaces And A Very Long Title"
+    runner.job.compute_profile_id = "gx3d-24x120x1a100p"
+    runner.job.author.username = "IBMid-1000000000"
+
+    with _patch_settings():
+        runner.submit()
+
+    name = mock_handler.submit_job.call_args.kwargs["name"]
+    assert re.fullmatch(r"[a-z0-9-]+", name), name
+    assert len(name) <= 63, name
+    assert name.startswith("fil-my-function-wi-gx3d-24x120x1a-ibmid-10000000-")
 
 
 def test_submit_raises_runner_error_when_cos_not_configured():
@@ -322,7 +478,7 @@ def test_submit_raises_runner_error_when_no_fleet_id_returned():
 def test_submit_parses_compute_profile_with_gpu():
     """submit() parses compute_profile into cpu, memory, and gpu."""
     runner, mock_handler = _make_submit_runner()
-    runner.job.compute_profile = "gx3d-24x120x1a100p"
+    runner.job.compute_profile_id = "gx3d-24x120x1a100p"
 
     with _patch_settings():
         runner.submit()
@@ -336,7 +492,7 @@ def test_submit_parses_compute_profile_with_gpu():
 def test_submit_parses_compute_profile_without_prefix():
     """submit() parses profiles without a prefix like '24x120x2a100p'."""
     runner, mock_handler = _make_submit_runner()
-    runner.job.compute_profile = "24x120x2a100p"
+    runner.job.compute_profile_id = "24x120x2a100p"
 
     with _patch_settings():
         runner.submit()
@@ -350,7 +506,7 @@ def test_submit_parses_compute_profile_without_prefix():
 def test_submit_parses_compute_profile_without_gpu():
     """submit() parses a CPU-only profile correctly."""
     runner, mock_handler = _make_submit_runner()
-    runner.job.compute_profile = "cx3d-4x16"
+    runner.job.compute_profile_id = "cx3d-4x16"
 
     with _patch_settings():
         runner.submit()
@@ -374,22 +530,27 @@ def test_submit_uses_default_profile_when_no_compute_profile():
 
 
 def test_submit_default_profile_in_settings_is_parseable():
-    """DEFAULT_COMPUTE_PROFILE default value in settings.py parses without error."""
-    runner, mock_handler = _make_submit_runner()
+    """Whatever settings.py defaults DEFAULT_COMPUTE_PROFILE to, the runner parses it.
 
-    with _patch_settings(DEFAULT_COMPUTE_PROFILE="bx3d-24x120"):
+    Reads the real setting, not a copy, so a changed default cannot leave this passing.
+    """
+    runner, mock_handler = _make_submit_runner()
+    default = django_settings.DEFAULT_COMPUTE_PROFILE
+    cpu, memory = normalize_compute_profile(default).split("x")[:2]
+
+    with _patch_settings(DEFAULT_COMPUTE_PROFILE=default):
         runner.submit()
 
     call_kwargs = mock_handler.submit_job.call_args.kwargs
-    assert call_kwargs["scale_cpu_limit"] == "24"
-    assert call_kwargs["scale_memory_limit"] == "120G"
+    assert call_kwargs["scale_cpu_limit"] == cpu
+    assert call_kwargs["scale_memory_limit"] == f"{memory}G"
     assert "scale_gpu" not in (call_kwargs.get("extra_fields") or {})
 
 
 def test_submit_raises_on_unparseable_compute_profile():
     """submit() raises RunnerError when compute_profile cannot be parsed."""
     runner, _ = _make_submit_runner()
-    runner.job.compute_profile = "not-a-valid-profile"
+    runner.job.compute_profile_id = "not-a-valid-profile"
 
     with _patch_settings():
         with pytest.raises(RunnerError, match="Could not parse compute_profile"):
@@ -415,6 +576,18 @@ def test_submit_uses_settings_default_image_when_no_program_image():
         runner.submit()
 
     assert mock_handler.submit_job.call_args.kwargs["image_reference"] == "fallback-image:v2"
+
+
+def test_submit_uses_default_image_when_artifact_set_even_if_image_also_set():
+    """Custom jobs (artifact set) always use FLEETS_DEFAULT_IMAGE, ignoring program.image."""
+    runner, mock_handler = _make_submit_runner()
+    runner.job.program.artifact = MagicMock()
+    runner.job.program.image = "provider-image:latest"
+
+    with _patch_settings(FLEETS_DEFAULT_IMAGE="fleet-node:latest"), patch.object(runner, "_upload_program_to_cos"):
+        runner.submit()
+
+    assert mock_handler.submit_job.call_args.kwargs["image_reference"] == "fleet-node:latest"
 
 
 def test_submit_uses_config_workers_as_max_instances():

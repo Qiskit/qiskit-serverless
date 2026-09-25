@@ -6,6 +6,7 @@ import logging
 from typing import Optional
 
 from core.models import (
+    Program as Function,
     Provider,
     PLATFORM_PERMISSION_PROVIDER_FILES_READ,
     PLATFORM_PERMISSION_PROVIDER_FILES_WRITE,
@@ -27,16 +28,25 @@ def _check(
 ) -> bool:
     """Core provider access logic shared by all named methods.
 
+    Granted by either the configured authorization path or by authorship: the owner of a function
+    is an admin of it, on both auth paths.
+
     When accessible_functions.use_legacy_authorization=False: checks the specific function entry (granular).
     Otherwise falls back to Django admin_groups.
     """
     # Legacy Django auth has provider granularity: user needs to be a provider admin
     if accessible_functions is None or accessible_functions.use_legacy_authorization:
         user_groups = set(user.groups.all())
-        return bool(user_groups.intersection(set(provider.admin_groups.all())))
+        if user_groups.intersection(set(provider.admin_groups.all())):
+            return True
 
     # Runtime instances API has function granularity: user needs to have permission per function
-    return accessible_functions.has_permission_for_function(provider.name, function_title, permission)
+    elif accessible_functions.has_permission_for_function(provider.name, function_title, permission):
+        return True
+
+    # Fall back to authorship, last because it is the only branch that queries on the granular path.
+    # Filter on provider AND title: titles are unique per provider, not globally.
+    return Function.objects.filter(provider=provider, title=function_title, author=user).exists()
 
 
 class ProviderAccessPolicy:

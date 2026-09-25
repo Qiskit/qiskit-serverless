@@ -18,13 +18,21 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: '3.11'
+          python-version: '3.12'
       - name: Install tox
         run: pip install tox>=4.0.0
       - name: Build fleet-node base image
-        # The fleet-worker image is FROM fleet-node:latest, and `compose build`
+        # The slim stage function providers build their custom Fleets images FROM.
+        # Nothing else in CI builds it (build-containers-test.yaml builds the
+        # default/last stage), so build it here to keep it from silently breaking.
+        # Also warms the shared layers for the selector build below.
+        run: docker build --platform linux/amd64 --target base -f docker-images/fleet-node/Dockerfile -t fleet-node:base .
+      - name: Build fleet-node selector image
+        # The full runtime the gateway deploys for imageless Fleets jobs, and what
+        # the fleet-worker image is FROM (tagged fleet-node:latest) so the test
+        # exercises the same image production fleet tasks run in. `compose build`
         # does not build FROM-referenced bases, so build it first.
-        run: docker build --platform linux/amd64 -f docker-images/fleet-node/Dockerfile -t fleet-node:latest .
+        run: docker build --platform linux/amd64 --target selector -f docker-images/fleet-node/Dockerfile -t fleet-node:latest .
       - name: Build containers
         run: docker compose -f docker-compose-fleets-test.yaml build
       - name: Start services
@@ -39,8 +47,18 @@ jobs:
           timeout 60 bash -c 'until docker compose -f docker-compose-fleets-test.yaml logs fleet-worker | grep -q "s3fs mounts ready"; do sleep 2; done'
       - name: Verify CE project provisioned
         run: docker compose -f docker-compose-fleets-test.yaml exec -T gateway python manage.py sync_ce_project
+      - name: Register default compute profile
+        # A Fleets job resolves to DEFAULT_COMPUTE_PROFILE (normalized to the bare
+        # form at ingest) and job creation is rejected unless a matching
+        # ComputeProfile row exists (staging/prod seed these via backoffice, in
+        # bare notation). Seed the same bare default the integration env uses.
+        run: >-
+          docker compose -f docker-compose-fleets-test.yaml exec -T gateway
+          python manage.py shell -c
+          "from core.models import ComputeProfile;
+          ComputeProfile.objects.get_or_create(compute_profile_id='16x128', defaults={'cpu': '16', 'memory': '128'})"
       - name: Run fleets integration tests
-        run: tox -c tests/tox.ini -e py311-fleets
+        run: tox -c tests/tox.ini -e py312-fleets
       - name: Print logs on failure
         if: failure()
         run: |

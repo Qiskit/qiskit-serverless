@@ -1,0 +1,10 @@
+{% load i18n %}
+<div class="qs-timeline">
+<div class="qs-meta">{{ timeline_jobs_count }} jobs &middot; range {{ timeline_range }}</div>
+<div class="qs-legend">{{ timeline_legend }}</div>
+<div class="qs-filters"><span>{% translate "Runner:" %} </span>{{ timeline_runner_filter_bar }}</div>
+<div class="qs-filters"><span>{% translate "Compute profile:" %} </span>{{ timeline_filter_bar }}</div>
+<div class="qs-chart-wrap">{{ timeline_svg }}</div>
+<h3>{% translate "Job details" %}</h3>
+<div class="qs-job-details-wrap">{{ timeline_job_details }}</div>
+</div>

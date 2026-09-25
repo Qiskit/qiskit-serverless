@@ -30,6 +30,7 @@ class OutputSerializer(serializers.ModelSerializer):
     class Meta:
         model = RuntimeJob
         fields = ["runtime_job", "runtime_session"]
+        ref_name = "JobsGetRuntimeJobsOutputSerializer"
 
 
 def serialize_output(out_runtime_jobs: Any) -> dict[str, Any]:

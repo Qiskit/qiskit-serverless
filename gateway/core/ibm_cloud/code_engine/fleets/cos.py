@@ -21,22 +21,56 @@ from core.ibm_cloud.cos.cos_client import COSClient
 logger = logging.getLogger("FleetHandler")
 
 
-def queue_prefix(project_id: str, fleet_id: str) -> str:
+# Task-store schema versions, newest first. Code Engine writes the task state under a
+# version segment and only these two exist: v3 is the layout it is moving to, v2 the
+# layout of fleets created before the switch. Readers try them in this order.
+#
+# Cost, deliberately accepted: Code Engine still creates v2 fleets by default, so a
+# reader pays one empty v3 listing per poll before v2 answers. That doubles the listing
+# cost per running job for the transition, and it disappears on its own once Code Engine
+# switches to v3, because the first probe then answers. Memoizing the version per fleet
+# would remove it sooner at the price of process-wide mutable state.
+TASK_STORE_VERSIONS = ("v3", "v2")
+
+
+def queue_prefix(project_id: str, fleet_id: str, version: str = TASK_STORE_VERSIONS[0]) -> str:
     """Build the COS task-state queue key prefix for a fleet.
 
-    Single source for the ``ce/{project_id}/{fleet_id}/v2/queue/`` layout shared
-    by the status reader (FleetsRunner) and the fleets mock, so they cannot
+    Single source for the ``ce/{project_id}/{fleet_id}/{version}/queue/`` layout
+    shared by the status reader (FleetsRunner) and the fleets mock, so they cannot
     drift. The fleet-worker test image is a separate container and keeps a
     documented mirror of this format.
 
     Args:
         project_id: The CE project UUID.
         fleet_id: The fleet UUID.
+        version: Task-store schema version segment. Defaults to the newest.
 
     Returns:
         The queue key prefix, ending in a trailing slash.
     """
-    return f"ce/{project_id}/{fleet_id}/v2/queue/"
+    return f"ce/{project_id}/{fleet_id}/{version}/queue/"
+
+
+def task_state_from_key(prefix: str, key: str) -> str | None:
+    """Return the task state a queue key encodes, or ``None``.
+
+    The state is the first path segment after ``prefix``, whichever schema version
+    ``prefix`` carries, so no caller has to parse the version. Everything deeper in
+    the key (worker name, timestamps, task index, batch name) cannot be mistaken
+    for the state, which matters because the batch name is user supplied.
+
+    Args:
+        prefix: Queue prefix the key was listed under, ending in ``queue/``.
+        key: A COS object key.
+
+    Returns:
+        The lowercased state segment, or ``None`` when the key does not sit under
+        ``prefix`` or carries no state, such as a directory marker.
+    """
+    if not key.startswith(prefix):
+        return None
+    return key[len(prefix) :].split("/", 1)[0].strip().lower() or None
 
 
 class JobCOS:

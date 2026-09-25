@@ -2,9 +2,11 @@
 
 import pytest
 from django.contrib.auth.models import User
+from django.test import Client
 
 from api.admin import get_dashboard_stats
 from core.models import CodeEngineProject, Job, Program, Provider
+from tests.utils import TestUtils
 
 
 @pytest.mark.django_db
@@ -74,3 +76,87 @@ def test_get_dashboard_stats_pct_sums_to_100():
 
     total_pct = sum(row["pct"] for row in stats["jobs_by_status"])
     assert total_pct == 100
+
+
+@pytest.mark.django_db
+def test_app_index_shows_model_list_not_the_home_dashboard():
+    """The per-app admin page (/backoffice/api/) must show its model list, not the home KPI dashboard."""
+    user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
+
+    client = Client()
+    client.force_login(user)
+    response = client.get("/backoffice/api/")
+
+    body = response.content.decode()
+    assert '<a href="/backoffice/api/job/">Jobs</a>' in body
+    assert "qs-kpi-grid" not in body
+
+
+@pytest.mark.django_db
+def test_index_renders_the_recent_fleets_jobs_timeline():
+    """The home dashboard embeds the last 20 fleets jobs' timeline, Ray jobs left out."""
+    user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
+    author = User.objects.create_user(username="author", password="x")
+    fleets_job = Job.objects.create(author=author, program=None, status=Job.SUCCEEDED, runner=Program.FLEETS)
+    Job.objects.create(author=author, program=None, status=Job.SUCCEEDED, runner=Program.RAY)
+
+    client = Client()
+    client.force_login(user)
+    response = client.get("/backoffice/")
+
+    body = response.content.decode()
+    assert response.status_code == 200
+    assert "Recent fleets jobs timeline" in body
+    assert str(fleets_job.id)[:8] in body
+    assert "No fleets jobs yet" not in body
+
+
+@pytest.mark.django_db
+def test_index_recent_fleets_jobs_timeline_includes_filler_jobs():
+    """Filler jobs occupy the profile too, so the timeline shows them (hatched) next to real ones."""
+    user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
+    author = User.objects.create_user(username="author", password="x")
+    real_job = Job.objects.create(author=author, program=None, status=Job.SUCCEEDED, runner=Program.FLEETS)
+    filler_job = Job.objects.create(author=author, program=None, status=Job.RUNNING, runner=Program.FLEETS, filler=True)
+
+    client = Client()
+    client.force_login(user)
+    response = client.get("/backoffice/")
+
+    body = response.content.decode()
+    assert response.status_code == 200
+    assert str(real_job.id)[:8] in body
+    assert str(filler_job.id)[:8] in body
+    assert 'fill="url(#qs-filler-hatch)"' in body
+
+
+@pytest.mark.django_db
+def test_dashboard_stats_exclude_filler_jobs():
+    """Filler jobs are reported on their own line, not mixed into the job totals."""
+    program = TestUtils.create_program(program_title="dashboard-function", author="dashboard_user")
+    TestUtils.create_job(author="dashboard_user", program=program, status=Job.RUNNING)
+    TestUtils.create_job(author="dashboard_user", program=program, status=Job.RUNNING, filler=True)
+
+    stats = get_dashboard_stats()
+
+    assert stats["jobs_count"] == 1
+    assert stats["jobs_active"] == 1
+    assert stats["jobs_filler_active"] == 1
+    assert sum(row["count"] for row in stats["jobs_by_status"]) == 1
+    assert sum(row["count"] for row in stats["jobs_by_provider"]) == 1
+    assert stats["jobs_by_status"][0]["pct"] == 100
+
+
+@pytest.mark.django_db
+def test_index_shows_a_placeholder_when_there_are_no_fleets_jobs():
+    """A Ray-only (or empty) database shouldn't try to render a timeline with no fleets jobs."""
+    user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
+    author = User.objects.create_user(username="author", password="x")
+    Job.objects.create(author=author, program=None, status=Job.SUCCEEDED, runner=Program.RAY)
+
+    client = Client()
+    client.force_login(user)
+    response = client.get("/backoffice/")
+
+    assert response.status_code == 200
+    assert "No fleets jobs yet" in response.content.decode()

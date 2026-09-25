@@ -286,6 +286,13 @@ def test_build_run_env_variables_gateway_host_override():
     assert by_name["ENV_JOB_GATEWAY_HOST"] == "https://fleets.example.com"
 
 
+def test_build_run_env_variables_always_sets_private_endpoint():
+    """build_run_env_variables always injects QISKIT_IBM_PRIVATE_ENDPOINT=true."""
+    result = build_run_env_variables(_make_paths(), {})
+    by_name = {e["name"]: e["value"] for e in result}
+    assert by_name["QISKIT_IBM_PRIVATE_ENDPOINT"] == "true"
+
+
 def test_build_run_env_variables_flush_interval_default():
     """build_run_env_variables defaults LOG_FLUSH_INTERVAL_SECONDS to 15."""
     result = build_run_env_variables(_make_paths(), {})

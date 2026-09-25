@@ -4,7 +4,7 @@ import logging
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
-from django.core.exceptions import ObjectDoesNotExist
+from django.utils import timezone
 
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.invalid_access_exception import InvalidAccessException
@@ -34,9 +34,8 @@ class SetJobSubStatusUseCase:
             JobNotFoundException: If the job does not exist or access is denied.
             ForbiddenError: If the job is not in RUNNING status.
         """
-        try:
-            job = Job.objects.get(id=job_id)
-        except ObjectDoesNotExist:
+        job = Job.objects.filter(id=job_id).first()
+        if job is None:
             raise JobNotFoundException(str(job_id))
 
         can_update_sub_status = JobAccessPolicies.can_update_sub_status(user, job)
@@ -45,7 +44,12 @@ class SetJobSubStatusUseCase:
 
         # update sub status in QUEUE + PENDING + RUNNING is allowed
         # we accept that we could have SET_SUB_STATUS events before RUNNING
-        updated = Job.objects.filter(id=job.id, status__in=Job.ACTIVE_STATUSES).update(sub_status=sub_status)
+        # The status filter is the guard, so this stays a conditional UPDATE rather
+        # than going through save_direct. updated is set by hand for the same reason
+        # save_direct sets it: a queryset UPDATE does not fire auto_now.
+        updated = Job.objects.filter(id=job.id, status__in=Job.ACTIVE_STATUSES).update(
+            sub_status=sub_status, updated=timezone.now()
+        )
 
         if not updated:
             logger.warning(

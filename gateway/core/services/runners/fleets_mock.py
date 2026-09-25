@@ -36,7 +36,7 @@ from ibm_botocore.exceptions import BotoCoreError, ClientError as BotoClientErro
 
 from core.ibm_cloud.clients import IBMCloudClientProvider
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
-from core.ibm_cloud.code_engine.fleets.cos import JobCOS, queue_prefix
+from core.ibm_cloud.code_engine.fleets.cos import JobCOS, queue_prefix, task_state_from_key
 from core.ibm_cloud.cos.cos_client import COSClient, CosHmacCredentials
 from core.models import CodeEngineProject
 
@@ -273,15 +273,14 @@ def _mock_submit_job(self, **kwargs):  # pylint: disable=unused-argument,too-man
 def _mock_get_job_status(self, identifier):  # pylint: disable=unused-argument
     """Read fleet status from COS queue keys in the task-store bucket.
 
-    Only called by ``FleetsRunner.stop()`` and ``FleetsRunner.is_active()`` —
-    the main status polling path (``FleetsRunner.status()``) reads COS queue
-    keys directly via ``_get_cos().list_keys()`` without calling this method.
+    Nothing in the stack reaches this any more. ``stop()`` sends the cancel without reading the
+    status, ``is_active()`` only checks ``fleet_id``, and ``FleetsRunner.status()`` reads the COS
+    queue keys directly through ``_get_cos().list_keys()``. The one reference left is
+    ``FleetsRunner._get_fleet_name()``, which has no callers of its own.
 
-    Mirrors real CE by raising ``ApiException(404)`` for a fleet that was never
-    created. The archived manifest (written by ``_mock_submit_job`` and never
-    deleted by the worker) is the fleet's existence signal, so ``is_active()``
-    and ``stop()`` can detect orphaned/missing fleets instead of always seeing
-    a live fleet.
+    Kept because it mirrors real CE: it raises ``ApiException(404)`` for a fleet that was never
+    created, using the archived manifest (written by ``_mock_submit_job`` and never deleted by the
+    worker) as the fleet's existence signal.
 
     Args:
         self: The FleetHandler instance.
@@ -315,21 +314,25 @@ def _mock_get_job_status(self, identifier):  # pylint: disable=unused-argument
     bucket = _task_store_bucket(self.project_id)
     prefix = queue_prefix(self.project_id, fleet_id)
 
-    # Status segments the worker writes, in priority order. No '/canceling/':
-    # the harness never produces a canceling key (cancel writes '/canceled/'
-    # directly), so a branch for it would be dead code.
+    # Task states the worker writes, mapped to the CE API status strings this
+    # endpoint reports (the API says "successful" where the queue says
+    # "succeeded"). No "canceling": the harness never produces one, because cancel
+    # writes a "canceled" key directly. Defaults to "pending" on an empty listing
+    # because that is what the real CE API reports for a fresh fleet, unlike
+    # FleetsRunner.status() which returns None for "no state yet".
+    state_to_api_status = {
+        "succeeded": "successful",
+        "failed": "failed",
+        "canceled": "canceled",
+        "running": "running",
+        "pending": "pending",
+    }
     status = "pending"
     try:
         resp = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
-        keys = [obj["Key"] for obj in resp.get("Contents", [])]
-        for pattern, mapped in [
-            ("/succeeded/", "successful"),
-            ("/failed/", "failed"),
-            ("/canceled/", "canceled"),
-            ("/running/", "running"),
-            ("/pending/", "pending"),
-        ]:
-            if any(pattern in k for k in keys):
+        states = {task_state_from_key(prefix, obj["Key"]) for obj in resp.get("Contents", [])}
+        for state, mapped in state_to_api_status.items():
+            if state in states:
                 status = mapped
                 break
     except BotoClientError:
@@ -354,13 +357,38 @@ def _mock_cancel_job(self, identifier, **kwargs):  # pylint: disable=unused-argu
         self: The FleetHandler instance.
         identifier: The fleet ID to cancel.
         **kwargs: Additional arguments (ignored).
+
+    Returns:
+        ``True`` when this call wrote the cancel key, ``False`` when one was already there. That
+        mirrors the real ``cancel_job``, which answers ``False`` to Code Engine's
+        ``fleet_already_canceled`` 409 for a fleet whose cancel is already in flight, and it makes
+        the "nothing to cancel" path reachable from the local stack: cancel a job twice and the
+        second call reports it.
+
+        Fleet existence is deliberately **not** checked, even though ``_mock_get_job_status`` does.
+        The archive manifest is written at submit and nothing removes it while a job runs, so the
+        check would always pass for a live job, and the only ways it could fail are a COS error or a
+        cancel arriving after a test's cleanup. In both of those the job is still running and the
+        write below is the only thing that stops it, so ``False`` would be the wrong answer.
     """
     s3 = _get_mock_s3()
     # Resolve the job's own project bucket (like _mock_get_job_status), not the
     # first active project, so cancel writes where status() reads.
     bucket = _task_store_bucket(self.project_id)
     cancel_key = f"{queue_prefix(self.project_id, identifier)}canceled/0/{identifier}-0/canceled"
+
+    try:
+        s3.head_object(Bucket=bucket, Key=cancel_key)
+    except Exception:  # pylint: disable=broad-except
+        # Any failure here has to fall through to the write. Narrowing this to a 404-shaped
+        # ClientError would let a connectivity blip skip the cancel, and for a running mocked job
+        # this write is the only signal that stops it. Erring toward cancelling is the safe side.
+        pass
+    else:
+        return False
+
     s3.put_object(Bucket=bucket, Key=cancel_key, Body=b"")
+    return True
 
 
 def install_mocks():

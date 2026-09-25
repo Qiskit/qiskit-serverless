@@ -93,11 +93,27 @@ class TestGetProviderJobLogsUseCase:
                 with pytest.raises(InvalidAccessException):
                     _execute_provider_logs_use_case(provider_job.id, other_user, accessible_functions=accessible)
 
-        def test_author_without_provider_logs_permission_is_denied(self, author, provider_job):
-            """Even the job author is denied provider logs without the permission.
+        def test_function_author_is_allowed_by_ownership(self, author, provider_job):
+            """The author of the function can read its provider logs with no permission at all.
 
-            provider-logs requires explicit provider permission; there is no author bypass.
+            Ownership grants the provider operations ahead of the permission list -- see
+            ProviderAccessPolicy._check.
             """
             accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[])
+            result = _execute_provider_logs_use_case(provider_job.id, author, accessible_functions=accessible)
+            assert result.raw_log == "provider logs from COS"
+
+        def test_job_author_who_does_not_own_the_function_is_denied(self, author, other_user, provider):
+            """Running a job is not owning the function: provider logs still need the permission.
+
+            This is the part of the old author-is-denied assertion that still holds: the bypass
+            keys on Program.author, not Job.author.
+            """
+            program = Program.objects.create(title="owned-elsewhere", author=author, provider=provider)
+            job = Job.objects.create(author=other_user, program=program)
+            job.logs = "some provider logs"
+            job.save()
+            accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[])
+
             with pytest.raises(InvalidAccessException):
-                _execute_provider_logs_use_case(provider_job.id, author, accessible_functions=accessible)
+                _execute_provider_logs_use_case(job.id, other_user, accessible_functions=accessible)

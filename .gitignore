@@ -107,8 +107,14 @@ docs/superpowers/
 
 # any logs
 *.log
-.claude/settings.local.json
-hooks/
+
+.claude/*
+!.claude/skills/
+HANDOFF-*.md
+
+# Local hook scripts at the repo root. Anchored, so a Helm chart's
+# templates/hooks/ directory stays tracked.
+/hooks/
 
 # Nix local dev environment
 flake.nix

@@ -20,6 +20,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include, re_path
+from django.views.generic import RedirectView
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
@@ -82,6 +83,7 @@ List endpoints support `limit` and `offset` parameters (default: limit=10, offse
 )
 
 urlpatterns = [
+    path("", RedirectView.as_view(url="/swagger/", permanent=False), name="root-redirect"),
     path("readiness/", probes.readiness, name="readiness"),
     path("liveness/", probes.liveness, name="liveness"),
     path("version/", system.version, name="version"),

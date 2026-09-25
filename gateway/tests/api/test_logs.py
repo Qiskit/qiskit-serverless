@@ -62,9 +62,13 @@ class TestJobLogsPermissions:
             ("v1:jobs-logs", "author", "provider", HTTP_200_OK),
             ("v1:jobs-logs", "provider", "provider", HTTP_403_FORBIDDEN),
             ("v1:jobs-logs", "other_user", "provider", HTTP_403_FORBIDDEN),
+            # A custom function has no provider, so there are no provider operations to grant:
+            # ownership buys the author nothing on this endpoint.
             ("v1:jobs-provider-logs", "author", None, HTTP_403_FORBIDDEN),
             ("v1:jobs-provider-logs", "other_user", None, HTTP_403_FORBIDDEN),
-            ("v1:jobs-provider-logs", "author", "provider", HTTP_403_FORBIDDEN),
+            # ...but for a provider function the author owns it, and ownership grants the
+            # provider operations ahead of admin_groups. See ProviderAccessPolicy._check.
+            ("v1:jobs-provider-logs", "author", "provider", HTTP_200_OK),
             ("v1:jobs-provider-logs", "provider", "provider", HTTP_200_OK),
             ("v1:jobs-provider-logs", "other_user", "provider", HTTP_403_FORBIDDEN),
         ],

@@ -2,16 +2,35 @@
 
 import json
 import logging
+import uuid
 
-from django.contrib import admin
+from django import forms
+from django.contrib import admin, messages
+from django.core.cache import cache
+from django.core.exceptions import PermissionDenied
 from django.db.models import Count, F, Q
-from django.utils.html import format_html
-from django.urls import path
-from django.shortcuts import render, get_object_or_404
+from django.utils import timezone
+from django.utils.html import format_html, format_html_join
+from django.utils.http import urlencode
+from django.utils.safestring import mark_safe
+from django.urls import path, reverse
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.admin.views.main import PAGE_VAR
+
+from api.domain.arguments_schema import (
+    MAX_SCHEMA_LENGTH,
+    UnsupportedSchemaError,
+    check_uploaded_schema_in_isolation,
+)
+from api.domain.job_timeline import render_job_timeline
+from api.domain.exceptions.invalid_arguments_exception import InvalidArgumentsException
+from api.use_cases.programs.upload import no_ce_project_message
+from api.use_cases.programs.validate_arguments import validate_arguments
 from core.models import (
     CodeEngineProject,
+    ComputeProfile,
     Config,
+    FunctionSize,
     GroupMetadata,
     JobConfig,
     JobEvent,
@@ -27,12 +46,27 @@ from core.services.storage.job_file_explorer import JobFileExplorer
 
 logger = logging.getLogger("gateway.admin")
 
+# How many jobs the "Timeline" admin action can carry in the redirect query string
+MAX_TIMELINE_JOBS = 200
+
+# The admin home page is hit far more often than the Timeline page itself, so the recent-Fleets
+# widget it embeds (query plus SVG build plus overlap detection) is cached for a short while
+# instead of being rebuilt on every single load.
+RECENT_TIMELINE_CACHE_KEY = "admin_dashboard_recent_fleets_timeline"
+RECENT_TIMELINE_CACHE_TTL_SECONDS = 30
+
 
 def get_dashboard_stats():
-    """Return platform-wide stats for the admin dashboard."""
-    total_jobs = Job.objects.count()
+    """Return platform-wide stats for the admin dashboard.
 
-    status_rows = Job.objects.values("status").annotate(count=Count("id")).order_by("-count")
+    Filler jobs are counted separately: they are created by the scheduler to keep
+    scarce GPU capacity busy, so mixing them into these figures would overstate
+    how much of the platform users are asking for.
+    """
+    real_jobs = Job.objects.exclude(filler=True)
+    total_jobs = real_jobs.count()
+
+    status_rows = real_jobs.values("status").annotate(count=Count("id")).order_by("-count")
     jobs_by_status = [
         {
             "status": row["status"],
@@ -42,7 +76,7 @@ def get_dashboard_stats():
         for row in status_rows
     ]
 
-    provider_rows = Job.objects.values(name=F("program__provider__name")).annotate(count=Count("id")).order_by("-count")
+    provider_rows = real_jobs.values(name=F("program__provider__name")).annotate(count=Count("id")).order_by("-count")
     jobs_by_provider = [
         {
             "name": row["name"] or "Custom",
@@ -58,7 +92,8 @@ def get_dashboard_stats():
         "programs_count": Program.objects.count(),
         "programs_disabled": Program.objects.filter(disabled=True).count(),
         "jobs_count": total_jobs,
-        "jobs_active": Job.objects.filter(status__in=Job.ACTIVE_STATUSES).count(),
+        "jobs_active": real_jobs.filter(status__in=Job.ACTIVE_STATUSES).count(),
+        "jobs_filler_active": Job.objects.filter(filler=True, status__in=Job.ACTIVE_STATUSES).count(),
         "ce_projects_count": CodeEngineProject.objects.count(),
         "ce_projects_active": CodeEngineProject.objects.filter(active=True).count(),
         "jobs_by_status": jobs_by_status,
@@ -85,14 +120,217 @@ class CodeEngineProjectAdmin(admin.ModelAdmin):
 class ProviderAdmin(admin.ModelAdmin):
     """ProviderAdmin."""
 
-    search_fields = ["name"]
+    search_fields = ["name", "code_engine_project__project_name"]
+    list_display = ["name", "code_engine_project"]
     filter_horizontal = ["admin_groups"]
+
+
+@admin.register(ComputeProfile)
+class ComputeProfileAdmin(admin.ModelAdmin):
+    """ComputeProfileAdmin."""
+
+    # search_fields is required for FunctionSizeAdmin's autocomplete on compute_profile
+    search_fields = ["compute_profile_id", "name"]
+    list_display = ["compute_profile_id", "name", "cpu", "gpu", "memory", "sizes_using", "updated"]
+    ordering = ["compute_profile_id"]
+    readonly_fields = ["created", "updated"]
+
+    def get_queryset(self, request):
+        # Annotate the reference count once per changelist so `sizes_using` does not run a
+        # query per row. The FK to ComputeProfile is PROTECT, so this count is exactly what an
+        # operator needs to see before editing or trying to delete a profile.
+        return super().get_queryset(request).annotate(sizes_using_count=Count("function_sizes"))
+
+    @admin.display(description="Sizes using", ordering="sizes_using_count")
+    def sizes_using(self, obj):
+        """How many FunctionSize rows reference this profile (PROTECTs deletion when > 0)."""
+        return obj.sizes_using_count
+
+
+class FunctionSizeInline(admin.TabularInline):
+    """A function's size catalog (its sizes map) shown inline on the function page.
+
+    Each row maps a size key (e.g. ``s``/``m``/``l``) to the compute profile it runs on. Editing
+    the catalog here, next to ``default_size``, is what the upload endpoint's ``sizes`` payload
+    builds; the separate FunctionSize changelist stays available for cross-function views.
+    """
+
+    model = FunctionSize
+    extra = 0
+    fields = ["function_size", "compute_profile", "updated"]
+    readonly_fields = ["updated"]
+    autocomplete_fields = ["compute_profile"]
+    verbose_name_plural = "Sizes (compute profile per size)"
+
+
+@admin.register(FunctionSize)
+class FunctionSizeAdmin(admin.ModelAdmin):
+    """FunctionSizeAdmin."""
+
+    list_display = ["function", "function_size", "compute_profile", "updated"]
+    list_filter = ["function_size"]
+    search_fields = ["function__title", "function_size", "compute_profile__compute_profile_id"]
+    autocomplete_fields = ["function", "compute_profile"]
+    list_select_related = ["function", "compute_profile"]
+    readonly_fields = ["created", "updated"]
+
+
+def _arguments_schema_error(value: str | None) -> str | None:
+    """Return why `value` is not a usable arguments schema, or None when it is.
+
+    The wording matches the upload endpoint's serializer on purpose, so a schema turned down here
+    and one turned down there read the same in the logs.
+    """
+    if not value:
+        # The column allows null and defaults to "{}", so a blank field means the function does not
+        # declare a schema. Django strips a form CharField, so spaces only arrive as "".
+        return None
+
+    if len(value) > MAX_SCHEMA_LENGTH:
+        return f"arguments_schema is {len(value)} characters long and the maximum is {MAX_SCHEMA_LENGTH}."
+
+    try:
+        check_uploaded_schema_in_isolation(value)
+    except UnsupportedSchemaError as exc:
+        return f"arguments_schema cannot be used: {exc}."
+
+    return None
+
+
+class ProgramAdminForm(forms.ModelForm):
+    """Program form that validates arguments_schema the way the upload endpoint does.
+
+    Without this, the admin was the only way left to store a schema the gateway cannot evaluate, and
+    a single bad row breaks `client.functions()` for everyone who can see that function, because the
+    SDK decodes the whole list at once.
+    """
+
+    class Meta:
+        model = Program
+        # A ModelForm has to name fields or exclude, or Django raises ImproperlyConfigured when the
+        # class is declared. ProgramAdmin narrows this down to its fieldsets anyway.
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.stored_schema_error = None
+        # Only when showing an existing row: a bound form is handling a submission, where the stored
+        # value is no longer what the page is about, and an unsaved instance has nothing stored yet.
+        if self.is_bound or not self.instance.pk:
+            return
+
+        self.stored_schema_error = _arguments_schema_error(self.instance.arguments_schema)
+        if self.stored_schema_error is None:
+            return
+
+        field = self.fields["arguments_schema"]
+        field.help_text = format_html(
+            '<span style="color: var(--error-fg);">{}</span>{}',
+            self.stored_schema_error,
+            f" {field.help_text}" if field.help_text else "",
+        )
+
+    def clean_arguments_schema(self):
+        """Check the schema, but only when this field is the one being changed.
+
+        A function whose stored schema is already broken still has to be editable: disabling it is
+        exactly what you want to be able to do quickly, and validating on every save would stand in
+        the way.
+        """
+        value = self.cleaned_data["arguments_schema"]
+        if "arguments_schema" not in self.changed_data:
+            return value
+
+        error = _arguments_schema_error(value)
+        if error is not None:
+            raise forms.ValidationError(error)
+
+        return value
+
+    def clean(self):
+        """Assign a Code Engine project to a Fleets function, and refuse the save if none is available.
+
+        The upload endpoint auto-assigns a CE project (provider's project, or the deployment default)
+        and rejects a Fleets function it cannot place, since one is not runnable without an active
+        project. A plain admin save skips that, so replicate it here: fail loud with the same wording
+        rather than let an operator persist a function that can never run.
+
+        Runs before ``_post_clean`` copies cleaned values onto the instance, so the assigned project
+        is written back into ``cleaned_data`` for the save to pick up. Leaving a project the operator
+        chose alone falls out of ``assign_to_program`` being a no-op when one is already set.
+        """
+        cleaned_data = super().clean()
+
+        if cleaned_data.get("runner") != Program.FLEETS:
+            return cleaned_data
+
+        # Mirror the request onto the instance so the manager sees the values being saved, not the
+        # stored ones, then let it assign (in place) exactly as the upload use case does.
+        self.instance.runner = Program.FLEETS
+        self.instance.provider = cleaned_data.get("provider")
+        self.instance.code_engine_project = cleaned_data.get("code_engine_project")
+        try:
+            CodeEngineProject.objects.assign_to_program(self.instance)
+        except ValueError:
+            # select_default() raises when CE_DEFAULT_PROJECT_NAME is unconfigured; treat it as
+            # "no project available" and fall through to the rejection below.
+            pass
+
+        if not self.instance.code_engine_project:
+            raise forms.ValidationError(no_ce_project_message(self.instance))
+
+        cleaned_data["code_engine_project"] = self.instance.code_engine_project
+        return cleaned_data
+
+
+class ValidateArgumentsForm(forms.Form):
+    """Arguments to try against a function's stored schema."""
+
+    arguments = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 12, "cols": 80}),
+        label="Arguments (JSON)",
+        help_text="Leave empty to check what an empty argument list does.",
+    )
+
+
+def _format_arguments_path(error_path: list) -> str:
+    """Render a validation path the way it would be written in the arguments document.
+
+    `jsonschema` hands back the location of the failure as a list of property names and array
+    indices. Written out, it is the part of the payload to go and look at; an empty list means the
+    whole document failed, and the caller leaves it out.
+    """
+    parts: list[str] = []
+    for segment in error_path:
+        if isinstance(segment, int):
+            parts.append(f"[{segment}]")
+        else:
+            parts.append(f".{segment}" if parts else str(segment))
+    return "".join(parts)
+
+
+def _validate_arguments_result(program: Program, arguments: str) -> dict:
+    """Check `arguments` against `program`'s schema and describe the outcome for the page.
+
+    Calls the same function the API calls, so the verdict here is the verdict a client would get,
+    including the size limits and the isolated evaluation. That also means a schema that cannot be
+    used comes back as a rejection with the reason, never as a server error.
+    """
+    try:
+        validate_arguments(program, arguments)
+    except InvalidArgumentsException as exc:
+        return {"valid": False, "message": exc.message, "path": _format_arguments_path(exc.path)}
+
+    return {"valid": True}
 
 
 @admin.register(Program)
 class ProgramAdmin(admin.ModelAdmin):
     """ProgramAdmin."""
 
+    form = ProgramAdminForm
+    inlines = [FunctionSizeInline]
     search_fields = ["title", "author__username"]
     list_filter = ["provider", "type", "runner", "disabled"]
     filter_horizontal = ["instances", "trial_instances"]
@@ -118,8 +356,20 @@ class ProgramAdmin(admin.ModelAdmin):
             "Execution",
             {"fields": ["runner", "gpu", "entrypoint", "artifact", "image", "dependencies", "arguments_schema"]},
         ),
-        ("Fleets", {"fields": ["default_compute_profile", "code_engine_project"]}),
+        ("Fleets", {"fields": ["code_engine_project"]}),
         ("Ownership", {"fields": ["author", "provider", "instances", "trial_instances"]}),
+        (
+            "Default size",
+            {
+                "fields": ["default_size"],
+                "description": (
+                    "T-shirt sizes for the Fleets runner. Edit the size catalog (each size &rarr; "
+                    "compute profile) in the <b>Sizes</b> table above, then pick the "
+                    "<code>default_size</code> used when a run omits a size. The default must be one "
+                    "of this function's own sizes."
+                ),
+            },
+        ),
     ]
 
     list_display = [
@@ -128,8 +378,39 @@ class ProgramAdmin(admin.ModelAdmin):
         "author",
         "type",
         "runner",
+        "sizes_summary",
         "disabled",
     ]
+
+    def get_queryset(self, request):
+        # Count the size rows once per changelist for `sizes_summary`, and pull default_size along
+        # so rendering the default's label does not fire a query per row.
+        return (
+            super()
+            .get_queryset(request)
+            .select_related("default_size")
+            .annotate(declared_sizes_count=Count("function_sizes"))
+        )
+
+    @admin.display(description="Sizes", ordering="declared_sizes_count")
+    def sizes_summary(self, obj):
+        """At-a-glance size config: how many sizes are declared and which is the default."""
+        if not obj.declared_sizes_count:
+            return "-"
+        default = obj.default_size.function_size if obj.default_size_id else "none"
+        return f"{obj.declared_sizes_count} (default: {default})"
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # default_size must belong to this same function (Program.clean() enforces it), so the
+        # dropdown is limited to this function's own sizes rather than every FunctionSize row.
+        # On the add form there is no function yet and therefore no sizes to choose from.
+        if db_field.name == "default_size":
+            resolver_match = getattr(request, "resolver_match", None)
+            object_id = resolver_match.kwargs.get("object_id") if resolver_match else None
+            kwargs["queryset"] = (
+                FunctionSize.objects.filter(function_id=object_id) if object_id else FunctionSize.objects.none()
+            )
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def get_readonly_fields(self, request, obj=None):
         readonly_fields = list(super().get_readonly_fields(request, obj))
@@ -137,13 +418,33 @@ class ProgramAdmin(admin.ModelAdmin):
             readonly_fields.append("title")
         return readonly_fields
 
+    def render_change_form(self, request, context, *args, **kwargs):
+        """Warn at the top of the page when the stored arguments_schema is unusable.
+
+        The form has already worked out the reason, so this costs nothing extra. It only fires on a
+        page being shown, since `stored_schema_error` stays None for a bound form.
+
+        The remaining arguments are passed straight through: Django's `_changeform_view` sends `add`,
+        `change`, `form_url` and `obj` by keyword, and none of them matter here.
+        """
+        stored_schema_error = getattr(context["adminform"].form, "stored_schema_error", None)
+        if stored_schema_error:
+            messages.warning(request, stored_schema_error)
+
+        return super().render_change_form(request, context, *args, **kwargs)
+
     def get_urls(self):
-        """Add program history url to the available urls."""
+        """Add the program history and validate arguments urls to the available urls."""
         custom_urls = [
             path(
                 "<path:object_id>/program-history/",
                 self.admin_site.admin_view(self.program_history_view),
                 name="program_history_view",
+            ),
+            path(
+                "<path:object_id>/validate-arguments/",
+                self.admin_site.admin_view(self.program_validate_arguments_view),
+                name="program_validate_arguments_view",
             ),
         ]
         return custom_urls + super().get_urls()
@@ -171,6 +472,32 @@ class ProgramAdmin(admin.ModelAdmin):
         }
 
         return render(request, "program/program_history.html", context)
+
+    def program_validate_arguments_view(self, request, object_id):
+        """View to try arguments against the schema this function already has stored.
+
+        Nothing is written: the page only reads the function to get its schema. Checking a schema
+        used to mean going through the API with a token and an instance, which is a lot of setup for
+        a question you are asking while looking at the function in the admin.
+        """
+        program = get_object_or_404(Program, pk=object_id)
+
+        form = ValidateArgumentsForm(request.POST) if request.method == "POST" else ValidateArgumentsForm()
+        result = _validate_arguments_result(program, form.cleaned_data["arguments"]) if form.is_valid() else None
+
+        context = {
+            **self.admin_site.each_context(request),
+            "object": program,
+            "form": form,
+            "result": result,
+            # An empty schema validates everything, which is the right answer but reads as a pass.
+            # The page says so next to the verdict, and needs to know which case it is in.
+            "has_schema": bool(program.arguments_schema) and program.arguments_schema != "{}",
+            "opts": self.model._meta,
+            "app_label": self.model._meta.app_label,
+        }
+
+        return render(request, "program/validate_arguments.html", context)
 
 
 @admin.register(ComputeResource)
@@ -225,6 +552,24 @@ class JobEventInline(admin.TabularInline):
         css = {"all": ["admin/css/admin_job_event_inline.css"]}
 
 
+CODE_CHIP_MAX_LENGTH = 12
+
+
+def _short_datetime(value):
+    """Compact local timestamp for the changelist, YY/MM/DD hh:mm:ss, so the date columns stay narrow."""
+    if value is None:
+        return ""
+    return timezone.localtime(value).strftime("%y/%m/%d %H:%M:%S")
+
+
+def _code_chip(value):
+    """A short monospace chip showing at most CODE_CHIP_MAX_LENGTH characters; the full value is the title."""
+    display_value = value[:CODE_CHIP_MAX_LENGTH]
+    if len(value) > CODE_CHIP_MAX_LENGTH:
+        display_value += "…"
+    return format_html('<span class="qs-runner-id" title="{}">{}</span>', value, display_value)
+
+
 class JobProgramFilter(admin.SimpleListFilter):
     """Filter jobs by provider / program."""
 
@@ -232,23 +577,12 @@ class JobProgramFilter(admin.SimpleListFilter):
     parameter_name = "job_program"
 
     def lookups(self, request, model_admin):
-        qs = model_admin.get_queryset(request).select_related("program__provider")
-        seen = set()
-        choices = []
-        has_custom = False
-        for job in qs.only("program_id"):
-            pid = job.program_id
-            if pid is None:
-                has_custom = True
-                continue
-            if pid in seen:
-                continue
-            seen.add(pid)
-            program = Program.objects.select_related("provider").filter(pk=pid).first()
-            if program is None or program.provider is None:
-                has_custom = True
-            else:
-                choices.append((str(pid), f"{program.provider.name} / {program.title}"))
+        qs = model_admin.get_queryset(request)
+        program_ids = qs.exclude(program__isnull=True).values_list("program_id", flat=True).distinct()
+        has_custom = qs.filter(Q(program__isnull=True) | Q(program__provider__isnull=True)).exists()
+
+        programs = Program.objects.filter(pk__in=program_ids, provider__isnull=False).select_related("provider")
+        choices = [(str(program.pk), f"{program.provider.name} / {program.title}") for program in programs]
         choices.sort(key=lambda x: x[1])
         if has_custom:
             choices.insert(0, ("custom", "Custom"))
@@ -266,14 +600,41 @@ class JobProgramFilter(admin.SimpleListFilter):
 class JobAdmin(admin.ModelAdmin):
     """JobAdmin."""
 
-    search_fields = ["id", "author__username", "program__title"]
-    list_filter = ["status", "runner", JobProgramFilter]
-    list_display = ["runner", "author", "get_program", "status_badge", "created", "updated"]
-    list_select_related = ["author", "program", "program__provider"]
+    search_fields = [
+        "id",
+        "author__username",
+        "program__title",
+        "program__provider__name",
+        "fleet_id",
+        "compute_profile_fk__compute_profile_id",
+        "status",
+        "instance_crn",
+    ]
+    list_filter = ["status", "runner", "filler", JobProgramFilter]
+    list_display = [
+        "id_column",
+        "author_column",
+        "get_program",
+        "status_badge",
+        "runner_column",
+        "compute_profile_column",
+        "created_column",
+        "updated_column",
+    ]
+    list_display_links = ["id_column"]
+    list_select_related = [
+        "author",
+        "program",
+        "program__provider",
+        "compute_profile_fk",
+        "function_size",
+    ]
     ordering = ["-created"]
+    actions = ["timeline_action"]
     inlines = []
-    autocomplete_fields = ["author", "program", "compute_resource", "config"]
+    autocomplete_fields = ["author", "program", "compute_resource", "config", "compute_profile_fk", "function_size"]
     change_form_template = "admin/api/job/change_form.html"
+    readonly_fields = ["runner", "status_badge", "sub_status", "job_actions"]
     fieldsets = [
         (
             "Info",
@@ -282,8 +643,9 @@ class JobAdmin(admin.ModelAdmin):
                     "program",
                     "author",
                     "runner",
-                    "status",
+                    "status_badge",
                     "sub_status",
+                    "job_actions",
                     "running_started_at",
                     "trial",
                     "business_model",
@@ -297,8 +659,11 @@ class JobAdmin(admin.ModelAdmin):
             "Fleets",
             {
                 "fields": [
+                    "filler",
                     "fleet_id",
-                    "compute_profile",
+                    "compute_profile_fk",
+                    "size_source",
+                    "function_size",
                     "ce_project_name",
                     "ce_region",
                     "code_engine_project",
@@ -308,14 +673,49 @@ class JobAdmin(admin.ModelAdmin):
         ("Ray", {"fields": ["ray_job_id", "compute_resource", "gpu", "config"]}),
     ]
 
+    def get_fieldsets(self, request, obj=None):
+        """Hide whichever Fleets/Ray section doesn't match the runner (Program.RAY when obj is None)."""
+        runner = obj.runner if obj is not None else Program.RAY
+        hidden_section = "Fleets" if runner == Program.RAY else "Ray"
+        return [fs for fs in super().get_fieldsets(request, obj) if fs[0] != hidden_section]
+
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         formfield = super().formfield_for_foreignkey(db_field, request, **kwargs)
         if db_field.name == "program" and hasattr(formfield.widget, "can_delete_related"):
             formfield.widget.can_delete_related = False
         return formfield
 
+    def _search_link(self, value):
+        """Changelist URL that searches for value, so the search box shows what's filtered."""
+        return f"{reverse('admin:api_job_changelist')}?{urlencode({'q': value})}"
+
+    @admin.action(description="Timeline")
+    def timeline_action(self, request, queryset):
+        """Redirect to the Gantt/concurrency timeline for the selected jobs.
+
+        The selection travels in the query string, so it has to be capped: "select all" on an
+        unfiltered changelist would build a URL long enough for the webserver to reject the
+        request with a 502 instead of showing an error.
+
+        The cap is detected from a single query (fetch one row past the limit) rather than a
+        separate `.count()` plus a slice: two independent queries against the same queryset could
+        observe different rows if something else inserts or deletes a matching job in between,
+        which would make the "showing N of TOTAL" message describe a total inconsistent with the
+        ids actually captured.
+        """
+        ids = list(queryset.values_list("id", flat=True)[: MAX_TIMELINE_JOBS + 1])
+        if len(ids) > MAX_TIMELINE_JOBS:
+            ids = ids[:MAX_TIMELINE_JOBS]
+            messages.warning(request, f"Showing the first {MAX_TIMELINE_JOBS} of the selected jobs.")
+        return redirect(f"{reverse('admin:job_timeline_view')}?ids={','.join(str(i) for i in ids)}")
+
     def get_urls(self):
         custom_urls = [
+            path(
+                "timeline/",
+                self.admin_site.admin_view(self.job_timeline_view),
+                name="job_timeline_view",
+            ),
             path(
                 "<path:job_id>/files/",
                 self.admin_site.admin_view(self.job_files_view),
@@ -326,8 +726,54 @@ class JobAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.job_events_view),
                 name="job_events_view",
             ),
+            path("<path:job_id>/stop/", self.admin_site.admin_view(self.stop_job_view), name="job_stop_job_view"),
         ]
         return custom_urls + super().get_urls()
+
+    def stop_job_view(self, request, job_id):
+        """Stop job button target: sets a non-terminal Ray job's status to STOPPED, nothing else.
+        Hit via JS fetch, not a form submit, so it never runs the Job change form (which
+        requires fields some jobs don't have, and would save unrelated edits on the page)."""
+        job = get_object_or_404(Job, pk=job_id)
+        if not self.has_change_permission(request, job):
+            raise PermissionDenied
+        if request.method == "POST" and self._can_stop(job):
+            job.status = Job.STOPPED
+            job.save(update_fields=["status", "updated", "version"])
+            JobEvent.objects.add_status_event(
+                job_id=job.id,
+                origin=JobEventOrigin.BACKOFFICE,
+                context=JobEventContext.STOP_JOB,
+                status=job.status,
+            )
+            messages.success(request, "Job stopped.")
+        else:
+            messages.error(request, "This job can't be stopped from here.")
+        return redirect(reverse("admin:api_job_change", args=[job.pk]))
+
+    def job_timeline_view(self, request):
+        """Gantt/concurrency timeline for the jobs selected in the changelist."""
+        raw_ids = [v for v in request.GET.get("ids", "").split(",") if v]
+        id_list = []
+        for raw_id in raw_ids:
+            try:
+                id_list.append(uuid.UUID(raw_id))
+            except ValueError:
+                continue
+        # one single query: the rendering iterates the jobs again, and re-running the queryset
+        # could come back empty (deleted in between) and break the rendering half way through
+        jobs = list(Job.objects.filter(id__in=id_list).select_related("author").prefetch_related("job_events"))
+        if not id_list or not jobs:
+            messages.error(request, "No jobs selected for the timeline.")
+            return redirect(reverse("admin:api_job_changelist"))
+
+        context = {
+            **self.admin_site.each_context(request),
+            **render_job_timeline(jobs),
+            "opts": self.model._meta,
+            "app_label": self.model._meta.app_label,
+        }
+        return render(request, "admin/api/job/timeline.html", context)
 
     def job_files_view(self, request, job_id):
         """Dedicated page listing all storage files for a job."""
@@ -378,43 +824,116 @@ class JobAdmin(admin.ModelAdmin):
         }
         return render(request, "admin/api/job/events.html", context)
 
-    class Media:
-        js = ["admin/js/clickable_rows.js"]
+    @admin.display(description="Id")
+    def id_column(self, obj):
+        """Show the job UUID as a short code chip; list_display_links turns it into the link to the job page."""
+        return _code_chip(str(obj.pk))
+
+    @admin.display(description="Fleet Id")
+    def runner_column(self, obj):
+        """Engine job id as a code chip, with the CE project/region for Fleets and the engine name for Ray below it."""
+        is_fleets = obj.runner == Program.FLEETS
+        engine_job_id = obj.fleet_id if is_fleets else obj.ray_job_id
+        lines = []
+        if engine_job_id:
+            lines.append(_code_chip(engine_job_id))
+        if is_fleets:
+            # The column header already says Fleets, so only Ray jobs need the engine spelled out.
+            project_and_region = " ".join(part for part in [obj.ce_project_name, obj.ce_region] if part)
+            if project_and_region:
+                lines.append(format_html('<span class="qs-runner-meta">{}</span>', project_and_region))
+        else:
+            lines.append(format_html('<span class="qs-runner-label">{}</span>', obj.get_runner_display()))
+        return format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines))
+
+    @admin.display(description="Created", ordering="created")
+    def created_column(self, obj):
+        """Creation timestamp in the compact changelist format."""
+        return _short_datetime(obj.created)
+
+    @admin.display(description="Updated", ordering="updated")
+    def updated_column(self, obj):
+        """Last-update timestamp in the compact changelist format."""
+        return _short_datetime(obj.updated)
 
     @admin.display(description="Status")
     def status_badge(self, obj):
-        """Render status as a colored badge."""
-        return format_html('<span class="qs-status-badge" data-status="{}">{}</span>', obj.status, obj.status)
+        """Render status as a colored badge; clicking it searches the changelist for that status."""
+        return format_html(
+            '<a href="{}" class="qs-status-badge" data-status="{}">{}</a>',
+            self._search_link(obj.status),
+            obj.status,
+            obj.status,
+        )
+
+    @admin.display(description="Author")
+    def author_column(self, obj):
+        """Link the author's name to a changelist search for them, instance CRN below (same search)."""
+        lines = [
+            format_html('<a href="{}" class="qs-cell-link">{}</a>', self._search_link(obj.author.username), obj.author)
+        ]
+        if obj.instance_crn:
+            lines.append(
+                format_html(
+                    '<a href="{}" class="qs-runner-meta">{}</a>', self._search_link(obj.instance_crn), obj.instance_crn
+                )
+            )
+        return format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines))
+
+    @admin.display(description="Compute Profile")
+    def compute_profile_column(self, obj):
+        """Fleets compute profile, clicking it searches the changelist for it; function size below. Empty for Ray."""
+        if obj.runner != Program.FLEETS or obj.compute_profile_fk is None:
+            return ""
+        lines = [
+            format_html(
+                '<a href="{}" class="qs-cell-link">{}</a>',
+                self._search_link(obj.compute_profile_fk_id),
+                obj.compute_profile_fk,
+            )
+        ]
+        if obj.function_size is not None:
+            lines.append(format_html('<span class="qs-runner-meta">{}</span>', obj.function_size.function_size))
+        return format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines))
 
     @admin.display(description="Program")
     def get_program(self, obj):
-        """Return provider / program label for list display."""
+        """Function name, with its provider below it, or "Custom" when the function has no provider."""
         if obj.program is None:
             return "-"
+        lines = [
+            format_html(
+                '<a href="{}" class="qs-cell-link">{}</a>', self._search_link(obj.program.title), obj.program.title
+            )
+        ]
         provider = obj.program.provider
-        if provider:
-            return f"{provider.name} / {obj.program.title}"
-        return obj.program.title
-
-    def save_model(self, request, obj, form, change):
-        if change:
-            if "status" in form.changed_data:
-                JobEvent.objects.add_status_event(
-                    job_id=obj.id,
-                    origin=JobEventOrigin.BACKOFFICE,
-                    context=JobEventContext.SAVE_MODEL,
-                    status=obj.status,
+        if provider is None:
+            lines.append(mark_safe('<span class="qs-runner-meta">Custom</span>'))
+        else:
+            lines.append(
+                format_html(
+                    '<span class="qs-runner-meta">Provider: <a href="{}">{}</a></span>',
+                    self._search_link(provider.name),
+                    provider.name,
                 )
+            )
+        return format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines))
 
-            if "sub_status" in form.changed_data:
-                JobEvent.objects.add_sub_status_event(
-                    job_id=obj.id,
-                    origin=JobEventOrigin.BACKOFFICE,
-                    context=JobEventContext.SAVE_MODEL,
-                    sub_status=obj.sub_status,
-                )
+    def _can_stop(self, job):
+        return job.runner == Program.RAY and job.status not in Job.TERMINAL_STATUSES
 
-        super().save_model(request, obj, form, change)
+    @admin.display(description="Actions")
+    def job_actions(self, obj):
+        """Stop job button for non-terminal Ray jobs; posts via a separate fetch (not the change
+        form, which requires fields some jobs don't have and would save unrelated page edits).
+        Click handling lives in job_stop_button.js, not an onclick attribute, since the CSP here
+        (script-src 'none') silently blocks inline event handlers.
+        _state.adding, not obj.pk, below: id defaults to a fresh uuid before the row is saved."""
+        if obj._state.adding or not self._can_stop(obj):  # pylint: disable=protected-access
+            return "-"
+        stop_url = reverse("admin:job_stop_job_view", args=[obj.pk])
+        button = f'<button type="button" class="button qs-stop-job-btn" data-stop-url="{stop_url}">Stop job</button>'
+        return mark_safe(button)
 
 
 @admin.register(RuntimeJob)
@@ -462,6 +981,17 @@ class QiskitAdminSite(admin.AdminSite):
     def index(self, request, extra_context=None):
         extra_context = extra_context or {}
         extra_context["dashboard_stats"] = get_dashboard_stats()
+        timeline_context = cache.get(RECENT_TIMELINE_CACHE_KEY)
+        if timeline_context is None:
+            recent_jobs = list(
+                Job.objects.filter(runner=Program.FLEETS)
+                .select_related("author")
+                .prefetch_related("job_events")
+                .order_by("-created")[:20]
+            )
+            timeline_context = render_job_timeline(recent_jobs) if recent_jobs else {}
+            cache.set(RECENT_TIMELINE_CACHE_KEY, timeline_context, RECENT_TIMELINE_CACHE_TTL_SECONDS)
+        extra_context.update(timeline_context)
         return super().index(request, extra_context)
 
 

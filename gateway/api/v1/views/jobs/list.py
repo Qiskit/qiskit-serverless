@@ -28,7 +28,7 @@ from api.v1.views.utils import (
     create_paginated_response,
 )
 from api.v1.views.swagger_utils import standard_error_responses
-from api.v1.views.serializer_utils import SanitizedCharField
+from api.v1.views.serializer_utils import ComputeProfileSerializer, SanitizedCharField
 
 logger = logging.getLogger("api.api.v1.views.jobs.list")
 
@@ -82,10 +82,11 @@ class JobSerializerWithoutResult(serializers.ModelSerializer):
     """
 
     program = ProgramSummarySerializer(many=False)
+    compute_profile_fk = ComputeProfileSerializer(read_only=True)
 
     class Meta:
         model = Job
-        fields = ["id", "status", "program", "created", "sub_status", "compute_profile"]
+        fields = ["id", "status", "program", "created", "sub_status", "compute_profile", "compute_profile_fk"]
         ref_name = "JobsListWithoutResultInputSerializer"
 
 

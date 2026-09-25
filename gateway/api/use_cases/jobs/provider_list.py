@@ -43,7 +43,16 @@ class JobsProviderListUseCase:
         return list(queryset), total
 
     @staticmethod
-    def _apply_access_scope(user, provider, filters, accessible_functions) -> Optional[Set[str]]:
+    def _owned_function_titles(user, provider) -> Set[str]:
+        """Titles of this provider's functions authored by the user.
+
+        Ownership grants the provider operations (see ProviderAccessPolicy._check), so the
+        unfiltered listing degrades to the caller's own functions instead of hiding the provider.
+        """
+        return set(Function.objects.filter(provider=provider, author=user).values_list("title", flat=True))
+
+    @classmethod
+    def _apply_access_scope(cls, user, provider, filters, accessible_functions) -> Optional[Set[str]]:
         """Validate access and return function titles to filter by, or None for no function-level filter."""
 
         if filters.function:
@@ -53,17 +62,19 @@ class JobsProviderListUseCase:
             if not Function.objects.get_function(filters.function, filters.provider):
                 raise FunctionNotFoundException(function=filters.function, provider=filters.provider)
             return None
-        elif accessible_functions.use_legacy_authorization:
-            # Legacy Django groups
-            if not ProviderAccessPolicy.is_provider_admin(user, provider):
-                raise ProviderNotFoundException(filters.provider)
-            return None
+
+        if accessible_functions.use_legacy_authorization:
+            # Legacy Django groups: an admin sees every function, so no function-level filter.
+            if ProviderAccessPolicy.is_provider_admin(user, provider):
+                return None
+            titles = cls._owned_function_titles(user, provider)
         else:
-            # Runtime API instances, granularity per function:
-            # We get the function titles that the user has access to, and we use them to filter
+            # Runtime API instances, granularity per function: entitled titles plus authored ones.
+            # `|` builds a new set -- accessible_functions is cached per (crn, token), never mutate it.
             provider_functions = accessible_functions.get_functions_by_provider(PLATFORM_PERMISSION_JOBS_READ)
-            titles = provider_functions.get(filters.provider, set())
-            if not titles:
-                # If the user can't access to any function, we hide the provider with a not found
-                raise ProviderNotFoundException(filters.provider)
-            return titles
+            titles = provider_functions.get(filters.provider, set()) | cls._owned_function_titles(user, provider)
+
+        if not titles:
+            # If the user can't access to any function, we hide the provider with a not found
+            raise ProviderNotFoundException(filters.provider)
+        return titles

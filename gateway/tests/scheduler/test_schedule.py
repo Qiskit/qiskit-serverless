@@ -1,5 +1,6 @@
 """Tests scheduling."""
 
+import uuid
 from collections import deque
 from unittest.mock import MagicMock, patch
 
@@ -8,10 +9,12 @@ from prometheus_client import CollectorRegistry
 
 import pytest
 from django.core.management import call_command
+from django.test import override_settings
 from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 
-from core.models import Job, ComputeResource, JobEvent
+from core.model_managers.job_events import JobEventContext
+from core.models import Job, ComputeResource, JobEvent, Program
 from core.services.runners import RunnerError
 from core.services.storage import get_logs_storage
 
@@ -72,6 +75,57 @@ class TestScheduleApi(APITestCase):
         assert len(jobs) == 2
         assert str(job1.id) in job_ids  # `test4_user` job
         assert str(job6.id) in job_ids  # `test_user` job
+
+    @override_settings(LIMITS_JOBS_PER_USER=2, LIMITS_JOBS_PER_USER_FLEETS=2)
+    def test_fair_share_per_user_limit_is_runner_scoped(self):
+        """A user's Ray and Fleets running jobs are counted independently.
+
+        With LIMITS_JOBS_PER_USER=2, a user with 2 running Ray jobs is at the Ray
+        cap but must still be schedulable for Fleets, because Fleets has its own,
+        separate per-user tally and limit.
+        """
+        user = TestUtils.get_user_and_username("mixed_user")[0]
+        program = TestUtils.create_program(program_title="Program", author=user)
+
+        # 2 running Ray jobs -> user is at the Ray cap.
+        TestUtils.create_job(author=user, program=program, status=Job.RUNNING, runner=Program.RAY)
+        TestUtils.create_job(author=user, program=program, status=Job.RUNNING, runner=Program.RAY)
+        # 1 queued Fleets job -> should NOT be blocked by the Ray running jobs.
+        fleets_job = TestUtils.create_job(author=user, program=program, status=Job.QUEUED, runner=Program.FLEETS)
+
+        fleets_jobs = get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS)
+
+        assert fleets_job in fleets_jobs
+
+    @override_settings(LIMITS_JOBS_PER_USER=2, LIMITS_JOBS_PER_USER_FLEETS=5)
+    def test_fair_share_uses_fleets_specific_limit(self):
+        """Fleets scheduling uses LIMITS_JOBS_PER_USER_FLEETS, not LIMITS_JOBS_PER_USER."""
+        user = TestUtils.get_user_and_username("fleets_heavy_user")[0]
+        program = TestUtils.create_program(program_title="Program", author=user)
+
+        # 3 running Fleets jobs: over the Ray limit (2) but under the Fleets limit (5).
+        for _ in range(3):
+            TestUtils.create_job(author=user, program=program, status=Job.RUNNING, runner=Program.FLEETS)
+        fleets_job = TestUtils.create_job(author=user, program=program, status=Job.QUEUED, runner=Program.FLEETS)
+
+        fleets_jobs = get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS)
+
+        assert fleets_job in fleets_jobs
+
+    @override_settings(LIMITS_JOBS_PER_USER_FLEETS=2)
+    def test_fair_share_ignores_filler_jobs_in_the_per_user_tally(self):
+        """Filler jobs are not user demand, so they must not use up their author's cap."""
+        user = TestUtils.get_user_and_username("filler_function_owner")[0]
+        program = TestUtils.create_program(program_title="Program", author=user)
+
+        # Enough filler jobs to put the author over the cap on their own.
+        for _ in range(3):
+            TestUtils.create_job(author=user, program=program, status=Job.RUNNING, runner=Program.FLEETS, filler=True)
+        real_job = TestUtils.create_job(author=user, program=program, status=Job.QUEUED, runner=Program.FLEETS)
+
+        fleets_jobs = get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS)
+
+        assert real_job in fleets_jobs
 
     @patch("scheduler.schedule.get_runner")
     def test_execute_ray_job_success(self, mock_get_runner_client):
@@ -210,3 +264,31 @@ class TestScheduleApi(APITestCase):
             # The table was filled as following: Job creation, Job status change to running, job stopping
             # due exceeding time limit.
             assert len(job_events) == 3
+
+
+def test_execute_fleets_job_records_the_given_event_context():
+    """The JobEvent context is the caller's, defaulting to SCHEDULE_JOBS."""
+    mock_job = MagicMock()
+    mock_job.id = uuid.uuid4()
+
+    with (
+        patch("scheduler.schedule.get_runner"),
+        patch("scheduler.schedule.JobEvent") as mock_job_event,
+    ):
+        execute_fleets_job(mock_job, None, context=JobEventContext.FILLER_SUBMIT)
+
+    assert mock_job_event.objects.add_status_event.call_args.kwargs["context"] is JobEventContext.FILLER_SUBMIT
+
+
+def test_execute_fleets_job_defaults_to_the_schedule_jobs_context():
+    """Callers that pass no context still record SCHEDULE_JOBS."""
+    mock_job = MagicMock()
+    mock_job.id = uuid.uuid4()
+
+    with (
+        patch("scheduler.schedule.get_runner"),
+        patch("scheduler.schedule.JobEvent") as mock_job_event,
+    ):
+        execute_fleets_job(mock_job, None)
+
+    assert mock_job_event.objects.add_status_event.call_args.kwargs["context"] is JobEventContext.SCHEDULE_JOBS

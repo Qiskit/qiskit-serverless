@@ -1,0 +1,13 @@
+---
+fixes:
+  - |
+    ``GET /api/v1/jobs/provider`` now scopes its results to the requested provider. Because
+    function titles are unique per provider rather than globally, a title alone could match
+    same-named functions under other providers, so the listing could include jobs outside the
+    requested provider. It now returns only jobs belonging to that provider. The response
+    carries job metadata only (id, status, timestamps and the function's id, title and
+    provider); retrieving a job, its results or its provider logs is authorized separately
+    against the job's own provider and is unchanged.
+  - |
+    ``GET /api/v1/jobs?filter=catalog&provider=<name>`` no longer returns
+    ``500 Internal server error`` when the provider is given by name.

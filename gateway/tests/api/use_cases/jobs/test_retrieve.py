@@ -62,7 +62,7 @@ class TestJobRetrieveUseCase:
     def test_not_found_raises_exception(self, author):
         """Non-existent job ID raises JobNotFoundException."""
 
-        with pytest.raises(Job.DoesNotExist):
+        with pytest.raises(JobNotFoundException):
             JobRetrieveUseCase().execute(uuid.uuid4(), author, with_result=False)
 
     class TestLegacyGroups:

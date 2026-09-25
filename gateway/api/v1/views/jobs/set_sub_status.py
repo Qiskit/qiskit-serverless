@@ -69,6 +69,7 @@ class OutputSerializer(serializers.ModelSerializer):
     class Meta:
         model = Job
         fields = ["id", "status", "program", "created", "sub_status"]
+        ref_name = "JobsSetSubStatusOutputSerializer"
 
 
 def serialize_output(job: Job) -> dict[str, Any]:

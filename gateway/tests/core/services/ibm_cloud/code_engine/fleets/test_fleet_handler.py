@@ -23,9 +23,14 @@ import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
+from core.ibm_cloud.code_engine.ce_client.models.v2_fleet import V2Fleet
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
-from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
+from core.ibm_cloud.code_engine.fleets.handler import (
+    _CANCEL_PROCESSING_TASKS_KEY,
+    _MODEL_VALIDATION_ERROR,
+    FleetHandler,
+)
 from core.ibm_cloud.code_engine.fleets.utils import (
     FleetJobPaths,
     build_run_env_variables,
@@ -282,8 +287,8 @@ def test_get_job_status_api_exception(project_id):
     assert exc.value.status == 404
 
 
-def test_cancel_job_happy_path_waits_no_delete_by_default(project_id):
-    """cancel_job cancels a running fleet, waits, and does not delete by default."""
+def test_cancel_job_waits_when_asked_and_does_not_delete(project_id):
+    """cancel_job waits for terminal when wait=True, and still does not delete."""
     with patch(f"{_HANDLER_MOD}.FleetsApi") as mock_fleets_api_cls:
         fleets_api = MagicMock()
         mock_fleets_api_cls.return_value = fleets_api
@@ -293,11 +298,12 @@ def test_cancel_job_happy_path_waits_no_delete_by_default(project_id):
         with (
             patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid),
             patch.object(handler, "_wait_until_terminal_or_canceled") as waiter,
-            patch.object(handler, "get_job_status", return_value={"status": "running"}),
         ):
             handler.cancel_job(fleet_uuid, wait=True, timeout_seconds=10, poll_interval_seconds=0.01)
 
-    fleets_api.cancel_fleet.assert_called_once_with(project_id=project_id, id=fleet_uuid)
+    fleets_api.cancel_fleet.assert_called_once_with(
+        project_id=project_id, id=fleet_uuid, body={_CANCEL_PROCESSING_TASKS_KEY: True}
+    )
     waiter.assert_called_once()
     fleets_api.delete_fleet.assert_not_called()
 
@@ -313,11 +319,12 @@ def test_cancel_job_waits_and_deletes_when_flag_set(project_id):
         with (
             patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid),
             patch.object(handler, "_wait_until_terminal_or_canceled") as waiter,
-            patch.object(handler, "get_job_status", return_value={"status": "pending"}),
         ):
             handler.cancel_job(fleet_uuid, wait=True, delete=True)
 
-    fleets_api.cancel_fleet.assert_called_once_with(project_id=project_id, id=fleet_uuid)
+    fleets_api.cancel_fleet.assert_called_once_with(
+        project_id=project_id, id=fleet_uuid, body={_CANCEL_PROCESSING_TASKS_KEY: True}
+    )
     waiter.assert_called_once()
     fleets_api.delete_fleet.assert_called_once_with(project_id=project_id, id=fleet_uuid)
 
@@ -333,11 +340,12 @@ def test_cancel_job_no_wait_skips_poller(project_id):
         with (
             patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid),
             patch.object(handler, "_wait_until_terminal_or_canceled") as waiter,
-            patch.object(handler, "get_job_status", return_value={"status": "running"}),
         ):
             handler.cancel_job(fleet_uuid, wait=False)
 
-    fleets_api.cancel_fleet.assert_called_once_with(project_id=project_id, id=fleet_uuid)
+    fleets_api.cancel_fleet.assert_called_once_with(
+        project_id=project_id, id=fleet_uuid, body={_CANCEL_PROCESSING_TASKS_KEY: True}
+    )
     waiter.assert_not_called()
     fleets_api.delete_fleet.assert_not_called()
 
@@ -354,10 +362,10 @@ def test_cancel_job_ignores_404_on_cancel(project_id):
         with (
             patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid),
             patch.object(handler, "_wait_until_terminal_or_canceled") as waiter,
-            patch.object(handler, "get_job_status", return_value={"status": "pending"}),
         ):
-            handler.cancel_job(fleet_uuid, wait=True)
+            result = handler.cancel_job(fleet_uuid, wait=True)
 
+    assert result is False
     fleets_api.cancel_fleet.assert_called_once()
     waiter.assert_called_once()
 
@@ -374,13 +382,14 @@ def test_cancel_job_raises_on_non_404_delete_error(project_id):
         with (
             patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid),
             patch.object(handler, "_wait_until_terminal_or_canceled"),
-            patch.object(handler, "get_job_status", return_value={"status": "running"}),
         ):
             with pytest.raises(ApiException) as exc:
                 handler.cancel_job(fleet_uuid, wait=True, delete=True)
 
     assert exc.value.status == 409
-    fleets_api.cancel_fleet.assert_called_once_with(project_id=project_id, id=fleet_uuid)
+    fleets_api.cancel_fleet.assert_called_once_with(
+        project_id=project_id, id=fleet_uuid, body={_CANCEL_PROCESSING_TASKS_KEY: True}
+    )
     fleets_api.delete_fleet.assert_called_once_with(project_id=project_id, id=fleet_uuid)
 
 
@@ -396,13 +405,45 @@ def test_cancel_job_allows_404_on_delete(project_id):
         with (
             patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid),
             patch.object(handler, "_wait_until_terminal_or_canceled"),
-            patch.object(handler, "get_job_status", return_value={"status": "pending"}),
         ):
             handler.cancel_job(fleet_uuid, wait=True, delete=True)  # must not raise
 
 
-def test_cancel_job_skips_cancel_when_already_terminal(project_id):
-    """cancel_job does not call cancel_fleet when the fleet is already terminal."""
+def test_generated_model_rejects_a_status_code_engine_really_returns():
+    """The reason cancel_job must not read the fleet status.
+
+    The generated ``V2Fleet`` validates ``status`` against a fixed list of eight values and raises
+    ``ValueError`` for anything else. Code Engine returns ``standby`` in practice, about a second
+    after a fleet is created and again once its task ends. This test exists so that nobody
+    "simplifies" the status read back into the cancel path without seeing what it breaks.
+
+    Drop the ``standby`` assertion if the client is ever regenerated with ``standby`` in
+    ``allowed_values``. Keep the sparse-body one: a 2xx body missing a required field raises the same
+    wording, so that half of what ``cancel_job`` matches on outlives the regeneration.
+    """
+    fleet = V2Fleet.__new__(V2Fleet)
+
+    fleet.status = "canceling"  # a listed value, for contrast
+    assert fleet.status == "canceling"
+
+    with pytest.raises(ValueError, match="standby") as unlisted_status:
+        fleet.status = "standby"
+
+    # cancel_job tells a refused 2xx body apart from a ValueError raised before the request was
+    # sent by matching this wording, so it has to be the wording the client actually uses.
+    assert _MODEL_VALIDATION_ERROR in str(unlisted_status.value)
+
+    with pytest.raises(ValueError) as sparse_body:
+        V2Fleet()  # the other shape: a body too sparse for the model's required fields
+    assert _MODEL_VALIDATION_ERROR in str(sparse_body.value)
+
+
+def test_cancel_job_never_reads_the_fleet_status(project_id):
+    """cancel_job sends the cancel without asking what state the fleet is in.
+
+    This is what lets a fleet whose status the generated client rejects, "standby" among them, be
+    cancelled at all: reading the status first raised ValueError before we ever asked.
+    """
     with patch(f"{_HANDLER_MOD}.FleetsApi") as mock_fleets_api_cls:
         fleets_api = MagicMock()
         mock_fleets_api_cls.return_value = fleets_api
@@ -411,33 +452,110 @@ def test_cancel_job_skips_cancel_when_already_terminal(project_id):
         handler = FleetHandler(ce_api_client=MagicMock(), project_id=project_id)
         with (
             patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid),
+            patch.object(handler, "get_job_status") as status_read,
             patch.object(handler, "_wait_until_terminal_or_canceled") as waiter,
-            patch.object(handler, "get_job_status", return_value={"status": "succeeded"}),
         ):
-            handler.cancel_job(fleet_uuid, wait=True, delete=False)
+            result = handler.cancel_job(fleet_uuid)
 
-    fleets_api.cancel_fleet.assert_not_called()
-    waiter.assert_called_once()
-    fleets_api.delete_fleet.assert_not_called()
+    assert result is True
+    status_read.assert_not_called()
+    waiter.assert_not_called()  # wait defaults to False, and the poller reads statuses too
+    fleets_api.cancel_fleet.assert_called_once()
 
 
-def test_cancel_job_status_404_skips_cancel(project_id):
-    """cancel_job skips cancel when get_job_status raises 404 (fleet already gone)."""
+def test_cancel_job_returns_false_when_already_canceling(project_id):
+    """A 409 carrying Code Engine's already-canceled code means there is nothing left to do."""
+    already_canceling = ApiException(status=409, reason="Conflict")
+    # bytes, because that is what production hands us: ApiException.body is urllib3's resp.data.
+    already_canceling.body = b'{"errors":[{"code":"fleet_already_canceled"}]}'
     with patch(f"{_HANDLER_MOD}.FleetsApi") as mock_fleets_api_cls:
         fleets_api = MagicMock()
+        fleets_api.cancel_fleet.side_effect = already_canceling
         mock_fleets_api_cls.return_value = fleets_api
         fleet_uuid = "f-00000000-0000-0000-0000-000000000008"
 
         handler = FleetHandler(ce_api_client=MagicMock(), project_id=project_id)
-        with (
-            patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid),
-            patch.object(handler, "get_job_status", side_effect=ApiException(status=404, reason="Not Found")),
-            patch.object(handler, "_wait_until_terminal_or_canceled") as waiter,
-        ):
-            handler.cancel_job(fleet_uuid, wait=True, delete=False)
+        with patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid):
+            result = handler.cancel_job(fleet_uuid)
 
-    fleets_api.cancel_fleet.assert_not_called()
-    waiter.assert_called_once()
+    assert result is False
+
+
+def test_cancel_job_raises_on_unrelated_conflict(project_id):
+    """A 409 without that code is a different conflict, so it must surface rather than be swallowed."""
+    other_conflict = ApiException(status=409, reason="Conflict")
+    other_conflict.body = '{"errors":[{"code":"something_else"}]}'
+    with patch(f"{_HANDLER_MOD}.FleetsApi") as mock_fleets_api_cls:
+        fleets_api = MagicMock()
+        fleets_api.cancel_fleet.side_effect = other_conflict
+        mock_fleets_api_cls.return_value = fleets_api
+        fleet_uuid = "f-00000000-0000-0000-0000-000000000009"
+
+        handler = FleetHandler(ce_api_client=MagicMock(), project_id=project_id)
+        with patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid):
+            with pytest.raises(ApiException) as exc:
+                handler.cancel_job(fleet_uuid)
+
+    assert exc.value.status == 409
+
+
+def test_cancel_job_raises_when_rate_limited(project_id):
+    """A 429 means the cancel was never delivered, so the caller must be able to retry.
+
+    This used to be swallowed and reported as a successful cancel.
+    """
+    with patch(f"{_HANDLER_MOD}.FleetsApi") as mock_fleets_api_cls:
+        fleets_api = MagicMock()
+        fleets_api.cancel_fleet.side_effect = ApiException(status=429, reason="Too Many Requests")
+        mock_fleets_api_cls.return_value = fleets_api
+        fleet_uuid = "f-00000000-0000-0000-0000-00000000000a"
+
+        handler = FleetHandler(ce_api_client=MagicMock(), project_id=project_id)
+        with patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid):
+            with pytest.raises(ApiException) as exc:
+                handler.cancel_job(fleet_uuid)
+
+    assert exc.value.status == 429
+
+
+def test_cancel_job_reports_delivered_when_response_body_is_unparseable(project_id):
+    """A ValueError from the 2xx body still means the cancel landed.
+
+    The generated model raises for a status outside its fixed list, or for a body too sparse for its
+    required fields. Either way a non-2xx would have raised ApiException first.
+    """
+    with patch(f"{_HANDLER_MOD}.FleetsApi") as mock_fleets_api_cls:
+        fleets_api = MagicMock()
+        fleets_api.cancel_fleet.side_effect = ValueError("Invalid value for `status` (standby)")
+        mock_fleets_api_cls.return_value = fleets_api
+        fleet_uuid = "f-00000000-0000-0000-0000-00000000000b"
+
+        handler = FleetHandler(ce_api_client=MagicMock(), project_id=project_id)
+        with patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid):
+            result = handler.cancel_job(fleet_uuid)
+
+    assert result is True
+
+
+def test_cancel_job_reraises_a_value_error_that_is_not_the_model_refusing_a_body(project_id):
+    """A ValueError from before the request went out must not be reported as a delivered cancel.
+
+    Two are reachable: the generated client's own missing-parameter check, and urllib3's
+    LocationValueError / LocationParseError, which are ValueError subclasses. Reporting either as a
+    delivered cancel would be the same class of bug this method was changed to remove.
+    """
+    with patch(f"{_HANDLER_MOD}.FleetsApi") as mock_fleets_api_cls:
+        fleets_api = MagicMock()
+        fleets_api.cancel_fleet.side_effect = ValueError(
+            "Missing the required parameter `project_id` when calling `cancel_fleet`"
+        )
+        mock_fleets_api_cls.return_value = fleets_api
+        fleet_uuid = "f-00000000-0000-0000-0000-00000000000c"
+
+        handler = FleetHandler(ce_api_client=MagicMock(), project_id=project_id)
+        with patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid):
+            with pytest.raises(ValueError, match="Missing the required parameter"):
+                handler.cancel_job(fleet_uuid)
 
 
 def test_cancel_job_times_out_raises_assertion(project_id):
@@ -450,14 +568,58 @@ def test_cancel_job_times_out_raises_assertion(project_id):
         handler = FleetHandler(ce_api_client=MagicMock(), project_id=project_id)
         with (
             patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid),
-            patch.object(handler, "get_job_status", return_value={"status": "running"}),
             patch.object(handler, "_wait_until_terminal_or_canceled", side_effect=AssertionError("timeout")),
         ):
             with pytest.raises(AssertionError):
                 handler.cancel_job(fleet_uuid, wait=True, delete=False, timeout_seconds=0)
 
-    fleets_api.cancel_fleet.assert_called_once_with(project_id=project_id, id=fleet_uuid)
+    fleets_api.cancel_fleet.assert_called_once_with(
+        project_id=project_id, id=fleet_uuid, body={_CANCEL_PROCESSING_TASKS_KEY: True}
+    )
     fleets_api.delete_fleet.assert_not_called()
+
+
+def test_cancel_job_sends_cancel_processing_tasks_true_by_default(project_id):
+    """cancel_job sends cancel_processing_tasks=true so CE kills a never-ending task.
+
+    Asserts the literal wire key (not the constant) to pin the on-the-wire field name and
+    catch an accidental rename or snake_case/camelCase flip. This is the regression guard
+    for the "fleet stuck in Canceling forever" bug.
+    """
+    with patch(f"{_HANDLER_MOD}.FleetsApi") as mock_fleets_api_cls:
+        fleets_api = MagicMock()
+        mock_fleets_api_cls.return_value = fleets_api
+        fleet_uuid = "f-00000000-0000-0000-0000-00000000000a"
+
+        handler = FleetHandler(ce_api_client=MagicMock(), project_id=project_id)
+        with (
+            patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid),
+            patch.object(handler, "_wait_until_terminal_or_canceled"),
+        ):
+            handler.cancel_job(fleet_uuid, wait=False)
+
+    fleets_api.cancel_fleet.assert_called_once_with(
+        project_id=project_id, id=fleet_uuid, body={"cancel_processing_tasks": True}
+    )
+
+
+def test_cancel_job_honors_cancel_processing_tasks_false(project_id):
+    """cancel_job forwards cancel_processing_tasks=false when explicitly requested."""
+    with patch(f"{_HANDLER_MOD}.FleetsApi") as mock_fleets_api_cls:
+        fleets_api = MagicMock()
+        mock_fleets_api_cls.return_value = fleets_api
+        fleet_uuid = "f-00000000-0000-0000-0000-00000000000b"
+
+        handler = FleetHandler(ce_api_client=MagicMock(), project_id=project_id)
+        with (
+            patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid),
+            patch.object(handler, "_wait_until_terminal_or_canceled"),
+        ):
+            handler.cancel_job(fleet_uuid, wait=False, cancel_processing_tasks=False)
+
+    fleets_api.cancel_fleet.assert_called_once_with(
+        project_id=project_id, id=fleet_uuid, body={"cancel_processing_tasks": False}
+    )
 
 
 def test_delete_job_happy_path(project_id):
@@ -657,3 +819,81 @@ def test_wait_until_terminal_delegates_to_wait_until_state(project_id):
             timeout_seconds=10,
             poll_interval_seconds=1,
         )
+
+
+def _pool(name: str, pool_id: str, region: str = "us-east") -> MagicMock:
+    """Return a stub V2SubnetPool with the fields the resolver reads."""
+    pool = MagicMock()
+    pool.name = name
+    pool.id = pool_id
+    pool.region = region
+    return pool
+
+
+def _page(pools: list, start: str | None = None) -> MagicMock:
+    """Return a stub V2SubnetPoolList page, optionally pointing at a next page."""
+    page = MagicMock()
+    page.subnet_pools = pools
+    page.next = MagicMock(start=start) if start else None
+    return page
+
+
+class TestResolveSubnetPoolId:
+    """Tests for FleetHandler.resolve_subnet_pool_id."""
+
+    def _handler(self, project_id: str) -> tuple[FleetHandler, MagicMock]:
+        """Build a handler with a mocked SubnetPoolsApi."""
+        with patch(f"{_HANDLER_MOD}.FleetsApi"), patch(f"{_HANDLER_MOD}.SubnetPoolsApi") as mock_api_cls:
+            mock_api = MagicMock()
+            mock_api_cls.return_value = mock_api
+            handler = FleetHandler(ce_api_client=MagicMock(), project_id=project_id)
+        return handler, mock_api
+
+    def test_single_match_returns_its_id(self, project_id):
+        """A name matching exactly one pool resolves to that pool's id."""
+        handler, mock_api = self._handler(project_id)
+        mock_api.list_subnet_pools.return_value = _page([_pool("alpha", "id-a"), _pool("beta", "id-b")])
+
+        assert handler.resolve_subnet_pool_id("beta") == "id-b"
+
+    def test_no_match_raises_listing_available(self, project_id):
+        """A name matching no pool raises, and names the available pools."""
+        handler, mock_api = self._handler(project_id)
+        mock_api.list_subnet_pools.return_value = _page([_pool("alpha", "id-a")])
+
+        with pytest.raises(ValueError) as exc:
+            handler.resolve_subnet_pool_id("missing")
+        assert "missing" in str(exc.value)
+        assert "alpha" in str(exc.value)
+
+    def test_duplicate_names_raise_naming_both_ids(self, project_id):
+        """A name matching more than one pool fails loud, naming every match's id."""
+        handler, mock_api = self._handler(project_id)
+        mock_api.list_subnet_pools.return_value = _page([_pool("dup", "id-1"), _pool("dup", "id-2")])
+
+        with pytest.raises(ValueError) as exc:
+            handler.resolve_subnet_pool_id("dup")
+        message = str(exc.value)
+        assert "id-1" in message
+        assert "id-2" in message
+        assert "ambiguous" in message
+
+    def test_follows_pagination(self, project_id):
+        """The resolver walks every page via next.start before matching."""
+        handler, mock_api = self._handler(project_id)
+        mock_api.list_subnet_pools.side_effect = [
+            _page([_pool("a", "id-a")], start="tok2"),
+            _page([_pool("target", "id-t")]),
+        ]
+
+        assert handler.resolve_subnet_pool_id("target") == "id-t"
+        assert mock_api.list_subnet_pools.call_count == 2
+        assert mock_api.list_subnet_pools.call_args_list[1].kwargs.get("start") == "tok2"
+
+    def test_empty_page_list_raises(self, project_id):
+        """A project with no subnet pools raises rather than returning None."""
+        handler, mock_api = self._handler(project_id)
+        mock_api.list_subnet_pools.return_value = _page([])
+
+        with pytest.raises(ValueError):
+            handler.resolve_subnet_pool_id("anything")

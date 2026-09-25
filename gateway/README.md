@@ -13,8 +13,8 @@ docker build -t qiskit/qiskit-serverless/gateway:<VERSION> .
 ### Running Tests
 
 ```shell
-tox -e py311 # Run all tests using tox (recommended)
-tox -e py311 -- tests/api/test_job.py # Run specific test file
+tox -e py312 # Run all tests using tox (recommended)
+tox -e py312 -- tests/api/test_job.py # Run specific test file
 tox -e coverage # Run with coverage
 
 # You can run tests directly with pytest (but you have to take care of the venv and deps)

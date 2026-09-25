@@ -1,0 +1,12 @@
+---
+upgrade:
+  - |
+    The author of a provider function is now treated as an admin of that one function for the
+    six provider operations: uploading a new version, listing the function's jobs, reading its
+    provider logs, and the three provider file operations. This lets an automated publisher
+    manage the functions it uploads without extra grants.
+
+    The grant is scoped to that single function. It does not list the function in the catalog,
+    does not grant the right to run it, and does not make the author an admin of the provider as
+    a whole. Creating a brand-new provider function still requires the upload permission, and
+    access that worked before is unaffected.

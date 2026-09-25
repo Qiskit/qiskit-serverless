@@ -454,6 +454,7 @@ class TestGetRuntimeService:
             "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
             "QISKIT_IBM_INSTANCE": "test-crn",
             "QISKIT_IBM_TOKEN": "test-token",
+            "QISKIT_IBM_PRIVATE_ENDPOINT": "false",
         },
     )
     def test_get_runtime_service_from_env(self, mock_service_class):
@@ -469,6 +470,7 @@ class TestGetRuntimeService:
             instance="test-crn",
             token="test-token",
             url=None,
+            private_endpoint=False,
         )
 
     @patch("qiskit_serverless.core.job.ServerlessRuntimeService")
@@ -478,6 +480,7 @@ class TestGetRuntimeService:
             "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
             "QISKIT_IBM_INSTANCE": "test-crn",
             "QISKIT_IBM_TOKEN": "test-token",
+            "QISKIT_IBM_PRIVATE_ENDPOINT": "false",
         },
     )
     def test_get_runtime_service_with_explicit_params(self, mock_service_class):
@@ -498,6 +501,7 @@ class TestGetRuntimeService:
             instance="explicit-crn",
             token="explicit-token",
             url="https://custom.url",
+            private_endpoint=False,
         )
 
     @patch("qiskit_serverless.core.job.ServerlessRuntimeService")
@@ -508,6 +512,7 @@ class TestGetRuntimeService:
             "QISKIT_IBM_INSTANCE": "test-crn",
             "QISKIT_IBM_TOKEN": "test-token",
             "QISKIT_IBM_URL": "https://env.url",
+            "QISKIT_IBM_PRIVATE_ENDPOINT": "false",
         },
     )
     def test_get_runtime_service_with_url_from_env(self, mock_service_class):
@@ -523,6 +528,33 @@ class TestGetRuntimeService:
             instance="test-crn",
             token="test-token",
             url="https://env.url",
+            private_endpoint=False,
+        )
+
+    @patch("qiskit_serverless.core.job.ServerlessRuntimeService")
+    @patch.dict(
+        os.environ,
+        {
+            "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
+            "QISKIT_IBM_INSTANCE": "test-crn",
+            "QISKIT_IBM_TOKEN": "test-token",
+            "QISKIT_IBM_PRIVATE_ENDPOINT": "true",
+        },
+    )
+    def test_get_runtime_service_with_private_endpoint(self, mock_service_class):
+        """Test get_runtime_service() enables the private endpoint from the environment."""
+        mock_service_instance = Mock()
+        mock_service_class.return_value = mock_service_instance
+
+        service = get_runtime_service()
+
+        assert service is not None
+        mock_service_class.assert_called_once_with(
+            channel="ibm_quantum_platform",
+            instance="test-crn",
+            token="test-token",
+            url=None,
+            private_endpoint=True,
         )
 
     def test_get_runtime_service_missing_env_raises_error(self):

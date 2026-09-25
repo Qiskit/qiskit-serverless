@@ -1,0 +1,15 @@
+---
+fixes:
+  - |
+    ``get_runtime_service()`` now honours the ``QISKIT_IBM_PRIVATE_ENDPOINT`` environment
+    variable, forwarding it to ``QiskitRuntimeService`` as ``private_endpoint``. Previously the
+    helper ignored it, so a Qiskit Function configured for a private endpoint still connected
+    through public URLs. Set it to ``true`` and the service connects through private URLs; the
+    instance must be a CRN for the private host to resolve. Existing usage is unchanged.
+
+    Example usage from within a Qiskit Function, with the variable set in the environment::
+
+        from qiskit_serverless import get_runtime_service
+
+        service = get_runtime_service()
+        backend = service.backend("my_backend")

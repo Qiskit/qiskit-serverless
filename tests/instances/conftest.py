@@ -23,6 +23,11 @@ Optional:
   - NTC_SUBSCRIPTION_NAME  account plan subscription_name to edit (default "flex")
   - GATEWAY_HOST / GATEWAY_TOKEN / GATEWAY_CHANNEL  serverless client config
   - TEST_PROVIDER_NAME / TEST_FUNCTION_TITLE / TEST_OTHER_FUNCTION_TITLE / TEST_CUSTOM_FUNCTION_TITLE
+  - TEST_UNOWNED_FUNCTION_TITLE  title of a provider function the caller does NOT own; it must not
+                           exist in the gateway database (see UNOWNED_FUNCTION_TITLE below).
+  - TEST_FOREIGN_JOB_ID    id of a job of a function authored by somebody else. Cannot be created by
+                           the suite (a single token only creates jobs it owns), so the checks that
+                           need it skip when it is unset.
 """
 
 import logging
@@ -45,6 +50,20 @@ PROVIDER_NAME = os.environ.get("TEST_PROVIDER_NAME", "ibm-dev")
 FUNCTION_TITLE = os.environ.get("TEST_FUNCTION_TITLE", "instances1-test")
 OTHER_FUNCTION_TITLE = os.environ.get("TEST_OTHER_FUNCTION_TITLE", "instances2-test")
 CUSTOM_FUNCTION_TITLE = os.environ.get("TEST_CUSTOM_FUNCTION_TITLE", "my-custom-func")
+
+# Title of a provider function the caller does NOT own, used by the deny checks of the provider
+# operations. Since PR #2397 the author of a function is an admin of it, so a deny check can no
+# longer point at FUNCTION_TITLE (the suite uploads it, so the caller owns it).
+#
+# THIS TITLE MUST NEVER BE UPLOADED BY THE SUITE. The whole point is that no Program row exists
+# with this title and the caller as author, so ProviderAccessPolicy._check finds nothing and denies.
+# If some test ever uploads it, every deny check that uses it starts passing for the wrong reason.
+UNOWNED_FUNCTION_TITLE = os.environ.get("TEST_UNOWNED_FUNCTION_TITLE", "instances-unowned-test")
+
+# Id of a job whose function is authored by SOMEBODY ELSE, for the provider_logs deny check. The
+# suite authenticates with a single token, so it cannot create such a job: it has to be set by hand
+# against the staging deployment. The checks that need it skip when it is missing.
+FOREIGN_JOB_ID = os.environ.get("TEST_FOREIGN_JOB_ID")
 
 NTC_API_KEY = os.environ.get("NTC_API_KEY")
 NTC_RC_API_KEY = os.environ.get("NTC_RC_API_KEY")
@@ -215,6 +234,35 @@ def custom_function_title():
 def other_function_title():
     """Title of a second function that exists in the DB but is NOT in every level's entitlements."""
     return OTHER_FUNCTION_TITLE
+
+
+@fixture(scope="session")
+def unowned_function_title():
+    """Title of a provider function that the caller does NOT own and that does NOT exist at all.
+
+    Used by the deny checks of the provider operations (upload, provider jobs, provider files).
+    Ownership now grants those operations, so pointing a deny check at a function the suite uploaded
+    would assert the opposite of the real contract.
+
+    NEVER upload a function with this title from the suite: the checks are only meaningful while no
+    Program row exists with this title and the caller as author.
+    """
+    return UNOWNED_FUNCTION_TITLE
+
+
+@fixture(scope="session")
+def foreign_job_id():
+    """Id of a job belonging to a function authored by somebody else (TEST_FOREIGN_JOB_ID).
+
+    Skips when unset: the suite runs with one identity and a single token cannot create a job it
+    does not own, and no second staging identity is provisioned.
+    """
+    if not FOREIGN_JOB_ID:
+        skip(
+            "TEST_FOREIGN_JOB_ID is not set: the provider_logs deny path needs a job of a function "
+            "authored by another user, which this suite cannot create with a single token"
+        )
+    return FOREIGN_JOB_ID
 
 
 # --- NTC client and serverless client --------------------------------------------------

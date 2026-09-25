@@ -1,0 +1,5 @@
+---
+upgrade:
+  - |
+    The supported range for ``qiskit-ibm-runtime`` has been updated to
+    ``>=0.47.0, <0.50.0``.

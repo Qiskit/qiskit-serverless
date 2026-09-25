@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.17
-FROM registry.access.redhat.com/ubi9-minimal:9.8-1784092902 AS base
+FROM registry.access.redhat.com/ubi9-minimal:9.8-1789546276 AS base
 ARG PYTHON_VERSION=3.12
 
 # set environment variables
@@ -36,11 +36,18 @@ COPY client /tmp/qs
 RUN pip install "/tmp/qs[ray]" --no-cache-dir && rm -rf /tmp/qs
 USER 1000
 
+# The openmpi wheel is a native library, not an importable package: it exists so
+# mpi4py has an MPI to dlopen. It installs libmpi.so under pip's /usr/local
+# prefix, which is not on the x86_64 loader path, so ldconfig has to pick it up
+# or `import mpi4py.MPI` fails at runtime even though pip install succeeded.
+# See docker-images/fleet-node/Dockerfile for the full reasoning.
 FROM base AS selector
 USER 0
 COPY docker-images/requirements-dynamic-dependencies.txt /tmp/
 RUN pip install -r /tmp/requirements-dynamic-dependencies.txt --no-cache-dir && \
-    rm /tmp/requirements-dynamic-dependencies.txt
+    rm /tmp/requirements-dynamic-dependencies.txt && \
+    echo /usr/local/lib > /etc/ld.so.conf.d/mpi-wheel.conf && \
+    ldconfig
 USER 1000
 
 # arm64-native variant for LOCAL DEV on Apple Silicon (M-series) Macs.
