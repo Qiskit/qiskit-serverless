@@ -8,7 +8,7 @@ import pytest
 from django.contrib.auth.models import User
 
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
-from core.models import Job, JobEvent, JobOutbox, Program
+from core.models import Job, JobEvent, Program
 
 pytestmark = pytest.mark.django_db
 
@@ -30,25 +30,6 @@ def _add_status_event(job, status):
         context=JobEventContext.UPDATE_JOB_STATUS,
         status=status,
     )
-
-
-class TestAddStatusEvent:
-    def test_records_the_event_and_leaves_the_outbox_alone(self, job):
-        """Creation and the Ray paths call this directly; only change_status writes the row."""
-        JobOutbox.objects.create(
-            job=job,
-            job_status=Job.QUEUED,
-            status_changed_at=job.created,
-            has_run=False,
-            license_fee_required=True,
-        )
-
-        event = _add_status_event(job, Job.RUNNING)
-
-        assert event.data == {"status": Job.RUNNING}
-        row = JobOutbox.objects.get(job=job)
-        assert row.job_status == Job.QUEUED
-        assert row.has_run is False
 
 
 class TestFirstRunningAt:

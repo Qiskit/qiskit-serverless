@@ -22,7 +22,6 @@ from core.model_managers.compute_profiles import ComputeProfileQuerySet
 from core.model_managers.function_sizes import FunctionSizeQuerySet
 from core.model_managers.functions import FunctionsQuerySet
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventQuerySet
-from core.model_managers.job_outbox import JobOutboxQuerySet
 from core.model_managers.jobs import JobQuerySet
 from core.model_managers.providers import ProviderQuerySet
 
@@ -787,37 +786,38 @@ class JobEvent(models.Model):
         ordering = ("-created",)
 
 
-class JobOutbox(models.Model):
-    """Outbox row for a live Fleets job with an instance CRN: what still needs to be
-    sent to Kafka billing (this PR) and mirrored to the Runtime API workloads.
-    One row per live job, created in RunFunctionUseCase.execute() and deleted once
-    every fact tracked here has been sent.
+class Outbox(models.Model):
+    """A message waiting to be delivered best-effort, in a deferred way. One row per pending
+    message, not per job: a job can have zero, one, or several rows at once, each with its own
+    payload and channel, deleted independently once its own send succeeds.
+
+    `channel` says how to send it ("billing" today, via Kafka in DrainOutbox); it is a plain
+    string, not a Django `choices=`, so registering a new channel is adding a sender to a dict,
+    not a migration.
+
+    `payload` is the message exactly as it will be sent, built and frozen at the moment the fact
+    it represents became true (see Job.change_status and core/domain/billing_events.py). This
+    table does not know what the payload means or how it was built, only that it needs to go out.
     """
 
-    job = models.OneToOneField(
+    job = models.ForeignKey(
         to=Job,
         on_delete=models.CASCADE,
-        primary_key=True,
-        related_name="outbox",
+        help_text="Not used by delivery: the payload is self-contained. Kept only so a pending "
+        "row can be found from its job (admin, debugging), without parsing the payload.",
     )
-    job_status = models.CharField(max_length=10, choices=Job.JOB_STATUSES)
-    status_changed_at = models.DateTimeField()
-    has_run = models.BooleanField(default=False)
-    workload_status = models.CharField(max_length=10, choices=Job.JOB_STATUSES, null=True, blank=True)
-    license_fee_required = models.BooleanField()
-    license_fee_sent_at = models.DateTimeField(null=True, blank=True)
-    billing_sent_at = models.DateTimeField(null=True, blank=True)
-
-    objects: JobOutboxQuerySet = JobOutboxQuerySet.as_manager()
+    channel = models.CharField(max_length=20)
+    payload = models.JSONField()
+    created = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         app_label = "api"
         indexes = [
-            models.Index(fields=["status_changed_at"], name="job_outbox_status_changed_at_idx"),
+            models.Index(fields=["channel", "created"], name="outbox_channel_created_idx"),
         ]
 
     def __str__(self):
-        return f"<JobOutbox job={self.job_id} job_status={self.job_status}>"
+        return f"<Outbox id={self.id} job={self.job_id} channel={self.channel}>"
 
 
 class GroupMetadata(models.Model):
