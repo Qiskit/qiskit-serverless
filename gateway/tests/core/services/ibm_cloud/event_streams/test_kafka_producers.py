@@ -1,6 +1,6 @@
 """Unit tests for KafkaProducers: producer/topic setup from environment variables, and region
-routing. Ported from test_event_streams_client.py, whose KafkaEventStreamsClient no longer owns
-this logic."""
+routing. This logic used to live on the client class that sent events inline; it moved here once
+KafkaSender needed the exact same producer/region routing for the outbox."""
 
 import logging
 import os

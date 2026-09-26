@@ -727,7 +727,7 @@ class Job(models.Model):
 
         Outbox messages are only ever built on a transition to a terminal status
         (SUCCEEDED/FAILED/STOPPED), and only for a job that can reach the outbox pipeline: Fleets,
-        not filler, with an instance CRN. See core/domain/billing_events.py.
+        not filler, with an instance CRN. See core/domain/usage_events.py.
 
         Enqueueing is also guarded against a job that is already terminal in the database: unlike
         the old one-row-per-job JobOutbox, Outbox is one row per message, so a second terminal
@@ -759,10 +759,11 @@ class Job(models.Model):
         content (job_started_at, usage seconds). SUCCEEDED never needs it for eligibility (it
         proves the job ran by definition) but still needs the value for the payloads' content.
         """
-        # Deferred import: core/domain/billing_events.py imports Job/JobEvent from this module at
-        # its own top level, so this module cannot import it at its own top level too (see
-        # core/model_managers/job_outbox.py for the same pattern already in this codebase).
-        from core.domain.billing_events import (  # pylint: disable=import-outside-toplevel, cyclic-import
+        # Deferred import: core/domain/usage_events.py imports Job from this module at its own
+        # top level, so this module cannot import it at its own top level too (see
+        # JobEvent.objects.first_running_at in core/model_managers/job_events.py for the same
+        # pattern already in this codebase).
+        from core.domain.usage_events import (  # pylint: disable=import-outside-toplevel, cyclic-import
             build_billing_event_message,
             build_license_fee_message,
         )
@@ -770,11 +771,11 @@ class Job(models.Model):
         running_started_at = JobEvent.objects.first_running_at(self.id)
         ran = new_status == Job.SUCCEEDED or running_started_at is not None
 
-        billing_message = build_billing_event_message(self, event, running_started_at)
+        billing_message = build_billing_event_message(self, event.created, running_started_at)
         Outbox.objects.create(job=self, channel="billing", payload=billing_message)
 
         if ran:
-            license_fee_message = build_license_fee_message(self, event, running_started_at)
+            license_fee_message = build_license_fee_message(self, event.created, running_started_at)
             if license_fee_message is not None:
                 Outbox.objects.create(job=self, channel="billing", payload=license_fee_message)
 
@@ -832,7 +833,7 @@ class Outbox(models.Model):
     not a migration.
 
     `payload` is the message exactly as it will be sent, built and frozen at the moment the fact
-    it represents became true (see Job.change_status and core/domain/billing_events.py). This
+    it represents became true (see Job.change_status and core/domain/usage_events.py). This
     table does not know what the payload means or how it was built, only that it needs to go out.
     """
 

@@ -12,8 +12,8 @@ from django.conf import settings
 from django.utils import timezone
 
 from core.config_key import ConfigKey
-from core.ibm_cloud.event_streams.kafka_outbox_sender import KafkaOutboxSender, NoOpOutboxSender
 from core.ibm_cloud.event_streams.kafka_producers import UnroutableRegionError
+from core.ibm_cloud.event_streams.kafka_sender import KafkaSender, NoOpSender
 from core.models import Config, Outbox
 
 from scheduler.kill_signal import KillSignal
@@ -41,11 +41,11 @@ class DrainOutbox(SchedulerTask):
         """The registered {channel: sender}, built lazily on first access."""
         if self._senders is None:
             if settings.EVENT_STREAMS_ENABLED:
-                logger.info("Initializing KafkaOutboxSender (EVENT_STREAMS_ENABLED=True)")
-                billing_sender = KafkaOutboxSender()
+                logger.info("Initializing KafkaSender (EVENT_STREAMS_ENABLED=True)")
+                billing_sender = KafkaSender()
             else:
-                logger.info("Initializing NoOpOutboxSender (EVENT_STREAMS_ENABLED=False)")
-                billing_sender = NoOpOutboxSender()
+                logger.info("Initializing NoOpSender (EVENT_STREAMS_ENABLED=False)")
+                billing_sender = NoOpSender()
             self._senders = {"billing": billing_sender}
         return self._senders
 

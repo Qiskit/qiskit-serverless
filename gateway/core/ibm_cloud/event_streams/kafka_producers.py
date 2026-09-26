@@ -11,9 +11,9 @@
 # that they have been altered from the originals.
 
 """Per-region Kafka producer connections and the topic name, built once from environment
-variables. Shared by KafkaEventStreamsClient (inline best-effort sends) and KafkaOutboxSender
-(outbox sends): one producer per region for the whole scheduler process, not one per class that
-happens to need Kafka.
+variables. Used by every KafkaSender instance (UpdateFleetsJobsStatuses' inline best-effort
+sends, and DrainOutbox's outbox sends), each of which owns its own KafkaProducers rather than
+sharing one: one producer per region per task that needs Kafka, not one for the whole process.
 """
 
 from __future__ import annotations

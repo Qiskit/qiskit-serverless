@@ -140,7 +140,7 @@ def _get_runner_config(
 
     # (3) Deprecated explicit compute profile. Rejected outright for a function with a
     # provider: this path never records a FunctionSize row, and the license fee message
-    # built at the job's terminal transition needs one (core/domain/billing_events.py).
+    # built at the job's terminal transition needs one (core/domain/usage_events.py).
     if compute_profile_requested:
         if function.provider_id is not None:
             raise FunctionConfigurationException(

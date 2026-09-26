@@ -6,9 +6,8 @@ from typing import cast
 
 from django.conf import settings
 
-from core.ibm_cloud.event_streams.abstract_event_streams_client import EventStreamsClient
-from core.ibm_cloud.event_streams.kafka_event_streams_client import KafkaEventStreamsClient
-from core.ibm_cloud.event_streams.noop_event_streams_client import NoOpEventStreamsClient
+from core.domain.usage_events import build_job_in_progress_message, build_job_started_message
+from core.ibm_cloud.event_streams.kafka_sender import KafkaSender, NoOpSender
 from core.models import Job, JobEvent, Program
 from core.services.runners import get_runner, RunnerError, FleetsRunner
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
@@ -26,19 +25,19 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
     def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
         self.kill_signal = kill_signal
         self.metrics = metrics
-        self._event_streams_client: EventStreamsClient | None = None
+        self._sender: KafkaSender | NoOpSender | None = None
 
     @property
-    def event_streams_client(self) -> EventStreamsClient:
-        """Return the Event Streams client, instantiating it lazily on first access."""
-        if self._event_streams_client is None:
+    def sender(self) -> KafkaSender | NoOpSender:
+        """Return the Kafka sender, instantiating it lazily on first access."""
+        if self._sender is None:
             if settings.EVENT_STREAMS_ENABLED:
-                logger.info("Initializing KafkaEventStreamsClient (EVENT_STREAMS_ENABLED=True)")
-                self._event_streams_client = KafkaEventStreamsClient()
+                logger.info("Initializing KafkaSender (EVENT_STREAMS_ENABLED=True)")
+                self._sender = KafkaSender()
             else:
-                logger.info("Initializing NoOpEventStreamsClient (EVENT_STREAMS_ENABLED=False)")
-                self._event_streams_client = NoOpEventStreamsClient()
-        return self._event_streams_client
+                logger.info("Initializing NoOpSender (EVENT_STREAMS_ENABLED=False)")
+                self._sender = NoOpSender()
+        return self._sender
 
     def update_job_status(self, job: Job) -> bool:
         """Update status of one Fleets job. Returns True if status changed."""
@@ -134,9 +133,9 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                 Job.RUNNING,
             )
             # This transition to RUNNING enqueues nothing in the outbox: outbox messages are
-            # only built on a terminal transition (core/models.py's change_status). The
-            # emit_job_started() call below is unrelated: a different billing fact (classical
-            # compute time), sent inline, best-effort, never through the outbox.
+            # only built on a terminal transition (core/models.py's change_status). Sending the
+            # job_started event below is unrelated: a different billing fact (classical compute
+            # time), built and sent inline, best-effort, never through the outbox.
             job.change_status(
                 origin=JobEventOrigin.SCHEDULER,
                 context=JobEventContext.UPDATE_JOB_STATUS,
@@ -144,7 +143,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             )
 
             try:
-                self.event_streams_client.emit_job_started(job)
+                self._send_job_started(job)
             except RuntimeError as ex:
                 logger.error(
                     "job_id=%s error emitting job_started event to Kafka, event dropped: %s",
@@ -152,11 +151,27 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                     str(ex),
                 )
         else:
-            # Job already RUNNING — emit in-progress before checking timeout.
+            # Job already RUNNING: send in-progress before checking timeout.
             # A job transitioning to terminal via stop_job_if_timeout in this same tick
             # will produce both an in-progress and a completed event; consumers key on
             # the job_started / job_completed flags.
-            self.event_streams_client.emit_job_in_progress(job)
+            self._send_job_in_progress(job)
+
+    def _send_job_started(self, job: Job) -> None:
+        """Build and send the job-started event, best-effort. A None payload (a filler job,
+        per build_job_started_message) means there is nothing to send."""
+        running_started_at = JobEvent.objects.first_running_at(job.id)
+        payload = build_job_started_message(job, datetime.now(timezone.utc), running_started_at)
+        if payload is not None:
+            self.sender.send(payload)
+
+    def _send_job_in_progress(self, job: Job) -> None:
+        """Build and send the job-in-progress event, best-effort. A None payload (a filler job,
+        per build_job_in_progress_message) means there is nothing to send."""
+        running_started_at = JobEvent.objects.first_running_at(job.id)
+        payload = build_job_in_progress_message(job, datetime.now(timezone.utc), running_started_at)
+        if payload is not None:
+            self.sender.send(payload)
 
     def stop_job_if_timeout(self, job: Job) -> None:
         """Stop job if it has exceeded the maximum allowed duration."""
