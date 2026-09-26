@@ -10,18 +10,18 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Per-region Kafka producer connections and the topic name, built once from environment
-variables. Used by every KafkaSender instance (UpdateFleetsJobsStatuses' inline best-effort
-sends, and DrainOutbox's outbox sends), each of which owns its own KafkaProducers rather than
-sharing one: one producer per region per task that needs Kafka, not one for the whole process.
+"""Per-region Kafka producer connections and the topic name, built once from Django settings.
+Used by every KafkaSender instance (UpdateFleetsJobsStatuses' inline best-effort sends, and
+DrainOutbox's outbox sends), each of which owns its own KafkaProducers rather than sharing one:
+one producer per region per task that needs Kafka, not one for the whole process.
 """
 
 from __future__ import annotations
 
 import logging
-import os
 
 from confluent_kafka import Producer
+from django.conf import settings
 
 logger = logging.getLogger("gateway.ibm_cloud.event_streams_client")
 
@@ -33,50 +33,41 @@ class UnroutableRegionError(RuntimeError):
 
 class KafkaProducers:
     """
-    Configured from environment variables per region:
-      EVENT_STREAMS_BOOTSTRAP_SERVERS         — comma-separated broker list (main region)
-      EVENT_STREAMS_API_KEY                   — SASL/PLAIN password (main region)
-      EVENT_STREAMS_USER                      — SASL/PLAIN username (default: 'token')
-      EVENT_STREAMS_BOOTSTRAP_SERVERS_<REGION> — broker list for additional regions
-      EVENT_STREAMS_API_KEY_<REGION>          — API key for additional regions
-      EVENT_STREAMS_USER_<REGION>             — SASL/PLAIN username for additional regions
-      EVENT_STREAMS_MAIN_REGION               — main region (default: us-east)
-      ENVIRONMENT                             — deployment environment (e.g. production, staging)
+    Configured from Django settings (main/settings.py) per region:
+      settings.EVENT_STREAMS_BOOTSTRAP_SERVERS — comma-separated broker list (main region)
+      settings.EVENT_STREAMS_API_KEY            — SASL/PLAIN password (main region)
+      settings.EVENT_STREAMS_USER               — SASL/PLAIN username (default: 'token')
+      settings.EVENT_STREAMS_REGIONS            — {region: {bootstrap_servers, api_key, user}}
+                                                    for additional regions, discovered from
+                                                    suffixed environment variables at settings
+                                                    import time
+      settings.EVENT_STREAMS_MAIN_REGION        — main region (default: us-east)
+      settings.ENVIRONMENT                      — deployment environment (e.g. production, staging)
+
+    settings.py itself already fails closed at import time if EVENT_STREAMS_ENABLED is true and
+    the main credentials are missing, so this constructor (only ever called once that flag is
+    true, see KafkaSender) can trust they are present and does not repeat that check.
     """
 
     def __init__(self) -> None:
-        environment = os.environ["ENVIRONMENT"]
+        environment = settings.ENVIRONMENT
+        if not environment:
+            raise ValueError("ENVIRONMENT setting is required")
 
         self._producers: dict[str, Producer] = {}
 
-        main_bootstrap_servers = os.environ.get("EVENT_STREAMS_BOOTSTRAP_SERVERS")
-        main_api_key = os.environ.get("EVENT_STREAMS_API_KEY")
-        main_user = os.environ.get("EVENT_STREAMS_USER", "token")
-        main_region = os.environ.get("EVENT_STREAMS_MAIN_REGION", "us-east")
+        main_region = settings.EVENT_STREAMS_MAIN_REGION
+        logger.info("Registering main region producer: region=%s", main_region)
+        self._producers[main_region] = self._create_producer(
+            settings.EVENT_STREAMS_BOOTSTRAP_SERVERS, settings.EVENT_STREAMS_API_KEY, settings.EVENT_STREAMS_USER
+        )
+        self._main_region = main_region
 
-        if main_bootstrap_servers and main_api_key:
-            logger.info("Registering main region producer: region=%s", main_region)
-            self._producers[main_region] = self._create_producer(main_bootstrap_servers, main_api_key, main_user)
-            self._main_region = main_region
-        else:
-            raise ValueError("EVENT_STREAMS_BOOTSTRAP_SERVERS and EVENT_STREAMS_API_KEY are required")
-
-        for env_key in os.environ:
-            if env_key.startswith("EVENT_STREAMS_BOOTSTRAP_SERVERS_"):
-                suffix = env_key[len("EVENT_STREAMS_BOOTSTRAP_SERVERS_") :]
-                region = suffix.lower().replace("_", "-")
-                logger.info("Discovered environment variable for region: env_key=%s region=%s", env_key, region)
-                bootstrap_servers = os.environ[env_key]
-                api_key_env = f"EVENT_STREAMS_API_KEY_{suffix}"
-                user_env = f"EVENT_STREAMS_USER_{suffix}"
-                api_key = os.environ.get(api_key_env)
-                user = os.environ.get(user_env, "token")
-
-                if api_key is None:
-                    raise ValueError(f"Region {region}: found {env_key} but missing {api_key_env}")
-
-                logger.info("Registering regional producer: region=%s", region)
-                self._producers[region] = self._create_producer(bootstrap_servers, api_key, user)
+        for region, config in settings.EVENT_STREAMS_REGIONS.items():
+            logger.info("Registering regional producer: region=%s", region)
+            self._producers[region] = self._create_producer(
+                config["bootstrap_servers"], config["api_key"], config["user"]
+            )
 
         self.topic = f"quantum.{environment}.function-usage.v1"
 

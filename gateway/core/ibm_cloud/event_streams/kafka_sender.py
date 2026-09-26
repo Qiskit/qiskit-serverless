@@ -12,7 +12,7 @@
 
 """Sender for every Kafka message this codebase publishes: an already-built payload goes out
 unchanged, except for the `type` field (the Kafka topic name), which is added here, at send
-time, not by whichever builder made the payload (see core/domain/usage_events.py for that).
+time, not by whichever builder made the payload (see core/domain/billing_events.py for that).
 Every retry of the same payload therefore adds the same `type`, so a message that gets retried
 (from the outbox) stays byte-identical across attempts.
 

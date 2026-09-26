@@ -1,16 +1,11 @@
-"""Unit tests for the usage event builders. Pure functions: everything constructed in memory,
-no database access, no pytest.mark.django_db."""
+"""Unit tests for BillingEvents' message builders. Pure functions: everything constructed in
+memory, no database access, no pytest.mark.django_db."""
 
 import logging
 from datetime import datetime, timedelta, timezone
 
+from core.domain.billing_events import BillingEvents
 from core.domain.business_models import BusinessModel
-from core.domain.usage_events import (
-    build_billing_event_message,
-    build_job_in_progress_message,
-    build_job_started_message,
-    build_license_fee_message,
-)
 from core.models import ComputeProfile, FunctionSize, Job, Program, Provider
 
 
@@ -25,12 +20,12 @@ def _job(**overrides) -> Job:
     return Job(**defaults)
 
 
-class TestBuildJobStartedMessage:
+class TestBuildJobStarted:
     def test_reports_zero_usage_regardless_of_running_started_at(self):
         job = _job()
         as_of = datetime(2026, 9, 25, 12, 0, 0, tzinfo=timezone.utc)
 
-        message = build_job_started_message(job, as_of, running_started_at=None)
+        message = BillingEvents.build_job_started(job, as_of, running_started_at=None)
 
         assert message["data"] == {
             "metric_type": "classical_16x128",
@@ -46,37 +41,30 @@ class TestBuildJobStartedMessage:
         job = _job()
         running_started_at = datetime(2026, 9, 25, 11, 59, 0, tzinfo=timezone.utc)
 
-        message = build_job_started_message(job, running_started_at, running_started_at=running_started_at)
+        message = BillingEvents.build_job_started(job, running_started_at, running_started_at=running_started_at)
 
         assert message["data"]["job_started_at"] == running_started_at.isoformat()
 
     def test_metric_type_includes_compute_profile(self):
         job = _job(compute_profile="16x128")
 
-        message = build_job_started_message(job, datetime.now(timezone.utc), running_started_at=None)
+        message = BillingEvents.build_job_started(job, datetime.now(timezone.utc), running_started_at=None)
 
         assert message["data"]["metric_type"] == "classical_16x128"
 
     def test_metric_type_override_is_used_verbatim(self):
         job = _job()
 
-        message = build_job_started_message(
+        message = BillingEvents.build_job_started(
             job, datetime.now(timezone.utc), running_started_at=None, metric_type="classical_24x120"
         )
 
         assert message["data"]["metric_type"] == "classical_24x120"
 
-    def test_none_for_a_filler_job(self):
-        job = _job(filler=True)
-
-        message = build_job_started_message(job, datetime.now(timezone.utc), running_started_at=None)
-
-        assert message is None
-
     def test_envelope_omits_type(self):
         job = _job()
 
-        message = build_job_started_message(job, datetime.now(timezone.utc), running_started_at=None)
+        message = BillingEvents.build_job_started(job, datetime.now(timezone.utc), running_started_at=None)
 
         assert "type" not in message  # added later by the sender, not here
         assert message["subject"] == str(job.id)
@@ -85,13 +73,13 @@ class TestBuildJobStartedMessage:
         assert message["datacontenttype"] == "application/json"
 
 
-class TestBuildJobInProgressMessage:
+class TestBuildJobInProgress:
     def test_computes_seconds_from_running_started_at_to_as_of(self):
         job = _job()
         running_started_at = datetime(2026, 9, 25, 11, 59, 0, tzinfo=timezone.utc)
         as_of = running_started_at + timedelta(seconds=5)
 
-        message = build_job_in_progress_message(job, as_of, running_started_at=running_started_at)
+        message = BillingEvents.build_job_in_progress(job, as_of, running_started_at=running_started_at)
 
         assert message["data"] == {
             "metric_type": "classical_16x128",
@@ -106,7 +94,7 @@ class TestBuildJobInProgressMessage:
     def test_reports_zero_usage_when_never_running(self):
         job = _job()
 
-        message = build_job_in_progress_message(
+        message = BillingEvents.build_job_in_progress(
             job, datetime(2026, 9, 25, 12, 0, 0, tzinfo=timezone.utc), running_started_at=None
         )
 
@@ -119,21 +107,14 @@ class TestBuildJobInProgressMessage:
         running_started_at = datetime(2026, 9, 25, 12, 0, 5, tzinfo=timezone.utc)
         as_of = running_started_at - timedelta(seconds=5)
 
-        message = build_job_in_progress_message(job, as_of, running_started_at=running_started_at)
+        message = BillingEvents.build_job_in_progress(job, as_of, running_started_at=running_started_at)
 
         assert message["data"]["metric_value"] == 0
-
-    def test_none_for_a_filler_job(self):
-        job = _job(filler=True)
-
-        message = build_job_in_progress_message(job, datetime.now(timezone.utc), running_started_at=None)
-
-        assert message is None
 
     def test_envelope_omits_type(self):
         job = _job()
 
-        message = build_job_in_progress_message(job, datetime.now(timezone.utc), running_started_at=None)
+        message = BillingEvents.build_job_in_progress(job, datetime.now(timezone.utc), running_started_at=None)
 
         assert "type" not in message  # added later by the sender, not here
         assert message["subject"] == str(job.id)
@@ -142,12 +123,12 @@ class TestBuildJobInProgressMessage:
         assert message["datacontenttype"] == "application/json"
 
 
-class TestBuildBillingEventMessage:
+class TestBuildBillingEvent:
     def test_reports_zero_seconds_when_the_job_never_ran(self):
         job = _job()
         as_of = datetime(2026, 9, 25, 12, 0, 0, tzinfo=timezone.utc)
 
-        message = build_billing_event_message(job, as_of, running_started_at=None)
+        message = BillingEvents.build_billing_event(job, as_of, running_started_at=None)
 
         assert message["data"]["metric_value"] == 0
         assert message["data"]["job_started_at"] is None
@@ -158,7 +139,7 @@ class TestBuildBillingEventMessage:
         running_started_at = datetime(2026, 9, 25, 11, 59, 0, tzinfo=timezone.utc)
         as_of = running_started_at + timedelta(seconds=90)
 
-        message = build_billing_event_message(job, as_of, running_started_at=running_started_at)
+        message = BillingEvents.build_billing_event(job, as_of, running_started_at=running_started_at)
 
         assert message["data"]["metric_value"] == 90
 
@@ -167,7 +148,7 @@ class TestBuildBillingEventMessage:
         running_started_at = datetime(2026, 9, 25, 11, 59, 0, tzinfo=timezone.utc)
         as_of = running_started_at + timedelta(seconds=90, milliseconds=200)
 
-        message = build_billing_event_message(job, as_of, running_started_at=running_started_at)
+        message = BillingEvents.build_billing_event(job, as_of, running_started_at=running_started_at)
 
         assert message["data"]["metric_value"] == 91
 
@@ -177,14 +158,14 @@ class TestBuildBillingEventMessage:
         running_started_at = datetime(2026, 9, 25, 12, 0, 0, tzinfo=timezone.utc)
         as_of = running_started_at - timedelta(seconds=5)
 
-        message = build_billing_event_message(job, as_of, running_started_at=running_started_at)
+        message = BillingEvents.build_billing_event(job, as_of, running_started_at=running_started_at)
 
         assert message["data"]["metric_value"] == 0
 
     def test_envelope_identifies_the_job_and_omits_type(self):
         job = _job()
 
-        message = build_billing_event_message(job, datetime.now(timezone.utc), running_started_at=None)
+        message = BillingEvents.build_billing_event(job, datetime.now(timezone.utc), running_started_at=None)
 
         assert message["subject"] == str(job.id)
         assert message["data"]["resource_id"] == str(job.id)
@@ -194,23 +175,23 @@ class TestBuildBillingEventMessage:
     def test_metric_type_includes_compute_profile(self):
         job = _job(compute_profile="16x128")
 
-        message = build_billing_event_message(job, datetime.now(timezone.utc), running_started_at=None)
+        message = BillingEvents.build_billing_event(job, datetime.now(timezone.utc), running_started_at=None)
 
         assert message["data"]["metric_type"] == "classical_16x128"
 
 
-class TestBuildLicenseFeeMessage:
+class TestBuildLicenseFee:
     def test_none_when_the_function_has_no_provider(self):
         job = _job(program=Program(title="my-fn", provider=None))
 
-        message = build_license_fee_message(job, datetime.now(timezone.utc), running_started_at=None)
+        message = BillingEvents.build_license_fee(job, datetime.now(timezone.utc), running_started_at=None)
 
         assert message is None
 
     def test_none_when_the_program_is_missing(self):
         job = _job(program=None)
 
-        message = build_license_fee_message(job, datetime.now(timezone.utc), running_started_at=None)
+        message = BillingEvents.build_license_fee(job, datetime.now(timezone.utc), running_started_at=None)
 
         assert message is None
 
@@ -219,7 +200,7 @@ class TestBuildLicenseFeeMessage:
         job = _job(program=Program(title="my-fn", provider=provider), function_size=None)
 
         with caplog.at_level(logging.ERROR):
-            message = build_license_fee_message(job, datetime.now(timezone.utc), running_started_at=None)
+            message = BillingEvents.build_license_fee(job, datetime.now(timezone.utc), running_started_at=None)
 
         assert message is None
         assert "waiving the fee" in caplog.text
@@ -231,7 +212,9 @@ class TestBuildLicenseFeeMessage:
         job = _job(program=program, function_size=function_size)
         running_started_at = datetime(2026, 9, 25, 11, 0, 0, tzinfo=timezone.utc)
 
-        message = build_license_fee_message(job, datetime.now(timezone.utc), running_started_at=running_started_at)
+        message = BillingEvents.build_license_fee(
+            job, datetime.now(timezone.utc), running_started_at=running_started_at
+        )
 
         assert message["data"]["metric_type"] == "license_ibm-dev_my-fn_m"
         assert message["data"]["metric_value"] == 1

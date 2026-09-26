@@ -26,7 +26,7 @@ def _make_task(sender=None) -> DrainOutbox:
     Config.set(ConfigKey.OUTBOX_ENABLED, "true")
     task = DrainOutbox(KillSignal(), MagicMock(spec=SchedulerMetrics))
     if sender is not None:
-        task._senders = {"billing": sender}
+        task.senders = {"billing": sender}
     return task
 
 
@@ -106,7 +106,7 @@ class TestBreakerIsolationBetweenChannels:
         billing_sender.send.side_effect = RuntimeError("kafka down")
         workload_sender = MagicMock()
         task = _make_task()
-        task._senders = {"billing": billing_sender, "workload": workload_sender}
+        task.senders = {"billing": billing_sender, "workload": workload_sender}
         billing_row = _make_row()  # channel="billing", will fail
         workload_row = Outbox.objects.create(job=_make_job(), channel="workload", payload={})
 
@@ -120,7 +120,7 @@ class TestBreakerIsolationBetweenChannels:
         billing_sender.send.side_effect = RuntimeError("kafka down")
         workload_sender = MagicMock()
         task = _make_task()
-        task._senders = {"billing": billing_sender, "workload": workload_sender}
+        task.senders = {"billing": billing_sender, "workload": workload_sender}
         Config.set(ConfigKey.OUTBOX_BREAKER_FAILURES, "1")
         _make_row()  # trips the billing breaker on this first run()
         task.run()

@@ -63,9 +63,10 @@ enqueues whichever outbox messages this transition owes, and only then updates t
 
 A row is only ever created on a transition to a terminal status (`SUCCEEDED`,
 `FAILED`, `STOPPED`), and only for a job eligible for the outbox pipeline at all:
-`_eligible_for_outbox()` requires the job to run on **Fleets** (not Ray, which is
-being removed and never gets a row), to **not** be a filler job, and to carry an
-**instance CRN**. Nothing is built or enqueued on the transition to `RUNNING`.
+the first guard inside `_enqueue_billing_messages` requires the job to run on
+**Fleets** (not Ray, which is being removed and never gets a row), to **not** be a
+filler job, and to carry an **instance CRN**. Nothing is built or enqueued on the
+transition to `RUNNING`.
 
 `change_status` makes exactly one query to decide eligibility and to supply content
 for both messages: `JobEvent.objects.first_running_at(job.id)`. This single query
@@ -74,12 +75,12 @@ run" and no second query to find out.
 
 ### Did the job run: the rule that decides the license fee message
 
-The final usage event (`build_billing_event_message`) is always built on an eligible
-terminal transition, whatever the outcome: even a job cancelled while still queued
-gets one, reporting zero usage seconds.
+The final usage event (`BillingEvents.build_billing_event`) is always built on an
+eligible terminal transition, whatever the outcome: even a job cancelled while still
+queued gets one, reporting zero usage seconds.
 
-The license fee message (`build_license_fee_message`) is only built when the job is
-known to have run:
+The license fee message (`BillingEvents.build_license_fee`) is only built when the job
+is known to have run:
 
 - On a transition to `SUCCEEDED`, the job ran by definition, so the builder is always
   called (with `running_started_at`, which can still be `None` if the job went
@@ -88,10 +89,10 @@ known to have run:
   `first_running_at()` returned a value, that is, the job passed through `RUNNING` at
   least once before failing or being stopped.
 
-Both builders live in `gateway/core/domain/usage_events.py`, alongside the two that
+Both builders live in `gateway/core/domain/billing_events.py`, alongside the two that
 build the inline events, and are pure: they take `job`, `as_of` (the just-created
 `JobEvent`'s own `created` timestamp, for these two), and `running_started_at`, and
-return a dict (or `None`), without querying the database themselves. `build_license_fee_message` returns
+return a dict (or `None`), without querying the database themselves. `BillingEvents.build_license_fee` returns
 `None` silently in two cases that are both treated as "this function owes no fee": the
 function has no provider, or its `Program` has itself been deleted (`SET_NULL`) so
 whether it had a provider can no longer even be checked. It returns `None` after
@@ -136,7 +137,7 @@ feeds the channel's breaker.
 `KafkaSender` (`gateway/core/ibm_cloud/event_streams/kafka_sender.py`) is the
 `"billing"` sender: it adds the Kafka topic name to the payload's `type` field and
 publishes it via `KafkaProducers`. The same class also sends the two inline events
-(`UpdateFleetsJobsStatuses` builds via `usage_events.py` and calls `sender.send(...)`
+(`UpdateFleetsJobsStatuses` builds via `billing_events.py` and calls `sender.send(...)`
 directly, without going through this table): the sender never builds anything itself
 and does not know which of the two cases it is in.
 
@@ -199,7 +200,7 @@ case it measured that is still an anomaly today, a licensed function whose
 it shrank from "the whole time a row sat in the outbox" to "the duration of one
 database transaction" once messages are built inside `change_status` rather than at
 send time. It is now visible only through a `logger.error(...)` call from
-`build_license_fee_message`, not through a metric: `core` cannot import
+`BillingEvents.build_license_fee`, not through a metric: `core` cannot import
 `SchedulerMetrics` from `scheduler`, and `import-linter` enforces that boundary. A
 deleted `Program` (so a function with no known provider) is not part of this: it is
 treated as the normal "this job owes no fee" case, silently, with no log line at all.

@@ -33,21 +33,8 @@ class DrainOutbox(SchedulerTask):
     def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
         self.kill_signal = kill_signal
         self.metrics = metrics
-        self._senders: dict[str, object] | None = None
+        self.senders: dict[str, object] = {"billing": KafkaSender() if settings.EVENT_STREAMS_ENABLED else NoOpSender()}
         self._breakers: dict[str, CircuitBreaker] = {}
-
-    @property
-    def senders(self) -> dict[str, object]:
-        """The registered {channel: sender}, built lazily on first access."""
-        if self._senders is None:
-            if settings.EVENT_STREAMS_ENABLED:
-                logger.info("Initializing KafkaSender (EVENT_STREAMS_ENABLED=True)")
-                billing_sender = KafkaSender()
-            else:
-                logger.info("Initializing NoOpSender (EVENT_STREAMS_ENABLED=False)")
-                billing_sender = NoOpSender()
-            self._senders = {"billing": billing_sender}
-        return self._senders
 
     def _breaker_for(self, channel: str) -> CircuitBreaker:
         if channel not in self._breakers:
@@ -82,34 +69,29 @@ class DrainOutbox(SchedulerTask):
         # currently pending row; it gets picked up again on the next tick.
         attempted_pks: set = set()
 
-        while True:
-            if self._should_stop_draining(channel, breaker, deadline):
-                return
-
-            queryset = Outbox.objects.filter(channel=channel)
-            if attempted_pks:
-                queryset = queryset.exclude(pk__in=attempted_pks)
+        while self._should_continue_draining(channel, breaker, deadline):
+            queryset = Outbox.objects.filter(channel=channel).exclude(pk__in=attempted_pks)
             batch = list(queryset.order_by("created")[:BATCH_SIZE])
             if not batch:
                 return
 
             for row in batch:
-                if self._should_stop_draining(channel, breaker, deadline):
+                if not self._should_continue_draining(channel, breaker, deadline):
                     return
                 self._send_row(row, sender, breaker)
                 attempted_pks.add(row.pk)
 
-    def _should_stop_draining(self, channel: str, breaker: CircuitBreaker, deadline: float) -> bool:
+    def _should_continue_draining(self, channel: str, breaker: CircuitBreaker, deadline: float) -> bool:
         if self.kill_signal.received:
             logger.info("Kill signal received, stopping outbox drain for channel=%s", channel)
-            return True
+            return False
         if time.monotonic() >= deadline:
             logger.info("Time budget spent, stopping outbox drain for channel=%s this tick", channel)
-            return True
+            return False
         if breaker.is_open:
             logger.info("Circuit breaker opened, stopping outbox drain for channel=%s", channel)
-            return True
-        return False
+            return False
+        return True
 
     def _send_row(self, row: Outbox, sender, breaker: CircuitBreaker) -> None:
         """fact is billing-specific vocabulary (license_fee vs billing_event), read from the

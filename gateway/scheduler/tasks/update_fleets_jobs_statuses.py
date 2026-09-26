@@ -6,7 +6,7 @@ from typing import cast
 
 from django.conf import settings
 
-from core.domain.usage_events import build_job_in_progress_message, build_job_started_message
+from core.domain.billing_events import BillingEvents
 from core.ibm_cloud.event_streams.kafka_sender import KafkaSender, NoOpSender
 from core.models import Job, JobEvent, Program
 from core.services.runners import get_runner, RunnerError, FleetsRunner
@@ -158,28 +158,24 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             self._send_job_in_progress(job)
 
     def _send_job_started(self, job: Job) -> None:
-        """Build and send the job-started event, best-effort. build_job_started_message already
-        returns None for a filler job, but the filler check is repeated here, first, so a filler
-        job (which every RUNNING/PENDING Fleets job query includes) skips the JobEvent query
-        too, not just the send."""
+        """Build and send the job-started event, best-effort. BillingEvents.build_job_started
+        assumes it is never called for a filler job, so that check happens here, first, before
+        even the JobEvent query, not just before the send."""
         if job.filler:
             return
         running_started_at = JobEvent.objects.first_running_at(job.id)
-        payload = build_job_started_message(job, datetime.now(timezone.utc), running_started_at)
-        if payload is not None:
-            self.sender.send(payload)
+        payload = BillingEvents.build_job_started(job, datetime.now(timezone.utc), running_started_at)
+        self.sender.send(payload)
 
     def _send_job_in_progress(self, job: Job) -> None:
-        """Build and send the job-in-progress event, best-effort. build_job_in_progress_message
-        already returns None for a filler job, but the filler check is repeated here, first, so
-        a filler job (which every RUNNING/PENDING Fleets job query includes) skips the JobEvent
-        query too, not just the send."""
+        """Build and send the job-in-progress event, best-effort. BillingEvents.build_job_in_progress
+        assumes it is never called for a filler job, so that check happens here, first, before
+        even the JobEvent query, not just before the send."""
         if job.filler:
             return
         running_started_at = JobEvent.objects.first_running_at(job.id)
-        payload = build_job_in_progress_message(job, datetime.now(timezone.utc), running_started_at)
-        if payload is not None:
-            self.sender.send(payload)
+        payload = BillingEvents.build_job_in_progress(job, datetime.now(timezone.utc), running_started_at)
+        self.sender.send(payload)
 
     def stop_job_if_timeout(self, job: Job) -> None:
         """Stop job if it has exceeded the maximum allowed duration."""

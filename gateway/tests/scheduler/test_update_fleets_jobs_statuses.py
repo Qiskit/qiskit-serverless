@@ -20,7 +20,7 @@ def _make_task():
     task = UpdateFleetsJobsStatuses.__new__(UpdateFleetsJobsStatuses)
     task.kill_signal = kill_signal
     task.metrics = MagicMock()
-    # _send_job_started/_send_job_in_progress build (core/domain/usage_events.py) and send in one
+    # _send_job_started/_send_job_in_progress build (core/domain/billing_events.py) and send in one
     # call; mocking them here, instead of a collaborator "client" object, is what lets every test
     # below assert on "was a send attempted" without needing a real JobEvent query or a real job
     # shaped exactly right for the builders. The two tests that exercise the real build-and-send
@@ -584,7 +584,7 @@ class TestEventStreamsIntegration:
 
 class TestBuildAndSend:
     """Integration tests for _send_job_started/_send_job_in_progress: the real builders
-    (core/domain/usage_events.py) and a mocked sender, not the mocked private methods
+    (core/domain/billing_events.py) and a mocked sender, not the mocked private methods
     _make_task() sets up for everything else in this file."""
 
     def _make_task_with_real_sender(self):
@@ -623,8 +623,8 @@ class TestBuildAndSend:
         assert payload["data"]["job_completed"] is False
 
     def test_a_filler_job_sends_neither_event(self):
-        """build_job_started_message/build_job_in_progress_message return None for a filler
-        job; _send_job_started/_send_job_in_progress must not call the sender with None."""
+        """_send_job_started/_send_job_in_progress check job.filler themselves, before ever
+        calling a builder that assumes it is never given a filler job."""
         task = self._make_task_with_real_sender()
         job = _make_fleets_job(status=Job.RUNNING)
         job.filler = True

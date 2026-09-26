@@ -1,9 +1,8 @@
-"""Unit tests for KafkaProducers: producer/topic setup from environment variables, and region
+"""Unit tests for KafkaProducers: producer/topic setup from Django settings, and region
 routing. This logic used to live on the client class that sent events inline; it moved here once
 KafkaSender needed the exact same producer/region routing for the outbox."""
 
 import logging
-import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -13,18 +12,22 @@ from core.ibm_cloud.event_streams.kafka_producers import KafkaProducers, Unrouta
 _MOD = "core.ibm_cloud.event_streams.kafka_producers"
 
 
+def _configure(settings, **overrides):
+    """Set the Event Streams settings KafkaProducers reads, with sane defaults."""
+    settings.ENVIRONMENT = overrides.get("environment", "staging")
+    settings.EVENT_STREAMS_BOOTSTRAP_SERVERS = overrides.get("bootstrap_servers", "broker1:9093")
+    settings.EVENT_STREAMS_API_KEY = overrides.get("api_key", "my-key")
+    settings.EVENT_STREAMS_USER = overrides.get("user", "token")
+    settings.EVENT_STREAMS_MAIN_REGION = overrides.get("main_region", "us-east")
+    settings.EVENT_STREAMS_REGIONS = overrides.get("regions", {})
+
+
 class TestKafkaProducersSetup:
-    def test_producer_configured_with_sasl_plain_tls(self):
+    def test_producer_configured_with_sasl_plain_tls(self, settings):
+        _configure(settings, bootstrap_servers="broker1:9093", api_key="my-key", environment="staging")
+
         with patch(f"{_MOD}.Producer") as mock_producer_cls:
-            with patch.dict(
-                os.environ,
-                {
-                    "EVENT_STREAMS_BOOTSTRAP_SERVERS": "broker1:9093",
-                    "EVENT_STREAMS_API_KEY": "my-key",
-                    "ENVIRONMENT": "staging",
-                },
-            ):
-                KafkaProducers()
+            KafkaProducers()
 
         mock_producer_cls.assert_called_once_with(
             {
@@ -38,32 +41,25 @@ class TestKafkaProducersSetup:
             }
         )
 
-    def test_topic_constructed_from_environment(self):
+    def test_topic_constructed_from_environment(self, settings):
+        _configure(settings, bootstrap_servers="b:9093", api_key="k", environment="staging")
+
         with patch(f"{_MOD}.Producer"):
-            with patch.dict(
-                os.environ,
-                {
-                    "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
-                    "EVENT_STREAMS_API_KEY": "k",
-                    "ENVIRONMENT": "staging",
-                },
-            ):
-                producers = KafkaProducers()
+            producers = KafkaProducers()
 
         assert producers.topic == "quantum.staging.function-usage.v1"
 
-    def test_custom_user_in_main_region(self):
+    def test_custom_user_in_main_region(self, settings):
+        _configure(
+            settings,
+            bootstrap_servers="broker1:9093",
+            api_key="my-key",
+            user="custom-user",
+            environment="staging",
+        )
+
         with patch(f"{_MOD}.Producer") as mock_producer_cls:
-            with patch.dict(
-                os.environ,
-                {
-                    "EVENT_STREAMS_BOOTSTRAP_SERVERS": "broker1:9093",
-                    "EVENT_STREAMS_API_KEY": "my-key",
-                    "EVENT_STREAMS_USER": "custom-user",
-                    "ENVIRONMENT": "staging",
-                },
-            ):
-                KafkaProducers()
+            KafkaProducers()
 
         mock_producer_cls.assert_called_once_with(
             {
@@ -77,22 +73,18 @@ class TestKafkaProducersSetup:
             }
         )
 
-    def test_custom_user_in_regional_producer(self):
+    def test_custom_user_in_regional_producer(self, settings):
+        _configure(
+            settings,
+            bootstrap_servers="broker-main:9093",
+            api_key="main-key",
+            user="main-user",
+            environment="production",
+            regions={"au-syd": {"bootstrap_servers": "broker-au:9093", "api_key": "au-key", "user": "custom-au-user"}},
+        )
+
         with patch(f"{_MOD}.Producer") as mock_producer_cls:
-            with patch.dict(
-                os.environ,
-                {
-                    "EVENT_STREAMS_BOOTSTRAP_SERVERS": "broker-main:9093",
-                    "EVENT_STREAMS_API_KEY": "main-key",
-                    "EVENT_STREAMS_USER": "main-user",
-                    "EVENT_STREAMS_BOOTSTRAP_SERVERS_AU_SYD": "broker-au:9093",
-                    "EVENT_STREAMS_API_KEY_AU_SYD": "au-key",
-                    "EVENT_STREAMS_USER_AU_SYD": "custom-au-user",
-                    "ENVIRONMENT": "production",
-                },
-                clear=True,
-            ):
-                KafkaProducers()
+            KafkaProducers()
 
         calls = mock_producer_cls.call_args_list
         assert len(calls) == 2
@@ -101,110 +93,67 @@ class TestKafkaProducersSetup:
         assert main_call[0][0]["sasl.username"] == "main-user"
         assert au_call[0][0]["sasl.username"] == "custom-au-user"
 
-    def test_main_region_producer_from_unsuffixed_vars(self):
+    def test_main_region_producer_created(self, settings):
+        _configure(settings, bootstrap_servers="broker1:9093", api_key="main-key", environment="production")
+
         with patch(f"{_MOD}.Producer") as mock_producer_cls:
-            with patch.dict(
-                os.environ,
-                {
-                    "EVENT_STREAMS_BOOTSTRAP_SERVERS": "broker1:9093",
-                    "EVENT_STREAMS_API_KEY": "main-key",
-                    "ENVIRONMENT": "production",
-                },
-                clear=True,
-            ):
-                producers = KafkaProducers()
+            producers = KafkaProducers()
 
         assert "us-east" in producers._producers
         mock_producer_cls.assert_called_once()
 
-    def test_suffixed_vars_discovered_by_scan(self):
+    def test_regional_producers_created_from_settings(self, settings):
+        _configure(
+            settings,
+            bootstrap_servers="broker-main:9093",
+            api_key="main-key",
+            environment="production",
+            regions={"eu-de": {"bootstrap_servers": "broker-eu:9093", "api_key": "eu-key", "user": "token"}},
+        )
+
         with patch(f"{_MOD}.Producer") as mock_producer_cls:
-            with patch.dict(
-                os.environ,
-                {
-                    "EVENT_STREAMS_BOOTSTRAP_SERVERS": "broker-main:9093",
-                    "EVENT_STREAMS_API_KEY": "main-key",
-                    "EVENT_STREAMS_BOOTSTRAP_SERVERS_EU_DE": "broker-eu:9093",
-                    "EVENT_STREAMS_API_KEY_EU_DE": "eu-key",
-                    "ENVIRONMENT": "production",
-                },
-                clear=True,
-            ):
-                producers = KafkaProducers()
+            producers = KafkaProducers()
 
         assert "eu-de" in producers._producers
         assert mock_producer_cls.call_count == 2
 
-    def test_event_streams_main_region_respected(self):
+    def test_event_streams_main_region_respected(self, settings):
+        _configure(
+            settings,
+            bootstrap_servers="broker1:9093",
+            api_key="key",
+            main_region="eu-gb",
+            environment="production",
+        )
+
         with patch(f"{_MOD}.Producer"):
-            with patch.dict(
-                os.environ,
-                {
-                    "EVENT_STREAMS_BOOTSTRAP_SERVERS": "broker1:9093",
-                    "EVENT_STREAMS_API_KEY": "key",
-                    "EVENT_STREAMS_MAIN_REGION": "eu-gb",
-                    "ENVIRONMENT": "production",
-                },
-                clear=True,
-            ):
-                producers = KafkaProducers()
+            producers = KafkaProducers()
 
         assert producers._main_region == "eu-gb"
         assert "eu-gb" in producers._producers
 
-    def test_broker_list_without_matching_api_key_raises_at_init(self):
-        with patch(f"{_MOD}.Producer"):
-            with patch.dict(
-                os.environ,
-                {
-                    "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
-                    "EVENT_STREAMS_API_KEY": "k",
-                    "EVENT_STREAMS_BOOTSTRAP_SERVERS_EU_DE": "broker-eu:9093",
-                    "ENVIRONMENT": "production",
-                },
-                clear=True,
-            ):
-                with pytest.raises(ValueError, match="missing EVENT_STREAMS_API_KEY_EU_DE"):
-                    KafkaProducers()
+    def test_missing_environment_raises_at_init(self, settings):
+        _configure(settings, bootstrap_servers="b:9093", api_key="k", environment=None)
 
-    def test_startup_log_line(self, caplog):
+        with pytest.raises(ValueError, match="ENVIRONMENT setting is required"):
+            KafkaProducers()
+
+    def test_startup_log_line(self, settings, caplog):
+        _configure(
+            settings,
+            bootstrap_servers="broker-main:9093",
+            api_key="main-key",
+            environment="production",
+            regions={"eu-de": {"bootstrap_servers": "broker-eu:9093", "api_key": "eu-key", "user": "token"}},
+        )
+
         with patch(f"{_MOD}.Producer"):
-            with patch.dict(
-                os.environ,
-                {
-                    "EVENT_STREAMS_BOOTSTRAP_SERVERS": "broker-main:9093",
-                    "EVENT_STREAMS_API_KEY": "main-key",
-                    "EVENT_STREAMS_BOOTSTRAP_SERVERS_EU_DE": "broker-eu:9093",
-                    "EVENT_STREAMS_API_KEY_EU_DE": "eu-key",
-                    "ENVIRONMENT": "production",
-                },
-                clear=True,
-            ):
-                with caplog.at_level(logging.INFO):
-                    KafkaProducers()
+            with caplog.at_level(logging.INFO):
+                KafkaProducers()
 
         assert "Event Streams producers initialized" in caplog.text
         assert "regions=" in caplog.text
         assert "main=us-east" in caplog.text
-
-    def test_suffixed_env_var_eu_de_maps_to_eu_de_region(self):
-        """EVENT_STREAMS_BOOTSTRAP_SERVERS_EU_DE maps to region 'eu-de' (not '_')."""
-        with patch(f"{_MOD}.Producer"):
-            with patch.dict(
-                os.environ,
-                {
-                    "EVENT_STREAMS_BOOTSTRAP_SERVERS": "broker-main:9093",
-                    "EVENT_STREAMS_API_KEY": "main-key",
-                    "EVENT_STREAMS_BOOTSTRAP_SERVERS_EU_DE": "broker-eu:9093",
-                    "EVENT_STREAMS_API_KEY_EU_DE": "eu-key",
-                    "ENVIRONMENT": "production",
-                },
-                clear=True,
-            ):
-                producers = KafkaProducers()
-
-        assert "eu-de" in producers._producers
-        assert "_" not in producers._producers
 
 
 class TestKafkaProducersRegionLookup:
@@ -219,7 +168,7 @@ class TestKafkaProducersRegionLookup:
         assert KafkaProducers._region_from_crn("") is None
         assert KafkaProducers._region_from_crn("not:a:valid:crn") is None
 
-    def test_get_selects_the_right_producer_by_region(self):
+    def test_get_selects_the_right_producer_by_region(self, settings):
         mock_producer_main = MagicMock()
         mock_producer_regional = MagicMock()
 
@@ -230,67 +179,45 @@ class TestKafkaProducersRegionLookup:
                 return mock_producer_regional
             return MagicMock()
 
+        _configure(
+            settings,
+            bootstrap_servers="broker-main:9093",
+            api_key="main-key",
+            environment="production",
+            regions={
+                "au-syd": {"bootstrap_servers": "broker-regional:9093", "api_key": "regional-key", "user": "token"}
+            },
+        )
+
         with patch(f"{_MOD}.Producer", side_effect=create_producer_side_effect):
-            with patch.dict(
-                os.environ,
-                {
-                    "EVENT_STREAMS_BOOTSTRAP_SERVERS": "broker-main:9093",
-                    "EVENT_STREAMS_API_KEY": "main-key",
-                    "EVENT_STREAMS_BOOTSTRAP_SERVERS_AU_SYD": "broker-regional:9093",
-                    "EVENT_STREAMS_API_KEY_AU_SYD": "regional-key",
-                    "ENVIRONMENT": "production",
-                },
-                clear=True,
-            ):
-                producers = KafkaProducers()
+            producers = KafkaProducers()
 
         assert producers.get("crn:v1:bluemix:public:quantum-computing:us-east:a/abc:def::") is mock_producer_main
         assert producers.get("crn:v1:bluemix:public:quantum-computing:au-syd:a/abc:def::") is mock_producer_regional
 
-    def test_unconfigured_region_raises_unroutable(self):
+    def test_unconfigured_region_raises_unroutable(self, settings):
+        _configure(settings, bootstrap_servers="b:9093", api_key="k", environment="production")
+
         with patch(f"{_MOD}.Producer"):
-            with patch.dict(
-                os.environ,
-                {
-                    "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
-                    "EVENT_STREAMS_API_KEY": "k",
-                    "ENVIRONMENT": "production",
-                },
-                clear=True,
-            ):
-                producers = KafkaProducers()
+            producers = KafkaProducers()
 
         with pytest.raises(UnroutableRegionError, match="No producer configured for region au-syd"):
             producers.get("crn:v1:bluemix:public:quantum-computing:au-syd:a/abc:def::")
 
-    def test_null_crn_raises_unroutable(self):
+    def test_null_crn_raises_unroutable(self, settings):
+        _configure(settings, bootstrap_servers="b:9093", api_key="k", environment="production")
+
         with patch(f"{_MOD}.Producer"):
-            with patch.dict(
-                os.environ,
-                {
-                    "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
-                    "EVENT_STREAMS_API_KEY": "k",
-                    "ENVIRONMENT": "production",
-                },
-                clear=True,
-            ):
-                producers = KafkaProducers()
+            producers = KafkaProducers()
 
         with pytest.raises(UnroutableRegionError, match="Cannot determine region from CRN"):
             producers.get(None)
 
-    def test_malformed_crn_raises_unroutable(self):
+    def test_malformed_crn_raises_unroutable(self, settings):
+        _configure(settings, bootstrap_servers="b:9093", api_key="k", environment="production")
+
         with patch(f"{_MOD}.Producer"):
-            with patch.dict(
-                os.environ,
-                {
-                    "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
-                    "EVENT_STREAMS_API_KEY": "k",
-                    "ENVIRONMENT": "production",
-                },
-                clear=True,
-            ):
-                producers = KafkaProducers()
+            producers = KafkaProducers()
 
         with pytest.raises(UnroutableRegionError, match="Cannot determine region from CRN"):
             producers.get("not:a:valid:crn")
