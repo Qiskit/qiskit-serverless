@@ -70,11 +70,15 @@ def test_the_gauges_split_real_and_filler_jobs_against_a_real_database():
     task = UpdateJobStatusCounts(kill_signal=MagicMock(received=False), metrics=metrics)
     program = TestUtils.create_program(program_title="counts-function", author="counts_user")
     TestUtils.create_job(author="counts_user", program=program, status=Job.RUNNING)
+    # STOPPING is the status this epic adds, and the gauge reads ACTIVE_STATUSES, so this pins that
+    # a stopping job stays counted while the engine winds it down.
+    TestUtils.create_job(author="counts_user", program=program, status=Job.STOPPING)
     filler = TestUtils.create_job(author="counts_user", program=program, status=Job.RUNNING, filler=True)
 
     task.run()
 
     assert metrics.job_status_count.labels(status=Job.RUNNING, provider="custom")._value.get() == 1
+    assert metrics.job_status_count.labels(status=Job.STOPPING, provider="custom")._value.get() == 1
     assert metrics.filler_jobs_count.labels(status=Job.RUNNING)._value.get() == 1
 
     filler.delete()
