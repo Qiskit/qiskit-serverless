@@ -728,10 +728,21 @@ class Job(models.Model):
         Outbox messages are only ever built on a transition to a terminal status
         (SUCCEEDED/FAILED/STOPPED), and only for a job that can reach the outbox pipeline: Fleets,
         not filler, with an instance CRN. See core/domain/billing_events.py.
+
+        Enqueueing is also guarded against a job that is already terminal in the database: unlike
+        the old one-row-per-job JobOutbox, Outbox is one row per message, so a second terminal
+        transition would double the billing facts instead of harmlessly overwriting the same row.
+        self.status can be stale (a caller may be holding an in-memory Job loaded before a
+        concurrent transition already committed, e.g. a user stopping a job via the API while the
+        scheduler's poll loop still has an older copy), so the current status is read from the
+        database under a row lock rather than trusted from memory.
         """
         with transaction.atomic():
+            current_status = Job.objects.select_for_update().values_list("status", flat=True).get(pk=self.pk)
+            already_terminal = current_status in Job.TERMINAL_STATUSES
+
             event = JobEvent.objects.add_status_event(job_id=self.id, origin=origin, context=context, status=status)
-            if status in Job.TERMINAL_STATUSES and self._eligible_for_outbox():
+            if status in Job.TERMINAL_STATUSES and not already_terminal and self._eligible_for_outbox():
                 self._enqueue_billing_messages(event, new_status=status)
             self.update_fields({"status": status, **(job_fields or {})})
         return event

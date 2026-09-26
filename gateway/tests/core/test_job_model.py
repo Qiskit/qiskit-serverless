@@ -254,3 +254,31 @@ class TestChangeStatusEnqueuesOutboxMessages:
         rows = list(Outbox.objects.filter(job=job, channel="billing"))
         assert len(rows) == 1
         assert rows[0].payload["data"]["metric_type"].startswith("classical")
+
+    def test_second_terminal_transition_enqueues_nothing_more(self, user):
+        """A job that reaches a terminal status twice (e.g. the scheduler's poll loop racing a
+        user-initiated stop) must only be billed once: Outbox is one row per message now, so a
+        second enqueue would double the billing facts instead of harmlessly overwriting a row."""
+        provider = Provider.objects.create(name="ibm-dev")
+        program = Program.objects.create(
+            title="my-fn", author=user, entrypoint="main.py", runner=Program.FLEETS, provider=provider
+        )
+        profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+        size = FunctionSize.objects.create(function=program, function_size="m", compute_profile=profile)
+        job = Job.objects.create(
+            author=user,
+            program=program,
+            runner=Program.FLEETS,
+            instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::",
+            function_size=size,
+            status=Job.PENDING,
+        )
+
+        job.change_status(
+            origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, status=Job.SUCCEEDED
+        )
+        rows_after_first = Outbox.objects.filter(job=job, channel="billing").count()
+
+        job.change_status(origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB, status=Job.STOPPED)
+
+        assert Outbox.objects.filter(job=job, channel="billing").count() == rows_after_first
