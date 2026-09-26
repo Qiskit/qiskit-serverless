@@ -46,6 +46,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
 
     @property
     def topic(self) -> str:
+        """The Kafka topic these events are published to."""
         return self._producers.topic
 
     def _emit_job_started(self, job: Job, metric_type: str | None = None) -> None:

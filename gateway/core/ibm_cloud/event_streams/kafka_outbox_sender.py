@@ -67,4 +67,5 @@ class NoOpOutboxSender:
     instead of publishing, matching NoOpEventStreamsClient."""
 
     def send(self, payload: dict) -> None:
+        """Logs the payload instead of publishing it."""
         logger.info("payload=%s [noop] outbox send", payload)

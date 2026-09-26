@@ -12,7 +12,7 @@ class CircuitBreaker:
     """Opens after N consecutive failures; reports closed again once a pause elapses.
 
     failure_threshold and pause_seconds are callables (not plain values) so a caller
-    backed by dynamic config (like PublishOutbox's Config-backed settings) can change
+    backed by dynamic config (like DrainOutbox's Config-backed settings) can change
     them at runtime without recreating the breaker or restarting the process.
     """
 

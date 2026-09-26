@@ -69,7 +69,7 @@ class TestMain:
         assert isinstance(error, Exception)
         assert str(error) == "boom"
 
-    def test_registers_publish_outbox_after_the_status_update_tasks(self):
+    def test_registers_drain_outbox_after_the_status_update_tasks(self):
         """DrainOutbox must run after UpdateFleetsJobsStatuses, in the same tick."""
         task_types = [type(task) for task in self.scheduler_main.tasks]
 
