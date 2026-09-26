@@ -36,10 +36,14 @@ services:
     restart:
       always
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U serverlessuser -d serverlessdb"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U serverlessuser -d serverlessdb"]
       interval: 1s
       timeout: 5s
       retries: 5
+      # First-time init takes about 1.5s native and 6.5s emulated, and the arm64 overrides run
+      # postgres under emulation. Without a start_period, retries x interval marks it unhealthy at
+      # ~9s and compose aborts the whole stack rather than waiting for it to recover.
+      start_period: 30s
   gateway:
     container_name: gateway
     build:

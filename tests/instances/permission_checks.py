@@ -1,5 +1,5 @@
 # pylint: disable=import-error, invalid-name, line-too-long, no-member, unused-argument
-"""Reusable permission assertion mixins for instance-based /functions tests.
+"""Reusable permission assertion mixins for instance-based entitlement tests.
 
 Each class groups the assertions expected for a given set of effective permissions.
 The classes are fixture-agnostic: they operate on attributes that a concrete test

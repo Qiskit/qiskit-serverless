@@ -5,11 +5,11 @@ Confirmed NTC behaviour (see the ntc repo, apps/api/repositories/account_plans.g
   - Saving the account NARROWS each instance's effective entitlements to the intersection with the
     account, by (provider, name, business_model) key. It only ever narrows; it never re-adds. The
     narrow propagates to the Runtime API asynchronously, so step 2 below polls until it lands.
-  - GET /functions returns the effective entitlements as-is (no account intersection at read), which
+  - GET /entitlements returns the effective entitlements as-is (no account intersection at read), which
     is why re-widening the account (step 3) does not restore a previously narrowed function.
   - The broker rejects an instance PATCH that exceeds the account plan grants.
 
-These tests exercise that semantics end-to-end through the serverless /functions endpoint.
+These tests exercise that semantics end-to-end through the serverless client.
 """
 
 import time
@@ -29,7 +29,7 @@ from instances.permission_checks import _assert_404, contains_function
 
 
 def _poll_functions(client, predicate, timeout=15, interval=0.5):
-    """Re-read /functions until predicate(list) holds or timeout elapses; return the last list read."""
+    """Re-read the function listing until predicate(list) holds or timeout elapses; return the last list read."""
     deadline = time.monotonic() + timeout
     listed = client.functions(filter="catalog")
     while not predicate(listed) and time.monotonic() < deadline:
@@ -59,7 +59,7 @@ def test_account_narrows_instance_and_does_not_restore(
     so the instance keeps a non-empty entitlement set. An empty instance makes the Runtime API
     return 204, which the gateway treats as "not migrated" and falls back to legacy Django
     authorization (the function may stay visible); a non-empty instance stays on the 200 path, where
-    the narrow is a clean per-function deny we can observe through /functions.
+    the narrow is a clean per-function deny we can observe through the function listing.
     """
     sibling_title = populated_other_function
 
