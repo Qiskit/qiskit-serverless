@@ -26,8 +26,8 @@ delays billing instead of losing it.
 Only the license fee and the final usage event go through the outbox. The other two
 Kafka events a Fleets job produces, `job_started` and `job_in_progress` (the ongoing
 classical-compute-time metering, sent from `UpdateFleetsJobsStatuses`), are unrelated
-to this system and are still published inline, synchronously, by
-`KafkaEventStreamsClient`.
+to this system: they are built by the same builders (see below) but sent inline,
+synchronously, right after building, instead of through a row in this table.
 
 ## What a row is
 
@@ -88,9 +88,10 @@ known to have run:
   `first_running_at()` returned a value, that is, the job passed through `RUNNING` at
   least once before failing or being stopped.
 
-Both builders live in `gateway/core/domain/billing_events.py` and are pure: they take
-`job`, the just-created `JobEvent`, and `running_started_at`, and return a dict (or
-`None`), without querying the database themselves. `build_license_fee_message` returns
+Both builders live in `gateway/core/domain/usage_events.py`, alongside the two that
+build the inline events, and are pure: they take `job`, `as_of` (the just-created
+`JobEvent`'s own `created` timestamp, for these two), and `running_started_at`, and
+return a dict (or `None`), without querying the database themselves. `build_license_fee_message` returns
 `None` silently in two cases that are both treated as "this function owes no fee": the
 function has no provider, or its `Program` has itself been deleted (`SET_NULL`) so
 whether it had a provider can no longer even be checked. It returns `None` after
@@ -111,7 +112,7 @@ added later, by the sender, at send time, because it is only known once
 
 `DrainOutbox` (`gateway/scheduler/tasks/drain_outbox.py`), wired into the scheduler
 loop in `gateway/scheduler/main.py`, holds a `{channel: sender}` registry
-(`{"billing": KafkaOutboxSender()}` today, or `NoOpOutboxSender()` when
+(`{"billing": KafkaSender()}` today, or `NoOpSender()` when
 `EVENT_STREAMS_ENABLED` is false) and drains every registered channel on every tick,
 each independently, with **its own** circuit breaker and its own time budget. This is
 deliberate: when a `"workload"` channel is added, a Kafka outage must not open the
@@ -132,10 +133,12 @@ nothing left to re-check, because a row is now exactly one message, and sending 
 the only thing it was waiting for. A failure leaves the row for the next tick and
 feeds the channel's breaker.
 
-`KafkaOutboxSender` (`gateway/core/ibm_cloud/event_streams/kafka_outbox_sender.py`)
-is the `"billing"` sender: it adds the Kafka topic name to the payload's `type` field
-and publishes it via `KafkaProducers`, the same region-routing and produce/flush logic
-the old inline path used, but without building anything itself.
+`KafkaSender` (`gateway/core/ibm_cloud/event_streams/kafka_sender.py`) is the
+`"billing"` sender: it adds the Kafka topic name to the payload's `type` field and
+publishes it via `KafkaProducers`. The same class also sends the two inline events
+(`UpdateFleetsJobsStatuses` builds via `usage_events.py` and calls `sender.send(...)`
+directly, without going through this table): the sender never builds anything itself
+and does not know which of the two cases it is in.
 
 ## Circuit breaker
 

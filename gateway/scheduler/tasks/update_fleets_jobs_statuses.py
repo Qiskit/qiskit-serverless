@@ -158,16 +158,24 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             self._send_job_in_progress(job)
 
     def _send_job_started(self, job: Job) -> None:
-        """Build and send the job-started event, best-effort. A None payload (a filler job,
-        per build_job_started_message) means there is nothing to send."""
+        """Build and send the job-started event, best-effort. build_job_started_message already
+        returns None for a filler job, but the filler check is repeated here, first, so a filler
+        job (which every RUNNING/PENDING Fleets job query includes) skips the JobEvent query
+        too, not just the send."""
+        if job.filler:
+            return
         running_started_at = JobEvent.objects.first_running_at(job.id)
         payload = build_job_started_message(job, datetime.now(timezone.utc), running_started_at)
         if payload is not None:
             self.sender.send(payload)
 
     def _send_job_in_progress(self, job: Job) -> None:
-        """Build and send the job-in-progress event, best-effort. A None payload (a filler job,
-        per build_job_in_progress_message) means there is nothing to send."""
+        """Build and send the job-in-progress event, best-effort. build_job_in_progress_message
+        already returns None for a filler job, but the filler check is repeated here, first, so
+        a filler job (which every RUNNING/PENDING Fleets job query includes) skips the JobEvent
+        query too, not just the send."""
+        if job.filler:
+            return
         running_started_at = JobEvent.objects.first_running_at(job.id)
         payload = build_job_in_progress_message(job, datetime.now(timezone.utc), running_started_at)
         if payload is not None:

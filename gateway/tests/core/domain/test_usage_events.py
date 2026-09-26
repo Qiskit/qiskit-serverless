@@ -32,9 +32,15 @@ class TestBuildJobStartedMessage:
 
         message = build_job_started_message(job, as_of, running_started_at=None)
 
-        assert message["data"]["metric_value"] == 0
-        assert message["data"]["job_started"] is True
-        assert message["data"]["job_completed"] is False
+        assert message["data"] == {
+            "metric_type": "classical_16x128",
+            "metric_value": 0,
+            "instance_crn": job.instance_crn,
+            "resource_id": str(job.id),
+            "job_started": True,
+            "job_started_at": None,
+            "job_completed": False,
+        }
 
     def test_includes_running_started_at_when_present(self):
         job = _job()
@@ -74,6 +80,9 @@ class TestBuildJobStartedMessage:
 
         assert "type" not in message  # added later by the sender, not here
         assert message["subject"] == str(job.id)
+        assert message["specversion"] == "1.0"
+        assert message["source"] == "qiskit-serverless/scheduler/fleets"
+        assert message["datacontenttype"] == "application/json"
 
 
 class TestBuildJobInProgressMessage:
@@ -84,9 +93,15 @@ class TestBuildJobInProgressMessage:
 
         message = build_job_in_progress_message(job, as_of, running_started_at=running_started_at)
 
-        assert message["data"]["metric_value"] == 5
-        assert message["data"]["job_started"] is False
-        assert message["data"]["job_completed"] is False
+        assert message["data"] == {
+            "metric_type": "classical_16x128",
+            "metric_value": 5,
+            "instance_crn": job.instance_crn,
+            "resource_id": str(job.id),
+            "job_started": False,
+            "job_started_at": running_started_at.isoformat(),
+            "job_completed": False,
+        }
 
     def test_reports_zero_usage_when_never_running(self):
         job = _job()
@@ -114,6 +129,17 @@ class TestBuildJobInProgressMessage:
         message = build_job_in_progress_message(job, datetime.now(timezone.utc), running_started_at=None)
 
         assert message is None
+
+    def test_envelope_omits_type(self):
+        job = _job()
+
+        message = build_job_in_progress_message(job, datetime.now(timezone.utc), running_started_at=None)
+
+        assert "type" not in message  # added later by the sender, not here
+        assert message["subject"] == str(job.id)
+        assert message["specversion"] == "1.0"
+        assert message["source"] == "qiskit-serverless/scheduler/fleets"
+        assert message["datacontenttype"] == "application/json"
 
 
 class TestBuildBillingEventMessage:

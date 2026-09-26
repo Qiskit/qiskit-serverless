@@ -40,7 +40,7 @@ class KafkaSender:
     def send(self, payload: dict) -> None:
         """Raises UnroutableRegionError (from KafkaProducers.get) or RuntimeError on failure."""
         message = {**payload, "type": self._producers.topic}
-        instance_crn = message.get("data", {}).get("instance_crn")
+        instance_crn = (message.get("data") or {}).get("instance_crn")
         producer = self._producers.get(instance_crn)  # raises UnroutableRegionError
 
         try:

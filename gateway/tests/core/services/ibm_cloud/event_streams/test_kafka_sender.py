@@ -34,7 +34,10 @@ class TestKafkaSender:
         sender.send(_payload())
 
         producers.get.assert_called_once_with(_payload()["data"]["instance_crn"])
-        sent_value = json.loads(producer.produce.call_args.kwargs["value"])
+        call_kwargs = producer.produce.call_args.kwargs
+        assert call_kwargs["topic"] == "quantum.staging.function-usage.v1"
+        assert call_kwargs["key"] == b"job-1"  # the payload's own "subject", encoded
+        sent_value = json.loads(call_kwargs["value"])
         assert sent_value["type"] == "quantum.staging.function-usage.v1"
         assert sent_value["id"] == "evt-1"  # unchanged: send never rebuilds the message
 
@@ -95,6 +98,18 @@ class TestKafkaSender:
 
         sender = KafkaSender(producers)
         payload = {"subject": "job-1", "data": {}}
+
+        with pytest.raises(UnroutableRegionError):
+            sender.send(payload)
+        producers.get.assert_called_once_with(None)
+
+    def test_explicit_none_data_is_unroutable_not_an_attribute_error(self):
+        """Same defense as the missing-key case, for a payload where "data" is present but None."""
+        producers = MagicMock()
+        producers.get.side_effect = UnroutableRegionError("cannot determine region")
+
+        sender = KafkaSender(producers)
+        payload = {"subject": "job-1", "data": None}
 
         with pytest.raises(UnroutableRegionError):
             sender.send(payload)
