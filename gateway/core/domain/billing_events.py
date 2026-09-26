@@ -27,11 +27,12 @@ CLASSICAL_TIME_METRIC_TYPE_PREFIX = "classical"
 
 
 def _usage_seconds(running_started_at: datetime | None, as_of: datetime) -> int:
-    """Usage in whole seconds up to as_of, rounded up so any partial second is billed."""
+    """Usage in whole seconds up to as_of, rounded up so any partial second is billed. Never
+    negative, even if as_of somehow precedes running_started_at (clock skew between processes)."""
     if running_started_at is None:
         return 0
     delta = as_of - running_started_at
-    return math.ceil(delta.total_seconds())
+    return max(0, math.ceil(delta.total_seconds()))
 
 
 def _envelope(job: Job, *, data: dict) -> dict:

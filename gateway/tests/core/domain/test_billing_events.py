@@ -52,6 +52,16 @@ class TestBuildBillingEventMessage:
 
         assert message["data"]["metric_value"] == 91
 
+    def test_never_negative_when_as_of_precedes_running_started_at(self):
+        """Clock skew between processes could otherwise put as_of before running_started_at."""
+        job = _job()
+        running_started_at = datetime(2026, 9, 25, 12, 0, 0, tzinfo=timezone.utc)
+        event = _event(created=running_started_at - timedelta(seconds=5))
+
+        message = build_billing_event_message(job, event, running_started_at=running_started_at)
+
+        assert message["data"]["metric_value"] == 0
+
     def test_envelope_identifies_the_job_and_omits_type(self):
         job = _job()
         event = _event()
