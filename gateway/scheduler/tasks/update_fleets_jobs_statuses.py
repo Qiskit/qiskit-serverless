@@ -5,7 +5,6 @@ from datetime import datetime, timedelta, timezone
 from typing import cast
 
 from django.conf import settings
-from django.db import transaction
 
 from core.ibm_cloud.event_streams.abstract_event_streams_client import EventStreamsClient
 from core.ibm_cloud.event_streams.kafka_event_streams_client import KafkaEventStreamsClient
@@ -89,16 +88,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             self.stop_job_if_timeout(job)
 
         elif new_status == Job.RUNNING:
-            if job.status == Job.PENDING:
-                # Transition from PENDING to RUNNING
-                self.to_running(job)
-            else:
-                # Job already RUNNING — emit in-progress before checking timeout.
-                # A job transitioning to terminal via stop_job_if_timeout in this same tick
-                # will produce both an in-progress and a completed event; consumers key on
-                # the job_started / job_completed flags.
-                self.event_streams_client.emit_job_in_progress(job)
-
+            self.to_running(job)
             self.stop_job_if_timeout(job)
 
         else:
@@ -122,47 +112,51 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             new_status,
         )
-        self.event_streams_client.emit_job_completed(job)
-        logger.info("job_id=%s job_completed event emitted successfully", job.id)
-        job.update_fields({"status": new_status, "sub_status": None, "env_vars": "{}"})
-        JobEvent.objects.add_status_event(
-            job_id=job.id,
+        # change_status builds and enqueues this job's outbox messages, if any, as part of
+        # this same transition (core/models.py). DrainOutbox sends them later, on its own
+        # schedule.
+        job.change_status(
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,
-            status=job.status,
+            status=new_status,
+            job_fields={"sub_status": None, "env_vars": "{}"},
         )
         self._increment_terminal_counter(job)
 
     def to_running(self, job: Job) -> None:
-        """Transition job from PENDING to RUNNING."""
-        logger.info(
-            "job_id=%s user_id=%s Changing status from %s to %s",
-            job.id,
-            job.author.id,
-            job.status,
-            Job.RUNNING,
-        )
-        with transaction.atomic():
-            event = JobEvent.objects.add_status_event(
-                job_id=job.id,
+        """Transition job from PENDING to RUNNING, or emit an in-progress event if it already is."""
+        if job.status == Job.PENDING:
+            logger.info(
+                "job_id=%s user_id=%s Changing status from %s to %s",
+                job.id,
+                job.author.id,
+                job.status,
+                Job.RUNNING,
+            )
+            # This transition to RUNNING enqueues nothing in the outbox: outbox messages are
+            # only built on a terminal transition (core/models.py's change_status). The
+            # emit_job_started() call below is unrelated: a different billing fact (classical
+            # compute time), sent inline, best-effort, never through the outbox.
+            job.change_status(
                 origin=JobEventOrigin.SCHEDULER,
                 context=JobEventContext.UPDATE_JOB_STATUS,
                 status=Job.RUNNING,
             )
-            job.update_fields({"status": Job.RUNNING, "running_started_at": event.created})
 
-        try:
-            self.event_streams_client.emit_job_started(job)
-            # prevent custom function to emit license fee
-            # since licenses is a provider feature
-            if job.program.provider:
-                self.event_streams_client.emit_license_fee(job)
-        except RuntimeError as ex:
-            logger.error(
-                "job_id=%s error emitting job_started/license_fee event to Kafka, event dropped: %s",
-                job.id,
-                str(ex),
-            )
+            try:
+                self.event_streams_client.emit_job_started(job)
+            except RuntimeError as ex:
+                logger.error(
+                    "job_id=%s error emitting job_started event to Kafka, event dropped: %s",
+                    job.id,
+                    str(ex),
+                )
+        else:
+            # Job already RUNNING — emit in-progress before checking timeout.
+            # A job transitioning to terminal via stop_job_if_timeout in this same tick
+            # will produce both an in-progress and a completed event; consumers key on
+            # the job_started / job_completed flags.
+            self.event_streams_client.emit_job_in_progress(job)
 
     def stop_job_if_timeout(self, job: Job) -> None:
         """Stop job if it has exceeded the maximum allowed duration."""

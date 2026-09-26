@@ -43,6 +43,14 @@ def _make_fleets_job(status=Job.RUNNING, fleet_id="fleet-123"):
             setattr(job, field, value)
 
     job.update_fields = MagicMock(side_effect=_apply_update_fields)
+
+    def _apply_change_status(*, origin, context, status, job_fields=None):  # pylint: disable=unused-argument
+        """Real Job.change_status() creates a JobEvent and writes the job; here job
+        is already the mock, so only the job write side (update_fields) is
+        reproduced, which is all these tests can observe anyway."""
+        job.update_fields({"status": status, **(job_fields or {})})
+
+    job.change_status = MagicMock(side_effect=_apply_change_status)
     return job
 
 
@@ -110,7 +118,10 @@ class TestUpdateJobStatus:
 
         mock_running.assert_called_once_with(job)
 
-    def test_running_to_running_skips_to_running(self):
+    def test_running_to_running_calls_to_running(self):
+        """to_running is called unconditionally for a RUNNING poll result; it is the one
+        that decides internally whether this is a PENDING->RUNNING transition or an
+        already-RUNNING job that just needs an in-progress emit."""
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
@@ -124,7 +135,7 @@ class TestUpdateJobStatus:
         ):
             task.update_job_status(job)
 
-        mock_running.assert_not_called()
+        mock_running.assert_called_once_with(job)
 
     def test_none_status_skips_update_and_returns_false(self):
         task = _make_task()
@@ -210,17 +221,16 @@ class TestToTerminal:
         job.sub_status = "pending"
         job.env_vars = '{"key": "value"}'
 
-        with patch(f"{_MOD}.JobEvent") as mock_job_event:
-            task.to_terminal(job, Job.SUCCEEDED)
+        task.to_terminal(job, Job.SUCCEEDED)
 
         assert job.status == Job.SUCCEEDED
         assert job.sub_status is None
         assert job.env_vars == "{}"
-        mock_job_event.objects.add_status_event.assert_called_once_with(
-            job_id=job.id,
+        job.change_status.assert_called_once_with(
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,
             status=Job.SUCCEEDED,
+            job_fields={"sub_status": None, "env_vars": "{}"},
         )
 
     def test_job_reaches_failed_state(self):
@@ -229,18 +239,26 @@ class TestToTerminal:
         job.sub_status = "pending"
         job.env_vars = '{"key": "value"}'
 
-        with patch(f"{_MOD}.JobEvent") as mock_job_event:
-            task.to_terminal(job, Job.FAILED)
+        task.to_terminal(job, Job.FAILED)
 
         assert job.status == Job.FAILED
         assert job.sub_status is None
         assert job.env_vars == "{}"
-        mock_job_event.objects.add_status_event.assert_called_once_with(
-            job_id=job.id,
+        job.change_status.assert_called_once_with(
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,
             status=Job.FAILED,
+            job_fields={"sub_status": None, "env_vars": "{}"},
         )
+
+    def test_never_touches_the_event_streams_client(self):
+        """Kafka publishing for a terminal job now happens only via the outbox task."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        task.to_terminal(job, Job.SUCCEEDED)
+
+        task.event_streams_client.emit_job_completed.assert_not_called()
 
 
 class TestToRunning:
@@ -250,67 +268,14 @@ class TestToRunning:
         task = _make_task()
         job = _make_fleets_job(status=Job.PENDING)
 
-        with (
-            patch(f"{_MOD}.JobEvent") as mock_job_event,
-            patch(f"{_MOD}.transaction"),
-        ):
-            task.to_running(job)
+        task.to_running(job)
 
         assert job.status == Job.RUNNING
-        mock_job_event.objects.add_status_event.assert_called_once_with(
-            job_id=job.id,
+        job.change_status.assert_called_once_with(
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,
             status=Job.RUNNING,
         )
-
-    def test_to_running_sets_running_started_at_from_the_event_created_timestamp(self):
-        """running_started_at must be the JobEvent's own created, not a separate now()."""
-        task = _make_task()
-        job = _make_fleets_job(status=Job.PENDING)
-        fake_created = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-
-        with (
-            patch(f"{_MOD}.JobEvent") as mock_job_event,
-            patch(f"{_MOD}.transaction"),
-        ):
-            mock_job_event.objects.add_status_event.return_value.created = fake_created
-            task.to_running(job)
-
-        job.update_fields.assert_called_once_with({"status": Job.RUNNING, "running_started_at": fake_created})
-
-    def test_to_running_persists_running_started_at_before_emitting_events(self):
-        """The events carry running_started_at as job_started_at, so it must be set first."""
-        task = _make_task()
-        job = _make_fleets_job(status=Job.PENDING)
-        fake_created = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-        seen = {}
-
-        task.event_streams_client.emit_job_started.side_effect = lambda j: seen.update(started=j.running_started_at)
-        task.event_streams_client.emit_license_fee.side_effect = lambda j: seen.update(license=j.running_started_at)
-
-        with (
-            patch(f"{_MOD}.JobEvent") as mock_job_event,
-            patch(f"{_MOD}.transaction"),
-        ):
-            mock_job_event.objects.add_status_event.return_value.created = fake_created
-            task.to_running(job)
-
-        assert seen == {"started": fake_created, "license": fake_created}
-
-    def test_to_running_persists_the_status_and_the_event_atomically(self):
-        """The job row and its JobEvent are written inside the same transaction.atomic()."""
-        task = _make_task()
-        job = _make_fleets_job(status=Job.PENDING)
-
-        with (
-            patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.transaction") as mock_transaction,
-        ):
-            task.to_running(job)
-
-        mock_transaction.atomic.assert_called_once_with()
-        mock_transaction.atomic.return_value.__enter__.assert_called_once()
 
     def test_to_running_reaches_running_even_when_kafka_is_down(self):
         """A Kafka outage must not leave the job stuck retrying PENDING forever."""
@@ -318,11 +283,7 @@ class TestToRunning:
         job = _make_fleets_job(status=Job.PENDING)
         task.event_streams_client.emit_job_started.side_effect = RuntimeError("kafka down")
 
-        with (
-            patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.transaction"),
-        ):
-            task.to_running(job)  # must not raise
+        task.to_running(job)  # must not raise
 
         assert job.status == Job.RUNNING
 
@@ -331,18 +292,24 @@ class TestToRunning:
         job = _make_fleets_job(status=Job.PENDING)
         task.event_streams_client.emit_job_started.side_effect = RuntimeError("kafka down")
 
-        with (
-            patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.transaction"),
-            patch(f"{_MOD}.logger") as mock_logger,
-        ):
+        with patch(f"{_MOD}.logger") as mock_logger:
             task.to_running(job)
 
         mock_logger.error.assert_called_once_with(
-            "job_id=%s error emitting job_started/license_fee event to Kafka, event dropped: %s",
+            "job_id=%s error emitting job_started event to Kafka, event dropped: %s",
             job.id,
             "kafka down",
         )
+
+    def test_already_running_job_emits_in_progress_instead_of_transitioning(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        task.to_running(job)
+
+        task.event_streams_client.emit_job_in_progress.assert_called_once_with(job)
+        job.change_status.assert_not_called()
+        task.event_streams_client.emit_job_started.assert_not_called()
 
 
 class TestStopJobIfTimeout:
@@ -518,58 +485,33 @@ class TestEventStreamsIntegration:
 
         call_order = []
         task.event_streams_client.emit_job_started.side_effect = lambda j: call_order.append("publish")
-        job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db:" + ",".join(f)))
+        original_change_status = job.change_status.side_effect
 
-        with (
-            patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.transaction"),
-        ):
-            task.to_running(job)
+        def fake_change_status(**kwargs):
+            call_order.append("db")
+            original_change_status(**kwargs)
 
-        assert call_order == ["db:status,running_started_at", "publish"]
+        job.change_status.side_effect = fake_change_status
+
+        task.to_running(job)
+
+        assert call_order == ["db", "publish"]
         task.event_streams_client.emit_job_started.assert_called_once_with(job)
 
     def test_to_running_does_not_raise_if_publish_fails(self):
         task = _make_task()
         task.event_streams_client.emit_job_started.side_effect = RuntimeError("broker down")
         job = _make_fleets_job(status=Job.PENDING)
-        fake_created = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
-        with (
-            patch(f"{_MOD}.JobEvent") as mock_job_event,
-            patch(f"{_MOD}.transaction"),
-        ):
-            mock_job_event.objects.add_status_event.return_value.created = fake_created
-            task.to_running(job)  # must not raise
+        task.to_running(job)  # must not raise
 
         # The status transition already landed before the emit was attempted.
-        job.update_fields.assert_called_once_with({"status": Job.RUNNING, "running_started_at": fake_created})
+        job.change_status.assert_called_once_with(
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            status=Job.RUNNING,
+        )
         assert job.status == Job.RUNNING
-
-    def test_to_terminal_emits_job_completed_before_db_update(self):
-        task = _make_task()
-        job = _make_fleets_job(status=Job.RUNNING)
-
-        call_order = []
-        task.event_streams_client.emit_job_completed.side_effect = lambda j: call_order.append("publish")
-        job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db"))
-
-        with patch(f"{_MOD}.JobEvent"):
-            task.to_terminal(job, Job.SUCCEEDED)
-
-        assert call_order == ["publish", "db"]
-        task.event_streams_client.emit_job_completed.assert_called_once_with(job)
-
-    def test_to_terminal_raises_if_publish_fails(self):
-        task = _make_task()
-        task.event_streams_client.emit_job_completed.side_effect = Exception("broker down")
-        job = _make_fleets_job(status=Job.RUNNING)
-
-        with patch(f"{_MOD}.JobEvent"):
-            with pytest.raises(Exception, match="broker down"):
-                task.to_terminal(job, Job.SUCCEEDED)
-
-        job.update_fields.assert_not_called()
 
     def test_update_job_status_emits_job_in_progress_for_running_job(self):
         task = _make_task()
@@ -630,24 +572,6 @@ class TestEventStreamsIntegration:
             task.update_job_status(job)
 
         task.event_streams_client.emit_job_in_progress.assert_not_called()
-
-    def test_to_running_emits_license_fee_after_job_started(self):
-        task = _make_task()
-        job = _make_fleets_job(status=Job.PENDING)
-
-        call_order = []
-        task.event_streams_client.emit_job_started.side_effect = lambda j: call_order.append("started")
-        task.event_streams_client.emit_license_fee.side_effect = lambda j: call_order.append("license")
-        job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db:" + ",".join(f)))
-
-        with (
-            patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.transaction"),
-        ):
-            task.to_running(job)
-
-        assert call_order == ["db:status,running_started_at", "started", "license"]
-        task.event_streams_client.emit_license_fee.assert_called_once_with(job)
 
 
 def test_filler_jobs_are_left_out_of_the_job_metrics():

@@ -28,7 +28,7 @@ def _make_job(filler: bool) -> MagicMock:
 
 
 def test_noop_client_is_concrete():
-    """All four abstract _emit_* methods are implemented, so the class can be instantiated."""
+    """Both abstract _emit_* methods are implemented, so the class can be instantiated."""
     client = NoOpEventStreamsClient()
 
     assert isinstance(client, NoOpEventStreamsClient)

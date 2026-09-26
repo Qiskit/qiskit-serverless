@@ -15,6 +15,8 @@
 import logging
 from abc import ABC, abstractmethod
 
+from core.models import Job
+
 logger = logging.getLogger("gateway.ibm_cloud.event_streams_client")
 
 
@@ -25,46 +27,24 @@ class EventStreamsClient(ABC):
     skip them and delegate to its private ``_emit_*`` implementation.
     """
 
-    def emit_job_started(self, job, metric_type: str | None = None) -> None:
+    def emit_job_started(self, job: Job, metric_type: str | None = None) -> None:
         """Publish or log a function_job_started event for the given metric."""
         if job.filler:
             logger.debug("job_id=%s filler job, skipping emit_job_started", job.id)
             return
         self._emit_job_started(job, metric_type)
 
-    def emit_job_in_progress(self, job, metric_type: str | None = None) -> None:
+    def emit_job_in_progress(self, job: Job, metric_type: str | None = None) -> None:
         """Publish or log a function_job_in_progress event for the given metric."""
         if job.filler:
             logger.debug("job_id=%s filler job, skipping emit_job_in_progress", job.id)
             return
         self._emit_job_in_progress(job, metric_type)
 
-    def emit_job_completed(self, job, metric_type: str | None = None) -> None:
-        """Publish or log a function_job_completed event for the given metric."""
-        if job.filler:
-            logger.debug("job_id=%s filler job, skipping emit_job_completed", job.id)
-            return
-        self._emit_job_completed(job, metric_type)
-
-    def emit_license_fee(self, job) -> None:
-        """Publish or log a license fee event."""
-        if job.filler:
-            logger.info("job_id=%s filler job, skipping emit_license_fee", job.id)
-            return
-        self._emit_license_fee(job)
-
     @abstractmethod
-    def _emit_job_started(self, job, metric_type: str | None = None) -> None:
+    def _emit_job_started(self, job: Job, metric_type: str | None = None) -> None:
         """Publish or log a function_job_started event for the given metric."""
 
     @abstractmethod
-    def _emit_job_in_progress(self, job, metric_type: str | None = None) -> None:
+    def _emit_job_in_progress(self, job: Job, metric_type: str | None = None) -> None:
         """Publish or log a function_job_in_progress event for the given metric."""
-
-    @abstractmethod
-    def _emit_job_completed(self, job, metric_type: str | None = None) -> None:
-        """Publish or log a function_job_completed event for the given metric."""
-
-    @abstractmethod
-    def _emit_license_fee(self, job) -> None:
-        """Publish or log a license fee event."""

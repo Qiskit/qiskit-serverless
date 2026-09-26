@@ -13,7 +13,16 @@ from api.domain.authentication.channel import Channel
 from api.use_cases.programs.run import RunFunctionUseCase
 from api.use_cases.programs.run_input import RunFunctionInput
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import CodeEngineProject, ComputeProfile, FunctionSize, Job, JobConfig, JobEvent, Program
+from core.models import (
+    CodeEngineProject,
+    ComputeProfile,
+    FunctionSize,
+    Job,
+    JobConfig,
+    JobEvent,
+    Program,
+    Provider,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -166,6 +175,31 @@ class TestRunFunctionUseCase:
         # Sized by the deprecated compute_profile input; no size row applies.
         assert job.size_source == Job.SIZE_SOURCE_COMPUTE_PROFILE
         assert job.function_size is None
+
+    @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
+    def test_fleets_job_rejects_compute_profile_for_a_licensed_function(self, user, ce_project):
+        """A licensed function's usage event needs a FunctionSize row to bill correctly
+        (see _emit_license_fee in the Kafka event streams client), and the deprecated
+        'compute_profile' path never records one, so it is rejected outright instead of
+        accepted and left unbillable."""
+        provider = Provider.objects.create(name="ibm-dev")
+        Program.objects.create(
+            title="my-fn",
+            author=user,
+            entrypoint="main.py",
+            runner=Program.FLEETS,
+            code_engine_project=ce_project,
+            provider=provider,
+        )
+        ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        with pytest.raises(FunctionConfigurationException):
+            RunFunctionUseCase().execute(
+                user, accessible, make_input(provider_name="ibm-dev", compute_profile="16x128")
+            )
+
+        assert not Job.objects.exists()
 
     @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
     def test_fleets_job_does_not_normalize_prefixed_request(self, user, ce_project):

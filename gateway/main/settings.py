@@ -500,6 +500,27 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "Minimum number of jobs, real plus filler, to keep running for the compute "
         "profile of the filler program.",
     },
+    "scheduler.outbox.enabled": {
+        "default": "false",
+        "type": "boolean",
+        "description": "Enable the outbox task: sends the license fee and final usage event "
+        "for terminal Fleets jobs. While off, nothing publishes these two events at all.",
+    },
+    "scheduler.outbox.budget_ms": {
+        "default": "500",
+        "type": "integer",
+        "description": "Time budget per scheduler loop tick for the outbox task, in milliseconds.",
+    },
+    "scheduler.outbox.breaker_failures": {
+        "default": "5",
+        "type": "integer",
+        "description": "Consecutive send failures before the outbox task's circuit breaker opens.",
+    },
+    "scheduler.outbox.breaker_pause_seconds": {
+        "default": "60",
+        "type": "integer",
+        "description": "How long the outbox task's circuit breaker stays open once tripped.",
+    },
 }
 
 # Fleets / Code Engine credentials

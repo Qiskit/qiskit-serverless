@@ -9,7 +9,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
-from django.db import models
+from django.db import models, transaction
 from django.db.models import F
 from django.utils import timezone
 from django_prometheus.models import ExportModelOperationsMixin
@@ -21,7 +21,7 @@ from core.model_managers.code_engine_projects import CodeEngineProjectQuerySet
 from core.model_managers.compute_profiles import ComputeProfileQuerySet
 from core.model_managers.function_sizes import FunctionSizeQuerySet
 from core.model_managers.functions import FunctionsQuerySet
-from core.model_managers.job_events import JobEventQuerySet
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventQuerySet
 from core.model_managers.jobs import JobQuerySet
 from core.model_managers.providers import ProviderQuerySet
 
@@ -718,6 +718,66 @@ class Job(models.Model):
         Job.objects.filter(pk=self.id).update(**update_kwargs)
         self.refresh_from_db(fields=["version"])
 
+    def change_status(
+        self, *, origin: JobEventOrigin, context: JobEventContext, status: str, job_fields: dict | None = None
+    ):
+        """Transition this job's status: the JobEvent, any outbox message this transition owes,
+        and the job itself (plus any extra job_fields), atomically. This is the only entry point
+        for a status transition, so it is also the only place that enqueues outbox messages.
+
+        Outbox messages are only ever built on a transition to a terminal status
+        (SUCCEEDED/FAILED/STOPPED), and only for a job that can reach the outbox pipeline: Fleets,
+        not filler, with an instance CRN. See core/domain/billing_events.py.
+
+        Enqueueing is also guarded against a job that is already terminal in the database: unlike
+        the old one-row-per-job JobOutbox, Outbox is one row per message, so a second terminal
+        transition would double the billing facts instead of harmlessly overwriting the same row.
+        self.status can be stale (a caller may be holding an in-memory Job loaded before a
+        concurrent transition already committed, e.g. a user stopping a job via the API while the
+        scheduler's poll loop still has an older copy), so the current status is read from the
+        database under a row lock rather than trusted from memory.
+        """
+        with transaction.atomic():
+            current_status = Job.objects.select_for_update().values_list("status", flat=True).get(pk=self.pk)
+            already_terminal = current_status in Job.TERMINAL_STATUSES
+
+            event = JobEvent.objects.add_status_event(job_id=self.id, origin=origin, context=context, status=status)
+            if status in Job.TERMINAL_STATUSES and not already_terminal and self._eligible_for_outbox():
+                self._enqueue_billing_messages(event, new_status=status)
+            self.update_fields({"status": status, **(job_fields or {})})
+        return event
+
+    def _eligible_for_outbox(self) -> bool:
+        """Fleets, not filler, with an instance CRN: the only jobs that get outbox messages."""
+        return self.runner == Program.FLEETS and not self.filler and bool(self.instance_crn)
+
+    def _enqueue_billing_messages(self, event: "JobEvent", *, new_status: str) -> None:
+        """Build and store whichever billing outbox messages this terminal transition owes.
+
+        One query, not two: first_running_at() both decides license fee eligibility for a
+        FAILED/STOPPED transition and provides the value both builders need for their own
+        content (job_started_at, usage seconds). SUCCEEDED never needs it for eligibility (it
+        proves the job ran by definition) but still needs the value for the payloads' content.
+        """
+        # Deferred import: core/domain/billing_events.py imports Job/JobEvent from this module at
+        # its own top level, so this module cannot import it at its own top level too (see
+        # core/model_managers/job_outbox.py for the same pattern already in this codebase).
+        from core.domain.billing_events import (  # pylint: disable=import-outside-toplevel, cyclic-import
+            build_billing_event_message,
+            build_license_fee_message,
+        )
+
+        running_started_at = JobEvent.objects.first_running_at(self.id)
+        ran = new_status == Job.SUCCEEDED or running_started_at is not None
+
+        billing_message = build_billing_event_message(self, event, running_started_at)
+        Outbox.objects.create(job=self, channel="billing", payload=billing_message)
+
+        if ran:
+            license_fee_message = build_license_fee_message(self, event, running_started_at)
+            if license_fee_message is not None:
+                Outbox.objects.create(job=self, channel="billing", payload=license_fee_message)
+
 
 class RuntimeJob(models.Model):
     """Runtime Job model."""
@@ -760,6 +820,40 @@ class JobEvent(models.Model):
     class Meta:
         app_label = "api"
         ordering = ("-created",)
+
+
+class Outbox(models.Model):
+    """A message waiting to be delivered best-effort, in a deferred way. One row per pending
+    message, not per job: a job can have zero, one, or several rows at once, each with its own
+    payload and channel, deleted independently once its own send succeeds.
+
+    `channel` says how to send it ("billing" today, via Kafka in DrainOutbox); it is a plain
+    string, not a Django `choices=`, so registering a new channel is adding a sender to a dict,
+    not a migration.
+
+    `payload` is the message exactly as it will be sent, built and frozen at the moment the fact
+    it represents became true (see Job.change_status and core/domain/billing_events.py). This
+    table does not know what the payload means or how it was built, only that it needs to go out.
+    """
+
+    job = models.ForeignKey(
+        to=Job,
+        on_delete=models.CASCADE,
+        help_text="Not used by delivery: the payload is self-contained. Kept only so a pending "
+        "row can be found from its job (admin, debugging), without parsing the payload.",
+    )
+    channel = models.CharField(max_length=20)
+    payload = models.JSONField()
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = "api"
+        indexes = [
+            models.Index(fields=["channel", "created"], name="outbox_channel_created_idx"),
+        ]
+
+    def __str__(self):
+        return f"<Outbox id={self.id} job={self.job_id} channel={self.channel}>"
 
 
 class GroupMetadata(models.Model):

@@ -167,9 +167,8 @@ class TestScheduleApi(APITestCase):
         assert ret_job.env_vars == "{}"
 
     @patch("scheduler.schedule.get_runner")
-    @patch("scheduler.schedule.JobEvent")
     @patch("scheduler.schedule.trace")
-    def test_execute_fleets_job_success(self, mock_trace, mock_job_event, mock_get_runner_client):
+    def test_execute_fleets_job_success(self, mock_trace, mock_get_runner_client):
         """Tests successful Fleets job execution via runner.submit()."""
         mock_runner = MagicMock()
         mock_get_runner_client.return_value = mock_runner
@@ -184,13 +183,11 @@ class TestScheduleApi(APITestCase):
         mock_runner.submit.assert_called_once()
         assert ret_job.status == Job.PENDING
         assert ret_job.env_vars == "{}"
-        ret_job.save_direct.assert_called_once_with(["status", "fleet_id", "env_vars"])
-        mock_job_event.objects.add_status_event.assert_called_once()
+        ret_job.change_status.assert_called_once()
 
     @patch("scheduler.schedule.get_runner")
-    @patch("scheduler.schedule.JobEvent")
     @patch("scheduler.schedule.trace")
-    def test_execute_fleets_job_failure(self, mock_trace, mock_job_event, mock_get_runner_client):
+    def test_execute_fleets_job_failure(self, mock_trace, mock_get_runner_client):
         """Tests Fleets job execution failure handling."""
         mock_runner = MagicMock()
         mock_runner.submit.side_effect = RunnerError("Submit failed")
@@ -206,8 +203,7 @@ class TestScheduleApi(APITestCase):
         mock_runner.submit.assert_called_once()
         assert ret_job.status == Job.FAILED
         assert ret_job.env_vars == "{}"
-        ret_job.save_direct.assert_called_once_with(["status", "fleet_id", "env_vars"])
-        mock_job_event.objects.add_status_event.assert_called_once()
+        ret_job.change_status.assert_called_once()
 
     @patch("scheduler.tasks.update_ray_jobs_statuses.get_runner")
     def test_job_runtime_limit(self, get_runner):
@@ -271,13 +267,10 @@ def test_execute_fleets_job_records_the_given_event_context():
     mock_job = MagicMock()
     mock_job.id = uuid.uuid4()
 
-    with (
-        patch("scheduler.schedule.get_runner"),
-        patch("scheduler.schedule.JobEvent") as mock_job_event,
-    ):
+    with patch("scheduler.schedule.get_runner"):
         execute_fleets_job(mock_job, None, context=JobEventContext.FILLER_SUBMIT)
 
-    assert mock_job_event.objects.add_status_event.call_args.kwargs["context"] is JobEventContext.FILLER_SUBMIT
+    assert mock_job.change_status.call_args.kwargs["context"] is JobEventContext.FILLER_SUBMIT
 
 
 def test_execute_fleets_job_defaults_to_the_schedule_jobs_context():
@@ -285,10 +278,7 @@ def test_execute_fleets_job_defaults_to_the_schedule_jobs_context():
     mock_job = MagicMock()
     mock_job.id = uuid.uuid4()
 
-    with (
-        patch("scheduler.schedule.get_runner"),
-        patch("scheduler.schedule.JobEvent") as mock_job_event,
-    ):
+    with patch("scheduler.schedule.get_runner"):
         execute_fleets_job(mock_job, None)
 
-    assert mock_job_event.objects.add_status_event.call_args.kwargs["context"] is JobEventContext.SCHEDULE_JOBS
+    assert mock_job.change_status.call_args.kwargs["context"] is JobEventContext.SCHEDULE_JOBS
