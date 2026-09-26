@@ -124,7 +124,7 @@ def _next_timestamp(*existing):
 
     The resource-controller PATCH must carry a ``timestamp`` that advances on every write: it is the
     signal the Runtime API uses to invalidate its per-instance cache and re-sync (without it a PATCH
-    that returns 200 and is stored is not reflected by ``/functions``).
+    that returns 200 and is stored is not reflected by ``/entitlements``).
 
     To make every PATCH win the last-write-wins comparison even if this machine's clock lags the
     timestamp already stored on the instance, the new timestamp is forced strictly above it, not merely
@@ -328,7 +328,7 @@ class NtcAdminClient:  # pylint: disable=too-many-instance-attributes
         if custom_permissions is not PRESERVE:
             params["custom_functions"] = _custom_functions_value(custom_permissions)
         # The timestamp must advance on every write: it is what makes the Runtime API invalidate its
-        # per-instance cache and re-sync. Without it the PATCH is stored but /functions keeps serving
+        # per-instance cache and re-sync. Without it the PATCH is stored but /entitlements keeps serving
         # the previous (or empty) view. It is sent both at the top level and inside parameters so it
         # takes effect regardless of where the server reads it from.
         timestamp = _next_timestamp(*previous_ts)

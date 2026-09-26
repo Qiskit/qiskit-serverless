@@ -11,7 +11,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.server.request_count += 1
         cfg = self.server.response_config
-        body = json.dumps(cfg["body"]).encode() if "body" in cfg else b""
+        body = self._body(cfg)
         self.send_response(cfg["status"])
         if body:
             self.send_header("Content-Type", "application/json")
@@ -19,6 +19,31 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         if body:
             self.wfile.write(body)
+
+    def _body(self, cfg) -> bytes:
+        """Serialize the response this test asked for.
+
+        The endpoint has a single response shape. The keys in ``cfg`` tell ``InstancesServer`` what
+        to send; they are not formats the real endpoint returns:
+
+        - ``cfg["element"]`` holds one instance's entitlements. This method reads the CRN from the
+          request's ``Service-CRN`` header, takes the entitlements from ``cfg["element"]``, and
+          includes both as the single item of ``instance_entitlements`` in the response payload, so
+          ``{"functions": [...]}`` is sent as
+          ``{"instance_entitlements": [{"instance_crn": "<CRN requested>", "functions": [...]}]}``.
+          The CRN is read here because the handler is the only place that sees the request, and the
+          client finds its element by that field.
+        - ``cfg["body"]`` holds a whole response payload. This method sends it unchanged and reads
+          nothing from the request, which is how a test produces a payload the element path cannot,
+          such as one naming a different instance.
+        - Neither key means an empty body, which is what a 204 needs.
+        """
+        if "element" in cfg:
+            element = {"instance_crn": self.headers.get("Service-CRN"), **cfg["element"]}
+            return json.dumps({"instance_entitlements": [element]}).encode()
+        if "body" in cfg:
+            return json.dumps(cfg["body"]).encode()
+        return b""
 
     def log_message(self, *args):
         pass
@@ -29,7 +54,7 @@ class InstancesServer:
 
     Usage:
         instances_server.grant("my-provider", "my-function", ["function.run"])
-        instances_server.reset()   # clears all grants (empty list, use_legacy_authorization=False)
+        instances_server.reset()   # grants nothing (use_legacy_authorization=False)
     """
 
     def __init__(self, httpd: HTTPServer):
@@ -41,6 +66,13 @@ class InstancesServer:
         """Number of HTTP requests received by the server."""
         return self._httpd.request_count
 
+    def _element(self) -> dict:
+        return dict(self._httpd.response_config.get("element") or {})
+
+    def _set_element(self, element: dict) -> "InstancesServer":
+        self._httpd.response_config = {"status": 200, "element": element}
+        return self
+
     def grant(
         self,
         provider: str,
@@ -49,8 +81,10 @@ class InstancesServer:
         business_model: str = "subsidized",
     ) -> "InstancesServer":
         """Grant permissions to a function. Replaces any existing entry for provider+function."""
-        body = self._httpd.response_config.get("body") or {}
-        functions = [f for f in body.get("functions", []) if not (f["provider"] == provider and f["name"] == function)]
+        element = self._element()
+        functions = [
+            f for f in element.get("functions", []) if not (f["provider"] == provider and f["name"] == function)
+        ]
         functions.append(
             {
                 "provider": provider,
@@ -59,35 +93,40 @@ class InstancesServer:
                 "permissions": list(permissions),
             }
         )
-        body = dict(self._httpd.response_config.get("body") or {})
-        body["functions"] = functions
-        self._httpd.response_config = {"status": 200, "body": body}
-        return self
+        element["functions"] = functions
+        return self._set_element(element)
 
     def grant_custom(self, permissions: list) -> "InstancesServer":
-        """Set custom_functions permissions in the response body."""
-        body = dict(self._httpd.response_config.get("body") or {})
-        body["custom_functions"] = {"permissions": list(permissions)}
-        self._httpd.response_config = {"status": 200, "body": body}
-        return self
+        """Set custom_functions permissions in the response element."""
+        element = self._element()
+        element["custom_functions"] = {"permissions": list(permissions)}
+        return self._set_element(element)
 
     def clear_custom(self) -> "InstancesServer":
-        """Set custom_functions to null (the 'cleared' shape NTC stores when no custom grants)."""
-        body = dict(self._httpd.response_config.get("body") or {})
-        body["custom_functions"] = None
-        self._httpd.response_config = {"status": 200, "body": body}
-        return self
+        """Set custom_functions to null, which the client must coalesce rather than dereference."""
+        element = self._element()
+        element["custom_functions"] = None
+        return self._set_element(element)
 
-    def reset(self) -> "InstancesServer":
-        """Clear all grants (returns use_legacy_authorization=False with empty function list)."""
+    def instance_error(self, code: int, message: str = "instance error") -> "InstancesServer":
+        """Answer with a per-instance error element instead of entitlements (1279, 1289)."""
+        return self._set_element({"error": {"code": code, "message": message}})
+
+    def other_instance(self, instance_crn: str) -> "InstancesServer":
+        """Answer with an envelope whose only element describes a different instance."""
         self._httpd.response_config = {
             "status": 200,
-            "body": {"functions": [], "custom_functions": {"permissions": []}},
+            "body": {"instance_entitlements": [{"instance_crn": instance_crn}]},
         }
         return self
 
+    def reset(self) -> "InstancesServer":
+        """Grant nothing. The endpoint omits functions and custom_functions when they are empty, so
+        an instance entitled to nothing is an element carrying only its CRN."""
+        return self._set_element({})
+
     def error(self, status: int = 500) -> "InstancesServer":
-        """Respond with an error status (gateway falls back to Django groups)."""
+        """Respond with the given status and no body. A 204 selects the legacy fallback; any other non-200 raises."""
         self._httpd.response_config = {"status": status}
         return self
 
