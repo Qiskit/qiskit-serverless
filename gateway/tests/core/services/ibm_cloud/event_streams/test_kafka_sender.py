@@ -3,12 +3,13 @@ payload dict, so tests build one directly instead of constructing a job."""
 
 import json
 import logging
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
+from django.test import override_settings
 
 from core.ibm_cloud.event_streams.kafka_producers import UnroutableRegionError
-from core.ibm_cloud.event_streams.kafka_sender import KafkaSender, NoOpSender
+from core.ibm_cloud.event_streams.kafka_sender import build_sender, KafkaSender, NoOpSender
 
 
 def _payload(instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::"):
@@ -122,3 +123,17 @@ class TestNoOpSender:
         with caplog.at_level(logging.INFO):
             sender.send(_payload())
         assert "noop" in caplog.text
+
+
+class TestBuildSender:
+    @override_settings(EVENT_STREAMS_ENABLED=False)
+    def test_builds_a_noop_sender_when_event_streams_is_disabled(self):
+        assert isinstance(build_sender(), NoOpSender)
+
+    @override_settings(EVENT_STREAMS_ENABLED=True)
+    def test_builds_a_kafka_sender_when_event_streams_is_enabled(self):
+        with patch("core.ibm_cloud.event_streams.kafka_sender.KafkaSender") as mock_kafka_sender:
+            result = build_sender()
+
+        mock_kafka_sender.assert_called_once_with()
+        assert result is mock_kafka_sender.return_value

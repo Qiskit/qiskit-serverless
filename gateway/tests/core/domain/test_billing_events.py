@@ -1,7 +1,6 @@
 """Unit tests for BillingEvents' message builders. Pure functions: everything constructed in
 memory, no database access, no pytest.mark.django_db."""
 
-import logging
 from datetime import datetime, timedelta, timezone
 
 from core.domain.billing_events import BillingEvents
@@ -20,12 +19,15 @@ def _job(**overrides) -> Job:
     return Job(**defaults)
 
 
-class TestBuildJobStarted:
-    def test_reports_zero_usage_regardless_of_running_started_at(self):
+class TestBuildJobInProgress:
+    def test_job_started_forces_zero_usage_regardless_of_running_started_at(self):
         job = _job()
-        as_of = datetime(2026, 9, 25, 12, 0, 0, tzinfo=timezone.utc)
+        running_started_at = datetime(2026, 9, 25, 11, 59, 0, tzinfo=timezone.utc)
+        as_of = running_started_at + timedelta(seconds=5)
 
-        message = BillingEvents.build_job_started(job, as_of, running_started_at=None)
+        message = BillingEvents.build_job_in_progress(
+            job, as_of, running_started_at=running_started_at, job_started=True
+        )
 
         assert message["data"] == {
             "metric_type": "classical_16x128",
@@ -33,47 +35,10 @@ class TestBuildJobStarted:
             "instance_crn": job.instance_crn,
             "resource_id": str(job.id),
             "job_started": True,
-            "job_started_at": None,
+            "job_started_at": running_started_at.isoformat(),
             "job_completed": False,
         }
 
-    def test_includes_running_started_at_when_present(self):
-        job = _job()
-        running_started_at = datetime(2026, 9, 25, 11, 59, 0, tzinfo=timezone.utc)
-
-        message = BillingEvents.build_job_started(job, running_started_at, running_started_at=running_started_at)
-
-        assert message["data"]["job_started_at"] == running_started_at.isoformat()
-
-    def test_metric_type_includes_compute_profile(self):
-        job = _job(compute_profile="16x128")
-
-        message = BillingEvents.build_job_started(job, datetime.now(timezone.utc), running_started_at=None)
-
-        assert message["data"]["metric_type"] == "classical_16x128"
-
-    def test_metric_type_override_is_used_verbatim(self):
-        job = _job()
-
-        message = BillingEvents.build_job_started(
-            job, datetime.now(timezone.utc), running_started_at=None, metric_type="classical_24x120"
-        )
-
-        assert message["data"]["metric_type"] == "classical_24x120"
-
-    def test_envelope_omits_type(self):
-        job = _job()
-
-        message = BillingEvents.build_job_started(job, datetime.now(timezone.utc), running_started_at=None)
-
-        assert "type" not in message  # added later by the sender, not here
-        assert message["subject"] == str(job.id)
-        assert message["specversion"] == "1.0"
-        assert message["source"] == "qiskit-serverless/scheduler/fleets"
-        assert message["datacontenttype"] == "application/json"
-
-
-class TestBuildJobInProgress:
     def test_computes_seconds_from_running_started_at_to_as_of(self):
         job = _job()
         running_started_at = datetime(2026, 9, 25, 11, 59, 0, tzinfo=timezone.utc)
@@ -181,30 +146,6 @@ class TestBuildBillingEvent:
 
 
 class TestBuildLicenseFee:
-    def test_none_when_the_function_has_no_provider(self):
-        job = _job(program=Program(title="my-fn", provider=None))
-
-        message = BillingEvents.build_license_fee(job, datetime.now(timezone.utc), running_started_at=None)
-
-        assert message is None
-
-    def test_none_when_the_program_is_missing(self):
-        job = _job(program=None)
-
-        message = BillingEvents.build_license_fee(job, datetime.now(timezone.utc), running_started_at=None)
-
-        assert message is None
-
-    def test_none_and_logs_an_error_when_function_size_is_missing_despite_a_provider(self, caplog):
-        provider = Provider(name="ibm-dev")
-        job = _job(program=Program(title="my-fn", provider=provider), function_size=None)
-
-        with caplog.at_level(logging.ERROR):
-            message = BillingEvents.build_license_fee(job, datetime.now(timezone.utc), running_started_at=None)
-
-        assert message is None
-        assert "waiving the fee" in caplog.text
-
     def test_built_when_provider_and_function_size_are_present(self):
         provider = Provider(name="ibm-dev")
         program = Program(title="my-fn", provider=provider)

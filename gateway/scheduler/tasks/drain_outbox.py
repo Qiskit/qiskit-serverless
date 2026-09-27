@@ -7,13 +7,13 @@ rationale, if you have it locally, see .claude/specs/2026-09-25-generic-outbox-d
 
 import logging
 import time
+from dataclasses import dataclass
 
-from django.conf import settings
 from django.utils import timezone
 
 from core.config_key import ConfigKey
 from core.ibm_cloud.event_streams.kafka_producers import UnroutableRegionError
-from core.ibm_cloud.event_streams.kafka_sender import KafkaSender, NoOpSender
+from core.ibm_cloud.event_streams.kafka_sender import build_sender
 from core.models import Config, Outbox
 
 from scheduler.kill_signal import KillSignal
@@ -26,47 +26,65 @@ logger = logging.getLogger("scheduler.DrainOutbox")
 BATCH_SIZE = 100
 
 
+@dataclass
+class _Channel:
+    """A registered outbox channel: its sender, and the Config key (if any) that enables it for
+    both writing (Job._enqueue_billing_messages) and draining (below). Two channels sharing the
+    same sender share the same circuit breaker, since the breaker is keyed by sender identity,
+    not by channel name."""
+
+    sender: object
+    enabled_key: ConfigKey | None = None
+
+
 class DrainOutbox(SchedulerTask):
     """Send whatever every registered outbox channel owes. Adding a channel (the PR2 "workload"
-    mirror) is adding one entry to `senders`; nothing else here changes."""
+    mirror) is adding one entry to `channels`; nothing else here changes."""
 
     def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
         self.kill_signal = kill_signal
         self.metrics = metrics
-        self.senders: dict[str, object] = {"billing": KafkaSender() if settings.EVENT_STREAMS_ENABLED else NoOpSender()}
-        self._breakers: dict[str, CircuitBreaker] = {}
+        billing_sender = build_sender()
+        self.channels: dict[str, _Channel] = {
+            "license_fee": _Channel(sender=billing_sender, enabled_key=ConfigKey.OUTBOX_KAFKA_ENABLED),
+            "billing_event": _Channel(sender=billing_sender, enabled_key=ConfigKey.OUTBOX_KAFKA_ENABLED),
+        }
+        self._breakers: dict[object, CircuitBreaker] = {}
 
-    def _breaker_for(self, channel: str) -> CircuitBreaker:
-        if channel not in self._breakers:
-            self._breakers[channel] = CircuitBreaker(
+    def _breaker_for(self, sender: object) -> CircuitBreaker:
+        if sender not in self._breakers:
+            self._breakers[sender] = CircuitBreaker(
                 failure_threshold=lambda: Config.get_int(ConfigKey.OUTBOX_BREAKER_FAILURES, default=5),
                 pause_seconds=lambda: Config.get_int(ConfigKey.OUTBOX_BREAKER_PAUSE_SECONDS, default=60),
             )
-        return self._breakers[channel]
+        return self._breakers[sender]
+
+    def _channel_enabled(self, channel: _Channel) -> bool:
+        return channel.enabled_key is None or Config.get_bool(channel.enabled_key)
 
     def run(self):
-        """Drain every registered channel, in turn, each within its own breaker and budget."""
-        if not Config.get_bool(ConfigKey.OUTBOX_ENABLED):
-            return
+        """Drain every enabled channel, in turn, each within its own breaker and budget. A
+        disabled channel is skipped; the rest still drain."""
+        for channel_name in self.channels:
+            self._report_pending_gauges(channel_name)
 
-        for channel in self.senders:
-            self._report_pending_gauges(channel)
-
-        for channel, sender in self.senders.items():
-            breaker = self._breaker_for(channel)
-            self.metrics.set_outbox_breaker_open(breaker.is_open, channel=channel)
+        for channel_name, channel in self.channels.items():
+            if not self._channel_enabled(channel):
+                continue
+            breaker = self._breaker_for(channel.sender)
+            self.metrics.set_outbox_breaker_open(breaker.is_open, channel=channel_name)
             if breaker.is_open:
                 continue
-            self._drain_channel(channel, sender, breaker)
+            self._drain_channel(channel_name, channel.sender, breaker)
 
     def _drain_channel(self, channel: str, sender, breaker: CircuitBreaker) -> None:
         budget_ms = Config.get_int(ConfigKey.OUTBOX_BUDGET_MS, default=500)
         deadline = time.monotonic() + (budget_ms / 1000)
-        # A row that fails without tripping the breaker (RuntimeError) or that is unroutable
-        # is neither deleted nor blocked by the breaker, so an unfiltered re-fetch would find
-        # the exact same row again and hot-loop on it for the rest of the budget window.
-        # Tracking pks already attempted this call bounds one tick to at most one attempt per
-        # currently pending row; it gets picked up again on the next tick.
+        # A row that fails without tripping the breaker is neither deleted nor blocked by the
+        # breaker, so an unfiltered re-fetch would find the exact same row again and hot-loop on
+        # it for the rest of the budget window. Tracking pks already attempted this call bounds
+        # one tick to at most one attempt per currently pending row; it gets picked up again on
+        # the next tick.
         attempted_pks: set = set()
 
         while self._should_continue_draining(channel, breaker, deadline):
@@ -94,47 +112,29 @@ class DrainOutbox(SchedulerTask):
         return True
 
     def _send_row(self, row: Outbox, sender, breaker: CircuitBreaker) -> None:
-        """fact is billing-specific vocabulary (license_fee vs billing_event), read from the
-        payload for metrics only. A future non-billing channel either reports no fact split, or
-        gets its own if-branch here; nothing about delivery depends on it."""
-        fact = self._fact_label(row.payload)
+        """Send one row, keeping it for the next tick and counting it against the breaker on any
+        failure, UnroutableRegionError included."""
         try:
             sender.send(row.payload)
         except UnroutableRegionError as ex:
-            logger.error("outbox_id=%s job_id=%s unroutable, will retry: %s", row.id, row.job_id, str(ex))
-            self.metrics.increment_outbox_send(fact, "unroutable")
+            logger.error("outbox_id=%s job_id=%s error sending, unroutable CRN: %s", row.id, row.job_id, str(ex))
+            self.metrics.increment_outbox_send(row.channel, "failure")
+            breaker.record_failure()
             return
         except RuntimeError as ex:
             logger.error("outbox_id=%s job_id=%s error sending: %s", row.id, row.job_id, str(ex))
-            self.metrics.increment_outbox_send(fact, "failure")
+            self.metrics.increment_outbox_send(row.channel, "failure")
             breaker.record_failure()
             return
 
-        self.metrics.increment_outbox_send(fact, "success")
+        self.metrics.increment_outbox_send(row.channel, "success")
         breaker.record_success()
         row.delete()
 
-    @staticmethod
-    def _fact_label(payload: dict) -> str:
-        metric_type = payload.get("data", {}).get("metric_type", "")
-        return "license_fee" if metric_type.startswith("license") else "billing_event"
-
     def _report_pending_gauges(self, channel: str) -> None:
-        """Same billing-specific caveat as _fact_label: only "billing" gets the finer fact
-        breakdown, everything else reports one count for the whole channel."""
-        now = timezone.now()
-        if channel == "billing":
-            for fact, metric_type_prefix in (("license_fee", "license"), ("billing_event", "classical")):
-                queryset = Outbox.objects.filter(
-                    channel=channel, payload__data__metric_type__startswith=metric_type_prefix
-                )
-                self._report_gauge_for(queryset, fact, now)
-        else:
-            self._report_gauge_for(Outbox.objects.filter(channel=channel), channel, now)
-
-    def _report_gauge_for(self, queryset, label: str, now) -> None:
+        queryset = Outbox.objects.filter(channel=channel)
         count = queryset.count()
-        self.metrics.set_outbox_pending_rows(count, label)
+        self.metrics.set_outbox_pending_rows(count, channel)
         oldest = queryset.order_by("created").first()
-        age_seconds = (now - oldest.created).total_seconds() if oldest else 0
-        self.metrics.set_outbox_oldest_pending_age_seconds(age_seconds, label)
+        age_seconds = (timezone.now() - oldest.created).total_seconds() if oldest else 0
+        self.metrics.set_outbox_oldest_pending_age_seconds(age_seconds, channel)

@@ -34,26 +34,22 @@ class UnroutableRegionError(RuntimeError):
 class KafkaProducers:
     """
     Configured from Django settings (main/settings.py) per region:
-      settings.EVENT_STREAMS_BOOTSTRAP_SERVERS — comma-separated broker list (main region)
-      settings.EVENT_STREAMS_API_KEY            — SASL/PLAIN password (main region)
-      settings.EVENT_STREAMS_USER               — SASL/PLAIN username (default: 'token')
-      settings.EVENT_STREAMS_REGIONS            — {region: {bootstrap_servers, api_key, user}}
-                                                    for additional regions, discovered from
-                                                    suffixed environment variables at settings
-                                                    import time
-      settings.EVENT_STREAMS_MAIN_REGION        — main region (default: us-east)
-      settings.ENVIRONMENT                      — deployment environment (e.g. production, staging)
+      settings.EVENT_STREAMS_BOOTSTRAP_SERVERS: comma-separated broker list (main region)
+      settings.EVENT_STREAMS_API_KEY: SASL/PLAIN password (main region)
+      settings.EVENT_STREAMS_USER: SASL/PLAIN username (default: 'token')
+      settings.EVENT_STREAMS_REGIONS: {region: {bootstrap_servers, api_key, user}} for
+        additional regions, discovered from suffixed environment variables at settings
+        import time
+      settings.EVENT_STREAMS_MAIN_REGION: main region (default: us-east)
+      settings.ENVIRONMENT: deployment environment (e.g. production, staging)
 
     settings.py itself already fails closed at import time if EVENT_STREAMS_ENABLED is true and
-    the main credentials are missing, so this constructor (only ever called once that flag is
-    true, see KafkaSender) can trust they are present and does not repeat that check.
+    the main credentials or ENVIRONMENT are missing, so this constructor (only ever called once
+    that flag is true, see KafkaSender) can trust they are present and does not repeat that check.
     """
 
     def __init__(self) -> None:
         environment = settings.ENVIRONMENT
-        if not environment:
-            raise ValueError("ENVIRONMENT setting is required")
-
         self._producers: dict[str, Producer] = {}
 
         main_region = settings.EVENT_STREAMS_MAIN_REGION
@@ -78,7 +74,8 @@ class KafkaProducers:
             main_region,
         )
 
-    def _create_producer(self, bootstrap_servers: str, api_key: str, user: str = "token") -> Producer:
+    @staticmethod
+    def _create_producer(bootstrap_servers: str, api_key: str, user: str = "token") -> Producer:
         """Create and return a Kafka producer with the given credentials."""
         return Producer(
             {

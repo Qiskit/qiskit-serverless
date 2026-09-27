@@ -343,20 +343,19 @@ EVENT_STREAMS_ENABLED = os.environ.get("EVENT_STREAMS_ENABLED", "false").lower()
 # specifies which regional Kafka bus receives events from unsuffixed broker/API key environment
 # variables. Additional regions are configured via suffixed variables (e.g. EVENT_STREAMS_BOOTSTRAP_SERVERS_EU_DE).
 EVENT_STREAMS_MAIN_REGION = os.environ.get("EVENT_STREAMS_MAIN_REGION", "us-east")
-# Kafka credentials for the main region. Left unset by deployments that don't enable Event
+# Kafka credentials for the main region, plus the deployment environment name (e.g. production,
+# staging) used to namespace the Kafka topic. Left unset by deployments that don't enable Event
 # Streams; required, and validated here, only once EVENT_STREAMS_ENABLED is true, since that is
 # also the only time anything ever constructs a KafkaProducers.
 EVENT_STREAMS_BOOTSTRAP_SERVERS = os.environ.get("EVENT_STREAMS_BOOTSTRAP_SERVERS")
 EVENT_STREAMS_API_KEY = os.environ.get("EVENT_STREAMS_API_KEY")
 EVENT_STREAMS_USER = os.environ.get("EVENT_STREAMS_USER", "token")
-if EVENT_STREAMS_ENABLED and not (EVENT_STREAMS_BOOTSTRAP_SERVERS and EVENT_STREAMS_API_KEY):
-    raise ImproperlyConfigured(
-        "EVENT_STREAMS_BOOTSTRAP_SERVERS and EVENT_STREAMS_API_KEY are required when EVENT_STREAMS_ENABLED is true"
-    )
-# Deployment environment name (e.g. production, staging), used to namespace the Kafka topic
-# usage events are published to. Same leniency as the credentials above: only required once
-# KafkaProducers is actually constructed.
 ENVIRONMENT = os.environ.get("ENVIRONMENT")
+if EVENT_STREAMS_ENABLED and not (EVENT_STREAMS_BOOTSTRAP_SERVERS and EVENT_STREAMS_API_KEY and ENVIRONMENT):
+    raise ImproperlyConfigured(
+        "EVENT_STREAMS_BOOTSTRAP_SERVERS, EVENT_STREAMS_API_KEY and ENVIRONMENT are required when "
+        "EVENT_STREAMS_ENABLED is true"
+    )
 
 
 def _event_streams_regions() -> dict[str, dict[str, str]]:
@@ -554,11 +553,13 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "Minimum number of jobs, real plus filler, to keep running for the compute "
         "profile of the filler program.",
     },
-    "scheduler.outbox.enabled": {
+    "scheduler.outbox.kafka.enabled": {
         "default": "false",
         "type": "boolean",
-        "description": "Enable the outbox task: sends the license fee and final usage event "
-        "for terminal Fleets jobs. While off, nothing publishes these two events at all.",
+        "description": "Enable the license_fee/billing_event outbox channel (the Kafka billing "
+        "pair). While off, Job.change_status enqueues no row for either one, and DrainOutbox "
+        "skips both entirely, as if they were not registered. Stopping this channel does not "
+        "stop any other channel a later PR may add: each gets its own key.",
     },
     "scheduler.outbox.budget_ms": {
         "default": "500",

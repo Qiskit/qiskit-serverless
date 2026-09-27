@@ -20,10 +20,16 @@ The same sender serves two callers that never know about each other: UpdateFleet
 sends a payload right after building it, inline, best-effort; DrainOutbox sends a payload it
 read back from an Outbox row, possibly long after it was built, with retries. Neither the sender
 nor KafkaProducers cares which case it is in.
+
+Neither this sender nor a plain payload dict carries any notion of "filler job": each call site
+(UpdateFleetsJobsStatuses._send_job_in_progress, Job._enqueue_billing_messages) checks that
+itself before building the payload.
 """
 
 import json
 import logging
+
+from django.conf import settings
 
 from .kafka_producers import KafkaProducers
 
@@ -74,3 +80,12 @@ class NoOpSender:
     def send(self, payload: dict) -> None:
         """Logs the payload instead of publishing it."""
         logger.info("payload=%s [noop] send", payload)
+
+
+def build_sender() -> "KafkaSender | NoOpSender":
+    """Return a KafkaSender, or a NoOpSender when EVENT_STREAMS_ENABLED is false."""
+    if settings.EVENT_STREAMS_ENABLED:
+        logger.info("Initializing KafkaSender (EVENT_STREAMS_ENABLED=True)")
+        return KafkaSender()
+    logger.info("Initializing NoOpSender (EVENT_STREAMS_ENABLED=False)")
+    return NoOpSender()

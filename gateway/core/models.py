@@ -468,6 +468,10 @@ class FunctionSize(models.Model):
         return f"{self.function} ({self.function_size})"
 
 
+class InvalidJobTransitionException(Exception):
+    """Raised by Job.change_status for a status transition not in Job.VALID_TRANSITIONS."""
+
+
 class Job(models.Model):
     """Job model."""
 
@@ -496,6 +500,17 @@ class Job(models.Model):
     TERMINAL_STATUSES = [SUCCEEDED, FAILED, STOPPED]
     RUNNING_STATUSES = [RUNNING, PENDING]
     ACTIVE_STATUSES = [QUEUED, PENDING, RUNNING]
+
+    # Valid change_status targets per current status. A terminal status has none: any transition
+    # away from one is a no-op handled separately in change_status, not an error.
+    VALID_TRANSITIONS: dict[str, set[str]] = {
+        QUEUED: {PENDING, SUCCEEDED, FAILED, STOPPED},
+        PENDING: {RUNNING, SUCCEEDED, FAILED, STOPPED},
+        RUNNING: {SUCCEEDED, FAILED, STOPPED},
+        SUCCEEDED: set(),
+        FAILED: set(),
+        STOPPED: set(),
+    }
 
     RUNNING_SUB_STATUSES = [
         MAPPING,
@@ -722,67 +737,66 @@ class Job(models.Model):
         self, *, origin: JobEventOrigin, context: JobEventContext, status: str, job_fields: dict | None = None
     ):
         """Transition this job's status: the JobEvent, any outbox message this transition owes,
-        and the job itself (plus any extra job_fields), atomically. This is the only entry point
-        for a status transition, so it is also the only place that enqueues outbox messages.
+        and the job itself (plus any extra job_fields), atomically. current_status is read under
+        a row lock rather than trusted from self.status, which can be stale (a caller may be
+        holding an in-memory Job loaded before a concurrent transition already committed).
 
-        Outbox messages are only ever built on a transition to a terminal status
-        (SUCCEEDED/FAILED/STOPPED), and only for a job that can reach the outbox pipeline: Fleets,
-        not filler, with an instance CRN. See core/domain/billing_events.py.
-
-        Enqueueing is also guarded against a job that is already terminal in the database: unlike
-        the old one-row-per-job JobOutbox, Outbox is one row per message, so a second terminal
-        transition would double the billing facts instead of harmlessly overwriting the same row.
-        self.status can be stale (a caller may be holding an in-memory Job loaded before a
-        concurrent transition already committed, e.g. a user stopping a job via the API while the
-        scheduler's poll loop still has an older copy), so the current status is read from the
-        database under a row lock rather than trusted from memory.
+        A job already in a terminal status never transitions again: returns None and writes
+        nothing. Any other transition not in Job.VALID_TRANSITIONS raises
+        InvalidJobTransitionException instead, since that is a caller bug, not a race.
         """
         with transaction.atomic():
             current_status = Job.objects.select_for_update().values_list("status", flat=True).get(pk=self.pk)
-            already_terminal = current_status in Job.TERMINAL_STATUSES
-
+            if status not in Job.VALID_TRANSITIONS.get(current_status, set()):
+                if current_status in Job.TERMINAL_STATUSES:
+                    logger.info(
+                        "job_id=%s already in terminal status=%s, ignoring transition to %s",
+                        self.id,
+                        current_status,
+                        status,
+                    )
+                    return None
+                raise InvalidJobTransitionException(f"Job {self.id}: invalid transition {current_status} -> {status}")
             event = JobEvent.objects.add_status_event(job_id=self.id, origin=origin, context=context, status=status)
-            if status in Job.TERMINAL_STATUSES and not already_terminal:
-                self._enqueue_billing_messages(event, new_status=status)
             self.update_fields({"status": status, **(job_fields or {})})
+            self._enqueue_billing_messages(event, new_status=status, previous_status=current_status)
         return event
 
-    def _enqueue_billing_messages(self, event: "JobEvent", *, new_status: str) -> None:
-        """Build and store whichever billing outbox messages this terminal transition owes.
+    def _enqueue_billing_messages(self, event: "JobEvent", *, new_status: str, previous_status: str) -> None:
+        """Build and store whichever billing outbox messages this transition owes, if any.
 
-        Every guard that decides whether anything gets built lives here, in sequence, rather than
-        split between a caller-side eligibility check and a callee-side "did it run" check: not
-        Fleets, or filler, or no instance CRN, returns before touching the database at all; not
-        having run yet (FAILED/STOPPED before ever reaching RUNNING) returns after the billing
-        event but before the license fee, which only that case skips.
-
-        One query, not two: first_running_at() both decides license fee eligibility for a
-        FAILED/STOPPED transition and provides the value both builders need for their own
-        content (job_started_at, usage seconds). SUCCEEDED never needs it for eligibility (it
-        proves the job ran by definition) but still needs the value for the payloads' content.
+        Only a first transition into a terminal status (SUCCEEDED/FAILED/STOPPED), for a Fleets,
+        non-filler job with an instance CRN, owes anything; Outbox is one row per message, so
+        re-enqueueing on a second terminal transition would double the billing facts.
         """
-        if self.runner != Program.FLEETS or self.filler or not self.instance_crn:
+        if new_status not in Job.TERMINAL_STATUSES or previous_status in Job.TERMINAL_STATUSES:
+            return
+        if self.runner == Program.RAY or self.filler or not self.instance_crn:
+            return
+        if not Config.get_bool(ConfigKey.OUTBOX_KAFKA_ENABLED):
             return
 
-        # Deferred import: core/domain/billing_events.py imports Job from this module at its own
-        # top level, so this module cannot import it at its own top level too (see
-        # JobEvent.objects.first_running_at in core/model_managers/job_events.py for the same
-        # pattern already in this codebase).
+        # Deferred import: core/domain/billing_events.py imports Job from this module at its own top level
         from core.domain.billing_events import BillingEvents  # pylint: disable=import-outside-toplevel, cyclic-import
 
         running_started_at = JobEvent.objects.first_running_at(self.id)
 
         billing_message = BillingEvents.build_billing_event(self, event.created, running_started_at)
-        Outbox.objects.create(job=self, channel="billing", payload=billing_message)
+        Outbox.objects.create(job=self, channel="billing_event", payload=billing_message)
 
-        if new_status != Job.SUCCEEDED and running_started_at is None:
+        ran = new_status == Job.SUCCEEDED or running_started_at is not None
+        if not ran or self.program is None or self.program.provider is None:
+            return
+        if self.function_size is None:
+            logger.error(
+                "job_id=%s license fee message cannot be built: function_size is missing although "
+                "the function has a provider, waiving the fee",
+                self.id,
+            )
             return
 
         license_fee_message = BillingEvents.build_license_fee(self, event.created, running_started_at)
-        if license_fee_message is None:
-            return
-
-        Outbox.objects.create(job=self, channel="billing", payload=license_fee_message)
+        Outbox.objects.create(job=self, channel="license_fee", payload=license_fee_message)
 
 
 class RuntimeJob(models.Model):
@@ -833,9 +847,9 @@ class Outbox(models.Model):
     message, not per job: a job can have zero, one, or several rows at once, each with its own
     payload and channel, deleted independently once its own send succeeds.
 
-    `channel` says how to send it ("billing" today, via Kafka in DrainOutbox); it is a plain
-    string, not a Django `choices=`, so registering a new channel is adding a sender to a dict,
-    not a migration.
+    `channel` says how to send it ("license_fee" and "billing_event" today, both via Kafka in
+    DrainOutbox); it is a plain string, not a Django `choices=`, so registering a new channel is
+    adding a sender to a dict, not a migration.
 
     `payload` is the message exactly as it will be sent, built and frozen at the moment the fact
     it represents became true (see Job.change_status and core/domain/billing_events.py). This

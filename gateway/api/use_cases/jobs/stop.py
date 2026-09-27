@@ -35,12 +35,14 @@ class StopJobUseCase:
         self.status_messages = []
         self.stopped_sessions = []
 
+        event = None
         if not job.in_terminal_state():
-            job.change_status(
+            event = job.change_status(
                 origin=JobEventOrigin.API,
                 context=JobEventContext.STOP_JOB,
                 status=Job.STOPPED,
             )
+        if event is not None:
             self.status_messages.append("Job has been stopped.")
         else:
             self.status_messages.append("Job already in terminal state.")

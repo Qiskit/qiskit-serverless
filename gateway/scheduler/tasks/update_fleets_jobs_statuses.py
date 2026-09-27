@@ -7,7 +7,7 @@ from typing import cast
 from django.conf import settings
 
 from core.domain.billing_events import BillingEvents
-from core.ibm_cloud.event_streams.kafka_sender import KafkaSender, NoOpSender
+from core.ibm_cloud.event_streams.kafka_sender import build_sender, KafkaSender, NoOpSender
 from core.models import Job, JobEvent, Program
 from core.services.runners import get_runner, RunnerError, FleetsRunner
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
@@ -31,12 +31,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
     def sender(self) -> KafkaSender | NoOpSender:
         """Return the Kafka sender, instantiating it lazily on first access."""
         if self._sender is None:
-            if settings.EVENT_STREAMS_ENABLED:
-                logger.info("Initializing KafkaSender (EVENT_STREAMS_ENABLED=True)")
-                self._sender = KafkaSender()
-            else:
-                logger.info("Initializing NoOpSender (EVENT_STREAMS_ENABLED=False)")
-                self._sender = NoOpSender()
+            self._sender = build_sender()
         return self._sender
 
     def update_job_status(self, job: Job) -> bool:
@@ -123,8 +118,14 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         self._increment_terminal_counter(job)
 
     def to_running(self, job: Job) -> None:
-        """Transition job from PENDING to RUNNING, or emit an in-progress event if it already is."""
-        if job.status == Job.PENDING:
+        """Transition job from PENDING to RUNNING, or emit an in-progress event if it already is.
+
+        A job transitioning to terminal via stop_job_if_timeout in this same tick will produce
+        both an in-progress and a completed event; consumers key on the job_started /
+        job_completed flags.
+        """
+        job_started = job.status == Job.PENDING
+        if job_started:
             logger.info(
                 "job_id=%s user_id=%s Changing status from %s to %s",
                 job.id,
@@ -134,7 +135,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             )
             # This transition to RUNNING enqueues nothing in the outbox: outbox messages are
             # only built on a terminal transition (core/models.py's change_status). Sending the
-            # job_started event below is unrelated: a different billing fact (classical compute
+            # in-progress event below is unrelated: a different billing fact (classical compute
             # time), built and sent inline, best-effort, never through the outbox.
             job.change_status(
                 origin=JobEventOrigin.SCHEDULER,
@@ -142,39 +143,25 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                 status=Job.RUNNING,
             )
 
-            try:
-                self._send_job_started(job)
-            except RuntimeError as ex:
-                logger.error(
-                    "job_id=%s error emitting job_started event to Kafka, event dropped: %s",
-                    job.id,
-                    str(ex),
-                )
-        else:
-            # Job already RUNNING: send in-progress before checking timeout.
-            # A job transitioning to terminal via stop_job_if_timeout in this same tick
-            # will produce both an in-progress and a completed event; consumers key on
-            # the job_started / job_completed flags.
-            self._send_job_in_progress(job)
+        try:
+            self._send_job_in_progress(job, job_started=job_started)
+        except RuntimeError as ex:
+            logger.error(
+                "job_id=%s error emitting job_in_progress event to Kafka, event dropped: %s",
+                job.id,
+                str(ex),
+            )
 
-    def _send_job_started(self, job: Job) -> None:
-        """Build and send the job-started event, best-effort. BillingEvents.build_job_started
+    def _send_job_in_progress(self, job: Job, job_started: bool = False) -> None:
+        """Build and send the in-progress event, best-effort. BillingEvents.build_job_in_progress
         assumes it is never called for a filler job, so that check happens here, first, before
         even the JobEvent query, not just before the send."""
         if job.filler:
             return
         running_started_at = JobEvent.objects.first_running_at(job.id)
-        payload = BillingEvents.build_job_started(job, datetime.now(timezone.utc), running_started_at)
-        self.sender.send(payload)
-
-    def _send_job_in_progress(self, job: Job) -> None:
-        """Build and send the job-in-progress event, best-effort. BillingEvents.build_job_in_progress
-        assumes it is never called for a filler job, so that check happens here, first, before
-        even the JobEvent query, not just before the send."""
-        if job.filler:
-            return
-        running_started_at = JobEvent.objects.first_running_at(job.id)
-        payload = BillingEvents.build_job_in_progress(job, datetime.now(timezone.utc), running_started_at)
+        payload = BillingEvents.build_job_in_progress(
+            job, datetime.now(timezone.utc), running_started_at, job_started=job_started
+        )
         self.sender.send(payload)
 
     def stop_job_if_timeout(self, job: Job) -> None:

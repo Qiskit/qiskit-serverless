@@ -48,6 +48,7 @@ def restore_settings_module():
     os.environ.pop("EVENT_STREAMS_ENABLED", None)
     os.environ.pop("EVENT_STREAMS_BOOTSTRAP_SERVERS", None)
     os.environ.pop("EVENT_STREAMS_API_KEY", None)
+    os.environ.pop("ENVIRONMENT", None)
     try:
         importlib.reload(main.settings)
     finally:
@@ -207,18 +208,25 @@ class TestEventStreamsRegions:
 
 
 class TestEventStreamsMainCredentials:
-    """Tests for the EVENT_STREAMS_ENABLED-gated requirement on the main region's credentials."""
+    """Tests for the EVENT_STREAMS_ENABLED-gated requirement on the main region's credentials
+    and ENVIRONMENT, caught at import time rather than on the first KafkaProducers construction."""
 
     def test_missing_credentials_when_enabled_fails_closed(self, monkeypatch):
-        """A deployment that turns Event Streams on must set the main credentials, and this must
-        be caught at import time, not on the first attempt to construct a KafkaProducers."""
         monkeypatch.setenv("EVENT_STREAMS_ENABLED", "true")
+        monkeypatch.setenv("ENVIRONMENT", "production")
         monkeypatch.delenv("EVENT_STREAMS_BOOTSTRAP_SERVERS", raising=False)
         monkeypatch.delenv("EVENT_STREAMS_API_KEY", raising=False)
 
-        with pytest.raises(
-            ImproperlyConfigured, match="EVENT_STREAMS_BOOTSTRAP_SERVERS and EVENT_STREAMS_API_KEY are required"
-        ):
+        with pytest.raises(ImproperlyConfigured, match="EVENT_STREAMS_BOOTSTRAP_SERVERS"):
+            importlib.reload(main.settings)
+
+    def test_missing_environment_when_enabled_fails_closed(self, monkeypatch):
+        monkeypatch.setenv("EVENT_STREAMS_ENABLED", "true")
+        monkeypatch.setenv("EVENT_STREAMS_BOOTSTRAP_SERVERS", "broker:9093")
+        monkeypatch.setenv("EVENT_STREAMS_API_KEY", "key")
+        monkeypatch.delenv("ENVIRONMENT", raising=False)
+
+        with pytest.raises(ImproperlyConfigured, match="ENVIRONMENT"):
             importlib.reload(main.settings)
 
     def test_missing_credentials_when_disabled_is_fine(self, monkeypatch):
@@ -227,6 +235,7 @@ class TestEventStreamsMainCredentials:
         monkeypatch.setenv("EVENT_STREAMS_ENABLED", "false")
         monkeypatch.delenv("EVENT_STREAMS_BOOTSTRAP_SERVERS", raising=False)
         monkeypatch.delenv("EVENT_STREAMS_API_KEY", raising=False)
+        monkeypatch.delenv("ENVIRONMENT", raising=False)
 
         importlib.reload(main.settings)
 
@@ -236,6 +245,7 @@ class TestEventStreamsMainCredentials:
         monkeypatch.setenv("EVENT_STREAMS_ENABLED", "true")
         monkeypatch.setenv("EVENT_STREAMS_BOOTSTRAP_SERVERS", "broker:9093")
         monkeypatch.setenv("EVENT_STREAMS_API_KEY", "key")
+        monkeypatch.setenv("ENVIRONMENT", "production")
 
         importlib.reload(main.settings)
 

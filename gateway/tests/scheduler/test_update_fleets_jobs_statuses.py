@@ -20,12 +20,11 @@ def _make_task():
     task = UpdateFleetsJobsStatuses.__new__(UpdateFleetsJobsStatuses)
     task.kill_signal = kill_signal
     task.metrics = MagicMock()
-    # _send_job_started/_send_job_in_progress build (core/domain/billing_events.py) and send in one
-    # call; mocking them here, instead of a collaborator "client" object, is what lets every test
-    # below assert on "was a send attempted" without needing a real JobEvent query or a real job
-    # shaped exactly right for the builders. The two tests that exercise the real build-and-send
-    # path (TestBuildAndSend) construct their own task instead of using this helper.
-    task._send_job_started = MagicMock()
+    # _send_job_in_progress builds (core/domain/billing_events.py) and sends in one call; mocking
+    # it here, instead of a collaborator "client" object, is what lets every test below assert on
+    # "was a send attempted" without needing a real JobEvent query or a real job shaped exactly
+    # right for the builder. The two tests that exercise the real build-and-send path
+    # (TestBuildAndSend) construct their own task instead of using this helper.
     task._send_job_in_progress = MagicMock()
     return task
 
@@ -203,6 +202,23 @@ class TestUpdateJobStatus:
 
         mock_timeout.assert_called_once_with(job)
 
+    def test_running_job_checks_timeout_even_when_in_progress_publish_fails(self):
+        """A Kafka outage on the in-progress emit must not skip the timeout check for that job."""
+        task = _make_task()
+        task._send_job_in_progress.side_effect = RuntimeError("kafka down")
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        mock_runner = MagicMock()
+        mock_runner.status.return_value = Job.RUNNING
+
+        with (
+            patch(f"{_MOD}.get_runner", return_value=mock_runner),
+            patch.object(task, "stop_job_if_timeout") as mock_timeout,
+        ):
+            task.update_job_status(job)
+
+        mock_timeout.assert_called_once_with(job)
+
     def test_unknown_status_calls_to_terminal_failed(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
@@ -265,7 +281,6 @@ class TestToTerminal:
 
         task.to_terminal(job, Job.SUCCEEDED)
 
-        task._send_job_started.assert_not_called()
         task._send_job_in_progress.assert_not_called()
 
 
@@ -285,29 +300,23 @@ class TestToRunning:
             status=Job.RUNNING,
         )
 
+    def test_pending_transition_sends_in_progress_with_job_started_true(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.PENDING)
+
+        task.to_running(job)
+
+        task._send_job_in_progress.assert_called_once_with(job, job_started=True)
+
     def test_to_running_reaches_running_even_when_kafka_is_down(self):
         """A Kafka outage must not leave the job stuck retrying PENDING forever."""
         task = _make_task()
         job = _make_fleets_job(status=Job.PENDING)
-        task._send_job_started.side_effect = RuntimeError("kafka down")
+        task._send_job_in_progress.side_effect = RuntimeError("kafka down")
 
         task.to_running(job)  # must not raise
 
         assert job.status == Job.RUNNING
-
-    def test_to_running_logs_the_kafka_failure_instead_of_swallowing_it_silently(self):
-        task = _make_task()
-        job = _make_fleets_job(status=Job.PENDING)
-        task._send_job_started.side_effect = RuntimeError("kafka down")
-
-        with patch(f"{_MOD}.logger") as mock_logger:
-            task.to_running(job)
-
-        mock_logger.error.assert_called_once_with(
-            "job_id=%s error emitting job_started event to Kafka, event dropped: %s",
-            job.id,
-            "kafka down",
-        )
 
     def test_already_running_job_emits_in_progress_instead_of_transitioning(self):
         task = _make_task()
@@ -315,9 +324,31 @@ class TestToRunning:
 
         task.to_running(job)
 
-        task._send_job_in_progress.assert_called_once_with(job)
+        task._send_job_in_progress.assert_called_once_with(job, job_started=False)
         job.change_status.assert_not_called()
-        task._send_job_started.assert_not_called()
+
+    def test_to_running_does_not_raise_if_in_progress_publish_fails(self):
+        task = _make_task()
+        task._send_job_in_progress.side_effect = RuntimeError("kafka down")
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        task.to_running(job)  # must not raise
+
+        task._send_job_in_progress.assert_called_once_with(job, job_started=False)
+
+    def test_to_running_logs_the_in_progress_kafka_failure_instead_of_swallowing_it_silently(self):
+        task = _make_task()
+        task._send_job_in_progress.side_effect = RuntimeError("kafka down")
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        with patch(f"{_MOD}.logger") as mock_logger:
+            task.to_running(job)
+
+        mock_logger.error.assert_called_once_with(
+            "job_id=%s error emitting job_in_progress event to Kafka, event dropped: %s",
+            job.id,
+            "kafka down",
+        )
 
 
 class TestStopJobIfTimeout:
@@ -492,7 +523,7 @@ class TestEventStreamsIntegration:
         job = _make_fleets_job(status=Job.PENDING)
 
         call_order = []
-        task._send_job_started.side_effect = lambda j: call_order.append("publish")
+        task._send_job_in_progress.side_effect = lambda j, job_started=False: call_order.append("publish")
         original_change_status = job.change_status.side_effect
 
         def fake_change_status(**kwargs):
@@ -504,11 +535,11 @@ class TestEventStreamsIntegration:
         task.to_running(job)
 
         assert call_order == ["db", "publish"]
-        task._send_job_started.assert_called_once_with(job)
+        task._send_job_in_progress.assert_called_once_with(job, job_started=True)
 
     def test_to_running_does_not_raise_if_publish_fails(self):
         task = _make_task()
-        task._send_job_started.side_effect = RuntimeError("broker down")
+        task._send_job_in_progress.side_effect = RuntimeError("broker down")
         job = _make_fleets_job(status=Job.PENDING)
 
         task.to_running(job)  # must not raise
@@ -534,7 +565,7 @@ class TestEventStreamsIntegration:
         ):
             task.update_job_status(job)
 
-        task._send_job_in_progress.assert_called_once_with(job)
+        task._send_job_in_progress.assert_called_once_with(job, job_started=False)
 
     def test_run_publish_failure_skips_db_update_and_continues_other_jobs(self):
         task = _make_task()
@@ -583,8 +614,8 @@ class TestEventStreamsIntegration:
 
 
 class TestBuildAndSend:
-    """Integration tests for _send_job_started/_send_job_in_progress: the real builders
-    (core/domain/billing_events.py) and a mocked sender, not the mocked private methods
+    """Integration tests for _send_job_in_progress: the real builder
+    (core/domain/billing_events.py) and a mocked sender, not the mocked private method
     _make_task() sets up for everything else in this file."""
 
     def _make_task_with_real_sender(self):
@@ -596,13 +627,13 @@ class TestBuildAndSend:
         task._sender = MagicMock()
         return task
 
-    def test_send_job_started_builds_and_sends_via_the_sender(self):
+    def test_send_job_in_progress_with_job_started_builds_and_sends_via_the_sender(self):
         task = self._make_task_with_real_sender()
         job = _make_fleets_job(status=Job.PENDING)
 
         with patch(f"{_MOD}.JobEvent") as mock_job_event:
             mock_job_event.objects.first_running_at.return_value = None
-            task._send_job_started(job)
+            task._send_job_in_progress(job, job_started=True)
 
         task.sender.send.assert_called_once()
         payload = task.sender.send.call_args[0][0]
@@ -622,16 +653,16 @@ class TestBuildAndSend:
         assert payload["data"]["job_started"] is False
         assert payload["data"]["job_completed"] is False
 
-    def test_a_filler_job_sends_neither_event(self):
-        """_send_job_started/_send_job_in_progress check job.filler themselves, before ever
-        calling a builder that assumes it is never given a filler job."""
+    def test_a_filler_job_sends_nothing(self):
+        """_send_job_in_progress checks job.filler itself, before ever calling a builder that
+        assumes it is never given a filler job."""
         task = self._make_task_with_real_sender()
         job = _make_fleets_job(status=Job.RUNNING)
         job.filler = True
 
         with patch(f"{_MOD}.JobEvent") as mock_job_event:
             mock_job_event.objects.first_running_at.return_value = None
-            task._send_job_started(job)
+            task._send_job_in_progress(job, job_started=True)
             task._send_job_in_progress(job)
 
         task.sender.send.assert_not_called()

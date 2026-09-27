@@ -132,12 +132,6 @@ class TestKafkaProducersSetup:
         assert producers._main_region == "eu-gb"
         assert "eu-gb" in producers._producers
 
-    def test_missing_environment_raises_at_init(self, settings):
-        _configure(settings, bootstrap_servers="b:9093", api_key="k", environment=None)
-
-        with pytest.raises(ValueError, match="ENVIRONMENT setting is required"):
-            KafkaProducers()
-
     def test_startup_log_line(self, settings, caplog):
         _configure(
             settings,

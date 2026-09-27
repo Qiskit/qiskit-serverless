@@ -1,9 +1,10 @@
-"""Builders for every message this codebase publishes to Kafka about a job's usage: the two
-best-effort events sent inline (job_started, job_in_progress) and the two billing facts that
-flow through the outbox (the provider license fee, the job's final usage event). Every builder
-returns the Kafka message body exactly as it will be sent, and none of them touch Kafka
-transport: CloudEvents' own `type` field (which equals the Kafka topic name) is added later, by
-the sender, at send time, not here.
+"""Builders for every message this codebase publishes to Kafka about a job's usage: the
+best-effort in-progress event sent inline (job_started=True for the first one, right after a
+job's PENDING -> RUNNING transition) and the two billing facts that flow through the outbox
+(the provider license fee, the job's final usage event). Every builder returns the Kafka
+message body exactly as it will be sent, and none of them touch Kafka transport: CloudEvents'
+own `type` field (which equals the Kafka topic name) is added later, by the sender, at send
+time, not here.
 
 None of these functions query the database themselves: `running_started_at` is always a
 parameter, because the caller (Job.change_status for the outbox pair, UpdateFleetsJobsStatuses
@@ -12,10 +13,11 @@ purposes, and there is no reason to query it twice. Likewise `as_of` is always a
 computed here: the outbox pair uses the status-change event's own timestamp, the inline pair uses
 the current instant, and neither builder needs to know which.
 
-Filler jobs never generate any of these, but that is the caller's job to enforce, not this
-module's: every builder here assumes it is only ever called for a job that is supposed to get a
-message. build_license_fee is the one exception that still returns None on its own, for a
-different reason entirely (no provider, or a missing FunctionSize), unrelated to filler.
+None of these builders return None or otherwise decide whether a message is owed: that is the
+caller's job (Job._enqueue_billing_messages, UpdateFleetsJobsStatuses), not this module's. Every
+builder here assumes the caller already checked it should be called at all, and fails outright
+if the data it needs (e.g. build_license_fee's job.program.provider, job.function_size) is
+missing instead of guarding for it.
 
 See specs/OUTBOX.md at the repository root for the outbox pair's full design. For the original
 design rationale, if you have it locally, see .claude/specs/2026-09-25-generic-outbox-design.md
@@ -37,7 +39,7 @@ CLASSICAL_TIME_METRIC_TYPE_PREFIX = "classical"
 
 
 class BillingEvents:
-    """Namespace for the four message builders described in the module docstring. Grouped in one
+    """Namespace for the three message builders described in the module docstring. Grouped in one
     class purely to keep them together under one name at call sites (BillingEvents.build_x);
     every method is a static, side-effect-free function of its arguments."""
 
@@ -75,48 +77,27 @@ class BillingEvents:
         }
 
     @staticmethod
-    def build_job_started(
-        job: Job, as_of: datetime, running_started_at: datetime | None, metric_type: str | None = None
-    ) -> dict:
-        """The job-started event (metric_value=0), sent inline, best-effort, never through the
-        outbox. The caller must not call this for a filler job (see UpdateFleetsJobsStatuses).
-
-        Takes `as_of` for the same reason build_license_fee takes it: signature symmetry with the
-        other three builders, even though this one, always reporting zero usage, has no use for
-        it.
-        """
-        # pylint: disable=unused-argument
-        if metric_type is None:
-            metric_type = BillingEvents._classical_metric_type(job)
-        logger.info("job_id=%s Building job_started message metric_type=%s", job.id, metric_type)
-        return BillingEvents._envelope(
-            job,
-            data={
-                "metric_type": metric_type,
-                "metric_value": 0,
-                "instance_crn": job.instance_crn,
-                "resource_id": str(job.id),
-                "job_started": True,
-                "job_started_at": running_started_at.isoformat() if running_started_at else None,
-                "job_completed": False,
-            },
-        )
-
-    @staticmethod
     def build_job_in_progress(
-        job: Job, as_of: datetime, running_started_at: datetime | None, metric_type: str | None = None
+        job: Job,
+        as_of: datetime,
+        running_started_at: datetime | None,
+        metric_type: str | None = None,
+        job_started: bool = False,
     ) -> dict:
-        """The job-in-progress event, reporting usage as of as_of. Sent inline, best-effort, never
-        through the outbox. The caller must not call this for a filler job (see
-        UpdateFleetsJobsStatuses)."""
+        """The in-progress event, reporting usage as of as_of. metric_value is forced to 0 when
+        job_started is True, for the first one sent right after a job's PENDING -> RUNNING
+        transition, regardless of the (near-zero but nonzero) elapsed time _usage_seconds would
+        otherwise compute. Sent inline, best-effort, never through the outbox. The caller must
+        not call this for a filler job (see UpdateFleetsJobsStatuses)."""
         if metric_type is None:
             metric_type = BillingEvents._classical_metric_type(job)
-        usage_seconds = BillingEvents._usage_seconds(running_started_at, as_of)
+        usage_seconds = 0 if job_started else BillingEvents._usage_seconds(running_started_at, as_of)
         logger.info(
-            "job_id=%s Building job_in_progress message metric_type=%s metric_value=%s",
+            "job_id=%s Building job_in_progress message metric_type=%s metric_value=%s job_started=%s",
             job.id,
             metric_type,
             usage_seconds,
+            job_started,
         )
         return BillingEvents._envelope(
             job,
@@ -125,7 +106,7 @@ class BillingEvents:
                 "metric_value": usage_seconds,
                 "instance_crn": job.instance_crn,
                 "resource_id": str(job.id),
-                "job_started": False,
+                "job_started": job_started,
                 "job_started_at": running_started_at.isoformat() if running_started_at else None,
                 "job_completed": False,
             },
@@ -158,29 +139,11 @@ class BillingEvents:
         )
 
     @staticmethod
-    def build_license_fee(job: Job, as_of: datetime, running_started_at: datetime | None) -> dict | None:
-        """The provider license fee. Callers must only call this once they have already decided
-        the job ran (see Job.change_status): this function does not repeat that check.
-
-        Returns None silently when the function has no provider, or when its Program has itself
-        been deleted (SET_NULL) so having a provider can no longer even be checked (the normal
-        case for most jobs either way). Returns None after logging an error only when the Program
-        and its provider are both still there but FunctionSize is missing (a SET_NULL deletion
-        racing the transition, made rare, not impossible, by building here instead of at send
-        time). That last case is an anomaly worth a log line; the others are not.
-        """
+    def build_license_fee(job: Job, as_of: datetime, running_started_at: datetime | None) -> dict:
+        """The provider license fee. The caller must check job.program, job.program.provider and
+        job.function_size are all set before calling this: it assumes they are and does not
+        check again."""
         # pylint: disable=unused-argument
-        if job.program is None or job.program.provider is None:
-            return None
-
-        if job.function_size is None:
-            logger.error(
-                "job_id=%s license fee message cannot be built: function_size is missing although "
-                "the function has a provider, waiving the fee",
-                job.id,
-            )
-            return None
-
         metric_type = "_".join(
             [LICENSE_FEE_METRIC_TYPE, job.program.provider.name, job.program.title, job.function_size.function_size]
         )

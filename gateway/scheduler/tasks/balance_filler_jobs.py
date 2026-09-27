@@ -324,10 +324,11 @@ class BalanceFillerJobs(SchedulerTask):
 
     def _mark_stopped(self, job: Job) -> None:
         """Write STOPPED on the job, record the event, and count it."""
-        job.change_status(
+        event = job.change_status(
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.FILLER_STOP,
             status=Job.STOPPED,
             job_fields={"sub_status": None},
         )
-        self.metrics.increment_filler_jobs_stopped()
+        if event is not None:
+            self.metrics.increment_filler_jobs_stopped()
