@@ -1,4 +1,4 @@
-name: Fleet mock + MinIO integration tests
+name: Fleets smoke tests
 
 on:
   pull_request:
@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   verify-fleets:
-    name: Fleet mock + MinIO integration tests
+    name: Fleets smoke tests
     # Requires FUSE (for s3fs in the fleet-worker container) and privileged Docker.
     # Both are available on GitHub-hosted ubuntu-latest; switching runners will
     # require either a FUSE-capable image or a non-FUSE worker rewrite.
