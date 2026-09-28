@@ -11,9 +11,9 @@ jobs:
   verify-fleets:
     name: Fleets smoke tests
     # Requires FUSE (for s3fs in the fleet-worker container) and privileged Docker.
-    # Both are available on GitHub-hosted ubuntu-latest; switching runners will
-    # require either a FUSE-capable image or a non-FUSE worker rewrite.
-    runs-on: ubuntu-latest
+    # Both are available on the GitHub-hosted ubuntu-24.04 image; switching runners
+    # will require either a FUSE-capable image or a non-FUSE worker rewrite.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
