@@ -116,7 +116,7 @@ follow the provider upload workflow.
 4. Run the function
 -------------------
 
-With the environment running, you just need to intantiate a service client (see :ref:`client_configuration`),
+With the environment running, you just need to instantiate a service client (see :ref:`client_configuration`),
 define a ``QiskitFunction`` that will use the custom image, upload it, and invoke it:
 
 .. code-block::

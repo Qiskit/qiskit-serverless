@@ -506,10 +506,10 @@ SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "0"))
 SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get("SECURE_HSTS_INCLUDE_SUBDOMAINS", "false").lower() == "true"
 SECURE_HSTS_PRELOAD = os.environ.get("SECURE_HSTS_PRELOAD", "false").lower() == "true"
 
-# Functions logs size limite in Bytes
+# Functions logs size limit in Bytes
 FUNCTIONS_LOGS_SIZE_LIMIT = int(os.environ.get("FUNCTIONS_LOGS_SIZE_LIMIT", "52428800"))
 
-# Functions logs size limite in Bytes
+# Functions logs size limit in Bytes
 JOB_LOGS_MIGRATION_BATCH_SIZE = int(os.environ.get("JOB_LOGS_MIGRATION_BATCH_SIZE", "10"))
 
 # Dynamic configuration cache TTL in seconds
