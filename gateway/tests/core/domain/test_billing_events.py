@@ -158,7 +158,7 @@ class TestBuildLicenseFee:
         function_size = FunctionSize(function_size="m", compute_profile=ComputeProfile(compute_profile_id="16x128"))
         job = _job(program=program, function_size=function_size)
 
-        message = BillingEvents.build_license_fee(job, running_started_at=None)
+        message = BillingEvents.build_license_fee(job, job_started_at=None)
 
         assert message["data"]["job_started_at"] is None
         assert message["data"]["metric_value"] == 1

@@ -93,7 +93,7 @@ The license fee message (`BillingEvents.build_license_fee`) is only built when t
 is known to have run:
 
 - On a transition to `SUCCEEDED`, the job ran by definition, so the builder is always
-  called (with `running_started_at`, which can still be `None` if the job went
+  called (with `job_started_at`, which can still be `None` if the job went
   straight from queued to succeeded between two scheduler polls).
 - On a transition to `FAILED` or `STOPPED`, the builder is only called when
   `first_running_at()` returned a value, that is, the job passed through `RUNNING` at
@@ -101,8 +101,8 @@ is known to have run:
 
 Both builders live in `gateway/core/domain/billing_events.py`, alongside the one that
 builds the inline usage event, and are pure: `build_job_completed_event` takes `job`,
-`running_started_at`, and `job_finished_at` (the just-created `JobEvent`'s own `created`
-timestamp), while `build_license_fee` only needs `job` and `running_started_at`. Both
+`job_started_at`, and `job_finished_at` (the just-created `JobEvent`'s own `created`
+timestamp), while `build_license_fee` only needs `job` and `job_started_at`. Both
 return a dict. Neither one decides whether it should be called or returns `None`; that
 decision belongs entirely to `_enqueue_billing_messages`. It skips `build_license_fee`
 silently when the function has no provider, or its `Program` has itself been deleted

@@ -23,13 +23,13 @@ class BillingEvents:
     """Not a real class, just a namespace for the three message builders, so you can use BillingEvents.build_x"""
 
     @staticmethod
-    def build_license_fee(job: Job, running_started_at: datetime | None) -> dict:
-        """The provider license fee. The caller must check job.program, job.program.provider and
-        job.function_size are all set before calling this: it assumes they are and does not
-        check again. running_started_at is only ever None here for a job that reached
-        SUCCEEDED without ever passing through RUNNING (a direct PENDING -> SUCCEEDED
-        transition): the caller only calls this once the job is known to have run, or has
-        succeeded regardless."""
+    def build_license_fee(job: Job, job_started_at: datetime | None) -> dict:
+        """Build a license fee for a provider program.
+            - job.program, job.program.provider and job.function_size CAN'T be null
+            - running_started_at can be None if the job reaches SUCCEEDED without ever
+              passing through RUNNING
+        (a direct PENDING -> SUCCEEDED transition)
+        """
         metric_type = "_".join(
             [LICENSE_FEE_METRIC_TYPE, job.program.provider.name, job.program.title, job.function_size.function_size]
         )
@@ -42,7 +42,7 @@ class BillingEvents:
                 "instance_crn": job.instance_crn,
                 "resource_id": str(job.id),
                 "job_started": True,
-                "job_started_at": running_started_at.isoformat() if running_started_at else None,
+                "job_started_at": job_started_at.isoformat() if job_started_at else None,
                 "job_completed": True,
                 "business_model": billing_name_for(job.business_model),
             },
@@ -54,15 +54,11 @@ class BillingEvents:
         job_started_at: datetime,
         job_last_progress_time: datetime | None,
     ) -> dict:
-        """The ongoing classical-compute-time usage event, sent inline right after a job's
-        PENDING -> RUNNING transition and on every later tick while it keeps running.
-        job_started_at is always a real timestamp: the only caller (UpdateFleetsJobsStatuses)
-        only ever reaches this once the job's RUNNING JobEvent has already been written and
-        committed, whether that happened moments ago (this very transition) or on an earlier
-        tick. job_last_progress_time is the one that is None exactly once per job, on that
-        first transition, when there is no progress yet to report: metric_value is then forced
-        to 0 and job_started is reported as True. Every later call passes an actual timestamp
-        and reports job_started as False."""
+        """Sent when:
+        - PENDING -> RUNNING: when the job starts, job_last_progress_time is None. Usage will be 0
+        - RUNNING -> RUNNING: around every 1s to update the usage in the billing service.
+                     job_last_progress_time is needed
+        """
 
         job_started = job_last_progress_time is None
         metric_type = BillingEvents._classical_metric_type(job)
@@ -90,10 +86,10 @@ class BillingEvents:
     @staticmethod
     def build_job_completed_event(job: Job, job_started_at: datetime | None, job_finished_at: datetime) -> dict:
         """The final usage event: always built, unconditionally, on every eligible terminal
-        transition, whatever the job's outcome. job_finished_at is therefore always a real
-        timestamp, the terminal JobEvent's own `created`. job_started_at depends on whether the
-        job ever passed through RUNNING before reaching that terminal status: None for a job
-        that never did, in which case _usage_seconds reports zero seconds."""
+        transition, whatever the job's outcome.
+            - running_started_at can be None if the job reaches SUCCEEDED without ever
+              passing through RUNNING
+        """
         usage_seconds = BillingEvents._usage_seconds(job_started_at, job_finished_at)
         metric_type = BillingEvents._classical_metric_type(job)
 
