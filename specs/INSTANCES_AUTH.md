@@ -151,7 +151,7 @@ The `accessible_functions` parameter is required (not optional) in all use cases
 The `tests/instances/` suite exercises the instance-based authorization end to end against a real
 staging deployment. Instead of standing up a fixed instance per permission level, it drives a
 **single reconfigurable service instance** through the NTC APIs and reuses the same battery of
-`/functions` assertions at every level (NONE / USER / PROVIDER / ALL). The relevant pieces:
+entitlement assertions at every level (NONE / USER / PROVIDER / ALL). The relevant pieces:
 
 - `instances/ntc_client.py` (`NtcAdminClient`): the generic HTTP client that mutates account plans
   and instance entitlements in NTC. It knows nothing about this suite (no CRN, no superset, no levels).
@@ -163,14 +163,14 @@ staging deployment. Instead of standing up a fixed instance per permission level
   custom)` writes the account to an arbitrary set, which the propagation tests use to narrow it below
   the superset.
 - `instances/runtime_api_client.py` (`RuntimeApiClient`): a read-only client for the Runtime API
-  `/functions` endpoint, the same ground truth the gateway authorizes against.
+  `/entitlements` endpoint, the same ground truth the gateway authorizes against.
 - `instances/conftest.py`: the fixtures (including `instance`, an `InstanceClient`) and the
   per-level entitlement sets.
 - `instances/test_instance_permissions.py`: the per-level test classes (NONE / USER / PROVIDER / ALL
   and the custom-function variant) that run the shared assertion battery.
 - `instances/test_runtime_api.py`: asserts the Runtime API reflects each configured level exactly.
 - `instances/test_instance_propagation.py`: black-box tests of the account -> instance sync.
-- `instances/permission_checks.py`: the shared `/functions` assertions reused at every level.
+- `instances/permission_checks.py`: the shared entitlement assertions reused at every level.
 
 The **staging tests** (everything that talks to NTC) are **skipped** unless `NTC_API_KEY`,
 `NTC_ACCOUNT_ID` and `TEST_RECONFIG_INSTANCE` are set, so they are inert in CI without staging
@@ -232,7 +232,7 @@ never collapse into the same request. The instance PATCH follows the same contra
 Saving the account runs a sync that NARROWS each instance's effective entitlements to the
 intersection with the account, keyed by `(provider, name, business_model)`. The narrow is applied in
 the Runtime API's effective view (it does **not** rewrite the resource-controller instance document),
-and that propagation is **asynchronous**: it is not guaranteed to be visible on `/functions` the
+and that propagation is **asynchronous**: it is not guaranteed to be visible on `/entitlements` the
 instant the account save returns. It is critical to understand that this sync **only ever narrows; it
 never re-adds**:
 
@@ -245,36 +245,40 @@ never re-adds**:
   every test calls `reset_account_with_all_functions()` (widen the account to the superset) right
   before `set_entitlements` (PATCH the instance) — two explicit writes, in that order.
 
-`GET /functions` returns the instance entitlements as-is, with no account intersection applied at
+`GET /entitlements` returns the instance entitlements as-is, with no account intersection applied at
 read time; the intersection only happens at account-save time.
 
-### Empty instance (204) vs. configured-empty (200): the legacy fallback
+### Unconfigured account (204) vs. configured-empty (200): the legacy fallback
 
 This is the most important peculiarity for interpreting test results. The gateway reads the
-per-CRN entitlements from the Runtime API, and the two "no functions" cases are **not equivalent**:
+per-CRN entitlements from the Runtime API, and the two "no functions" cases are **not equivalent**.
+The first is a statement about the **account** and says nothing about any instance:
 
-- **Instance has no entitlements configured at all** -> Runtime API responds **HTTP 204**. The
-  gateway interprets 204 as "this account/instance has not been migrated to the new system" and
-  **falls back to the legacy Django authorization** (`use_legacy_authorization=True`). Under legacy,
-  a function can still be visible/usable through Django group membership. This 204 path is the
-  expected, correct behavior for not-yet-migrated accounts and must keep working.
-- **Instance configured with an explicit empty list** (`functions: []`) -> Runtime API responds
-  **HTTP 200** with an empty functions list. The gateway treats this as NTC authorization with zero
-  entitlements: a **clean deny**, no legacy fallback.
+- **The account has no Functions configuration for any plan** -> Runtime API responds **HTTP 204**.
+  The gateway interprets 204 as "this account has not been migrated to the new system" and **falls
+  back to the legacy Django authorization** (`use_legacy_authorization=True`). Under legacy, a
+  function can still be visible/usable through Django group membership. This 204 path is the
+  expected, correct behavior for not-yet-migrated accounts and must keep working. Whether an account
+  counts as configured is the Runtime API's call: an account configured with an empty `functions`
+  list is still configured, and answers 200.
+- **The instance is granted nothing under a configured account** -> Runtime API responds **HTTP 200**
+  with the `functions` field omitted, since the endpoint leaves out an empty collection rather than
+  returning `[]`. The gateway treats this as NTC authorization with zero entitlements: a **clean
+  deny**, no legacy fallback.
 
-The practical consequence for the suite: emptying an instance **through the account** (narrow to
-empty) lands on the 204 + legacy path, so the function may remain visible. Setting the instance's
-own `functions` to `[]` lands on the 200 + clean-deny path. The propagation test relies on this
-distinction, and the NONE level is built by PATCHing the instance to `functions: []` (not by
-emptying the account).
+The practical consequence for the suite: emptying an instance **through the account** and setting the
+instance's own `functions` to `[]` both land on the 200 + clean-deny path, since an account with an
+empty `functions` list is still configured. Reaching the 204 + legacy path takes an account the
+Runtime API considers unconfigured. The NONE level is built by PATCHing the instance to
+`functions: []`.
 
 ### Gateway entitlements cache and direct reads
 
-The gateway caches the per-CRN `/functions` result for `RUNTIME_API_CACHE_TTL` seconds
+The gateway caches the per-CRN `/entitlements` result for `RUNTIME_API_CACHE_TTL` seconds
 (`function_access_client.py`) under a key derived from `(instance_crn, api_key_hash)`. Because every
 level reuses the **same CRN and token**, the cache key is identical across levels, so a stale entry
 would make a gateway read return the previous level. The suite therefore assumes the test deployment
-runs with the gateway `/functions` cache **disabled** (`RUNTIME_API_CACHE_TTL=0`), so each gateway
+runs with the gateway `/entitlements` cache **disabled** (`RUNTIME_API_CACHE_TTL=0`), so each gateway
 read reflects the current instance state.
 
 Given that, an **instance** change is read back **immediately**, with no sleep and no polling:
@@ -286,39 +290,71 @@ Given that, an **instance** change is read back **immediately**, with no sleep a
 
 This is sound because the instance PATCH carries an **advancing `timestamp`** (see the Runtime API
 ground truth section): it forces the Runtime API to invalidate its per-instance cache and re-sync at
-once, so a stored PATCH is reflected by `/functions` immediately.
+once, so a stored PATCH is reflected by `/entitlements` immediately.
 
 An **account narrow** is different: it has no such timestamp signal, so its propagation to the Runtime
-API is asynchronous. The propagation test therefore **polls** `/functions` after the one account
+API is asynchronous. The propagation test therefore **polls** `/entitlements` after the one account
 narrow it performs (step 2), until the narrowed function disappears, instead of reading once.
 
 > Earlier revisions of the suite carried fixed sleeps, broad catalog/Runtime-API polling and a
 > function-upload retry-with-abort to absorb propagation lag on **instance** changes. Those were
 > compensating for the missing PATCH timestamp: a stored instance PATCH was not reflected by
-> `/functions`, so reads had to wait and retry for a re-sync that never reliably came. Once the
+> `/entitlements`, so reads had to wait and retry for a re-sync that never reliably came. Once the
 > advancing timestamp made the instance re-sync deterministic, that machinery was removed in favor of
 > direct reads. The single remaining poll is for the asynchronous account narrow in the propagation
 > test.
 
-### Runtime API ground truth (`/functions`)
+### Runtime API ground truth (`/entitlements`)
 
 When the serverless client calls the gateway, the gateway asks the Runtime API which functions the
 caller's instance is entitled to (`function_access_client.py`):
 
 ```
-GET {RUNTIME_API_BASE_URL}/api/v1/functions
+GET {RUNTIME_API_BASE_URL}/api/v1/entitlements
 Headers:  Service-CRN: <crn>   Authorization: apikey <user_token>
 ```
 
 with the **same token the user presented to the gateway** (for channel `ibm_quantum_platform` that
-is the IBM Cloud API key, i.e. our `GATEWAY_TOKEN`). A `204` means "instance not configured" (legacy
-fallback); a `200` returns `{"functions": [{provider, name, permissions[], business_model}], "custom_functions": {"permissions": []}}`.
+is the IBM Cloud API key, i.e. our `GATEWAY_TOKEN`). `Service-CRN` takes one CRN or several comma
+separated; the gateway always sends exactly one. A `204` means the **account** has no Functions
+configuration for any plan, which is the legacy fallback, and it says nothing about any individual
+instance. A `400` arrives when no CRN was supplied or none of the supplied CRNs resolved.
 
-Note that `custom_functions` may also come back as `null` (not just `{"permissions": []}`): an
-instance whose custom grants were cleared is stored with `custom_functions: null` (see the
-three-state contract above), and the Runtime API echoes that shape back on the read. Both the
-`RuntimeApiClient` here and the gateway's `FunctionAccessClient` must coalesce a `null`
-`custom_functions` to an empty permission set rather than dereferencing it.
+A `200` returns one element per requested CRN, in the order requested:
+
+```json
+{
+  "instance_entitlements": [
+    {
+      "instance_crn": "crn:...:inst1::",
+      "functions": [{"provider": "ibm", "name": "sampler", "business_model": "subsidized", "permissions": []}],
+      "custom_functions": {"permissions": []}
+    },
+    {"instance_crn": "crn:...:inst2::"},
+    {"instance_crn": "crn:...:inst3::", "error": {"code": 1279, "message": "Instance ... not found."}}
+  ]
+}
+```
+
+An element carries **either** entitlements **or** an `error`, never both. `functions` and
+`custom_functions` appear only when the instance is granted that type with a non-empty permission
+set, so an **absent field is a denial rather than missing data**, and an instance granted nothing is
+an element carrying only `instance_crn`. The two per-instance error codes are `1279`
+`InstanceNotFoundError`, which covers unknown, malformed and belonging-to-another-region alike since
+nothing validates CRN syntax, and `1289` `InstanceDeprovisionedError`. An error is that instance's
+authoritative answer, so both the `RuntimeApiClient` here and the gateway's `FunctionAccessClient`
+raise on it: reading it as an instance entitled to nothing would turn "unknown" into a clean deny.
+The legacy fallback is reached only on a `204`.
+
+Both clients select their element **by `instance_crn`**.
+
+Selecting by CRN assumes the element names the CRN as it was sent. The Runtime API trims every CRN
+and echoes its own stored value back, which is why `FunctionAccessClient` trims before it sends,
+compares and builds its cache key.
+
+`custom_functions` may also come back as `null`: an instance whose custom grants were cleared is
+stored with `custom_functions: null` (see the three-state contract above). Both clients coalesce the
+absent and the `null` shapes to an empty permission set rather than dereferencing it.
 
 `runtime_api_client.py` (`RuntimeApiClient`) reproduces this exact call so the tests can read the
 ground truth **directly, independent of the gateway**. `test_runtime_api.py` configures the instance
@@ -340,7 +376,7 @@ The resource-controller PATCH must carry an **advancing `timestamp`** (see `ntc_
 re-sync. `set_instance_entitlements` reads any timestamp already on the instance and writes one
 strictly greater (sent both at the top level and inside `parameters`), so a re-add wins the
 account narrow-sync's last-write-wins even if this machine's clock lags the server. Without it a
-PATCH that returns `200` and is stored is not reflected by `/functions`.
+PATCH that returns `200` and is stored is not reflected by `/entitlements`.
 
 ### Per-level entitlement sets
 
@@ -443,17 +479,17 @@ Cross-cutting checks:
 ### Propagation tests (account -> instance)
 
 `test_instance_propagation.py` is black-box and exercises the narrow-only sync semantics directly
-through `/functions`, rather than a single level:
+through the serverless client, rather than a single level:
 
 | Test | Sequence | What it verifies |
 |------|----------|------------------|
-| `test_account_narrows_instance_and_does_not_restore` | (1) account superset + instance ALL → (2) narrow the **account** to a sibling function only → (3) re-add the function to the **account** → (4) re-add it to the **instance** | (1) the function is usable; (2) narrowing it out of the account removes it from the instance while the sibling remains, so the function disappears (run → 404) and the sibling stays visible — proving a per-function narrow on the 200 path, not a 204 wipe; (3) re-adding to the account does **not** restore it (sync only narrows); (4) only a direct instance PATCH brings it back. |
+| `test_account_narrows_instance_and_does_not_restore` | (1) account superset + instance ALL → (2) narrow the **account** to a sibling function only → (3) re-add the function to the **account** → (4) re-add it to the **instance** | (1) the function is usable; (2) narrowing it out of the account removes it from the instance while the sibling remains, so the function disappears (run → 404) and the sibling stays visible — proving a per-function narrow rather than a wipe of every entitlement; (3) re-adding to the account does **not** restore it (sync only narrows); (4) only a direct instance PATCH brings it back. |
 | `test_instance_patch_rejected_when_exceeding_account` | account grants only `function.read`; instance PATCH asks for `function.read` + `function.run` | the broker rejects an instance PATCH that exceeds the account grant with a `4xx` validation error. |
 
-> The step-2 narrow deliberately keeps the instance non-empty (the sibling stays). Clearing the
-> account entirely would narrow the instance to zero entitlements, which returns 204 and falls back
-> to legacy Django authorization, under which the function can remain visible — so an empty-account
-> narrow cannot be observed reliably through `/functions`.
+> The step-2 narrow deliberately keeps the instance non-empty (the sibling stays), so the assertion
+> tells a per-function narrow apart from a wipe of every entitlement. Narrowing the account to
+> nothing would empty the instance as well, which still answers 200 with no entitlements and denies
+> cleanly, so it could not distinguish those two outcomes.
 
 ### Offline client tests
 
@@ -465,4 +501,4 @@ contract (set / clear-with-null / preserve). These run in CI without staging cre
 
 `test_runtime_api_client.py` covers `RuntimeApiClient` the same way: the `Service-CRN` + `apikey`
 headers, parsing of the `200` payload (functions, permissions, custom permissions), the `204`
-not-configured case, the `200`-with-empty-list case, and a non-200/204 raising `RuntimeApiError`.
+account-not-configured case, the `200`-with-empty-list case, and a non-200/204 raising `RuntimeApiError`.
