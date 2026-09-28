@@ -37,7 +37,7 @@ Full docs can be found at https://qiskit.github.io/qiskit-serverless/
 
 ## Usage
 
-### Step 1: write funtion in ./src/function.py
+### Step 1: write function in ./src/function.py
 
 ```python
 from qiskit_serverless import distribute_task, get, get_arguments, save_result
