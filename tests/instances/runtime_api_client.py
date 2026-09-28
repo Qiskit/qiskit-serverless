@@ -1,16 +1,22 @@
 # pylint: disable=import-error, line-too-long, duplicate-code
-"""Read-only client for the Runtime API ``/functions`` endpoint (the gateway's ground truth).
+"""Read-only client for the Runtime API ``/entitlements`` endpoint (the gateway's ground truth).
 
 When the serverless client calls the gateway, the gateway authenticates the request and asks the
 Runtime API which functions the caller's instance is entitled to. That call is (see
 ``gateway/api/clients/function_access_client.py``)::
 
-    GET {RUNTIME_API_BASE_URL}/api/v1/functions
+    GET {RUNTIME_API_BASE_URL}/api/v1/entitlements
     Headers:  Service-CRN: <crn>   Authorization: apikey <user_token>
 
 with the SAME token the user presented to the gateway (for channel ``ibm_quantum_platform`` that is
-the IBM Cloud API key, i.e. our ``GATEWAY_TOKEN``). A 204 means "instance not configured" and makes
-the gateway fall back to legacy Django authorization.
+the IBM Cloud API key, i.e. our ``GATEWAY_TOKEN``). A 204 means the account has no Functions
+configuration for any plan and makes the gateway fall back to legacy Django authorization; it says
+nothing about any individual instance.
+
+The body holds one ``instance_entitlements`` element per requested CRN, each carrying either the
+entitlements or an ``error`` (1279 for a CRN naming no instance in the region, 1289 for a
+deprovisioned one). ``functions`` and ``custom_functions`` are omitted when empty, so an absent
+field means the instance is granted none of that kind.
 
 This client reproduces that exact call so the tests can observe the ground truth directly, BEFORE
 the gateway's per-CRN cache. That makes propagation waits authoritative (we poll the real source of
@@ -27,7 +33,7 @@ logger = logging.getLogger("instances.runtime_api_client")
 
 
 class RuntimeFunctionsResult:
-    """Parsed result of a Runtime API ``/functions`` read.
+    """Parsed result of a Runtime API entitlements read.
 
     Mirrors what the gateway computes from the same response:
       - ``not_configured``: the endpoint returned 204 (gateway falls back to legacy authorization).
@@ -66,7 +72,11 @@ class RuntimeFunctionsResult:
 
 
 class RuntimeApiError(Exception):
-    """Raised when the Runtime API returns an unexpected (non 200/204) status."""
+    """Raised for an unexpected (non 200/204) status, and for a 200 that denies the CRN.
+
+    A denial is an element carrying a per-instance ``error``, or a body with no element for the CRN
+    that was asked about.
+    """
 
     def __init__(self, message, status=None, body=None):
         super().__init__(message)
@@ -75,7 +85,7 @@ class RuntimeApiError(Exception):
 
 
 class RuntimeApiClient:  # pylint: disable=too-few-public-methods
-    """Reproduces the gateway's Runtime API ``/functions`` read for a given instance CRN."""
+    """Reproduces the gateway's Runtime API entitlements read for a given instance CRN."""
 
     def __init__(self, base_url, api_key, timeout=30):
         self.base_url = base_url.rstrip("/")
@@ -86,13 +96,31 @@ class RuntimeApiClient:  # pylint: disable=too-few-public-methods
         # Same headers the gateway sends: the instance CRN and the user's token as "apikey".
         return {"Service-CRN": crn, "Authorization": f"apikey {self.api_key}"}
 
-    def get_functions(self, crn):
+    def _element(self, payload, crn, url):
+        """Return the ``instance_entitlements`` element for ``crn``, matching the gateway.
+
+        An ``error`` element is raised as an exception instead of being read as an instance entitled to nothing.
+        """
+        for element in payload.get("instance_entitlements") or []:
+            if element.get("instance_crn") != crn:
+                continue
+            error = element.get("error") or {}
+            if error:
+                raise RuntimeApiError(
+                    f"Runtime API GET {url} returned error {error.get('code')} for crn={crn}: {error.get('message')}",
+                    status=200,
+                    body=str(error),
+                )
+            return element
+        raise RuntimeApiError(f"Runtime API GET {url} returned no entitlements for crn={crn}", status=200)
+
+    def get_entitlements(self, crn):
         """Read the entitlements the Runtime API exposes for ``crn`` (the gateway's ground truth).
 
         Returns a RuntimeFunctionsResult (including the 204 "not configured" case). Raises RuntimeApiError
-        for any other non-200 status.
+        for any other non-200 status, and for an element carrying a per-instance error.
         """
-        url = f"{self.base_url}/api/v1/functions"
+        url = f"{self.base_url}/api/v1/entitlements"
         logger.info(
             "RuntimeAPI -> GET %s | headers: Service-CRN=%s, Authorization=apikey %s",
             url,
@@ -115,9 +143,9 @@ class RuntimeApiClient:  # pylint: disable=too-few-public-methods
                 body=response.text,
             )
 
-        payload = response.json()
+        entitlements = self._element(response.json(), crn, url)
         functions = []
-        for entry in payload.get("functions", []) or []:
+        for entry in entitlements.get("functions", []) or []:
             functions.append(
                 {
                     "provider": entry.get("provider"),
@@ -126,7 +154,7 @@ class RuntimeApiClient:  # pylint: disable=too-few-public-methods
                     "business_model": entry.get("business_model"),
                 }
             )
-        custom_permissions = set((payload.get("custom_functions") or {}).get("permissions", []) or [])
+        custom_permissions = set((entitlements.get("custom_functions") or {}).get("permissions", []) or [])
         result = RuntimeFunctionsResult(status_code=200, functions=functions, custom_permissions=custom_permissions)
         logger.info("RuntimeAPI parsed for crn=%s: %s", crn, result.summary())
         return result

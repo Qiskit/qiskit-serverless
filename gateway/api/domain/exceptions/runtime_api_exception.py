@@ -10,4 +10,4 @@ class RuntimeApiException(Exception):
 
 
 class RuntimeFunctionsException(RuntimeApiException):
-    """Error in Runtime API /functions"""
+    """Error in Runtime API /entitlements"""
