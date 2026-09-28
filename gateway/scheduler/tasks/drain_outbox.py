@@ -38,9 +38,7 @@ def _build_breaker() -> CircuitBreaker:
 @dataclass
 class _Channel:
     """A registered outbox channel: its sender, its circuit breaker, and the Config key (if any)
-    that enables it for both writing (Job._enqueue_billing_messages) and draining (below). Two
-    channels meant to share a breaker (as license_fee and billing_event do below, since they
-    share a sender too) are built by passing the same CircuitBreaker instance to both."""
+    that enables it for both writing (Job._enqueue_billing_messages) and draining (below)."""
 
     sender: object
     breaker: CircuitBreaker

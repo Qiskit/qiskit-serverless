@@ -46,15 +46,10 @@ class KafkaSender:
     def send(self, payload: dict, timeout: int = 5) -> None:
         """Raises UnroutableRegionError (from KafkaProducers.get) or RuntimeError on failure."""
         message = {**payload, "type": self._producers.topic}
-        # payload is Outbox.payload, a plain JSONField with no shape enforced at write time:
-        # nothing here knows or checks which builder produced this row. A row missing
-        # instance_crn (a malformed payload, or a future channel that has none) must not crash
-        # the drain loop with a bare KeyError/AttributeError, so this degrades to
-        # instance_crn=None instead, which KafkaProducers.get turns into the same
-        # UnroutableRegionError DrainOutbox already retries and counts against the breaker for
-        # every other send failure.
         instance_crn = (message.get("data") or {}).get("instance_crn")
-        producer = self._producers.get(instance_crn)  # raises UnroutableRegionError
+        # This could raise UnroutableRegionError if: no data.instance_crn in the payload (impossible), the crn is not
+        # valid (even more impossible yet) or there is no Kafka producer for the crn region
+        producer = self._producers.get(instance_crn)
 
         try:
             producer.produce(

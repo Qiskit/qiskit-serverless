@@ -24,11 +24,11 @@ class BillingEvents:
 
     @staticmethod
     def build_license_fee(job: Job, job_started_at: datetime | None) -> dict:
-        """Build a license fee for a provider program.
-            - job.program, job.program.provider and job.function_size CAN'T be null
-            - running_started_at can be None if the job reaches SUCCEEDED without ever
-              passing through RUNNING
-        (a direct PENDING -> SUCCEEDED transition)
+        """
+        Build a license fee for a provider program. Rules:
+        - The job.program, job.program.provider and job.function_size CAN'T be None (or AttributeError will be raised)
+        - #1899 running_started_at can be None if the job reaches SUCCEEDED without ever passing through RUNNING
+          (a direct PENDING -> SUCCEEDED transition).
         """
         metric_type = "_".join(
             [LICENSE_FEE_METRIC_TYPE, job.program.provider.name, job.program.title, job.function_size.function_size]
@@ -55,9 +55,8 @@ class BillingEvents:
         job_last_progress_time: datetime | None,
     ) -> dict:
         """Sent when:
-        - PENDING -> RUNNING: when the job starts, job_last_progress_time is None. Usage will be 0
-        - RUNNING -> RUNNING: around every 1s to update the usage in the billing service.
-                     job_last_progress_time is needed
+        - PENDING -> RUNNING: when the job starts, job_last_progress_time is None. Usage will be 0 (it just started)
+        - RUNNING -> RUNNING: every 1s to update the usage in billing service. job_last_progress_time is needed
         """
 
         job_started = job_last_progress_time is None
@@ -85,10 +84,11 @@ class BillingEvents:
 
     @staticmethod
     def build_job_completed_event(job: Job, job_started_at: datetime | None, job_finished_at: datetime) -> dict:
-        """The final usage event: always built, unconditionally, on every eligible terminal
+        """
+        The final usage event: always built, unconditionally, on every eligible terminal
         transition, whatever the job's outcome.
-            - running_started_at can be None if the job reaches SUCCEEDED without ever
-              passing through RUNNING
+
+        - #1899 running_started_at can be None if the job reaches SUCCEEDED without ever passing through RUNNING
         """
         usage_seconds = BillingEvents._usage_seconds(job_started_at, job_finished_at)
         metric_type = BillingEvents._classical_metric_type(job)

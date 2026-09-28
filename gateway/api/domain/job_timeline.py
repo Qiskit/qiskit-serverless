@@ -88,6 +88,11 @@ def compute_timeline(job):
     events = sorted(job["status_events"], key=lambda e: e[0])
 
     # unique points in chronological order: (time the status was reached, status)
+    # A job can genuinely have no QUEUED event at all: BalanceFillerJobs._submit_filler_job
+    # writes a filler job's row with status=QUEUED directly via job.save(), without ever calling
+    # add_status_event for it, so its first real JobEvent is the later transition to PENDING or
+    # FAILED written by change_status. job["created"] (auto_now_add, so always set) is exactly
+    # when that row was queued, so it stands in for the missing event here.
     seen = set()
     points = []
     if "QUEUED" not in {st for _, st in events} and job["created"]:
@@ -120,9 +125,19 @@ def compute_timeline(job):
     by_status = {}
     for ts, status in points:
         by_status.setdefault(status, ts)
+
+    # "QUEUED" is already in by_status whenever job["created"] is set (the synthetic point
+    # above guarantees it), so this default only matters for the synthetic job dicts the
+    # standalone CSV tool this was ported from can still build with no "created" at all.
     job["t_queue"] = by_status.get("QUEUED", job["created"])
     job["t_run"] = by_status.get("RUNNING")
+
+    # The last point is the job's terminal-status timestamp for a job that has finished
+    # (no synthetic "now" point was appended above), or "now" for one still in progress.
+    # Either way it is "when this job's timeline currently ends". The job["updated"] fallback
+    # is for the pathological case of no points at all: no "created" and no status events.
     job["t_end"] = points[-1][0] if points else job["updated"]
+
     return job
 
 

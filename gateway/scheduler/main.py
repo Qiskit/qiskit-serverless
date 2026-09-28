@@ -40,7 +40,7 @@ class Main:
 
         self.tasks = [
             UpdateJobStatusCounts(self.kill_signal, self.metrics),
-            # submit jobs, status change from QUEUED to PENDING
+            # submit jobs, status change from QUEUED to PENDING/FAILED
             ScheduleRayJobs(self.kill_signal, self.metrics),
             ScheduleFleetsJobs(self.kill_signal, self.metrics),
             UpdateRayJobsStatuses(self.kill_signal, self.metrics),

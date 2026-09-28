@@ -36,41 +36,45 @@ class StopJobUseCase:
         self.stopped_sessions = []
 
         stopped = False
-        if not job.in_terminal_state():
-            try:
-                job.change_status(
-                    origin=JobEventOrigin.API,
-                    context=JobEventContext.STOP_JOB,
-                    status=Job.STOPPED,
-                )
-                stopped = True
-            except InvalidJobTransitionException:
-                # Lost the race: the job reached a terminal status between the in-memory
-                # check above and the row-locked transition itself.
-                pass
+        try:
+            # Lock transaction to read the fresh status. Ir could raise InvalidJobTransitionException if the job
+            # was SUCCEEDED or FAILED
+            job.change_status(
+                origin=JobEventOrigin.API,
+                context=JobEventContext.STOP_JOB,
+                status=Job.STOPPED,
+            )
+            stopped = True
+        except InvalidJobTransitionException:
+            # Lost the race: the job reached a terminal status between the in-memory
+            # check above and the row-locked transition itself.
+            pass
+
         if stopped:
+            # New behavior: now, stopping a completed job (failed or succeeded) NO longer (attempts to) stop its
+            # runtime jobs.
             self.status_messages.append("Job has been stopped.")
+
+            # Unit tests send a None directly, but the client sends a serialized None
+            service = None
+            if service_str:
+                service = json.loads(service_str, cls=json.JSONDecoder)
+            runtime_jobs = RuntimeJob.objects.filter(job=job)
+
+            if not service:
+                self.status_messages.append("QiskitRuntimeService not found, cannot stop runtime jobs.")
+            elif not runtime_jobs:
+                self.status_messages.append("No active runtime job ID associated with this serverless job ID.")
+            else:
+                service_config = service["__value__"]
+                qiskit_service = QiskitRuntimeService(**service_config)
+                qiskit_api_client = qiskit_service._get_api_client()
+                for runtime_job_entry in runtime_jobs:
+                    self._cancel_runtime_job_entry(runtime_job_entry, qiskit_service, qiskit_api_client)
+
+            self._stop_ray_job_if_active(job)
         else:
             self.status_messages.append("Job already in terminal state.")
-
-        # Unit tests send a None directly, but the client sends a serialized None
-        service = None
-        if service_str:
-            service = json.loads(service_str, cls=json.JSONDecoder)
-        runtime_jobs = RuntimeJob.objects.filter(job=job)
-
-        if not service:
-            self.status_messages.append("QiskitRuntimeService not found, cannot stop runtime jobs.")
-        elif not runtime_jobs:
-            self.status_messages.append("No active runtime job ID associated with this serverless job ID.")
-        else:
-            service_config = service["__value__"]
-            qiskit_service = QiskitRuntimeService(**service_config)
-            qiskit_api_client = qiskit_service._get_api_client()
-            for runtime_job_entry in runtime_jobs:
-                self._cancel_runtime_job_entry(runtime_job_entry, qiskit_service, qiskit_api_client)
-
-        self._stop_ray_job_if_active(job)
 
         return " ".join(self.status_messages)
 

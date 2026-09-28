@@ -749,17 +749,20 @@ class Job(models.Model):
     def change_status(
         self, *, origin: JobEventOrigin, context: JobEventContext, status: str, job_fields: dict | None = None
     ):
-        """Transition this job's status: the JobEvent, any outbox message this transition owes,
-        and the job itself (plus any extra job_fields), atomically. current_status is read under
-        a row lock rather than trusted from self.status, which can be stale (a caller may be
-        holding an in-memory Job loaded before a concurrent transition already committed).
+        """
 
-        Raises InvalidJobTransitionException for any status not in
-        Job.VALID_TRANSITIONS[current_status], including a transition attempted from an
-        already-terminal status: a job never transitions again once terminal, but that is a
-        race a caller can legitimately lose (e.g. stopping a job that just succeeded), not
-        always a caller bug, so this never swallows it. A caller that can hit that race catches
-        InvalidJobTransitionException itself and decides what "already terminal" means there.
+        Transition this job's status atomically with a transaction + validate the state change is valid.
+        This method guarantees a safe, atomic, and valid status change is performed in the job table.
+
+        Steps:
+            - Open a transaction and lock the job by id
+            - Reads the job status again fresh from db and validate the transition
+            - Adds a new JobEvent
+            - Add the outbox message this transition needs
+            - Changes the job status + extra fields
+
+        If an error happens, the db performs a rollback.
+
         """
         with transaction.atomic():
             current_status = Job.objects.select_for_update().values_list("status", flat=True).get(pk=self.pk)
@@ -792,19 +795,19 @@ class Job(models.Model):
         billing_message = BillingEvents.build_job_completed_event(self, running_started_at, event.created)
         Outbox.objects.create(job=self, channel="billing_event", payload=billing_message)
 
-        ran = new_status == Job.SUCCEEDED or running_started_at is not None
-        if not ran or self.program is None or self.program.provider is None:
-            return
-        if self.function_size is None:
-            logger.error(
-                "job_id=%s license fee message cannot be built: function_size is missing although "
-                "the function has a provider, waiving the fee",
-                self.id,
-            )
-            return
+        is_provider_fee = self.program and self.program.provider
 
-        license_fee_message = BillingEvents.build_license_fee(self, running_started_at)
-        Outbox.objects.create(job=self, channel="license_fee", payload=license_fee_message)
+        if is_provider_fee:
+            if self.function_size is None:
+                logger.error(
+                    "job_id=%s license fee message cannot be built: function_size is missing although "
+                    "the function has a provider, waiving the fee",
+                    self.id,
+                )
+                return
+
+            license_fee_message = BillingEvents.build_license_fee(self, running_started_at)
+            Outbox.objects.create(job=self, channel="license_fee", payload=license_fee_message)
 
 
 class RuntimeJob(models.Model):
