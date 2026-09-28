@@ -574,6 +574,11 @@ meas: 2/══════════════╩══╩═
 {&#39;quasi_dists&#39;: {&#39;00&#39;: 523, &#39;11&#39;: 501}}
 </pre></div></div>
 </div>
+<p><code class="docutils literal notranslate"><span class="pre">job.result()</span></code> waits for the job to reach a terminal state before returning. When the result is only saved in a later step of the execution, pass <code class="docutils literal notranslate"><span class="pre">wait=False</span></code> to query the current result without blocking:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="n">wait</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This returns whatever the service holds at that moment, so check <code class="docutils literal notranslate"><span class="pre">job.status()</span></code> and call <code class="docutils literal notranslate"><span class="pre">job.result()</span></code> again once the job has finished. <code class="docutils literal notranslate"><span class="pre">cadence</span></code> and <code class="docutils literal notranslate"><span class="pre">maxwait</span></code> bound how long the default blocking behaviour polls for the result.</p>
 <p>Check the logs:</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
