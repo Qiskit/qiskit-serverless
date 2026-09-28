@@ -89,25 +89,13 @@ class KafkaProducers:
             }
         )
 
-    @staticmethod
-    def _region_from_crn(instance_crn: str | None) -> str | None:
-        """Extract the region from an instance CRN.
-
-        The region is the 6th colon-delimited segment of the CRN
-        (crn:v1:bluemix:public:quantum-computing:<region>:...).
-        Returns None if the CRN is absent or has too few segments.
-        """
-        if not instance_crn:
-            return None
-        parts = instance_crn.split(":")
-        if len(parts) > 5:
-            return parts[5]
-        return None
-
     def get(self, instance_crn: str | None) -> Producer:
         """Return the producer for instance_crn's region, or raise UnroutableRegionError."""
-        region = self._region_from_crn(instance_crn)
+        parts = instance_crn.split(":") if instance_crn else []
+        region = parts[5] if len(parts) > 6 else None
         if region is None:
+            # this is actually impossible: the user who created the job was authorized with the same crn, so the
+            # existence of a job with a crn means the crn is actually valid
             raise UnroutableRegionError(f"KafkaProducers: Cannot determine region from CRN (crn={instance_crn})")
         producer = self._producers.get(region)
         if producer is None:

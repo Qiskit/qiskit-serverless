@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from core.config_key import ConfigKey
 from core.ibm_cloud.event_streams.kafka_producers import UnroutableRegionError
-from core.ibm_cloud.event_streams.kafka_sender import build_sender
+from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender
 from core.models import Config, Outbox
 
 from scheduler.kill_signal import KillSignal
@@ -26,41 +26,53 @@ logger = logging.getLogger("scheduler.DrainOutbox")
 BATCH_SIZE = 100
 
 
+def _build_breaker() -> CircuitBreaker:
+    """A fresh circuit breaker, its thresholds read lazily from Config so they can change at
+    runtime without recreating the breaker or restarting the process."""
+    return CircuitBreaker(
+        failure_threshold=lambda: Config.get_int(ConfigKey.OUTBOX_BREAKER_FAILURES, default=5),
+        pause_seconds=lambda: Config.get_int(ConfigKey.OUTBOX_BREAKER_PAUSE_SECONDS, default=60),
+    )
+
+
 @dataclass
 class _Channel:
-    """A registered outbox channel: its sender, and the Config key (if any) that enables it for
-    both writing (Job._enqueue_billing_messages) and draining (below). Two channels sharing the
-    same sender share the same circuit breaker, since the breaker is keyed by sender identity,
-    not by channel name."""
+    """A registered outbox channel: its sender, its circuit breaker, and the Config key (if any)
+    that enables it for both writing (Job._enqueue_billing_messages) and draining (below). Two
+    channels meant to share a breaker (as license_fee and billing_event do below, since they
+    share a sender too) are built by passing the same CircuitBreaker instance to both."""
 
     sender: object
+    breaker: CircuitBreaker
     enabled_key: ConfigKey | None = None
+
+    @property
+    def is_enabled(self) -> bool:
+        """A channel with no enabled_key is always enabled."""
+        return self.enabled_key is None or Config.get_bool(self.enabled_key)
 
 
 class DrainOutbox(SchedulerTask):
-    """Send whatever every registered outbox channel owes. Adding a channel (the PR2 "workload"
-    mirror) is adding one entry to `channels`; nothing else here changes."""
+    """Send whatever every registered outbox channel owes. Messages are inserted in the Outbox table
+    this class consumes this table and send and delete the message from the table using the right
+    sender based on the channel."""
 
     def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
         self.kill_signal = kill_signal
         self.metrics = metrics
-        billing_sender = build_sender()
+        # license_fee and billing_event share one sender, so they share this one breaker too: a
+        # Kafka outage opens it once for both, instead of each channel counting its own failures
+        # against the same underlying connection.
+        billing_breaker = _build_breaker()
+        billing_sender = build_kafka_sender()
         self.channels: dict[str, _Channel] = {
-            "license_fee": _Channel(sender=billing_sender, enabled_key=ConfigKey.OUTBOX_KAFKA_ENABLED),
-            "billing_event": _Channel(sender=billing_sender, enabled_key=ConfigKey.OUTBOX_KAFKA_ENABLED),
+            "license_fee": _Channel(
+                sender=billing_sender, breaker=billing_breaker, enabled_key=ConfigKey.OUTBOX_KAFKA_ENABLED
+            ),
+            "billing_event": _Channel(
+                sender=billing_sender, breaker=billing_breaker, enabled_key=ConfigKey.OUTBOX_KAFKA_ENABLED
+            ),
         }
-        self._breakers: dict[object, CircuitBreaker] = {}
-
-    def _breaker_for(self, sender: object) -> CircuitBreaker:
-        if sender not in self._breakers:
-            self._breakers[sender] = CircuitBreaker(
-                failure_threshold=lambda: Config.get_int(ConfigKey.OUTBOX_BREAKER_FAILURES, default=5),
-                pause_seconds=lambda: Config.get_int(ConfigKey.OUTBOX_BREAKER_PAUSE_SECONDS, default=60),
-            )
-        return self._breakers[sender]
-
-    def _channel_enabled(self, channel: _Channel) -> bool:
-        return channel.enabled_key is None or Config.get_bool(channel.enabled_key)
 
     def run(self):
         """Drain every enabled channel, in turn, each within its own breaker and budget. A
@@ -69,22 +81,20 @@ class DrainOutbox(SchedulerTask):
             self._report_pending_gauges(channel_name)
 
         for channel_name, channel in self.channels.items():
-            if not self._channel_enabled(channel):
+            if not channel.is_enabled:
                 continue
-            breaker = self._breaker_for(channel.sender)
-            self.metrics.set_outbox_breaker_open(breaker.is_open, channel=channel_name)
-            if breaker.is_open:
+            self.metrics.set_outbox_breaker_open(channel.breaker.is_open, channel=channel_name)
+            if channel.breaker.is_open:
                 continue
-            self._drain_channel(channel_name, channel.sender, breaker)
+            self._drain_channel(channel_name, channel.sender, channel.breaker)
 
     def _drain_channel(self, channel: str, sender, breaker: CircuitBreaker) -> None:
+        # A row that fails without tripping the breaker is neither deleted nor blocked by the breaker, so an unfiltered
+        # re-fetch would find the exact same row again and hot-loop on it for the rest of the budget window.
         budget_ms = Config.get_int(ConfigKey.OUTBOX_BUDGET_MS, default=500)
         deadline = time.monotonic() + (budget_ms / 1000)
-        # A row that fails without tripping the breaker is neither deleted nor blocked by the
-        # breaker, so an unfiltered re-fetch would find the exact same row again and hot-loop on
-        # it for the rest of the budget window. Tracking pks already attempted this call bounds
-        # one tick to at most one attempt per currently pending row; it gets picked up again on
-        # the next tick.
+        # So, tracking pks already attempted this call bounds one tick to at most one attempt per currently pending row;
+        # it gets picked up again on the next tick.
         attempted_pks: set = set()
 
         while self._should_continue_draining(channel, breaker, deadline):

@@ -89,11 +89,7 @@ class JobEventQuerySet(QuerySet):
 
     def first_running_at(self, job_id: uuid.UUID):
         """When this job first reached RUNNING, from its own event history.
-
-        Returns None if it never did (still queued/pending, or terminated
-        without running). Ordered explicitly ascending: JobEvent.Meta.ordering
-        is descending by default, and the first RUNNING event is the one that
-        counts here, not the latest.
+        Returns None if it never did (still queued/pending, or terminated without running).
         """
         from core.models import Job  # pylint: disable=import-outside-toplevel, cyclic-import
 

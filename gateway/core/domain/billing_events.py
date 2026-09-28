@@ -1,23 +1,4 @@
-"""Builders for every message this codebase publishes to Kafka about a job's usage: the
-best-effort in-progress event sent inline (job_started=True for the first one, right after a
-job's PENDING -> RUNNING transition) and the two billing facts that flow through the outbox
-(the provider license fee, the job's final usage event). Every builder returns the Kafka
-message body exactly as it will be sent, and none of them touch Kafka transport: CloudEvents'
-own `type` field (which equals the Kafka topic name) is added later, by the sender, at send
-time, not here.
-
-None of these functions query the database themselves: `running_started_at` is always a
-parameter, because the caller (Job.change_status for the outbox pair, UpdateFleetsJobsStatuses
-for the inline pair) already has to query it once (JobEvent.objects.first_running_at) for its own
-purposes, and there is no reason to query it twice. Likewise `as_of` is always a parameter, not
-computed here: the outbox pair uses the status-change event's own timestamp, the inline pair uses
-the current instant, and neither builder needs to know which.
-
-None of these builders return None or otherwise decide whether a message is owed: that is the
-caller's job (Job._enqueue_billing_messages, UpdateFleetsJobsStatuses), not this module's. Every
-builder here assumes the caller already checked it should be called at all, and fails outright
-if the data it needs (e.g. build_license_fee's job.program.provider, job.function_size) is
-missing instead of guarding for it.
+"""Builders for every message this codebase publishes to Kafka about a job's usage:
 
 See specs/OUTBOX.md at the repository root for the outbox pair's full design. For the original
 design rationale, if you have it locally, see .claude/specs/2026-09-25-generic-outbox-design.md
@@ -39,9 +20,101 @@ CLASSICAL_TIME_METRIC_TYPE_PREFIX = "classical"
 
 
 class BillingEvents:
-    """Namespace for the three message builders described in the module docstring. Grouped in one
-    class purely to keep them together under one name at call sites (BillingEvents.build_x);
-    every method is a static, side-effect-free function of its arguments."""
+    """Not a real class, just a namespace for the three message builders, so you can use BillingEvents.build_x"""
+
+    @staticmethod
+    def build_license_fee(job: Job, running_started_at: datetime | None) -> dict:
+        """The provider license fee. The caller must check job.program, job.program.provider and
+        job.function_size are all set before calling this: it assumes they are and does not
+        check again. running_started_at is only ever None here for a job that reached
+        SUCCEEDED without ever passing through RUNNING (a direct PENDING -> SUCCEEDED
+        transition): the caller only calls this once the job is known to have run, or has
+        succeeded regardless."""
+        metric_type = "_".join(
+            [LICENSE_FEE_METRIC_TYPE, job.program.provider.name, job.program.title, job.function_size.function_size]
+        )
+        logger.info("job_id=%s Building license_fee message metric_type=%s", job.id, metric_type)
+        return BillingEvents._envelope(
+            job,
+            data={
+                "metric_type": metric_type,
+                "metric_value": 1,
+                "instance_crn": job.instance_crn,
+                "resource_id": str(job.id),
+                "job_started": True,
+                "job_started_at": running_started_at.isoformat() if running_started_at else None,
+                "job_completed": True,
+                "business_model": billing_name_for(job.business_model),
+            },
+        )
+
+    @staticmethod
+    def build_job_usage_event(
+        job: Job,
+        job_started_at: datetime,
+        job_last_progress_time: datetime | None,
+    ) -> dict:
+        """The ongoing classical-compute-time usage event, sent inline right after a job's
+        PENDING -> RUNNING transition and on every later tick while it keeps running.
+        job_started_at is always a real timestamp: the only caller (UpdateFleetsJobsStatuses)
+        only ever reaches this once the job's RUNNING JobEvent has already been written and
+        committed, whether that happened moments ago (this very transition) or on an earlier
+        tick. job_last_progress_time is the one that is None exactly once per job, on that
+        first transition, when there is no progress yet to report: metric_value is then forced
+        to 0 and job_started is reported as True. Every later call passes an actual timestamp
+        and reports job_started as False."""
+
+        job_started = job_last_progress_time is None
+        metric_type = BillingEvents._classical_metric_type(job)
+        usage_seconds = 0 if job_started else BillingEvents._usage_seconds(job_started_at, job_last_progress_time)
+        logger.info(
+            "job_id=%s Building job_usage_event message metric_type=%s metric_value=%s job_started=%s",
+            job.id,
+            metric_type,
+            usage_seconds,
+            job_started,
+        )
+        return BillingEvents._envelope(
+            job,
+            data={
+                "metric_type": metric_type,
+                "metric_value": usage_seconds,
+                "instance_crn": job.instance_crn,
+                "resource_id": str(job.id),
+                "job_started": job_started,
+                "job_started_at": job_started_at.isoformat(),
+                "job_completed": False,
+            },
+        )
+
+    @staticmethod
+    def build_job_completed_event(job: Job, job_started_at: datetime | None, job_finished_at: datetime) -> dict:
+        """The final usage event: always built, unconditionally, on every eligible terminal
+        transition, whatever the job's outcome. job_finished_at is therefore always a real
+        timestamp, the terminal JobEvent's own `created`. job_started_at depends on whether the
+        job ever passed through RUNNING before reaching that terminal status: None for a job
+        that never did, in which case _usage_seconds reports zero seconds."""
+        usage_seconds = BillingEvents._usage_seconds(job_started_at, job_finished_at)
+        metric_type = BillingEvents._classical_metric_type(job)
+
+        logger.info(
+            "job_id=%s Building job_completed_event message metric_type=%s metric_value=%s",
+            job.id,
+            metric_type,
+            usage_seconds,
+        )
+        return BillingEvents._envelope(
+            job,
+            data={
+                "metric_type": metric_type,
+                "metric_value": usage_seconds,
+                "instance_crn": job.instance_crn,
+                "resource_id": str(job.id),
+                "job_started": False,
+                "job_started_at": job_started_at.isoformat() if job_started_at else None,
+                "job_completed": True,
+            },
+        )
 
     @staticmethod
     def _usage_seconds(running_started_at: datetime | None, as_of: datetime) -> int:
@@ -75,89 +148,3 @@ class BillingEvents:
             "datacontenttype": "application/json",
             "data": data,
         }
-
-    @staticmethod
-    def build_job_in_progress(
-        job: Job,
-        as_of: datetime,
-        running_started_at: datetime | None,
-        metric_type: str | None = None,
-        job_started: bool = False,
-    ) -> dict:
-        """The in-progress event, reporting usage as of as_of. metric_value is forced to 0 when
-        job_started is True, for the first one sent right after a job's PENDING -> RUNNING
-        transition, regardless of the (near-zero but nonzero) elapsed time _usage_seconds would
-        otherwise compute. Sent inline, best-effort, never through the outbox. The caller must
-        not call this for a filler job (see UpdateFleetsJobsStatuses)."""
-        if metric_type is None:
-            metric_type = BillingEvents._classical_metric_type(job)
-        usage_seconds = 0 if job_started else BillingEvents._usage_seconds(running_started_at, as_of)
-        logger.info(
-            "job_id=%s Building job_in_progress message metric_type=%s metric_value=%s job_started=%s",
-            job.id,
-            metric_type,
-            usage_seconds,
-            job_started,
-        )
-        return BillingEvents._envelope(
-            job,
-            data={
-                "metric_type": metric_type,
-                "metric_value": usage_seconds,
-                "instance_crn": job.instance_crn,
-                "resource_id": str(job.id),
-                "job_started": job_started,
-                "job_started_at": running_started_at.isoformat() if running_started_at else None,
-                "job_completed": False,
-            },
-        )
-
-    @staticmethod
-    def build_billing_event(job: Job, as_of: datetime, running_started_at: datetime | None) -> dict:
-        """The final usage event: always built, whatever the job's terminal status. Reports zero
-        seconds for a job that never ran (_usage_seconds already handles running_started_at=None)."""
-        usage_seconds = BillingEvents._usage_seconds(running_started_at, as_of)
-        metric_type = BillingEvents._classical_metric_type(job)
-
-        logger.info(
-            "job_id=%s Building billing_event message metric_type=%s metric_value=%s",
-            job.id,
-            metric_type,
-            usage_seconds,
-        )
-        return BillingEvents._envelope(
-            job,
-            data={
-                "metric_type": metric_type,
-                "metric_value": usage_seconds,
-                "instance_crn": job.instance_crn,
-                "resource_id": str(job.id),
-                "job_started": False,
-                "job_started_at": running_started_at.isoformat() if running_started_at else None,
-                "job_completed": True,
-            },
-        )
-
-    @staticmethod
-    def build_license_fee(job: Job, as_of: datetime, running_started_at: datetime | None) -> dict:
-        """The provider license fee. The caller must check job.program, job.program.provider and
-        job.function_size are all set before calling this: it assumes they are and does not
-        check again."""
-        # pylint: disable=unused-argument
-        metric_type = "_".join(
-            [LICENSE_FEE_METRIC_TYPE, job.program.provider.name, job.program.title, job.function_size.function_size]
-        )
-        logger.info("job_id=%s Building license_fee message metric_type=%s", job.id, metric_type)
-        return BillingEvents._envelope(
-            job,
-            data={
-                "metric_type": metric_type,
-                "metric_value": 1,
-                "instance_crn": job.instance_crn,
-                "resource_id": str(job.id),
-                "job_started": True,
-                "job_started_at": running_started_at.isoformat() if running_started_at else None,
-                "job_completed": True,
-                "business_model": billing_name_for(job.business_model),
-            },
-        )

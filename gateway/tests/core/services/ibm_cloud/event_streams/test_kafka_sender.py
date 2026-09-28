@@ -9,7 +9,7 @@ import pytest
 from django.test import override_settings
 
 from core.ibm_cloud.event_streams.kafka_producers import UnroutableRegionError
-from core.ibm_cloud.event_streams.kafka_sender import build_sender, KafkaSender, NoOpSender
+from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender, KafkaSender, NoOpSender
 
 
 def _payload(instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::"):
@@ -125,15 +125,15 @@ class TestNoOpSender:
         assert "noop" in caplog.text
 
 
-class TestBuildSender:
+class TestBuildKafkaSender:
     @override_settings(EVENT_STREAMS_ENABLED=False)
     def test_builds_a_noop_sender_when_event_streams_is_disabled(self):
-        assert isinstance(build_sender(), NoOpSender)
+        assert isinstance(build_kafka_sender(), NoOpSender)
 
     @override_settings(EVENT_STREAMS_ENABLED=True)
     def test_builds_a_kafka_sender_when_event_streams_is_enabled(self):
         with patch("core.ibm_cloud.event_streams.kafka_sender.KafkaSender") as mock_kafka_sender:
-            result = build_sender()
+            result = build_kafka_sender()
 
         mock_kafka_sender.assert_called_once_with()
         assert result is mock_kafka_sender.return_value

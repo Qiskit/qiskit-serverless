@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import Job, Program
+from core.models import InvalidJobTransitionException, Job, Program
 from core.services.runners import RunnerError
 from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses
 from tests.utils import TestUtils
@@ -283,6 +283,18 @@ class TestToTerminal:
 
         task._send_job_in_progress.assert_not_called()
 
+    def test_does_not_raise_when_the_job_already_turned_terminal(self):
+        """A user-initiated stop can race this poll and win it first: change_status then
+        raises InvalidJobTransitionException, which must not crash the tick or count the
+        terminal metric for a transition that never happened."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+        job.change_status.side_effect = InvalidJobTransitionException("Job x: invalid transition STOPPED -> SUCCEEDED")
+
+        task.to_terminal(job, Job.SUCCEEDED)  # must not raise
+
+        task.metrics.increment_jobs_terminal.assert_not_called()
+
 
 class TestToRunning:
     """Tests for to_running()."""
@@ -317,6 +329,19 @@ class TestToRunning:
         task.to_running(job)  # must not raise
 
         assert job.status == Job.RUNNING
+
+    def test_does_not_send_in_progress_when_the_job_already_turned_terminal(self):
+        """A user-initiated stop can race this poll and win it first: change_status then
+        raises InvalidJobTransitionException. Sending an in-progress event for an
+        already-terminal job would be wrong, so this must skip it entirely, not just the
+        transition."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.PENDING)
+        job.change_status.side_effect = InvalidJobTransitionException("Job x: invalid transition STOPPED -> RUNNING")
+
+        task.to_running(job)  # must not raise
+
+        task._send_job_in_progress.assert_not_called()
 
     def test_already_running_job_emits_in_progress_instead_of_transitioning(self):
         task = _make_task()
@@ -631,8 +656,11 @@ class TestBuildAndSend:
         task = self._make_task_with_real_sender()
         job = _make_fleets_job(status=Job.PENDING)
 
+        # first_running_at is never None here: by the time to_running calls this, the job's
+        # RUNNING JobEvent has already been written and committed, this transition's own or an
+        # earlier one's.
         with patch(f"{_MOD}.JobEvent") as mock_job_event:
-            mock_job_event.objects.first_running_at.return_value = None
+            mock_job_event.objects.first_running_at.return_value = datetime.now(timezone.utc)
             task._send_job_in_progress(job, job_started=True)
 
         task.sender.send.assert_called_once()
@@ -645,7 +673,7 @@ class TestBuildAndSend:
         job = _make_fleets_job(status=Job.RUNNING)
 
         with patch(f"{_MOD}.JobEvent") as mock_job_event:
-            mock_job_event.objects.first_running_at.return_value = None
+            mock_job_event.objects.first_running_at.return_value = datetime.now(timezone.utc)
             task._send_job_in_progress(job)
 
         task.sender.send.assert_called_once()
@@ -661,7 +689,7 @@ class TestBuildAndSend:
         job.filler = True
 
         with patch(f"{_MOD}.JobEvent") as mock_job_event:
-            mock_job_event.objects.first_running_at.return_value = None
+            mock_job_event.objects.first_running_at.return_value = datetime.now(timezone.utc)
             task._send_job_in_progress(job, job_started=True)
             task._send_job_in_progress(job)
 

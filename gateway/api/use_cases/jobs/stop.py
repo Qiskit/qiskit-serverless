@@ -5,7 +5,7 @@ from uuid import UUID
 from django.contrib.auth.models import AbstractUser
 from qiskit_ibm_runtime import QiskitRuntimeService, RuntimeInvalidStateError
 
-from core.models import Job, RuntimeJob
+from core.models import InvalidJobTransitionException, Job, RuntimeJob
 from core.services.runners import get_runner, RunnerError
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
@@ -35,14 +35,20 @@ class StopJobUseCase:
         self.status_messages = []
         self.stopped_sessions = []
 
-        event = None
+        stopped = False
         if not job.in_terminal_state():
-            event = job.change_status(
-                origin=JobEventOrigin.API,
-                context=JobEventContext.STOP_JOB,
-                status=Job.STOPPED,
-            )
-        if event is not None:
+            try:
+                job.change_status(
+                    origin=JobEventOrigin.API,
+                    context=JobEventContext.STOP_JOB,
+                    status=Job.STOPPED,
+                )
+                stopped = True
+            except InvalidJobTransitionException:
+                # Lost the race: the job reached a terminal status between the in-memory
+                # check above and the row-locked transition itself.
+                pass
+        if stopped:
             self.status_messages.append("Job has been stopped.")
         else:
             self.status_messages.append("Job already in terminal state.")

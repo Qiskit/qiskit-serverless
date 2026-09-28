@@ -128,15 +128,16 @@ class TestChangeStatus:
 
         assert JobEvent.objects.filter(job=job).count() == 0
 
-    def test_no_ops_when_the_job_is_already_terminal(self):
+    def test_raises_when_the_job_is_already_terminal(self):
         """A transition on a job already in a terminal status must not overwrite it or create
-        another JobEvent."""
+        another JobEvent: change_status raises instead of writing anything, leaving it to the
+        caller to decide what "already terminal" means for it."""
         author = User.objects.create_user(username="change-status-author-4")
         job = Job.objects.create(author=author, status=Job.SUCCEEDED)
 
-        result = job.change_status(origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB, status=Job.STOPPED)
+        with pytest.raises(InvalidJobTransitionException):
+            job.change_status(origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB, status=Job.STOPPED)
 
-        assert result is None
         assert Job.objects.get(pk=job.pk).status == Job.SUCCEEDED
         assert JobEvent.objects.filter(job=job).count() == 0
 
@@ -382,9 +383,9 @@ class TestChangeStatusEnqueuesOutboxMessages:
         rows_after_first = Outbox.objects.filter(job=job).count()
         events_after_first = JobEvent.objects.filter(job=job).count()
 
-        result = job.change_status(origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB, status=Job.STOPPED)
+        with pytest.raises(InvalidJobTransitionException):
+            job.change_status(origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB, status=Job.STOPPED)
 
-        assert result is None
         assert Outbox.objects.filter(job=job).count() == rows_after_first
         assert JobEvent.objects.filter(job=job).count() == events_after_first
         assert Job.objects.get(pk=job.pk).status == Job.SUCCEEDED

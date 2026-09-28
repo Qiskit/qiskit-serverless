@@ -10,20 +10,20 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Sender for every Kafka message this codebase publishes: an already-built payload goes out
-unchanged, except for the `type` field (the Kafka topic name), which is added here, at send
-time, not by whichever builder made the payload (see core/domain/billing_events.py for that).
-Every retry of the same payload therefore adds the same `type`, so a message that gets retried
-(from the outbox) stays byte-identical across attempts.
+"""Sender for every Kafka message this codebase publishes.
 
-The same sender serves two callers that never know about each other: UpdateFleetsJobsStatuses
-sends a payload right after building it, inline, best-effort; DrainOutbox sends a payload it
-read back from an Outbox row, possibly long after it was built, with retries. Neither the sender
-nor KafkaProducers cares which case it is in.
+Usage: always get a sender through build_kafka_sender(), never by constructing KafkaSender
+directly. It picks KafkaSender or NoOpSender for you based on
+settings.EVENT_STREAMS_ENABLED, and KafkaSender builds its own KafkaProducers internally
+(one Producer per region, keyed off the payload's CRN at send time), so there is nothing
+else to wire up::
 
-Neither this sender nor a plain payload dict carries any notion of "filler job": each call site
-(UpdateFleetsJobsStatuses._send_job_in_progress, Job._enqueue_billing_messages) checks that
-itself before building the payload.
+    from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender
+
+    sender = build_kafka_sender()
+    sender.send(payload)  # raises RuntimeError (or UnroutableRegionError) on failure
+
+See drain_outbox.py and update_fleets_jobs_statuses.py for the two real callers.
 """
 
 import json
@@ -43,9 +43,16 @@ class KafkaSender:
     def __init__(self, producers: KafkaProducers | None = None) -> None:
         self._producers = producers or KafkaProducers()
 
-    def send(self, payload: dict) -> None:
+    def send(self, payload: dict, timeout: int = 5) -> None:
         """Raises UnroutableRegionError (from KafkaProducers.get) or RuntimeError on failure."""
         message = {**payload, "type": self._producers.topic}
+        # payload is Outbox.payload, a plain JSONField with no shape enforced at write time:
+        # nothing here knows or checks which builder produced this row. A row missing
+        # instance_crn (a malformed payload, or a future channel that has none) must not crash
+        # the drain loop with a bare KeyError/AttributeError, so this degrades to
+        # instance_crn=None instead, which KafkaProducers.get turns into the same
+        # UnroutableRegionError DrainOutbox already retries and counts against the breaker for
+        # every other send failure.
         instance_crn = (message.get("data") or {}).get("instance_crn")
         producer = self._producers.get(instance_crn)  # raises UnroutableRegionError
 
@@ -56,7 +63,7 @@ class KafkaSender:
                 value=json.dumps(message).encode("utf-8"),
                 callback=self._delivery_callback,
             )
-            remaining = producer.flush(timeout=5)
+            remaining = producer.flush(timeout=timeout)
             if remaining > 0:
                 raise RuntimeError(f"KafkaSender: {remaining} message(s) not delivered after flush timeout")
         except Exception as e:
@@ -82,7 +89,7 @@ class NoOpSender:
         logger.info("payload=%s [noop] send", payload)
 
 
-def build_sender() -> "KafkaSender | NoOpSender":
+def build_kafka_sender() -> "KafkaSender | NoOpSender":
     """Return a KafkaSender, or a NoOpSender when EVENT_STREAMS_ENABLED is false."""
     if settings.EVENT_STREAMS_ENABLED:
         logger.info("Initializing KafkaSender (EVENT_STREAMS_ENABLED=True)")

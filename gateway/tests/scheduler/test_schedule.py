@@ -14,7 +14,7 @@ from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 
 from core.model_managers.job_events import JobEventContext
-from core.models import Job, ComputeResource, JobEvent, Program
+from core.models import Job, ComputeResource, InvalidJobTransitionException, JobEvent, Program
 from core.services.runners import RunnerError
 from core.services.storage import get_logs_storage
 
@@ -204,6 +204,27 @@ class TestScheduleApi(APITestCase):
         assert ret_job.status == Job.FAILED
         assert ret_job.env_vars == "{}"
         ret_job.change_status.assert_called_once()
+
+    @patch("scheduler.schedule.get_runner")
+    @patch("scheduler.schedule.trace")
+    def test_execute_fleets_job_does_not_raise_when_the_job_already_turned_terminal(
+        self, mock_trace, mock_get_runner_client
+    ):
+        """Lost the race: something else (e.g. a user-initiated stop) already moved the job to
+        a terminal status while it was being submitted. change_status raises
+        InvalidJobTransitionException; this must not propagate and crash the scheduler tick."""
+        mock_runner = MagicMock()
+        mock_get_runner_client.return_value = mock_runner
+
+        job = MagicMock()
+        job.status = Job.QUEUED
+        job.logs = ""
+        job.change_status.side_effect = InvalidJobTransitionException("Job x: invalid transition STOPPED -> PENDING")
+
+        ctx = MagicMock()
+        ret_job = execute_fleets_job(job, ctx)  # must not raise
+
+        assert ret_job.status == Job.PENDING
 
     @patch("scheduler.tasks.update_ray_jobs_statuses.get_runner")
     def test_job_runtime_limit(self, get_runner):

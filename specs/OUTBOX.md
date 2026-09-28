@@ -85,7 +85,7 @@ job run" and no second query to find out.
 
 ### Did the job run: the rule that decides the license fee message
 
-The final usage event (`BillingEvents.build_billing_event`) is always built on an
+The final usage event (`BillingEvents.build_job_completed_event`) is always built on an
 eligible terminal transition, whatever the outcome: even a job cancelled while still
 queued gets one, reporting zero usage seconds.
 
@@ -99,9 +99,10 @@ is known to have run:
   `first_running_at()` returned a value, that is, the job passed through `RUNNING` at
   least once before failing or being stopped.
 
-Both builders live in `gateway/core/domain/billing_events.py`, alongside the two that
-build the inline events, and are pure: they take `job`, `as_of` (the just-created
-`JobEvent`'s own `created` timestamp, for these two), and `running_started_at`, and
+Both builders live in `gateway/core/domain/billing_events.py`, alongside the one that
+builds the inline usage event, and are pure: `build_job_completed_event` takes `job`,
+`running_started_at`, and `job_finished_at` (the just-created `JobEvent`'s own `created`
+timestamp), while `build_license_fee` only needs `job` and `running_started_at`. Both
 return a dict. Neither one decides whether it should be called or returns `None`; that
 decision belongs entirely to `_enqueue_billing_messages`. It skips `build_license_fee`
 silently when the function has no provider, or its `Program` has itself been deleted

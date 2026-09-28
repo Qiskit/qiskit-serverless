@@ -151,17 +151,6 @@ class TestKafkaProducersSetup:
 
 
 class TestKafkaProducersRegionLookup:
-    def test_region_from_crn_extracts_correctly(self):
-        assert (
-            KafkaProducers._region_from_crn("crn:v1:bluemix:public:quantum-computing:us-east:a/abc:def::") == "us-east"
-        )
-        assert KafkaProducers._region_from_crn("crn:v1:bluemix:public:quantum-computing:eu-de:a/abc:def::") == "eu-de"
-
-    def test_region_from_crn_returns_none_for_invalid_crn(self):
-        assert KafkaProducers._region_from_crn(None) is None
-        assert KafkaProducers._region_from_crn("") is None
-        assert KafkaProducers._region_from_crn("not:a:valid:crn") is None
-
     def test_get_selects_the_right_producer_by_region(self, settings):
         mock_producer_main = MagicMock()
         mock_producer_regional = MagicMock()

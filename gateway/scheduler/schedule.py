@@ -15,7 +15,7 @@ from django.db.models.aggregates import Count, Min
 from opentelemetry import trace
 
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import Job, JobEvent, Program
+from core.models import InvalidJobTransitionException, Job, JobEvent, Program
 from core.services.runners import get_runner, RunnerError
 
 User: Model = get_user_model()
@@ -96,12 +96,19 @@ def execute_fleets_job(job: Job, ctx, *, context: JobEventContext = JobEventCont
 
         # Env vars have been forwarded to Code Engine; wipe them from the DB now.
         job.env_vars = "{}"
-        job.change_status(
-            origin=JobEventOrigin.SCHEDULER,
-            context=context,
-            status=job.status,
-            job_fields={"fleet_id": job.fleet_id, "env_vars": job.env_vars},
-        )
+        try:
+            job.change_status(
+                origin=JobEventOrigin.SCHEDULER,
+                context=context,
+                status=job.status,
+                job_fields={"fleet_id": job.fleet_id, "env_vars": job.env_vars},
+            )
+        except InvalidJobTransitionException as ex:
+            # Lost the race: something else (e.g. a user-initiated stop) already moved this
+            # job to a terminal status while it was being submitted. The in-memory job.status
+            # set above is returned as-is; the caller reads it, but the DB row was never
+            # written since the job is no longer in a state that transition applies to.
+            logger.warning("[execute_fleets_job] job_id=%s already in a terminal status: %s", job.id, str(ex))
 
     return job
 

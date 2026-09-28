@@ -501,12 +501,13 @@ class Job(models.Model):
     RUNNING_STATUSES = [RUNNING, PENDING]
     ACTIVE_STATUSES = [QUEUED, PENDING, RUNNING]
 
-    # Valid change_status targets per current status. A terminal status has none: any transition
-    # away from one is a no-op handled separately in change_status, not an error.
+    # Valid change_status targets per current status
     VALID_TRANSITIONS: dict[str, set[str]] = {
-        QUEUED: {PENDING, SUCCEEDED, FAILED, STOPPED},
-        PENDING: {RUNNING, SUCCEEDED, FAILED, STOPPED},
+        # valid next state for non-terminal states
+        QUEUED: {PENDING, FAILED, STOPPED},
+        PENDING: {SUCCEEDED, FAILED, STOPPED, RUNNING},
         RUNNING: {SUCCEEDED, FAILED, STOPPED},
+        # terminal states have no next valid state
         SUCCEEDED: set(),
         FAILED: set(),
         STOPPED: set(),
@@ -753,21 +754,16 @@ class Job(models.Model):
         a row lock rather than trusted from self.status, which can be stale (a caller may be
         holding an in-memory Job loaded before a concurrent transition already committed).
 
-        A job already in a terminal status never transitions again: returns None and writes
-        nothing. Any other transition not in Job.VALID_TRANSITIONS raises
-        InvalidJobTransitionException instead, since that is a caller bug, not a race.
+        Raises InvalidJobTransitionException for any status not in
+        Job.VALID_TRANSITIONS[current_status], including a transition attempted from an
+        already-terminal status: a job never transitions again once terminal, but that is a
+        race a caller can legitimately lose (e.g. stopping a job that just succeeded), not
+        always a caller bug, so this never swallows it. A caller that can hit that race catches
+        InvalidJobTransitionException itself and decides what "already terminal" means there.
         """
         with transaction.atomic():
             current_status = Job.objects.select_for_update().values_list("status", flat=True).get(pk=self.pk)
             if status not in Job.VALID_TRANSITIONS.get(current_status, set()):
-                if current_status in Job.TERMINAL_STATUSES:
-                    logger.info(
-                        "job_id=%s already in terminal status=%s, ignoring transition to %s",
-                        self.id,
-                        current_status,
-                        status,
-                    )
-                    return None
                 raise InvalidJobTransitionException(f"Job {self.id}: invalid transition {current_status} -> {status}")
             event = JobEvent.objects.add_status_event(job_id=self.id, origin=origin, context=context, status=status)
             self.update_fields({"status": status, **(job_fields or {})})
@@ -793,7 +789,7 @@ class Job(models.Model):
 
         running_started_at = JobEvent.objects.first_running_at(self.id)
 
-        billing_message = BillingEvents.build_billing_event(self, event.created, running_started_at)
+        billing_message = BillingEvents.build_job_completed_event(self, running_started_at, event.created)
         Outbox.objects.create(job=self, channel="billing_event", payload=billing_message)
 
         ran = new_status == Job.SUCCEEDED or running_started_at is not None
@@ -807,7 +803,7 @@ class Job(models.Model):
             )
             return
 
-        license_fee_message = BillingEvents.build_license_fee(self, event.created, running_started_at)
+        license_fee_message = BillingEvents.build_license_fee(self, running_started_at)
         Outbox.objects.create(job=self, channel="license_fee", payload=license_fee_message)
 
 

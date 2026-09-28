@@ -7,8 +7,8 @@ from typing import cast
 from django.conf import settings
 
 from core.domain.billing_events import BillingEvents
-from core.ibm_cloud.event_streams.kafka_sender import build_sender, KafkaSender, NoOpSender
-from core.models import Job, JobEvent, Program
+from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender, KafkaSender, NoOpSender
+from core.models import InvalidJobTransitionException, Job, JobEvent, Program
 from core.services.runners import get_runner, RunnerError, FleetsRunner
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
@@ -31,7 +31,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
     def sender(self) -> KafkaSender | NoOpSender:
         """Return the Kafka sender, instantiating it lazily on first access."""
         if self._sender is None:
-            self._sender = build_sender()
+            self._sender = build_kafka_sender()
         return self._sender
 
     def update_job_status(self, job: Job) -> bool:
@@ -98,7 +98,10 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         return True
 
     def to_terminal(self, job: Job, new_status: str) -> None:
-        """Persist a terminal status transition."""
+        """Persist a terminal status transition. A job that reached a terminal status
+        concurrently (e.g. a user-initiated stop racing this poll) makes change_status raise
+        InvalidJobTransitionException instead of writing anything: that race already has a
+        winner, so this is caught and skipped rather than crashing the tick."""
         logger.info(
             "job_id=%s user_id=%s Changing status from %s to %s",
             job.id,
@@ -106,15 +109,19 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             new_status,
         )
-        # change_status builds and enqueues this job's outbox messages, if any, as part of
-        # this same transition (core/models.py). DrainOutbox sends them later, on its own
-        # schedule.
-        job.change_status(
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.UPDATE_JOB_STATUS,
-            status=new_status,
-            job_fields={"sub_status": None, "env_vars": "{}"},
-        )
+        try:
+            # change_status builds and enqueues this job's outbox messages, if any, as part of
+            # this same transition (core/models.py). DrainOutbox sends them later, on its own
+            # schedule.
+            job.change_status(
+                origin=JobEventOrigin.SCHEDULER,
+                context=JobEventContext.UPDATE_JOB_STATUS,
+                status=new_status,
+                job_fields={"sub_status": None, "env_vars": "{}"},
+            )
+        except InvalidJobTransitionException as ex:
+            logger.info("job_id=%s already in a terminal status, ignoring: %s", job.id, str(ex))
+            return
         self._increment_terminal_counter(job)
 
     def to_running(self, job: Job) -> None:
@@ -133,15 +140,24 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                 job.status,
                 Job.RUNNING,
             )
-            # This transition to RUNNING enqueues nothing in the outbox: outbox messages are
-            # only built on a terminal transition (core/models.py's change_status). Sending the
-            # in-progress event below is unrelated: a different billing fact (classical compute
-            # time), built and sent inline, best-effort, never through the outbox.
-            job.change_status(
-                origin=JobEventOrigin.SCHEDULER,
-                context=JobEventContext.UPDATE_JOB_STATUS,
-                status=Job.RUNNING,
-            )
+            try:
+                # This transition to RUNNING enqueues nothing in the outbox: outbox messages
+                # are only built on a terminal transition (core/models.py's change_status).
+                # Sending the in-progress event below is unrelated: a different billing fact
+                # (classical compute time), built and sent inline, best-effort, never through
+                # the outbox.
+                job.change_status(
+                    origin=JobEventOrigin.SCHEDULER,
+                    context=JobEventContext.UPDATE_JOB_STATUS,
+                    status=Job.RUNNING,
+                )
+            except InvalidJobTransitionException as ex:
+                # Lost the race: the job reached a terminal status concurrently (e.g. a
+                # user-initiated stop) between the status poll and this write. An in-progress
+                # event for an already-terminal job would be wrong, so there is nothing left
+                # to send either.
+                logger.info("job_id=%s already in a terminal status, skipping RUNNING: %s", job.id, str(ex))
+                return
 
         try:
             self._send_job_in_progress(job, job_started=job_started)
@@ -153,15 +169,18 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             )
 
     def _send_job_in_progress(self, job: Job, job_started: bool = False) -> None:
-        """Build and send the in-progress event, best-effort. BillingEvents.build_job_in_progress
+        """Build and send the in-progress event, best-effort. BillingEvents.build_job_usage_event
         assumes it is never called for a filler job, so that check happens here, first, before
-        even the JobEvent query, not just before the send."""
+        even the JobEvent query, not just before the send. This method's own job_started flag
+        is translated into job_last_progress_time=None, the builder's own signal that there is
+        no progress yet to report. first_running_at is always found here: this is only ever
+        called from to_running, once the job's RUNNING transition (job_started=True) or an
+        earlier one (job_started=False) has already been written and committed."""
         if job.filler:
             return
-        running_started_at = JobEvent.objects.first_running_at(job.id)
-        payload = BillingEvents.build_job_in_progress(
-            job, datetime.now(timezone.utc), running_started_at, job_started=job_started
-        )
+        job_started_at = JobEvent.objects.first_running_at(job.id)
+        job_last_progress_time = None if job_started else datetime.now(timezone.utc)
+        payload = BillingEvents.build_job_usage_event(job, job_started_at, job_last_progress_time)
         self.sender.send(payload)
 
     def stop_job_if_timeout(self, job: Job) -> None:
