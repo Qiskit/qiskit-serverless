@@ -40,6 +40,6 @@ class GetJobsUseCase:
             function_title=program.title,
             accessible_functions=accessible_functions,
         ):
-            return Job.objects.filter(program=program), True
+            return Job.objects.filter(program=program).select_related("compute_profile_fk"), True
 
-        return Job.objects.filter(program=program, author=user), False
+        return Job.objects.filter(program=program, author=user).select_related("compute_profile_fk"), False

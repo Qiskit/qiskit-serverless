@@ -82,7 +82,6 @@ class JobSerializer(serializers.ModelSerializer):
             "created",
             "sub_status",
             "fleet_id",
-            "compute_profile",
             "compute_profile_fk",
             "business_model",
         ]
@@ -113,7 +112,6 @@ class JobSerializerWithoutResult(serializers.ModelSerializer):
             "created",
             "sub_status",
             "fleet_id",
-            "compute_profile",
             "compute_profile_fk",
             "business_model",
         ]
