@@ -34,13 +34,13 @@ The Qiskit Serverless Chart has several internal and external dependencies. If y
 
 **Nginx Ingress controller**
 
-For our Nginx Ingress controller dependency we are using the configuration created by Bitnami. To simplify the configuration we offered you with a straigh-forward initial parameters setup.
+For our Nginx Ingress controller dependency we are using the configuration created by Bitnami. To simplify the configuration we offered you with a straightforward initial parameters setup.
 But if you are interested in more complex configurations you have access to all the parameters that Bitnami added in the chart specified in their READMEs:
 * [Nginx Ingress controller's README](https://artifacthub.io/packages/helm/bitnami/nginx-ingress-controller)
 
 **Kuberay operator**
 
-For our KubeRay Chart dependency we are using the configuration created by the Ray Project. To simplify the configuration we offered you with a straigh-forward initial parameters setup. But if you are interested in more complex configurations you have access to their Helm project [in GitHub](https://github.com/ray-project/kuberay-helm) to analyze the different variables:
+For our KubeRay Chart dependency we are using the configuration created by the Ray Project. To simplify the configuration we offered you with a straightforward initial parameters setup. But if you are interested in more complex configurations you have access to their Helm project [in GitHub](https://github.com/ray-project/kuberay-helm) to analyze the different variables:
 
 - For Kuberay Operator you can read their [values.yaml](https://github.com/ray-project/kuberay-helm/blob/main/helm-chart/kuberay-operator/values.yaml).
 

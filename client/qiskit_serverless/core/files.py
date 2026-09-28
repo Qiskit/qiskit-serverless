@@ -81,7 +81,7 @@ class GatewayFilesClient:
         url: str,
         target_name: Optional[str] = None,
     ) -> Optional[str]:
-        """Auxiliar function to download a file using an url."""
+        """Auxiliary function to download a file using an url."""
         with requests.get(
             url,
             params={
