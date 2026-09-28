@@ -20,10 +20,7 @@ class UpdateJobStatusCounts(SchedulerTask):
         self.metrics = metrics
 
     def run(self):
-        """Update job counts per status and provider, for every status before a job ends.
-
-        ``ACTIVE_STATUSES`` is the exact complement of ``TERMINAL_STATUSES``, so it already means
-        "not finished yet", and a status added to the model shows up here without a second edit.
+        """Update job counts per status and provider, for every status in ACTIVE_STATUSES before a job ends.
 
         Filler jobs run continuously, so counting them here would make a constant
         floor look like user demand. They get their own gauge instead.
