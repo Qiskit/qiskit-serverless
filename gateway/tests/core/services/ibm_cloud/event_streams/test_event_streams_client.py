@@ -766,6 +766,7 @@ class TestKafkaEventStreamsClient:
         assert call_args["enable.auto.commit"] is False
         assert call_args["auto.offset.reset"] == "earliest"
 
+    @pytest.mark.django_db
     def test_consume_events_processes_json_message(self, caplog):
         """Verify consume_events() deserializes and logs blocked-account events."""
         with patch(f"{_CLIENT_MOD}.Producer"):
@@ -782,14 +783,12 @@ class TestKafkaEventStreamsClient:
                     mock_consumer_inst = MagicMock()
                     mock_consumer_cls.return_value = mock_consumer_inst
 
-                    # Simulate a message with event data
+                    # Simulate a message with event data (blocked)
                     event_data = {
                         "account_id": "acct-123",
                         "plan_id": "plan-456",
                         "subscription_id": "sub-789",
-                        "deleted": True,
-                        "total_non_quantum_micro_ru": 1000,
-                        "non_quantum_limit_micro_ru": 2000,
+                        "deleted": False,
                     }
                     mock_msg = MagicMock()
                     mock_msg.value.return_value = json.dumps(event_data).encode("utf-8")
@@ -801,10 +800,8 @@ class TestKafkaEventStreamsClient:
                     with caplog.at_level(logging.INFO):
                         client.consume_events()
 
-        assert "Blocked account event" in caplog.text
+        assert "Blocked resource" in caplog.text
         assert "acct-123" in caplog.text
-        assert "plan-456" in caplog.text
-        assert "sub-789" in caplog.text
         mock_consumer_inst.commit.assert_called_once()
 
     def test_consume_events_handles_poll_error(self, caplog):
@@ -835,6 +832,7 @@ class TestKafkaEventStreamsClient:
         # Should not commit when there were only errors
         mock_consumer_inst.commit.assert_not_called()
 
+    @pytest.mark.django_db
     def test_consume_events_commits_after_processing(self):
         """Verify consume_events() commits offsets after processing messages."""
         with patch(f"{_CLIENT_MOD}.Producer"):

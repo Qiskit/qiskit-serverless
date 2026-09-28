@@ -334,6 +334,50 @@ class KafkaEventStreamsClient(EventStreamsClient):
         """Deserialize a blocked-account-plan event (JSON payload)."""
         return json.loads(msg.value().decode("utf-8"))
 
+    def _handle_blocked_account_event(self, event: dict, region: str) -> None:
+        """Process a blocked-account event: block or unblock a resource.
+
+        If deleted=False, the resource is blocked → insert into BlockedCloudResource.
+        If deleted=True, the resource is unblocked → delete from BlockedCloudResource.
+        """
+        from core.models import BlockedCloudResource  # pylint: disable=import-outside-toplevel
+
+        account_id = event.get("account_id")
+        plan_id = event.get("plan_id")
+        subscription_id = event.get("subscription_id")
+        deleted = event.get("deleted", False)
+
+        if deleted:
+            # Resource is unblocked → remove from table
+            count, _ = BlockedCloudResource.objects.filter(
+                account=account_id,
+                plan=plan_id,
+                subscription=subscription_id,
+            ).delete()
+            logger.info(
+                "Unblocked resource: region=%s account_id=%s plan_id=%s subscription_id=%s (deleted %d rows)",
+                region,
+                account_id,
+                plan_id,
+                subscription_id,
+                count,
+            )
+        else:
+            # Resource is blocked → insert into table (or ignore if duplicate due to unique constraint)
+            _, created = BlockedCloudResource.objects.get_or_create(
+                account=account_id,
+                plan=plan_id,
+                subscription=subscription_id,
+            )
+            logger.info(
+                "Blocked resource: region=%s account_id=%s plan_id=%s subscription_id=%s (created=%s)",
+                region,
+                account_id,
+                plan_id,
+                subscription_id,
+                created,
+            )
+
     def _poll_region(self, region: str, consumer: Consumer) -> None:
         """Poll and process blocked-account events from one region (bounded per iteration)."""
         max_messages = 500
@@ -355,18 +399,7 @@ class KafkaEventStreamsClient(EventStreamsClient):
 
             try:
                 event = self._deserialize_blocked_account_event(msg)
-                logger.info(
-                    "Blocked account event: region=%s account_id=%s plan_id=%s "
-                    "subscription_id=%s deleted=%s total_non_quantum_micro_ru=%s "
-                    "non_quantum_limit_micro_ru=%s",
-                    region,
-                    event.get("account_id"),
-                    event.get("plan_id"),
-                    event.get("subscription_id"),
-                    event.get("deleted"),
-                    event.get("total_non_quantum_micro_ru"),
-                    event.get("non_quantum_limit_micro_ru"),
-                )
+                self._handle_blocked_account_event(event, region)
                 messages_processed += 1
             except Exception as e:  # pylint: disable=broad-exception-caught
                 logger.error(
