@@ -629,6 +629,18 @@ class Job(models.Model):
 
     account_id = models.CharField(max_length=255, null=True, blank=True)
     instance_crn = models.CharField(max_length=255, null=True, blank=True)
+    plan_id = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="IBM Cloud resource plan ID of the instance, captured at job creation time",
+    )
+    subscription_id = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="IBM Cloud subscription ID of the instance, captured at job creation time",
+    )
     running_started_at = models.DateTimeField(null=True, blank=True)
     ce_project_name = models.CharField(
         max_length=255, null=True, blank=True, help_text="CE project name at execution time"
