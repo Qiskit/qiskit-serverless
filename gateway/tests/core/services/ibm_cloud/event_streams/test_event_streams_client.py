@@ -730,6 +730,14 @@ class TestKafkaEventStreamsClient:
                     # But created on demand via _get_consumer()
                     _ = client._get_consumer("us-east")
                     assert mock_consumer_cls.call_count == 1
+                    # Verify it subscribes to both topics
+                    consumer_mock = mock_consumer_cls.return_value
+                    consumer_mock.subscribe.assert_called_once_with(
+                        [
+                            "quantum.production.blocked-account-plans.v1",
+                            "quantum.production.blocked-account-plans-non-quantum.v1",
+                        ]
+                    )
 
     def test_consumer_config_includes_sasl_and_group_id(self):
         """Verify consumer config has SASL/SSL + group.id + auto commit disabled."""

@@ -106,9 +106,10 @@ class KafkaEventStreamsClient(EventStreamsClient):
                 }
 
         self.topic = f"quantum.{environment}.function-usage.v1"
-        self.blocked_accounts_topic = os.environ.get(
-            "EVENT_STREAMS_BLOCKED_ACCOUNTS_TOPIC", "blocked-account-plans-non-quantum.v1"
-        )
+        self.blocked_accounts_topics = [
+            f"quantum.{environment}.blocked-account-plans.v1",
+            f"quantum.{environment}.blocked-account-plans-non-quantum.v1",
+        ]
         self._blocked_accounts_group_id = f"qiskit-serverless-scheduler-blocked-accounts-{environment}"
         self._consumers: dict[str, Consumer] = {}
 
@@ -320,9 +321,13 @@ class KafkaEventStreamsClient(EventStreamsClient):
                 "auto.offset.reset": "earliest",
             }
         )
-        consumer.subscribe([self.blocked_accounts_topic])
+        consumer.subscribe(self.blocked_accounts_topics)
         self._consumers[region] = consumer
-        logger.debug("Created consumer for region: region=%s topic=%s", region, self.blocked_accounts_topic)
+        logger.debug(
+            "Created consumer for region: region=%s topics=%s",
+            region,
+            ",".join(self.blocked_accounts_topics),
+        )
         return consumer
 
     def _deserialize_blocked_account_event(self, msg) -> dict:
