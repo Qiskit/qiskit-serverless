@@ -180,7 +180,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             return
         job_started_at = JobEvent.objects.first_running_at(job.id)
         job_last_progress_time = None if job_started else datetime.now(timezone.utc)
-        payload = BillingEvents.build_job_usage_event(job, job_started_at, job_last_progress_time)
+        payload = BillingEvents.build_job_usage(job, job_started_at, job_last_progress_time)
         self.sender.send(payload)
 
     def stop_job_if_timeout(self, job: Job) -> None:

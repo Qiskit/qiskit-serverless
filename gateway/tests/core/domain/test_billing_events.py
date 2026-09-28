@@ -24,7 +24,7 @@ class TestBuildJobUsageEvent:
         job = _job()
         job_started_at = datetime(2026, 9, 25, 11, 59, 0, tzinfo=timezone.utc)
 
-        message = BillingEvents.build_job_usage_event(job, job_started_at, job_last_progress_time=None)
+        message = BillingEvents.build_job_usage(job, job_started_at, job_last_progress_time=None)
 
         assert message["data"] == {
             "metric_type": "classical_16x128",
@@ -41,7 +41,7 @@ class TestBuildJobUsageEvent:
         job_started_at = datetime(2026, 9, 25, 11, 59, 0, tzinfo=timezone.utc)
         job_last_progress_time = job_started_at + timedelta(seconds=5)
 
-        message = BillingEvents.build_job_usage_event(job, job_started_at, job_last_progress_time)
+        message = BillingEvents.build_job_usage(job, job_started_at, job_last_progress_time)
 
         assert message["data"] == {
             "metric_type": "classical_16x128",
@@ -59,7 +59,7 @@ class TestBuildJobUsageEvent:
         job_started_at = datetime(2026, 9, 25, 12, 0, 5, tzinfo=timezone.utc)
         job_last_progress_time = job_started_at - timedelta(seconds=5)
 
-        message = BillingEvents.build_job_usage_event(job, job_started_at, job_last_progress_time)
+        message = BillingEvents.build_job_usage(job, job_started_at, job_last_progress_time)
 
         assert message["data"]["metric_value"] == 0
 
@@ -67,7 +67,7 @@ class TestBuildJobUsageEvent:
         job = _job()
         job_started_at = datetime(2026, 9, 25, 12, 0, 0, tzinfo=timezone.utc)
 
-        message = BillingEvents.build_job_usage_event(job, job_started_at, datetime.now(timezone.utc))
+        message = BillingEvents.build_job_usage(job, job_started_at, datetime.now(timezone.utc))
 
         assert "type" not in message  # added later by the sender, not here
         assert message["subject"] == str(job.id)

@@ -49,11 +49,7 @@ class BillingEvents:
         )
 
     @staticmethod
-    def build_job_usage_event(
-        job: Job,
-        job_started_at: datetime,
-        job_last_progress_time: datetime | None,
-    ) -> dict:
+    def build_job_usage(job: Job, job_started_at: datetime, job_last_progress_time: datetime | None) -> dict:
         """Sent when:
         - PENDING -> RUNNING: when the job starts, job_last_progress_time is None. Usage will be 0 (it just started)
         - RUNNING -> RUNNING: every 1s to update the usage in billing service. job_last_progress_time is needed

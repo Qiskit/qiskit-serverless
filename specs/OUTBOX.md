@@ -42,7 +42,7 @@ channel, deleted independently once its own send succeeds.
   be found from its job (admin, debugging).
 - `channel`: a plain string (`"license_fee"` and `"billing_event"` today), not a
   Django `choices=` field. Registering a new channel is adding an entry to the
-  `{channel: _Channel}` dict `DrainOutbox` holds, not a migration.
+  `{channel: _Channel}` dict `Outbox` holds, not a migration.
 - `payload`: a `JSONField` holding the message exactly as it will be sent. The table
   does not know what the payload means or how it was built, only that it needs to go
   out.
@@ -120,14 +120,14 @@ time. The Kafka topic name (the envelope's `type` field) is the one exception: i
 added later, by the sender, at send time, because it is only known once
 `KafkaProducers` is instantiated.
 
-## Drain: `DrainOutbox`, one drain per channel
+## Drain: `Outbox`, one drain per channel
 
-`DrainOutbox` (`gateway/scheduler/tasks/drain_outbox.py`), wired into the scheduler
+`Outbox` (`../gateway/scheduler/tasks/outbox.py`), wired into the scheduler
 loop in `gateway/scheduler/main.py`, holds a `{channel: _Channel}` registry, where
 `_Channel` pairs a sender with the `ConfigKey` (if any) that enables that channel.
 `license_fee` and `billing_event` both point at the same `KafkaSender()` instance
 today (or `NoOpSender()` when `EVENT_STREAMS_ENABLED` is false), and drains every
-registered channel on every tick, each within its own time budget. `DrainOutbox`
+registered channel on every tick, each within its own time budget. `Outbox`
 itself is transport-agnostic: it knows only `Outbox`, `Config`, and a sender's
 `send(payload)` contract (raise `RuntimeError` on failure), never Kafka or any of its
 exception types.
@@ -236,7 +236,7 @@ treated as the normal "this job owes no fee" case, silently, with no log line at
 
 ## Adding a channel
 
-Adding a channel needs no schema change and no change to `DrainOutbox`'s draining
+Adding a channel needs no schema change and no change to `Outbox`'s draining
 logic. It needs:
 
 1. A builder that decides when to enqueue a message for that channel and calls

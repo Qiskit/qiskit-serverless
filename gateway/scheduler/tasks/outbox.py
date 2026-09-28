@@ -50,7 +50,7 @@ class _Channel:
         return self.enabled_key is None or Config.get_bool(self.enabled_key)
 
 
-class DrainOutbox(SchedulerTask):
+class OutboxTask(SchedulerTask):
     """Send whatever every registered outbox channel owes. Messages are inserted in the Outbox table
     this class consumes this table and send and delete the message from the table using the right
     sender based on the channel."""

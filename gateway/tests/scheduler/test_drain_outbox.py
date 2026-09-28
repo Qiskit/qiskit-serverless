@@ -10,21 +10,21 @@ from core.ibm_cloud.event_streams.kafka_producers import UnroutableRegionError
 from core.models import Config, Job, Outbox, Program
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.tasks.drain_outbox import _build_breaker, _Channel, DrainOutbox
+from scheduler.tasks.outbox import _build_breaker, _Channel, Outbox
 
 pytestmark = pytest.mark.django_db
 
 _MOD = "scheduler.tasks.drain_outbox"
 
 
-def _make_task(sender=None) -> DrainOutbox:
+def _make_task(sender=None) -> Outbox:
     # Config.get_int's `default=` only covers a non-numeric value, never a missing row: a key
     # with no seeded row raises KeyError. add_defaults() seeds budget_ms/breaker_failures/
     # breaker_pause_seconds from settings.DYNAMIC_CONFIG_DEFAULTS so every test can call
     # task.run() without fixing each of those three keys by hand.
     Config.add_defaults()
     Config.set(ConfigKey.OUTBOX_KAFKA_ENABLED, "true")
-    task = DrainOutbox(KillSignal(), MagicMock(spec=SchedulerMetrics))
+    task = Outbox(KillSignal(), MagicMock(spec=SchedulerMetrics))
     if sender is not None:
         task.channels = {
             "billing_event": _Channel(
