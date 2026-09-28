@@ -18,3 +18,5 @@ class CustomAuthentication:
     accessible_functions: FunctionAccessResult
     instance: Optional[str]
     account_id: Optional[str]
+    plan_id: Optional[str] = None
+    subscription_id: Optional[str] = None
