@@ -5,7 +5,7 @@ This document describes the new logging system for jobs, including log types, fi
 ### Job types
 
 Based on the `job.program.provider` field, from the logs point of view, we consider jobs of two types:
-1. User jobs (no `program.provider`): Users develope and run their own functions.
+1. User jobs (no `program.provider`): Users develop and run their own functions.
 2. Provider jobs (`program.provider` exists): Providers develop functions that users can execute.
 
 ### Log prefixes
@@ -61,7 +61,7 @@ time-limited presigned URL via `ibm_boto3` and returns an HTTP redirect:
 - **No logs yet** (wrapper has not flushed yet): gateway returns `204 No Content`;
   `logs()` and `provider_logs()` return `None`.
 
-Ray uses the regular way where logs are sent withing a json payload.
+Ray uses the regular way where logs are sent within a json payload.
 
 ## Legacy logs
 
