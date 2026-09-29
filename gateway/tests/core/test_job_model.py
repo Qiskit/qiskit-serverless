@@ -16,6 +16,7 @@ from core.models import (
     Job,
     JobEvent,
     Outbox,
+    OutboxChannel,
     Program,
     Provider,
 )
@@ -222,8 +223,8 @@ class TestChangeStatusEnqueuesOutboxMessages:
             origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, status=Job.SUCCEEDED
         )
 
-        billing_event = Outbox.objects.get(job=job, channel="billing_event")
-        license_fee = Outbox.objects.get(job=job, channel="license_fee")
+        billing_event = Outbox.objects.get(job=job, channel=OutboxChannel.JOB_USAGE)
+        license_fee = Outbox.objects.get(job=job, channel=OutboxChannel.LICENSE_FEE)
         assert billing_event.payload["data"]["metric_type"].startswith("classical")
         assert license_fee.payload["data"]["metric_type"].startswith("license_")
 
@@ -242,9 +243,9 @@ class TestChangeStatusEnqueuesOutboxMessages:
 
         job.change_status(origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB, status=Job.STOPPED)
 
-        billing_event = Outbox.objects.get(job=job, channel="billing_event")
+        billing_event = Outbox.objects.get(job=job, channel=OutboxChannel.JOB_USAGE)
         assert billing_event.payload["data"]["metric_value"] == 0
-        assert not Outbox.objects.filter(job=job, channel="license_fee").exists()
+        assert not Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).exists()
 
     def test_failed_after_running_enqueues_both_messages(self, user):
         provider = Provider.objects.create(name="ibm-dev")
@@ -268,8 +269,8 @@ class TestChangeStatusEnqueuesOutboxMessages:
 
         job.change_status(origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, status=Job.FAILED)
 
-        assert Outbox.objects.filter(job=job, channel="billing_event").count() == 1
-        assert Outbox.objects.filter(job=job, channel="license_fee").count() == 1
+        assert Outbox.objects.filter(job=job, channel=OutboxChannel.JOB_USAGE).count() == 1
+        assert Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).count() == 1
 
     def test_running_transition_enqueues_nothing(self, user):
         provider = Provider.objects.create(name="ibm-dev")
@@ -331,9 +332,9 @@ class TestChangeStatusEnqueuesOutboxMessages:
             origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, status=Job.SUCCEEDED
         )
 
-        billing_event = Outbox.objects.get(job=job, channel="billing_event")
+        billing_event = Outbox.objects.get(job=job, channel=OutboxChannel.JOB_USAGE)
         assert billing_event.payload["data"]["metric_type"].startswith("classical")
-        assert not Outbox.objects.filter(job=job, channel="license_fee").exists()
+        assert not Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).exists()
 
     def test_missing_function_size_despite_a_provider_waives_the_fee_and_logs(self, user, caplog):
         """A SET_NULL deletion of FunctionSize racing the transition is an anomaly, not the
@@ -356,7 +357,7 @@ class TestChangeStatusEnqueuesOutboxMessages:
                 origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, status=Job.SUCCEEDED
             )
 
-        assert not Outbox.objects.filter(job=job, channel="license_fee").exists()
+        assert not Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).exists()
         assert "waiving the fee" in caplog.text
 
     def test_second_terminal_transition_enqueues_nothing_more(self, user):

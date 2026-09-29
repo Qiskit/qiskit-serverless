@@ -23,7 +23,7 @@ else to wire up::
     sender = build_kafka_sender()
     sender.send(payload)  # raises RuntimeError (or UnroutableRegionError) on failure
 
-See drain_outbox.py and update_fleets_jobs_statuses.py for the two real callers.
+See outbox.py and update_fleets_jobs_statuses.py for the two real callers.
 """
 
 import json
@@ -47,8 +47,10 @@ class KafkaSender:
         """Raises UnroutableRegionError (from KafkaProducers.get) or RuntimeError on failure."""
         message = {**payload, "type": self._producers.topic}
         instance_crn = (message.get("data") or {}).get("instance_crn")
-        # This could raise UnroutableRegionError if: no data.instance_crn in the payload (impossible), the crn is not
-        # valid (even more impossible yet) or there is no Kafka producer for the crn region
+        # This could raise UnroutableRegionError if:
+        #    1 no data.instance_crn in the payload (impossible), or
+        #    2 the crn is not valid (even more impossible yet), or
+        #    3 there is no Kafka producer for the crn region
         producer = self._producers.get(instance_crn)
 
         try:

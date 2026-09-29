@@ -1,7 +1,10 @@
 """Models."""
 
+# pylint: disable=too-many-lines
+
 import logging
 import uuid
+from enum import StrEnum
 
 from concurrency.fields import IntegerVersionField
 from django.contrib.auth.models import Group
@@ -469,7 +472,7 @@ class FunctionSize(models.Model):
 
 
 class InvalidJobTransitionException(Exception):
-    """Raised by Job.change_status for a status transition not in Job.VALID_TRANSITIONS."""
+    """Raised by Job.change_status for a status transition not in Job.VALID_TRANSITIONS (like FAILED to RUNNING)"""
 
 
 class Job(models.Model):
@@ -750,12 +753,11 @@ class Job(models.Model):
         self, *, origin: JobEventOrigin, context: JobEventContext, status: str, job_fields: dict | None = None
     ):
         """
-
         Transition this job's status atomically with a transaction + validate the state change is valid.
         This method guarantees a safe, atomic, and valid status change is performed in the job table.
 
         Steps:
-            - Open a transaction and lock the job by id
+            - LOCK: Open a transaction and lock the job by id
             - Reads the job status again fresh from db and validate the transition
             - Adds a new JobEvent
             - Add the outbox message this transition needs
@@ -766,25 +768,24 @@ class Job(models.Model):
         """
         with transaction.atomic():
             current_status = Job.objects.select_for_update().values_list("status", flat=True).get(pk=self.pk)
+
             if status not in Job.VALID_TRANSITIONS.get(current_status, set()):
                 raise InvalidJobTransitionException(f"Job {self.id}: invalid transition {current_status} -> {status}")
+
             event = JobEvent.objects.add_status_event(job_id=self.id, origin=origin, context=context, status=status)
             self.update_fields({"status": status, **(job_fields or {})})
-            self._enqueue_billing_messages(event, new_status=status, previous_status=current_status)
+
+            to_terminal = previous_status not in Job.TERMINAL_STATUSES and new_status in Job.TERMINAL_STATUSES
+
+            # First real Fleets job (no filler) transition to a terminal status? send billing events
+            # Jobs only transition to terminal once, so these events will only be sent once
+            if to_terminal and self.runner == Program.FLEETS and not self.filler:
+                self._write_billing_messages_in_outbox(event.created)
         return event
 
-    def _enqueue_billing_messages(self, event: "JobEvent", *, new_status: str, previous_status: str) -> None:
-        """Build and store whichever billing outbox messages this transition owes, if any.
-
-        Only a first transition into a terminal status (SUCCEEDED/FAILED/STOPPED), for a Fleets,
-        non-filler job with an instance CRN, owes anything; Outbox is one row per message, so
-        re-enqueueing on a second terminal transition would double the billing facts.
-        """
-        if new_status not in Job.TERMINAL_STATUSES or previous_status in Job.TERMINAL_STATUSES:
-            return
-        if self.runner == Program.RAY or self.filler or not self.instance_crn:
-            return
-        if not Config.get_bool(ConfigKey.OUTBOX_KAFKA_ENABLED):
+    def _write_billing_messages_in_outbox(self, job_finished_time: datetime) -> None:
+        """Build and store whichever billing outbox messages this transition owes."""
+        if not Config.get_bool(ConfigKey.OUTBOX_KAFKA_ENABLED) or not self.instance_crn:
             return
 
         # Deferred import: core/domain/billing_events.py imports Job from this module at its own top level
@@ -792,22 +793,23 @@ class Job(models.Model):
 
         running_started_at = JobEvent.objects.first_running_at(self.id)
 
-        billing_message = BillingEvents.build_job_completed_event(self, running_started_at, event.created)
-        Outbox.objects.create(job=self, channel="billing_event", payload=billing_message)
+        billing_message = BillingEvents.build_job_completed_event(self, running_started_at, job_finished_time)
+        Outbox.objects.create(job=self, channel=OutboxChannel.JOB_USAGE, payload=billing_message)
 
-        is_provider_fee = self.program and self.program.provider
+        has_provider_fee = self.program and self.program.provider
 
-        if is_provider_fee:
+        if has_provider_fee:
+            # todo: remove this when function_size stops being nullable @ElePT
             if self.function_size is None:
                 logger.error(
-                    "job_id=%s license fee message cannot be built: function_size is missing although "
-                    "the function has a provider, waiving the fee",
+                    "job_id=%s license fee message cannot be built for provider=%s: function_size is missing",
                     self.id,
+                    self.program.provider,
                 )
                 return
 
             license_fee_message = BillingEvents.build_license_fee(self, running_started_at)
-            Outbox.objects.create(job=self, channel="license_fee", payload=license_fee_message)
+            Outbox.objects.create(job=self, channel=OutboxChannel.LICENSE_FEE, payload=license_fee_message)
 
 
 class RuntimeJob(models.Model):
@@ -853,14 +855,23 @@ class JobEvent(models.Model):
         ordering = ("-created",)
 
 
+class OutboxChannel(StrEnum):
+    """The channels a row in the Outbox table can be sent on: both billing facts published via
+    Kafka today. See Outbox.channel below for what adding a member here costs."""
+
+    LICENSE_FEE = "billing_license_fee"
+    JOB_USAGE = "billing_job_usage"
+
+
 class Outbox(models.Model):
     """A message waiting to be delivered best-effort, in a deferred way. One row per pending
     message, not per job: a job can have zero, one, or several rows at once, each with its own
     payload and channel, deleted independently once its own send succeeds.
 
-    `channel` says how to send it ("license_fee" and "billing_event" today, both via Kafka in
-    DrainOutbox); it is a plain string, not a Django `choices=`, so registering a new channel is
-    adding a sender to a dict, not a migration.
+    `channel` says how to send it (see OutboxChannel). `choices=` is a Django admin/forms hint,
+    not a database constraint: `.objects.create(...)`, all the writer and drainer ever call, can
+    still write any string. Adding a channel is a new OutboxChannel member plus the small
+    migration that comes with it, since `choices=` is part of the field's tracked state.
 
     `payload` is the message exactly as it will be sent, built and frozen at the moment the fact
     it represents became true (see Job.change_status and core/domain/billing_events.py). This
@@ -873,7 +884,9 @@ class Outbox(models.Model):
         help_text="Not used by delivery: the payload is self-contained. Kept only so a pending "
         "row can be found from its job (admin, debugging), without parsing the payload.",
     )
-    channel = models.CharField(max_length=20)
+    channel = models.CharField(
+        max_length=20, choices=[(c.value, c.name.replace("_", " ").title()) for c in OutboxChannel]
+    )
     payload = models.JSONField()
     created = models.DateTimeField(auto_now_add=True)
 

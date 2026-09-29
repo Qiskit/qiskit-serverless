@@ -111,7 +111,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         )
         try:
             # change_status builds and enqueues this job's outbox messages, if any, as part of
-            # this same transition (core/models.py). DrainOutbox sends them later, on its own
+            # this same transition (core/models.py). OutboxTask sends them later, on its own
             # schedule.
             job.change_status(
                 origin=JobEventOrigin.SCHEDULER,

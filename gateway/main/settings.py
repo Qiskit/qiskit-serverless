@@ -556,8 +556,8 @@ DYNAMIC_CONFIG_DEFAULTS = {
     "scheduler.outbox.kafka.enabled": {
         "default": "false",
         "type": "boolean",
-        "description": "Enable the license_fee/billing_event outbox channel (the Kafka billing "
-        "pair). While off, Job.change_status enqueues no row for either one, and DrainOutbox "
+        "description": "Enable the billing_license_fee/billing_job_usage outbox channel (the Kafka billing "
+        "pair). While off, Job.change_status enqueues no row for either one, and OutboxTask "
         "skips both entirely, as if they were not registered. Stopping this channel does not "
         "stop any other channel a later PR may add: each gets its own key.",
     },

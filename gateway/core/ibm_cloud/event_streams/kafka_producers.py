@@ -12,7 +12,7 @@
 
 """Per-region Kafka producer connections and the topic name, built once from Django settings.
 Used by every KafkaSender instance (UpdateFleetsJobsStatuses' inline best-effort sends, and
-DrainOutbox's outbox sends), each of which owns its own KafkaProducers rather than sharing one:
+OutboxTask's outbox sends), each of which owns its own KafkaProducers rather than sharing one:
 one producer per region per task that needs Kafka, not one for the whole process.
 """
 
@@ -34,18 +34,14 @@ class UnroutableRegionError(RuntimeError):
 class KafkaProducers:
     """
     Configured from Django settings (main/settings.py) per region:
-      settings.EVENT_STREAMS_BOOTSTRAP_SERVERS: comma-separated broker list (main region)
-      settings.EVENT_STREAMS_API_KEY: SASL/PLAIN password (main region)
-      settings.EVENT_STREAMS_USER: SASL/PLAIN username (default: 'token')
-      settings.EVENT_STREAMS_REGIONS: {region: {bootstrap_servers, api_key, user}} for
-        additional regions, discovered from suffixed environment variables at settings
-        import time
-      settings.EVENT_STREAMS_MAIN_REGION: main region (default: us-east)
-      settings.ENVIRONMENT: deployment environment (e.g. production, staging)
+      settings.ENVIRONMENT:                     "production" or "staging"
 
-    settings.py itself already fails closed at import time if EVENT_STREAMS_ENABLED is true and
-    the main credentials or ENVIRONMENT are missing, so this constructor (only ever called once
-    that flag is true, see KafkaSender) can trust they are present and does not repeat that check.
+      settings.EVENT_STREAMS_BOOTSTRAP_SERVERS: comma-separated broker list (main region)
+      settings.EVENT_STREAMS_API_KEY:           SASL/PLAIN password (main region)
+      settings.EVENT_STREAMS_USER:              SASL/PLAIN username
+      settings.EVENT_STREAMS_REGIONS:           {region: {bootstrap_servers, api_key, user}}
+        for additional regions, discovered from suffixed environment variables at settings import time
+      settings.EVENT_STREAMS_MAIN_REGION:       main region (default: us-east)
     """
 
     def __init__(self) -> None:

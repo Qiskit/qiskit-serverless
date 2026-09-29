@@ -14,14 +14,14 @@ from django.utils import timezone
 from core.config_key import ConfigKey
 from core.ibm_cloud.event_streams.kafka_producers import UnroutableRegionError
 from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender
-from core.models import Config, Outbox
+from core.models import Config, Outbox, OutboxChannel
 
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .circuit_breaker import CircuitBreaker
 from .task import SchedulerTask
 
-logger = logging.getLogger("scheduler.DrainOutbox")
+logger = logging.getLogger("scheduler.OutboxTask")
 
 BATCH_SIZE = 100
 
@@ -58,16 +58,16 @@ class OutboxTask(SchedulerTask):
     def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
         self.kill_signal = kill_signal
         self.metrics = metrics
-        # license_fee and billing_event share one sender, so they share this one breaker too: a
-        # Kafka outage opens it once for both, instead of each channel counting its own failures
+        # LICENSE_FEE and USAGE share one sender, so they share this one breaker too: a Kafka
+        # outage opens it once for both, instead of each channel counting its own failures
         # against the same underlying connection.
         billing_breaker = _build_breaker()
         billing_sender = build_kafka_sender()
-        self.channels: dict[str, _Channel] = {
-            "license_fee": _Channel(
+        self.channels: dict[OutboxChannel, _Channel] = {
+            OutboxChannel.LICENSE_FEE: _Channel(
                 sender=billing_sender, breaker=billing_breaker, enabled_key=ConfigKey.OUTBOX_KAFKA_ENABLED
             ),
-            "billing_event": _Channel(
+            OutboxChannel.JOB_USAGE: _Channel(
                 sender=billing_sender, breaker=billing_breaker, enabled_key=ConfigKey.OUTBOX_KAFKA_ENABLED
             ),
         }
@@ -86,7 +86,7 @@ class OutboxTask(SchedulerTask):
                 continue
             self._drain_channel(channel_name, channel.sender, channel.breaker)
 
-    def _drain_channel(self, channel: str, sender, breaker: CircuitBreaker) -> None:
+    def _drain_channel(self, channel: OutboxChannel, sender, breaker: CircuitBreaker) -> None:
         # A row that fails without tripping the breaker is neither deleted nor blocked by the breaker, so an unfiltered
         # re-fetch would find the exact same row again and hot-loop on it for the rest of the budget window.
         budget_ms = Config.get_int(ConfigKey.OUTBOX_BUDGET_MS, default=500)
@@ -107,7 +107,7 @@ class OutboxTask(SchedulerTask):
                 self._send_row(row, sender, breaker)
                 attempted_pks.add(row.pk)
 
-    def _should_continue_draining(self, channel: str, breaker: CircuitBreaker, deadline: float) -> bool:
+    def _should_continue_draining(self, channel: OutboxChannel, breaker: CircuitBreaker, deadline: float) -> bool:
         if self.kill_signal.received:
             logger.info("Kill signal received, stopping outbox drain for channel=%s", channel)
             return False
@@ -139,7 +139,7 @@ class OutboxTask(SchedulerTask):
         breaker.record_success()
         row.delete()
 
-    def _report_pending_gauges(self, channel: str) -> None:
+    def _report_pending_gauges(self, channel: OutboxChannel) -> None:
         queryset = Outbox.objects.filter(channel=channel)
         count = queryset.count()
         self.metrics.set_outbox_pending_rows(count, channel)

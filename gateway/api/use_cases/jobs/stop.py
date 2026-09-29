@@ -37,7 +37,7 @@ class StopJobUseCase:
 
         stopped = False
         try:
-            # Lock transaction to read the fresh status. Ir could raise InvalidJobTransitionException if the job
+            # Lock transaction to read the fresh status. It could raise InvalidJobTransitionException if the job
             # was SUCCEEDED or FAILED
             job.change_status(
                 origin=JobEventOrigin.API,

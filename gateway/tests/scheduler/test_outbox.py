@@ -1,4 +1,4 @@
-"""Unit tests for DrainOutbox."""
+"""Unit tests for OutboxTask."""
 
 from unittest.mock import MagicMock, patch
 
@@ -7,27 +7,27 @@ from django.test import override_settings
 
 from core.config_key import ConfigKey
 from core.ibm_cloud.event_streams.kafka_producers import UnroutableRegionError
-from core.models import Config, Job, Outbox, Program
+from core.models import Config, Job, Outbox, OutboxChannel, Program
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.tasks.outbox import _build_breaker, _Channel, Outbox
+from scheduler.tasks.outbox import _build_breaker, _Channel, OutboxTask
 
 pytestmark = pytest.mark.django_db
 
-_MOD = "scheduler.tasks.drain_outbox"
+_MOD = "scheduler.tasks.outbox"
 
 
-def _make_task(sender=None) -> Outbox:
+def _make_task(sender=None) -> OutboxTask:
     # Config.get_int's `default=` only covers a non-numeric value, never a missing row: a key
     # with no seeded row raises KeyError. add_defaults() seeds budget_ms/breaker_failures/
     # breaker_pause_seconds from settings.DYNAMIC_CONFIG_DEFAULTS so every test can call
     # task.run() without fixing each of those three keys by hand.
     Config.add_defaults()
     Config.set(ConfigKey.OUTBOX_KAFKA_ENABLED, "true")
-    task = Outbox(KillSignal(), MagicMock(spec=SchedulerMetrics))
+    task = OutboxTask(KillSignal(), MagicMock(spec=SchedulerMetrics))
     if sender is not None:
         task.channels = {
-            "billing_event": _Channel(
+            OutboxChannel.JOB_USAGE: _Channel(
                 sender=sender, breaker=_build_breaker(), enabled_key=ConfigKey.OUTBOX_KAFKA_ENABLED
             )
         }
@@ -42,7 +42,9 @@ def _make_job() -> Job:
 
 
 def _make_row(job=None, payload=None) -> Outbox:
-    return Outbox.objects.create(job=job or _make_job(), channel="billing_event", payload=payload or {"data": {}})
+    return Outbox.objects.create(
+        job=job or _make_job(), channel=OutboxChannel.JOB_USAGE, payload=payload or {"data": {}}
+    )
 
 
 class TestKafkaChannelDisabled:
@@ -62,7 +64,7 @@ class TestKafkaChannelDisabled:
         other_sender = MagicMock()
         task = _make_task()
         task.channels = {
-            "billing_event": _Channel(
+            OutboxChannel.JOB_USAGE: _Channel(
                 sender=billing_sender, breaker=_build_breaker(), enabled_key=ConfigKey.OUTBOX_KAFKA_ENABLED
             ),
             "other": _Channel(sender=other_sender, breaker=_build_breaker()),
@@ -123,7 +125,7 @@ class TestFailureHandling:
         task.run()
 
         assert Outbox.objects.filter(pk=row.pk).exists()
-        assert task.channels["billing_event"].breaker.is_open is True
+        assert task.channels[OutboxChannel.JOB_USAGE].breaker.is_open is True
 
 
 class TestBreakerIsolationBetweenChannels:
@@ -133,12 +135,12 @@ class TestBreakerIsolationBetweenChannels:
         workload_sender = MagicMock()
         task = _make_task()
         task.channels = {
-            "billing_event": _Channel(
+            OutboxChannel.JOB_USAGE: _Channel(
                 sender=billing_sender, breaker=_build_breaker(), enabled_key=ConfigKey.OUTBOX_KAFKA_ENABLED
             ),
             "workload": _Channel(sender=workload_sender, breaker=_build_breaker()),
         }
-        billing_row = _make_row()  # channel="billing_event", will fail
+        billing_row = _make_row()  # channel=OutboxChannel.USAGE, will fail
         workload_row = Outbox.objects.create(job=_make_job(), channel="workload", payload={})
 
         task.run()
@@ -152,15 +154,15 @@ class TestBreakerIsolationBetweenChannels:
         workload_sender = MagicMock()
         task = _make_task()
         task.channels = {
-            "billing_event": _Channel(
+            OutboxChannel.JOB_USAGE: _Channel(
                 sender=billing_sender, breaker=_build_breaker(), enabled_key=ConfigKey.OUTBOX_KAFKA_ENABLED
             ),
             "workload": _Channel(sender=workload_sender, breaker=_build_breaker()),
         }
         Config.set(ConfigKey.OUTBOX_BREAKER_FAILURES, "1")
-        _make_row()  # trips the billing_event breaker on this first run()
+        _make_row()  # trips the usage breaker on this first run()
         task.run()
-        assert task.channels["billing_event"].breaker.is_open is True
+        assert task.channels[OutboxChannel.JOB_USAGE].breaker.is_open is True
 
         workload_row = Outbox.objects.create(job=_make_job(), channel="workload", payload={})
         task.run()  # billing breaker open and skipped; workload must still be attempted
@@ -171,28 +173,28 @@ class TestBreakerIsolationBetweenChannels:
 
 class TestSharedBreakerAcrossChannelsWithTheSameSender:
     def test_a_failure_on_one_channel_opens_the_breaker_for_the_other(self):
-        """license_fee and billing_event share one sender in production, so a failure on either
-        must open the same breaker for both, instead of each counting its own failures."""
+        """LICENSE_FEE and USAGE share one sender in production, so a failure on either must
+        open the same breaker for both, instead of each counting its own failures."""
         shared_sender = MagicMock()
         shared_sender.send.side_effect = RuntimeError("kafka down")
         shared_breaker = _build_breaker()
         task = _make_task()
         task.channels = {
-            "license_fee": _Channel(
+            OutboxChannel.LICENSE_FEE: _Channel(
                 sender=shared_sender, breaker=shared_breaker, enabled_key=ConfigKey.OUTBOX_KAFKA_ENABLED
             ),
-            "billing_event": _Channel(
+            OutboxChannel.JOB_USAGE: _Channel(
                 sender=shared_sender, breaker=shared_breaker, enabled_key=ConfigKey.OUTBOX_KAFKA_ENABLED
             ),
         }
         Config.set(ConfigKey.OUTBOX_BREAKER_FAILURES, "1")
-        Outbox.objects.create(job=_make_job(), channel="license_fee", payload={"data": {}})
-        billing_row = Outbox.objects.create(job=_make_job(), channel="billing_event", payload={"data": {}})
+        Outbox.objects.create(job=_make_job(), channel=OutboxChannel.LICENSE_FEE, payload={"data": {}})
+        billing_row = Outbox.objects.create(job=_make_job(), channel=OutboxChannel.JOB_USAGE, payload={"data": {}})
 
         task.run()
 
-        assert task.channels["license_fee"].breaker.is_open is True
-        assert shared_sender.send.call_count == 1  # billing_event skipped: breaker already open
+        assert task.channels[OutboxChannel.LICENSE_FEE].breaker.is_open is True
+        assert shared_sender.send.call_count == 1  # USAGE skipped: breaker already open
         assert Outbox.objects.filter(pk=billing_row.pk).exists()
 
 
