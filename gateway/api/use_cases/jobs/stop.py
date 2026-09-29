@@ -5,7 +5,8 @@ from uuid import UUID
 from django.contrib.auth.models import AbstractUser
 from qiskit_ibm_runtime import QiskitRuntimeService, RuntimeInvalidStateError
 
-from core.models import InvalidJobTransitionException, Job, RuntimeJob
+from core.models import Job, RuntimeJob
+from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.runners import get_runner, RunnerError
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException

@@ -14,7 +14,8 @@ from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 
 from core.model_managers.job_events import JobEventContext
-from core.models import Job, ComputeResource, InvalidJobTransitionException, JobEvent, Program
+from core.models import Job, ComputeResource, JobEvent, Program
+from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.runners import RunnerError
 from core.services.storage import get_logs_storage
 

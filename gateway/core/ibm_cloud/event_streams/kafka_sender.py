@@ -31,12 +31,13 @@ import logging
 
 from django.conf import settings
 
+from core.ibm_cloud.sender import Sender
 from .kafka_producers import KafkaProducers
 
 logger = logging.getLogger("gateway.ibm_cloud.event_streams_client")
 
 
-class KafkaSender:
+class KafkaSender(Sender):
     """Sends a payload to Kafka as-is, plus `type`. See KafkaProducers for how producers/topic
     are configured and how a payload's CRN is routed to a region."""
 
@@ -54,30 +55,42 @@ class KafkaSender:
         producer = self._producers.get(instance_crn)
 
         try:
+            # flush() returning 0 only means nothing is left outstanding, not that delivery succeeded:
+            # a fast broker-side rejection (e.g. a topic ACL problem) calls the callback with an error
+            # before flush() returns, so the callback has to record it for us to raise below.
+            delivery_errors = []
+
+            def on_delivery(err, msg):
+                if err is not None:
+                    self._log_delivery_error(err, msg)
+                    delivery_errors.append(err)
+
             producer.produce(
                 topic=self._producers.topic,
                 key=message["subject"].encode("utf-8"),
                 value=json.dumps(message).encode("utf-8"),
-                callback=self._delivery_callback,
+                callback=on_delivery,
             )
             remaining = producer.flush(timeout=timeout)
             if remaining > 0:
                 raise RuntimeError(f"KafkaSender: {remaining} message(s) not delivered after flush timeout")
+            if delivery_errors:
+                raise RuntimeError(f"KafkaSender: message delivery failed: {delivery_errors[0]}")
         except Exception as e:
             raise RuntimeError(f"KafkaSender: Failed to publish event (id={message.get('id')}): {str(e)}") from e
 
-    def _delivery_callback(self, err, msg):
-        if err is not None:
-            logger.error(
-                "Message delivery failed topic=%s partition=%s error=%s error_code=%s",
-                msg.topic() if msg else "unknown",
-                msg.partition() if msg else "unknown",
-                err,
-                err.code() if hasattr(err, "code") else "unknown",
-            )
+    @staticmethod
+    def _log_delivery_error(err, msg) -> None:
+        logger.error(
+            "Message delivery failed topic=%s partition=%s error=%s error_code=%s",
+            msg.topic() if msg else "unknown",
+            msg.partition() if msg else "unknown",
+            err,
+            err.code() if hasattr(err, "code") else "unknown",
+        )
 
 
-class NoOpSender:
+class NoOpSender(Sender):
     """Drop-in replacement for KafkaSender when EVENT_STREAMS_ENABLED is false. Logs instead of
     publishing."""
 
@@ -86,7 +99,7 @@ class NoOpSender:
         logger.info("payload=%s [noop] send", payload)
 
 
-def build_kafka_sender() -> "KafkaSender | NoOpSender":
+def build_kafka_sender() -> Sender:
     """Return a KafkaSender, or a NoOpSender when EVENT_STREAMS_ENABLED is false."""
     if settings.EVENT_STREAMS_ENABLED:
         logger.info("Initializing KafkaSender (EVENT_STREAMS_ENABLED=True)")

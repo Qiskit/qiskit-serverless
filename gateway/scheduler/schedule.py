@@ -15,7 +15,8 @@ from django.db.models.aggregates import Count, Min
 from opentelemetry import trace
 
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import InvalidJobTransitionException, Job, JobEvent, Program
+from core.models import Job, JobEvent, Program
+from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.runners import get_runner, RunnerError
 
 User: Model = get_user_model()

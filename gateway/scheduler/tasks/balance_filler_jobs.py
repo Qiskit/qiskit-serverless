@@ -9,7 +9,8 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from core.config_key import ConfigKey
 from core.domain import compute_profile as compute_profile_domain
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import Config, InvalidJobTransitionException, Job, Program
+from core.models import Config, Job, Program
+from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.runners import get_runner, RunnerError
 from core.services.storage import get_arguments_storage
 from scheduler.health import DB_EXCEPTIONS
@@ -320,7 +321,6 @@ class BalanceFillerJobs(SchedulerTask):
                 origin=JobEventOrigin.SCHEDULER,
                 context=JobEventContext.FILLER_FAILED,
                 status=Job.FAILED,
-                job_fields={"sub_status": None},
             )
         except InvalidJobTransitionException:
             # Lost the race: something else already moved this job to a terminal status.
@@ -333,7 +333,6 @@ class BalanceFillerJobs(SchedulerTask):
                 origin=JobEventOrigin.SCHEDULER,
                 context=JobEventContext.FILLER_STOP,
                 status=Job.STOPPED,
-                job_fields={"sub_status": None},
             )
         except InvalidJobTransitionException:
             # Lost the race: something else already moved this job to a terminal status, so

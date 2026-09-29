@@ -64,7 +64,7 @@ channel, deleted independently once its own send succeeds.
   plain `.objects.create()`/`.filter()`, which bypasses `choices=` entirely, so
   nothing here stops a value outside the enum from being written or drained.
   Registering a new channel is adding a member to `OutboxChannel` plus an entry to
-  the `{channel: _Channel}` dict `OutboxTask` holds; because `choices=` is part of
+  the `{channel: OutboxTask.Channel}` dict `OutboxTask` holds; because `choices=` is part of
   the field's migration-tracked state, that member also needs a small migration
   (`AlterField`, no data change) alongside it.
 - `payload`: a `JSONField` holding the message exactly as it will be sent. The table
@@ -159,9 +159,9 @@ added later, by the sender, at send time, because it is only known once
 ## Drain: `OutboxTask`, one drain per channel
 
 `OutboxTask` (`gateway/scheduler/tasks/outbox.py`), wired into the scheduler
-loop in `gateway/scheduler/main.py`, holds a `{OutboxChannel: _Channel}` registry, where
-`_Channel` pairs a sender, a `CircuitBreaker`, and the `ConfigKey` (if any) that enables that
-channel. `LICENSE_FEE` and `USAGE` both point at the same `KafkaSender()` instance today (or
+loop in `gateway/scheduler/main.py`, holds a `{OutboxChannel: OutboxTask.Channel}` registry, where
+`OutboxTask.Channel` pairs a sender, a `CircuitBreaker`, and the `ConfigKey` that holds that
+channel's time budget. `LICENSE_FEE` and `USAGE` both point at the same `KafkaSender()` instance today (or
 `NoOpSender()` when `EVENT_STREAMS_ENABLED` is false); see "Circuit breaker" below for how they
 also share one breaker. `OutboxTask` drains every registered channel on every tick, each within
 its own time budget, and is itself transport-agnostic: it knows only `Outbox`, `Config`, and a
@@ -202,9 +202,9 @@ builds anything itself and does not know which of the two cases it is in.
 
 Each distinct sender gets its own `CircuitBreaker`
 (`gateway/scheduler/tasks/circuit_breaker.py`, built by the module-level `_build_kafka_breaker()`
-helper in `outbox.py`), passed explicitly into each `_Channel` rather than looked up by
+helper in `outbox.py`), passed explicitly into each `OutboxTask.Channel` rather than looked up by
 sender identity: `LICENSE_FEE` and `USAGE` share one `KafkaSender` instance, so
-`OutboxTask.__init__` builds one breaker and passes that same instance to both `_Channel`s,
+`OutboxTask.__init__` builds one breaker and passes that same instance to both `Channel`s,
 and a Kafka outage opens it once for both instead of each channel counting its own failures
 against the same underlying connection. A future channel with its own, unrelated sender is
 built with its own `_build_kafka_breaker()` call instead, automatically getting its own breaker with
@@ -240,7 +240,7 @@ needed): `scheduler.outbox.kafka.budget_ms` (default 500),
 `scheduler.outbox.kafka.breaker_pause_seconds` (default 60). They apply to all the Kafka
 channels together (`LICENSE_FEE` and `USAGE`), and there is no on/off switch: the Kafka
 channels are always active. A future channel that is not Kafka gets its own `Config` keys
-and its own `_Channel.budget_key`, without touching these.
+and its own `OutboxTask.Channel.budget_key`, without touching these.
 
 Prometheus metrics, all keyed by `channel` (`billing_license_fee`, `billing_job_usage`, or
 whatever channel a future PR adds), not by any billing-specific vocabulary:
@@ -277,7 +277,7 @@ logic. It needs:
    `Outbox.objects.create(job=job, channel=OutboxChannel.<NAME>, payload=message)`, wherever in
    the codebase that channel's fact becomes true.
 3. A sender class with a `send(payload)` method and its own `ConfigKey`s for the time
-   budget and the breaker thresholds, wrapped in one `_Channel(sender=..., breaker=..., budget_key=...)` registered under its own
+   budget and the breaker thresholds, wrapped in one `OutboxTask.Channel(sender=..., breaker=..., budget_key=...)` registered under its own
    key in `OutboxTask.channels`. A channel that reuses an existing sender instance can pass that
    sender's own breaker too, sharing it; one with a new sender builds its own with
    `_build_kafka_breaker()` instead.

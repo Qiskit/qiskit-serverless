@@ -76,6 +76,25 @@ class TestKafkaSender:
         with pytest.raises(RuntimeError):
             sender.send(_payload())
 
+    def test_raises_plain_runtime_error_when_delivery_callback_reports_error(self):
+        """flush() returning 0 only means nothing is left outstanding, not that delivery succeeded: a
+        fast broker-side rejection (e.g. a topic ACL problem) invokes the delivery callback with an
+        error before flush() returns 0. send must still raise, as a plain RuntimeError."""
+        producer = MagicMock()
+        producer.flush.return_value = 0
+        producer.produce.side_effect = lambda **kwargs: kwargs["callback"](
+            Exception("Topic authorization failed"), None
+        )
+        producers = MagicMock()
+        producers.topic = "t"
+        producers.get.return_value = producer
+
+        sender = KafkaSender(producers)
+
+        with pytest.raises(RuntimeError, match="message delivery failed") as exc_info:
+            sender.send(_payload())
+        assert not isinstance(exc_info.value, UnroutableRegionError)
+
     def test_produce_failure_raises_plain_runtime_error_not_unroutable(self):
         """A producer.produce()/flush() failure is a transient Kafka outage, not a routing or
         config gap: it must stay a plain RuntimeError so it keeps tripping the caller's circuit

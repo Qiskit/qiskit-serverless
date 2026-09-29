@@ -3,14 +3,13 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from django.test import override_settings
 
 from core.config_key import ConfigKey
 from core.ibm_cloud.event_streams.kafka_producers import UnroutableRegionError
 from core.models import Config, Job, Outbox, OutboxChannel, Program
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.tasks.outbox import _build_kafka_breaker, _Channel, OutboxTask
+from scheduler.tasks.outbox import _build_kafka_breaker, OutboxTask
 
 pytestmark = pytest.mark.django_db
 
@@ -29,8 +28,8 @@ def _make_task(sender=None) -> OutboxTask:
     return task
 
 
-def _kafka_channel(sender, breaker=None) -> _Channel:
-    return _Channel(
+def _kafka_channel(sender, breaker=None) -> OutboxTask.Channel:
+    return OutboxTask.Channel(
         sender=sender,
         breaker=breaker or _build_kafka_breaker(),
         budget_key=ConfigKey.OUTBOX_KAFKA_CHANNEL_BUDGET_MS,

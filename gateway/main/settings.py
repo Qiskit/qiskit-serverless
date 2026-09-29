@@ -42,6 +42,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = int(os.environ.get("DEBUG", 0))
+ENVIRONMENT = os.environ.get("ENVIRONMENT")
 
 # SECURITY WARNING: keep the secret key used in production secret!
 # A hardcoded fallback is only allowed in development/tests. When DEBUG is off
@@ -350,7 +351,6 @@ EVENT_STREAMS_MAIN_REGION = os.environ.get("EVENT_STREAMS_MAIN_REGION", "us-east
 EVENT_STREAMS_BOOTSTRAP_SERVERS = os.environ.get("EVENT_STREAMS_BOOTSTRAP_SERVERS")
 EVENT_STREAMS_API_KEY = os.environ.get("EVENT_STREAMS_API_KEY")
 EVENT_STREAMS_USER = os.environ.get("EVENT_STREAMS_USER", "token")
-ENVIRONMENT = os.environ.get("ENVIRONMENT")
 if EVENT_STREAMS_ENABLED and not (EVENT_STREAMS_BOOTSTRAP_SERVERS and EVENT_STREAMS_API_KEY and ENVIRONMENT):
     raise ImproperlyConfigured(
         "EVENT_STREAMS_BOOTSTRAP_SERVERS, EVENT_STREAMS_API_KEY and ENVIRONMENT are required when "

@@ -6,7 +6,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import InvalidJobTransitionException, Job, Program
+from core.models import Job, Program
+from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.runners import RunnerError
 from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses
 from tests.utils import TestUtils

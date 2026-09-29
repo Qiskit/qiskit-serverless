@@ -20,6 +20,7 @@ from django_prometheus.models import ExportModelOperationsMixin
 
 from core.config_key import ConfigKey
 from core.domain.business_models import BusinessModel
+from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.domain.subsidized_license_mapping import licensed_job_from_db
 from core.model_managers.code_engine_projects import CodeEngineProjectQuerySet
 from core.model_managers.compute_profiles import ComputeProfileQuerySet
@@ -472,10 +473,6 @@ class FunctionSize(models.Model):
         return f"{self.function} ({self.function_size})"
 
 
-class InvalidJobTransitionException(Exception):
-    """Raised by Job.change_status for a status transition not in Job.VALID_TRANSITIONS (like FAILED to RUNNING)"""
-
-
 class Job(models.Model):
     """Job model."""
 
@@ -797,8 +794,8 @@ class Job(models.Model):
         billing_message = BillingEvents.build_job_completed_event(self, job_started_at, job_finished_time)
         Outbox.objects.create(job=self, channel=OutboxChannel.JOB_USAGE, payload=billing_message)
 
-        # Without a RUNNING event, the license fee is only owed if the job SUCCEEDED (it must have run to succeed).
-        # A FAILED or STOPPED job may never have executed, so it is not charged.
+        # #1899 Without a RUNNING event, the license fee is only owed if the job SUCCEEDED
+        # (it must have run to succeed). A FAILED or STOPPED job may never have executed, so it is not charged.
         job_ran = job_started_at is not None or self.status == Job.SUCCEEDED
 
         if job_ran and self.program and self.program.provider:

@@ -10,7 +10,6 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import (
     ComputeProfile,
     FunctionSize,
-    InvalidJobTransitionException,
     Job,
     JobEvent,
     Outbox,
@@ -18,6 +17,7 @@ from core.models import (
     Program,
     Provider,
 )
+from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 
 pytestmark = pytest.mark.django_db
 

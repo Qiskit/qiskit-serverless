@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from django.utils import timezone
 
 from core.config_key import ConfigKey
+from core.ibm_cloud.sender import Sender
 from core.ibm_cloud.event_streams.kafka_producers import UnroutableRegionError
 from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender
 from core.models import Config, Outbox, OutboxChannel
@@ -35,20 +36,19 @@ def _build_kafka_breaker() -> CircuitBreaker:
     )
 
 
-@dataclass
-class _Channel:
-    """A registered outbox channel: its sender, its circuit breaker, and the Config key that holds
-    its per-tick time budget in milliseconds."""
-
-    sender: object
-    breaker: CircuitBreaker
-    budget_key: ConfigKey
-
-
 class OutboxTask(SchedulerTask):
     """Send whatever every registered outbox channel owes. Messages are inserted in the Outbox table
     this class consumes this table and send and delete the message from the table using the right
     sender based on the channel."""
+
+    @dataclass
+    class Channel:
+        """A registered outbox channel: its sender, its circuit breaker, and the Config key that holds
+        its per-tick time budget in milliseconds."""
+
+        sender: Sender
+        breaker: CircuitBreaker
+        budget_key: ConfigKey
 
     def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
         self.kill_signal = kill_signal
@@ -58,11 +58,11 @@ class OutboxTask(SchedulerTask):
         # against the same underlying connection.
         billing_breaker = _build_kafka_breaker()
         billing_sender = build_kafka_sender()
-        self.channels: dict[OutboxChannel, _Channel] = {
-            OutboxChannel.LICENSE_FEE: _Channel(
+        self.channels: dict[OutboxChannel, OutboxTask.Channel] = {
+            OutboxChannel.LICENSE_FEE: self.Channel(
                 sender=billing_sender, breaker=billing_breaker, budget_key=ConfigKey.OUTBOX_KAFKA_CHANNEL_BUDGET_MS
             ),
-            OutboxChannel.JOB_USAGE: _Channel(
+            OutboxChannel.JOB_USAGE: self.Channel(
                 sender=billing_sender, breaker=billing_breaker, budget_key=ConfigKey.OUTBOX_KAFKA_CHANNEL_BUDGET_MS
             ),
         }
@@ -78,7 +78,7 @@ class OutboxTask(SchedulerTask):
                 continue
             self._drain_channel(channel_name, channel)
 
-    def _drain_channel(self, channel_name: OutboxChannel, channel: _Channel) -> None:
+    def _drain_channel(self, channel_name: OutboxChannel, channel: Channel) -> None:
         # A row that fails without tripping the breaker is neither deleted nor blocked by the breaker, so an unfiltered
         # re-fetch would find the exact same row again and hot-loop on it for the rest of the budget window.
         budget_ms = Config.get_int(channel.budget_key, default=500)
@@ -111,7 +111,7 @@ class OutboxTask(SchedulerTask):
             return False
         return True
 
-    def _send_row(self, row: Outbox, sender, breaker: CircuitBreaker) -> None:
+    def _send_row(self, row: Outbox, sender: Sender, breaker: CircuitBreaker) -> None:
         """Send one row, keeping it for the next tick and counting it against the breaker on any
         failure, UnroutableRegionError included."""
         try:
@@ -121,7 +121,7 @@ class OutboxTask(SchedulerTask):
             self.metrics.increment_outbox_send(row.channel, "failure")
             breaker.record_failure()
             return
-        except RuntimeError as ex:
+        except Exception as ex:  # pylint: disable=broad-exception-caught
             logger.error("outbox_id=%s job_id=%s error sending: %s", row.id, row.job_id, str(ex))
             self.metrics.increment_outbox_send(row.channel, "failure")
             breaker.record_failure()
