@@ -503,6 +503,7 @@ class Job(models.Model):
 
     PENDING = "PENDING"
     RUNNING = "RUNNING"
+    STOPPING = "STOPPING"
     STOPPED = "STOPPED"
     SUCCEEDED = "SUCCEEDED"
     FAILED = "FAILED"
@@ -510,6 +511,7 @@ class Job(models.Model):
     JOB_STATUSES = [
         (PENDING, "Pending"),
         (RUNNING, "Running"),
+        (STOPPING, "Stopping"),
         (STOPPED, "Stopped"),
         (SUCCEEDED, "Succeeded"),
         (QUEUED, "Queued"),
@@ -524,8 +526,10 @@ class Job(models.Model):
     POST_PROCESSING = "POST_PROCESSING"
 
     TERMINAL_STATUSES = [SUCCEEDED, FAILED, STOPPED]
-    RUNNING_STATUSES = [RUNNING, PENDING]
-    ACTIVE_STATUSES = [QUEUED, PENDING, RUNNING]
+    # ACTIVE_STATUSES is the exact complement of TERMINAL_STATUSES
+    # RUNNING_STATUSES is the subset of ACTIVE_STATUSES where the engine is holding capacity
+    RUNNING_STATUSES = [RUNNING, PENDING, STOPPING]
+    ACTIVE_STATUSES = [QUEUED, PENDING, RUNNING, STOPPING]
 
     RUNNING_SUB_STATUSES = [
         MAPPING,
