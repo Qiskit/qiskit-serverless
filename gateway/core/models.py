@@ -497,7 +497,7 @@ class Job(models.Model):
 
     TERMINAL_STATUSES = [SUCCEEDED, FAILED, STOPPED]
     # ACTIVE_STATUSES is the exact complement of TERMINAL_STATUSES
-    # RUNNING_STATUSES is the subset of ACTIVE_STATUSES where the engine is holding capacity 
+    # RUNNING_STATUSES is the subset of ACTIVE_STATUSES where the engine is holding capacity
     RUNNING_STATUSES = [RUNNING, PENDING, STOPPING]
     ACTIVE_STATUSES = [QUEUED, PENDING, RUNNING, STOPPING]
 
