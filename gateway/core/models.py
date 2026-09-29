@@ -800,7 +800,7 @@ class Job(models.Model):
         has_provider_fee = self.program and self.program.provider
 
         if has_provider_fee:
-            # todo: remove this when function_size stops being nullable @ElePT
+            # This branch goes away once function_size stops being nullable (tracked by @ElePT).
             if self.function_size is None:
                 logger.error(
                     "job_id=%s license fee message cannot be built for provider=%s: function_size is missing, "
