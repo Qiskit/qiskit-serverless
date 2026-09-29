@@ -190,4 +190,9 @@ COPY --from=builder /usr/local/lib/python3.12/site-packages/ \
                     /usr/local/lib/python3.12/site-packages/
 COPY --from=builder /usr/local/lib64/python3.12/site-packages/ \
                     /usr/local/lib64/python3.12/site-packages/
+# Ray for selector only (base stays client-only). Constraint must match the
+# client's [ray] extra in client/pyproject.toml. Not in
+# requirements-dynamic-dependencies.txt: that file is gateway-advertised and
+# shared with ray-node. After the builder COPYs so they cannot clobber it.
+RUN pip install --no-cache-dir "ray[default]>=2.58.0,<3"
 USER 1000
