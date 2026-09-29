@@ -146,21 +146,22 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                 logger.info("job_id=%s already in a terminal status, skipping RUNNING: %s", job.id, str(ex))
                 return
 
-        if job.filler:
-            self._send_job_in_progress(job, job_started=job_started)
-
-    def _send_job_in_progress(self, job: Job, job_started: bool = False) -> None:
         try:
-            job_started_at = JobEvent.objects.first_running_at(job.id)
-            job_last_progress_time = None if job_started else datetime.now(timezone.utc)
-            payload = BillingEvents.build_job_usage(job, job_started_at, job_last_progress_time)
-            self.sender.send(payload)
+            self._send_job_in_progress(job, job_started=job_started)
         except RuntimeError as ex:
             logger.error(
                 "job_id=%s error emitting job_in_progress event to Kafka, event dropped: %s",
                 job.id,
                 str(ex),
             )
+
+    def _send_job_in_progress(self, job: Job, job_started: bool = False) -> None:
+        if job.filler:
+            return
+        job_started_at = JobEvent.objects.first_running_at(job.id)
+        job_last_progress_time = None if job_started else datetime.now(timezone.utc)
+        payload = BillingEvents.build_job_usage(job, job_started_at, job_last_progress_time)
+        self.sender.send(payload)
 
     def stop_job_if_timeout(self, job: Job) -> None:
         """Stop job if it has exceeded the maximum allowed duration."""
