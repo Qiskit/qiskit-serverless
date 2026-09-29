@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    Starting the gateway and the scheduler at the same time against an empty database no
+    longer deadlocks the migrations. A database already carrying an invalid
+    ``job_fleet_id_idx`` from that deadlock needs ``DROP INDEX job_fleet_id_idx;`` once before
+    it can migrate again.
