@@ -37,6 +37,7 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
         self.authenticator = IAMAuthenticator(apikey=self.api_key, url=self.iam_url)
         self.account_id: Optional[str] = None
         self.iam_id: Optional[str] = None
+        self.plan_id: Optional[str] = None
 
     def authenticate(self) -> Optional[str]:
         """
@@ -95,6 +96,7 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
         """
 
         resource_plan_id = self._request_or_cache_resource_plan_id()
+        self.plan_id = resource_plan_id
 
         if resource_plan_id is None:
             logger.warning("IBM Quantum Platform didn't return the Resource plan ID for the resource.")
@@ -203,3 +205,17 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
         """This method returns the current account id of the user.
         The account id is populated in 'authenticate' method."""
         return self.account_id
+
+    def get_plan_id(self) -> Optional[str]:
+        """This method returns the resource plan id of the user's instance.
+        The plan id is populated in 'verify_access' method, so it stays None
+        when access verification was skipped (public end-points)."""
+        return self.plan_id
+
+    def get_subscription_id(self) -> Optional[str]:
+        """This method returns the subscription id of the user's instance.
+
+        IBM Quantum Platform does not expose a subscription id through the
+        endpoints used here, so this is always None for now.
+        """
+        return None

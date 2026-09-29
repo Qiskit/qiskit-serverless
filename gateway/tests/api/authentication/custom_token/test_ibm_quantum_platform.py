@@ -138,6 +138,11 @@ class TestIBMQuantumPlatformAuthentication:
         assert user.username == "IBMid-0000000ABC"
         assert isinstance(auth, CustomAuthentication)
         assert auth.channel == "ibm_quantum_platform"
+        # The resource plan id resolved while verifying access is carried over so the
+        # run flow can persist it on the job. IBM Quantum Platform exposes no
+        # subscription id through these end-points, so it stays None.
+        assert auth.plan_id == RESOURCE_PLAN_ID
+        assert auth.subscription_id is None
 
         group_names = list(user.groups.values_list("name", flat=True))
         assert group_names == ["AccessGroupId-23afbcd24-00a0-00ab-ab0c-1a23b4c567de"]
