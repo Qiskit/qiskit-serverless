@@ -4,6 +4,7 @@
 
 import logging
 import uuid
+from datetime import datetime
 from enum import StrEnum
 
 from concurrency.fields import IntegerVersionField
@@ -775,7 +776,7 @@ class Job(models.Model):
             event = JobEvent.objects.add_status_event(job_id=self.id, origin=origin, context=context, status=status)
             self.update_fields({"status": status, **(job_fields or {})})
 
-            to_terminal = previous_status not in Job.TERMINAL_STATUSES and new_status in Job.TERMINAL_STATUSES
+            to_terminal = current_status not in Job.TERMINAL_STATUSES and status in Job.TERMINAL_STATUSES
 
             # First real Fleets job (no filler) transition to a terminal status? send billing events
             # Jobs only transition to terminal once, so these events will only be sent once
@@ -802,7 +803,8 @@ class Job(models.Model):
             # todo: remove this when function_size stops being nullable @ElePT
             if self.function_size is None:
                 logger.error(
-                    "job_id=%s license fee message cannot be built for provider=%s: function_size is missing",
+                    "job_id=%s license fee message cannot be built for provider=%s: function_size is missing, "
+                    "waiving the fee",
                     self.id,
                     self.program.provider,
                 )
