@@ -468,6 +468,44 @@ class FunctionSize(models.Model):
         return f"{self.function} ({self.function_size})"
 
 
+class BlockedCloudResource(models.Model):
+    """Blocked cloud resource model.
+
+    Mirrors the upstream billing-service's blocked account/plan/subscription set.
+    A row is a blocking rule at whatever scope its populated fields describe;
+    row identity comes from id, never from a business column. The three columns
+    are nullable so that narrower rule shapes (e.g., account-only) can be added
+    later without a migration.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created = models.DateTimeField(auto_now_add=True, editable=False)
+    updated = models.DateTimeField(auto_now=True, null=True)
+
+    account = models.CharField(max_length=255, null=True, blank=True, default=None)
+    plan = models.CharField(max_length=255, null=True, blank=True, default=None)
+    subscription = models.CharField(max_length=255, null=True, blank=True, default=None)
+
+    class Meta:
+        app_label = "api"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["account", "plan", "subscription"],
+                name="unique_blocked_resource",
+            ),
+        ]
+
+    def __str__(self):
+        parts = []
+        if self.account:
+            parts.append(f"account={self.account}")
+        if self.plan:
+            parts.append(f"plan={self.plan}")
+        if self.subscription:
+            parts.append(f"subscription={self.subscription}")
+        return f"BlockedCloudResource({', '.join(parts)})" if parts else "BlockedCloudResource()"
+
+
 class Job(models.Model):
     """Job model."""
 

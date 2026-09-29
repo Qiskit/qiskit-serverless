@@ -1,4 +1,11 @@
-"""Admin module."""
+"""Admin module.
+
+TODO: Refactor this module into separate files by domain (e.g. api/admin/jobs.py,
+api/admin/programs.py, api/admin/blocked_resources.py, etc.) to keep individual
+files under the 1000-line pylint limit. See issue for context on admin reorganization.
+"""
+
+# pylint: disable=too-many-lines
 
 import json
 import logging
@@ -27,6 +34,7 @@ from api.domain.exceptions.invalid_arguments_exception import InvalidArgumentsEx
 from api.use_cases.programs.upload import no_ce_project_message
 from api.use_cases.programs.validate_arguments import validate_arguments
 from core.models import (
+    BlockedCloudResource,
     CodeEngineProject,
     ComputeProfile,
     Config,
@@ -173,6 +181,16 @@ class FunctionSizeAdmin(admin.ModelAdmin):
     autocomplete_fields = ["function", "compute_profile"]
     list_select_related = ["function", "compute_profile"]
     readonly_fields = ["created", "updated"]
+
+
+@admin.register(BlockedCloudResource)
+class BlockedCloudResourceAdmin(admin.ModelAdmin):
+    """BlockedCloudResourceAdmin."""
+
+    list_display = ["account", "plan", "subscription", "created", "updated"]
+    list_filter = ["created", "updated"]
+    search_fields = ["account", "plan", "subscription"]
+    readonly_fields = ["created", "updated", "id"]
 
 
 def _arguments_schema_error(value: str | None) -> str | None:
