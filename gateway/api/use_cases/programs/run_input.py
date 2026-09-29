@@ -23,4 +23,6 @@ class RunFunctionInput:  # pylint: disable=too-many-instance-attributes
     token: str
     instance: str | None
     account_id: str | None
+    plan_id: str | None
+    subscription_id: str | None
     carrier: dict = field(default_factory=dict)

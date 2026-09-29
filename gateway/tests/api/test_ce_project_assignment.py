@@ -200,6 +200,8 @@ class TestJobCreationValidation:
                 token="my_token",
                 instance=None,
                 account_id=None,
+                plan_id=None,
+                subscription_id=None,
             ),
         )
 
@@ -229,6 +231,8 @@ class TestJobCreationValidation:
                     token="my_token",
                     instance=None,
                     account_id=None,
+                    plan_id=None,
+                    subscription_id=None,
                 ),
             )
 
@@ -261,6 +265,8 @@ class TestJobCreationValidation:
                     token="my_token",
                     instance=None,
                     account_id=None,
+                    plan_id=None,
+                    subscription_id=None,
                 ),
             )
 
@@ -285,6 +291,8 @@ class TestJobCreationValidation:
                 token="my_token",
                 instance=None,
                 account_id=None,
+                plan_id=None,
+                subscription_id=None,
             ),
         )
 

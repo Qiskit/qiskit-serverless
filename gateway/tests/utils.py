@@ -597,6 +597,8 @@ class TestUtils:
             token.token = b"test-token"
             token.instance = None
             token.account_id = None
+            token.plan_id = None
+            token.subscription_id = None
         if isinstance(accessible_functions, FunctionAccessResult):
             token.accessible_functions = accessible_functions
         else:

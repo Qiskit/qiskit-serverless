@@ -905,7 +905,7 @@ class TestJobApi:
         assert job_event_response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_job_account_id(self):
-        """Tests check that the account id is inserted to the job object."""
+        """Tests check that the instance attributes are inserted to the job object."""
 
         from api.domain.authentication.channel import Channel
 
@@ -916,6 +916,8 @@ class TestJobApi:
         token.token = b"test-token"
         token.instance = "awesome-instance"
         token.account_id = "1111-2222-3333-4444"
+        token.plan_id = "5555-6666-7777-8888"
+        token.subscription_id = "9999-aaaa-bbbb-cccc"
         user = self._authorize(username="test_user", token=token)
 
         # submitting a request to a job with the program
@@ -928,11 +930,13 @@ class TestJobApi:
 
         assert programs_response.status_code == status.HTTP_200_OK
 
-        # checking the 'account_id' and 'instance_crn' fields in the Job model are filled correctly.
+        # checking the instance fields in the Job model are filled correctly.
         job_id = programs_response.data.get("id")
         job = Job.objects.get(id=job_id)
         assert job.account_id == token.account_id
         assert job.instance_crn == token.instance
+        assert job.plan_id == token.plan_id
+        assert job.subscription_id == token.subscription_id
 
 
 @pytest.mark.django_db
