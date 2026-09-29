@@ -38,7 +38,6 @@ def _make_fleets_job(status=Job.RUNNING, fleet_id="fleet-123"):
     job.logs = ""
     job.env_vars = "{}"
     job.sub_status = None
-    job.running_started_at = None
     job.instance_crn = "crn:v1:bluemix:public:quantum-computing:us-east:a/abc:def::"
     job.compute_profile = "16x128"
     job.filler = False

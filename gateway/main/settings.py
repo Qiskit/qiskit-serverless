@@ -553,28 +553,20 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "Minimum number of jobs, real plus filler, to keep running for the compute "
         "profile of the filler program.",
     },
-    "scheduler.outbox.kafka.enabled": {
-        "default": "false",
-        "type": "boolean",
-        "description": "Enable the billing_license_fee/billing_job_usage outbox channel (the Kafka billing "
-        "pair). While off, Job.change_status enqueues no row for either one, and OutboxTask "
-        "skips both entirely, as if they were not registered. Stopping this channel does not "
-        "stop any other channel a later PR may add: each gets its own key.",
-    },
-    "scheduler.outbox.budget_ms": {
+    "scheduler.outbox.kafka.budget_ms": {
         "default": "500",
         "type": "integer",
-        "description": "Time budget per scheduler loop tick for the outbox task, in milliseconds.",
+        "description": "Time budget per scheduler loop tick for each Kafka outbox channel, in milliseconds.",
     },
-    "scheduler.outbox.breaker_failures": {
+    "scheduler.outbox.kafka.breaker_failures": {
         "default": "5",
         "type": "integer",
-        "description": "Consecutive send failures before the outbox task's circuit breaker opens.",
+        "description": "Consecutive send failures before the Kafka outbox circuit breaker opens.",
     },
-    "scheduler.outbox.breaker_pause_seconds": {
+    "scheduler.outbox.kafka.breaker_pause_seconds": {
         "default": "60",
         "type": "integer",
-        "description": "How long the outbox task's circuit breaker stays open once tripped.",
+        "description": "How long the Kafka outbox circuit breaker stays open once tripped.",
     },
 }
 

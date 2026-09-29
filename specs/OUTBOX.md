@@ -26,6 +26,28 @@ one sent right after a job's `PENDING -> RUNNING` transition), is unrelated to t
 system: it is built by the same builder (see below) but sent inline, synchronously,
 right after building, instead of through a row in this table.
 
+## Kafka events at a glance
+
+A Fleets job produces two kinds of Kafka events:
+
+- **Best effort**: events that can be lost. They are sent straight to Kafka from the
+  scheduler, wrapped in a `try/except`. If they arrive, good; if not, nothing happens and
+  they are not retried.
+- **Outbox**: events that cannot be lost. They are not sent from the scheduler. A JSON
+  message is written to the `outbox` table, and the `OutboxTask` scheduler task picks
+  these rows up and sends them where they belong (Kafka today, later NTC workloads or
+  whatever comes next). If the target system is down, the send is retried on the next
+  scheduler pass.
+
+Four events in total:
+
+| Event | Path | When it is sent |
+|---|---|---|
+| Job usage, start | best effort | once, when the job moves to `RUNNING` |
+| Job usage, in progress | best effort | about every second, while the job is `RUNNING` and stays `RUNNING` |
+| Job usage, finished | outbox | when the job ends, whatever the terminal status (`FAILED`, `SUCCEEDED` or `STOPPED`) |
+| License fee | outbox | when the job ends in `SUCCEEDED`, or in `FAILED`/`STOPPED` after having been seen in `RUNNING`, if the function has a provider and a `function_size` (see "Did the job run" below) |
+
 ## What a row is
 
 `Outbox` (`gateway/core/models.py`) is one row per pending message, not one row per
@@ -75,11 +97,6 @@ create a second `JobEvent` for it. Every caller that can legitimately race this 
 catches that exception itself and decides what "already terminal" means there;
 `change_status` never swallows it.
 
-Writing to the outbox is itself gated per channel. For `LICENSE_FEE`/`USAGE`
-that is `scheduler.outbox.kafka.enabled` (`ConfigKey.OUTBOX_KAFKA_ENABLED`), checked
-inside `_write_billing_messages_in_outbox` before anything else. While it is off, a terminal
-Fleets job transition owes nothing and no row is ever created for either channel.
-
 A row is only ever created on a transition to a terminal status (`SUCCEEDED`,
 `FAILED`, `STOPPED`), and only for a job eligible for the outbox pipeline at all:
 the guards inside `_write_billing_messages_in_outbox` require the job to actually be
@@ -99,14 +116,23 @@ eligible terminal transition, whatever the outcome: even a job cancelled while s
 queued gets one, reporting zero usage seconds.
 
 The license fee message (`BillingEvents.build_license_fee`) is only built when the job
-is known to have run:
+is known to have run. The scheduler learns that a job ran by seeing it in `RUNNING`, but a
+job can go from `QUEUED` or `PENDING` straight to a terminal status without that ever
+happening: it may be extremely fast and end right away, or the scheduler may be slow under
+load and miss the window. So the terminal status decides:
 
-- On a transition to `SUCCEEDED`, the job ran by definition, so the builder is always
-  called (with `job_started_at`, which can still be `None` if the job went
-  straight from queued to succeeded between two scheduler polls).
+- On a transition to `SUCCEEDED`, the job ran by definition (a job cannot succeed without
+  having been executed), so the builder is always called, with `job_started_at` being
+  `None` if the job was never seen in `RUNNING`.
 - On a transition to `FAILED` or `STOPPED`, the builder is only called when
-  `first_running_at()` returned a value, that is, the job passed through `RUNNING` at
-  least once before failing or being stopped.
+  `first_running_at()` returned a value, that is, the job was seen in `RUNNING` at least
+  once before failing or being stopped. Without that event we cannot tell whether the job
+  ran and ended inside that short window, or never started at all (the submission failed,
+  or it was cancelled while queued). We cannot prove it executed, so it is not charged.
+
+So the only jobs affected are the ones that skipped `RUNNING` and ended in `FAILED` or
+`STOPPED`. A job that was seen in `RUNNING` and later failed or was stopped pays the fee as
+usual.
 
 Both builders live in `gateway/core/domain/billing_events.py`, alongside the one that
 builds the inline usage event, and are pure: `build_job_completed_event` takes `job`,
@@ -165,12 +191,6 @@ region out of at all, is not something this code defends against separately: eve
 CRN reaching this table was already validated upstream, when the request that owns it
 was authorized, so a malformed one here is not expected to occur.
 
-Each channel can also be switched off independently, both for writing (above) and for
-draining: `_Channel.enabled_key` is the `ConfigKey` that gates it (`LICENSE_FEE` and
-`USAGE` both use `OUTBOX_KAFKA_ENABLED`, since they are the same Kafka billing
-pair). `run()` skips a disabled channel and still drains every other one; a channel
-with no `enabled_key` is always drained.
-
 `KafkaSender` (`gateway/core/ibm_cloud/event_streams/kafka_sender.py`) is the sender
 behind both billing channels: it adds the Kafka topic name to the payload's `type`
 field and publishes it via `KafkaProducers`. The same class also sends the two inline
@@ -181,13 +201,13 @@ builds anything itself and does not know which of the two cases it is in.
 ## Circuit breaker
 
 Each distinct sender gets its own `CircuitBreaker`
-(`gateway/scheduler/tasks/circuit_breaker.py`, built by the module-level `_build_breaker()`
+(`gateway/scheduler/tasks/circuit_breaker.py`, built by the module-level `_build_kafka_breaker()`
 helper in `outbox.py`), passed explicitly into each `_Channel` rather than looked up by
 sender identity: `LICENSE_FEE` and `USAGE` share one `KafkaSender` instance, so
 `OutboxTask.__init__` builds one breaker and passes that same instance to both `_Channel`s,
 and a Kafka outage opens it once for both instead of each channel counting its own failures
 against the same underlying connection. A future channel with its own, unrelated sender is
-built with its own `_build_breaker()` call instead, automatically getting its own breaker with
+built with its own `_build_kafka_breaker()` call instead, automatically getting its own breaker with
 no extra wiring needed. While a sender's breaker is open, no batch is fetched and no send is
 attempted for any channel using that sender, for the rest of the tick.
 
@@ -208,19 +228,19 @@ attempted for any channel using that sender, for the rest of the tick.
   stops the rest of that channel's work immediately instead of only from the next
   tick onward.
 
-`OUTBOX_BREAKER_FAILURES` and `OUTBOX_BREAKER_PAUSE_SECONDS` are read lazily through
+`OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES` and `OUTBOX_KAFKA_CHANNEL_BREAKER_PAUSE_SECONDS` are read lazily through
 callables passed into the breaker, so they can change at runtime through `Config`
 without recreating the breaker or restarting the process.
 
 ## Configuration and observability
 
 Everything except the batch size is a `Config` entry (admin-editable, no redeploy
-needed): `scheduler.outbox.kafka.enabled` (kill switch for the `LICENSE_FEE`/
-`USAGE` channel, both writing and draining, off by default),
-`scheduler.outbox.budget_ms` (default 500), `scheduler.outbox.breaker_failures`
-(default 5), `scheduler.outbox.breaker_pause_seconds` (default 60). Budget and
-breaker settings are global across all channels for now; a future channel that needs
-different thresholds gets its own `Config` keys without touching these.
+needed): `scheduler.outbox.kafka.budget_ms` (default 500),
+`scheduler.outbox.kafka.breaker_failures` (default 5) and
+`scheduler.outbox.kafka.breaker_pause_seconds` (default 60). They apply to all the Kafka
+channels together (`LICENSE_FEE` and `USAGE`), and there is no on/off switch: the Kafka
+channels are always active. A future channel that is not Kafka gets its own `Config` keys
+and its own `_Channel.budget_key`, without touching these.
 
 Prometheus metrics, all keyed by `channel` (`billing_license_fee`, `billing_job_usage`, or
 whatever channel a future PR adds), not by any billing-specific vocabulary:
@@ -256,12 +276,11 @@ logic. It needs:
 2. A builder that decides when to enqueue a message for that channel and calls
    `Outbox.objects.create(job=job, channel=OutboxChannel.<NAME>, payload=message)`, wherever in
    the codebase that channel's fact becomes true.
-3. A sender class with a `send(payload)` method and, optionally, its own `ConfigKey`
-   if the channel needs its own kill switch (without one it is always drained), both
-   wrapped in one `_Channel(sender=..., breaker=..., enabled_key=...)` registered under its own
+3. A sender class with a `send(payload)` method and its own `ConfigKey`s for the time
+   budget and the breaker thresholds, wrapped in one `_Channel(sender=..., breaker=..., budget_key=...)` registered under its own
    key in `OutboxTask.channels`. A channel that reuses an existing sender instance can pass that
    sender's own breaker too, sharing it; one with a new sender builds its own with
-   `_build_breaker()` instead.
+   `_build_kafka_breaker()` instead.
 
 The `workload` channel, mirroring job state to NTC's Runtime API, is expected to be
 exactly this: one more `OutboxChannel` member, one more sender, and one more registry entry,

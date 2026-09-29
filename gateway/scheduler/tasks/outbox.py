@@ -26,28 +26,23 @@ logger = logging.getLogger("scheduler.OutboxTask")
 BATCH_SIZE = 100
 
 
-def _build_breaker() -> CircuitBreaker:
-    """A fresh circuit breaker, its thresholds read lazily from Config so they can change at
-    runtime without recreating the breaker or restarting the process."""
+def _build_kafka_breaker() -> CircuitBreaker:
+    """A fresh circuit breaker for the Kafka channels, its thresholds read lazily from Config so
+    they can change at runtime without recreating the breaker or restarting the process."""
     return CircuitBreaker(
-        failure_threshold=lambda: Config.get_int(ConfigKey.OUTBOX_BREAKER_FAILURES, default=5),
-        pause_seconds=lambda: Config.get_int(ConfigKey.OUTBOX_BREAKER_PAUSE_SECONDS, default=60),
+        failure_threshold=lambda: Config.get_int(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, default=5),
+        pause_seconds=lambda: Config.get_int(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_PAUSE_SECONDS, default=60),
     )
 
 
 @dataclass
 class _Channel:
-    """A registered outbox channel: its sender, its circuit breaker, and the Config key (if any)
-    that enables it for both writing (Job._enqueue_billing_messages) and draining (below)."""
+    """A registered outbox channel: its sender, its circuit breaker, and the Config key that holds
+    its per-tick time budget in milliseconds."""
 
     sender: object
     breaker: CircuitBreaker
-    enabled_key: ConfigKey | None = None
-
-    @property
-    def is_enabled(self) -> bool:
-        """A channel with no enabled_key is always enabled."""
-        return self.enabled_key is None or Config.get_bool(self.enabled_key)
+    budget_key: ConfigKey
 
 
 class OutboxTask(SchedulerTask):
@@ -61,50 +56,47 @@ class OutboxTask(SchedulerTask):
         # LICENSE_FEE and USAGE share one sender, so they share this one breaker too: a Kafka
         # outage opens it once for both, instead of each channel counting its own failures
         # against the same underlying connection.
-        billing_breaker = _build_breaker()
+        billing_breaker = _build_kafka_breaker()
         billing_sender = build_kafka_sender()
         self.channels: dict[OutboxChannel, _Channel] = {
             OutboxChannel.LICENSE_FEE: _Channel(
-                sender=billing_sender, breaker=billing_breaker, enabled_key=ConfigKey.OUTBOX_KAFKA_ENABLED
+                sender=billing_sender, breaker=billing_breaker, budget_key=ConfigKey.OUTBOX_KAFKA_CHANNEL_BUDGET_MS
             ),
             OutboxChannel.JOB_USAGE: _Channel(
-                sender=billing_sender, breaker=billing_breaker, enabled_key=ConfigKey.OUTBOX_KAFKA_ENABLED
+                sender=billing_sender, breaker=billing_breaker, budget_key=ConfigKey.OUTBOX_KAFKA_CHANNEL_BUDGET_MS
             ),
         }
 
     def run(self):
-        """Drain every enabled channel, in turn, each within its own breaker and budget. A
-        disabled channel is skipped; the rest still drain."""
+        """Drain every channel, in turn, each within its own breaker and budget."""
         for channel_name in self.channels:
             self._report_pending_gauges(channel_name)
 
         for channel_name, channel in self.channels.items():
-            if not channel.is_enabled:
-                continue
             self.metrics.set_outbox_breaker_open(channel.breaker.is_open, channel=channel_name)
             if channel.breaker.is_open:
                 continue
-            self._drain_channel(channel_name, channel.sender, channel.breaker)
+            self._drain_channel(channel_name, channel)
 
-    def _drain_channel(self, channel: OutboxChannel, sender, breaker: CircuitBreaker) -> None:
+    def _drain_channel(self, channel_name: OutboxChannel, channel: _Channel) -> None:
         # A row that fails without tripping the breaker is neither deleted nor blocked by the breaker, so an unfiltered
         # re-fetch would find the exact same row again and hot-loop on it for the rest of the budget window.
-        budget_ms = Config.get_int(ConfigKey.OUTBOX_BUDGET_MS, default=500)
+        budget_ms = Config.get_int(channel.budget_key, default=500)
         deadline = time.monotonic() + (budget_ms / 1000)
         # So, tracking pks already attempted this call bounds one tick to at most one attempt per currently pending row;
         # it gets picked up again on the next tick.
         attempted_pks: set = set()
 
-        while self._should_continue_draining(channel, breaker, deadline):
-            queryset = Outbox.objects.filter(channel=channel).exclude(pk__in=attempted_pks)
+        while self._should_continue_draining(channel_name, channel.breaker, deadline):
+            queryset = Outbox.objects.filter(channel=channel_name).exclude(pk__in=attempted_pks)
             batch = list(queryset.order_by("created")[:BATCH_SIZE])
             if not batch:
                 return
 
             for row in batch:
-                if not self._should_continue_draining(channel, breaker, deadline):
+                if not self._should_continue_draining(channel_name, channel.breaker, deadline):
                     return
-                self._send_row(row, sender, breaker)
+                self._send_row(row, channel.sender, channel.breaker)
                 attempted_pks.add(row.pk)
 
     def _should_continue_draining(self, channel: OutboxChannel, breaker: CircuitBreaker, deadline: float) -> bool:

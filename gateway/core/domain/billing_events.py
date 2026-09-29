@@ -27,7 +27,7 @@ class BillingEvents:
         """
         Build a license fee for a provider program. Rules:
         - The job.program, job.program.provider and job.function_size CAN'T be None (or AttributeError will be raised)
-        - #1899 running_started_at can be None if the job reaches SUCCEEDED without ever passing through RUNNING
+        - #1899 job_started_at can be None if the job reaches SUCCEEDED without ever passing through RUNNING
           (a direct PENDING -> SUCCEEDED transition).
         """
         metric_type = "_".join(
@@ -84,7 +84,7 @@ class BillingEvents:
         The final usage event: always built, unconditionally, on every eligible terminal
         transition, whatever the job's outcome.
 
-        - #1899 running_started_at can be None if the job reaches SUCCEEDED without ever passing through RUNNING
+        - #1899 job_started_at can be None if the job reaches any terminal state without ever passing through RUNNING
         """
         usage_seconds = BillingEvents._usage_seconds(job_started_at, job_finished_at)
         metric_type = BillingEvents._classical_metric_type(job)
@@ -109,13 +109,13 @@ class BillingEvents:
         )
 
     @staticmethod
-    def _usage_seconds(running_started_at: datetime | None, as_of: datetime) -> int:
+    def _usage_seconds(job_started_at: datetime | None, as_of: datetime) -> int:
         """Usage in whole seconds up to as_of, rounded up so any partial second is billed. Never
-        negative, even if as_of somehow precedes running_started_at (clock skew between
+        negative, even if as_of somehow precedes job_started_at (clock skew between
         processes)."""
-        if running_started_at is None:
+        if job_started_at is None:
             return 0
-        delta = as_of - running_started_at
+        delta = as_of - job_started_at
         return max(0, math.ceil(delta.total_seconds()))
 
     @staticmethod

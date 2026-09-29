@@ -6,11 +6,9 @@ import pytest
 from django.contrib.auth.models import User
 from django.db import models
 
-from core.config_key import ConfigKey
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import (
     ComputeProfile,
-    Config,
     FunctionSize,
     InvalidJobTransitionException,
     Job,
@@ -171,36 +169,7 @@ class TestChangeStatusValidatesTransitions:
 class TestChangeStatusEnqueuesOutboxMessages:
     """Job.change_status is the only place that builds and stores outbox messages, and only for
     an eligible job (Fleets, not filler, with an instance CRN) transitioning to a terminal
-    status, and only while the license_fee/billing_event (Kafka) channel is enabled."""
-
-    @pytest.fixture(autouse=True)
-    def _outbox_kafka_channel_enabled(self):
-        Config.add_defaults()
-        Config.set(ConfigKey.OUTBOX_KAFKA_ENABLED, "true")
-
-    def test_kafka_channel_disabled_enqueues_nothing(self, user):
-        """An otherwise fully eligible transition creates no row while the channel is disabled."""
-        provider = Provider.objects.create(name="ibm-dev")
-        program = Program.objects.create(
-            title="my-fn", author=user, entrypoint="main.py", runner=Program.FLEETS, provider=provider
-        )
-        profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
-        size = FunctionSize.objects.create(function=program, function_size="m", compute_profile=profile)
-        job = Job.objects.create(
-            author=user,
-            program=program,
-            runner=Program.FLEETS,
-            instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::",
-            function_size=size,
-            status=Job.PENDING,
-        )
-        Config.set(ConfigKey.OUTBOX_KAFKA_ENABLED, "false")
-
-        job.change_status(
-            origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, status=Job.SUCCEEDED
-        )
-
-        assert Outbox.objects.filter(job=job).count() == 0
+    status."""
 
     def test_succeeded_enqueues_both_messages_even_without_a_running_event(self, user):
         """The short-job-between-two-polls case: never observed RUNNING, still owes the fee."""
@@ -233,11 +202,14 @@ class TestChangeStatusEnqueuesOutboxMessages:
         program = Program.objects.create(
             title="my-fn", author=user, entrypoint="main.py", runner=Program.FLEETS, provider=provider
         )
+        profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+        size = FunctionSize.objects.create(function=program, function_size="m", compute_profile=profile)
         job = Job.objects.create(
             author=user,
             program=program,
             runner=Program.FLEETS,
             instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::",
+            function_size=size,
             status=Job.QUEUED,
         )
 
@@ -271,6 +243,28 @@ class TestChangeStatusEnqueuesOutboxMessages:
 
         assert Outbox.objects.filter(job=job, channel=OutboxChannel.JOB_USAGE).count() == 1
         assert Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).count() == 1
+
+    def test_failed_without_ever_running_enqueues_only_the_billing_event(self, user):
+        """Skipping RUNNING and ending FAILED gives no proof the job executed, so no license fee."""
+        provider = Provider.objects.create(name="ibm-dev")
+        program = Program.objects.create(
+            title="my-fn", author=user, entrypoint="main.py", runner=Program.FLEETS, provider=provider
+        )
+        profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+        size = FunctionSize.objects.create(function=program, function_size="m", compute_profile=profile)
+        job = Job.objects.create(
+            author=user,
+            program=program,
+            runner=Program.FLEETS,
+            instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::",
+            function_size=size,
+            status=Job.PENDING,
+        )
+
+        job.change_status(origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, status=Job.FAILED)
+
+        assert Outbox.objects.filter(job=job, channel=OutboxChannel.JOB_USAGE).count() == 1
+        assert not Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).exists()
 
     def test_running_transition_enqueues_nothing(self, user):
         provider = Provider.objects.create(name="ibm-dev")

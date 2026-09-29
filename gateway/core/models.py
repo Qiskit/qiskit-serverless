@@ -786,20 +786,22 @@ class Job(models.Model):
 
     def _write_billing_messages_in_outbox(self, job_finished_time: datetime) -> None:
         """Build and store whichever billing outbox messages this transition owes."""
-        if not Config.get_bool(ConfigKey.OUTBOX_KAFKA_ENABLED) or not self.instance_crn:
+        if not self.instance_crn:
             return
 
         # Deferred import: core/domain/billing_events.py imports Job from this module at its own top level
         from core.domain.billing_events import BillingEvents  # pylint: disable=import-outside-toplevel, cyclic-import
 
-        running_started_at = JobEvent.objects.first_running_at(self.id)
+        job_started_at = JobEvent.objects.first_running_at(self.id)
 
-        billing_message = BillingEvents.build_job_completed_event(self, running_started_at, job_finished_time)
+        billing_message = BillingEvents.build_job_completed_event(self, job_started_at, job_finished_time)
         Outbox.objects.create(job=self, channel=OutboxChannel.JOB_USAGE, payload=billing_message)
 
-        has_provider_fee = self.program and self.program.provider
+        # Without a RUNNING event, the license fee is only owed if the job SUCCEEDED (it must have run to succeed).
+        # A FAILED or STOPPED job may never have executed, so it is not charged.
+        job_ran = job_started_at is not None or self.status == Job.SUCCEEDED
 
-        if has_provider_fee:
+        if job_ran and self.program and self.program.provider:
             # This branch goes away once function_size stops being nullable (tracked by @ElePT).
             if self.function_size is None:
                 logger.error(
@@ -810,7 +812,7 @@ class Job(models.Model):
                 )
                 return
 
-            license_fee_message = BillingEvents.build_license_fee(self, running_started_at)
+            license_fee_message = BillingEvents.build_license_fee(self, job_started_at)
             Outbox.objects.create(job=self, channel=OutboxChannel.LICENSE_FEE, payload=license_fee_message)
 
 
