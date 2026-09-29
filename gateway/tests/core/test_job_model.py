@@ -55,3 +55,16 @@ def test_save_direct_moves_the_updated_timestamp():
 
     assert job.updated > before
     assert Job.objects.get(pk=job.pk).updated == job.updated
+
+
+def test_the_status_lists_keep_their_shape():
+    """Both lists carry a claim the comment above them makes, and drift here is silent.
+
+    A status added to JOB_STATUSES and to neither list, or to RUNNING_STATUSES only, would pass
+    every other test in the suite while dropping out of the job_status_count gauge and out of the
+    submission quota.
+    """
+    all_statuses = {status for status, _label in Job.JOB_STATUSES}
+
+    assert set(Job.ACTIVE_STATUSES) == all_statuses - set(Job.TERMINAL_STATUSES)
+    assert set(Job.RUNNING_STATUSES) < set(Job.ACTIVE_STATUSES)
