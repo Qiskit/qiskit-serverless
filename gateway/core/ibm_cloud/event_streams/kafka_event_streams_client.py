@@ -21,6 +21,7 @@ import os
 import time
 import uuid
 from datetime import datetime, timezone
+from threading import Thread
 
 from confluent_kafka import Consumer, Producer
 from core.domain.business_models import billing_name_for
@@ -334,66 +335,82 @@ class KafkaEventStreamsClient(EventStreamsClient):
         """Deserialize a blocked-account-plan event (JSON payload)."""
         return json.loads(msg.value().decode("utf-8"))
 
-    def _poll_region(self, region: str, consumer: Consumer) -> None:
-        """Poll and process blocked-account events from one region (bounded per iteration)."""
-        max_messages = 500
-        deadline = time.time() + 2.0
-        messages_processed = 0
+    def _handle_blocked_account_event(self, event: dict, region: str) -> None:
+        """Process a blocked-account event: block or unblock a resource.
 
-        while time.time() < deadline and messages_processed < max_messages:
-            msg = consumer.poll(timeout=0.2)
-            if msg is None:
-                break
+        If deleted=False, the resource is blocked → insert into BlockedCloudResource.
+        If deleted=True, the resource is unblocked → delete from BlockedCloudResource.
+        """
+        from core.models import BlockedCloudResource  # pylint: disable=import-outside-toplevel,no-name-in-module
 
-            if msg.error():
-                logger.error(
-                    "Consumer error for region=%s error=%s",
-                    region,
-                    msg.error(),
-                )
-                continue
+        account_id = event.get("account_id")
+        plan_id = event.get("plan_id")
+        subscription_id = event.get("subscription_id")
+        deleted = event.get("deleted", False)
 
-            try:
-                event = self._deserialize_blocked_account_event(msg)
-                logger.info(
-                    "Blocked account event: region=%s account_id=%s plan_id=%s "
-                    "subscription_id=%s deleted=%s total_non_quantum_micro_ru=%s "
-                    "non_quantum_limit_micro_ru=%s",
-                    region,
-                    event.get("account_id"),
-                    event.get("plan_id"),
-                    event.get("subscription_id"),
-                    event.get("deleted"),
-                    event.get("total_non_quantum_micro_ru"),
-                    event.get("non_quantum_limit_micro_ru"),
-                )
-                messages_processed += 1
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                logger.error(
-                    "Failed to process blocked account event: region=%s error=%s",
-                    region,
-                    str(e),
-                )
+        if deleted:
+            count, _ = BlockedCloudResource.objects.filter(
+                account=account_id,
+                plan=plan_id,
+                subscription=subscription_id,
+            ).delete()
+            logger.info(
+                "Unblocked resource: region=%s account_id=%s plan_id=%s subscription_id=%s (deleted %d rows)",
+                region,
+                account_id,
+                plan_id,
+                subscription_id,
+                count,
+            )
+        else:
+            _, created = BlockedCloudResource.objects.get_or_create(
+                account=account_id,
+                plan=plan_id,
+                subscription=subscription_id,
+            )
+            logger.info(
+                "Blocked resource: region=%s account_id=%s plan_id=%s subscription_id=%s (created=%s)",
+                region,
+                account_id,
+                plan_id,
+                subscription_id,
+                created,
+            )
 
-        if messages_processed > 0:
-            try:
-                consumer.commit(asynchronous=False)
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                logger.error(
-                    "Failed to commit offsets for region=%s error=%s",
-                    region,
-                    str(e),
-                )
-
-    def consume_events(self) -> None:
-        """Poll pending blocked-account-plan events and process them."""
-        for region in self._producers:
+    def _poll_region_continuously(self, region: str) -> None:
+        """Continuously poll and process blocked-account events from one region."""
+        while True:
             try:
                 consumer = self._get_consumer(region)
-                self._poll_region(region, consumer)
+                msg = consumer.poll(timeout=1.0)
+
+                if msg is None:
+                    continue
+
+                if msg.error():
+                    logger.error("Consumer error for region=%s error=%s", region, msg.error())
+                    continue
+
+                try:
+                    event = self._deserialize_blocked_account_event(msg)
+                    self._handle_blocked_account_event(event, region)
+                    consumer.commit(asynchronous=False)
+                except Exception as e:  # pylint: disable=broad-exception-caught
+                    logger.error("Failed to process blocked account event: region=%s error=%s", region, str(e))
+
             except Exception as e:  # pylint: disable=broad-exception-caught
-                logger.error(
-                    "Error consuming blocked-account events from region=%s error=%s",
-                    region,
-                    str(e),
-                )
+                logger.error("Consumer error region=%s: %s", region, str(e), exc_info=True)
+                self._consumers.pop(region, None)
+                time.sleep(1)
+
+    def consume_events(self) -> None:
+        """Create one polling thread per region and block until all complete."""
+        threads = []
+        for region in self._producers:
+            thread = Thread(target=self._poll_region_continuously, args=(region,), daemon=True)
+            thread.start()
+            threads.append(thread)
+            logger.info("Started polling thread for region=%s", region)
+
+        for thread in threads:
+            thread.join()

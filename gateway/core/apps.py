@@ -58,8 +58,7 @@ class CoreConfig(AppConfig):
 
             client = KafkaEventStreamsClient()
             logger.info("Blocked-account events listener initialized, starting poll loop")
-            while True:
-                client.consume_events()
+            client.consume_events()
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error("Blocked-account events listener crashed: %s", str(e), exc_info=True)
 

@@ -766,8 +766,9 @@ class TestKafkaEventStreamsClient:
         assert call_args["enable.auto.commit"] is False
         assert call_args["auto.offset.reset"] == "earliest"
 
+    @pytest.mark.django_db
     def test_consume_events_processes_json_message(self, caplog):
-        """Verify consume_events() deserializes and logs blocked-account events."""
+        """Verify _poll_region_continuously() deserializes and handles blocked-account events."""
         with patch(f"{_CLIENT_MOD}.Producer"):
             with patch(f"{_CLIENT_MOD}.Consumer") as mock_consumer_cls:
                 with patch.dict(
@@ -787,28 +788,27 @@ class TestKafkaEventStreamsClient:
                         "account_id": "acct-123",
                         "plan_id": "plan-456",
                         "subscription_id": "sub-789",
-                        "deleted": True,
-                        "total_non_quantum_micro_ru": 1000,
-                        "non_quantum_limit_micro_ru": 2000,
+                        "deleted": False,
                     }
                     mock_msg = MagicMock()
                     mock_msg.value.return_value = json.dumps(event_data).encode("utf-8")
                     mock_msg.error.return_value = None
 
-                    mock_consumer_inst.poll.side_effect = [mock_msg, None]
+                    # Simulate: one message, then exception to stop polling
+                    mock_consumer_inst.poll.side_effect = [mock_msg, Exception("Test stop")]
                     mock_consumer_inst.commit = MagicMock()
 
                     with caplog.at_level(logging.INFO):
-                        client.consume_events()
+                        with pytest.raises(Exception, match="Test stop"):
+                            client._poll_region_continuously("us-east")
 
-        assert "Blocked account event" in caplog.text
         assert "acct-123" in caplog.text
         assert "plan-456" in caplog.text
         assert "sub-789" in caplog.text
         mock_consumer_inst.commit.assert_called_once()
 
     def test_consume_events_handles_poll_error(self, caplog):
-        """Verify consume_events() handles consumer poll errors gracefully."""
+        """Verify _poll_region_continuously() handles consumer poll errors gracefully."""
         with patch(f"{_CLIENT_MOD}.Producer"):
             with patch(f"{_CLIENT_MOD}.Consumer") as mock_consumer_cls:
                 with patch.dict(
@@ -826,17 +826,20 @@ class TestKafkaEventStreamsClient:
                     mock_msg = MagicMock()
                     mock_msg.error.return_value = "Consumer error code"
 
-                    mock_consumer_inst.poll.side_effect = [mock_msg, None]
+                    # Simulate error message then exit thread
+                    mock_consumer_inst.poll.side_effect = [mock_msg, Exception("Test stop")]
 
                     with caplog.at_level(logging.ERROR):
-                        client.consume_events()
+                        with pytest.raises(Exception, match="Test stop"):
+                            client._poll_region_continuously("us-east")
 
         assert "Consumer error" in caplog.text
         # Should not commit when there were only errors
         mock_consumer_inst.commit.assert_not_called()
 
+    @pytest.mark.django_db
     def test_consume_events_commits_after_processing(self):
-        """Verify consume_events() commits offsets after processing messages."""
+        """Verify _poll_region_continuously() commits offsets after processing messages."""
         with patch(f"{_CLIENT_MOD}.Producer"):
             with patch(f"{_CLIENT_MOD}.Consumer") as mock_consumer_cls:
                 with patch.dict(
@@ -861,14 +864,16 @@ class TestKafkaEventStreamsClient:
                     mock_msg.value.return_value = json.dumps(event_data).encode("utf-8")
                     mock_msg.error.return_value = None
 
-                    mock_consumer_inst.poll.side_effect = [mock_msg, None]
+                    # Simulate message then exit thread
+                    mock_consumer_inst.poll.side_effect = [mock_msg, Exception("Test stop")]
 
-                    client.consume_events()
+                    with pytest.raises(Exception, match="Test stop"):
+                        client._poll_region_continuously("us-east")
 
         mock_consumer_inst.commit.assert_called_once_with(asynchronous=False)
 
-    def test_consume_events_none_poll_result_stops_polling(self):
-        """Verify consume_events() stops polling when poll() returns None."""
+    def test_consume_events_none_poll_result_continues_polling(self):
+        """Verify _poll_region_continuously() continues polling when poll() returns None."""
         with patch(f"{_CLIENT_MOD}.Producer"):
             with patch(f"{_CLIENT_MOD}.Consumer") as mock_consumer_cls:
                 with patch.dict(
@@ -883,10 +888,12 @@ class TestKafkaEventStreamsClient:
                     mock_consumer_inst = MagicMock()
                     mock_consumer_cls.return_value = mock_consumer_inst
 
-                    mock_consumer_inst.poll.return_value = None
+                    # Simulate None (no messages) then exception to exit
+                    mock_consumer_inst.poll.side_effect = [None, Exception("Test stop")]
 
-                    client.consume_events()
+                    with pytest.raises(Exception, match="Test stop"):
+                        client._poll_region_continuously("us-east")
 
-        # Should poll once, get None, and exit loop without committing (no messages processed)
-        assert mock_consumer_inst.poll.call_count == 1
+        # Should try polling and continue, then hit exception
+        assert mock_consumer_inst.poll.call_count >= 1
         mock_consumer_inst.commit.assert_not_called()
