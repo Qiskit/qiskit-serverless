@@ -2,7 +2,7 @@
 
 import hashlib
 import logging
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Tuple
 
 import jwt
 from jwt import PyJWKClient
@@ -37,6 +37,8 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
         self.authenticator = IAMAuthenticator(apikey=self.api_key, url=self.iam_url)
         self.account_id: Optional[str] = None
         self.iam_id: Optional[str] = None
+        self.plan_id: Optional[str] = None
+        self.subscription_id: Optional[str] = None
 
     def authenticate(self) -> Optional[str]:
         """
@@ -94,7 +96,9 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
             bool: True or False if the user has or no access
         """
 
-        resource_plan_id = self._request_or_cache_resource_plan_id()
+        resource_plan_id, subscription_id = self._request_or_cache_instance_attributes()
+        self.plan_id = resource_plan_id
+        self.subscription_id = subscription_id
 
         if resource_plan_id is None:
             logger.warning("IBM Quantum Platform didn't return the Resource plan ID for the resource.")
@@ -148,12 +152,17 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
             raise exceptions.AuthenticationFailed("You couldn't be authenticated, please review your API Key.")
         return decoded
 
-    def _request_or_cache_resource_plan_id(self) -> Any:
-        cache_key = f"auth:access:{self.crn}:{self.api_key_hash}"
-        resource_plan_id = cache.get(cache_key)
+    def _request_or_cache_instance_attributes(self) -> Tuple[Optional[str], Optional[str]]:
+        """Returns the (resource plan id, subscription id) of the instance.
 
-        if resource_plan_id is not None:
-            return resource_plan_id
+        Both come from the same Resource Controller response, so they are
+        requested and cached together.
+        """
+        cache_key = f"auth:access:{self.crn}:{self.api_key_hash}"
+        cached_attributes = cache.get(cache_key)
+
+        if cached_attributes is not None:
+            return cached_attributes
 
         try:
             resource_controller = ResourceControllerV2(self.authenticator)
@@ -169,9 +178,13 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
             )
 
         resource_plan_id = instance.get("resource_plan_id")
-        cache.set(cache_key, resource_plan_id, timeout=self.cache_ttl)
+        # The subscription id is not a top level attribute of the response: it
+        # travels inside the free-form "parameters" configuration object, which
+        # is absent for instances that are not provisioned through one.
+        subscription_id = (instance.get("parameters") or {}).get("subscription_id")
+        cache.set(cache_key, (resource_plan_id, subscription_id), timeout=self.cache_ttl)
 
-        return resource_plan_id
+        return resource_plan_id, subscription_id
 
     def _request_or_cache_group_ids(self) -> List[str]:
         cache_key = f"auth:groups:{self.account_id}:{self.api_key_hash}"
@@ -203,3 +216,16 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
         """This method returns the current account id of the user.
         The account id is populated in 'authenticate' method."""
         return self.account_id
+
+    def get_plan_id(self) -> Optional[str]:
+        """This method returns the resource plan id of the user's instance.
+        The plan id is populated in 'verify_access' method, so it stays None
+        when access verification was skipped (public end-points)."""
+        return self.plan_id
+
+    def get_subscription_id(self) -> Optional[str]:
+        """This method returns the subscription id of the user's instance.
+        The subscription id is populated in 'verify_access' method, so it stays
+        None when access verification was skipped (public end-points) or when
+        the instance was not provisioned through a subscription."""
+        return self.subscription_id

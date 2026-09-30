@@ -14,6 +14,8 @@ class AuthenticationBase(ABC):
     - verify_access
     - get_groups
     - get_account_id
+    - get_plan_id
+    - get_subscription_id
     """
 
     @abstractmethod
@@ -31,3 +33,11 @@ class AuthenticationBase(ABC):
     @abstractmethod
     def get_account_id(self):
         """This method returns the current account id of the user."""
+
+    @abstractmethod
+    def get_plan_id(self) -> Optional[str]:
+        """This method returns the resource plan id of the user's instance."""
+
+    @abstractmethod
+    def get_subscription_id(self) -> Optional[str]:
+        """This method returns the subscription id of the user's instance."""

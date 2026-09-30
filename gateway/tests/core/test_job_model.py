@@ -384,3 +384,16 @@ class TestChangeStatusEnqueuesOutboxMessages:
         assert Outbox.objects.filter(job=job).count() == rows_after_first
         assert JobEvent.objects.filter(job=job).count() == events_after_first
         assert Job.objects.get(pk=job.pk).status == Job.SUCCEEDED
+
+
+def test_the_status_lists_keep_their_shape():
+    """Both lists carry a claim the comment above them makes, and drift here is silent.
+
+    A status added to JOB_STATUSES and to neither list, or to RUNNING_STATUSES only, would pass
+    every other test in the suite while dropping out of the job_status_count gauge and out of the
+    submission quota.
+    """
+    all_statuses = {status for status, _label in Job.JOB_STATUSES}
+
+    assert set(Job.ACTIVE_STATUSES) == all_statuses - set(Job.TERMINAL_STATUSES)
+    assert set(Job.RUNNING_STATUSES) < set(Job.ACTIVE_STATUSES)
