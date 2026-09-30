@@ -342,6 +342,10 @@ than the response supports.</p></li>
 <section id="bug-fixes">
 <span id="release-notes-upcoming-qiskit-serverless-release-bug-fixes"></span><h3>Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
+<li><p>The gateway and the scheduler now exit when their startup migration fails, instead of
+starting against a database that does not match the code.</p></li>
+</ul>
+<ul class="simple">
 <li><p>A Fleets job whose Kafka event-stream publish failed while transitioning from
 <code class="docutils literal notranslate"><span class="pre">PENDING</span></code> to <code class="docutils literal notranslate"><span class="pre">RUNNING</span></code> stayed stuck in <code class="docutils literal notranslate"><span class="pre">PENDING</span></code> forever, retried every scheduler
 tick with no way to recover. The status and its <code class="docutils literal notranslate"><span class="pre">JobEvent</span></code> are now written together in
