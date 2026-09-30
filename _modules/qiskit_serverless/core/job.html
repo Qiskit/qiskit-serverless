@@ -445,6 +445,7 @@
 
 <span class="n">PendingType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"PENDING"</span><span class="p">]</span>
 <span class="n">RunningType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"RUNNING"</span><span class="p">]</span>
+<span class="n">StoppingType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"STOPPING"</span><span class="p">]</span>
 <span class="n">StoppedType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"STOPPED"</span><span class="p">]</span>
 <span class="n">SucceededType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"SUCCEEDED"</span><span class="p">]</span>
 <span class="n">FailedType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"FAILED"</span><span class="p">]</span>
@@ -462,6 +463,7 @@
 
     <span class="n">PENDING</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">PendingType</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"PENDING"</span>
     <span class="n">RUNNING</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">RunningType</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"RUNNING"</span>
+    <span class="n">STOPPING</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">StoppingType</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"STOPPING"</span>
     <span class="n">STOPPED</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">StoppedType</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"STOPPED"</span>
     <span class="n">SUCCEEDED</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">SucceededType</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"SUCCEEDED"</span>
     <span class="n">FAILED</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">FailedType</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"FAILED"</span>
@@ -763,6 +765,7 @@
 <span class="n">STATUS_MAP</span> <span class="o">=</span> <span class="p">{</span>
     <span class="n">Job</span><span class="o">.</span><span class="n">PENDING</span><span class="p">:</span> <span class="s2">"INITIALIZING"</span><span class="p">,</span>
     <span class="n">Job</span><span class="o">.</span><span class="n">RUNNING</span><span class="p">:</span> <span class="s2">"RUNNING"</span><span class="p">,</span>
+    <span class="n">Job</span><span class="o">.</span><span class="n">STOPPING</span><span class="p">:</span> <span class="s2">"CANCELING"</span><span class="p">,</span>
     <span class="n">Job</span><span class="o">.</span><span class="n">STOPPED</span><span class="p">:</span> <span class="s2">"CANCELED"</span><span class="p">,</span>
     <span class="n">Job</span><span class="o">.</span><span class="n">SUCCEEDED</span><span class="p">:</span> <span class="s2">"DONE"</span><span class="p">,</span>
     <span class="n">Job</span><span class="o">.</span><span class="n">FAILED</span><span class="p">:</span> <span class="s2">"ERROR"</span><span class="p">,</span>
