@@ -349,6 +349,12 @@ a single transaction regardless of Kafka’s availability, and a failed publish 
 and dropped instead of blocking the transition.</p></li>
 </ul>
 <ul class="simple">
+<li><p>Starting the gateway and the scheduler at the same time against an empty database no
+longer deadlocks the migrations. A database already carrying an invalid
+<code class="docutils literal notranslate"><span class="pre">job_fleet_id_idx</span></code> from that deadlock needs <code class="docutils literal notranslate"><span class="pre">DROP</span> <span class="pre">INDEX</span> <span class="pre">job_fleet_id_idx;</span></code> once before
+it can migrate again.</p></li>
+</ul>
+<ul class="simple">
 <li><p>Stopping a Fleets job now reports whether Code Engine accepted the cancel. Two
 cases were wrong. A job whose fleet was in a state the Code Engine client did
 not recognise, <code class="docutils literal notranslate"><span class="pre">standby</span></code> among them, could not be cancelled at all and was
