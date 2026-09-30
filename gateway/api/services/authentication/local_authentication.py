@@ -69,3 +69,21 @@ class LocalAuthenticationService(AuthenticationBase):
             None
         """
         return None
+
+    def get_plan_id(self) -> None:
+        """
+        Locally there is no resource plan id since it is used in IBM Quantum Platform.
+
+        Returns:
+            None
+        """
+        return None
+
+    def get_subscription_id(self) -> None:
+        """
+        Locally there is no subscription id since it is used in IBM Quantum Platform.
+
+        Returns:
+            None
+        """
+        return None
