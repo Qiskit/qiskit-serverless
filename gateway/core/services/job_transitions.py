@@ -23,6 +23,16 @@ from core.models import Job, JobEvent, Outbox, OutboxChannel, Program
 logger = logging.getLogger("core.JobTransitionService")
 
 
+def _is_usage_billable(job: Job) -> bool:
+    """Only real Fleets jobs (no filler) with an instance CRN are billed."""
+    return job.runner == Program.FLEETS and not job.filler and bool(job.instance_crn)
+
+
+def _is_fee_billable(job: Job) -> bool:
+    """The license fee is only owed for a function with a provider."""
+    return bool(job.program and job.program.provider)
+
+
 class JobTransitionService:
     """Changes the status of a job, validated and atomic, and does what each transition owes.
 
@@ -47,9 +57,9 @@ class JobTransitionService:
     }
 
     def __init__(self, sender: Sender | None = None):
-        """The sender of the best effort events. Building the default one creates the Kafka producers, so a
-        caller that can be instantiated many times (like one per API request) or that never sends passes
-        its own, and the scheduler creates one service and shares it."""
+        """The sender of the best effort events.
+        By default, it creates the sender based on EVENT_STREAMS_ENABLED (so the scheduler has KafkaSender, and
+        the Gateway (stop jobs only) has NoOpSender)"""
         self.sender = sender if sender is not None else build_kafka_sender()
 
     def queued_to_pending(
@@ -92,36 +102,35 @@ class JobTransitionService:
         """The job finished. A job cannot succeed without having run, so its license fee is always owed."""
         with transaction.atomic():
             event = self._change_status(job, Job.SUCCEEDED, origin=origin, context=context, job_fields=job_fields)
-            if self._is_usage_billable(job):
+            if _is_usage_billable(job):
                 job_started_at = JobEvent.objects.first_running_at(job.id)
                 self._enqueue_job_usage(job, job_started_at, event.created)
-                if self._is_fee_billable(job):
+                if _is_fee_billable(job):
                     self._enqueue_license_fee(job, job_started_at)
         return event
 
     def to_failed(
         self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
     ) -> JobEvent:
-        """The job failed, even before it ran."""
-        return self._to_ended_without_success(job, Job.FAILED, origin=origin, context=context, job_fields=job_fields)
+        """The job failed."""
+        return self.to_stopped_or_failed(job, Job.FAILED, origin=origin, context=context, job_fields=job_fields)
 
     def to_stopped(
         self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
     ) -> JobEvent:
-        """The job was stopped, by a user or by the scheduler, even before it ran."""
-        return self._to_ended_without_success(job, Job.STOPPED, origin=origin, context=context, job_fields=job_fields)
+        """The job was stopped, by a user or by the scheduler."""
+        return self.to_stopped_or_failed(job, Job.STOPPED, origin=origin, context=context, job_fields=job_fields)
 
-    def _to_ended_without_success(
+    def to_stopped_or_failed(
         self, job: Job, status: str, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None
     ) -> JobEvent:
-        """A failed or stopped job may never have executed, so its license fee is only owed if it was seen
-        RUNNING (#1899)."""
+        """#1899 Failed or stopped job may never have executed, so it sends fee if, and only if, it was RUNNING"""
         with transaction.atomic():
             event = self._change_status(job, status, origin=origin, context=context, job_fields=job_fields)
-            if self._is_usage_billable(job):
+            if _is_usage_billable(job):
                 job_started_at = JobEvent.objects.first_running_at(job.id)
                 self._enqueue_job_usage(job, job_started_at, event.created)
-                if job_started_at is not None and self._is_fee_billable(job):
+                if job_started_at is not None and _is_fee_billable(job):
                     self._enqueue_license_fee(job, job_started_at)
         return event
 
@@ -152,14 +161,6 @@ class JobTransitionService:
         event = JobEvent.objects.add_status_event(job_id=job.id, origin=origin, context=context, status=status)
         job.update_fields({"status": status, **(job_fields or {})})
         return event
-
-    def _is_usage_billable(self, job: Job) -> bool:
-        """Only real Fleets jobs (no filler) with an instance CRN are billed."""
-        return job.runner == Program.FLEETS and not job.filler and bool(job.instance_crn)
-
-    def _is_fee_billable(self, job: Job) -> bool:
-        """The license fee is only owed for a function with a provider."""
-        return bool(job.program and job.program.provider)
 
     def _enqueue_job_usage(self, job: Job, job_started_at: datetime | None, job_finished_time: datetime) -> None:
         """The final usage event: always owed, whatever the job's outcome."""

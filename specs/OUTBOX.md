@@ -103,7 +103,7 @@ catches that exception itself and decides what "already terminal" means there;
 
 A row is only ever created on a transition to a terminal status (`SUCCEEDED`,
 `FAILED`, `STOPPED`), and only for a job eligible for the outbox pipeline at all:
-`JobTransitionService._is_usage_billable` requires the job to run on **Fleets** (not Ray, which
+`_is_usage_billable` (in `job_transitions.py`) requires the job to run on **Fleets** (not Ray, which
 is being removed and never gets a row), to **not** be a filler job, and to carry an
 **instance CRN**. The license fee has one more requirement, checked by `_is_fee_billable`: the
 job's function has a provider. Only `to_succeeded`, `to_failed` and `to_stopped` enqueue
@@ -122,10 +122,12 @@ outer one to commit. If the send fails, the error is logged and the event is dro
 job sends none.
 
 The sender is the `sender` argument of the constructor. When none is given it is built with
-`build_kafka_sender()`, which creates the Kafka producers, so a service is created once and
-shared: the scheduler creates one in `scheduler/main.py` and hands it to the three tasks that
-change a job status. The API creates a `StopJobUseCase` per request and only stops jobs, so it
-passes a `NoOpSender`.
+`build_kafka_sender()`, which is a `NoOpSender` unless `EVENT_STREAMS_ENABLED` is true, and then
+it creates the Kafka producers. The scheduler creates one service in `scheduler/main.py` and hands
+it to the three tasks that change a job status, so the producers are built once. The API creates
+a `JobTransitionService` per `StopJobUseCase` with no argument: the chart only sets
+`EVENT_STREAMS_ENABLED` in the scheduler container, so there it gets a `NoOpSender` and sends
+nothing. Enabling it in the gateway container would build the producers on every stop request.
 
 `JobTransitionService` makes exactly one query to decide eligibility and to supply
 content for both messages: `JobEvent.objects.first_running_at(job.id)`. This single
@@ -162,7 +164,7 @@ builds the inline usage event, and are pure: `build_job_completed_event` takes `
 `job_started_at`, and `job_finished_at` (the just-created `JobEvent`'s own `created`
 timestamp), while `build_license_fee` only needs `job` and `job_started_at`. Both
 return a dict. Neither one decides whether it should be called or returns `None`; that
-decision belongs entirely to `to_succeeded` and `_to_ended_without_success`. It skips `build_license_fee`
+decision belongs entirely to `to_succeeded` and `to_stopped_or_failed`. It skips `build_license_fee`
 silently when the function has no provider, or its `Program` has itself been deleted
 (`SET_NULL`) so whether it had a provider can no longer even be checked, and skips it
 with a logged error when the `Program` and its provider are both still there but
