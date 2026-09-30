@@ -7,6 +7,8 @@ from qiskit_ibm_runtime import QiskitRuntimeService, RuntimeInvalidStateError
 
 from core.models import Job, RuntimeJob
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
+from core.ibm_cloud.event_streams.kafka_sender import NoOpSender
+from core.services.job_transitions import JobTransitionService
 from core.services.runners import get_runner, RunnerError
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
@@ -21,6 +23,9 @@ class StopJobUseCase:
     """
 
     def __init__(self) -> None:
+        # The API only stops jobs, it never sends the best effort events of the scheduler, and a use case is
+        # created per request: it must not build the Kafka producers
+        self.transitions = JobTransitionService(sender=NoOpSender())
         self.status_messages = []
         self.stopped_sessions = []
 
@@ -40,11 +45,7 @@ class StopJobUseCase:
         try:
             # Lock transaction to read the fresh status. It could raise InvalidJobTransitionException if the job
             # was SUCCEEDED or FAILED
-            job.change_status(
-                origin=JobEventOrigin.API,
-                context=JobEventContext.STOP_JOB,
-                status=Job.STOPPED,
-            )
+            self.transitions.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
             stopped = True
         except InvalidJobTransitionException:
             # Lost the race: the job reached a terminal status between the in-memory

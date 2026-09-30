@@ -11,9 +11,10 @@
 # that they have been altered from the originals.
 
 """Per-region Kafka producer connections and the topic name, built once from Django settings.
-Used by every KafkaSender instance (UpdateFleetsJobsStatuses' inline best-effort sends, and
-OutboxTask's outbox sends), each of which owns its own KafkaProducers rather than sharing one:
-one producer per region per task that needs Kafka, not one for the whole process.
+Used by every KafkaSender instance (the one of JobTransitionService, for the inline best-effort
+sends, created once and shared by the scheduler tasks that change a job status; and the one of
+OutboxTask, for the outbox sends), each of which owns its own KafkaProducers rather than sharing
+one: one producer per region per owner, not one for the whole process.
 """
 
 from __future__ import annotations

@@ -1,5 +1,7 @@
 """Unit tests for StopJobUseCase."""
 
+from unittest.mock import patch
+
 import pytest
 from django.contrib.auth.models import User
 
@@ -24,6 +26,15 @@ class TestStopJobUseCase:
         assert "Job has been stopped." in message
         assert Job.objects.get(pk=job.pk).status == Job.STOPPED
 
+    def test_the_use_case_does_not_build_a_kafka_sender(self, author):
+        """The API creates a use case per request and never sends the scheduler's best effort events."""
+        job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.QUEUED)
+
+        with patch("core.services.job_transitions.build_kafka_sender") as build_sender:
+            StopJobUseCase().execute(job.id, None, author)
+
+        build_sender.assert_not_called()
+
     def test_stop_job_already_terminal_reports_that_instead(self, author):
         job = Job.objects.create(author=author, runner=Program.RAY, status=Job.SUCCEEDED)
 
@@ -33,7 +44,7 @@ class TestStopJobUseCase:
         assert Job.objects.get(pk=job.pk).status == Job.SUCCEEDED
 
     def test_stop_job_that_turned_terminal_since_the_read_reports_that_instead(self, author, monkeypatch):
-        """in_terminal_state() reflects a stale in-memory read; change_status re-reads the row
+        """in_terminal_state() reflects a stale in-memory read; the transition re-reads the row
         under a lock and no-ops if it is already terminal there, so this must not be reported
         as stopped, and must not create a second JobEvent."""
         job = Job.objects.create(author=author, runner=Program.RAY, status=Job.SUCCEEDED)

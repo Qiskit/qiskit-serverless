@@ -76,7 +76,7 @@ def _run(task, times=1):
     return submit, arguments, runner
 
 
-def _fake_submit(job, ctx, context=None):  # pylint: disable=unused-argument
+def _fake_submit(job, ctx, transitions, context=None):  # pylint: disable=unused-argument
     """Stand in for execute_fleets_job: mark the job PENDING as a real submit would."""
     job.update_fields({"status": Job.PENDING})
     return job
@@ -340,7 +340,7 @@ def test_a_filler_job_that_was_never_submitted_is_discarded(filler_program):
 
 
 def test_mark_failed_does_not_raise_when_the_job_already_turned_terminal(filler_program):
-    """Something else may have already moved this job to a terminal status; change_status
+    """Something else may have already moved this job to a terminal status; the transition
     then raises InvalidJobTransitionException, which _mark_failed must swallow rather than
     let crash the balancer."""
     job = TestUtils.create_job(

@@ -21,7 +21,7 @@ delays billing instead of losing it.
 
 Only the license fee and the final usage event go through the outbox. The other Kafka
 event a Fleets job produces, `job_in_progress` (the ongoing classical-compute-time
-metering, sent from `UpdateFleetsJobsStatuses`, with `job_started=True` on the first
+metering, sent by `JobTransitionService`, with `job_started=True` on the first
 one sent right after a job's `PENDING -> RUNNING` transition), is unrelated to this
 system: it is built by the same builder (see below) but sent inline, synchronously,
 right after building, instead of through a row in this table.
@@ -79,14 +79,18 @@ filters by `channel` and orders by `created`.
 A row is deleted as soon as it is sent successfully. There is no history of what was
 already sent in this table.
 
-## When a row is created: `Job.change_status`
+## When a row is created: `JobTransitionService`
 
-Every status transition, everywhere in the codebase, goes through one method,
-`Job.change_status`. In a single database transaction it creates the `JobEvent`,
-enqueues whichever outbox messages this transition owes, and only then updates the
-`Job` row itself. `change_status` reads the current status under a row lock
+Every status transition, everywhere in the codebase, goes through
+`JobTransitionService` (`gateway/core/services/job_transitions.py`), which has one method per
+transition: `queued_to_pending`, `pending_to_running`, `to_succeeded`, `to_failed` and
+`to_stopped`, plus `to_terminal`, which picks one of the last three from a final status. Each one
+changes the status and does what that transition owes, so a caller cannot forget it. In a single
+database transaction it creates the `JobEvent`, updates the `Job` row, and enqueues whichever
+outbox messages this transition owes. The best effort events (see below) are not part of that
+transaction. Every method reads the current status under a row lock
 (`select_for_update`) and raises `InvalidJobTransitionException` for any status not
-in `Job.VALID_TRANSITIONS[current_status]`, an already-terminal current status
+in `JobTransitionService.VALID_TRANSITIONS[current_status]`, an already-terminal current status
 included, so it never writes anything on top of one. That lock is also what makes a
 race between two callers transitioning the same job safe (e.g. the scheduler
 completing a job while a user-initiated stop request is in flight): the second one
@@ -95,16 +99,35 @@ post-commit status and validates its own transition against that, so it either
 proceeds correctly or raises, but can never overwrite the first's final status or
 create a second `JobEvent` for it. Every caller that can legitimately race this way
 catches that exception itself and decides what "already terminal" means there;
-`change_status` never swallows it.
+`JobTransitionService` never swallows it, and nothing is enqueued or sent when it is raised.
 
 A row is only ever created on a transition to a terminal status (`SUCCEEDED`,
 `FAILED`, `STOPPED`), and only for a job eligible for the outbox pipeline at all:
-the guards inside `_write_billing_messages_in_outbox` require the job to actually be
-transitioning into a terminal status for the first time, to run on **Fleets** (not
-Ray, which is being removed and never gets a row), to **not** be a filler job, and to
-carry an **instance CRN**. Nothing is built or enqueued on the transition to `RUNNING`.
+`JobTransitionService._is_usage_billable` requires the job to run on **Fleets** (not Ray, which
+is being removed and never gets a row), to **not** be a filler job, and to carry an
+**instance CRN**. The license fee has one more requirement, checked by `_is_fee_billable`: the
+job's function has a provider. Only `to_succeeded`, `to_failed` and `to_stopped` enqueue
+anything, and a job only reaches a terminal status once, so they run once per job. Nothing is
+built or enqueued on the transitions to `PENDING` or `RUNNING`.
 
-`_write_billing_messages_in_outbox` makes exactly one query to decide eligibility and to supply
+### Best effort events
+
+The `job_started` event (sent by `pending_to_running`) and the periodic in-progress event
+(`running_to_running`, not a transition: the job stays `RUNNING`, and no status or `JobEvent`
+is written) do not go through the outbox. They are sent directly to Kafka with the sender of
+the service. `pending_to_running` sends it right after its own transaction ends, so the network
+call never holds the row lock and nothing is sent for a transition that did not happen. The
+service must not be called from inside another transaction: the send would not wait for the
+outer one to commit. If the send fails, the error is logged and the event is dropped. A filler
+job sends none.
+
+The sender is the `sender` argument of the constructor. When none is given it is built with
+`build_kafka_sender()`, which creates the Kafka producers, so a service is created once and
+shared: the scheduler creates one in `scheduler/main.py` and hands it to the three tasks that
+change a job status. The API creates a `StopJobUseCase` per request and only stops jobs, so it
+passes a `NoOpSender`.
+
+`JobTransitionService` makes exactly one query to decide eligibility and to supply
 content for both messages: `JobEvent.objects.first_running_at(job.id)`. This single
 query answers two questions at once, so there is no separate flag to track "did this
 job run" and no second query to find out.
@@ -139,7 +162,7 @@ builds the inline usage event, and are pure: `build_job_completed_event` takes `
 `job_started_at`, and `job_finished_at` (the just-created `JobEvent`'s own `created`
 timestamp), while `build_license_fee` only needs `job` and `job_started_at`. Both
 return a dict. Neither one decides whether it should be called or returns `None`; that
-decision belongs entirely to `_write_billing_messages_in_outbox`. It skips `build_license_fee`
+decision belongs entirely to `to_succeeded` and `_to_ended_without_success`. It skips `build_license_fee`
 silently when the function has no provider, or its `Program` has itself been deleted
 (`SET_NULL`) so whether it had a provider can no longer even be checked, and skips it
 with a logged error when the `Program` and its provider are both still there but
@@ -194,7 +217,7 @@ was authorized, so a malformed one here is not expected to occur.
 `KafkaSender` (`gateway/core/ibm_cloud/event_streams/kafka_sender.py`) is the sender
 behind both billing channels: it adds the Kafka topic name to the payload's `type`
 field and publishes it via `KafkaProducers`. The same class also sends the two inline
-events (`UpdateFleetsJobsStatuses` builds via `billing_events.py` and calls
+events (`JobTransitionService` builds via `billing_events.py` and calls
 `sender.send(...)` directly, without going through this table): the sender never
 builds anything itself and does not know which of the two cases it is in.
 
@@ -258,9 +281,9 @@ The old `scheduler_outbox_license_fee_irrecoverable_total` counter is gone. The 
 case it measured that is still an anomaly today, a licensed function whose
 `FunctionSize` has been deleted, is not impossible, but the race window that causes
 it shrank from "the whole time a row sat in the outbox" to "the duration of one
-database transaction" once messages are built inside `change_status` rather than at
+database transaction" once messages are built inside the transition rather than at
 send time. It is now visible only through a `logger.error(...)` call from
-`Job._enqueue_billing_messages`, not through a metric: `core` cannot import
+`JobTransitionService._enqueue_license_fee`, not through a metric: `core` cannot import
 `SchedulerMetrics` from `scheduler`, and `import-linter` enforces that boundary. A
 deleted `Program` (so a function with no known provider) is not part of this: it is
 treated as the normal "this job owes no fee" case, silently, with no log line at all.

@@ -11,6 +11,7 @@ from core.domain import compute_profile as compute_profile_domain
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Config, Job, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
+from core.services.job_transitions import JobTransitionService
 from core.services.runners import get_runner, RunnerError
 from core.services.storage import get_arguments_storage
 from scheduler.health import DB_EXCEPTIONS
@@ -37,9 +38,12 @@ class BalanceFillerJobs(SchedulerTask):
     ScheduleFleetsJobs feeds, which would put them in competition with real queued jobs.
     """
 
-    def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
+    def __init__(
+        self, kill_signal: KillSignal, metrics: SchedulerMetrics, transitions: JobTransitionService | None = None
+    ):
         self.kill_signal = kill_signal
         self.metrics = metrics
+        self.transitions = transitions or JobTransitionService()
         self._retry_loops = 0
 
     def run(self):
@@ -261,6 +265,7 @@ class BalanceFillerJobs(SchedulerTask):
             job = execute_fleets_job(
                 job,
                 TraceContextTextMapPropagator().extract(carrier={}),
+                self.transitions,
                 context=JobEventContext.FILLER_SUBMIT,
             )
         except DB_EXCEPTIONS:
@@ -317,11 +322,7 @@ class BalanceFillerJobs(SchedulerTask):
         cross-checked against the FILLER_STOP events.
         """
         try:
-            job.change_status(
-                origin=JobEventOrigin.SCHEDULER,
-                context=JobEventContext.FILLER_FAILED,
-                status=Job.FAILED,
-            )
+            self.transitions.to_failed(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_FAILED)
         except InvalidJobTransitionException:
             # Lost the race: something else already moved this job to a terminal status.
             logger.info("job_id=%s already in a terminal status, skipping FAILED", job.id)
@@ -329,11 +330,7 @@ class BalanceFillerJobs(SchedulerTask):
     def _mark_stopped(self, job: Job) -> None:
         """Write STOPPED on the job, record the event, and count it."""
         try:
-            job.change_status(
-                origin=JobEventOrigin.SCHEDULER,
-                context=JobEventContext.FILLER_STOP,
-                status=Job.STOPPED,
-            )
+            self.transitions.to_stopped(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_STOP)
         except InvalidJobTransitionException:
             # Lost the race: something else already moved this job to a terminal status, so
             # this stop was not the one that ended it, and must not be counted as one.

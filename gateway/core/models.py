@@ -4,7 +4,6 @@
 
 import logging
 import uuid
-from datetime import datetime
 from enum import StrEnum
 
 from concurrency.fields import IntegerVersionField
@@ -13,20 +12,19 @@ from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
-from django.db import models, transaction
+from django.db import models
 from django.db.models import F
 from django.utils import timezone
 from django_prometheus.models import ExportModelOperationsMixin
 
 from core.config_key import ConfigKey
 from core.domain.business_models import BusinessModel
-from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.domain.subsidized_license_mapping import licensed_job_from_db
 from core.model_managers.code_engine_projects import CodeEngineProjectQuerySet
 from core.model_managers.compute_profiles import ComputeProfileQuerySet
 from core.model_managers.function_sizes import FunctionSizeQuerySet
 from core.model_managers.functions import FunctionsQuerySet
-from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventQuerySet
+from core.model_managers.job_events import JobEventQuerySet
 from core.model_managers.jobs import JobQuerySet
 from core.model_managers.providers import ProviderQuerySet
 
@@ -506,18 +504,6 @@ class Job(models.Model):
     RUNNING_STATUSES = [RUNNING, PENDING, STOPPING]
     ACTIVE_STATUSES = [QUEUED, PENDING, RUNNING, STOPPING]
 
-    # Valid change_status targets per current status
-    VALID_TRANSITIONS: dict[str, set[str]] = {
-        # valid next state for non-terminal states
-        QUEUED: {PENDING, FAILED, STOPPED},
-        PENDING: {SUCCEEDED, FAILED, STOPPED, RUNNING},
-        RUNNING: {SUCCEEDED, FAILED, STOPPED},
-        # terminal states have no next valid state
-        SUCCEEDED: set(),
-        FAILED: set(),
-        STOPPED: set(),
-    }
-
     RUNNING_SUB_STATUSES = [
         MAPPING,
         OPTIMIZING_HARDWARE,
@@ -751,71 +737,6 @@ class Job(models.Model):
         Job.objects.filter(pk=self.id).update(**update_kwargs)
         self.refresh_from_db(fields=["version"])
 
-    def change_status(
-        self, *, origin: JobEventOrigin, context: JobEventContext, status: str, job_fields: dict | None = None
-    ):
-        """
-        Transition this job's status atomically with a transaction + validate the state change is valid.
-        This method guarantees a safe, atomic, and valid status change is performed in the job table.
-
-        Steps:
-            - LOCK: Open a transaction and lock the job by id
-            - Reads the job status again fresh from db and validate the transition
-            - Adds a new JobEvent
-            - Add the outbox message this transition needs
-            - Changes the job status + extra fields
-
-        If an error happens, the db performs a rollback.
-
-        """
-        with transaction.atomic():
-            current_status = Job.objects.select_for_update().values_list("status", flat=True).get(pk=self.pk)
-
-            if status not in Job.VALID_TRANSITIONS.get(current_status, set()):
-                raise InvalidJobTransitionException(f"Job {self.id}: invalid transition {current_status} -> {status}")
-
-            event = JobEvent.objects.add_status_event(job_id=self.id, origin=origin, context=context, status=status)
-            self.update_fields({"status": status, **(job_fields or {})})
-
-            to_terminal = current_status not in Job.TERMINAL_STATUSES and status in Job.TERMINAL_STATUSES
-
-            # First real Fleets job (no filler) transition to a terminal status? send billing events
-            # Jobs only transition to terminal once, so these events will only be sent once
-            if to_terminal and self.runner == Program.FLEETS and not self.filler:
-                self._write_billing_messages_in_outbox(event.created)
-        return event
-
-    def _write_billing_messages_in_outbox(self, job_finished_time: datetime) -> None:
-        """Build and store whichever billing outbox messages this transition owes."""
-        if not self.instance_crn:
-            return
-
-        # Deferred import: core/domain/billing_events.py imports Job from this module at its own top level
-        from core.domain.billing_events import BillingEvents  # pylint: disable=import-outside-toplevel, cyclic-import
-
-        job_started_at = JobEvent.objects.first_running_at(self.id)
-
-        billing_message = BillingEvents.build_job_completed_event(self, job_started_at, job_finished_time)
-        Outbox.objects.create(job=self, channel=OutboxChannel.JOB_USAGE, payload=billing_message)
-
-        # #1899 Without a RUNNING event, the license fee is only owed if the job SUCCEEDED
-        # (it must have run to succeed). A FAILED or STOPPED job may never have executed, so it is not charged.
-        job_ran = job_started_at is not None or self.status == Job.SUCCEEDED
-
-        if job_ran and self.program and self.program.provider:
-            # This branch goes away once function_size stops being nullable (tracked by @ElePT).
-            if self.function_size is None:
-                logger.error(
-                    "job_id=%s license fee message cannot be built for provider=%s: function_size is missing, "
-                    "waiving the fee",
-                    self.id,
-                    self.program.provider,
-                )
-                return
-
-            license_fee_message = BillingEvents.build_license_fee(self, job_started_at)
-            Outbox.objects.create(job=self, channel=OutboxChannel.LICENSE_FEE, payload=license_fee_message)
-
 
 class RuntimeJob(models.Model):
     """Runtime Job model."""
@@ -879,7 +800,7 @@ class Outbox(models.Model):
     migration that comes with it, since `choices=` is part of the field's tracked state.
 
     `payload` is the message exactly as it will be sent, built and frozen at the moment the fact
-    it represents became true (see Job.change_status and core/domain/billing_events.py). This
+    it represents became true (see core/services/job_transitions.py and core/domain/billing_events.py). This
     table does not know what the payload means or how it was built, only that it needs to go out.
     """
 

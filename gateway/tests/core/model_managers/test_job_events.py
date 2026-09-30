@@ -1,7 +1,7 @@
 """Unit tests for JobEventQuerySet.
 
-The outbox row that mirrors a status event is written by Job.change_status, so those
-tests live in tests/core/test_job_model.py.
+The outbox row that mirrors a status event is written by JobTransitionService, so those
+tests live in tests/core/services/test_job_transitions.py.
 """
 
 import pytest

@@ -23,7 +23,7 @@ else to wire up::
     sender = build_kafka_sender()
     sender.send(payload)  # raises RuntimeError (or UnroutableRegionError) on failure
 
-See outbox.py and update_fleets_jobs_statuses.py for the two real callers.
+See outbox.py and core/services/job_transitions.py for the two real callers.
 """
 
 import json
