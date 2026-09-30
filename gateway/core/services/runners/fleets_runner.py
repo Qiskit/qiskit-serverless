@@ -278,7 +278,6 @@ class FleetsRunner(AbstractRunner):
         ("succeeded", Job.SUCCEEDED),
         ("failed", Job.FAILED),
         ("canceled", Job.STOPPED),
-        ("canceling", Job.STOPPED),
         ("running", Job.RUNNING),
         ("pending", Job.PENDING),
     )
