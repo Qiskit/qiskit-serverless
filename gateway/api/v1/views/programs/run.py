@@ -152,11 +152,15 @@ def run_program(request: Request) -> Response:
     token = ""
     instance = None
     account_id = None
+    plan_id = None
+    subscription_id = None
     if request.auth:
         channel = request.auth.channel
         token = request.auth.token.decode()
         instance = request.auth.instance
         account_id = request.auth.account_id
+        plan_id = request.auth.plan_id
+        subscription_id = request.auth.subscription_id
 
     carrier = {}
     TraceContextTextMapPropagator().inject(carrier)
@@ -183,6 +187,8 @@ def run_program(request: Request) -> Response:
             token=token,
             instance=instance,
             account_id=account_id,
+            plan_id=plan_id,
+            subscription_id=subscription_id,
             carrier=carrier,
         ),
     )
