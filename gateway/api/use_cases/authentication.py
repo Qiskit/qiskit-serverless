@@ -10,6 +10,7 @@ from rest_framework import exceptions
 
 from api.access_policies.users import UserAccessPolicies
 from api.domain.authentication.authentication_group import AuthenticationGroup
+from api.domain.authentication.authentication_result import AuthenticationResult
 from api.domain.authentication.channel import Channel
 from api.services.authentication.ibm_quantum_platform import IBMQuantumPlatform
 from api.services.authentication.local_authentication import LocalAuthenticationService
@@ -42,7 +43,7 @@ class AuthenticationUseCase:
 
         return LocalAuthenticationService(authorization_token=self.authorization_token)
 
-    def execute(self) -> tuple[Optional[type[AbstractUser]], Optional[str]]:
+    def execute(self) -> AuthenticationResult:
         """
         This contains the logic to authenticate and validate the user
         that is doing the request.
@@ -92,7 +93,12 @@ class AuthenticationUseCase:
                 permission_names=permission_names,
             )
 
-        return quantum_user, account_id
+        return AuthenticationResult(
+            user=quantum_user,
+            account_id=account_id,
+            plan_id=authentication_service.get_plan_id(),
+            subscription_id=authentication_service.get_subscription_id(),
+        )
 
     # Deprecate this when login through instances migration was completed
     def _restart_user_groups(

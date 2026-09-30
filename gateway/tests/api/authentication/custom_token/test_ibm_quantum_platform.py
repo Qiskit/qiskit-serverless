@@ -20,6 +20,7 @@ from api.services.authentication.ibm_quantum_platform import IBMQuantumPlatform
 from core.models import VIEW_PROGRAM_PERMISSION
 
 RESOURCE_PLAN_ID = "test-plan-id"
+SUBSCRIPTION_ID = "test-subscription-id"
 
 
 def _create_mock_jwt(iam_id: str, account_id: str) -> str:
@@ -51,7 +52,10 @@ def _mock_iam_services(
 ):
     """Configure mock responses for IAM services."""
     mock_get_resource_instance.return_value = DetailedResponse(
-        response={"resource_plan_id": RESOURCE_PLAN_ID},
+        response={
+            "resource_plan_id": RESOURCE_PLAN_ID,
+            "parameters": {"subscription_id": SUBSCRIPTION_ID},
+        },
         headers={},
         status_code=200,
     )
@@ -138,6 +142,10 @@ class TestIBMQuantumPlatformAuthentication:
         assert user.username == "IBMid-0000000ABC"
         assert isinstance(auth, CustomAuthentication)
         assert auth.channel == "ibm_quantum_platform"
+        # The instance attributes resolved while verifying access are carried over
+        # so the run flow can persist them on the job.
+        assert auth.plan_id == RESOURCE_PLAN_ID
+        assert auth.subscription_id == SUBSCRIPTION_ID
 
         group_names = list(user.groups.values_list("name", flat=True))
         assert group_names == ["AccessGroupId-23afbcd24-00a0-00ab-ab0c-1a23b4c567de"]
@@ -146,6 +154,31 @@ class TestIBMQuantumPlatformAuthentication:
             assert group.metadata.account == "abc18abcd41546508b35dfe0627109c4"
             permissions = list(group.permissions.values_list("codename", flat=True))
             assert permissions == [VIEW_PROGRAM_PERMISSION]
+
+    @patch.object(IamAccessGroupsV2, "list_access_groups")
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    @responses.activate
+    def test_authentication_without_subscription(
+        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
+    ):
+        """An instance not provisioned through a subscription has no subscription id.
+
+        Those instances come back without the "parameters" configuration object,
+        so there is nothing to read the subscription id from.
+        """
+        _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
+        mock_get_resource_instance.return_value = DetailedResponse(
+            response={"resource_plan_id": RESOURCE_PLAN_ID},
+            headers={},
+            status_code=200,
+        )
+        _add_mock_response("IBMid-0000000ABC", "abc18abcd41546508b35dfe0627109c4")
+
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        _, auth = CustomTokenBackend().authenticate(_create_request())
+
+        assert auth.plan_id == RESOURCE_PLAN_ID
+        assert auth.subscription_id is None
 
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")
