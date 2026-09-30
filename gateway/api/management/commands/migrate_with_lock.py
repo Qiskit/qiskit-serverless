@@ -18,6 +18,8 @@ from django.core.management import call_command
 
 logger = logging.getLogger("migrate_with_lock")
 
+POLL_SECONDS = 2
+
 
 class Command(BaseCommand):
     """Run migrations with a PostgreSQL lock to prevent race conditions."""
@@ -28,10 +30,16 @@ class Command(BaseCommand):
         logger.debug("Acquiring migration lock...")
 
         start = time.time()
-        # timeout=None waits indefinitely
-        with pglock.advisory("django_migrations", timeout=None):
-            logger.info("Lock acquired after %.2fs", time.time() - start)
+        while True:
+            # timeout=0 uses pg_try_advisory_lock, which returns at once. Waiting inside a blocking
+            # lock statement would keep a transaction open, and CREATE INDEX CONCURRENTLY in the
+            # migrating container waits for those, so the two would deadlock.
+            with pglock.advisory("django_migrations", timeout=0) as acquired:
+                if acquired:
+                    logger.info("Lock acquired after %.2fs", time.time() - start)
 
-            call_command("migrate", *args, **options)
+                    call_command("migrate", *args, **options)
 
-            logger.info("Migrations completed successfully")
+                    logger.info("Migrations completed successfully")
+                    return
+            time.sleep(POLL_SECONDS)
