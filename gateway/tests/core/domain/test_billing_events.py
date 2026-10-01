@@ -162,3 +162,13 @@ class TestBuildLicenseFee:
 
         assert message["data"]["job_started_at"] is None
         assert message["data"]["metric_value"] == 1
+
+    def test_metric_type_lowercases_the_function_size(self):
+        provider = Provider(name="ibm-dev")
+        program = Program(title="my-fn", provider=provider)
+        function_size = FunctionSize(function_size="M", compute_profile=ComputeProfile(compute_profile_id="16x128"))
+        job = _job(program=program, function_size=function_size)
+
+        message = BillingEvents.build_license_fee(job, datetime(2026, 9, 25, 11, 0, 0, tzinfo=timezone.utc))
+
+        assert message["data"]["metric_type"] == "license_ibm-dev_my-fn_m"
