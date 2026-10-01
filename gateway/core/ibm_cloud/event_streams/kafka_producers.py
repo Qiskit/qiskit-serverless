@@ -83,10 +83,12 @@ class KafkaProducers:
                 "sasl.password": api_key,
                 "enable.idempotence": True,
                 "acks": "all",
-                # How long librdkafka keeps trying to deliver a message after produce() (default 5 min). It is
-                # kept just under the 5 s flush timeout of KafkaSender, so a message that cannot be delivered
-                # in time fails inside flush() instead of lingering in the queue and being delivered minutes
-                # later, on top of the copy the outbox produces again on the next tick.
+                # How long librdkafka keeps trying to deliver a message after produce(); the default is 5 min.
+                # It is lowered to just under the 5 s flush timeout of KafkaSender so that a message that cannot
+                # be delivered fails inside the flush window. That makes what flush() reports consistent: when it
+                # returns, every message was either confirmed or failed, none is left pending. The outbox can then
+                # safely retry the failed ones itself on its next tick, instead of leaving the message queued here
+                # to be delivered minutes later, on top of the copy the outbox already produced again.
                 "message.timeout.ms": 4000,
             }
         )
