@@ -244,6 +244,8 @@ class RunFunctionUseCase:
             function_size=runner_config.function_size,
             instance_crn=data.instance,
             account_id=data.account_id,
+            plan_id=data.plan_id,
+            subscription_id=data.subscription_id,
             ce_project_name=function.code_engine_project.project_name if function.code_engine_project else None,
             ce_region=function.code_engine_project.region if function.code_engine_project else None,
         )

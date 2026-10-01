@@ -264,6 +264,8 @@ class TestSerializers:
                 token="my_token",
                 instance=None,
                 account_id="1234-5678-9012",
+                plan_id="plan-abc",
+                subscription_id="sub-xyz",
             ),
         )
         env_vars = json.loads(job.env_vars)
@@ -300,6 +302,8 @@ class TestSerializers:
                 token="my_token",
                 instance=None,
                 account_id=None,
+                plan_id=None,
+                subscription_id=None,
             ),
         )
 
@@ -486,5 +490,7 @@ class TestSerializers:
                     token="my_token",
                     instance=None,
                     account_id=None,
+                    plan_id=None,
+                    subscription_id=None,
                 ),
             )
