@@ -13,7 +13,15 @@ from api.domain.authentication.channel import Channel
 from api.use_cases.programs.run import RunFunctionUseCase
 from api.use_cases.programs.run_input import RunFunctionInput
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import CodeEngineProject, ComputeProfile, FunctionSize, Job, JobConfig, JobEvent, Program
+from core.models import (
+    CodeEngineProject,
+    ComputeProfile,
+    FunctionSize,
+    Job,
+    JobConfig,
+    JobEvent,
+    Program,
+)
 
 pytestmark = pytest.mark.django_db
 

@@ -11,7 +11,7 @@ from prometheus_client import (
 from scheduler.metrics.system_metrics_collector import SystemMetricsCollector
 
 
-class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes
+class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many-public-methods
     """Metrics related with the scheduler life cycle like wait time per job or tasks failure.
     For system metrics (like CPU or Memory) go to the SystemMetricsCollector
     """
@@ -116,6 +116,30 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes
             registry=self.registry,
             buckets=(1, 5, 10, 30, 60, 120, 300, 600, 1800, 3600, float("inf")),
         )
+        self.outbox_sends_total = Counter(
+            "scheduler_outbox_sends_total",
+            "Outbox sends by channel and outcome.",
+            labelnames=("channel", "outcome"),
+            registry=self.registry,
+        )
+        self.outbox_pending_rows = Gauge(
+            "scheduler_outbox_pending_rows",
+            "Outbox rows pending each channel.",
+            labelnames=("channel",),
+            registry=self.registry,
+        )
+        self.outbox_oldest_pending_age_seconds = Gauge(
+            "scheduler_outbox_oldest_pending_age_seconds",
+            "Age in seconds of the oldest outbox row pending each channel.",
+            labelnames=("channel",),
+            registry=self.registry,
+        )
+        self.outbox_breaker_open = Gauge(
+            "scheduler_outbox_breaker_open",
+            "1 while a given outbox channel's circuit breaker is open, 0 otherwise.",
+            labelnames=("channel",),
+            registry=self.registry,
+        )
 
         SystemMetricsCollector(registry=self.registry)
 
@@ -137,6 +161,22 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes
     def observe_queue_wait_time(self, wait_seconds: float, compute_type: str) -> None:
         """Record queue wait time for a scheduled job."""
         self.queue_wait_seconds.labels(compute_type=compute_type).observe(wait_seconds)
+
+    def increment_outbox_send(self, channel: str, outcome: str) -> None:
+        """Count one outbox send attempt. outcome: "success" or "failure"."""
+        self.outbox_sends_total.labels(channel=channel, outcome=outcome).inc()
+
+    def set_outbox_pending_rows(self, count: int, channel: str) -> None:
+        """Set how many outbox rows are pending a given channel."""
+        self.outbox_pending_rows.labels(channel=channel).set(count)
+
+    def set_outbox_oldest_pending_age_seconds(self, age_seconds: float, channel: str) -> None:
+        """Set the age of the oldest outbox row pending a given channel."""
+        self.outbox_oldest_pending_age_seconds.labels(channel=channel).set(age_seconds)
+
+    def set_outbox_breaker_open(self, is_open: bool, channel: str) -> None:
+        """Record whether a given outbox channel's circuit breaker is currently open."""
+        self.outbox_breaker_open.labels(channel=channel).set(1 if is_open else 0)
 
     def clear_job_status_counts(self) -> None:
         """Remove all label combinations from job_status_count to avoid stale values."""

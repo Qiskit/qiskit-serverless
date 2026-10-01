@@ -42,6 +42,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = int(os.environ.get("DEBUG", 0))
+ENVIRONMENT = os.environ.get("ENVIRONMENT")
 
 # SECURITY WARNING: keep the secret key used in production secret!
 # A hardcoded fallback is only allowed in development/tests. When DEBUG is off
@@ -336,11 +337,63 @@ LIMITS_ACTIVE_JOBS_PER_USER = int(os.environ.get("LIMITS_ACTIVE_JOBS_PER_USER", 
 LIMITS_MAX_CLUSTERS = int(os.environ.get("LIMITS_MAX_CLUSTERS", "6"))
 LIMITS_GPU_CLUSTERS = int(os.environ.get("LIMITS_MAX_GPU_CLUSTERS", "1"))
 LIMITS_MAX_FLEETS = int(os.environ.get("LIMITS_MAX_FLEETS", "1000"))  # Fleets Project limit
+
+# Kafka config
 EVENT_STREAMS_ENABLED = os.environ.get("EVENT_STREAMS_ENABLED", "false").lower() == "true"
 # The Event Streams service is global; usage events are regional. EVENT_STREAMS_MAIN_REGION
 # specifies which regional Kafka bus receives events from unsuffixed broker/API key environment
 # variables. Additional regions are configured via suffixed variables (e.g. EVENT_STREAMS_BOOTSTRAP_SERVERS_EU_DE).
 EVENT_STREAMS_MAIN_REGION = os.environ.get("EVENT_STREAMS_MAIN_REGION", "us-east")
+# Kafka credentials for the main region, plus the deployment environment name (e.g. production,
+# staging) used to namespace the Kafka topic. Left unset by deployments that don't enable Event
+# Streams; required, and validated here, only once EVENT_STREAMS_ENABLED is true, since that is
+# also the only time anything ever constructs a KafkaProducers.
+EVENT_STREAMS_BOOTSTRAP_SERVERS = os.environ.get("EVENT_STREAMS_BOOTSTRAP_SERVERS")
+EVENT_STREAMS_API_KEY = os.environ.get("EVENT_STREAMS_API_KEY")
+EVENT_STREAMS_USER = os.environ.get("EVENT_STREAMS_USER", "token")
+if EVENT_STREAMS_ENABLED and not (EVENT_STREAMS_BOOTSTRAP_SERVERS and EVENT_STREAMS_API_KEY and ENVIRONMENT):
+    raise ImproperlyConfigured(
+        "EVENT_STREAMS_BOOTSTRAP_SERVERS, EVENT_STREAMS_API_KEY and ENVIRONMENT are required when "
+        "EVENT_STREAMS_ENABLED is true"
+    )
+
+
+def _event_streams_regions() -> dict[str, dict[str, str]]:
+    """Discover per-region Event Streams credentials from suffixed environment variables.
+
+    Regions beyond EVENT_STREAMS_MAIN_REGION are configured via
+    EVENT_STREAMS_BOOTSTRAP_SERVERS_<REGION> (and the matching _API_KEY_<REGION> and
+    optional _USER_<REGION>), so the set of regions isn't known ahead of time and has to be
+    discovered by scanning the environment.
+
+    Raises:
+        ImproperlyConfigured: a EVENT_STREAMS_BOOTSTRAP_SERVERS_<REGION> variable exists with
+            no matching EVENT_STREAMS_API_KEY_<REGION>. Failing at import beats accepting it:
+            the region would otherwise silently never receive a producer, and the mismatch is
+            almost certainly a typo, not something conditional on Event Streams being enabled
+            (an operator who sets these vars at all means to use them).
+    """
+    prefix = "EVENT_STREAMS_BOOTSTRAP_SERVERS_"
+    regions: dict[str, dict[str, str]] = {}
+    for env_key, bootstrap_servers in os.environ.items():
+        if not env_key.startswith(prefix):
+            continue
+        suffix = env_key[len(prefix) :]
+        region = suffix.lower().replace("_", "-")
+        api_key_env = f"EVENT_STREAMS_API_KEY_{suffix}"
+        api_key = os.environ.get(api_key_env)
+        if api_key is None:
+            raise ImproperlyConfigured(f"Region {region}: found {env_key} but missing {api_key_env}")
+        regions[region] = {
+            "bootstrap_servers": bootstrap_servers,
+            "api_key": api_key,
+            "user": os.environ.get(f"EVENT_STREAMS_USER_{suffix}", "token"),
+        }
+        logging.getLogger("main").info("Discovered Event Streams region: region=%s", region)
+    return regions
+
+
+EVENT_STREAMS_REGIONS = _event_streams_regions()
 LIMITS_CPU_PER_TASK = int(os.environ.get("LIMITS_CPU_PER_TASK", "4"))
 LIMITS_GPU_PER_TASK = int(os.environ.get("LIMITS_GPU_PER_TASK", "1"))
 LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
@@ -499,6 +552,21 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "type": "integer",
         "description": "Minimum number of jobs, real plus filler, to keep running for the compute "
         "profile of the filler program.",
+    },
+    "scheduler.outbox.kafka.budget_ms": {
+        "default": "500",
+        "type": "integer",
+        "description": "Time budget per scheduler loop tick for each Kafka outbox channel, in milliseconds.",
+    },
+    "scheduler.outbox.kafka.breaker_failures": {
+        "default": "5",
+        "type": "integer",
+        "description": "Consecutive send failures before the Kafka outbox circuit breaker opens.",
+    },
+    "scheduler.outbox.kafka.breaker_pause_seconds": {
+        "default": "60",
+        "type": "integer",
+        "description": "How long the Kafka outbox circuit breaker stays open once tripped.",
     },
 }
 

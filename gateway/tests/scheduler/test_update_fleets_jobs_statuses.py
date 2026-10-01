@@ -6,12 +6,32 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import Job, Program
+from django.contrib.auth.models import User
+
+from core.models import ComputeProfile, Job, JobEvent, Program
+from core.services.job_transitions import JobTransitionService
+from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.runners import RunnerError
 from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses
 from tests.utils import TestUtils
 
 _MOD = "scheduler.tasks.update_fleets_jobs_statuses"
+
+
+def _make_transitions():
+    """A JobTransitionService mock whose transitions write the job the way the real ones do; what they
+    also owe (outbox, Kafka) is tested in tests/core/services/test_job_transitions.py."""
+    transitions = MagicMock()
+
+    def _pending_to_running(job, *, origin, context, job_fields=None):  # pylint: disable=unused-argument
+        job.update_fields({"status": Job.RUNNING, **(job_fields or {})})
+
+    def _to_terminal(job, status, *, origin, context, job_fields=None):  # pylint: disable=unused-argument
+        job.update_fields({"status": status, **(job_fields or {})})
+
+    transitions.pending_to_running = MagicMock(side_effect=_pending_to_running)
+    transitions.to_terminal = MagicMock(side_effect=_to_terminal)
+    return transitions
 
 
 def _make_task():
@@ -20,7 +40,7 @@ def _make_task():
     task = UpdateFleetsJobsStatuses.__new__(UpdateFleetsJobsStatuses)
     task.kill_signal = kill_signal
     task.metrics = MagicMock()
-    task._event_streams_client = MagicMock()
+    task.transitions = _make_transitions()
     return task
 
 
@@ -33,8 +53,8 @@ def _make_fleets_job(status=Job.RUNNING, fleet_id="fleet-123"):
     job.logs = ""
     job.env_vars = "{}"
     job.sub_status = None
-    job.running_started_at = None
     job.instance_crn = "crn:v1:bluemix:public:quantum-computing:us-east:a/abc:def::"
+    job.compute_profile = "16x128"
     job.filler = False
     job.in_terminal_state.return_value = status in Job.TERMINAL_STATUSES
 
@@ -110,7 +130,10 @@ class TestUpdateJobStatus:
 
         mock_running.assert_called_once_with(job)
 
-    def test_running_to_running_skips_to_running(self):
+    def test_running_to_running_calls_to_running(self):
+        """to_running is called unconditionally for a RUNNING poll result; it is the one
+        that decides internally whether this is a PENDING->RUNNING transition or an
+        already-RUNNING job that just needs an in-progress emit."""
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
@@ -124,7 +147,7 @@ class TestUpdateJobStatus:
         ):
             task.update_job_status(job)
 
-        mock_running.assert_not_called()
+        mock_running.assert_called_once_with(job)
 
     def test_none_status_skips_update_and_returns_false(self):
         task = _make_task()
@@ -210,17 +233,17 @@ class TestToTerminal:
         job.sub_status = "pending"
         job.env_vars = '{"key": "value"}'
 
-        with patch(f"{_MOD}.JobEvent") as mock_job_event:
-            task.to_terminal(job, Job.SUCCEEDED)
+        task.to_terminal(job, Job.SUCCEEDED)
 
         assert job.status == Job.SUCCEEDED
         assert job.sub_status is None
         assert job.env_vars == "{}"
-        mock_job_event.objects.add_status_event.assert_called_once_with(
-            job_id=job.id,
+        task.transitions.to_terminal.assert_called_once_with(
+            job,
+            Job.SUCCEEDED,
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,
-            status=Job.SUCCEEDED,
+            job_fields={"sub_status": None, "env_vars": "{}"},
         )
 
     def test_job_reaches_failed_state(self):
@@ -229,18 +252,41 @@ class TestToTerminal:
         job.sub_status = "pending"
         job.env_vars = '{"key": "value"}'
 
-        with patch(f"{_MOD}.JobEvent") as mock_job_event:
-            task.to_terminal(job, Job.FAILED)
+        task.to_terminal(job, Job.FAILED)
 
         assert job.status == Job.FAILED
         assert job.sub_status is None
         assert job.env_vars == "{}"
-        mock_job_event.objects.add_status_event.assert_called_once_with(
-            job_id=job.id,
+        task.transitions.to_terminal.assert_called_once_with(
+            job,
+            Job.FAILED,
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,
-            status=Job.FAILED,
+            job_fields={"sub_status": None, "env_vars": "{}"},
         )
+
+    def test_to_terminal_never_sends_an_in_progress_event(self):
+        """Kafka publishing for a terminal job happens only via the outbox task."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        task.to_terminal(job, Job.SUCCEEDED)
+
+        task.transitions.running_to_running.assert_not_called()
+
+    def test_does_not_raise_when_the_job_already_turned_terminal(self):
+        """A user-initiated stop can race this poll and win it first: the transition then
+        raises InvalidJobTransitionException, which must not crash the tick or count the
+        terminal metric for a transition that never happened."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+        task.transitions.to_terminal.side_effect = InvalidJobTransitionException(
+            "Job x: invalid transition STOPPED -> SUCCEEDED"
+        )
+
+        task.to_terminal(job, Job.SUCCEEDED)  # must not raise
+
+        task.metrics.increment_jobs_terminal.assert_not_called()
 
 
 class TestToRunning:
@@ -250,99 +296,37 @@ class TestToRunning:
         task = _make_task()
         job = _make_fleets_job(status=Job.PENDING)
 
-        with (
-            patch(f"{_MOD}.JobEvent") as mock_job_event,
-            patch(f"{_MOD}.transaction"),
-        ):
-            task.to_running(job)
+        task.to_running(job)
 
         assert job.status == Job.RUNNING
-        mock_job_event.objects.add_status_event.assert_called_once_with(
-            job_id=job.id,
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.UPDATE_JOB_STATUS,
-            status=Job.RUNNING,
+        task.transitions.pending_to_running.assert_called_once_with(
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
+        )
+        task.transitions.running_to_running.assert_not_called()
+
+    def test_does_not_send_in_progress_when_the_job_already_turned_terminal(self):
+        """A user-initiated stop can race this poll and win it first: the transition then
+        raises InvalidJobTransitionException. Sending an in-progress event for an
+        already-terminal job would be wrong, so this must skip it entirely, not just the
+        transition."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.PENDING)
+        task.transitions.pending_to_running.side_effect = InvalidJobTransitionException(
+            "Job x: invalid transition STOPPED -> RUNNING"
         )
 
-    def test_to_running_sets_running_started_at_from_the_event_created_timestamp(self):
-        """running_started_at must be the JobEvent's own created, not a separate now()."""
+        task.to_running(job)  # must not raise
+
+        task.transitions.running_to_running.assert_not_called()
+
+    def test_already_running_job_emits_in_progress_instead_of_transitioning(self):
         task = _make_task()
-        job = _make_fleets_job(status=Job.PENDING)
-        fake_created = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        job = _make_fleets_job(status=Job.RUNNING)
 
-        with (
-            patch(f"{_MOD}.JobEvent") as mock_job_event,
-            patch(f"{_MOD}.transaction"),
-        ):
-            mock_job_event.objects.add_status_event.return_value.created = fake_created
-            task.to_running(job)
+        task.to_running(job)
 
-        job.update_fields.assert_called_once_with({"status": Job.RUNNING, "running_started_at": fake_created})
-
-    def test_to_running_persists_running_started_at_before_emitting_events(self):
-        """The events carry running_started_at as job_started_at, so it must be set first."""
-        task = _make_task()
-        job = _make_fleets_job(status=Job.PENDING)
-        fake_created = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-        seen = {}
-
-        task.event_streams_client.emit_job_started.side_effect = lambda j: seen.update(started=j.running_started_at)
-        task.event_streams_client.emit_license_fee.side_effect = lambda j: seen.update(license=j.running_started_at)
-
-        with (
-            patch(f"{_MOD}.JobEvent") as mock_job_event,
-            patch(f"{_MOD}.transaction"),
-        ):
-            mock_job_event.objects.add_status_event.return_value.created = fake_created
-            task.to_running(job)
-
-        assert seen == {"started": fake_created, "license": fake_created}
-
-    def test_to_running_persists_the_status_and_the_event_atomically(self):
-        """The job row and its JobEvent are written inside the same transaction.atomic()."""
-        task = _make_task()
-        job = _make_fleets_job(status=Job.PENDING)
-
-        with (
-            patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.transaction") as mock_transaction,
-        ):
-            task.to_running(job)
-
-        mock_transaction.atomic.assert_called_once_with()
-        mock_transaction.atomic.return_value.__enter__.assert_called_once()
-
-    def test_to_running_reaches_running_even_when_kafka_is_down(self):
-        """A Kafka outage must not leave the job stuck retrying PENDING forever."""
-        task = _make_task()
-        job = _make_fleets_job(status=Job.PENDING)
-        task.event_streams_client.emit_job_started.side_effect = RuntimeError("kafka down")
-
-        with (
-            patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.transaction"),
-        ):
-            task.to_running(job)  # must not raise
-
-        assert job.status == Job.RUNNING
-
-    def test_to_running_logs_the_kafka_failure_instead_of_swallowing_it_silently(self):
-        task = _make_task()
-        job = _make_fleets_job(status=Job.PENDING)
-        task.event_streams_client.emit_job_started.side_effect = RuntimeError("kafka down")
-
-        with (
-            patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.transaction"),
-            patch(f"{_MOD}.logger") as mock_logger,
-        ):
-            task.to_running(job)
-
-        mock_logger.error.assert_called_once_with(
-            "job_id=%s error emitting job_started/license_fee event to Kafka, event dropped: %s",
-            job.id,
-            "kafka down",
-        )
+        task.transitions.running_to_running.assert_called_once_with(job)
+        task.transitions.pending_to_running.assert_not_called()
 
 
 class TestStopJobIfTimeout:
@@ -511,66 +495,6 @@ class TestRun:
 class TestEventStreamsIntegration:
     """Tests that emit methods are called at the right lifecycle points."""
 
-    def test_to_running_writes_the_status_before_emitting_events(self):
-        """The DB transition is committed first; the Kafka emit is best-effort afterwards."""
-        task = _make_task()
-        job = _make_fleets_job(status=Job.PENDING)
-
-        call_order = []
-        task.event_streams_client.emit_job_started.side_effect = lambda j: call_order.append("publish")
-        job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db:" + ",".join(f)))
-
-        with (
-            patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.transaction"),
-        ):
-            task.to_running(job)
-
-        assert call_order == ["db:status,running_started_at", "publish"]
-        task.event_streams_client.emit_job_started.assert_called_once_with(job)
-
-    def test_to_running_does_not_raise_if_publish_fails(self):
-        task = _make_task()
-        task.event_streams_client.emit_job_started.side_effect = RuntimeError("broker down")
-        job = _make_fleets_job(status=Job.PENDING)
-        fake_created = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-
-        with (
-            patch(f"{_MOD}.JobEvent") as mock_job_event,
-            patch(f"{_MOD}.transaction"),
-        ):
-            mock_job_event.objects.add_status_event.return_value.created = fake_created
-            task.to_running(job)  # must not raise
-
-        # The status transition already landed before the emit was attempted.
-        job.update_fields.assert_called_once_with({"status": Job.RUNNING, "running_started_at": fake_created})
-        assert job.status == Job.RUNNING
-
-    def test_to_terminal_emits_job_completed_before_db_update(self):
-        task = _make_task()
-        job = _make_fleets_job(status=Job.RUNNING)
-
-        call_order = []
-        task.event_streams_client.emit_job_completed.side_effect = lambda j: call_order.append("publish")
-        job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db"))
-
-        with patch(f"{_MOD}.JobEvent"):
-            task.to_terminal(job, Job.SUCCEEDED)
-
-        assert call_order == ["publish", "db"]
-        task.event_streams_client.emit_job_completed.assert_called_once_with(job)
-
-    def test_to_terminal_raises_if_publish_fails(self):
-        task = _make_task()
-        task.event_streams_client.emit_job_completed.side_effect = Exception("broker down")
-        job = _make_fleets_job(status=Job.RUNNING)
-
-        with patch(f"{_MOD}.JobEvent"):
-            with pytest.raises(Exception, match="broker down"):
-                task.to_terminal(job, Job.SUCCEEDED)
-
-        job.update_fields.assert_not_called()
-
     def test_update_job_status_emits_job_in_progress_for_running_job(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
@@ -584,7 +508,7 @@ class TestEventStreamsIntegration:
         ):
             task.update_job_status(job)
 
-        task.event_streams_client.emit_job_in_progress.assert_called_once_with(job)
+        task.transitions.running_to_running.assert_called_once_with(job)
 
     def test_run_publish_failure_skips_db_update_and_continues_other_jobs(self):
         task = _make_task()
@@ -615,39 +539,59 @@ class TestEventStreamsIntegration:
         mock_update_status.assert_any_call(job2)
         assert mock_update_status.call_count == 2
 
-    def test_update_job_status_skips_emit_for_pending_to_running_transition(self):
-        task = _make_task()
-        job = _make_fleets_job(status=Job.PENDING)
 
-        mock_runner = MagicMock()
-        mock_runner.status.return_value = Job.RUNNING
+@pytest.mark.django_db
+def test_to_terminal_writes_the_job_through_the_real_service():
+    """Nothing is mocked between the task and the database: the status, the wiped fields and the JobEvent land."""
+    author = User.objects.create_user(username="update-fleets-real-service")
+    job = Job.objects.create(
+        author=author, runner=Program.FLEETS, status=Job.RUNNING, sub_status=Job.MAPPING, env_vars='{"k": "v"}'
+    )
+    task = _make_task()
+    task.transitions = JobTransitionService(sender=MagicMock())
 
-        with (
-            patch(f"{_MOD}.get_runner", return_value=mock_runner),
-            patch.object(task, "to_running"),
-            patch.object(task, "stop_job_if_timeout"),
-        ):
-            task.update_job_status(job)
+    task.to_terminal(job, Job.FAILED)
 
-        task.event_streams_client.emit_job_in_progress.assert_not_called()
+    job.refresh_from_db()
+    assert job.status == Job.FAILED
+    assert job.sub_status is None
+    assert job.env_vars == "{}"
+    assert JobEvent.objects.filter(job=job, data__status=Job.FAILED).count() == 1
+    task.metrics.increment_jobs_terminal.assert_called_once()
 
-    def test_to_running_emits_license_fee_after_job_started(self):
-        task = _make_task()
-        job = _make_fleets_job(status=Job.PENDING)
 
-        call_order = []
-        task.event_streams_client.emit_job_started.side_effect = lambda j: call_order.append("started")
-        task.event_streams_client.emit_license_fee.side_effect = lambda j: call_order.append("license")
-        job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db:" + ",".join(f)))
+@pytest.mark.django_db
+def test_a_running_job_checks_the_timeout_even_when_the_in_progress_send_fails():
+    """A Kafka outage on the in-progress event must not skip the timeout check for that job: the real
+    service swallows the failure, so nothing reaches the task."""
+    author = User.objects.create_user(username="update-fleets-kafka-down")
+    profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+    job = Job.objects.create(
+        author=author,
+        runner=Program.FLEETS,
+        fleet_id="fleet-123",
+        instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::",
+        compute_profile_fk=profile,
+        status=Job.RUNNING,
+    )
+    JobEvent.objects.add_status_event(
+        job_id=job.id, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, status=Job.RUNNING
+    )
+    sender = MagicMock()
+    sender.send.side_effect = RuntimeError("kafka down")
+    task = _make_task()
+    task.transitions = JobTransitionService(sender=sender)
+    mock_runner = MagicMock()
+    mock_runner.status.return_value = Job.RUNNING
 
-        with (
-            patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.transaction"),
-        ):
-            task.to_running(job)
+    with (
+        patch(f"{_MOD}.get_runner", return_value=mock_runner),
+        patch.object(task, "stop_job_if_timeout") as mock_timeout,
+    ):
+        task.update_job_status(job)
 
-        assert call_order == ["db:status,running_started_at", "started", "license"]
-        task.event_streams_client.emit_license_fee.assert_called_once_with(job)
+    sender.send.assert_called_once()
+    mock_timeout.assert_called_once_with(job)
 
 
 def test_filler_jobs_are_left_out_of_the_job_metrics():
