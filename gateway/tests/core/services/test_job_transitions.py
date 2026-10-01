@@ -2,6 +2,7 @@
 
 import logging
 import uuid
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -116,6 +117,7 @@ class TestValidatesTransitions:
             (Job.RUNNING, "pending_to_running"),
             (Job.SUCCEEDED, "to_stopped"),
             (Job.FAILED, "to_failed"),
+            (Job.STOPPING, "to_succeeded"),
         ],
     )
     def test_rejects_a_transition_outside_the_whitelist(self, service, current_status, transition):
@@ -435,3 +437,67 @@ class TestBestEffortEvents:
         service.to_succeeded(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
 
         sender.send.assert_not_called()
+
+
+class TestToStopping:
+    """to_stopping records that a cancel was asked for. The scheduler sends it and confirms it later."""
+
+    @pytest.mark.parametrize("current_status", [Job.QUEUED, Job.PENDING, Job.RUNNING])
+    def test_writes_stopping_and_its_event_and_owes_nothing(self, service, user, current_status):
+        job = _licensed_fleets_job(user, current_status)
+
+        service.to_stopping(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+
+        assert Job.objects.get(pk=job.pk).status == Job.STOPPING
+        assert JobEvent.objects.filter(job=job, data__status=Job.STOPPING).count() == 1
+        assert Outbox.objects.filter(job=job).count() == 0
+
+    def test_leaves_sub_status_alone(self, service, user):
+        """STOPPING is in ACTIVE_STATUSES, so the running container may still patch sub_status."""
+        job = _licensed_fleets_job(user, Job.RUNNING)
+        Job.objects.filter(pk=job.pk).update(sub_status=Job.EXECUTING_QPU)
+        job.refresh_from_db()
+
+        service.to_stopping(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+
+        assert Job.objects.get(pk=job.pk).sub_status == Job.EXECUTING_QPU
+
+    def test_a_ray_job_is_refused(self, service, user):
+        """Nothing may write STOPPING for Ray: its status poller would push the row back to RUNNING."""
+        program = Program.objects.create(title="ray-fn", author=user, entrypoint="main.py", runner=Program.RAY)
+        job = Job.objects.create(author=user, program=program, runner=Program.RAY, status=Job.RUNNING)
+
+        with pytest.raises(InvalidJobTransitionException):
+            service.to_stopping(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+
+        assert Job.objects.get(pk=job.pk).status == Job.RUNNING
+        assert JobEvent.objects.filter(job=job).count() == 0
+
+    def test_stopping_to_stopped_bills_the_usage_once(self, service, user):
+        job = _licensed_fleets_job(user, Job.STOPPING)
+
+        service.to_stopped(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert Job.objects.get(pk=job.pk).status == Job.STOPPED
+        assert Outbox.objects.filter(job=job, channel=OutboxChannel.JOB_USAGE).count() == 1
+
+    def test_a_job_that_ran_before_the_cancel_is_billed_up_to_the_confirmation(self, service, user):
+        """The billed window of a cancelled job ends when the scheduler confirms, not when the user asked."""
+        job = _licensed_fleets_job(user, Job.RUNNING)
+        JobEvent.objects.add_status_event(
+            job_id=job.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            status=Job.RUNNING,
+        )
+        JobEvent.objects.filter(job=job, data__status=Job.RUNNING).update(
+            created=datetime.now(timezone.utc) - timedelta(seconds=100)
+        )
+        service.to_stopping(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+
+        service.to_stopped(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        usage = Outbox.objects.get(job=job, channel=OutboxChannel.JOB_USAGE)
+        assert usage.payload["data"]["metric_value"] >= 100, "the window did not run to the confirmation"
+        # A job seen in RUNNING owes the fee, so passing through STOPPING does not waive it.
+        assert Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).count() == 1

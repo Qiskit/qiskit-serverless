@@ -12,7 +12,6 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Config, Job, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import JobTransitionService
-from core.services.runners import get_runner, RunnerError
 from core.services.storage import get_arguments_storage
 from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
@@ -51,7 +50,9 @@ class BalanceFillerJobs(SchedulerTask):
         self._discard_unsubmitted_filler_jobs()
 
         program = self._get_filler_program()
-        filler_jobs = list(Job.objects.filter(filler=True, status__in=Job.RUNNING_STATUSES).order_by("created"))
+        filler_jobs = list(
+            Job.objects.filter(filler=True, runner=Program.FLEETS, status__in=Job.RUNNING_STATUSES).order_by("created")
+        )
 
         if program is None:
             self._drain_filler_jobs(filler_jobs)
@@ -295,30 +296,25 @@ class BalanceFillerJobs(SchedulerTask):
         self.metrics.increment_filler_jobs_created("failed")
 
     def _stop_filler_jobs(self, jobs: list[Job]) -> None:
-        """Stop the given filler jobs, cancelling the fleet before writing STOPPED."""
+        """Ask for a stop on the given filler jobs."""
         for job in jobs:
             if self.kill_signal.received:
                 return
+            if job.status == Job.STOPPING:
+                # Already draining. The balancer rebuilds this list every second, so asking again would
+                # write an event a second and move the deadline the status poller reads.
+                continue
             self._stop_one_filler_job(job)
 
     def _stop_one_filler_job(self, job: Job) -> None:
-        """Cancel this job's fleet if it has one, then write STOPPED on the row."""
-        if job.fleet_id:
-            try:
-                get_runner(job).stop()
-            except RunnerError as ex:
-                # Left active on purpose: writing STOPPED would hide a fleet still
-                # holding the node, and the balancer would create another on top.
-                logger.error("[BalanceFillerJobs] job_id=%s error stopping filler job: %s", job.id, str(ex))
-                return
-
-        self._mark_stopped(job)
-        logger.info("[BalanceFillerJobs] job_id=%s filler job stopped", job.id)
+        """Write STOPPING. UpdateFleetsJobsStatuses cancels the fleet and confirms it."""
+        self._mark_stopping(job)
+        logger.info("[BalanceFillerJobs] job_id=%s filler job stop requested", job.id)
 
     def _mark_failed(self, job: Job) -> None:
         """Write FAILED on a job whose submit never happened.
 
-        Not _mark_stopped: nothing stopped it, its creation broke, and that counter is
+        Not _mark_stopping: nothing stopped it, its creation broke, and that counter is
         cross-checked against the FILLER_STOP events.
         """
         try:
@@ -327,13 +323,13 @@ class BalanceFillerJobs(SchedulerTask):
             # Lost the race: something else already moved this job to a terminal status.
             logger.info("job_id=%s already in a terminal status, skipping FAILED", job.id)
 
-    def _mark_stopped(self, job: Job) -> None:
-        """Write STOPPED on the job, record the event, and count it."""
+    def _mark_stopping(self, job: Job) -> None:
+        """Write STOPPING on the job, record the event, and count the stop this task asked for."""
         try:
-            self.transitions.to_stopped(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_STOP)
+            self.transitions.to_stopping(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_STOP)
         except InvalidJobTransitionException:
-            # Lost the race: something else already moved this job to a terminal status, so
-            # this stop was not the one that ended it, and must not be counted as one.
-            logger.info("job_id=%s already in a terminal status, skipping STOPPED", job.id)
+            # Lost the race: something else already moved this job on, so this stop was not the one
+            # that ended it, and must not be counted as one.
+            logger.info("job_id=%s transition rejected, skipping STOPPING", job.id)
             return
         self.metrics.increment_filler_jobs_stopped()

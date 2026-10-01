@@ -108,7 +108,7 @@ is being removed and never gets a row), to **not** be a filler job, and to carry
 **instance CRN**. The license fee has one more requirement, checked by `_is_fee_billable`: the
 job's function has a provider. Only `to_succeeded`, `to_failed` and `to_stopped` enqueue
 anything, and a job only reaches a terminal status once, so they run once per job. Nothing is
-built or enqueued on the transitions to `PENDING` or `RUNNING`.
+built or enqueued on the transitions to `PENDING`, `RUNNING` or `STOPPING`.
 
 ### Best effort events
 
