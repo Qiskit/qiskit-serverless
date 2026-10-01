@@ -9,6 +9,7 @@ from core.models import Config, Job, Outbox, OutboxChannel, Program
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from core.ibm_cloud.event_streams.kafka_sender import KafkaSender
+from core.ibm_cloud.sender import PendingMessage
 from scheduler.tasks.outbox import _build_kafka_breaker, MAX_FLUSH_TIMEOUT, MIN_FLUSH_TIMEOUT, OutboxTask
 
 pytestmark = pytest.mark.django_db
@@ -19,7 +20,7 @@ _MOD = "scheduler.tasks.outbox"
 def _sender(delivers=lambda pk: True) -> MagicMock:
     """A sender whose send_batch confirms the rows `delivers(pk)` accepts."""
     sender = MagicMock()
-    sender.send_batch.side_effect = lambda items, timeout=None: {pk for pk, _ in items if delivers(pk)}
+    sender.send_batch.side_effect = lambda messages, timeout=None: {m.key for m in messages if delivers(m.key)}
     return sender
 
 
@@ -64,7 +65,7 @@ class TestHappyPath:
 
         task.run()
 
-        sender.send_batch.assert_called_once_with([(row.pk, row.payload)], timeout=ANY)
+        sender.send_batch.assert_called_once_with([PendingMessage(row.pk, row.payload)], timeout=ANY)
         assert not Outbox.objects.filter(pk=row.pk).exists()
 
     def test_sends_every_pending_row_in_one_batch(self):

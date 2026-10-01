@@ -10,6 +10,7 @@ from django.test import override_settings
 
 from core.ibm_cloud.event_streams.kafka_producers import UnroutableRegionError
 from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender, KafkaSender, NoOpSender
+from core.ibm_cloud.sender import PendingMessage
 
 
 def _payload(instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::"):
@@ -180,7 +181,9 @@ class TestKafkaSenderBatch:
         producer = _FakeProducer(reject={b"job-2"})
         sender = KafkaSender(self._producers(producer))
 
-        delivered = sender.send_batch([(1, _payload_for("job-1")), (2, _payload_for("job-2"))])
+        delivered = sender.send_batch(
+            [PendingMessage(1, _payload_for("job-1")), PendingMessage(2, _payload_for("job-2"))]
+        )
 
         assert delivered == {1}
         assert len(producer.flush_timeouts) == 1
@@ -189,7 +192,7 @@ class TestKafkaSenderBatch:
         producer = _FakeProducer()
         sender = KafkaSender(self._producers(producer))
 
-        sender.send_batch([(1, _payload_for("job-1"))], timeout=1.5)
+        sender.send_batch([PendingMessage(1, _payload_for("job-1"))], timeout=1.5)
 
         assert producer.flush_timeouts == [1.5]
 
@@ -199,7 +202,9 @@ class TestKafkaSenderBatch:
         producers.get.side_effect = [UnroutableRegionError("no region"), producer]
         sender = KafkaSender(producers)
 
-        delivered = sender.send_batch([(1, _payload_for("job-1")), (2, _payload_for("job-2"))])
+        delivered = sender.send_batch(
+            [PendingMessage(1, _payload_for("job-1")), PendingMessage(2, _payload_for("job-2"))]
+        )
 
         assert delivered == {2}
 
@@ -207,13 +212,15 @@ class TestKafkaSenderBatch:
         producer = _FakeProducer(hang={b"job-1"})
         sender = KafkaSender(self._producers(producer))
 
-        assert sender.send_batch([(1, _payload_for("job-1")), (2, _payload_for("job-2"))]) == {2}
+        assert sender.send_batch(
+            [PendingMessage(1, _payload_for("job-1")), PendingMessage(2, _payload_for("job-2"))]
+        ) == {2}
 
     def test_a_callback_that_fires_after_the_flush_does_not_change_the_result(self):
         producer = _FakeProducer(hang={b"job-1"})
         sender = KafkaSender(self._producers(producer))
 
-        delivered = sender.send_batch([(1, _payload_for("job-1"))])
+        delivered = sender.send_batch([PendingMessage(1, _payload_for("job-1"))])
         producer.late[0](None, None)  # the broker acks it during a later flush
 
         assert delivered == set()
@@ -226,8 +233,10 @@ class TestKafkaSenderBatch:
 
         delivered = sender.send_batch(
             [
-                (1, _payload_for("job-1", "crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::")),
-                (2, _payload_for("job-2", "crn:v1:bluemix:public:quantum-computing:eu-de:a/acct:inst::")),
+                PendingMessage(
+                    1, _payload_for("job-1", "crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::")
+                ),
+                PendingMessage(2, _payload_for("job-2", "crn:v1:bluemix:public:quantum-computing:eu-de:a/acct:inst::")),
             ]
         )
 
@@ -239,7 +248,7 @@ class TestKafkaSenderBatch:
         sender = KafkaSender(self._producers(_FakeProducer()))
         payload = _payload()
 
-        sender.send_batch([(1, payload)])
+        sender.send_batch([PendingMessage(1, payload)])
 
         assert "type" not in payload
 
@@ -249,7 +258,7 @@ class TestSenderDefaultSendBatch:
         sender = NoOpSender()
         with patch.object(NoOpSender, "send", side_effect=[None, RuntimeError("boom"), None]):
             with caplog.at_level(logging.ERROR):
-                delivered = sender.send_batch([(1, {}), (2, {}), (3, {})])
+                delivered = sender.send_batch([PendingMessage(1, {}), PendingMessage(2, {}), PendingMessage(3, {})])
 
         assert delivered == {1, 3}
         assert "boom" in caplog.text

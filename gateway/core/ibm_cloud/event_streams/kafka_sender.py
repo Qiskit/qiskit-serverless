@@ -23,7 +23,7 @@ else to wire up::
     sender = build_kafka_sender()
     sender.send(payload)  # raises RuntimeError (or UnroutableRegionError) on failure
 
-The outbox uses sender.send_batch(items) instead, which never raises and returns the keys the broker
+The outbox uses sender.send_batch(messages) instead, which never raises and returns the keys the broker
 confirmed.
 
 See outbox.py and core/services/job_transitions.py for the two real callers.
@@ -34,7 +34,7 @@ import logging
 
 from django.conf import settings
 
-from core.ibm_cloud.sender import Sender
+from core.ibm_cloud.sender import PendingMessage, Sender
 from .kafka_producers import KafkaProducers
 
 logger = logging.getLogger("gateway.ibm_cloud.event_streams_client")
@@ -82,7 +82,7 @@ class KafkaSender(Sender):
         except Exception as e:
             raise RuntimeError(f"KafkaSender: Failed to publish event (id={message.get('id')}): {str(e)}") from e
 
-    def send_batch(self, items: list[tuple[int, dict]], timeout: float = 5) -> set[int]:
+    def send_batch(self, messages: list[PendingMessage], timeout: float = 5) -> set[int]:
         """Produce every payload, flush each producer once, and return the keys the broker confirmed
         through their delivery callback. A payload that cannot be routed or produced, is rejected by
         the broker, or is still outstanding when the flush times out is left out of the result. The
@@ -91,8 +91,9 @@ class KafkaSender(Sender):
         delivered: set[int] = set()
         producers_used = {}
 
-        for key, payload in items:
-            message = {**payload, "type": self._producers.topic}
+        for pending in messages:
+            key = pending.key
+            message = {**pending.payload, "type": self._producers.topic}
             try:
                 producer = self._producers.get((message.get("data") or {}).get("instance_crn"))
                 producer.produce(

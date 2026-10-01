@@ -2,8 +2,17 @@
 
 import logging
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
 logger = logging.getLogger("gateway.ibm_cloud.sender")
+
+
+@dataclass(frozen=True)
+class PendingMessage:
+    """A payload waiting to be delivered, plus the key the caller uses to learn whether it was."""
+
+    key: int
+    payload: dict
 
 
 class Sender(ABC):
@@ -14,18 +23,18 @@ class Sender(ABC):
         """Deliver the payload. Raises on failure."""
 
     def send_batch(
-        self, items: list[tuple[int, dict]], timeout: float = 5  # pylint: disable=unused-argument
+        self, messages: list[PendingMessage], timeout: float = 5  # pylint: disable=unused-argument
     ) -> set[int]:
-        """Deliver many (key, payload) pairs and return the keys that were delivered. Never raises:
+        """Deliver many messages and return the keys of the ones that were delivered. Never raises:
         a key missing from the result was not delivered and the caller must keep it for a retry.
         `timeout` is the most seconds the sender should wait for confirmations. This default sends one
         by one and ignores it; a sender that can confirm many at once should override it."""
         delivered: set[int] = set()
-        for key, payload in items:
+        for message in messages:
             try:
-                self.send(payload)
+                self.send(message.payload)
             except Exception as ex:  # pylint: disable=broad-exception-caught
-                logger.error("key=%s error sending: %s", key, str(ex))
+                logger.error("key=%s error sending: %s", message.key, str(ex))
                 continue
-            delivered.add(key)
+            delivered.add(message.key)
         return delivered

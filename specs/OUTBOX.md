@@ -190,7 +190,7 @@ channel's time budget. `LICENSE_FEE` and `USAGE` both point at the same `KafkaSe
 `NoOpSender()` when `EVENT_STREAMS_ENABLED` is false); see "Circuit breaker" below for how they
 also share one breaker. `OutboxTask` drains every registered channel on every tick, each within
 its own time budget, and is itself transport-agnostic: it knows only `Outbox`, `Config`, and a
-sender's `send_batch(items)` contract (given `(pk, payload)` pairs, return the pks delivered),
+sender's `send_batch(messages)` contract (given `PendingMessage(key, payload)` objects, return the keys delivered),
 never Kafka or any of its exception types.
 
 For each channel, once a tick, the task drains successive small batches (`BATCH_SIZE
@@ -201,7 +201,7 @@ is tracked for the rest of that call so the same row is not retried in a hot loo
 one tick; it is picked up again on the next tick.
 
 Each batch goes to the channel's sender in one call,
-`sender.send_batch([(row.pk, row.payload), ...])`, with the payloads exactly as stored. The sender
+`sender.send_batch([PendingMessage(row.pk, row.payload), ...])`, with the payloads exactly as stored. The sender
 knows nothing about `Job`, billing, or licensing and returns the set of pks it confirmed as delivered.
 `KafkaSender` produces the whole batch and flushes each producer once, instead of one flush per row,
 and marks a pk as delivered only from that message's own delivery callback. The task deletes exactly
@@ -306,7 +306,7 @@ logic. It needs:
 2. A builder that decides when to enqueue a message for that channel and calls
    `Outbox.objects.create(job=job, channel=OutboxChannel.<NAME>, payload=message)`, wherever in
    the codebase that channel's fact becomes true.
-3. A sender class with a `send(payload)` method (and a `send_batch(items)` override if it can
+3. A sender class with a `send(payload)` method (and a `send_batch(messages)` override if it can
    confirm many at once; the base class default calls `send` one by one) and its own `ConfigKey`s for the time
    budget and the breaker thresholds, wrapped in one `OutboxTask.Channel(sender=..., breaker=..., budget_key=...)` registered under its own
    key in `OutboxTask.channels`. A channel that reuses an existing sender instance can pass that

@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from django.utils import timezone
 
 from core.config_key import ConfigKey
-from core.ibm_cloud.sender import Sender
+from core.ibm_cloud.sender import PendingMessage, Sender
 from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender
 from core.models import Config, Outbox, OutboxChannel
 
@@ -116,7 +116,7 @@ class OutboxTask(SchedulerTask):
         """Send a batch with one confirmation round trip, delete the rows the sender confirmed and keep
         the rest for the next tick. The breaker records a success if at least one row was delivered
         and a failure only when none was, so a single bad row never opens it."""
-        delivered = sender.send_batch([(row.pk, row.payload) for row in batch], timeout=timeout)
+        delivered = sender.send_batch([PendingMessage(row.pk, row.payload) for row in batch], timeout=timeout)
 
         for row in batch:
             self.metrics.increment_outbox_send(row.channel, "success" if row.pk in delivered else "failure")
