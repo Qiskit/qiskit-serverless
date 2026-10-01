@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("api", "0064_job_fleet_id_idx"),
+        ("api", "0066_alter_job_status"),
     ]
 
     operations = [
