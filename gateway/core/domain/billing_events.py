@@ -29,9 +29,15 @@ class BillingEvents:
         - The job.program, job.program.provider and job.function_size CAN'T be None (or AttributeError will be raised)
         - #1899 job_started_at can be None if the job reaches SUCCEEDED without ever passing through RUNNING
           (a direct PENDING -> SUCCEEDED transition).
+        - The function size is lowercased, the billing service's metric table keys are lowercase.
         """
         metric_type = "_".join(
-            [LICENSE_FEE_METRIC_TYPE, job.program.provider.name, job.program.title, job.function_size.function_size]
+            [
+                LICENSE_FEE_METRIC_TYPE,
+                job.program.provider.name,
+                job.program.title,
+                job.function_size.function_size.lower(),
+            ]
         )
         logger.info("job_id=%s Building license_fee message metric_type=%s", job.id, metric_type)
         return BillingEvents._envelope(
