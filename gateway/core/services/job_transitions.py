@@ -30,7 +30,7 @@ def _is_usage_billable(job: Job) -> bool:
 
 def _is_fee_billable(job: Job) -> bool:
     """The license fee is only owed for a function with a provider."""
-    return bool(job.program and job.program.provider)
+    return job.runner == Program.FLEETS and not job.filler and bool(job.instance_crn) and bool(job.program and job.program.provider)
 
 
 class JobTransitionService:
