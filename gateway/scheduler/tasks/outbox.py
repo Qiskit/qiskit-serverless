@@ -10,6 +10,7 @@ import time
 from dataclasses import dataclass
 from typing import Callable
 
+from django.db.models import Q
 from django.utils import timezone
 
 from core.config_key import ConfigKey
@@ -25,6 +26,8 @@ from .task import SchedulerTask
 logger = logging.getLogger("scheduler.OutboxTask")
 
 BATCH_SIZE = 100
+# Group for a row whose payload the sender could not even group: it fails on its own, with its own breaker.
+INVALID_PAYLOAD_GROUP = "invalid-payload"
 
 
 def _build_kafka_breaker() -> CircuitBreaker:
@@ -93,24 +96,27 @@ class OutboxTask(SchedulerTask):
             self._report_pending_gauges(channel_name)
 
         for channel_name, channel in self.channels.items():
-            self.metrics.set_outbox_breaker_open(channel.breakers.any_open, channel=channel_name)
             self._drain_channel(channel_name, channel)
+            self.metrics.set_outbox_breaker_open(channel.breakers.any_open, channel=channel_name)
 
     def _drain_channel(self, channel_name: OutboxChannel, channel: Channel) -> None:
-        # A row that fails without tripping the breaker is neither deleted nor blocked by the breaker, so an unfiltered
-        # re-fetch would find the exact same row again and hot-loop on it for the rest of the budget window.
         budget_ms = Config.get_int(channel.budget_key, default=500)
         deadline = time.monotonic() + (budget_ms / 1000)
-        # So, tracking pks already attempted this call bounds one tick to at most one attempt per currently pending row;
-        # it gets picked up again on the next tick.
-        attempted_pks: set = set()
+        # A row that is not delivered stays in the table, so an unfiltered re-fetch would find the exact same
+        # row again and hot-loop on it for the rest of the budget window. Paging forward from the last row
+        # seen bounds one tick to at most one attempt per currently pending row; it gets picked up again on
+        # the next tick.
+        cursor: tuple | None = None
+        skipped_groups: set = set()
 
         while self._should_continue_draining(channel_name, deadline):
-            queryset = Outbox.objects.filter(channel=channel_name).exclude(pk__in=attempted_pks)
-            batch = list(queryset.order_by("created")[:BATCH_SIZE])
+            queryset = Outbox.objects.filter(channel=channel_name)
+            if cursor is not None:
+                queryset = queryset.filter(Q(created__gt=cursor[0]) | Q(created=cursor[0], pk__gt=cursor[1]))
+            batch = list(queryset.order_by("created", "pk")[:BATCH_SIZE])
             if not batch:
                 return
-            attempted_pks.update(row.pk for row in batch)
+            cursor = (batch[-1].created, batch[-1].pk)
 
             # Each group (a Kafka region, say) has its own breaker, so a dead one is skipped while the
             # healthy ones keep draining. The budget is only for the healthy path: a group that fails
@@ -120,12 +126,11 @@ class OutboxTask(SchedulerTask):
                     return
                 breaker = channel.breakers.get(group_key)
                 if breaker.is_open:
-                    logger.info(
-                        "Circuit breaker open, skipping %s row(s) for channel=%s group=%s",
-                        len(rows),
-                        channel_name,
-                        group_key,
-                    )
+                    if group_key not in skipped_groups:
+                        skipped_groups.add(group_key)
+                        logger.info(
+                            "Circuit breaker open, skipping channel=%s group=%s this tick", channel_name, group_key
+                        )
                     continue
                 self._send_batch(rows, channel.sender, breaker)
 
@@ -133,7 +138,12 @@ class OutboxTask(SchedulerTask):
     def _group_rows(batch: list[Outbox], sender: Sender) -> dict[str | None, list[Outbox]]:
         groups: dict[str | None, list[Outbox]] = {}
         for row in batch:
-            groups.setdefault(sender.group_key(row.payload), []).append(row)
+            try:
+                group_key = sender.group_key(row.payload)
+            except Exception as ex:  # pylint: disable=broad-exception-caught
+                logger.error("outbox_id=%s job_id=%s cannot group the payload: %s", row.id, row.job_id, str(ex))
+                group_key = INVALID_PAYLOAD_GROUP
+            groups.setdefault(group_key, []).append(row)
         return groups
 
     def _should_continue_draining(self, channel: OutboxChannel, deadline: float) -> bool:

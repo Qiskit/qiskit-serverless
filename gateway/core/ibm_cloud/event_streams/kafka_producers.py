@@ -89,7 +89,7 @@ class KafkaProducers:
     @staticmethod
     def region(instance_crn: str | None) -> str | None:
         """The region in instance_crn, or None if it cannot be parsed out of it."""
-        parts = instance_crn.split(":") if instance_crn else []
+        parts = instance_crn.split(":") if isinstance(instance_crn, str) else []
         return parts[5] if len(parts) > 6 else None
 
     def get(self, instance_crn: str | None) -> Producer:

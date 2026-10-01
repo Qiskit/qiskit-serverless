@@ -196,13 +196,16 @@ never Kafka or any of its exception types.
 For each channel, once a tick, the task drains successive small batches (`BATCH_SIZE
 = 100` rows, a code constant, not a `Config` entry: it bounds a single query, not
 throughput) oldest first, until either nothing is left pending, the tick's time
-budget runs out, or the kill signal arrives. A row that is not delivered
-is tracked for the rest of that call so the same row is not retried in a hot loop within
-one tick; it is picked up again on the next tick.
+budget runs out, or the kill signal arrives. The task pages forward by `(created, pk)` from the last row
+it saw, so a row that is not delivered is not retried in a hot loop within one tick; it is picked up again on
+the next tick. Rows whose group has an open breaker are still paged past, not stopped at, so healthy
+rows queued behind a pile of them are reached within the budget.
 
 Each batch is first split in memory by `sender.group_key(payload)`: a destination that fails on its
 own, which for `KafkaSender` is the region in the payload's CRN (each region is its own Kafka cluster).
-Senders without such a notion keep the default, one group. Each group then goes to the channel's sender in
+Senders without such a notion keep the default, one group. A payload whose group cannot be
+computed at all (`group_key` raises) goes to its own `invalid-payload` group, with its own breaker, instead of
+stopping the channel. Each group then goes to the channel's sender in
 one call, `sender.send_batch([PendingMessage(row.pk, row.payload), ...])`, with the payloads exactly as stored. The sender
 knows nothing about `Job`, billing, or licensing and returns the set of pks it confirmed as delivered.
 `KafkaSender` produces the whole batch and flushes each producer once, instead of one flush per row,
@@ -253,9 +256,9 @@ using that sender, while the other groups are still sent.
   real wall-clock time from the moment it opened, regardless of how many scheduler
   ticks pass meanwhile.
 - It closes itself the next time anything asks whether it is open, once that pause
-  has elapsed, and the failure counter resets to zero as if nothing had happened.
-  Closing does not carry any memory forward: a fresh, uninterrupted streak of
-  failures is needed to open it again.
+  has elapsed, but half open: the failure counter is left one short of the threshold, so a
+  single failure opens it again, while a success clears the streak. A destination that is still
+  down therefore costs one probe per pause, not a whole failure streak.
 - A group's breaker is checked right before that group's batch is sent, so a failure that
   trips it mid-tick keeps the rest of that group's rows from being sent in the same tick.
 - One pass over the pending rows can cost one flush timeout per failing group before the budget
@@ -285,7 +288,8 @@ whatever channel a future PR adds), not by any billing-specific vocabulary:
   `scheduler_outbox_oldest_pending_age_seconds{channel}`: reported every tick for
   every registered channel, independent of whether that channel's breaker is open.
 - `scheduler_outbox_breaker_open{channel}`: 1 while the breaker of at least one group
-  (region) of that channel is open. It carries no per-group label.
+  (region) of that channel is open. It carries no per-group label, and it is set after the
+  channel has been drained, so it reflects a breaker that opened during this very tick.
 
 The old `scheduler_outbox_license_fee_irrecoverable_total` counter is gone. The one
 case it measured that is still an anomaly today, a licensed function whose

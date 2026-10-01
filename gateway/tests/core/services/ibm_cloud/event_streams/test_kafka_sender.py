@@ -268,6 +268,27 @@ class TestKafkaSenderGroupKey:
         assert sender.group_key(_payload("not-a-crn")) is None
 
 
+class TestKafkaSenderMalformedPayloads:
+    def test_group_key_never_raises_on_odd_shapes(self):
+        sender = KafkaSender(MagicMock())
+
+        assert sender.group_key({"data": [1]}) is None
+        assert sender.group_key({"data": "x"}) is None
+        assert sender.group_key({"data": {"instance_crn": 5}}) is None
+        assert sender.group_key([1, 2]) is None
+
+    def test_send_batch_never_raises_on_a_payload_that_is_not_a_dict_and_still_sends_the_rest(self):
+        producer = _FakeProducer()
+        producers = MagicMock()
+        producers.topic = "t"
+        producers.get.return_value = producer
+        sender = KafkaSender(producers)
+
+        delivered = sender.send_batch([PendingMessage(1, [1, 2]), PendingMessage(2, _payload_for("job-2"))])
+
+        assert delivered == {2}
+
+
 class TestSenderDefaultSendBatch:
     def test_swallows_and_logs_a_failure_and_still_sends_the_rest(self, caplog):
         sender = NoOpSender()

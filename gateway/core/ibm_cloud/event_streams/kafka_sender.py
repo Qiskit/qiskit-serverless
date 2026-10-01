@@ -93,9 +93,9 @@ class KafkaSender(Sender):
 
         for pending in messages:
             key = pending.key
-            message = {**pending.payload, "type": self._producers.topic}
             try:
-                producer = self._producers.get((message.get("data") or {}).get("instance_crn"))
+                message = {**pending.payload, "type": self._producers.topic}
+                producer = self._producers.get(self._instance_crn(message))
                 producer.produce(
                     topic=self._producers.topic,
                     key=message["subject"].encode("utf-8"),
@@ -103,7 +103,7 @@ class KafkaSender(Sender):
                     callback=lambda err, msg, key=key: self._on_batch_delivery(err, msg, key, delivered),
                 )
             except Exception as ex:  # pylint: disable=broad-exception-caught
-                logger.error("key=%s event id=%s error producing: %s", key, message.get("id"), str(ex))
+                logger.error("key=%s error producing: %s", key, str(ex))
                 continue
             producers_used[id(producer)] = producer
 
@@ -121,7 +121,13 @@ class KafkaSender(Sender):
 
     def group_key(self, payload: dict) -> str | None:
         """The payload's region: each region is its own Kafka cluster, so it fails on its own."""
-        return KafkaProducers.region((payload.get("data") or {}).get("instance_crn"))
+        return KafkaProducers.region(self._instance_crn(payload))
+
+    @staticmethod
+    def _instance_crn(payload) -> str | None:
+        """The payload's data.instance_crn, or None when the payload is not shaped like one."""
+        data = payload.get("data") if isinstance(payload, dict) else None
+        return data.get("instance_crn") if isinstance(data, dict) else None
 
     def _on_batch_delivery(self, err, msg, key: int, delivered: set[int]) -> None:
         if err is None:

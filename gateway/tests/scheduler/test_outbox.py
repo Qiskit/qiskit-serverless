@@ -203,24 +203,28 @@ class TestMultipleBatches:
 
 class TestPartialSuccessWithARealKafkaSender:
     class _Producer:
-        def __init__(self, reject):
-            self.reject, self.queued = reject, []
+        def __init__(self, reject, hang=()):
+            self.reject, self.hang, self.queued = reject, hang, []
 
         def produce(self, **kwargs):
             self.queued.append(kwargs)
 
         def flush(self, timeout):
+            outstanding = 0
             for kwargs in self.queued:
+                if kwargs["key"] in self.hang:
+                    outstanding += 1
+                    continue
                 error = Exception("rejected") if kwargs["key"] in self.reject else None
                 kwargs["callback"](error, None)
             self.queued = []
-            return 0
+            return outstanding
 
     @staticmethod
-    def _task_with_kafka(reject_subjects):
+    def _task_with_kafka(reject_subjects, hang_subjects=()):
         producers = MagicMock()
         producers.topic = "t"
-        producers.get.return_value = TestPartialSuccessWithARealKafkaSender._Producer(reject_subjects)
+        producers.get.return_value = TestPartialSuccessWithARealKafkaSender._Producer(reject_subjects, hang_subjects)
         task = _make_task()
         task.channels = {OutboxChannel.JOB_USAGE: _kafka_channel(KafkaSender(producers))}
         Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1")
@@ -248,6 +252,25 @@ class TestPartialSuccessWithARealKafkaSender:
 
         assert Outbox.objects.filter(pk__in=[first.pk, second.pk]).count() == 2
         assert task.channels[OutboxChannel.JOB_USAGE].breakers.get(None).is_open is True
+
+    def test_rows_still_outstanding_after_the_flush_are_kept_and_count_as_a_failed_batch(self):
+        task = self._task_with_kafka(set(), hang_subjects={b"slow-1", b"slow-2"})
+        first, second = self._row("slow-1"), self._row("slow-2")
+
+        task.run()
+
+        assert Outbox.objects.filter(pk__in=[first.pk, second.pk]).count() == 2
+        assert task.channels[OutboxChannel.JOB_USAGE].breakers.get(None).is_open is True
+
+    def test_a_payload_that_is_not_even_a_dict_does_not_stop_the_other_rows(self):
+        task = self._task_with_kafka(set())
+        broken = _make_row(payload=[1, 2, 3])
+        good = self._row("good")
+
+        task.run()  # must not raise
+
+        assert Outbox.objects.filter(pk=broken.pk).exists()
+        assert not Outbox.objects.filter(pk=good.pk).exists()
 
 
 class TestGroupsAreIndependent:
@@ -302,3 +325,82 @@ class TestGroupsAreIndependent:
         assert sent_keys == [healthy.pk]  # the eu-de rows were not even attempted
         assert Outbox.objects.filter(pk=dead.pk).exists()
         assert not Outbox.objects.filter(pk=healthy.pk).exists()
+
+
+class TestMalformedPayloadsDoNotWedgeTheChannel:
+    def test_a_sender_whose_group_key_raises_puts_that_row_in_its_own_group(self):
+        sender = _sender()
+
+        def group_key(payload):
+            if payload.get("bad"):
+                raise ValueError("cannot group")
+            return None
+
+        sender.group_key.side_effect = group_key
+        task = _make_task(sender=sender)
+        bad = _make_row(payload={"bad": True, "data": {}})
+        good = _make_row()
+
+        task.run()  # must not raise
+
+        sent_keys = [m.key for call in sender.send_batch.call_args_list for m in call.args[0]]
+        assert sorted(sent_keys) == sorted([bad.pk, good.pk])  # the bad row is still attempted, on its own
+        assert all(len(call.args[0]) == 1 for call in sender.send_batch.call_args_list)
+
+
+class TestOpenBreakersAndTheScan:
+    @staticmethod
+    def _grouped_sender(dead_group):
+        sender = _sender()
+        sender.group_key.side_effect = lambda payload: payload["group"]
+        sender.send_batch.side_effect = lambda messages: {m.key for m in messages if m.payload["group"] != dead_group}
+        return sender
+
+    @staticmethod
+    def _row_in(group):
+        return _make_row(payload={"group": group, "data": {}})
+
+    def test_when_every_breaker_is_open_nothing_is_sent_and_the_tick_ends(self):
+        sender = self._grouped_sender(dead_group="eu-de")
+        task = _make_task(sender=sender)
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1")
+        self._row_in("eu-de")
+        task.run()  # opens the eu-de breaker
+        sender.send_batch.reset_mock()
+        for _ in range(3):
+            self._row_in("eu-de")
+
+        with patch(f"{_MOD}.BATCH_SIZE", 1):
+            task.run()
+
+        sender.send_batch.assert_not_called()
+        assert Outbox.objects.count() == 4
+
+    def test_healthy_rows_behind_a_pile_of_dead_ones_are_still_reached(self):
+        sender = self._grouped_sender(dead_group="eu-de")
+        task = _make_task(sender=sender)
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1")
+        self._row_in("eu-de")
+        task.run()  # opens the eu-de breaker
+        sender.send_batch.reset_mock()
+        for _ in range(3):
+            self._row_in("eu-de")
+        healthy = self._row_in("us-east")
+
+        with patch(f"{_MOD}.BATCH_SIZE", 1):  # the dead rows fill several batches before the healthy one
+            task.run()
+
+        assert not Outbox.objects.filter(pk=healthy.pk).exists()
+        sent_keys = [m.key for call in sender.send_batch.call_args_list for m in call.args[0]]
+        assert sent_keys == [healthy.pk]
+
+
+class TestBreakerGauge:
+    def test_the_gauge_reflects_the_breaker_that_this_tick_just_opened(self):
+        task = _make_task(sender=_sender(delivers=lambda pk: False))
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1")
+        _make_row()
+
+        task.run()
+
+        task.metrics.set_outbox_breaker_open.assert_called_with(True, channel=OutboxChannel.JOB_USAGE)
