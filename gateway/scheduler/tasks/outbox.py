@@ -13,7 +13,6 @@ from django.utils import timezone
 
 from core.config_key import ConfigKey
 from core.ibm_cloud.sender import Sender
-from core.ibm_cloud.event_streams.kafka_producers import UnroutableRegionError
 from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender
 from core.models import Config, Outbox, OutboxChannel
 
@@ -93,11 +92,8 @@ class OutboxTask(SchedulerTask):
             if not batch:
                 return
 
-            for row in batch:
-                if not self._should_continue_draining(channel_name, channel.breaker, deadline):
-                    return
-                self._send_row(row, channel.sender, channel.breaker)
-                attempted_pks.add(row.pk)
+            self._send_batch(batch, channel.sender, channel.breaker)
+            attempted_pks.update(row.pk for row in batch)
 
     def _should_continue_draining(self, channel: OutboxChannel, breaker: CircuitBreaker, deadline: float) -> bool:
         if self.kill_signal.received:
@@ -111,25 +107,27 @@ class OutboxTask(SchedulerTask):
             return False
         return True
 
-    def _send_row(self, row: Outbox, sender: Sender, breaker: CircuitBreaker) -> None:
-        """Send one row, keeping it for the next tick and counting it against the breaker on any
-        failure, UnroutableRegionError included."""
-        try:
-            sender.send(row.payload)
-        except UnroutableRegionError as ex:
-            logger.error("outbox_id=%s job_id=%s error sending, unroutable CRN: %s", row.id, row.job_id, str(ex))
-            self.metrics.increment_outbox_send(row.channel, "failure")
-            breaker.record_failure()
-            return
-        except Exception as ex:  # pylint: disable=broad-exception-caught
-            logger.error("outbox_id=%s job_id=%s error sending: %s", row.id, row.job_id, str(ex))
-            self.metrics.increment_outbox_send(row.channel, "failure")
-            breaker.record_failure()
-            return
+    def _send_batch(self, batch: list[Outbox], sender: Sender, breaker: CircuitBreaker) -> None:
+        """Send a batch with one confirmation round trip, delete the rows the sender confirmed and keep
+        the rest for the next tick. The breaker records a success if at least one row was delivered
+        and a failure only when none was, so a single bad row never opens it."""
+        delivered = sender.send_batch([(row.pk, row.payload) for row in batch])
 
-        self.metrics.increment_outbox_send(row.channel, "success")
-        breaker.record_success()
-        row.delete()
+        for row in batch:
+            self.metrics.increment_outbox_send(row.channel, "success" if row.pk in delivered else "failure")
+
+        if len(delivered) < len(batch):
+            logger.error(
+                "outbox batch: %s of %s row(s) not delivered, kept for the next tick (the sender logged why)",
+                len(batch) - len(delivered),
+                len(batch),
+            )
+
+        if delivered:
+            breaker.record_success()
+            Outbox.objects.filter(pk__in=delivered).delete()
+        else:
+            breaker.record_failure()
 
     def _report_pending_gauges(self, channel: OutboxChannel) -> None:
         queryset = Outbox.objects.filter(channel=channel)

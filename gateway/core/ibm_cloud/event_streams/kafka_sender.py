@@ -79,6 +79,50 @@ class KafkaSender(Sender):
         except Exception as e:
             raise RuntimeError(f"KafkaSender: Failed to publish event (id={message.get('id')}): {str(e)}") from e
 
+    def send_batch(self, items: list[tuple[int, dict]], timeout: int = 5) -> set[int]:
+        """Produce every payload, flush each producer once, and return the keys the broker confirmed
+        through their delivery callback. A payload that cannot be routed or produced, is rejected by
+        the broker, or is still outstanding when the flush times out is left out of the result."""
+        delivered: set[int] = set()
+        producers_used = {}
+
+        for key, payload in items:
+            message = {**payload, "type": self._producers.topic}
+            try:
+                producer = self._producers.get((message.get("data") or {}).get("instance_crn"))
+                producer.produce(
+                    topic=self._producers.topic,
+                    key=message["subject"].encode("utf-8"),
+                    value=json.dumps(message).encode("utf-8"),
+                    callback=lambda err, msg, key=key: self._on_batch_delivery(err, msg, key, delivered),
+                )
+            except Exception as ex:  # pylint: disable=broad-exception-caught
+                logger.error("key=%s event id=%s error producing: %s", key, message.get("id"), str(ex))
+                continue
+            producers_used[id(producer)] = producer
+
+        for producer in producers_used.values():
+            try:
+                remaining = producer.flush(timeout=timeout)
+            except Exception as ex:  # pylint: disable=broad-exception-caught
+                logger.error("error flushing producer: %s", str(ex))
+                continue
+            if remaining > 0:
+                logger.error("%s message(s) not delivered after flush timeout", remaining)
+                # The rows stay in the outbox and are produced again next tick, so drop what is still
+                # queued locally, or an outage piles up one more copy of every row per tick. In-flight
+                # messages are left alone: purging those is unsafe with the idempotent producer.
+                producer.purge(in_flight=False)
+                producer.poll(0)
+
+        return delivered
+
+    def _on_batch_delivery(self, err, msg, key: int, delivered: set[int]) -> None:
+        if err is None:
+            delivered.add(key)
+        else:
+            self._log_delivery_error(err, msg)
+
     @staticmethod
     def _log_delivery_error(err, msg) -> None:
         logger.error(

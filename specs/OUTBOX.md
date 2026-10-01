@@ -190,26 +190,29 @@ channel's time budget. `LICENSE_FEE` and `USAGE` both point at the same `KafkaSe
 `NoOpSender()` when `EVENT_STREAMS_ENABLED` is false); see "Circuit breaker" below for how they
 also share one breaker. `OutboxTask` drains every registered channel on every tick, each within
 its own time budget, and is itself transport-agnostic: it knows only `Outbox`, `Config`, and a
-sender's `send(payload)` contract (raise `RuntimeError` on failure), never Kafka or any of its
-exception types.
+sender's `send_batch(items)` contract (given `(pk, payload)` pairs, return the pks delivered),
+never Kafka or any of its exception types.
 
 For each channel, once a tick, the task drains successive small batches (`BATCH_SIZE
 = 100` rows, a code constant, not a `Config` entry: it bounds a single query, not
 throughput) oldest first, until either nothing is left pending, the tick's time
-budget runs out, or the channel's breaker opens. A row that fails without tripping
-the breaker is tracked for the rest of that call so the same row is not retried in a
-hot loop within one tick; it is picked up again on the next tick.
+budget runs out, or the channel's breaker opens. A row that is not delivered
+is tracked for the rest of that call so the same row is not retried in a hot loop within
+one tick; it is picked up again on the next tick.
 
-For each row, the channel's sender receives the payload exactly as stored
-(`sender.send(row.payload)`) and knows nothing about `Job`, billing, or licensing. A
-successful send deletes the row unconditionally: unlike the old design, there is
-nothing left to re-check, because a row is now exactly one message, and sending it is
-the only thing it was waiting for.
+Each batch goes to the channel's sender in one call,
+`sender.send_batch([(row.pk, row.payload), ...])`, with the payloads exactly as stored. The sender
+knows nothing about `Job`, billing, or licensing and returns the set of pks it confirmed as delivered.
+`KafkaSender` produces the whole batch and flushes each producer once, instead of one flush per row,
+and marks a pk as delivered only from that message's own delivery callback. The task deletes exactly
+the confirmed rows: unlike the old design, there is nothing left to re-check, because a row is now
+exactly one message, and sending it is the only thing it was waiting for.
 
-A failure, `UnroutableRegionError` (a `RuntimeError` subclass raised by
-`KafkaProducers.get` when a payload's CRN cannot be routed to a region) included,
-leaves the row for the next tick and counts against the channel's breaker. Nothing
-here deletes a row on failure: a missing region producer is a config gap
+Any row the sender does not confirm, for whatever reason (`UnroutableRegionError`, a broker
+rejection, a flush timeout), stays for the next tick. The breaker records one success if at least one
+row of the batch was delivered and one failure only when none was, so a single bad row never opens it.
+A flush timeout also purges the messages still queued locally in the producer, so an outage does not
+pile up one more copy of every row per tick. Nothing here deletes a row on failure: a missing region producer is a config gap
 (`EVENT_STREAMS_BOOTSTRAP_SERVERS_<REGION>`), and the same row becomes sendable again
 once it is added. `KafkaProducers.get`'s other failure mode, a CRN it cannot parse a
 region out of at all, is not something this code defends against separately: every
@@ -301,7 +304,8 @@ logic. It needs:
 2. A builder that decides when to enqueue a message for that channel and calls
    `Outbox.objects.create(job=job, channel=OutboxChannel.<NAME>, payload=message)`, wherever in
    the codebase that channel's fact becomes true.
-3. A sender class with a `send(payload)` method and its own `ConfigKey`s for the time
+3. A sender class with a `send(payload)` method (and a `send_batch(items)` override if it can
+   confirm many at once; the base class default calls `send` one by one) and its own `ConfigKey`s for the time
    budget and the breaker thresholds, wrapped in one `OutboxTask.Channel(sender=..., breaker=..., budget_key=...)` registered under its own
    key in `OutboxTask.channels`. A channel that reuses an existing sender instance can pass that
    sender's own breaker too, sharing it; one with a new sender builds its own with

@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from core.config_key import ConfigKey
-from core.ibm_cloud.event_streams.kafka_producers import UnroutableRegionError
 from core.models import Config, Job, Outbox, OutboxChannel, Program
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
@@ -14,6 +13,13 @@ from scheduler.tasks.outbox import _build_kafka_breaker, OutboxTask
 pytestmark = pytest.mark.django_db
 
 _MOD = "scheduler.tasks.outbox"
+
+
+def _sender(delivers=lambda pk: True) -> MagicMock:
+    """A sender whose send_batch confirms the rows `delivers(pk)` accepts."""
+    sender = MagicMock()
+    sender.send_batch.side_effect = lambda items: {pk for pk, _ in items if delivers(pk)}
+    return sender
 
 
 def _make_task(sender=None) -> OutboxTask:
@@ -51,42 +57,31 @@ def _make_row(job=None, payload=None) -> Outbox:
 
 class TestHappyPath:
     def test_sends_and_deletes_the_row_on_success(self):
-        sender = MagicMock()
+        sender = _sender()
         task = _make_task(sender=sender)
         row = _make_row(payload={"data": {"metric_type": "license_ibm-dev_fn_m"}})
 
         task.run()
 
-        sender.send.assert_called_once_with(row.payload)
+        sender.send_batch.assert_called_once_with([(row.pk, row.payload)])
         assert not Outbox.objects.filter(pk=row.pk).exists()
 
-    def test_sends_every_pending_row_for_the_channel(self):
-        sender = MagicMock()
+    def test_sends_every_pending_row_in_one_batch(self):
+        sender = _sender()
         task = _make_task(sender=sender)
         _make_row()
         _make_row()
 
         task.run()
 
-        assert sender.send.call_count == 2
+        sender.send_batch.assert_called_once()
+        assert len(sender.send_batch.call_args.args[0]) == 2
         assert Outbox.objects.count() == 0
 
 
 class TestFailureHandling:
-    def test_a_failure_leaves_the_row_and_records_it_on_the_breaker(self):
-        sender = MagicMock()
-        sender.send.side_effect = RuntimeError("kafka down")
-        task = _make_task(sender=sender)
-        row = _make_row()
-
-        task.run()
-
-        assert Outbox.objects.filter(pk=row.pk).exists()
-
-    def test_an_unroutable_payload_is_retried_like_any_other_failure(self):
-        sender = MagicMock()
-        sender.send.side_effect = UnroutableRegionError("no producer configured for region eu-de")
-        task = _make_task(sender=sender)
+    def test_a_failed_batch_leaves_the_rows_and_opens_the_breaker(self):
+        task = _make_task(sender=_sender(delivers=lambda pk: False))
         Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1")
         row = _make_row()
 
@@ -95,12 +90,23 @@ class TestFailureHandling:
         assert Outbox.objects.filter(pk=row.pk).exists()
         assert task.channels[OutboxChannel.JOB_USAGE].breaker.is_open is True
 
+    def test_only_the_confirmed_rows_are_deleted_and_the_breaker_stays_closed(self):
+        bad_row = _make_row()
+        good_row = _make_row()
+        task = _make_task(sender=_sender(delivers=lambda pk: pk != bad_row.pk))
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1")
+
+        task.run()
+
+        assert Outbox.objects.filter(pk=bad_row.pk).exists()
+        assert not Outbox.objects.filter(pk=good_row.pk).exists()
+        assert task.channels[OutboxChannel.JOB_USAGE].breaker.is_open is False
+
 
 class TestBreakerIsolationBetweenChannels:
     def test_one_channel_failing_does_not_stop_another_from_draining_the_same_tick(self):
-        billing_sender = MagicMock()
-        billing_sender.send.side_effect = RuntimeError("kafka down")
-        workload_sender = MagicMock()
+        billing_sender = _sender(delivers=lambda pk: False)
+        workload_sender = _sender()
         task = _make_task()
         task.channels = {
             OutboxChannel.JOB_USAGE: _kafka_channel(billing_sender),
@@ -115,9 +121,8 @@ class TestBreakerIsolationBetweenChannels:
         assert not Outbox.objects.filter(pk=workload_row.pk).exists()  # succeeded, deleted
 
     def test_an_open_breaker_on_one_channel_does_not_skip_another_channel(self):
-        billing_sender = MagicMock()
-        billing_sender.send.side_effect = RuntimeError("kafka down")
-        workload_sender = MagicMock()
+        billing_sender = _sender(delivers=lambda pk: False)
+        workload_sender = _sender()
         task = _make_task()
         task.channels = {
             OutboxChannel.JOB_USAGE: _kafka_channel(billing_sender),
@@ -131,7 +136,7 @@ class TestBreakerIsolationBetweenChannels:
         workload_row = Outbox.objects.create(job=_make_job(), channel="workload", payload={})
         task.run()  # billing breaker open and skipped; workload must still be attempted
 
-        workload_sender.send.assert_called_once()
+        workload_sender.send_batch.assert_called_once()
         assert not Outbox.objects.filter(pk=workload_row.pk).exists()
 
 
@@ -139,8 +144,7 @@ class TestSharedBreakerAcrossChannelsWithTheSameSender:
     def test_a_failure_on_one_channel_opens_the_breaker_for_the_other(self):
         """LICENSE_FEE and USAGE share one sender in production, so a failure on either must
         open the same breaker for both, instead of each counting its own failures."""
-        shared_sender = MagicMock()
-        shared_sender.send.side_effect = RuntimeError("kafka down")
+        shared_sender = _sender(delivers=lambda pk: False)
         shared_breaker = _build_kafka_breaker()
         task = _make_task()
         task.channels = {
@@ -154,13 +158,13 @@ class TestSharedBreakerAcrossChannelsWithTheSameSender:
         task.run()
 
         assert task.channels[OutboxChannel.LICENSE_FEE].breaker.is_open is True
-        assert shared_sender.send.call_count == 1  # USAGE skipped: breaker already open
+        assert shared_sender.send_batch.call_count == 1  # USAGE skipped: breaker already open
         assert Outbox.objects.filter(pk=billing_row.pk).exists()
 
 
 class TestBudgetAndKillSignal:
     def test_stops_once_the_time_budget_is_spent(self):
-        sender = MagicMock()
+        sender = _sender()
         task = _make_task(sender=sender)
         _make_row()
         _make_row()
@@ -169,26 +173,26 @@ class TestBudgetAndKillSignal:
         with patch(f"{_MOD}.time.monotonic", side_effect=[0.0, 100.0]):
             task.run()
 
-        sender.send.assert_not_called()
+        sender.send_batch.assert_not_called()
 
-    def test_stops_between_rows_when_kill_signal_received(self):
-        sender = MagicMock()
+    def test_stops_when_kill_signal_received(self):
+        sender = _sender()
         task = _make_task(sender=sender)
         task.kill_signal.received = True
         _make_row()
 
         task.run()
 
-        sender.send.assert_not_called()
+        sender.send_batch.assert_not_called()
 
 
 class TestMultipleBatches:
     def test_keeps_fetching_until_nothing_pending(self):
-        sender = MagicMock()
+        sender = _sender()
         task = _make_task(sender=sender)
         with patch(f"{_MOD}.BATCH_SIZE", 1):
             _make_row()
             _make_row()
             task.run()
 
-        assert sender.send.call_count == 2
+        assert sender.send_batch.call_count == 2

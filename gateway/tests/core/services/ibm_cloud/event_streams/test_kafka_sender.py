@@ -136,6 +136,67 @@ class TestKafkaSender:
         producers.get.assert_called_once_with(None)
 
 
+class TestKafkaSenderBatch:
+    @staticmethod
+    def _producers(producer, topic="t"):
+        producers = MagicMock()
+        producers.topic = topic
+        producers.get.return_value = producer
+        return producers
+
+    def test_flushes_once_and_returns_only_the_keys_the_broker_confirmed(self):
+        producer = MagicMock()
+        producer.flush.return_value = 0
+        # the broker confirms key 1 and rejects key 2 from inside flush()
+        outcomes = {b"job-1": None, b"job-2": Exception("Topic authorization failed")}
+        producer.produce.side_effect = lambda **kw: kw["callback"](outcomes[kw["key"]], None)
+        sender = KafkaSender(self._producers(producer))
+
+        first, second = _payload(), {**_payload(), "subject": "job-2"}
+        delivered = sender.send_batch([(1, first), (2, second)])
+
+        assert delivered == {1}
+        assert producer.produce.call_count == 2
+        producer.flush.assert_called_once()
+
+    def test_a_payload_that_cannot_be_routed_is_left_out_and_the_rest_are_sent(self):
+        producer = MagicMock()
+        producer.flush.return_value = 0
+        producer.produce.side_effect = lambda **kw: kw["callback"](None, None)
+        producers = self._producers(producer)
+        producers.get.side_effect = [UnroutableRegionError("no region"), producer]
+        sender = KafkaSender(producers)
+
+        delivered = sender.send_batch([(1, _payload()), (2, _payload())])
+
+        assert delivered == {2}
+
+    def test_a_message_still_outstanding_after_the_flush_timeout_is_left_out(self):
+        producer = MagicMock()
+        producer.flush.return_value = 1  # its callback never ran
+        sender = KafkaSender(self._producers(producer))
+
+        assert sender.send_batch([(1, _payload())]) == set()
+        producer.purge.assert_called_once_with(in_flight=False)
+
+    def test_does_not_mutate_the_callers_payload(self):
+        producer = MagicMock()
+        producer.flush.return_value = 0
+        sender = KafkaSender(self._producers(producer))
+        payload = _payload()
+
+        sender.send_batch([(1, payload)])
+
+        assert "type" not in payload
+
+
+class TestSenderDefaultSendBatch:
+    def test_returns_the_keys_whose_send_did_not_raise(self):
+        sender = NoOpSender()
+        with patch.object(NoOpSender, "send", side_effect=[None, RuntimeError("boom")]):
+            assert sender.send_batch([(1, {}), (2, {})]) == {1}
+
+
 class TestNoOpSender:
     def test_logs_instead_of_sending(self, caplog):
         sender = NoOpSender()
