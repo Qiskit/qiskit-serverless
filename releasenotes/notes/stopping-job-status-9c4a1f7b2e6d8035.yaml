@@ -1,0 +1,22 @@
+---
+features:
+  - |
+    Cancelling a job that runs on IBM Cloud Code Engine now reports a new ``STOPPING``
+    status, shown by the client SDK as ``CANCELING``, until Code Engine confirms the job
+    really stopped. Before, the job was reported as stopped straight away while its
+    compute node was still being released. Sub-status and error reporting keep working
+    while a job is stopping.
+upgrade:
+  - |
+    The scheduler is what completes a Code Engine cancellation, so it must be running for
+    a cancelled job to reach ``STOPPED``. A cancellation that is never confirmed is
+    stopped anyway after 5 minutes.
+
+    A cancelled job stays in ``STOPPING`` for about 30 seconds, and counts against the
+    user's active and running job limits for that time, because its compute node is still
+    held.
+
+    To roll this change back, clear the rows first, or they can never leave ``STOPPING``::
+
+        UPDATE api_job SET status = 'STOPPED', updated = now(), version = version + 1
+        WHERE status = 'STOPPING';

@@ -12,7 +12,11 @@ from core.models import ComputeProfile, Job, JobEvent, Program
 from core.services.job_transitions import JobTransitionService
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.runners import RunnerError
-from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses
+from scheduler.tasks.update_fleets_jobs_statuses import (
+    UpdateFleetsJobsStatuses,
+    _CANCEL_RETRY_SECONDS,
+    _STOPPING_DEADLINE_SECONDS,
+)
 from tests.utils import TestUtils
 
 _MOD = "scheduler.tasks.update_fleets_jobs_statuses"
@@ -41,6 +45,7 @@ def _make_task():
     task.kill_signal = kill_signal
     task.metrics = MagicMock()
     task.transitions = _make_transitions()
+    task._cancel_sent = {}  # pylint: disable=protected-access
     return task
 
 
@@ -648,3 +653,232 @@ def test_an_inactive_project_does_not_fail_a_running_job():
 
     job.refresh_from_db()
     assert job.status == Job.RUNNING
+
+
+def _recent_stopping_event():
+    event = MagicMock()
+    event.created = datetime.now(timezone.utc)
+    return event
+
+
+def _old_stopping_event():
+    event = MagicMock()
+    event.created = datetime.now(timezone.utc) - timedelta(seconds=_STOPPING_DEADLINE_SECONDS + 60)
+    return event
+
+
+class TestDriveStopping:
+    """A STOPPING job is driven to STOPPED by the scheduler, never by the stop request."""
+
+    @pytest.mark.parametrize("task_state", [Job.STOPPED, Job.SUCCEEDED, Job.FAILED])
+    def test_any_terminal_task_state_confirms_the_stop(self, task_state):
+        """A task that finished before the cancel landed is still the stop the user asked for."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.STOPPING)
+        runner = MagicMock()
+        runner.status.return_value = task_state
+
+        with patch(f"{_MOD}.get_runner", return_value=runner):
+            changed = task.update_job_status(job)
+
+        assert changed is True
+        assert job.status == Job.STOPPED
+        runner.stop.assert_not_called()
+
+    def test_a_running_task_gets_the_cancel_and_keeps_its_status(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.STOPPING)
+        runner = MagicMock()
+        runner.status.return_value = Job.RUNNING
+
+        with (
+            patch(f"{_MOD}.get_runner", return_value=runner),
+            patch(f"{_MOD}.JobEvent") as mock_event,
+        ):
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = _recent_stopping_event()
+            changed = task.update_job_status(job)
+
+        assert changed is False
+        assert job.status == Job.STOPPING
+        runner.stop.assert_called_once_with()
+        task.transitions.running_to_running.assert_not_called()
+        task.transitions.pending_to_running.assert_not_called()
+
+    def test_the_cancel_is_not_resent_inside_the_retry_window(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.STOPPING)
+        runner = MagicMock()
+        runner.status.return_value = Job.RUNNING
+
+        with (
+            patch(f"{_MOD}.get_runner", return_value=runner),
+            patch(f"{_MOD}.JobEvent") as mock_event,
+        ):
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = _recent_stopping_event()
+            task.update_job_status(job)
+            task.update_job_status(job)
+
+        assert runner.stop.call_count == 1, f"a second cancel went out inside {_CANCEL_RETRY_SECONDS}s"
+
+    def test_a_task_store_error_still_runs_the_deadline(self):
+        """status() raises for a deleted program or an inactive project; the row must still leave STOPPING."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.STOPPING)
+        runner = MagicMock()
+        runner.status.side_effect = RunnerError("Code Engine project 'p' is not active")
+
+        with (
+            patch(f"{_MOD}.get_runner", return_value=runner),
+            patch(f"{_MOD}.JobEvent") as mock_event,
+        ):
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = _old_stopping_event()
+            changed = task.update_job_status(job)
+
+        assert changed is True
+        assert job.status == Job.STOPPED
+
+    def test_the_deadline_writes_stopped_without_confirmation(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.STOPPING)
+        runner = MagicMock()
+        runner.status.return_value = Job.RUNNING
+
+        with (
+            patch(f"{_MOD}.get_runner", return_value=runner),
+            patch(f"{_MOD}.JobEvent") as mock_event,
+        ):
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = _old_stopping_event()
+            changed = task.update_job_status(job)
+
+        assert changed is True
+        assert job.status == Job.STOPPED
+
+    def test_a_stopping_job_with_no_fleet_stops_at_once(self):
+        """The branch sits before the fleet_id check, which would otherwise return and never look again."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.STOPPING, fleet_id=None)
+
+        with patch(f"{_MOD}.get_runner") as mock_get_runner:
+            changed = task.update_job_status(job)
+
+        assert changed is True
+        assert job.status == Job.STOPPED
+        mock_get_runner.assert_not_called()
+
+    def test_a_filler_stopped_on_request_is_not_counted_as_ended_by_itself(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.STOPPING)
+        job.filler = True
+        runner = MagicMock()
+        runner.status.return_value = Job.STOPPED
+
+        with patch(f"{_MOD}.get_runner", return_value=runner):
+            task.update_job_status(job)
+
+        assert job.status == Job.STOPPED
+        task.metrics.increment_filler_jobs_ended.assert_not_called()
+
+
+@pytest.mark.django_db
+class TestStoppingDeadlineAgainstTheDatabase:
+    """The deadline query runs for real here. Patched JobEvent mocks cannot catch a wrong filter."""
+
+    def _job(self, author):
+        return Job.objects.create(author=author, runner=Program.FLEETS, status=Job.STOPPING, fleet_id="fleet-abc")
+
+    def test_a_chatty_sub_status_does_not_push_the_deadline_out(self):
+        """The query must read the earliest STOPPING event, not the latest event of any kind."""
+        author = User.objects.create_user(username="deadline-author")
+        job = self._job(author)
+        JobEvent.objects.add_status_event(
+            job_id=job.id,
+            origin=JobEventOrigin.API,
+            context=JobEventContext.STOP_JOB,
+            status=Job.STOPPING,
+        )
+        JobEvent.objects.add_sub_status_event(
+            job_id=job.id,
+            origin=JobEventOrigin.API,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            sub_status=Job.EXECUTING_QPU,
+        )
+        # The stop was asked for long ago; the sub_status report is from just now.
+        JobEvent.objects.filter(job=job, data__status=Job.STOPPING).update(
+            created=datetime.now(timezone.utc) - timedelta(seconds=_STOPPING_DEADLINE_SECONDS + 60)
+        )
+
+        task = _make_task()
+        runner = MagicMock()
+        runner.status.return_value = Job.RUNNING
+
+        with patch(f"{_MOD}.get_runner", return_value=runner):
+            changed = task.update_job_status(job)
+
+        assert changed is True, "the deadline never fired, so the query read the wrong event"
+        assert job.status == Job.STOPPED
+
+    def test_a_recent_stop_is_left_alone(self):
+        author = User.objects.create_user(username="deadline-author-2")
+        job = self._job(author)
+        JobEvent.objects.add_status_event(
+            job_id=job.id,
+            origin=JobEventOrigin.API,
+            context=JobEventContext.STOP_JOB,
+            status=Job.STOPPING,
+        )
+
+        task = _make_task()
+        runner = MagicMock()
+        runner.status.return_value = Job.RUNNING
+
+        with patch(f"{_MOD}.get_runner", return_value=runner):
+            changed = task.update_job_status(job)
+
+        assert changed is False
+        assert job.status == Job.STOPPING
+
+
+class TestDriveStoppingFailurePaths:
+    """What happens when Code Engine or its credentials are the problem."""
+
+    def test_a_cancel_that_raises_leaves_the_job_stopping(self):
+        """Replaces the balancer test that covered this: a failed cancel must not end the job."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.STOPPING)
+        runner = MagicMock()
+        runner.status.return_value = Job.RUNNING
+        runner.stop.side_effect = RunnerError("Code Engine project 'p' is not active")
+
+        with (
+            patch(f"{_MOD}.get_runner", return_value=runner),
+            patch(f"{_MOD}.JobEvent") as mock_event,
+        ):
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = _recent_stopping_event()
+            changed = task.update_job_status(job)
+
+        assert changed is False
+        assert job.status == Job.STOPPING
+
+    def test_an_unusable_cos_credential_still_reaches_the_deadline(self):
+        """status() re-raises ValueError for a renamed or emptied CE HMAC secret."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.STOPPING)
+        runner = MagicMock()
+        runner.status.side_effect = ValueError("CE secret 'cos-hmac-credential' not found in project 'p'")
+
+        with (
+            patch(f"{_MOD}.get_runner", return_value=runner),
+            patch(f"{_MOD}.JobEvent") as mock_event,
+        ):
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = _old_stopping_event()
+            changed = task.update_job_status(job)
+
+        assert changed is True
+        assert job.status == Job.STOPPED
+
+
+def test_the_task_builds_its_cancel_tracking():
+    """_make_task bypasses __init__, so the real constructor needs its own check."""
+    task = UpdateFleetsJobsStatuses(kill_signal=MagicMock(), metrics=MagicMock())
+
+    assert task._cancel_sent == {}  # pylint: disable=protected-access

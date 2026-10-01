@@ -301,13 +301,12 @@ class TestFleetsJobs:
         latency (test -> gateway -> scheduler -> mock -> COS) so the test reliably
         observes RUNNING and ``stop()`` always sees a cancellable state.
 
-        Scope note: the gateway's stop use case writes the terminal STOPPED status
-        synchronously, so the DB/client status alone does not prove the *worker*
-        killed the subprocess (and the worker's post-execution recheck would mark
-        it canceled either way) — that mid-execution kill is not host-observable
-        here. What this test asserts is the full stop path: RUNNING observed,
-        gateway marks STOPPED, and the cancel reaches a COS ``/canceled/`` queue
-        key (the worker-facing signal produced by FleetsRunner.stop -> cancel_job).
+        Scope note: the DB/client status alone does not prove the *worker* killed the
+        subprocess (and the worker's post-execution recheck would mark it canceled
+        either way), so that mid-execution kill is not host-observable here. What this
+        test asserts is the full stop path: RUNNING observed, the gateway records
+        STOPPING, the scheduler confirms it as STOPPED, and the cancel reaches a COS
+        ``/canceled/`` queue key (produced by FleetsRunner.stop -> cancel_job).
         """
         fn = QiskitFunction(
             title=unique_title,
@@ -348,8 +347,8 @@ class TestFleetsJobs:
         )
         assert row[0] == "STOPPED"
 
-        # Verify the cancel actually propagated to the COS task-store (the layer
-        # the worker consumes), not just the gateway's synchronous STOPPED write.
+        # Verify the cancel actually propagated to the COS task-store (the layer the
+        # worker consumes), which is also what the scheduler reads to confirm the stop.
         fleet_id = row[1]
         # Deliberately not pinning the task-store schema version: the gateway reads
         # whichever version Code Engine wrote, so the test asserts the fleet and the

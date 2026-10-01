@@ -5,7 +5,7 @@ from uuid import UUID
 from django.contrib.auth.models import AbstractUser
 from qiskit_ibm_runtime import QiskitRuntimeService, RuntimeInvalidStateError
 
-from core.models import Job, RuntimeJob
+from core.models import Job, Program, RuntimeJob
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import JobTransitionService
 from core.services.runners import get_runner, RunnerError
@@ -37,22 +37,28 @@ class StopJobUseCase:
         self.status_messages = []
         self.stopped_sessions = []
 
+        # Fleets stops are confirmed by the scheduler, so no cancel is sent from this request.
+        is_fleets = job.runner == Program.FLEETS
+
         stopped = False
         try:
             # Lock transaction to read the fresh status. It could raise InvalidJobTransitionException if the job
             # was SUCCEEDED or FAILED
             # Only the scheduler sends Kafka messages: the gateway has Kafka disabled, so the service sends nothing here
-            JobTransitionService().to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+            transitions = JobTransitionService()
+            if is_fleets:
+                transitions.to_stopping(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+            else:
+                transitions.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
             stopped = True
         except InvalidJobTransitionException:
-            # Lost the race: the job reached a terminal status between the in-memory
-            # check above and the row-locked transition itself.
-            pass
+            # Lost the race. Re-read so the message names the status the row is actually in.
+            job.refresh_from_db(fields=["status"])
 
         if stopped:
             # New behavior: now, stopping a completed job (failed or succeeded) NO longer (attempts to) stop its
             # runtime jobs.
-            self.status_messages.append("Job has been stopped.")
+            self.status_messages.append("Job is stopping." if is_fleets else "Job has been stopped.")
 
             # Unit tests send a None directly, but the client sends a serialized None
             service = None
@@ -71,7 +77,10 @@ class StopJobUseCase:
                 for runtime_job_entry in runtime_jobs:
                     self._cancel_runtime_job_entry(runtime_job_entry, qiskit_service, qiskit_api_client)
 
-            self._stop_ray_job_if_active(job)
+            if not is_fleets:
+                self._stop_ray_job_if_active(job)
+        elif job.status == Job.STOPPING:
+            self.status_messages.append("Job is already stopping.")
         else:
             self.status_messages.append("Job already in terminal state.")
 
