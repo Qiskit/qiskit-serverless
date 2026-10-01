@@ -5,7 +5,9 @@ from uuid import UUID
 from django.contrib.auth.models import AbstractUser
 from qiskit_ibm_runtime import QiskitRuntimeService, RuntimeInvalidStateError
 
-from core.models import Job, JobEvent, RuntimeJob
+from core.models import Job, RuntimeJob
+from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
+from core.services.job_transitions import JobTransitionService
 from core.services.runners import get_runner, RunnerError
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
@@ -35,40 +37,43 @@ class StopJobUseCase:
         self.status_messages = []
         self.stopped_sessions = []
 
-        if not job.in_terminal_state():
-            job.status = Job.STOPPED
-            # "updated" has auto_now=True, but auto_now only fires for fields listed
-            # in update_fields, so it has to be named here explicitly or the column
-            # keeps the value it got when the job was created.
-            job.save(update_fields=["status", "updated"])
-            JobEvent.objects.add_status_event(
-                job_id=job.id,
-                origin=JobEventOrigin.API,
-                context=JobEventContext.STOP_JOB,
-                status=job.status,
-            )
+        stopped = False
+        try:
+            # Lock transaction to read the fresh status. It could raise InvalidJobTransitionException if the job
+            # was SUCCEEDED or FAILED
+            # Only the scheduler sends Kafka messages: the gateway has Kafka disabled, so the service sends nothing here
+            JobTransitionService().to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+            stopped = True
+        except InvalidJobTransitionException:
+            # Lost the race: the job reached a terminal status between the in-memory
+            # check above and the row-locked transition itself.
+            pass
+
+        if stopped:
+            # New behavior: now, stopping a completed job (failed or succeeded) NO longer (attempts to) stop its
+            # runtime jobs.
             self.status_messages.append("Job has been stopped.")
+
+            # Unit tests send a None directly, but the client sends a serialized None
+            service = None
+            if service_str:
+                service = json.loads(service_str, cls=json.JSONDecoder)
+            runtime_jobs = RuntimeJob.objects.filter(job=job)
+
+            if not service:
+                self.status_messages.append("QiskitRuntimeService not found, cannot stop runtime jobs.")
+            elif not runtime_jobs:
+                self.status_messages.append("No active runtime job ID associated with this serverless job ID.")
+            else:
+                service_config = service["__value__"]
+                qiskit_service = QiskitRuntimeService(**service_config)
+                qiskit_api_client = qiskit_service._get_api_client()
+                for runtime_job_entry in runtime_jobs:
+                    self._cancel_runtime_job_entry(runtime_job_entry, qiskit_service, qiskit_api_client)
+
+            self._stop_ray_job_if_active(job)
         else:
             self.status_messages.append("Job already in terminal state.")
-
-        # Unit tests send a None directly, but the client sends a serialized None
-        service = None
-        if service_str:
-            service = json.loads(service_str, cls=json.JSONDecoder)
-        runtime_jobs = RuntimeJob.objects.filter(job=job)
-
-        if not service:
-            self.status_messages.append("QiskitRuntimeService not found, cannot stop runtime jobs.")
-        elif not runtime_jobs:
-            self.status_messages.append("No active runtime job ID associated with this serverless job ID.")
-        else:
-            service_config = service["__value__"]
-            qiskit_service = QiskitRuntimeService(**service_config)
-            qiskit_api_client = qiskit_service._get_api_client()
-            for runtime_job_entry in runtime_jobs:
-                self._cancel_runtime_job_entry(runtime_job_entry, qiskit_service, qiskit_api_client)
-
-        self._stop_ray_job_if_active(job)
 
         return " ".join(self.status_messages)
 

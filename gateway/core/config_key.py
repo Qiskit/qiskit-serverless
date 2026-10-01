@@ -12,3 +12,6 @@ class ConfigKey(Enum):
     FILLER_ENABLED = "scheduler.filler.enabled"
     FILLER_FUNCTION = "scheduler.filler.function"
     FILLER_SLOTS = "scheduler.filler.slots"
+    OUTBOX_KAFKA_CHANNEL_BUDGET_MS = "scheduler.outbox.kafka.budget_ms"
+    OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES = "scheduler.outbox.kafka.breaker_failures"
+    OUTBOX_KAFKA_CHANNEL_BREAKER_PAUSE_SECONDS = "scheduler.outbox.kafka.breaker_pause_seconds"

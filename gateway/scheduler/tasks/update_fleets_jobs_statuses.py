@@ -5,12 +5,10 @@ from datetime import datetime, timedelta, timezone
 from typing import cast
 
 from django.conf import settings
-from django.db import transaction
 
-from core.ibm_cloud.event_streams.abstract_event_streams_client import EventStreamsClient
-from core.ibm_cloud.event_streams.kafka_event_streams_client import KafkaEventStreamsClient
-from core.ibm_cloud.event_streams.noop_event_streams_client import NoOpEventStreamsClient
 from core.models import Job, JobEvent, Program
+from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
+from core.services.job_transitions import JobTransitionService
 from core.services.runners import get_runner, RunnerError, FleetsRunner
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
@@ -24,22 +22,12 @@ logger = logging.getLogger("scheduler.UpdateFleetsJobsStatuses")
 class UpdateFleetsJobsStatuses(SchedulerTask):
     """Update status of Fleets (Code Engine) jobs."""
 
-    def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
+    def __init__(
+        self, kill_signal: KillSignal, metrics: SchedulerMetrics, transitions: JobTransitionService | None = None
+    ):
         self.kill_signal = kill_signal
         self.metrics = metrics
-        self._event_streams_client: EventStreamsClient | None = None
-
-    @property
-    def event_streams_client(self) -> EventStreamsClient:
-        """Return the Event Streams client, instantiating it lazily on first access."""
-        if self._event_streams_client is None:
-            if settings.EVENT_STREAMS_ENABLED:
-                logger.info("Initializing KafkaEventStreamsClient (EVENT_STREAMS_ENABLED=True)")
-                self._event_streams_client = KafkaEventStreamsClient()
-            else:
-                logger.info("Initializing NoOpEventStreamsClient (EVENT_STREAMS_ENABLED=False)")
-                self._event_streams_client = NoOpEventStreamsClient()
-        return self._event_streams_client
+        self.transitions = transitions or JobTransitionService()
 
     def update_job_status(self, job: Job) -> bool:
         """Update status of one Fleets job. Returns True if status changed."""
@@ -89,16 +77,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             self.stop_job_if_timeout(job)
 
         elif new_status == Job.RUNNING:
-            if job.status == Job.PENDING:
-                # Transition from PENDING to RUNNING
-                self.to_running(job)
-            else:
-                # Job already RUNNING — emit in-progress before checking timeout.
-                # A job transitioning to terminal via stop_job_if_timeout in this same tick
-                # will produce both an in-progress and a completed event; consumers key on
-                # the job_started / job_completed flags.
-                self.event_streams_client.emit_job_in_progress(job)
-
+            self.to_running(job)
             self.stop_job_if_timeout(job)
 
         else:
@@ -122,47 +101,39 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             new_status,
         )
-        self.event_streams_client.emit_job_completed(job)
-        logger.info("job_id=%s job_completed event emitted successfully", job.id)
-        job.update_fields({"status": new_status, "sub_status": None, "env_vars": "{}"})
-        JobEvent.objects.add_status_event(
-            job_id=job.id,
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.UPDATE_JOB_STATUS,
-            status=job.status,
-        )
+        try:
+            self.transitions.to_terminal(
+                job,
+                new_status,
+                origin=JobEventOrigin.SCHEDULER,
+                context=JobEventContext.UPDATE_JOB_STATUS,
+                job_fields={"sub_status": None, "env_vars": "{}"},
+            )
+        except InvalidJobTransitionException as ex:
+            logger.info("job_id=%s already in a terminal status, ignoring: %s", job.id, str(ex))
+            return
         self._increment_terminal_counter(job)
 
     def to_running(self, job: Job) -> None:
-        """Transition job from PENDING to RUNNING."""
-        logger.info(
-            "job_id=%s user_id=%s Changing status from %s to %s",
-            job.id,
-            job.author.id,
-            job.status,
-            Job.RUNNING,
-        )
-        with transaction.atomic():
-            event = JobEvent.objects.add_status_event(
-                job_id=job.id,
-                origin=JobEventOrigin.SCHEDULER,
-                context=JobEventContext.UPDATE_JOB_STATUS,
-                status=Job.RUNNING,
-            )
-            job.update_fields({"status": Job.RUNNING, "running_started_at": event.created})
-
-        try:
-            self.event_streams_client.emit_job_started(job)
-            # prevent custom function to emit license fee
-            # since licenses is a provider feature
-            if job.program.provider:
-                self.event_streams_client.emit_license_fee(job)
-        except RuntimeError as ex:
-            logger.error(
-                "job_id=%s error emitting job_started/license_fee event to Kafka, event dropped: %s",
+        """Transition job from PENDING to RUNNING, or emit an in-progress event if it already is."""
+        job_started = job.status == Job.PENDING
+        if job_started:
+            logger.info(
+                "job_id=%s user_id=%s Changing status from %s to %s",
                 job.id,
-                str(ex),
+                job.author.id,
+                job.status,
+                Job.RUNNING,
             )
+            try:
+                self.transitions.pending_to_running(
+                    job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
+                )
+            except InvalidJobTransitionException as ex:
+                # Lost the race: the job reached a terminal status concurrently (like user stopped the job)
+                logger.info("job_id=%s already in a terminal status, skipping RUNNING: %s", job.id, str(ex))
+        else:
+            self.transitions.running_to_running(job)
 
     def stop_job_if_timeout(self, job: Job) -> None:
         """Stop job if it has exceeded the maximum allowed duration."""

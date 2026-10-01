@@ -1,7 +1,10 @@
 """Models."""
 
+# pylint: disable=too-many-lines
+
 import logging
 import uuid
+from enum import StrEnum
 
 from concurrency.fields import IntegerVersionField
 from django.contrib.auth.models import Group
@@ -776,6 +779,51 @@ class JobEvent(models.Model):
     class Meta:
         app_label = "api"
         ordering = ("-created",)
+
+
+class OutboxChannel(StrEnum):
+    """The channels a row in the Outbox table can be sent on: both billing facts published via
+    Kafka today. See Outbox.channel below for what adding a member here costs."""
+
+    LICENSE_FEE = "billing_license_fee"
+    JOB_USAGE = "billing_job_usage"
+
+
+class Outbox(models.Model):
+    """A message waiting to be delivered best-effort, in a deferred way. One row per pending
+    message, not per job: a job can have zero, one, or several rows at once, each with its own
+    payload and channel, deleted independently once its own send succeeds.
+
+    `channel` says how to send it (see OutboxChannel). `choices=` is a Django admin/forms hint,
+    not a database constraint: `.objects.create(...)`, all the writer and drainer ever call, can
+    still write any string. Adding a channel is a new OutboxChannel member plus the small
+    migration that comes with it, since `choices=` is part of the field's tracked state.
+
+    `payload` is the message exactly as it will be sent, built and frozen at the moment the fact
+    it represents became true (see core/services/job_transitions.py and core/domain/billing_events.py). This
+    table does not know what the payload means or how it was built, only that it needs to go out.
+    """
+
+    job = models.ForeignKey(
+        to=Job,
+        on_delete=models.CASCADE,
+        help_text="Not used by delivery: the payload is self-contained. Kept only so a pending "
+        "row can be found from its job (admin, debugging), without parsing the payload.",
+    )
+    channel = models.CharField(
+        max_length=20, choices=[(c.value, c.name.replace("_", " ").title()) for c in OutboxChannel]
+    )
+    payload = models.JSONField()
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = "api"
+        indexes = [
+            models.Index(fields=["channel", "created"], name="outbox_channel_created_idx"),
+        ]
+
+    def __str__(self):
+        return f"<Outbox id={self.id} job={self.job_id} channel={self.channel}>"
 
 
 class GroupMetadata(models.Model):

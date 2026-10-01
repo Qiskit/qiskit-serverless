@@ -87,6 +87,19 @@ class JobEventQuerySet(QuerySet):
             data={"status": status},
         )
 
+    def first_running_at(self, job_id: uuid.UUID):
+        """When this job first reached RUNNING, from its own event history.
+        Returns None if it never did (still queued/pending, or terminated without running).
+        """
+        from core.models import Job  # pylint: disable=import-outside-toplevel, cyclic-import
+
+        event = (
+            self.filter(job_id=job_id, event_type=JobEventType.STATUS_CHANGE, data__status=Job.RUNNING)
+            .order_by("created")
+            .first()
+        )
+        return event.created if event else None
+
     def add_sub_status_event(  # pylint:  disable=too-many-positional-arguments
         self,
         job_id: uuid.UUID,

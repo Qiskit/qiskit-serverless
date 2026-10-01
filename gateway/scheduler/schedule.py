@@ -16,6 +16,8 @@ from opentelemetry import trace
 
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, JobEvent, Program
+from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
+from core.services.job_transitions import JobTransitionService
 from core.services.runners import get_runner, RunnerError
 
 User: Model = get_user_model()
@@ -53,7 +55,9 @@ def execute_ray_job(job: Job) -> Job:
     return job
 
 
-def execute_fleets_job(job: Job, ctx, *, context: JobEventContext = JobEventContext.SCHEDULE_JOBS) -> Job:
+def execute_fleets_job(
+    job: Job, ctx, transitions: JobTransitionService, *, context: JobEventContext = JobEventContext.SCHEDULE_JOBS
+) -> Job:
     """Submits a Fleets (Code Engine) job and persists the result.
 
     Wraps submission under the scheduler.handle trace span propagated from the
@@ -63,6 +67,7 @@ def execute_fleets_job(job: Job, ctx, *, context: JobEventContext = JobEventCont
     Args:
         job: job to execute
         ctx: OpenTelemetry context extracted from job env_vars
+        transitions: service that changes the job status (and owes what the status change owes)
         context: JobEvent context to record for the status change. Defaults to
             SCHEDULE_JOBS, which is what the fair-share scheduler uses; the
             filler-jobs balancer passes FILLER_SUBMIT.
@@ -79,6 +84,7 @@ def execute_fleets_job(job: Job, ctx, *, context: JobEventContext = JobEventCont
             # Fleets runner set only fleet_id
             runner.submit()
             job.status = Job.PENDING
+            transition = transitions.queued_to_pending
             logger.info(
                 "[execute_fleets_job] job_id=%s Execute job (%.2fs) set as PENDING",
                 job.id,
@@ -91,18 +97,25 @@ def execute_fleets_job(job: Job, ctx, *, context: JobEventContext = JobEventCont
                 ex,
             )
             job.status = Job.FAILED
+            transition = transitions.to_failed
 
         span.set_attribute("job.status", job.status)
 
         # Env vars have been forwarded to Code Engine; wipe them from the DB now.
         job.env_vars = "{}"
-        job.save_direct(["status", "fleet_id", "env_vars"])
-        JobEvent.objects.add_status_event(
-            job_id=job.id,
-            origin=JobEventOrigin.SCHEDULER,
-            context=context,
-            status=job.status,
-        )
+        try:
+            transition(
+                job,
+                origin=JobEventOrigin.SCHEDULER,
+                context=context,
+                job_fields={"fleet_id": job.fleet_id, "env_vars": job.env_vars},
+            )
+        except InvalidJobTransitionException as ex:
+            # Lost the race: something else (e.g. a user-initiated stop) already moved this
+            # job to a terminal status while it was being submitted. The in-memory job.status
+            # set above is returned as-is; the caller reads it, but the DB row was never
+            # written since the job is no longer in a state that transition applies to.
+            logger.warning("[execute_fleets_job] job_id=%s already in a terminal status: %s", job.id, str(ex))
 
     return job
 

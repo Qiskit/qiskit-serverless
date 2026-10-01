@@ -10,6 +10,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 
 from core.config_key import ConfigKey
 from core.models import Job, Config, Program
+from core.services.job_transitions import JobTransitionService
 from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_fleets_job
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
@@ -21,9 +22,12 @@ logger = logging.getLogger("scheduler.ScheduleFleetsJobs")
 class ScheduleFleetsJobs(SchedulerTask):
     """Schedule Fleets (Code Engine) jobs service."""
 
-    def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
+    def __init__(
+        self, kill_signal: KillSignal, metrics: SchedulerMetrics, transitions: JobTransitionService | None = None
+    ):
         self.kill_signal = kill_signal
         self.metrics = metrics
+        self.transitions = transitions or JobTransitionService()
 
     def run(self):
         """Schedule queued Fleets jobs."""
@@ -62,7 +66,7 @@ class ScheduleFleetsJobs(SchedulerTask):
             env = json.loads(job.env_vars)
             ctx = TraceContextTextMapPropagator().extract(carrier=env)
 
-            job = execute_fleets_job(job, ctx)
+            job = execute_fleets_job(job, ctx, self.transitions)
 
             logger.warning("job_id=%s Job saved with status=%s", job.id, job.status)
 
