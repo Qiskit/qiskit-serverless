@@ -119,6 +119,10 @@ class KafkaSender(Sender):
         # a copy, so a callback that fires after a timed-out flush cannot change what the caller got
         return set(delivered)
 
+    def group_key(self, payload: dict) -> str | None:
+        """The payload's region: each region is its own Kafka cluster, so it fails on its own."""
+        return KafkaProducers.region((payload.get("data") or {}).get("instance_crn"))
+
     def _on_batch_delivery(self, err, msg, key: int, delivered: set[int]) -> None:
         if err is None:
             delivered.add(key)

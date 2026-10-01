@@ -1,6 +1,6 @@
 """Unit tests for OutboxTask."""
 
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -10,7 +10,7 @@ from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from core.ibm_cloud.event_streams.kafka_sender import KafkaSender
 from core.ibm_cloud.sender import PendingMessage
-from scheduler.tasks.outbox import _build_kafka_breaker, MAX_FLUSH_TIMEOUT, MIN_FLUSH_TIMEOUT, OutboxTask
+from scheduler.tasks.outbox import _build_kafka_breaker, BreakerRegistry, OutboxTask
 
 pytestmark = pytest.mark.django_db
 
@@ -20,7 +20,8 @@ _MOD = "scheduler.tasks.outbox"
 def _sender(delivers=lambda pk: True) -> MagicMock:
     """A sender whose send_batch confirms the rows `delivers(pk)` accepts."""
     sender = MagicMock()
-    sender.send_batch.side_effect = lambda messages, timeout=None: {m.key for m in messages if delivers(m.key)}
+    sender.send_batch.side_effect = lambda messages: {m.key for m in messages if delivers(m.key)}
+    sender.group_key.return_value = None
     return sender
 
 
@@ -36,10 +37,10 @@ def _make_task(sender=None) -> OutboxTask:
     return task
 
 
-def _kafka_channel(sender, breaker=None) -> OutboxTask.Channel:
+def _kafka_channel(sender, breakers=None) -> OutboxTask.Channel:
     return OutboxTask.Channel(
         sender=sender,
-        breaker=breaker or _build_kafka_breaker(),
+        breakers=breakers or BreakerRegistry(_build_kafka_breaker),
         budget_key=ConfigKey.OUTBOX_KAFKA_CHANNEL_BUDGET_MS,
     )
 
@@ -65,7 +66,7 @@ class TestHappyPath:
 
         task.run()
 
-        sender.send_batch.assert_called_once_with([PendingMessage(row.pk, row.payload)], timeout=ANY)
+        sender.send_batch.assert_called_once_with([PendingMessage(row.pk, row.payload)])
         assert not Outbox.objects.filter(pk=row.pk).exists()
 
     def test_sends_every_pending_row_in_one_batch(self):
@@ -90,7 +91,7 @@ class TestFailureHandling:
         task.run()
 
         assert Outbox.objects.filter(pk=row.pk).exists()
-        assert task.channels[OutboxChannel.JOB_USAGE].breaker.is_open is True
+        assert task.channels[OutboxChannel.JOB_USAGE].breakers.get(None).is_open is True
 
     def test_only_the_confirmed_rows_are_deleted_and_the_breaker_stays_closed(self):
         bad_row = _make_row()
@@ -102,7 +103,7 @@ class TestFailureHandling:
 
         assert Outbox.objects.filter(pk=bad_row.pk).exists()
         assert not Outbox.objects.filter(pk=good_row.pk).exists()
-        assert task.channels[OutboxChannel.JOB_USAGE].breaker.is_open is False
+        assert task.channels[OutboxChannel.JOB_USAGE].breakers.get(None).is_open is False
 
 
 class TestBreakerIsolationBetweenChannels:
@@ -133,7 +134,7 @@ class TestBreakerIsolationBetweenChannels:
         Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1")
         _make_row()  # trips the usage breaker on this first run()
         task.run()
-        assert task.channels[OutboxChannel.JOB_USAGE].breaker.is_open is True
+        assert task.channels[OutboxChannel.JOB_USAGE].breakers.get(None).is_open is True
 
         workload_row = Outbox.objects.create(job=_make_job(), channel="workload", payload={})
         task.run()  # billing breaker open and skipped; workload must still be attempted
@@ -147,11 +148,11 @@ class TestSharedBreakerAcrossChannelsWithTheSameSender:
         """LICENSE_FEE and USAGE share one sender in production, so a failure on either must
         open the same breaker for both, instead of each counting its own failures."""
         shared_sender = _sender(delivers=lambda pk: False)
-        shared_breaker = _build_kafka_breaker()
+        shared_breakers = BreakerRegistry(_build_kafka_breaker)
         task = _make_task()
         task.channels = {
-            OutboxChannel.LICENSE_FEE: _kafka_channel(shared_sender, shared_breaker),
-            OutboxChannel.JOB_USAGE: _kafka_channel(shared_sender, shared_breaker),
+            OutboxChannel.LICENSE_FEE: _kafka_channel(shared_sender, shared_breakers),
+            OutboxChannel.JOB_USAGE: _kafka_channel(shared_sender, shared_breakers),
         }
         Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1")
         Outbox.objects.create(job=_make_job(), channel=OutboxChannel.LICENSE_FEE, payload={"data": {}})
@@ -159,7 +160,7 @@ class TestSharedBreakerAcrossChannelsWithTheSameSender:
 
         task.run()
 
-        assert task.channels[OutboxChannel.LICENSE_FEE].breaker.is_open is True
+        assert task.channels[OutboxChannel.LICENSE_FEE].breakers.get(None).is_open is True
         assert shared_sender.send_batch.call_count == 1  # USAGE skipped: breaker already open
         assert Outbox.objects.filter(pk=billing_row.pk).exists()
 
@@ -200,39 +201,6 @@ class TestMultipleBatches:
         assert sender.send_batch.call_count == 2
 
 
-class TestFlushTimeout:
-    def test_the_flush_timeout_is_the_time_left_in_the_budget_within_bounds(self):
-        sender = _sender()
-        task = _make_task(sender=sender)
-        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BUDGET_MS, "3000")
-        _make_row()
-
-        task.run()
-
-        timeout = sender.send_batch.call_args.kwargs["timeout"]
-        assert MIN_FLUSH_TIMEOUT <= timeout <= 3.0
-
-    def test_a_tiny_budget_still_gives_the_broker_the_minimum_time(self):
-        sender = _sender()
-        task = _make_task(sender=sender)
-        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BUDGET_MS, "1")
-        _make_row()
-
-        task.run()
-
-        assert sender.send_batch.call_args.kwargs["timeout"] == MIN_FLUSH_TIMEOUT
-
-    def test_a_huge_budget_never_waits_longer_than_the_maximum(self):
-        sender = _sender()
-        task = _make_task(sender=sender)
-        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BUDGET_MS, "600000")
-        _make_row()
-
-        task.run()
-
-        assert sender.send_batch.call_args.kwargs["timeout"] == MAX_FLUSH_TIMEOUT
-
-
 class TestPartialSuccessWithARealKafkaSender:
     class _Producer:
         def __init__(self, reject):
@@ -270,7 +238,7 @@ class TestPartialSuccessWithARealKafkaSender:
 
         assert Outbox.objects.filter(pk=bad.pk).exists()
         assert not Outbox.objects.filter(pk=good.pk).exists()
-        assert task.channels[OutboxChannel.JOB_USAGE].breaker.is_open is False
+        assert task.channels[OutboxChannel.JOB_USAGE].breakers.get(None).is_open is False
 
     def test_a_batch_where_every_row_is_rejected_opens_the_breaker(self):
         task = self._task_with_kafka({b"bad-1", b"bad-2"})
@@ -279,4 +247,58 @@ class TestPartialSuccessWithARealKafkaSender:
         task.run()
 
         assert Outbox.objects.filter(pk__in=[first.pk, second.pk]).count() == 2
-        assert task.channels[OutboxChannel.JOB_USAGE].breaker.is_open is True
+        assert task.channels[OutboxChannel.JOB_USAGE].breakers.get(None).is_open is True
+
+
+class TestGroupsAreIndependent:
+    @staticmethod
+    def _row_in(group):
+        return _make_row(payload={"group": group, "data": {}})
+
+    @staticmethod
+    def _grouped_sender(dead_group):
+        sender = _sender()
+        sender.group_key.side_effect = lambda payload: payload["group"]
+        sender.send_batch.side_effect = lambda messages: {m.key for m in messages if m.payload["group"] != dead_group}
+        return sender
+
+    def test_each_group_is_sent_in_its_own_batch(self):
+        sender = self._grouped_sender(dead_group=None)
+        task = _make_task(sender=sender)
+        east, west = self._row_in("us-east"), self._row_in("eu-de")
+
+        task.run()
+
+        sent = [[m.key for m in call.args[0]] for call in sender.send_batch.call_args_list]
+        assert sorted(sent) == sorted([[east.pk], [west.pk]])
+        assert Outbox.objects.count() == 0
+
+    def test_a_dead_group_opens_only_its_own_breaker_and_the_healthy_group_keeps_draining(self):
+        sender = self._grouped_sender(dead_group="eu-de")
+        task = _make_task(sender=sender)
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1")
+        dead = self._row_in("eu-de")
+        self._row_in("us-east")
+
+        task.run()
+
+        breakers = task.channels[OutboxChannel.JOB_USAGE].breakers
+        assert breakers.get("eu-de").is_open is True
+        assert breakers.get("us-east").is_open is False
+        assert list(Outbox.objects.values_list("pk", flat=True)) == [dead.pk]
+
+    def test_a_group_with_an_open_breaker_is_skipped_while_the_others_are_still_sent(self):
+        sender = self._grouped_sender(dead_group="eu-de")
+        task = _make_task(sender=sender)
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1")
+        self._row_in("eu-de")
+        task.run()  # opens the eu-de breaker
+        sender.send_batch.reset_mock()
+        dead, healthy = self._row_in("eu-de"), self._row_in("us-east")
+
+        task.run()
+
+        sent_keys = [m.key for call in sender.send_batch.call_args_list for m in call.args[0]]
+        assert sent_keys == [healthy.pk]  # the eu-de rows were not even attempted
+        assert Outbox.objects.filter(pk=dead.pk).exists()
+        assert not Outbox.objects.filter(pk=healthy.pk).exists()

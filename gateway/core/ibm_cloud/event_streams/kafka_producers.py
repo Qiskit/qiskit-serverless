@@ -86,10 +86,15 @@ class KafkaProducers:
             }
         )
 
+    @staticmethod
+    def region(instance_crn: str | None) -> str | None:
+        """The region in instance_crn, or None if it cannot be parsed out of it."""
+        parts = instance_crn.split(":") if instance_crn else []
+        return parts[5] if len(parts) > 6 else None
+
     def get(self, instance_crn: str | None) -> Producer:
         """Return the producer for instance_crn's region, or raise UnroutableRegionError."""
-        parts = instance_crn.split(":") if instance_crn else []
-        region = parts[5] if len(parts) > 6 else None
+        region = self.region(instance_crn)
         if region is None:
             # this is actually impossible: the user who created the job was authorized with the same crn, so the
             # existence of a job with a crn means the crn is actually valid

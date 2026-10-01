@@ -22,13 +22,10 @@ class Sender(ABC):
     def send(self, payload: dict) -> None:
         """Deliver the payload. Raises on failure."""
 
-    def send_batch(
-        self, messages: list[PendingMessage], timeout: float = 5  # pylint: disable=unused-argument
-    ) -> set[int]:
+    def send_batch(self, messages: list[PendingMessage]) -> set[int]:
         """Deliver many messages and return the keys of the ones that were delivered. Never raises:
         a key missing from the result was not delivered and the caller must keep it for a retry.
-        `timeout` is the most seconds the sender should wait for confirmations. This default sends one
-        by one and ignores it; a sender that can confirm many at once should override it."""
+        This default sends one by one; a sender that can confirm many at once should override it."""
         delivered: set[int] = set()
         for message in messages:
             try:
@@ -38,3 +35,9 @@ class Sender(ABC):
                 continue
             delivered.add(message.key)
         return delivered
+
+    def group_key(self, payload: dict) -> str | None:  # pylint: disable=unused-argument
+        """Name of the independent destination this payload goes to (a Kafka region, say). The caller
+        sends and tracks failures per group, so one unreachable destination does not hold back the
+        others. This default puts everything in one group."""
+        return None

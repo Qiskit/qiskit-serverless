@@ -253,6 +253,21 @@ class TestKafkaSenderBatch:
         assert "type" not in payload
 
 
+class TestKafkaSenderGroupKey:
+    def test_the_group_is_the_region_in_the_instance_crn(self):
+        sender = KafkaSender(MagicMock())
+
+        crn = "crn:v1:bluemix:public:quantum-computing:eu-de:a/acct:inst::"
+        assert sender.group_key(_payload(crn)) == "eu-de"
+
+    def test_a_payload_without_a_parsable_crn_has_no_group(self):
+        sender = KafkaSender(MagicMock())
+
+        assert sender.group_key({"data": {}}) is None
+        assert sender.group_key({"data": None}) is None
+        assert sender.group_key(_payload("not-a-crn")) is None
+
+
 class TestSenderDefaultSendBatch:
     def test_swallows_and_logs_a_failure_and_still_sends_the_rest(self, caplog):
         sender = NoOpSender()
