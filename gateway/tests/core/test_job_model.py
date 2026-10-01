@@ -4,9 +4,14 @@ import pytest
 from django.contrib.auth.models import User
 from django.db import models
 
-from core.models import Job
+from core.models import Job, Program
 
 pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture
+def user():
+    return User.objects.create_user(username="author")
 
 
 def test_filler_defaults_to_false_and_is_queryable():

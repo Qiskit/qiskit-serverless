@@ -9,6 +9,10 @@ from prometheus_client import CollectorRegistry
 from scheduler.health import UNHEALTHY_THRESHOLD
 from scheduler.main import Main
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
+from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs
+from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
+from scheduler.tasks.outbox import OutboxTask
+from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses
 from scheduler.views.probes import make_liveness
 
 # Scheduler and Gateway share the same settings and the same SITE_HOST value. We need to override it
@@ -26,6 +30,14 @@ class TestMain:
         self.scheduler_main = Main(metrics=SchedulerMetrics(CollectorRegistry()))
         yield
         self.scheduler_main.stop_http_server()
+
+    def test_the_tasks_that_change_a_job_status_share_one_transition_service(self):
+        """One service, so the Kafka producers of its sender are created once for the whole scheduler."""
+        sharing = (ScheduleFleetsJobs, UpdateFleetsJobsStatuses, BalanceFillerJobs)
+        tasks = [task for task in self.scheduler_main.tasks if isinstance(task, sharing)]
+
+        assert len(tasks) == len(sharing)
+        assert len({id(task.transitions) for task in tasks}) == 1
 
     def test_run_executes_tasks(self):
         """run should execute tasks and stop when kill signal is received."""
@@ -66,6 +78,13 @@ class TestMain:
         assert task_name == "failing_task"
         assert isinstance(error, Exception)
         assert str(error) == "boom"
+
+    def test_registers_outbox_task_after_the_status_update_tasks(self):
+        """OutboxTask must run after UpdateFleetsJobsStatuses, in the same tick."""
+        task_types = [type(task) for task in self.scheduler_main.tasks]
+
+        assert OutboxTask in task_types
+        assert task_types.index(OutboxTask) > task_types.index(UpdateFleetsJobsStatuses)
 
     def test_http_server_starts_and_stops(self):
         """HTTP server should start and stop after loop ends."""

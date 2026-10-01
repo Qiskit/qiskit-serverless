@@ -192,3 +192,11 @@ class TestJobAdmin(APITestCase):
         job.refresh_from_db()
         assert job.status == Job.RUNNING
         assert JobEvent.objects.filter(job_id=job.id).count() == 0
+
+    def test_delete_is_disabled_for_every_job(self):
+        """Deleting a job would take its pending outbox row with it and lose the billing facts."""
+        user = User.objects.create_user(username="author", password="pass")
+        job = Job.objects.create(author=user, runner=Program.FLEETS, status=Job.QUEUED)
+
+        assert JobAdmin(Job, None).has_delete_permission(request=None) is False
+        assert JobAdmin(Job, None).has_delete_permission(request=None, obj=job) is False

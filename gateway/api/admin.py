@@ -1,5 +1,8 @@
 """Admin module."""
 
+# This module holds every ModelAdmin in the app and sits just over pylint's 1000-line cap.
+# pylint: disable=too-many-lines
+
 import json
 import logging
 import uuid
@@ -646,7 +649,6 @@ class JobAdmin(admin.ModelAdmin):
                     "status_badge",
                     "sub_status",
                     "job_actions",
-                    "running_started_at",
                     "trial",
                     "business_model",
                     "account_id",
@@ -934,6 +936,10 @@ class JobAdmin(admin.ModelAdmin):
         stop_url = reverse("admin:job_stop_job_view", args=[obj.pk])
         button = f'<button type="button" class="button qs-stop-job-btn" data-stop-url="{stop_url}">Stop job</button>'
         return mark_safe(button)
+
+    def has_delete_permission(self, request, obj=None):
+        """Disabled: a Job with a pending outbox row must not be deleted casually from the admin."""
+        return False
 
 
 @admin.register(RuntimeJob)

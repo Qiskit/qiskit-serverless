@@ -76,7 +76,7 @@ def _run(task, times=1):
     return submit, arguments, runner
 
 
-def _fake_submit(job, ctx, context=None):  # pylint: disable=unused-argument
+def _fake_submit(job, ctx, transitions, context=None):  # pylint: disable=unused-argument
     """Stand in for execute_fleets_job: mark the job PENDING as a real submit would."""
     job.update_fields({"status": Job.PENDING})
     return job
@@ -337,6 +337,45 @@ def test_a_filler_job_that_was_never_submitted_is_discarded(filler_program):
     stuck.refresh_from_db()
     assert stuck.status == Job.FAILED
     assert JobEvent.objects.filter(job=stuck, context=JobEventContext.FILLER_FAILED).exists()
+
+
+def test_mark_failed_does_not_raise_when_the_job_already_turned_terminal(filler_program):
+    """Something else may have already moved this job to a terminal status; the transition
+    then raises InvalidJobTransitionException, which _mark_failed must swallow rather than
+    let crash the balancer."""
+    job = TestUtils.create_job(
+        author=_AUTHOR,
+        program=filler_program,
+        status=Job.SUCCEEDED,
+        runner=Program.FLEETS,
+        compute_profile_fk=filler_program.default_size.compute_profile,
+        filler=True,
+    )
+    task = _make_task()
+
+    task._mark_failed(job)  # must not raise
+
+    job.refresh_from_db()
+    assert job.status == Job.SUCCEEDED
+
+
+def test_mark_stopped_does_not_count_a_job_that_already_turned_terminal(filler_program):
+    """Same race for _mark_stopped: a stop that lost the race must not be counted as one."""
+    job = TestUtils.create_job(
+        author=_AUTHOR,
+        program=filler_program,
+        status=Job.FAILED,
+        runner=Program.FLEETS,
+        compute_profile_fk=filler_program.default_size.compute_profile,
+        filler=True,
+    )
+    task = _make_task()
+
+    task._mark_stopped(job)  # must not raise
+
+    job.refresh_from_db()
+    assert job.status == Job.FAILED
+    task.metrics.increment_filler_jobs_stopped.assert_not_called()
 
 
 def test_filler_jobs_on_another_profile_are_always_stopped(filler_program):

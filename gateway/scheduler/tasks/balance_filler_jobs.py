@@ -9,7 +9,9 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from core.config_key import ConfigKey
 from core.domain import compute_profile as compute_profile_domain
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import Config, Job, JobEvent, Program
+from core.models import Config, Job, Program
+from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
+from core.services.job_transitions import JobTransitionService
 from core.services.runners import get_runner, RunnerError
 from core.services.storage import get_arguments_storage
 from scheduler.health import DB_EXCEPTIONS
@@ -36,9 +38,12 @@ class BalanceFillerJobs(SchedulerTask):
     ScheduleFleetsJobs feeds, which would put them in competition with real queued jobs.
     """
 
-    def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
+    def __init__(
+        self, kill_signal: KillSignal, metrics: SchedulerMetrics, transitions: JobTransitionService | None = None
+    ):
         self.kill_signal = kill_signal
         self.metrics = metrics
+        self.transitions = transitions or JobTransitionService()
         self._retry_loops = 0
 
     def run(self):
@@ -260,6 +265,7 @@ class BalanceFillerJobs(SchedulerTask):
             job = execute_fleets_job(
                 job,
                 TraceContextTextMapPropagator().extract(carrier={}),
+                self.transitions,
                 context=JobEventContext.FILLER_SUBMIT,
             )
         except DB_EXCEPTIONS:
@@ -315,21 +321,19 @@ class BalanceFillerJobs(SchedulerTask):
         Not _mark_stopped: nothing stopped it, its creation broke, and that counter is
         cross-checked against the FILLER_STOP events.
         """
-        job.update_fields({"status": Job.FAILED, "sub_status": None})
-        JobEvent.objects.add_status_event(
-            job_id=job.id,
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.FILLER_FAILED,
-            status=Job.FAILED,
-        )
+        try:
+            self.transitions.to_failed(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_FAILED)
+        except InvalidJobTransitionException:
+            # Lost the race: something else already moved this job to a terminal status.
+            logger.info("job_id=%s already in a terminal status, skipping FAILED", job.id)
 
     def _mark_stopped(self, job: Job) -> None:
         """Write STOPPED on the job, record the event, and count it."""
-        job.update_fields({"status": Job.STOPPED, "sub_status": None})
-        JobEvent.objects.add_status_event(
-            job_id=job.id,
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.FILLER_STOP,
-            status=Job.STOPPED,
-        )
+        try:
+            self.transitions.to_stopped(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_STOP)
+        except InvalidJobTransitionException:
+            # Lost the race: something else already moved this job to a terminal status, so
+            # this stop was not the one that ended it, and must not be counted as one.
+            logger.info("job_id=%s already in a terminal status, skipping STOPPED", job.id)
+            return
         self.metrics.increment_filler_jobs_stopped()

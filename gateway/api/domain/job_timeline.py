@@ -70,7 +70,6 @@ def _jobs_from_queryset(jobs_qs):
                 "profile": job.compute_profile_id or "-",
                 "created": job.created,
                 "updated": job.updated,
-                "running_started_at": job.running_started_at,
                 "status_events": status_events,
                 "author": job.author.username,
                 "business_model": job.business_model or "-",
@@ -92,6 +91,7 @@ def compute_timeline(job):
     seen = set()
     points = []
     if "QUEUED" not in {st for _, st in events} and job["created"]:
+        # Filler jobs don't have QUEUED event
         points.append((job["created"], "QUEUED"))
         seen.add("QUEUED")
     for ts, st in events:
@@ -121,9 +121,11 @@ def compute_timeline(job):
     by_status = {}
     for ts, status in points:
         by_status.setdefault(status, ts)
+
     job["t_queue"] = by_status.get("QUEUED", job["created"])
-    job["t_run"] = by_status.get("RUNNING", job["running_started_at"])
+    job["t_run"] = by_status.get("RUNNING")
     job["t_end"] = points[-1][0] if points else job["updated"]
+
     return job
 
 
@@ -137,7 +139,7 @@ def find_overlaps(jobs):
 
     Only jobs on the same runner can overlap: Ray and Fleets run on separate infrastructure, so
     two jobs racing on different runners are not a real resource conflict. A job whose running
-    window is not a forward interval (inconsistent data, e.g. a `running_started_at` later than
+    window is not a forward interval (inconsistent event data, e.g. a RUNNING event later than
     the job's last event) is left out instead of corrupting the overlap math.
     """
     running = [j for j in jobs if j["t_run"] and j["t_end"] and j["t_run"] < j["t_end"]]
