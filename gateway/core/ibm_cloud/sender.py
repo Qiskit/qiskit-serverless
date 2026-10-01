@@ -13,10 +13,13 @@ class Sender(ABC):
     def send(self, payload: dict) -> None:
         """Deliver the payload. Raises on failure."""
 
-    def send_batch(self, items: list[tuple[int, dict]]) -> set[int]:
+    def send_batch(
+        self, items: list[tuple[int, dict]], timeout: float = 5  # pylint: disable=unused-argument
+    ) -> set[int]:
         """Deliver many (key, payload) pairs and return the keys that were delivered. Never raises:
         a key missing from the result was not delivered and the caller must keep it for a retry.
-        This default sends one by one; a sender that can confirm many at once should override it."""
+        `timeout` is the most seconds the sender should wait for confirmations. This default sends one
+        by one and ignores it; a sender that can confirm many at once should override it."""
         delivered: set[int] = set()
         for key, payload in items:
             try:

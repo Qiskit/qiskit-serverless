@@ -23,6 +23,9 @@ else to wire up::
     sender = build_kafka_sender()
     sender.send(payload)  # raises RuntimeError (or UnroutableRegionError) on failure
 
+The outbox uses sender.send_batch(items) instead, which never raises and returns the keys the broker
+confirmed.
+
 See outbox.py and core/services/job_transitions.py for the two real callers.
 """
 
@@ -79,10 +82,12 @@ class KafkaSender(Sender):
         except Exception as e:
             raise RuntimeError(f"KafkaSender: Failed to publish event (id={message.get('id')}): {str(e)}") from e
 
-    def send_batch(self, items: list[tuple[int, dict]], timeout: int = 5) -> set[int]:
+    def send_batch(self, items: list[tuple[int, dict]], timeout: float = 5) -> set[int]:
         """Produce every payload, flush each producer once, and return the keys the broker confirmed
         through their delivery callback. A payload that cannot be routed or produced, is rejected by
-        the broker, or is still outstanding when the flush times out is left out of the result."""
+        the broker, or is still outstanding when the flush times out is left out of the result. The
+        timeout applies to each producer's flush. A message left outstanding may still be delivered
+        later and then sent again from its row, which is accepted (at-least-once)."""
         delivered: set[int] = set()
         producers_used = {}
 
@@ -109,13 +114,9 @@ class KafkaSender(Sender):
                 continue
             if remaining > 0:
                 logger.error("%s message(s) not delivered after flush timeout", remaining)
-                # The rows stay in the outbox and are produced again next tick, so drop what is still
-                # queued locally, or an outage piles up one more copy of every row per tick. In-flight
-                # messages are left alone: purging those is unsafe with the idempotent producer.
-                producer.purge(in_flight=False)
-                producer.poll(0)
 
-        return delivered
+        # a copy, so a callback that fires after a timed-out flush cannot change what the caller got
+        return set(delivered)
 
     def _on_batch_delivery(self, err, msg, key: int, delivered: set[int]) -> None:
         if err is None:

@@ -24,6 +24,10 @@ from .task import SchedulerTask
 logger = logging.getLogger("scheduler.OutboxTask")
 
 BATCH_SIZE = 100
+# Bounds, in seconds, for how long one batch waits for the broker acks: the time left in the tick budget,
+# but never less than MIN (or nothing could be confirmed) nor more than MAX.
+MIN_FLUSH_TIMEOUT = 1.0
+MAX_FLUSH_TIMEOUT = 5.0
 
 
 def _build_kafka_breaker() -> CircuitBreaker:
@@ -92,7 +96,8 @@ class OutboxTask(SchedulerTask):
             if not batch:
                 return
 
-            self._send_batch(batch, channel.sender, channel.breaker)
+            flush_timeout = min(MAX_FLUSH_TIMEOUT, max(MIN_FLUSH_TIMEOUT, deadline - time.monotonic()))
+            self._send_batch(batch, channel.sender, channel.breaker, flush_timeout)
             attempted_pks.update(row.pk for row in batch)
 
     def _should_continue_draining(self, channel: OutboxChannel, breaker: CircuitBreaker, deadline: float) -> bool:
@@ -107,11 +112,11 @@ class OutboxTask(SchedulerTask):
             return False
         return True
 
-    def _send_batch(self, batch: list[Outbox], sender: Sender, breaker: CircuitBreaker) -> None:
+    def _send_batch(self, batch: list[Outbox], sender: Sender, breaker: CircuitBreaker, timeout: float) -> None:
         """Send a batch with one confirmation round trip, delete the rows the sender confirmed and keep
         the rest for the next tick. The breaker records a success if at least one row was delivered
         and a failure only when none was, so a single bad row never opens it."""
-        delivered = sender.send_batch([(row.pk, row.payload) for row in batch])
+        delivered = sender.send_batch([(row.pk, row.payload) for row in batch], timeout=timeout)
 
         for row in batch:
             self.metrics.increment_outbox_send(row.channel, "success" if row.pk in delivered else "failure")

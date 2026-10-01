@@ -210,9 +210,11 @@ exactly one message, and sending it is the only thing it was waiting for.
 
 Any row the sender does not confirm, for whatever reason (`UnroutableRegionError`, a broker
 rejection, a flush timeout), stays for the next tick. The breaker records one success if at least one
-row of the batch was delivered and one failure only when none was, so a single bad row never opens it.
-A flush timeout also purges the messages still queued locally in the producer, so an outage does not
-pile up one more copy of every row per tick. Nothing here deletes a row on failure: a missing region producer is a config gap
+row of the batch was delivered and one failure only when none was, so isolated bad rows do not open it,
+but a whole batch of them does. Each batch waits for the broker acks at most the time left in the tick
+budget, between `MIN_FLUSH_TIMEOUT` (1 s) and `MAX_FLUSH_TIMEOUT` (5 s), per producer. A message
+still outstanding when the flush times out may be delivered later and sent again from its row:
+delivery is at least once. Nothing here deletes a row on failure: a missing region producer is a config gap
 (`EVENT_STREAMS_BOOTSTRAP_SERVERS_<REGION>`), and the same row becomes sendable again
 once it is added. `KafkaProducers.get`'s other failure mode, a CRN it cannot parse a
 region out of at all, is not something this code defends against separately: every

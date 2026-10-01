@@ -1,6 +1,6 @@
 """Unit tests for OutboxTask."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
@@ -8,7 +8,8 @@ from core.config_key import ConfigKey
 from core.models import Config, Job, Outbox, OutboxChannel, Program
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.tasks.outbox import _build_kafka_breaker, OutboxTask
+from core.ibm_cloud.event_streams.kafka_sender import KafkaSender
+from scheduler.tasks.outbox import _build_kafka_breaker, MAX_FLUSH_TIMEOUT, MIN_FLUSH_TIMEOUT, OutboxTask
 
 pytestmark = pytest.mark.django_db
 
@@ -18,7 +19,7 @@ _MOD = "scheduler.tasks.outbox"
 def _sender(delivers=lambda pk: True) -> MagicMock:
     """A sender whose send_batch confirms the rows `delivers(pk)` accepts."""
     sender = MagicMock()
-    sender.send_batch.side_effect = lambda items: {pk for pk, _ in items if delivers(pk)}
+    sender.send_batch.side_effect = lambda items, timeout=None: {pk for pk, _ in items if delivers(pk)}
     return sender
 
 
@@ -63,7 +64,7 @@ class TestHappyPath:
 
         task.run()
 
-        sender.send_batch.assert_called_once_with([(row.pk, row.payload)])
+        sender.send_batch.assert_called_once_with([(row.pk, row.payload)], timeout=ANY)
         assert not Outbox.objects.filter(pk=row.pk).exists()
 
     def test_sends_every_pending_row_in_one_batch(self):
@@ -196,3 +197,85 @@ class TestMultipleBatches:
             task.run()
 
         assert sender.send_batch.call_count == 2
+
+
+class TestFlushTimeout:
+    def test_the_flush_timeout_is_the_time_left_in_the_budget_within_bounds(self):
+        sender = _sender()
+        task = _make_task(sender=sender)
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BUDGET_MS, "3000")
+        _make_row()
+
+        task.run()
+
+        timeout = sender.send_batch.call_args.kwargs["timeout"]
+        assert MIN_FLUSH_TIMEOUT <= timeout <= 3.0
+
+    def test_a_tiny_budget_still_gives_the_broker_the_minimum_time(self):
+        sender = _sender()
+        task = _make_task(sender=sender)
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BUDGET_MS, "1")
+        _make_row()
+
+        task.run()
+
+        assert sender.send_batch.call_args.kwargs["timeout"] == MIN_FLUSH_TIMEOUT
+
+    def test_a_huge_budget_never_waits_longer_than_the_maximum(self):
+        sender = _sender()
+        task = _make_task(sender=sender)
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BUDGET_MS, "600000")
+        _make_row()
+
+        task.run()
+
+        assert sender.send_batch.call_args.kwargs["timeout"] == MAX_FLUSH_TIMEOUT
+
+
+class TestPartialSuccessWithARealKafkaSender:
+    class _Producer:
+        def __init__(self, reject):
+            self.reject, self.queued = reject, []
+
+        def produce(self, **kwargs):
+            self.queued.append(kwargs)
+
+        def flush(self, timeout):
+            for kwargs in self.queued:
+                error = Exception("rejected") if kwargs["key"] in self.reject else None
+                kwargs["callback"](error, None)
+            self.queued = []
+            return 0
+
+    @staticmethod
+    def _task_with_kafka(reject_subjects):
+        producers = MagicMock()
+        producers.topic = "t"
+        producers.get.return_value = TestPartialSuccessWithARealKafkaSender._Producer(reject_subjects)
+        task = _make_task()
+        task.channels = {OutboxChannel.JOB_USAGE: _kafka_channel(KafkaSender(producers))}
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1")
+        return task
+
+    @staticmethod
+    def _row(subject):
+        return _make_row(payload={"subject": subject, "data": {}})
+
+    def test_one_rejected_row_is_kept_and_does_not_open_the_breaker(self):
+        task = self._task_with_kafka({b"bad"})
+        bad, good = self._row("bad"), self._row("good")
+
+        task.run()
+
+        assert Outbox.objects.filter(pk=bad.pk).exists()
+        assert not Outbox.objects.filter(pk=good.pk).exists()
+        assert task.channels[OutboxChannel.JOB_USAGE].breaker.is_open is False
+
+    def test_a_batch_where_every_row_is_rejected_opens_the_breaker(self):
+        task = self._task_with_kafka({b"bad-1", b"bad-2"})
+        first, second = self._row("bad-1"), self._row("bad-2")
+
+        task.run()
+
+        assert Outbox.objects.filter(pk__in=[first.pk, second.pk]).count() == 2
+        assert task.channels[OutboxChannel.JOB_USAGE].breaker.is_open is True
