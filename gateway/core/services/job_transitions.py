@@ -124,12 +124,13 @@ class JobTransitionService:
     def to_stopped_or_failed(
         self, job: Job, status: str, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None
     ) -> JobEvent:
-        """#1899 Failed or stopped job may never have executed, so it sends fee if, and only if, it was RUNNING"""
+        """Called only when failed or stopped"""
         with transaction.atomic():
             event = self._change_status(job, status, origin=origin, context=context, job_fields=job_fields)
             if _is_usage_billable(job):
                 job_started_at = JobEvent.objects.first_running_at(job.id)
                 self._enqueue_job_usage(job, job_started_at, event.created)
+                # 1899 Failed or stopped job may never have executed, so it sends fee if, and only if, it was RUNNING
                 if job_started_at is not None and _is_fee_billable(job):
                     self._enqueue_license_fee(job, job_started_at)
         return event
