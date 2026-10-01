@@ -710,3 +710,190 @@ class TestKafkaEventStreamsClient:
                         client.emit_license_fee(job)
 
         mock_producer.produce.assert_not_called()
+
+    def test_consumer_created_on_demand(self):
+        """Verify a Consumer is created lazily on first call to _get_consumer()."""
+        with patch(f"{_CLIENT_MOD}.Producer"):
+            with patch(f"{_CLIENT_MOD}.Consumer") as mock_consumer_cls:
+                with patch.dict(
+                    os.environ,
+                    {
+                        "EVENT_STREAMS_BOOTSTRAP_SERVERS": "broker-main:9093",
+                        "EVENT_STREAMS_API_KEY": "main-key",
+                        "ENVIRONMENT": "production",
+                    },
+                    clear=True,
+                ):
+                    client = KafkaEventStreamsClient()
+                    # Consumer not created during __init__
+                    assert mock_consumer_cls.call_count == 0
+                    # But created on demand via _get_consumer()
+                    _ = client._get_consumer("us-east")
+                    assert mock_consumer_cls.call_count == 1
+                    # Verify it subscribes to both topics
+                    consumer_mock = mock_consumer_cls.return_value
+                    consumer_mock.subscribe.assert_called_once_with(
+                        [
+                            "quantum.production.blocked-account-plans.v1",
+                            "quantum.production.blocked-account-plans-non-quantum.v1",
+                        ]
+                    )
+
+    def test_consumer_config_includes_sasl_and_group_id(self):
+        """Verify consumer config has SASL/SSL + group.id + auto commit disabled."""
+        with patch(f"{_CLIENT_MOD}.Producer"):
+            with patch(f"{_CLIENT_MOD}.Consumer") as mock_consumer_cls:
+                with patch.dict(
+                    os.environ,
+                    {
+                        "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                        "EVENT_STREAMS_API_KEY": "k",
+                        "EVENT_STREAMS_MAIN_REGION": "us-east",
+                        "ENVIRONMENT": "production",
+                    },
+                    clear=True,
+                ):
+                    client = KafkaEventStreamsClient()
+                    _ = client._get_consumer("us-east")
+
+        call_args = mock_consumer_cls.call_args[0][0]
+        assert call_args["bootstrap.servers"] == "b:9093"
+        assert call_args["security.protocol"] == "SASL_SSL"
+        assert call_args["sasl.mechanisms"] == "PLAIN"
+        assert call_args["sasl.username"] == "token"
+        assert call_args["sasl.password"] == "k"
+        assert call_args["group.id"] == "qiskit-serverless-scheduler-blocked-accounts-production"
+        assert call_args["enable.auto.commit"] is False
+        assert call_args["auto.offset.reset"] == "earliest"
+
+    @pytest.mark.django_db
+    def test_consume_events_processes_json_message(self, caplog):
+        """Verify _poll_region_continuously() deserializes and handles blocked-account events."""
+        with patch(f"{_CLIENT_MOD}.Producer"):
+            with patch(f"{_CLIENT_MOD}.Consumer") as mock_consumer_cls:
+                with patch.dict(
+                    os.environ,
+                    {
+                        "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                        "EVENT_STREAMS_API_KEY": "k",
+                        "ENVIRONMENT": "production",
+                    },
+                ):
+                    client = KafkaEventStreamsClient()
+                    mock_consumer_inst = MagicMock()
+                    mock_consumer_cls.return_value = mock_consumer_inst
+
+                    # Simulate a message with event data
+                    event_data = {
+                        "account_id": "acct-123",
+                        "plan_id": "plan-456",
+                        "subscription_id": "sub-789",
+                        "deleted": False,
+                    }
+                    mock_msg = MagicMock()
+                    mock_msg.value.return_value = json.dumps(event_data).encode("utf-8")
+                    mock_msg.error.return_value = None
+
+                    # Simulate: one message, then exception to stop polling
+                    mock_consumer_inst.poll.side_effect = [mock_msg, Exception("Test stop")]
+                    mock_consumer_inst.commit = MagicMock()
+
+                    with caplog.at_level(logging.INFO):
+                        with pytest.raises(Exception, match="Test stop"):
+                            client._poll_region_continuously("us-east")
+
+        assert "acct-123" in caplog.text
+        assert "plan-456" in caplog.text
+        assert "sub-789" in caplog.text
+        mock_consumer_inst.commit.assert_called_once()
+
+    def test_consume_events_handles_poll_error(self, caplog):
+        """Verify _poll_region_continuously() handles consumer poll errors gracefully."""
+        with patch(f"{_CLIENT_MOD}.Producer"):
+            with patch(f"{_CLIENT_MOD}.Consumer") as mock_consumer_cls:
+                with patch.dict(
+                    os.environ,
+                    {
+                        "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                        "EVENT_STREAMS_API_KEY": "k",
+                        "ENVIRONMENT": "production",
+                    },
+                ):
+                    client = KafkaEventStreamsClient()
+                    mock_consumer_inst = MagicMock()
+                    mock_consumer_cls.return_value = mock_consumer_inst
+
+                    mock_msg = MagicMock()
+                    mock_msg.error.return_value = "Consumer error code"
+
+                    # Simulate error message then exit thread
+                    mock_consumer_inst.poll.side_effect = [mock_msg, Exception("Test stop")]
+
+                    with caplog.at_level(logging.ERROR):
+                        with pytest.raises(Exception, match="Test stop"):
+                            client._poll_region_continuously("us-east")
+
+        assert "Consumer error" in caplog.text
+        # Should not commit when there were only errors
+        mock_consumer_inst.commit.assert_not_called()
+
+    @pytest.mark.django_db
+    def test_consume_events_commits_after_processing(self):
+        """Verify _poll_region_continuously() commits offsets after processing messages."""
+        with patch(f"{_CLIENT_MOD}.Producer"):
+            with patch(f"{_CLIENT_MOD}.Consumer") as mock_consumer_cls:
+                with patch.dict(
+                    os.environ,
+                    {
+                        "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                        "EVENT_STREAMS_API_KEY": "k",
+                        "ENVIRONMENT": "production",
+                    },
+                ):
+                    client = KafkaEventStreamsClient()
+                    mock_consumer_inst = MagicMock()
+                    mock_consumer_cls.return_value = mock_consumer_inst
+
+                    event_data = {
+                        "account_id": "acct-123",
+                        "plan_id": "plan-456",
+                        "subscription_id": "sub-789",
+                        "deleted": False,
+                    }
+                    mock_msg = MagicMock()
+                    mock_msg.value.return_value = json.dumps(event_data).encode("utf-8")
+                    mock_msg.error.return_value = None
+
+                    # Simulate message then exit thread
+                    mock_consumer_inst.poll.side_effect = [mock_msg, Exception("Test stop")]
+
+                    with pytest.raises(Exception, match="Test stop"):
+                        client._poll_region_continuously("us-east")
+
+        mock_consumer_inst.commit.assert_called_once_with(asynchronous=False)
+
+    def test_consume_events_none_poll_result_continues_polling(self):
+        """Verify _poll_region_continuously() continues polling when poll() returns None."""
+        with patch(f"{_CLIENT_MOD}.Producer"):
+            with patch(f"{_CLIENT_MOD}.Consumer") as mock_consumer_cls:
+                with patch.dict(
+                    os.environ,
+                    {
+                        "EVENT_STREAMS_BOOTSTRAP_SERVERS": "b:9093",
+                        "EVENT_STREAMS_API_KEY": "k",
+                        "ENVIRONMENT": "production",
+                    },
+                ):
+                    client = KafkaEventStreamsClient()
+                    mock_consumer_inst = MagicMock()
+                    mock_consumer_cls.return_value = mock_consumer_inst
+
+                    # Simulate None (no messages) then exception to exit
+                    mock_consumer_inst.poll.side_effect = [None, Exception("Test stop")]
+
+                    with pytest.raises(Exception, match="Test stop"):
+                        client._poll_region_continuously("us-east")
+
+        # Should try polling and continue, then hit exception
+        assert mock_consumer_inst.poll.call_count >= 1
+        mock_consumer_inst.commit.assert_not_called()

@@ -68,3 +68,7 @@ class EventStreamsClient(ABC):
     @abstractmethod
     def _emit_license_fee(self, job) -> None:
         """Publish or log a license fee event."""
+
+    @abstractmethod
+    def consume_events(self) -> None:
+        """Poll pending blocked-account-plan events and process them."""
