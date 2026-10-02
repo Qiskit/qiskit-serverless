@@ -52,7 +52,7 @@ class OutboxTask(SchedulerTask):
     def run(self):
         """Drain every channel, in turn, each within its own breaker and budget."""
         for channel_name, destination in self.channels.items():
-            destination.report_gauges(channel_name)
+            destination.report_metrics(channel_name)
 
         for channel_name, destination in self.channels.items():
             if self.kill_signal.received:
@@ -63,4 +63,5 @@ class OutboxTask(SchedulerTask):
         # Once every channel has drained, so the channels that share a destination report the same state, one
         # that a later channel opened during this very tick included.
         for channel_name, destination in self.channels.items():
-            self.metrics.set_outbox_breaker_open(destination.any_breaker_open, channel=channel_name)
+            any_open = any(breaker.is_open for breaker in destination.breakers.values())
+            self.metrics.set_outbox_breaker_open(any_open, channel=channel_name)

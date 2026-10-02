@@ -37,23 +37,18 @@ class Destination:
     ):
         self.sender = sender
         self._breaker_factory = breaker_factory
-        self._breakers: dict[str | None, CircuitBreaker] = {}
+        self.breakers: dict[str | None, CircuitBreaker] = {}
         self.budget_key = budget_key
         self.metrics = metrics
         self.kill_signal = kill_signal
 
     def breaker(self, region: str | None) -> CircuitBreaker:
         """The circuit breaker for this region (null included), built the first time it is asked for."""
-        if region not in self._breakers:
-            self._breakers[region] = self._breaker_factory()
-        return self._breakers[region]
+        if region not in self.breakers:
+            self.breakers[region] = self._breaker_factory()
+        return self.breakers[region]
 
-    @property
-    def any_breaker_open(self) -> bool:
-        """Whether the breaker of at least one region is open."""
-        return any(breaker.is_open for breaker in self._breakers.values())
-
-    def report_gauges(self, channel: OutboxChannel) -> None:
+    def report_metrics(self, channel: OutboxChannel) -> None:
         """Report how many rows are pending and how long the oldest has been waiting."""
         queryset = Outbox.objects.filter(channel=channel)
         self.metrics.set_outbox_pending_rows(queryset.count(), channel)
