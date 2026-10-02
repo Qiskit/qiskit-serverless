@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("api", "0067_outbox"),
+        ("api", "0068_function_size_choices"),
     ]
 
     operations = [
