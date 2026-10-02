@@ -21,7 +21,6 @@ def _sender(delivers=lambda pk: True) -> MagicMock:
     """A sender whose send_batch confirms the rows `delivers(pk)` accepts."""
     sender = MagicMock()
     sender.send_batch.side_effect = lambda messages: {m.key for m in messages if delivers(m.key)}
-    sender.group_key.return_value = None
     return sender
 
 
@@ -52,9 +51,9 @@ def _make_job() -> Job:
     return Job.objects.create(author=user, runner=Program.FLEETS)
 
 
-def _make_row(job=None, payload=None) -> Outbox:
+def _make_row(job=None, payload=None, region=None) -> Outbox:
     return Outbox.objects.create(
-        job=job or _make_job(), channel=OutboxChannel.JOB_USAGE, payload=payload or {"data": {}}
+        job=job or _make_job(), channel=OutboxChannel.JOB_USAGE, region=region, payload=payload or {"data": {}}
     )
 
 
@@ -273,20 +272,19 @@ class TestPartialSuccessWithARealKafkaSender:
         assert not Outbox.objects.filter(pk=good.pk).exists()
 
 
-class TestGroupsAreIndependent:
+class TestRegionsAreIndependent:
     @staticmethod
-    def _row_in(group):
-        return _make_row(payload={"group": group, "data": {}})
+    def _row_in(region):
+        return _make_row(payload={"region": region, "data": {}}, region=region)
 
     @staticmethod
-    def _grouped_sender(dead_group):
+    def _regional_sender(dead_region):
         sender = _sender()
-        sender.group_key.side_effect = lambda payload: payload["group"]
-        sender.send_batch.side_effect = lambda messages: {m.key for m in messages if m.payload["group"] != dead_group}
+        sender.send_batch.side_effect = lambda messages: {m.key for m in messages if m.payload["region"] != dead_region}
         return sender
 
-    def test_each_group_is_sent_in_its_own_batch(self):
-        sender = self._grouped_sender(dead_group=None)
+    def test_each_region_is_sent_in_its_own_batch(self):
+        sender = self._regional_sender(dead_region=None)
         task = _make_task(sender=sender)
         east, west = self._row_in("us-east"), self._row_in("eu-de")
 
@@ -296,8 +294,8 @@ class TestGroupsAreIndependent:
         assert sorted(sent) == sorted([[east.pk], [west.pk]])
         assert Outbox.objects.count() == 0
 
-    def test_a_dead_group_opens_only_its_own_breaker_and_the_healthy_group_keeps_draining(self):
-        sender = self._grouped_sender(dead_group="eu-de")
+    def test_a_dead_region_opens_only_its_own_breaker_and_the_healthy_region_keeps_draining(self):
+        sender = self._regional_sender(dead_region="eu-de")
         task = _make_task(sender=sender)
         Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1")
         dead = self._row_in("eu-de")
@@ -310,8 +308,8 @@ class TestGroupsAreIndependent:
         assert breakers.get("us-east").is_open is False
         assert list(Outbox.objects.values_list("pk", flat=True)) == [dead.pk]
 
-    def test_a_group_with_an_open_breaker_is_skipped_while_the_others_are_still_sent(self):
-        sender = self._grouped_sender(dead_group="eu-de")
+    def test_a_region_with_an_open_breaker_is_skipped_while_the_others_are_still_sent(self):
+        sender = self._regional_sender(dead_region="eu-de")
         task = _make_task(sender=sender)
         Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1")
         self._row_in("eu-de")
@@ -327,41 +325,19 @@ class TestGroupsAreIndependent:
         assert not Outbox.objects.filter(pk=healthy.pk).exists()
 
 
-class TestMalformedPayloadsDoNotWedgeTheChannel:
-    def test_a_sender_whose_group_key_raises_puts_that_row_in_its_own_group(self):
-        sender = _sender()
-
-        def group_key(payload):
-            if payload.get("bad"):
-                raise ValueError("cannot group")
-            return None
-
-        sender.group_key.side_effect = group_key
-        task = _make_task(sender=sender)
-        bad = _make_row(payload={"bad": True, "data": {}})
-        good = _make_row()
-
-        task.run()  # must not raise
-
-        sent_keys = [m.key for call in sender.send_batch.call_args_list for m in call.args[0]]
-        assert sorted(sent_keys) == sorted([bad.pk, good.pk])  # the bad row is still attempted, on its own
-        assert all(len(call.args[0]) == 1 for call in sender.send_batch.call_args_list)
-
-
 class TestOpenBreakersAndTheScan:
     @staticmethod
-    def _grouped_sender(dead_group):
+    def _regional_sender(dead_region):
         sender = _sender()
-        sender.group_key.side_effect = lambda payload: payload["group"]
-        sender.send_batch.side_effect = lambda messages: {m.key for m in messages if m.payload["group"] != dead_group}
+        sender.send_batch.side_effect = lambda messages: {m.key for m in messages if m.payload["region"] != dead_region}
         return sender
 
     @staticmethod
-    def _row_in(group):
-        return _make_row(payload={"group": group, "data": {}})
+    def _row_in(region):
+        return _make_row(payload={"region": region, "data": {}}, region=region)
 
     def test_when_every_breaker_is_open_nothing_is_sent_and_the_tick_ends(self):
-        sender = self._grouped_sender(dead_group="eu-de")
+        sender = self._regional_sender(dead_region="eu-de")
         task = _make_task(sender=sender)
         Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1")
         self._row_in("eu-de")
@@ -377,7 +353,7 @@ class TestOpenBreakersAndTheScan:
         assert Outbox.objects.count() == 4
 
     def test_healthy_rows_behind_a_pile_of_dead_ones_are_still_reached(self):
-        sender = self._grouped_sender(dead_group="eu-de")
+        sender = self._regional_sender(dead_region="eu-de")
         task = _make_task(sender=sender)
         Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1")
         self._row_in("eu-de")

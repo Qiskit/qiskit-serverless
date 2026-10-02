@@ -843,6 +843,13 @@ class Outbox(models.Model):
     channel = models.CharField(
         max_length=20, choices=[(c.value, c.name.replace("_", " ").title()) for c in OutboxChannel]
     )
+    region = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        help_text="Region of the instance CRN the message belongs to, or null when it has none. Delivery uses it "
+        "only to pick the circuit breaker: a region that fails does not hold back the others.",
+    )
     payload = models.JSONField()
     created = models.DateTimeField(auto_now_add=True)
 
@@ -850,6 +857,7 @@ class Outbox(models.Model):
         app_label = "api"
         indexes = [
             models.Index(fields=["channel", "created"], name="outbox_channel_created_idx"),
+            models.Index(fields=["channel", "region", "created"], name="outbox_chan_reg_created_idx"),
         ]
 
     def __str__(self):
