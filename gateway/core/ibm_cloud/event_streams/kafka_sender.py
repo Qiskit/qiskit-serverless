@@ -34,6 +34,7 @@ import logging
 
 from django.conf import settings
 
+from core.domain.crn import Crn
 from core.ibm_cloud.sender import PendingMessage, Sender
 from .kafka_producers import KafkaProducers
 
@@ -121,7 +122,8 @@ class KafkaSender(Sender):
 
     def group_key(self, payload: dict) -> str | None:
         """The payload's region: each region is its own Kafka cluster, so it fails on its own."""
-        return KafkaProducers.region(self._instance_crn(payload))
+        crn = Crn.parse(self._instance_crn(payload))
+        return crn.region if crn else None
 
     @staticmethod
     def _instance_crn(payload) -> str | None:
