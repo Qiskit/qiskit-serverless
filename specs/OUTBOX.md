@@ -240,8 +240,8 @@ builds anything itself and does not know which of the two cases it is in.
 ## Circuit breaker
 
 Each `Destination` keeps its own circuit breakers: one `CircuitBreaker`
-(`gateway/scheduler/tasks/circuit_breaker.py`, built by the `breaker_factory` the destination is given, a
-lambda in `OutboxTask.__init__` for Kafka) per region (null included), created the first time that region is seen. An
+(`gateway/scheduler/tasks/circuit_breaker.py`, built by the `breaker_factory` the destination is given,
+`build_kafka_circuit_breaker()` for Kafka, which reads the thresholds from the two `Config` keys below) per region (null included), created the first time that region is seen. An
 unreachable region opens only its own breaker and the healthy regions keep draining. Channels
 that go through the same `Destination` share its breakers: `LICENSE_FEE` and `JOB_USAGE` both use the Kafka one, so
 an outage in a region opens its breaker once for both instead of each channel counting its own failures against

@@ -12,8 +12,7 @@ from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from core.ibm_cloud.event_streams.kafka_sender import KafkaSender
 from core.ibm_cloud.sender import PendingMessage
-from scheduler.tasks.circuit_breaker import CircuitBreaker
-from scheduler.tasks.outbox import OutboxTask
+from scheduler.tasks.outbox import OutboxTask, build_kafka_circuit_breaker
 from scheduler.tasks.outbox_destination import Destination
 
 pytestmark = pytest.mark.django_db
@@ -45,10 +44,7 @@ def _kafka_destination(task, sender) -> Destination:
         metrics=task.metrics,
         kill_signal=task.kill_signal,
         sender=sender,
-        breaker_factory=lambda: CircuitBreaker(
-            failure_threshold=lambda: Config.get_int(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, default=5),
-            pause_seconds=lambda: Config.get_int(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_PAUSE_SECONDS, default=60),
-        ),
+        breaker_factory=build_kafka_circuit_breaker,
         budget_key=ConfigKey.OUTBOX_KAFKA_CHANNEL_BUDGET_MS,
     )
 
