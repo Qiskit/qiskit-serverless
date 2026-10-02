@@ -39,15 +39,12 @@ class StopJobUseCase:
         self.stopped_sessions = []
 
         if job.status == Job.STOPPING:
-            # The scheduler owns the rest of it. Cancelling again would write a second STOPPING event,
-            # which is what the deadline is measured from, and writing STOPPED here would end the job
-            # before Code Engine confirmed it.
+            # A second cancel would write a second STOPPING event, which the deadline is measured from.
             self.status_messages.append("Job is already stopping.")
             return " ".join(self.status_messages)
 
-        # STOPPING means Code Engine accepted the cancel, so the cancel goes out before the status is
-        # written. The scheduler only confirms it from the task store afterwards. The status read here
-        # may be stale, so it only avoids a pointless call; the transition below is the real check.
+        # The cancel goes out first: STOPPING means Code Engine accepted it. The status read here may be
+        # stale, so it only avoids a pointless call; the transition below is the real check.
         is_fleets = job.runner == Program.FLEETS
         cancel_in_flight = self._cancel_fleet(job) if is_fleets and job.status not in Job.TERMINAL_STATUSES else False
 
@@ -63,8 +60,8 @@ class StopJobUseCase:
                 transitions.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
             stopped = True
         except InvalidJobTransitionException:
-            # Lost the race. Re-read so the message names the status the row is actually in.
-            job.refresh_from_db(fields=["status"])
+            # Lost the race: the row reached a terminal status between the read above and the transition.
+            pass
 
         if stopped:
             # New behavior: now, stopping a completed job (failed or succeeded) NO longer (attempts to) stop its
@@ -90,21 +87,13 @@ class StopJobUseCase:
 
             if not is_fleets:
                 self._stop_ray_job_if_active(job)
-        elif job.status == Job.STOPPING:
-            # Reached when another worker won the race and moved the row to STOPPING between the
-            # read above and the locked transition. The sequential case returns earlier.
-            self.status_messages.append("Job is already stopping.")
         else:
             self.status_messages.append("Job already in terminal state.")
 
         return " ".join(self.status_messages)
 
     def _cancel_fleet(self, job: Job) -> bool:
-        """Ask Code Engine to cancel the fleet. True when a cancel is in flight, so STOPPING is owed.
-
-        A job with no fleet, and a fleet Code Engine says is gone, have nothing to wait for and go
-        straight to STOPPED.
-        """
+        """Ask Code Engine to cancel the fleet. True when a cancel is in flight, so STOPPING is owed."""
         if not job.fleet_id:
             return False
         try:

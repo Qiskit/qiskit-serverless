@@ -112,13 +112,11 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         try:
             task_status = cast(FleetsRunner, get_runner(job)).status()
         except Exception as ex:  # pylint: disable=broad-exception-caught
-            # Broad on purpose: status() raises RunnerError and also ValueError, and nothing may skip
-            # the deadline below, or the row holds a concurrency slot for ever.
+            # Broad on purpose: status() raises RunnerError and also ValueError, and the deadline must run.
             logger.error("job_id=%s error reading the task store while stopping: %s", job.id, str(ex))
 
         if task_status in Job.TERMINAL_STATUSES:
-            # Any terminal task state confirms the stop: a deleted fleet reports failed, and a task that
-            # finished before the cancel landed reports succeeded.
+            # Any terminal task state confirms the stop: a deleted fleet reports failed, a finished task succeeded.
             logger.info("job_id=%s stop confirmed, task store reported %s", job.id, task_status)
             self.to_terminal(job, Job.STOPPED)
             return True
@@ -210,9 +208,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         try:
             cancel_in_flight = get_runner(job).stop()
         except RunnerError as ex:
-            # A transient refusal is retried next cycle. Writing a terminal status for one would
-            # report the job finished while its fleet still holds the node. A permanent fault never
-            # clears, so the row has to end here or it keeps its slots for ever.
+            # A transient refusal is retried next cycle. A permanent one never clears, so end the row.
             logger.error("job_id=%s error cancelling Fleets job on timeout: %s", job.id, str(ex))
             if ex.permanent:
                 self.to_terminal(job, Job.STOPPED)

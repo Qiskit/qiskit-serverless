@@ -137,8 +137,11 @@ class TestStopFleetsJob:
         mock_get_runner.assert_not_called()
 
     def test_a_ray_job_never_reaches_stopping(self, author):
-        """The fork at this writer is the only guard: the Ray poller does not consult VALID_TRANSITIONS."""
-        job = Job.objects.create(author=author, runner=Program.RAY, status=Job.RUNNING)
+        """The fork at this writer is the only guard: the Ray poller does not consult VALID_TRANSITIONS.
+
+        The fleet_id matters. Without one both branches converge on STOPPED and the fork goes unpinned.
+        """
+        job = Job.objects.create(author=author, runner=Program.RAY, status=Job.RUNNING, fleet_id="fleet-abc")
 
         with patch("api.use_cases.jobs.stop.get_runner"):
             message = StopJobUseCase().execute(job.id, None, author)

@@ -16,7 +16,4 @@ upgrade:
     user's active and running job limits for that time, because its compute node is still
     held.
 
-    To roll this change back, clear the rows first, or they can never leave ``STOPPING``::
-
-        UPDATE api_job SET status = 'STOPPED', updated = now(), version = version + 1
-        WHERE status = 'STOPPING';
+    To roll this change back, clear any ``STOPPING`` rows first, or they can never leave that status.

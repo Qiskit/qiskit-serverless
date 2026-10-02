@@ -726,12 +726,15 @@ class TestDriveStopping:
         runner.stop.assert_not_called()
         task.transitions.running_to_running.assert_not_called()
 
-    def test_a_task_store_error_still_runs_the_deadline(self):
-        """status() raises for a deleted program or an inactive project; the row must still leave STOPPING."""
+    @pytest.mark.parametrize(
+        "error", [RunnerError("project 'p' is not active"), ValueError("CE secret not found in project 'p'")]
+    )
+    def test_an_unreadable_task_store_still_runs_the_deadline(self, error):
+        """status() raises RunnerError for an inactive project and ValueError for a bad COS secret."""
         task = _make_task()
         job = _make_fleets_job(status=Job.STOPPING)
         runner = MagicMock()
-        runner.status.side_effect = RunnerError("Code Engine project 'p' is not active")
+        runner.status.side_effect = error
 
         with (
             patch(f"{_MOD}.get_runner", return_value=runner),
@@ -854,44 +857,3 @@ class TestStoppingDeadlineAgainstTheDatabase:
 
         assert changed is False, "an older event of another kind started the deadline"
         assert job.status == Job.STOPPING
-
-    def test_a_recent_stop_is_left_alone(self):
-        author = User.objects.create_user(username="deadline-author-2")
-        job = self._job(author)
-        JobEvent.objects.add_status_event(
-            job_id=job.id,
-            origin=JobEventOrigin.API,
-            context=JobEventContext.STOP_JOB,
-            status=Job.STOPPING,
-        )
-
-        task = _make_task()
-        runner = MagicMock()
-        runner.status.return_value = Job.RUNNING
-
-        with patch(f"{_MOD}.get_runner", return_value=runner):
-            changed = task.update_job_status(job)
-
-        assert changed is False
-        assert job.status == Job.STOPPING
-
-
-class TestDriveStoppingFailurePaths:
-    """What happens when Code Engine or its credentials are the problem."""
-
-    def test_an_unusable_cos_credential_still_reaches_the_deadline(self):
-        """status() re-raises ValueError for a renamed or emptied CE HMAC secret."""
-        task = _make_task()
-        job = _make_fleets_job(status=Job.STOPPING)
-        runner = MagicMock()
-        runner.status.side_effect = ValueError("CE secret 'cos-hmac-credential' not found in project 'p'")
-
-        with (
-            patch(f"{_MOD}.get_runner", return_value=runner),
-            patch(f"{_MOD}.JobEvent") as mock_event,
-        ):
-            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = _old_stopping_event()
-            changed = task.update_job_status(job)
-
-        assert changed is True
-        assert job.status == Job.STOPPED

@@ -302,8 +302,7 @@ class BalanceFillerJobs(SchedulerTask):
             if self.kill_signal.received:
                 return
             if job.status == Job.STOPPING:
-                # Already draining. The balancer rebuilds this list every second, so asking again would
-                # write an event a second and move the deadline the status poller reads.
+                # Already draining. Asking again would move the deadline the status poller reads.
                 continue
             self._stop_one_filler_job(job)
 
@@ -316,9 +315,8 @@ class BalanceFillerJobs(SchedulerTask):
         try:
             cancel_in_flight = get_runner(job).stop()
         except RunnerError as ex:
-            # Left active on purpose: writing a stopping or stopped status would hide a fleet still
-            # holding the node, and the balancer would create another on top. Retried next cycle.
-            # A permanent fault never clears, so the row ends here rather than being retried for ever.
+            # Left active on purpose: a stopping or stopped status would hide a fleet still holding the
+            # node, and the balancer would create another on top. A permanent fault never clears.
             logger.error("[BalanceFillerJobs] job_id=%s error stopping filler job: %s", job.id, str(ex))
             if ex.permanent:
                 self._mark_stopped(job)

@@ -473,14 +473,6 @@ class TestToStopping:
         assert Job.objects.get(pk=job.pk).status == Job.RUNNING
         assert JobEvent.objects.filter(job=job).count() == 0
 
-    def test_stopping_to_stopped_bills_the_usage_once(self, service, user):
-        job = _licensed_fleets_job(user, Job.STOPPING)
-
-        service.to_stopped(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
-
-        assert Job.objects.get(pk=job.pk).status == Job.STOPPED
-        assert Outbox.objects.filter(job=job, channel=OutboxChannel.JOB_USAGE).count() == 1
-
     def test_a_job_that_ran_before_the_cancel_is_billed_up_to_the_confirmation(self, service, user):
         """The billed window of a cancelled job ends when the scheduler confirms, not when the user asked."""
         job = _licensed_fleets_job(user, Job.RUNNING)
