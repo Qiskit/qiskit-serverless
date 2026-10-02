@@ -1,0 +1,16 @@
+---
+upgrade:
+  - |
+    Breaking change:
+    The deprecated ``compute_profile`` input on ``POST /programs/run/`` has been
+    removed. Use ``function_size`` with one of the labels the function declares in its
+    size catalog instead. Sending ``compute_profile`` now returns a 400 naming the
+    replacement, instead of being silently ignored.
+
+    The client SDK's ``compute_profile`` keyword on ``run()`` now raises
+    ``QiskitServerlessException`` instead of sending the request, so upgrade the client
+    first: an upgraded client fails fast with a clear local error, while an old client
+    against the new gateway only gets a less specific 400 from the server.
+
+    The published ``/swagger/`` request body for this endpoint no longer lists
+    ``compute_profile``.

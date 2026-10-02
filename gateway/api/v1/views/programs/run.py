@@ -20,7 +20,6 @@ from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.serializer_utils import ComputeProfileSerializer
 from api.domain.function_sizes import normalize_function_size
-from core.domain import compute_profile
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.models import Job, JobConfig
 
@@ -34,11 +33,6 @@ class InputSerializer(serializers.Serializer):  # pylint: disable=abstract-metho
     arguments = serializers.CharField()
     config = serializers.JSONField()
     provider = serializers.CharField(required=False, allow_null=True)
-    compute_profile = serializers.CharField(
-        required=False,
-        allow_null=True,
-        help_text="Deprecated: use 'function_size' instead. Sending both is rejected.",
-    )
     function_size = serializers.CharField(
         required=False,
         allow_null=True,
@@ -56,28 +50,25 @@ class InputSerializer(serializers.Serializer):  # pylint: disable=abstract-metho
         """Sanitize provider name."""
         return sanitize_name(value) if value else value
 
-    def validate_compute_profile(self, value):
-        """Validate compute profile format and normalize it to the bare (prefix-less) form.
-
-        Accepts an optional instance-family prefix (e.g. "bx3d-") for backward
-        compatibility, but strips it here so the rest of the code always works
-        with the canonical bare form (e.g. '4x16' or 'cx3d-4x16').
-        """
-        if value and not compute_profile.is_valid(value):
+    def validate(self, attrs):
+        """Reject a non-null compute_profile; existing clients always send it as null."""
+        if self.initial_data.get("compute_profile") is not None:
             raise serializers.ValidationError(
-                f"Invalid compute profile format: '{value}'. "
-                f"Expected format: [cpu]x[memory] or [cpu]x[memory]x[gpu_count][gpu_type], "
-                f"with an optional instance-family prefix "
-                f"(lowercase only, e.g., '4x16', 'cx3d-4x16', or 'gx3d-24x120x1a100p')"
+                {
+                    "compute_profile": (
+                        "'compute_profile' is no longer supported. Use 'function_size' with one of "
+                        "the labels this function declares (see the function's 'sizes' catalog)."
+                    )
+                }
             )
-        return compute_profile.normalize(value)
+        return attrs
 
     def validate_function_size(self, value):
         """Normalize the requested size label to its canonical (strip+upper) form.
 
-        Only normalization happens here, matching how compute_profile normalization
-        is the view's job. Whether the label is one the function declares is a
-        database question answered in the use case, which has the function.
+        Only normalization happens here. Whether the label is one the function
+        declares is a database question answered in the use case, which has the
+        function.
         """
         return normalize_function_size(value)
 
@@ -139,7 +130,6 @@ def run_program(request: Request) -> Response:
     title = serializer.validated_data.get("title")
     provider_name = serializer.validated_data.get("provider")
     arguments = serializer.validated_data.get("arguments")
-    compute_profile_value = serializer.validated_data.get("compute_profile")
     function_size_value = serializer.validated_data.get("function_size")
 
     config_data = None
@@ -181,7 +171,6 @@ def run_program(request: Request) -> Response:
             provider_name=provider_name,
             arguments=arguments,
             config_data=config_data,
-            compute_profile=compute_profile_value,
             function_size=function_size_value,
             channel=channel,
             token=token,
