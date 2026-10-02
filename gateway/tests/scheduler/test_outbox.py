@@ -3,6 +3,8 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
 from core.config_key import ConfigKey
 from core.models import Config, Job, Outbox, OutboxChannel, Program
@@ -312,6 +314,29 @@ class TestRegionsAreIndependent:
         assert destination.breaker("eu-de").is_open is True
         assert destination.breaker("us-east").is_open is False
         assert list(Outbox.objects.values_list("pk", flat=True)) == [dead.pk]
+
+    def test_rows_without_a_region_are_drained_apart_from_the_regional_ones(self):
+        sender = self._regional_sender(dead_region="no-such-region")
+        task = _make_task(sender=sender)
+        regional, unregional = self._row_in("eu-de"), self._row_in(None)
+
+        task.run()
+
+        sent = [[m.key for m in call.args[0]] for call in sender.send_batch.call_args_list]
+        assert sorted(sent) == sorted([[regional.pk], [unregional.pk]])
+        assert Outbox.objects.count() == 0
+
+    def test_a_region_with_an_open_breaker_is_not_even_read(self):
+        task = _make_task(sender=self._regional_sender(dead_region="eu-de"))
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1")
+        self._row_in("eu-de")
+        task.run()  # opens the eu-de breaker
+        self._row_in("eu-de")
+
+        with CaptureQueriesContext(connection) as queries:
+            task.channels[OutboxChannel.JOB_USAGE].drain(OutboxChannel.JOB_USAGE)
+
+        assert len(queries) == 1  # only the list of pending regions, none of the eu-de rows
 
     def test_a_region_with_an_open_breaker_is_skipped_while_the_others_are_still_sent(self):
         sender = self._regional_sender(dead_region="eu-de")

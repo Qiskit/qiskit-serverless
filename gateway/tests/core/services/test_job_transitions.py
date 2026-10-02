@@ -210,6 +210,13 @@ class TestBillingOutbox:
 
         assert Outbox.objects.filter(job=job).count() == 0
 
+    def test_a_malformed_instance_crn_enqueues_the_row_without_a_region(self, service, user):
+        job = Job.objects.create(author=user, runner=Program.FLEETS, instance_crn="not-a-crn", status=Job.PENDING)
+
+        service.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+
+        assert Outbox.objects.get(job=job, channel=OutboxChannel.JOB_USAGE).region is None
+
     def test_function_without_provider_enqueues_only_the_billing_event(self, service, user):
         program = Program.objects.create(title="my-fn", author=user, entrypoint="main.py", runner=Program.FLEETS)
         job = Job.objects.create(

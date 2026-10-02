@@ -2,7 +2,7 @@
 
 This document describes the transactional outbox that publishes best-effort messages
 to external systems in a deferred way. Today the only channels are `OutboxChannel.LICENSE_FEE`
-(`"billing_license_fee"`) and `OutboxChannel.USAGE` (`"billing_job_usage"`), the two Fleets job
+(`"billing_license_fee"`) and `OutboxChannel.JOB_USAGE` (`"billing_job_usage"`), the two Fleets job
 billing facts published to Kafka. The design is meant to stay generic: a later PR is expected
 to add a `workload` channel that mirrors job state to NTC's Runtime API, and it will not need
 any change to the table's structure or the drain task's logic, only a new `OutboxChannel`
@@ -177,8 +177,8 @@ with a logged error when the `Program` and its provider are both still there but
 `job.function_size` is missing, an anomaly rather than a normal case. `build_license_fee`
 itself assumes all of that has already been checked.
 
-Each builder that runs becomes one `Outbox.objects.create(job=job, channel=OutboxChannel.USAGE
-| OutboxChannel.LICENSE_FEE, payload=message)` call, inside the same transaction as the status
+Each builder that runs becomes one `Outbox.objects.create(job=job, channel=OutboxChannel.JOB_USAGE
+| OutboxChannel.LICENSE_FEE, region=..., payload=message)` call (`region` being the one in the job's instance CRN, or null), inside the same transaction as the status
 change.
 
 The message's CloudEvents `id` and `time` are generated when the message is built,
@@ -193,12 +193,11 @@ added later, by the sender, at send time, because it is only known once
 loop in `gateway/scheduler/main.py`, holds a `{OutboxChannel: Destination}` registry, where
 `Destination` (`gateway/scheduler/tasks/outbox_destination.py`) pairs a sender, a factory of
 `CircuitBreaker`s (it keeps one per region), and the `ConfigKey` that holds the time budget in
-milliseconds. Those three belong to the destination and not to the channel, so `LICENSE_FEE` and `USAGE` simply
+milliseconds. Those three belong to the destination and not to the channel, so `LICENSE_FEE` and `JOB_USAGE` simply
 point at the same `Destination`, whose sender is a `KafkaSender()` today (or `NoOpSender()` when
 `EVENT_STREAMS_ENABLED` is false); see "Circuit breaker" below for how that shares the breakers. `OutboxTask`
 only builds the destinations and, on every tick, asks the one of each channel to report that channel's gauges and
-drain its rows, each channel within its own time budget. A `Destination` is transport-agnostic: it knows only `Outbox`, `Config`, and a
-sender's `send_batch(messages)` contract (given `PendingMessage(key, payload)` objects, return the keys delivered),
+drain its rows, each channel within its own time budget. A `Destination` is transport-agnostic: it knows only `Outbox`, `Config`, and a sender's `send_batch(messages)` contract (given `PendingMessage(key, payload)` objects, return the keys delivered),
 never Kafka or any of its exception types.
 
 For each channel, once a tick, the task first lists the regions that have pending rows (null is one more
@@ -244,7 +243,7 @@ Each `Destination` keeps its own circuit breakers: one `CircuitBreaker`
 (`gateway/scheduler/tasks/circuit_breaker.py`, built by the `breaker_factory` the destination is given, a
 lambda in `OutboxTask.__init__` for Kafka) per region (null included), created the first time that region is seen. An
 unreachable region opens only its own breaker and the healthy regions keep draining. Channels
-that go through the same `Destination` share its breakers: `LICENSE_FEE` and `USAGE` both use the Kafka one, so
+that go through the same `Destination` share its breakers: `LICENSE_FEE` and `JOB_USAGE` both use the Kafka one, so
 an outage in a region opens its breaker once for both instead of each channel counting its own failures against
 the same underlying connection. A future channel with its own, unrelated sender gets its own `Destination`
 instead. While a region's breaker is open, its rows are skipped (not read, not sent, and left for the next tick)
@@ -278,7 +277,7 @@ Everything except the batch size is a `Config` entry (admin-editable, no redeplo
 needed): `scheduler.outbox.kafka.budget_ms` (default 500),
 `scheduler.outbox.kafka.breaker_failures` (default 5) and
 `scheduler.outbox.kafka.breaker_pause_seconds` (default 60). They apply to all the Kafka
-channels together (`LICENSE_FEE` and `USAGE`), and there is no on/off switch: the Kafka
+channels together (`LICENSE_FEE` and `JOB_USAGE`), and there is no on/off switch: the Kafka
 channels are always active. A future channel that is not Kafka gets its own `Config` keys
 and its own `Destination` with its own `budget_key`, without touching these.
 
@@ -319,7 +318,8 @@ logic. It needs:
    the codebase that channel's fact becomes true.
 3. A sender class with a `send(payload)` method (and a `send_batch(messages)` override if it can
    confirm many at once; the base class default calls `send` one by one) and its own `ConfigKey`s for the time
-   budget and the breaker thresholds, wrapped in one `Destination(sender=..., breaker_factory=..., budget_key=..., metrics=..., kill_signal=...)`, registered
+   budget and the breaker thresholds, wrapped in one
+   `Destination(sender=..., breaker_factory=..., budget_key=..., metrics=..., kill_signal=...)`, registered
    under its own key in `OutboxTask.channels`. A channel that goes to an existing destination just registers that
    same `Destination` under its own key, and shares its sender, breakers and budget; one with a new sender builds
    a new `Destination`, with its own breakers.
