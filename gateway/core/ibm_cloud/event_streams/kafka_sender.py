@@ -23,6 +23,9 @@ else to wire up::
     sender = build_kafka_sender()
     sender.send(payload)  # raises RuntimeError (or UnroutableRegionError) on failure
 
+The outbox uses sender.send_batch(messages) instead, which never raises and returns the keys the broker
+confirmed.
+
 See outbox.py and core/services/job_transitions.py for the two real callers.
 """
 
@@ -31,7 +34,7 @@ import logging
 
 from django.conf import settings
 
-from core.ibm_cloud.sender import Sender
+from core.ibm_cloud.sender import PendingMessage, Sender
 from .kafka_producers import KafkaProducers
 
 logger = logging.getLogger("gateway.ibm_cloud.event_streams_client")
@@ -78,6 +81,59 @@ class KafkaSender(Sender):
                 raise RuntimeError(f"KafkaSender: message delivery failed: {delivery_errors[0]}")
         except Exception as e:
             raise RuntimeError(f"KafkaSender: Failed to publish event (id={message.get('id')}): {str(e)}") from e
+
+    def send_batch(self, messages: list[PendingMessage], timeout: float = 5) -> set[int]:
+        """Produce every payload, flush each producer once, and return the keys the broker confirmed
+        through their delivery callback. A payload that cannot be routed or produced, is rejected by
+        the broker, or is still outstanding when the flush times out is left out of the result. The
+        timeout applies to each producer's flush. A message left outstanding may still be delivered
+        later and then sent again from its row, which is accepted (at-least-once)."""
+        delivered: set[int] = set()
+        producers_used = {}
+
+        for pending in messages:
+            key = pending.key
+            try:
+                message = {**pending.payload, "type": self._producers.topic}
+                producer = self._producers.get(self._instance_crn(message))
+                producer.produce(
+                    topic=self._producers.topic,
+                    key=message["subject"].encode("utf-8"),
+                    value=json.dumps(message).encode("utf-8"),
+                    callback=lambda err, msg, key=key: self._on_batch_delivery(err, msg, key, delivered),
+                )
+            except Exception as ex:  # pylint: disable=broad-exception-caught
+                logger.error("key=%s error producing: %s", key, str(ex))
+                continue
+            producers_used[id(producer)] = producer
+
+        for producer in producers_used.values():
+            try:
+                remaining = producer.flush(timeout=timeout)
+            except Exception as ex:  # pylint: disable=broad-exception-caught
+                logger.error("error flushing producer: %s", str(ex))
+                continue
+            if remaining > 0:
+                logger.error("%s message(s) not delivered after flush timeout", remaining)
+
+        # a copy, so a callback that fires after a timed-out flush cannot change what the caller got
+        return set(delivered)
+
+    def group_key(self, payload: dict) -> str | None:
+        """The payload's region: each region is its own Kafka cluster, so it fails on its own."""
+        return KafkaProducers.region(self._instance_crn(payload))
+
+    @staticmethod
+    def _instance_crn(payload) -> str | None:
+        """The payload's data.instance_crn, or None when the payload is not shaped like one."""
+        data = payload.get("data") if isinstance(payload, dict) else None
+        return data.get("instance_crn") if isinstance(data, dict) else None
+
+    def _on_batch_delivery(self, err, msg, key: int, delivered: set[int]) -> None:
+        if err is None:
+            delivered.add(key)
+        else:
+            self._log_delivery_error(err, msg)
 
     @staticmethod
     def _log_delivery_error(err, msg) -> None:

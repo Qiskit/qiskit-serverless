@@ -9,7 +9,8 @@ from typing import Callable
 
 
 class CircuitBreaker:
-    """Opens after N consecutive failures; reports closed again once a pause elapses.
+    """Opens after N consecutive failures; reports closed again once a pause elapses. After the pause it
+    is half open: the first failure opens it again, and a success clears the streak.
 
     failure_threshold and pause_seconds are callables (not plain values) so a caller
     backed by dynamic config (like OutboxTask's Config-backed settings) can change
@@ -29,6 +30,9 @@ class CircuitBreaker:
             return False
         if time.monotonic() - self._opened_at >= self._pause_seconds():
             self._reset()
+            # a single failure after the pause opens it again, so a destination that is still down costs one
+            # probe per pause instead of a full failure streak
+            self._consecutive_failures = max(self._failure_threshold() - 1, 0)
             return False
         return True
 

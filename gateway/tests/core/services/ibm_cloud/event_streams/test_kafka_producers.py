@@ -38,6 +38,7 @@ class TestKafkaProducersSetup:
                 "sasl.password": "my-key",
                 "enable.idempotence": True,
                 "acks": "all",
+                "message.timeout.ms": 4000,
             }
         )
 
@@ -70,6 +71,7 @@ class TestKafkaProducersSetup:
                 "sasl.password": "my-key",
                 "enable.idempotence": True,
                 "acks": "all",
+                "message.timeout.ms": 4000,
             }
         )
 

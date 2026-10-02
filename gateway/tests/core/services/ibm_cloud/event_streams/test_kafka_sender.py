@@ -10,6 +10,7 @@ from django.test import override_settings
 
 from core.ibm_cloud.event_streams.kafka_producers import UnroutableRegionError
 from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender, KafkaSender, NoOpSender
+from core.ibm_cloud.sender import PendingMessage
 
 
 def _payload(instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::"):
@@ -134,6 +135,169 @@ class TestKafkaSender:
         with pytest.raises(UnroutableRegionError):
             sender.send(payload)
         producers.get.assert_called_once_with(None)
+
+
+class _FakeProducer:
+    """Like confluent's Producer, delivery callbacks only run inside flush(). Keys in `reject` get an
+    error, keys in `hang` are left outstanding (their callback is kept in `late`)."""
+
+    def __init__(self, reject=(), hang=()):
+        self.reject, self.hang = set(reject), set(hang)
+        self.queued, self.late, self.flush_timeouts = [], [], []
+
+    def produce(self, **kwargs):
+        self.queued.append(kwargs)
+
+    def flush(self, timeout):
+        self.flush_timeouts.append(timeout)
+        for kwargs in self.queued:
+            if kwargs["key"] in self.hang:
+                self.late.append(kwargs["callback"])
+            elif kwargs["key"] in self.reject:
+                kwargs["callback"](Exception("Topic authorization failed"), None)
+            else:
+                kwargs["callback"](None, None)
+        remaining = sum(1 for kwargs in self.queued if kwargs["key"] in self.hang)
+        self.queued = []
+        return remaining
+
+
+def _payload_for(subject, crn=None):
+    payload = {**_payload(), "subject": subject}
+    if crn:
+        payload["data"] = {**payload["data"], "instance_crn": crn}
+    return payload
+
+
+class TestKafkaSenderBatch:
+    @staticmethod
+    def _producers(producer, topic="t"):
+        producers = MagicMock()
+        producers.topic = topic
+        producers.get.return_value = producer
+        return producers
+
+    def test_flushes_once_and_returns_only_the_keys_the_broker_confirmed(self):
+        producer = _FakeProducer(reject={b"job-2"})
+        sender = KafkaSender(self._producers(producer))
+
+        delivered = sender.send_batch(
+            [PendingMessage(1, _payload_for("job-1")), PendingMessage(2, _payload_for("job-2"))]
+        )
+
+        assert delivered == {1}
+        assert len(producer.flush_timeouts) == 1
+
+    def test_the_flush_uses_the_given_timeout(self):
+        producer = _FakeProducer()
+        sender = KafkaSender(self._producers(producer))
+
+        sender.send_batch([PendingMessage(1, _payload_for("job-1"))], timeout=1.5)
+
+        assert producer.flush_timeouts == [1.5]
+
+    def test_a_payload_that_cannot_be_routed_is_left_out_and_the_rest_are_sent(self):
+        producer = _FakeProducer()
+        producers = self._producers(producer)
+        producers.get.side_effect = [UnroutableRegionError("no region"), producer]
+        sender = KafkaSender(producers)
+
+        delivered = sender.send_batch(
+            [PendingMessage(1, _payload_for("job-1")), PendingMessage(2, _payload_for("job-2"))]
+        )
+
+        assert delivered == {2}
+
+    def test_a_message_still_outstanding_after_the_flush_timeout_is_left_out(self):
+        producer = _FakeProducer(hang={b"job-1"})
+        sender = KafkaSender(self._producers(producer))
+
+        assert sender.send_batch(
+            [PendingMessage(1, _payload_for("job-1")), PendingMessage(2, _payload_for("job-2"))]
+        ) == {2}
+
+    def test_a_callback_that_fires_after_the_flush_does_not_change_the_result(self):
+        producer = _FakeProducer(hang={b"job-1"})
+        sender = KafkaSender(self._producers(producer))
+
+        delivered = sender.send_batch([PendingMessage(1, _payload_for("job-1"))])
+        producer.late[0](None, None)  # the broker acks it during a later flush
+
+        assert delivered == set()
+
+    def test_one_region_timing_out_does_not_hide_the_other_region_s_confirmations(self):
+        healthy, dead = _FakeProducer(), _FakeProducer(hang={b"job-2"})
+        producers = self._producers(None)
+        producers.get.side_effect = lambda crn: healthy if "us-east" in crn else dead
+        sender = KafkaSender(producers)
+
+        delivered = sender.send_batch(
+            [
+                PendingMessage(
+                    1, _payload_for("job-1", "crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::")
+                ),
+                PendingMessage(2, _payload_for("job-2", "crn:v1:bluemix:public:quantum-computing:eu-de:a/acct:inst::")),
+            ]
+        )
+
+        assert delivered == {1}
+        assert len(healthy.flush_timeouts) == 1
+        assert len(dead.flush_timeouts) == 1
+
+    def test_does_not_mutate_the_callers_payload(self):
+        sender = KafkaSender(self._producers(_FakeProducer()))
+        payload = _payload()
+
+        sender.send_batch([PendingMessage(1, payload)])
+
+        assert "type" not in payload
+
+
+class TestKafkaSenderGroupKey:
+    def test_the_group_is_the_region_in_the_instance_crn(self):
+        sender = KafkaSender(MagicMock())
+
+        crn = "crn:v1:bluemix:public:quantum-computing:eu-de:a/acct:inst::"
+        assert sender.group_key(_payload(crn)) == "eu-de"
+
+    def test_a_payload_without_a_parsable_crn_has_no_group(self):
+        sender = KafkaSender(MagicMock())
+
+        assert sender.group_key({"data": {}}) is None
+        assert sender.group_key({"data": None}) is None
+        assert sender.group_key(_payload("not-a-crn")) is None
+
+
+class TestKafkaSenderMalformedPayloads:
+    def test_group_key_never_raises_on_odd_shapes(self):
+        sender = KafkaSender(MagicMock())
+
+        assert sender.group_key({"data": [1]}) is None
+        assert sender.group_key({"data": "x"}) is None
+        assert sender.group_key({"data": {"instance_crn": 5}}) is None
+        assert sender.group_key([1, 2]) is None
+
+    def test_send_batch_never_raises_on_a_payload_that_is_not_a_dict_and_still_sends_the_rest(self):
+        producer = _FakeProducer()
+        producers = MagicMock()
+        producers.topic = "t"
+        producers.get.return_value = producer
+        sender = KafkaSender(producers)
+
+        delivered = sender.send_batch([PendingMessage(1, [1, 2]), PendingMessage(2, _payload_for("job-2"))])
+
+        assert delivered == {2}
+
+
+class TestSenderDefaultSendBatch:
+    def test_swallows_and_logs_a_failure_and_still_sends_the_rest(self, caplog):
+        sender = NoOpSender()
+        with patch.object(NoOpSender, "send", side_effect=[None, RuntimeError("boom"), None]):
+            with caplog.at_level(logging.ERROR):
+                delivered = sender.send_batch([PendingMessage(1, {}), PendingMessage(2, {}), PendingMessage(3, {})])
+
+        assert delivered == {1, 3}
+        assert "boom" in caplog.text
 
 
 class TestNoOpSender:

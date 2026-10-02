@@ -83,13 +83,25 @@ class KafkaProducers:
                 "sasl.password": api_key,
                 "enable.idempotence": True,
                 "acks": "all",
+                # How long librdkafka keeps trying to deliver a message after produce(); the default is 5 min.
+                # It is lowered to just under the 5 s flush timeout of KafkaSender so that a message that cannot
+                # be delivered fails inside the flush window. That makes what flush() reports consistent: when it
+                # returns, every message was either confirmed or failed, none is left pending. The outbox can then
+                # safely retry the failed ones itself on its next tick, instead of leaving the message queued here
+                # to be delivered minutes later, on top of the copy the outbox already produced again.
+                "message.timeout.ms": 4000,
             }
         )
 
+    @staticmethod
+    def region(instance_crn: str | None) -> str | None:
+        """The region in instance_crn, or None if it cannot be parsed out of it."""
+        parts = instance_crn.split(":") if isinstance(instance_crn, str) else []
+        return parts[5] if len(parts) > 6 else None
+
     def get(self, instance_crn: str | None) -> Producer:
         """Return the producer for instance_crn's region, or raise UnroutableRegionError."""
-        parts = instance_crn.split(":") if instance_crn else []
-        region = parts[5] if len(parts) > 6 else None
+        region = self.region(instance_crn)
         if region is None:
             # this is actually impossible: the user who created the job was authorized with the same crn, so the
             # existence of a job with a crn means the crn is actually valid

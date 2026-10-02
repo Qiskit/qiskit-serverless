@@ -8,12 +8,13 @@ rationale, if you have it locally, see .claude/specs/2026-09-25-generic-outbox-d
 import logging
 import time
 from dataclasses import dataclass
+from typing import Callable
 
+from django.db.models import Q
 from django.utils import timezone
 
 from core.config_key import ConfigKey
-from core.ibm_cloud.sender import Sender
-from core.ibm_cloud.event_streams.kafka_producers import UnroutableRegionError
+from core.ibm_cloud.sender import PendingMessage, Sender
 from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender
 from core.models import Config, Outbox, OutboxChannel
 
@@ -25,6 +26,8 @@ from .task import SchedulerTask
 logger = logging.getLogger("scheduler.OutboxTask")
 
 BATCH_SIZE = 100
+# Group for a row whose payload the sender could not even group: it fails on its own, with its own breaker.
+INVALID_PAYLOAD_GROUP = "invalid-payload"
 
 
 def _build_kafka_breaker() -> CircuitBreaker:
@@ -36,6 +39,26 @@ def _build_kafka_breaker() -> CircuitBreaker:
     )
 
 
+class BreakerRegistry:
+    """One circuit breaker per group key (a Kafka region, say), created on first use, so one failing
+    destination opens only its own breaker."""
+
+    def __init__(self, factory: Callable[[], CircuitBreaker]):
+        self._factory = factory
+        self._breakers: dict[str | None, CircuitBreaker] = {}
+
+    def get(self, group_key: str | None) -> CircuitBreaker:
+        """The breaker for this group, built the first time it is asked for."""
+        if group_key not in self._breakers:
+            self._breakers[group_key] = self._factory()
+        return self._breakers[group_key]
+
+    @property
+    def any_open(self) -> bool:
+        """Whether the breaker of at least one group is open."""
+        return any(breaker.is_open for breaker in self._breakers.values())
+
+
 class OutboxTask(SchedulerTask):
     """Send whatever every registered outbox channel owes. Messages are inserted in the Outbox table
     this class consumes this table and send and delete the message from the table using the right
@@ -43,27 +66,27 @@ class OutboxTask(SchedulerTask):
 
     @dataclass
     class Channel:
-        """A registered outbox channel: its sender, its circuit breaker, and the Config key that holds
-        its per-tick time budget in milliseconds."""
+        """A registered outbox channel: its sender, its circuit breakers (one per sender group), and the
+        Config key that holds its per-tick time budget in milliseconds."""
 
         sender: Sender
-        breaker: CircuitBreaker
+        breakers: BreakerRegistry
         budget_key: ConfigKey
 
     def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
         self.kill_signal = kill_signal
         self.metrics = metrics
-        # LICENSE_FEE and USAGE share one sender, so they share this one breaker too: a Kafka
-        # outage opens it once for both, instead of each channel counting its own failures
-        # against the same underlying connection.
-        billing_breaker = _build_kafka_breaker()
+        # LICENSE_FEE and USAGE share one sender, so they share these breakers too: a Kafka
+        # outage in a region opens its breaker once for both, instead of each channel counting its
+        # own failures against the same underlying connection.
+        billing_breakers = BreakerRegistry(_build_kafka_breaker)
         billing_sender = build_kafka_sender()
         self.channels: dict[OutboxChannel, OutboxTask.Channel] = {
             OutboxChannel.LICENSE_FEE: self.Channel(
-                sender=billing_sender, breaker=billing_breaker, budget_key=ConfigKey.OUTBOX_KAFKA_CHANNEL_BUDGET_MS
+                sender=billing_sender, breakers=billing_breakers, budget_key=ConfigKey.OUTBOX_KAFKA_CHANNEL_BUDGET_MS
             ),
             OutboxChannel.JOB_USAGE: self.Channel(
-                sender=billing_sender, breaker=billing_breaker, budget_key=ConfigKey.OUTBOX_KAFKA_CHANNEL_BUDGET_MS
+                sender=billing_sender, breakers=billing_breakers, budget_key=ConfigKey.OUTBOX_KAFKA_CHANNEL_BUDGET_MS
             ),
         }
 
@@ -73,63 +96,86 @@ class OutboxTask(SchedulerTask):
             self._report_pending_gauges(channel_name)
 
         for channel_name, channel in self.channels.items():
-            self.metrics.set_outbox_breaker_open(channel.breaker.is_open, channel=channel_name)
-            if channel.breaker.is_open:
-                continue
             self._drain_channel(channel_name, channel)
+            self.metrics.set_outbox_breaker_open(channel.breakers.any_open, channel=channel_name)
 
     def _drain_channel(self, channel_name: OutboxChannel, channel: Channel) -> None:
-        # A row that fails without tripping the breaker is neither deleted nor blocked by the breaker, so an unfiltered
-        # re-fetch would find the exact same row again and hot-loop on it for the rest of the budget window.
         budget_ms = Config.get_int(channel.budget_key, default=500)
         deadline = time.monotonic() + (budget_ms / 1000)
-        # So, tracking pks already attempted this call bounds one tick to at most one attempt per currently pending row;
-        # it gets picked up again on the next tick.
-        attempted_pks: set = set()
+        # A row that is not delivered stays in the table, so an unfiltered re-fetch would find the exact same
+        # row again and hot-loop on it for the rest of the budget window. Paging forward from the last row
+        # seen bounds one tick to at most one attempt per currently pending row; it gets picked up again on
+        # the next tick.
+        cursor: tuple | None = None
+        skipped_groups: set = set()
 
-        while self._should_continue_draining(channel_name, channel.breaker, deadline):
-            queryset = Outbox.objects.filter(channel=channel_name).exclude(pk__in=attempted_pks)
-            batch = list(queryset.order_by("created")[:BATCH_SIZE])
+        while self._should_continue_draining(channel_name, deadline):
+            queryset = Outbox.objects.filter(channel=channel_name)
+            if cursor is not None:
+                queryset = queryset.filter(Q(created__gt=cursor[0]) | Q(created=cursor[0], pk__gt=cursor[1]))
+            batch = list(queryset.order_by("created", "pk")[:BATCH_SIZE])
             if not batch:
                 return
+            cursor = (batch[-1].created, batch[-1].pk)
 
-            for row in batch:
-                if not self._should_continue_draining(channel_name, channel.breaker, deadline):
+            # Each group (a Kafka region, say) has its own breaker, so a dead one is skipped while the
+            # healthy ones keep draining. The budget is only for the healthy path: a group that fails
+            # waits out its own flush timeout, which spends the budget and ends the tick.
+            for group_key, rows in self._group_rows(batch, channel.sender).items():
+                if not self._should_continue_draining(channel_name, deadline):
                     return
-                self._send_row(row, channel.sender, channel.breaker)
-                attempted_pks.add(row.pk)
+                breaker = channel.breakers.get(group_key)
+                if breaker.is_open:
+                    if group_key not in skipped_groups:
+                        skipped_groups.add(group_key)
+                        logger.info(
+                            "Circuit breaker open, skipping channel=%s group=%s this tick", channel_name, group_key
+                        )
+                    continue
+                self._send_batch(rows, channel.sender, breaker)
 
-    def _should_continue_draining(self, channel: OutboxChannel, breaker: CircuitBreaker, deadline: float) -> bool:
+    @staticmethod
+    def _group_rows(batch: list[Outbox], sender: Sender) -> dict[str | None, list[Outbox]]:
+        groups: dict[str | None, list[Outbox]] = {}
+        for row in batch:
+            try:
+                group_key = sender.group_key(row.payload)
+            except Exception as ex:  # pylint: disable=broad-exception-caught
+                logger.error("outbox_id=%s job_id=%s cannot group the payload: %s", row.id, row.job_id, str(ex))
+                group_key = INVALID_PAYLOAD_GROUP
+            groups.setdefault(group_key, []).append(row)
+        return groups
+
+    def _should_continue_draining(self, channel: OutboxChannel, deadline: float) -> bool:
         if self.kill_signal.received:
             logger.info("Kill signal received, stopping outbox drain for channel=%s", channel)
             return False
         if time.monotonic() >= deadline:
             logger.info("Time budget spent, stopping outbox drain for channel=%s this tick", channel)
             return False
-        if breaker.is_open:
-            logger.info("Circuit breaker opened, stopping outbox drain for channel=%s", channel)
-            return False
         return True
 
-    def _send_row(self, row: Outbox, sender: Sender, breaker: CircuitBreaker) -> None:
-        """Send one row, keeping it for the next tick and counting it against the breaker on any
-        failure, UnroutableRegionError included."""
-        try:
-            sender.send(row.payload)
-        except UnroutableRegionError as ex:
-            logger.error("outbox_id=%s job_id=%s error sending, unroutable CRN: %s", row.id, row.job_id, str(ex))
-            self.metrics.increment_outbox_send(row.channel, "failure")
-            breaker.record_failure()
-            return
-        except Exception as ex:  # pylint: disable=broad-exception-caught
-            logger.error("outbox_id=%s job_id=%s error sending: %s", row.id, row.job_id, str(ex))
-            self.metrics.increment_outbox_send(row.channel, "failure")
-            breaker.record_failure()
-            return
+    def _send_batch(self, batch: list[Outbox], sender: Sender, breaker: CircuitBreaker) -> None:
+        """Send a batch with one confirmation round trip, delete the rows the sender confirmed and keep
+        the rest for the next tick. The breaker records a success if at least one row was delivered
+        and a failure only when none was, so a single bad row never opens it."""
+        delivered = sender.send_batch([PendingMessage(row.pk, row.payload) for row in batch])
 
-        self.metrics.increment_outbox_send(row.channel, "success")
-        breaker.record_success()
-        row.delete()
+        for row in batch:
+            self.metrics.increment_outbox_send(row.channel, "success" if row.pk in delivered else "failure")
+
+        if len(delivered) < len(batch):
+            logger.error(
+                "outbox batch: %s of %s row(s) not delivered, kept for the next tick (the sender logged why)",
+                len(batch) - len(delivered),
+                len(batch),
+            )
+
+        if delivered:
+            breaker.record_success()
+            Outbox.objects.filter(pk__in=delivered).delete()
+        else:
+            breaker.record_failure()
 
     def _report_pending_gauges(self, channel: OutboxChannel) -> None:
         queryset = Outbox.objects.filter(channel=channel)

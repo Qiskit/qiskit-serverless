@@ -185,31 +185,43 @@ added later, by the sender, at send time, because it is only known once
 
 `OutboxTask` (`gateway/scheduler/tasks/outbox.py`), wired into the scheduler
 loop in `gateway/scheduler/main.py`, holds a `{OutboxChannel: OutboxTask.Channel}` registry, where
-`OutboxTask.Channel` pairs a sender, a `CircuitBreaker`, and the `ConfigKey` that holds that
+`OutboxTask.Channel` pairs a sender, a `BreakerRegistry` (one `CircuitBreaker` per sender group), and the `ConfigKey` that holds that
 channel's time budget. `LICENSE_FEE` and `USAGE` both point at the same `KafkaSender()` instance today (or
 `NoOpSender()` when `EVENT_STREAMS_ENABLED` is false); see "Circuit breaker" below for how they
-also share one breaker. `OutboxTask` drains every registered channel on every tick, each within
+also share their breakers. `OutboxTask` drains every registered channel on every tick, each within
 its own time budget, and is itself transport-agnostic: it knows only `Outbox`, `Config`, and a
-sender's `send(payload)` contract (raise `RuntimeError` on failure), never Kafka or any of its
-exception types.
+sender's `send_batch(messages)` contract (given `PendingMessage(key, payload)` objects, return the keys delivered),
+never Kafka or any of its exception types.
 
 For each channel, once a tick, the task drains successive small batches (`BATCH_SIZE
 = 100` rows, a code constant, not a `Config` entry: it bounds a single query, not
 throughput) oldest first, until either nothing is left pending, the tick's time
-budget runs out, or the channel's breaker opens. A row that fails without tripping
-the breaker is tracked for the rest of that call so the same row is not retried in a
-hot loop within one tick; it is picked up again on the next tick.
+budget runs out, or the kill signal arrives. The task pages forward by `(created, pk)` from the last row
+it saw, so a row that is not delivered is not retried in a hot loop within one tick; it is picked up again on
+the next tick. Rows whose group has an open breaker are still paged past, not stopped at, so healthy
+rows queued behind a pile of them are reached within the budget.
 
-For each row, the channel's sender receives the payload exactly as stored
-(`sender.send(row.payload)`) and knows nothing about `Job`, billing, or licensing. A
-successful send deletes the row unconditionally: unlike the old design, there is
-nothing left to re-check, because a row is now exactly one message, and sending it is
-the only thing it was waiting for.
+Each batch is first split in memory by `sender.group_key(payload)`: a destination that fails on its
+own, which for `KafkaSender` is the region in the payload's CRN (each region is its own Kafka cluster).
+Senders without such a notion keep the default, one group. A payload whose group cannot be
+computed at all (`group_key` raises) goes to its own `invalid-payload` group, with its own breaker, instead of
+stopping the channel. Each group then goes to the channel's sender in
+one call, `sender.send_batch([PendingMessage(row.pk, row.payload), ...])`, with the payloads exactly as stored. The sender
+knows nothing about `Job`, billing, or licensing and returns the set of pks it confirmed as delivered.
+`KafkaSender` produces the whole batch and flushes each producer once, instead of one flush per row,
+and marks a pk as delivered only from that message's own delivery callback. The task deletes exactly
+the confirmed rows: unlike the old design, there is nothing left to re-check, because a row is now
+exactly one message, and sending it is the only thing it was waiting for.
 
-A failure, `UnroutableRegionError` (a `RuntimeError` subclass raised by
-`KafkaProducers.get` when a payload's CRN cannot be routed to a region) included,
-leaves the row for the next tick and counts against the channel's breaker. Nothing
-here deletes a row on failure: a missing region producer is a config gap
+Any row the sender does not confirm, for whatever reason (`UnroutableRegionError`, a broker
+rejection, a flush timeout), stays for the next tick. The breaker records one success if at least one
+row of the batch was delivered and one failure only when none was, so isolated bad rows do not open it,
+but a whole batch of them does. The time budget is for the healthy path: a group that fails waits
+out `KafkaSender`'s own flush timeout (5 s), which spends the budget and ends the tick. The producers
+are created with `message.timeout.ms` at 4 s, just under that flush timeout, so a message that cannot
+be delivered in time fails inside the flush instead of staying queued and being delivered minutes
+later, on top of the copy produced again from its row on the next tick. A message the broker did
+write but whose ack came too late is sent again from its row: delivery is at least once. Nothing here deletes a row on failure: a missing region producer is a config gap
 (`EVENT_STREAMS_BOOTSTRAP_SERVERS_<REGION>`), and the same row becomes sendable again
 once it is added. `KafkaProducers.get`'s other failure mode, a CRN it cannot parse a
 region out of at all, is not something this code defends against separately: every
@@ -225,16 +237,17 @@ builds anything itself and does not know which of the two cases it is in.
 
 ## Circuit breaker
 
-Each distinct sender gets its own `CircuitBreaker`
+Each distinct sender gets its own `BreakerRegistry` in `outbox.py`: one `CircuitBreaker`
 (`gateway/scheduler/tasks/circuit_breaker.py`, built by the module-level `_build_kafka_breaker()`
-helper in `outbox.py`), passed explicitly into each `OutboxTask.Channel` rather than looked up by
-sender identity: `LICENSE_FEE` and `USAGE` share one `KafkaSender` instance, so
-`OutboxTask.__init__` builds one breaker and passes that same instance to both `Channel`s,
-and a Kafka outage opens it once for both instead of each channel counting its own failures
-against the same underlying connection. A future channel with its own, unrelated sender is
-built with its own `_build_kafka_breaker()` call instead, automatically getting its own breaker with
-no extra wiring needed. While a sender's breaker is open, no batch is fetched and no send is
-attempted for any channel using that sender, for the rest of the tick.
+helper) per sender group, created the first time that group is seen. For Kafka a group is a region, so an
+unreachable region opens only its own breaker and the healthy regions keep draining. The registry is
+passed explicitly into each `OutboxTask.Channel` rather than looked up by sender identity:
+`LICENSE_FEE` and `USAGE` share one `KafkaSender` instance, so `OutboxTask.__init__` builds one
+registry and passes that same instance to both `Channel`s, and an outage in a region opens its breaker
+once for both instead of each channel counting its own failures against the same underlying connection.
+A future channel with its own, unrelated sender is built with its own `BreakerRegistry` instead. While a
+group's breaker is open, its rows are skipped (not sent, and left for the next tick) for any channel
+using that sender, while the other groups are still sent.
 
 - The failure counter is **not** reset between ticks. Failures accumulate across as
   many ticks as it takes to reach the threshold (5 consecutive failures by default),
@@ -245,13 +258,14 @@ attempted for any channel using that sender, for the rest of the tick.
   real wall-clock time from the moment it opened, regardless of how many scheduler
   ticks pass meanwhile.
 - It closes itself the next time anything asks whether it is open, once that pause
-  has elapsed, and the failure counter resets to zero as if nothing had happened.
-  Closing does not carry any memory forward: a fresh, uninterrupted streak of
-  failures is needed to open it again.
-- The breaker is checked not only once before the tick starts, but again before every
-  batch and before every row within a batch, so a failure that trips it mid-tick
-  stops the rest of that channel's work immediately instead of only from the next
-  tick onward.
+  has elapsed, but half open: the failure counter is left one short of the threshold, so a
+  single failure opens it again, while a success clears the streak. A destination that is still
+  down therefore costs one probe per pause, not a whole failure streak.
+- A group's breaker is checked right before that group's batch is sent, so a failure that
+  trips it mid-tick keeps the rest of that group's rows from being sent in the same tick.
+- One pass over the pending rows can cost one flush timeout per failing group before the budget
+  runs out, and a group that is first in line can then keep the others from being sent until its
+  breaker opens.
 
 `OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES` and `OUTBOX_KAFKA_CHANNEL_BREAKER_PAUSE_SECONDS` are read lazily through
 callables passed into the breaker, so they can change at runtime through `Config`
@@ -275,9 +289,9 @@ whatever channel a future PR adds), not by any billing-specific vocabulary:
 - `scheduler_outbox_pending_rows{channel}` and
   `scheduler_outbox_oldest_pending_age_seconds{channel}`: reported every tick for
   every registered channel, independent of whether that channel's breaker is open.
-- `scheduler_outbox_breaker_open{channel}`: whether a given channel's breaker is
-  currently open. This carries a `channel` label precisely because there is now one
-  breaker per channel, not one breaker overall.
+- `scheduler_outbox_breaker_open{channel}`: 1 while the breaker of at least one group
+  (region) of that channel is open. It carries no per-group label, and it is set after the
+  channel has been drained, so it reflects a breaker that opened during this very tick.
 
 The old `scheduler_outbox_license_fee_irrecoverable_total` counter is gone. The one
 case it measured that is still an anomaly today, a licensed function whose
@@ -301,8 +315,9 @@ logic. It needs:
 2. A builder that decides when to enqueue a message for that channel and calls
    `Outbox.objects.create(job=job, channel=OutboxChannel.<NAME>, payload=message)`, wherever in
    the codebase that channel's fact becomes true.
-3. A sender class with a `send(payload)` method and its own `ConfigKey`s for the time
-   budget and the breaker thresholds, wrapped in one `OutboxTask.Channel(sender=..., breaker=..., budget_key=...)` registered under its own
+3. A sender class with a `send(payload)` method (and a `send_batch(messages)` override if it can
+   confirm many at once; the base class default calls `send` one by one) and its own `ConfigKey`s for the time
+   budget and the breaker thresholds, wrapped in one `OutboxTask.Channel(sender=..., breakers=..., budget_key=...)` registered under its own
    key in `OutboxTask.channels`. A channel that reuses an existing sender instance can pass that
    sender's own breaker too, sharing it; one with a new sender builds its own with
    `_build_kafka_breaker()` instead.
