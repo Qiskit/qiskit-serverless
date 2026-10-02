@@ -94,7 +94,7 @@ def test_sizes_summary_reports_count_and_default():
     request = RequestFactory().get(reverse("admin:api_program_changelist"))
     obj = admin.get_queryset(request).get(pk=function.pk)
 
-    assert admin.sizes_summary(obj) == "2 (default: s)"
+    assert admin.sizes_summary(obj) == "2 (default: S)"
 
 
 @pytest.mark.django_db
@@ -140,8 +140,8 @@ def test_the_change_page_offers_only_this_functions_sizes_as_default(client):
 
     default_field = response.context["adminform"].form.fields["default_size"]
     labels = [str(obj) for obj in default_field.queryset]
-    assert any("mine" in label for label in labels)
-    assert not any("theirs" in label for label in labels)
+    assert any("MINE" in label for label in labels)
+    assert not any("THEIRS" in label for label in labels)
 
 
 @pytest.mark.django_db

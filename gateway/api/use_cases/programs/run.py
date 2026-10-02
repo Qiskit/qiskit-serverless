@@ -92,7 +92,7 @@ def _get_runner_config(
 
     Both requested values are expected already normalized by the view:
     ``compute_profile`` to bare (prefix-less) form, ``function_size`` to its
-    canonical (strip+casefold) label.
+    canonical (strip+upper) label.
 
     Raises:
         FunctionConfigurationException: on ambiguous input, an undeclared size, or
@@ -123,7 +123,8 @@ def _get_runner_config(
     if function_size_requested:
         function_size = FunctionSize.objects.get_function_size(function, function_size_requested)
         if function_size is None:
-            available = sorted(FunctionSize.objects.function_sizes(function).values_list("function_size", flat=True))
+            sizes = FunctionSize.objects.function_sizes(function).values_list("function_size", flat=True)
+            available = sorted({size.upper() for size in sizes})
             available_msg = ", ".join(available) if available else "this function declares no sizes."
             raise FunctionConfigurationException(
                 f"Unknown function size '{function_size_requested}' for this function. "

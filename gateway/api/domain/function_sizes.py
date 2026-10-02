@@ -1,25 +1,27 @@
 """Domain rules for the function size catalog declared at upload time.
 
 A function declares its sizes as a mapping of size label to compute profile
-identifier, e.g. ``{"m": "16x128", "XL": "80x1280x8a100"}``, where the value
-names an existing ``ComputeProfile`` row. This module owns the shape and the
-naming rules for that mapping; whether a profile actually exists is a database
+identifier, e.g. ``{"M": "16x128", "XL": "80x1280x8a100"}``, where the label
+must be one of ``core.models.FunctionSize.VALID_SIZES`` and the value names
+an existing ``ComputeProfile`` row. This module owns the shape and the naming
+rules for that mapping; whether a profile actually exists is a database
 question and is answered in the use case, per ``specs/VIEWS.md``.
 
 A size label is a user-facing name, so it is compared case-insensitively: an
-uploader writing ``"XL"`` and a client running ``" xl "`` mean the same size.
-Canonicalising through ``normalize_function_size`` keeps the
-``unique_function_size`` constraint meaningful and keeps the upload path and the
-run path agreeing on which sizes a function declares. ``casefold()`` rather than
-``lower()`` so non-ASCII labels fold correctly.
+uploader writing ``"xl"`` and a client running ``" Xl "`` mean the same size.
+``normalize_function_size`` upper-cases it, matching what ``FunctionSize.save()``
+stores.
 
-Rows created directly in the admin backoffice bypass this module, since the
-admin runs no API validation. A label typed there with different casing is a
-distinct row that will not resolve at run time, so it should be entered in its
-normalised form.
+The Django admin's ``choices`` dropdown blocks a *new* out-of-catalog label, but
+does not protect a row that already held one: Django's ``Select`` widget shows no
+option selected for such a value, and saving the form silently overwrites it with
+whatever the browser defaulted to. The admin also bypasses this module's shape
+rules (``MAX_SIZES_PER_FUNCTION``, ``MAX_COMPUTE_PROFILE_ID_LENGTH``), which have
+no equivalent in the admin form.
 """
 
 from api.domain.exceptions.invalid_function_sizes_error import InvalidFunctionSizesError
+from core.models import FunctionSize
 
 # A size catalog is a hand written menu of machine shapes, so single digits are
 # the norm and this only exists to stop a caller from turning one upload into an
@@ -40,7 +42,7 @@ def normalize_function_size(function_size: str | None) -> str | None:
     """Return the canonical form of one size label, or None when absent."""
     if function_size is None:
         return None
-    return function_size.strip().casefold()
+    return function_size.strip().upper()
 
 
 def parse_function_sizes(sizes) -> dict[str, str]:
@@ -61,7 +63,7 @@ def parse_function_sizes(sizes) -> dict[str, str]:
     """
     if not isinstance(sizes, dict):
         raise InvalidFunctionSizesError(
-            "'sizes' should be an object mapping a size name to a compute profile, e.g. {'m': '16x128'}."
+            "'sizes' should be an object mapping a size name to a compute profile, e.g. {'M': '16x128'}."
         )
     if not sizes:
         raise InvalidFunctionSizesError("'sizes' should declare at least one size.")
@@ -87,6 +89,10 @@ def parse_function_sizes(sizes) -> dict[str, str]:
             raise InvalidFunctionSizesError(
                 f"Compute profile for size '{raw_name}' is longer than "
                 f"the maximum of {MAX_COMPUTE_PROFILE_ID_LENGTH} characters."
+            )
+        if name not in FunctionSize.VALID_SIZES:
+            raise InvalidFunctionSizesError(
+                f"Invalid size '{raw_name}'. Valid sizes are: {', '.join(FunctionSize.VALID_SIZES)}."
             )
         if name in parsed:
             raise InvalidFunctionSizesError(

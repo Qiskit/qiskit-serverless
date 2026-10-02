@@ -243,13 +243,13 @@ class TestUploadFunctionUseCase:
             user,
             accessible,
             UploadFunctionInput(
-                title="my-fn", entrypoint="main.py", runner=Program.FLEETS, sizes={"m": "16x128"}, default_size="m"
+                title="my-fn", entrypoint="main.py", runner=Program.FLEETS, sizes={"M": "16x128"}, default_size="M"
             ),
         )
 
         assert result.function_sizes.count() == 1
         assert result.default_size is not None
-        assert result.default_size.function_size == "m"
+        assert result.default_size.function_size == "M"
 
     def test_create_ray_function_without_sizes_does_not_seed_function_size(self, user):
         """Sizing is a Fleets concept; a Ray function created without 'sizes' gets none seeded."""
@@ -322,7 +322,7 @@ class TestUploadFunctionUseCase:
 
         sizes = list(result.function_sizes.all())
         assert len(sizes) == 1
-        assert sizes[0].function_size == "m"
+        assert sizes[0].function_size == "M"
         assert sizes[0].compute_profile.compute_profile_id == "16x128"
         assert result.default_size == sizes[0]
 
@@ -360,7 +360,7 @@ class TestUploadFunctionUseCase:
 
         sizes = list(result.function_sizes.all())
         assert len(sizes) == 1
-        assert sizes[0].function_size == "m"
+        assert sizes[0].function_size == "M"
         assert sizes[0].compute_profile.compute_profile_id == "16x128"
         assert result.default_size == sizes[0]
 
@@ -407,5 +407,5 @@ class TestUploadFunctionUseCase:
 
         sizes = list(result.function_sizes.all())
         assert len(sizes) == 1
-        assert sizes[0].function_size == "custom"
+        assert sizes[0].function_size == "CUSTOM"
         assert result.default_size == existing_size
