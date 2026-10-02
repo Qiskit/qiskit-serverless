@@ -96,6 +96,8 @@ application:
     baseUrl: "https://test.login.w3.ibm.com"
   ibmCloudFidApiKey:
     enabled: false
+  externalDatabaseCredentials:
+    enabled: false
 
 tracing:
   enabled: false
@@ -131,7 +133,6 @@ secrets:
       host: database-host
       port: database-port
       userName: user-name
-    createExternalSecret: false
     secretRef: ""
     secretStoreName: qiskit-serverless
   superuser:
