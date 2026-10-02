@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    The gateway and scheduler pods now have a ``startupProbe`` with a 20 minute budget, so
+    a slow startup migration is no longer killed by the liveness probe before the server
+    starts listening.
