@@ -24,6 +24,8 @@ import logging
 from confluent_kafka import Producer
 from django.conf import settings
 
+from core.domain.crn import Crn
+
 logger = logging.getLogger("gateway.ibm_cloud.event_streams_client")
 
 
@@ -96,8 +98,8 @@ class KafkaProducers:
     @staticmethod
     def region(instance_crn: str | None) -> str | None:
         """The region in instance_crn, or None if it cannot be parsed out of it."""
-        parts = instance_crn.split(":") if isinstance(instance_crn, str) else []
-        return parts[5] if len(parts) > 6 else None
+        crn = Crn.parse(instance_crn)
+        return crn.region if crn else None
 
     def get(self, instance_crn: str | None) -> Producer:
         """Return the producer for instance_crn's region, or raise UnroutableRegionError."""
