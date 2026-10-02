@@ -17,11 +17,13 @@ class RunnerError(Exception):
     Attributes:
         message: Human-readable error description
         original_exception: The underlying exception that caused this error (if any)
+        permanent: True when retrying cannot help, so the caller must stop retrying
     """
 
-    def __init__(self, message: str, original_exception: Exception | None = None):
+    def __init__(self, message: str, original_exception: Exception | None = None, *, permanent: bool = False):
         super().__init__(message)
         self.message = message
+        self.permanent = permanent
         self.original_exception = original_exception
 
     def __str__(self) -> str:

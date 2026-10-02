@@ -17,6 +17,7 @@ from core.services.storage.result_storage_ray import RayResultStorage
 from core.domain.authorization.function_access_entry import FunctionAccessEntry
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.business_models import BusinessModel
+from core.services.runners import RunnerError
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import Job, JobEvent, PLATFORM_PERMISSION_JOBS_READ, Program, Provider, RuntimeJob
 from tests.utils import TestUtils
@@ -607,6 +608,25 @@ class TestJobApi:
         assert response.status_code == status.HTTP_404_NOT_FOUND
         job = Job.objects.filter(id__exact="8317718f-5c0d-4fb6-9947-72e480b8a348").first()
         assert job.status != Job.STOPPED
+
+    def test_stop_fleets_job_returns_503_when_the_cancel_cannot_be_delivered(self):
+        """The row stays RUNNING so the user can retry. A STOPPING row would claim a cancel we never
+        sent, and this is the only test that exercises the EngineUnavailableException mapping."""
+        self._authorize("test_user")
+        job = Job.objects.get(id__exact="8317718f-5c0d-4fb6-9947-72e480b8a348")
+        Job.objects.filter(pk=job.pk).update(runner=Program.FLEETS, status=Job.RUNNING, fleet_id="fleet-abc")
+
+        runner = MagicMock()
+        runner.stop.side_effect = RunnerError("Code Engine rate limited the cancel")
+        with patch("api.use_cases.jobs.stop.get_runner", return_value=runner):
+            response = self.client.post(
+                reverse("v1:jobs-stop", args=[str(job.pk)]),
+                format="json",
+            )
+
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert "please retry" in response.data["message"]
+        assert Job.objects.get(pk=job.pk).status == Job.RUNNING
 
     def test_job_list_internal_server_error(self):
         """Tests that unexpected exceptions return 500 with proper message."""

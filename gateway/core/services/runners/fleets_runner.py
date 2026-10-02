@@ -516,12 +516,12 @@ class FleetsRunner(AbstractRunner):
             RunnerError: If no project is assigned or the assigned project is inactive.
         """
         if not self.job.program:
-            raise RunnerError(f"Program for job '{self.job.id}' has been deleted")
+            raise RunnerError(f"Program for job '{self.job.id}' has been deleted", permanent=True)
         project = self.job.program.code_engine_project
         if not project:
-            raise RunnerError(f"No Code Engine project assigned to program '{self.job.program.title}'")
+            raise RunnerError(f"No Code Engine project assigned to program '{self.job.program.title}'", permanent=True)
         if not project.active:
-            raise RunnerError(f"Code Engine project '{project.project_name}' is not active")
+            raise RunnerError(f"Code Engine project '{project.project_name}' is not active", permanent=True)
         return project
 
     def _get_handler(self) -> FleetHandler:

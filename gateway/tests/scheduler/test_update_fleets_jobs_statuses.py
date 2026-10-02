@@ -377,16 +377,37 @@ class TestStopJobIfTimeout:
         mock_runner.stop.assert_called_once_with()
         assert job.status == Job.STOPPING
 
-    def test_leaves_the_job_alone_when_the_fleet_cannot_be_cancelled(self):
-        """Behaviour change: the timeout used to write STOPPED regardless. A terminal status would
-        report the job as finished while its fleet still holds the node, so it retries instead."""
+    def test_a_permanent_fault_still_reaches_stopped(self):
+        """No retry can clear an inactive project, so the row must end here or it keeps its slots for ever."""
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
         past_event = MagicMock()
         past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
         mock_runner = MagicMock()
-        mock_runner.stop.side_effect = RunnerError("Code Engine project 'p' is not active")
+        mock_runner.stop.side_effect = RunnerError("Code Engine project 'p' is not active", permanent=True)
+
+        with (
+            patch(f"{_MOD}.settings") as mock_settings,
+            patch(f"{_MOD}.JobEvent") as mock_event,
+            patch(f"{_MOD}.get_runner", return_value=mock_runner),
+        ):
+            mock_settings.PROGRAM_TIMEOUT = 1
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
+            task.stop_job_if_timeout(job)
+
+        assert job.status == Job.STOPPED
+        task.transitions.to_stopping.assert_not_called()
+
+    def test_a_transient_refusal_leaves_the_job_alone(self):
+        """A terminal status here would report the job finished while its fleet still holds the node."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        past_event = MagicMock()
+        past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
+        mock_runner = MagicMock()
+        mock_runner.stop.side_effect = RunnerError("Code Engine API error: Too Many Requests")
 
         with (
             patch(f"{_MOD}.settings") as mock_settings,
@@ -801,6 +822,38 @@ class TestStoppingDeadlineAgainstTheDatabase:
 
         assert changed is True, "the deadline never fired, so the query read the wrong event"
         assert job.status == Job.STOPPED
+
+    def test_an_older_event_of_another_kind_does_not_start_the_clock(self):
+        """Pins the data__status filter. Without it the QUEUED creation event starts the clock, and
+        every stopping job is forced to STOPPED on its first poll without ever being confirmed."""
+        author = User.objects.create_user(username="deadline-author-3")
+        job = self._job(author)
+        JobEvent.objects.add_status_event(
+            job_id=job.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.SCHEDULE_JOBS,
+            status=Job.QUEUED,
+        )
+        JobEvent.objects.filter(job=job, data__status=Job.QUEUED).update(
+            created=datetime.now(timezone.utc) - timedelta(seconds=_STOPPING_DEADLINE_SECONDS * 4)
+        )
+        # The cancel was accepted a moment ago, so the deadline must not have started yet.
+        JobEvent.objects.add_status_event(
+            job_id=job.id,
+            origin=JobEventOrigin.API,
+            context=JobEventContext.STOP_JOB,
+            status=Job.STOPPING,
+        )
+
+        task = _make_task()
+        runner = MagicMock()
+        runner.status.return_value = Job.RUNNING
+
+        with patch(f"{_MOD}.get_runner", return_value=runner):
+            changed = task.update_job_status(job)
+
+        assert changed is False, "an older event of another kind started the deadline"
+        assert job.status == Job.STOPPING
 
     def test_a_recent_stop_is_left_alone(self):
         author = User.objects.create_user(username="deadline-author-2")

@@ -318,7 +318,10 @@ class BalanceFillerJobs(SchedulerTask):
         except RunnerError as ex:
             # Left active on purpose: writing a stopping or stopped status would hide a fleet still
             # holding the node, and the balancer would create another on top. Retried next cycle.
+            # A permanent fault never clears, so the row ends here rather than being retried for ever.
             logger.error("[BalanceFillerJobs] job_id=%s error stopping filler job: %s", job.id, str(ex))
+            if ex.permanent:
+                self._mark_stopped(job)
             return
 
         if cancel_in_flight:
