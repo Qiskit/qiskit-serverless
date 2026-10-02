@@ -451,12 +451,12 @@ class FleetsRunner(AbstractRunner):
         recognise could not be cancelled at all.
 
         Returns:
-            ``True`` if Code Engine accepted the request, ``False`` if there was nothing left to
-            cancel because the fleet is gone or is already being cancelled. ``True`` does not say
+            ``True`` if a cancel is in flight, so a terminal task state is still to come. ``False``
+            only if the fleet is gone, so nothing will ever be written for it. ``True`` does not say
             the job was running: Code Engine also accepts a cancel for a fleet that has finished.
 
         Raises:
-            RunnerError: If the cancel could not be delivered, so the caller can retry.
+            RunnerError: If the cancel could not be delivered, after retrying a rate limit.
         """
         self._ensure_connected()
         if not self.job.fleet_id:
@@ -465,7 +465,7 @@ class FleetsRunner(AbstractRunner):
         handler = self._get_handler()
 
         try:
-            cancelled = handler.cancel_job(self.job.fleet_id, wait=False, delete=False)
+            cancelled = _retry_on_rate_limit(lambda: handler.cancel_job(self.job.fleet_id, wait=False, delete=False))
             if cancelled:
                 logger.info("Cancelled fleet [%s]", self.job.fleet_id)
             return cancelled

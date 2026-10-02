@@ -343,8 +343,8 @@ class FleetHandler:
             poll_interval_seconds: Delay between polls.
 
         Returns:
-            ``True`` if Code Engine accepted the request, ``False`` if there was nothing left to
-            cancel because the fleet is gone or a cancel is already in progress.
+            ``True`` if a cancel is in flight, whether this call started it or an earlier one did.
+            ``False`` only if the fleet is gone, so nothing will ever be written for it.
 
             ``True`` does not mean the fleet was doing anything. Code Engine answers 202 for a
             fleet whose task has already finished, and for one in ``standby``, both measured on
@@ -374,8 +374,10 @@ class FleetHandler:
             # a 2xx body can raise ApiException(status=0) too. 404 and an already-cancelling 409
             # mean there is nothing left to do; anything else, a 429 above all, means the cancel was
             # not delivered, so raise rather than claim it was.
-            if exc.status == 404 or (exc.status == 409 and _is_already_canceled(exc)):
-                logger.info("Fleet [%s] had nothing to cancel (HTTP %s)", fleet_id, exc.status)
+            if exc.status == 409 and _is_already_canceled(exc):
+                logger.info("Fleet [%s] was already being cancelled", fleet_id)
+            elif exc.status == 404:
+                logger.info("Fleet [%s] is gone, nothing to cancel", fleet_id)
                 cancel_sent = False
             else:
                 raise

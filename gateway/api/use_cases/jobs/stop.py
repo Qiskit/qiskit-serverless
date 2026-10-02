@@ -10,6 +10,7 @@ from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTr
 from core.services.job_transitions import JobTransitionService
 from core.services.runners import get_runner, RunnerError
 from api.access_policies.jobs import JobAccessPolicies
+from api.domain.exceptions.engine_unavailable_exception import EngineUnavailableException
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
@@ -37,8 +38,18 @@ class StopJobUseCase:
         self.status_messages = []
         self.stopped_sessions = []
 
-        # Fleets stops are confirmed by the scheduler, so no cancel is sent from this request.
+        if job.status == Job.STOPPING:
+            # The scheduler owns the rest of it. Cancelling again would write a second STOPPING event,
+            # which is what the deadline is measured from, and writing STOPPED here would end the job
+            # before Code Engine confirmed it.
+            self.status_messages.append("Job is already stopping.")
+            return " ".join(self.status_messages)
+
+        # STOPPING means Code Engine accepted the cancel, so the cancel goes out before the status is
+        # written. The scheduler only confirms it from the task store afterwards. The status read here
+        # may be stale, so it only avoids a pointless call; the transition below is the real check.
         is_fleets = job.runner == Program.FLEETS
+        cancel_in_flight = self._cancel_fleet(job) if is_fleets and job.status not in Job.TERMINAL_STATUSES else False
 
         stopped = False
         try:
@@ -46,7 +57,7 @@ class StopJobUseCase:
             # was SUCCEEDED or FAILED
             # Only the scheduler sends Kafka messages: the gateway has Kafka disabled, so the service sends nothing here
             transitions = JobTransitionService()
-            if is_fleets:
+            if cancel_in_flight:
                 transitions.to_stopping(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
             else:
                 transitions.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
@@ -58,7 +69,7 @@ class StopJobUseCase:
         if stopped:
             # New behavior: now, stopping a completed job (failed or succeeded) NO longer (attempts to) stop its
             # runtime jobs.
-            self.status_messages.append("Job is stopping." if is_fleets else "Job has been stopped.")
+            self.status_messages.append("Job is stopping." if cancel_in_flight else "Job has been stopped.")
 
             # Unit tests send a None directly, but the client sends a serialized None
             service = None
@@ -79,12 +90,24 @@ class StopJobUseCase:
 
             if not is_fleets:
                 self._stop_ray_job_if_active(job)
-        elif job.status == Job.STOPPING:
-            self.status_messages.append("Job is already stopping.")
         else:
             self.status_messages.append("Job already in terminal state.")
 
         return " ".join(self.status_messages)
+
+    def _cancel_fleet(self, job: Job) -> bool:
+        """Ask Code Engine to cancel the fleet. True when a cancel is in flight, so STOPPING is owed.
+
+        A job with no fleet, and a fleet Code Engine says is gone, have nothing to wait for and go
+        straight to STOPPED.
+        """
+        if not job.fleet_id:
+            return False
+        try:
+            return get_runner(job).stop()
+        except RunnerError as ex:
+            logger.warning("Could not cancel fleet_id=%s: %s", job.fleet_id, str(ex))
+            raise EngineUnavailableException("Job could not be stopped right now, please retry.") from ex
 
     def _cancel_runtime_job_entry(
         self,

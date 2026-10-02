@@ -1,7 +1,6 @@
 """Update Fleets jobs statuses service."""
 
 import logging
-import time
 from datetime import datetime, timedelta, timezone
 from typing import cast
 
@@ -21,8 +20,6 @@ logger = logging.getLogger("scheduler.UpdateFleetsJobsStatuses")
 
 # A cancel reaches the task store in about 30s, or about 150s if the task had not started.
 _STOPPING_DEADLINE_SECONDS = 300
-_CANCEL_RETRY_SECONDS = 60
-_CANCEL_SENT_LIMIT = 10_000
 
 
 class UpdateFleetsJobsStatuses(SchedulerTask):
@@ -34,8 +31,6 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         self.kill_signal = kill_signal
         self.metrics = metrics
         self.transitions = transitions or JobTransitionService()
-        # When the cancel was last sent, per job id.
-        self._cancel_sent: dict[str, float] = {}
 
     def update_job_status(self, job: Job) -> bool:
         """Update status of one Fleets job. Returns True if status changed."""
@@ -105,15 +100,17 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         return True
 
     def drive_stopping(self, job: Job) -> bool:
-        """Confirm a requested stop: cancel the fleet, then write STOPPED once the task store agrees."""
+        """Confirm a stop that Code Engine already accepted, or end it on the deadline.
+
+        The cancel was sent by whoever asked for the stop, so nothing is sent from here.
+        """
         if not job.fleet_id:
             self.to_terminal(job, Job.STOPPED)
             return True
 
-        runner = cast(FleetsRunner, get_runner(job))
         task_status = None
         try:
-            task_status = runner.status()
+            task_status = cast(FleetsRunner, get_runner(job)).status()
         except Exception as ex:  # pylint: disable=broad-exception-caught
             # Broad on purpose: status() raises RunnerError and also ValueError, and nothing may skip
             # the deadline below, or the row holds a concurrency slot for ever.
@@ -126,23 +123,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             self.to_terminal(job, Job.STOPPED)
             return True
 
-        self._send_cancel(job, runner)
         return self.stop_if_stopping_deadline(job)
-
-    def _send_cancel(self, job: Job, runner: FleetsRunner) -> None:
-        """Ask Code Engine to cancel the fleet, at most once per _CANCEL_RETRY_SECONDS per job."""
-        last_sent = self._cancel_sent.get(str(job.id))
-        now = time.monotonic()
-        if last_sent is not None and now - last_sent < _CANCEL_RETRY_SECONDS:
-            return
-        if len(self._cancel_sent) >= _CANCEL_SENT_LIMIT:
-            self._cancel_sent.clear()
-        # Stamped before the call, so a cancel that raises is still spaced out instead of retried every cycle.
-        self._cancel_sent[str(job.id)] = now
-        try:
-            runner.stop()
-        except RunnerError as ex:
-            logger.error("job_id=%s error cancelling the fleet while stopping: %s", job.id, str(ex))
 
     def stop_if_stopping_deadline(self, job: Job) -> bool:
         """Write STOPPED when the stop was never confirmed, so a STOPPING row always leaves that status."""
@@ -159,6 +140,15 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         )
         self.to_terminal(job, Job.STOPPED)
         return True
+
+    def to_stopping(self, job: Job) -> None:
+        """Record that a cancel is in flight, so drive_stopping confirms it from the task store."""
+        try:
+            self.transitions.to_stopping(
+                job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
+            )
+        except InvalidJobTransitionException as ex:
+            logger.info("job_id=%s transition rejected from %s, skipping STOPPING: %s", job.id, job.status, str(ex))
 
     def to_terminal(self, job: Job, new_status: str) -> None:
         """Persist a terminal status transition."""
@@ -218,12 +208,17 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
 
         logger.warning("job_id=%s user_id=%s timeout=%s hours: job stopped.", job.id, job.author.id, timeout)
         try:
-            get_runner(job).stop()
+            cancel_in_flight = get_runner(job).stop()
         except RunnerError as ex:
-            # Logged, not returned: the row must still reach STOPPED so the timeout keeps
-            # bounding the user's concurrency slot even when Code Engine is unreachable.
+            # The row is left alone and the timeout fires again next cycle. Writing a terminal status
+            # here would report a job as finished while its fleet still holds the node.
             logger.error("job_id=%s error cancelling Fleets job on timeout: %s", job.id, str(ex))
-        self.to_terminal(job, Job.STOPPED)
+            return
+
+        if cancel_in_flight:
+            self.to_stopping(job)
+        else:
+            self.to_terminal(job, Job.STOPPED)
 
     def _increment_terminal_counter(self, job: Job, *, requested: bool = False) -> None:
         """Increment terminal jobs counter. `requested` means something asked this job to stop."""

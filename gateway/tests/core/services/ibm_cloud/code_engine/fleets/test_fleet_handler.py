@@ -463,8 +463,9 @@ def test_cancel_job_never_reads_the_fleet_status(project_id):
     fleets_api.cancel_fleet.assert_called_once()
 
 
-def test_cancel_job_returns_false_when_already_canceling(project_id):
-    """A 409 carrying Code Engine's already-canceled code means there is nothing left to do."""
+def test_cancel_job_returns_true_when_already_canceling(project_id):
+    """A 409 carrying Code Engine's already-canceled code means a cancel is in flight, so a terminal
+    task state is still to come and the caller must wait for it."""
     already_canceling = ApiException(status=409, reason="Conflict")
     # bytes, because that is what production hands us: ApiException.body is urllib3's resp.data.
     already_canceling.body = b'{"errors":[{"code":"fleet_already_canceled"}]}'
@@ -478,7 +479,7 @@ def test_cancel_job_returns_false_when_already_canceling(project_id):
         with patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid):
             result = handler.cancel_job(fleet_uuid)
 
-    assert result is False
+    assert result is True
 
 
 def test_cancel_job_raises_on_unrelated_conflict(project_id):

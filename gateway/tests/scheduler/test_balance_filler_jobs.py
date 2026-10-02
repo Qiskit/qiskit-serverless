@@ -69,10 +69,11 @@ def _run(task, times=1):
     with (
         patch(f"{_MOD}.execute_fleets_job", side_effect=_fake_submit) as submit,
         patch(f"{_MOD}.get_arguments_storage") as arguments,
+        patch(f"{_MOD}.get_runner") as runner,
     ):
         for _ in range(times):
             task.run()
-    return submit, arguments
+    return submit, arguments, runner
 
 
 def _fake_submit(job, ctx, transitions, context=None):  # pylint: disable=unused-argument
@@ -85,7 +86,7 @@ def test_creates_filler_jobs_up_to_the_configured_slots(filler_program):
     """With no real jobs and four slots, four iterations create four filler jobs."""
     task = _make_task()
 
-    submit, arguments = _run(task, times=4)
+    submit, arguments, _ = _run(task, times=4)
 
     fillers = Job.objects.filter(filler=True)
     assert fillers.count() == 4
@@ -104,7 +105,7 @@ def test_the_function_can_be_named_by_id_instead_of_provider_and_title(filler_pr
     Config.set(ConfigKey.FILLER_FUNCTION, str(filler_program.id))
     task = _make_task()
 
-    submit, _ = _run(task)
+    submit, _, _ = _run(task)
 
     assert submit.call_count == 1
     assert Job.objects.filter(filler=True).count() == 1
@@ -211,7 +212,7 @@ def test_does_nothing_when_the_count_already_matches(filler_program):
         )
     task = _make_task()
 
-    submit, _ = _run(task)
+    submit, _, _ = _run(task)
 
     assert submit.call_count == 0
     assert Job.objects.filter(filler=True, status=Job.RUNNING).count() == 4
@@ -231,7 +232,7 @@ def test_zero_slots_stops_every_filler_job(filler_program):
     Config.set(ConfigKey.FILLER_SLOTS, "0")
     task = _make_task()
 
-    submit, _ = _run(task)
+    submit, _, _ = _run(task)
 
     assert submit.call_count == 0
     assert Job.objects.filter(filler=True, status=Job.STOPPING).count() == 1
@@ -262,7 +263,7 @@ def test_deactivated_stops_every_filler_job(filler_program, config_key, value):
     Config.set(config_key, value)
     task = _make_task()
 
-    submit, _ = _run(task)
+    submit, _, _ = _run(task)
 
     assert submit.call_count == 0
     assert Job.objects.filter(filler=True, status=Job.STOPPING).count() == 1
@@ -274,7 +275,7 @@ def test_a_program_without_a_default_size_deactivates_the_feature(filler_program
     filler_program.save()
     task = _make_task()
 
-    submit, _ = _run(task)
+    submit, _, _ = _run(task)
 
     assert submit.call_count == 0
     assert Job.objects.filter(filler=True).count() == 0
@@ -286,7 +287,7 @@ def test_a_ray_program_deactivates_the_feature(filler_program):
     filler_program.save()
     task = _make_task()
 
-    submit, _ = _run(task)
+    submit, _, _ = _run(task)
 
     assert submit.call_count == 0
     assert Job.objects.filter(filler=True).count() == 0
@@ -299,7 +300,7 @@ def test_an_inactive_code_engine_project_deactivates_the_feature(filler_program)
     project.save()
     task = _make_task()
 
-    submit, _ = _run(task)
+    submit, _, _ = _run(task)
 
     assert submit.call_count == 0
     assert Job.objects.filter(filler=True).count() == 0
@@ -311,7 +312,7 @@ def test_a_disabled_filler_program_deactivates_the_feature(filler_program):
     filler_program.save()
     task = _make_task()
 
-    submit, _ = _run(task)
+    submit, _, _ = _run(task)
 
     assert submit.call_count == 0
     assert Job.objects.filter(filler=True).count() == 0
@@ -395,7 +396,7 @@ def test_filler_jobs_on_another_profile_are_always_stopped(filler_program):
     )
     task = _make_task()
 
-    submit, _ = _run(task, times=4)
+    submit, _, _ = _run(task, times=4)
 
     stale.refresh_from_db()
     assert stale.status == Job.STOPPING
@@ -425,7 +426,7 @@ def test_filler_jobs_of_another_program_are_always_stopped(filler_program):
     )
     task = _make_task()
 
-    submit, _ = _run(task, times=4)
+    submit, _, _ = _run(task, times=4)
 
     stale.refresh_from_db()
     assert stale.status == Job.STOPPING
@@ -438,7 +439,7 @@ def test_one_filler_job_is_submitted_per_loop(filler_program):
     Config.set(ConfigKey.FILLER_SLOTS, "10")
     task = _make_task()
 
-    submit, _ = _run(task, times=3)
+    submit, _, _ = _run(task, times=3)
 
     assert submit.call_count == 3
     assert Job.objects.filter(filler=True).count() == 3
@@ -481,6 +482,7 @@ def test_a_failed_creation_waits_out_the_delay_before_trying_again(filler_progra
     with (
         patch(f"{_MOD}.execute_fleets_job"),
         patch(f"{_MOD}.get_arguments_storage", side_effect=ValueError("no bucket")) as arguments,
+        patch(f"{_MOD}.get_runner"),
     ):
         task.run()
         assert arguments.call_count == 1
@@ -502,6 +504,7 @@ def test_a_creation_that_fails_before_the_submit_discards_the_row(filler_program
     with (
         patch(f"{_MOD}.execute_fleets_job", side_effect=ValueError("no runner")),
         patch(f"{_MOD}.get_arguments_storage"),
+        patch(f"{_MOD}.get_runner"),
     ):
         task.run()
 
@@ -525,3 +528,31 @@ def test_the_balancer_runs_after_the_fleets_status_update(settings):
         assert names.index("UpdateFleetsJobsStatuses") < names.index("BalanceFillerJobs") < names.index("FreeResources")
     finally:
         scheduler_main.stop_http_server()
+
+
+def test_a_fleet_that_cannot_be_cancelled_keeps_the_filler_active(filler_program):
+    """Writing a stopping or stopped status would hide a fleet still holding the node, and the
+    balancer would create another on top. It leaves the row alone and retries next cycle."""
+    job = TestUtils.create_job(
+        author=_AUTHOR,
+        program=filler_program,
+        status=Job.RUNNING,
+        runner=Program.FLEETS,
+        compute_profile_fk=filler_program.default_size.compute_profile,
+        filler=True,
+        fleet_id="fleet-stuck",
+    )
+    Config.set(ConfigKey.FILLER_SLOTS, "0")
+    task = _make_task()
+
+    with (
+        patch(f"{_MOD}.execute_fleets_job"),
+        patch(f"{_MOD}.get_arguments_storage"),
+        patch(f"{_MOD}.get_runner") as runner,
+    ):
+        runner.return_value.stop.side_effect = RunnerError("Code Engine said no")
+        task.run()
+
+    job.refresh_from_db()
+    assert job.status == Job.RUNNING
+    assert not JobEvent.objects.filter(job=job, data__status__in=[Job.STOPPING, Job.STOPPED]).exists()
