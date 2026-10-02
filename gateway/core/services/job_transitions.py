@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from django.db import transaction
 
 from core.domain.billing_events import BillingEvents
+from core.domain.crn import Crn
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender
 from core.ibm_cloud.sender import Sender
@@ -168,10 +169,16 @@ class JobTransitionService:
         job.update_fields({"status": status, **(job_fields or {})})
         return event
 
+    @staticmethod
+    def _region(job: Job) -> str | None:
+        """The region of the job's instance CRN, or None when it has none."""
+        crn = Crn.parse(job.instance_crn)
+        return crn.region if crn else None
+
     def _enqueue_job_usage(self, job: Job, job_started_at: datetime | None, job_finished_time: datetime) -> None:
         """The final usage event: always owed, whatever the job's outcome."""
         message = BillingEvents.build_job_completed_event(job, job_started_at, job_finished_time)
-        Outbox.objects.create(job=job, channel=OutboxChannel.JOB_USAGE, payload=message)
+        Outbox.objects.create(job=job, channel=OutboxChannel.JOB_USAGE, region=self._region(job), payload=message)
 
     def _enqueue_license_fee(self, job: Job, job_started_at: datetime | None) -> None:
         """The license fee message. The caller has checked the job owes it."""
@@ -186,7 +193,7 @@ class JobTransitionService:
             return
 
         message = BillingEvents.build_license_fee(job, job_started_at)
-        Outbox.objects.create(job=job, channel=OutboxChannel.LICENSE_FEE, payload=message)
+        Outbox.objects.create(job=job, channel=OutboxChannel.LICENSE_FEE, region=self._region(job), payload=message)
 
     def _send_job_in_progress(self, job: Job, job_started: bool) -> None:
         """Best effort: a failure is logged and the event is dropped, it never reaches the caller.

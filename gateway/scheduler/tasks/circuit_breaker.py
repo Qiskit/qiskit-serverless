@@ -5,21 +5,26 @@ per task, used only from the main loop), so no locking is needed here.
 """
 
 import time
-from typing import Callable
+
+from core.config_key import ConfigKey
+from core.models import Config
+
+DEFAULT_FAILURE_THRESHOLD = 5
+DEFAULT_PAUSE_SECONDS = 60
 
 
 class CircuitBreaker:
     """Opens after N consecutive failures; reports closed again once a pause elapses. After the pause it
     is half open: the first failure opens it again, and a success clears the streak.
 
-    failure_threshold and pause_seconds are callables (not plain values) so a caller
-    backed by dynamic config (like OutboxTask's Config-backed settings) can change
-    them at runtime without recreating the breaker or restarting the process.
+    The failure threshold and the pause are the Config entries `failure_threshold_key` and `pause_seconds_key`,
+    read every time they are needed, so they can change at runtime without recreating the breaker or
+    restarting the process.
     """
 
-    def __init__(self, failure_threshold: Callable[[], int], pause_seconds: Callable[[], float]):
-        self._failure_threshold = failure_threshold
-        self._pause_seconds = pause_seconds
+    def __init__(self, failure_threshold_key: ConfigKey, pause_seconds_key: ConfigKey):
+        self._failure_threshold_key = failure_threshold_key
+        self._pause_seconds_key = pause_seconds_key
         self._consecutive_failures = 0
         self._opened_at: float | None = None
 
@@ -45,6 +50,12 @@ class CircuitBreaker:
         self._consecutive_failures += 1
         if self._consecutive_failures >= self._failure_threshold() and self._opened_at is None:
             self._opened_at = time.monotonic()
+
+    def _failure_threshold(self) -> int:
+        return Config.get_int(self._failure_threshold_key, default=DEFAULT_FAILURE_THRESHOLD)
+
+    def _pause_seconds(self) -> int:
+        return Config.get_int(self._pause_seconds_key, default=DEFAULT_PAUSE_SECONDS)
 
     def _reset(self) -> None:
         self._consecutive_failures = 0
