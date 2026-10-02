@@ -183,6 +183,16 @@ class TestBudgetAndKillSignal:
 
         sender.send_batch.assert_not_called()
 
+    def test_the_drain_itself_stops_when_the_kill_signal_arrives(self):
+        sender = _sender()
+        task = _make_task(sender=sender)
+        task.kill_signal.received = True
+        _make_row()
+
+        task.channels[OutboxChannel.JOB_USAGE].drain(OutboxChannel.JOB_USAGE)  # not through run()
+
+        sender.send_batch.assert_not_called()
+
     def test_stops_when_kill_signal_received(self):
         sender = _sender()
         task = _make_task(sender=sender)
@@ -326,6 +336,28 @@ class TestRegionsAreIndependent:
         assert sorted(sent) == sorted([[regional.pk], [unregional.pk]])
         assert Outbox.objects.count() == 0
 
+    def test_a_breaker_that_opens_mid_region_keeps_the_rest_of_that_region_from_being_sent(self):
+        sender = self._regional_sender(dead_region="eu-de")
+        task = _make_task(sender=sender)
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1")
+        self._row_in("eu-de")
+        self._row_in("eu-de")
+
+        with patch(f"{_MOD}.BATCH_SIZE", 1):
+            task.run()
+
+        assert sender.send_batch.call_count == 1  # the second eu-de batch was never attempted
+
+    def test_the_region_with_the_oldest_row_is_sent_first(self):
+        sender = self._regional_sender(dead_region="no-such-region")
+        task = _make_task(sender=sender)
+        oldest, newest = self._row_in("eu-de"), self._row_in("us-east")
+
+        task.run()
+
+        sent = [[m.key for m in call.args[0]] for call in sender.send_batch.call_args_list]
+        assert sent == [[oldest.pk], [newest.pk]]
+
     def test_a_region_with_an_open_breaker_is_not_even_read(self):
         task = _make_task(sender=self._regional_sender(dead_region="eu-de"))
         Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1")
@@ -336,7 +368,8 @@ class TestRegionsAreIndependent:
         with CaptureQueriesContext(connection) as queries:
             task.channels[OutboxChannel.JOB_USAGE].drain(OutboxChannel.JOB_USAGE)
 
-        assert len(queries) == 1  # only the list of pending regions, none of the eu-de rows
+        # the list of pending regions is the only thing read: no query asks for the rows of a region
+        assert not any('"region" = ' in query["sql"] for query in queries)
 
     def test_a_region_with_an_open_breaker_is_skipped_while_the_others_are_still_sent(self):
         sender = self._regional_sender(dead_region="eu-de")

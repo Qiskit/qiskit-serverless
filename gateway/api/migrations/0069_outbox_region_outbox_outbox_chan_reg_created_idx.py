@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
             field=models.CharField(
                 blank=True,
                 help_text="Region of the instance CRN the message belongs to, or null when it has none. Delivery uses it only to pick the circuit breaker: a region that fails does not hold back the others.",
-                max_length=64,
+                max_length=255,
                 null=True,
             ),
         ),

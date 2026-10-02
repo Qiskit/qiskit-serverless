@@ -321,7 +321,7 @@ logic. It needs:
    budget and the breaker thresholds, wrapped in one
    `Destination(sender=..., breaker_factory=..., budget_key=..., metrics=..., kill_signal=...)`, registered
    under its own key in `OutboxTask.channels`. A channel that goes to an existing destination just registers that
-   same `Destination` under its own key, and shares its sender, breakers and budget; one with a new sender builds
+   same `Destination` under its own key, and shares its sender, breakers and budget `Config` key (each channel still gets its own time window in every tick); one with a new sender builds
    a new `Destination`, with its own breakers.
 
 The `workload` channel, mirroring job state to NTC's Runtime API, is expected to be

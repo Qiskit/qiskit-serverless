@@ -844,7 +844,7 @@ class Outbox(models.Model):
         max_length=20, choices=[(c.value, c.name.replace("_", " ").title()) for c in OutboxChannel]
     )
     region = models.CharField(
-        max_length=64,
+        max_length=255,
         null=True,
         blank=True,
         help_text="Region of the instance CRN the message belongs to, or null when it has none. Delivery uses it "
