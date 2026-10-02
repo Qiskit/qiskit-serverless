@@ -290,8 +290,9 @@ whatever channel a future PR adds), not by any billing-specific vocabulary:
   `scheduler_outbox_oldest_pending_age_seconds{channel}`: reported every tick for
   every registered channel, independent of whether that channel's breaker is open.
 - `scheduler_outbox_breaker_open{channel}`: 1 while the breaker of at least one region
-  of that channel is open. It carries no per-region label, and it is set after the
-  channel has been drained, so it reflects a breaker that opened during this very tick.
+  of that channel is open. It carries no per-region label, and it is set once every
+  channel has been drained, so it reflects a breaker that opened during this very tick, even one that a
+  later channel opened, and channels that share a destination always report the same value.
 
 The old `scheduler_outbox_license_fee_irrecoverable_total` counter is gone. The one
 case it measured that is still an anomaly today, a licensed function whose

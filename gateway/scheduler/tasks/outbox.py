@@ -55,5 +55,10 @@ class OutboxTask(SchedulerTask):
         for channel_name, destination in self.channels.items():
             if self.kill_signal.received:
                 logger.info("Kill signal received, stopping the outbox drain")
-                return
+                break
             destination.drain(channel_name)
+
+        # Once every channel has drained, so the channels that share a destination report the same state, one
+        # that a later channel opened during this very tick included.
+        for channel_name, destination in self.channels.items():
+            self.metrics.set_outbox_breaker_open(destination.any_breaker_open, channel=channel_name)

@@ -48,6 +48,11 @@ class Destination:
             self._breakers[region] = self._breaker_factory()
         return self._breakers[region]
 
+    @property
+    def any_breaker_open(self) -> bool:
+        """Whether the breaker of at least one region is open."""
+        return any(breaker.is_open for breaker in self._breakers.values())
+
     def report_gauges(self, channel: OutboxChannel) -> None:
         """Report how many rows are pending and how long the oldest has been waiting."""
         queryset = Outbox.objects.filter(channel=channel)
@@ -58,14 +63,10 @@ class Destination:
         self.metrics.set_outbox_oldest_pending_age_seconds(age_seconds, channel)
 
     def drain(self, channel: OutboxChannel) -> None:
-        """Send the channel's pending rows within the time budget, region by region, and report whether any
-        breaker is open once done, so it also reflects one that opened during this very tick."""
+        """Send the channel's pending rows within the time budget, region by region."""
         budget_ms = Config.get_int(self.budget_key, default=500)
-        self._drain_regions(channel, time.monotonic() + (budget_ms / 1000))
-        any_open = any(breaker.is_open for breaker in self._breakers.values())
-        self.metrics.set_outbox_breaker_open(any_open, channel=channel)
+        deadline = time.monotonic() + (budget_ms / 1000)
 
-    def _drain_regions(self, channel: OutboxChannel, deadline: float) -> None:
         # Each region (null included) has its own breaker, so a dead one is skipped while the healthy ones
         # keep draining. The budget is only for the healthy path: a region that fails waits out its own
         # flush timeout, which spends the budget and ends the tick.

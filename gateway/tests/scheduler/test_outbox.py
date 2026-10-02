@@ -199,10 +199,11 @@ class TestBudgetAndKillSignal:
         task.kill_signal.received = True
         _make_row()
 
-        task.run()
+        with patch.object(Destination, "drain") as drain:
+            task.run()
 
+        drain.assert_not_called()  # the channel loop itself stopped
         sender.send_batch.assert_not_called()
-        task.metrics.set_outbox_breaker_open.assert_not_called()  # the channel loop itself stopped
 
 
 class TestMultipleBatches:
@@ -443,3 +444,15 @@ class TestBreakerGauge:
         task.run()
 
         task.metrics.set_outbox_breaker_open.assert_called_with(True, channel=OutboxChannel.JOB_USAGE)
+
+    def test_channels_sharing_a_destination_report_the_same_state_even_if_a_later_one_opened_it(self):
+        task = _make_task()
+        shared = _kafka_destination(task, _sender(delivers=lambda pk: False))
+        task.channels = {OutboxChannel.LICENSE_FEE: shared, OutboxChannel.JOB_USAGE: shared}
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1")
+        _make_row()  # only the second channel has rows, so it is the one that opens the shared breaker
+
+        task.run()
+
+        task.metrics.set_outbox_breaker_open.assert_any_call(True, channel=OutboxChannel.LICENSE_FEE)
+        task.metrics.set_outbox_breaker_open.assert_any_call(True, channel=OutboxChannel.JOB_USAGE)
