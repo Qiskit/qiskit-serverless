@@ -440,7 +440,7 @@ class TestBestEffortEvents:
 
 
 class TestToStopping:
-    """to_stopping records that a cancel was asked for. The scheduler sends it and confirms it later."""
+    """to_stopping records a cancel Code Engine already accepted. The scheduler confirms it later."""
 
     @pytest.mark.parametrize("current_status", [Job.QUEUED, Job.PENDING, Job.RUNNING])
     def test_writes_stopping_and_its_event_and_owes_nothing(self, service, user, current_status):

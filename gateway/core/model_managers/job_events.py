@@ -31,7 +31,7 @@ class JobEventContext(StrEnum):
     # Gateway: job status STOPPED, or STOPPING for a Fleets job
     STOP_JOB = "STOP_JOB"
 
-    # Scheduler: PENDING to RUNNING, RUNNING to FAILED/STOPPED/SUCCEEDED, and STOPPING to STOPPED
+    # Scheduler: PENDING to RUNNING, RUNNING to FAILED/STOPPED/SUCCEEDED/STOPPING, and STOPPING to STOPPED
     UPDATE_JOB_STATUS = "UPDATE_JOB_STATUS"
 
     # Gateway: status RUNNING, substatus change
@@ -44,7 +44,7 @@ class JobEventContext(StrEnum):
     # Scheduler: a filler job was created and submitted to Fleets (status PENDING or FAILED)
     FILLER_SUBMIT = "FILLER_SUBMIT"
 
-    # Scheduler: a filler job was stopped to free capacity (status STOPPING)
+    # Scheduler: a filler job was stopped to free capacity (status STOPPING or STOPPED)
     FILLER_STOP = "FILLER_STOP"
 
     FILLER_FAILED = "FILLER_FAILED"

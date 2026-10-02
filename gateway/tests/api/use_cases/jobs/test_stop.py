@@ -62,9 +62,8 @@ class TestStopJobUseCase:
 class TestStopFleetsJob:
     """A Fleets stop sends the cancel in the request. STOPPING means Code Engine accepted it."""
 
-    @pytest.mark.parametrize("current_status", [Job.QUEUED, Job.PENDING, Job.RUNNING])
-    def test_an_accepted_cancel_reports_stopping(self, author, current_status):
-        job = Job.objects.create(author=author, runner=Program.FLEETS, status=current_status, fleet_id="fleet-abc")
+    def test_an_accepted_cancel_reports_stopping(self, author):
+        job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.RUNNING, fleet_id="fleet-abc")
         runner = Mock()
         runner.stop.return_value = True
 

@@ -90,7 +90,7 @@ class JobTransitionService:
         self._send_job_in_progress(job, job_started=False)
 
     def to_stopping(self, job: Job, *, origin: JobEventOrigin, context: JobEventContext) -> JobEvent:
-        """A cancel was requested. The scheduler sends it to Code Engine and writes STOPPED once confirmed.
+        """Code Engine already accepted a cancel. The scheduler writes STOPPED once the task store agrees.
 
         Fleets only: the Ray status poller would push a STOPPING row back to RUNNING.
         """

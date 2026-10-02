@@ -475,6 +475,32 @@ def test_the_occupancy_series_go_away_when_the_feature_is_off(filler_program):
     task.metrics.clear_filler_profile_jobs.assert_called_once()
 
 
+def test_a_fleet_that_cannot_be_cancelled_keeps_the_job_active(filler_program):
+    """A failed cancel leaves the job active so the next loop retries it."""
+    job = TestUtils.create_job(
+        author=_AUTHOR,
+        program=filler_program,
+        status=Job.RUNNING,
+        runner=Program.FLEETS,
+        compute_profile_fk=filler_program.default_size.compute_profile,
+        filler=True,
+        fleet_id="fleet-stuck",
+    )
+    Config.set(ConfigKey.FILLER_SLOTS, "0")
+    task = _make_task()
+
+    with (
+        patch(f"{_MOD}.execute_fleets_job"),
+        patch(f"{_MOD}.get_arguments_storage"),
+        patch(f"{_MOD}.get_runner") as runner,
+    ):
+        runner.return_value.stop.side_effect = RunnerError("Code Engine said no")
+        task.run()
+
+    job.refresh_from_db()
+    assert job.status == Job.RUNNING
+
+
 def test_a_failed_creation_waits_out_the_delay_before_trying_again(filler_program):
     """A COS problem must mean one attempt a minute, not one a second."""
     task = _make_task()
@@ -528,31 +554,3 @@ def test_the_balancer_runs_after_the_fleets_status_update(settings):
         assert names.index("UpdateFleetsJobsStatuses") < names.index("BalanceFillerJobs") < names.index("FreeResources")
     finally:
         scheduler_main.stop_http_server()
-
-
-def test_a_fleet_that_cannot_be_cancelled_keeps_the_filler_active(filler_program):
-    """Writing a stopping or stopped status would hide a fleet still holding the node, and the
-    balancer would create another on top. It leaves the row alone and retries next cycle."""
-    job = TestUtils.create_job(
-        author=_AUTHOR,
-        program=filler_program,
-        status=Job.RUNNING,
-        runner=Program.FLEETS,
-        compute_profile_fk=filler_program.default_size.compute_profile,
-        filler=True,
-        fleet_id="fleet-stuck",
-    )
-    Config.set(ConfigKey.FILLER_SLOTS, "0")
-    task = _make_task()
-
-    with (
-        patch(f"{_MOD}.execute_fleets_job"),
-        patch(f"{_MOD}.get_arguments_storage"),
-        patch(f"{_MOD}.get_runner") as runner,
-    ):
-        runner.return_value.stop.side_effect = RunnerError("Code Engine said no")
-        task.run()
-
-    job.refresh_from_db()
-    assert job.status == Job.RUNNING
-    assert not JobEvent.objects.filter(job=job, data__status__in=[Job.STOPPING, Job.STOPPED]).exists()

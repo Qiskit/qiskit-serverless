@@ -371,9 +371,9 @@ class FleetHandler:
         except ApiException as exc:
             # A non-2xx is raised by the transport before the body is deserialized into the model,
             # so a 404 or 409 here is Code Engine's own answer. The converse does not hold: parsing
-            # a 2xx body can raise ApiException(status=0) too. 404 and an already-cancelling 409
-            # mean there is nothing left to do; anything else, a 429 above all, means the cancel was
-            # not delivered, so raise rather than claim it was.
+            # a 2xx body can raise ApiException(status=0) too. A 404 means nothing is left to cancel
+            # and a 409 means one is already in flight. Anything else, a 429 above all, means the
+            # cancel was not delivered, so raise rather than claim it was.
             if exc.status == 409 and _is_already_canceled(exc):
                 logger.info("Fleet [%s] was already being cancelled", fleet_id)
             elif exc.status == 404:
