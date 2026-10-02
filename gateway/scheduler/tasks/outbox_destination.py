@@ -42,7 +42,7 @@ class Destination:
         self.metrics = metrics
         self.kill_signal = kill_signal
 
-    def breaker(self, region: str | None) -> CircuitBreaker:
+    def get_breaker(self, region: str | None) -> CircuitBreaker:
         """The circuit breaker for this region (null included), built the first time it is asked for."""
         if region not in self.breakers:
             self.breakers[region] = self._breaker_factory()
@@ -68,7 +68,7 @@ class Destination:
         for region in self._pending_regions(channel):
             if not self._should_continue_draining(channel, deadline):
                 return
-            if self.breaker(region).is_open:
+            if self.get_breaker(region).is_open:
                 logger.info("Circuit breaker open, skipping channel=%s region=%s this tick", channel, region)
                 continue
             self._drain_region(channel, region, deadline)
@@ -84,7 +84,7 @@ class Destination:
         return [region for region, _ in pending]
 
     def _drain_region(self, channel: OutboxChannel, region: str | None, deadline: float) -> None:
-        breaker = self.breaker(region)
+        breaker = self.get_breaker(region)
         # A row that is not delivered stays in the table, so an unfiltered re-fetch would find the exact same
         # row again and hot-loop on it for the rest of the budget window. Paging forward from the last row
         # seen bounds one tick to at most one attempt per currently pending row; it gets picked up again on
