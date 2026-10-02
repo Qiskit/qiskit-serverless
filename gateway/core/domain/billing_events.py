@@ -130,8 +130,8 @@ class BillingEvents:
         inline events and the outbox's final usage event: all three bill classical compute
         time."""
         parts = [CLASSICAL_TIME_METRIC_TYPE_PREFIX]
-        if job.compute_profile:
-            parts.append(job.compute_profile)
+        if job.compute_profile_id:
+            parts.append(job.compute_profile_id)
         return "_".join(parts)
 
     @staticmethod
