@@ -95,20 +95,14 @@ class KafkaProducers:
             }
         )
 
-    @staticmethod
-    def region(instance_crn: str | None) -> str | None:
-        """The region in instance_crn, or None if it cannot be parsed out of it."""
-        crn = Crn.parse(instance_crn)
-        return crn.region if crn else None
-
     def get(self, instance_crn: str | None) -> Producer:
         """Return the producer for instance_crn's region, or raise UnroutableRegionError."""
-        region = self.region(instance_crn)
-        if region is None:
+        crn = Crn.parse(instance_crn)
+        if crn is None:
             # this is actually impossible: the user who created the job was authorized with the same crn, so the
             # existence of a job with a crn means the crn is actually valid
             raise UnroutableRegionError(f"KafkaProducers: Cannot determine region from CRN (crn={instance_crn})")
-        producer = self._producers.get(region)
+        producer = self._producers.get(crn.region)
         if producer is None:
-            raise UnroutableRegionError(f"KafkaProducers: No producer configured for region {region}")
+            raise UnroutableRegionError(f"KafkaProducers: No producer configured for region {crn.region}")
         return producer
