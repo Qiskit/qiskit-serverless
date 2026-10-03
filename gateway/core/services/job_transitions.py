@@ -52,9 +52,10 @@ class JobTransitionService:
     # Valid next status per current status
     VALID_TRANSITIONS: dict[str, set[str]] = {
         # valid next state for non-terminal states
-        Job.QUEUED: {Job.PENDING, Job.FAILED, Job.STOPPED},
-        Job.PENDING: {Job.SUCCEEDED, Job.FAILED, Job.STOPPED, Job.RUNNING},
-        Job.RUNNING: {Job.SUCCEEDED, Job.FAILED, Job.STOPPED},
+        Job.QUEUED: {Job.PENDING, Job.FAILED, Job.STOPPED, Job.STOPPING},
+        Job.PENDING: {Job.SUCCEEDED, Job.FAILED, Job.STOPPED, Job.STOPPING, Job.RUNNING},
+        Job.RUNNING: {Job.SUCCEEDED, Job.FAILED, Job.STOPPED, Job.STOPPING},
+        Job.STOPPING: {Job.STOPPED},
         # terminal states have no next valid state
         Job.SUCCEEDED: set(),
         Job.FAILED: set(),
@@ -87,6 +88,16 @@ class JobTransitionService:
         """The job is still running. It is not a transition: no status or JobEvent is written, only a
         best effort in-progress event is sent."""
         self._send_job_in_progress(job, job_started=False)
+
+    def to_stopping(self, job: Job, *, origin: JobEventOrigin, context: JobEventContext) -> JobEvent:
+        """A cancel was requested. The scheduler sends it to Code Engine and writes STOPPED once confirmed.
+
+        Fleets only: the Ray status poller would push a STOPPING row back to RUNNING.
+        """
+        if job.runner != Program.FLEETS:
+            raise InvalidJobTransitionException(f"Job {job.id}: STOPPING is only valid for a Fleets job")
+        with transaction.atomic():
+            return self._change_status(job, Job.STOPPING, origin=origin, context=context, job_fields=None)
 
     def to_terminal(
         self, job: Job, status: str, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None

@@ -1,5 +1,7 @@
 """Unit tests for StopJobUseCase."""
 
+from unittest.mock import patch
+
 import pytest
 from django.contrib.auth.models import User
 
@@ -53,3 +55,39 @@ class TestStopJobUseCase:
         event = JobEvent.objects.get(job=job)
         assert event.data == {"status": Job.STOPPED}
         assert event.origin == JobEventOrigin.API
+
+
+class TestStopFleetsJob:
+    """A Fleets stop is recorded as STOPPING. The scheduler cancels the fleet and confirms it."""
+
+    @pytest.mark.parametrize("current_status", [Job.QUEUED, Job.PENDING, Job.RUNNING])
+    def test_reports_stopping_and_sends_no_cancel(self, author, current_status):
+        job = Job.objects.create(author=author, runner=Program.FLEETS, status=current_status)
+
+        with patch("api.use_cases.jobs.stop.get_runner") as mock_get_runner:
+            message = StopJobUseCase().execute(job.id, None, author)
+
+        assert "Job is stopping." in message
+        assert Job.objects.get(pk=job.pk).status == Job.STOPPING
+        mock_get_runner.assert_not_called()
+
+    def test_a_second_stop_writes_no_second_event(self, author):
+        """The deadline is read from the STOPPING event, so a second one would buy the job more time."""
+        job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.STOPPING)
+
+        with patch("api.use_cases.jobs.stop.get_runner"):
+            message = StopJobUseCase().execute(job.id, None, author)
+
+        assert "Job is already stopping." in message
+        assert Job.objects.get(pk=job.pk).status == Job.STOPPING
+        assert JobEvent.objects.filter(job=job).count() == 0
+
+    def test_a_ray_job_never_reaches_stopping(self, author):
+        """The fork at this writer is the only guard: the Ray poller does not consult VALID_TRANSITIONS."""
+        job = Job.objects.create(author=author, runner=Program.RAY, status=Job.RUNNING)
+
+        with patch("api.use_cases.jobs.stop.get_runner"):
+            message = StopJobUseCase().execute(job.id, None, author)
+
+        assert "Job has been stopped." in message
+        assert Job.objects.get(pk=job.pk).status == Job.STOPPED

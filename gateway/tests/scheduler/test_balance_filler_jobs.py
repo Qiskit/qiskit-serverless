@@ -69,11 +69,10 @@ def _run(task, times=1):
     with (
         patch(f"{_MOD}.execute_fleets_job", side_effect=_fake_submit) as submit,
         patch(f"{_MOD}.get_arguments_storage") as arguments,
-        patch(f"{_MOD}.get_runner") as runner,
     ):
         for _ in range(times):
             task.run()
-    return submit, arguments, runner
+    return submit, arguments
 
 
 def _fake_submit(job, ctx, transitions, context=None):  # pylint: disable=unused-argument
@@ -86,7 +85,7 @@ def test_creates_filler_jobs_up_to_the_configured_slots(filler_program):
     """With no real jobs and four slots, four iterations create four filler jobs."""
     task = _make_task()
 
-    submit, arguments, _ = _run(task, times=4)
+    submit, arguments = _run(task, times=4)
 
     fillers = Job.objects.filter(filler=True)
     assert fillers.count() == 4
@@ -105,7 +104,7 @@ def test_the_function_can_be_named_by_id_instead_of_provider_and_title(filler_pr
     Config.set(ConfigKey.FILLER_FUNCTION, str(filler_program.id))
     task = _make_task()
 
-    submit, _, _ = _run(task)
+    submit, _ = _run(task)
 
     assert submit.call_count == 1
     assert Job.objects.filter(filler=True).count() == 1
@@ -187,15 +186,14 @@ def test_stops_the_oldest_filler_jobs_when_there_are_too_many(filler_program):
     Config.set(ConfigKey.FILLER_SLOTS, "1")
     task = _make_task()
 
-    _, _, runner = _run(task)
+    _run(task)
 
     jobs[0].refresh_from_db()
     jobs[1].refresh_from_db()
     jobs[2].refresh_from_db()
-    assert jobs[0].status == Job.STOPPED
-    assert jobs[1].status == Job.STOPPED
+    assert jobs[0].status == Job.STOPPING
+    assert jobs[1].status == Job.STOPPING
     assert jobs[2].status == Job.RUNNING
-    assert runner.return_value.stop.call_count == 2
     assert JobEvent.objects.filter(job=jobs[0], context=JobEventContext.FILLER_STOP).exists()
 
 
@@ -213,10 +211,9 @@ def test_does_nothing_when_the_count_already_matches(filler_program):
         )
     task = _make_task()
 
-    submit, _, runner = _run(task)
+    submit, _ = _run(task)
 
     assert submit.call_count == 0
-    assert runner.return_value.stop.call_count == 0
     assert Job.objects.filter(filler=True, status=Job.RUNNING).count() == 4
 
 
@@ -234,10 +231,10 @@ def test_zero_slots_stops_every_filler_job(filler_program):
     Config.set(ConfigKey.FILLER_SLOTS, "0")
     task = _make_task()
 
-    submit, _, _ = _run(task)
+    submit, _ = _run(task)
 
     assert submit.call_count == 0
-    assert Job.objects.filter(filler=True, status=Job.STOPPED).count() == 1
+    assert Job.objects.filter(filler=True, status=Job.STOPPING).count() == 1
 
 
 @pytest.mark.parametrize(
@@ -265,10 +262,10 @@ def test_deactivated_stops_every_filler_job(filler_program, config_key, value):
     Config.set(config_key, value)
     task = _make_task()
 
-    submit, _, _ = _run(task)
+    submit, _ = _run(task)
 
     assert submit.call_count == 0
-    assert Job.objects.filter(filler=True, status=Job.STOPPED).count() == 1
+    assert Job.objects.filter(filler=True, status=Job.STOPPING).count() == 1
 
 
 def test_a_program_without_a_default_size_deactivates_the_feature(filler_program):
@@ -277,7 +274,7 @@ def test_a_program_without_a_default_size_deactivates_the_feature(filler_program
     filler_program.save()
     task = _make_task()
 
-    submit, _, _ = _run(task)
+    submit, _ = _run(task)
 
     assert submit.call_count == 0
     assert Job.objects.filter(filler=True).count() == 0
@@ -289,7 +286,7 @@ def test_a_ray_program_deactivates_the_feature(filler_program):
     filler_program.save()
     task = _make_task()
 
-    submit, _, _ = _run(task)
+    submit, _ = _run(task)
 
     assert submit.call_count == 0
     assert Job.objects.filter(filler=True).count() == 0
@@ -302,7 +299,7 @@ def test_an_inactive_code_engine_project_deactivates_the_feature(filler_program)
     project.save()
     task = _make_task()
 
-    submit, _, _ = _run(task)
+    submit, _ = _run(task)
 
     assert submit.call_count == 0
     assert Job.objects.filter(filler=True).count() == 0
@@ -314,7 +311,7 @@ def test_a_disabled_filler_program_deactivates_the_feature(filler_program):
     filler_program.save()
     task = _make_task()
 
-    submit, _, _ = _run(task)
+    submit, _ = _run(task)
 
     assert submit.call_count == 0
     assert Job.objects.filter(filler=True).count() == 0
@@ -359,8 +356,8 @@ def test_mark_failed_does_not_raise_when_the_job_already_turned_terminal(filler_
     assert job.status == Job.SUCCEEDED
 
 
-def test_mark_stopped_does_not_count_a_job_that_already_turned_terminal(filler_program):
-    """Same race for _mark_stopped: a stop that lost the race must not be counted as one."""
+def test_mark_stopping_does_not_count_a_job_that_already_turned_terminal(filler_program):
+    """Same race for _mark_stopping: a stop that lost the race must not be counted as one."""
     job = TestUtils.create_job(
         author=_AUTHOR,
         program=filler_program,
@@ -371,7 +368,7 @@ def test_mark_stopped_does_not_count_a_job_that_already_turned_terminal(filler_p
     )
     task = _make_task()
 
-    task._mark_stopped(job)  # must not raise
+    task._mark_stopping(job)  # must not raise
 
     job.refresh_from_db()
     assert job.status == Job.FAILED
@@ -398,10 +395,10 @@ def test_filler_jobs_on_another_profile_are_always_stopped(filler_program):
     )
     task = _make_task()
 
-    submit, _, _ = _run(task, times=4)
+    submit, _ = _run(task, times=4)
 
     stale.refresh_from_db()
-    assert stale.status == Job.STOPPED
+    assert stale.status == Job.STOPPING
     # The stale one never counted towards the target, so all four slots are filled.
     assert submit.call_count == 4
 
@@ -428,10 +425,10 @@ def test_filler_jobs_of_another_program_are_always_stopped(filler_program):
     )
     task = _make_task()
 
-    submit, _, _ = _run(task, times=4)
+    submit, _ = _run(task, times=4)
 
     stale.refresh_from_db()
-    assert stale.status == Job.STOPPED
+    assert stale.status == Job.STOPPING
     # It never counted towards the target either, so all four slots are filled.
     assert submit.call_count == 4
 
@@ -441,7 +438,7 @@ def test_one_filler_job_is_submitted_per_loop(filler_program):
     Config.set(ConfigKey.FILLER_SLOTS, "10")
     task = _make_task()
 
-    submit, _, _ = _run(task, times=3)
+    submit, _ = _run(task, times=3)
 
     assert submit.call_count == 3
     assert Job.objects.filter(filler=True).count() == 3
@@ -477,32 +474,6 @@ def test_the_occupancy_series_go_away_when_the_feature_is_off(filler_program):
     task.metrics.clear_filler_profile_jobs.assert_called_once()
 
 
-def test_a_fleet_that_cannot_be_cancelled_keeps_the_job_active(filler_program):
-    """A failed cancel leaves the job active so the next loop retries it."""
-    job = TestUtils.create_job(
-        author=_AUTHOR,
-        program=filler_program,
-        status=Job.RUNNING,
-        runner=Program.FLEETS,
-        compute_profile_fk=filler_program.default_size.compute_profile,
-        filler=True,
-        fleet_id="fleet-stuck",
-    )
-    Config.set(ConfigKey.FILLER_SLOTS, "0")
-    task = _make_task()
-
-    with (
-        patch(f"{_MOD}.execute_fleets_job"),
-        patch(f"{_MOD}.get_arguments_storage"),
-        patch(f"{_MOD}.get_runner") as runner,
-    ):
-        runner.return_value.stop.side_effect = RunnerError("Code Engine said no")
-        task.run()
-
-    job.refresh_from_db()
-    assert job.status == Job.RUNNING
-
-
 def test_a_failed_creation_waits_out_the_delay_before_trying_again(filler_program):
     """A COS problem must mean one attempt a minute, not one a second."""
     task = _make_task()
@@ -510,7 +481,6 @@ def test_a_failed_creation_waits_out_the_delay_before_trying_again(filler_progra
     with (
         patch(f"{_MOD}.execute_fleets_job"),
         patch(f"{_MOD}.get_arguments_storage", side_effect=ValueError("no bucket")) as arguments,
-        patch(f"{_MOD}.get_runner"),
     ):
         task.run()
         assert arguments.call_count == 1
@@ -532,7 +502,6 @@ def test_a_creation_that_fails_before_the_submit_discards_the_row(filler_program
     with (
         patch(f"{_MOD}.execute_fleets_job", side_effect=ValueError("no runner")),
         patch(f"{_MOD}.get_arguments_storage"),
-        patch(f"{_MOD}.get_runner"),
     ):
         task.run()
 
