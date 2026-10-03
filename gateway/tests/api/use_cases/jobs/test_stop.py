@@ -112,7 +112,7 @@ class TestStopFleetsJob:
         assert JobEvent.objects.filter(job=job).count() == 0
 
     def test_a_second_stop_sends_no_cancel_and_writes_no_event(self, author):
-        """The deadline is read from the STOPPING event, so a second one must not be written."""
+        """Already stopping: no cancel is sent and no event is written."""
         job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.STOPPING, fleet_id="fleet-abc")
 
         with patch("core.services.job_transitions.get_runner") as mock_get_runner:

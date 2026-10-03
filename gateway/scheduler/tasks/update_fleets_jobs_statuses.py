@@ -203,8 +203,8 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                 return
         except RunnerError as ex:
             # Still written: nothing else can end a Fleets job, so a cancel that keeps failing would
-            # leave the row holding its slots for ever. Bounding the retries would need per-job state,
-            # which this task deliberately does not keep.
+            # leave the row holding its slots for ever. One attempt, because a grace period would
+            # delay releasing the slot for a failure that is usually permanent.
             logger.error(
                 "job_id=%s cancel not delivered on timeout, writing STOPPED. Possible orphan fleet_id=%s: %s",
                 job.id,
