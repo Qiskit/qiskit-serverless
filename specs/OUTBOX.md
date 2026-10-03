@@ -330,7 +330,8 @@ logic. It needs:
    the codebase that channel's fact becomes true.
 3. A sender class: a `Sender` with a `send(payload)` method that raises on failure, which the outbox calls one row at a
    time (the breaker counts each failure at once), or a `BatchSender`, which also has `send_batch(messages)` if it can
-   confirm many at once (the breaker counts a failure only when a whole batch fails). Plus its own `ConfigKey`s for the time
+   confirm many at once (the breaker counts a failure only when a whole batch fails). A plain `Sender` needs its own
+   timeout, because nothing in the drain interrupts a `send` that does not return. Plus its own `ConfigKey`s for the time
    budget and the breaker thresholds, wrapped in one
    `Destination(sender=..., breaker_factory=..., budget_key=..., metrics=..., kill_signal=...)`, registered
    under its own key in `OutboxTask.channels`. A channel that goes to an existing destination just registers that
