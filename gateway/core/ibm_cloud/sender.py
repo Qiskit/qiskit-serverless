@@ -21,9 +21,12 @@ class Sender(ABC):
 
 
 class BatchSender(Sender):
-    """A sender that can also deliver many payloads at once, confirming each one (Kafka: produce many, flush
-    once, and learn from the delivery callbacks which arrived). The outbox sends its rows to these in batches,
-    and to a plain Sender (an HTTP call per message, say) one by one."""
+    """
+    A sender that can also deliver many payloads at once, confirming each one (Kafka: produce many, flush
+    once, and learn from the delivery callbacks which arrived).
+
+    The outbox sends its rows to these in batches, and to a plain Sender (an HTTP call per message, say) one by one.
+    """
 
     @abstractmethod
     def send_batch(self, messages: list[PendingMessage]) -> set[int]:

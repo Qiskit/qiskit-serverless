@@ -104,7 +104,7 @@ class Destination:
                 return
             last_row = batch[-1]
             if isinstance(self.sender, BatchSender):
-                self._send_batch(batch, breaker)
+                self._send_batch(self.sender, batch, breaker)
             else:
                 self._send_one_by_one(channel, batch, breaker, deadline)
 
@@ -116,6 +116,29 @@ class Destination:
             logger.info("Time budget spent, stopping outbox drain for channel=%s this tick", channel)
             return False
         return True
+
+    def _send_batch(self, sender: BatchSender, batch: list[Outbox], breaker: CircuitBreaker) -> None:
+        """Send a batch with one confirmation round trip, delete the rows the sender confirmed and keep
+        the rest for the next tick. The breaker records a success if at least one row was delivered
+        and a failure only when none was, so a single bad row never opens it."""
+        pending_messages = [PendingMessage(row.pk, row.payload) for row in batch]
+        delivered = sender.send_batch(pending_messages)
+
+        for row in batch:
+            self.metrics.increment_outbox_send(row.channel, "success" if row.pk in delivered else "failure")
+
+        if len(delivered) < len(batch):
+            logger.error(
+                "outbox batch: %s of %s row(s) not delivered, kept for the next tick (the sender logged why)",
+                len(batch) - len(delivered),
+                len(batch),
+            )
+
+        if delivered:
+            breaker.record_success()
+            Outbox.objects.filter(pk__in=delivered).delete()
+        else:
+            breaker.record_failure()
 
     def _send_one_by_one(
         self, channel: OutboxChannel, batch: list[Outbox], breaker: CircuitBreaker, deadline: float
@@ -137,25 +160,3 @@ class Destination:
             breaker.record_success()
             # Not row.delete(): it clears the pk of the instance, and last_row may be this very row
             Outbox.objects.filter(pk=row.pk).delete()
-
-    def _send_batch(self, batch: list[Outbox], breaker: CircuitBreaker) -> None:
-        """Send a batch with one confirmation round trip, delete the rows the sender confirmed and keep
-        the rest for the next tick. The breaker records a success if at least one row was delivered
-        and a failure only when none was, so a single bad row never opens it."""
-        delivered = self.sender.send_batch([PendingMessage(row.pk, row.payload) for row in batch])
-
-        for row in batch:
-            self.metrics.increment_outbox_send(row.channel, "success" if row.pk in delivered else "failure")
-
-        if len(delivered) < len(batch):
-            logger.error(
-                "outbox batch: %s of %s row(s) not delivered, kept for the next tick (the sender logged why)",
-                len(batch) - len(delivered),
-                len(batch),
-            )
-
-        if delivered:
-            breaker.record_success()
-            Outbox.objects.filter(pk__in=delivered).delete()
-        else:
-            breaker.record_failure()

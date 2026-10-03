@@ -491,6 +491,7 @@ class TestSendersWithoutBatches:
 
         assert sender.send.call_count == 2  # the third row was never attempted
         assert Outbox.objects.count() == 5  # nothing is deleted when it fails
+        assert task.metrics.increment_outbox_send.call_args_list == [((OutboxChannel.JOB_USAGE, "failure"),)] * 2
         assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open is True
 
     def test_a_success_between_failures_keeps_the_breaker_closed(self):
@@ -505,3 +506,32 @@ class TestSendersWithoutBatches:
 
         assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open is False
         assert sorted(Outbox.objects.values_list("pk", flat=True)) == sorted([bad_one.pk, bad_two.pk])
+
+    def test_the_kill_signal_stops_the_rest_of_the_batch(self):
+        task = _make_task()
+        sender = _single_sender()
+        sender.send.side_effect = lambda payload: setattr(task.kill_signal, "received", True)
+        task.channels = {OutboxChannel.JOB_USAGE: _kafka_destination(task, sender)}
+        for _ in range(3):
+            _make_row()
+
+        task.channels[OutboxChannel.JOB_USAGE].drain(OutboxChannel.JOB_USAGE)
+
+        assert sender.send.call_count == 1  # the kill signal arrived during the first send
+        assert Outbox.objects.count() == 2  # the delivered row is gone, the others wait for the next tick
+
+    def test_a_spent_time_budget_stops_the_rest_of_the_batch(self):
+        task = _make_task()
+        clock = [0.0]
+        sender = _single_sender()
+        sender.send.side_effect = lambda payload: clock.__setitem__(0, 100.0)  # a slow send spends the budget
+        task.channels = {OutboxChannel.JOB_USAGE: _kafka_destination(task, sender)}
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BUDGET_MS, "1000")
+        for _ in range(3):
+            _make_row()
+
+        with patch(f"{_MOD}.time.monotonic", side_effect=lambda: clock[0]):
+            task.channels[OutboxChannel.JOB_USAGE].drain(OutboxChannel.JOB_USAGE)
+
+        assert sender.send.call_count == 1
+        assert Outbox.objects.count() == 2

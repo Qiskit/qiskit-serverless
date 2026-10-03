@@ -218,7 +218,9 @@ There are two kinds of sender, and the `Destination` picks how to send by the ki
 - A plain `Sender`, with only `send(payload)` (an HTTP call per message, say), gets its rows one by one. A row
   that is delivered is deleted and counts as a success for the breaker at once. A `send` that raises leaves the
   row for the next tick and counts as a failure at once, so the breaker opens as soon as the threshold is
-  reached and the rest of the batch is not sent in this tick.
+  reached and the rest of the batch is not sent in this tick. The time budget and the kill signal are checked
+  before every row, so a plain `Sender` must have its own timeout: a `send` that never returns holds the whole
+  tick, because nothing here interrupts it.
 
 In both cases the sender knows nothing about `Job`, billing, or licensing. `KafkaSender` produces the whole batch and flushes each producer once,
 instead of one flush per row, and marks a pk as delivered only from that message's own delivery callback. The
@@ -231,7 +233,8 @@ out `KafkaSender`'s own flush timeout (5 s), which spends the budget and ends th
 are created with `message.timeout.ms` at 4 s, just under that flush timeout, so a message that cannot
 be delivered in time fails inside the flush instead of staying queued and being delivered minutes
 later, on top of the copy produced again from its row on the next tick. A message the broker did
-write but whose ack came too late is sent again from its row: delivery is at least once. Nothing here deletes a row on failure: a missing region producer is a config gap
+write but whose ack came too late is sent again from its row: delivery is at least once. The same holds for a plain
+`Sender`: if the process dies, or the delete of the row fails, right after a `send` succeeded, the row is sent again. Nothing here deletes a row on failure: a missing region producer is a config gap
 (`EVENT_STREAMS_BOOTSTRAP_SERVERS_<REGION>`), and the same row becomes sendable again
 once it is added. `KafkaProducers.get`'s other failure mode, a CRN it cannot parse a
 region out of at all, is not something this code defends against separately: every
