@@ -9,7 +9,7 @@ from django.db.models import Min, Q
 from django.utils import timezone
 
 from core.config_key import ConfigKey
-from core.ibm_cloud.sender import PendingMessage, Sender
+from core.ibm_cloud.sender import BatchSender, PendingMessage, Sender
 from core.models import Config, Outbox, OutboxChannel
 
 from scheduler.kill_signal import KillSignal
@@ -103,7 +103,10 @@ class Destination:
             if not batch:
                 return
             last_row = batch[-1]
-            self._send_batch(batch, breaker)
+            if isinstance(self.sender, BatchSender):
+                self._send_batch(batch, breaker)
+            else:
+                self._send_one_by_one(channel, batch, breaker, deadline)
 
     def _should_continue_draining(self, channel: OutboxChannel, deadline: float) -> bool:
         if self.kill_signal.received:
@@ -113,6 +116,27 @@ class Destination:
             logger.info("Time budget spent, stopping outbox drain for channel=%s this tick", channel)
             return False
         return True
+
+    def _send_one_by_one(
+        self, channel: OutboxChannel, batch: list[Outbox], breaker: CircuitBreaker, deadline: float
+    ) -> None:
+        """Send the rows one at a time, deleting each one as soon as it is delivered. Every failure counts
+        against the breaker right away, and once it opens the rest of the batch is left for the next tick,
+        like the rows the budget or a kill signal cut off."""
+        for row in batch:
+            if breaker.is_open or not self._should_continue_draining(channel, deadline):
+                return
+            try:
+                self.sender.send(row.payload)
+            except Exception as ex:  # pylint: disable=broad-exception-caught
+                logger.error("outbox_id=%s job_id=%s error sending, kept for the next tick: %s", row.id, row.job_id, ex)
+                self.metrics.increment_outbox_send(row.channel, "failure")
+                breaker.record_failure()
+                continue
+            self.metrics.increment_outbox_send(row.channel, "success")
+            breaker.record_success()
+            # Not row.delete(): it clears the pk of the instance, and last_row may be this very row
+            Outbox.objects.filter(pk=row.pk).delete()
 
     def _send_batch(self, batch: list[Outbox], breaker: CircuitBreaker) -> None:
         """Send a batch with one confirmation round trip, delete the rows the sender confirmed and keep

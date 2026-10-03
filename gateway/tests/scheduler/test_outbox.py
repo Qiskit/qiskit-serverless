@@ -11,7 +11,7 @@ from core.models import Config, Job, Outbox, OutboxChannel, Program
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from core.ibm_cloud.event_streams.kafka_sender import KafkaSender
-from core.ibm_cloud.sender import PendingMessage
+from core.ibm_cloud.sender import BatchSender, PendingMessage, Sender
 from scheduler.tasks.outbox import OutboxTask, build_kafka_circuit_breaker
 from scheduler.tasks.outbox_destination import Destination
 
@@ -22,8 +22,20 @@ _MOD = "scheduler.tasks.outbox_destination"
 
 def _sender(delivers=lambda pk: True) -> MagicMock:
     """A sender whose send_batch confirms the rows `delivers(pk)` accepts."""
-    sender = MagicMock()
+    sender = MagicMock(spec=BatchSender)
     sender.send_batch.side_effect = lambda messages: {m.key for m in messages if delivers(m.key)}
+    return sender
+
+
+def _single_sender(fails=lambda payload: False) -> MagicMock:
+    """A sender with no batch support, whose send raises for the payloads `fails(payload)` accepts."""
+    sender = MagicMock(spec=Sender)
+
+    def send(payload):
+        if fails(payload):
+            raise RuntimeError("boom")
+
+    sender.send.side_effect = send
     return sender
 
 
@@ -452,3 +464,44 @@ class TestBreakerGauge:
 
         task.metrics.set_outbox_breaker_open.assert_any_call(True, channel=OutboxChannel.LICENSE_FEE)
         task.metrics.set_outbox_breaker_open.assert_any_call(True, channel=OutboxChannel.JOB_USAGE)
+
+
+class TestSendersWithoutBatches:
+    """A sender with only send() gets its rows one by one, and every failure counts for the breaker at once."""
+
+    def test_each_row_is_sent_on_its_own_and_deleted_when_delivered(self):
+        sender = _single_sender()
+        task = _make_task(sender=sender)
+        rows = [_make_row() for _ in range(3)]
+
+        task.run()
+
+        assert sender.send.call_count == 3
+        assert Outbox.objects.count() == 0
+        assert task.metrics.increment_outbox_send.call_args_list == [((row.channel, "success"),) for row in rows]
+
+    def test_the_failure_that_opens_the_breaker_stops_the_rest_of_the_region(self):
+        sender = _single_sender(fails=lambda payload: True)
+        task = _make_task(sender=sender)
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "2")
+        for _ in range(5):
+            _make_row()
+
+        task.run()
+
+        assert sender.send.call_count == 2  # the third row was never attempted
+        assert Outbox.objects.count() == 5  # nothing is deleted when it fails
+        assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open is True
+
+    def test_a_success_between_failures_keeps_the_breaker_closed(self):
+        sender = _single_sender(fails=lambda payload: payload.get("bad", False))
+        task = _make_task(sender=sender)
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "2")
+        bad_one = _make_row(payload={"bad": True, "data": {}})
+        _make_row()
+        bad_two = _make_row(payload={"bad": True, "data": {}})
+
+        task.run()
+
+        assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open is False
+        assert sorted(Outbox.objects.values_list("pk", flat=True)) == sorted([bad_one.pk, bad_two.pk])

@@ -197,8 +197,8 @@ milliseconds. Those three belong to the destination and not to the channel, so `
 point at the same `Destination`, whose sender is a `KafkaSender()` today (or `NoOpSender()` when
 `EVENT_STREAMS_ENABLED` is false); see "Circuit breaker" below for how that shares the breakers. `OutboxTask`
 only builds the destinations and, on every tick, asks the one of each channel to report that channel's gauges and
-drain its rows, each channel within its own time budget. A `Destination` is transport-agnostic: it knows only `Outbox`, `Config`, and a sender's `send_batch(messages)` contract (given `PendingMessage(key, payload)` objects, return the keys delivered),
-never Kafka or any of its exception types.
+drain its rows, each channel within its own time budget. A `Destination` is transport-agnostic: it knows only `Outbox`, `Config`, and the two sender contracts below, never Kafka or any of its exception
+types.
 
 For each channel, once a tick, the task first lists the regions that have pending rows (null is one more
 region), the one with the oldest row first. Each region has its own breaker: if it is open, the region is
@@ -208,17 +208,25 @@ oldest first, until nothing is left pending, the breaker opens, the tick's time 
 signal arrives. It pages forward by `(created, pk)` from the last row it saw, so a row that is not delivered
 is not retried in a hot loop within one tick; it is picked up again on the next tick.
 
-Each batch goes to the channel's sender in one call, `sender.send_batch([PendingMessage(row.pk, row.payload), ...])`,
-with the payloads exactly as stored. The sender knows nothing about `Job`, billing, or licensing and returns the
-set of pks it confirmed as delivered. `KafkaSender` produces the whole batch and flushes each producer once,
+There are two kinds of sender, and the `Destination` picks how to send by the kind (`isinstance(sender, BatchSender)`):
+
+- A `BatchSender` (`core/ibm_cloud/sender.py`, which `KafkaSender` and `NoOpSender` are) gets each batch in one call,
+  `sender.send_batch([PendingMessage(row.pk, row.payload), ...])`, with the payloads exactly as stored. It never
+  raises and returns the set of pks it confirmed as delivered. The breaker records one success if at least one
+  row of the batch was delivered and one failure only when none was, so isolated bad rows do not open it, but a
+  whole batch of them does.
+- A plain `Sender`, with only `send(payload)` (an HTTP call per message, say), gets its rows one by one. A row
+  that is delivered is deleted and counts as a success for the breaker at once. A `send` that raises leaves the
+  row for the next tick and counts as a failure at once, so the breaker opens as soon as the threshold is
+  reached and the rest of the batch is not sent in this tick.
+
+In both cases the sender knows nothing about `Job`, billing, or licensing. `KafkaSender` produces the whole batch and flushes each producer once,
 instead of one flush per row, and marks a pk as delivered only from that message's own delivery callback. The
 task deletes exactly the confirmed rows: there is nothing left to re-check, because a row is exactly one
 message, and sending it is the only thing it was waiting for.
 
 Any row the sender does not confirm, for whatever reason (`UnroutableRegionError`, a broker
-rejection, a flush timeout), stays for the next tick. The breaker records one success if at least one
-row of the batch was delivered and one failure only when none was, so isolated bad rows do not open it,
-but a whole batch of them does. The time budget is for the healthy path: a region that fails waits
+rejection, a flush timeout, a `send` that raises), stays for the next tick. The time budget is for the healthy path: a region that fails waits
 out `KafkaSender`'s own flush timeout (5 s), which spends the budget and ends the tick. The producers
 are created with `message.timeout.ms` at 4 s, just under that flush timeout, so a message that cannot
 be delivered in time fails inside the flush instead of staying queued and being delivered minutes
@@ -317,8 +325,9 @@ logic. It needs:
    `Outbox.objects.create(job=job, channel=OutboxChannel.<NAME>, region=..., payload=message)` (`region` is
    the breaker partition, null when the channel has none), wherever in
    the codebase that channel's fact becomes true.
-3. A sender class with a `send(payload)` method (and a `send_batch(messages)` override if it can
-   confirm many at once; the base class default calls `send` one by one) and its own `ConfigKey`s for the time
+3. A sender class: a `Sender` with a `send(payload)` method that raises on failure, which the outbox calls one row at a
+   time (the breaker counts each failure at once), or a `BatchSender`, which also has `send_batch(messages)` if it can
+   confirm many at once (the breaker counts a failure only when a whole batch fails). Plus its own `ConfigKey`s for the time
    budget and the breaker thresholds, wrapped in one
    `Destination(sender=..., breaker_factory=..., budget_key=..., metrics=..., kill_signal=...)`, registered
    under its own key in `OutboxTask.channels`. A channel that goes to an existing destination just registers that

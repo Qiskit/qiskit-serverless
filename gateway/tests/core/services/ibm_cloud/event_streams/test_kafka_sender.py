@@ -266,15 +266,13 @@ class TestKafkaSenderMalformedPayloads:
         assert delivered == {2}
 
 
-class TestSenderDefaultSendBatch:
-    def test_swallows_and_logs_a_failure_and_still_sends_the_rest(self, caplog):
-        sender = NoOpSender()
-        with patch.object(NoOpSender, "send", side_effect=[None, RuntimeError("boom"), None]):
-            with caplog.at_level(logging.ERROR):
-                delivered = sender.send_batch([PendingMessage(1, {}), PendingMessage(2, {}), PendingMessage(3, {})])
+class TestNoOpSenderBatch:
+    def test_reports_every_message_as_delivered(self, caplog):
+        with caplog.at_level(logging.INFO):
+            delivered = NoOpSender().send_batch([PendingMessage(1, {}), PendingMessage(2, {})])
 
-        assert delivered == {1, 3}
-        assert "boom" in caplog.text
+        assert delivered == {1, 2}
+        assert "noop" in caplog.text
 
 
 class TestNoOpSender:
