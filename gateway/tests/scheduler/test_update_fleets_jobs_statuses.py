@@ -404,28 +404,27 @@ class TestStopJobIfTimeout:
         assert job.status == Job.STOPPED
         task.transitions.to_stopping.assert_not_called()
 
-    def test_a_transient_refusal_leaves_the_job_alone(self):
-        """A terminal status here would report the job finished while its fleet still holds the node."""
+    def test_an_undeliverable_cancel_still_reaches_stopped(self):
+        """The timeout is the last thing that can end a Fleets job, so it always writes a terminal
+        status. Retrying only while the failure is transient would need per-job state to bound it, and
+        this task keeps none, so a cancel that kept failing would strand the row for ever."""
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
         past_event = MagicMock()
         past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
-        mock_runner = MagicMock()
-        task.transitions.cancel_and_mark_stopping.side_effect = RunnerError("Code Engine API error: Too Many Requests")
+        task.transitions.cancel_and_mark_stopping.side_effect = RunnerError("Code Engine API error: Forbidden")
 
         with (
             patch(f"{_MOD}.settings") as mock_settings,
             patch(f"{_MOD}.JobEvent") as mock_event,
-            patch(f"{_MOD}.get_runner", return_value=mock_runner),
+            patch(f"{_MOD}.get_runner", return_value=MagicMock()),
         ):
             mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
             task.stop_job_if_timeout(job)
 
-        assert job.status == Job.RUNNING
-        task.transitions.to_terminal.assert_not_called()
-        task.transitions.to_stopping.assert_not_called()
+        assert job.status == Job.STOPPED
 
     def test_job_unchanged_when_within_timeout(self):
         task = _make_task()

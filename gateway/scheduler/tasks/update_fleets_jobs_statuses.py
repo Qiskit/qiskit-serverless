@@ -202,10 +202,15 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             ):
                 return
         except RunnerError as ex:
-            # Retried next cycle. A terminal status here would report the job finished while its
-            # fleet still holds the node.
-            logger.error("job_id=%s error cancelling Fleets job on timeout: %s", job.id, str(ex))
-            return
+            # Still written: nothing else can end a Fleets job, so a cancel that keeps failing would
+            # leave the row holding its slots for ever. Bounding the retries would need per-job state,
+            # which this task deliberately does not keep.
+            logger.error(
+                "job_id=%s cancel not delivered on timeout, writing STOPPED. Possible orphan fleet_id=%s: %s",
+                job.id,
+                job.fleet_id,
+                str(ex),
+            )
         except InvalidJobTransitionException as ex:
             logger.info("job_id=%s transition rejected, skipping STOPPING: %s", job.id, str(ex))
             return

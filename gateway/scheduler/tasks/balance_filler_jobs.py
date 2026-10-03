@@ -302,7 +302,7 @@ class BalanceFillerJobs(SchedulerTask):
             if self.kill_signal.received:
                 return
             if job.status == Job.STOPPING:
-                # Already draining. Asking again would move the deadline the status poller reads.
+                # Already draining: no second cancel to send.
                 continue
             self._stop_one_filler_job(job)
 
@@ -316,8 +316,7 @@ class BalanceFillerJobs(SchedulerTask):
                 logger.info("[BalanceFillerJobs] job_id=%s filler job cancel sent", job.id)
                 return
         except RunnerError as ex:
-            # Left active on purpose: a stopping or stopped status would hide a fleet still holding
-            # the node, and the balancer would create another on top. Retried next cycle.
+            # Left RUNNING: a status change here would claim a cancel that never left. Retried next cycle.
             logger.error("[BalanceFillerJobs] job_id=%s error stopping filler job: %s", job.id, str(ex))
             return
         except InvalidJobTransitionException:
@@ -329,7 +328,7 @@ class BalanceFillerJobs(SchedulerTask):
     def _mark_failed(self, job: Job) -> None:
         """Write FAILED on a job whose submit never happened.
 
-        Not _mark_stopping: nothing stopped it, its creation broke, and that counter is
+        Not _mark_stopped: nothing stopped it, its creation broke, and that counter is
         cross-checked against the FILLER_STOP events.
         """
         try:

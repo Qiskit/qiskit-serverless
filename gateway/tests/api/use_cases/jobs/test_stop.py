@@ -123,6 +123,26 @@ class TestStopFleetsJob:
         assert JobEvent.objects.filter(job=job).count() == 0
         mock_get_runner.assert_not_called()
 
+    def test_a_concurrent_stop_reports_stopping_not_terminal(self, author):
+        """Two gunicorn workers can both read the row as RUNNING. The loser's transition is refused,
+        and STOPPING is not terminal, so it must not be reported as such."""
+        job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.RUNNING, fleet_id="fleet-abc")
+        runner = Mock()
+        runner.stop.return_value = True
+
+        def _win_the_race(*_args, **_kwargs):
+            # Stand in for the other worker committing STOPPING between our read and our transition.
+            Job.objects.filter(pk=job.pk).update(status=Job.STOPPING)
+            return True
+
+        runner.stop.side_effect = _win_the_race
+        with patch("core.services.job_transitions.get_runner", return_value=runner):
+            message = StopJobUseCase().execute(job.id, None, author)
+
+        assert "Job is stopping." in message
+        assert "terminal" not in message
+        assert Job.objects.get(pk=job.pk).status == Job.STOPPING
+
     def test_a_ray_job_never_reaches_stopping(self, author):
         """The fork at this writer is the only guard: the Ray poller does not consult VALID_TRANSITIONS.
 

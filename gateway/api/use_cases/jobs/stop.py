@@ -39,7 +39,7 @@ class StopJobUseCase:
         self.stopped_sessions = []
 
         if job.status == Job.STOPPING:
-            # A second cancel would write a second STOPPING event, which the deadline is measured from.
+            # Already stopping: no second cancel to send.
             self.status_messages.append("Job is already stopping.")
             return " ".join(self.status_messages)
 
@@ -65,8 +65,12 @@ class StopJobUseCase:
             logger.warning("Could not cancel fleet_id=%s: %s", job.fleet_id, str(ex))
             raise EngineUnavailableException("Job could not be stopped right now, please retry.") from ex
         except InvalidJobTransitionException:
-            # Lost the race: the row reached a terminal status between the read above and the transition.
-            pass
+            # Lost the race. Another writer may have moved the row to STOPPING, which is not terminal,
+            # so re-read before naming it.
+            job.refresh_from_db(fields=["status"])
+            if job.status == Job.STOPPING:
+                stopping = True
+                stopped = True
 
         if stopped:
             # New behavior: now, stopping a completed job (failed or succeeded) NO longer (attempts to) stop its
