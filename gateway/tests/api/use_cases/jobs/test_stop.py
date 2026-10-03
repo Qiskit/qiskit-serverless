@@ -67,7 +67,7 @@ class TestStopFleetsJob:
         runner = Mock()
         runner.stop.return_value = True
 
-        with patch("api.use_cases.jobs.stop.get_runner", return_value=runner) as mock_get_runner:
+        with patch("core.services.job_transitions.get_runner", return_value=runner) as mock_get_runner:
             message = StopJobUseCase().execute(job.id, None, author)
 
         assert "Job is stopping." in message
@@ -82,7 +82,7 @@ class TestStopFleetsJob:
         runner = Mock()
         runner.stop.return_value = False
 
-        with patch("api.use_cases.jobs.stop.get_runner", return_value=runner):
+        with patch("core.services.job_transitions.get_runner", return_value=runner):
             message = StopJobUseCase().execute(job.id, None, author)
 
         assert "Job has been stopped." in message
@@ -91,7 +91,7 @@ class TestStopFleetsJob:
     def test_a_job_with_no_fleet_goes_straight_to_stopped(self, author):
         job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.QUEUED)
 
-        with patch("api.use_cases.jobs.stop.get_runner") as mock_get_runner:
+        with patch("core.services.job_transitions.get_runner") as mock_get_runner:
             message = StopJobUseCase().execute(job.id, None, author)
 
         assert "Job has been stopped." in message
@@ -104,7 +104,7 @@ class TestStopFleetsJob:
         runner = Mock()
         runner.stop.side_effect = RunnerError("Code Engine rate limited the cancel")
 
-        with patch("api.use_cases.jobs.stop.get_runner", return_value=runner):
+        with patch("core.services.job_transitions.get_runner", return_value=runner):
             with pytest.raises(EngineUnavailableException):
                 StopJobUseCase().execute(job.id, None, author)
 
@@ -115,7 +115,7 @@ class TestStopFleetsJob:
         """The deadline is read from the STOPPING event, so a second one must not be written."""
         job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.STOPPING, fleet_id="fleet-abc")
 
-        with patch("api.use_cases.jobs.stop.get_runner") as mock_get_runner:
+        with patch("core.services.job_transitions.get_runner") as mock_get_runner:
             message = StopJobUseCase().execute(job.id, None, author)
 
         assert "Job is already stopping." in message

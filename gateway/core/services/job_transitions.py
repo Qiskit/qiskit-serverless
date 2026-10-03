@@ -19,6 +19,7 @@ from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender
 from core.ibm_cloud.sender import Sender
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, JobEvent, Outbox, OutboxChannel, Program
+from core.services.runners import get_runner
 
 logger = logging.getLogger("core.JobTransitionService")
 
@@ -98,6 +99,26 @@ class JobTransitionService:
             raise InvalidJobTransitionException(f"Job {job.id}: STOPPING is only valid for a Fleets job")
         with transaction.atomic():
             return self._change_status(job, Job.STOPPING, origin=origin, context=context, job_fields=None)
+
+    def cancel_and_mark_stopping(self, job: Job, *, origin: JobEventOrigin, context: JobEventContext) -> bool:
+        """Ask Code Engine to cancel the fleet, then record STOPPING if it accepted.
+
+        The cancel runs before the transaction, never inside it. A transaction cannot roll back an
+        accepted cancel, and holding the row lock across an HTTP call stalls the scheduler. Same rule
+        as the outbox, which writes inside the transaction and sends afterwards (see specs/OUTBOX.md).
+
+        Returns:
+            ``True`` when STOPPING was written. ``False`` when nothing will ever confirm a stop, so
+            the caller owes a terminal status.
+
+        Raises:
+            RunnerError: If the cancel could not be delivered, so the caller chooses between failing
+                a request and retrying on its next cycle.
+        """
+        if not job.fleet_id or not get_runner(job).stop():
+            return False
+        self.to_stopping(job, origin=origin, context=context)
+        return True
 
     def to_terminal(
         self, job: Job, status: str, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None

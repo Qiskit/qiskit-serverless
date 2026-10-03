@@ -32,6 +32,11 @@ def _make_transitions():
     def _to_stopping(job, *, origin, context):  # pylint: disable=unused-argument
         job.update_fields({"status": Job.STOPPING})
 
+    def _cancel_and_mark_stopping(job, *, origin, context):  # pylint: disable=unused-argument
+        job.update_fields({"status": Job.STOPPING})
+        return True
+
+    transitions.cancel_and_mark_stopping = MagicMock(side_effect=_cancel_and_mark_stopping)
     transitions.pending_to_running = MagicMock(side_effect=_pending_to_running)
     transitions.to_terminal = MagicMock(side_effect=_to_terminal)
     transitions.to_stopping = MagicMock(side_effect=_to_stopping)
@@ -373,8 +378,7 @@ class TestStopJobIfTimeout:
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
             task.stop_job_if_timeout(job)
 
-        mock_get_runner.assert_called_once_with(job)
-        mock_runner.stop.assert_called_once_with()
+        task.transitions.cancel_and_mark_stopping.assert_called_once()
         assert job.status == Job.STOPPING
 
     def test_nothing_left_to_cancel_still_reaches_stopped(self):
@@ -386,6 +390,7 @@ class TestStopJobIfTimeout:
         past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
         mock_runner = MagicMock()
         mock_runner.stop.return_value = False
+        task.transitions.cancel_and_mark_stopping.side_effect = lambda job, **kw: False
 
         with (
             patch(f"{_MOD}.settings") as mock_settings,
@@ -407,7 +412,7 @@ class TestStopJobIfTimeout:
         past_event = MagicMock()
         past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
         mock_runner = MagicMock()
-        mock_runner.stop.side_effect = RunnerError("Code Engine API error: Too Many Requests")
+        task.transitions.cancel_and_mark_stopping.side_effect = RunnerError("Code Engine API error: Too Many Requests")
 
         with (
             patch(f"{_MOD}.settings") as mock_settings,

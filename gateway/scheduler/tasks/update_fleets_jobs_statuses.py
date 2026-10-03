@@ -139,15 +139,6 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         self.to_terminal(job, Job.STOPPED)
         return True
 
-    def to_stopping(self, job: Job) -> None:
-        """Record that a cancel is in flight, so drive_stopping confirms it from the task store."""
-        try:
-            self.transitions.to_stopping(
-                job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
-            )
-        except InvalidJobTransitionException as ex:
-            logger.info("job_id=%s transition rejected from %s, skipping STOPPING: %s", job.id, job.status, str(ex))
-
     def to_terminal(self, job: Job, new_status: str) -> None:
         """Persist a terminal status transition."""
         requested = job.status == Job.STOPPING
@@ -206,17 +197,20 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
 
         logger.warning("job_id=%s user_id=%s timeout=%s hours: job stopped.", job.id, job.author.id, timeout)
         try:
-            cancel_in_flight = get_runner(job).stop()
+            if self.transitions.cancel_and_mark_stopping(
+                job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
+            ):
+                return
         except RunnerError as ex:
             # Retried next cycle. A terminal status here would report the job finished while its
             # fleet still holds the node.
             logger.error("job_id=%s error cancelling Fleets job on timeout: %s", job.id, str(ex))
             return
+        except InvalidJobTransitionException as ex:
+            logger.info("job_id=%s transition rejected, skipping STOPPING: %s", job.id, str(ex))
+            return
 
-        if cancel_in_flight:
-            self.to_stopping(job)
-        else:
-            self.to_terminal(job, Job.STOPPED)
+        self.to_terminal(job, Job.STOPPED)
 
     def _increment_terminal_counter(self, job: Job, *, requested: bool = False) -> None:
         """Increment terminal jobs counter. `requested` means something asked this job to stop."""

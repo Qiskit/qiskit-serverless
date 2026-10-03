@@ -24,6 +24,8 @@ from tests.utils import TestUtils
 pytestmark = pytest.mark.django_db
 
 _MOD = "scheduler.tasks.balance_filler_jobs"
+# the cancel now goes out from JobTransitionService, so that is where get_runner is looked up
+_RUNNER = "core.services.job_transitions.get_runner"
 _PROFILE = "160x1792x8h100"
 # The filler jobs are owned by whoever owns the filler function, so the author of the
 # program and the author the balancer writes on its jobs are the same user.
@@ -69,7 +71,7 @@ def _run(task, times=1):
     with (
         patch(f"{_MOD}.execute_fleets_job", side_effect=_fake_submit) as submit,
         patch(f"{_MOD}.get_arguments_storage") as arguments,
-        patch(f"{_MOD}.get_runner") as runner,
+        patch(_RUNNER) as runner,
     ):
         for _ in range(times):
             task.run()
@@ -357,23 +359,25 @@ def test_mark_failed_does_not_raise_when_the_job_already_turned_terminal(filler_
     assert job.status == Job.SUCCEEDED
 
 
-def test_mark_stopping_does_not_count_a_job_that_already_turned_terminal(filler_program):
-    """Same race for _mark_stopping: a stop that lost the race must not be counted as one."""
+def test_a_job_that_already_turned_terminal_is_not_counted_as_stopped(filler_program):
+    """A stop that lost the race must not be counted as the one that ended the job."""
     job = TestUtils.create_job(
         author=_AUTHOR,
         program=filler_program,
-        status=Job.FAILED,
+        status=Job.SUCCEEDED,
         runner=Program.FLEETS,
         compute_profile_fk=filler_program.default_size.compute_profile,
         filler=True,
+        fleet_id="fleet-done",
     )
     task = _make_task()
 
-    task._mark_stopping(job)  # must not raise
+    with patch(_RUNNER) as runner:
+        runner.return_value.stop.return_value = True
+        task._stop_one_filler_job(job)  # pylint: disable=protected-access
 
-    job.refresh_from_db()
-    assert job.status == Job.FAILED
     task.metrics.increment_filler_jobs_stopped.assert_not_called()
+    assert Job.objects.get(pk=job.pk).status == Job.SUCCEEDED
 
 
 def test_filler_jobs_on_another_profile_are_always_stopped(filler_program):
@@ -492,7 +496,7 @@ def test_a_fleet_that_cannot_be_cancelled_keeps_the_job_active(filler_program):
     with (
         patch(f"{_MOD}.execute_fleets_job"),
         patch(f"{_MOD}.get_arguments_storage"),
-        patch(f"{_MOD}.get_runner") as runner,
+        patch(_RUNNER) as runner,
     ):
         runner.return_value.stop.side_effect = RunnerError("Code Engine said no")
         task.run()
@@ -508,7 +512,7 @@ def test_a_failed_creation_waits_out_the_delay_before_trying_again(filler_progra
     with (
         patch(f"{_MOD}.execute_fleets_job"),
         patch(f"{_MOD}.get_arguments_storage", side_effect=ValueError("no bucket")) as arguments,
-        patch(f"{_MOD}.get_runner"),
+        patch(_RUNNER),
     ):
         task.run()
         assert arguments.call_count == 1
@@ -530,7 +534,7 @@ def test_a_creation_that_fails_before_the_submit_discards_the_row(filler_program
     with (
         patch(f"{_MOD}.execute_fleets_job", side_effect=ValueError("no runner")),
         patch(f"{_MOD}.get_arguments_storage"),
-        patch(f"{_MOD}.get_runner"),
+        patch(_RUNNER),
     ):
         task.run()
 

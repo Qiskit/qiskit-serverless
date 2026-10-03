@@ -618,7 +618,7 @@ class TestJobApi:
 
         runner = MagicMock()
         runner.stop.side_effect = RunnerError("Code Engine rate limited the cancel")
-        with patch("api.use_cases.jobs.stop.get_runner", return_value=runner):
+        with patch("core.services.job_transitions.get_runner", return_value=runner):
             response = self.client.post(
                 reverse("v1:jobs-stop", args=[str(job.pk)]),
                 format="json",
