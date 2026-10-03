@@ -13,10 +13,13 @@ confusing error messages in logs when running multiple scheduler/gateway pods.
 import logging
 import time
 import pglock
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.core.management import call_command
 
 logger = logging.getLogger("migrate_with_lock")
+
+POLL_SECONDS = 2
+DEFAULT_LOCK_TIMEOUT_SECONDS = 900
 
 
 class Command(BaseCommand):
@@ -24,14 +27,31 @@ class Command(BaseCommand):
 
     help = "Run migrations with a PostgreSQL lock to prevent race conditions"
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--lock-timeout",
+            type=float,
+            default=DEFAULT_LOCK_TIMEOUT_SECONDS,
+            help="Seconds to wait for the migration lock before failing (default: %(default)s)",
+        )
+
     def handle(self, *args, **options):
+        lock_timeout = options.pop("lock_timeout")
         logger.debug("Acquiring migration lock...")
 
-        start = time.time()
-        # timeout=None waits indefinitely
-        with pglock.advisory("django_migrations", timeout=None):
-            logger.info("Lock acquired after %.2fs", time.time() - start)
+        start = time.monotonic()
+        while True:
+            # timeout=0 uses pg_try_advisory_lock, which returns at once. Waiting inside a blocking
+            # lock statement would keep a transaction open, and CREATE INDEX CONCURRENTLY in the
+            # migrating container waits for those, so the two would deadlock.
+            with pglock.advisory("django_migrations", timeout=0) as acquired:
+                if acquired:
+                    logger.info("Lock acquired after %.2fs", time.monotonic() - start)
 
-            call_command("migrate", *args, **options)
+                    call_command("migrate", *args, **options)
 
-            logger.info("Migrations completed successfully")
+                    logger.info("Migrations completed successfully")
+                    return
+            if time.monotonic() - start >= lock_timeout:
+                raise CommandError(f"Could not acquire the migration lock after {lock_timeout:g}s")
+            time.sleep(POLL_SECONDS)
