@@ -58,6 +58,7 @@ def serialize_output(message: str) -> StopJobOutputSerializer:
         **standard_error_responses(
             bad_request_example="'service' not provided or is not valid",
             not_found_example="Job [XXXX] not found",
+            service_unavailable_example="Job could not be stopped right now, please retry.",
         ),
     },
 )
@@ -75,5 +76,5 @@ def stop(request: Request, job_id: UUID):
 
     user = cast(AbstractUser, request.user)
     message = StopJobUseCase().execute(job_id, service, user)
-    logger.info("[jobs-stop] user_id=%s job_id=%s | Job stopped ok", user.id, job_id)
+    logger.info("[jobs-stop] user_id=%s job_id=%s | %s", user.id, job_id, message)
     return Response(serialize_output(message))

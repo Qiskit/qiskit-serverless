@@ -336,6 +336,29 @@ class TestCosStatusDetection:
         assert runner.status() is None
 
 
+@pytest.mark.parametrize(
+    "break_it",
+    [
+        lambda job: setattr(job, "program", None),
+        lambda job: setattr(job.program, "code_engine_project", None),
+        lambda job: setattr(job.program.code_engine_project, "active", False),
+    ],
+    ids=["program-deleted", "no-project", "project-inactive"],
+)
+def test_stop_returns_false_when_the_project_cannot_be_resolved(break_it):
+    """No cancel can be sent for a fleet whose project is unknown, and status() cannot confirm one
+    either, so the caller must write a terminal status instead of retrying for ever.
+
+    Goes through the real stop() on purpose. Injecting the error into a mocked runner hides whether
+    stop() reports it as unrecoverable, which is the thing every caller branches on.
+    """
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    break_it(runner.job)
+
+    assert runner.stop() is False
+    mock_handler.cancel_job.assert_not_called()
+
+
 def test_stop_returns_true_when_the_cancel_was_accepted():
     """stop() reports True only when Code Engine accepted the cancel."""
     runner, mock_handler = _make_runner(fleet_id="fleet-123")

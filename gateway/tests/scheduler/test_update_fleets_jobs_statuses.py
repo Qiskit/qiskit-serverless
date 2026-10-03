@@ -377,15 +377,15 @@ class TestStopJobIfTimeout:
         mock_runner.stop.assert_called_once_with()
         assert job.status == Job.STOPPING
 
-    def test_a_permanent_fault_still_reaches_stopped(self):
-        """No retry can clear an inactive project, so the row must end here or it keeps its slots for ever."""
+    def test_nothing_left_to_cancel_still_reaches_stopped(self):
+        """stop() answers False when nothing will ever confirm a stop, so the row must end here."""
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
         past_event = MagicMock()
         past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
         mock_runner = MagicMock()
-        mock_runner.stop.side_effect = RunnerError("Code Engine project 'p' is not active", permanent=True)
+        mock_runner.stop.return_value = False
 
         with (
             patch(f"{_MOD}.settings") as mock_settings,

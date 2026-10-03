@@ -315,11 +315,9 @@ class BalanceFillerJobs(SchedulerTask):
         try:
             cancel_in_flight = get_runner(job).stop()
         except RunnerError as ex:
-            # Left active on purpose: a stopping or stopped status would hide a fleet still holding the
-            # node, and the balancer would create another on top. A permanent fault never clears.
+            # Left active on purpose: a stopping or stopped status would hide a fleet still holding
+            # the node, and the balancer would create another on top. Retried next cycle.
             logger.error("[BalanceFillerJobs] job_id=%s error stopping filler job: %s", job.id, str(ex))
-            if ex.permanent:
-                self._mark_stopped(job)
             return
 
         if cancel_in_flight:

@@ -111,18 +111,6 @@ class TestStopFleetsJob:
         assert Job.objects.get(pk=job.pk).status == Job.RUNNING
         assert JobEvent.objects.filter(job=job).count() == 0
 
-    def test_a_permanent_fault_reports_stopped_instead_of_asking_for_a_retry(self, author):
-        """An inactive project cannot be fixed by retrying, so a 503 would be a loop with no exit."""
-        job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.RUNNING, fleet_id="fleet-abc")
-        runner = Mock()
-        runner.stop.side_effect = RunnerError("Code Engine project 'p' is not active", permanent=True)
-
-        with patch("api.use_cases.jobs.stop.get_runner", return_value=runner):
-            message = StopJobUseCase().execute(job.id, None, author)
-
-        assert "Job has been stopped." in message
-        assert Job.objects.get(pk=job.pk).status == Job.STOPPED
-
     def test_a_second_stop_sends_no_cancel_and_writes_no_event(self, author):
         """The deadline is read from the STOPPING event, so a second one must not be written."""
         job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.STOPPING, fleet_id="fleet-abc")

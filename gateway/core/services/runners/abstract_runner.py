@@ -17,13 +17,11 @@ class RunnerError(Exception):
     Attributes:
         message: Human-readable error description
         original_exception: The underlying exception that caused this error (if any)
-        permanent: True when retrying cannot help, so the caller must stop retrying
     """
 
-    def __init__(self, message: str, original_exception: Exception | None = None, *, permanent: bool = False):
+    def __init__(self, message: str, original_exception: Exception | None = None):
         super().__init__(message)
         self.message = message
-        self.permanent = permanent
         self.original_exception = original_exception
 
     def __str__(self) -> str:
@@ -131,7 +129,7 @@ class AbstractRunner(ABC):
         Automatically connects if not connected.
 
         Returns:
-            True if a stop is in flight, False if there was nothing left to stop.
+            True if a stop is in flight, False when nothing will ever confirm one.
 
         Raises:
             RunnerError: If unable to stop the job

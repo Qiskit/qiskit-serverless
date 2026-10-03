@@ -100,9 +100,6 @@ class StopJobUseCase:
             return get_runner(job).stop()
         except RunnerError as ex:
             logger.warning("Could not cancel fleet_id=%s: %s", job.fleet_id, str(ex))
-            if ex.permanent:
-                # Retrying cannot clear it, so report the stop rather than ask the user to try for ever.
-                return False
             raise EngineUnavailableException("Job could not be stopped right now, please retry.") from ex
 
     def _cancel_runtime_job_entry(

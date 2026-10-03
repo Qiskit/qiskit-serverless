@@ -452,16 +452,25 @@ class FleetsRunner(AbstractRunner):
 
         Returns:
             ``True`` if a cancel is in flight, so a terminal task state is still to come. ``False``
-            only if the fleet is gone, so nothing will ever be written for it. ``True`` does not say
-            the job was running: Code Engine also accepts a cancel for a fleet that has finished.
+            when nothing will ever report one, either because the fleet is gone or because its project
+            cannot be resolved. ``True`` does not say the job was running: Code Engine also accepts a
+            cancel for a fleet that has finished.
 
         Raises:
             RunnerError: If the cancel could not be delivered, after retrying a rate limit.
         """
-        self._ensure_connected()
         if not self.job.fleet_id:
             raise RunnerError("Job has no fleet_id assigned")
 
+        try:
+            self._get_project()
+        except RunnerError as ex:
+            # Resolved before connecting, so this answers False rather than looking like a transient
+            # connection failure. status() cannot confirm a stop either, so nothing ever will.
+            logger.warning("Cannot cancel fleet [%s]: %s", self.job.fleet_id, str(ex))
+            return False
+
+        self._ensure_connected()
         handler = self._get_handler()
 
         try:
@@ -516,12 +525,12 @@ class FleetsRunner(AbstractRunner):
             RunnerError: If no project is assigned or the assigned project is inactive.
         """
         if not self.job.program:
-            raise RunnerError(f"Program for job '{self.job.id}' has been deleted", permanent=True)
+            raise RunnerError(f"Program for job '{self.job.id}' has been deleted")
         project = self.job.program.code_engine_project
         if not project:
-            raise RunnerError(f"No Code Engine project assigned to program '{self.job.program.title}'", permanent=True)
+            raise RunnerError(f"No Code Engine project assigned to program '{self.job.program.title}'")
         if not project.active:
-            raise RunnerError(f"Code Engine project '{project.project_name}' is not active", permanent=True)
+            raise RunnerError(f"Code Engine project '{project.project_name}' is not active")
         return project
 
     def _get_handler(self) -> FleetHandler:

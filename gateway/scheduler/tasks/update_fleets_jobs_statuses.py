@@ -208,10 +208,9 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         try:
             cancel_in_flight = get_runner(job).stop()
         except RunnerError as ex:
-            # A transient refusal is retried next cycle. A permanent one never clears, so end the row.
+            # Retried next cycle. A terminal status here would report the job finished while its
+            # fleet still holds the node.
             logger.error("job_id=%s error cancelling Fleets job on timeout: %s", job.id, str(ex))
-            if ex.permanent:
-                self.to_terminal(job, Job.STOPPED)
             return
 
         if cancel_in_flight:
