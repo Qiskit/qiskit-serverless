@@ -4,14 +4,20 @@
 #
 # It stays a separate file rather than being merged into the shared one for two
 # reasons. The gateway reads only the shared file, as the provider allow-list for
-# GET /api/v1/dependencies-versions, so keeping the CUDA pins here ships them in
-# the image without advertising them as dependencies a function on a CPU compute
-# profile could request and then fail on for want of a device. And these are
-# x86_64-only wheels, while the shared file also feeds ray-node, which has an
-# arm64 local-dev variant they would break.
+# GET /api/v1/dependencies-versions, so keeping the CUDA packages here ships them
+# in the image without advertising them as dependencies a function on a CPU compute
+# profile could request and then fail on for want of a device. And this stack does
+# not install on arm64 at all -- gpu4pyscf-cuda12x publishes an x86_64 wheel only
+# (the rest here, cupy included, do have aarch64 builds) -- while the shared file
+# also feeds ray-node, which has an arm64 local-dev variant it would break.
 #
-# These wheels are ~765 MB compressed, roughly 2 GB installed, and Fleets pulls
-# the image per job, so this file is the bulk of that image.
+# These wheels are ~2.5 GB compressed, roughly 4.6 GB installed, and Fleets pulls
+# the image per job, so this file is the bulk of that image. The nvidia-* block
+# below is most of that: cublas 855 MB installed, cusolver 495 MB, cusparse
+# 487 MB, cufft 294 MB, nvrtc 227 MB, curand 167 MB, nvjitlink 96 MB. Those are
+# all shared objects, so there is nothing cheap to strip after the install --
+# their headers come to under 4 MB in total and the only static archives are
+# cuda-runtime's ~4.6 MB.
 #
 # cupy-cuda12x is pinned even though gpu4pyscf-cuda12x already pulls it, because
 # that dependency is open-ended (!=13.4.0,>=13.0) and the version decides CUDA
@@ -19,10 +25,45 @@
 # which is a further reason to keep it out of the shared image.
 # gpu4pyscf-libxc-cuda12x needs no pin here: gpu4pyscf-cuda12x pins it exactly.
 #
-# No CUDA driver or toolkit is installed: these wheels bundle the CUDA libraries
-# they need, and Code Engine's NVIDIA container runtime injects the driver and
+# No CUDA driver or toolkit is installed: the CUDA libraries come from the wheels
+# below, and Code Engine's NVIDIA container runtime injects the driver and
 # nvidia-smi into GPU workers at runtime (see the note at the top of
 # fleet-node/Dockerfile).
 cupy-cuda12x==14.2.0
 cutensor-cu12==2.8.0
 gpu4pyscf-cuda12x==1.8.1
+
+# CUDA runtime libraries for gpu4pyscf. It dlopens this family of shared objects
+# at import -- libcublas.so.12, libcublasLt.so.12, libcudart.so.12,
+# libcufft.so.12, libcurand.so.12, libcusolver.so.12, libcusparse.so.12,
+# libnvJitLink.so.12, libnvrtc.so.12 -- but declares none of the wheels that
+# carry them in its requires_dist: it assumes they arrive transitively. Nothing
+# else here provides them (cupy-cuda12x is self-sufficient and needs none of
+# this), so without these lines `import gpu4pyscf` fails one missing library at a
+# time and a GPU chemistry function silently falls back to CPU: the job succeeds,
+# looks fine, and never touches the GPU it was scheduled on. The selector stage
+# of fleet-node/Dockerfile asserts every one of those sonames resolves, so this
+# cannot regress unnoticed.
+#
+# All eight are listed even though pip would pull half of them transitively
+# (cusolver depends on cublas, cusparse and nvjitlink; cublas on nvrtc). The list
+# states what the image has to provide instead of leaning on NVIDIA's inter-wheel
+# metadata, since trusting a package's metadata to be complete is precisely what
+# failed here.
+#
+# Deliberately unpinned, unlike everything else in this repo: they resolve to a
+# CUDA 12.x minor compatible with the cupy-cuda12x toolchain baked above, and the
+# -cu12 package names cannot drift across a CUDA major. The cost is that the
+# exact CUDA minor in the image moves between rebuilds.
+#
+# They install under site-packages/nvidia/*/lib, which is on no default loader
+# path, so the deps stage of fleet-node/Dockerfile has to register those dirs
+# with ldconfig or the dlopens fail even though pip install succeeded.
+nvidia-cublas-cu12
+nvidia-cuda-nvrtc-cu12
+nvidia-cuda-runtime-cu12
+nvidia-cufft-cu12
+nvidia-curand-cu12
+nvidia-cusolver-cu12
+nvidia-cusparse-cu12
+nvidia-nvjitlink-cu12
