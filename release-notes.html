@@ -342,6 +342,20 @@ used to say the job “was running and has been stopped”. Code Engine accepts 
 cancel for a fleet that has already finished, so the old wording claimed more
 than the response supports.</p></li>
 </ul>
+<ul>
+<li><p>Breaking change:
+The deprecated <code class="docutils literal notranslate"><span class="pre">compute_profile</span></code> input on <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/programs/run/</span></code> has been
+removed. Use <code class="docutils literal notranslate"><span class="pre">function_size</span></code> with one of the labels the function declares in its
+size catalog instead. Sending <code class="docutils literal notranslate"><span class="pre">compute_profile</span></code> now returns a 400 naming the
+replacement, instead of being silently ignored.</p>
+<p>The client SDK’s <code class="docutils literal notranslate"><span class="pre">compute_profile</span></code> keyword on <code class="docutils literal notranslate"><span class="pre">run()</span></code> now raises
+<code class="docutils literal notranslate"><span class="pre">QiskitServerlessException</span></code> instead of sending the request, so upgrade the client
+first: an upgraded client fails fast with a clear local error, while an old client
+against the new gateway only gets a less specific 400 from the server.</p>
+<p>The published <code class="docutils literal notranslate"><span class="pre">/swagger/</span></code> request body for this endpoint no longer lists
+<code class="docutils literal notranslate"><span class="pre">compute_profile</span></code>.</p>
+</li>
+</ul>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">FunctionSize.function_size</span></code> (the T-shirt size label declared for a
 function) is now restricted to <code class="docutils literal notranslate"><span class="pre">S</span></code>, <code class="docutils literal notranslate"><span class="pre">M</span></code>, <code class="docutils literal notranslate"><span class="pre">L</span></code>, <code class="docutils literal notranslate"><span class="pre">XL</span></code>. A size
