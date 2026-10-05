@@ -1,17 +1,19 @@
 """Unit tests for BillingEvents' message builders. Pure functions: everything constructed in
 memory, no database access, no pytest.mark.django_db."""
 
+import pytest
 from datetime import datetime, timedelta, timezone
 
 from core.domain.billing_events import BillingEvents
 from core.domain.business_models import BusinessModel
 from core.models import ComputeProfile, FunctionSize, Job, Program, Provider
+from tests.utils import TestUtils
 
 
 def _job(**overrides) -> Job:
     defaults = dict(
         instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::",
-        compute_profile="16x128",
+        compute_profile_fk_id="16x128",
         business_model=BusinessModel.LICENSED,
         filler=False,
     )
@@ -125,12 +127,35 @@ class TestBuildJobCompletedEvent:
         assert message["data"]["instance_crn"] == job.instance_crn
         assert "type" not in message  # added later by the sender, not here
 
-    def test_metric_type_includes_compute_profile(self):
-        job = _job(compute_profile="16x128")
+    def test_metric_type_includes_compute_profile_id(self):
+        job = _job(compute_profile_fk_id="16x128")
 
         message = BillingEvents.build_job_completed_event(job, None, datetime.now(timezone.utc))
 
         assert message["data"]["metric_type"] == "classical_16x128"
+
+    @pytest.mark.django_db
+    def test_metric_type_reads_profile_from_fk_on_real_job(self):
+        """Reads compute_profile_id (FK) not the string — catches misreads a MagicMock cannot."""
+        profile, _ = ComputeProfile.objects.get_or_create(compute_profile_id="16x128")
+        user, _ = TestUtils.get_user_and_username(author="test_billing_fk_user")
+        program = TestUtils.create_program(program_title="billing-fk-func", author=user)
+        job = TestUtils.create_job(author=user, program=program, compute_profile_fk=profile)
+
+        message = BillingEvents.build_job_completed_event(job, None, datetime.now(timezone.utc))
+
+        assert message["data"]["metric_type"] == "classical_16x128"
+
+    @pytest.mark.django_db
+    def test_metric_type_without_profile_is_bare_prefix(self):
+        """A job with no profile emits the bare classical prefix."""
+        user, _ = TestUtils.get_user_and_username(author="test_billing_no_profile_user")
+        program = TestUtils.create_program(program_title="no-profile-func", author=user)
+        job = TestUtils.create_job(author=user, program=program)
+
+        message = BillingEvents.build_job_completed_event(job, None, datetime.now(timezone.utc))
+
+        assert message["data"]["metric_type"] == "classical"
 
 
 class TestBuildLicenseFee:
