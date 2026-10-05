@@ -35,9 +35,3 @@ class Sender(ABC):
                 continue
             delivered.add(message.key)
         return delivered
-
-    def group_key(self, payload: dict) -> str | None:  # pylint: disable=unused-argument
-        """Name of the independent destination this payload goes to (a Kafka region, say). The caller
-        sends and tracks failures per group, so one unreachable destination does not hold back the
-        others. This default puts everything in one group."""
-        return None
