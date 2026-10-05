@@ -148,6 +148,7 @@ class TestBillingOutbox:
         license_fee = Outbox.objects.get(job=job, channel=OutboxChannel.LICENSE_FEE)
         assert billing_event.payload["data"]["metric_type"].startswith("classical")
         assert license_fee.payload["data"]["metric_type"].startswith("license_")
+        assert billing_event.region == license_fee.region == "us-east"
 
     def test_stopped_while_still_queued_enqueues_only_the_billing_event(self, service, user):
         job = _licensed_fleets_job(user, Job.QUEUED)
@@ -210,6 +211,13 @@ class TestBillingOutbox:
         service.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
 
         assert Outbox.objects.filter(job=job).count() == 0
+
+    def test_a_malformed_instance_crn_enqueues_the_row_without_a_region(self, service, user):
+        job = Job.objects.create(author=user, runner=Program.FLEETS, instance_crn="not-a-crn", status=Job.PENDING)
+
+        service.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+
+        assert Outbox.objects.get(job=job, channel=OutboxChannel.JOB_USAGE).region is None
 
     def test_function_without_provider_enqueues_only_the_billing_event(self, service, user):
         program = Program.objects.create(title="my-fn", author=user, entrypoint="main.py", runner=Program.FLEETS)

@@ -179,9 +179,9 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
 
         resource_plan_id = instance.get("resource_plan_id")
         # The subscription id is not a top level attribute of the response: it
-        # travels inside the free-form "parameters" configuration object, which
+        # travels inside the free-form "extensions" configuration object, which
         # is absent for instances that are not provisioned through one.
-        subscription_id = (instance.get("parameters") or {}).get("subscription_id")
+        subscription_id = (instance.get("extensions") or {}).get("subscription_id")
         cache.set(cache_key, (resource_plan_id, subscription_id), timeout=self.cache_ttl)
 
         return resource_plan_id, subscription_id
