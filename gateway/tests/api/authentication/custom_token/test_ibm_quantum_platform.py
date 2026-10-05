@@ -54,7 +54,7 @@ def _mock_iam_services(
     mock_get_resource_instance.return_value = DetailedResponse(
         response={
             "resource_plan_id": RESOURCE_PLAN_ID,
-            "parameters": {"subscription_id": SUBSCRIPTION_ID},
+            "extensions": {"subscription_id": SUBSCRIPTION_ID},
         },
         headers={},
         status_code=200,
@@ -163,7 +163,7 @@ class TestIBMQuantumPlatformAuthentication:
     ):
         """An instance not provisioned through a subscription has no subscription id.
 
-        Those instances come back without the "parameters" configuration object,
+        Those instances come back without the "extensions" configuration object,
         so there is nothing to read the subscription id from.
         """
         _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
