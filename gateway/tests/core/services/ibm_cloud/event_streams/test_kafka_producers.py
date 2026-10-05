@@ -207,6 +207,15 @@ class TestKafkaProducersRegionLookup:
         with pytest.raises(UnroutableRegionError, match="Cannot determine region from CRN"):
             producers.get("not:a:valid:crn")
 
+    def test_empty_region_crn_raises_unroutable(self, settings):
+        _configure(settings, bootstrap_servers="b:9093", api_key="k", environment="production")
+
+        with patch(f"{_MOD}.Producer"):
+            producers = KafkaProducers()
+
+        with pytest.raises(UnroutableRegionError):
+            producers.get("crn:v1:bluemix:public:quantum-computing::a/acct:guid::")
+
     def test_unroutable_region_error_is_a_runtime_error(self):
         """A broad `except RuntimeError` elsewhere in the codebase must still catch this, so it
         has to remain a RuntimeError subclass."""
