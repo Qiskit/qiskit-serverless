@@ -35,8 +35,9 @@ gpu4pyscf-cuda12x==1.8.1
 
 # CUDA runtime libraries for gpu4pyscf. It dlopens this family of shared objects
 # at import -- libcublas.so.12, libcublasLt.so.12, libcudart.so.12,
-# libcufft.so.12, libcurand.so.12, libcusolver.so.12, libcusparse.so.12,
-# libnvJitLink.so.12, libnvrtc.so.12 -- but declares none of the wheels that
+# libcufft.so.11, libcurand.so.10, libcusolver.so.11, libcusparse.so.12,
+# libnvJitLink.so.12, libnvrtc.so.12 (the soname majors track each library's own
+# version, not the CUDA release) -- but declares none of the wheels that
 # carry them in its requires_dist: it assumes they arrive transitively. Nothing
 # else here provides them (cupy-cuda12x is self-sufficient and needs none of
 # this), so without these lines `import gpu4pyscf` fails one missing library at a
