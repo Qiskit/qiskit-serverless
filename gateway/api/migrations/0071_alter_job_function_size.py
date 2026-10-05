@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("api", "0069_alter_job_size_source"),
+        ("api", "0070_alter_job_size_source"),
     ]
 
     operations = [
