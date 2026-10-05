@@ -21,11 +21,6 @@
 
 from .core import (
     BaseClient,
-    distribute_task,
-    distribute_qiskit_function,
-    get,
-    put,
-    get_refs_by_status,
     ServerlessClient,
     IBMServerlessClient,
     save_result,

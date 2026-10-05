@@ -45,33 +45,15 @@ def test_fleets_worker_surface_imports_without_ray():
 
 
 @requires_no_ray
-@pytest.mark.parametrize("symbol", ["put", "get", "get_refs_by_status", "remote"])
-def test_ray_only_symbol_raises_clear_error(symbol):
-    """Ray-only helpers must raise a clear 'install [ray]' error, not a raw import error."""
+def test_remote_raises_clear_error_without_ray():
+    """``remote`` must raise a clear 'install [ray]' error, not a raw import error.
+
+    ``remote`` is the last remaining consumer of ``_require_ray``: the other Ray-only
+    helpers (``distribute_task``, ``get``, ``put``, ``get_refs_by_status``) were removed
+    in favor of calling Ray directly.
+    """
     # pylint: disable=import-outside-toplevel
     from qiskit_serverless.core import decorators
 
-    func = getattr(decorators, symbol)
     with pytest.raises(ModuleNotFoundError, match=r"qiskit-serverless\[ray\]"):
-        if symbol == "remote":
-            func(num_cpus=1)
-        elif symbol == "put":
-            func(42)
-        elif symbol == "get":
-            func([])
-        else:  # get_refs_by_status
-            func([])
-
-
-@requires_no_ray
-def test_distribute_task_call_raises_clear_error_without_ray():
-    """Calling a distribute_task-wrapped function without Ray must raise a clear error."""
-    # pylint: disable=import-outside-toplevel
-    from qiskit_serverless import distribute_task
-
-    @distribute_task()
-    def add(x, y):
-        return x + y
-
-    with pytest.raises(ModuleNotFoundError, match=r"qiskit-serverless\[ray\]"):
-        add(1, 2)
+        decorators.remote(num_cpus=1)
