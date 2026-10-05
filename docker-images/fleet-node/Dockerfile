@@ -98,10 +98,16 @@ USER 1000
 # The nvidia-*-cu12 CUDA wheels need the same treatment for the same reason:
 # gpu4pyscf dlopens libcublas.so.12 and friends at import, and they install under
 # site-packages/nvidia/<component>/lib, which is on no default loader path
-# either. Their dirs are globbed rather than hardcoded, across every
-# site.getsitepackages() entry: they are py3-none wheels so they land in purelib
-# (/usr/local/lib/...), while the primary site dir on this base is platlib
-# (/usr/local/lib64/...), and keying off just one of the two misses them.
+# either. Those dirs are located by importing the nvidia namespace package and
+# globbing its __path__, which is the one answer that cannot be wrong: the wheels
+# ship no __init__.py, so nvidia is a PEP 420 namespace and __path__ lists every
+# site dir that actually contributed to it. Do NOT compute the paths instead --
+# site.getsitepackages() is built from sys.prefix, which is /usr for this base's
+# interpreter, while pip installs into /usr/local under the distro's posix_local
+# scheme, so it reports directories the wheels were never installed in (the
+# Vayesta step below sidesteps the same trap with sysconfig.get_paths()).
+# The assert turns "found nothing" into a build failure here, rather than an
+# empty .conf and a puzzling loader error further down.
 FROM base AS deps
 USER 0
 COPY docker-images/requirements-dynamic-dependencies.txt \
@@ -112,8 +118,9 @@ RUN pip install --no-cache-dir \
     rm /tmp/requirements-dynamic-dependencies.txt \
        /tmp/requirements-dynamic-dependencies-gpu.txt && \
     echo /usr/local/lib > /etc/ld.so.conf.d/mpi-wheel.conf && \
-    python -c 'import glob, site; print("\n".join(sorted(d for s in site.getsitepackages() for d in glob.glob(f"{s}/nvidia/*/lib"))))' \
+    python -c 'import glob, os, nvidia; dirs = sorted(d for p in nvidia.__path__ for d in glob.glob(os.path.join(p, "*", "lib"))); assert dirs, f"no nvidia/*/lib dirs under {list(nvidia.__path__)}"; print("\n".join(dirs))' \
         > /etc/ld.so.conf.d/nvidia-wheels.conf && \
+    cat /etc/ld.so.conf.d/nvidia-wheels.conf && \
     ldconfig
 USER 1000
 
