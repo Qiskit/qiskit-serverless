@@ -347,6 +347,21 @@ class TestFleetsJobs:
         )
         assert row[0] == "STOPPED"
 
+        # The gateway records STOPPING on the accepted cancel, and the scheduler writes STOPPED once
+        # the task store confirms it. Without this the final row alone would also pass for a gateway
+        # that wrote STOPPED directly.
+        events = [
+            r[0]
+            for r in fetch_all(
+                pg_conn,
+                "SELECT data->>'status' FROM api_jobevent WHERE job_id = %s ORDER BY created",
+                (job_id,),
+            )
+            if r[0] is not None
+        ]
+        assert "STOPPING" in events, f"the gateway never recorded STOPPING: {events}"
+        assert events[-1] == "STOPPED", f"expected STOPPED last, got: {events}"
+
         # Verify the cancel actually propagated to the COS task-store (the layer
         # the worker consumes), which the scheduler also reads to confirm the stop.
         fleet_id = row[1]

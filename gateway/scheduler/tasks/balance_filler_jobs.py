@@ -109,7 +109,10 @@ class BalanceFillerJobs(SchedulerTask):
         if len(current) < target:
             self._create_filler_job(program)
         elif len(current) > target:
-            self._stop_filler_jobs(current[: len(current) - target])
+            # Draining rows count toward the target but cannot be shed again, so take the stops from the rest
+            stoppable = [job for job in current if job.status != Job.STOPPING]
+            if len(stoppable) > target:
+                self._stop_filler_jobs(stoppable[: len(stoppable) - target])
 
     def _get_filler_program(self) -> Program | None:  # pylint: disable=too-many-return-statements
         """Return the configured filler program, or None when the feature is off.
@@ -309,9 +312,7 @@ class BalanceFillerJobs(SchedulerTask):
     def _stop_one_filler_job(self, job: Job) -> None:
         """Cancel the fleet, then write STOPPING so the status poller confirms it."""
         try:
-            if self.transitions.cancel_and_mark_stopping(
-                job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_STOP
-            ):
+            if self.transitions.try_stop(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_STOP):
                 self.metrics.increment_filler_jobs_stopped()
                 logger.info("[BalanceFillerJobs] job_id=%s filler job cancel sent", job.id)
                 return

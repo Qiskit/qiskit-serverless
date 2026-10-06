@@ -29,17 +29,13 @@ def _make_transitions():
     def _to_terminal(job, status, *, origin, context, job_fields=None):  # pylint: disable=unused-argument
         job.update_fields({"status": status, **(job_fields or {})})
 
-    def _to_stopping(job, *, origin, context):  # pylint: disable=unused-argument
-        job.update_fields({"status": Job.STOPPING})
-
-    def _cancel_and_mark_stopping(job, *, origin, context):  # pylint: disable=unused-argument
+    def _try_stop(job, *, origin, context):  # pylint: disable=unused-argument
         job.update_fields({"status": Job.STOPPING})
         return True
 
-    transitions.cancel_and_mark_stopping = MagicMock(side_effect=_cancel_and_mark_stopping)
+    transitions.try_stop = MagicMock(side_effect=_try_stop)
     transitions.pending_to_running = MagicMock(side_effect=_pending_to_running)
     transitions.to_terminal = MagicMock(side_effect=_to_terminal)
-    transitions.to_stopping = MagicMock(side_effect=_to_stopping)
     return transitions
 
 
@@ -88,17 +84,21 @@ class TestUpdateJobStatus:
         assert result is False
         mock_get_runner.assert_not_called()
 
-    def test_runner_error_leaves_the_status_alone_and_checks_the_timeout(self):
+    @pytest.mark.parametrize(
+        "error", [RunnerError("Code Engine project 'p' is not active"), ValueError("CE secret not found")]
+    )
+    def test_status_error_leaves_the_status_alone_and_checks_the_timeout(self, error):
+        """A ValueError from the COS client reaches the timeout too, instead of unwinding to run()."""
         task = _make_task()
         job = _make_fleets_job()
 
         mock_runner = MagicMock()
-        mock_runner.status.side_effect = RunnerError("Code Engine project 'p' is not active")
+        mock_runner.status.side_effect = error
 
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
             patch.object(task, "to_terminal") as mock_terminal,
-            patch.object(task, "stop_job_if_timeout") as mock_timeout,
+            patch.object(task, "stop_job_if_timeout", return_value=False) as mock_timeout,
         ):
             result = task.update_job_status(job)
 
@@ -133,7 +133,7 @@ class TestUpdateJobStatus:
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
             patch.object(task, "to_running") as mock_running,
-            patch.object(task, "stop_job_if_timeout"),
+            patch.object(task, "stop_job_if_timeout", return_value=False),
         ):
             task.update_job_status(job)
 
@@ -152,7 +152,7 @@ class TestUpdateJobStatus:
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
             patch.object(task, "to_running") as mock_running,
-            patch.object(task, "stop_job_if_timeout"),
+            patch.object(task, "stop_job_if_timeout", return_value=False),
         ):
             task.update_job_status(job)
 
@@ -167,7 +167,7 @@ class TestUpdateJobStatus:
 
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
-            patch.object(task, "stop_job_if_timeout"),
+            patch.object(task, "stop_job_if_timeout", return_value=False),
             patch.object(task, "to_terminal") as mock_terminal,
             patch.object(task, "to_running") as mock_running,
         ):
@@ -187,7 +187,7 @@ class TestUpdateJobStatus:
 
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
-            patch.object(task, "stop_job_if_timeout"),
+            patch.object(task, "stop_job_if_timeout", return_value=False),
             patch.object(task, "to_terminal") as mock_terminal,
         ):
             result = task.update_job_status(job)
@@ -211,7 +211,7 @@ class TestUpdateJobStatus:
 
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
-            patch.object(task, "stop_job_if_timeout") as mock_timeout,
+            patch.object(task, "stop_job_if_timeout", return_value=False) as mock_timeout,
         ):
             task.update_job_status(job)
 
@@ -378,7 +378,7 @@ class TestStopJobIfTimeout:
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
             task.stop_job_if_timeout(job)
 
-        task.transitions.cancel_and_mark_stopping.assert_called_once()
+        task.transitions.try_stop.assert_called_once()
         assert job.status == Job.STOPPING
 
     def test_nothing_left_to_cancel_still_reaches_stopped(self):
@@ -390,7 +390,7 @@ class TestStopJobIfTimeout:
         past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
         mock_runner = MagicMock()
         mock_runner.stop.return_value = False
-        task.transitions.cancel_and_mark_stopping.side_effect = lambda job, **kw: False
+        task.transitions.try_stop.side_effect = lambda job, **kw: False
 
         with (
             patch(f"{_MOD}.settings") as mock_settings,
@@ -402,7 +402,6 @@ class TestStopJobIfTimeout:
             task.stop_job_if_timeout(job)
 
         assert job.status == Job.STOPPED
-        task.transitions.to_stopping.assert_not_called()
 
     def test_an_undeliverable_cancel_still_reaches_stopped(self):
         """The timeout is the last thing that can end a Fleets job, so it always writes a terminal
@@ -413,7 +412,7 @@ class TestStopJobIfTimeout:
 
         past_event = MagicMock()
         past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
-        task.transitions.cancel_and_mark_stopping.side_effect = RunnerError("Code Engine API error: Forbidden")
+        task.transitions.try_stop.side_effect = RunnerError("Code Engine API error: Forbidden")
 
         with (
             patch(f"{_MOD}.settings") as mock_settings,
@@ -535,7 +534,7 @@ class TestEventStreamsIntegration:
 
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
-            patch.object(task, "stop_job_if_timeout"),
+            patch.object(task, "stop_job_if_timeout", return_value=False),
         ):
             task.update_job_status(job)
 
@@ -617,7 +616,7 @@ def test_a_running_job_checks_the_timeout_even_when_the_in_progress_send_fails()
 
     with (
         patch(f"{_MOD}.get_runner", return_value=mock_runner),
-        patch.object(task, "stop_job_if_timeout") as mock_timeout,
+        patch.object(task, "stop_job_if_timeout", return_value=False) as mock_timeout,
     ):
         task.update_job_status(job)
 
@@ -693,7 +692,7 @@ def _old_stopping_event():
     return event
 
 
-class TestDriveStopping:
+class TestStoppingJobs:
     """A STOPPING job is driven to STOPPED by the scheduler, never by the stop request."""
 
     @pytest.mark.parametrize("task_state", [Job.STOPPED, Job.SUCCEEDED, Job.FAILED])
@@ -777,6 +776,26 @@ class TestDriveStopping:
         assert changed is True
         assert job.status == Job.STOPPED
         mock_get_runner.assert_not_called()
+
+    def test_a_draining_filler_still_reaches_the_deadline(self):
+        """The filler guard sits below the STOPPING branch on purpose. Above it, a draining filler
+        whose task store never confirms would stay in STOPPING for ever: the balancer skips rows
+        already STOPPING and nothing else ends a filler."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.STOPPING)
+        job.filler = True
+        runner = MagicMock()
+        runner.status.return_value = Job.RUNNING
+
+        with (
+            patch(f"{_MOD}.get_runner", return_value=runner),
+            patch(f"{_MOD}.JobEvent") as mock_event,
+        ):
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = _old_stopping_event()
+            changed = task.update_job_status(job)
+
+        assert changed is True
+        assert job.status == Job.STOPPED
 
     def test_a_filler_stopped_on_request_is_not_counted_as_ended_by_itself(self):
         task = _make_task()

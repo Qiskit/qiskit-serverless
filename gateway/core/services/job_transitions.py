@@ -91,34 +91,29 @@ class JobTransitionService:
         best effort in-progress event is sent."""
         self._send_job_in_progress(job, job_started=False)
 
-    def to_stopping(self, job: Job, *, origin: JobEventOrigin, context: JobEventContext) -> JobEvent:
-        """Code Engine already accepted a cancel. The scheduler writes STOPPED once the task store agrees.
-
-        Fleets only: the Ray status poller would push a STOPPING row back to RUNNING.
-        """
-        if job.runner != Program.FLEETS:
-            raise InvalidJobTransitionException(f"Job {job.id}: STOPPING is only valid for a Fleets job")
-        with transaction.atomic():
-            return self._change_status(job, Job.STOPPING, origin=origin, context=context, job_fields=None)
-
-    def cancel_and_mark_stopping(self, job: Job, *, origin: JobEventOrigin, context: JobEventContext) -> bool:
-        """Ask Code Engine to cancel the fleet, then record STOPPING if it accepted.
+    def try_stop(self, job: Job, *, origin: JobEventOrigin, context: JobEventContext) -> bool:
+        """Cancel the fleet and record STOPPING, so the scheduler writes STOPPED once the task store agrees.
 
         The cancel runs before the transaction, never inside it. A transaction cannot roll back an
         accepted cancel, and holding the row lock across an HTTP call stalls the scheduler. Same rule
         as the outbox, which writes inside the transaction and sends afterwards (see specs/OUTBOX.md).
 
         Returns:
-            ``True`` when STOPPING was written. ``False`` when nothing will ever confirm a stop, so
-            the caller owes a terminal status.
+            ``True`` when STOPPING was written. ``False`` when there is nothing to cancel and so
+            nothing will ever confirm a stop, which is a Ray job, a job with no fleet, or a fleet
+            Code Engine reports as gone. The caller then owes a terminal status. Ray is refused here
+            rather than later because its status poller would push a STOPPING row back to RUNNING.
 
         Raises:
             RunnerError: If the cancel could not be delivered, so the caller chooses between failing
                 a request and retrying on its next cycle.
         """
-        if not job.fleet_id or not get_runner(job).stop():
+        if job.runner != Program.FLEETS or not job.fleet_id:
             return False
-        self.to_stopping(job, origin=origin, context=context)
+        if not get_runner(job).stop():
+            return False
+        with transaction.atomic():
+            self._change_status(job, Job.STOPPING, origin=origin, context=context, job_fields=None)
         return True
 
     def to_terminal(

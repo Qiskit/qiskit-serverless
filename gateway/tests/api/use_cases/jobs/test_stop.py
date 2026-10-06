@@ -67,13 +67,18 @@ class TestStopFleetsJob:
         runner = Mock()
         runner.stop.return_value = True
 
-        with patch("core.services.job_transitions.get_runner", return_value=runner) as mock_get_runner:
+        with (
+            patch("core.services.job_transitions.get_runner", return_value=runner) as mock_get_runner,
+            patch("api.use_cases.jobs.stop.get_runner") as mock_ray_runner,
+        ):
             message = StopJobUseCase().execute(job.id, None, author)
 
         assert "Job is stopping." in message
         assert Job.objects.get(pk=job.pk).status == Job.STOPPING
         mock_get_runner.assert_called_once_with(job)
         runner.stop.assert_called_once_with()
+        # The Ray cleanup must not run for Fleets, or an accepted cancel is sent to Code Engine twice.
+        mock_ray_runner.assert_not_called()
 
     def test_a_fleet_that_is_gone_goes_straight_to_stopped(self):
         """stop() returns False only for a 404, so nothing will ever confirm a stop. No point waiting."""
@@ -142,6 +147,35 @@ class TestStopFleetsJob:
         assert "Job is stopping." in message
         assert "terminal" not in message
         assert Job.objects.get(pk=job.pk).status == Job.STOPPING
+
+    def test_a_concurrent_stop_that_lost_to_stopped_reports_stopped(self, author):
+        """The writer that beat us can be the scheduler timeout, which never cancels the runtime jobs,
+        so this request still has to run that block rather than answer "already terminal"."""
+        job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.RUNNING, fleet_id="fleet-abc")
+        runner = Mock()
+
+        def _win_the_race(*_args, **_kwargs):
+            Job.objects.filter(pk=job.pk).update(status=Job.STOPPED)
+            return True
+
+        runner.stop.side_effect = _win_the_race
+        with patch("core.services.job_transitions.get_runner", return_value=runner):
+            message = StopJobUseCase().execute(job.id, None, author)
+
+        assert "Job has been stopped." in message
+        assert "terminal" not in message
+        assert Job.objects.get(pk=job.pk).status == Job.STOPPED
+
+    def test_a_terminal_fleets_job_sends_no_cancel(self, author):
+        """try_stop is never reached, so Code Engine is not called for a job that already ended."""
+        job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.SUCCEEDED, fleet_id="fleet-abc")
+
+        with patch("core.services.job_transitions.get_runner") as mock_get_runner:
+            message = StopJobUseCase().execute(job.id, None, author)
+
+        assert "Job already in terminal state." in message
+        assert Job.objects.get(pk=job.pk).status == Job.SUCCEEDED
+        mock_get_runner.assert_not_called()
 
     def test_a_ray_job_never_reaches_stopping(self, author):
         """The fork at this writer is the only guard: the Ray poller does not consult VALID_TRANSITIONS.

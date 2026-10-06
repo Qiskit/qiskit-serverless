@@ -43,9 +43,9 @@ class StopJobUseCase:
             self.status_messages.append("Job is already stopping.")
             return " ".join(self.status_messages)
 
-        # The status read here may be stale, so it only avoids a pointless Code Engine call. The
-        # transition inside the service is the real check.
-        is_fleets = job.runner == Program.FLEETS and job.status not in Job.TERMINAL_STATUSES
+        if job.in_terminal_state():
+            self.status_messages.append("Job already in terminal state.")
+            return " ".join(self.status_messages)
 
         stopped = False
         stopping = False
@@ -54,11 +54,9 @@ class StopJobUseCase:
             # was SUCCEEDED, FAILED or already STOPPING
             # Only the scheduler sends Kafka messages: the gateway has Kafka disabled, so the service sends nothing here
             transitions = JobTransitionService()
-            if is_fleets:
-                stopping = transitions.cancel_and_mark_stopping(
-                    job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB
-                )
-            if not stopping:
+            if transitions.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB):
+                stopping = True
+            else:
                 transitions.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
             stopped = True
         except RunnerError as ex:
@@ -70,6 +68,8 @@ class StopJobUseCase:
             job.refresh_from_db(fields=["status"])
             if job.status == Job.STOPPING:
                 stopping = True
+                stopped = True
+            elif job.status == Job.STOPPED:
                 stopped = True
 
         if stopped:
@@ -94,7 +94,7 @@ class StopJobUseCase:
                 for runtime_job_entry in runtime_jobs:
                     self._cancel_runtime_job_entry(runtime_job_entry, qiskit_service, qiskit_api_client)
 
-            if not is_fleets:
+            if job.runner == Program.RAY:
                 self._stop_ray_job_if_active(job)
         else:
             self.status_messages.append("Job already in terminal state.")

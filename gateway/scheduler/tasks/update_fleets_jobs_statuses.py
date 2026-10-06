@@ -32,13 +32,13 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         self.metrics = metrics
         self.transitions = transitions or JobTransitionService()
 
-    def update_job_status(self, job: Job) -> bool:
+    def update_job_status(self, job: Job) -> bool:  # pylint: disable=too-many-return-statements
         """Update status of one Fleets job. Returns True if status changed."""
-        if job.status == Job.STOPPING:
-            # Must stay ahead of the fleet_id check and of the dispatch below.
-            return self.drive_stopping(job)
-
         if not job.fleet_id:
+            if job.status == Job.STOPPING:
+                # fleet_id is admin-editable, and the check below never looks again
+                self.to_terminal(job, Job.STOPPED)
+                return True
             logger.warning("job_id=%s Fleets job doesn't have fleet_id.", job.id)
             return False
 
@@ -46,28 +46,36 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
 
         try:
             new_status = runner.status()
-        except RunnerError as ex:
+        except (RunnerError, ValueError) as ex:
             # status() raises on configuration and data problems, not on a job that
             # failed: a deleted program, a missing or inactive Code Engine project, an
             # unconfigured task store bucket. A COS read that fails returns None
             # instead. So the status is unknown and the fleet may well still be
             # running; leave it alone and let the timeout bound the wait.
+            # ValueError comes from get_cos_client, and the deadline must still run.
             logger.error(
                 "job_id=%s user_id=%s error=%s Error getting status, leaving it unchanged",
                 job.id,
                 job.author.id,
                 str(ex),
             )
-            self.stop_job_if_timeout(job)
-            return False
+            return self.stop_job_if_timeout(job)
 
         if new_status is None:
             logger.debug("job_id=%s status poll returned None (no COS state yet), skipping update", job.id)
             # Without this the job is immortal: no other scheduler task touches a
             # PENDING or RUNNING Fleets job, so a status that never resolves would
             # hold the user's concurrency slot forever.
-            self.stop_job_if_timeout(job)
-            return False
+            return self.stop_job_if_timeout(job)
+
+        if job.status == Job.STOPPING:
+            # The cancel was sent by whoever asked for the stop, so nothing is sent from here.
+            # Any terminal task state confirms it: a deleted fleet reports failed, a finished task succeeded.
+            if new_status in Job.TERMINAL_STATUSES:
+                logger.info("job_id=%s stop confirmed, task store reported %s", job.id, new_status)
+                self.to_terminal(job, Job.STOPPED)
+                return True
+            return self.stop_if_stopping_deadline(job)
 
         if new_status == Job.SUCCEEDED:
             self.to_terminal(job, Job.SUCCEEDED)
@@ -98,30 +106,6 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             )
 
         return True
-
-    def drive_stopping(self, job: Job) -> bool:
-        """Confirm a stop that Code Engine already accepted, or end it on the deadline.
-
-        The cancel was sent by whoever asked for the stop, so nothing is sent from here.
-        """
-        if not job.fleet_id:
-            self.to_terminal(job, Job.STOPPED)
-            return True
-
-        task_status = None
-        try:
-            task_status = cast(FleetsRunner, get_runner(job)).status()
-        except Exception as ex:  # pylint: disable=broad-exception-caught
-            # Broad on purpose: status() raises RunnerError and also ValueError, and the deadline must run.
-            logger.error("job_id=%s error reading the task store while stopping: %s", job.id, str(ex))
-
-        if task_status in Job.TERMINAL_STATUSES:
-            # Any terminal task state confirms the stop: a deleted fleet reports failed, a finished task succeeded.
-            logger.info("job_id=%s stop confirmed, task store reported %s", job.id, task_status)
-            self.to_terminal(job, Job.STOPPED)
-            return True
-
-        return self.stop_if_stopping_deadline(job)
 
     def stop_if_stopping_deadline(self, job: Job) -> bool:
         """Write STOPPED when the stop was never confirmed, so a STOPPING row always leaves that status."""
@@ -183,24 +167,33 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         else:
             self.transitions.running_to_running(job)
 
-    def stop_job_if_timeout(self, job: Job) -> None:
-        """Stop job if it has exceeded the maximum allowed duration."""
+    def stop_job_if_timeout(self, job: Job) -> bool:
+        """Bound the wait on a job whose status is unknown or unchanged. Returns True if it ended the job.
+
+        Two bounds, because a job waiting for its cancel to be confirmed is not waiting for the same
+        thing as a job that is simply running too long. The filler guard belongs to the second one
+        only: a filler runs until something needs its slot, but a draining filler still has to leave
+        STOPPING, and nothing else would ever end it.
+        """
+        if job.status == Job.STOPPING:
+            return self.stop_if_stopping_deadline(job)
+
         if job.filler:
-            return
+            return False
 
         timeout = settings.PROGRAM_TIMEOUT
         latest_event = JobEvent.objects.filter(job=job).order_by("-created").first()
         reference_time = latest_event.created if latest_event else job.created
         endtime = reference_time + timedelta(hours=timeout)
         if datetime.now(tz=endtime.tzinfo) < endtime:
-            return
+            return False
 
         logger.warning("job_id=%s user_id=%s timeout=%s hours: job stopped.", job.id, job.author.id, timeout)
         try:
-            if self.transitions.cancel_and_mark_stopping(
+            if self.transitions.try_stop(
                 job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
             ):
-                return
+                return True
         except RunnerError as ex:
             # Still written: nothing else can end a Fleets job, so a cancel that keeps failing would
             # leave the row holding its slots for ever. One attempt, because a grace period would
@@ -213,9 +206,10 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             )
         except InvalidJobTransitionException as ex:
             logger.info("job_id=%s transition rejected, skipping STOPPING: %s", job.id, str(ex))
-            return
+            return False
 
         self.to_terminal(job, Job.STOPPED)
+        return True
 
     def _increment_terminal_counter(self, job: Job, *, requested: bool = False) -> None:
         """Increment terminal jobs counter. `requested` means something asked this job to stop."""

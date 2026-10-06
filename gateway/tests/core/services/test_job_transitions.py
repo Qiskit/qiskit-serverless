@@ -18,7 +18,7 @@ pytestmark = pytest.mark.django_db
 CRN = "crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::"
 
 
-def _licensed_fleets_job(user, status):
+def _licensed_fleets_job(user, status, fleet_id="fleet-abc"):
     """A Fleets job of a function with a provider and a size: it can owe both billing messages."""
     provider = Provider.objects.create(name=f"ibm-dev-{uuid.uuid4().hex[:8]}")
     program = Program.objects.create(
@@ -27,7 +27,13 @@ def _licensed_fleets_job(user, status):
     profile = ComputeProfile.objects.create(compute_profile_id=f"p-{uuid.uuid4().hex[:8]}", cpu="16", memory="128")
     size = FunctionSize.objects.create(function=program, function_size="m", compute_profile=profile)
     return Job.objects.create(
-        author=user, program=program, runner=Program.FLEETS, instance_crn=CRN, function_size=size, status=status
+        author=user,
+        program=program,
+        runner=Program.FLEETS,
+        instance_crn=CRN,
+        function_size=size,
+        status=status,
+        fleet_id=fleet_id,
     )
 
 
@@ -447,41 +453,65 @@ class TestBestEffortEvents:
         sender.send.assert_not_called()
 
 
-class TestToStopping:
-    """to_stopping records a cancel Code Engine already accepted. The scheduler confirms it later."""
+@patch("core.services.job_transitions.get_runner")
+class TestTryStop:
+    """try_stop cancels the fleet and records STOPPING. The scheduler confirms it later."""
 
     @pytest.mark.parametrize("current_status", [Job.QUEUED, Job.PENDING, Job.RUNNING])
-    def test_writes_stopping_and_its_event_and_owes_nothing(self, service, user, current_status):
+    def test_writes_stopping_and_its_event_and_owes_nothing(self, get_runner, service, user, current_status):
         job = _licensed_fleets_job(user, current_status)
 
-        service.to_stopping(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+        assert service.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB) is True
 
         assert Job.objects.get(pk=job.pk).status == Job.STOPPING
         assert JobEvent.objects.filter(job=job, data__status=Job.STOPPING).count() == 1
         assert Outbox.objects.filter(job=job).count() == 0
 
-    def test_leaves_sub_status_alone(self, service, user):
+    def test_leaves_sub_status_alone(self, get_runner, service, user):
         """STOPPING is in ACTIVE_STATUSES, so the running container may still patch sub_status."""
         job = _licensed_fleets_job(user, Job.RUNNING)
         Job.objects.filter(pk=job.pk).update(sub_status=Job.EXECUTING_QPU)
         job.refresh_from_db()
 
-        service.to_stopping(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+        service.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
 
         assert Job.objects.get(pk=job.pk).sub_status == Job.EXECUTING_QPU
 
-    def test_a_ray_job_is_refused(self, service, user):
-        """Nothing may write STOPPING for Ray: its status poller would push the row back to RUNNING."""
-        program = Program.objects.create(title="ray-fn", author=user, entrypoint="main.py", runner=Program.RAY)
-        job = Job.objects.create(author=user, program=program, runner=Program.RAY, status=Job.RUNNING)
+    def test_a_ray_job_is_refused(self, get_runner, service, user):
+        """Nothing may write STOPPING for Ray: its status poller would push the row back to RUNNING.
 
-        with pytest.raises(InvalidJobTransitionException):
-            service.to_stopping(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+        The fleet_id is deliberately set, so this pins the runner check and not the no-fleet one.
+        """
+        program = Program.objects.create(title="ray-fn", author=user, entrypoint="main.py", runner=Program.RAY)
+        job = Job.objects.create(
+            author=user, program=program, runner=Program.RAY, status=Job.RUNNING, fleet_id="fleet-abc"
+        )
+
+        assert service.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB) is False
+
+        assert Job.objects.get(pk=job.pk).status == Job.RUNNING
+        assert JobEvent.objects.filter(job=job).count() == 0
+        get_runner.assert_not_called()
+
+    def test_a_job_with_no_fleet_is_refused(self, get_runner, service, user):
+        job = _licensed_fleets_job(user, Job.QUEUED, fleet_id=None)
+
+        assert service.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB) is False
+
+        assert Job.objects.get(pk=job.pk).status == Job.QUEUED
+        get_runner.assert_not_called()
+
+    def test_a_cancel_that_finds_nothing_writes_no_status(self, get_runner, service, user):
+        """stop() answers False for a fleet Code Engine no longer has, so nothing will confirm a stop."""
+        get_runner.return_value.stop.return_value = False
+        job = _licensed_fleets_job(user, Job.RUNNING)
+
+        assert service.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB) is False
 
         assert Job.objects.get(pk=job.pk).status == Job.RUNNING
         assert JobEvent.objects.filter(job=job).count() == 0
 
-    def test_a_job_that_ran_before_the_cancel_is_billed_up_to_the_confirmation(self, service, user):
+    def test_a_job_that_ran_before_the_cancel_is_billed_up_to_the_confirmation(self, get_runner, service, user):
         """The billed window of a cancelled job ends when the scheduler confirms, not when the user asked."""
         job = _licensed_fleets_job(user, Job.RUNNING)
         JobEvent.objects.add_status_event(
@@ -493,7 +523,7 @@ class TestToStopping:
         JobEvent.objects.filter(job=job, data__status=Job.RUNNING).update(
             created=datetime.now(timezone.utc) - timedelta(seconds=100)
         )
-        service.to_stopping(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+        service.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
 
         service.to_stopped(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
 

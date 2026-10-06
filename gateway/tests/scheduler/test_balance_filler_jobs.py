@@ -200,6 +200,35 @@ def test_stops_the_oldest_filler_jobs_when_there_are_too_many(filler_program):
     assert JobEvent.objects.filter(job=jobs[0], context=JobEventContext.FILLER_STOP).exists()
 
 
+def test_a_draining_filler_does_not_take_the_place_of_a_shed(filler_program):
+    """A STOPPING filler counts toward the target but cannot be shed again, so the stops come from
+    the rest. Picking it instead would shed one fewer than the excess and leave the profile over
+    target, or, once it reaches STOPPED, under it."""
+    jobs = [
+        TestUtils.create_job(
+            author=_AUTHOR,
+            program=filler_program,
+            status=status,
+            runner=Program.FLEETS,
+            compute_profile_fk=filler_program.default_size.compute_profile,
+            filler=True,
+            fleet_id=f"fleet-{index}",
+        )
+        # Two draining rows push the live count below the target, which is the case that
+        # over-sheds: an unguarded `stoppable[: 2 - 3]` is `stoppable[:-1]` and stops a live one.
+        for index, status in enumerate([Job.RUNNING, Job.RUNNING, Job.STOPPING, Job.STOPPING])
+    ]
+    Config.set(ConfigKey.FILLER_SLOTS, "3")
+    task = _make_task()
+
+    _run(task)
+
+    for job in jobs:
+        job.refresh_from_db()
+    # Four count toward a target of three, two are already draining, so nothing more is owed.
+    assert [job.status for job in jobs] == [Job.RUNNING, Job.RUNNING, Job.STOPPING, Job.STOPPING]
+
+
 def test_does_nothing_when_the_count_already_matches(filler_program):
     """Four filler jobs and four slots means no submit and no stop."""
     for index in range(4):
