@@ -55,13 +55,15 @@ class KafkaSender(Sender):
         self._last_drop_warning = float("-inf")
 
     def send(self, payload: dict, timeout: float = 5) -> None:
-        """Raises UnroutableRegionError (from KafkaProducers.get) or RuntimeError on failure.
-
-        With timeout=0 it does not wait for the broker and never raises: see _send_without_waiting."""
+        """Waits up to `timeout` seconds for the broker to confirm the message and raises on failure (see
+        _send_with_ack). With timeout=0 it does not wait and never raises (see _send_without_waiting)."""
         if timeout == 0:
             self._send_without_waiting(payload)
-            return
+        else:
+            self._send_with_ack(payload, timeout)
 
+    def _send_with_ack(self, payload: dict, timeout: float) -> None:
+        """Raises UnroutableRegionError (from KafkaProducers.get) or RuntimeError on failure."""
         # flush() returning 0 only means nothing is left outstanding, not that delivery succeeded:
         # a fast broker-side rejection (e.g. a topic ACL problem) calls the callback with an error
         # before flush() returns, so the callback has to record it for us to raise below.
