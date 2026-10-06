@@ -345,6 +345,9 @@ class TestSenderDefaultSendBatch:
 
 
 class TestNoOpSender:
+    def test_accepts_a_timeout(self):
+        NoOpSender().send(_payload(), timeout=0)
+
     def test_logs_instead_of_sending(self, caplog):
         sender = NoOpSender()
         with caplog.at_level(logging.INFO):

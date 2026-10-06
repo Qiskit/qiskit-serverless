@@ -407,6 +407,7 @@ class TestBestEffortEvents:
         service.running_to_running(fleets_job)
 
         sender.send.assert_called_once()
+        assert sender.send.call_args.kwargs == {"timeout": 0}
         data = sender.send.call_args[0][0]["data"]
         assert data["job_started"] is False
         assert data["job_completed"] is False
