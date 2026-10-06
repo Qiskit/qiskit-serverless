@@ -578,7 +578,7 @@ def test_a_running_job_checks_the_timeout_even_when_the_in_progress_send_fails()
         job_id=job.id, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, status=Job.RUNNING
     )
     sender = MagicMock()
-    sender.send.side_effect = RuntimeError("kafka down")
+    sender.send_best_effort.side_effect = RuntimeError("kafka down")
     task = _make_task()
     task.transitions = JobTransitionService(sender=sender)
     mock_runner = MagicMock()
@@ -590,7 +590,7 @@ def test_a_running_job_checks_the_timeout_even_when_the_in_progress_send_fails()
     ):
         task.update_job_status(job)
 
-    sender.send.assert_called_once()
+    sender.send_best_effort.assert_called_once()
     mock_timeout.assert_called_once_with(job)
 
 

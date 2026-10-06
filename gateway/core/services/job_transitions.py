@@ -68,6 +68,12 @@ class JobTransitionService:
         the Gateway (stop jobs only) has NoOpSender)"""
         self.sender = sender if sender is not None else build_kafka_sender()
 
+    def flush(self) -> None:
+        """Wait for the best effort events still queued in the sender. Meant for shutdown."""
+        flush = getattr(self.sender, "flush", None)
+        if flush is not None:
+            flush()
+
     def queued_to_pending(
         self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
     ) -> JobEvent:
@@ -207,7 +213,7 @@ class JobTransitionService:
             job_started_at = JobEvent.objects.first_running_at(job.id)
             job_last_progress_time = None if job_started else datetime.now(timezone.utc)
             payload = BillingEvents.build_job_usage(job, job_started_at, job_last_progress_time)
-            self.sender.send(payload)
+            self.sender.send_best_effort(payload)
         except RuntimeError as ex:
             logger.error(
                 "job_id=%s error emitting job_in_progress event to Kafka, event dropped: %s",

@@ -41,6 +41,7 @@ class Main:
 
         # One service for every task that changes a job status, so the Kafka producers are created once
         transitions = JobTransitionService()
+        self.transitions = transitions
 
         self.tasks = [
             UpdateJobStatusCounts(self.kill_signal, self.metrics),
@@ -110,6 +111,7 @@ class Main:
                 if not self.kill_signal.received and elapsed < 1:
                     time.sleep(1 - elapsed)
         finally:
+            self.transitions.flush()
             self.stop_http_server()
 
         logger.info("Scheduler loop finished")

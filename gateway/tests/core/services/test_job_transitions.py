@@ -358,14 +358,14 @@ class TestBestEffortEvents:
             fleets_job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
         )
 
-        sender.send.assert_called_once()
-        data = sender.send.call_args[0][0]["data"]
+        sender.send_best_effort.assert_called_once()
+        data = sender.send_best_effort.call_args[0][0]["data"]
         assert data["job_started"] is True
         assert data["job_completed"] is False
 
     def test_job_started_is_sent_after_the_status_is_written(self, service, sender, fleets_job):
         seen = []
-        sender.send.side_effect = lambda payload: seen.append(Job.objects.get(pk=fleets_job.pk).status)
+        sender.send_best_effort.side_effect = lambda payload: seen.append(Job.objects.get(pk=fleets_job.pk).status)
 
         service.pending_to_running(
             fleets_job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
@@ -381,10 +381,10 @@ class TestBestEffortEvents:
                 fleets_job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
             )
 
-        sender.send.assert_not_called()
+        sender.send_best_effort.assert_not_called()
 
     def test_a_kafka_failure_on_job_started_does_not_undo_the_transition(self, service, sender, fleets_job):
-        sender.send.side_effect = RuntimeError("kafka down")
+        sender.send_best_effort.side_effect = RuntimeError("kafka down")
 
         service.pending_to_running(
             fleets_job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
@@ -405,15 +405,15 @@ class TestBestEffortEvents:
 
         service.running_to_running(fleets_job)
 
-        sender.send.assert_called_once()
-        data = sender.send.call_args[0][0]["data"]
+        sender.send_best_effort.assert_called_once()
+        data = sender.send_best_effort.call_args[0][0]["data"]
         assert data["job_started"] is False
         assert data["job_completed"] is False
         assert JobEvent.objects.filter(job=fleets_job).count() == events_before
         assert Job.objects.get(pk=fleets_job.pk).status == Job.RUNNING
 
     def test_a_kafka_failure_is_logged_and_does_not_reach_the_caller(self, service, sender, fleets_job, caplog):
-        sender.send.side_effect = RuntimeError("kafka down")
+        sender.send_best_effort.side_effect = RuntimeError("kafka down")
         Job.objects.filter(pk=fleets_job.pk).update(status=Job.RUNNING)
         JobEvent.objects.add_status_event(
             job_id=fleets_job.id,
@@ -434,7 +434,7 @@ class TestBestEffortEvents:
 
         service.running_to_running(fleets_job)
 
-        sender.send.assert_not_called()
+        sender.send_best_effort.assert_not_called()
 
     def test_queued_to_pending_and_the_terminal_transitions_send_nothing_to_kafka_directly(self, service, sender, user):
         job = Job.objects.create(author=user, runner=Program.FLEETS, instance_crn=CRN, status=Job.QUEUED)
@@ -442,4 +442,4 @@ class TestBestEffortEvents:
         service.queued_to_pending(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.SCHEDULE_JOBS)
         service.to_succeeded(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
 
-        sender.send.assert_not_called()
+        sender.send_best_effort.assert_not_called()

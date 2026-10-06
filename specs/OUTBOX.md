@@ -23,7 +23,7 @@ Only the license fee and the final usage event go through the outbox. The other 
 event a Fleets job produces, `job_in_progress` (the ongoing classical-compute-time
 metering, sent by `JobTransitionService`, with `job_started=True` on the first
 one sent right after a job's `PENDING -> RUNNING` transition), is unrelated to this
-system: it is built by the same builder (see below) but sent inline, synchronously,
+system: it is built by the same builder (see below) but sent inline
 right after building, instead of through a row in this table.
 
 ## Kafka events at a glance
@@ -31,8 +31,8 @@ right after building, instead of through a row in this table.
 A Fleets job produces two kinds of Kafka events:
 
 - **Best effort**: events that can be lost. They are sent straight to Kafka from the
-  scheduler, wrapped in a `try/except`. If they arrive, good; if not, nothing happens and
-  they are not retried.
+  scheduler, without waiting for the broker. If they arrive, good; if not, they are logged
+  and dropped, and are not retried.
 - **Outbox**: events that cannot be lost. They are not sent from the scheduler. A JSON
   message is written to the `outbox` table, and the `OutboxTask` scheduler task picks
   these rows up and sends them where they belong (Kafka today, later NTC workloads or
@@ -121,10 +121,14 @@ built or enqueued on the transitions to `PENDING` or `RUNNING`.
 The `job_started` event (sent by `pending_to_running`) and the periodic in-progress event
 (`running_to_running`, not a transition: the job stays `RUNNING`, and no status or `JobEvent`
 is written) do not go through the outbox. They are sent directly to Kafka with the sender of
-the service. `pending_to_running` sends it right after its own transaction ends, so the network
+the service, through `send_best_effort`: the message is handed to the producer and the call returns, without
+a flush. It never raises. librdkafka delivers it in the background and gives up on it after
+`message.timeout.ms`, and a failed delivery is only logged. The scheduler flushes the sender once when it
+stops, so the queue is not lost. These producers are not shared with the outbox, whose flush therefore never
+waits for them. `pending_to_running` sends it right after its own transaction ends, so the network
 call never holds the row lock and nothing is sent for a transition that did not happen. The
 service must not be called from inside another transaction: the send would not wait for the
-outer one to commit. If the send fails, the error is logged and the event is dropped. A filler
+outer one to commit. If the send fails, or the producer's local queue is full, the error is logged and the event is dropped. A filler
 job sends none.
 
 The sender is the `sender` argument of the constructor. When none is given it is built with

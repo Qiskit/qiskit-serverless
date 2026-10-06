@@ -106,3 +106,14 @@ class KafkaProducers:
         if producer is None:
             raise UnroutableRegionError(f"KafkaProducers: No producer configured for region {crn.region}")
         return producer
+
+    def flush(self, timeout: float) -> None:
+        """Flush every producer, each one with the given timeout."""
+        for region, producer in self._producers.items():
+            try:
+                remaining = producer.flush(timeout=timeout)
+            except Exception as ex:  # pylint: disable=broad-exception-caught
+                logger.error("region=%s error flushing producer: %s", region, str(ex))
+                continue
+            if remaining > 0:
+                logger.error("region=%s %s message(s) not delivered after flush timeout", region, remaining)

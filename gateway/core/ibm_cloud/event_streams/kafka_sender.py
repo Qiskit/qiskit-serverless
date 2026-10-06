@@ -82,6 +82,29 @@ class KafkaSender(Sender):
         except Exception as e:
             raise RuntimeError(f"KafkaSender: Failed to publish event (id={message.get('id')}): {str(e)}") from e
 
+    def send_best_effort(self, payload: dict) -> None:
+        """Hand the payload to the producer and return, without waiting for the broker. Never raises: a
+        payload that cannot be routed or queued (no producer for the region, a full local queue) is logged and
+        dropped. The producer delivers it in the background, and gives up on it after message.timeout.ms.
+        poll(0) serves the delivery reports of earlier messages, so a failed delivery is still logged."""
+        try:
+            message = {**payload, "type": self._producers.topic}
+            producer = self._producers.get(self._instance_crn(message))
+            producer.produce(
+                topic=self._producers.topic,
+                key=message["subject"].encode("utf-8"),
+                value=json.dumps(message).encode("utf-8"),
+                callback=self._on_best_effort_delivery,
+            )
+            producer.poll(0)
+        except Exception as ex:  # pylint: disable=broad-exception-caught
+            logger.error("error producing best effort message, dropped: %s", str(ex))
+
+    def flush(self, timeout: float = 5) -> None:
+        """Wait for the messages still queued in every producer. Meant for shutdown, so best effort messages
+        queued by send_best_effort are not lost when the process stops."""
+        self._producers.flush(timeout)
+
     def send_batch(self, messages: list[PendingMessage], timeout: float = 5) -> set[int]:
         """Produce every payload, flush each producer once, and return the keys the broker confirmed
         through their delivery callback. A payload that cannot be routed or produced, is rejected by
@@ -124,6 +147,10 @@ class KafkaSender(Sender):
         """The payload's data.instance_crn, or None when the payload is not shaped like one."""
         data = payload.get("data") if isinstance(payload, dict) else None
         return data.get("instance_crn") if isinstance(data, dict) else None
+
+    def _on_best_effort_delivery(self, err, msg) -> None:
+        if err is not None:
+            self._log_delivery_error(err, msg)
 
     def _on_batch_delivery(self, err, msg, key: int, delivered: set[int]) -> None:
         if err is None:
