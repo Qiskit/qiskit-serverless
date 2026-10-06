@@ -236,7 +236,6 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 job.get("id"),
                 job_service=self,
                 raw_data=job,
-                compute_profile=job.get("compute_profile"),
             )
             for job in response_data.get("results", [])
         ]
@@ -291,7 +290,6 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 job.get("id"),
                 job_service=self,
                 raw_data=job,
-                compute_profile=job.get("compute_profile"),
             )
             for job in response_data.get("results", [])
         ]
@@ -314,7 +312,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             job = Job(
                 job_id=job_id,
                 job_service=self,
-                compute_profile=response_data.get("compute_profile"),
+                raw_data=response_data,
             )
 
         return job
@@ -367,7 +365,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         return Job(
             job_id,
             job_service=self,
-            compute_profile=response_data.get("compute_profile"),
+            raw_data=response_data,
         )
 
     def get_job_data(self, job_id: str) -> Optional[dict]:
