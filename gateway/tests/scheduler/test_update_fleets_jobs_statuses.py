@@ -560,6 +560,40 @@ def test_to_terminal_writes_the_job_through_the_real_service():
     task.metrics.increment_jobs_terminal.assert_called_once()
 
 
+@pytest.mark.django_db
+def test_a_running_job_checks_the_timeout_even_when_the_in_progress_send_fails():
+    """A Kafka outage on the in-progress event must not skip the timeout check for that job: the real
+    service swallows the failure, so nothing reaches the task."""
+    author = User.objects.create_user(username="update-fleets-kafka-down")
+    profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+    job = Job.objects.create(
+        author=author,
+        runner=Program.FLEETS,
+        fleet_id="fleet-123",
+        instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::",
+        compute_profile_fk=profile,
+        status=Job.RUNNING,
+    )
+    JobEvent.objects.add_status_event(
+        job_id=job.id, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, status=Job.RUNNING
+    )
+    sender = MagicMock()
+    sender.send.side_effect = RuntimeError("kafka down")
+    task = _make_task()
+    task.transitions = JobTransitionService(sender=sender)
+    mock_runner = MagicMock()
+    mock_runner.status.return_value = Job.RUNNING
+
+    with (
+        patch(f"{_MOD}.get_runner", return_value=mock_runner),
+        patch.object(task, "stop_job_if_timeout") as mock_timeout,
+    ):
+        task.update_job_status(job)
+
+    sender.send.assert_called_once()
+    mock_timeout.assert_called_once_with(job)
+
+
 def test_filler_jobs_are_left_out_of_the_job_metrics():
     """A filler job neither counts as a terminal job nor contributes an execution duration."""
     task = _make_task()

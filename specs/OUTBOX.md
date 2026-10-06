@@ -121,8 +121,9 @@ built or enqueued on the transitions to `PENDING` or `RUNNING`.
 The `job_started` event (sent by `pending_to_running`) and the periodic in-progress event
 (`running_to_running`, not a transition: the job stays `RUNNING`, and no status or `JobEvent`
 is written) do not go through the outbox. They are sent directly to Kafka with the sender of
-the service, through `send_best_effort`: the message is handed to the producer and the call returns, without
-a flush. It never raises. librdkafka delivers it in the background and gives up on it after
+the service, with `send(payload, timeout=0)`: the message is handed to the producer and the call returns,
+without a flush. It only raises if the message cannot be routed or queued, and the caller logs that and drops
+the event. librdkafka delivers it in the background and gives up on it after
 `message.timeout.ms`, and a failed delivery is only logged. The scheduler flushes the sender once when it
 stops, so the queue is not lost. These producers are not shared with the outbox, whose flush therefore never
 waits for them. `pending_to_running` sends it right after its own transaction ends, so the network

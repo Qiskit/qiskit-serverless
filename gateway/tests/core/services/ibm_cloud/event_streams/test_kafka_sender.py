@@ -266,28 +266,26 @@ class TestKafkaSenderMalformedPayloads:
         assert delivered == {2}
 
 
-class TestKafkaSenderBestEffort:
-    def test_produces_and_polls_without_flushing(self):
+class TestKafkaSenderWithoutWaiting:
+    def test_timeout_zero_produces_and_polls_without_flushing(self):
         producer = MagicMock()
         producers = MagicMock(topic="t")
         producers.get.return_value = producer
 
-        KafkaSender(producers=producers).send_best_effort(_payload())
+        KafkaSender(producers=producers).send(_payload(), timeout=0)
 
         producer.produce.assert_called_once()
         producer.poll.assert_called_once_with(0)
         producer.flush.assert_not_called()
 
-    def test_a_full_queue_is_logged_and_does_not_raise(self, caplog):
+    def test_timeout_zero_still_raises_when_the_message_cannot_be_queued(self):
         producer = MagicMock()
         producer.produce.side_effect = BufferError("queue full")
         producers = MagicMock(topic="t")
         producers.get.return_value = producer
 
-        with caplog.at_level(logging.ERROR):
-            KafkaSender(producers=producers).send_best_effort(_payload())
-
-        assert "queue full" in caplog.text
+        with pytest.raises(RuntimeError, match="queue full"):
+            KafkaSender(producers=producers).send(_payload(), timeout=0)
 
 
 class TestSenderDefaultSendBatch:

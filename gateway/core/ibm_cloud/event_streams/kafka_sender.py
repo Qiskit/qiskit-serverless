@@ -47,8 +47,13 @@ class KafkaSender(Sender):
     def __init__(self, producers: KafkaProducers | None = None) -> None:
         self._producers = producers or KafkaProducers()
 
-    def send(self, payload: dict, timeout: int = 5) -> None:
-        """Raises UnroutableRegionError (from KafkaProducers.get) or RuntimeError on failure."""
+    def send(self, payload: dict, timeout: float = 5) -> None:
+        """Raises UnroutableRegionError (from KafkaProducers.get) or RuntimeError on failure.
+
+        With timeout=0 it does not wait for the broker: the message is queued in the producer, which delivers it
+        in the background and gives up on it after message.timeout.ms. Only a message that cannot be routed or
+        queued raises. A delivery that fails later is logged by the callback, and poll(0) serves the reports of
+        earlier messages."""
         message = {**payload, "type": self._producers.topic}
         instance_crn = (message.get("data") or {}).get("instance_crn")
         # This could raise UnroutableRegionError if:
@@ -74,6 +79,9 @@ class KafkaSender(Sender):
                 value=json.dumps(message).encode("utf-8"),
                 callback=on_delivery,
             )
+            if timeout == 0:
+                producer.poll(0)
+                return
             remaining = producer.flush(timeout=timeout)
             if remaining > 0:
                 raise RuntimeError(f"KafkaSender: {remaining} message(s) not delivered after flush timeout")
@@ -82,27 +90,9 @@ class KafkaSender(Sender):
         except Exception as e:
             raise RuntimeError(f"KafkaSender: Failed to publish event (id={message.get('id')}): {str(e)}") from e
 
-    def send_best_effort(self, payload: dict) -> None:
-        """Hand the payload to the producer and return, without waiting for the broker. Never raises: a
-        payload that cannot be routed or queued (no producer for the region, a full local queue) is logged and
-        dropped. The producer delivers it in the background, and gives up on it after message.timeout.ms.
-        poll(0) serves the delivery reports of earlier messages, so a failed delivery is still logged."""
-        try:
-            message = {**payload, "type": self._producers.topic}
-            producer = self._producers.get(self._instance_crn(message))
-            producer.produce(
-                topic=self._producers.topic,
-                key=message["subject"].encode("utf-8"),
-                value=json.dumps(message).encode("utf-8"),
-                callback=self._on_best_effort_delivery,
-            )
-            producer.poll(0)
-        except Exception as ex:  # pylint: disable=broad-exception-caught
-            logger.error("error producing best effort message, dropped: %s", str(ex))
-
     def flush(self, timeout: float = 5) -> None:
         """Wait for the messages still queued in every producer. Meant for shutdown, so best effort messages
-        queued by send_best_effort are not lost when the process stops."""
+        queued by send(timeout=0) are not lost when the process stops."""
         self._producers.flush(timeout)
 
     def send_batch(self, messages: list[PendingMessage], timeout: float = 5) -> set[int]:
@@ -148,10 +138,6 @@ class KafkaSender(Sender):
         data = payload.get("data") if isinstance(payload, dict) else None
         return data.get("instance_crn") if isinstance(data, dict) else None
 
-    def _on_best_effort_delivery(self, err, msg) -> None:
-        if err is not None:
-            self._log_delivery_error(err, msg)
-
     def _on_batch_delivery(self, err, msg, key: int, delivered: set[int]) -> None:
         if err is None:
             delivered.add(key)
@@ -173,7 +159,7 @@ class NoOpSender(Sender):
     """Drop-in replacement for KafkaSender when EVENT_STREAMS_ENABLED is false. Logs instead of
     publishing."""
 
-    def send(self, payload: dict) -> None:
+    def send(self, payload: dict, timeout: float = 5) -> None:
         """Logs the payload instead of publishing it."""
         logger.info("payload=%s [noop] send", payload)
 

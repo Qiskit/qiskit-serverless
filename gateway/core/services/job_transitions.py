@@ -202,15 +202,24 @@ class JobTransitionService:
         Outbox.objects.create(job=job, channel=OutboxChannel.LICENSE_FEE, region=self._region(job), payload=message)
 
     def _send_job_in_progress(self, job: Job, job_started: bool) -> None:
-        """Send the best effort in-progress event. send_best_effort never raises, so a Kafka failure is logged
-        by the sender and the event is dropped without reaching the caller.
+        """Best effort: a failure is logged and the event is dropped, it never reaches the caller.
+
+        The sender is asked not to wait for the broker (timeout=0), so what can fail here is only an event that
+        cannot be routed or queued.
 
         A job transitioning to terminal in this same scheduler tick will produce both an in-progress and a
         completed event; consumers key on the job_started / job_completed flags.
         """
-        if job.filler:
-            return
-        job_started_at = JobEvent.objects.first_running_at(job.id)
-        job_last_progress_time = None if job_started else datetime.now(timezone.utc)
-        payload = BillingEvents.build_job_usage(job, job_started_at, job_last_progress_time)
-        self.sender.send_best_effort(payload)
+        try:
+            if job.filler:
+                return
+            job_started_at = JobEvent.objects.first_running_at(job.id)
+            job_last_progress_time = None if job_started else datetime.now(timezone.utc)
+            payload = BillingEvents.build_job_usage(job, job_started_at, job_last_progress_time)
+            self.sender.send(payload, timeout=0)
+        except RuntimeError as ex:
+            logger.error(
+                "job_id=%s error emitting job_in_progress event to Kafka, event dropped: %s",
+                job.id,
+                str(ex),
+            )

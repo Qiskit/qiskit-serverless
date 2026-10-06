@@ -19,16 +19,10 @@ class Sender(ABC):
     """Delivers payloads to their destination."""
 
     @abstractmethod
-    def send(self, payload: dict) -> None:
-        """Deliver the payload. Raises on failure."""
-
-    def send_best_effort(self, payload: dict) -> None:
-        """Deliver the payload without caring about the outcome: never raises, and a failure is only logged.
-        This default waits for send(); a sender that can hand the payload over without waiting should override it."""
-        try:
-            self.send(payload)
-        except Exception as ex:  # pylint: disable=broad-exception-caught
-            logger.error("error sending best effort payload, dropped: %s", str(ex))
+    def send(self, payload: dict, timeout: float = 5) -> None:
+        """Deliver the payload, waiting up to `timeout` seconds for the destination to confirm it. Raises on
+        failure. With timeout=0 it does not wait: the payload is handed over and the call returns, so a
+        delivery that fails later is only logged."""
 
     def send_batch(self, messages: list[PendingMessage]) -> set[int]:
         """Deliver many messages and return the keys of the ones that were delivered. Never raises:
