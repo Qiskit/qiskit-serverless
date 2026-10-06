@@ -559,7 +559,7 @@ class TestRetryWithBackoff:
         row.refresh_from_db()
         assert row.attempts == 1
         assert row.last_error == "RuntimeError: boom"
-        assert self._wait_of(row) > timedelta(seconds=60)  # with the defaults, longer than the breaker's pause
+        assert self._wait_of(row) > timedelta(seconds=60)  # the default base is two minutes
 
     def test_the_rows_a_batch_sender_did_not_confirm_record_the_attempt_too(self):
         bad_row = _make_row()
@@ -639,7 +639,7 @@ class TestRetryWithBackoff:
 
         assert waits == [timedelta(seconds=s) for s in (30, 60, 100, 100, 100)]
 
-    def test_the_defaults_wait_longer_than_the_breaker_pause_and_stop_at_ten_minutes(self):
+    def test_the_defaults_wait_two_minutes_and_stop_at_ten(self):
         Config.add_defaults()
         waits = []
         for attempts_so_far in (0, 10):
@@ -654,7 +654,6 @@ class TestRetryWithBackoff:
             row.delete()
 
         assert waits == [timedelta(seconds=120), timedelta(seconds=600)]
-        assert Config.get_int(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_PAUSE_SECONDS) < 120
 
     def test_the_wait_is_at_least_one_second_even_if_the_base_is_zero(self):
         sender = _single_sender(fails=lambda payload: True)
@@ -714,6 +713,7 @@ class TestRetryWithBackoff:
         sender = _single_sender(fails=lambda payload: payload.get("bad", False))
         task = _make_task(sender=sender)
         Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "3")
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_PAUSE_SECONDS, "60")
         bad_rows = [_make_row(payload={"bad": True, "data": {}}) for _ in range(3)]
         good_row = _make_row()
         base = timezone.now()  # after the rows exist, so all of them are due at clock 0

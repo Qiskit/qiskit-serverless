@@ -560,14 +560,15 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "Time budget per scheduler loop tick for each Kafka outbox channel, in milliseconds.",
     },
     "scheduler.outbox.kafka.breaker_failures": {
-        "default": "5",
+        "default": "3",
         "type": "integer",
         "description": "Consecutive send failures before the Kafka outbox circuit breaker opens.",
     },
     "scheduler.outbox.kafka.breaker_pause_seconds": {
-        "default": "60",
+        "default": "120",
         "type": "integer",
-        "description": "How long the Kafka outbox circuit breaker stays open once tripped.",
+        "description": "How long the Kafka outbox circuit breaker stays open once tripped. Once it closes, a whole "
+        "new streak of failures is needed to open it again.",
     },
     "scheduler.outbox.kafka.retry_base_seconds": {
         "default": "120",

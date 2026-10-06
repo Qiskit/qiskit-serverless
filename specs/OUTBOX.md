@@ -306,17 +306,20 @@ instead. While a region's breaker is open, its rows are skipped (not read, not s
 for any channel using that destination, while the other regions are still sent.
 
 - The failure counter is **not** reset between ticks. Failures accumulate across as
-  many ticks as it takes to reach the threshold (5 consecutive failures by default),
+  many ticks as it takes to reach the threshold (3 consecutive failures by default),
   whether they land in one tick or are spread across several.
 - The only thing that resets the counter to zero is a successful send. Without one in
   between, failures keep adding up indefinitely.
-- Once open, it stays open for a fixed pause (60 seconds by default), measured in
+- Once open, it stays open for a fixed pause (120 seconds by default), measured in
   real wall-clock time from the moment it opened, regardless of how many scheduler
   ticks pass meanwhile.
 - It closes itself the next time anything asks whether it is open, once that pause
   has elapsed, with the failure counter back at zero: it takes a whole new streak to open it again. A
   destination that is still down therefore costs one failure streak (the threshold) per pause, which is why
-  both are tuned together (a lower threshold makes the streak cheap, a longer pause makes it rare).
+  both are tuned together (a lower threshold makes the streak cheap, a longer pause makes it rare). With the
+  defaults, and a failed Kafka batch costing about one flush timeout (5 s) of the single-threaded scheduler, an
+  outage costs roughly 15 s every 135 s (an estimate, not a measurement), and a recovered destination is picked
+  up again after at most 2 minutes.
 - A region's breaker is checked right before each of its batches is sent, so a failure that
   trips it mid-tick keeps the rest of that region's rows from being sent in the same tick.
 - One pass over the pending rows can cost one flush timeout per failing region before the budget
@@ -331,8 +334,8 @@ without recreating the breaker or restarting the process.
 
 Everything except the batch size is a `Config` entry (admin-editable, no redeploy
 needed): `scheduler.outbox.kafka.budget_ms` (default 500),
-`scheduler.outbox.kafka.breaker_failures` (default 5) and
-`scheduler.outbox.kafka.breaker_pause_seconds` (default 60),
+`scheduler.outbox.kafka.breaker_failures` (default 3) and
+`scheduler.outbox.kafka.breaker_pause_seconds` (default 120),
 `scheduler.outbox.kafka.retry_base_seconds` (default 120) and `scheduler.outbox.kafka.retry_max_seconds`
 (default 600). They apply to all the Kafka
 channels together (`LICENSE_FEE` and `JOB_USAGE`), and there is no on/off switch: the Kafka
