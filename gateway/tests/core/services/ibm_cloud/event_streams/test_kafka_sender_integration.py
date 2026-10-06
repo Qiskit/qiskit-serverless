@@ -29,6 +29,7 @@ from core.ibm_cloud.event_streams.kafka_sender import KafkaSender
 IMAGE = "apache/kafka:4.3.1"
 CRN = "crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::"
 KAFKA_BIN = "/opt/kafka/bin"
+SENDER_LOGGER = "gateway.ibm_cloud.event_streams_client"
 
 
 def _docker_available() -> bool:
@@ -81,7 +82,7 @@ class Broker:
             "KAFKA_TRANSACTION_STATE_LOG_MIN_ISR": "1",
         }
         flags = [flag for key, value in env.items() for flag in ("-e", f"{key}={value}")]
-        _docker("run", "-d", "--name", self.name, "-p", f"{self.port}:{self.port}", *flags, IMAGE)
+        _docker("run", "-d", "--name", self.name, "-p", f"127.0.0.1:{self.port}:{self.port}", *flags, IMAGE)
         self._wait_until_ready()
 
     def _wait_until_ready(self) -> None:
@@ -171,6 +172,15 @@ def _serve_delivery_reports(sender: KafkaSender, seconds: float) -> None:
         producer.poll(0.2)
 
 
+def _sender_warnings(caplog) -> list[str]:
+    """The warnings of KafkaSender, and not those of any other logger of the process."""
+    return [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == SENDER_LOGGER and record.levelno >= logging.WARNING
+    ]
+
+
 def _wait_for_messages(broker: Broker, expected: int, seconds: float = 15) -> int:
     deadline = time.monotonic() + seconds
     count = broker.messages()
@@ -191,7 +201,7 @@ def test_messages_sent_without_waiting_reach_the_broker(broker, sender, caplog):
 
     assert elapsed < 1, "send(timeout=0) must not wait for the broker"
     assert _wait_for_messages(broker, before + 200) == before + 200
-    assert not [record for record in caplog.records if record.levelno >= logging.WARNING]
+    assert not _sender_warnings(caplog)
 
 
 def test_an_outage_does_not_block_the_sender_and_it_recovers_when_the_broker_is_back(broker, sender, caplog):
@@ -206,7 +216,7 @@ def test_an_outage_does_not_block_the_sender_and_it_recovers_when_the_broker_is_
         # the producer gives up on each message after message.timeout.ms (4 s)
         with caplog.at_level(logging.WARNING):
             _serve_delivery_reports(sender, 8)
-        warnings = [record.getMessage() for record in caplog.records if record.levelno == logging.WARNING]
+        warnings = _sender_warnings(caplog)
         assert 1 <= len(warnings) <= 3, "200 dropped messages must be a few warnings, not one per message"
         assert "dropped" in warnings[0]
         assert "_MSG_TIMED_OUT" in warnings[0]
