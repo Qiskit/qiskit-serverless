@@ -31,7 +31,7 @@ class RunnerError(Exception):
 
 
 class RunnerRateLimitedError(RunnerError):
-    """The engine answered 429 (Too Many Requests), so nothing was submitted."""
+    """The engine answered 429 (Too Many Requests), so the request was not performed."""
 
 
 class AbstractRunner(ABC):

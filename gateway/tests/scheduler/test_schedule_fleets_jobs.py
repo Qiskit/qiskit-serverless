@@ -67,7 +67,7 @@ def test_add_queue_wait_time_metric_skips_filler_jobs():
 @pytest.mark.django_db
 def test_a_rate_limited_submit_opens_the_breaker_and_skips_the_remaining_jobs():
     Config.add_defaults()
-    Config.set(ConfigKey.FLEETS_SUBMIT_BREAKER_FAILURES, "1")
+    Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "1")
     task = _make_task()
     jobs = [MagicMock(env_vars="{}"), MagicMock(env_vars="{}")]
 

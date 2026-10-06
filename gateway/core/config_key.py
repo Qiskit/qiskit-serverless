@@ -17,5 +17,5 @@ class ConfigKey(Enum):
     OUTBOX_KAFKA_CHANNEL_BREAKER_PAUSE_SECONDS = "scheduler.outbox.kafka.breaker_pause_seconds"
     OUTBOX_KAFKA_CHANNEL_RETRY_BASE_SECONDS = "scheduler.outbox.kafka.retry_base_seconds"
     OUTBOX_KAFKA_CHANNEL_RETRY_MAX_SECONDS = "scheduler.outbox.kafka.retry_max_seconds"
-    FLEETS_SUBMIT_BREAKER_FAILURES = "scheduler.fleets.submit.breaker_failures"
-    FLEETS_SUBMIT_BREAKER_PAUSE_SECONDS = "scheduler.fleets.submit.breaker_pause_seconds"
+    FLEETS_BREAKER_FAILURES = "scheduler.fleets.breaker_failures"
+    FLEETS_BREAKER_PAUSE_SECONDS = "scheduler.fleets.breaker_pause_seconds"

@@ -15,7 +15,7 @@ from core.services.runners import RunnerRateLimitedError
 from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_fleets_job
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from .circuit_breaker import CircuitBreaker
+from .circuit_breaker import build_fleets_circuit_breaker
 from .task import SchedulerTask
 
 logger = logging.getLogger("scheduler.ScheduleFleetsJobs")
@@ -30,10 +30,7 @@ class ScheduleFleetsJobs(SchedulerTask):
         self.kill_signal = kill_signal
         self.metrics = metrics
         self.transitions = transitions or JobTransitionService()
-        # opened by Code Engine rate limits on submit
-        self.breaker = CircuitBreaker(
-            ConfigKey.FLEETS_SUBMIT_BREAKER_FAILURES, ConfigKey.FLEETS_SUBMIT_BREAKER_PAUSE_SECONDS
-        )
+        self.breaker = build_fleets_circuit_breaker()
 
     def run(self):
         """Schedule queued Fleets jobs."""
