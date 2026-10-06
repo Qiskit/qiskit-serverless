@@ -66,7 +66,6 @@ class KafkaSender(Sender):
         # a fast broker-side rejection (e.g. a topic ACL problem) calls the callback with an error
         # before flush() returns, so the callback has to record it for us to raise below.
         delivery_errors = []
-        event_id = payload.get("id") if isinstance(payload, dict) else None
 
         def on_delivery(err, msg):
             if err is not None:
@@ -84,6 +83,7 @@ class KafkaSender(Sender):
             # no data.instance_crn (impossible), an invalid crn (even more impossible), or no producer for its region
             raise
         except Exception as e:
+            event_id = payload.get("id") if isinstance(payload, dict) else None
             raise RuntimeError(f"KafkaSender: Failed to publish event (id={event_id}): {str(e)}") from e
 
     def _produce(self, payload: dict, callback) -> Producer:
