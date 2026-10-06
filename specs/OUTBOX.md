@@ -128,9 +128,9 @@ delivered is dropped. `KafkaSender` warns about the drops at most once per 30 se
 with how many were dropped since the last warning and the subject (job id) and error of the last one, so a
 broker that is down does not write a log line per job per second.
 
-When the scheduler stops it calls `flush()` once on that sender, which waits up to 5 seconds in total (not
-per region) for the queued messages, so the queue is not lost on a clean stop.
-These producers are not shared with the outbox, whose flush therefore never waits for them.
+These producers are not shared with the outbox, whose flush therefore never waits for them. Nothing flushes
+them when the scheduler stops: what is still queued then is lost, which is acceptable for events that can be
+lost anyway.
 
 `pending_to_running` sends its event right after its own transaction ends, so the network
 call never holds the row lock and nothing is sent for a transition that did not happen. The

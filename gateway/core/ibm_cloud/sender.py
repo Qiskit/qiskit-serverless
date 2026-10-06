@@ -20,13 +20,8 @@ class Sender(ABC):
 
     @abstractmethod
     def send(self, payload: dict, timeout: float = 5) -> None:
-        """Deliver the payload, waiting up to `timeout` seconds for the destination to confirm it. Raises on
-        failure. With timeout=0 it does not wait and does not raise: the payload is handed over and the call
-        returns, and a payload that is not delivered is dropped and only logged."""
-
-    def flush(self, timeout: float = 5) -> None:
-        """Wait up to `timeout` seconds, in total, for what send(timeout=0) handed over and is still pending.
-        Meant for shutdown. A sender that delivers before send() returns has nothing to wait for."""
+        """Deliver the payload. Raises on failure. What `timeout` means, and what timeout=0 does, depends on the
+        implementation."""
 
     def send_batch(self, messages: list[PendingMessage]) -> set[int]:
         """Deliver many messages and return the keys of the ones that were delivered. Never raises:

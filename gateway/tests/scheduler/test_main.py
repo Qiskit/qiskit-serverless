@@ -57,16 +57,6 @@ class TestMain:
         assert called == True
         assert task.run.call_count == 1
 
-    def test_the_best_effort_events_are_flushed_when_the_scheduler_stops(self):
-        task = MagicMock()
-        task.run.side_effect = lambda: setattr(self.scheduler_main.kill_signal, "received", True)
-        self.scheduler_main.tasks = [task]
-        self.scheduler_main.transitions = MagicMock()
-
-        self.scheduler_main.run()
-
-        self.scheduler_main.transitions.flush.assert_called_once_with()
-
     def test_task_fails(self):
         """When a task raises, metrics.increase_task_error should be called."""
         failing_task = MagicMock()

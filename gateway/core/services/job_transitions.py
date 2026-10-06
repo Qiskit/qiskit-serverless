@@ -68,10 +68,6 @@ class JobTransitionService:
         the Gateway (stop jobs only) has NoOpSender)"""
         self.sender = sender if sender is not None else build_kafka_sender()
 
-    def flush(self) -> None:
-        """Wait for the best effort events still queued in the sender. Meant for shutdown."""
-        self.sender.flush()
-
     def queued_to_pending(
         self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
     ) -> JobEvent:

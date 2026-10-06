@@ -98,7 +98,7 @@ class KafkaSender(Sender):
     def _send_without_waiting(self, payload: dict) -> None:
         """Queue the message and return: the producer delivers it in the background and gives up on it after
         message.timeout.ms. poll(0) serves the delivery reports of earlier messages."""
-        subject = payload.get("subject")
+        subject = payload.get("subject") if isinstance(payload, dict) else None
 
         def on_delivery(err, _msg):
             if err is not None:
@@ -122,11 +122,6 @@ class KafkaSender(Sender):
                 error,
             )
             self._dropped, self._last_drop_warning = 0, now
-
-    def flush(self, timeout: float = 5) -> None:
-        """Wait up to `timeout` seconds, in total, for the messages still queued in every producer. Meant for
-        shutdown, so the best effort messages queued by send(timeout=0) are not lost when the process stops."""
-        self._producers.flush(timeout)
 
     def send_batch(self, messages: list[PendingMessage], timeout: float = 5) -> set[int]:
         """Produce every payload, flush each producer once, and return the keys the broker confirmed

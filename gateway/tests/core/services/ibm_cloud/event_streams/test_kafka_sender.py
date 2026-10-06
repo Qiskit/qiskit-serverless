@@ -292,6 +292,12 @@ class TestKafkaSenderWithoutWaiting:
         assert "queue full" in caplog.text
         assert "job-1" in caplog.text
 
+    def test_a_payload_that_is_not_a_dict_is_dropped_and_does_not_raise(self, caplog):
+        with caplog.at_level(logging.WARNING):
+            self._sender(MagicMock()).send("not a dict", timeout=0)
+
+        assert "1 best effort message(s) dropped" in caplog.text
+
     def test_a_failed_delivery_is_dropped_with_a_warning_that_names_the_message(self, caplog):
         producer = MagicMock()
         self._sender(producer).send(_payload(), timeout=0)
@@ -326,13 +332,6 @@ class TestKafkaSenderWithoutWaiting:
         assert reports[0].startswith("1 best effort message(s) dropped")
         assert reports[1].startswith("3 best effort message(s) dropped")
 
-    def test_flush_waits_on_the_producers(self):
-        producers = MagicMock(topic="t")
-
-        KafkaSender(producers=producers).flush(2)
-
-        producers.flush.assert_called_once_with(2)
-
 
 class TestSenderDefaultSendBatch:
     def test_swallows_and_logs_a_failure_and_still_sends_the_rest(self, caplog):
@@ -343,11 +342,6 @@ class TestSenderDefaultSendBatch:
 
         assert delivered == {1, 3}
         assert "boom" in caplog.text
-
-
-class TestSenderFlush:
-    def test_the_default_flush_does_nothing(self):
-        NoOpSender().flush()
 
 
 class TestNoOpSender:

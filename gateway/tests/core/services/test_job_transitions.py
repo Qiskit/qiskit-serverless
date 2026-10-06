@@ -429,11 +429,6 @@ class TestBestEffortEvents:
         assert "event dropped" in caplog.text
         assert "kafka down" in caplog.text
 
-    def test_flush_flushes_the_sender(self, service, sender):
-        service.flush()
-
-        sender.flush.assert_called_once_with()
-
     def test_a_filler_job_sends_nothing(self, service, sender, fleets_job):
         Job.objects.filter(pk=fleets_job.pk).update(filler=True)
         fleets_job.refresh_from_db()

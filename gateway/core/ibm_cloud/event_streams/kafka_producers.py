@@ -20,7 +20,6 @@ one: one producer per region per owner, not one for the whole process.
 from __future__ import annotations
 
 import logging
-import time
 
 from confluent_kafka import Producer
 from django.conf import settings
@@ -107,16 +106,3 @@ class KafkaProducers:
         if producer is None:
             raise UnroutableRegionError(f"KafkaProducers: No producer configured for region {crn.region}")
         return producer
-
-    def flush(self, timeout: float) -> None:
-        """Flush every producer within `timeout` seconds in total: each one gets what is left of the deadline,
-        so a region that is down does not add its own wait on top of the others."""
-        deadline = time.monotonic() + timeout
-        for region, producer in self._producers.items():
-            try:
-                remaining = producer.flush(timeout=max(0.0, deadline - time.monotonic()))
-            except Exception as ex:  # pylint: disable=broad-exception-caught
-                logger.error("region=%s error flushing producer: %s", region, str(ex))
-                continue
-            if remaining > 0:
-                logger.error("region=%s %s message(s) not delivered after flush timeout", region, remaining)
