@@ -1,7 +1,6 @@
 """Consume blocked-account-plan events from Kafka."""
 
 import logging
-import os
 
 from django.conf import settings
 
@@ -20,7 +19,7 @@ class ConsumeBlockedAccountEvents(SchedulerTask):
         self.metrics = metrics
 
     def run(self) -> None:
-        """Poll and log blocked-account events from Kafka."""
+        """Poll and process blocked-account events from Kafka."""
         if not settings.EVENT_STREAMS_ENABLED:
             logger.debug("EVENT_STREAMS_ENABLED is False, skipping blocked-account consumer")
             return
@@ -30,8 +29,10 @@ class ConsumeBlockedAccountEvents(SchedulerTask):
                 KafkaBlockedAccountsConsumer,
             )
 
+            import os  # pylint: disable=import-outside-toplevel
+
             # Build region configs from environment variables
-            environment = os.environ.get("ENVIRONMENT", "production")  # pylint: disable=import-outside-toplevel
+            environment = os.environ.get("ENVIRONMENT", "production")
             main_region = os.environ.get("EVENT_STREAMS_MAIN_REGION", "us-east")
             main_bootstrap_servers = os.environ.get("EVENT_STREAMS_BOOTSTRAP_SERVERS")
             main_api_key = os.environ.get("EVENT_STREAMS_API_KEY")
