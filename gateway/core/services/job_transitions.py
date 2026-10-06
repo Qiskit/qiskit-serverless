@@ -210,6 +210,7 @@ class JobTransitionService:
             job_started_at = JobEvent.objects.first_running_at(job.id)
             job_last_progress_time = None if job_started else datetime.now(timezone.utc)
             payload = BillingEvents.build_job_usage(job, job_started_at, job_last_progress_time)
+            # timeout=0: send and return at once, without waiting for the ack or a flush
             self.sender.send(payload, timeout=0)
         except RuntimeError as ex:
             logger.error(
