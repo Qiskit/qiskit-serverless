@@ -124,12 +124,12 @@ is written) do not go through the outbox. They are sent directly to Kafka with t
 the service, with `send(payload, timeout=0)`: the message is handed to the producer and the call returns,
 without a flush, and it never raises. librdkafka delivers it in the background and gives up on it after
 `message.timeout.ms`. A message that cannot be routed, queued (the producer's local queue is full) or
-delivered is dropped. `KafkaSender` counts the drops and reports them as one warning per 30 seconds (the
-first one at once), with the count, the first few subjects (job ids) and the last error, so a broker that is
-down does not write a log line per job per second.
+delivered is dropped. `KafkaSender` warns about the drops at most once per 30 seconds (the first one at once),
+with how many were dropped since the last warning and the subject (job id) and error of the last one, so a
+broker that is down does not write a log line per job per second.
 
 When the scheduler stops it calls `flush()` once on that sender, which waits up to 5 seconds in total (not
-per region) for the queued messages and reports what was dropped, so the queue is not lost on a clean stop.
+per region) for the queued messages, so the queue is not lost on a clean stop.
 These producers are not shared with the outbox, whose flush therefore never waits for them.
 
 `pending_to_running` sends its event right after its own transaction ends, so the network

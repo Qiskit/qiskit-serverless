@@ -326,22 +326,12 @@ class TestKafkaSenderWithoutWaiting:
         assert reports[0].startswith("1 best effort message(s) dropped")
         assert reports[1].startswith("3 best effort message(s) dropped")
 
-    def test_flush_waits_on_the_producers_and_reports_what_is_left(self, caplog):
-        producer = MagicMock()
+    def test_flush_waits_on_the_producers(self):
         producers = MagicMock(topic="t")
-        producers.get.return_value = producer
-        producer.produce.side_effect = BufferError("queue full")
-        sender = KafkaSender(producers=producers)
-        with patch("core.ibm_cloud.event_streams.kafka_sender.time.monotonic", side_effect=[0, 1, 2]):
-            sender.send(_payload(), timeout=0)
-            sender.send(_payload(), timeout=0)  # inside the interval: not reported yet
-        caplog.clear()
 
-        with caplog.at_level(logging.WARNING):
-            sender.flush(2)
+        KafkaSender(producers=producers).flush(2)
 
         producers.flush.assert_called_once_with(2)
-        assert "1 best effort message(s) dropped" in caplog.text
 
 
 class TestSenderDefaultSendBatch:
