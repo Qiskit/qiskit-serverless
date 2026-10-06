@@ -667,26 +667,21 @@ def test_delete_job_raises_on_non_404_error(project_id):
     assert exc.value.status == 500
 
 
-def test_delete_job_retries_on_429(project_id):
-    """delete_job retries after sleeping when delete_fleet returns 429, then succeeds."""
-    with (
-        patch(f"{_HANDLER_MOD}.FleetsApi") as mock_fleets_api_cls,
-        patch(f"{_HANDLER_MOD}.time") as mock_time,
-    ):
+def test_delete_job_raises_on_429(project_id):
+    """delete_job raises a 429 instead of sleeping, so the caller owns the backoff."""
+    with patch(f"{_HANDLER_MOD}.FleetsApi") as mock_fleets_api_cls:
         fleets_api = MagicMock()
-        fleets_api.delete_fleet.side_effect = [
-            ApiException(status=429, reason="Too Many Requests"),
-            None,
-        ]
+        fleets_api.delete_fleet.side_effect = ApiException(status=429, reason="Too Many Requests")
         mock_fleets_api_cls.return_value = fleets_api
         fleet_uuid = "f-00000000-0000-0000-0000-000000000013"
 
         handler = FleetHandler(ce_api_client=MagicMock(), project_id=project_id)
         with patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid):
-            handler.delete_job(fleet_uuid)
+            with pytest.raises(ApiException) as exc:
+                handler.delete_job(fleet_uuid)
 
-    assert fleets_api.delete_fleet.call_count == 2
-    mock_time.sleep.assert_called_once_with(60.0)
+    assert exc.value.status == 429
+    assert fleets_api.delete_fleet.call_count == 1
 
 
 def test_wait_until_state_returns_matched_status(project_id):

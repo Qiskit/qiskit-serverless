@@ -408,28 +408,23 @@ class FleetHandler:
 
     def delete_job(self, identifier: str) -> None:
         """
-        Delete a fleet ("job") by name or UUID without attempting a cancel.
+        Delete a fleet ("job") by name or UUID without attempting a cancel. A 404 is success.
 
         Args:
             identifier: Fleet UUID or fleet name.
 
         Raises:
             ValueError: If identifier is a name that cannot be resolved.
-            ApiException: If delete_fleet fails with an error other than 404 or 429.
+            ApiException: If delete_fleet fails with anything other than a 404. A 429 is raised too,
+                so the caller decides how to back off.
         """
         fleet_id = self._resolve_fleet_id(identifier)
-        while True:
-            try:
-                self._fleets_api.delete_fleet(project_id=self.project_id, id=fleet_id)
-                return
-            except ApiException as exc:
-                if exc.status == 404:
-                    return
-                if exc.status == 429:
-                    logger.warning("Rate limited deleting fleet %s — backing off 60s", fleet_id)
-                    time.sleep(60.0)
-                    continue
+        try:
+            self._fleets_api.delete_fleet(project_id=self.project_id, id=fleet_id)
+        except ApiException as exc:
+            if exc.status != 404:
                 raise
+            logger.info("Fleet [%s] is already gone", fleet_id)
 
     def _wait_until_state(
         self,
