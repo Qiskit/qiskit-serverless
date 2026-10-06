@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("api", "0069_outbox_region_outbox_outbox_chan_reg_created_idx"),
+        ("api", "0071_alter_job_function_size"),
     ]
 
     operations = [
