@@ -47,57 +47,53 @@ class StopJobUseCase:
             self.status_messages.append("Job already in terminal state.")
             return " ".join(self.status_messages)
 
-        stopped = False
-        stopping = False
+        # The status this request ended on, or None when another writer ended the job first.
+        reached = None
         try:
             # Lock transaction to read the fresh status. It could raise InvalidJobTransitionException if the job
             # was SUCCEEDED, FAILED or already STOPPING
             # Only the scheduler sends Kafka messages: the gateway has Kafka disabled, so the service sends nothing here
             transitions = JobTransitionService()
             if transitions.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB):
-                stopping = True
+                reached = Job.STOPPING
             else:
                 transitions.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
-            stopped = True
+                reached = Job.STOPPED
         except RunnerError as ex:
             logger.warning("Could not cancel fleet_id=%s: %s", job.fleet_id, str(ex))
             raise EngineUnavailableException("Job could not be stopped right now, please retry.") from ex
         except InvalidJobTransitionException:
-            # Lost the race. Another writer may have moved the row to STOPPING, which is not terminal,
-            # so re-read before naming it.
+            # Lost the race. The winner may have written STOPPING, which is not terminal, so re-read
+            # before naming it. SUCCEEDED or FAILED leaves `reached` None: nothing was stopped here.
             job.refresh_from_db(fields=["status"])
-            if job.status == Job.STOPPING:
-                stopping = True
-                stopped = True
-            elif job.status == Job.STOPPED:
-                stopped = True
+            if job.status in (Job.STOPPING, Job.STOPPED):
+                reached = job.status
 
-        if stopped:
-            # New behavior: now, stopping a completed job (failed or succeeded) NO longer (attempts to) stop its
-            # runtime jobs.
-            self.status_messages.append("Job is stopping." if stopping else "Job has been stopped.")
-
-            # Unit tests send a None directly, but the client sends a serialized None
-            service = None
-            if service_str:
-                service = json.loads(service_str, cls=json.JSONDecoder)
-            runtime_jobs = RuntimeJob.objects.filter(job=job)
-
-            if not service:
-                self.status_messages.append("QiskitRuntimeService not found, cannot stop runtime jobs.")
-            elif not runtime_jobs:
-                self.status_messages.append("No active runtime job ID associated with this serverless job ID.")
-            else:
-                service_config = service["__value__"]
-                qiskit_service = QiskitRuntimeService(**service_config)
-                qiskit_api_client = qiskit_service._get_api_client()
-                for runtime_job_entry in runtime_jobs:
-                    self._cancel_runtime_job_entry(runtime_job_entry, qiskit_service, qiskit_api_client)
-
-            if job.runner == Program.RAY:
-                self._stop_ray_job_if_active(job)
-        else:
+        if reached is None:
             self.status_messages.append("Job already in terminal state.")
+            return " ".join(self.status_messages)
+
+        self.status_messages.append("Job is stopping." if reached == Job.STOPPING else "Job has been stopped.")
+
+        # Unit tests send a None directly, but the client sends a serialized None
+        service = None
+        if service_str:
+            service = json.loads(service_str, cls=json.JSONDecoder)
+        runtime_jobs = RuntimeJob.objects.filter(job=job)
+
+        if not service:
+            self.status_messages.append("QiskitRuntimeService not found, cannot stop runtime jobs.")
+        elif not runtime_jobs:
+            self.status_messages.append("No active runtime job ID associated with this serverless job ID.")
+        else:
+            service_config = service["__value__"]
+            qiskit_service = QiskitRuntimeService(**service_config)
+            qiskit_api_client = qiskit_service._get_api_client()
+            for runtime_job_entry in runtime_jobs:
+                self._cancel_runtime_job_entry(runtime_job_entry, qiskit_service, qiskit_api_client)
+
+        if job.runner == Program.RAY:
+            self._stop_ray_job_if_active(job)
 
         return " ".join(self.status_messages)
 
