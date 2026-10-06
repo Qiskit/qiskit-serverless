@@ -89,25 +89,6 @@ class KafkaSender(Sender):
             event_id = payload.get("id") if isinstance(payload, dict) else None
             raise RuntimeError(f"KafkaSender: Failed to publish event (id={event_id}): {str(e)}") from e
 
-    def _produce(self, payload: dict, callback) -> Producer:
-        """Queue the payload, plus `type`, in its region's producer and return that producer. Does not wait.
-        Raises UnroutableRegionError when it cannot be routed, or whatever produce() raises (a full queue)."""
-        message = {**payload, "type": self._producers.topic}
-        producer = self._producers.get(self._instance_crn(message))
-        try:
-            producer.produce(
-                topic=self._producers.topic,
-                key=message["subject"].encode("utf-8"),
-                value=json.dumps(message).encode("utf-8"),
-                callback=callback,
-            )
-        except BufferError:
-            # The local queue also holds the messages already delivered or expired, until their delivery report
-            # is served. Only poll() serves them, so without it a full queue would never be emptied.
-            producer.poll(0)
-            raise
-        return producer
-
     def _send_without_waiting(self, payload: dict) -> None:
         """Queue the message and return: the producer delivers it in the background and gives up on it after
         message.timeout.ms. poll(0) serves the delivery reports of earlier messages."""
@@ -189,6 +170,25 @@ class KafkaSender(Sender):
             err,
             err.code() if hasattr(err, "code") else "unknown",
         )
+
+    def _produce(self, payload: dict, callback) -> Producer:
+        """Queue the payload, plus `type`, in its region's producer and return that producer. Does not wait.
+        Raises UnroutableRegionError when it cannot be routed, or whatever produce() raises (a full queue)."""
+        message = {**payload, "type": self._producers.topic}
+        producer = self._producers.get(self._instance_crn(message))
+        try:
+            producer.produce(
+                topic=self._producers.topic,
+                key=message["subject"].encode("utf-8"),
+                value=json.dumps(message).encode("utf-8"),
+                callback=callback,
+            )
+        except BufferError:
+            # The local queue also holds the messages already delivered or expired, until their delivery report
+            # is served. Only poll() serves them, so without it a full queue would never be emptied.
+            producer.poll(0)
+            raise
+        return producer
 
 
 class NoOpSender(Sender):
