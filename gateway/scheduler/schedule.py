@@ -18,7 +18,7 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import JobTransitionService
-from core.services.runners import get_runner, RunnerError
+from core.services.runners import get_runner, RunnerError, RunnerRateLimitedError
 
 User: Model = get_user_model()
 logger = logging.getLogger("scheduler.schedule")
@@ -74,6 +74,9 @@ def execute_fleets_job(
 
     Returns:
         job with updated status (PENDING on success, FAILED on error)
+
+    Raises:
+        RunnerRateLimitedError: before any write, so the job stays QUEUED for the next tick
     """
     start = time.monotonic()
     tracer = trace.get_tracer("scheduler.tracer")
@@ -90,6 +93,8 @@ def execute_fleets_job(
                 job.id,
                 time.monotonic() - start,
             )
+        except RunnerRateLimitedError:
+            raise
         except RunnerError as ex:
             logger.error(
                 "[execute_fleets_job] job_id=%s error=%s Job set as FAILED: submission error",

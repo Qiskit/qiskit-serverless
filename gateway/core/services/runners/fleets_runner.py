@@ -17,7 +17,6 @@ import logging
 import os
 import re
 import tarfile
-import time
 from datetime import datetime, timezone
 from io import BytesIO
 
@@ -28,7 +27,7 @@ from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
 from core.domain import compute_profile
 from core.models import Job, CodeEngineProject
-from core.services.runners.abstract_runner import AbstractRunner, RunnerError
+from core.services.runners.abstract_runner import AbstractRunner, RunnerError, RunnerRateLimitedError
 from core.ibm_cloud import get_ce_auth, get_cos_client
 from core.utils import decrypt_env_vars
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
@@ -95,29 +94,6 @@ def _fleet_name_segment(value: str) -> str:
     """
     slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
     return slug[:_FLEET_NAME_SEGMENT_MAX].strip("-") or "unknown"
-
-
-def _retry_on_rate_limit(fn, retries=3, delays=(0.5, 1.0, 2.0)):
-    """Call *fn* with retries on HTTP 429 (Too Many Requests).
-
-    Args:
-        fn: Zero-argument callable to execute.
-        retries: Maximum number of retry attempts.
-        delays: Sleep durations between attempts.
-
-    Returns:
-        The return value of *fn*.
-    """
-    for attempt in range(retries + 1):
-        try:
-            return fn()
-        except ApiException as exc:
-            if exc.status != 429 or attempt >= retries:
-                raise
-            delay = delays[min(attempt, len(delays) - 1)]
-            logger.warning("Rate limited (429), retrying in %.1fs (attempt %d/%d)", delay, attempt + 1, retries)
-            time.sleep(delay)
-    return None
 
 
 class FleetsRunner(AbstractRunner):
@@ -221,7 +197,7 @@ class FleetsRunner(AbstractRunner):
                         "run_commands": ["python", paths.container_docker_entrypoint],
                     }
                 )
-                _retry_on_rate_limit(lambda: self._upload_program_to_cos(paths))
+                self._upload_program_to_cos(paths)
                 logger.info(
                     "COS configured for job_id [%s]: user_key=[%s] provider_key=[%s]",
                     self.job.id,
@@ -231,20 +207,18 @@ class FleetsRunner(AbstractRunner):
             else:
                 raise RunnerError(f"COS is not configured for job_id=[{self.job.id}] — cannot submit Fleets job")
 
-            fleet = _retry_on_rate_limit(
-                lambda: handler.submit_job(
-                    name=fleet_name,
-                    image_reference=self._get_image(),
-                    image_secret=settings.CE_ICR_PULL_SECRET,
-                    network_placements=[{"type": "subnet_pool", "reference": self._project.subnet_pool_id}],
-                    scale_cpu_limit=cpu_limit,
-                    scale_memory_limit=memory_limit,
-                    scale_max_instances=self._get_max_instances(),
-                    scale_retry_limit=0,
-                    tasks_specification={"indices": "0"},
-                    tasks_state_store={"persistent_data_store": self._project.pds_name_state},
-                    extra_fields=extra_fields or None,
-                )
+            fleet = handler.submit_job(
+                name=fleet_name,
+                image_reference=self._get_image(),
+                image_secret=settings.CE_ICR_PULL_SECRET,
+                network_placements=[{"type": "subnet_pool", "reference": self._project.subnet_pool_id}],
+                scale_cpu_limit=cpu_limit,
+                scale_memory_limit=memory_limit,
+                scale_max_instances=self._get_max_instances(),
+                scale_retry_limit=0,
+                tasks_specification={"indices": "0"},
+                tasks_state_store={"persistent_data_store": self._project.pds_name_state},
+                extra_fields=extra_fields or None,
             )
 
             fleet_dict = fleet.to_dict() if hasattr(fleet, "to_dict") else dict(fleet)
@@ -256,6 +230,8 @@ class FleetsRunner(AbstractRunner):
             self.job.fleet_id = fleet_id
 
         except ApiException as ex:
+            if ex.status == 429:
+                raise RunnerRateLimitedError(f"Code Engine API error: {ex.reason}", ex) from ex
             logger.error(
                 "CE API error submitting job_id=[%s]: status=%s reason=%s",
                 self.job.id,

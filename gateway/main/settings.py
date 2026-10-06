@@ -581,6 +581,17 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "type": "integer",
         "description": "The longest a Kafka outbox row waits between two tries, however many times it has failed.",
     },
+    "scheduler.fleets.submit.breaker_failures": {
+        "default": "5",
+        "type": "integer",
+        "description": "Consecutive Code Engine rate limits (HTTP 429) on submit before the Fleets submit "
+        "circuit breaker opens.",
+    },
+    "scheduler.fleets.submit.breaker_pause_seconds": {
+        "default": "60",
+        "type": "integer",
+        "description": "How long the Fleets submit circuit breaker stays open once tripped.",
+    },
 }
 
 # Fleets / Code Engine credentials

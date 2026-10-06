@@ -30,6 +30,10 @@ class RunnerError(Exception):
         return self.message
 
 
+class RunnerRateLimitedError(RunnerError):
+    """The engine answered 429 (Too Many Requests), so nothing was submitted."""
+
+
 class AbstractRunner(ABC):
     """Abstract runner for executing jobs on different engines."""
 

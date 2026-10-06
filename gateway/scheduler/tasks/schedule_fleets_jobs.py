@@ -11,9 +11,11 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from core.config_key import ConfigKey
 from core.models import Job, Config, Program
 from core.services.job_transitions import JobTransitionService
+from core.services.runners import RunnerRateLimitedError
 from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_fleets_job
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
+from .circuit_breaker import CircuitBreaker
 from .task import SchedulerTask
 
 logger = logging.getLogger("scheduler.ScheduleFleetsJobs")
@@ -28,11 +30,18 @@ class ScheduleFleetsJobs(SchedulerTask):
         self.kill_signal = kill_signal
         self.metrics = metrics
         self.transitions = transitions or JobTransitionService()
+        # opened by Code Engine rate limits on submit
+        self.breaker = CircuitBreaker(
+            ConfigKey.FLEETS_SUBMIT_BREAKER_FAILURES, ConfigKey.FLEETS_SUBMIT_BREAKER_PAUSE_SECONDS
+        )
 
     def run(self):
         """Schedule queued Fleets jobs."""
         if Config.get_bool(ConfigKey.MAINTENANCE):
             logger.warning("System in maintenance mode. Skipping new jobs schedule.")
+            return
+        if self.breaker.is_open:
+            logger.warning("Code Engine is rate limiting submits. Skipping new jobs schedule.")
             return
 
         self._schedule_fleets_jobs()
@@ -66,11 +75,19 @@ class ScheduleFleetsJobs(SchedulerTask):
             env = json.loads(job.env_vars)
             ctx = TraceContextTextMapPropagator().extract(carrier=env)
 
-            job = execute_fleets_job(job, ctx, self.transitions)
+            try:
+                job = execute_fleets_job(job, ctx, self.transitions)
+            except RunnerRateLimitedError as ex:
+                logger.warning("job_id=%s Job kept QUEUED: %s", job.id, ex)
+                self.breaker.record_failure()
+                if self.breaker.is_open:
+                    return
+                continue
 
             logger.warning("job_id=%s Job saved with status=%s", job.id, job.status)
 
             if job.status == Job.PENDING:
+                self.breaker.record_success()
                 self.add_queue_wait_time_metric(job)
             else:
                 # job failed

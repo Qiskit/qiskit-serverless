@@ -3,7 +3,11 @@
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
-from core.models import Job
+import pytest
+
+from core.config_key import ConfigKey
+from core.models import Config, Job
+from core.services.runners import RunnerRateLimitedError
 from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
 
 _MOD = "scheduler.tasks.schedule_fleets_jobs"
@@ -58,3 +62,20 @@ def test_add_queue_wait_time_metric_skips_filler_jobs():
 
     task.add_queue_wait_time_metric(real_job)
     task.metrics.observe_queue_wait_time.assert_called_once()
+
+
+@pytest.mark.django_db
+def test_a_rate_limited_submit_opens_the_breaker_and_skips_the_remaining_jobs():
+    Config.add_defaults()
+    Config.set(ConfigKey.FLEETS_SUBMIT_BREAKER_FAILURES, "1")
+    task = _make_task()
+    jobs = [MagicMock(env_vars="{}"), MagicMock(env_vars="{}")]
+
+    with (
+        patch(f"{_MOD}.get_jobs_to_schedule_fair_share", return_value=jobs),
+        patch(f"{_MOD}.execute_fleets_job", side_effect=RunnerRateLimitedError("Too Many Requests")) as mock_execute,
+    ):
+        task._schedule_jobs_if_slots_available(max_slots_possible=5, number_of_slots_running=0)
+
+    mock_execute.assert_called_once()
+    assert task.breaker.is_open is True

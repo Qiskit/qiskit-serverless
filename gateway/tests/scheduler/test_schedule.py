@@ -16,7 +16,7 @@ from rest_framework.test import APITestCase
 from core.model_managers.job_events import JobEventContext
 from core.models import Job, ComputeResource, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
-from core.services.runners import RunnerError
+from core.services.runners import RunnerError, RunnerRateLimitedError
 from core.services.storage import get_logs_storage
 
 from scheduler.kill_signal import KillSignal
@@ -211,6 +211,27 @@ class TestScheduleApi(APITestCase):
         transitions.to_failed.assert_called_once()
         assert transitions.to_failed.call_args.kwargs["job_fields"]["env_vars"] == "{}"
         transitions.queued_to_pending.assert_not_called()
+
+    @patch("scheduler.schedule.get_runner")
+    @patch("scheduler.schedule.trace")
+    def test_execute_fleets_job_leaves_the_job_untouched_when_rate_limited(self, mock_trace, mock_get_runner_client):
+        """A rate limited submit raises before any write, so the job stays QUEUED with its env vars."""
+        mock_runner = MagicMock()
+        mock_runner.submit.side_effect = RunnerRateLimitedError("Too Many Requests")
+        mock_get_runner_client.return_value = mock_runner
+        transitions = MagicMock()
+
+        job = MagicMock()
+        job.status = Job.QUEUED
+        job.env_vars = '{"KEY": "value"}'
+
+        with pytest.raises(RunnerRateLimitedError):
+            execute_fleets_job(job, MagicMock(), transitions)
+
+        assert job.status == Job.QUEUED
+        assert job.env_vars == '{"KEY": "value"}'
+        transitions.queued_to_pending.assert_not_called()
+        transitions.to_failed.assert_not_called()
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")

@@ -25,7 +25,7 @@ from core.domain.compute_profile import normalize as normalize_compute_profile
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
 from core.models import Job, Program
-from core.services.runners.abstract_runner import RunnerError
+from core.services.runners.abstract_runner import RunnerError, RunnerRateLimitedError
 from core.services.runners import fleets_runner as fleets_runner_module
 from core.services.runners.fleets_runner import FleetsRunner
 
@@ -461,6 +461,18 @@ def test_submit_raises_runner_error_on_api_exception():
     with _patch_settings():
         with pytest.raises(RunnerError):
             runner.submit()
+
+
+def test_submit_raises_rate_limited_error_on_429_without_retrying():
+    """submit() raises RunnerRateLimitedError on a 429 and calls Code Engine only once."""
+    runner, mock_handler = _make_submit_runner()
+    mock_handler.submit_job.side_effect = ApiException(status=429, reason="Too Many Requests")
+
+    with _patch_settings():
+        with pytest.raises(RunnerRateLimitedError):
+            runner.submit()
+
+    mock_handler.submit_job.assert_called_once()
 
 
 def test_submit_raises_runner_error_when_no_fleet_id_returned():
