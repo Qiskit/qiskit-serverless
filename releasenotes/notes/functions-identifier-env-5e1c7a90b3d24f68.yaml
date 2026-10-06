@@ -1,5 +1,0 @@
----
-features:
-  - |
-    Fleets job containers now receive the ``QISKIT_FUNCTIONS_IDENTIFIER``
-    environment variable, set to the id of the Functions job.
