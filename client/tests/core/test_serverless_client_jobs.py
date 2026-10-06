@@ -21,7 +21,7 @@ import requests_mock
 
 from qiskit_serverless import ServerlessClient
 from qiskit_serverless.core.job import Job, Configuration
-from qiskit_serverless.core.function import QiskitFunction
+from qiskit_serverless.core.function import QiskitFunction, RunnableQiskitFunction
 from qiskit_serverless.exception import QiskitServerlessException
 
 
@@ -401,22 +401,6 @@ class TestRunMethod:
             assert job.job_id == "new-job-id"
             request_json = mock_request.last_request.json()
             assert request_json["function_size"] == "m"
-
-    def test_run_with_compute_profile_warns_deprecation(self, mock_client, mock_function):
-        """``compute_profile`` still works but emits a single DeprecationWarning."""
-        mock_response = {"id": "new-job-id"}
-
-        with requests_mock.Mocker() as mocker:
-            mock_request = mocker.post(
-                "https://test-host.com/api/v1/programs/run/",
-                json=mock_response,
-            )
-
-            with pytest.warns(DeprecationWarning):
-                mock_client.run(program=mock_function, compute_profile="4x16")
-
-            request_json = mock_request.last_request.json()
-            assert request_json["compute_profile"] == "4x16"
 
     def test_run_without_configuration_uses_default(self, mock_client, mock_function):
         """Test run() uses default Configuration when none provided."""
@@ -1122,58 +1106,17 @@ class TestFilteredLogsMethod:
 class TestComputeProfile:
     """Test compute_profile functionality."""
 
-    def test_run_with_compute_profile(self, mock_client):
-        """Test run() passes compute_profile to API and Job property works."""
-        mock_response = {
-            "id": "test-job-id",
-            "status": "QUEUED",
-            "compute_profile": "gx3d-24x120x1a100p",
-        }
+    def test_run_with_compute_profile_raises(self, mock_client):
+        """``compute_profile`` is rejected client-side before any request is sent."""
+        function = RunnableQiskitFunction(mock_client, title="test-program")
 
         with requests_mock.Mocker() as mocker:
             mock_request = mocker.post(
                 "https://test-host.com/api/v1/programs/run/",
-                json=mock_response,
-            )
-            mocker.get(
-                "https://test-host.com/api/v1/jobs/test-job-id/",
-                json=mock_response,
+                json={"id": "test-job-id"},
             )
 
-            job = mock_client.run(program="test-program", compute_profile="gx3d-24x120x1a100p")
+            with pytest.raises(QiskitServerlessException):
+                function.run(compute_profile="4x16")
 
-            # Verify client sent compute_profile to API
-            request_data = json.loads(mock_request.last_request.text)
-            assert "compute_profile" in request_data
-            assert request_data["compute_profile"] == "gx3d-24x120x1a100p"
-
-            # Verify Job.compute_profile property works
-            assert job.compute_profile == "gx3d-24x120x1a100p"
-
-    def test_run_without_compute_profile(self, mock_client):
-        """Test run() without compute_profile - backend applies default."""
-        # Mock response includes default compute_profile applied by backend
-        mock_response = {
-            "id": "test-job-id",
-            "status": "QUEUED",
-            "compute_profile": "cx3d-4x16",  # Default applied by gateway
-        }
-
-        with requests_mock.Mocker() as mocker:
-            mock_request = mocker.post(
-                "https://test-host.com/api/v1/programs/run/",
-                json=mock_response,
-            )
-            mocker.get(
-                "https://test-host.com/api/v1/jobs/test-job-id/",
-                json=mock_response,
-            )
-
-            job = mock_client.run(program="test-program")
-
-            # Verify client sent compute_profile as None (backend will apply default)
-            request_data = json.loads(mock_request.last_request.text)
-            assert request_data["compute_profile"] is None
-
-            # Verify backend applied the default
-            assert job.compute_profile == "cx3d-4x16"
+            assert not mock_request.called

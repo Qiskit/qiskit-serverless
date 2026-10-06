@@ -19,7 +19,6 @@ from core.domain.authorization.function_access_result import FunctionAccessResul
 from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import (
-    ComputeProfile,
     FunctionSize,
     Job,
     JobConfig,
@@ -41,31 +40,8 @@ def _is_trial(function: Function, user) -> bool:
     return function.trial_instances.filter(pk__in=user_run_groups).exists()
 
 
-def _config_for_profile_id(compute_profile: str, *, size_source: str) -> RunnerConfig:
-    """Build a Fleets RunnerConfig from a bare compute profile id.
-
-    The id must name a registered ``ComputeProfile`` row; a missing row is a
-    deployment misconfiguration and we reject the job rather than store a null FK.
-    No ``FunctionSize`` row backs a profile resolved this way (the deprecated
-    ``compute_profile`` input), so ``function_size`` is null.
-    """
-    compute_profile_fk = ComputeProfile.objects.get_by_id(compute_profile)
-    if compute_profile_fk is None:
-        raise FunctionConfigurationException(
-            f"Compute profile '{compute_profile}' is not registered. Contact administrator."
-        )
-    return RunnerConfig(
-        compute_profile=compute_profile,
-        gpu=False,
-        compute_profile_fk=compute_profile_fk,
-        size_source=size_source,
-        function_size=None,
-    )
-
-
 def _get_runner_config(
     function: Function,
-    compute_profile_requested: str | None,
     function_size_requested: str | None,
 ) -> RunnerConfig:
     """Resolve the compute profile and sizing provenance for a run.
@@ -83,31 +59,19 @@ def _get_runner_config(
     ``FunctionSize`` row itself, so a stored job stays distinguishable.
 
     Sizing precedence (Fleets):
-        1. Both ``function_size`` and ``compute_profile`` -> rejected as ambiguous.
-        2. ``function_size`` -> resolved through the function's ``FunctionSize``
+        1. ``function_size`` -> resolved through the function's ``FunctionSize``
            catalog (source REQUESTED); an undeclared size is rejected.
-        3. ``compute_profile`` (deprecated) -> used as-is (source COMPUTE_PROFILE).
-        4. Neither -> the function's ``default_size`` (source DEFAULT_SIZE), which
-           is guaranteed to exist for Fleets functions.
+        2. Nothing requested -> the function's ``default_size`` (source
+           DEFAULT_SIZE), which is guaranteed to exist for Fleets functions.
 
-    Both requested values are expected already normalized by the view:
-    ``compute_profile`` to bare (prefix-less) form, ``function_size`` to its
-    canonical (strip+upper) label.
+    ``function_size`` is expected already normalized (strip+casefold) by the view.
 
     Raises:
-        FunctionConfigurationException: on ambiguous input, an undeclared size, or
-            a resolved profile with no registered row.
+        FunctionConfigurationException: on an undeclared size, or a resolved
+            profile with no registered row.
     """
-    # Ambiguous input is always a 400, whatever the runner, so check before the
-    # Ray short-circuit.
-    if compute_profile_requested and function_size_requested:
-        raise FunctionConfigurationException(
-            "Provide either 'function_size' or 'compute_profile', not both. "
-            "'compute_profile' is deprecated; prefer 'function_size'."
-        )
-
     if function.runner != Function.FLEETS:
-        # Ray / GPU: sizes and profiles do not apply; both requested values are ignored.
+        # Ray / GPU: sizes and profiles do not apply; the requested value is ignored.
         gpu = bool(function.provider and function.gpu)
         return RunnerConfig(
             compute_profile=None,
@@ -117,7 +81,7 @@ def _get_runner_config(
             function_size=None,
         )
 
-    # (2) An explicitly requested size resolves through the function's catalog.
+    # (1) An explicitly requested size resolves through the function's catalog.
     # Fetch the FunctionSize row itself so we can record it (billing keys off the
     # size tier); the compute profile comes from that same row.
     if function_size_requested:
@@ -139,15 +103,7 @@ def _get_runner_config(
             function_size=function_size,
         )
 
-    # (3) Deprecated explicit compute profile.
-    if compute_profile_requested:
-        logger.warning(
-            "program=%s | 'compute_profile' is deprecated; use 'function_size'.",
-            function.title,
-        )
-        return _config_for_profile_id(compute_profile_requested, size_source=Job.SIZE_SOURCE_COMPUTE_PROFILE)
-
-    # (4) Nothing requested: the function's default size.
+    # (2) Nothing requested: the function's default size.
     # All Fleets functions must have one (guaranteed by PR #2490 for new functions,
     # seeded during upload for legacy ones); if missing, reject the job.
     if not function.default_size_id:
@@ -229,7 +185,7 @@ class RunFunctionUseCase:
         else:
             trial = business_model == BusinessModel.TRIAL
 
-        runner_config = _get_runner_config(function, data.compute_profile, data.function_size)
+        runner_config = _get_runner_config(function, data.function_size)
         job = Job(
             trial=trial,
             business_model=business_model,
