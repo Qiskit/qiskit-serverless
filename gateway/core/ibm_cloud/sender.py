@@ -20,8 +20,9 @@ class Sender(ABC):
 
     @abstractmethod
     def send(self, payload: dict, timeout: float = 5) -> None:
-        """Deliver the payload. Raises on failure. What `timeout` means, and what timeout=0 does, depends on the
-        implementation."""
+        """Deliver the payload. Raises on failure, except with timeout=0: that only hands the payload over, so it
+        returns at once, does not raise, and a payload that is not delivered is dropped and logged. What else
+        `timeout` means depends on the implementation."""
 
     def send_batch(self, messages: list[PendingMessage]) -> set[int]:
         """Deliver many messages and return the keys of the ones that were delivered. Never raises:
