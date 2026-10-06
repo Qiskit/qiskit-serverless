@@ -708,8 +708,8 @@ class TestRetryWithBackoff:
         assert not Outbox.objects.filter(pk=fresh.pk).exists()
 
     def test_a_group_of_rows_that_always_fail_does_not_block_the_rows_behind_them_once_the_breaker_reopens(self):
-        """The breaker opens, its pause passes and it is half open: one more failure would open it again. The
-        failing rows are waiting, so the probe is the fresh row instead of the oldest bad one."""
+        """The breaker opens and its pause passes. The failing rows are waiting, so what is sent next is the fresh
+        row instead of the oldest bad ones, and its success is what keeps the breaker closed."""
         clock = [0.0]  # seconds since the start, for both the monotonic clock (the breaker) and the wall clock
         sender = _single_sender(fails=lambda payload: payload.get("bad", False))
         task = _make_task(sender=sender)

@@ -102,8 +102,8 @@ class Destination:
         # row that is due.
         while not breaker.is_open and self._should_continue_draining(channel, deadline):
             # Rows that never failed go first, then the oldest of the rest. A pile of rows that always fail
-            # (each due again after its wait) can then never be what the breaker's half-open probe, or a whole
-            # batch, is made of while a fresh row is waiting behind it.
+            # (each due again after its wait) can then never be what a whole batch is made of, and keep the
+            # breaker from closing on a success, while a fresh row is waiting behind it.
             batch = list(
                 Outbox.objects.filter(channel=channel, region=region, next_attempt_at__lte=timezone.now()).order_by(
                     "attempts", "created", "pk"

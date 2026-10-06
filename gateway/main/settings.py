@@ -573,9 +573,7 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "default": "120",
         "type": "integer",
         "description": "Seconds a Kafka outbox row waits after its first failed send. The wait doubles with every "
-        "further failure, up to retry_max_seconds, and is never less than one second. Keep it above "
-        "breaker_pause_seconds, so the row that failed as the circuit breaker's probe is not due again when "
-        "the breaker half opens.",
+        "further failure, up to retry_max_seconds, and is never less than one second.",
     },
     "scheduler.outbox.kafka.retry_max_seconds": {
         "default": "600",

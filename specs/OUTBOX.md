@@ -263,17 +263,15 @@ one per failed row for a plain `Sender`. `base` and `cap` are the `Config` entri
 longest a row waits is the cap (10 minutes), however many times it has failed. A row is never discarded: these are
 billing facts. It is deleted only when it is delivered.
 
-This is what keeps a row that always fails (a payload the destination rejects every time) from starving the rows
-behind it. Without it, once the breaker had opened, its half-open probe would be the oldest row, the same bad one,
-so one failure would open the breaker again after every pause and the region would never send anything. Two things
-prevent that now:
+This is what keeps rows that always fail (a payload the destination rejects every time) from starving the rows
+behind them. Without it, once the breaker had opened and its pause had passed, the oldest rows would be the same bad
+ones again, as many as the failure threshold would be enough to open the breaker again, and the region would never
+send anything. Two things prevent that:
 
 - The rows are read with the ones that never failed first (`ORDER BY attempts, created, pk`), so a pile of bad rows
-  can never be what a probe or a whole batch is made of while a fresh row is waiting behind it.
-- A failed row is not due for `base` seconds, and `base` defaults to twice the breaker's pause (60 s). The row that
-  failed as the probe is therefore still waiting when the breaker half-opens again, and the probe is another row.
-  Keep `retry_base_seconds` above `breaker_pause_seconds`: with a smaller base the same bad row would be due again
-  at the next half-open and would be tried, and fail, a second time.
+  can never be what a whole batch is made of while a fresh row is waiting behind it.
+- A failed row is not due for `base` seconds, so the bad rows tried just before the breaker opened are not read
+  again when it closes, and what is sent next is the rows behind them.
 
 The drain does not tell a failure of the destination from a failure of the row: it counts both for the breaker.
 That is enough because the breaker stops the attempts after a few failures, so during an outage only the rows it
@@ -316,9 +314,9 @@ for any channel using that destination, while the other regions are still sent.
   real wall-clock time from the moment it opened, regardless of how many scheduler
   ticks pass meanwhile.
 - It closes itself the next time anything asks whether it is open, once that pause
-  has elapsed, but half open: the failure counter is left one short of the threshold, so a
-  single failure opens it again, while a success clears the streak. A destination that is still
-  down therefore costs one probe per pause, not a whole failure streak.
+  has elapsed, with the failure counter back at zero: it takes a whole new streak to open it again. A
+  destination that is still down therefore costs one failure streak (the threshold) per pause, which is why
+  both are tuned together (a lower threshold makes the streak cheap, a longer pause makes it rare).
 - A region's breaker is checked right before each of its batches is sent, so a failure that
   trips it mid-tick keeps the rest of that region's rows from being sent in the same tick.
 - One pass over the pending rows can cost one flush timeout per failing region before the budget
