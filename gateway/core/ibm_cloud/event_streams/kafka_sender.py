@@ -22,6 +22,7 @@ else to wire up::
 
     sender = build_kafka_sender()
     sender.send(payload)  # raises RuntimeError (or UnroutableRegionError) on failure
+    sender.send(payload, timeout=0)  # does not wait for the broker and never raises: a failure is only logged
 
 The outbox uses sender.send_batch(messages) instead, which never raises and returns the keys the broker
 confirmed.
@@ -32,6 +33,7 @@ See outbox.py and core/services/job_transitions.py for the two real callers.
 import json
 import logging
 import time
+from collections.abc import Callable
 
 from confluent_kafka import Producer
 from django.conf import settings
@@ -46,8 +48,9 @@ class KafkaSender(Sender):
     """Sends a payload to Kafka as-is, plus `type`. See KafkaProducers for how producers/topic
     are configured and how a payload's CRN is routed to a region."""
 
-    def __init__(self, producers: KafkaProducers | None = None) -> None:
+    def __init__(self, producers: KafkaProducers | None = None, clock: Callable[[], float] = time.monotonic) -> None:
         self._producers = producers or KafkaProducers()
+        self._clock = clock
         self._dropped = 0  # best effort messages lost since the last warning
         self._last_drop_warning = float("-inf")
 
@@ -63,6 +66,7 @@ class KafkaSender(Sender):
         # a fast broker-side rejection (e.g. a topic ACL problem) calls the callback with an error
         # before flush() returns, so the callback has to record it for us to raise below.
         delivery_errors = []
+        event_id = payload.get("id") if isinstance(payload, dict) else None
 
         def on_delivery(err, msg):
             if err is not None:
@@ -80,19 +84,25 @@ class KafkaSender(Sender):
             # no data.instance_crn (impossible), an invalid crn (even more impossible), or no producer for its region
             raise
         except Exception as e:
-            raise RuntimeError(f"KafkaSender: Failed to publish event (id={payload.get('id')}): {str(e)}") from e
+            raise RuntimeError(f"KafkaSender: Failed to publish event (id={event_id}): {str(e)}") from e
 
     def _produce(self, payload: dict, callback) -> Producer:
         """Queue the payload, plus `type`, in its region's producer and return that producer. Does not wait.
         Raises UnroutableRegionError when it cannot be routed, or whatever produce() raises (a full queue)."""
         message = {**payload, "type": self._producers.topic}
         producer = self._producers.get(self._instance_crn(message))
-        producer.produce(
-            topic=self._producers.topic,
-            key=message["subject"].encode("utf-8"),
-            value=json.dumps(message).encode("utf-8"),
-            callback=callback,
-        )
+        try:
+            producer.produce(
+                topic=self._producers.topic,
+                key=message["subject"].encode("utf-8"),
+                value=json.dumps(message).encode("utf-8"),
+                callback=callback,
+            )
+        except BufferError:
+            # The local queue also holds the messages already delivered or expired, until their delivery report
+            # is served. Only poll() serves them, so without it a full queue would never be emptied.
+            producer.poll(0)
+            raise
         return producer
 
     def _send_without_waiting(self, payload: dict) -> None:
@@ -113,7 +123,7 @@ class KafkaSender(Sender):
         """A best effort message was lost. Warn at most once per 30 s, with how many were lost since the last
         warning, so a broker that is down does not write a log line per job per second."""
         self._dropped += 1
-        now = time.monotonic()
+        now = self._clock()
         if now - self._last_drop_warning >= 30:
             logger.warning(
                 "%s best effort message(s) dropped since the last warning, last: subject=%s error=%s",
