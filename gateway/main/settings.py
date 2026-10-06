@@ -569,6 +569,19 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "type": "integer",
         "description": "How long the Kafka outbox circuit breaker stays open once tripped.",
     },
+    "scheduler.outbox.kafka.retry_base_seconds": {
+        "default": "120",
+        "type": "integer",
+        "description": "Seconds a Kafka outbox row waits after its first failed send. The wait doubles with every "
+        "further failure, up to retry_max_seconds, and is never less than one second. Keep it above "
+        "breaker_pause_seconds, so the row that failed as the circuit breaker's probe is not due again when "
+        "the breaker half opens.",
+    },
+    "scheduler.outbox.kafka.retry_max_seconds": {
+        "default": "600",
+        "type": "integer",
+        "description": "The longest a Kafka outbox row waits between two tries, however many times it has failed.",
+    },
 }
 
 # Fleets / Code Engine credentials

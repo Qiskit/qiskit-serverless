@@ -1,10 +1,12 @@
 """Unit tests for OutboxTask."""
 
+from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
+from django.utils import timezone
 
 from core.config_key import ConfigKey
 from core.models import Config, Job, Outbox, OutboxChannel, Program
@@ -58,6 +60,8 @@ def _kafka_destination(task, sender) -> Destination:
         sender=sender,
         breaker_factory=build_kafka_circuit_breaker,
         budget_key=ConfigKey.OUTBOX_KAFKA_CHANNEL_BUDGET_MS,
+        retry_base_key=ConfigKey.OUTBOX_KAFKA_CHANNEL_RETRY_BASE_SECONDS,
+        retry_max_key=ConfigKey.OUTBOX_KAFKA_CHANNEL_RETRY_MAX_SECONDS,
     )
 
 
@@ -535,3 +539,193 @@ class TestSendersWithoutBatches:
 
         assert sender.send.call_count == 1
         assert Outbox.objects.count() == 2
+
+
+class TestRetryWithBackoff:
+    """A row that fails is kept with its attempt recorded and left alone until its wait is over, so a row that
+    always fails cannot keep the rows behind it from being sent."""
+
+    @staticmethod
+    def _wait_of(row) -> timedelta:
+        return row.next_attempt_at - timezone.now()
+
+    def test_a_failed_row_records_the_attempt_and_waits(self):
+        row = _make_row()
+        task = _make_task(sender=_single_sender(fails=lambda payload: True))
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "100")
+
+        task.run()
+
+        row.refresh_from_db()
+        assert row.attempts == 1
+        assert row.last_error == "RuntimeError: boom"
+        assert self._wait_of(row) > timedelta(seconds=60)  # with the defaults, longer than the breaker's pause
+
+    def test_the_rows_a_batch_sender_did_not_confirm_record_the_attempt_too(self):
+        bad_row = _make_row()
+        good_row = _make_row()
+        task = _make_task(sender=_sender(delivers=lambda pk: pk != bad_row.pk))
+
+        task.run()
+
+        bad_row.refresh_from_db()
+        assert bad_row.attempts == 1
+        assert bad_row.last_error == "not confirmed by the sender"
+        assert self._wait_of(bad_row) > timedelta(seconds=60)
+        assert not Outbox.objects.filter(pk=good_row.pk).exists()
+
+    def test_a_batch_where_nothing_was_confirmed_makes_every_row_wait(self):
+        sender = _sender(delivers=lambda pk: False)
+        task = _make_task(sender=sender)
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "100")
+        row = _make_row()
+        task.run()
+
+        row.refresh_from_db()
+        assert (row.attempts, self._wait_of(row) > timedelta(seconds=60)) == (1, True)
+        sender.send_batch.reset_mock()
+        task.run()
+        sender.send_batch.assert_not_called()
+
+    def test_a_row_that_is_still_waiting_is_not_sent_again(self):
+        sender = _single_sender(fails=lambda payload: True)
+        task = _make_task(sender=sender)
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1000000")  # the breaker must not be what stops it
+        _make_row()
+        task.run()
+        sender.send.reset_mock()
+
+        task.run()
+
+        sender.send.assert_not_called()
+
+    def test_a_row_is_sent_again_and_deleted_once_its_wait_is_over(self):
+        sender = _single_sender()
+        task = _make_task(sender=sender)
+        row = _make_row()
+        Outbox.objects.filter(pk=row.pk).update(attempts=2, next_attempt_at=timezone.now() - timedelta(seconds=1))
+
+        task.run()
+
+        sender.send.assert_called_once()
+        assert not Outbox.objects.filter(pk=row.pk).exists()
+
+    def test_the_attempts_keep_growing_across_ticks(self):
+        task = _make_task(sender=_single_sender(fails=lambda payload: True))
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1000000")
+        row = _make_row()
+        for expected in (1, 2):
+            task.run()
+            Outbox.objects.filter(pk=row.pk).update(next_attempt_at=timezone.now() - timedelta(seconds=1))
+            row.refresh_from_db()
+            assert row.attempts == expected
+
+    def test_the_wait_doubles_with_every_attempt_and_stops_at_the_cap(self):
+        Config.add_defaults()
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_RETRY_BASE_SECONDS, "30")
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_RETRY_MAX_SECONDS, "100")
+        waits = []
+        for attempts_so_far in (0, 1, 2, 3, 2_000_000_000):
+            row = _make_row()
+            Outbox.objects.filter(pk=row.pk).update(attempts=attempts_so_far)
+            task = _make_task(sender=_single_sender(fails=lambda payload: True))
+            Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "100")
+            now = timezone.now()
+            with patch(f"{_MOD}.timezone.now", return_value=now):
+                task.channels[OutboxChannel.JOB_USAGE].drain(OutboxChannel.JOB_USAGE)
+            row.refresh_from_db()
+            waits.append(row.next_attempt_at - now)
+            row.delete()
+
+        assert waits == [timedelta(seconds=s) for s in (30, 60, 100, 100, 100)]
+
+    def test_the_defaults_wait_longer_than_the_breaker_pause_and_stop_at_ten_minutes(self):
+        Config.add_defaults()
+        waits = []
+        for attempts_so_far in (0, 10):
+            row = _make_row()
+            Outbox.objects.filter(pk=row.pk).update(attempts=attempts_so_far)
+            task = _make_task(sender=_single_sender(fails=lambda payload: True))
+            now = timezone.now()
+            with patch(f"{_MOD}.timezone.now", return_value=now):
+                task.channels[OutboxChannel.JOB_USAGE].drain(OutboxChannel.JOB_USAGE)
+            row.refresh_from_db()
+            waits.append(row.next_attempt_at - now)
+            row.delete()
+
+        assert waits == [timedelta(seconds=120), timedelta(seconds=600)]
+        assert Config.get_int(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_PAUSE_SECONDS) < 120
+
+    def test_the_wait_is_at_least_one_second_even_if_the_base_is_zero(self):
+        sender = _single_sender(fails=lambda payload: True)
+        task = _make_task(sender=sender)
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "100")
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_RETRY_BASE_SECONDS, "0")
+        row = _make_row()
+
+        task.run()
+
+        row.refresh_from_db()
+        assert sender.send.call_count == 1  # not retried in a loop for the rest of the tick
+        assert self._wait_of(row) > timedelta(milliseconds=500)
+
+    def test_an_error_message_longer_than_the_column_or_with_a_nul_is_stored_cut_and_clean(self):
+        sender = _single_sender()
+        sender.send.side_effect = RuntimeError("x" * 2000 + "\x00")
+        task = _make_task(sender=sender)
+        row = _make_row()
+
+        task.run()
+
+        row.refresh_from_db()
+        assert len(row.last_error) == 500
+        assert row.last_error.startswith("RuntimeError: xxx")
+        assert "\x00" not in row.last_error
+
+    def test_a_region_with_only_waiting_rows_is_not_even_visited(self):
+        sender = _single_sender()
+        task = _make_task(sender=sender)
+        waiting = _make_row(region="eu-de")
+        Outbox.objects.filter(pk=waiting.pk).update(attempts=1, next_attempt_at=timezone.now() + timedelta(hours=1))
+        _make_row(region="us-east")
+
+        task.run()
+
+        assert set(task.channels[OutboxChannel.JOB_USAGE].breakers) == {"us-east"}
+
+    def test_rows_that_never_failed_go_before_the_ones_that_did(self):
+        sent = []
+        sender = _single_sender()
+        sender.send.side_effect = lambda payload: sent.append(payload["name"])
+        task = _make_task(sender=sender)
+        old_failed = [_make_row(payload={"name": f"failed-{i}", "data": {}}) for i in range(3)]
+        fresh = _make_row(payload={"name": "fresh", "data": {}})
+        Outbox.objects.filter(pk__in=[r.pk for r in old_failed]).update(attempts=1)
+
+        task.run()
+
+        assert sent[0] == "fresh"
+        assert not Outbox.objects.filter(pk=fresh.pk).exists()
+
+    def test_a_group_of_rows_that_always_fail_does_not_block_the_rows_behind_them_once_the_breaker_reopens(self):
+        """The breaker opens, its pause passes and it is half open: one more failure would open it again. The
+        failing rows are waiting, so the probe is the fresh row instead of the oldest bad one."""
+        clock = [0.0]  # seconds since the start, for both the monotonic clock (the breaker) and the wall clock
+        sender = _single_sender(fails=lambda payload: payload.get("bad", False))
+        task = _make_task(sender=sender)
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "3")
+        bad_rows = [_make_row(payload={"bad": True, "data": {}}) for _ in range(3)]
+        good_row = _make_row()
+        base = timezone.now()  # after the rows exist, so all of them are due at clock 0
+
+        with (
+            patch("time.monotonic", side_effect=lambda: clock[0]),
+            patch("django.utils.timezone.now", side_effect=lambda: base + timedelta(seconds=clock[0])),
+        ):
+            task.run()  # the three bad rows fail and open the breaker
+            assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open is True
+            clock[0] = 70.0  # past the breaker's pause (60 s) and still inside the wait of the bad rows (120 s)
+            task.run()
+
+        assert not Outbox.objects.filter(pk=good_row.pk).exists()
+        assert Outbox.objects.filter(pk__in=[r.pk for r in bad_rows]).count() == 3

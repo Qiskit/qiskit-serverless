@@ -36,8 +36,8 @@ A Fleets job produces two kinds of Kafka events:
 - **Outbox**: events that cannot be lost. They are not sent from the scheduler. A JSON
   message is written to the `outbox` table, and the `OutboxTask` scheduler task picks
   these rows up and sends them where they belong (Kafka today, later NTC workloads or
-  whatever comes next). If the target system is down, the send is retried on the next
-  scheduler pass.
+  whatever comes next). If the target system is down, the send is retried once the
+  row's wait is over (see "Retry with a growing wait").
 
 Four events in total:
 
@@ -77,10 +77,16 @@ channel, deleted independently once its own send succeeds.
   out.
 - `created`: set once, at insert (`auto_now_add`), used to drain oldest first and to
   measure how long a row has been waiting.
+- `attempts`, `next_attempt_at` and `last_error`: the retry state, see "Retry with a growing wait" below.
+  A new row has 0 attempts and is due at once (`next_attempt_at` defaults to the moment it is created).
+  `last_error` is only there to find out what is wrong with a row that does not leave.
 
 A composite index on `(channel, created)` backs the pending-rows gauges, and one on
-`(channel, region, created)` backs the drain, which filters by channel and region and orders by
-`created`.
+`(channel, region, created)` backs the drain, which filters by channel, region and `next_attempt_at` and orders by
+`created` (after `attempts`, see "Retry with a growing wait"). There is no index on `next_attempt_at`: the rows
+waiting out a retry are usually few, and the filter runs over the rows the existing index already narrows down.
+The three new columns have a database default as well as a Python one (`db_default`), so that a pod still running
+the previous release can insert rows during a rolling deploy.
 
 A row is deleted as soon as it is sent successfully. There is no history of what was
 already sent in this table.
@@ -192,21 +198,24 @@ added later, by the sender, at send time, because it is only known once
 `OutboxTask` (`gateway/scheduler/tasks/outbox.py`), wired into the scheduler
 loop in `gateway/scheduler/main.py`, holds a `{OutboxChannel: Destination}` registry, where
 `Destination` (`gateway/scheduler/tasks/outbox_destination.py`) pairs a sender, a factory of
-`CircuitBreaker`s (it keeps one per region), and the `ConfigKey` that holds the time budget in
-milliseconds. Those three belong to the destination and not to the channel, so `LICENSE_FEE` and `JOB_USAGE` simply
+`CircuitBreaker`s (it keeps one per region), the `ConfigKey` that holds the time budget in
+milliseconds, and the two that set how long a failed row waits before its next try. Those belong to the destination
+and not to the channel, so `LICENSE_FEE` and `JOB_USAGE` simply
 point at the same `Destination`, whose sender is a `KafkaSender()` today (or `NoOpSender()` when
 `EVENT_STREAMS_ENABLED` is false); see "Circuit breaker" below for how that shares the breakers. `OutboxTask`
 only builds the destinations and, on every tick, asks the one of each channel to report that channel's gauges and
 drain its rows, each channel within its own time budget. A `Destination` is transport-agnostic: it knows only `Outbox`, `Config`, and the two sender contracts below, never Kafka or any of its exception
 types.
 
-For each channel, once a tick, the task first lists the regions that have pending rows (null is one more
-region), the one with the oldest row first. Each region has its own breaker: if it is open, the region is
+For each channel, once a tick, the task first lists the regions that have rows due (null is one more
+region), the one with the oldest due row first. A row is due when its `next_attempt_at` has passed, so a row
+that is waiting out a retry is invisible to the drain. Each region has its own breaker: if it is open, the region is
 skipped without reading any of its rows. Otherwise the task drains it in successive small batches
 (`BATCH_SIZE = 100` rows, a code constant, not a `Config` entry: it bounds a single query, not throughput),
-oldest first, until nothing is left pending, the breaker opens, the tick's time budget runs out, or the kill
-signal arrives. It pages forward by `(created, pk)` from the last row it saw, so a row that is not delivered
-is not retried in a hot loop within one tick; it is picked up again on the next tick.
+the rows that never failed first and then the oldest, until no row is left due, the breaker opens, the tick's time
+budget runs out, or the kill signal arrives. A row that fails is not due again for at least a second, so the next
+fetch does not find it and a tick makes at most one attempt per row that was due (unless one send takes longer than
+the wait): it is not retried in a hot loop.
 
 There are two kinds of sender, and the `Destination` picks how to send by the kind (`isinstance(sender, BatchSender)`):
 
@@ -216,8 +225,8 @@ There are two kinds of sender, and the `Destination` picks how to send by the ki
   row of the batch was delivered and one failure only when none was, so isolated bad rows do not open it, but a
   whole batch of them does.
 - A plain `Sender`, with only `send(payload)` (an HTTP call per message, say), gets its rows one by one. A row
-  that is delivered is deleted and counts as a success for the breaker at once. A `send` that raises leaves the
-  row for the next tick and counts as a failure at once, so the breaker opens as soon as the threshold is
+  that is delivered is deleted and counts as a success for the breaker at once. A `send` that raises puts the
+  row into a wait and counts as a failure at once, so the breaker opens as soon as the threshold is
   reached and the rest of the batch is not sent in this tick. The time budget and the kill signal are checked
   before every row, so a plain `Sender` must have its own timeout: a `send` that never returns holds the whole
   tick, because nothing here interrupts it.
@@ -228,18 +237,56 @@ task deletes exactly the confirmed rows: there is nothing left to re-check, beca
 message, and sending it is the only thing it was waiting for.
 
 Any row the sender does not confirm, for whatever reason (`UnroutableRegionError`, a broker
-rejection, a flush timeout, a `send` that raises), stays for the next tick. The time budget is for the healthy path: a region that fails waits
+rejection, a flush timeout, a `send` that raises), stays, and is tried again once its wait is over (see
+"Retry with a growing wait"). The time budget is for the healthy path: a region that fails waits
 out `KafkaSender`'s own flush timeout (5 s), which spends the budget and ends the tick. The producers
 are created with `message.timeout.ms` at 4 s, just under that flush timeout, so a message that cannot
 be delivered in time fails inside the flush instead of staying queued and being delivered minutes
-later, on top of the copy produced again from its row on the next tick. A message the broker did
+later, on top of the copy produced again from its row once its wait is over. A message the broker did
 write but whose ack came too late is sent again from its row: delivery is at least once. The same holds for a plain
 `Sender`: if the process dies, or the delete of the row fails, right after a `send` succeeded, the row is sent again. Nothing here deletes a row on failure: a missing region producer is a config gap
-(`EVENT_STREAMS_BOOTSTRAP_SERVERS_<REGION>`), and the same row becomes sendable again
-once it is added. `KafkaProducers.get`'s other failure mode, a CRN it cannot parse a
+(`EVENT_STREAMS_BOOTSTRAP_SERVERS_<REGION>`), and the same row is sent once it is added, as soon as
+its wait is over (at most the retry cap, 10 minutes by default). `KafkaProducers.get`'s other failure mode, a CRN it cannot parse a
 region out of at all, is not something this code defends against separately: every
 CRN reaching this table was already validated upstream, when the request that owns it
 was authorized, so a malformed one here is not expected to occur.
+
+### Retry with a growing wait
+
+Every row that fails goes into a wait, for both kinds of sender. The drain adds 1 to its `attempts`, stores why it
+failed in `last_error` (the exception for a plain `Sender`, a generic "not confirmed by the sender" for a
+`BatchSender`, whose `send_batch` returns no causes and whose sender has already logged them; cut to 500
+characters and without NUL characters), and moves `next_attempt_at` to now plus `min(base * 2^(attempts - 1), cap)`
+seconds, never less than one second. It writes them with a `bulk_update`: one per failed batch for a `BatchSender`,
+one per failed row for a plain `Sender`. `base` and `cap` are the `Config` entries
+`scheduler.outbox.kafka.retry_base_seconds` (120) and `scheduler.outbox.kafka.retry_max_seconds` (600), so the
+longest a row waits is the cap (10 minutes), however many times it has failed. A row is never discarded: these are
+billing facts. It is deleted only when it is delivered.
+
+This is what keeps a row that always fails (a payload the destination rejects every time) from starving the rows
+behind it. Without it, once the breaker had opened, its half-open probe would be the oldest row, the same bad one,
+so one failure would open the breaker again after every pause and the region would never send anything. Two things
+prevent that now:
+
+- The rows are read with the ones that never failed first (`ORDER BY attempts, created, pk`), so a pile of bad rows
+  can never be what a probe or a whole batch is made of while a fresh row is waiting behind it.
+- A failed row is not due for `base` seconds, and `base` defaults to twice the breaker's pause (60 s). The row that
+  failed as the probe is therefore still waiting when the breaker half-opens again, and the probe is another row.
+  Keep `retry_base_seconds` above `breaker_pause_seconds`: with a smaller base the same bad row would be due again
+  at the next half-open and would be tried, and fail, a second time.
+
+The drain does not tell a failure of the destination from a failure of the row: it counts both for the breaker.
+That is enough because the breaker stops the attempts after a few failures, so during an outage only the rows it
+tried pay an attempt (a failed batch of a `BatchSender` charges every row of the batch, up to 100 per failure). It
+does mean that rows which all fail at once in a batch look like an outage: the batch counts as one failure, all
+its rows wait, and the next batch of the same tick reaches the rows behind them. A row with many attempts is visible
+in `attempts` and `last_error`. Telling the two apart in the sender is possible later, and would only be an addition.
+
+A failed row is not due again for at least a second, so the next fetch of the same tick cannot find it, unless a
+single send takes longer than its wait.
+
+The pending-rows and oldest-pending-age gauges count the rows that are waiting too, so the age alert keeps firing
+for a row that is stuck in retries, which is intended: it is the signal that something is wrong with it.
 
 `KafkaSender` (`gateway/core/ibm_cloud/event_streams/kafka_sender.py`) is the sender
 behind both billing channels: it adds the Kafka topic name to the payload's `type`
@@ -287,7 +334,9 @@ without recreating the breaker or restarting the process.
 Everything except the batch size is a `Config` entry (admin-editable, no redeploy
 needed): `scheduler.outbox.kafka.budget_ms` (default 500),
 `scheduler.outbox.kafka.breaker_failures` (default 5) and
-`scheduler.outbox.kafka.breaker_pause_seconds` (default 60). They apply to all the Kafka
+`scheduler.outbox.kafka.breaker_pause_seconds` (default 60),
+`scheduler.outbox.kafka.retry_base_seconds` (default 120) and `scheduler.outbox.kafka.retry_max_seconds`
+(default 600). They apply to all the Kafka
 channels together (`LICENSE_FEE` and `JOB_USAGE`), and there is no on/off switch: the Kafka
 channels are always active. A future channel that is not Kafka gets its own `Config` keys
 and its own `Destination` with its own `budget_key`, without touching these.
@@ -332,8 +381,9 @@ logic. It needs:
    time (the breaker counts each failure at once), or a `BatchSender`, which also has `send_batch(messages)` if it can
    confirm many at once (the breaker counts a failure only when a whole batch fails). A plain `Sender` needs its own
    timeout, because nothing in the drain interrupts a `send` that does not return. Plus its own `ConfigKey`s for the time
-   budget and the breaker thresholds, wrapped in one
-   `Destination(sender=..., breaker_factory=..., budget_key=..., metrics=..., kill_signal=...)`, registered
+   budget, the breaker thresholds and the retry wait, wrapped in one
+   `Destination(sender=..., breaker_factory=..., budget_key=..., retry_base_key=..., retry_max_key=..., metrics=...,
+   kill_signal=...)`, registered
    under its own key in `OutboxTask.channels`. A channel that goes to an existing destination just registers that
    same `Destination` under its own key, and shares its sender, breakers and budget `Config` key (each channel still gets its own time window in every tick); one with a new sender builds
    a new `Destination`, with its own breakers.
