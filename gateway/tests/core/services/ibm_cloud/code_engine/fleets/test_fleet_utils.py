@@ -257,13 +257,6 @@ def test_build_run_env_variables_drops_env_job_arguments():
     assert "KEEP" in names
 
 
-def test_build_run_env_variables_sets_functions_identifier():
-    """build_run_env_variables exposes the job id as QISKIT_FUNCTIONS_IDENTIFIER."""
-    result = build_run_env_variables(_make_paths(), {}, job_id="job-123")
-    by_name = {e["name"]: e["value"] for e in result}
-    assert by_name["QISKIT_FUNCTIONS_IDENTIFIER"] == "job-123"
-
-
 def test_build_run_env_variables_with_private_log():
     """build_run_env_variables includes PRIVATE_LOG_PATH when container_private_log_path is set."""
     result = build_run_env_variables(
