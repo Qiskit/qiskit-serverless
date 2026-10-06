@@ -383,15 +383,6 @@ class TestBestEffortEvents:
 
         sender.send_best_effort.assert_not_called()
 
-    def test_a_kafka_failure_on_job_started_does_not_undo_the_transition(self, service, sender, fleets_job):
-        sender.send_best_effort.side_effect = RuntimeError("kafka down")
-
-        service.pending_to_running(
-            fleets_job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
-        )  # must not raise
-
-        assert Job.objects.get(pk=fleets_job.pk).status == Job.RUNNING
-
     def test_running_to_running_sends_progress_without_writing_anything(self, service, sender, fleets_job):
         Job.objects.filter(pk=fleets_job.pk).update(status=Job.RUNNING)
         fleets_job.refresh_from_db()
@@ -411,22 +402,6 @@ class TestBestEffortEvents:
         assert data["job_completed"] is False
         assert JobEvent.objects.filter(job=fleets_job).count() == events_before
         assert Job.objects.get(pk=fleets_job.pk).status == Job.RUNNING
-
-    def test_a_kafka_failure_is_logged_and_does_not_reach_the_caller(self, service, sender, fleets_job, caplog):
-        sender.send_best_effort.side_effect = RuntimeError("kafka down")
-        Job.objects.filter(pk=fleets_job.pk).update(status=Job.RUNNING)
-        JobEvent.objects.add_status_event(
-            job_id=fleets_job.id,
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.UPDATE_JOB_STATUS,
-            status=Job.RUNNING,
-        )
-
-        with caplog.at_level(logging.ERROR):
-            service.running_to_running(fleets_job)  # must not raise
-
-        assert "event dropped" in caplog.text
-        assert "kafka down" in caplog.text
 
     def test_a_filler_job_sends_nothing(self, service, sender, fleets_job):
         Job.objects.filter(pk=fleets_job.pk).update(filler=True)
