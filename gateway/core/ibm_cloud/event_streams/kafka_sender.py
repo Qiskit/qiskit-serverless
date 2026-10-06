@@ -65,20 +65,21 @@ class KafkaSender(Sender):
         # flush() returning 0 only means nothing is left outstanding, not that delivery succeeded:
         # a fast broker-side rejection (e.g. a topic ACL problem) calls the callback with an error
         # before flush() returns, so the callback has to record it for us to raise below.
-        delivery_errors = []
+        delivery_error = None
 
         def on_delivery(err, msg):
+            nonlocal delivery_error
             if err is not None:
                 self._log_delivery_error(err, msg)
-                delivery_errors.append(err)
+                delivery_error = err
 
         try:
             producer = self._produce(payload, on_delivery)
             remaining = producer.flush(timeout=timeout)
             if remaining > 0:
                 raise RuntimeError(f"KafkaSender: {remaining} message(s) not delivered after flush timeout")
-            if delivery_errors:
-                raise RuntimeError(f"KafkaSender: message delivery failed: {delivery_errors[0]}")
+            if delivery_error is not None:
+                raise RuntimeError(f"KafkaSender: message delivery failed: {delivery_error}")
         except UnroutableRegionError:
             # no data.instance_crn (impossible), an invalid crn (even more impossible), or no producer for its region
             raise
