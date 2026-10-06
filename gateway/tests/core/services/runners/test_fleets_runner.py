@@ -25,9 +25,10 @@ from core.domain.compute_profile import normalize as normalize_compute_profile
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
 from core.models import Job, Program
-from core.services.runners.abstract_runner import RunnerError
+from core.services.runners.abstract_runner import RunnerError, RunnerRateLimitedError
 from core.services.runners import fleets_runner as fleets_runner_module
 from core.services.runners.fleets_runner import FleetsRunner
+from tests.utils import TestUtils
 
 _RUNNER_MOD = "core.services.runners.fleets_runner"
 
@@ -44,6 +45,7 @@ def _make_runner(fleet_id: str | None = None) -> tuple[FleetsRunner, MagicMock]:
     mock_job = MagicMock()
     mock_job.fleet_id = fleet_id
     mock_job.filler = False
+    mock_job.ce_project_name = None
     mock_job.program.title = "my-function"
     mock_job.author.username = "IBMid-1000000000"
     mock_job.SUCCEEDED = "SUCCEEDED"
@@ -59,6 +61,8 @@ def _make_runner(fleet_id: str | None = None) -> tuple[FleetsRunner, MagicMock]:
     mock_project = MagicMock()
     mock_project.cos_bucket_task_store_name = "task-store-bucket"
     mock_project.project_id = "test-project-id"
+    mock_handler.project_id = mock_project.project_id
+    mock_job.program.code_engine_project = mock_project
     runner._handler = mock_handler  # pylint: disable=protected-access
     runner._project = mock_project  # pylint: disable=protected-access
     runner._cos = mock_cos  # pylint: disable=protected-access
@@ -134,6 +138,7 @@ def _make_submit_runner() -> tuple[FleetsRunner, MagicMock]:
     mock_project.cos_key_name = "cos-key"
     mock_project.pds_name_users = "user-pds"
     mock_project.pds_name_providers = "provider-pds"
+    mock_handler.project_id = mock_project.project_id
     runner._project = mock_project  # pylint: disable=protected-access
     runner._connected = True  # pylint: disable=protected-access
 
@@ -371,6 +376,49 @@ def test_stop_raises_runner_error_when_the_cancel_could_not_be_sent():
 
     with pytest.raises(RunnerError, match="Code Engine API error"):
         runner.stop()
+
+
+def test_free_resources_deletes_the_fleet():
+    """free_resources() reports True once Code Engine accepted the delete."""
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+
+    assert runner.free_resources() is True
+    mock_handler.delete_job.assert_called_once_with("fleet-123")
+
+
+def test_free_resources_returns_false_when_the_delete_could_not_be_sent():
+    """A Code Engine error leaves the fleet for a later cycle rather than raising at the scheduler."""
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    mock_handler.delete_job.side_effect = ApiException(status=500, reason="Internal Error")
+
+    assert runner.free_resources() is False
+
+
+def test_free_resources_raises_on_a_rate_limit():
+    """The caller has to tell a rate limit apart from a fleet it simply cannot delete."""
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    mock_handler.delete_job.side_effect = ApiException(status=429, reason="Too Many Requests")
+
+    with pytest.raises(RunnerRateLimitedError):
+        runner.free_resources()
+
+
+def test_free_resources_returns_false_when_code_engine_is_unreachable():
+    """A failed connect answers False like any other failure: it must not end the scheduler tick."""
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    runner._connected = False  # pylint: disable=protected-access
+
+    with patch.object(runner, "connect", side_effect=RunnerError("Unable to connect")):
+        assert runner.free_resources() is False
+    mock_handler.delete_job.assert_not_called()
+
+
+def test_free_resources_returns_false_without_a_fleet_id():
+    """Nothing to delete, and no Code Engine call to make."""
+    runner, mock_handler = _make_runner()
+
+    assert runner.free_resources() is False
+    mock_handler.delete_job.assert_not_called()
 
 
 def test_submit_sets_fleet_id_with_cos():
@@ -1079,3 +1127,71 @@ def test_upload_custom_image_entrypoint_keeps_dotdot_prefixed_name():
     assert f"{paths.cos_user_function_prefix}/..config" in uploaded_keys
     assert f"{paths.cos_user_function_prefix}/main.py" in uploaded_keys
     mock_logger.warning.assert_not_called()
+
+
+@pytest.mark.django_db
+class TestExecutionProject:
+    """The fleet lives in the project the job ran in, which the program may no longer point at."""
+
+    @staticmethod
+    def _job(program, **kwargs):
+        return TestUtils.create_job(
+            author=program.author,
+            program=program,
+            status=Job.SUCCEEDED,
+            runner=Program.FLEETS,
+            fleet_id="fleet-123",
+            **kwargs,
+        )
+
+    @staticmethod
+    def _program(project):
+        return TestUtils.create_program(
+            program_title="a-function", author="owner", runner=Program.FLEETS, code_engine_project=project
+        )
+
+    def test_deletes_in_the_project_the_job_ran_in(self):
+        ran_in = TestUtils.get_or_create_ce_project(
+            project_name="old-project", project_id="old-id", cos_bucket_user_data_name="b1", region="us-east"
+        )
+        moved_to = TestUtils.get_or_create_ce_project(
+            project_name="new-project", project_id="new-id", cos_bucket_user_data_name="b2", region="us-east"
+        )
+        job = self._job(self._program(moved_to), ce_project_name="old-project", ce_region="us-east")
+
+        project = FleetsRunner(job)._execution_project()  # pylint: disable=protected-access
+
+        assert project.project_id == ran_in.project_id
+
+    def test_falls_back_to_the_program_without_a_snapshot(self):
+        project = TestUtils.get_or_create_ce_project(
+            project_name="only-project", project_id="only-id", cos_bucket_user_data_name="b3"
+        )
+        job = self._job(self._program(project), ce_project_name=None)
+
+        resolved = FleetsRunner(job)._execution_project()  # pylint: disable=protected-access
+
+        assert resolved.project_id == "only-id"
+
+    def test_deletes_from_an_inactive_project(self):
+        project = TestUtils.get_or_create_ce_project(
+            project_name="gone-project", project_id="gone-id", cos_bucket_user_data_name="b4"
+        )
+        project.active = False
+        project.save(update_fields=["active", "updated"])
+        job = self._job(self._program(project), ce_project_name="gone-project")
+
+        resolved = FleetsRunner(job)._execution_project()  # pylint: disable=protected-access
+
+        assert resolved.project_id == "gone-id"
+
+    def test_free_resources_sends_nothing_for_an_unknown_project(self):
+        project = TestUtils.get_or_create_ce_project(
+            project_name="known", project_id="known-id", cos_bucket_user_data_name="b5"
+        )
+        job = self._job(self._program(project), ce_project_name="vanished-project")
+        runner = FleetsRunner(job)
+
+        with patch.object(runner, "connect") as connect:
+            assert runner.free_resources() is False
+        connect.assert_not_called()

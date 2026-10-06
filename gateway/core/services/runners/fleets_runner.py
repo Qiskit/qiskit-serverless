@@ -28,7 +28,7 @@ from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
 from core.domain import compute_profile
 from core.models import Job, CodeEngineProject
-from core.services.runners.abstract_runner import AbstractRunner, RunnerError
+from core.services.runners.abstract_runner import AbstractRunner, RunnerError, RunnerRateLimitedError
 from core.ibm_cloud import get_ce_auth, get_cos_client
 from core.utils import decrypt_env_vars
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
@@ -484,25 +484,51 @@ class FleetsRunner(AbstractRunner):
             raise RunnerError(f"Unable to stop fleet [{self.job.fleet_id}]", ex) from ex
 
     def free_resources(self) -> bool:
-        """Delete the fleet associated with this job.
+        """Delete this job's fleet, so it stops counting against the project's fleet limit.
+
+        The caller persists the outcome.
 
         Returns:
-            ``True`` if cleaned up (or already deleted), ``False`` on error.
+            ``True`` when the fleet is gone, including a 404. ``False`` on any other failure.
+
+        Raises:
+            RunnerRateLimitedError: On a 429.
         """
-        # NOTE: fleet deletion disabled to preserve fleets for post-run inspection.
-        # Re-enable after the demo.
-        # if not self.job.fleet_id:
-        #     logger.debug("No fleet_id to clean up for job_id=[%s]", self.job.id)
-        #     return False
-        #
-        # try:
-        #     self._get_handler().delete_job(self.job.fleet_id)
-        #     logger.info("Deleted fleet [%s]", self.job.fleet_id)
-        #     return True
-        # except Exception as ex:  # pylint: disable=broad-exception-caught
-        #     logger.warning("Failed to delete fleet [%s]: %s", self.job.fleet_id, ex)
-        #     return False
-        return False
+        if not self.job.fleet_id:
+            logger.debug("No fleet_id to delete for job_id=[%s]", self.job.id)
+            return False
+
+        try:
+            self._project = self._execution_project()
+            self._ensure_connected()
+            self._get_handler().delete_job(self.job.fleet_id)
+            logger.info("Deleted fleet [%s] of job_id=[%s]", self.job.fleet_id, self.job.id)
+            return True
+        except ApiException as ex:
+            if ex.status == 429:
+                raise RunnerRateLimitedError(f"Code Engine API error: {ex.reason}", ex) from ex
+            logger.warning("Failed to delete fleet [%s] of job_id=[%s]: %s", self.job.fleet_id, self.job.id, ex)
+            return False
+        except Exception as ex:  # pylint: disable=broad-exception-caught
+            logger.warning("Failed to delete fleet [%s] of job_id=[%s]: %s", self.job.fleet_id, self.job.id, ex)
+            return False
+
+    def _execution_project(self) -> CodeEngineProject:
+        """Return the project the fleet was created in, by name, falling back to the program's.
+
+        Accepts an inactive project, unlike ``_get_project``.
+
+        Raises:
+            RunnerError: If neither the snapshot nor the program resolves a project.
+        """
+        if not self.job.ce_project_name:
+            # Jobs created before migration 0053 have no snapshot
+            return self._get_project()
+
+        project = CodeEngineProject.objects.select_by_name(self.job.ce_project_name, self.job.ce_region)
+        if not project:
+            raise RunnerError(f"No Code Engine project '{self.job.ce_project_name}' for job '{self.job.id}'")
+        return project
 
     def _get_project(self) -> CodeEngineProject:
         """Return the program's assigned Code Engine project.
@@ -542,6 +568,11 @@ class FleetsRunner(AbstractRunner):
         """
         if not self._project:
             self._project = self._get_project()
+
+        if self._handler is not None and self._handler.project_id != self._project.project_id:
+            # The project changed under us, so the cached handler points at the wrong one
+            self._handler = None
+            self._connected = False
 
         if self._handler is None:
             try:

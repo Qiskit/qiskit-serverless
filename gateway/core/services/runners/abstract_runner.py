@@ -30,6 +30,10 @@ class RunnerError(Exception):
         return self.message
 
 
+class RunnerRateLimitedError(RunnerError):
+    """The engine answered 429 (Too Many Requests), so the request was not performed."""
+
+
 class AbstractRunner(ABC):
     """Abstract runner for executing jobs on different engines."""
 
@@ -145,6 +149,9 @@ class AbstractRunner(ABC):
 
         Returns:
             True if cleaned up correctly
+
+        Raises:
+            RunnerRateLimitedError: If the engine refused the request with a rate limit.
         """
         raise NotImplementedError
 

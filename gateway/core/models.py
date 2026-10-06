@@ -601,6 +601,11 @@ class Job(models.Model):
     )
     ray_job_id = models.CharField(max_length=255, null=True, blank=True)
     fleet_id = models.CharField(max_length=255, null=True, blank=True, help_text="Code Engine fleet ID")
+    fleet_deleted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the fleet was deleted",
+    )
     result = models.TextField(null=True, blank=True)
     status = models.CharField(
         max_length=10,
@@ -697,6 +702,12 @@ class Job(models.Model):
             models.Index(fields=["created"], condition=models.Q(filler=True), name="job_filler_true_idx"),
             # Backs the admin changelist search by fleet_id.
             models.Index(fields=["fleet_id"], name="job_fleet_id_idx"),
+            # Backs the retention scan in DeleteOldFleets.
+            models.Index(
+                fields=["updated"],
+                condition=models.Q(fleet_deleted_at__isnull=True, fleet_id__isnull=False),
+                name="job_fleet_undeleted_idx",
+            ),
         ]
 
     @classmethod

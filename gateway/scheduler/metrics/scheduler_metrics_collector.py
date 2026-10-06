@@ -102,6 +102,13 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
             labelnames=("kind",),
             registry=self.registry,
         )
+        self.held_fleets = Gauge(
+            "scheduler_held_fleets",
+            "Fleets not yet deleted in each Code Engine project, counting every job status. "
+            "A project holds at most 1000.",
+            labelnames=("project",),
+            registry=self.registry,
+        )
         self.job_execution_duration = Histogram(
             "scheduler_job_execution_duration_seconds",
             "Time successful jobs spend executing from RUNNING to SUCCEEDED.",
@@ -177,6 +184,14 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
     def set_outbox_breaker_open(self, is_open: bool, channel: str) -> None:
         """Record whether a given outbox channel's circuit breaker is currently open."""
         self.outbox_breaker_open.labels(channel=channel).set(1 if is_open else 0)
+
+    def clear_held_fleets(self) -> None:
+        """Remove all label combinations from held_fleets to avoid stale values."""
+        self.held_fleets.clear()
+
+    def set_held_fleets(self, count: int, project: str) -> None:
+        """Set the number of fleets not yet deleted in one Code Engine project."""
+        self.held_fleets.labels(project=project).set(count)
 
     def clear_job_status_counts(self) -> None:
         """Remove all label combinations from job_status_count to avoid stale values."""
