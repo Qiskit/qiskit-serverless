@@ -75,44 +75,21 @@ def program(user, ce_project):
 
 
 @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
-def test_create_job_with_compute_profile(api_client, program):
-    """A prefixed submission is accepted and stored in bare notation."""
+def test_run_with_compute_profile_is_rejected(api_client, program):
+    """Sending the removed compute_profile key is a 400 naming function_size, not a silent 200."""
     url = reverse("v1:programs-run")
     data = {
         "title": program.title,
         "arguments": "{}",
         "config": {},
-        "compute_profile": "gx3d-24x120x1a100p",
+        "compute_profile": "4x16",
     }
 
     response = api_client.post(url, data, format="json")
 
-    assert response.status_code == status.HTTP_200_OK
-    # The prefix is normalized away: the canonical bare form is what we store.
-    assert response.data["compute_profile_fk"]["compute_profile_id"] == "24x120x1a100p"
-
-    job = Job.objects.get(id=response.data["id"])
-    assert job.compute_profile == "24x120x1a100p"
-
-
-@override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
-def test_create_job_with_bare_compute_profile(api_client, program):
-    """A bare submission is stored unchanged."""
-    url = reverse("v1:programs-run")
-    data = {
-        "title": program.title,
-        "arguments": "{}",
-        "config": {},
-        "compute_profile": "24x120x1a100p",
-    }
-
-    response = api_client.post(url, data, format="json")
-
-    assert response.status_code == status.HTTP_200_OK
-    assert response.data["compute_profile_fk"]["compute_profile_id"] == "24x120x1a100p"
-
-    job = Job.objects.get(id=response.data["id"])
-    assert job.compute_profile == "24x120x1a100p"
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "function_size" in response.data["message"]
+    assert not Job.objects.exists()
 
 
 @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
@@ -129,80 +106,6 @@ def test_create_job_without_compute_profile_and_without_default_size_is_rejected
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert not Job.objects.exists()
-
-
-@pytest.mark.parametrize(
-    "submitted,stored",
-    [
-        # Prefixed inputs are accepted and normalized to bare.
-        ("cx3d-4x16", "4x16"),
-        ("gx3d-24x120x1a100p", "24x120x1a100p"),
-        ("mx2d-8x64", "8x64"),
-        ("bx2d-2x8", "2x8"),
-        # Bare inputs are accepted and stored unchanged.
-        ("4x16", "4x16"),
-        ("24x120x1a100p", "24x120x1a100p"),
-    ],
-)
-def test_compute_profile_validation_valid_formats(api_client, program, submitted, stored):
-    """Valid formats (prefixed or bare) are accepted and stored bare."""
-    url = reverse("v1:programs-run")
-    data = {
-        "title": program.title,
-        "arguments": "{}",
-        "config": {},
-        "compute_profile": submitted,
-    }
-
-    response = api_client.post(url, data, format="json")
-
-    assert response.status_code == status.HTTP_200_OK
-    assert response.data["compute_profile_fk"]["compute_profile_id"] == stored
-
-
-@pytest.mark.parametrize(
-    "profile",
-    [
-        "invalid",
-        "CX3D-4x16",  # uppercase not allowed
-        "cx3d_4x16",  # underscore not allowed
-        "cx3d-4",  # missing memory spec
-        "4",  # missing memory spec (bare)
-    ],
-)
-def test_compute_profile_validation_invalid_formats(api_client, program, profile):
-    """Malformed compute_profile values are rejected with the format error message, no Job created."""
-    url = reverse("v1:programs-run")
-    data = {
-        "title": program.title,
-        "arguments": "{}",
-        "config": {},
-        "compute_profile": profile,
-    }
-    job_count_before = Job.objects.count()
-
-    response = api_client.post(url, data, format="json")
-
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert f"Invalid compute profile format: '{profile}'" in response.data["message"]
-    assert Job.objects.count() == job_count_before
-
-
-def test_compute_profile_validation_blank_is_rejected(api_client, program):
-    """An explicit blank compute_profile is rejected (by the field itself, not the format check)."""
-    url = reverse("v1:programs-run")
-    data = {
-        "title": program.title,
-        "arguments": "{}",
-        "config": {},
-        "compute_profile": "",
-    }
-    job_count_before = Job.objects.count()
-
-    response = api_client.post(url, data, format="json")
-
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert Job.objects.count() == job_count_before
 
 
 def test_run_with_function_size_happy_path(api_client, program):
@@ -245,26 +148,6 @@ def test_run_with_function_size_is_normalized(api_client, program):
 
     assert response.status_code == status.HTTP_200_OK
     assert response.data["compute_profile_fk"]["compute_profile_id"] == "4x16"
-
-
-def test_run_with_both_compute_profile_and_function_size_returns_400(api_client, program):
-    """Sending both a size and a profile is ambiguous and rejected, with no Job created."""
-    profile = ComputeProfile.objects.get(compute_profile_id="4x16")
-    FunctionSize.objects.create(function=program, function_size="m", compute_profile=profile)
-    url = reverse("v1:programs-run")
-    data = {
-        "title": program.title,
-        "arguments": "{}",
-        "config": {},
-        "compute_profile": "4x16",
-        "function_size": "m",
-    }
-    job_count_before = Job.objects.count()
-
-    response = api_client.post(url, data, format="json")
-
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert Job.objects.count() == job_count_before
 
 
 def test_run_with_unknown_function_size_returns_400(api_client, program):
