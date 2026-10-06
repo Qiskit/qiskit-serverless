@@ -70,9 +70,7 @@ class JobTransitionService:
 
     def flush(self) -> None:
         """Wait for the best effort events still queued in the sender. Meant for shutdown."""
-        flush = getattr(self.sender, "flush", None)
-        if flush is not None:
-            flush()
+        self.sender.flush()
 
     def queued_to_pending(
         self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
@@ -204,8 +202,8 @@ class JobTransitionService:
     def _send_job_in_progress(self, job: Job, job_started: bool) -> None:
         """Best effort: a failure is logged and the event is dropped, it never reaches the caller.
 
-        The sender is asked not to wait for the broker (timeout=0), so what can fail here is only an event that
-        cannot be routed or queued.
+        The sender is asked not to wait for the broker (timeout=0): it does not raise for a message it cannot
+        route, queue or deliver, it counts it and logs it in aggregate.
 
         A job transitioning to terminal in this same scheduler tick will produce both an in-progress and a
         completed event; consumers key on the job_started / job_completed flags.

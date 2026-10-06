@@ -220,3 +220,47 @@ class TestKafkaProducersRegionLookup:
         """A broad `except RuntimeError` elsewhere in the codebase must still catch this, so it
         has to remain a RuntimeError subclass."""
         assert issubclass(UnroutableRegionError, RuntimeError)
+
+
+class TestKafkaProducersFlush:
+    @staticmethod
+    def _producers(settings, *regions):
+        _configure(
+            settings, regions={region: {"bootstrap_servers": "b", "api_key": "k", "user": "u"} for region in regions}
+        )
+        with patch(f"{_MOD}.Producer", side_effect=lambda conf: MagicMock()):
+            return KafkaProducers()
+
+    def test_every_region_is_flushed_within_one_shared_deadline(self, settings):
+        producers = self._producers(settings, "eu-de")
+        for producer in producers._producers.values():
+            producer.flush.return_value = 0
+
+        with patch(f"{_MOD}.time.monotonic", side_effect=[100.0, 100.0, 103.0]):
+            producers.flush(5)
+
+        timeouts = [producer.flush.call_args.kwargs["timeout"] for producer in producers._producers.values()]
+        assert timeouts == [5.0, 2.0]
+
+    def test_an_exhausted_deadline_still_flushes_the_rest_with_no_wait(self, settings):
+        producers = self._producers(settings, "eu-de")
+        for producer in producers._producers.values():
+            producer.flush.return_value = 0
+
+        with patch(f"{_MOD}.time.monotonic", side_effect=[100.0, 100.0, 120.0]):
+            producers.flush(5)
+
+        timeouts = [producer.flush.call_args.kwargs["timeout"] for producer in producers._producers.values()]
+        assert timeouts == [5.0, 0.0]
+
+    def test_a_failing_flush_is_logged_and_does_not_stop_the_other_regions(self, settings, caplog):
+        producers = self._producers(settings, "eu-de")
+        first, second = producers._producers.values()
+        first.flush.side_effect = RuntimeError("boom")
+        second.flush.return_value = 3
+
+        with caplog.at_level(logging.ERROR):
+            producers.flush(5)
+
+        assert "boom" in caplog.text
+        assert "3 message(s) not delivered" in caplog.text

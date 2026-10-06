@@ -267,25 +267,81 @@ class TestKafkaSenderMalformedPayloads:
 
 
 class TestKafkaSenderWithoutWaiting:
-    def test_timeout_zero_produces_and_polls_without_flushing(self):
-        producer = MagicMock()
+    @staticmethod
+    def _sender(producer):
         producers = MagicMock(topic="t")
         producers.get.return_value = producer
+        return KafkaSender(producers=producers)
 
-        KafkaSender(producers=producers).send(_payload(), timeout=0)
+    def test_timeout_zero_produces_and_polls_without_flushing(self):
+        producer = MagicMock()
+
+        self._sender(producer).send(_payload(), timeout=0)
 
         producer.produce.assert_called_once()
         producer.poll.assert_called_once_with(0)
         producer.flush.assert_not_called()
 
-    def test_timeout_zero_still_raises_when_the_message_cannot_be_queued(self):
+    def test_a_message_that_cannot_be_queued_is_dropped_with_a_warning_and_does_not_raise(self, caplog):
         producer = MagicMock()
         producer.produce.side_effect = BufferError("queue full")
+
+        with caplog.at_level(logging.WARNING):
+            self._sender(producer).send(_payload(), timeout=0)
+
+        assert "queue full" in caplog.text
+        assert "job-1" in caplog.text
+
+    def test_a_failed_delivery_is_dropped_with_a_warning_that_names_the_message(self, caplog):
+        producer = MagicMock()
+        self._sender(producer).send(_payload(), timeout=0)
+
+        with caplog.at_level(logging.WARNING):
+            producer.produce.call_args.kwargs["callback"](Exception("Topic authorization failed"), None)
+
+        assert "Topic authorization failed" in caplog.text
+        assert "job-1" in caplog.text
+
+    def test_a_successful_delivery_logs_nothing(self, caplog):
+        producer = MagicMock()
+        self._sender(producer).send(_payload(), timeout=0)
+
+        with caplog.at_level(logging.WARNING):
+            producer.produce.call_args.kwargs["callback"](None, None)
+
+        assert caplog.text == ""
+
+    def test_many_drops_are_reported_as_one_warning_per_interval(self, caplog):
+        producer = MagicMock()
+        producer.produce.side_effect = BufferError("queue full")
+        sender = self._sender(producer)
+
+        with patch("core.ibm_cloud.event_streams.kafka_sender.time.monotonic", side_effect=[0, 1, 2, 31]):
+            with caplog.at_level(logging.WARNING):
+                for _ in range(4):
+                    sender.send(_payload(), timeout=0)
+
+        reports = [record.getMessage() for record in caplog.records]
+        assert len(reports) == 2
+        assert reports[0].startswith("1 best effort message(s) dropped")
+        assert reports[1].startswith("3 best effort message(s) dropped")
+
+    def test_flush_waits_on_the_producers_and_reports_what_is_left(self, caplog):
+        producer = MagicMock()
         producers = MagicMock(topic="t")
         producers.get.return_value = producer
+        producer.produce.side_effect = BufferError("queue full")
+        sender = KafkaSender(producers=producers)
+        with patch("core.ibm_cloud.event_streams.kafka_sender.time.monotonic", side_effect=[0, 1, 2]):
+            sender.send(_payload(), timeout=0)
+            sender.send(_payload(), timeout=0)  # inside the interval: not reported yet
+        caplog.clear()
 
-        with pytest.raises(RuntimeError, match="queue full"):
-            KafkaSender(producers=producers).send(_payload(), timeout=0)
+        with caplog.at_level(logging.WARNING):
+            sender.flush(2)
+
+        producers.flush.assert_called_once_with(2)
+        assert "1 best effort message(s) dropped" in caplog.text
 
 
 class TestSenderDefaultSendBatch:
@@ -297,6 +353,11 @@ class TestSenderDefaultSendBatch:
 
         assert delivered == {1, 3}
         assert "boom" in caplog.text
+
+
+class TestSenderFlush:
+    def test_the_default_flush_does_nothing(self):
+        NoOpSender().flush()
 
 
 class TestNoOpSender:

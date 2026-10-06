@@ -31,6 +31,7 @@ See outbox.py and core/services/job_transitions.py for the two real callers.
 
 import json
 import logging
+import time
 
 from django.conf import settings
 
@@ -40,20 +41,61 @@ from .kafka_producers import KafkaProducers
 logger = logging.getLogger("gateway.ibm_cloud.event_streams_client")
 
 
+class _DroppedMessages:
+    """Counts the best effort messages that were dropped and reports them as one warning per interval, so a
+    broker that is down does not produce a log line per job per second. The first drop is reported at once.
+    What is dropped after the last report waits for the next drop, or for flush() at shutdown."""
+
+    MAX_SUBJECTS = 5
+
+    def __init__(self, interval: float = 30.0) -> None:
+        self._interval = interval
+        self._last_report: float | None = None
+        self._count = 0
+        self._subjects: list[str] = []
+        self._last_reason = ""
+
+    def record(self, subject: str | None, reason: str) -> None:
+        """One more message dropped. `subject` is the message's subject (the job id), `reason` the error."""
+        self._count += 1
+        self._last_reason = reason
+        if subject is not None and subject not in self._subjects and len(self._subjects) < self.MAX_SUBJECTS:
+            self._subjects.append(subject)
+        now = time.monotonic()
+        if self._last_report is None or now - self._last_report >= self._interval:
+            self.report()
+            self._last_report = now
+
+    def report(self) -> None:
+        """Log what was dropped since the last report, if anything."""
+        if not self._count:
+            return
+        logger.warning(
+            "%s best effort message(s) dropped since the last report, subjects (first %s)=%s last error: %s",
+            self._count,
+            self.MAX_SUBJECTS,
+            self._subjects,
+            self._last_reason,
+        )
+        self._count = 0
+        self._subjects = []
+
+
 class KafkaSender(Sender):
     """Sends a payload to Kafka as-is, plus `type`. See KafkaProducers for how producers/topic
     are configured and how a payload's CRN is routed to a region."""
 
     def __init__(self, producers: KafkaProducers | None = None) -> None:
         self._producers = producers or KafkaProducers()
+        self._dropped = _DroppedMessages()
 
     def send(self, payload: dict, timeout: float = 5) -> None:
         """Raises UnroutableRegionError (from KafkaProducers.get) or RuntimeError on failure.
 
-        With timeout=0 it does not wait for the broker: the message is queued in the producer, which delivers it
-        in the background and gives up on it after message.timeout.ms. Only a message that cannot be routed or
-        queued raises. A delivery that fails later is logged by the callback, and poll(0) serves the reports of
-        earlier messages."""
+        With timeout=0 it does not wait for the broker and never raises: see _send_without_waiting."""
+        if timeout == 0:
+            self._send_without_waiting(payload)
+            return
         message = {**payload, "type": self._producers.topic}
         instance_crn = (message.get("data") or {}).get("instance_crn")
         # This could raise UnroutableRegionError if:
@@ -79,9 +121,6 @@ class KafkaSender(Sender):
                 value=json.dumps(message).encode("utf-8"),
                 callback=on_delivery,
             )
-            if timeout == 0:
-                producer.poll(0)
-                return
             remaining = producer.flush(timeout=timeout)
             if remaining > 0:
                 raise RuntimeError(f"KafkaSender: {remaining} message(s) not delivered after flush timeout")
@@ -90,10 +129,35 @@ class KafkaSender(Sender):
         except Exception as e:
             raise RuntimeError(f"KafkaSender: Failed to publish event (id={message.get('id')}): {str(e)}") from e
 
+    def _send_without_waiting(self, payload: dict) -> None:
+        """Queue the message in its region's producer and return. The producer delivers it in the background and
+        gives up on it after message.timeout.ms. A message that cannot be routed, queued or delivered is
+        dropped and counted in _dropped, which reports it as a warning. poll(0) serves the delivery reports of
+        earlier messages, which is when a failed delivery is counted."""
+        message = {**payload, "type": self._producers.topic}
+        subject = message.get("subject")
+        try:
+            producer = self._producers.get(self._instance_crn(message))
+            producer.produce(
+                topic=self._producers.topic,
+                key=subject.encode("utf-8"),
+                value=json.dumps(message).encode("utf-8"),
+                callback=lambda err, msg: self._on_best_effort_delivery(err, subject),
+            )
+            producer.poll(0)
+        except Exception as ex:  # pylint: disable=broad-exception-caught
+            self._dropped.record(subject, str(ex))
+
+    def _on_best_effort_delivery(self, err, subject: str | None) -> None:
+        if err is not None:
+            self._dropped.record(subject, str(err))
+
     def flush(self, timeout: float = 5) -> None:
-        """Wait for the messages still queued in every producer. Meant for shutdown, so best effort messages
-        queued by send(timeout=0) are not lost when the process stops."""
+        """Wait up to `timeout` seconds, in total, for the messages still queued in every producer, and report
+        what was dropped. Meant for shutdown, so the best effort messages queued by send(timeout=0) are not
+        lost when the process stops."""
         self._producers.flush(timeout)
+        self._dropped.report()
 
     def send_batch(self, messages: list[PendingMessage], timeout: float = 5) -> set[int]:
         """Produce every payload, flush each producer once, and return the keys the broker confirmed
