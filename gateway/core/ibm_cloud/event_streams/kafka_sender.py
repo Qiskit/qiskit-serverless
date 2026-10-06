@@ -100,7 +100,7 @@ class KafkaSender(Sender):
         message.timeout.ms. poll(0) serves the delivery reports of earlier messages."""
         subject = payload.get("subject")
 
-        def on_delivery(err, msg):
+        def on_delivery(err, _msg):
             if err is not None:
                 self._drop(subject, err)
 
