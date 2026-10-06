@@ -477,8 +477,9 @@ class TestTryStop:
 
         assert Job.objects.get(pk=job.pk).sub_status == Job.EXECUTING_QPU
 
-    def test_a_ray_job_is_refused(self, get_runner, service, user):
-        """Nothing may write STOPPING for Ray: its status poller would push the row back to RUNNING.
+    def test_a_ray_job_raises(self, get_runner, service, user):
+        """STOPPING is Fleets only, because the Ray poller would push the row back to RUNNING. Callers
+        fork on the runner before this, so a Ray job here is a caller bug, not a runtime condition.
 
         The fleet_id is deliberately set, so this pins the runner check and not the no-fleet one.
         """
@@ -487,7 +488,8 @@ class TestTryStop:
             author=user, program=program, runner=Program.RAY, status=Job.RUNNING, fleet_id="fleet-abc"
         )
 
-        assert service.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB) is False
+        with pytest.raises(ValueError, match="try_stop is for Fleets jobs"):
+            service.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
 
         assert Job.objects.get(pk=job.pk).status == Job.RUNNING
         assert JobEvent.objects.filter(job=job).count() == 0

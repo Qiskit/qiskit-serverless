@@ -100,15 +100,19 @@ class JobTransitionService:
 
         Returns:
             ``True`` when STOPPING was written. ``False`` when there is nothing to cancel and so
-            nothing will ever confirm a stop, which is a Ray job, a job with no fleet, or a fleet
-            Code Engine reports as gone. The caller then owes a terminal status. Ray is refused here
-            rather than later because its status poller would push a STOPPING row back to RUNNING.
+            nothing will ever confirm a stop, which is a job with no fleet or a fleet Code Engine
+            reports as gone. The caller then owes a terminal status.
 
         Raises:
+            ValueError: If the job is not a Fleets job. STOPPING is Fleets only, because the Ray
+                status poller would push such a row back to RUNNING, so reaching here with a Ray job
+                is a caller bug rather than a runtime condition.
             RunnerError: If the cancel could not be delivered, so the caller chooses between failing
                 a request and retrying on its next cycle.
         """
-        if job.runner != Program.FLEETS or not job.fleet_id:
+        if job.runner != Program.FLEETS:
+            raise ValueError(f"Job {job.id}: try_stop is for Fleets jobs, got runner={job.runner}")
+        if not job.fleet_id:
             return False
         if not get_runner(job).stop():
             return False

@@ -54,11 +54,13 @@ class StopJobUseCase:
             # was SUCCEEDED, FAILED or already STOPPING
             # Only the scheduler sends Kafka messages: the gateway has Kafka disabled, so the service sends nothing here
             transitions = JobTransitionService()
-            if transitions.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB):
-                reached = Job.STOPPING
-            else:
+            if job.runner == Program.RAY:
+                # Ray has no cancel to confirm, so it goes straight to STOPPED. The cluster itself is
+                # asked to stop further down, after the runtime jobs, which is where it has always been.
                 transitions.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
                 reached = Job.STOPPED
+            else:
+                reached = self._stop_fleets_job(job, transitions)
         except RunnerError as ex:
             logger.warning("Could not cancel fleet_id=%s: %s", job.fleet_id, str(ex))
             raise EngineUnavailableException("Job could not be stopped right now, please retry.") from ex
@@ -96,6 +98,13 @@ class StopJobUseCase:
             self._stop_ray_job_if_active(job)
 
         return " ".join(self.status_messages)
+
+    def _stop_fleets_job(self, job: Job, transitions: JobTransitionService) -> str:
+        """STOPPING when Code Engine accepted the cancel, STOPPED when there was nothing to cancel."""
+        if transitions.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB):
+            return Job.STOPPING
+        transitions.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+        return Job.STOPPED
 
     def _cancel_runtime_job_entry(
         self,
