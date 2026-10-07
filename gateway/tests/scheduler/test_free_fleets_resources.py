@@ -193,6 +193,20 @@ def test_a_whole_failed_batch_opens_the_breaker(fleets_program):
     free_resources.assert_not_called()
 
 
+def test_a_cycle_that_deleted_something_before_the_rate_limit_is_not_a_failure(fleets_program):
+    """Firing 20 deletes is what provokes a 429, so k successes then a 429 is the normal shape."""
+    # one job is stamped per cycle, so keep at least two candidates for every cycle
+    for index in range(2 * _BREAKER_FAILURES):
+        _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + index + 1, fleet_id=f"fleet-{index}")
+    task = _make_task()
+
+    for _ in range(_BREAKER_FAILURES + 1):
+        with patch(f"{_SCHEDULE_MOD}.get_runner") as get_runner:
+            get_runner.return_value.free_resources.side_effect = [True, RunnerUnavailableError("429")]
+            task.run()
+        assert get_runner.return_value.free_resources.call_count == 2, "the breaker opened on a healthy cycle"
+
+
 def test_a_partly_failed_batch_is_not_a_failure(fleets_program):
     _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 2, fleet_id="broken")
     _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, fleet_id="fine")

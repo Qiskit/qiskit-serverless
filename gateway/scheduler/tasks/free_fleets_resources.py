@@ -19,6 +19,8 @@ from scheduler.tasks.task import SchedulerTask
 logger = logging.getLogger("scheduler.FreeFleetsResources")
 
 MAX_DELETES_PER_CYCLE = 20
+# Used only when the Config value will not parse, so a typo cannot mean "delete everything now"
+DEFAULT_RETENTION_HOURS = 48
 # Counted in scheduler loops, which are about a second each
 REPORT_EVERY_LOOPS = 300
 
@@ -48,12 +50,13 @@ class FreeFleetsResources(SchedulerTask):
                 results.append(self._delete_and_stamp(job))
             except RunnerUnavailableError as ex:
                 logger.warning("Code Engine is unavailable, stopping this cleanup cycle: %s", ex)
+                record_delete_batch(results)
                 return
         record_delete_batch(results)
 
     def _jobs_to_clean(self):
         """Terminal Fleets jobs whose fleet is older than the retention window, oldest first."""
-        retention = Config.get_int(ConfigKey.FLEETS_CLEANUP_RETENTION_HOURS)
+        retention = Config.get_int(ConfigKey.FLEETS_CLEANUP_RETENTION_HOURS, default=DEFAULT_RETENTION_HOURS)
         return (
             Job.objects.held_fleets()
             .filter(status__in=Job.TERMINAL_STATUSES, updated__lt=timezone.now() - timedelta(hours=retention))

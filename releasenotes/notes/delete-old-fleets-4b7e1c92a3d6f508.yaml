@@ -9,12 +9,12 @@ features:
   - |
     New ``scheduler_held_fleets`` metric, the fleets not yet deleted in each Code Engine
     project. A project holds at most 1000, so this is what an alert should watch. It is
-    reported about once a minute, and also while the feature is disabled, so the backlog can be
-    sized before the deletion is turned on.
+    reported about every five minutes, and also while the feature is disabled, so the backlog can
+    be sized before the deletion is turned on.
 upgrade:
   - |
-    ``Job`` has a new ``fleet_deleted_at`` field, set once the fleet is deleted so it is not
-    tried again. It is read-only in the backoffice. Migration ``0072`` adds it together with a
+    ``Job`` has a new ``fleet_deleted_at`` field, set once Code Engine accepted the delete so it is
+    not tried again. The delete itself finishes a minute or two later. It is read-only in the backoffice. Migration ``0072`` adds it together with a
     partial index on ``api_job``.
   - |
     The delete resolves its Code Engine project from the job's own ``ce_project_name``, so a
@@ -27,7 +27,8 @@ fixes:
     inside the scheduler loop. Five consecutive failures that a later try can fix, or five cycles
     where no delete got through at all, open it for a minute, and it then allows one delete per
     minute until one succeeds. A timeout or a 502 counts as well, because a delete that may already
-    have happened is free to repeat. A single fleet that cannot be deleted does not open it. One breaker
-    covers every Code Engine operation the scheduler makes, so an outage pauses all of them, and
-    both numbers are dynamic config: ``scheduler.fleets.breaker_failures`` and
+    have happened is free to repeat. A cycle that deleted at least one fleet is not a failure, so one
+    fleet we cannot delete does not open the breaker on its own. The breaker is shared by every Code
+    Engine call the scheduler makes, so it will pause the other Fleets operations as those land. Both
+    numbers are dynamic config: ``scheduler.fleets.breaker_failures`` and
     ``scheduler.fleets.breaker_pause_seconds``.
