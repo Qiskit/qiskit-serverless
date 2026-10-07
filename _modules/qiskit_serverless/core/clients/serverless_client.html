@@ -546,7 +546,6 @@
                 <span class="n">job</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"id"</span><span class="p">),</span>
                 <span class="n">job_service</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
                 <span class="n">raw_data</span><span class="o">=</span><span class="n">job</span><span class="p">,</span>
-                <span class="n">compute_profile</span><span class="o">=</span><span class="n">job</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"compute_profile"</span><span class="p">),</span>
             <span class="p">)</span>
             <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"results"</span><span class="p">,</span> <span class="p">[])</span>
         <span class="p">]</span>
@@ -601,7 +600,6 @@
                 <span class="n">job</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"id"</span><span class="p">),</span>
                 <span class="n">job_service</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
                 <span class="n">raw_data</span><span class="o">=</span><span class="n">job</span><span class="p">,</span>
-                <span class="n">compute_profile</span><span class="o">=</span><span class="n">job</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"compute_profile"</span><span class="p">),</span>
             <span class="p">)</span>
             <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"results"</span><span class="p">,</span> <span class="p">[])</span>
         <span class="p">]</span>
@@ -624,7 +622,7 @@
             <span class="n">job</span> <span class="o">=</span> <span class="n">Job</span><span class="p">(</span>
                 <span class="n">job_id</span><span class="o">=</span><span class="n">job_id</span><span class="p">,</span>
                 <span class="n">job_service</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
-                <span class="n">compute_profile</span><span class="o">=</span><span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"compute_profile"</span><span class="p">),</span>
+                <span class="n">raw_data</span><span class="o">=</span><span class="n">response_data</span><span class="p">,</span>
             <span class="p">)</span>
 
         <span class="k">return</span> <span class="n">job</span>
@@ -677,7 +675,7 @@
         <span class="k">return</span> <span class="n">Job</span><span class="p">(</span>
             <span class="n">job_id</span><span class="p">,</span>
             <span class="n">job_service</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
-            <span class="n">compute_profile</span><span class="o">=</span><span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"compute_profile"</span><span class="p">),</span>
+            <span class="n">raw_data</span><span class="o">=</span><span class="n">response_data</span><span class="p">,</span>
         <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">get_job_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
