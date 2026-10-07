@@ -14,8 +14,7 @@ from tests.utils import TestUtils
 
 pytestmark = pytest.mark.django_db
 
-_MOD = "scheduler.tasks.free_fleets_resources"
-_SCHEDULE = "scheduler.schedule"
+_SCHEDULE_MOD = "scheduler.schedule"
 _RETENTION_HOURS = 48
 _BREAKER_FAILURES = 5
 
@@ -60,7 +59,7 @@ def _terminal_job(program, *, age_hours, fleet_id="fleet-1", **kwargs):
 
 
 def _run(task, *, deleted=True, error=None):
-    with patch(f"{_SCHEDULE}.get_runner") as get_runner:
+    with patch(f"{_SCHEDULE_MOD}.get_runner") as get_runner:
         if error:
             get_runner.return_value.free_resources.side_effect = error
         else:
@@ -171,6 +170,19 @@ def test_a_rate_limit_ends_the_cycle_after_one_call(fleets_program):
     free_resources.assert_called_once()
 
 
+def test_an_unavailable_cycle_records_exactly_one_failure(fleets_program):
+    """Two failures per cycle would pause the task a cycle early, which is the bug the split removed."""
+    _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1)
+    task = _make_task()
+    unavailable = RunnerUnavailableError("unavailable")
+
+    for _ in range(_BREAKER_FAILURES - 1):
+        _run(task, error=unavailable)
+
+    _run(task, error=unavailable).assert_called_once()
+    _run(task, error=unavailable).assert_not_called()
+
+
 def test_a_whole_failed_batch_opens_the_breaker(fleets_program):
     _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1)
     task = _make_task()
@@ -187,7 +199,7 @@ def test_a_partly_failed_batch_is_not_a_failure(fleets_program):
     _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, fleet_id="fine")
     task = _make_task()
 
-    with patch(f"{_SCHEDULE}.get_runner") as get_runner:
+    with patch(f"{_SCHEDULE_MOD}.get_runner") as get_runner:
         get_runner.return_value.free_resources.side_effect = [False, True]
         task.run()
 

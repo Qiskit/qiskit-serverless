@@ -1,4 +1,4 @@
-"""Free the Ray cluster of a terminal job."""
+"""Free the Ray clusters of terminal jobs and report orphans."""
 
 import logging
 

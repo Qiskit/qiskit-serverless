@@ -49,7 +49,7 @@ def delete_fleet(job: Job) -> bool:
 
 
 def record_delete_batch(*, attempted: bool, succeeded: bool) -> None:
-    """A cycle where nothing got through is Code Engine, not one fleet we cannot delete."""
+    """Record the cycle's outcome: a success when any delete got through, a failure when none did."""
     if succeeded:
         DELETE_BREAKER.record_success()
     elif attempted:

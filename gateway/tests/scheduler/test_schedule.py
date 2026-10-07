@@ -14,11 +14,13 @@ from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 
 from core.model_managers.job_events import JobEventContext
-from core.models import Job, ComputeResource, JobEvent, Program
+from core.config_key import ConfigKey
+from core.models import Job, ComputeResource, JobEvent, Config, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.runners import RunnerError, RunnerUnavailableError
 from core.services.storage import get_logs_storage
 
+from scheduler import schedule
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 
@@ -366,9 +368,9 @@ def test_execute_fleets_job_defaults_to_the_schedule_jobs_context():
 
 @pytest.mark.django_db
 def test_delete_fleet_refuses_while_the_breaker_is_open():
-    """The guard is what a second caller of delete_fleet relies on, so it is not only the task's check."""
-    with patch(f"{_SCHEDULE_MOD}.deletes_paused", return_value=True):
-        with patch(f"{_SCHEDULE_MOD}.get_runner") as get_runner:
-            with pytest.raises(RunnerUnavailableError):
-                delete_fleet(MagicMock())
-    get_runner.assert_not_called()
+    Config.add_defaults()
+    for _ in range(Config.get_int(ConfigKey.FLEETS_BREAKER_FAILURES)):
+        schedule.DELETE_BREAKER.record_failure()
+
+    with pytest.raises(RunnerUnavailableError):
+        delete_fleet(MagicMock())

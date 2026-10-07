@@ -12,8 +12,8 @@ from core.models import Config, Job
 from core.services.runners import RunnerUnavailableError
 
 from scheduler.kill_signal import KillSignal
-from scheduler.schedule import delete_fleet, deletes_paused, record_delete_batch
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
+from scheduler.schedule import delete_fleet, deletes_paused, record_delete_batch
 from scheduler.tasks.task import SchedulerTask
 
 logger = logging.getLogger("scheduler.FreeFleetsResources")
@@ -46,7 +46,7 @@ class FreeFleetsResources(SchedulerTask):
                 return
             attempted = True
             try:
-                succeeded |= self._delete_fleet(job)
+                succeeded |= self._delete_and_stamp(job)
             except RunnerUnavailableError as ex:
                 logger.warning("Code Engine is unavailable, stopping this cleanup cycle: %s", ex)
                 return
@@ -61,7 +61,7 @@ class FreeFleetsResources(SchedulerTask):
             .order_by("updated")[:MAX_DELETES_PER_CYCLE]
         )
 
-    def _delete_fleet(self, job: Job) -> bool:
+    def _delete_and_stamp(self, job: Job) -> bool:
         """Delete one job's fleet and stamp it. Returns False when the delete could not be sent."""
         if not delete_fleet(job):
             logger.warning("job_id=%s fleet_id=%s not deleted, retrying later", job.id, job.fleet_id)
