@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="job",
             name="fleet_deleted_at",
-            field=models.DateTimeField(blank=True, help_text="When the fleet was deleted", null=True),
+            field=models.DateTimeField(blank=True, help_text="When we stopped trying to delete the fleet", null=True),
         ),
         migrations.AddIndex(
             model_name="job",

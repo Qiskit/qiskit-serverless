@@ -99,14 +99,14 @@ def test_keeps_a_fleet_inside_the_window(fleets_program):
     assert job.fleet_deleted_at is None
 
 
-def test_does_not_stamp_when_the_delete_fails(fleets_program):
+def test_stamps_a_fleet_it_cannot_delete_so_it_stops_blocking_the_queue(fleets_program):
     job = _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1)
 
     free_resources = _run(_make_task(), deleted=False)
 
     free_resources.assert_called_once()
     job.refresh_from_db()
-    assert job.fleet_deleted_at is None
+    assert job.fleet_deleted_at is not None
 
 
 def test_does_nothing_while_disabled_but_still_reports(fleets_program):
@@ -182,17 +182,6 @@ def test_an_unavailable_cycle_records_exactly_one_failure(fleets_program):
     _run(task, error=unavailable).assert_not_called()
 
 
-def test_a_whole_failed_batch_opens_the_breaker(fleets_program):
-    _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1)
-    task = _make_task()
-
-    for _ in range(_BREAKER_FAILURES):
-        _run(task, deleted=False)
-
-    free_resources = _run(task, deleted=False)
-    free_resources.assert_not_called()
-
-
 def test_a_cycle_that_deleted_something_before_the_rate_limit_is_not_a_failure(fleets_program):
     """Firing 20 deletes is what provokes a 429, so k successes then a 429 is the normal shape."""
     # one job is stamped per cycle, so keep at least two candidates for every cycle
@@ -205,19 +194,6 @@ def test_a_cycle_that_deleted_something_before_the_rate_limit_is_not_a_failure(f
             get_runner.return_value.free_resources.side_effect = [True, RunnerUnavailableError("429")]
             task.run()
         assert get_runner.return_value.free_resources.call_count == 2, "the breaker opened on a healthy cycle"
-
-
-def test_a_partly_failed_batch_is_not_a_failure(fleets_program):
-    _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 2, fleet_id="broken")
-    _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, fleet_id="fine")
-    task = _make_task()
-
-    with patch(f"{_SCHEDULE_MOD}.get_runner") as get_runner:
-        get_runner.return_value.free_resources.side_effect = [False, True]
-        task.run()
-
-    assert Job.objects.filter(fleet_id="fine", fleet_deleted_at__isnull=False).exists()
-    assert Job.objects.filter(fleet_id="broken", fleet_deleted_at__isnull=True).exists()
 
 
 def test_deletes_at_most_one_batch_per_cycle(fleets_program):

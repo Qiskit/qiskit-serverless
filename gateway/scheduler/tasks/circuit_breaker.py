@@ -48,18 +48,6 @@ class CircuitBreaker:
         if self._consecutive_failures >= self._failure_threshold() and self._opened_at is None:
             self._opened_at = time.monotonic()
 
-    def record_batch(self, *, attempted: int, succeeded: int) -> None:
-        """Count one batch: a success when anything got through, a failure only when nothing did.
-
-        So a single item the destination cannot take never opens the breaker.
-        """
-        if not attempted:
-            return
-        if succeeded:
-            self.record_success()
-        else:
-            self.record_failure()
-
     def _failure_threshold(self) -> int:
         return Config.get_int(self._failure_threshold_key, default=DEFAULT_FAILURE_THRESHOLD)
 

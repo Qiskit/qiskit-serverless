@@ -42,15 +42,13 @@ def delete_fleet(job: Job) -> bool:
     if code_engine_paused():
         raise RunnerUnavailableError("Code Engine fleet deletes are paused by the circuit breaker")
     try:
-        return get_runner(job).free_resources()
+        deleted = get_runner(job).free_resources()
     except RunnerUnavailableError:
         CODE_ENGINE_BREAKER.record_failure()
         raise
-
-
-def record_delete_batch(results: list[bool]) -> None:
-    """Count one cleanup cycle against CODE_ENGINE_BREAKER."""
-    CODE_ENGINE_BREAKER.record_batch(attempted=len(results), succeeded=results.count(True))
+    if deleted:
+        CODE_ENGINE_BREAKER.record_success()
+    return deleted
 
 
 def execute_ray_job(job: Job) -> Job:

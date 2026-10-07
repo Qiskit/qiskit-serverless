@@ -490,7 +490,8 @@ class FleetsRunner(AbstractRunner):
         The caller persists the outcome.
 
         Returns:
-            ``True`` when the fleet is gone, including a 404. ``False`` on any other failure.
+            ``True`` when the fleet is gone, including a 404. ``False`` when no later try can reach
+            it, so the caller should stop trying.
 
         Raises:
             RunnerUnavailableError: If Code Engine did not answer, so a later try can work. A delete
@@ -502,10 +503,16 @@ class FleetsRunner(AbstractRunner):
 
         try:
             self._project = self._execution_project()
+        except RunnerError as ex:
+            logger.error("No project to delete fleet [%s] of job_id=[%s] in: %s", self.job.fleet_id, self.job.id, ex)
+            return False
+
+        try:
             self._ensure_connected()
             self._get_handler().delete_job(self.job.fleet_id)
-            logger.info("Deleted fleet [%s] of job_id=[%s]", self.job.fleet_id, self.job.id)
-            return True
+        except RunnerError as ex:
+            # connect() wraps the IAM token fetch, so this is an outage rather than a bad fleet
+            raise RunnerUnavailableError(f"Unable to reach Code Engine: {ex}", ex) from ex
         except ApiException as ex:
             status = ex.status or 0
             if status == 429 or status >= 500 or status == 0:
@@ -517,6 +524,9 @@ class FleetsRunner(AbstractRunner):
         except Exception as ex:  # pylint: disable=broad-exception-caught
             logger.warning("Failed to delete fleet [%s] of job_id=[%s]: %s", self.job.fleet_id, self.job.id, ex)
             return False
+
+        logger.info("Deleted fleet [%s] of job_id=[%s]", self.job.fleet_id, self.job.id)
+        return True
 
     def _execution_project(self) -> CodeEngineProject:
         """Return the project the fleet was created in, by name, falling back to the program's.

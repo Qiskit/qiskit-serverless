@@ -424,13 +424,14 @@ def test_free_resources_raises_unavailable_when_the_request_failed(error):
         runner.free_resources()
 
 
-def test_free_resources_returns_false_when_code_engine_is_unreachable():
-    """A failed connect answers False like any other failure: it must not end the scheduler tick."""
+def test_free_resources_raises_unavailable_when_code_engine_is_unreachable():
+    """A failed connect is an outage, so the fleet must be retried rather than abandoned."""
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
     runner._connected = False  # pylint: disable=protected-access
 
     with patch.object(runner, "connect", side_effect=RunnerError("Unable to connect")):
-        assert runner.free_resources() is False
+        with pytest.raises(RunnerUnavailableError):
+            runner.free_resources()
     mock_handler.delete_job.assert_not_called()
 
 

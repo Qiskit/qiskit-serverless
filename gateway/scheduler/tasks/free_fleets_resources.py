@@ -13,7 +13,7 @@ from core.services.runners import RunnerUnavailableError
 
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.schedule import code_engine_paused, delete_fleet, record_delete_batch
+from scheduler.schedule import code_engine_paused, delete_fleet
 from scheduler.tasks.task import SchedulerTask
 
 logger = logging.getLogger("scheduler.FreeFleetsResources")
@@ -42,17 +42,14 @@ class FreeFleetsResources(SchedulerTask):
         if code_engine_paused():
             return
 
-        results: list[bool] = []
         for job in self._jobs_to_clean():
             if self.kill_signal.received:
                 return
             try:
-                results.append(self._delete_and_stamp(job))
+                self._delete_and_stamp(job)
             except RunnerUnavailableError as ex:
                 logger.warning("Code Engine is unavailable, stopping this cleanup cycle: %s", ex)
-                record_delete_batch(results)
                 return
-        record_delete_batch(results)
 
     def _jobs_to_clean(self):
         """Terminal Fleets jobs whose fleet is older than the retention window, oldest first."""
@@ -64,14 +61,18 @@ class FreeFleetsResources(SchedulerTask):
         )
 
     def _delete_and_stamp(self, job: Job) -> bool:
-        """Delete one job's fleet and stamp it. Returns False when the delete could not be sent."""
-        if not delete_fleet(job):
-            logger.warning("job_id=%s fleet_id=%s not deleted, retrying later", job.id, job.fleet_id)
-            return False
-
+        """Delete one job's fleet and stamp it, so a fleet no try can reach stops holding up the queue."""
+        deleted = delete_fleet(job)
         job.update_fields({"fleet_deleted_at": timezone.now()})
-        logger.info("job_id=%s fleet_id=%s deleted", job.id, job.fleet_id)
-        return True
+        if deleted:
+            logger.info("job_id=%s fleet_id=%s deleted", job.id, job.fleet_id)
+        else:
+            logger.error(
+                "job_id=%s fleet_id=%s cannot be deleted and is now abandoned, it still holds a slot in the project",
+                job.id,
+                job.fleet_id,
+            )
+        return deleted
 
     def _report_held_fleets(self):
         """Count the fleets we hold per project, whatever the job status, once every REPORT_EVERY_LOOPS."""
