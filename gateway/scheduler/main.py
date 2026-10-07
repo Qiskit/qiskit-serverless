@@ -46,7 +46,7 @@ class Main:
         self.tasks = [
             UpdateJobStatusCounts(self.kill_signal, self.metrics),
             ConsumeBlockedAccountEvents(self.kill_signal, self.metrics),
-            # submit jobs, status change from QUEUED to PENDING
+            # submit jobs, status change from QUEUED to PENDING/FAILED
             ScheduleRayJobs(self.kill_signal, self.metrics),
             ScheduleFleetsJobs(self.kill_signal, self.metrics, transitions),
             UpdateRayJobsStatuses(self.kill_signal, self.metrics),
@@ -67,6 +67,14 @@ class Main:
     def stop_http_server(self):
         """Stop internal HTTP server"""
         self.http_server.stop()
+
+    def close_tasks(self):
+        """Close every task, each on its own, so one that fails to close does not keep the others open."""
+        for task in self.tasks:
+            try:
+                task.close()
+            except Exception as ex:  # pylint: disable=broad-exception-caught
+                logger.exception("Error closing %s: %s", task.name, ex)
 
     def run(self):
         """Run the scheduler loop until kill signal is received."""
@@ -112,6 +120,7 @@ class Main:
                 if not self.kill_signal.received and elapsed < 1:
                     time.sleep(1 - elapsed)
         finally:
+            self.close_tasks()
             self.stop_http_server()
 
         logger.info("Scheduler loop finished")
