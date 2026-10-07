@@ -816,7 +816,9 @@ class TestStoppingJobs:
         assert changed is True
         assert job.status == Job.STOPPED
 
-    def test_a_filler_stopped_on_request_is_not_counted_as_ended_by_itself(self):
+    def test_a_filler_stopped_on_request_is_counted_as_stopped_not_as_ended(self):
+        """STOPPING means something asked for the stop, so it is counted here and not by the balancer,
+        which cannot know whether the cancel it sent ever landed."""
         task = _make_task()
         job = _make_fleets_job(status=Job.STOPPING)
         job.filler = True
@@ -827,6 +829,7 @@ class TestStoppingJobs:
             task.update_job_status(job)
 
         assert job.status == Job.STOPPED
+        task.metrics.increment_filler_jobs_stopped.assert_called_once()
         task.metrics.increment_filler_jobs_ended.assert_not_called()
 
 

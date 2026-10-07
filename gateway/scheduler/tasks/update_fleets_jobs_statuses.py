@@ -209,13 +209,13 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
     def _increment_terminal_counter(self, job: Job, *, requested: bool = False) -> None:
         """Increment terminal jobs counter. `requested` means something asked this job to stop."""
         if job.filler:
+            # A filler runs continuously, so it never counts as user demand. Its own two counters
+            # split the only distinction that matters: something asked it to stop, or it exited by
+            # itself.
             if requested:
-                # BalanceFillerJobs already counted this one when it asked for the stop.
-                return
-            # A filler job runs continuously, so counting it here would make a constant floor look
-            # like user demand. It gets its own counter, which is worth having because reaching a
-            # terminal state without being asked means the filler function exited by itself.
-            self.metrics.increment_filler_jobs_ended(job.status)
+                self.metrics.increment_filler_jobs_stopped()
+            else:
+                self.metrics.increment_filler_jobs_ended(job.status)
             return
         provider = job.program.provider.name if job.program_id and job.program.provider_id else "custom"
         self.metrics.increment_jobs_terminal(provider=provider, final_status=job.status)

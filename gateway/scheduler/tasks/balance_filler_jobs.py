@@ -311,8 +311,11 @@ class BalanceFillerJobs(SchedulerTask):
     def _stop_one_filler_job(self, job: Job) -> None:
         """Cancel the fleet and write STOPPING, or STOPPED when there was nothing to cancel."""
         try:
-            if not self.transitions.try_stop(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_STOP):
-                self.transitions.to_stopped(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_STOP)
+            if self.transitions.try_stop(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_STOP):
+                # STOPPING: the status poller counts it when it writes the terminal status.
+                logger.info("[BalanceFillerJobs] job_id=%s filler job cancel sent", job.id)
+                return
+            self.transitions.to_stopped(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_STOP)
         except RunnerError as ex:
             # Left RUNNING: a status change here would claim a cancel that never left. Retried next cycle.
             logger.error("[BalanceFillerJobs] job_id=%s error stopping filler job: %s", job.id, str(ex))
@@ -321,8 +324,9 @@ class BalanceFillerJobs(SchedulerTask):
             logger.info("job_id=%s transition rejected, skipping the stop", job.id)
             return
 
+        # Terminal already, so the poller never sees this row and this is the only place to count it.
         self.metrics.increment_filler_jobs_stopped()
-        logger.info("[BalanceFillerJobs] job_id=%s filler job stop requested", job.id)
+        logger.info("[BalanceFillerJobs] job_id=%s filler job stopped, nothing to cancel", job.id)
 
     def _mark_failed(self, job: Job) -> None:
         """Write FAILED on a job whose submit never happened.

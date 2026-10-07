@@ -409,6 +409,50 @@ def test_a_job_that_already_turned_terminal_is_not_counted_as_stopped(filler_pro
     assert Job.objects.get(pk=job.pk).status == Job.SUCCEEDED
 
 
+def test_an_accepted_cancel_is_counted_by_the_poller_not_here(filler_program):
+    """The row goes to STOPPING, so UpdateFleetsJobsStatuses counts it when it writes the terminal
+    status. Counting here too would double count, and counting here instead would count a cancel
+    that was sent but never landed."""
+    job = TestUtils.create_job(
+        author=_AUTHOR,
+        program=filler_program,
+        status=Job.RUNNING,
+        runner=Program.FLEETS,
+        compute_profile_fk=filler_program.default_size.compute_profile,
+        filler=True,
+        fleet_id="fleet-live",
+    )
+    task = _make_task()
+
+    with patch(_RUNNER) as runner:
+        runner.return_value.stop.return_value = True
+        task._stop_one_filler_job(job)  # pylint: disable=protected-access
+
+    assert Job.objects.get(pk=job.pk).status == Job.STOPPING
+    task.metrics.increment_filler_jobs_stopped.assert_not_called()
+
+
+def test_nothing_left_to_cancel_is_counted_here(filler_program):
+    """STOPPED already, so the poller never sees this row and this is the only place to count it."""
+    job = TestUtils.create_job(
+        author=_AUTHOR,
+        program=filler_program,
+        status=Job.RUNNING,
+        runner=Program.FLEETS,
+        compute_profile_fk=filler_program.default_size.compute_profile,
+        filler=True,
+        fleet_id="fleet-gone",
+    )
+    task = _make_task()
+
+    with patch(_RUNNER) as runner:
+        runner.return_value.stop.return_value = False
+        task._stop_one_filler_job(job)  # pylint: disable=protected-access
+
+    assert Job.objects.get(pk=job.pk).status == Job.STOPPED
+    task.metrics.increment_filler_jobs_stopped.assert_called_once()
+
+
 def test_filler_jobs_on_another_profile_are_always_stopped(filler_program):
     """Re-pointing the profile stops the filler jobs left on the old one.
 
