@@ -368,7 +368,7 @@ def test_execute_fleets_job_defaults_to_the_schedule_jobs_context():
 def test_delete_fleet_refuses_while_the_breaker_is_open():
     Config.add_defaults()
     for _ in range(Config.get_int(ConfigKey.FLEETS_BREAKER_FAILURES)):
-        schedule.DELETE_BREAKER.record_failure()
+        schedule.CODE_ENGINE_BREAKER.record_failure()
 
     with pytest.raises(RunnerUnavailableError):
         delete_fleet(MagicMock())

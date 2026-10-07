@@ -26,6 +26,7 @@ fixes:
     The cleanup waits out an unavailable Code Engine with a circuit breaker instead of sleeping
     inside the scheduler loop. Five consecutive failures that a later try can fix, or five cycles
     where no delete got through at all, open it for a minute, and it then allows one delete per
-    minute until one succeeds. A single fleet that cannot be deleted does not open it. Both numbers
-    are dynamic config, shared with the other Fleets scheduler tasks:
-    ``scheduler.fleets.breaker_failures`` and ``scheduler.fleets.breaker_pause_seconds``.
+    minute until one succeeds. A single fleet that cannot be deleted does not open it. One breaker
+    covers every Code Engine operation the scheduler makes, so an outage pauses all of them, and
+    both numbers are dynamic config: ``scheduler.fleets.breaker_failures`` and
+    ``scheduler.fleets.breaker_pause_seconds``.

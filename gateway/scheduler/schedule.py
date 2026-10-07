@@ -24,12 +24,13 @@ from scheduler.tasks.circuit_breaker import build_fleets_circuit_breaker
 User: Model = get_user_model()
 logger = logging.getLogger("scheduler.schedule")
 
-DELETE_BREAKER = build_fleets_circuit_breaker()
+# One breaker for the whole Code Engine API: when it is down it is down for every operation
+CODE_ENGINE_BREAKER = build_fleets_circuit_breaker()
 
 
-def deletes_paused() -> bool:
-    """Whether DELETE_BREAKER is open."""
-    return DELETE_BREAKER.is_open
+def code_engine_paused() -> bool:
+    """Whether CODE_ENGINE_BREAKER is open."""
+    return CODE_ENGINE_BREAKER.is_open
 
 
 def delete_fleet(job: Job) -> bool:
@@ -38,18 +39,18 @@ def delete_fleet(job: Job) -> bool:
     Raises:
         RunnerUnavailableError: While the breaker is open, or when Code Engine did not answer.
     """
-    if deletes_paused():
+    if code_engine_paused():
         raise RunnerUnavailableError("Code Engine fleet deletes are paused by the circuit breaker")
     try:
         return get_runner(job).free_resources()
     except RunnerUnavailableError:
-        DELETE_BREAKER.record_failure()
+        CODE_ENGINE_BREAKER.record_failure()
         raise
 
 
 def record_delete_batch(results: list[bool]) -> None:
-    """Count one cleanup cycle against DELETE_BREAKER."""
-    DELETE_BREAKER.record_batch(attempted=len(results), succeeded=results.count(True))
+    """Count one cleanup cycle against CODE_ENGINE_BREAKER."""
+    CODE_ENGINE_BREAKER.record_batch(attempted=len(results), succeeded=results.count(True))
 
 
 def execute_ray_job(job: Job) -> Job:

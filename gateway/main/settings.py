@@ -597,12 +597,12 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "default": "5",
         "type": "integer",
         "description": "Consecutive Code Engine failures that a later try can fix (HTTP 429, 5xx, connection "
-        "errors) before the circuit breaker of a Fleets scheduler task opens. Each task has its own breaker.",
+        "errors) before the scheduler stops calling Code Engine. One breaker covers every operation.",
     },
     "scheduler.fleets.breaker_pause_seconds": {
         "default": "60",
         "type": "integer",
-        "description": "How long the circuit breaker of a Fleets scheduler task stays open once tripped.",
+        "description": "How long the scheduler stops calling Code Engine once the breaker trips.",
     },
 }
 

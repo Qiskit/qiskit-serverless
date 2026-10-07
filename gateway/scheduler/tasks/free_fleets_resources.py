@@ -13,7 +13,7 @@ from core.services.runners import RunnerUnavailableError
 
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.schedule import delete_fleet, deletes_paused, record_delete_batch
+from scheduler.schedule import code_engine_paused, delete_fleet, record_delete_batch
 from scheduler.tasks.task import SchedulerTask
 
 logger = logging.getLogger("scheduler.FreeFleetsResources")
@@ -37,7 +37,7 @@ class FreeFleetsResources(SchedulerTask):
 
         if not Config.get_bool(ConfigKey.FLEETS_CLEANUP_ENABLED):
             return
-        if deletes_paused():
+        if code_engine_paused():
             return
 
         results: list[bool] = []
