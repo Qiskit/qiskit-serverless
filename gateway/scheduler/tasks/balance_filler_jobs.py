@@ -17,7 +17,7 @@ from core.services.storage import get_arguments_storage
 from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.schedule import execute_fleets_job
+from scheduler.schedule import execute_fleets_job, submits_paused
 from .task import SchedulerTask
 
 logger = logging.getLogger("scheduler.BalanceFillerJobs")
@@ -223,8 +223,8 @@ class BalanceFillerJobs(SchedulerTask):
         if self._retry_loops > 0:
             self._retry_loops -= 1
             return
-        # A shutdown is not a failure of the work, so it buys no delay.
-        if self.kill_signal.received:
+        # A shutdown or paused submits are not a failure of the work, so they buy no delay.
+        if self.kill_signal.received or submits_paused():
             return
         if not self._submit_filler_job(program):
             self._retry_loops = RETRY_AFTER_LOOPS
