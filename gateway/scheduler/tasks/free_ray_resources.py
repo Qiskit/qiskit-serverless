@@ -17,7 +17,7 @@ logger = logging.getLogger("scheduler.FreeRayResources")
 
 
 class FreeRayResources(SchedulerTask):
-    """Cleanup resources."""
+    """Free the Ray cluster of a terminal job."""
 
     def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
         self.kill_signal = kill_signal

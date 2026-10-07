@@ -36,7 +36,7 @@ class TestCommands:
         Config.add_defaults()
         self.metrics = SchedulerMetrics(CollectorRegistry())
 
-    def test_free_resources(self):
+    def test_free_ray_resources(self):
         """Tests free resources command."""
         # Create compute resource matching fixture data
         test3_user = TestUtils.get_user_and_username("test3_user")[0]

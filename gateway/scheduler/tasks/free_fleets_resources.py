@@ -19,7 +19,6 @@ from scheduler.tasks.task import SchedulerTask
 logger = logging.getLogger("scheduler.FreeFleetsResources")
 
 MAX_DELETES_PER_CYCLE = 20
-# Used only when the Config value will not parse, so a typo cannot mean "delete everything now"
 DEFAULT_RETENTION_HOURS = 48
 # Counted in scheduler loops, which are about a second each
 REPORT_EVERY_LOOPS = 300
@@ -52,7 +51,7 @@ class FreeFleetsResources(SchedulerTask):
                 return
 
     def _jobs_to_clean(self):
-        """Terminal Fleets jobs whose fleet is older than the retention window, oldest first."""
+        """Terminal Fleets jobs whose last update is older than the retention window, oldest first."""
         retention = Config.get_int(ConfigKey.FLEETS_CLEANUP_RETENTION_HOURS, default=DEFAULT_RETENTION_HOURS)
         return (
             Job.objects.held_fleets()
@@ -79,7 +78,6 @@ class FreeFleetsResources(SchedulerTask):
         if self._report_loops > 0:
             self._report_loops -= 1
             return
-        self._report_loops = REPORT_EVERY_LOOPS
 
         counts = (
             Job.objects.held_fleets()
@@ -90,3 +88,4 @@ class FreeFleetsResources(SchedulerTask):
         self.metrics.clear_held_fleets()
         for row in counts:
             self.metrics.set_held_fleets(row["total"], row["ce_project"])
+        self._report_loops = REPORT_EVERY_LOOPS

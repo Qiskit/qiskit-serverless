@@ -148,7 +148,8 @@ class AbstractRunner(ABC):
         Clean up/delete the compute resource associated with the job.
 
         Returns:
-            True if cleaned up correctly
+            True if cleaned up correctly. False means no later try will succeed, so a caller that
+            tracks the resource can stop trying.
 
         Raises:
             RunnerUnavailableError: If a later try can work, so the caller should not give up on the row.

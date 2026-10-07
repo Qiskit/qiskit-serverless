@@ -490,8 +490,8 @@ class FleetsRunner(AbstractRunner):
         The caller persists the outcome.
 
         Returns:
-            ``True`` when the fleet is gone, including a 404. ``False`` when no later try can reach
-            it, so the caller should stop trying.
+            ``True`` when the fleet is gone, including a 404. ``False`` when there is nothing to
+            delete, or when Code Engine or the project rows refuse it in a way a retry will not fix.
 
         Raises:
             RunnerUnavailableError: If Code Engine did not answer, so a later try can work. A delete
@@ -511,7 +511,6 @@ class FleetsRunner(AbstractRunner):
             self._ensure_connected()
             self._get_handler().delete_job(self.job.fleet_id)
         except RunnerError as ex:
-            # connect() wraps the IAM token fetch, so this is an outage rather than a bad fleet
             raise RunnerUnavailableError(f"Unable to reach Code Engine: {ex}", ex) from ex
         except ApiException as ex:
             status = ex.status or 0
@@ -534,7 +533,8 @@ class FleetsRunner(AbstractRunner):
         Accepts an inactive project, unlike ``_get_project``.
 
         Raises:
-            RunnerError: If neither the snapshot nor the program resolves a project.
+            RunnerError: If the snapshot name matches no project, or there is no snapshot and the
+                program has none.
         """
         if not self.job.ce_project_name:
             # Jobs created before migration 0053 have no snapshot
@@ -585,7 +585,6 @@ class FleetsRunner(AbstractRunner):
             self._project = self._get_project()
 
         if self._handler is not None and self._handler.project_id != self._project.project_id:
-            # The project changed under us, so the cached handler points at the wrong one
             self._handler = None
             self._connected = False
 

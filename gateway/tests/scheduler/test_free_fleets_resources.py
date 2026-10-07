@@ -183,8 +183,6 @@ def test_an_unavailable_cycle_records_exactly_one_failure(fleets_program):
 
 
 def test_a_cycle_that_deleted_something_before_the_rate_limit_is_not_a_failure(fleets_program):
-    """Firing 20 deletes is what provokes a 429, so k successes then a 429 is the normal shape."""
-    # one job is stamped per cycle, so keep at least two candidates for every cycle
     for index in range(2 * _BREAKER_FAILURES):
         _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + index + 1, fleet_id=f"fleet-{index}")
     task = _make_task()

@@ -590,14 +590,14 @@ DYNAMIC_CONFIG_DEFAULTS = {
     "scheduler.fleets.cleanup.retention_hours": {
         "default": "48",
         "type": "integer",
-        "description": "How long a fleet is kept after its job reached a terminal status, so Code Engine "
+        "description": "How long a fleet is kept after the job row was last written, so Code Engine "
         "support can still inspect it.",
     },
     "scheduler.fleets.breaker_failures": {
         "default": "5",
         "type": "integer",
-        "description": "Consecutive Code Engine or COS failures (429, 5xx, connection errors, timeouts) before the "
-        "scheduler stops calling Code Engine. One breaker covers every operation.",
+        "description": "Consecutive Code Engine failures on the fleet delete path (429, 5xx, connection "
+        "errors, timeouts) before the scheduler stops calling Code Engine.",
     },
     "scheduler.fleets.breaker_pause_seconds": {
         "default": "60",

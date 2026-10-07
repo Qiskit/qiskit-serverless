@@ -397,7 +397,6 @@ def test_free_resources_deletes_the_fleet():
     ],
 )
 def test_free_resources_raises_the_error_type_for_each_code_engine_status(status, expected):
-    """A 504 is retryable here, unlike on submit: repeating a delete that happened is free."""
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
     mock_handler.delete_job.side_effect = ApiException(status=status, reason="error")
 
@@ -425,7 +424,6 @@ def test_free_resources_raises_unavailable_when_the_request_failed(error):
 
 
 def test_free_resources_raises_unavailable_when_code_engine_is_unreachable():
-    """A failed connect is an outage, so the fleet must be retried rather than abandoned."""
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
     runner._connected = False  # pylint: disable=protected-access
 

@@ -44,9 +44,9 @@ class JobQuerySet(QuerySet):
     """Job events query set to transform into a manager."""
 
     def held_fleets(self) -> Self:
-        """Jobs whose Code Engine fleet still exists, which is what counts against the 1000 limit.
+        """Fleets jobs we have not finished with: a fleet_id and no fleet_deleted_at stamp.
 
-        The same condition as the ``job_fleet_undeleted_idx`` partial index.
+        Narrower than the ``job_fleet_undeleted_idx`` partial index, which the ordering uses.
         """
         from core.models import Program  # pylint: disable=import-outside-toplevel, cyclic-import
 

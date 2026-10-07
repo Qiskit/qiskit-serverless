@@ -57,8 +57,3 @@ class CircuitBreaker:
     def _reset(self) -> None:
         self._consecutive_failures = 0
         self._opened_at = None
-
-
-def build_fleets_circuit_breaker() -> CircuitBreaker:
-    """A fresh circuit breaker with the thresholds of the Fleets Config entries."""
-    return CircuitBreaker(ConfigKey.FLEETS_BREAKER_FAILURES, ConfigKey.FLEETS_BREAKER_PAUSE_SECONDS)
