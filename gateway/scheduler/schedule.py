@@ -85,9 +85,9 @@ def execute_fleets_job(
         job with updated status (PENDING on success, FAILED on error)
 
     Raises:
-        RunnerUnavailableError: before any write, so the job stays QUEUED. Also while SUBMIT_BREAKER is open.
+        RunnerUnavailableError: before any write, so the job stays QUEUED.
     """
-    if SUBMIT_BREAKER.is_open:
+    if submits_paused():
         raise RunnerUnavailableError("Code Engine submits are paused by the circuit breaker")
     start = time.monotonic()
     tracer = trace.get_tracer("scheduler.tracer")
