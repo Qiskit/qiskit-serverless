@@ -297,6 +297,13 @@ spec:
                   name: {{ .Values.secrets.ibmCloudFidApiKey.name }}
                   key: {{ .Values.secrets.ibmCloudFidApiKey.key }}
             {{- end }}
+            {{- if .Values.application.functionsOperatorApiKey.enabled }}
+            - name: FUNCTIONS_OPERATOR_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.functionsOperatorApiKey.name }}
+                  key: {{ .Values.secrets.functionsOperatorApiKey.key }}
+            {{- end }}
             {{- if .Values.ce }}
             - name: FLEETS_GATEWAY_HOST
               value: {{ .Values.ce.fleetsGatewayHost | quote }}
@@ -515,6 +522,13 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secrets.ibmCloudFidApiKey.name }}
                   key: {{ .Values.secrets.ibmCloudFidApiKey.key }}
+            {{- end }}
+            {{- if .Values.application.functionsOperatorApiKey.enabled }}
+            - name: FUNCTIONS_OPERATOR_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.functionsOperatorApiKey.name }}
+                  key: {{ .Values.secrets.functionsOperatorApiKey.key }}
             {{- end }}
             {{- if .Values.ce }}
             - name: FLEETS_GATEWAY_HOST
