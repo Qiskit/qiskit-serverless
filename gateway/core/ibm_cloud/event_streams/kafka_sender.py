@@ -38,13 +38,13 @@ from collections.abc import Callable
 from confluent_kafka import Producer
 from django.conf import settings
 
-from core.ibm_cloud.sender import PendingMessage, Sender
+from core.ibm_cloud.sender import BatchSender, PendingMessage, Sender
 from .kafka_producers import KafkaProducers, UnroutableRegionError
 
 logger = logging.getLogger("gateway.ibm_cloud.event_streams_client")
 
 
-class KafkaSender(Sender):
+class KafkaSender(BatchSender):
     """Sends a payload to Kafka as-is, plus `type`. See KafkaProducers for how producers/topic
     are configured and how a payload's CRN is routed to a region."""
 
@@ -191,13 +191,19 @@ class KafkaSender(Sender):
         return producer
 
 
-class NoOpSender(Sender):
+class NoOpSender(BatchSender):
     """Drop-in replacement for KafkaSender when EVENT_STREAMS_ENABLED is false. Logs instead of
     publishing."""
 
     def send(self, payload: dict, timeout: float = 5) -> None:
         """Logs the payload instead of publishing it."""
         logger.info("payload=%s [noop] send", payload)
+
+    def send_batch(self, messages: list[PendingMessage]) -> set[int]:
+        """Logs every payload instead of publishing it, and reports all of them as delivered."""
+        for message in messages:
+            self.send(message.payload)
+        return {message.key for message in messages}
 
 
 def build_kafka_sender() -> Sender:
