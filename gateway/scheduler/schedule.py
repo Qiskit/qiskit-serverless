@@ -18,10 +18,42 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import JobTransitionService
-from core.services.runners import get_runner, RunnerError
+from core.services.runners import get_runner, RunnerError, RunnerUnavailableError
+from scheduler.tasks.circuit_breaker import build_fleets_circuit_breaker
 
 User: Model = get_user_model()
 logger = logging.getLogger("scheduler.schedule")
+
+# one breaker per kind of Code Engine request, shared by every caller of that request
+DELETE_BREAKER = build_fleets_circuit_breaker()
+
+
+def deletes_paused() -> bool:
+    """Whether DELETE_BREAKER is open."""
+    return DELETE_BREAKER.is_open
+
+
+def delete_fleet(job: Job) -> bool:
+    """Delete a job's fleet. ``True`` when the fleet is gone.
+
+    Raises:
+        RunnerUnavailableError: While the breaker is open, or when Code Engine did not answer.
+    """
+    if deletes_paused():
+        raise RunnerUnavailableError("Code Engine fleet deletes are paused by the circuit breaker")
+    try:
+        return get_runner(job).free_resources()
+    except RunnerUnavailableError:
+        DELETE_BREAKER.record_failure()
+        raise
+
+
+def record_delete_batch(*, attempted: bool, succeeded: bool) -> None:
+    """A cycle where nothing got through is Code Engine, not one fleet we cannot delete."""
+    if succeeded:
+        DELETE_BREAKER.record_success()
+    elif attempted:
+        DELETE_BREAKER.record_failure()
 
 
 def execute_ray_job(job: Job) -> Job:

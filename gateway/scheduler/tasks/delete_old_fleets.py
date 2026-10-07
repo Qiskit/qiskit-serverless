@@ -9,11 +9,11 @@ from django.utils import timezone
 
 from core.config_key import ConfigKey
 from core.models import Config, Job
-from core.services.runners import get_runner, RunnerUnavailableError
+from core.services.runners import RunnerUnavailableError
 
 from scheduler.kill_signal import KillSignal
+from scheduler.schedule import delete_fleet, deletes_paused, record_delete_batch
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.tasks.circuit_breaker import build_fleets_circuit_breaker
 from scheduler.tasks.task import SchedulerTask
 
 logger = logging.getLogger("scheduler.DeleteOldFleets")
@@ -30,7 +30,6 @@ class DeleteOldFleets(SchedulerTask):
         self.kill_signal = kill_signal
         self.metrics = metrics
         self._report_loops = 0
-        self._breaker = build_fleets_circuit_breaker()
 
     def run(self):
         """Delete the fleets past the retention window, and report the fleets we hold."""
@@ -38,7 +37,7 @@ class DeleteOldFleets(SchedulerTask):
 
         if not Config.get_bool(ConfigKey.FLEETS_CLEANUP_ENABLED):
             return
-        if self._breaker.is_open:
+        if deletes_paused():
             return
 
         attempted = succeeded = False
@@ -50,13 +49,8 @@ class DeleteOldFleets(SchedulerTask):
                 succeeded |= self._delete_fleet(job)
             except RunnerUnavailableError as ex:
                 logger.warning("Code Engine is unavailable, stopping this cleanup cycle: %s", ex)
-                self._breaker.record_failure()
                 return
-
-        if succeeded:
-            self._breaker.record_success()
-        elif attempted:
-            self._breaker.record_failure()
+        record_delete_batch(attempted=attempted, succeeded=succeeded)
 
     def _jobs_to_clean(self):
         """Terminal Fleets jobs whose fleet is older than the retention window, oldest first."""
@@ -69,7 +63,7 @@ class DeleteOldFleets(SchedulerTask):
 
     def _delete_fleet(self, job: Job) -> bool:
         """Delete one job's fleet and stamp it. Returns False when the delete could not be sent."""
-        if not get_runner(job).free_resources():
+        if not delete_fleet(job):
             logger.warning("job_id=%s fleet_id=%s not deleted, retrying later", job.id, job.fleet_id)
             return False
 

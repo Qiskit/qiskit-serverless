@@ -15,6 +15,7 @@ from tests.utils import TestUtils
 pytestmark = pytest.mark.django_db
 
 _MOD = "scheduler.tasks.delete_old_fleets"
+_SCHEDULE = "scheduler.schedule"
 _RETENTION_HOURS = 48
 _BREAKER_FAILURES = 5
 
@@ -59,7 +60,7 @@ def _terminal_job(program, *, age_hours, fleet_id="fleet-1", **kwargs):
 
 
 def _run(task, *, deleted=True, error=None):
-    with patch(f"{_MOD}.get_runner") as get_runner:
+    with patch(f"{_SCHEDULE}.get_runner") as get_runner:
         if error:
             get_runner.return_value.free_resources.side_effect = error
         else:
@@ -186,7 +187,7 @@ def test_a_partly_failed_batch_is_not_a_failure(fleets_program):
     _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, fleet_id="fine")
     task = _make_task()
 
-    with patch(f"{_MOD}.get_runner") as get_runner:
+    with patch(f"{_SCHEDULE}.get_runner") as get_runner:
         get_runner.return_value.free_resources.side_effect = [False, True]
         task.run()
 
