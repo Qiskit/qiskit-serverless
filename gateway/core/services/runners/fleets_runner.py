@@ -98,7 +98,7 @@ def _fleet_name_segment(value: str) -> str:
 
 
 def _surely_not_performed(ex: Exception) -> bool:
-    """Whether Code Engine surely did not create the fleet, so a later try cannot create a second one."""
+    """Whether Code Engine surely did not perform the request, so a later try cannot duplicate it."""
     if isinstance(ex, ApiException):
         status = ex.status or 0
         return status == 429 or (500 <= status < 600 and status not in (502, 504))
