@@ -7,7 +7,7 @@ import pytest
 
 from core.config_key import ConfigKey
 from core.models import Config, Job
-from core.services.runners import RunnerRateLimitedError
+from core.services.runners import RunnerUnavailableError
 from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
 
 _MOD = "scheduler.tasks.schedule_fleets_jobs"
@@ -73,7 +73,7 @@ def test_a_rate_limited_submit_opens_the_breaker_and_skips_the_remaining_jobs():
 
     with (
         patch(f"{_MOD}.get_jobs_to_schedule_fair_share", return_value=jobs),
-        patch(f"{_MOD}.execute_fleets_job", side_effect=RunnerRateLimitedError("Too Many Requests")) as mock_execute,
+        patch(f"{_MOD}.execute_fleets_job", side_effect=RunnerUnavailableError("Too Many Requests")) as mock_execute,
     ):
         task._schedule_jobs_if_slots_available(max_slots_possible=5, number_of_slots_running=0)
 

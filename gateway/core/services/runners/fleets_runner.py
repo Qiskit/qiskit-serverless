@@ -23,11 +23,12 @@ from io import BytesIO
 from django.conf import settings
 from django.template.loader import get_template
 from ibm_botocore.exceptions import ClientError
+from urllib3.exceptions import ConnectTimeoutError, MaxRetryError
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
 from core.domain import compute_profile
 from core.models import Job, CodeEngineProject
-from core.services.runners.abstract_runner import AbstractRunner, RunnerError, RunnerRateLimitedError
+from core.services.runners.abstract_runner import AbstractRunner, RunnerError, RunnerUnavailableError
 from core.ibm_cloud import get_ce_auth, get_cos_client
 from core.utils import decrypt_env_vars
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
@@ -94,6 +95,17 @@ def _fleet_name_segment(value: str) -> str:
     """
     slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
     return slug[:_FLEET_NAME_SEGMENT_MAX].strip("-") or "unknown"
+
+
+def _surely_not_performed(ex: Exception) -> bool:
+    """Whether Code Engine surely did not create the fleet, so a later try cannot create a second one.
+
+    A 502, a 504 or a status of 0 can come after the fleet was created, so they do not count.
+    """
+    if isinstance(ex, ApiException):
+        status = ex.status or 0
+        return status == 429 or (500 <= status < 600 and status not in (502, 504))
+    return isinstance(ex, MaxRetryError) and isinstance(ex.reason, ConnectTimeoutError)
 
 
 class FleetsRunner(AbstractRunner):
@@ -230,8 +242,8 @@ class FleetsRunner(AbstractRunner):
             self.job.fleet_id = fleet_id
 
         except ApiException as ex:
-            if ex.status == 429:
-                raise RunnerRateLimitedError(f"Code Engine API error: {ex.reason}", ex) from ex
+            if _surely_not_performed(ex):
+                raise RunnerUnavailableError(f"Code Engine API error: {ex.reason}", ex) from ex
             logger.error(
                 "CE API error submitting job_id=[%s]: status=%s reason=%s",
                 self.job.id,
@@ -242,6 +254,8 @@ class FleetsRunner(AbstractRunner):
         except RunnerError:
             raise
         except Exception as ex:
+            if _surely_not_performed(ex):
+                raise RunnerUnavailableError(f"Unable to connect to Code Engine: {ex}", ex) from ex
             logger.error("Failed to submit job_id=[%s]: %s", self.job.id, ex)
             raise RunnerError(f"Failed to submit job_id=[{self.job.id}] to Code Engine Fleets", ex) from ex
 

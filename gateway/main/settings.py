@@ -584,8 +584,8 @@ DYNAMIC_CONFIG_DEFAULTS = {
     "scheduler.fleets.breaker_failures": {
         "default": "5",
         "type": "integer",
-        "description": "Consecutive Code Engine rate limits (HTTP 429) before the circuit breaker of a Fleets "
-        "scheduler task opens. Each task has its own breaker.",
+        "description": "Consecutive Code Engine failures that a later try can fix (HTTP 429, 5xx, connection "
+        "errors) before the circuit breaker of a Fleets scheduler task opens. Each task has its own breaker.",
     },
     "scheduler.fleets.breaker_pause_seconds": {
         "default": "60",

@@ -11,7 +11,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from core.config_key import ConfigKey
 from core.models import Job, Config, Program
 from core.services.job_transitions import JobTransitionService
-from core.services.runners import RunnerRateLimitedError
+from core.services.runners import RunnerUnavailableError
 from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_fleets_job
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
@@ -38,7 +38,7 @@ class ScheduleFleetsJobs(SchedulerTask):
             logger.warning("System in maintenance mode. Skipping new jobs schedule.")
             return
         if self.breaker.is_open:
-            logger.warning("Code Engine is rate limiting submits. Skipping new jobs schedule.")
+            logger.warning("Code Engine is unavailable. Skipping new jobs schedule.")
             return
 
         self._schedule_fleets_jobs()
@@ -74,7 +74,7 @@ class ScheduleFleetsJobs(SchedulerTask):
 
             try:
                 job = execute_fleets_job(job, ctx, self.transitions)
-            except RunnerRateLimitedError as ex:
+            except RunnerUnavailableError as ex:
                 logger.warning("job_id=%s Job kept QUEUED: %s", job.id, ex)
                 self.breaker.record_failure()
                 if self.breaker.is_open:

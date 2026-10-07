@@ -20,12 +20,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from django.conf import settings as django_settings
+from urllib3.exceptions import MaxRetryError, NewConnectionError
 
 from core.domain.compute_profile import normalize as normalize_compute_profile
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
 from core.models import Job, Program
-from core.services.runners.abstract_runner import RunnerError, RunnerRateLimitedError
+from core.services.runners.abstract_runner import RunnerError, RunnerUnavailableError
 from core.services.runners import fleets_runner as fleets_runner_module
 from core.services.runners.fleets_runner import FleetsRunner
 
@@ -463,16 +464,31 @@ def test_submit_raises_runner_error_on_api_exception():
             runner.submit()
 
 
-def test_submit_raises_rate_limited_error_on_429_without_retrying():
-    """submit() raises RunnerRateLimitedError on a 429 and calls Code Engine only once."""
+@pytest.mark.parametrize(
+    "status, expected",
+    [(429, RunnerUnavailableError), (503, RunnerUnavailableError), (504, RunnerError)],
+)
+def test_submit_raises_unavailable_only_when_code_engine_surely_did_nothing(status, expected):
+    """A 504 can come after the fleet was created, so only a sure failure is retried, and only once."""
     runner, mock_handler = _make_submit_runner()
-    mock_handler.submit_job.side_effect = ApiException(status=429, reason="Too Many Requests")
+    mock_handler.submit_job.side_effect = ApiException(status=status, reason="error")
 
     with _patch_settings():
-        with pytest.raises(RunnerRateLimitedError):
+        with pytest.raises(RunnerError) as exc:
             runner.submit()
 
+    assert type(exc.value) is expected
     mock_handler.submit_job.assert_called_once()
+
+
+def test_submit_raises_unavailable_when_the_connection_never_opened():
+    """urllib3 raises MaxRetryError with the connect error as reason, so the request never left."""
+    runner, mock_handler = _make_submit_runner()
+    mock_handler.submit_job.side_effect = MaxRetryError(None, "/", reason=NewConnectionError(None, "refused"))
+
+    with _patch_settings():
+        with pytest.raises(RunnerUnavailableError):
+            runner.submit()
 
 
 def test_submit_raises_runner_error_when_no_fleet_id_returned():
