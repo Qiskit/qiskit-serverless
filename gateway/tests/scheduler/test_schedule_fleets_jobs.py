@@ -77,12 +77,12 @@ def test_an_unavailable_submit_ends_the_tick():
 
 
 @pytest.mark.django_db
-def test_run_skips_the_tick_while_submits_are_paused():
+def test_run_skips_the_tick_while_code_engine_is_paused():
     Config.add_defaults()
     task = _make_task()
 
     with (
-        patch(f"{_MOD}.submits_paused", return_value=True),
+        patch(f"{_MOD}.code_engine_paused", return_value=True),
         patch(f"{_MOD}.get_jobs_to_schedule_fair_share") as mock_fair_share,
     ):
         task.run()

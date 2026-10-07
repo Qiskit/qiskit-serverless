@@ -23,7 +23,7 @@ from core.services.storage import get_logs_storage
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 
-from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_ray_job, execute_fleets_job, submits_paused
+from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_ray_job, execute_fleets_job, code_engine_paused
 from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
 
 from tests.utils import TestUtils
@@ -261,7 +261,7 @@ class TestScheduleApi(APITestCase):
 
         execute_fleets_job(MagicMock(), MagicMock(), MagicMock())
 
-        assert submits_paused() is False
+        assert code_engine_paused() is False
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
@@ -277,7 +277,7 @@ class TestScheduleApi(APITestCase):
 
         assert ret_job.status == Job.FAILED
         transitions.to_failed.assert_called_once()
-        assert submits_paused() is True
+        assert code_engine_paused() is True
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")

@@ -24,13 +24,13 @@ from scheduler.tasks.circuit_breaker import build_fleets_circuit_breaker
 User: Model = get_user_model()
 logger = logging.getLogger("scheduler.schedule")
 
-# shared by every scheduler task that submits Fleets jobs
-SUBMIT_BREAKER = build_fleets_circuit_breaker()
+# One breaker for the whole Code Engine API: when it is down it is down for every operation
+CODE_ENGINE_BREAKER = build_fleets_circuit_breaker()
 
 
-def submits_paused() -> bool:
-    """Whether SUBMIT_BREAKER is open."""
-    return SUBMIT_BREAKER.is_open
+def code_engine_paused() -> bool:
+    """Whether CODE_ENGINE_BREAKER is open."""
+    return CODE_ENGINE_BREAKER.is_open
 
 
 def execute_ray_job(job: Job) -> Job:
@@ -87,8 +87,8 @@ def execute_fleets_job(
     Raises:
         RunnerUnavailableError: before any write, so the job stays QUEUED.
     """
-    if submits_paused():
-        raise RunnerUnavailableError("Fleets submits are paused by the circuit breaker")
+    if code_engine_paused():
+        raise RunnerUnavailableError("Code Engine calls are paused by the circuit breaker")
     start = time.monotonic()
     tracer = trace.get_tracer("scheduler.tracer")
     with tracer.start_as_current_span("scheduler.submit", context=ctx) as span:
@@ -97,7 +97,7 @@ def execute_fleets_job(
         try:
             # Fleets runner set only fleet_id
             runner.submit()
-            SUBMIT_BREAKER.record_success()
+            CODE_ENGINE_BREAKER.record_success()
             job.status = Job.PENDING
             transition = transitions.queued_to_pending
             logger.info(
@@ -106,10 +106,10 @@ def execute_fleets_job(
                 time.monotonic() - start,
             )
         except RunnerUnavailableError:
-            SUBMIT_BREAKER.record_failure()
+            CODE_ENGINE_BREAKER.record_failure()
             raise
         except RunnerSubmitUncertainError as ex:
-            SUBMIT_BREAKER.record_failure()
+            CODE_ENGINE_BREAKER.record_failure()
             logger.error("[execute_fleets_job] job_id=%s error=%s Job set as FAILED: the fleet may exist", job.id, ex)
             job.status = Job.FAILED
             transition = transitions.to_failed

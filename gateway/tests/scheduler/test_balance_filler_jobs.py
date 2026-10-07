@@ -525,10 +525,10 @@ def test_a_failed_creation_waits_out_the_delay_before_trying_again(filler_progra
     assert Job.objects.filter(filler=True).count() == 0
 
 
-def test_no_filler_job_is_created_while_submits_are_paused(filler_program):
+def test_no_filler_job_is_created_while_code_engine_is_paused(filler_program):
     task = _make_task()
 
-    with patch(f"{_MOD}.submits_paused", return_value=True):
+    with patch(f"{_MOD}.code_engine_paused", return_value=True):
         submit, arguments, _ = _run(task)
 
     submit.assert_not_called()

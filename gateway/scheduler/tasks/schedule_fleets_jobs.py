@@ -12,7 +12,7 @@ from core.config_key import ConfigKey
 from core.models import Job, Config, Program
 from core.services.job_transitions import JobTransitionService
 from core.services.runners import RunnerUnavailableError
-from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_fleets_job, submits_paused
+from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_fleets_job, code_engine_paused
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
@@ -35,8 +35,8 @@ class ScheduleFleetsJobs(SchedulerTask):
         if Config.get_bool(ConfigKey.MAINTENANCE):
             logger.warning("System in maintenance mode. Skipping new jobs schedule.")
             return
-        if submits_paused():
-            logger.warning("Fleets submits are paused by the circuit breaker. Skipping new jobs schedule.")
+        if code_engine_paused():
+            logger.warning("Code Engine calls are paused by the circuit breaker. Skipping new jobs schedule.")
             return
 
         self._schedule_fleets_jobs()

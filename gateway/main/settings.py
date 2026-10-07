@@ -584,13 +584,13 @@ DYNAMIC_CONFIG_DEFAULTS = {
     "scheduler.fleets.breaker_failures": {
         "default": "5",
         "type": "integer",
-        "description": "Consecutive Code Engine or COS submit failures (429, 5xx, connection errors, timeouts) "
-        "before Fleets submits pause.",
+        "description": "Consecutive Code Engine or COS failures (429, 5xx, connection errors, timeouts) before the "
+        "scheduler stops calling Code Engine. One breaker covers every operation.",
     },
     "scheduler.fleets.breaker_pause_seconds": {
         "default": "60",
         "type": "integer",
-        "description": "How long Fleets submits stay paused once the circuit breaker opens.",
+        "description": "How long the scheduler stops calling Code Engine once the breaker trips.",
     },
 }
 
