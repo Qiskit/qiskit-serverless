@@ -34,14 +34,13 @@ import logging
 
 from django.conf import settings
 
-from core.domain.crn import Crn
-from core.ibm_cloud.sender import PendingMessage, Sender
+from core.ibm_cloud.sender import BatchSender, PendingMessage, Sender
 from .kafka_producers import KafkaProducers
 
 logger = logging.getLogger("gateway.ibm_cloud.event_streams_client")
 
 
-class KafkaSender(Sender):
+class KafkaSender(BatchSender):
     """Sends a payload to Kafka as-is, plus `type`. See KafkaProducers for how producers/topic
     are configured and how a payload's CRN is routed to a region."""
 
@@ -120,11 +119,6 @@ class KafkaSender(Sender):
         # a copy, so a callback that fires after a timed-out flush cannot change what the caller got
         return set(delivered)
 
-    def group_key(self, payload: dict) -> str | None:
-        """The payload's region: each region is its own Kafka cluster, so it fails on its own."""
-        crn = Crn.parse(self._instance_crn(payload))
-        return crn.region if crn else None
-
     @staticmethod
     def _instance_crn(payload) -> str | None:
         """The payload's data.instance_crn, or None when the payload is not shaped like one."""
@@ -148,13 +142,19 @@ class KafkaSender(Sender):
         )
 
 
-class NoOpSender(Sender):
+class NoOpSender(BatchSender):
     """Drop-in replacement for KafkaSender when EVENT_STREAMS_ENABLED is false. Logs instead of
     publishing."""
 
     def send(self, payload: dict) -> None:
         """Logs the payload instead of publishing it."""
         logger.info("payload=%s [noop] send", payload)
+
+    def send_batch(self, messages: list[PendingMessage]) -> set[int]:
+        """Logs every payload instead of publishing it, and reports all of them as delivered."""
+        for message in messages:
+            self.send(message.payload)
+        return {message.key for message in messages}
 
 
 def build_kafka_sender() -> Sender:

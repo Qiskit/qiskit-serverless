@@ -14,6 +14,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.db.models import F
+from django.db.models.functions import Now
 from django.utils import timezone
 from django_prometheus.models import ExportModelOperationsMixin
 
@@ -566,13 +567,11 @@ class Job(models.Model):
     # is now rejected instead of falling back to this): kept only so existing Job rows
     # stay readable. Candidate for deprecation/removal once none remain.
     SIZE_SOURCE_SETTINGS_DEFAULT = "SETTINGS_DEFAULT"  # deployment-wide default profile
-    SIZE_SOURCE_COMPUTE_PROFILE = "COMPUTE_PROFILE"  # deprecated compute_profile input
     SIZE_SOURCE_NONE = "NONE"  # sizing not applicable (Ray / non-Fleets)
     SIZE_SOURCES = [
         (SIZE_SOURCE_REQUESTED, "Requested by user"),
         (SIZE_SOURCE_DEFAULT_SIZE, "Function default size"),
         (SIZE_SOURCE_SETTINGS_DEFAULT, "Deployment default profile"),
-        (SIZE_SOURCE_COMPUTE_PROFILE, "Deprecated compute_profile input"),
         (SIZE_SOURCE_NONE, "Not applicable"),
     ]
 
@@ -660,7 +659,7 @@ class Job(models.Model):
         related_name="jobs",
         help_text=(
             "Size row the job resolved to at creation; null when sized by the deployment "
-            "default profile, the deprecated compute_profile input, or a non-Fleets runner."
+            "default profile or a non-Fleets runner."
         ),
     )
 
@@ -843,13 +842,42 @@ class Outbox(models.Model):
     channel = models.CharField(
         max_length=20, choices=[(c.value, c.name.replace("_", " ").title()) for c in OutboxChannel]
     )
+    region = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="Region of the instance CRN the message belongs to, or null when it has none. Delivery uses it "
+        "only to pick the circuit breaker: a region that fails does not hold back the others.",
+    )
     payload = models.JSONField()
     created = models.DateTimeField(auto_now_add=True)
+    # The three of them also have a db_default: a pod still running the code from before they existed inserts rows
+    # without them during a rolling deploy, and the NOT NULL column would reject that insert (and roll back the
+    # job transition it belongs to) if the database had no default of its own.
+    attempts = models.PositiveIntegerField(
+        default=0,
+        db_default=0,
+        help_text="How many times sending this row has failed. Delivery uses it to grow the wait between tries.",
+    )
+    next_attempt_at = models.DateTimeField(
+        default=timezone.now,
+        db_default=Now(),
+        help_text="The row is not sent before this moment. A new row is due at once, and every failure moves it "
+        "further away, so a row that always fails cannot keep the rows behind it from being sent.",
+    )
+    last_error = models.CharField(
+        max_length=500,
+        blank=True,
+        default="",
+        db_default="",
+        help_text="Why the last attempt failed, only to find out what is wrong with a row that does not leave.",
+    )
 
     class Meta:
         app_label = "api"
         indexes = [
             models.Index(fields=["channel", "created"], name="outbox_channel_created_idx"),
+            models.Index(fields=["channel", "region", "created"], name="outbox_chan_reg_created_idx"),
         ]
 
     def __str__(self):

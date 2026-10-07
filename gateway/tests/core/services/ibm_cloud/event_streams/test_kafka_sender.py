@@ -253,30 +253,7 @@ class TestKafkaSenderBatch:
         assert "type" not in payload
 
 
-class TestKafkaSenderGroupKey:
-    def test_the_group_is_the_region_in_the_instance_crn(self):
-        sender = KafkaSender(MagicMock())
-
-        crn = "crn:v1:bluemix:public:quantum-computing:eu-de:a/acct:inst::"
-        assert sender.group_key(_payload(crn)) == "eu-de"
-
-    def test_a_payload_without_a_parsable_crn_has_no_group(self):
-        sender = KafkaSender(MagicMock())
-
-        assert sender.group_key({"data": {}}) is None
-        assert sender.group_key({"data": None}) is None
-        assert sender.group_key(_payload("not-a-crn")) is None
-
-
 class TestKafkaSenderMalformedPayloads:
-    def test_group_key_never_raises_on_odd_shapes(self):
-        sender = KafkaSender(MagicMock())
-
-        assert sender.group_key({"data": [1]}) is None
-        assert sender.group_key({"data": "x"}) is None
-        assert sender.group_key({"data": {"instance_crn": 5}}) is None
-        assert sender.group_key([1, 2]) is None
-
     def test_send_batch_never_raises_on_a_payload_that_is_not_a_dict_and_still_sends_the_rest(self):
         producer = _FakeProducer()
         producers = MagicMock()
@@ -289,15 +266,13 @@ class TestKafkaSenderMalformedPayloads:
         assert delivered == {2}
 
 
-class TestSenderDefaultSendBatch:
-    def test_swallows_and_logs_a_failure_and_still_sends_the_rest(self, caplog):
-        sender = NoOpSender()
-        with patch.object(NoOpSender, "send", side_effect=[None, RuntimeError("boom"), None]):
-            with caplog.at_level(logging.ERROR):
-                delivered = sender.send_batch([PendingMessage(1, {}), PendingMessage(2, {}), PendingMessage(3, {})])
+class TestNoOpSenderBatch:
+    def test_reports_every_message_as_delivered(self, caplog):
+        with caplog.at_level(logging.INFO):
+            delivered = NoOpSender().send_batch([PendingMessage(1, {}), PendingMessage(2, {})])
 
-        assert delivered == {1, 3}
-        assert "boom" in caplog.text
+        assert delivered == {1, 2}
+        assert "noop" in caplog.text
 
 
 class TestNoOpSender:

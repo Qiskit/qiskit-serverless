@@ -236,7 +236,6 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 job.get("id"),
                 job_service=self,
                 raw_data=job,
-                compute_profile=job.get("compute_profile"),
             )
             for job in response_data.get("results", [])
         ]
@@ -291,7 +290,6 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 job.get("id"),
                 job_service=self,
                 raw_data=job,
-                compute_profile=job.get("compute_profile"),
             )
             for job in response_data.get("results", [])
         ]
@@ -314,7 +312,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             job = Job(
                 job_id=job_id,
                 job_service=self,
-                compute_profile=response_data.get("compute_profile"),
+                raw_data=response_data,
             )
 
         return job
@@ -326,16 +324,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         config: Optional[Configuration] = None,
         provider: Optional[str] = None,
         *,
-        compute_profile: Optional[str] = None,
         function_size: Optional[str] = None,
     ) -> Job:
-        if compute_profile is not None:
-            warnings.warn(
-                "'compute_profile' is deprecated; use 'function_size' instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
         if isinstance(program, QiskitFunction):
             title = program.title
             provider = program.provider
@@ -353,7 +343,6 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             data = {
                 "title": title,
                 "provider": provider,
-                "compute_profile": compute_profile,
                 "function_size": function_size,
                 "arguments": json.dumps(arguments or {}, cls=QiskitObjectsEncoder),
             }  # type: Dict[str, Any]
@@ -376,7 +365,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         return Job(
             job_id,
             job_service=self,
-            compute_profile=response_data.get("compute_profile"),
+            raw_data=response_data,
         )
 
     def get_job_data(self, job_id: str) -> Optional[dict]:
@@ -1066,7 +1055,6 @@ class IBMServerlessClient(ServerlessClient):
         config: Optional[Configuration] = None,
         provider: Optional[str] = None,
         *,
-        compute_profile: Optional[str] = None,
         function_size: Optional[str] = None,
         suppress_low_usage_warning: bool = False,
     ) -> "Job":
@@ -1080,7 +1068,6 @@ class IBMServerlessClient(ServerlessClient):
                 the backend access check but forwarded unchanged.
             config: Optional execution configuration.
             provider: Optional provider name override.
-            compute_profile: Deprecated; use ``function_size`` instead. Sending both is rejected.
             function_size: Declared size label (e.g. ``"m"``) to run at; resolves through the
                 function's size catalog on the gateway.
             suppress_low_usage_warning: If ``True``, suppress the warning when remaining runtime
@@ -1115,7 +1102,6 @@ class IBMServerlessClient(ServerlessClient):
             arguments=arguments,
             config=config,
             provider=provider,
-            compute_profile=compute_profile,
             function_size=function_size,
         )
 
