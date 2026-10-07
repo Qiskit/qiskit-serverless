@@ -19,9 +19,18 @@ from core.models import Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import JobTransitionService
 from core.services.runners import get_runner, RunnerError, RunnerUnavailableError
+from scheduler.tasks.circuit_breaker import build_fleets_circuit_breaker
 
 User: Model = get_user_model()
 logger = logging.getLogger("scheduler.schedule")
+
+# shared by every scheduler task that submits Fleets jobs
+SUBMIT_BREAKER = build_fleets_circuit_breaker()
+
+
+def submits_paused() -> bool:
+    """Whether SUBMIT_BREAKER is open, so execute_fleets_job would not call Code Engine."""
+    return SUBMIT_BREAKER.is_open
 
 
 def execute_ray_job(job: Job) -> Job:
@@ -76,8 +85,11 @@ def execute_fleets_job(
         job with updated status (PENDING on success, FAILED on error)
 
     Raises:
-        RunnerUnavailableError: before any write, so the job stays QUEUED for the next tick
+        RunnerUnavailableError: before any write, so the job stays QUEUED for the next tick. Also raised
+            without calling Code Engine while SUBMIT_BREAKER is open.
     """
+    if SUBMIT_BREAKER.is_open:
+        raise RunnerUnavailableError("Code Engine submits are paused by the circuit breaker")
     start = time.monotonic()
     tracer = trace.get_tracer("scheduler.tracer")
     with tracer.start_as_current_span("scheduler.submit", context=ctx) as span:
@@ -86,6 +98,7 @@ def execute_fleets_job(
         try:
             # Fleets runner set only fleet_id
             runner.submit()
+            SUBMIT_BREAKER.record_success()
             job.status = Job.PENDING
             transition = transitions.queued_to_pending
             logger.info(
@@ -94,6 +107,7 @@ def execute_fleets_job(
                 time.monotonic() - start,
             )
         except RunnerUnavailableError:
+            SUBMIT_BREAKER.record_failure()
             raise
         except RunnerError as ex:
             logger.error(

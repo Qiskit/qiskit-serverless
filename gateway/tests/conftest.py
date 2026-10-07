@@ -35,3 +35,12 @@ def clear_django_cache():
     otherwise leak a value cached by one test into the next.
     """
     cache.clear()
+
+
+@pytest.fixture(autouse=True)
+def fresh_submit_breaker(monkeypatch):
+    """Give every test a closed SUBMIT_BREAKER, so failures recorded by one test do not open it for the next."""
+    from scheduler import schedule  # pylint: disable=import-outside-toplevel
+    from scheduler.tasks.circuit_breaker import build_fleets_circuit_breaker  # pylint: disable=import-outside-toplevel
+
+    monkeypatch.setattr(schedule, "SUBMIT_BREAKER", build_fleets_circuit_breaker())

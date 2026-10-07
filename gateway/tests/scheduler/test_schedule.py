@@ -14,7 +14,8 @@ from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 
 from core.model_managers.job_events import JobEventContext
-from core.models import Job, ComputeResource, JobEvent, Program
+from core.config_key import ConfigKey
+from core.models import Config, Job, ComputeResource, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.runners import RunnerError, RunnerUnavailableError
 from core.services.storage import get_logs_storage
@@ -216,6 +217,7 @@ class TestScheduleApi(APITestCase):
     @patch("scheduler.schedule.trace")
     def test_execute_fleets_job_leaves_the_job_untouched_when_rate_limited(self, mock_trace, mock_get_runner_client):
         """A rate limited submit raises before any write, so the job stays QUEUED with its env vars."""
+        Config.add_defaults()
         mock_runner = MagicMock()
         mock_runner.submit.side_effect = RunnerUnavailableError("Too Many Requests")
         mock_get_runner_client.return_value = mock_runner
@@ -232,6 +234,20 @@ class TestScheduleApi(APITestCase):
         assert job.env_vars == '{"KEY": "value"}'
         transitions.queued_to_pending.assert_not_called()
         transitions.to_failed.assert_not_called()
+
+    @patch("scheduler.schedule.get_runner")
+    @patch("scheduler.schedule.trace")
+    def test_execute_fleets_job_skips_code_engine_once_the_breaker_opens(self, mock_trace, mock_get_runner_client):
+        Config.add_defaults()
+        Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "1")
+        mock_get_runner_client.return_value.submit.side_effect = RunnerUnavailableError("Too Many Requests")
+
+        with pytest.raises(RunnerUnavailableError):
+            execute_fleets_job(MagicMock(), MagicMock(), MagicMock())
+        with pytest.raises(RunnerUnavailableError):
+            execute_fleets_job(MagicMock(), MagicMock(), MagicMock())
+
+        mock_get_runner_client.return_value.submit.assert_called_once()
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")

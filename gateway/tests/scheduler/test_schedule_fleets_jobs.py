@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.config_key import ConfigKey
 from core.models import Config, Job
 from core.services.runners import RunnerUnavailableError
 from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
@@ -64,10 +63,7 @@ def test_add_queue_wait_time_metric_skips_filler_jobs():
     task.metrics.observe_queue_wait_time.assert_called_once()
 
 
-@pytest.mark.django_db
-def test_a_rate_limited_submit_opens_the_breaker_and_skips_the_remaining_jobs():
-    Config.add_defaults()
-    Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "1")
+def test_an_unavailable_submit_ends_the_tick():
     task = _make_task()
     jobs = [MagicMock(env_vars="{}"), MagicMock(env_vars="{}")]
 
@@ -78,4 +74,17 @@ def test_a_rate_limited_submit_opens_the_breaker_and_skips_the_remaining_jobs():
         task._schedule_jobs_if_slots_available(max_slots_possible=5, number_of_slots_running=0)
 
     mock_execute.assert_called_once()
-    assert task.breaker.is_open is True
+
+
+@pytest.mark.django_db
+def test_run_skips_the_tick_while_submits_are_paused():
+    Config.add_defaults()
+    task = _make_task()
+
+    with (
+        patch(f"{_MOD}.submits_paused", return_value=True),
+        patch(f"{_MOD}.get_jobs_to_schedule_fair_share") as mock_fair_share,
+    ):
+        task.run()
+
+    mock_fair_share.assert_not_called()
