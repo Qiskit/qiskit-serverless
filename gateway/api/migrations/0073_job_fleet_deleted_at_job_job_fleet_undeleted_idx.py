@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("api", "0071_alter_job_function_size"),
+        ("api", "0072_outbox_retry_state"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
