@@ -31,7 +31,7 @@ class RunnerError(Exception):
 
 
 class RunnerUnavailableError(RunnerError):
-    """The engine surely did not perform the request, for example a 429, so a later try can work."""
+    """A later try can work, for example after a 429, so the caller should not fail the row."""
 
 
 class AbstractRunner(ABC):
@@ -151,7 +151,7 @@ class AbstractRunner(ABC):
             True if cleaned up correctly
 
         Raises:
-            RunnerUnavailableError: If the engine did not perform the request, so a later try can work.
+            RunnerUnavailableError: If a later try can work, so the caller should not give up on the row.
         """
         raise NotImplementedError
 

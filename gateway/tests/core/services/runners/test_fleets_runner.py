@@ -23,7 +23,7 @@ from django.conf import settings as django_settings
 
 from core.domain.compute_profile import normalize as normalize_compute_profile
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
-from urllib3.exceptions import ConnectTimeoutError, MaxRetryError
+from urllib3.exceptions import ConnectTimeoutError, MaxRetryError, ProtocolError, ReadTimeoutError
 from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
 from core.models import Job, Program
 from core.services.runners.abstract_runner import RunnerError, RunnerUnavailableError
@@ -387,25 +387,36 @@ def test_free_resources_deletes_the_fleet():
     mock_handler.delete_job.assert_called_once_with("fleet-123")
 
 
-@pytest.mark.parametrize("status", [504, 400])
-def test_free_resources_returns_false_when_the_delete_could_not_be_sent(status):
-    """A fleet we cannot delete is left for a later cycle rather than raising at the scheduler."""
+@pytest.mark.parametrize(
+    "status, expected",
+    [
+        (429, RunnerUnavailableError),
+        (503, RunnerUnavailableError),
+        (504, RunnerUnavailableError),
+        (400, None),
+    ],
+)
+def test_free_resources_raises_the_error_type_for_each_code_engine_status(status, expected):
+    """A 504 is retryable here, unlike on submit: repeating a delete that happened is free."""
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
-    mock_handler.delete_job.side_effect = ApiException(status=status, reason="nope")
+    mock_handler.delete_job.side_effect = ApiException(status=status, reason="error")
 
-    assert runner.free_resources() is False
+    if expected is None:
+        assert runner.free_resources() is False
+    else:
+        with pytest.raises(expected):
+            runner.free_resources()
 
 
 @pytest.mark.parametrize(
     "error",
     [
-        ApiException(status=429, reason="Too Many Requests"),
-        ApiException(status=503, reason="Service Unavailable"),
         MaxRetryError(pool=None, url="/", reason=ConnectTimeoutError(None, "timed out")),
+        ReadTimeoutError(pool=None, url="/", message="timed out"),
+        ProtocolError("connection aborted"),
     ],
 )
-def test_free_resources_raises_when_code_engine_is_unavailable(error):
-    """The caller pauses the whole path for these, instead of moving to the next fleet."""
+def test_free_resources_raises_unavailable_when_the_request_failed(error):
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
     mock_handler.delete_job.side_effect = error
 

@@ -72,5 +72,5 @@ class CircuitBreaker:
 
 
 def build_fleets_circuit_breaker() -> CircuitBreaker:
-    """A fresh circuit breaker for a task that calls Code Engine, with the thresholds of the Fleets Config entries."""
+    """A fresh circuit breaker with the thresholds of the Fleets Config entries."""
     return CircuitBreaker(ConfigKey.FLEETS_BREAKER_FAILURES, ConfigKey.FLEETS_BREAKER_PAUSE_SECONDS)
