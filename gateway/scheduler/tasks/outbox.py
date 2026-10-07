@@ -41,6 +41,8 @@ class OutboxTask(SchedulerTask):
             sender=build_kafka_sender(),
             breaker_factory=build_kafka_circuit_breaker,
             budget_key=ConfigKey.OUTBOX_KAFKA_CHANNEL_BUDGET_MS,
+            retry_base_key=ConfigKey.OUTBOX_KAFKA_CHANNEL_RETRY_BASE_SECONDS,
+            retry_max_key=ConfigKey.OUTBOX_KAFKA_CHANNEL_RETRY_MAX_SECONDS,
             metrics=metrics,
             kill_signal=kill_signal,
         )

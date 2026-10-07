@@ -14,6 +14,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.db.models import F
+from django.db.models.functions import Now
 from django.utils import timezone
 from django_prometheus.models import ExportModelOperationsMixin
 
@@ -844,6 +845,27 @@ class Outbox(models.Model):
     )
     payload = models.JSONField()
     created = models.DateTimeField(auto_now_add=True)
+    # The three of them also have a db_default: a pod still running the code from before they existed inserts rows
+    # without them during a rolling deploy, and the NOT NULL column would reject that insert (and roll back the
+    # job transition it belongs to) if the database had no default of its own.
+    attempts = models.PositiveIntegerField(
+        default=0,
+        db_default=0,
+        help_text="How many times sending this row has failed. Delivery uses it to grow the wait between tries.",
+    )
+    next_attempt_at = models.DateTimeField(
+        default=timezone.now,
+        db_default=Now(),
+        help_text="The row is not sent before this moment. A new row is due at once, and every failure moves it "
+        "further away, so a row that always fails cannot keep the rows behind it from being sent.",
+    )
+    last_error = models.CharField(
+        max_length=500,
+        blank=True,
+        default="",
+        db_default="",
+        help_text="Why the last attempt failed, only to find out what is wrong with a row that does not leave.",
+    )
 
     class Meta:
         app_label = "api"
