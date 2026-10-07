@@ -457,16 +457,15 @@ class FleetsRunner(AbstractRunner):
             cancel for a fleet that has finished.
 
         Raises:
-            RunnerError: If the cancel could not be delivered, after retrying a rate limit.
+            RunnerError: If the cancel could not be delivered.
         """
         if not self.job.fleet_id:
             raise RunnerError("Job has no fleet_id assigned")
 
         try:
-            self._get_project()
+            self._project = self._get_project()
         except RunnerError as ex:
-            # Resolved before connecting, so this answers False rather than looking like a transient
-            # connection failure. status() cannot confirm a stop either, so nothing ever will.
+            # Resolved before connecting, so this answers False rather than a transient failure.
             logger.warning("Cannot cancel fleet [%s]: %s", self.job.fleet_id, str(ex))
             return False
 
@@ -474,7 +473,9 @@ class FleetsRunner(AbstractRunner):
         handler = self._get_handler()
 
         try:
-            cancelled = _retry_on_rate_limit(lambda: handler.cancel_job(self.job.fleet_id, wait=False, delete=False))
+            # No retry on a 429: every caller already retries on its own cycle or answers 503, and
+            # sleeping here would stall the single-threaded scheduler.
+            cancelled = handler.cancel_job(self.job.fleet_id, wait=False, delete=False)
             if cancelled:
                 logger.info("Cancelled fleet [%s]", self.job.fleet_id)
             return cancelled

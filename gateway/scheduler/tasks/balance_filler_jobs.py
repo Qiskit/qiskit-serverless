@@ -111,8 +111,7 @@ class BalanceFillerJobs(SchedulerTask):
         elif len(current) > target:
             # Draining rows count toward the target but cannot be shed again, so take the stops from the rest
             stoppable = [job for job in current if job.status != Job.STOPPING]
-            if len(stoppable) > target:
-                self._stop_filler_jobs(stoppable[: len(stoppable) - target])
+            self._stop_filler_jobs(stoppable[: max(0, len(stoppable) - target)])
 
     def _get_filler_program(self) -> Program | None:  # pylint: disable=too-many-return-statements
         """Return the configured filler program, or None when the feature is off.
@@ -310,26 +309,25 @@ class BalanceFillerJobs(SchedulerTask):
             self._stop_one_filler_job(job)
 
     def _stop_one_filler_job(self, job: Job) -> None:
-        """Cancel the fleet, then write STOPPING so the status poller confirms it."""
+        """Cancel the fleet and write STOPPING, or STOPPED when there was nothing to cancel."""
         try:
-            if self.transitions.try_stop(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_STOP):
-                self.metrics.increment_filler_jobs_stopped()
-                logger.info("[BalanceFillerJobs] job_id=%s filler job cancel sent", job.id)
-                return
+            if not self.transitions.try_stop(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_STOP):
+                self.transitions.to_stopped(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_STOP)
         except RunnerError as ex:
             # Left RUNNING: a status change here would claim a cancel that never left. Retried next cycle.
             logger.error("[BalanceFillerJobs] job_id=%s error stopping filler job: %s", job.id, str(ex))
             return
         except InvalidJobTransitionException:
-            logger.info("job_id=%s transition rejected, skipping STOPPING", job.id)
+            logger.info("job_id=%s transition rejected, skipping the stop", job.id)
             return
 
-        self._mark_stopped(job)
+        self.metrics.increment_filler_jobs_stopped()
+        logger.info("[BalanceFillerJobs] job_id=%s filler job stop requested", job.id)
 
     def _mark_failed(self, job: Job) -> None:
         """Write FAILED on a job whose submit never happened.
 
-        Not _mark_stopped: nothing stopped it, its creation broke, and that counter is
+        Not the stopped counter: nothing stopped it, its creation broke, and that counter is
         cross-checked against the FILLER_STOP events.
         """
         try:
@@ -337,13 +335,3 @@ class BalanceFillerJobs(SchedulerTask):
         except InvalidJobTransitionException:
             # Lost the race: something else already moved this job to a terminal status.
             logger.info("job_id=%s already in a terminal status, skipping FAILED", job.id)
-
-    def _mark_stopped(self, job: Job) -> None:
-        """Write STOPPED when there was nothing left to cancel, so no confirmation is owed."""
-        try:
-            self.transitions.to_stopped(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_STOP)
-        except InvalidJobTransitionException:
-            logger.info("job_id=%s transition rejected, skipping STOPPED", job.id)
-            return
-        self.metrics.increment_filler_jobs_stopped()
-        logger.info("[BalanceFillerJobs] job_id=%s filler job stopped, nothing to cancel", job.id)

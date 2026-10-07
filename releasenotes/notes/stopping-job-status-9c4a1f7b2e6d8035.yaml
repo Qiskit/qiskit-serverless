@@ -12,8 +12,11 @@ upgrade:
     a cancelled job to reach ``STOPPED``. A cancellation that is never confirmed is
     stopped anyway after 5 minutes.
 
-    A cancelled job stays in ``STOPPING`` for about 30 seconds, and counts against the
-    user's active and running job limits for that time, because its compute node is still
-    held.
+    A cancelled job stays in ``STOPPING`` for about 30 seconds, or about 150 seconds when
+    its task had not started yet, and counts against the user's active and running job
+    limits for that time, because its compute node is still held.
+
+    Stopping a Code Engine job can now fail with HTTP 503 when Code Engine cannot be
+    reached. The job keeps running and the request can be retried.
 
     To roll this change back, clear any ``STOPPING`` rows first, or they can never leave that status.

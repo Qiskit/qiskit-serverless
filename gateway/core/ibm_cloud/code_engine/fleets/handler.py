@@ -348,8 +348,7 @@ class FleetHandler:
 
             ``True`` does not mean the fleet was doing anything. Code Engine answers 202 for a
             fleet whose task has already finished, and for one in ``standby``, both measured on
-            staging. Deciding whether a cancel is worth sending belongs to the caller, which is
-            what the scheduler will do once it holds the task-store state.
+            staging. Deciding whether a cancel is worth sending belongs to the caller.
 
         Raises:
             ValueError: If identifier is a name that cannot be resolved, or if the cancel never

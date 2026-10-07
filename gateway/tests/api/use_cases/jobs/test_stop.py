@@ -11,6 +11,8 @@ from core.services.runners import RunnerError
 from core.model_managers.job_events import JobEventOrigin
 from core.models import Job, JobEvent, Program
 
+_RUNNER = "core.services.job_transitions.get_runner"
+
 pytestmark = pytest.mark.django_db
 
 
@@ -68,7 +70,7 @@ class TestStopFleetsJob:
         runner.stop.return_value = True
 
         with (
-            patch("core.services.job_transitions.get_runner", return_value=runner) as mock_get_runner,
+            patch(_RUNNER, return_value=runner) as mock_get_runner,
             patch("api.use_cases.jobs.stop.get_runner") as mock_ray_runner,
         ):
             message = StopJobUseCase().execute(job.id, None, author)
@@ -80,14 +82,13 @@ class TestStopFleetsJob:
         # The Ray cleanup must not run for Fleets, or an accepted cancel is sent to Code Engine twice.
         mock_ray_runner.assert_not_called()
 
-    def test_a_fleet_that_is_gone_goes_straight_to_stopped(self):
-        """stop() returns False only for a 404, so nothing will ever confirm a stop. No point waiting."""
-        author = User.objects.create_user(username="gone-fleet-author")
+    def test_a_fleet_that_is_gone_goes_straight_to_stopped(self, author):
+        """Nothing will ever confirm a stop once Code Engine says the fleet is gone, so do not wait."""
         job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.RUNNING, fleet_id="fleet-gone")
         runner = Mock()
         runner.stop.return_value = False
 
-        with patch("core.services.job_transitions.get_runner", return_value=runner):
+        with patch(_RUNNER, return_value=runner):
             message = StopJobUseCase().execute(job.id, None, author)
 
         assert "Job has been stopped." in message
@@ -96,7 +97,7 @@ class TestStopFleetsJob:
     def test_a_job_with_no_fleet_goes_straight_to_stopped(self, author):
         job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.QUEUED)
 
-        with patch("core.services.job_transitions.get_runner") as mock_get_runner:
+        with patch(_RUNNER) as mock_get_runner:
             message = StopJobUseCase().execute(job.id, None, author)
 
         assert "Job has been stopped." in message
@@ -109,7 +110,7 @@ class TestStopFleetsJob:
         runner = Mock()
         runner.stop.side_effect = RunnerError("Code Engine rate limited the cancel")
 
-        with patch("core.services.job_transitions.get_runner", return_value=runner):
+        with patch(_RUNNER, return_value=runner):
             with pytest.raises(EngineUnavailableException):
                 StopJobUseCase().execute(job.id, None, author)
 
@@ -120,7 +121,7 @@ class TestStopFleetsJob:
         """Already stopping: no cancel is sent and no event is written."""
         job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.STOPPING, fleet_id="fleet-abc")
 
-        with patch("core.services.job_transitions.get_runner") as mock_get_runner:
+        with patch(_RUNNER) as mock_get_runner:
             message = StopJobUseCase().execute(job.id, None, author)
 
         assert "Job is already stopping." in message
@@ -141,7 +142,7 @@ class TestStopFleetsJob:
             return True
 
         runner.stop.side_effect = _win_the_race
-        with patch("core.services.job_transitions.get_runner", return_value=runner):
+        with patch(_RUNNER, return_value=runner):
             message = StopJobUseCase().execute(job.id, None, author)
 
         assert "Job is stopping." in message
@@ -159,7 +160,7 @@ class TestStopFleetsJob:
             return True
 
         runner.stop.side_effect = _win_the_race
-        with patch("core.services.job_transitions.get_runner", return_value=runner):
+        with patch(_RUNNER, return_value=runner):
             message = StopJobUseCase().execute(job.id, None, author)
 
         assert "Job has been stopped." in message
@@ -170,7 +171,7 @@ class TestStopFleetsJob:
         """try_stop is never reached, so Code Engine is not called for a job that already ended."""
         job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.SUCCEEDED, fleet_id="fleet-abc")
 
-        with patch("core.services.job_transitions.get_runner") as mock_get_runner:
+        with patch(_RUNNER) as mock_get_runner:
             message = StopJobUseCase().execute(job.id, None, author)
 
         assert "Job already in terminal state." in message

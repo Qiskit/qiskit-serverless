@@ -47,35 +47,26 @@ class StopJobUseCase:
             self.status_messages.append("Job already in terminal state.")
             return " ".join(self.status_messages)
 
-        # The status this request ended on, or None when another writer ended the job first.
-        reached = None
         try:
-            # Lock transaction to read the fresh status. It could raise InvalidJobTransitionException if the job
-            # was SUCCEEDED, FAILED or already STOPPING
-            # Only the scheduler sends Kafka messages: the gateway has Kafka disabled, so the service sends nothing here
+            # Kafka is disabled on the gateway, so the service sends nothing from here.
             transitions = JobTransitionService()
             if job.runner == Program.RAY:
-                # Ray has no cancel to confirm, so it goes straight to STOPPED. The cluster itself is
-                # asked to stop further down, after the runtime jobs, which is where it has always been.
+                # Ray has no cancel to confirm. The cluster is asked to stop further down.
                 transitions.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
-                reached = Job.STOPPED
-            else:
-                reached = self._stop_fleets_job(job, transitions)
+            elif not transitions.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB):
+                transitions.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
         except RunnerError as ex:
             logger.warning("Could not cancel fleet_id=%s: %s", job.fleet_id, str(ex))
             raise EngineUnavailableException("Job could not be stopped right now, please retry.") from ex
         except InvalidJobTransitionException:
-            # Lost the race. The winner may have written STOPPING, which is not terminal, so re-read
-            # before naming it. SUCCEEDED or FAILED leaves `reached` None: nothing was stopped here.
+            # Lost the race. STOPPING is not terminal, so re-read before naming it.
             job.refresh_from_db(fields=["status"])
-            if job.status in (Job.STOPPING, Job.STOPPED):
-                reached = job.status
+            if job.status not in (Job.STOPPING, Job.STOPPED):
+                self.status_messages.append("Job already in terminal state.")
+                return " ".join(self.status_messages)
 
-        if reached is None:
-            self.status_messages.append("Job already in terminal state.")
-            return " ".join(self.status_messages)
-
-        self.status_messages.append("Job is stopping." if reached == Job.STOPPING else "Job has been stopped.")
+        # A successful transition leaves the new status on the instance, so the row names itself.
+        self.status_messages.append("Job is stopping." if job.status == Job.STOPPING else "Job has been stopped.")
 
         # Unit tests send a None directly, but the client sends a serialized None
         service = None
@@ -98,13 +89,6 @@ class StopJobUseCase:
             self._stop_ray_job_if_active(job)
 
         return " ".join(self.status_messages)
-
-    def _stop_fleets_job(self, job: Job, transitions: JobTransitionService) -> str:
-        """STOPPING when Code Engine accepted the cancel, STOPPED when there was nothing to cancel."""
-        if transitions.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB):
-            return Job.STOPPING
-        transitions.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
-        return Job.STOPPED
 
     def _cancel_runtime_job_entry(
         self,

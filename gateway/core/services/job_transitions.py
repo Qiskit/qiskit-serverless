@@ -92,23 +92,16 @@ class JobTransitionService:
         self._send_job_in_progress(job, job_started=False)
 
     def try_stop(self, job: Job, *, origin: JobEventOrigin, context: JobEventContext) -> bool:
-        """Cancel the fleet and record STOPPING, so the scheduler writes STOPPED once the task store agrees.
-
-        The cancel runs before the transaction, never inside it. A transaction cannot roll back an
-        accepted cancel, and holding the row lock across an HTTP call stalls the scheduler. Same rule
-        as the outbox, which writes inside the transaction and sends afterwards (see specs/OUTBOX.md).
+        """Cancel the fleet and record STOPPING. Fleets only, and the cancel runs before the transaction.
 
         Returns:
-            ``True`` when STOPPING was written. ``False`` when there is nothing to cancel and so
-            nothing will ever confirm a stop, which is a job with no fleet or a fleet Code Engine
-            reports as gone. The caller then owes a terminal status.
+            ``True`` when STOPPING was written, ``False`` when there was nothing to cancel and the
+            caller owes a terminal status.
 
         Raises:
-            ValueError: If the job is not a Fleets job. STOPPING is Fleets only, because the Ray
-                status poller would push such a row back to RUNNING, so reaching here with a Ray job
-                is a caller bug rather than a runtime condition.
-            RunnerError: If the cancel could not be delivered, so the caller chooses between failing
-                a request and retrying on its next cycle.
+            ValueError: If the job is not a Fleets job.
+            RunnerError: If the cancel could not be delivered.
+            InvalidJobTransitionException: If the row left a status STOPPING is reachable from.
         """
         if job.runner != Program.FLEETS:
             raise ValueError(f"Job {job.id}: try_stop is for Fleets jobs, got runner={job.runner}")

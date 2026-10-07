@@ -133,7 +133,7 @@ class TestUpdateJobStatus:
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
             patch.object(task, "to_running") as mock_running,
-            patch.object(task, "stop_job_if_timeout", return_value=False),
+            patch.object(task, "stop_job_if_timeout"),
         ):
             task.update_job_status(job)
 
@@ -152,7 +152,7 @@ class TestUpdateJobStatus:
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
             patch.object(task, "to_running") as mock_running,
-            patch.object(task, "stop_job_if_timeout", return_value=False),
+            patch.object(task, "stop_job_if_timeout"),
         ):
             task.update_job_status(job)
 
@@ -403,10 +403,30 @@ class TestStopJobIfTimeout:
 
         assert job.status == Job.STOPPED
 
-    def test_an_undeliverable_cancel_still_reaches_stopped(self):
-        """The timeout is the last thing that can end a Fleets job, so it always writes a terminal
-        status. Retrying only while the failure is transient would need per-job state to bound it, and
-        this task keeps none, so a cancel that kept failing would strand the row for ever."""
+    def test_an_undeliverable_cancel_is_retried_inside_the_grace_window(self):
+        """A rate limit clears, so do not write STOPPED on the first failure: that would strand the
+        fleet. The row keeps its status and the next tick tries again."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        just_past = MagicMock()
+        just_past.created = datetime.now(timezone.utc) - timedelta(hours=1, seconds=5)
+        task.transitions.try_stop.side_effect = RunnerError("Code Engine API error: Too Many Requests")
+
+        with (
+            patch(f"{_MOD}.settings") as mock_settings,
+            patch(f"{_MOD}.JobEvent") as mock_event,
+        ):
+            mock_settings.PROGRAM_TIMEOUT = 1
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = just_past
+            changed = task.stop_job_if_timeout(job)
+
+        assert changed is False
+        assert job.status == Job.RUNNING
+
+    def test_an_undeliverable_cancel_reaches_stopped_once_the_grace_window_passes(self):
+        """Nothing else can end a Fleets job, so a cancel that keeps failing must not hold the row's
+        slots for ever. The fleet id is logged as a suspected orphan."""
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
@@ -417,7 +437,6 @@ class TestStopJobIfTimeout:
         with (
             patch(f"{_MOD}.settings") as mock_settings,
             patch(f"{_MOD}.JobEvent") as mock_event,
-            patch(f"{_MOD}.get_runner", return_value=MagicMock()),
         ):
             mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
@@ -534,7 +553,7 @@ class TestEventStreamsIntegration:
 
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
-            patch.object(task, "stop_job_if_timeout", return_value=False),
+            patch.object(task, "stop_job_if_timeout"),
         ):
             task.update_job_status(job)
 
@@ -616,7 +635,7 @@ def test_a_running_job_checks_the_timeout_even_when_the_in_progress_send_fails()
 
     with (
         patch(f"{_MOD}.get_runner", return_value=mock_runner),
-        patch.object(task, "stop_job_if_timeout", return_value=False) as mock_timeout,
+        patch.object(task, "stop_job_if_timeout") as mock_timeout,
     ):
         task.update_job_status(job)
 
@@ -778,9 +797,9 @@ class TestStoppingJobs:
         mock_get_runner.assert_not_called()
 
     def test_a_draining_filler_still_reaches_the_deadline(self):
-        """The filler guard sits below the STOPPING branch on purpose. Above it, a draining filler
-        whose task store never confirms would stay in STOPPING for ever: the balancer skips rows
-        already STOPPING and nothing else ends a filler."""
+        """A draining filler is not exempt from the stopping deadline, only from PROGRAM_TIMEOUT.
+        Exempt it from both and it stays in STOPPING for ever: the balancer skips rows already
+        STOPPING and nothing else ends a filler."""
         task = _make_task()
         job = _make_fleets_job(status=Job.STOPPING)
         job.filler = True
