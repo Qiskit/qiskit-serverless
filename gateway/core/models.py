@@ -702,7 +702,7 @@ class Job(models.Model):
             models.Index(fields=["created"], condition=models.Q(filler=True), name="job_filler_true_idx"),
             # Backs the admin changelist search by fleet_id.
             models.Index(fields=["fleet_id"], name="job_fleet_id_idx"),
-            # Backs the retention scan in DeleteOldFleets.
+            # Backs the retention scan in FreeFleetsResources.
             models.Index(
                 fields=["updated"],
                 condition=models.Q(fleet_deleted_at__isnull=True, fleet_id__isnull=False),

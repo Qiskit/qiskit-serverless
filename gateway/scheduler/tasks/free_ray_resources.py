@@ -1,4 +1,4 @@
-"""Free resources service."""
+"""Free the Ray cluster of a terminal job."""
 
 import logging
 
@@ -13,10 +13,10 @@ from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.task import SchedulerTask
 
-logger = logging.getLogger("scheduler.FreeResources")
+logger = logging.getLogger("scheduler.FreeRayResources")
 
 
-class FreeResources(SchedulerTask):
+class FreeRayResources(SchedulerTask):
     """Cleanup resources."""
 
     def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):

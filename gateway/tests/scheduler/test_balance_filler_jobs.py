@@ -553,6 +553,8 @@ def test_the_balancer_runs_after_the_fleets_status_update(settings):
     scheduler_main = Main(metrics=SchedulerMetrics(CollectorRegistry()))
     try:
         names = [type(task).__name__ for task in scheduler_main.tasks]
-        assert names.index("UpdateFleetsJobsStatuses") < names.index("BalanceFillerJobs") < names.index("FreeResources")
+        assert (
+            names.index("UpdateFleetsJobsStatuses") < names.index("BalanceFillerJobs") < names.index("FreeRayResources")
+        )
     finally:
         scheduler_main.stop_http_server()

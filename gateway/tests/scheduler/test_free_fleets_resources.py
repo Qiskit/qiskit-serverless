@@ -1,4 +1,4 @@
-"""Tests for DeleteOldFleets."""
+"""Tests for FreeFleetsResources."""
 
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
@@ -9,12 +9,12 @@ from django.utils import timezone
 from core.config_key import ConfigKey
 from core.models import Config, Job, Program
 from core.services.runners import RunnerUnavailableError
-from scheduler.tasks.delete_old_fleets import DeleteOldFleets, MAX_DELETES_PER_CYCLE
+from scheduler.tasks.free_fleets_resources import FreeFleetsResources, MAX_DELETES_PER_CYCLE
 from tests.utils import TestUtils
 
 pytestmark = pytest.mark.django_db
 
-_MOD = "scheduler.tasks.delete_old_fleets"
+_MOD = "scheduler.tasks.free_fleets_resources"
 _SCHEDULE = "scheduler.schedule"
 _RETENTION_HOURS = 48
 _BREAKER_FAILURES = 5
@@ -23,7 +23,7 @@ _BREAKER_FAILURES = 5
 def _make_task():
     kill_signal = MagicMock()
     kill_signal.received = False
-    return DeleteOldFleets(kill_signal=kill_signal, metrics=MagicMock())
+    return FreeFleetsResources(kill_signal=kill_signal, metrics=MagicMock())
 
 
 @pytest.fixture

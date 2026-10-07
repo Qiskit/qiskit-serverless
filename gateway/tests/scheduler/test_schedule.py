@@ -16,16 +16,23 @@ from rest_framework.test import APITestCase
 from core.model_managers.job_events import JobEventContext
 from core.models import Job, ComputeResource, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
-from core.services.runners import RunnerError
+from core.services.runners import RunnerError, RunnerUnavailableError
 from core.services.storage import get_logs_storage
 
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 
-from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_ray_job, execute_fleets_job
+from scheduler.schedule import (
+    get_jobs_to_schedule_fair_share,
+    execute_ray_job,
+    execute_fleets_job,
+    delete_fleet,
+)
 from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
 
 from tests.utils import TestUtils
+
+_SCHEDULE_MOD = "scheduler.schedule"
 
 
 class TestScheduleApi(APITestCase):
@@ -355,3 +362,13 @@ def test_execute_fleets_job_defaults_to_the_schedule_jobs_context():
         execute_fleets_job(mock_job, None, transitions)
 
     assert transitions.queued_to_pending.call_args.kwargs["context"] is JobEventContext.SCHEDULE_JOBS
+
+
+@pytest.mark.django_db
+def test_delete_fleet_refuses_while_the_breaker_is_open():
+    """The guard is what a second caller of delete_fleet relies on, so it is not only the task's check."""
+    with patch(f"{_SCHEDULE_MOD}.deletes_paused", return_value=True):
+        with patch(f"{_SCHEDULE_MOD}.get_runner") as get_runner:
+            with pytest.raises(RunnerUnavailableError):
+                delete_fleet(MagicMock())
+    get_runner.assert_not_called()

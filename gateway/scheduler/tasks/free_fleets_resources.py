@@ -1,4 +1,4 @@
-"""Delete the fleets of terminal Fleets jobs."""
+"""Free the Code Engine fleet of a terminal job."""
 
 import logging
 from datetime import timedelta
@@ -16,14 +16,14 @@ from scheduler.schedule import delete_fleet, deletes_paused, record_delete_batch
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.task import SchedulerTask
 
-logger = logging.getLogger("scheduler.DeleteOldFleets")
+logger = logging.getLogger("scheduler.FreeFleetsResources")
 
 MAX_DELETES_PER_CYCLE = 20
 # Counted in scheduler loops, which are about a second each
 REPORT_EVERY_LOOPS = 300
 
 
-class DeleteOldFleets(SchedulerTask):
+class FreeFleetsResources(SchedulerTask):
     """Delete the fleet of a terminal Fleets job once the retention window has passed."""
 
     def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
