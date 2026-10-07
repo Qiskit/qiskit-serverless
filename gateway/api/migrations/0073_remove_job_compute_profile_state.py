@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
     """
 
     dependencies = [
-        ("api", "0071_alter_job_function_size"),
+        ("api", "0072_outbox_retry_state"),
     ]
 
     operations = [
