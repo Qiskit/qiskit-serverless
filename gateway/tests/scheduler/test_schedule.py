@@ -17,7 +17,7 @@ from core.model_managers.job_events import JobEventContext
 from core.config_key import ConfigKey
 from core.models import Config, Job, ComputeResource, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
-from core.services.runners import RunnerError, RunnerUnavailableError
+from core.services.runners import RunnerError, RunnerSubmitUncertainError, RunnerUnavailableError
 from core.services.storage import get_logs_storage
 
 from scheduler.kill_signal import KillSignal
@@ -262,6 +262,22 @@ class TestScheduleApi(APITestCase):
         execute_fleets_job(MagicMock(), MagicMock(), MagicMock())
 
         assert submits_paused() is False
+
+    @patch("scheduler.schedule.get_runner")
+    @patch("scheduler.schedule.trace")
+    def test_execute_fleets_job_fails_an_uncertain_submit_and_counts_it_against_the_breaker(
+        self, mock_trace, mock_get_runner_client
+    ):
+        Config.add_defaults()
+        Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "1")
+        mock_get_runner_client.return_value.submit.side_effect = RunnerSubmitUncertainError("Gateway Timeout")
+        transitions = MagicMock()
+
+        ret_job = execute_fleets_job(MagicMock(), MagicMock(), transitions)
+
+        assert ret_job.status == Job.FAILED
+        transitions.to_failed.assert_called_once()
+        assert submits_paused() is True
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")

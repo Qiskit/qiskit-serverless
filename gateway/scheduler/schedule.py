@@ -18,7 +18,7 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import JobTransitionService
-from core.services.runners import get_runner, RunnerError, RunnerUnavailableError
+from core.services.runners import get_runner, RunnerError, RunnerSubmitUncertainError, RunnerUnavailableError
 from scheduler.tasks.circuit_breaker import build_fleets_circuit_breaker
 
 User: Model = get_user_model()
@@ -88,7 +88,7 @@ def execute_fleets_job(
         RunnerUnavailableError: before any write, so the job stays QUEUED.
     """
     if submits_paused():
-        raise RunnerUnavailableError("Code Engine submits are paused by the circuit breaker")
+        raise RunnerUnavailableError("Fleets submits are paused by the circuit breaker")
     start = time.monotonic()
     tracer = trace.get_tracer("scheduler.tracer")
     with tracer.start_as_current_span("scheduler.submit", context=ctx) as span:
@@ -108,6 +108,11 @@ def execute_fleets_job(
         except RunnerUnavailableError:
             SUBMIT_BREAKER.record_failure()
             raise
+        except RunnerSubmitUncertainError as ex:
+            SUBMIT_BREAKER.record_failure()
+            logger.error("[execute_fleets_job] job_id=%s error=%s Job set as FAILED: the fleet may exist", job.id, ex)
+            job.status = Job.FAILED
+            transition = transitions.to_failed
         except RunnerError as ex:
             logger.error(
                 "[execute_fleets_job] job_id=%s error=%s Job set as FAILED: submission error",

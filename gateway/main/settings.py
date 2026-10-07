@@ -584,8 +584,8 @@ DYNAMIC_CONFIG_DEFAULTS = {
     "scheduler.fleets.breaker_failures": {
         "default": "5",
         "type": "integer",
-        "description": "Consecutive Code Engine submit failures that a later try can fix (HTTP 429, 5xx, "
-        "connection errors) before Fleets submits pause.",
+        "description": "Consecutive Code Engine or COS submit failures (429, 5xx, connection errors, timeouts) "
+        "before Fleets submits pause.",
     },
     "scheduler.fleets.breaker_pause_seconds": {
         "default": "60",

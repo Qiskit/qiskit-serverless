@@ -20,13 +20,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from django.conf import settings as django_settings
+from ibm_botocore.exceptions import ClientError, ReadTimeoutError
 from urllib3.exceptions import MaxRetryError, NewConnectionError
 
 from core.domain.compute_profile import normalize as normalize_compute_profile
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
 from core.models import Job, Program
-from core.services.runners.abstract_runner import RunnerError, RunnerUnavailableError
+from core.services.runners.abstract_runner import RunnerError, RunnerSubmitUncertainError, RunnerUnavailableError
 from core.services.runners import fleets_runner as fleets_runner_module
 from core.services.runners.fleets_runner import FleetsRunner
 
@@ -454,21 +455,16 @@ def test_submit_raises_runner_error_when_cos_not_configured():
         runner.submit()
 
 
-def test_submit_raises_runner_error_on_api_exception():
-    """submit() raises RunnerError when the fleet API returns an error."""
-    runner, mock_handler = _make_submit_runner()
-    mock_handler.submit_job.side_effect = ApiException(status=400, reason="Bad Request")
-
-    with _patch_settings():
-        with pytest.raises(RunnerError):
-            runner.submit()
-
-
 @pytest.mark.parametrize(
     "status, expected",
-    [(429, RunnerUnavailableError), (503, RunnerUnavailableError), (504, RunnerError)],
+    [
+        (429, RunnerUnavailableError),
+        (503, RunnerUnavailableError),
+        (504, RunnerSubmitUncertainError),
+        (400, RunnerError),
+    ],
 )
-def test_submit_raises_unavailable_only_when_code_engine_surely_did_nothing(status, expected):
+def test_submit_raises_the_error_type_for_each_code_engine_status(status, expected):
     runner, mock_handler = _make_submit_runner()
     mock_handler.submit_job.side_effect = ApiException(status=status, reason="error")
 
@@ -478,6 +474,31 @@ def test_submit_raises_unavailable_only_when_code_engine_surely_did_nothing(stat
 
     assert type(exc.value) is expected
     mock_handler.submit_job.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "error, expected",
+    [
+        (
+            ClientError({"Error": {"Code": "SlowDown"}, "ResponseMetadata": {"HTTPStatusCode": 503}}, "PutObject"),
+            RunnerUnavailableError,
+        ),
+        (
+            ClientError({"Error": {"Code": "AccessDenied"}, "ResponseMetadata": {"HTTPStatusCode": 403}}, "PutObject"),
+            RunnerError,
+        ),
+        (ReadTimeoutError(endpoint_url="https://cos"), RunnerUnavailableError),
+    ],
+)
+def test_submit_raises_the_error_type_for_each_cos_failure(error, expected):
+    runner, mock_handler = _make_submit_runner()
+
+    with _patch_settings(), patch.object(runner, "_upload_program_to_cos", side_effect=error):
+        with pytest.raises(RunnerError) as exc:
+            runner.submit()
+
+    assert type(exc.value) is expected
+    mock_handler.submit_job.assert_not_called()
 
 
 def test_submit_raises_unavailable_when_the_connection_never_opened():

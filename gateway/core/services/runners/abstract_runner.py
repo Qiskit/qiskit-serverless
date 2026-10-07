@@ -34,6 +34,10 @@ class RunnerUnavailableError(RunnerError):
     """The engine surely did not perform the request, for example a 429, so a later try can work."""
 
 
+class RunnerSubmitUncertainError(RunnerError):
+    """The engine may have performed the submit, so it must not be retried."""
+
+
 class AbstractRunner(ABC):
     """Abstract runner for executing jobs on different engines."""
 
@@ -96,6 +100,7 @@ class AbstractRunner(ABC):
         Raises:
             RunnerError: If submission fails (resources are cleaned up before raising)
             RunnerUnavailableError: If the engine surely did not do it, so the caller can try again later
+            RunnerSubmitUncertainError: If the engine may have done it, so the caller must not try again
         """
         raise NotImplementedError
 
