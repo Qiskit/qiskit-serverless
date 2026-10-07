@@ -9,11 +9,11 @@ from django.utils import timezone
 
 from core.config_key import ConfigKey
 from core.models import Config, Job
-from core.services.runners import get_runner, RunnerRateLimitedError
+from core.services.runners import get_runner, RunnerUnavailableError
 
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.tasks.circuit_breaker import CircuitBreaker
+from scheduler.tasks.circuit_breaker import build_fleets_circuit_breaker
 from scheduler.tasks.task import SchedulerTask
 
 logger = logging.getLogger("scheduler.DeleteOldFleets")
@@ -30,10 +30,7 @@ class DeleteOldFleets(SchedulerTask):
         self.kill_signal = kill_signal
         self.metrics = metrics
         self._report_loops = 0
-        self._breaker = CircuitBreaker(
-            ConfigKey.FLEETS_CLEANUP_BREAKER_FAILURES,
-            ConfigKey.FLEETS_CLEANUP_BREAKER_PAUSE_SECONDS,
-        )
+        self._breaker = build_fleets_circuit_breaker()
 
     def run(self):
         """Delete the fleets past the retention window, and report the fleets we hold."""
@@ -51,8 +48,8 @@ class DeleteOldFleets(SchedulerTask):
             attempted = True
             try:
                 succeeded |= self._delete_fleet(job)
-            except RunnerRateLimitedError as ex:
-                logger.warning("Code Engine is rate limiting fleet deletes: %s", ex)
+            except RunnerUnavailableError as ex:
+                logger.warning("Code Engine is unavailable, stopping this cleanup cycle: %s", ex)
                 self._breaker.record_failure()
                 return
 

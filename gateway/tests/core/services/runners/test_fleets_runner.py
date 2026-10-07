@@ -23,9 +23,10 @@ from django.conf import settings as django_settings
 
 from core.domain.compute_profile import normalize as normalize_compute_profile
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
+from urllib3.exceptions import ConnectTimeoutError, MaxRetryError
 from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
 from core.models import Job, Program
-from core.services.runners.abstract_runner import RunnerError, RunnerRateLimitedError
+from core.services.runners.abstract_runner import RunnerError, RunnerUnavailableError
 from core.services.runners import fleets_runner as fleets_runner_module
 from core.services.runners.fleets_runner import FleetsRunner
 from tests.utils import TestUtils
@@ -386,20 +387,29 @@ def test_free_resources_deletes_the_fleet():
     mock_handler.delete_job.assert_called_once_with("fleet-123")
 
 
-def test_free_resources_returns_false_when_the_delete_could_not_be_sent():
-    """A Code Engine error leaves the fleet for a later cycle rather than raising at the scheduler."""
+@pytest.mark.parametrize("status", [504, 400])
+def test_free_resources_returns_false_when_the_delete_could_not_be_sent(status):
+    """A fleet we cannot delete is left for a later cycle rather than raising at the scheduler."""
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
-    mock_handler.delete_job.side_effect = ApiException(status=500, reason="Internal Error")
+    mock_handler.delete_job.side_effect = ApiException(status=status, reason="nope")
 
     assert runner.free_resources() is False
 
 
-def test_free_resources_raises_on_a_rate_limit():
-    """The caller has to tell a rate limit apart from a fleet it simply cannot delete."""
+@pytest.mark.parametrize(
+    "error",
+    [
+        ApiException(status=429, reason="Too Many Requests"),
+        ApiException(status=503, reason="Service Unavailable"),
+        MaxRetryError(pool=None, url="/", reason=ConnectTimeoutError(None, "timed out")),
+    ],
+)
+def test_free_resources_raises_when_code_engine_is_unavailable(error):
+    """The caller pauses the whole path for these, instead of moving to the next fleet."""
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
-    mock_handler.delete_job.side_effect = ApiException(status=429, reason="Too Many Requests")
+    mock_handler.delete_job.side_effect = error
 
-    with pytest.raises(RunnerRateLimitedError):
+    with pytest.raises(RunnerUnavailableError):
         runner.free_resources()
 
 

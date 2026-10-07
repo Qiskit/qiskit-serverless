@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from core.config_key import ConfigKey
 from core.models import Config, Job, Program
-from core.services.runners import RunnerRateLimitedError
+from core.services.runners import RunnerUnavailableError
 from scheduler.tasks.delete_old_fleets import DeleteOldFleets, MAX_DELETES_PER_CYCLE
 from tests.utils import TestUtils
 
@@ -31,7 +31,7 @@ def fleets_program():
     Config.add_defaults()
     Config.set(ConfigKey.FLEETS_CLEANUP_ENABLED, "true")
     Config.set(ConfigKey.FLEETS_CLEANUP_RETENTION_HOURS, str(_RETENTION_HOURS))
-    Config.set(ConfigKey.FLEETS_CLEANUP_BREAKER_FAILURES, str(_BREAKER_FAILURES))
+    Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, str(_BREAKER_FAILURES))
     return TestUtils.create_program(
         program_title="a-function",
         author="function_owner",
@@ -165,7 +165,7 @@ def test_a_rate_limit_ends_the_cycle_after_one_call(fleets_program):
     _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 2, fleet_id="fleet-1")
     _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, fleet_id="fleet-2")
 
-    free_resources = _run(_make_task(), error=RunnerRateLimitedError("429"))
+    free_resources = _run(_make_task(), error=RunnerUnavailableError("unavailable"))
 
     free_resources.assert_called_once()
 

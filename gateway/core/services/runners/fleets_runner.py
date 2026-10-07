@@ -24,11 +24,12 @@ from io import BytesIO
 from django.conf import settings
 from django.template.loader import get_template
 from ibm_botocore.exceptions import ClientError
+from urllib3.exceptions import ConnectTimeoutError, MaxRetryError
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
 from core.domain import compute_profile
 from core.models import Job, CodeEngineProject
-from core.services.runners.abstract_runner import AbstractRunner, RunnerError, RunnerRateLimitedError
+from core.services.runners.abstract_runner import AbstractRunner, RunnerError, RunnerUnavailableError
 from core.ibm_cloud import get_ce_auth, get_cos_client
 from core.utils import decrypt_env_vars
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
@@ -118,6 +119,14 @@ def _retry_on_rate_limit(fn, retries=3, delays=(0.5, 1.0, 2.0)):
             logger.warning("Rate limited (429), retrying in %.1fs (attempt %d/%d)", delay, attempt + 1, retries)
             time.sleep(delay)
     return None
+
+
+def _surely_not_performed(ex: Exception) -> bool:
+    """Whether Code Engine surely did not perform the request, so a later try cannot duplicate it."""
+    if isinstance(ex, ApiException):
+        status = ex.status or 0
+        return status == 429 or (500 <= status < 600 and status not in (502, 504))
+    return isinstance(ex, MaxRetryError) and isinstance(ex.reason, ConnectTimeoutError)
 
 
 class FleetsRunner(AbstractRunner):
@@ -492,7 +501,7 @@ class FleetsRunner(AbstractRunner):
             ``True`` when the fleet is gone, including a 404. ``False`` on any other failure.
 
         Raises:
-            RunnerRateLimitedError: On a 429.
+            RunnerUnavailableError: When Code Engine did not answer, so a later try can work.
         """
         if not self.job.fleet_id:
             logger.debug("No fleet_id to delete for job_id=[%s]", self.job.id)
@@ -504,12 +513,9 @@ class FleetsRunner(AbstractRunner):
             self._get_handler().delete_job(self.job.fleet_id)
             logger.info("Deleted fleet [%s] of job_id=[%s]", self.job.fleet_id, self.job.id)
             return True
-        except ApiException as ex:
-            if ex.status == 429:
-                raise RunnerRateLimitedError(f"Code Engine API error: {ex.reason}", ex) from ex
-            logger.warning("Failed to delete fleet [%s] of job_id=[%s]: %s", self.job.fleet_id, self.job.id, ex)
-            return False
         except Exception as ex:  # pylint: disable=broad-exception-caught
+            if _surely_not_performed(ex):
+                raise RunnerUnavailableError(f"Code Engine did not delete fleet [{self.job.fleet_id}]", ex) from ex
             logger.warning("Failed to delete fleet [%s] of job_id=[%s]: %s", self.job.fleet_id, self.job.id, ex)
             return False
 

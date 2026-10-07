@@ -593,15 +593,16 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "How long a fleet is kept after its job reached a terminal status, so Code Engine "
         "support can still inspect it.",
     },
-    "scheduler.fleets.cleanup.breaker_failures": {
+    "scheduler.fleets.breaker_failures": {
         "default": "5",
         "type": "integer",
-        "description": "Consecutive failed fleet deletes before the cleanup circuit breaker opens.",
+        "description": "Consecutive Code Engine failures that a later try can fix (HTTP 429, 5xx, connection "
+        "errors) before the circuit breaker of a Fleets scheduler task opens. Each task has its own breaker.",
     },
-    "scheduler.fleets.cleanup.breaker_pause_seconds": {
+    "scheduler.fleets.breaker_pause_seconds": {
         "default": "60",
         "type": "integer",
-        "description": "How long the cleanup circuit breaker stays open once tripped.",
+        "description": "How long the circuit breaker of a Fleets scheduler task stays open once tripped.",
     },
 }
 
