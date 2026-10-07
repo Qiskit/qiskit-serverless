@@ -14,18 +14,19 @@ from django.db.models.aggregates import Count, Min
 
 from opentelemetry import trace
 
+from core.config_key import ConfigKey
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import JobTransitionService
 from core.services.runners import get_runner, RunnerError, RunnerSubmitUncertainError, RunnerUnavailableError
-from scheduler.tasks.circuit_breaker import build_fleets_circuit_breaker
+from scheduler.tasks.circuit_breaker import CircuitBreaker
 
 User: Model = get_user_model()
 logger = logging.getLogger("scheduler.schedule")
 
 # One breaker for the whole Code Engine API: when it is down it is down for every operation
-CODE_ENGINE_BREAKER = build_fleets_circuit_breaker()
+CODE_ENGINE_BREAKER = CircuitBreaker(ConfigKey.FLEETS_BREAKER_FAILURES, ConfigKey.FLEETS_BREAKER_PAUSE_SECONDS)
 
 
 def code_engine_paused() -> bool:

@@ -31,7 +31,7 @@ class RunnerError(Exception):
 
 
 class RunnerUnavailableError(RunnerError):
-    """The engine surely did not perform the request, for example a 429, so a later try can work."""
+    """A later try can work, for example after a 429, so the caller should not fail the row."""
 
 
 class RunnerSubmitUncertainError(RunnerError):
