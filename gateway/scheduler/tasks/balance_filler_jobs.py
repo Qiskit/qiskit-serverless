@@ -223,7 +223,7 @@ class BalanceFillerJobs(SchedulerTask):
         if self._retry_loops > 0:
             self._retry_loops -= 1
             return
-        # A shutdown or paused submits are not a failure of the work, so they buy no delay.
+        # a shutdown or paused submits buy no delay
         if self.kill_signal.received or submits_paused():
             return
         if not self._submit_filler_job(program):
@@ -272,7 +272,7 @@ class BalanceFillerJobs(SchedulerTask):
             raise
         except Exception as ex:  # pylint: disable=broad-exception-caught
             if job.status == Job.QUEUED and not job.fleet_id:
-                # It raised before runner.submit(), so no fleet exists and this row is
+                # It raised before any write, so no fleet exists and this row is
                 # already unreachable. _discard_unsubmitted_filler_jobs is the net for
                 # the cases no except block sees.
                 self._mark_failed(job)

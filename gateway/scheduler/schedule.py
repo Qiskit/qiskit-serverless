@@ -29,7 +29,7 @@ SUBMIT_BREAKER = build_fleets_circuit_breaker()
 
 
 def submits_paused() -> bool:
-    """Whether SUBMIT_BREAKER is open, so execute_fleets_job would not call Code Engine."""
+    """Whether SUBMIT_BREAKER is open."""
     return SUBMIT_BREAKER.is_open
 
 
@@ -85,8 +85,7 @@ def execute_fleets_job(
         job with updated status (PENDING on success, FAILED on error)
 
     Raises:
-        RunnerUnavailableError: before any write, so the job stays QUEUED for the next tick. Also raised
-            without calling Code Engine while SUBMIT_BREAKER is open.
+        RunnerUnavailableError: before any write, so the job stays QUEUED. Also while SUBMIT_BREAKER is open.
     """
     if SUBMIT_BREAKER.is_open:
         raise RunnerUnavailableError("Code Engine submits are paused by the circuit breaker")

@@ -469,7 +469,6 @@ def test_submit_raises_runner_error_on_api_exception():
     [(429, RunnerUnavailableError), (503, RunnerUnavailableError), (504, RunnerError)],
 )
 def test_submit_raises_unavailable_only_when_code_engine_surely_did_nothing(status, expected):
-    """A 504 can come after the fleet was created, so only a sure failure is retried, and only once."""
     runner, mock_handler = _make_submit_runner()
     mock_handler.submit_job.side_effect = ApiException(status=status, reason="error")
 
@@ -482,7 +481,6 @@ def test_submit_raises_unavailable_only_when_code_engine_surely_did_nothing(stat
 
 
 def test_submit_raises_unavailable_when_the_connection_never_opened():
-    """urllib3 raises MaxRetryError with the connect error as reason, so the request never left."""
     runner, mock_handler = _make_submit_runner()
     mock_handler.submit_job.side_effect = MaxRetryError(None, "/", reason=NewConnectionError(None, "refused"))
 

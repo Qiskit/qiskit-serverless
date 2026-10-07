@@ -36,7 +36,7 @@ class ScheduleFleetsJobs(SchedulerTask):
             logger.warning("System in maintenance mode. Skipping new jobs schedule.")
             return
         if submits_paused():
-            logger.warning("Code Engine is unavailable. Skipping new jobs schedule.")
+            logger.warning("Fleets submits are paused by the circuit breaker. Skipping new jobs schedule.")
             return
 
         self._schedule_fleets_jobs()
@@ -80,9 +80,6 @@ class ScheduleFleetsJobs(SchedulerTask):
 
             if job.status == Job.PENDING:
                 self.add_queue_wait_time_metric(job)
-            else:
-                # job failed
-                pass
 
         if jobs:
             logger.info("%s jobs are scheduled for execution.", len(jobs))

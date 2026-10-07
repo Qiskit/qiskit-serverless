@@ -39,7 +39,7 @@ def clear_django_cache():
 
 @pytest.fixture(autouse=True)
 def fresh_submit_breaker(monkeypatch):
-    """Give every test a closed SUBMIT_BREAKER, so failures recorded by one test do not open it for the next."""
+    """A closed SUBMIT_BREAKER for every test."""
     from scheduler import schedule  # pylint: disable=import-outside-toplevel
     from scheduler.tasks.circuit_breaker import build_fleets_circuit_breaker  # pylint: disable=import-outside-toplevel
 

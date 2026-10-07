@@ -23,7 +23,7 @@ from core.services.storage import get_logs_storage
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 
-from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_ray_job, execute_fleets_job
+from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_ray_job, execute_fleets_job, submits_paused
 from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
 
 from tests.utils import TestUtils
@@ -215,8 +215,9 @@ class TestScheduleApi(APITestCase):
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
-    def test_execute_fleets_job_leaves_the_job_untouched_when_rate_limited(self, mock_trace, mock_get_runner_client):
-        """A rate limited submit raises before any write, so the job stays QUEUED with its env vars."""
+    def test_execute_fleets_job_leaves_the_job_untouched_when_code_engine_is_unavailable(
+        self, mock_trace, mock_get_runner_client
+    ):
         Config.add_defaults()
         mock_runner = MagicMock()
         mock_runner.submit.side_effect = RunnerUnavailableError("Too Many Requests")
@@ -248,6 +249,19 @@ class TestScheduleApi(APITestCase):
             execute_fleets_job(MagicMock(), MagicMock(), MagicMock())
 
         mock_get_runner_client.return_value.submit.assert_called_once()
+
+    @patch("scheduler.schedule.get_runner")
+    @patch("scheduler.schedule.trace")
+    def test_execute_fleets_job_does_not_count_a_failed_job_against_the_breaker(
+        self, mock_trace, mock_get_runner_client
+    ):
+        Config.add_defaults()
+        Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "1")
+        mock_get_runner_client.return_value.submit.side_effect = RunnerError("Bad Request")
+
+        execute_fleets_job(MagicMock(), MagicMock(), MagicMock())
+
+        assert submits_paused() is False
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")

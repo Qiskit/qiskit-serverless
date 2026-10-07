@@ -95,6 +95,7 @@ class AbstractRunner(ABC):
 
         Raises:
             RunnerError: If submission fails (resources are cleaned up before raising)
+            RunnerUnavailableError: If the engine surely did not do it, so the caller can try again later
         """
         raise NotImplementedError
 
