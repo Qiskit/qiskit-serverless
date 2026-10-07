@@ -588,12 +588,6 @@ class Job(models.Model):
         help_text="True when this job was created by the filler-jobs balancer to occupy idle GPU "
         "capacity, instead of coming from a real user request.",
     )
-    compute_profile = models.CharField(
-        max_length=255,
-        null=True,
-        blank=True,
-        help_text="Code Engine compute profile for Fleets runner (e.g., gx3d-24x120x1a100p)",
-    )
     logs = models.TextField(default="No logs yet.")
     runner = models.CharField(
         max_length=20, choices=Program.RUNNER_CHOICES, default=Program.RAY, help_text="Execution backend: ray or fleets"
