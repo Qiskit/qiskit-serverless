@@ -161,7 +161,7 @@ def test_reports_the_held_fleets_once_per_report_window(fleets_program):
     task.metrics.set_held_fleets.assert_called_once()
 
 
-def test_a_rate_limit_ends_the_cycle_after_one_call(fleets_program):
+def test_an_unavailable_engine_ends_the_cycle_after_one_call(fleets_program):
     _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 2, fleet_id="fleet-1")
     _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, fleet_id="fleet-2")
 
@@ -171,7 +171,6 @@ def test_a_rate_limit_ends_the_cycle_after_one_call(fleets_program):
 
 
 def test_an_unavailable_cycle_records_exactly_one_failure(fleets_program):
-    """Two failures per cycle would pause the task a cycle early, which is the bug the split removed."""
     _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1)
     task = _make_task()
     unavailable = RunnerUnavailableError("unavailable")

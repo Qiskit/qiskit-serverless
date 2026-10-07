@@ -1,4 +1,4 @@
-"""Free the Code Engine fleet of a terminal job."""
+"""Scheduler task that deletes the fleets of terminal jobs."""
 
 import logging
 from datetime import timedelta
@@ -40,17 +40,16 @@ class FreeFleetsResources(SchedulerTask):
         if deletes_paused():
             return
 
-        attempted = succeeded = False
+        results: list[bool] = []
         for job in self._jobs_to_clean():
             if self.kill_signal.received:
                 return
-            attempted = True
             try:
-                succeeded |= self._delete_and_stamp(job)
+                results.append(self._delete_and_stamp(job))
             except RunnerUnavailableError as ex:
                 logger.warning("Code Engine is unavailable, stopping this cleanup cycle: %s", ex)
                 return
-        record_delete_batch(attempted=attempted, succeeded=succeeded)
+        record_delete_batch(results)
 
     def _jobs_to_clean(self):
         """Terminal Fleets jobs whose fleet is older than the retention window, oldest first."""

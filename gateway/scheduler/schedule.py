@@ -24,7 +24,6 @@ from scheduler.tasks.circuit_breaker import build_fleets_circuit_breaker
 User: Model = get_user_model()
 logger = logging.getLogger("scheduler.schedule")
 
-# one breaker per kind of Code Engine request, shared by every caller of that request
 DELETE_BREAKER = build_fleets_circuit_breaker()
 
 
@@ -48,12 +47,9 @@ def delete_fleet(job: Job) -> bool:
         raise
 
 
-def record_delete_batch(*, attempted: bool, succeeded: bool) -> None:
-    """Record the cycle's outcome: a success when any delete got through, a failure when none did."""
-    if succeeded:
-        DELETE_BREAKER.record_success()
-    elif attempted:
-        DELETE_BREAKER.record_failure()
+def record_delete_batch(results: list[bool]) -> None:
+    """Count one cleanup cycle against DELETE_BREAKER."""
+    DELETE_BREAKER.record_batch(attempted=len(results), succeeded=results.count(True))
 
 
 def execute_ray_job(job: Job) -> Job:

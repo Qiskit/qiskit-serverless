@@ -34,8 +34,6 @@ from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
 
 from tests.utils import TestUtils
 
-_SCHEDULE_MOD = "scheduler.schedule"
-
 
 class TestScheduleApi(APITestCase):
     """TestScheduleApi."""
