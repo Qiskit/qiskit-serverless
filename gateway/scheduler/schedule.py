@@ -58,16 +58,23 @@ def execute_ray_job(job: Job) -> Job:
 
 
 class FleetsJobSubmitter:
-    """Submits Fleets jobs to Code Engine behind one circuit breaker shared by every caller."""
+    """Submits Fleets jobs to Code Engine behind one circuit breaker per region, shared by every caller."""
 
     def __init__(self, transitions: JobTransitionService):
         self.transitions = transitions
-        self.breaker = CircuitBreaker(ConfigKey.FLEETS_BREAKER_FAILURES, ConfigKey.FLEETS_BREAKER_PAUSE_SECONDS)
+        self.breakers: dict[str | None, CircuitBreaker] = {}
 
-    @property
-    def paused(self) -> bool:
-        """Whether the breaker is open."""
-        return self.breaker.is_open
+    def breaker(self, region: str | None) -> CircuitBreaker:
+        """The breaker for this region (null included), built the first time it is asked for."""
+        if region not in self.breakers:
+            self.breakers[region] = CircuitBreaker(
+                ConfigKey.FLEETS_BREAKER_FAILURES, ConfigKey.FLEETS_BREAKER_PAUSE_SECONDS
+            )
+        return self.breakers[region]
+
+    def paused(self, region: str | None) -> bool:
+        """Whether the breaker of this region is open."""
+        return self.breaker(region).is_open
 
     def submit(self, job: Job, ctx, *, context: JobEventContext = JobEventContext.SCHEDULE_JOBS) -> Job:
         """Submits a Fleets (Code Engine) job and persists the result.
@@ -90,8 +97,9 @@ class FleetsJobSubmitter:
             RunnerUnavailableError: before any write, so the job stays QUEUED.
             RunnerSubmitUncertainError: after the job is saved as FAILED, so the caller can stop submitting.
         """
-        if self.paused:
-            raise RunnerUnavailableError("Fleets submits are paused by the circuit breaker")
+        breaker = self.breaker(job.ce_region)
+        if breaker.is_open:
+            raise RunnerUnavailableError(f"Fleets submits to region {job.ce_region} are paused by the circuit breaker")
         start = time.monotonic()
         tracer = trace.get_tracer("scheduler.tracer")
         uncertain: RunnerSubmitUncertainError | None = None
@@ -101,7 +109,7 @@ class FleetsJobSubmitter:
             try:
                 # Fleets runner set only fleet_id
                 runner.submit()
-                self.breaker.record_success()
+                breaker.record_success()
                 job.status = Job.PENDING
                 transition = self.transitions.queued_to_pending
                 logger.info(
@@ -111,12 +119,12 @@ class FleetsJobSubmitter:
                 )
             except RunnerUnavailableError:
                 # NOTE: a job that is always unavailable, for example a CE project with a wrong region, stays QUEUED
-                # and can pause every submit. Follow-up: fail it after a time limit.
-                self.breaker.record_failure()
+                # and pauses submits to its region. Follow-up: fail it after a time limit.
+                breaker.record_failure()
                 raise
             except RunnerSubmitUncertainError as ex:
                 uncertain = ex
-                self.breaker.record_failure()
+                breaker.record_failure()
                 logger.error(
                     "[FleetsJobSubmitter] job_id=%s error=%s Job set as FAILED: the fleet may exist", job.id, ex
                 )

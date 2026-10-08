@@ -228,8 +228,8 @@ class BalanceFillerJobs(SchedulerTask):
         if self._retry_loops > 0:
             self._retry_loops -= 1
             return
-        # a shutdown or a paused Code Engine buys no delay
-        if self.kill_signal.received or self.submitter.paused:
+        # a shutdown or a paused region buys no delay
+        if self.kill_signal.received or self.submitter.paused(program.code_engine_project.region):
             return
         if not self._submit_filler_job(program):
             self._retry_loops = RETRY_AFTER_LOOPS

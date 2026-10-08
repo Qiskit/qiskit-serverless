@@ -246,9 +246,9 @@ class TestScheduleApi(APITestCase):
         submitter = FleetsJobSubmitter(MagicMock())
 
         with pytest.raises(RunnerUnavailableError):
-            submitter.submit(MagicMock(), MagicMock())
+            submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
         with pytest.raises(RunnerUnavailableError):
-            submitter.submit(MagicMock(), MagicMock())
+            submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
 
         mock_get_runner_client.return_value.submit.assert_called_once()
 
@@ -264,13 +264,13 @@ class TestScheduleApi(APITestCase):
 
         with patch("scheduler.tasks.circuit_breaker.time.monotonic", return_value=1000.0):
             with pytest.raises(RunnerUnavailableError):
-                submitter.submit(MagicMock(), MagicMock())
-            assert submitter.paused is True
+                submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
+            assert submitter.paused("us-east") is True
 
         runner.submit.side_effect = None
         with patch("scheduler.tasks.circuit_breaker.time.monotonic", return_value=1061.0):
-            assert submitter.paused is False
-            submitter.submit(MagicMock(), MagicMock())
+            assert submitter.paused("us-east") is False
+            submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
 
         assert runner.submit.call_count == 2
 
@@ -283,9 +283,9 @@ class TestScheduleApi(APITestCase):
 
         submitter = FleetsJobSubmitter(MagicMock())
 
-        submitter.submit(MagicMock(), MagicMock())
+        submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
 
-        assert submitter.paused is False
+        assert submitter.paused("us-east") is False
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
@@ -296,7 +296,7 @@ class TestScheduleApi(APITestCase):
         Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "1")
         mock_get_runner_client.return_value.submit.side_effect = RunnerSubmitUncertainError("Gateway Timeout")
         transitions = MagicMock()
-        job = MagicMock()
+        job = MagicMock(ce_region="us-east")
 
         submitter = FleetsJobSubmitter(transitions)
 
@@ -305,7 +305,25 @@ class TestScheduleApi(APITestCase):
 
         assert job.status == Job.FAILED
         transitions.to_failed.assert_called_once()
-        assert submitter.paused is True
+        assert submitter.paused("us-east") is True
+
+    @patch("scheduler.schedule.get_runner")
+    @patch("scheduler.schedule.trace")
+    def test_fleets_submit_pauses_only_the_region_that_failed(self, mock_trace, mock_get_runner_client):
+        Config.add_defaults()
+        Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "1")
+        runner = mock_get_runner_client.return_value
+        runner.submit.side_effect = RunnerUnavailableError("Too Many Requests")
+        submitter = FleetsJobSubmitter(MagicMock())
+
+        with pytest.raises(RunnerUnavailableError):
+            submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
+        runner.submit.side_effect = None
+        submitter.submit(MagicMock(ce_region="eu-de"), MagicMock())
+
+        assert submitter.paused("us-east") is True
+        assert submitter.paused("eu-de") is False
+        assert runner.submit.call_count == 2
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")

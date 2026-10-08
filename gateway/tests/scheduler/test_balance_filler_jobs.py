@@ -525,16 +525,17 @@ def test_a_failed_creation_waits_out_the_delay_before_trying_again(filler_progra
     assert Job.objects.filter(filler=True).count() == 0
 
 
-def test_no_filler_job_is_created_while_code_engine_is_paused(filler_program):
+def test_no_filler_job_is_created_while_its_region_is_paused(filler_program):
     task = _make_task()
-
-    task.submitter = MagicMock(paused=True)
+    task.submitter = MagicMock()
+    task.submitter.paused.return_value = True
 
     submit, arguments, _ = _run(task)
 
     submit.assert_not_called()
     arguments.assert_not_called()
     assert Job.objects.filter(filler=True).count() == 0
+    task.submitter.paused.assert_called_with(filler_program.code_engine_project.region)
 
 
 def test_a_creation_that_fails_before_the_submit_discards_the_row(filler_program):

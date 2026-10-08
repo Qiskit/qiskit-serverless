@@ -40,10 +40,6 @@ class ScheduleFleetsJobs(SchedulerTask):
         if Config.get_bool(ConfigKey.MAINTENANCE):
             logger.warning("System in maintenance mode. Skipping new jobs schedule.")
             return
-        if self.submitter.paused:
-            logger.warning("Fleets submits are paused by the circuit breaker. Skipping new jobs schedule.")
-            return
-
         self._schedule_fleets_jobs()
 
     def _schedule_fleets_jobs(self):
@@ -68,9 +64,12 @@ class ScheduleFleetsJobs(SchedulerTask):
 
         jobs = get_jobs_to_schedule_fair_share(slots=free_slots, gpu=False, runner=Program.FLEETS)
 
+        failed_regions: set[str | None] = set()
         for job in jobs:
             if self.kill_signal.received:
                 return
+            if job.ce_region in failed_regions or self.submitter.paused(job.ce_region):
+                continue
 
             env = json.loads(job.env_vars)
             ctx = TraceContextTextMapPropagator().extract(carrier=env)
@@ -78,10 +77,12 @@ class ScheduleFleetsJobs(SchedulerTask):
             try:
                 job = self.submitter.submit(job, ctx)
             except RunnerUnavailableError as ex:
-                logger.warning("job_id=%s Job kept QUEUED: %s", job.id, ex)
-                return
+                logger.warning("job_id=%s region=%s Job kept QUEUED: %s", job.id, job.ce_region, ex)
+                failed_regions.add(job.ce_region)
+                continue
             except RunnerSubmitUncertainError:
-                return
+                failed_regions.add(job.ce_region)
+                continue
 
             logger.warning("job_id=%s Job saved with status=%s", job.id, job.status)
 
