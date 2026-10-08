@@ -362,6 +362,25 @@ back in uppercase on every path this application controls, whether or
 not the underlying row happens to be stored in a different case. No
 existing <code class="docutils literal notranslate"><span class="pre">FunctionSize</span></code> row is modified by this change.</p></li>
 </ul>
+<ul>
+<li><p>The transitional <code class="docutils literal notranslate"><span class="pre">Job.compute_profile</span></code> string field has been removed from
+Django’s model state. It is no longer written on job creation and no longer
+exposed anywhere – all code paths already read the compute profile through
+<code class="docutils literal notranslate"><span class="pre">Job.compute_profile_fk</span></code> (and its <code class="docutils literal notranslate"><span class="pre">compute_profile_id</span></code> convenience
+property), which has been the gateway’s REST API shape since an earlier
+release.</p>
+<p>The underlying database column and its historical data are untouched by this
+change; the physical <code class="docutils literal notranslate"><span class="pre">DROP</span> <span class="pre">COLUMN</span></code> is deferred to a later release so that a
+rolling deployment never has an old pod and a new pod disagreeing about the
+schema.</p>
+<p>Fleets jobs created before compute profiles gained their own database table
+have no <code class="docutils literal notranslate"><span class="pre">compute_profile_fk</span></code> set (that FK did not exist yet when they were
+created) and so render with no profile in the admin backoffice job timeline.
+This is a pre-existing condition, not introduced by this change – it has
+applied since the backoffice was repointed to read the FK in an earlier
+release.</p>
+</li>
+</ul>
 </section>
 <section id="bug-fixes">
 <span id="release-notes-upcoming-qiskit-serverless-release-bug-fixes"></span><h3>Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permalink to this heading">¶</a></h3>
