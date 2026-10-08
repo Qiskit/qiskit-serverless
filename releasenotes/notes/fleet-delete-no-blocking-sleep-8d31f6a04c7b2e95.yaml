@@ -1,0 +1,5 @@
+---
+fixes:
+  - |
+    A rate-limited fleet delete no longer blocks the scheduler loop. ``delete_job`` slept 60
+    seconds inside the loop and retried forever. It now raises the 429 so the caller decides.

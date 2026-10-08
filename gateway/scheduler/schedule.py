@@ -14,14 +14,43 @@ from django.db.models.aggregates import Count, Min
 
 from opentelemetry import trace
 
+from core.config_key import ConfigKey
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import JobTransitionService
-from core.services.runners import get_runner, RunnerError
+from core.services.runners import get_runner, RunnerError, RunnerUnavailableError
+from scheduler.tasks.circuit_breaker import CircuitBreaker
 
 User: Model = get_user_model()
 logger = logging.getLogger("scheduler.schedule")
+
+# One breaker for the whole Code Engine API: when it is down it is down for every operation
+CODE_ENGINE_BREAKER = CircuitBreaker(ConfigKey.FLEETS_BREAKER_FAILURES, ConfigKey.FLEETS_BREAKER_PAUSE_SECONDS)
+
+
+def code_engine_paused() -> bool:
+    """Whether CODE_ENGINE_BREAKER is open."""
+    return CODE_ENGINE_BREAKER.is_open
+
+
+def delete_fleet(job: Job) -> bool:
+    """Delete a job's fleet. ``True`` when the fleet is gone.
+
+    Raises:
+        RunnerUnavailableError: While the breaker is open, or when Code Engine did not answer.
+    """
+    if code_engine_paused():
+        raise RunnerUnavailableError("Code Engine fleet deletes are paused by the circuit breaker")
+    return get_runner(job).free_resources()
+
+
+def record_delete_cycle(*, code_engine_answered: bool) -> None:
+    """Count one cleanup cycle: a failure when Code Engine stopped answering part way through."""
+    if code_engine_answered:
+        CODE_ENGINE_BREAKER.record_success()
+    else:
+        CODE_ENGINE_BREAKER.record_failure()
 
 
 def execute_ray_job(job: Job) -> Job:

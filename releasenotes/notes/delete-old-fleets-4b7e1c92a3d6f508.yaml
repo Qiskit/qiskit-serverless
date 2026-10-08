@@ -1,0 +1,34 @@
+---
+features:
+  - |
+    The scheduler now deletes the Code Engine fleet of a terminal Fleets job once a retention
+    window has passed, so a project does not reach its limit of 1000 fleets. The window keeps a
+    fleet inspectable for a while after the job ended. Both the feature and the window are
+    dynamic config: ``scheduler.fleets.cleanup.enabled``, off by default, and
+    ``scheduler.fleets.cleanup.retention_hours``, 48 by default.
+  - |
+    New ``scheduler_held_fleets`` metric, the fleets not yet deleted in each Code Engine
+    project. A project holds at most 1000, so this is what an alert should watch. A fleet we keep
+    failing to delete stays in the count, so the number never hides a leak. It is reported about every five minutes, and also while the
+    feature is disabled, so the backlog can be sized before the deletion is turned on.
+upgrade:
+  - |
+    ``Job`` has a new ``fleet_deleted_at`` field, set once Code Engine accepted the delete so it is
+    not tried again. Code Engine finishes the delete a minute or two later. A fleet the delete keeps
+    failing on is never stamped: after three attempts the scheduler stops picking it so it cannot
+    block the queue, logs it at ERROR, and retries it after a restart. It is read-only in the backoffice. Migration ``0073`` adds it together with a
+    partial index on ``api_job``.
+  - |
+    The delete resolves its Code Engine project from the job's own ``ce_project_name``, so a
+    program reassigned to another project after a job ran still has its fleet deleted in the
+    project that created it. An inactive project is included, because an offboarded project
+    still holds fleets.
+fixes:
+  - |
+    The cleanup waits out an unavailable Code Engine with a circuit breaker instead of sleeping
+    inside the scheduler loop. Five consecutive failures that a later try can fix open it for a
+    minute. A timeout or a 502 counts as one, because a delete that may already have happened is
+    free to repeat. The breaker counts one outcome per cycle: a failure when a cycle stopped because
+    Code Engine would not answer, a success when it worked through its batch. The breaker is meant for every Code Engine call the scheduler makes, and so
+    far only the delete uses it. Both numbers are dynamic config:
+    ``scheduler.fleets.breaker_failures`` and ``scheduler.fleets.breaker_pause_seconds``.

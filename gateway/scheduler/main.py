@@ -13,7 +13,8 @@ from scheduler.http_server import SchedulerHttpServer
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.kill_signal import KillSignal
 from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs
-from scheduler.tasks.free_resources import FreeResources
+from scheduler.tasks.free_fleets_resources import FreeFleetsResources
+from scheduler.tasks.free_ray_resources import FreeRayResources
 from scheduler.tasks.outbox import OutboxTask
 from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
 from scheduler.tasks.schedule_ray_jobs import ScheduleRayJobs
@@ -53,7 +54,8 @@ class Main:
             OutboxTask(self.kill_signal, self.metrics),
             # after the status updates, so it counts the freshest real jobs
             BalanceFillerJobs(self.kill_signal, self.metrics, transitions),
-            FreeResources(self.kill_signal, self.metrics),  # Ray only
+            FreeRayResources(self.kill_signal, self.metrics),
+            FreeFleetsResources(self.kill_signal, self.metrics),
         ]
 
     def start_http_server(self):

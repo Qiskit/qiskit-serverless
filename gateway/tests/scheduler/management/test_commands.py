@@ -20,7 +20,7 @@ from core.utils import check_logs
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses, save_logs_to_storage
-from scheduler.tasks.free_resources import FreeResources
+from scheduler.tasks.free_ray_resources import FreeRayResources
 from scheduler.tasks.schedule_ray_jobs import ScheduleRayJobs
 from scheduler.schedule import get_jobs_to_schedule_fair_share
 from tests.utils import TestUtils
@@ -36,13 +36,13 @@ class TestCommands:
         Config.add_defaults()
         self.metrics = SchedulerMetrics(CollectorRegistry())
 
-    def test_free_resources(self):
+    def test_free_ray_resources(self):
         """Tests free resources command."""
         # Create compute resource matching fixture data
         test3_user = TestUtils.get_user_and_username("test3_user")[0]
         TestUtils.get_or_create_compute_resource(title="compute resource", host="somehost", owner=test3_user)
 
-        FreeResources(kill_signal=KillSignal(), metrics=self.metrics).run()
+        FreeRayResources(kill_signal=KillSignal(), metrics=self.metrics).run()
         num_resources = ComputeResource.objects.count()
         assert num_resources == 1
 

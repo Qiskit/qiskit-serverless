@@ -30,6 +30,10 @@ class RunnerError(Exception):
         return self.message
 
 
+class RunnerUnavailableError(RunnerError):
+    """A later try can work, for example after a 429, so the caller should not fail the row."""
+
+
 class AbstractRunner(ABC):
     """Abstract runner for executing jobs on different engines."""
 
@@ -144,7 +148,11 @@ class AbstractRunner(ABC):
         Clean up/delete the compute resource associated with the job.
 
         Returns:
-            True if cleaned up correctly
+            True if cleaned up correctly. False means no later try will succeed, so a caller that
+            tracks the resource can stop trying.
+
+        Raises:
+            RunnerUnavailableError: If a later try can work, so the caller should not give up on the row.
         """
         raise NotImplementedError
 

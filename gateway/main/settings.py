@@ -581,6 +581,29 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "type": "integer",
         "description": "The longest a Kafka outbox row waits between two tries, however many times it has failed.",
     },
+    "scheduler.fleets.cleanup.enabled": {
+        "default": "false",
+        "type": "boolean",
+        "description": "Enable deletion of the fleets of terminal Fleets jobs, so a Code Engine project "
+        "does not reach its 1000-fleet limit.",
+    },
+    "scheduler.fleets.cleanup.retention_hours": {
+        "default": "48",
+        "type": "integer",
+        "description": "How long a fleet is kept after the job row was last written, so Code Engine "
+        "support can still inspect it.",
+    },
+    "scheduler.fleets.breaker_failures": {
+        "default": "5",
+        "type": "integer",
+        "description": "Consecutive Code Engine or COS failures (429, 5xx, connection errors, timeouts) before the "
+        "scheduler stops calling Code Engine. One breaker covers every operation.",
+    },
+    "scheduler.fleets.breaker_pause_seconds": {
+        "default": "60",
+        "type": "integer",
+        "description": "How long the scheduler stops calling Code Engine once the breaker trips.",
+    },
 }
 
 # Fleets / Code Engine credentials

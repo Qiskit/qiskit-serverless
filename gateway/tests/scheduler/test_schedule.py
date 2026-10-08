@@ -14,15 +14,22 @@ from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 
 from core.model_managers.job_events import JobEventContext
-from core.models import Job, ComputeResource, JobEvent, Program
+from core.config_key import ConfigKey
+from core.models import Job, ComputeResource, JobEvent, Config, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
-from core.services.runners import RunnerError
+from core.services.runners import RunnerError, RunnerUnavailableError
 from core.services.storage import get_logs_storage
 
+from scheduler import schedule
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 
-from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_ray_job, execute_fleets_job
+from scheduler.schedule import (
+    get_jobs_to_schedule_fair_share,
+    execute_ray_job,
+    execute_fleets_job,
+    delete_fleet,
+)
 from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
 
 from tests.utils import TestUtils
@@ -355,3 +362,13 @@ def test_execute_fleets_job_defaults_to_the_schedule_jobs_context():
         execute_fleets_job(mock_job, None, transitions)
 
     assert transitions.queued_to_pending.call_args.kwargs["context"] is JobEventContext.SCHEDULE_JOBS
+
+
+@pytest.mark.django_db
+def test_delete_fleet_refuses_while_the_breaker_is_open():
+    Config.add_defaults()
+    for _ in range(Config.get_int(ConfigKey.FLEETS_BREAKER_FAILURES)):
+        schedule.CODE_ENGINE_BREAKER.record_failure()
+
+    with pytest.raises(RunnerUnavailableError):
+        delete_fleet(MagicMock())
