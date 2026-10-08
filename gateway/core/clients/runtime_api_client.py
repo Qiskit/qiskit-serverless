@@ -50,10 +50,11 @@ class RuntimeApiClient:
             )
         return self._authenticator.token_manager.get_token()
 
-    def put_function(self, payload: dict) -> None:
+    def put_function(self, payload: dict, timeout: float | None = None) -> None:
         """Send ``payload`` to NTC. Returns when NTC applied it (200) or ignored it because the function was
         already terminal (202). Does nothing at all while ``workloads.mirror.enabled`` is off. Raises
-        RuntimeApiConfigError if it is on and FUNCTIONS_OPERATOR_API_KEY is empty, and RuntimeApiError otherwise."""
+        RuntimeApiConfigError if it is on and FUNCTIONS_OPERATOR_API_KEY is empty, and RuntimeApiError otherwise.
+        ``timeout`` is the request timeout in seconds; None uses WORKLOADS_MIRROR_TIMEOUT."""
         if not Config.get_bool(ConfigKey.WORKLOADS_MIRROR_ENABLED):
             return
         if not settings.FUNCTIONS_OPERATOR_API_KEY:
@@ -74,7 +75,7 @@ class RuntimeApiClient:
                 f"{base_url}/api/v1/functions/{function_id}",
                 json=body,
                 headers={"Authorization": f"Bearer {token}"},
-                timeout=settings.WORKLOADS_MIRROR_TIMEOUT,
+                timeout=settings.WORKLOADS_MIRROR_TIMEOUT if timeout is None else timeout,
             )
         except requests.RequestException as exc:
             logger.error("function_id=%s connection error: %s", function_id, exc)

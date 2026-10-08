@@ -90,18 +90,28 @@ def test_error_status_codes_say_whether_to_retry(flag, put, status_code, retryab
     assert (error.value.status_code, error.value.retryable) == (status_code, retryable)
 
 
-def test_network_and_iam_failures_are_retryable(flag, put):
+def test_network_failures_are_retryable(flag, put):
     put.side_effect = requests.ConnectionError("boom")
-    with pytest.raises(RuntimeApiError) as network_error:
-        RuntimeApiClient().put_function(PAYLOAD)
-    assert network_error.value.retryable is True
 
-    put.side_effect = None
+    with pytest.raises(RuntimeApiError) as error:
+        RuntimeApiClient().put_function(PAYLOAD)
+
+    assert error.value.retryable is True
+
+
+def test_iam_failures_are_retryable(flag, put):
     with patch("core.clients.runtime_api_client.IAMAuthenticator") as authenticator:
         authenticator.return_value.token_manager.get_token.side_effect = RuntimeError("iam down")
-        with pytest.raises(RuntimeApiError) as iam_error:
+        with pytest.raises(RuntimeApiError) as error:
             RuntimeApiClient().put_function(PAYLOAD)
-    assert iam_error.value.retryable is True
+
+    assert error.value.retryable is True
+
+
+def test_an_explicit_timeout_reaches_requests(flag, put):
+    RuntimeApiClient().put_function(PAYLOAD, timeout=7)
+
+    assert put.call_args.kwargs["timeout"] == 7
 
 
 def test_the_sender_delegates_to_the_client():
@@ -109,4 +119,19 @@ def test_the_sender_delegates_to_the_client():
 
     WorkloadSender(client).send(PAYLOAD)
 
-    client.put_function.assert_called_once_with(PAYLOAD)
+    client.put_function.assert_called_once_with(PAYLOAD, timeout=5)
+
+
+def test_timeout_zero_swallows_a_client_error():
+    client = MagicMock()
+    client.put_function.side_effect = RuntimeApiError("down", retryable=True)
+
+    WorkloadSender(client).send(PAYLOAD, timeout=0)
+
+
+def test_a_positive_timeout_lets_the_client_error_raise():
+    client = MagicMock()
+    client.put_function.side_effect = RuntimeApiError("down", retryable=True)
+
+    with pytest.raises(RuntimeApiError):
+        WorkloadSender(client).send(PAYLOAD, timeout=2)
