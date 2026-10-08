@@ -6,7 +6,7 @@ import pytest
 import requests
 from ibm_cloud_sdk_core import ApiException
 
-from core.clients.runtime_api_errors import RuntimeApiConfigError, RuntimeApiError
+from core.clients.runtime_api_errors import RuntimeApiConfigError, RuntimeApiError, RuntimeApiRejectedError
 from core.clients.service_functional_role_client import ServiceFunctionalRoleClient
 from core.clients.workload_sender import WorkloadSender
 from core.config_key import ConfigKey
@@ -108,7 +108,6 @@ def test_flag_on_without_the_key_raises_a_config_error(flag, put, settings):
     with pytest.raises(RuntimeApiConfigError) as error:
         ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
-    assert error.value.retryable is False
     put.assert_not_called()
 
 
@@ -118,72 +117,80 @@ def test_202_is_a_success(flag, put):
     ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
 
-@pytest.mark.parametrize("status_code, retryable", [(400, False), (404, False), (429, True), (500, True)])
-def test_error_status_codes_say_whether_to_retry(flag, put, status_code, retryable):
+@pytest.mark.parametrize("status_code", [400, 404])
+def test_a_4xx_status_is_a_permanent_rejection(flag, put, status_code):
     put.return_value = MagicMock(status_code=status_code, text="bad field")
+
+    with pytest.raises(RuntimeApiRejectedError) as error:
+        ServiceFunctionalRoleClient().put_function(PAYLOAD)
+
+    assert error.value.status_code == status_code
+
+
+@pytest.mark.parametrize("status_code", [408, 429, 500])
+def test_a_transient_status_is_the_base_error(flag, put, status_code):
+    put.return_value = MagicMock(status_code=status_code, text="try later")
 
     with pytest.raises(RuntimeApiError) as error:
         ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
-    assert (error.value.status_code, error.value.retryable) == (status_code, retryable)
+    assert not isinstance(error.value, (RuntimeApiConfigError, RuntimeApiRejectedError))
+    assert error.value.status_code == status_code
 
 
 def test_an_error_status_logs_the_start_of_the_response_body(flag, put, caplog):
     put.return_value = MagicMock(status_code=400, text="field size is invalid")
 
-    with pytest.raises(RuntimeApiError):
+    with pytest.raises(RuntimeApiRejectedError):
         ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
     assert "field size is invalid" in caplog.text
 
 
-def test_network_failures_are_retryable(flag, put):
+def test_network_failures_are_transient(flag, put):
     put.side_effect = requests.ConnectionError("boom")
 
     with pytest.raises(RuntimeApiError) as error:
         ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
-    assert error.value.retryable is True
+    assert not isinstance(error.value, (RuntimeApiConfigError, RuntimeApiRejectedError))
 
 
-def test_iam_failures_are_retryable(flag, put, authenticator):
+def test_iam_failures_are_transient(flag, put, authenticator):
     authenticator.return_value.token_manager.get_token.side_effect = RuntimeError("iam down")
 
     with pytest.raises(RuntimeApiError) as error:
         ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
-    assert error.value.retryable is True
+    assert not isinstance(error.value, (RuntimeApiConfigError, RuntimeApiRejectedError))
     put.assert_not_called()
 
 
-def test_an_iam_rejection_of_the_key_is_not_retryable(flag, put, authenticator):
+def test_an_iam_rejection_of_the_key_is_a_config_error(flag, put, authenticator):
     authenticator.return_value.token_manager.get_token.side_effect = ApiException(401, message="unauthorized")
 
     with pytest.raises(RuntimeApiConfigError) as error:
         ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
-    assert error.value.retryable is False
     assert "operator-key" not in str(error.value)
     put.assert_not_called()
 
 
-def test_a_non_json_iam_response_is_retryable(flag, put, authenticator):
+def test_a_non_json_iam_response_is_transient(flag, put, authenticator):
     authenticator.return_value.token_manager.get_token.side_effect = requests.exceptions.JSONDecodeError("bad", "", 0)
 
     with pytest.raises(RuntimeApiError) as error:
         ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
-    assert error.value.retryable is True
-    assert not isinstance(error.value, RuntimeApiConfigError)
+    assert not isinstance(error.value, (RuntimeApiConfigError, RuntimeApiRejectedError))
 
 
-def test_a_malformed_key_is_not_retryable(flag, put, authenticator):
+def test_a_malformed_key_is_a_config_error(flag, put, authenticator):
     authenticator.side_effect = ValueError("bad key")
 
     with pytest.raises(RuntimeApiConfigError) as error:
         ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
-    assert error.value.retryable is False
     assert "operator-key" not in str(error.value)
     put.assert_not_called()
 
@@ -206,7 +213,7 @@ def test_timeout_zero_hands_the_call_to_the_best_effort_pool_and_returns():
     client.put_function.assert_not_called()
 
 
-@pytest.mark.parametrize("failure", [RuntimeApiError("down", retryable=True), KeyError("body")])
+@pytest.mark.parametrize("failure", [RuntimeApiError("down"), KeyError("body")])
 def test_the_submitted_task_swallows_any_client_error(failure):
     client = MagicMock()
     client.put_function.side_effect = failure
@@ -226,7 +233,7 @@ def test_timeout_zero_never_raises_even_if_the_pool_does():
 
 def test_a_positive_timeout_lets_the_client_error_raise():
     client = MagicMock()
-    client.put_function.side_effect = RuntimeApiError("down", retryable=True)
+    client.put_function.side_effect = RuntimeApiError("down")
 
     with pytest.raises(RuntimeApiError):
         WorkloadSender(client).send(PAYLOAD, timeout=2)

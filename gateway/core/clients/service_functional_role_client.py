@@ -7,8 +7,8 @@ here too.
 The pieces shared with other Runtime API clients live elsewhere: the errors in ``runtime_api_errors.py`` and the
 regional host in ``core/domain/crn.py`` (``regional_base_url``).
 
-One attempt per call and no internal retry: the caller decides what a failure means, and ``RuntimeApiError.retryable``
-tells it whether trying again can help.
+One attempt per call and no internal retry: the caller decides what a failure means, and the type of the
+``RuntimeApiError`` raised tells it whether trying again can help (see ``runtime_api_errors.py``).
 """
 
 import logging
@@ -19,14 +19,14 @@ from django.conf import settings
 from ibm_cloud_sdk_core import ApiException
 from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
 
-from core.clients.runtime_api_errors import RuntimeApiConfigError, RuntimeApiError
+from core.clients.runtime_api_errors import RuntimeApiConfigError, RuntimeApiError, RuntimeApiRejectedError
 from core.config_key import ConfigKey
 from core.domain.crn import regional_base_url
 from core.models import Config
 
 logger = logging.getLogger("gateway.clients.service_functional_role")
 
-_RETRYABLE_CLIENT_ERRORS = {408, 429}
+_TRANSIENT_CLIENT_ERRORS = {408, 429}
 _KEY_REJECTED = {400, 401, 403}
 _DEFAULT_TIMEOUT_MS = 3000
 
@@ -51,7 +51,7 @@ class ServiceFunctionalRoleClient:
 
     def _token(self, timeout: float) -> str:
         """A valid IAM token. The SDK's token manager caches it and refreshes it near expiry, so ask on every call.
-        Raises RuntimeApiConfigError when the key itself is the problem and RuntimeApiError (retryable) otherwise."""
+        Raises RuntimeApiConfigError when the key itself is the problem and a transient RuntimeApiError otherwise."""
         if self._authenticator is None:
             with self._authenticator_lock:
                 if self._authenticator is None:
@@ -68,10 +68,10 @@ class ServiceFunctionalRoleClient:
                     f"IAM rejected FUNCTIONS_OPERATOR_API_KEY (status {exc.status_code})"
                 ) from exc
             logger.error("Could not get an IAM token, status %s", exc.status_code)
-            raise RuntimeApiError("Could not get an IAM token", retryable=True) from exc
+            raise RuntimeApiError("Could not get an IAM token") from exc
         except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.error("Could not get an IAM token: %s", type(exc).__name__)
-            raise RuntimeApiError("Could not get an IAM token", retryable=True) from exc
+            raise RuntimeApiError("Could not get an IAM token") from exc
 
     def put_function(self, payload: dict) -> None:
         """Send ``payload`` to the Runtime API. Returns when it applied it (200) or ignored it because the function was
@@ -104,20 +104,19 @@ class ServiceFunctionalRoleClient:
             )
         except requests.RequestException as exc:
             logger.error("function_id=%s connection error: %s", function_id, exc)
-            raise RuntimeApiError("Error connecting to the Runtime API", retryable=True) from exc
+            raise RuntimeApiError("Error connecting to the Runtime API") from exc
 
         if response.status_code in (200, 202):
             return
-        retryable = response.status_code >= 500 or response.status_code in _RETRYABLE_CLIENT_ERRORS
+        transient = response.status_code >= 500 or response.status_code in _TRANSIENT_CLIENT_ERRORS
         logger.warning(
-            "function_id=%s unexpected status %s retryable=%s body=%s",
+            "function_id=%s unexpected status %s transient=%s body=%s",
             function_id,
             response.status_code,
-            retryable,
+            transient,
             response.text[:300],
         )
-        raise RuntimeApiError(
-            f"Unexpected status {response.status_code} for function {function_id}",
-            retryable=retryable,
-            status_code=response.status_code,
+        error_class = RuntimeApiError if transient else RuntimeApiRejectedError
+        raise error_class(
+            f"Unexpected status {response.status_code} for function {function_id}", status_code=response.status_code
         )
