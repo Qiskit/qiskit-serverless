@@ -17,7 +17,7 @@ upgrade:
     is not tried again. Code Engine finishes the delete a minute or two later. It is also set when a
     fleet can never be deleted, for example when no Code Engine project matches the job any more: the
     row is logged at ERROR and stops holding up the queue, and that fleet keeps its slot in the
-    project. It is read-only in the backoffice. Migration ``0072`` adds it together with a
+    project. It is read-only in the backoffice. Migration ``0073`` adds it together with a
     partial index on ``api_job``.
   - |
     The delete resolves its Code Engine project from the job's own ``ce_project_name``, so a

@@ -11,6 +11,7 @@ from core.config_key import ConfigKey
 from core.models import Config, Job
 from core.services.runners import RunnerUnavailableError
 
+from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.schedule import code_engine_paused, delete_fleet
@@ -34,7 +35,12 @@ class FreeFleetsResources(SchedulerTask):
 
     def run(self):
         """Delete the fleets past the retention window, and report the fleets we hold."""
-        self._report_held_fleets()
+        try:
+            self._report_held_fleets()
+        except DB_EXCEPTIONS:
+            raise
+        except Exception as ex:  # pylint: disable=broad-exception-caught
+            logger.error("Could not report the held fleets: %s", ex)
 
         if not Config.get_bool(ConfigKey.FLEETS_CLEANUP_ENABLED):
             return
