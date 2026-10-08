@@ -10,6 +10,7 @@ from core.clients.runtime_api_errors import RuntimeApiConfigError, RuntimeApiErr
 from core.clients.service_functional_role_client import ServiceFunctionalRoleClient
 from core.clients.workload_sender import WorkloadSender
 from core.config_key import ConfigKey
+from core.services.background_executor import BackgroundExecutor, BackgroundExecutorNotInitializedError
 
 PAYLOAD = {
     "function_id": "job-1",
@@ -203,10 +204,10 @@ def test_a_positive_timeout_calls_the_client_synchronously():
     client.put_function.assert_called_once_with(PAYLOAD)
 
 
-def test_timeout_zero_hands_the_call_to_the_best_effort_pool_and_returns():
+def test_timeout_zero_hands_the_call_to_the_background_executor_and_returns():
     client = MagicMock()
 
-    with patch("core.clients.workload_sender.submit_best_effort") as submit:
+    with patch("core.clients.workload_sender.BackgroundExecutor.submit") as submit:
         WorkloadSender(client).send(PAYLOAD, timeout=0)
 
     submit.assert_called_once()
@@ -218,7 +219,7 @@ def test_the_submitted_task_swallows_any_client_error(failure):
     client = MagicMock()
     client.put_function.side_effect = failure
 
-    with patch("core.clients.workload_sender.submit_best_effort") as submit:
+    with patch("core.clients.workload_sender.BackgroundExecutor.submit") as submit:
         WorkloadSender(client).send(PAYLOAD, timeout=0)
     task, *args = submit.call_args.args
     task(*args)
@@ -226,8 +227,10 @@ def test_the_submitted_task_swallows_any_client_error(failure):
     client.put_function.assert_called_once_with(PAYLOAD)
 
 
-def test_timeout_zero_never_raises_even_if_the_pool_does():
-    with patch("core.clients.workload_sender.submit_best_effort", side_effect=RuntimeError("pool gone")):
+def test_a_missing_init_is_a_loud_error_even_with_timeout_zero():
+    BackgroundExecutor.shutdown()
+
+    with pytest.raises(BackgroundExecutorNotInitializedError):
         WorkloadSender(MagicMock()).send(PAYLOAD, timeout=0)
 
 
