@@ -1,10 +1,10 @@
-"""Builder for the message that mirrors a Functions job to NTC as a workload.
+"""Builder for the message that mirrors a Functions job to the Runtime API as a workload.
 
 The result is the envelope ``{"function_id", "body"}``: ``function_id`` goes in the URL path and ``body`` is
-exactly what NTC receives. It is built from the job's state at the moment the fact became true and can be stored
+exactly what the Runtime API receives. It is built from the job's state at the moment the fact became true and can be stored
 as-is (for example in ``Outbox.payload``) and sent later by ``core.clients.workload_sender.WorkloadSender``.
 
-NTC replaces the whole row on every call, so ``body`` always carries all ten keys, with ``None`` for the ones the
+The Runtime API replaces the whole row on every call, so ``body`` always carries all ten keys, with ``None`` for the ones the
 job has no value for.
 """
 
@@ -14,9 +14,9 @@ from django.utils.timezone import is_naive
 
 from core.models import Job
 
-# Six job states here, five on the NTC side. QUEUED and PENDING both mean "not running yet"; STOPPING is still
+# Six job states here, five on the Runtime API side. QUEUED and PENDING both mean "not running yet"; STOPPING is still
 # running until it is STOPPED.
-_NTC_STATUS = {
+_RUNTIME_API_STATUS = {
     Job.QUEUED: "Queued",
     Job.PENDING: "Queued",
     Job.RUNNING: "Running",
@@ -28,18 +28,20 @@ _NTC_STATUS = {
 
 
 def map_status(job_status: str) -> str:
-    """Translate a ``Job`` status into the NTC vocabulary. Raises ValueError for a status it does not know."""
+    """Translate a ``Job`` status into the Runtime API vocabulary. Raises ValueError for a status it does not know."""
     try:
-        return _NTC_STATUS[job_status]
+        return _RUNTIME_API_STATUS[job_status]
     except KeyError as exc:
-        raise ValueError(f"No NTC status for job status {job_status!r}") from exc
+        raise ValueError(f"No Runtime API status for job status {job_status!r}") from exc
 
 
 def _iso(value: datetime | None) -> str | None:
     if value is None:
         return None
     if is_naive(value):
-        raise ValueError(f"Datetime {value.isoformat()} has no timezone, NTC requires RFC 3339 with an offset")
+        raise ValueError(
+            f"Datetime {value.isoformat()} has no timezone, the Runtime API requires RFC 3339 with an offset"
+        )
     return value.isoformat()
 
 

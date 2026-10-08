@@ -1,4 +1,4 @@
-"""Sender that mirrors a stored workload payload to NTC. The outbox registers it as a channel in PR 2."""
+"""Sender that mirrors a stored workload payload to the Runtime API. The outbox registers it as a channel in PR 2."""
 
 import logging
 

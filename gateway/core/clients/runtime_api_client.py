@@ -1,5 +1,5 @@
-"""Client for the Runtime API's ``PUT /functions/{function_id}``, which mirrors a Functions job to NTC as a
-workload. See .claude/specs/2026-10-08-workload-mirror-client-design.md (local, not committed) for the design.
+"""Client for the Runtime API's ``PUT /functions/{function_id}``, which mirrors a Functions job to the Runtime API as
+a workload.
 
 One attempt per call and no internal retry: the caller decides what a failure means, and ``RuntimeApiError.retryable``
 tells it whether trying again can help.
@@ -50,18 +50,19 @@ class RuntimeApiClient:
     def _token(self) -> str:
         """A valid IAM token. The SDK's token manager caches it and refreshes it near expiry, so ask on every call.
         Raises RuntimeApiConfigError when the key itself is the problem and RuntimeApiError (retryable) otherwise."""
-        try:
-            if self._authenticator is None:
+        if self._authenticator is None:
+            try:
                 authenticator = IAMAuthenticator(
                     settings.FUNCTIONS_OPERATOR_API_KEY, url=settings.IAM_IBM_CLOUD_BASE_URL
                 )
-                # The token manager waits 60 s by default, far above the budget of one mirror call.
-                authenticator.token_manager.http_config = {"timeout": settings.WORKLOADS_MIRROR_TIMEOUT}
-                self._authenticator = authenticator
+            except ValueError as exc:  # the SDK raises ValueError only from this constructor
+                logger.error("FUNCTIONS_OPERATOR_API_KEY was rejected by the IAM client: %s", type(exc).__name__)
+                raise RuntimeApiConfigError("FUNCTIONS_OPERATOR_API_KEY is malformed") from exc
+            # The token manager waits 60 s by default, far above the budget of one mirror call.
+            authenticator.token_manager.http_config = {"timeout": settings.WORKLOADS_MIRROR_TIMEOUT}
+            self._authenticator = authenticator
+        try:
             return self._authenticator.token_manager.get_token()
-        except ValueError as exc:
-            logger.error("FUNCTIONS_OPERATOR_API_KEY was rejected by the IAM client: %s", type(exc).__name__)
-            raise RuntimeApiConfigError("FUNCTIONS_OPERATOR_API_KEY is malformed") from exc
         except ApiException as exc:
             if exc.status_code in _KEY_REJECTED:
                 logger.error("IAM rejected FUNCTIONS_OPERATOR_API_KEY with status %s", exc.status_code)
@@ -75,7 +76,7 @@ class RuntimeApiClient:
             raise RuntimeApiError("Could not get an IAM token", retryable=True) from exc
 
     def put_function(self, payload: dict) -> None:
-        """Send ``payload`` to NTC. Returns when NTC applied it (200) or ignored it because the function was
+        """Send ``payload`` to the Runtime API. Returns when it applied it (200) or ignored it because the function was
         already terminal (202). Does nothing at all while ``workloads.mirror.enabled`` is off. Raises
         RuntimeApiConfigError if it is on and FUNCTIONS_OPERATOR_API_KEY is empty, and RuntimeApiError otherwise."""
         if not Config.get_bool(ConfigKey.WORKLOADS_MIRROR_ENABLED):

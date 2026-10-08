@@ -470,7 +470,7 @@ RUNTIME_API_CACHE_TTL = int(os.environ.get("RUNTIME_API_CACHE_TTL", "60"))
 # bare host; other regions are reached via a "{region}." host prefix derived from the CRN.
 RUNTIME_API_DEFAULT_REGION = os.environ.get("RUNTIME_API_DEFAULT_REGION", "us-east")
 
-# Service credential and client timeout for mirroring Functions jobs to NTC workloads. The key is empty unless the
+# Service credential and client timeout for mirroring Functions jobs to Runtime API workloads. The key is empty unless the
 # deployment provides it; the client only requires it while workloads.mirror.enabled is on. The timeout, in
 # seconds, bounds every HTTP request of a mirror call (the IAM token exchange and the PUT); the client always uses
 # it, whatever timeout the outbox passes to Sender.send (there it only chooses between raising and best effort).
@@ -544,7 +544,7 @@ DYNAMIC_CONFIG_DEFAULTS = {
     "workloads.mirror.enabled": {
         "default": "false",
         "type": "boolean",
-        "description": "Mirror Functions jobs to NTC workloads through the Runtime API. When on, "
+        "description": "Mirror Functions jobs to the Runtime API as workloads. When on, "
         "FUNCTIONS_OPERATOR_API_KEY must be set or the client raises on every call.",
     },
     "scheduler.filler.enabled": {

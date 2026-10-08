@@ -140,6 +140,16 @@ def test_an_iam_rejection_of_the_key_is_not_retryable(flag, put, authenticator):
     put.assert_not_called()
 
 
+def test_a_non_json_iam_response_is_retryable(flag, put, authenticator):
+    authenticator.return_value.token_manager.get_token.side_effect = requests.exceptions.JSONDecodeError("bad", "", 0)
+
+    with pytest.raises(RuntimeApiError) as error:
+        RuntimeApiClient().put_function(PAYLOAD)
+
+    assert error.value.retryable is True
+    assert not isinstance(error.value, RuntimeApiConfigError)
+
+
 def test_a_malformed_key_is_not_retryable(flag, put, authenticator):
     authenticator.side_effect = ValueError("bad key")
 
