@@ -2,20 +2,20 @@
 
 import logging
 
-from core.clients.runtime_api_client import RuntimeApiClient
+from core.clients.workload_mirror_client import WorkloadMirrorClient
 from core.ibm_cloud.sender import Sender
 
 logger = logging.getLogger("gateway.clients.workload_sender")
 
 
 class WorkloadSender(Sender):
-    """Delivers a workload envelope with a RuntimeApiClient, one HTTP call per message. The client always uses
+    """Delivers a workload envelope with a WorkloadMirrorClient, one HTTP call per message. The client always uses
     ``settings.WORKLOADS_MIRROR_TIMEOUT`` as its request timeout; the ``timeout`` argument of ``send`` is only a
     switch. With timeout > 0, ``send`` raises RuntimeApiError on failure. With timeout=0 (best effort) it never
     raises: it logs the error, drops the payload and returns."""
 
-    def __init__(self, client: RuntimeApiClient | None = None) -> None:
-        self._client = client or RuntimeApiClient()
+    def __init__(self, client: WorkloadMirrorClient | None = None) -> None:
+        self._client = client or WorkloadMirrorClient()
 
     def send(self, payload: dict, timeout: float = 5) -> None:
         if timeout > 0:

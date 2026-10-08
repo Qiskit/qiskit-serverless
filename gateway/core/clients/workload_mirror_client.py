@@ -1,5 +1,7 @@
-"""Client for the Runtime API's ``PUT /functions/{function_id}``, which mirrors a Functions job to the Runtime API as
-a workload.
+"""Client that mirrors Functions jobs to the Runtime API as workloads, with ``PUT /functions/{function_id}``.
+
+The pieces shared with other Runtime API clients live elsewhere: the errors in ``runtime_api_errors.py`` and the
+regional host in ``core/domain/crn.py`` (``regional_base_url``).
 
 One attempt per call and no internal retry: the caller decides what a failure means, and ``RuntimeApiError.retryable``
 tells it whether trying again can help.
@@ -12,33 +14,18 @@ from django.conf import settings
 from ibm_cloud_sdk_core import ApiException
 from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
 
+from core.clients.runtime_api_errors import RuntimeApiConfigError, RuntimeApiError
 from core.config_key import ConfigKey
 from core.domain.crn import regional_base_url
 from core.models import Config
 
-logger = logging.getLogger("gateway.clients.runtime_api")
+logger = logging.getLogger("gateway.clients.workload_mirror")
 
 _RETRYABLE_CLIENT_ERRORS = {408, 429}
 _KEY_REJECTED = {400, 401, 403}
 
 
-class RuntimeApiError(Exception):
-    """The Runtime API call failed. ``retryable`` is True when trying again later can succeed."""
-
-    def __init__(self, message: str, *, retryable: bool, status_code: int | None = None):
-        super().__init__(message)
-        self.retryable = retryable
-        self.status_code = status_code
-
-
-class RuntimeApiConfigError(RuntimeApiError):
-    """The mirror is on but the deployment is not configured for it. Retrying cannot fix it."""
-
-    def __init__(self, message: str):
-        super().__init__(message, retryable=False)
-
-
-class RuntimeApiClient:
+class WorkloadMirrorClient:
     """Sends the envelope built by ``core.domain.workload_payload.build_workload_payload``.
 
     Create one instance per process and keep it: each instance has its own IAM token manager and cache, so building
