@@ -14,8 +14,8 @@ DEFAULT_PAUSE_SECONDS = 60
 
 
 class CircuitBreaker:
-    """Opens after N consecutive failures; reports closed again once a pause elapses. After the pause it
-    is half open: the first failure opens it again, and a success clears the streak.
+    """Opens after N consecutive failures; reports closed again once a pause elapses, with the failure streak
+    back at zero, so it takes a whole new streak to open it again.
 
     The failure threshold and the pause are the Config entries `failure_threshold_key` and `pause_seconds_key`,
     read every time they are needed, so they can change at runtime without recreating the breaker or
@@ -35,9 +35,6 @@ class CircuitBreaker:
             return False
         if time.monotonic() - self._opened_at >= self._pause_seconds():
             self._reset()
-            # a single failure after the pause opens it again, so a destination that is still down costs one
-            # probe per pause instead of a full failure streak
-            self._consecutive_failures = max(self._failure_threshold() - 1, 0)
             return False
         return True
 

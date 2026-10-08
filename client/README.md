@@ -40,7 +40,9 @@ Full docs can be found at https://qiskit.github.io/qiskit-serverless/
 ### Step 1: write function in ./src/function.py
 
 ```python
-from qiskit_serverless import distribute_task, get, get_arguments, save_result
+import ray
+
+from qiskit_serverless import get_arguments, save_result
 
 from qiskit import QuantumCircuit
 from qiskit.circuit.random import random_circuit
@@ -49,8 +51,8 @@ from qiskit.quantum_info import SparsePauliOp
 
 # 1. let's annotate out function to convert it
 # to distributed async function
-# using `distribute_task` decorator
-@distribute_task()
+# using Ray's `ray.remote` decorator
+@ray.remote
 def distributed_sample(circuit: QuantumCircuit):
     """Calculates quasi dists as a distributed function."""
     return Sampler().run([(circuit)]).result()[0].data.meas.get_counts()
@@ -66,13 +68,13 @@ circuits = arguments.get("circuits", [])
 # 3. run our functions in a loop
 # and get execution references back
 function_references = [
-    distributed_sample(circuit)
+    distributed_sample.remote(circuit)
     for circuit in circuits
 ]
 
-# 4. `get` function will collect all
+# 4. `ray.get` will collect all
 # results from distributed functions
-collected_results = get(function_references)
+collected_results = ray.get(function_references)
 
 # 5. `save_result` will save results of program execution
 # so we can access it later

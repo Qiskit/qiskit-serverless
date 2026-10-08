@@ -1,0 +1,21 @@
+---
+upgrade:
+  - |
+    The transitional ``Job.compute_profile`` string field has been removed from
+    Django's model state. It is no longer written on job creation and no longer
+    exposed anywhere -- all code paths already read the compute profile through
+    ``Job.compute_profile_fk`` (and its ``compute_profile_id`` convenience
+    property), which has been the gateway's REST API shape since an earlier
+    release.
+
+    The underlying database column and its historical data are untouched by this
+    change; the physical ``DROP COLUMN`` is deferred to a later release so that a
+    rolling deployment never has an old pod and a new pod disagreeing about the
+    schema.
+
+    Fleets jobs created before compute profiles gained their own database table
+    have no ``compute_profile_fk`` set (that FK did not exist yet when they were
+    created) and so render with no profile in the admin backoffice job timeline.
+    This is a pre-existing condition, not introduced by this change -- it has
+    applied since the backoffice was repointed to read the FK in an earlier
+    release.

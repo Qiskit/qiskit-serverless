@@ -213,7 +213,7 @@ class FleetsRunner(AbstractRunner):
                 run_volume_mounts = build_run_volume_mounts_for_job(paths, self._project)
                 stored_env_vars = json.loads(self.job.env_vars)
                 stored_env_vars = decrypt_env_vars(stored_env_vars)
-                run_env_variables = build_run_env_variables(paths, stored_env_vars, str(self.job.id))
+                run_env_variables = build_run_env_variables(paths, stored_env_vars)
                 extra_fields.update(
                     {
                         "run_volume_mounts": run_volume_mounts,

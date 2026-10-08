@@ -3,9 +3,11 @@ payload dict, so tests build one directly instead of constructing a job."""
 
 import json
 import logging
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
+from confluent_kafka import Producer
 from django.test import override_settings
 
 from core.ibm_cloud.event_streams.kafka_producers import UnroutableRegionError
@@ -266,18 +268,118 @@ class TestKafkaSenderMalformedPayloads:
         assert delivered == {2}
 
 
-class TestSenderDefaultSendBatch:
-    def test_swallows_and_logs_a_failure_and_still_sends_the_rest(self, caplog):
-        sender = NoOpSender()
-        with patch.object(NoOpSender, "send", side_effect=[None, RuntimeError("boom"), None]):
-            with caplog.at_level(logging.ERROR):
-                delivered = sender.send_batch([PendingMessage(1, {}), PendingMessage(2, {}), PendingMessage(3, {})])
+class TestKafkaSenderWithoutWaiting:
+    @staticmethod
+    def _sender(producer, **kwargs):
+        producers = MagicMock(topic="t")
+        producers.get.return_value = producer
+        return KafkaSender(producers=producers, **kwargs)
 
-        assert delivered == {1, 3}
-        assert "boom" in caplog.text
+    def test_timeout_zero_produces_and_polls_without_flushing(self):
+        producer = MagicMock()
+
+        self._sender(producer).send(_payload(), timeout=0)
+
+        producer.produce.assert_called_once()
+        producer.poll.assert_called_once_with(0)
+        producer.flush.assert_not_called()
+
+    def test_a_message_that_cannot_be_queued_is_dropped_with_a_warning_and_does_not_raise(self, caplog):
+        producer = MagicMock()
+        producer.produce.side_effect = BufferError("queue full")
+
+        with caplog.at_level(logging.WARNING):
+            self._sender(producer).send(_payload(), timeout=0)
+
+        assert "queue full" in caplog.text
+        assert "job-1" in caplog.text
+
+    def test_a_full_queue_is_emptied_by_serving_the_delivery_reports(self):
+        """Delivered and expired messages stay in the local queue until poll() serves their report, so a full
+        queue that is never polled would reject every message from then on. Needs no broker: nothing listens
+        on the port, so every message expires."""
+        producer = Producer(
+            {
+                "bootstrap.servers": "127.0.0.1:1",
+                "queue.buffering.max.messages": 5,
+                "message.timeout.ms": 300,
+                "log_level": 0,
+            }
+        )
+        sender = self._sender(producer)
+        for _ in range(20):
+            sender.send(_payload(), timeout=0)  # the queue is full from the sixth on
+        assert len(producer) >= 5
+
+        # librdkafka checks for expired messages on its own schedule, so keep sending until the queue drains
+        deadline = time.monotonic() + 10
+        while len(producer) >= 5 and time.monotonic() < deadline:
+            time.sleep(0.2)
+            sender.send(_payload(), timeout=0)
+
+        assert len(producer) < 5
+
+    def test_a_payload_that_is_not_a_dict_is_dropped_and_does_not_raise(self, caplog):
+        with caplog.at_level(logging.WARNING):
+            self._sender(MagicMock()).send("not a dict", timeout=0)
+
+        assert "1 best effort message(s) dropped" in caplog.text
+
+    def test_a_failed_delivery_is_dropped_with_a_warning_that_names_the_message(self, caplog):
+        producer = MagicMock()
+        self._sender(producer).send(_payload(), timeout=0)
+
+        with caplog.at_level(logging.WARNING):
+            producer.produce.call_args.kwargs["callback"](Exception("Topic authorization failed"), None)
+
+        assert "Topic authorization failed" in caplog.text
+        assert "job-1" in caplog.text
+
+    def test_a_successful_delivery_logs_nothing(self, caplog):
+        producer = MagicMock()
+        self._sender(producer).send(_payload(), timeout=0)
+
+        with caplog.at_level(logging.WARNING):
+            producer.produce.call_args.kwargs["callback"](None, None)
+
+        assert caplog.text == ""
+
+    def test_many_drops_are_reported_as_one_warning_per_interval(self, caplog):
+        producer = MagicMock()
+        producer.produce.side_effect = BufferError("queue full")
+        sender = self._sender(producer, clock=iter([0, 1, 2, 31]).__next__)
+
+        with caplog.at_level(logging.WARNING):
+            for _ in range(4):
+                sender.send(_payload(), timeout=0)
+
+        reports = [record.getMessage() for record in caplog.records]
+        assert len(reports) == 2
+        assert reports[0].startswith("1 best effort message(s) dropped")
+        assert reports[1].startswith("3 best effort message(s) dropped")
+
+
+class TestNoOpSenderBatch:
+    def test_reports_every_message_as_delivered(self, caplog):
+        with caplog.at_level(logging.INFO):
+            delivered = NoOpSender().send_batch([PendingMessage(1, {}), PendingMessage(2, {})])
+
+        assert delivered == {1, 2}
+        assert "noop" in caplog.text
+
+
+class TestKafkaSenderMalformedPayloadWhenWaiting:
+    def test_send_raises_a_runtime_error_for_a_payload_that_is_not_a_dict(self):
+        producers = MagicMock(topic="t")
+
+        with pytest.raises(RuntimeError, match="Failed to publish event"):
+            KafkaSender(producers=producers).send("not a dict")
 
 
 class TestNoOpSender:
+    def test_accepts_a_timeout(self):
+        NoOpSender().send(_payload(), timeout=0)
+
     def test_logs_instead_of_sending(self, caplog):
         sender = NoOpSender()
         with caplog.at_level(logging.INFO):

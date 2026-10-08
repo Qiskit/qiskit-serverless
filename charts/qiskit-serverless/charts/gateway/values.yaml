@@ -96,6 +96,11 @@ application:
     baseUrl: "https://test.login.w3.ibm.com"
   ibmCloudFidApiKey:
     enabled: false
+  # Reads secrets.functionsOperatorApiKey, which is declared in the parent
+  # chart's values.yaml (gateway.secrets) and must exist before this is turned
+  # on: see createExternalSecret there.
+  functionsOperatorApiKey:
+    enabled: false
 
 tracing:
   enabled: false

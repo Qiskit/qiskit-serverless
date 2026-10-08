@@ -3,13 +3,14 @@ at the repository root for the full design."""
 
 import logging
 import time
+from datetime import timedelta
 from typing import Callable
 
-from django.db.models import Min, Q
+from django.db.models import Min
 from django.utils import timezone
 
 from core.config_key import ConfigKey
-from core.ibm_cloud.sender import PendingMessage, Sender
+from core.ibm_cloud.sender import BatchSender, PendingMessage, Sender
 from core.models import Config, Outbox, OutboxChannel
 
 from scheduler.kill_signal import KillSignal
@@ -19,11 +20,16 @@ from .circuit_breaker import CircuitBreaker
 logger = logging.getLogger("scheduler.OutboxTask")
 
 BATCH_SIZE = 100
+LAST_ERROR_MAX_LENGTH = 500  # the size of Outbox.last_error
+MIN_RETRY_WAIT_SECONDS = 1  # so a failed row is never due again within the same tick
+MAX_RETRY_DOUBLINGS = 30  # an attempts count that keeps growing must not build a huge number
+MAX_RETRY_WAIT_SECONDS = 24 * 3600  # whatever the Config entries say, so a typo cannot overflow a timedelta
 
 
 class Destination:
     """Where outbox messages are delivered: the sender, its circuit breakers (one per region, built on demand
-    with `breaker_factory`), and the Config key that holds the per-tick time budget in milliseconds. Several
+    with `breaker_factory`), the Config key that holds the per-tick time budget in milliseconds, and the two that
+    set how long a row that failed waits before its next try (`retry_base_key` and `retry_max_key`). Several
     channels can share one destination, and then they share its breakers too: an outage in a region opens its
     breaker once for all of them. It knows how to drain the rows of any channel sent through it."""
 
@@ -32,6 +38,8 @@ class Destination:
         sender: Sender,
         breaker_factory: Callable[[], CircuitBreaker],
         budget_key: ConfigKey,
+        retry_base_key: ConfigKey,
+        retry_max_key: ConfigKey,
         metrics: SchedulerMetrics,
         kill_signal: KillSignal,
     ):
@@ -39,6 +47,8 @@ class Destination:
         self._breaker_factory = breaker_factory
         self.breakers: dict[str | None, CircuitBreaker] = {}
         self.budget_key = budget_key
+        self.retry_base_key = retry_base_key
+        self.retry_max_key = retry_max_key
         self.metrics = metrics
         self.kill_signal = kill_signal
 
@@ -74,9 +84,9 @@ class Destination:
             self._drain_region(channel, region, deadline)
 
     def _pending_regions(self, channel: OutboxChannel) -> list[str | None]:
-        """The regions (null included) that have pending rows, the one with the oldest row first."""
+        """The regions (null included) that have rows due to be sent, the one with the oldest row first."""
         pending = (
-            Outbox.objects.filter(channel=channel)
+            Outbox.objects.filter(channel=channel, next_attempt_at__lte=timezone.now())
             .values_list("region")
             .annotate(oldest=Min("created"))
             .order_by("oldest")
@@ -85,25 +95,26 @@ class Destination:
 
     def _drain_region(self, channel: OutboxChannel, region: str | None, deadline: float) -> None:
         breaker = self.get_breaker(region)
-        # A row that is not delivered stays in the table, so an unfiltered re-fetch would find the exact same
-        # row again and hot-loop on it for the rest of the budget window. Paging forward from the last row
-        # seen bounds one tick to at most one attempt per currently pending row; it gets picked up again on
-        # the next tick.
-        last_row: Outbox | None = None
 
         # The breaker is checked before every batch, so a failure that trips it keeps the rest of the
-        # region's rows from being sent in this tick.
+        # region's rows from being sent in this tick. A row that fails is not due again for at least a second
+        # (see _keep_for_retry), so the next fetch cannot find it and one tick makes at most one attempt per
+        # row that is due.
         while not breaker.is_open and self._should_continue_draining(channel, deadline):
-            queryset = Outbox.objects.filter(channel=channel, region=region)
-            if last_row is not None:
-                queryset = queryset.filter(
-                    Q(created__gt=last_row.created) | Q(created=last_row.created, pk__gt=last_row.pk)
-                )
-            batch = list(queryset.order_by("created", "pk")[:BATCH_SIZE])
+            # Rows that never failed go first, then the oldest of the rest. A pile of rows that always fail
+            # (each due again after its wait) can then never be what a whole batch is made of, and keep the
+            # breaker from closing on a success, while a fresh row is waiting behind it.
+            batch = list(
+                Outbox.objects.filter(channel=channel, region=region, next_attempt_at__lte=timezone.now()).order_by(
+                    "attempts", "created", "pk"
+                )[:BATCH_SIZE]
+            )
             if not batch:
                 return
-            last_row = batch[-1]
-            self._send_batch(batch, breaker)
+            if isinstance(self.sender, BatchSender):
+                self._send_batch(self.sender, batch, breaker)
+            else:
+                self._send_one_by_one(channel, batch, breaker, deadline)
 
     def _should_continue_draining(self, channel: OutboxChannel, deadline: float) -> bool:
         if self.kill_signal.received:
@@ -114,24 +125,70 @@ class Destination:
             return False
         return True
 
-    def _send_batch(self, batch: list[Outbox], breaker: CircuitBreaker) -> None:
-        """Send a batch with one confirmation round trip, delete the rows the sender confirmed and keep
-        the rest for the next tick. The breaker records a success if at least one row was delivered
+    def _send_batch(self, sender: BatchSender, batch: list[Outbox], breaker: CircuitBreaker) -> None:
+        """Send a batch with one confirmation round trip, delete the rows the sender confirmed and put the
+        rest into a wait before their next try. The breaker records a success if at least one row was delivered
         and a failure only when none was, so a single bad row never opens it."""
-        delivered = self.sender.send_batch([PendingMessage(row.pk, row.payload) for row in batch])
+        pending_messages = [PendingMessage(row.pk, row.payload) for row in batch]
+        delivered = sender.send_batch(pending_messages)
 
         for row in batch:
             self.metrics.increment_outbox_send(row.channel, "success" if row.pk in delivered else "failure")
 
         if len(delivered) < len(batch):
             logger.error(
-                "outbox batch: %s of %s row(s) not delivered, kept for the next tick (the sender logged why)",
+                "outbox batch: %s of %s row(s) not delivered, kept to try again later (the sender logged why)",
                 len(batch) - len(delivered),
                 len(batch),
             )
 
+        # What the sender did is recorded first, so a failure to write the retry state below cannot make the
+        # rows it delivered be sent again or leave the breaker without its count.
         if delivered:
             breaker.record_success()
             Outbox.objects.filter(pk__in=delivered).delete()
         else:
             breaker.record_failure()
+        self._keep_for_retry([row for row in batch if row.pk not in delivered], "not confirmed by the sender")
+
+    def _send_one_by_one(
+        self, channel: OutboxChannel, batch: list[Outbox], breaker: CircuitBreaker, deadline: float
+    ) -> None:
+        """Send the rows one at a time, deleting each one as soon as it is delivered. Every failure counts
+        against the breaker right away, and once it opens the rest of the batch is left untouched, like the
+        rows the budget or a kill signal cut off."""
+        for row in batch:
+            if breaker.is_open or not self._should_continue_draining(channel, deadline):
+                return
+            try:
+                self.sender.send(row.payload)
+            except Exception as ex:  # pylint: disable=broad-exception-caught
+                logger.error(
+                    "outbox_id=%s job_id=%s error sending, kept to try again later: %s", row.id, row.job_id, ex
+                )
+                self.metrics.increment_outbox_send(row.channel, "failure")
+                breaker.record_failure()
+                self._keep_for_retry([row], f"{type(ex).__name__}: {ex}")
+                continue
+            self.metrics.increment_outbox_send(row.channel, "success")
+            breaker.record_success()
+            row.delete()
+
+    def _keep_for_retry(self, rows: list[Outbox], error: str) -> None:
+        """Record a failed attempt on each row and move its next try further away: the wait is the base of the
+        Config entry doubled for every attempt so far, up to the cap, and never less than a second. Until then
+        the drain does not read the row, so a row that always fails stops being the one tried first."""
+        if not rows:
+            return
+        base = Config.get_int(self.retry_base_key, default=120)
+        cap = Config.get_int(self.retry_max_key, default=600)
+        now = timezone.now()
+        # a NUL character is not allowed in a PostgreSQL text column, and an exception message can carry one
+        error = error.replace("\x00", "")[:LAST_ERROR_MAX_LENGTH]
+        for row in rows:
+            row.attempts += 1
+            row.last_error = error
+            wait = base * 2 ** min(row.attempts - 1, MAX_RETRY_DOUBLINGS)
+            wait = min(wait, cap, MAX_RETRY_WAIT_SECONDS)
+            row.next_attempt_at = now + timedelta(seconds=max(MIN_RETRY_WAIT_SECONDS, wait))
+        Outbox.objects.bulk_update(rows, ["attempts", "last_error", "next_attempt_at"])

@@ -141,6 +141,22 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
             registry=self.registry,
         )
 
+        self.blocked_account_events_total = Counter(
+            "scheduler_blocked_account_events_total",
+            "Blocked-account-plan events consumed, by region and outcome. retry is a handler failure taken as "
+            "transient, so the event is consumed again next tick; invalid is an event that can never be "
+            "handled, skipped.",
+            labelnames=("region", "outcome"),
+            registry=self.registry,
+        )
+        self.blocked_account_consumer_errors_total = Counter(
+            "scheduler_blocked_account_consumer_errors_total",
+            "Errors of the blocked-account-plan Kafka consumers, by region and kind. fatal has the region's "
+            "consumer rebuilt.",
+            labelnames=("region", "kind"),
+            registry=self.registry,
+        )
+
         SystemMetricsCollector(registry=self.registry)
 
         self.wsgi_app = make_wsgi_app(self.registry)
@@ -177,6 +193,14 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
     def set_outbox_breaker_open(self, is_open: bool, channel: str) -> None:
         """Record whether a given outbox channel's circuit breaker is currently open."""
         self.outbox_breaker_open.labels(channel=channel).set(1 if is_open else 0)
+
+    def increment_blocked_account_event(self, region: str, outcome: str, count: int = 1) -> None:
+        """Count consumed blocked-account-plan events. outcome: handled, invalid, tombstone or retry."""
+        self.blocked_account_events_total.labels(region=region, outcome=outcome).inc(count)
+
+    def increment_blocked_account_consumer_error(self, region: str, kind: str, count: int = 1) -> None:
+        """Count blocked-account-plan consumer errors. kind: consumer, commit or fatal."""
+        self.blocked_account_consumer_errors_total.labels(region=region, kind=kind).inc(count)
 
     def clear_job_status_counts(self) -> None:
         """Remove all label combinations from job_status_count to avoid stale values."""
