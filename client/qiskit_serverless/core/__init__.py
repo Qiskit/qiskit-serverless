@@ -54,4 +54,3 @@ from .job import (
 )
 from .function import QiskitPattern, QiskitFunction
 from .serverless_error import ServerlessError
-from .decorators import remote
