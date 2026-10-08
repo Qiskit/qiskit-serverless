@@ -27,7 +27,7 @@ from core.domain.compute_profile import normalize as normalize_compute_profile
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
 from core.models import Job, Program
-from core.services.runners.abstract_runner import RunnerError, RunnerSubmitUncertainError, RunnerUnavailableError
+from core.services.runners.abstract_runner import RunnerError, RunnerMayHaveRunError, RunnerRetryableError
 from core.services.runners import fleets_runner as fleets_runner_module
 from core.services.runners.fleets_runner import FleetsRunner
 
@@ -458,8 +458,8 @@ def test_submit_raises_runner_error_when_cos_not_configured():
 @pytest.mark.parametrize(
     "status, expected",
     [
-        (429, RunnerUnavailableError),
-        (503, RunnerSubmitUncertainError),
+        (429, RunnerRetryableError),
+        (503, RunnerMayHaveRunError),
         (400, RunnerError),
     ],
 )
@@ -480,13 +480,13 @@ def test_submit_raises_the_error_type_for_each_code_engine_status(status, expect
     [
         (
             ClientError({"Error": {"Code": "SlowDown"}, "ResponseMetadata": {"HTTPStatusCode": 503}}, "PutObject"),
-            RunnerUnavailableError,
+            RunnerRetryableError,
         ),
         (
             ClientError(
                 {"Error": {"Code": "RequestTimeout"}, "ResponseMetadata": {"HTTPStatusCode": 400}}, "PutObject"
             ),
-            RunnerUnavailableError,
+            RunnerRetryableError,
         ),
         (
             ClientError({"Error": {"Code": "AccessDenied"}, "ResponseMetadata": {"HTTPStatusCode": 403}}, "PutObject"),
@@ -498,7 +498,7 @@ def test_submit_raises_the_error_type_for_each_code_engine_status(status, expect
             ),
             RunnerError,
         ),
-        (ReadTimeoutError(endpoint_url="https://cos"), RunnerUnavailableError),
+        (ReadTimeoutError(endpoint_url="https://cos"), RunnerRetryableError),
     ],
 )
 def test_submit_raises_the_error_type_for_each_cos_failure(error, expected):
@@ -522,7 +522,7 @@ def test_submit_raises_unavailable_when_code_engine_fails_before_the_create(erro
         with pytest.raises(RunnerError) as exc:
             runner.submit()
 
-    assert type(exc.value) is RunnerUnavailableError
+    assert type(exc.value) is RunnerRetryableError
     mock_handler.submit_job.assert_not_called()
 
 
@@ -531,7 +531,7 @@ def test_submit_raises_unavailable_when_the_connection_never_opened():
     mock_handler.submit_job.side_effect = MaxRetryError(None, "/", reason=NewConnectionError(None, "refused"))
 
     with _patch_settings():
-        with pytest.raises(RunnerUnavailableError):
+        with pytest.raises(RunnerRetryableError):
             runner.submit()
 
 

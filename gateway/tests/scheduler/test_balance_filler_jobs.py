@@ -15,7 +15,7 @@ from prometheus_client import CollectorRegistry
 from core.config_key import ConfigKey
 from core.models import ComputeProfile, Config, FunctionSize, Job, JobEvent, Program
 from core.model_managers.job_events import JobEventContext
-from core.services.runners import RunnerError, RunnerUnavailableError
+from core.services.runners import RunnerError, RunnerRetryableError
 from scheduler.main import Main
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs, RETRY_AFTER_LOOPS
@@ -542,7 +542,7 @@ def test_an_unavailable_submit_fails_the_row_without_the_retry_delay(filler_prog
     task = _make_task()
 
     with (
-        patch.object(task.submitter, "submit", side_effect=RunnerUnavailableError("Too Many Requests")),
+        patch.object(task.submitter, "submit", side_effect=RunnerRetryableError("Too Many Requests")),
         patch(f"{_MOD}.get_arguments_storage"),
         patch(f"{_MOD}.get_runner"),
     ):

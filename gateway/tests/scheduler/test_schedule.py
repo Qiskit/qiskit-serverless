@@ -17,7 +17,7 @@ from core.model_managers.job_events import JobEventContext
 from core.config_key import ConfigKey
 from core.models import Config, Job, ComputeResource, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
-from core.services.runners import RunnerError, RunnerSubmitUncertainError, RunnerUnavailableError
+from core.services.runners import RunnerError, RunnerMayHaveRunError, RunnerRetryableError
 from core.services.storage import get_logs_storage
 
 from scheduler.kill_signal import KillSignal
@@ -225,7 +225,7 @@ class TestScheduleApi(APITestCase):
     ):
         Config.add_defaults()
         mock_runner = MagicMock()
-        mock_runner.submit.side_effect = RunnerUnavailableError("Too Many Requests")
+        mock_runner.submit.side_effect = RunnerRetryableError("Too Many Requests")
         mock_get_runner_client.return_value = mock_runner
         transitions = MagicMock()
 
@@ -233,7 +233,7 @@ class TestScheduleApi(APITestCase):
         job.status = Job.QUEUED
         job.env_vars = '{"KEY": "value"}'
 
-        with pytest.raises(RunnerUnavailableError):
+        with pytest.raises(RunnerRetryableError):
             FleetsJobSubmitter(transitions).submit(job, MagicMock())
 
         assert job.status == Job.QUEUED
@@ -245,13 +245,13 @@ class TestScheduleApi(APITestCase):
     @patch("scheduler.schedule.trace")
     def test_fleets_submit_skips_code_engine_once_the_breaker_opens(self, mock_trace, mock_get_runner_client):
         _open_breakers_after_one_failure()
-        mock_get_runner_client.return_value.submit.side_effect = RunnerUnavailableError("Too Many Requests")
+        mock_get_runner_client.return_value.submit.side_effect = RunnerRetryableError("Too Many Requests")
 
         submitter = FleetsJobSubmitter(MagicMock())
 
-        with pytest.raises(RunnerUnavailableError):
+        with pytest.raises(RunnerRetryableError):
             submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
-        with pytest.raises(RunnerUnavailableError):
+        with pytest.raises(RunnerRetryableError):
             submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
 
         mock_get_runner_client.return_value.submit.assert_called_once()
@@ -262,11 +262,11 @@ class TestScheduleApi(APITestCase):
         _open_breakers_after_one_failure()
         Config.set(ConfigKey.FLEETS_BREAKER_PAUSE_SECONDS, "60")
         runner = mock_get_runner_client.return_value
-        runner.submit.side_effect = RunnerUnavailableError("Too Many Requests")
+        runner.submit.side_effect = RunnerRetryableError("Too Many Requests")
         submitter = FleetsJobSubmitter(MagicMock())
 
         with patch("scheduler.tasks.circuit_breaker.time.monotonic", return_value=1000.0):
-            with pytest.raises(RunnerUnavailableError):
+            with pytest.raises(RunnerRetryableError):
                 submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
             assert submitter.paused("us-east") is True
 
@@ -291,17 +291,17 @@ class TestScheduleApi(APITestCase):
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
-    def test_fleets_submit_fails_an_uncertain_submit_and_counts_it_against_the_breaker(
+    def test_fleets_submit_fails_a_job_that_may_have_run_and_counts_it_against_the_breaker(
         self, mock_trace, mock_get_runner_client
     ):
         _open_breakers_after_one_failure()
-        mock_get_runner_client.return_value.submit.side_effect = RunnerSubmitUncertainError("Gateway Timeout")
+        mock_get_runner_client.return_value.submit.side_effect = RunnerMayHaveRunError("Gateway Timeout")
         transitions = MagicMock()
         job = MagicMock(ce_region="us-east")
 
         submitter = FleetsJobSubmitter(transitions)
 
-        with pytest.raises(RunnerSubmitUncertainError):
+        with pytest.raises(RunnerMayHaveRunError):
             submitter.submit(job, MagicMock())
 
         assert job.status == Job.FAILED
@@ -313,10 +313,10 @@ class TestScheduleApi(APITestCase):
     def test_fleets_submit_pauses_only_the_region_that_failed(self, mock_trace, mock_get_runner_client):
         _open_breakers_after_one_failure()
         runner = mock_get_runner_client.return_value
-        runner.submit.side_effect = RunnerUnavailableError("Too Many Requests")
+        runner.submit.side_effect = RunnerRetryableError("Too Many Requests")
         submitter = FleetsJobSubmitter(MagicMock())
 
-        with pytest.raises(RunnerUnavailableError):
+        with pytest.raises(RunnerRetryableError):
             submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
         runner.submit.side_effect = None
         submitter.submit(MagicMock(ce_region="eu-de"), MagicMock())

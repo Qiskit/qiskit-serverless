@@ -12,7 +12,7 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Config, Job, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import JobTransitionService
-from core.services.runners import get_runner, RunnerError, RunnerUnavailableError
+from core.services.runners import get_runner, RunnerError, RunnerRetryableError
 from core.services.storage import get_arguments_storage
 from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
@@ -234,7 +234,7 @@ class BalanceFillerJobs(SchedulerTask):
         try:
             if not self._submit_filler_job(program):
                 self._retry_loops = RETRY_AFTER_LOOPS
-        except RunnerUnavailableError:
+        except RunnerRetryableError:
             # no fleet was created, and the region's breaker decides when to try again
             pass
 
@@ -278,7 +278,7 @@ class BalanceFillerJobs(SchedulerTask):
             )
         except DB_EXCEPTIONS:
             raise
-        except RunnerUnavailableError as ex:
+        except RunnerRetryableError as ex:
             self._mark_failed(job)
             self._log_creation_failed(ex)
             raise

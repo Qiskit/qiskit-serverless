@@ -30,11 +30,11 @@ class RunnerError(Exception):
         return self.message
 
 
-class RunnerUnavailableError(RunnerError):
+class RunnerRetryableError(RunnerError):
     """A later try can work, for example after a 429, so the caller should not fail the row."""
 
 
-class RunnerSubmitUncertainError(RunnerError):
+class RunnerMayHaveRunError(RunnerError):
     """The engine may have performed the submit, so it must not be retried."""
 
 
@@ -99,8 +99,8 @@ class AbstractRunner(ABC):
 
         Raises:
             RunnerError: If submission fails (resources are cleaned up before raising)
-            RunnerUnavailableError: If the engine surely did not do it, so the caller can try again later
-            RunnerSubmitUncertainError: If the engine may have done it, so the caller must not try again
+            RunnerRetryableError: If the engine surely did not do it, so the caller can try again later
+            RunnerMayHaveRunError: If the engine may have done it, so the caller must not try again
         """
         raise NotImplementedError
 

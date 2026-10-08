@@ -19,7 +19,7 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import JobTransitionService
-from core.services.runners import get_runner, RunnerError, RunnerSubmitUncertainError, RunnerUnavailableError
+from core.services.runners import get_runner, RunnerError, RunnerMayHaveRunError, RunnerRetryableError
 from scheduler.tasks.circuit_breaker import CircuitBreaker
 
 User: Model = get_user_model()
@@ -96,15 +96,15 @@ class FleetsJobSubmitter:
             job with updated status (PENDING on success, FAILED on error)
 
         Raises:
-            RunnerUnavailableError: before any write, so the job stays QUEUED.
-            RunnerSubmitUncertainError: after the FAILED status change, so the caller can stop submitting.
+            RunnerRetryableError: before any write, so the job stays QUEUED.
+            RunnerMayHaveRunError: after the FAILED status change, so the caller can stop submitting.
         """
         breaker = self.get_breaker(job.ce_region)
         if breaker.is_open:
-            raise RunnerUnavailableError(f"Fleets submits to region {job.ce_region} are paused by the circuit breaker")
+            raise RunnerRetryableError(f"Fleets submits to region {job.ce_region} are paused by the circuit breaker")
         start = time.monotonic()
         tracer = trace.get_tracer("scheduler.tracer")
-        uncertain: RunnerSubmitUncertainError | None = None
+        may_have_run: RunnerMayHaveRunError | None = None
         with tracer.start_as_current_span("scheduler.submit", context=ctx) as span:
 
             runner = get_runner(job)
@@ -119,13 +119,13 @@ class FleetsJobSubmitter:
                     job.id,
                     time.monotonic() - start,
                 )
-            except RunnerUnavailableError:
+            except RunnerRetryableError:
                 # NOTE: a job that is always unavailable, for example a CE project with a wrong region, stays QUEUED
                 # and pauses submits to its region. Follow-up: fail it after a time limit.
                 breaker.record_failure()
                 raise
-            except RunnerSubmitUncertainError as ex:
-                uncertain = ex
+            except RunnerMayHaveRunError as ex:
+                may_have_run = ex
                 logger.error(
                     "[FleetsJobSubmitter] job_id=%s error=%s Job set as FAILED: the fleet may exist", job.id, ex
                 )
@@ -158,9 +158,9 @@ class FleetsJobSubmitter:
                 # written since the job is no longer in a state that transition applies to.
                 logger.warning("[FleetsJobSubmitter] job_id=%s already in a terminal status: %s", job.id, str(ex))
 
-        if uncertain:
+        if may_have_run:
             breaker.record_failure()
-            raise uncertain
+            raise may_have_run
         return job
 
 

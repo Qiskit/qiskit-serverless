@@ -33,8 +33,8 @@ from core.models import Job, CodeEngineProject
 from core.services.runners.abstract_runner import (
     AbstractRunner,
     RunnerError,
-    RunnerSubmitUncertainError,
-    RunnerUnavailableError,
+    RunnerMayHaveRunError,
+    RunnerRetryableError,
 )
 from core.ibm_cloud import get_ce_auth, get_cos_client
 from core.utils import decrypt_env_vars
@@ -155,92 +155,24 @@ class FleetsRunner(AbstractRunner):
         return self.job.fleet_id is not None
 
     def submit(self) -> None:
-        """Submit the job as a Code Engine fleet, raising the RunnerError type that says what the caller should do.
+        """Submit the job as a Code Engine fleet: upload its files to COS, then create the fleet.
 
         Raises:
-            RunnerUnavailableError: If Code Engine or COS surely did not do it, so a later try can work.
-            RunnerSubmitUncertainError: If Code Engine may have created the fleet, so it must not be retried.
+            RunnerRetryableError: If Code Engine or COS surely did not do it, so a later try can work.
+            RunnerMayHaveRunError: If Code Engine may have created the fleet, so it must not be retried.
             RunnerError: If submission fails for any other reason.
         """
+        paths = self._upload_to_cos()
+        self._create_fleet(paths)
+
+    def _upload_to_cos(self) -> FleetJobPaths:
+        """Upload the job's arguments and program to COS. No failure here can have created a fleet."""
         try:
-            self._create_fleet()
-        except RunnerError:
-            raise
-        except ClientError as ex:
-            code = ex.response.get("Error", {}).get("Code")
-            status = ex.response.get("ResponseMetadata", {}).get("HTTPStatusCode", 0)
-            if status in (429, 500, 502, 503, 504) or code in ("SlowDown", "RequestTimeout", "Throttling"):
-                raise RunnerUnavailableError(f"COS error: {code}", ex) from ex
-            logger.error("COS error submitting job_id=[%s]: %s", self.job.id, ex)
-            raise RunnerError(f"COS error: {code}", ex) from ex
-        # before the urllib3 blocks: botocore's ReadTimeoutError is also a urllib3 ReadTimeoutError
-        except (BotoConnectionError, BotoHTTPClientError) as ex:
-            raise RunnerUnavailableError("Unable to reach COS", ex) from ex
-        # create_fleet's uncertain failures are raised in _create_fleet, so nothing here can have created a fleet
-        except ApiException as ex:
-            status = ex.status or 0
-            if status in (0, 429) or status >= 500:
-                raise RunnerUnavailableError(f"Code Engine API error: {ex.reason}", ex) from ex
-            logger.error(
-                "CE API error submitting job_id=[%s]: status=%s reason=%s",
-                self.job.id,
-                ex.status,
-                ex.reason,
-            )
-            raise RunnerError(f"Code Engine API error: {ex.reason}", ex) from ex
-        except (MaxRetryError, ReadTimeoutError, ProtocolError) as ex:
-            raise RunnerUnavailableError("Unable to reach Code Engine", ex) from ex
-        except Exception as ex:
-            logger.error("Failed to submit job_id=[%s]: %s", self.job.id, ex)
-            raise RunnerError(f"Failed to submit job_id=[{self.job.id}] to Code Engine Fleets", ex) from ex
-
-    def _create_fleet(self) -> None:
-        """Upload the job's files to COS and create its Code Engine fleet.
-
-        When COS is configured, mounts two PDS volumes and sets up the
-        dual-log wrapper (provider log = all output, user log = ``[public]``
-        filtered lines). Arguments and artifact files are uploaded to COS
-        before the fleet is created.
-        """
-        handler = self._get_handler()
-
-        fleet_name = self._build_fleet_name()
-
-        logger.info(
-            "Submitting job_id=[%s] as fleet [%s] to project [%s]",
-            self.job.id,
-            fleet_name,
-            self._project.project_name,
-        )
-
-        extra_fields: dict = {}
-
-        cpu_limit, memory_limit, scale_gpu = self._parse_compute_profile()
-        logger.info(
-            "job_id=[%s] profile [%s] → cpu=%s memory=%s gpu=%s",
-            self.job.id,
-            self.job.compute_profile_id or "default",
-            cpu_limit,
-            memory_limit,
-            scale_gpu,
-        )
-        if scale_gpu:
-            extra_fields["scale_gpu"] = scale_gpu
-
-        if self._is_cos_configured():
+            if not self._project:
+                self._project = self._get_project()
+            if not self._is_cos_configured():
+                raise RunnerError(f"COS is not configured for job_id=[{self.job.id}] — cannot submit Fleets job")
             paths = build_job_paths(self.job)
-
-            run_volume_mounts = build_run_volume_mounts_for_job(paths, self._project)
-            stored_env_vars = json.loads(self.job.env_vars)
-            stored_env_vars = decrypt_env_vars(stored_env_vars)
-            run_env_variables = build_run_env_variables(paths, stored_env_vars)
-            extra_fields.update(
-                {
-                    "run_volume_mounts": run_volume_mounts,
-                    "run_env_variables": run_env_variables,
-                    "run_commands": ["python", paths.container_docker_entrypoint],
-                }
-            )
             self._upload_program_to_cos(paths)
             logger.info(
                 "COS configured for job_id [%s]: user_key=[%s] provider_key=[%s]",
@@ -248,10 +180,71 @@ class FleetsRunner(AbstractRunner):
                 paths.cos_user_log_key,
                 paths.cos_provider_log_key,
             )
-        else:
-            raise RunnerError(f"COS is not configured for job_id=[{self.job.id}] — cannot submit Fleets job")
+            return paths
+        except RunnerError:
+            raise
+        except ClientError as ex:
+            code = ex.response.get("Error", {}).get("Code")
+            status = ex.response.get("ResponseMetadata", {}).get("HTTPStatusCode", 0)
+            if status in (429, 500, 502, 503, 504) or code in ("SlowDown", "RequestTimeout", "Throttling"):
+                raise RunnerRetryableError(f"COS error: {code}", ex) from ex
+            logger.error("COS error submitting job_id=[%s]: %s", self.job.id, ex)
+            raise RunnerError(f"COS error: {code}", ex) from ex
+        except ApiException as ex:
+            status = ex.status or 0
+            if status in (0, 429) or status >= 500:
+                raise RunnerRetryableError(f"Code Engine API error: {ex.reason}", ex) from ex
+            logger.error(
+                "CE API error before submitting job_id=[%s]: status=%s reason=%s", self.job.id, status, ex.reason
+            )
+            raise RunnerError(f"Code Engine API error: {ex.reason}", ex) from ex
+        except (BotoConnectionError, BotoHTTPClientError, MaxRetryError, ReadTimeoutError, ProtocolError) as ex:
+            raise RunnerRetryableError("Unable to reach COS or Code Engine", ex) from ex
+        except Exception as ex:
+            logger.error("Failed to upload job_id=[%s] to COS: %s", self.job.id, ex)
+            raise RunnerError(f"Failed to submit job_id=[{self.job.id}] to Code Engine Fleets", ex) from ex
 
+    def _create_fleet(self, paths: FleetJobPaths) -> None:
+        """Create the job's Code Engine fleet.
+
+        Mounts two PDS volumes and sets up the dual-log wrapper (provider log = all output,
+        user log = ``[public]`` filtered lines), reading the files _upload_to_cos put in COS.
+        """
         try:
+            handler = self._get_handler()
+
+            fleet_name = self._build_fleet_name()
+
+            logger.info(
+                "Submitting job_id=[%s] as fleet [%s] to project [%s]",
+                self.job.id,
+                fleet_name,
+                self._project.project_name,
+            )
+
+            extra_fields: dict = {}
+
+            cpu_limit, memory_limit, scale_gpu = self._parse_compute_profile()
+            logger.info(
+                "job_id=[%s] profile [%s] → cpu=%s memory=%s gpu=%s",
+                self.job.id,
+                self.job.compute_profile_id or "default",
+                cpu_limit,
+                memory_limit,
+                scale_gpu,
+            )
+            if scale_gpu:
+                extra_fields["scale_gpu"] = scale_gpu
+
+            stored_env_vars = decrypt_env_vars(json.loads(self.job.env_vars))
+            extra_fields.update(
+                {
+                    "run_volume_mounts": build_run_volume_mounts_for_job(paths, self._project),
+                    "run_env_variables": build_run_env_variables(paths, stored_env_vars),
+                    "run_commands": ["python", paths.container_docker_entrypoint],
+                }
+            )
+
             fleet = handler.submit_job(
                 name=fleet_name,
                 image_reference=self._get_image(),
@@ -265,24 +258,33 @@ class FleetsRunner(AbstractRunner):
                 tasks_state_store={"persistent_data_store": self._project.pds_name_state},
                 extra_fields=extra_fields or None,
             )
+
+            fleet_dict = fleet.to_dict() if hasattr(fleet, "to_dict") else dict(fleet)
+            fleet_id = fleet_dict.get("id")
+            if not fleet_id:
+                raise RunnerError("Fleet submission succeeded but no fleet ID returned")
+
+            logger.info("Submitted job_id=[%s] as fleet [%s]", self.job.id, fleet_id)
+            self.job.fleet_id = fleet_id
+        except RunnerError:
+            raise
         except ApiException as ex:
-            if (ex.status or 0) == 0 or ex.status >= 500:
-                raise RunnerSubmitUncertainError(f"Code Engine API error: {ex.reason}", ex) from ex
-            raise
+            status = ex.status or 0
+            if status == 429:
+                raise RunnerRetryableError(f"Code Engine API error: {ex.reason}", ex) from ex
+            if status == 0 or status >= 500:
+                raise RunnerMayHaveRunError(f"Code Engine API error: {ex.reason}", ex) from ex
+            logger.error("CE API error submitting job_id=[%s]: status=%s reason=%s", self.job.id, status, ex.reason)
+            raise RunnerError(f"Code Engine API error: {ex.reason}", ex) from ex
         except MaxRetryError as ex:
-            if not isinstance(ex.reason, ConnectTimeoutError):
-                raise RunnerSubmitUncertainError("Code Engine request failed", ex) from ex
-            raise
+            if isinstance(ex.reason, ConnectTimeoutError):
+                raise RunnerRetryableError("Unable to connect to Code Engine", ex) from ex
+            raise RunnerMayHaveRunError("Code Engine request failed", ex) from ex
         except (ReadTimeoutError, ProtocolError) as ex:
-            raise RunnerSubmitUncertainError("Code Engine request failed", ex) from ex
-
-        fleet_dict = fleet.to_dict() if hasattr(fleet, "to_dict") else dict(fleet)
-        fleet_id = fleet_dict.get("id")
-        if not fleet_id:
-            raise RunnerError("Fleet submission succeeded but no fleet ID returned")
-
-        logger.info("Submitted job_id=[%s] as fleet [%s]", self.job.id, fleet_id)
-        self.job.fleet_id = fleet_id
+            raise RunnerMayHaveRunError("Code Engine request failed", ex) from ex
+        except Exception as ex:
+            logger.error("Failed to submit job_id=[%s]: %s", self.job.id, ex)
+            raise RunnerError(f"Failed to submit job_id=[{self.job.id}] to Code Engine Fleets", ex) from ex
 
     # Task states Code Engine writes under ``{version}/queue/``, mapped to job
     # statuses, in PRIORITY ORDER: a terminal state wins over running or pending when

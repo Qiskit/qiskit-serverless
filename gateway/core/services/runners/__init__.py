@@ -3,8 +3,8 @@
 from core.models import Job, Program
 from core.services.runners.abstract_runner import (
     RunnerError,
-    RunnerSubmitUncertainError,
-    RunnerUnavailableError,
+    RunnerMayHaveRunError,
+    RunnerRetryableError,
     AbstractRunner,
 )
 
