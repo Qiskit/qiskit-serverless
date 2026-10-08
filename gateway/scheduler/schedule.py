@@ -57,6 +57,11 @@ def execute_ray_job(job: Job) -> Job:
     return job
 
 
+def build_fleets_circuit_breaker() -> CircuitBreaker:
+    """A fresh circuit breaker for one Code Engine region, with the thresholds of the Fleets Config entries."""
+    return CircuitBreaker(ConfigKey.FLEETS_BREAKER_FAILURES, ConfigKey.FLEETS_BREAKER_PAUSE_SECONDS)
+
+
 class FleetsJobSubmitter:
     """Submits Fleets jobs to Code Engine behind one circuit breaker per region, shared by every caller."""
 
@@ -64,24 +69,21 @@ class FleetsJobSubmitter:
         self.transitions = transitions
         self.breakers: dict[str | None, CircuitBreaker] = {}
 
-    def breaker(self, region: str | None) -> CircuitBreaker:
-        """The breaker for this region (null included), built the first time it is asked for."""
+    def get_breaker(self, region: str | None) -> CircuitBreaker:
+        """The circuit breaker for this region (null included), built the first time it is asked for."""
         if region not in self.breakers:
-            self.breakers[region] = CircuitBreaker(
-                ConfigKey.FLEETS_BREAKER_FAILURES, ConfigKey.FLEETS_BREAKER_PAUSE_SECONDS
-            )
+            self.breakers[region] = build_fleets_circuit_breaker()
         return self.breakers[region]
 
     def paused(self, region: str | None) -> bool:
         """Whether the breaker of this region is open."""
-        return self.breaker(region).is_open
+        return self.get_breaker(region).is_open
 
     def submit(self, job: Job, ctx, *, context: JobEventContext = JobEventContext.SCHEDULE_JOBS) -> Job:
         """Submits a Fleets (Code Engine) job and persists the result.
 
-        Wraps submission under the scheduler.handle trace span propagated from the
-        job's env_vars, times the operation, and calls save_direct to bypass
-        optimistic-locking validation (see Job.save_direct for rationale).
+        Wraps submission under the scheduler.submit trace span propagated from the
+        job's env_vars, and writes the status change through the transition service.
 
         Args:
             job: job to execute
@@ -95,9 +97,9 @@ class FleetsJobSubmitter:
 
         Raises:
             RunnerUnavailableError: before any write, so the job stays QUEUED.
-            RunnerSubmitUncertainError: after the job is saved as FAILED, so the caller can stop submitting.
+            RunnerSubmitUncertainError: after the FAILED status change, so the caller can stop submitting.
         """
-        breaker = self.breaker(job.ce_region)
+        breaker = self.get_breaker(job.ce_region)
         if breaker.is_open:
             raise RunnerUnavailableError(f"Fleets submits to region {job.ce_region} are paused by the circuit breaker")
         start = time.monotonic()
@@ -124,7 +126,6 @@ class FleetsJobSubmitter:
                 raise
             except RunnerSubmitUncertainError as ex:
                 uncertain = ex
-                breaker.record_failure()
                 logger.error(
                     "[FleetsJobSubmitter] job_id=%s error=%s Job set as FAILED: the fleet may exist", job.id, ex
                 )
@@ -158,6 +159,7 @@ class FleetsJobSubmitter:
                 logger.warning("[FleetsJobSubmitter] job_id=%s already in a terminal status: %s", job.id, str(ex))
 
         if uncertain:
+            breaker.record_failure()
             raise uncertain
         return job
 

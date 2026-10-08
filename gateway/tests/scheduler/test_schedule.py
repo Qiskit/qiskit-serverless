@@ -29,6 +29,11 @@ from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
 from tests.utils import TestUtils
 
 
+def _open_breakers_after_one_failure():
+    Config.add_defaults()
+    Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "1")
+
+
 class TestScheduleApi(APITestCase):
     """TestScheduleApi."""
 
@@ -239,8 +244,7 @@ class TestScheduleApi(APITestCase):
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
     def test_fleets_submit_skips_code_engine_once_the_breaker_opens(self, mock_trace, mock_get_runner_client):
-        Config.add_defaults()
-        Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "1")
+        _open_breakers_after_one_failure()
         mock_get_runner_client.return_value.submit.side_effect = RunnerUnavailableError("Too Many Requests")
 
         submitter = FleetsJobSubmitter(MagicMock())
@@ -255,8 +259,7 @@ class TestScheduleApi(APITestCase):
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
     def test_fleets_submit_reaches_code_engine_again_once_the_pause_is_over(self, mock_trace, mock_get_runner_client):
-        Config.add_defaults()
-        Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "1")
+        _open_breakers_after_one_failure()
         Config.set(ConfigKey.FLEETS_BREAKER_PAUSE_SECONDS, "60")
         runner = mock_get_runner_client.return_value
         runner.submit.side_effect = RunnerUnavailableError("Too Many Requests")
@@ -277,8 +280,7 @@ class TestScheduleApi(APITestCase):
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
     def test_fleets_submit_does_not_count_a_failed_job_against_the_breaker(self, mock_trace, mock_get_runner_client):
-        Config.add_defaults()
-        Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "1")
+        _open_breakers_after_one_failure()
         mock_get_runner_client.return_value.submit.side_effect = RunnerError("Bad Request")
 
         submitter = FleetsJobSubmitter(MagicMock())
@@ -292,8 +294,7 @@ class TestScheduleApi(APITestCase):
     def test_fleets_submit_fails_an_uncertain_submit_and_counts_it_against_the_breaker(
         self, mock_trace, mock_get_runner_client
     ):
-        Config.add_defaults()
-        Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "1")
+        _open_breakers_after_one_failure()
         mock_get_runner_client.return_value.submit.side_effect = RunnerSubmitUncertainError("Gateway Timeout")
         transitions = MagicMock()
         job = MagicMock(ce_region="us-east")
@@ -310,8 +311,7 @@ class TestScheduleApi(APITestCase):
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
     def test_fleets_submit_pauses_only_the_region_that_failed(self, mock_trace, mock_get_runner_client):
-        Config.add_defaults()
-        Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "1")
+        _open_breakers_after_one_failure()
         runner = mock_get_runner_client.return_value
         runner.submit.side_effect = RunnerUnavailableError("Too Many Requests")
         submitter = FleetsJobSubmitter(MagicMock())

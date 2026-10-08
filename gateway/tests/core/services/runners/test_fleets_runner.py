@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from django.conf import settings as django_settings
 from ibm_botocore.exceptions import ClientError, ReadTimeoutError
-from urllib3.exceptions import MaxRetryError, NewConnectionError
+from urllib3.exceptions import MaxRetryError, NewConnectionError, ProtocolError
 
 from core.domain.compute_profile import normalize as normalize_compute_profile
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
@@ -459,9 +459,7 @@ def test_submit_raises_runner_error_when_cos_not_configured():
     "status, expected",
     [
         (429, RunnerUnavailableError),
-        (500, RunnerSubmitUncertainError),
         (503, RunnerSubmitUncertainError),
-        (504, RunnerSubmitUncertainError),
         (400, RunnerError),
     ],
 )
@@ -494,6 +492,12 @@ def test_submit_raises_the_error_type_for_each_code_engine_status(status, expect
             ClientError({"Error": {"Code": "AccessDenied"}, "ResponseMetadata": {"HTTPStatusCode": 403}}, "PutObject"),
             RunnerError,
         ),
+        (
+            ClientError(
+                {"Error": {"Code": "NotImplemented"}, "ResponseMetadata": {"HTTPStatusCode": 501}}, "PutObject"
+            ),
+            RunnerError,
+        ),
         (ReadTimeoutError(endpoint_url="https://cos"), RunnerUnavailableError),
     ],
 )
@@ -505,6 +509,20 @@ def test_submit_raises_the_error_type_for_each_cos_failure(error, expected):
             runner.submit()
 
     assert type(exc.value) is expected
+    mock_handler.submit_job.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "error", [ApiException(status=503, reason="Service Unavailable"), MaxRetryError(None, "/", reason=ProtocolError())]
+)
+def test_submit_raises_unavailable_when_code_engine_fails_before_the_create(error):
+    runner, mock_handler = _make_submit_runner()
+
+    with _patch_settings(), patch.object(runner, "_upload_program_to_cos", side_effect=error):
+        with pytest.raises(RunnerError) as exc:
+            runner.submit()
+
+    assert type(exc.value) is RunnerUnavailableError
     mock_handler.submit_job.assert_not_called()
 
 

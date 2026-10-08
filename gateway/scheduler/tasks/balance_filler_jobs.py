@@ -12,7 +12,7 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Config, Job, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import JobTransitionService
-from core.services.runners import get_runner, RunnerError
+from core.services.runners import get_runner, RunnerError, RunnerUnavailableError
 from core.services.storage import get_arguments_storage
 from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
@@ -231,11 +231,15 @@ class BalanceFillerJobs(SchedulerTask):
         # a shutdown or a paused region buys no delay
         if self.kill_signal.received or self.submitter.paused(program.code_engine_project.region):
             return
-        if not self._submit_filler_job(program):
-            self._retry_loops = RETRY_AFTER_LOOPS
+        try:
+            if not self._submit_filler_job(program):
+                self._retry_loops = RETRY_AFTER_LOOPS
+        except RunnerUnavailableError:
+            # no fleet was created, and the region's breaker decides when to try again
+            pass
 
     def _submit_filler_job(self, program: Program) -> bool:
-        """Create and submit one filler job. True when it reached PENDING."""
+        """Create and submit one filler job. True when it reached PENDING. Raises when its region is unavailable."""
         project = program.code_engine_project
         job = Job(
             program=program,
@@ -274,6 +278,10 @@ class BalanceFillerJobs(SchedulerTask):
             )
         except DB_EXCEPTIONS:
             raise
+        except RunnerUnavailableError as ex:
+            self._mark_failed(job)
+            self._log_creation_failed(ex)
+            raise
         except Exception as ex:  # pylint: disable=broad-exception-caught
             if job.status == Job.QUEUED and not job.fleet_id:
                 # It raised before any write, so no fleet exists and this row is
@@ -293,7 +301,7 @@ class BalanceFillerJobs(SchedulerTask):
         """Report a failed creation.
 
         Caught here rather than by the scheduler's generic handler, which would log a
-        traceback once a second. RETRY_AFTER_LOOPS already limits this to one a minute.
+        traceback once a second. RETRY_AFTER_LOOPS, or the region's breaker, limits how often it happens.
         """
         logger.error("[BalanceFillerJobs] could not create filler job: %s", str(ex))
         self.metrics.increment_filler_jobs_created("failed")

@@ -15,7 +15,7 @@ from prometheus_client import CollectorRegistry
 from core.config_key import ConfigKey
 from core.models import ComputeProfile, Config, FunctionSize, Job, JobEvent, Program
 from core.model_managers.job_events import JobEventContext
-from core.services.runners import RunnerError
+from core.services.runners import RunnerError, RunnerUnavailableError
 from scheduler.main import Main
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs, RETRY_AFTER_LOOPS
@@ -536,6 +536,20 @@ def test_no_filler_job_is_created_while_its_region_is_paused(filler_program):
     arguments.assert_not_called()
     assert Job.objects.filter(filler=True).count() == 0
     task.submitter.paused.assert_called_with(filler_program.code_engine_project.region)
+
+
+def test_an_unavailable_submit_fails_the_row_without_the_retry_delay(filler_program):
+    task = _make_task()
+
+    with (
+        patch.object(task.submitter, "submit", side_effect=RunnerUnavailableError("Too Many Requests")),
+        patch(f"{_MOD}.get_arguments_storage"),
+        patch(f"{_MOD}.get_runner"),
+    ):
+        task.run()
+
+    assert Job.objects.get(filler=True).status == Job.FAILED
+    assert task._retry_loops == 0  # pylint: disable=protected-access
 
 
 def test_a_creation_that_fails_before_the_submit_discards_the_row(filler_program):

@@ -23,17 +23,10 @@ logger = logging.getLogger("scheduler.ScheduleFleetsJobs")
 class ScheduleFleetsJobs(SchedulerTask):
     """Schedule Fleets (Code Engine) jobs service."""
 
-    def __init__(
-        self,
-        kill_signal: KillSignal,
-        metrics: SchedulerMetrics,
-        transitions: JobTransitionService | None = None,
-        submitter: FleetsJobSubmitter | None = None,
-    ):
+    def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics, submitter: FleetsJobSubmitter | None = None):
         self.kill_signal = kill_signal
         self.metrics = metrics
-        self.transitions = transitions or JobTransitionService()
-        self.submitter = submitter or FleetsJobSubmitter(self.transitions)
+        self.submitter = submitter or FleetsJobSubmitter(JobTransitionService())
 
     def run(self):
         """Schedule queued Fleets jobs."""
@@ -64,11 +57,16 @@ class ScheduleFleetsJobs(SchedulerTask):
 
         jobs = get_jobs_to_schedule_fair_share(slots=free_slots, gpu=False, runner=Program.FLEETS)
 
-        failed_regions: set[str | None] = set()
+        skipped_regions: set[str | None] = set()
+        submitted = 0
         for job in jobs:
             if self.kill_signal.received:
                 return
-            if job.ce_region in failed_regions or self.submitter.paused(job.ce_region):
+            if job.ce_region in skipped_regions:
+                continue
+            if self.submitter.paused(job.ce_region):
+                logger.warning("Fleets submits to region %s are paused by the circuit breaker.", job.ce_region)
+                skipped_regions.add(job.ce_region)
                 continue
 
             env = json.loads(job.env_vars)
@@ -78,19 +76,20 @@ class ScheduleFleetsJobs(SchedulerTask):
                 job = self.submitter.submit(job, ctx)
             except RunnerUnavailableError as ex:
                 logger.warning("job_id=%s region=%s Job kept QUEUED: %s", job.id, job.ce_region, ex)
-                failed_regions.add(job.ce_region)
+                skipped_regions.add(job.ce_region)
                 continue
             except RunnerSubmitUncertainError:
-                failed_regions.add(job.ce_region)
+                skipped_regions.add(job.ce_region)
                 continue
 
             logger.warning("job_id=%s Job saved with status=%s", job.id, job.status)
 
             if job.status == Job.PENDING:
+                submitted += 1
                 self.add_queue_wait_time_metric(job)
 
-        if jobs:
-            logger.info("%s jobs are scheduled for execution.", len(jobs))
+        if submitted:
+            logger.info("%s jobs are scheduled for execution.", submitted)
 
     def add_queue_wait_time_metric(self, job: Job):
         """Add queue wait time metric."""

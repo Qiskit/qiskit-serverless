@@ -169,19 +169,18 @@ class FleetsRunner(AbstractRunner):
         except ClientError as ex:
             code = ex.response.get("Error", {}).get("Code")
             status = ex.response.get("ResponseMetadata", {}).get("HTTPStatusCode", 0)
-            if status == 429 or status >= 500 or code in ("SlowDown", "RequestTimeout", "Throttling"):
+            if status in (429, 500, 502, 503, 504) or code in ("SlowDown", "RequestTimeout", "Throttling"):
                 raise RunnerUnavailableError(f"COS error: {code}", ex) from ex
             logger.error("COS error submitting job_id=[%s]: %s", self.job.id, ex)
             raise RunnerError(f"COS error: {code}", ex) from ex
         # before the urllib3 blocks: botocore's ReadTimeoutError is also a urllib3 ReadTimeoutError
         except (BotoConnectionError, BotoHTTPClientError) as ex:
             raise RunnerUnavailableError("Unable to reach COS", ex) from ex
+        # create_fleet's uncertain failures are raised in _create_fleet, so nothing here can have created a fleet
         except ApiException as ex:
             status = ex.status or 0
-            if status == 429:
+            if status in (0, 429) or status >= 500:
                 raise RunnerUnavailableError(f"Code Engine API error: {ex.reason}", ex) from ex
-            if status == 0 or status >= 500:
-                raise RunnerSubmitUncertainError(f"Code Engine API error: {ex.reason}", ex) from ex
             logger.error(
                 "CE API error submitting job_id=[%s]: status=%s reason=%s",
                 self.job.id,
@@ -189,12 +188,8 @@ class FleetsRunner(AbstractRunner):
                 ex.reason,
             )
             raise RunnerError(f"Code Engine API error: {ex.reason}", ex) from ex
-        except MaxRetryError as ex:
-            if isinstance(ex.reason, ConnectTimeoutError):
-                raise RunnerUnavailableError("Unable to connect to Code Engine", ex) from ex
-            raise RunnerSubmitUncertainError("Code Engine request failed", ex) from ex
-        except (ReadTimeoutError, ProtocolError) as ex:
-            raise RunnerSubmitUncertainError("Code Engine request failed", ex) from ex
+        except (MaxRetryError, ReadTimeoutError, ProtocolError) as ex:
+            raise RunnerUnavailableError("Unable to reach Code Engine", ex) from ex
         except Exception as ex:
             logger.error("Failed to submit job_id=[%s]: %s", self.job.id, ex)
             raise RunnerError(f"Failed to submit job_id=[{self.job.id}] to Code Engine Fleets", ex) from ex
@@ -256,19 +251,30 @@ class FleetsRunner(AbstractRunner):
         else:
             raise RunnerError(f"COS is not configured for job_id=[{self.job.id}] — cannot submit Fleets job")
 
-        fleet = handler.submit_job(
-            name=fleet_name,
-            image_reference=self._get_image(),
-            image_secret=settings.CE_ICR_PULL_SECRET,
-            network_placements=[{"type": "subnet_pool", "reference": self._project.subnet_pool_id}],
-            scale_cpu_limit=cpu_limit,
-            scale_memory_limit=memory_limit,
-            scale_max_instances=self._get_max_instances(),
-            scale_retry_limit=0,
-            tasks_specification={"indices": "0"},
-            tasks_state_store={"persistent_data_store": self._project.pds_name_state},
-            extra_fields=extra_fields or None,
-        )
+        try:
+            fleet = handler.submit_job(
+                name=fleet_name,
+                image_reference=self._get_image(),
+                image_secret=settings.CE_ICR_PULL_SECRET,
+                network_placements=[{"type": "subnet_pool", "reference": self._project.subnet_pool_id}],
+                scale_cpu_limit=cpu_limit,
+                scale_memory_limit=memory_limit,
+                scale_max_instances=self._get_max_instances(),
+                scale_retry_limit=0,
+                tasks_specification={"indices": "0"},
+                tasks_state_store={"persistent_data_store": self._project.pds_name_state},
+                extra_fields=extra_fields or None,
+            )
+        except ApiException as ex:
+            if (ex.status or 0) == 0 or ex.status >= 500:
+                raise RunnerSubmitUncertainError(f"Code Engine API error: {ex.reason}", ex) from ex
+            raise
+        except MaxRetryError as ex:
+            if not isinstance(ex.reason, ConnectTimeoutError):
+                raise RunnerSubmitUncertainError("Code Engine request failed", ex) from ex
+            raise
+        except (ReadTimeoutError, ProtocolError) as ex:
+            raise RunnerSubmitUncertainError("Code Engine request failed", ex) from ex
 
         fleet_dict = fleet.to_dict() if hasattr(fleet, "to_dict") else dict(fleet)
         fleet_id = fleet_dict.get("id")
@@ -339,7 +345,7 @@ class FleetsRunner(AbstractRunner):
                     # state alone does not prove the task exited zero. Log the whole
                     # key to keep that answerable from production logs. Taking any
                     # terminal key is only correct because a job runs a single task
-                    # (tasks_specification indices "0" in submit()).
+                    # (tasks_specification indices "0" in _create_fleet()).
                     logger.info("Fleet [%s] reached %s from key %s", self.job.fleet_id, status, found[state])
                 else:
                     logger.debug("Fleet [%s] COS status: %s", self.job.fleet_id, status)
