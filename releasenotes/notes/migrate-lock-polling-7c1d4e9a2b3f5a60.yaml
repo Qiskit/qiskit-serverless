@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    Starting the gateway and the scheduler at the same time against an empty database no
+    longer deadlocks a migration that uses ``CREATE INDEX CONCURRENTLY``. The container waiting
+    for the migration lock now polls for it instead of holding a blocking query open.
