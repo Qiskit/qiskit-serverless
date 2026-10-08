@@ -112,6 +112,15 @@ gateway:
       name: ""
       secretRef: ""
       secretStoreName: qiskit-serverless
+    functionsOperatorApiKey:
+      # Independent of application.functionsOperatorApiKey.enabled, so the
+      # Secret can be synced and checked before any pod reads it. A container
+      # whose env var names a missing Secret does not start.
+      createExternalSecret: false
+      name: ""
+      secretRef: ""
+      key: payload
+      secretStoreName: qiskit-serverless
 
 # ===================
 # Kuberay Operator

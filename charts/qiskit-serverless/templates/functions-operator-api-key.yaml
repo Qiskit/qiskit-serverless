@@ -1,0 +1,19 @@
+{{- if .Values.gateway.secrets.functionsOperatorApiKey.createExternalSecret -}}
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ .Values.gateway.secrets.functionsOperatorApiKey.name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  data:
+  - secretKey: {{ .Values.gateway.secrets.functionsOperatorApiKey.key }}
+    remoteRef:
+      key: {{ .Values.gateway.secrets.functionsOperatorApiKey.secretRef }}
+  secretStoreRef:
+    kind: SecretStore
+    name: {{ .Values.gateway.secrets.functionsOperatorApiKey.secretStoreName }}
+  target:
+    creationPolicy: Owner
+    name: {{ .Values.gateway.secrets.functionsOperatorApiKey.name }}
+{{- end -}}
