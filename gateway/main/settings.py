@@ -470,6 +470,11 @@ RUNTIME_API_CACHE_TTL = int(os.environ.get("RUNTIME_API_CACHE_TTL", "60"))
 # bare host; other regions are reached via a "{region}." host prefix derived from the CRN.
 RUNTIME_API_DEFAULT_REGION = os.environ.get("RUNTIME_API_DEFAULT_REGION", "us-east")
 
+# Service credential and client timeout for mirroring Functions jobs to NTC workloads. The key is empty unless the
+# deployment provides it; the client only requires it while workloads.mirror.enabled is on.
+FUNCTIONS_OPERATOR_API_KEY = os.environ.get("FUNCTIONS_OPERATOR_API_KEY", "")
+WORKLOADS_MIRROR_TIMEOUT = float(os.environ.get("WORKLOADS_MIRROR_TIMEOUT", "3"))
+
 # IBM Cloud
 
 IAM_IBM_CLOUD_BASE_URL = os.environ.get("IAM_IBM_CLOUD_BASE_URL") or "https://iam.test.cloud.ibm.com"
@@ -533,6 +538,12 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "default": "false",
         "type": "boolean",
         "description": "Enable external Runtime instances API for function-level access control.",
+    },
+    "workloads.mirror.enabled": {
+        "default": "false",
+        "type": "boolean",
+        "description": "Mirror Functions jobs to NTC workloads through the Runtime API. When on, "
+        "FUNCTIONS_OPERATOR_API_KEY must be set or the client raises on every call.",
     },
     "scheduler.filler.enabled": {
         "default": "false",
