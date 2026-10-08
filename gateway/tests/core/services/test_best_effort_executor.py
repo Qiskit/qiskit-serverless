@@ -1,10 +1,12 @@
 """Tests for the shared best-effort executor. Real threads, synchronised with events and timeouts."""
 
+import logging
 import threading
+import time
 
 import pytest
 
-from core.services.best_effort_executor import shutdown_best_effort_executor, submit_best_effort
+from core.services.best_effort_executor import _State, shutdown_best_effort_executor, submit_best_effort
 
 WAIT = 5
 
@@ -15,6 +17,7 @@ def small_pool_fixture(settings):
     settings.BEST_EFFORT_MAX_PENDING = 2
     shutdown_best_effort_executor()
     yield
+    _State.closing = False
     shutdown_best_effort_executor()
 
 
@@ -51,20 +54,44 @@ def test_a_full_pool_drops_the_next_task():
     assert not ran
 
 
-def test_a_failing_task_does_not_propagate_and_frees_its_slot():
-    done = threading.Event()
+def _submit_until_accepted(fn):
+    """The wrapper frees its slot just after the task ends, so a submit right after may still see a full pool."""
+    deadline = time.monotonic() + WAIT
+    while time.monotonic() < deadline:
+        if submit_best_effort(fn):
+            return True
+        time.sleep(0.05)
+    return False
+
+
+def test_a_failing_task_does_not_propagate_and_frees_its_slot(caplog):
+    finished = threading.Barrier(3)
 
     def failing():
         try:
             raise RuntimeError("boom")
         finally:
-            done.set()
+            finished.wait(WAIT)
 
-    for _ in range(5):  # more submissions than MAX_PENDING: only possible if every slot is released
-        done.clear()
+    with caplog.at_level(logging.WARNING, logger="gateway.best_effort"):
         assert submit_best_effort(failing) is True
-        assert done.wait(WAIT)
-        shutdown_best_effort_executor()
+        assert submit_best_effort(failing) is True
+        finished.wait(WAIT)
+
+        assert _submit_until_accepted(lambda: None) is True
+
+    assert "failing" in caplog.text and "boom" in caplog.text
+
+
+def test_queued_tasks_are_skipped_once_the_interpreter_is_closing():
+    ran = []
+    _State.closing = True
+
+    assert submit_best_effort(lambda: ran.append(1)) is True
+    assert submit_best_effort(lambda: ran.append(2)) is True  # MAX_PENDING is 2: the pool is now full
+
+    assert _submit_until_accepted(lambda: None) is True  # only possible if the skipped tasks released their slots
+    assert not ran
 
 
 def test_submit_works_again_after_a_shutdown():

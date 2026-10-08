@@ -12,6 +12,7 @@ tells it whether trying again can help.
 """
 
 import logging
+import threading
 
 import requests
 from django.conf import settings
@@ -27,6 +28,7 @@ logger = logging.getLogger("gateway.clients.service_functional_role")
 
 _RETRYABLE_CLIENT_ERRORS = {408, 429}
 _KEY_REJECTED = {400, 401, 403}
+_DEFAULT_TIMEOUT_MS = 3000
 
 
 class ServiceFunctionalRoleClient:
@@ -37,19 +39,23 @@ class ServiceFunctionalRoleClient:
 
     def __init__(self) -> None:
         self._authenticator: IAMAuthenticator | None = None
+        self._authenticator_lock = threading.Lock()
+
+    @staticmethod
+    def _build_authenticator() -> IAMAuthenticator:
+        try:
+            return IAMAuthenticator(settings.FUNCTIONS_OPERATOR_API_KEY, url=settings.IAM_IBM_CLOUD_BASE_URL)
+        except ValueError as exc:  # the SDK raises ValueError only from this constructor
+            logger.error("FUNCTIONS_OPERATOR_API_KEY was rejected by the IAM client: %s", type(exc).__name__)
+            raise RuntimeApiConfigError("FUNCTIONS_OPERATOR_API_KEY is malformed") from exc
 
     def _token(self, timeout: float) -> str:
         """A valid IAM token. The SDK's token manager caches it and refreshes it near expiry, so ask on every call.
         Raises RuntimeApiConfigError when the key itself is the problem and RuntimeApiError (retryable) otherwise."""
         if self._authenticator is None:
-            try:
-                authenticator = IAMAuthenticator(
-                    settings.FUNCTIONS_OPERATOR_API_KEY, url=settings.IAM_IBM_CLOUD_BASE_URL
-                )
-            except ValueError as exc:  # the SDK raises ValueError only from this constructor
-                logger.error("FUNCTIONS_OPERATOR_API_KEY was rejected by the IAM client: %s", type(exc).__name__)
-                raise RuntimeApiConfigError("FUNCTIONS_OPERATOR_API_KEY is malformed") from exc
-            self._authenticator = authenticator
+            with self._authenticator_lock:
+                if self._authenticator is None:
+                    self._authenticator = self._build_authenticator()
         # The token manager waits 60 s by default, far above the budget of one mirror call. The timeout is dynamic
         # config, so set it on every call.
         self._authenticator.token_manager.http_config = {"timeout": timeout}
@@ -80,7 +86,13 @@ class ServiceFunctionalRoleClient:
         base_url = regional_base_url(
             settings.RUNTIME_API_BASE_URL, body.get("crn"), settings.RUNTIME_API_DEFAULT_REGION
         )
-        timeout = Config.get_int(ConfigKey.WORKLOADS_MIRROR_TIMEOUT_MS, default=3000) / 1000
+        timeout_ms = Config.get_int(ConfigKey.WORKLOADS_MIRROR_TIMEOUT_MS, default=_DEFAULT_TIMEOUT_MS)
+        if timeout_ms <= 0:
+            logger.warning(
+                "%s is %s, using %s", ConfigKey.WORKLOADS_MIRROR_TIMEOUT_MS.value, timeout_ms, _DEFAULT_TIMEOUT_MS
+            )
+            timeout_ms = _DEFAULT_TIMEOUT_MS
+        timeout = timeout_ms / 1000
         token = self._token(timeout)
 
         try:

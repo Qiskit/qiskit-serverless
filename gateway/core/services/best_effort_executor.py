@@ -8,6 +8,14 @@ once; the next one is dropped and ``submit_best_effort`` returns False. Dropping
 Tasks must be short and must not depend on the caller's request or transaction. A task that raises is logged and
 forgotten. Worker threads open their own database connections, which are closed when each task ends.
 
+At interpreter exit, tasks still queued are skipped and only the ones already running finish, each bounded by its own
+request timeouts (about 2 x workloads.mirror.timeout_ms for a workload mirror call). Nothing is cancelled and nothing
+is promised: the pool is best effort.
+
+Once the pool has threads, ``os.fork()`` in ``api/domain/isolated.py`` runs in a multi-threaded process and Python
+3.12 may emit a DeprecationWarning. It is safe there because the child only validates and leaves through
+``os._exit``, so do not "fix" the warning by touching connections in the child.
+
 The Kafka best-effort sender could adopt this pool later.
 """
 
@@ -32,6 +40,7 @@ class _State:  # pylint: disable=too-few-public-methods
     slots: threading.BoundedSemaphore | None = None
     pid: int | None = None
     dropped = 0
+    closing = False  # set when the interpreter starts to exit; queued tasks then skip their work
 
 
 def _pool() -> tuple[ThreadPoolExecutor, threading.BoundedSemaphore]:
@@ -51,12 +60,16 @@ def submit_best_effort(fn: Callable, *args, **kwargs) -> bool:
     many tasks are already pending."""
     executor, slots = _pool()
     if not slots.acquire(blocking=False):  # pylint: disable=consider-using-with
-        _State.dropped += 1
-        logger.warning("best effort pool is full, task dropped (%s dropped so far)", _State.dropped)
+        with _State.lock:
+            _State.dropped += 1
+            dropped = _State.dropped
+        logger.warning("best effort pool is full, task dropped (%s dropped so far)", dropped)
         return False
 
     def run() -> None:
         try:
+            if _State.closing:
+                return
             fn(*args, **kwargs)
         except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.warning("best effort task %s failed: %r", getattr(fn, "__qualname__", fn), exc)
@@ -75,12 +88,30 @@ def submit_best_effort(fn: Callable, *args, **kwargs) -> bool:
 
 def shutdown_best_effort_executor() -> None:
     """Stop the pool of this process: running tasks finish (each ends within its own timeouts), pending ones are
-    cancelled. Safe to call twice or with no pool; a later ``submit_best_effort`` creates a new one."""
+    cancelled. It does not set the exit flag. Safe to call twice or with no pool; a later ``submit_best_effort``
+    creates a new one.
+    """
     with _State.lock:
         executor, owner = _State.executor, _State.pid
         _State.executor, _State.slots, _State.pid = None, None, None
     if executor is not None and owner == os.getpid():
         executor.shutdown(wait=True, cancel_futures=True)
 
+
+def _start_closing() -> None:
+    _State.closing = True
+
+
+# concurrent.futures.thread registers its own exit hook with threading._register_atexit when it is imported. These
+# hooks run in reverse registration order in threading._shutdown(), before the regular atexit callbacks, and that hook
+# waits for every queued task. Registering ours here, after that import, makes it run first, so queued tasks can skip
+# their work and the drain is bounded by the tasks already running. It is a private API: if it is missing (a future
+# Python) or shutdown has already begun, we only lose the early skip and the drain is bounded by the pending tasks.
+_register_atexit = getattr(threading, "_register_atexit", None)
+if _register_atexit is not None:
+    try:
+        _register_atexit(_start_closing)
+    except RuntimeError:
+        pass
 
 atexit.register(shutdown_best_effort_executor)

@@ -82,6 +82,16 @@ def test_the_timeout_is_read_on_every_call(flag, put, authenticator):
     assert put.call_args.kwargs["timeout"] == 7
 
 
+def test_a_zero_timeout_falls_back_to_the_default(flag, put, authenticator, caplog):
+    flag["timeout_ms"] = 0
+
+    ServiceFunctionalRoleClient().put_function(PAYLOAD)
+
+    assert put.call_args.kwargs["timeout"] == 3
+    assert authenticator.return_value.token_manager.http_config == {"timeout": 3}
+    assert "workloads.mirror.timeout_ms" in caplog.text
+
+
 def test_flag_off_sends_nothing_and_does_not_need_the_key(flag, put, authenticator, settings):
     flag["on"] = False
     settings.FUNCTIONS_OPERATOR_API_KEY = ""

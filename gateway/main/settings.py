@@ -477,6 +477,8 @@ FUNCTIONS_OPERATOR_API_KEY = os.environ.get("FUNCTIONS_OPERATOR_API_KEY", "")
 
 # Shared per-process thread pool for best-effort work (core/services/best_effort_executor.py): how many threads it
 # has, and how many tasks may be submitted and unfinished before new ones are dropped.
+# At interpreter exit queued tasks are skipped and only running ones finish (about 2 x workloads.mirror.timeout_ms
+# each).
 BEST_EFFORT_MAX_WORKERS = int(os.environ.get("BEST_EFFORT_MAX_WORKERS", "4"))
 BEST_EFFORT_MAX_PENDING = int(os.environ.get("BEST_EFFORT_MAX_PENDING", "100"))
 
