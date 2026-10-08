@@ -17,7 +17,6 @@ import logging
 import os
 import re
 import tarfile
-from datetime import datetime, timezone
 from io import BytesIO
 
 from django.conf import settings
@@ -37,7 +36,7 @@ from core.services.runners.abstract_runner import (
 )
 from core.ibm_cloud import get_ce_auth, get_cos_client
 from core.utils import decrypt_env_vars
-from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
+from core.ibm_cloud.code_engine.fleets.handler import FleetHandler, is_name_conflict
 from core.ibm_cloud.code_engine.fleets.cos import (
     TASK_STORE_VERSIONS,
     JobCOS,
@@ -60,27 +59,10 @@ _UNRESOLVED_WARNED: set[str] = set()
 _WARNED_FLEETS_LIMIT = 10_000
 
 
-# Code Engine accepts lowercase alphanumerics and hyphens in a fleet name. The API client
-# does not declare a length ceiling, so we assume the 63 characters usual for its resource
-# names and spend all of it: a three character prefix, three segments, a fourteen character
-# timestamp and four hyphens land exactly on 63 at fourteen characters per segment. Fourteen
-# is also what "160x1792x8h100" needs, so the scarce GPU profile this was built for survives
-# whole; a third fractional digit in the timestamp would clip it.
-_FLEET_NAME_SEGMENT_MAX = 14
-
-
-def _fleet_name_timestamp() -> str:
-    """Return the current UTC time as ``YYMMDDHHMMSShh``, hundredths of a second last.
-
-    Readable at a glance in the Code Engine console, unlike Unix seconds, and precise enough
-    that two runs of the same function by the same user on the same profile get different
-    names in practice.
-
-    Returns:
-        Fourteen digits.
-    """
-    now = datetime.now(timezone.utc)
-    return f"{now:%y%m%d%H%M%S}{now.microsecond // 10000:02d}"
+# Code Engine accepts lowercase alphanumerics and hyphens in a fleet name. On staging it accepted 64
+# characters and refused 70 as TOOLONG. Two segments of twelve, the 36 character job id and two hyphens
+# make at most 62.
+_FLEET_NAME_SEGMENT_MAX = 12
 
 
 def _fleet_name_segment(value: str) -> str:
@@ -270,11 +252,9 @@ class FleetsRunner(AbstractRunner):
             self.job.fleet_id = fleet_id
         except RunnerError:
             raise
-        # NOTE: a 5xx or a broken connection can come after Code Engine created the fleet, and the retry builds a
-        # new fleet name, so it can create a second fleet. Follow-up: a fleet name built from the job id.
         except ApiException as ex:
             status = ex.status or 0
-            if status in (0, 429) or status >= 500:
+            if status in (0, 429) or status >= 500 or is_name_conflict(ex):
                 raise RunnerRetryableError(f"Code Engine API error: {ex.reason}", ex) from ex
             logger.error("CE API error submitting job_id=[%s]: status=%s reason=%s", self.job.id, status, ex.reason)
             raise RunnerError(f"Code Engine API error: {ex.reason}", ex) from ex
@@ -796,28 +776,19 @@ class FleetsRunner(AbstractRunner):
         return settings.FLEETS_DEFAULT_IMAGE
 
     def _build_fleet_name(self) -> str:
-        """Build the Code Engine fleet name for this job.
+        """Build the Code Engine fleet name for this job, as ``{vendor}-{function}-{job id}``.
 
-        Shaped as ``{job|fil}-{function}-{compute profile}-{username}-{YYMMDDHHMMSShh}`` so a
-        fleet can be read at a glance in Code Engine: what it runs, on which profile, for whom
-        and when. Both prefixes are three characters so every segment gets the same budget
-        either way, and each segment is sanitized and truncated by :func:`_fleet_name_segment`.
-
-        The timestamp is what separates two runs of the same function by the same user on the
-        same profile, so it is not decoration. It is still not an identifier: ``job.fleet_id``,
-        assigned by Code Engine, remains what the gateway stores and queries.
+        The same job always gets the same name, so a create that is retried after Code Engine already made the
+        fleet is refused as a name conflict instead of making a second fleet. The vendor is the provider's name,
+        or ``custom`` for a function with no provider.
 
         Returns:
             The fleet name.
         """
-        prefix = "fil" if self.job.filler else "job"
+        provider = self.job.program.provider
+        vendor = _fleet_name_segment(provider.name if provider else "custom")
         function = _fleet_name_segment(self.job.program.title)
-        # Unlike the title and the username, the compute profile is nullable, and submit() runs on
-        # settings.DEFAULT_COMPUTE_PROFILE when it is unset (see _parse_compute_profile). Name the
-        # fleet after the profile it actually runs on rather than after the empty value.
-        profile = _fleet_name_segment(self.job.compute_profile_id or settings.DEFAULT_COMPUTE_PROFILE)
-        username = _fleet_name_segment(self.job.author.username)
-        return f"{prefix}-{function}-{profile}-{username}-{_fleet_name_timestamp()}"
+        return f"{vendor}-{function}-{self.job.id}"
 
     def _parse_compute_profile(self) -> tuple[str, str, dict | None]:
         """Parse compute_profile into (cpu, memory, gpu).

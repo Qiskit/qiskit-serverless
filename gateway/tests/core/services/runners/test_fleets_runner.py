@@ -13,7 +13,6 @@
 """Unit tests for FleetsRunner."""
 
 import io
-import re
 import tarfile
 from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
@@ -397,51 +396,51 @@ def test_submit_places_the_fleet_on_the_projects_subnet_pool():
     assert placements == [{"type": "subnet_pool", "reference": "subnet-1"}]
 
 
-def test_submit_fleet_name_describes_the_job():
-    """A real job's fleet is named job-<function>-<profile>-<username>."""
+def test_submit_fleet_name_is_vendor_function_and_job_id():
     runner, mock_handler = _make_submit_runner()
+    runner.job.id = "1b2c3d4e-0000-4000-8000-000000000001"
     runner.job.program.title = "my-function"
-    runner.job.compute_profile_id = "160x1792x8h100"
-    runner.job.author.username = "alice"
+    runner.job.program.provider = MagicMock()
+    runner.job.program.provider.name = "ibm"
 
     with _patch_settings():
         runner.submit()
 
-    name = mock_handler.submit_job.call_args.kwargs["name"]
-    described, stamp = name.rsplit("-", 1)
-    assert described == "job-my-function-160x1792x8h100-alice"
-    assert re.fullmatch(r"\d{14}", stamp), stamp
+    assert mock_handler.submit_job.call_args.kwargs["name"] == "ibm-my-function-1b2c3d4e-0000-4000-8000-000000000001"
 
 
-def test_submit_fleet_name_uses_filler_prefix_for_filler_jobs():
-    """A filler job's fleet takes the fil- prefix, the same width as job-."""
+def test_submit_fleet_name_is_sanitized_and_bounded_with_custom_vendor():
     runner, mock_handler = _make_submit_runner()
-    runner.job.filler = True
-    runner.job.program.title = "my-function"
-    runner.job.compute_profile_id = "160x1792x8h100"
-    runner.job.author.username = "alice"
-
-    with _patch_settings():
-        runner.submit()
-
-    assert mock_handler.submit_job.call_args.kwargs["name"].startswith("fil-my-function-160x1792x8h100-alice-")
-
-
-def test_submit_fleet_name_is_sanitized_and_bounded():
-    """Characters Code Engine rejects are replaced, and the name stays within 63 characters."""
-    runner, mock_handler = _make_submit_runner()
-    runner.job.filler = True
+    runner.job.id = "1b2c3d4e-0000-4000-8000-000000000001"
     runner.job.program.title = "My Function! With Spaces And A Very Long Title"
-    runner.job.compute_profile_id = "gx3d-24x120x1a100p"
-    runner.job.author.username = "IBMid-1000000000"
+    runner.job.program.provider = None
 
     with _patch_settings():
         runner.submit()
 
     name = mock_handler.submit_job.call_args.kwargs["name"]
-    assert re.fullmatch(r"[a-z0-9-]+", name), name
-    assert len(name) <= 63, name
-    assert name.startswith("fil-my-function-wi-gx3d-24x120x1a-ibmid-10000000-")
+    assert name == "custom-my-function-1b2c3d4e-0000-4000-8000-000000000001"
+    assert len(name) <= 63
+
+
+def test_submit_adopts_the_fleet_returned_for_a_name_conflict():
+    runner, mock_handler = _make_submit_runner()
+    mock_handler.submit_job.return_value = {"id": "existing-fleet"}
+
+    with _patch_settings():
+        runner.submit()
+
+    assert runner.job.fleet_id == "existing-fleet"
+
+
+def test_submit_retries_a_name_conflict_the_lookup_could_not_resolve():
+    runner, mock_handler = _make_submit_runner()
+    mock_handler.submit_job.side_effect = ApiException(status=409, reason="Conflict")
+    mock_handler.submit_job.side_effect.body = '{"errors": [{"code": "fleet_resource_name_conflict"}]}'
+
+    with _patch_settings():
+        with pytest.raises(RunnerRetryableError):
+            runner.submit()
 
 
 def test_submit_raises_runner_error_when_cos_not_configured():

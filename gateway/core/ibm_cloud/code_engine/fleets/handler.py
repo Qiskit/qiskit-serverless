@@ -38,6 +38,7 @@ Example usage::
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import time
@@ -60,6 +61,9 @@ _CANCEL_PROCESSING_TASKS_KEY = "cancel_processing_tasks"
 # "nothing to cancel".
 _ALREADY_CANCELED_CODE = "fleet_already_canceled"
 
+# Code Engine's error code, with a 409, for a create whose fleet name already exists in the project.
+_NAME_CONFLICT_CODE = "fleet_resource_name_conflict"
+
 # How the generated models word their own validation failures, e.g.
 # "Invalid value for `status` (standby), must be one of [...]". Used to tell a response body the
 # model would not map from a ValueError raised before the request was ever sent. If the client is
@@ -74,6 +78,11 @@ def _is_already_canceled(exc: ApiException) -> bool:
     The status is not checked here. The caller pairs this with the 409 it applies to.
     """
     return _ALREADY_CANCELED_CODE in str(getattr(exc, "body", "") or "")
+
+
+def is_name_conflict(exc: ApiException) -> bool:
+    """Return True if a create was refused because a fleet with that name already exists."""
+    return exc.status == 409 and _NAME_CONFLICT_CODE in str(getattr(exc, "body", "") or "")
 
 
 class FleetHandler:
@@ -133,7 +142,8 @@ class FleetHandler:
                 (e.g. ``run_commands``, ``scale_max_execution_time``).
 
         Returns:
-            The fleet object returned by the swagger client.
+            The fleet object returned by the swagger client, or ``{"id": ...}`` of the fleet that already has
+            this name, when Code Engine refuses the create as a name conflict.
         """
         body: dict[str, Any] = {
             "name": name,
@@ -157,6 +167,11 @@ class FleetHandler:
             created = self._fleets_api.create_fleet(project_id=self.project_id, body=body)
             return created
         except ApiException as exc:
+            if is_name_conflict(exc):
+                fleet_id = self.find_fleet_id(name)
+                if fleet_id:
+                    logger.info("Fleet [%s] named %s already exists, using it", fleet_id, name)
+                    return {"id": fleet_id}
             logger.error(
                 "create_fleet failed: project_id=%s status=%s reason=%s",
                 self.project_id,
@@ -164,6 +179,25 @@ class FleetHandler:
                 exc.reason,
             )
             raise
+
+    def find_fleet_id(self, name: str) -> str | None:
+        """The id of the fleet with this name in the project, or None.
+
+        Reads every page, because the list puts the oldest fleets first, and reads the raw JSON, because the
+        generated model rejects a ``standby`` fleet.
+        """
+        start = None
+        while True:
+            kwargs: dict[str, Any] = {"limit": 100, "_preload_content": False}
+            if start:
+                kwargs["start"] = start
+            page = json.loads(self._fleets_api.list_fleets(project_id=self.project_id, **kwargs).data)
+            for fleet in page.get("fleets") or []:
+                if fleet.get("name") == name:
+                    return fleet.get("id")
+            start = (page.get("next") or {}).get("start")
+            if not start:
+                return None
 
     def resolve_subnet_pool_id(self, name: str) -> str:
         """Resolve a subnet pool name to its id within this project.
