@@ -1193,6 +1193,19 @@ class TestExecutionProject:
 
         assert resolved.project_id == "only-id"
 
+    def test_falls_back_to_an_inactive_program_project(self):
+        """A pre-0053 job whose project was offboarded is exactly what the cleanup is for."""
+        project = TestUtils.get_or_create_ce_project(
+            project_name="offboarded", project_id="off-id", cos_bucket_user_data_name="b6"
+        )
+        project.active = False
+        project.save(update_fields=["active", "updated"])
+        job = self._job(self._program(project), ce_project_name=None)
+
+        resolved = FleetsRunner(job)._execution_project()  # pylint: disable=protected-access
+
+        assert resolved.project_id == "off-id"
+
     def test_deletes_from_an_inactive_project(self):
         project = TestUtils.get_or_create_ce_project(
             project_name="gone-project", project_id="gone-id", cos_bucket_user_data_name="b4"

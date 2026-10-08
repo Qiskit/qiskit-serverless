@@ -530,15 +530,20 @@ class FleetsRunner(AbstractRunner):
     def _execution_project(self) -> CodeEngineProject:
         """Return the project the fleet was created in, by name, falling back to the program's.
 
-        Accepts an inactive project, unlike ``_get_project``.
+        Accepts an inactive project, unlike ``_get_project``: an offboarded project still holds
+        fleets worth deleting.
 
         Raises:
             RunnerError: If the snapshot name matches no project, or there is no snapshot and the
-                program has none.
+                program is gone or has none.
         """
         if not self.job.ce_project_name:
             # Jobs created before migration 0053 have no snapshot
-            return self._get_project()
+            if not self.job.program:
+                raise RunnerError(f"Program for job '{self.job.id}' has been deleted")
+            if not self.job.program.code_engine_project:
+                raise RunnerError(f"No Code Engine project assigned to job '{self.job.id}'")
+            return self.job.program.code_engine_project
 
         project = CodeEngineProject.objects.select_by_name(self.job.ce_project_name, self.job.ce_region)
         if not project:

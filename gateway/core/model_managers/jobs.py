@@ -44,7 +44,7 @@ class JobQuerySet(QuerySet):
     """Job events query set to transform into a manager."""
 
     def held_fleets(self) -> Self:
-        """Fleets jobs we have not finished with: a fleet_id and no fleet_deleted_at stamp.
+        """Fleets jobs whose Code Engine fleet we have not deleted: a fleet_id and no stamp.
 
         Narrower than the ``job_fleet_undeleted_idx`` partial index, which the ordering uses.
         """

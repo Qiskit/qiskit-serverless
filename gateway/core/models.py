@@ -604,7 +604,7 @@ class Job(models.Model):
     fleet_deleted_at = models.DateTimeField(
         null=True,
         blank=True,
-        help_text="When we stopped trying to delete the fleet",
+        help_text="When the fleet delete was accepted",
     )
     result = models.TextField(null=True, blank=True)
     status = models.CharField(

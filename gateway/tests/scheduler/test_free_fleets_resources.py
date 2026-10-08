@@ -9,7 +9,11 @@ from django.utils import timezone
 from core.config_key import ConfigKey
 from core.models import Config, Job, Program
 from core.services.runners import RunnerUnavailableError
-from scheduler.tasks.free_fleets_resources import FreeFleetsResources, MAX_DELETES_PER_CYCLE
+from scheduler.tasks.free_fleets_resources import (
+    FreeFleetsResources,
+    MAX_ATTEMPTS_PER_FLEET,
+    MAX_DELETES_PER_CYCLE,
+)
 from tests.utils import TestUtils
 
 pytestmark = pytest.mark.django_db
@@ -99,14 +103,30 @@ def test_keeps_a_fleet_inside_the_window(fleets_program):
     assert job.fleet_deleted_at is None
 
 
-def test_stamps_a_fleet_it_cannot_delete_so_it_stops_blocking_the_queue(fleets_program):
+def test_does_not_stamp_a_fleet_it_could_not_delete(fleets_program):
     job = _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1)
 
     free_resources = _run(_make_task(), deleted=False)
 
     free_resources.assert_called_once()
     job.refresh_from_db()
-    assert job.fleet_deleted_at is not None
+    assert job.fleet_deleted_at is None
+
+
+def test_gives_up_on_a_fleet_after_three_attempts(fleets_program):
+    """A row that keeps failing must stop consuming a slot in the batch."""
+    _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 2, fleet_id="broken")
+    task = _make_task()
+
+    for _ in range(MAX_ATTEMPTS_PER_FLEET):
+        _run(task, deleted=False)
+
+    _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, fleet_id="fine")
+    free_resources = _run(task, deleted=True)
+
+    assert free_resources.call_count == 1
+    assert Job.objects.filter(fleet_id="fine", fleet_deleted_at__isnull=False).exists()
+    assert Job.objects.filter(fleet_id="broken", fleet_deleted_at__isnull=True).exists()
 
 
 def test_does_nothing_while_disabled_but_still_reports(fleets_program):
@@ -120,6 +140,18 @@ def test_does_nothing_while_disabled_but_still_reports(fleets_program):
     job.refresh_from_db()
     assert job.fleet_deleted_at is None
     task.metrics.set_held_fleets.assert_called_once_with(1, "ce-test")
+
+
+def test_a_broken_metrics_report_does_not_stop_the_deletes(fleets_program):
+    job = _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1)
+    task = _make_task()
+    task.metrics.clear_held_fleets.side_effect = RuntimeError("prometheus is unhappy")
+
+    free_resources = _run(task)
+
+    free_resources.assert_called_once()
+    job.refresh_from_db()
+    assert job.fleet_deleted_at is not None
 
 
 def test_keeps_a_stopping_job(fleets_program):
@@ -182,16 +214,19 @@ def test_an_unavailable_cycle_records_exactly_one_failure(fleets_program):
     _run(task, error=unavailable).assert_not_called()
 
 
-def test_a_cycle_that_deleted_something_before_the_rate_limit_is_not_a_failure(fleets_program):
+def test_a_cycle_that_stopped_on_a_rate_limit_is_a_failure(fleets_program):
+    """Sustained partial rate limiting has to open the breaker instead of oscillating for ever."""
     for index in range(2 * _BREAKER_FAILURES):
         _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + index + 1, fleet_id=f"fleet-{index}")
     task = _make_task()
 
-    for _ in range(_BREAKER_FAILURES + 1):
+    for _ in range(_BREAKER_FAILURES):
         with patch(f"{_SCHEDULE_MOD}.get_runner") as get_runner:
             get_runner.return_value.free_resources.side_effect = [True, RunnerUnavailableError("429")]
             task.run()
-        assert get_runner.return_value.free_resources.call_count == 2, "the breaker opened on a healthy cycle"
+
+    free_resources = _run(task)
+    free_resources.assert_not_called()
 
 
 def test_deletes_at_most_one_batch_per_cycle(fleets_program):
