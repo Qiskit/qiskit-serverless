@@ -127,7 +127,7 @@ def test_run_with_function_size_happy_path(api_client, program):
     assert response.data["size_source"] == Job.SIZE_SOURCE_REQUESTED
 
     job = Job.objects.get(id=response.data["id"])
-    assert job.compute_profile == "4x16"
+    assert job.compute_profile_id == "4x16"
     assert job.size_source == Job.SIZE_SOURCE_REQUESTED
     assert job.function_size.function_size == "M"
 
@@ -275,3 +275,25 @@ def test_listing_jobs_does_not_query_each_compute_profile(api_client, user, prog
     # version reads `FROM "api_job" ... JOIN "api_computeprofile"`, so match the FROM.
     per_row_fetches = [q for q in captured.captured_queries if 'FROM "api_computeprofile"' in q["sql"]]
     assert per_row_fetches == [], f"profile should be joined into the page query, got {len(per_row_fetches)} fetches"
+
+
+def test_job_compute_profile_string_is_gone_from_model_and_responses(api_client, user, program):
+    """Guards the removal on a real `Job`, not a mock: the model has no `compute_profile`
+    attribute any more, and neither listing/detail response exposes the key -- only the
+    FK-backed `compute_profile_fk` survives.
+    """
+    profile = ComputeProfile.objects.get(compute_profile_id="24x120x1a100p")
+    job = TestUtils.create_job(author=user, program=program, compute_profile_fk=profile)
+
+    assert not hasattr(job, "compute_profile")
+
+    list_response = api_client.get(reverse("v1:jobs-list"), format="json")
+    detail_response = api_client.get(reverse("v1:retrieve", kwargs={"job_id": job.id}), format="json")
+
+    assert list_response.status_code == status.HTTP_200_OK
+    assert detail_response.status_code == status.HTTP_200_OK
+    job_data = next(j for j in list_response.data["results"] if j.get("id") == str(job.id))
+    assert "compute_profile" not in job_data
+    assert "compute_profile" not in detail_response.data
+    assert job_data["compute_profile_fk"]["compute_profile_id"] == "24x120x1a100p"
+    assert detail_response.data["compute_profile_fk"]["compute_profile_id"] == "24x120x1a100p"
