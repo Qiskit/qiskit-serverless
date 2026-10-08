@@ -1,37 +1,47 @@
-"""Unit tests for the workload payload builder. Pure, in memory, no database."""
+"""Tests for the workload payload builder. It reads the job's events, so it needs the database."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 import pytest
 from django.contrib.auth.models import User
 
-from core.domain.workload_payload import build_workload_payload, map_status
-from core.models import FunctionSize, Job, Program, Provider
+from core.domain.workload_payload import _iso, build_workload_payload, map_status
+from core.model_managers.job_events import JobEventContext, JobEventOrigin
+from core.models import ComputeProfile, FunctionSize, Job, JobEvent, Program, Provider
 
 CRN = "crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::"
-CREATED = datetime(2026, 10, 8, 10, 0, 0, tzinfo=timezone.utc)
-STARTED = datetime(2026, 10, 8, 10, 1, 0, tzinfo=timezone.utc)
-ENDED = datetime(2026, 10, 8, 10, 5, 0, tzinfo=timezone.utc)
+
+pytestmark = pytest.mark.django_db
 
 
-def _job(**overrides) -> Job:
-    defaults = dict(
-        author=User(username="alice"),
-        program=Program(title="sampler", provider=Provider(name="ibm")),
-        instance_crn=CRN,
-        compute_profile_fk_id="16x128",
-        function_size=FunctionSize(function_size="m"),
-        created=CREATED,
-        running_started_at=STARTED,
+def _add_status_event(job, status):
+    return JobEvent.objects.add_status_event(
+        job_id=job.id,
+        origin=JobEventOrigin.SCHEDULER,
+        context=JobEventContext.UPDATE_JOB_STATUS,
+        status=status,
     )
-    defaults.update(overrides)
-    return Job(**defaults)
 
 
 def test_builds_the_full_envelope_for_a_finished_job():
-    job = _job()
+    alice = User.objects.create_user(username="alice")
+    provider = Provider.objects.create(name="ibm")
+    program = Program.objects.create(title="sampler", provider=provider, author=alice)
+    profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+    size = FunctionSize.objects.create(function=program, function_size="m", compute_profile=profile)
+    job = Job.objects.create(
+        author=alice,
+        program=program,
+        runner=Program.FLEETS,
+        status=Job.SUCCEEDED,
+        instance_crn=CRN,
+        compute_profile_fk=profile,
+        function_size=size,
+    )
+    running = _add_status_event(job, Job.RUNNING)
+    ended = _add_status_event(job, Job.SUCCEEDED)
 
-    assert build_workload_payload(job, Job.SUCCEEDED, ENDED) == {
+    assert build_workload_payload(job) == {
         "function_id": str(job.id),
         "body": {
             "name": "sampler",
@@ -41,22 +51,23 @@ def test_builds_the_full_envelope_for_a_finished_job():
             "status": "Completed",
             "compute_profile": "16x128",
             "size": "M",
-            "created_at": CREATED.isoformat(),
-            "running_at": STARTED.isoformat(),
-            "ended_at": ENDED.isoformat(),
+            "created_at": job.created.isoformat(),
+            "running_at": running.created.isoformat(),
+            "ended_at": ended.created.isoformat(),
         },
     }
 
 
 def test_optional_fields_are_present_and_none_when_the_job_has_no_value_for_them():
-    job = _job(
-        program=Program(title="mine", provider=None),
-        function_size=None,
-        running_started_at=None,
-        compute_profile_fk_id=None,
+    bob = User.objects.create_user(username="bob")
+    job = Job.objects.create(
+        author=bob,
+        program=Program.objects.create(title="mine", provider=None, author=bob),
+        runner=Program.FLEETS,
+        status=Job.QUEUED,
     )
 
-    body = build_workload_payload(job, Job.QUEUED, None)["body"]
+    body = build_workload_payload(job)["body"]
 
     assert body["status"] == "Queued"
     assert set(body) == {
@@ -91,4 +102,4 @@ def test_every_job_status_maps_and_an_unknown_one_raises():
 
 def test_a_naive_datetime_is_rejected():
     with pytest.raises(ValueError, match="timezone"):
-        build_workload_payload(_job(), Job.SUCCEEDED, datetime(2026, 10, 8, 10, 5, 0))
+        _iso(datetime(2026, 10, 8, 10, 5, 0))

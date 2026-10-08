@@ -82,7 +82,7 @@ class RuntimeApiClient:
         if not Config.get_bool(ConfigKey.WORKLOADS_MIRROR_ENABLED):
             return
         if not settings.FUNCTIONS_OPERATOR_API_KEY:
-            raise RuntimeApiConfigError("workloads.mirror.enabled is on but FUNCTIONS_OPERATOR_API_KEY is not set")
+            raise RuntimeApiConfigError("FUNCTIONS_OPERATOR_API_KEY is not set")
 
         function_id, body = payload["function_id"], payload["body"]
         base_url = regional_base_url(
