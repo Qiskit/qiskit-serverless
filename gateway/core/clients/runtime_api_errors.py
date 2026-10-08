@@ -1,32 +1,21 @@
 """Errors shared by every client of the Runtime API.
 
-The type says what a caller can do. Catch the two permanent subclasses first, ``RuntimeApiConfigError`` and
-``RuntimeApiRejectedError``: sending the same thing again cannot succeed. Then catch the base class
-``RuntimeApiError``, which is what is raised directly for a transient failure that may succeed later.
+``RuntimeApiError`` is the normal error and it is permanent: sending the same thing again cannot succeed.
+``RuntimeApiRetryableError`` is its subclass for a transient failure. To retry, catch ``RuntimeApiRetryableError``
+first and then ``RuntimeApiError``; a plain ``except RuntimeApiError`` catches every client failure.
 """
 
 
 class RuntimeApiError(Exception):
-    """The Runtime API call failed. Raised directly, it is a transient failure (a 5xx, 408 or 429 status, a network
-    error, an IAM failure other than a rejected key), so trying again later can succeed. It is also the base class of
-    the permanent errors below."""
+    """The Runtime API call failed and trying again cannot help: the credential is missing, malformed or rejected by
+    IAM, or the Runtime API answered with a 4xx other than 408 or 429 (invalid payload, unknown instance).
+    ``status_code`` is set when the error comes from a response."""
 
     def __init__(self, message: str, *, status_code: int | None = None):
         super().__init__(message)
         self.status_code = status_code
 
 
-class RuntimeApiConfigError(RuntimeApiError):
-    """Permanent: the deployment is not configured for the call (credential missing, malformed or rejected by IAM).
-    Retrying cannot fix it."""
-
-    def __init__(self, message: str):
-        super().__init__(message)
-
-
-class RuntimeApiRejectedError(RuntimeApiError):
-    """Permanent: the Runtime API answered with a 4xx other than 408 or 429, so sending the same payload again cannot
-    succeed (invalid payload, unknown instance)."""
-
-    def __init__(self, message: str, *, status_code: int):
-        super().__init__(message, status_code=status_code)
+class RuntimeApiRetryableError(RuntimeApiError):
+    """The Runtime API call failed in a way that trying again later can fix: a 408, 429 or 5xx status, a network
+    error, or an IAM token failure that is not a rejected key."""

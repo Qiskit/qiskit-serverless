@@ -8,7 +8,7 @@ The pieces shared with other Runtime API clients live elsewhere: the errors in `
 regional host in ``core/domain/crn.py`` (``regional_base_url``).
 
 One attempt per call and no internal retry: the caller decides what a failure means, and the type of the
-``RuntimeApiError`` raised tells it whether trying again can help (see ``runtime_api_errors.py``).
+``RuntimeApiRetryableError`` says trying again can help, a plain ``RuntimeApiError`` says it cannot.
 """
 
 import logging
@@ -19,7 +19,7 @@ from django.conf import settings
 from ibm_cloud_sdk_core import ApiException
 from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
 
-from core.clients.runtime_api_errors import RuntimeApiConfigError, RuntimeApiError, RuntimeApiRejectedError
+from core.clients.runtime_api_errors import RuntimeApiError, RuntimeApiRetryableError
 from core.config_key import ConfigKey
 from core.domain.crn import regional_base_url
 from core.models import Config
@@ -47,11 +47,11 @@ class ServiceFunctionalRoleClient:
             return IAMAuthenticator(settings.FUNCTIONS_OPERATOR_API_KEY, url=settings.IAM_IBM_CLOUD_BASE_URL)
         except ValueError as exc:  # the SDK raises ValueError only from this constructor
             logger.error("FUNCTIONS_OPERATOR_API_KEY was rejected by the IAM client: %s", type(exc).__name__)
-            raise RuntimeApiConfigError("FUNCTIONS_OPERATOR_API_KEY is malformed") from exc
+            raise RuntimeApiError("FUNCTIONS_OPERATOR_API_KEY is malformed") from exc
 
     def _token(self, timeout: float) -> str:
         """A valid IAM token. The SDK's token manager caches it and refreshes it near expiry, so ask on every call.
-        Raises RuntimeApiConfigError when the key itself is the problem and a transient RuntimeApiError otherwise."""
+        Raises RuntimeApiError when the key itself is the problem and RuntimeApiRetryableError otherwise."""
         if self._authenticator is None:
             with self._authenticator_lock:
                 if self._authenticator is None:
@@ -64,23 +64,22 @@ class ServiceFunctionalRoleClient:
         except ApiException as exc:
             if exc.status_code in _KEY_REJECTED:
                 logger.error("IAM rejected FUNCTIONS_OPERATOR_API_KEY with status %s", exc.status_code)
-                raise RuntimeApiConfigError(
-                    f"IAM rejected FUNCTIONS_OPERATOR_API_KEY (status {exc.status_code})"
-                ) from exc
+                raise RuntimeApiError(f"IAM rejected FUNCTIONS_OPERATOR_API_KEY (status {exc.status_code})") from exc
             logger.error("Could not get an IAM token, status %s", exc.status_code)
-            raise RuntimeApiError("Could not get an IAM token") from exc
+            raise RuntimeApiRetryableError("Could not get an IAM token") from exc
         except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.error("Could not get an IAM token: %s", type(exc).__name__)
-            raise RuntimeApiError("Could not get an IAM token") from exc
+            raise RuntimeApiRetryableError("Could not get an IAM token") from exc
 
     def put_function(self, payload: dict) -> None:
         """Send ``payload`` to the Runtime API. Returns when it applied it (200) or ignored it because the function was
         already terminal (202). Does nothing at all while ``workloads.mirror.enabled`` is off. Raises
-        RuntimeApiConfigError if it is on and FUNCTIONS_OPERATOR_API_KEY is empty, and RuntimeApiError otherwise."""
+        RuntimeApiError for a permanent failure (including FUNCTIONS_OPERATOR_API_KEY empty while it is on) and
+        RuntimeApiRetryableError for a transient one."""
         if not Config.get_bool(ConfigKey.WORKLOADS_MIRROR_ENABLED):
             return
         if not settings.FUNCTIONS_OPERATOR_API_KEY:
-            raise RuntimeApiConfigError("FUNCTIONS_OPERATOR_API_KEY is not set")
+            raise RuntimeApiError("FUNCTIONS_OPERATOR_API_KEY is not set")
 
         function_id, body = payload["function_id"], payload["body"]
         base_url = regional_base_url(
@@ -104,7 +103,7 @@ class ServiceFunctionalRoleClient:
             )
         except requests.RequestException as exc:
             logger.error("function_id=%s connection error: %s", function_id, exc)
-            raise RuntimeApiError("Error connecting to the Runtime API") from exc
+            raise RuntimeApiRetryableError("Error connecting to the Runtime API") from exc
 
         if response.status_code in (200, 202):
             return
@@ -116,7 +115,7 @@ class ServiceFunctionalRoleClient:
             transient,
             response.text[:300],
         )
-        error_class = RuntimeApiError if transient else RuntimeApiRejectedError
+        error_class = RuntimeApiRetryableError if transient else RuntimeApiError
         raise error_class(
             f"Unexpected status {response.status_code} for function {function_id}", status_code=response.status_code
         )

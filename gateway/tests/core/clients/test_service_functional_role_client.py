@@ -6,7 +6,7 @@ import pytest
 import requests
 from ibm_cloud_sdk_core import ApiException
 
-from core.clients.runtime_api_errors import RuntimeApiConfigError, RuntimeApiError, RuntimeApiRejectedError
+from core.clients.runtime_api_errors import RuntimeApiError, RuntimeApiRetryableError
 from core.clients.service_functional_role_client import ServiceFunctionalRoleClient
 from core.clients.workload_sender import WorkloadSender
 from core.config_key import ConfigKey
@@ -103,12 +103,13 @@ def test_flag_off_sends_nothing_and_does_not_need_the_key(flag, put, authenticat
     authenticator.assert_not_called()
 
 
-def test_flag_on_without_the_key_raises_a_config_error(flag, put, settings):
+def test_flag_on_without_the_key_is_a_permanent_error(flag, put, settings):
     settings.FUNCTIONS_OPERATOR_API_KEY = ""
 
-    with pytest.raises(RuntimeApiConfigError) as error:
+    with pytest.raises(RuntimeApiError) as error:
         ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
+    assert not isinstance(error.value, RuntimeApiRetryableError)
     put.assert_not_called()
 
 
@@ -122,27 +123,28 @@ def test_202_is_a_success(flag, put):
 def test_a_4xx_status_is_a_permanent_rejection(flag, put, status_code):
     put.return_value = MagicMock(status_code=status_code, text="bad field")
 
-    with pytest.raises(RuntimeApiRejectedError) as error:
+    with pytest.raises(RuntimeApiError) as error:
         ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
+    assert not isinstance(error.value, RuntimeApiRetryableError)
     assert error.value.status_code == status_code
 
 
 @pytest.mark.parametrize("status_code", [408, 429, 500])
-def test_a_transient_status_is_the_base_error(flag, put, status_code):
+def test_a_transient_status_is_the_retryable_error(flag, put, status_code):
     put.return_value = MagicMock(status_code=status_code, text="try later")
 
     with pytest.raises(RuntimeApiError) as error:
         ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
-    assert not isinstance(error.value, (RuntimeApiConfigError, RuntimeApiRejectedError))
+    assert isinstance(error.value, RuntimeApiRetryableError)
     assert error.value.status_code == status_code
 
 
 def test_an_error_status_logs_the_start_of_the_response_body(flag, put, caplog):
     put.return_value = MagicMock(status_code=400, text="field size is invalid")
 
-    with pytest.raises(RuntimeApiRejectedError):
+    with pytest.raises(RuntimeApiError):
         ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
     assert "field size is invalid" in caplog.text
@@ -154,7 +156,7 @@ def test_network_failures_are_transient(flag, put):
     with pytest.raises(RuntimeApiError) as error:
         ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
-    assert not isinstance(error.value, (RuntimeApiConfigError, RuntimeApiRejectedError))
+    assert isinstance(error.value, RuntimeApiRetryableError)
 
 
 def test_iam_failures_are_transient(flag, put, authenticator):
@@ -163,16 +165,17 @@ def test_iam_failures_are_transient(flag, put, authenticator):
     with pytest.raises(RuntimeApiError) as error:
         ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
-    assert not isinstance(error.value, (RuntimeApiConfigError, RuntimeApiRejectedError))
+    assert isinstance(error.value, RuntimeApiRetryableError)
     put.assert_not_called()
 
 
-def test_an_iam_rejection_of_the_key_is_a_config_error(flag, put, authenticator):
+def test_an_iam_rejection_of_the_key_is_a_permanent_error(flag, put, authenticator):
     authenticator.return_value.token_manager.get_token.side_effect = ApiException(401, message="unauthorized")
 
-    with pytest.raises(RuntimeApiConfigError) as error:
+    with pytest.raises(RuntimeApiError) as error:
         ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
+    assert not isinstance(error.value, RuntimeApiRetryableError)
     assert "operator-key" not in str(error.value)
     put.assert_not_called()
 
@@ -183,15 +186,16 @@ def test_a_non_json_iam_response_is_transient(flag, put, authenticator):
     with pytest.raises(RuntimeApiError) as error:
         ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
-    assert not isinstance(error.value, (RuntimeApiConfigError, RuntimeApiRejectedError))
+    assert isinstance(error.value, RuntimeApiRetryableError)
 
 
-def test_a_malformed_key_is_a_config_error(flag, put, authenticator):
+def test_a_malformed_key_is_a_permanent_error(flag, put, authenticator):
     authenticator.side_effect = ValueError("bad key")
 
-    with pytest.raises(RuntimeApiConfigError) as error:
+    with pytest.raises(RuntimeApiError) as error:
         ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
+    assert not isinstance(error.value, RuntimeApiRetryableError)
     assert "operator-key" not in str(error.value)
     put.assert_not_called()
 
