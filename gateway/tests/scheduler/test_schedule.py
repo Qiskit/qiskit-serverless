@@ -23,7 +23,7 @@ from core.services.storage import get_logs_storage
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 
-from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_ray_job, execute_fleets_job, code_engine_paused
+from scheduler.schedule import FleetsJobSubmitter, get_jobs_to_schedule_fair_share, execute_ray_job
 from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
 
 from tests.utils import TestUtils
@@ -170,7 +170,7 @@ class TestScheduleApi(APITestCase):
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
-    def test_execute_fleets_job_success(self, mock_trace, mock_get_runner_client):
+    def test_fleets_submit_success(self, mock_trace, mock_get_runner_client):
         """Tests successful Fleets job execution via runner.submit()."""
         mock_runner = MagicMock()
         mock_get_runner_client.return_value = mock_runner
@@ -181,7 +181,7 @@ class TestScheduleApi(APITestCase):
         job.logs = ""
 
         ctx = MagicMock()
-        ret_job = execute_fleets_job(job, ctx, transitions)
+        ret_job = FleetsJobSubmitter(transitions).submit(job, ctx)
 
         mock_runner.submit.assert_called_once()
         assert ret_job.status == Job.PENDING
@@ -192,7 +192,7 @@ class TestScheduleApi(APITestCase):
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
-    def test_execute_fleets_job_failure(self, mock_trace, mock_get_runner_client):
+    def test_fleets_submit_failure(self, mock_trace, mock_get_runner_client):
         """Tests Fleets job execution failure handling."""
         mock_runner = MagicMock()
         mock_runner.submit.side_effect = RunnerError("Submit failed")
@@ -204,7 +204,7 @@ class TestScheduleApi(APITestCase):
         job.logs = ""
 
         ctx = MagicMock()
-        ret_job = execute_fleets_job(job, ctx, transitions)
+        ret_job = FleetsJobSubmitter(transitions).submit(job, ctx)
 
         mock_runner.submit.assert_called_once()
         assert ret_job.status == Job.FAILED
@@ -215,7 +215,7 @@ class TestScheduleApi(APITestCase):
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
-    def test_execute_fleets_job_leaves_the_job_untouched_when_code_engine_is_unavailable(
+    def test_fleets_submit_leaves_the_job_untouched_when_code_engine_is_unavailable(
         self, mock_trace, mock_get_runner_client
     ):
         Config.add_defaults()
@@ -229,7 +229,7 @@ class TestScheduleApi(APITestCase):
         job.env_vars = '{"KEY": "value"}'
 
         with pytest.raises(RunnerUnavailableError):
-            execute_fleets_job(job, MagicMock(), transitions)
+            FleetsJobSubmitter(transitions).submit(job, MagicMock())
 
         assert job.status == Job.QUEUED
         assert job.env_vars == '{"KEY": "value"}'
@@ -238,34 +238,58 @@ class TestScheduleApi(APITestCase):
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
-    def test_execute_fleets_job_skips_code_engine_once_the_breaker_opens(self, mock_trace, mock_get_runner_client):
+    def test_fleets_submit_skips_code_engine_once_the_breaker_opens(self, mock_trace, mock_get_runner_client):
         Config.add_defaults()
         Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "1")
         mock_get_runner_client.return_value.submit.side_effect = RunnerUnavailableError("Too Many Requests")
 
+        submitter = FleetsJobSubmitter(MagicMock())
+
         with pytest.raises(RunnerUnavailableError):
-            execute_fleets_job(MagicMock(), MagicMock(), MagicMock())
+            submitter.submit(MagicMock(), MagicMock())
         with pytest.raises(RunnerUnavailableError):
-            execute_fleets_job(MagicMock(), MagicMock(), MagicMock())
+            submitter.submit(MagicMock(), MagicMock())
 
         mock_get_runner_client.return_value.submit.assert_called_once()
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
-    def test_execute_fleets_job_does_not_count_a_failed_job_against_the_breaker(
-        self, mock_trace, mock_get_runner_client
-    ):
+    def test_fleets_submit_reaches_code_engine_again_once_the_pause_is_over(self, mock_trace, mock_get_runner_client):
+        Config.add_defaults()
+        Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "1")
+        Config.set(ConfigKey.FLEETS_BREAKER_PAUSE_SECONDS, "60")
+        runner = mock_get_runner_client.return_value
+        runner.submit.side_effect = RunnerUnavailableError("Too Many Requests")
+        submitter = FleetsJobSubmitter(MagicMock())
+
+        with patch("scheduler.tasks.circuit_breaker.time.monotonic", return_value=1000.0):
+            with pytest.raises(RunnerUnavailableError):
+                submitter.submit(MagicMock(), MagicMock())
+            assert submitter.paused is True
+
+        runner.submit.side_effect = None
+        with patch("scheduler.tasks.circuit_breaker.time.monotonic", return_value=1061.0):
+            assert submitter.paused is False
+            submitter.submit(MagicMock(), MagicMock())
+
+        assert runner.submit.call_count == 2
+
+    @patch("scheduler.schedule.get_runner")
+    @patch("scheduler.schedule.trace")
+    def test_fleets_submit_does_not_count_a_failed_job_against_the_breaker(self, mock_trace, mock_get_runner_client):
         Config.add_defaults()
         Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "1")
         mock_get_runner_client.return_value.submit.side_effect = RunnerError("Bad Request")
 
-        execute_fleets_job(MagicMock(), MagicMock(), MagicMock())
+        submitter = FleetsJobSubmitter(MagicMock())
 
-        assert code_engine_paused() is False
+        submitter.submit(MagicMock(), MagicMock())
+
+        assert submitter.paused is False
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
-    def test_execute_fleets_job_fails_an_uncertain_submit_and_counts_it_against_the_breaker(
+    def test_fleets_submit_fails_an_uncertain_submit_and_counts_it_against_the_breaker(
         self, mock_trace, mock_get_runner_client
     ):
         Config.add_defaults()
@@ -274,16 +298,18 @@ class TestScheduleApi(APITestCase):
         transitions = MagicMock()
         job = MagicMock()
 
+        submitter = FleetsJobSubmitter(transitions)
+
         with pytest.raises(RunnerSubmitUncertainError):
-            execute_fleets_job(job, MagicMock(), transitions)
+            submitter.submit(job, MagicMock())
 
         assert job.status == Job.FAILED
         transitions.to_failed.assert_called_once()
-        assert code_engine_paused() is True
+        assert submitter.paused is True
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
-    def test_execute_fleets_job_does_not_raise_when_the_job_already_turned_terminal(
+    def test_fleets_submit_does_not_raise_when_the_job_already_turned_terminal(
         self, mock_trace, mock_get_runner_client
     ):
         """Lost the race: something else (e.g. a user-initiated stop) already moved the job to
@@ -301,15 +327,13 @@ class TestScheduleApi(APITestCase):
         job.logs = ""
 
         ctx = MagicMock()
-        ret_job = execute_fleets_job(job, ctx, transitions)  # must not raise
+        ret_job = FleetsJobSubmitter(transitions).submit(job, ctx)  # must not raise
 
         assert ret_job.status == Job.PENDING
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
-    def test_execute_fleets_job_does_not_raise_when_a_failed_submit_lost_the_race(
-        self, mock_trace, mock_get_runner_client
-    ):
+    def test_fleets_submit_does_not_raise_when_a_failed_submit_lost_the_race(self, mock_trace, mock_get_runner_client):
         """Same race when the submit failed: the job is returned as FAILED, like the caller expects."""
         mock_runner = MagicMock()
         mock_runner.submit.side_effect = RunnerError("Submit failed")
@@ -321,13 +345,13 @@ class TestScheduleApi(APITestCase):
         job.status = Job.QUEUED
         job.logs = ""
 
-        ret_job = execute_fleets_job(job, MagicMock(), transitions)  # must not raise
+        ret_job = FleetsJobSubmitter(transitions).submit(job, MagicMock())  # must not raise
 
         assert ret_job.status == Job.FAILED
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
-    def test_execute_fleets_job_returns_the_status_it_ended_with_when_the_transition_fails(
+    def test_fleets_submit_returns_the_status_it_ended_with_when_the_transition_fails(
         self, mock_trace, mock_get_runner_client
     ):
         """A failing transition propagates, but the job already carries the status the submit ended with:
@@ -341,7 +365,7 @@ class TestScheduleApi(APITestCase):
         job.logs = ""
 
         with pytest.raises(RuntimeError, match="db down"):
-            execute_fleets_job(job, MagicMock(), transitions)
+            FleetsJobSubmitter(transitions).submit(job, MagicMock())
 
         assert job.status == Job.FAILED
 
@@ -402,25 +426,25 @@ class TestScheduleApi(APITestCase):
             assert len(job_events) == 3
 
 
-def test_execute_fleets_job_records_the_given_event_context():
+def test_fleets_submit_records_the_given_event_context():
     """The JobEvent context is the caller's, defaulting to SCHEDULE_JOBS."""
     mock_job = MagicMock()
     mock_job.id = uuid.uuid4()
 
     transitions = MagicMock()
     with patch("scheduler.schedule.get_runner"):
-        execute_fleets_job(mock_job, None, transitions, context=JobEventContext.FILLER_SUBMIT)
+        FleetsJobSubmitter(transitions).submit(mock_job, None, context=JobEventContext.FILLER_SUBMIT)
 
     assert transitions.queued_to_pending.call_args.kwargs["context"] is JobEventContext.FILLER_SUBMIT
 
 
-def test_execute_fleets_job_defaults_to_the_schedule_jobs_context():
+def test_fleets_submit_defaults_to_the_schedule_jobs_context():
     """Callers that pass no context still record SCHEDULE_JOBS."""
     mock_job = MagicMock()
     mock_job.id = uuid.uuid4()
 
     transitions = MagicMock()
     with patch("scheduler.schedule.get_runner"):
-        execute_fleets_job(mock_job, None, transitions)
+        FleetsJobSubmitter(transitions).submit(mock_job, None)
 
     assert transitions.queued_to_pending.call_args.kwargs["context"] is JobEventContext.SCHEDULE_JOBS

@@ -12,7 +12,7 @@ from core.config_key import ConfigKey
 from core.models import Job, Config, Program
 from core.services.job_transitions import JobTransitionService
 from core.services.runners import RunnerSubmitUncertainError, RunnerUnavailableError
-from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_fleets_job, code_engine_paused
+from scheduler.schedule import FleetsJobSubmitter, get_jobs_to_schedule_fair_share
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
@@ -24,18 +24,23 @@ class ScheduleFleetsJobs(SchedulerTask):
     """Schedule Fleets (Code Engine) jobs service."""
 
     def __init__(
-        self, kill_signal: KillSignal, metrics: SchedulerMetrics, transitions: JobTransitionService | None = None
+        self,
+        kill_signal: KillSignal,
+        metrics: SchedulerMetrics,
+        transitions: JobTransitionService | None = None,
+        submitter: FleetsJobSubmitter | None = None,
     ):
         self.kill_signal = kill_signal
         self.metrics = metrics
         self.transitions = transitions or JobTransitionService()
+        self.submitter = submitter or FleetsJobSubmitter(self.transitions)
 
     def run(self):
         """Schedule queued Fleets jobs."""
         if Config.get_bool(ConfigKey.MAINTENANCE):
             logger.warning("System in maintenance mode. Skipping new jobs schedule.")
             return
-        if code_engine_paused():
+        if self.submitter.paused:
             logger.warning("Fleets submits are paused by the circuit breaker. Skipping new jobs schedule.")
             return
 
@@ -71,7 +76,7 @@ class ScheduleFleetsJobs(SchedulerTask):
             ctx = TraceContextTextMapPropagator().extract(carrier=env)
 
             try:
-                job = execute_fleets_job(job, ctx, self.transitions)
+                job = self.submitter.submit(job, ctx)
             except RunnerUnavailableError as ex:
                 logger.warning("job_id=%s Job kept QUEUED: %s", job.id, ex)
                 return

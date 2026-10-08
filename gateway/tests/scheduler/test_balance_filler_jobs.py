@@ -67,7 +67,7 @@ def _run(task, times=1):
     the returned call counts are the totals across all of them.
     """
     with (
-        patch(f"{_MOD}.execute_fleets_job", side_effect=_fake_submit) as submit,
+        patch.object(task.submitter, "submit", side_effect=_fake_submit) as submit,
         patch(f"{_MOD}.get_arguments_storage") as arguments,
         patch(f"{_MOD}.get_runner") as runner,
     ):
@@ -76,8 +76,8 @@ def _run(task, times=1):
     return submit, arguments, runner
 
 
-def _fake_submit(job, ctx, transitions, context=None):  # pylint: disable=unused-argument
-    """Stand in for execute_fleets_job: mark the job PENDING as a real submit would."""
+def _fake_submit(job, ctx, context=None):  # pylint: disable=unused-argument
+    """Stand in for FleetsJobSubmitter.submit: mark the job PENDING as a real submit would."""
     job.update_fields({"status": Job.PENDING})
     return job
 
@@ -492,7 +492,7 @@ def test_a_fleet_that_cannot_be_cancelled_keeps_the_job_active(filler_program):
     task = _make_task()
 
     with (
-        patch(f"{_MOD}.execute_fleets_job"),
+        patch.object(task.submitter, "submit"),
         patch(f"{_MOD}.get_arguments_storage"),
         patch(f"{_MOD}.get_runner") as runner,
     ):
@@ -508,7 +508,7 @@ def test_a_failed_creation_waits_out_the_delay_before_trying_again(filler_progra
     task = _make_task()
 
     with (
-        patch(f"{_MOD}.execute_fleets_job"),
+        patch.object(task.submitter, "submit"),
         patch(f"{_MOD}.get_arguments_storage", side_effect=ValueError("no bucket")) as arguments,
         patch(f"{_MOD}.get_runner"),
     ):
@@ -528,8 +528,9 @@ def test_a_failed_creation_waits_out_the_delay_before_trying_again(filler_progra
 def test_no_filler_job_is_created_while_code_engine_is_paused(filler_program):
     task = _make_task()
 
-    with patch(f"{_MOD}.code_engine_paused", return_value=True):
-        submit, arguments, _ = _run(task)
+    task.submitter = MagicMock(paused=True)
+
+    submit, arguments, _ = _run(task)
 
     submit.assert_not_called()
     arguments.assert_not_called()
@@ -541,7 +542,7 @@ def test_a_creation_that_fails_before_the_submit_discards_the_row(filler_program
     task = _make_task()
 
     with (
-        patch(f"{_MOD}.execute_fleets_job", side_effect=ValueError("no runner")),
+        patch.object(task.submitter, "submit", side_effect=ValueError("no runner")),
         patch(f"{_MOD}.get_arguments_storage"),
         patch(f"{_MOD}.get_runner"),
     ):

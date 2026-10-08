@@ -19,7 +19,7 @@ def _make_task():
 
 
 def test_fleets_execute_called_with_ctx():
-    """execute_fleets_job is called with the job, the tracing context extracted from env_vars and the task's transitions."""
+    """submit is called with the job and the tracing context extracted from env_vars."""
     task = _make_task()
 
     mock_job = MagicMock()
@@ -33,13 +33,13 @@ def test_fleets_execute_called_with_ctx():
 
     with (
         patch(f"{_MOD}.get_jobs_to_schedule_fair_share", return_value=[mock_job]),
-        patch(f"{_MOD}.execute_fleets_job", return_value=mock_job) as mock_execute,
+        patch.object(task.submitter, "submit", return_value=mock_job) as mock_execute,
         patch(f"{_MOD}.TraceContextTextMapPropagator") as mock_propagator,
     ):
         mock_propagator.return_value.extract.return_value = mock_ctx
         task._schedule_jobs_if_slots_available(max_slots_possible=5, number_of_slots_running=0)
 
-    mock_execute.assert_called_once_with(mock_job, mock_ctx, task.transitions)
+    mock_execute.assert_called_once_with(mock_job, mock_ctx)
 
 
 def test_add_queue_wait_time_metric_skips_filler_jobs():
@@ -70,7 +70,7 @@ def test_a_code_engine_failure_ends_the_tick(error):
 
     with (
         patch(f"{_MOD}.get_jobs_to_schedule_fair_share", return_value=jobs),
-        patch(f"{_MOD}.execute_fleets_job", side_effect=error) as mock_execute,
+        patch.object(task.submitter, "submit", side_effect=error) as mock_execute,
     ):
         task._schedule_jobs_if_slots_available(max_slots_possible=5, number_of_slots_running=0)
 
@@ -82,10 +82,9 @@ def test_run_skips_the_tick_while_code_engine_is_paused():
     Config.add_defaults()
     task = _make_task()
 
-    with (
-        patch(f"{_MOD}.code_engine_paused", return_value=True),
-        patch(f"{_MOD}.get_jobs_to_schedule_fair_share") as mock_fair_share,
-    ):
+    task.submitter = MagicMock(paused=True)
+
+    with patch(f"{_MOD}.get_jobs_to_schedule_fair_share") as mock_fair_share:
         task.run()
 
     mock_fair_share.assert_not_called()

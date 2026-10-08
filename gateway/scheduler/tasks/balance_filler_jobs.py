@@ -17,7 +17,7 @@ from core.services.storage import get_arguments_storage
 from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.schedule import execute_fleets_job, code_engine_paused
+from scheduler.schedule import FleetsJobSubmitter
 from .task import SchedulerTask
 
 logger = logging.getLogger("scheduler.BalanceFillerJobs")
@@ -39,11 +39,16 @@ class BalanceFillerJobs(SchedulerTask):
     """
 
     def __init__(
-        self, kill_signal: KillSignal, metrics: SchedulerMetrics, transitions: JobTransitionService | None = None
+        self,
+        kill_signal: KillSignal,
+        metrics: SchedulerMetrics,
+        transitions: JobTransitionService | None = None,
+        submitter: FleetsJobSubmitter | None = None,
     ):
         self.kill_signal = kill_signal
         self.metrics = metrics
         self.transitions = transitions or JobTransitionService()
+        self.submitter = submitter or FleetsJobSubmitter(self.transitions)
         self._retry_loops = 0
 
     def run(self):
@@ -224,7 +229,7 @@ class BalanceFillerJobs(SchedulerTask):
             self._retry_loops -= 1
             return
         # a shutdown or a paused Code Engine buys no delay
-        if self.kill_signal.received or code_engine_paused():
+        if self.kill_signal.received or self.submitter.paused:
             return
         if not self._submit_filler_job(program):
             self._retry_loops = RETRY_AFTER_LOOPS
@@ -262,10 +267,9 @@ class BalanceFillerJobs(SchedulerTask):
             return False
 
         try:
-            job = execute_fleets_job(
+            job = self.submitter.submit(
                 job,
                 TraceContextTextMapPropagator().extract(carrier={}),
-                self.transitions,
                 context=JobEventContext.FILLER_SUBMIT,
             )
         except DB_EXCEPTIONS:
@@ -282,7 +286,7 @@ class BalanceFillerJobs(SchedulerTask):
         submitted = job.status == Job.PENDING
         self.metrics.increment_filler_jobs_created("submitted" if submitted else "failed")
         logger.info("[BalanceFillerJobs] job_id=%s filler job submitted with status=%s", job.id, job.status)
-        # Not reaching PENDING means execute_fleets_job swallowed a RunnerError.
+        # Not reaching PENDING means submit() swallowed a RunnerError.
         return submitted
 
     def _log_creation_failed(self, ex: Exception) -> None:

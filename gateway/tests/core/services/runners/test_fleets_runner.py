@@ -459,7 +459,8 @@ def test_submit_raises_runner_error_when_cos_not_configured():
     "status, expected",
     [
         (429, RunnerUnavailableError),
-        (503, RunnerUnavailableError),
+        (500, RunnerSubmitUncertainError),
+        (503, RunnerSubmitUncertainError),
         (504, RunnerSubmitUncertainError),
         (400, RunnerError),
     ],

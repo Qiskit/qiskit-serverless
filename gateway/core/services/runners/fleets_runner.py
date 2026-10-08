@@ -178,10 +178,10 @@ class FleetsRunner(AbstractRunner):
             raise RunnerUnavailableError("Unable to reach COS", ex) from ex
         except ApiException as ex:
             status = ex.status or 0
-            if status in (0, 502, 504):
-                raise RunnerSubmitUncertainError(f"Code Engine API error: {ex.reason}", ex) from ex
-            if status == 429 or status >= 500:
+            if status == 429:
                 raise RunnerUnavailableError(f"Code Engine API error: {ex.reason}", ex) from ex
+            if status == 0 or status >= 500:
+                raise RunnerSubmitUncertainError(f"Code Engine API error: {ex.reason}", ex) from ex
             logger.error(
                 "CE API error submitting job_id=[%s]: status=%s reason=%s",
                 self.job.id,
