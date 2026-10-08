@@ -118,8 +118,6 @@ class FleetsJobSubmitter:
                     time.monotonic() - start,
                 )
             except RunnerRetryableError:
-                # NOTE: a job that is always unavailable, for example a CE project with a wrong region, stays QUEUED
-                # and pauses submits to its region. Follow-up: fail it after a time limit.
                 breaker.record_failure()
                 raise
             except RunnerError as ex:

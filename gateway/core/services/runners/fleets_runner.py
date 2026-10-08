@@ -25,7 +25,7 @@ from django.template.loader import get_template
 from ibm_botocore.exceptions import ClientError
 from ibm_botocore.exceptions import ConnectionError as BotoConnectionError
 from ibm_botocore.exceptions import HTTPClientError as BotoHTTPClientError
-from urllib3.exceptions import MaxRetryError, ProtocolError, ReadTimeoutError
+from urllib3.exceptions import MaxRetryError, NameResolutionError, ProtocolError, ReadTimeoutError
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
 from core.domain import compute_profile
@@ -196,7 +196,11 @@ class FleetsRunner(AbstractRunner):
                 "CE API error before submitting job_id=[%s]: status=%s reason=%s", self.job.id, status, ex.reason
             )
             raise RunnerError(f"Code Engine API error: {ex.reason}", ex) from ex
-        except (BotoConnectionError, BotoHTTPClientError, MaxRetryError, ReadTimeoutError, ProtocolError) as ex:
+        except MaxRetryError as ex:
+            if isinstance(ex.reason, NameResolutionError):
+                raise RunnerError("Unable to resolve the Code Engine host, check the CE project region", ex) from ex
+            raise RunnerRetryableError("Unable to reach Code Engine", ex) from ex
+        except (BotoConnectionError, BotoHTTPClientError, ReadTimeoutError, ProtocolError) as ex:
             raise RunnerRetryableError("Unable to reach COS or Code Engine", ex) from ex
         except Exception as ex:
             logger.error("Failed to upload job_id=[%s] to COS: %s", self.job.id, ex)
@@ -274,7 +278,11 @@ class FleetsRunner(AbstractRunner):
                 raise RunnerRetryableError(f"Code Engine API error: {ex.reason}", ex) from ex
             logger.error("CE API error submitting job_id=[%s]: status=%s reason=%s", self.job.id, status, ex.reason)
             raise RunnerError(f"Code Engine API error: {ex.reason}", ex) from ex
-        except (MaxRetryError, ReadTimeoutError, ProtocolError) as ex:
+        except MaxRetryError as ex:
+            if isinstance(ex.reason, NameResolutionError):
+                raise RunnerError("Unable to resolve the Code Engine host, check the CE project region", ex) from ex
+            raise RunnerRetryableError("Unable to reach Code Engine", ex) from ex
+        except (ReadTimeoutError, ProtocolError) as ex:
             raise RunnerRetryableError("Unable to reach Code Engine", ex) from ex
         except Exception as ex:
             logger.error("Failed to submit job_id=[%s]: %s", self.job.id, ex)

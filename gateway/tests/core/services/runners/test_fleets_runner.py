@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from django.conf import settings as django_settings
 from ibm_botocore.exceptions import ClientError, ReadTimeoutError
-from urllib3.exceptions import MaxRetryError, NewConnectionError, ProtocolError
+from urllib3.exceptions import MaxRetryError, NameResolutionError, NewConnectionError, ProtocolError
 
 from core.domain.compute_profile import normalize as normalize_compute_profile
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
@@ -524,6 +524,19 @@ def test_submit_raises_unavailable_when_code_engine_fails_before_the_create(erro
 
     assert type(exc.value) is RunnerRetryableError
     mock_handler.submit_job.assert_not_called()
+
+
+def test_submit_fails_the_job_when_the_code_engine_host_does_not_resolve():
+    runner, mock_handler = _make_submit_runner()
+    mock_handler.submit_job.side_effect = MaxRetryError(
+        None, "/", reason=NameResolutionError("api.wrong.codeengine.cloud.ibm.com", None, "not found")
+    )
+
+    with _patch_settings():
+        with pytest.raises(RunnerError) as exc:
+            runner.submit()
+
+    assert type(exc.value) is RunnerError
 
 
 def test_submit_raises_unavailable_when_the_connection_never_opened():
