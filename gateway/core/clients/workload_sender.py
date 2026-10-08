@@ -2,7 +2,7 @@
 
 import logging
 
-from core.clients.runtime_api_client import RuntimeApiClient, RuntimeApiError
+from core.clients.runtime_api_client import RuntimeApiClient
 from core.ibm_cloud.sender import Sender
 
 logger = logging.getLogger("gateway.clients.workload_sender")

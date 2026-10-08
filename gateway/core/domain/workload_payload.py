@@ -1,11 +1,12 @@
 """Builder for the message that mirrors a Functions job to the Runtime API as a workload.
 
 The result is the envelope ``{"function_id", "body"}``: ``function_id`` goes in the URL path and ``body`` is
-exactly what the Runtime API receives. It is built from the job's state at the moment the fact became true and can be stored
-as-is (for example in ``Outbox.payload``) and sent later by ``core.clients.workload_sender.WorkloadSender``.
+exactly what the Runtime API receives. It is built from the job's state at the moment the fact became true and can
+be stored as-is (for example in ``Outbox.payload``) and sent later by
+``core.clients.workload_sender.WorkloadSender``.
 
-The Runtime API replaces the whole row on every call, so ``body`` always carries all ten keys, with ``None`` for the ones the
-job has no value for.
+The Runtime API replaces the whole row on every call, so ``body`` always carries all ten keys, with ``None`` for the
+ones the job has no value for.
 """
 
 from datetime import datetime
