@@ -11,8 +11,8 @@ logger = logging.getLogger("gateway.clients.workload_sender")
 
 class WorkloadSender(Sender):
     """Delivers a workload envelope with a ServiceFunctionalRoleClient, one HTTP call per message. The client always
-    uses ``settings.WORKLOADS_MIRROR_TIMEOUT`` as its request timeout; the ``timeout`` argument of ``send`` is only a
-    switch. With timeout > 0, ``send`` calls the client in the caller's thread and raises RuntimeApiError on failure.
+    uses the ``workloads.mirror.timeout_ms`` config as its request timeout; the ``timeout`` argument of ``send`` is only
+    a switch. With timeout > 0, ``send`` calls the client in the caller's thread and raises RuntimeApiError on failure.
     With timeout=0 (best effort) it hands the call to the shared best-effort pool and returns at once, never raising:
     the request runs in the background, a failure is logged, and if the pool is full the update is dropped."""
 

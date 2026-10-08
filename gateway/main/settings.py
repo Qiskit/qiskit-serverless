@@ -470,14 +470,10 @@ RUNTIME_API_CACHE_TTL = int(os.environ.get("RUNTIME_API_CACHE_TTL", "60"))
 # bare host; other regions are reached via a "{region}." host prefix derived from the CRN.
 RUNTIME_API_DEFAULT_REGION = os.environ.get("RUNTIME_API_DEFAULT_REGION", "us-east")
 
-# Service credential and client timeout for mirroring Functions jobs to Runtime API workloads. The key is empty
-# unless the deployment provides it; the client only requires it while workloads.mirror.enabled is on. The timeout, in
-# seconds, bounds every HTTP request of a mirror call (the IAM token exchange and the PUT); the client always uses
-# it, whatever timeout the outbox passes to Sender.send. There timeout=0 hands the call to the shared best-effort pool
-# and returns at once (the request still takes up to this long, but in the background; if the pool is full the update
-# is dropped), and any other value makes the call in the caller's thread and raises on failure.
+# Service credential for mirroring Functions jobs to Runtime API workloads. The key is empty unless the deployment
+# provides it; the client only requires it while workloads.mirror.enabled is on. The request timeout is the dynamic
+# config key workloads.mirror.timeout_ms.
 FUNCTIONS_OPERATOR_API_KEY = os.environ.get("FUNCTIONS_OPERATOR_API_KEY", "")
-WORKLOADS_MIRROR_TIMEOUT = float(os.environ.get("WORKLOADS_MIRROR_TIMEOUT", "3"))
 
 # Shared per-process thread pool for best-effort work (core/services/best_effort_executor.py): how many threads it
 # has, and how many tasks may be submitted and unfinished before new ones are dropped.
@@ -553,6 +549,12 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "type": "boolean",
         "description": "Mirror Functions jobs to the Runtime API as workloads. When on, "
         "FUNCTIONS_OPERATOR_API_KEY must be set or the client raises on every call.",
+    },
+    "workloads.mirror.timeout_ms": {
+        "default": "3000",
+        "type": "integer",
+        "description": "Timeout in milliseconds for each HTTP request of one workload mirror call, both the IAM token "
+        "exchange and the Runtime API request.",
     },
     "scheduler.filler.enabled": {
         "default": "false",

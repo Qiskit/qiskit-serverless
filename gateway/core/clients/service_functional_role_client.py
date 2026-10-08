@@ -38,7 +38,7 @@ class ServiceFunctionalRoleClient:
     def __init__(self) -> None:
         self._authenticator: IAMAuthenticator | None = None
 
-    def _token(self) -> str:
+    def _token(self, timeout: float) -> str:
         """A valid IAM token. The SDK's token manager caches it and refreshes it near expiry, so ask on every call.
         Raises RuntimeApiConfigError when the key itself is the problem and RuntimeApiError (retryable) otherwise."""
         if self._authenticator is None:
@@ -49,9 +49,10 @@ class ServiceFunctionalRoleClient:
             except ValueError as exc:  # the SDK raises ValueError only from this constructor
                 logger.error("FUNCTIONS_OPERATOR_API_KEY was rejected by the IAM client: %s", type(exc).__name__)
                 raise RuntimeApiConfigError("FUNCTIONS_OPERATOR_API_KEY is malformed") from exc
-            # The token manager waits 60 s by default, far above the budget of one mirror call.
-            authenticator.token_manager.http_config = {"timeout": settings.WORKLOADS_MIRROR_TIMEOUT}
             self._authenticator = authenticator
+        # The token manager waits 60 s by default, far above the budget of one mirror call. The timeout is dynamic
+        # config, so set it on every call.
+        self._authenticator.token_manager.http_config = {"timeout": timeout}
         try:
             return self._authenticator.token_manager.get_token()
         except ApiException as exc:
@@ -79,14 +80,15 @@ class ServiceFunctionalRoleClient:
         base_url = regional_base_url(
             settings.RUNTIME_API_BASE_URL, body.get("crn"), settings.RUNTIME_API_DEFAULT_REGION
         )
-        token = self._token()
+        timeout = Config.get_int(ConfigKey.WORKLOADS_MIRROR_TIMEOUT_MS, default=3000) / 1000
+        token = self._token(timeout)
 
         try:
             response = requests.put(
                 f"{base_url}/api/v1/functions/{function_id}",
                 json=body,
                 headers={"Authorization": f"Bearer {token}"},
-                timeout=settings.WORKLOADS_MIRROR_TIMEOUT,
+                timeout=timeout,
             )
         except requests.RequestException as exc:
             logger.error("function_id=%s connection error: %s", function_id, exc)

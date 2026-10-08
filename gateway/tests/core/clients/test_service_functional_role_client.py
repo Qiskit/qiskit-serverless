@@ -19,10 +19,16 @@ PAYLOAD = {
 
 @pytest.fixture(name="flag")
 def flag_fixture(monkeypatch):
-    state = {"on": True}
+    state = {"on": True, "timeout_ms": 3000}
     monkeypatch.setattr(
         "core.models.Config.get_bool",
         classmethod(lambda cls, key: state["on"] if key == ConfigKey.WORKLOADS_MIRROR_ENABLED else False),
+    )
+    monkeypatch.setattr(
+        "core.models.Config.get_int",
+        classmethod(
+            lambda cls, key, default=0: state["timeout_ms"] if key == ConfigKey.WORKLOADS_MIRROR_TIMEOUT_MS else default
+        ),
     )
     return state
 
@@ -32,7 +38,6 @@ def settings_ready_fixture(settings):
     settings.FUNCTIONS_OPERATOR_API_KEY = "operator-key"
     settings.RUNTIME_API_BASE_URL = "https://quantum.test.cloud.ibm.com"
     settings.RUNTIME_API_DEFAULT_REGION = "us-east"
-    settings.WORKLOADS_MIRROR_TIMEOUT = 3
 
 
 @pytest.fixture(name="authenticator")
@@ -64,6 +69,17 @@ def test_the_iam_token_exchange_uses_the_mirror_timeout(flag, put, authenticator
     ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
     assert authenticator.return_value.token_manager.http_config == {"timeout": 3}
+
+
+def test_the_timeout_is_read_on_every_call(flag, put, authenticator):
+    client = ServiceFunctionalRoleClient()
+    client.put_function(PAYLOAD)
+
+    flag["timeout_ms"] = 7000
+    client.put_function(PAYLOAD)
+
+    assert authenticator.return_value.token_manager.http_config == {"timeout": 7}
+    assert put.call_args.kwargs["timeout"] == 7
 
 
 def test_flag_off_sends_nothing_and_does_not_need_the_key(flag, put, authenticator, settings):
