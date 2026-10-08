@@ -73,6 +73,8 @@ class KafkaProducers:
                 # returns, every message was either confirmed or failed, none is left pending. The outbox can then
                 # safely retry the failed ones itself on its next tick, instead of leaving the message queued here
                 # to be delivered minutes later, on top of the copy the outbox already produced again.
+                # It is also how long a best effort message (send with timeout=0) can stay queued before it is
+                # dropped, since nothing waits for it.
                 "message.timeout.ms": 4000,
             }
         )
