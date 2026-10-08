@@ -1,4 +1,8 @@
-"""Client that mirrors Functions jobs to the Runtime API as workloads, with ``PUT /functions/{function_id}``.
+"""Client for the calls to the Runtime API made with the service credential that holds the functions operator role.
+
+Today it sends the stored workload payload with ``PUT /functions/{function_id}``, which mirrors Functions jobs to the
+Runtime API as workloads while ``workloads.mirror.enabled`` is on. Other calls made with that same credential belong
+here too.
 
 The pieces shared with other Runtime API clients live elsewhere: the errors in ``runtime_api_errors.py`` and the
 regional host in ``core/domain/crn.py`` (``regional_base_url``).
@@ -19,13 +23,13 @@ from core.config_key import ConfigKey
 from core.domain.crn import regional_base_url
 from core.models import Config
 
-logger = logging.getLogger("gateway.clients.workload_mirror")
+logger = logging.getLogger("gateway.clients.service_functional_role")
 
 _RETRYABLE_CLIENT_ERRORS = {408, 429}
 _KEY_REJECTED = {400, 401, 403}
 
 
-class WorkloadMirrorClient:
+class ServiceFunctionalRoleClient:
     """Sends the envelope built by ``core.domain.workload_payload.build_workload_payload``.
 
     Create one instance per process and keep it: each instance has its own IAM token manager and cache, so building

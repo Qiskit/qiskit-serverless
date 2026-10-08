@@ -1,4 +1,4 @@
-"""Tests for WorkloadMirrorClient and WorkloadSender. requests and the IAM authenticator are mocked."""
+"""Tests for ServiceFunctionalRoleClient and WorkloadSender. requests and the IAM authenticator are mocked."""
 
 from unittest.mock import MagicMock, patch
 
@@ -7,7 +7,7 @@ import requests
 from ibm_cloud_sdk_core import ApiException
 
 from core.clients.runtime_api_errors import RuntimeApiConfigError, RuntimeApiError
-from core.clients.workload_mirror_client import WorkloadMirrorClient
+from core.clients.service_functional_role_client import ServiceFunctionalRoleClient
 from core.clients.workload_sender import WorkloadSender
 from core.config_key import ConfigKey
 
@@ -37,20 +37,20 @@ def settings_ready_fixture(settings):
 
 @pytest.fixture(name="authenticator")
 def authenticator_fixture():
-    with patch("core.clients.workload_mirror_client.IAMAuthenticator") as authenticator:
+    with patch("core.clients.service_functional_role_client.IAMAuthenticator") as authenticator:
         authenticator.return_value.token_manager.get_token.return_value = "iam-token"
         yield authenticator
 
 
 @pytest.fixture(name="put")
 def put_fixture(authenticator):  # pylint: disable=unused-argument
-    with patch("core.clients.workload_mirror_client.requests.put") as put:
+    with patch("core.clients.service_functional_role_client.requests.put") as put:
         put.return_value = MagicMock(status_code=200)
         yield put
 
 
 def test_sends_one_put_to_the_regional_host_with_a_bearer_token(flag, put):
-    WorkloadMirrorClient().put_function(PAYLOAD)
+    ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
     put.assert_called_once_with(
         "https://eu-de.quantum.test.cloud.ibm.com/api/v1/functions/job-1",
@@ -61,7 +61,7 @@ def test_sends_one_put_to_the_regional_host_with_a_bearer_token(flag, put):
 
 
 def test_the_iam_token_exchange_uses_the_mirror_timeout(flag, put, authenticator):
-    WorkloadMirrorClient().put_function(PAYLOAD)
+    ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
     assert authenticator.return_value.token_manager.http_config == {"timeout": 3}
 
@@ -70,7 +70,7 @@ def test_flag_off_sends_nothing_and_does_not_need_the_key(flag, put, authenticat
     flag["on"] = False
     settings.FUNCTIONS_OPERATOR_API_KEY = ""
 
-    WorkloadMirrorClient().put_function(PAYLOAD)
+    ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
     put.assert_not_called()
     authenticator.assert_not_called()
@@ -80,7 +80,7 @@ def test_flag_on_without_the_key_raises_a_config_error(flag, put, settings):
     settings.FUNCTIONS_OPERATOR_API_KEY = ""
 
     with pytest.raises(RuntimeApiConfigError) as error:
-        WorkloadMirrorClient().put_function(PAYLOAD)
+        ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
     assert error.value.retryable is False
     put.assert_not_called()
@@ -89,7 +89,7 @@ def test_flag_on_without_the_key_raises_a_config_error(flag, put, settings):
 def test_202_is_a_success(flag, put):
     put.return_value = MagicMock(status_code=202)
 
-    WorkloadMirrorClient().put_function(PAYLOAD)
+    ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
 
 @pytest.mark.parametrize("status_code, retryable", [(400, False), (404, False), (429, True), (500, True)])
@@ -97,7 +97,7 @@ def test_error_status_codes_say_whether_to_retry(flag, put, status_code, retryab
     put.return_value = MagicMock(status_code=status_code, text="bad field")
 
     with pytest.raises(RuntimeApiError) as error:
-        WorkloadMirrorClient().put_function(PAYLOAD)
+        ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
     assert (error.value.status_code, error.value.retryable) == (status_code, retryable)
 
@@ -106,7 +106,7 @@ def test_an_error_status_logs_the_start_of_the_response_body(flag, put, caplog):
     put.return_value = MagicMock(status_code=400, text="field size is invalid")
 
     with pytest.raises(RuntimeApiError):
-        WorkloadMirrorClient().put_function(PAYLOAD)
+        ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
     assert "field size is invalid" in caplog.text
 
@@ -115,7 +115,7 @@ def test_network_failures_are_retryable(flag, put):
     put.side_effect = requests.ConnectionError("boom")
 
     with pytest.raises(RuntimeApiError) as error:
-        WorkloadMirrorClient().put_function(PAYLOAD)
+        ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
     assert error.value.retryable is True
 
@@ -124,7 +124,7 @@ def test_iam_failures_are_retryable(flag, put, authenticator):
     authenticator.return_value.token_manager.get_token.side_effect = RuntimeError("iam down")
 
     with pytest.raises(RuntimeApiError) as error:
-        WorkloadMirrorClient().put_function(PAYLOAD)
+        ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
     assert error.value.retryable is True
     put.assert_not_called()
@@ -134,7 +134,7 @@ def test_an_iam_rejection_of_the_key_is_not_retryable(flag, put, authenticator):
     authenticator.return_value.token_manager.get_token.side_effect = ApiException(401, message="unauthorized")
 
     with pytest.raises(RuntimeApiConfigError) as error:
-        WorkloadMirrorClient().put_function(PAYLOAD)
+        ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
     assert error.value.retryable is False
     assert "operator-key" not in str(error.value)
@@ -145,7 +145,7 @@ def test_a_non_json_iam_response_is_retryable(flag, put, authenticator):
     authenticator.return_value.token_manager.get_token.side_effect = requests.exceptions.JSONDecodeError("bad", "", 0)
 
     with pytest.raises(RuntimeApiError) as error:
-        WorkloadMirrorClient().put_function(PAYLOAD)
+        ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
     assert error.value.retryable is True
     assert not isinstance(error.value, RuntimeApiConfigError)
@@ -155,7 +155,7 @@ def test_a_malformed_key_is_not_retryable(flag, put, authenticator):
     authenticator.side_effect = ValueError("bad key")
 
     with pytest.raises(RuntimeApiConfigError) as error:
-        WorkloadMirrorClient().put_function(PAYLOAD)
+        ServiceFunctionalRoleClient().put_function(PAYLOAD)
 
     assert error.value.retryable is False
     assert "operator-key" not in str(error.value)
