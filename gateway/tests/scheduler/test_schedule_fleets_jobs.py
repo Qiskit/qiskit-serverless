@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from core.models import Config, Job
-from core.services.runners import RunnerUnavailableError
+from core.services.runners import RunnerSubmitUncertainError, RunnerUnavailableError
 from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
 
 _MOD = "scheduler.tasks.schedule_fleets_jobs"
@@ -63,13 +63,14 @@ def test_add_queue_wait_time_metric_skips_filler_jobs():
     task.metrics.observe_queue_wait_time.assert_called_once()
 
 
-def test_an_unavailable_submit_ends_the_tick():
+@pytest.mark.parametrize("error", [RunnerUnavailableError("Too Many Requests"), RunnerSubmitUncertainError("Timeout")])
+def test_a_code_engine_failure_ends_the_tick(error):
     task = _make_task()
     jobs = [MagicMock(env_vars="{}"), MagicMock(env_vars="{}")]
 
     with (
         patch(f"{_MOD}.get_jobs_to_schedule_fair_share", return_value=jobs),
-        patch(f"{_MOD}.execute_fleets_job", side_effect=RunnerUnavailableError("Too Many Requests")) as mock_execute,
+        patch(f"{_MOD}.execute_fleets_job", side_effect=error) as mock_execute,
     ):
         task._schedule_jobs_if_slots_available(max_slots_possible=5, number_of_slots_running=0)
 

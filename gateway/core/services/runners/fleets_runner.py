@@ -168,13 +168,14 @@ class FleetsRunner(AbstractRunner):
             raise
         except ClientError as ex:
             code = ex.response.get("Error", {}).get("Code")
-            if ex.response.get("ResponseMetadata", {}).get("HTTPStatusCode", 0) >= 500 or code == "SlowDown":
+            status = ex.response.get("ResponseMetadata", {}).get("HTTPStatusCode", 0)
+            if status == 429 or status >= 500 or code in ("SlowDown", "RequestTimeout", "Throttling"):
                 raise RunnerUnavailableError(f"COS error: {code}", ex) from ex
             logger.error("COS error submitting job_id=[%s]: %s", self.job.id, ex)
             raise RunnerError(f"COS error: {code}", ex) from ex
         # before the urllib3 blocks: botocore's ReadTimeoutError is also a urllib3 ReadTimeoutError
         except (BotoConnectionError, BotoHTTPClientError) as ex:
-            raise RunnerUnavailableError(f"Unable to reach COS: {ex}", ex) from ex
+            raise RunnerUnavailableError("Unable to reach COS", ex) from ex
         except ApiException as ex:
             status = ex.status or 0
             if status in (0, 502, 504):
@@ -190,10 +191,10 @@ class FleetsRunner(AbstractRunner):
             raise RunnerError(f"Code Engine API error: {ex.reason}", ex) from ex
         except MaxRetryError as ex:
             if isinstance(ex.reason, ConnectTimeoutError):
-                raise RunnerUnavailableError(f"Unable to connect to Code Engine: {ex}", ex) from ex
-            raise RunnerSubmitUncertainError(f"Code Engine request failed: {ex}", ex) from ex
+                raise RunnerUnavailableError("Unable to connect to Code Engine", ex) from ex
+            raise RunnerSubmitUncertainError("Code Engine request failed", ex) from ex
         except (ReadTimeoutError, ProtocolError) as ex:
-            raise RunnerSubmitUncertainError(f"Code Engine request failed: {ex}", ex) from ex
+            raise RunnerSubmitUncertainError("Code Engine request failed", ex) from ex
         except Exception as ex:
             logger.error("Failed to submit job_id=[%s]: %s", self.job.id, ex)
             raise RunnerError(f"Failed to submit job_id=[{self.job.id}] to Code Engine Fleets", ex) from ex

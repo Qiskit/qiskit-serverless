@@ -25,7 +25,7 @@ from scheduler.tasks.circuit_breaker import CircuitBreaker
 User: Model = get_user_model()
 logger = logging.getLogger("scheduler.schedule")
 
-# One breaker for the whole Code Engine API: when it is down it is down for every operation
+# one breaker for every scheduler call to Code Engine
 CODE_ENGINE_BREAKER = CircuitBreaker(ConfigKey.FLEETS_BREAKER_FAILURES, ConfigKey.FLEETS_BREAKER_PAUSE_SECONDS)
 
 
@@ -87,11 +87,13 @@ def execute_fleets_job(
 
     Raises:
         RunnerUnavailableError: before any write, so the job stays QUEUED.
+        RunnerSubmitUncertainError: after the job is saved as FAILED, so the caller can stop submitting.
     """
     if code_engine_paused():
-        raise RunnerUnavailableError("Code Engine calls are paused by the circuit breaker")
+        raise RunnerUnavailableError("Fleets submits are paused by the circuit breaker")
     start = time.monotonic()
     tracer = trace.get_tracer("scheduler.tracer")
+    uncertain: RunnerSubmitUncertainError | None = None
     with tracer.start_as_current_span("scheduler.submit", context=ctx) as span:
 
         runner = get_runner(job)
@@ -107,9 +109,12 @@ def execute_fleets_job(
                 time.monotonic() - start,
             )
         except RunnerUnavailableError:
+            # NOTE: a job that is always unavailable, for example a CE project with a wrong region, stays QUEUED
+            # and can pause every submit. Follow-up: fail it after a time limit.
             CODE_ENGINE_BREAKER.record_failure()
             raise
         except RunnerSubmitUncertainError as ex:
+            uncertain = ex
             CODE_ENGINE_BREAKER.record_failure()
             logger.error("[execute_fleets_job] job_id=%s error=%s Job set as FAILED: the fleet may exist", job.id, ex)
             job.status = Job.FAILED
@@ -141,6 +146,8 @@ def execute_fleets_job(
             # written since the job is no longer in a state that transition applies to.
             logger.warning("[execute_fleets_job] job_id=%s already in a terminal status: %s", job.id, str(ex))
 
+    if uncertain:
+        raise uncertain
     return job
 
 

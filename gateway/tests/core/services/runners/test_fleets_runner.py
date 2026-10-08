@@ -484,6 +484,12 @@ def test_submit_raises_the_error_type_for_each_code_engine_status(status, expect
             RunnerUnavailableError,
         ),
         (
+            ClientError(
+                {"Error": {"Code": "RequestTimeout"}, "ResponseMetadata": {"HTTPStatusCode": 400}}, "PutObject"
+            ),
+            RunnerUnavailableError,
+        ),
+        (
             ClientError({"Error": {"Code": "AccessDenied"}, "ResponseMetadata": {"HTTPStatusCode": 403}}, "PutObject"),
             RunnerError,
         ),

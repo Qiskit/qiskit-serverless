@@ -272,10 +272,12 @@ class TestScheduleApi(APITestCase):
         Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "1")
         mock_get_runner_client.return_value.submit.side_effect = RunnerSubmitUncertainError("Gateway Timeout")
         transitions = MagicMock()
+        job = MagicMock()
 
-        ret_job = execute_fleets_job(MagicMock(), MagicMock(), transitions)
+        with pytest.raises(RunnerSubmitUncertainError):
+            execute_fleets_job(job, MagicMock(), transitions)
 
-        assert ret_job.status == Job.FAILED
+        assert job.status == Job.FAILED
         transitions.to_failed.assert_called_once()
         assert code_engine_paused() is True
 

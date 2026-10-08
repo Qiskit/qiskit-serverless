@@ -11,7 +11,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from core.config_key import ConfigKey
 from core.models import Job, Config, Program
 from core.services.job_transitions import JobTransitionService
-from core.services.runners import RunnerUnavailableError
+from core.services.runners import RunnerSubmitUncertainError, RunnerUnavailableError
 from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_fleets_job, code_engine_paused
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
@@ -36,7 +36,7 @@ class ScheduleFleetsJobs(SchedulerTask):
             logger.warning("System in maintenance mode. Skipping new jobs schedule.")
             return
         if code_engine_paused():
-            logger.warning("Code Engine calls are paused by the circuit breaker. Skipping new jobs schedule.")
+            logger.warning("Fleets submits are paused by the circuit breaker. Skipping new jobs schedule.")
             return
 
         self._schedule_fleets_jobs()
@@ -74,6 +74,8 @@ class ScheduleFleetsJobs(SchedulerTask):
                 job = execute_fleets_job(job, ctx, self.transitions)
             except RunnerUnavailableError as ex:
                 logger.warning("job_id=%s Job kept QUEUED: %s", job.id, ex)
+                return
+            except RunnerSubmitUncertainError:
                 return
 
             logger.warning("job_id=%s Job saved with status=%s", job.id, job.status)
